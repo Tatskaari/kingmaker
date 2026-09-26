@@ -14,11 +14,13 @@ import {
   RelationshipUpdateSchema,
   CharacterSchema,
   ScenarioSchema,
+  WorldMapSchema,
   TranscriptRole,
   type Scenario,
 } from "../packages/contracts/src/index.js";
 import { FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter } from "../packages/core/src/context.js";
 import { MemoryGame } from "../packages/core/src/game.js";
+import { palaceMap } from "../apps/web/src/palace-map.js";
 
 const fixturePath = new URL("../content/scenarios/last-night.json", import.meta.url);
 const load = (): Scenario => fromJsonString(ScenarioSchema, readFileSync(fixturePath, "utf8"));
@@ -34,6 +36,39 @@ test("the small authored scenario strictly parses and survives protobuf", () => 
   assert.ok(scenario.world?.actors.every(actor => !actor.awake && actor.roomId === actor.homeRoomId));
   assert.equal(scenario.world?.rooms.length, 8);
   assert.ok(scenario.world?.rooms.every(room => room.searchSpots.length === 0 || room.searchSpots.length >= 3));
+});
+
+test("the palace map is a complete layered tile grid", () => {
+  const decoded = fromBinary(WorldMapSchema, toBinary(WorldMapSchema, palaceMap));
+  assert.equal(decoded.tiles.length, decoded.width * decoded.height);
+  assert.equal(decoded.rooms.length, 8);
+  assert.ok(decoded.tiles.some(tile => tile.layers.length > 1));
+  assert.ok(decoded.tiles.flatMap(tile => tile.layers).some(layer => layer.solid && layer.bounds));
+
+  const solidTileIds = new Set(decoded.tiles.flatMap(tile => tile.layers)
+    .filter(layer => layer.solid)
+    .map(layer => layer.tileId));
+  assert.ok([2, 26].every(tileId => solidTileIds.has(tileId)), "horizontal wall sprites are used");
+  assert.ok([13, 15].every(tileId => solidTileIds.has(tileId)), "vertical wall sprites are used");
+
+  const passable = (x: number, y: number): boolean => {
+    const tile = decoded.tiles[y * decoded.width + x];
+    return Boolean(tile?.layers.length && tile.layers.every(layer => !layer.solid));
+  };
+  const start = decoded.rooms.find(room => room.id === "great_hall")!.regions[0]!;
+  const pending = [[start.x, start.y] as const];
+  const reached = new Set<string>();
+  while (pending.length) {
+    const [x, y] = pending.shift()!;
+    const key = `${x},${y}`;
+    if (reached.has(key) || !passable(x, y)) continue;
+    reached.add(key);
+    pending.push([x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]);
+  }
+  for (const room of decoded.rooms) {
+    const region = room.regions[0]!;
+    assert.ok(reached.has(`${region.x},${region.y}`), `${room.name} is reachable from the Great Hall`);
+  }
 });
 
 test("game master context frames an emissary interview without defining the player", () => {

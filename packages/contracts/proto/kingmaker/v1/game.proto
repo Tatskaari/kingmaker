@@ -4,6 +4,66 @@ package kingmaker.v1;
 
 import "google/protobuf/struct.proto";
 
+// Pixel coordinates are relative to the top-left corner of a map tile.
+message PixelBounds {
+  sint32 x = 1;
+  sint32 y = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+}
+
+message TileBounds {
+  uint32 x = 1;
+  uint32 y = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+}
+
+message Tileset {
+  string id = 1;
+  string image_path = 2;
+  uint32 tile_width = 3;
+  uint32 tile_height = 4;
+  uint32 columns = 5;
+  uint32 tile_count = 6;
+}
+
+// A tile owns an ordered stack of layers. Each layer draws one tileset sprite
+// into its bounds and carries the physical properties of that rendered part.
+message TileLayer {
+  string tileset_id = 1;
+  // Zero-based sprite index within the tileset.
+  uint32 tile_id = 2;
+  PixelBounds bounds = 3;
+  bool solid = 4;
+  bool interactable = 5;
+  google.protobuf.Struct properties = 6;
+}
+
+message Tile {
+  // Drawn in order, with the last layer on top.
+  repeated TileLayer layers = 1;
+}
+
+message MapRoom {
+  string id = 1;
+  string name = 2;
+  repeated TileBounds regions = 3;
+}
+
+message WorldMap {
+  string id = 1;
+  string name = 2;
+  uint32 width = 3;
+  uint32 height = 4;
+  uint32 tile_width = 5;
+  uint32 tile_height = 6;
+  repeated Tileset tilesets = 7;
+  // Row-major and exactly width * height entries long.
+  repeated Tile tiles = 8;
+  repeated MapRoom rooms = 9;
+}
+
 // Authored prose from this character's point of view. It may be unfair,
 // incomplete, or changed by later events.
 message Relationship {

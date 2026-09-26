@@ -84,6 +84,10 @@ Start the prototype with `proto run npm -- run dev`, then open
 tab-scoped session storage across reloads and is excluded from saves and debug
 output. Reloading reconnects the worker and opens the save picker. Use **Change
 OpenRouter key** to clear the remembered key.
+
+The standalone palace map prototype is available at
+`http://127.0.0.1:5173/palace.html`. It renders the layered map protobuf and can
+overlay room regions and solid layer bounds without starting a game.
 The first paid request occurs when the player clicks **Begin**. Vite hot-reloads
 the UI and game worker during development.
 

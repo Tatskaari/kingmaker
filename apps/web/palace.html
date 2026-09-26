@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Palace Map · Kingmaker</title>
+  <link rel="stylesheet" href="./palace.css">
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">Map prototype</p>
+        <h1>Palace of Caerwyn</h1>
+        <p>A canvas rendering of the palace map protobuf. Room and collision overlays are visual diagnostics.</p>
+      </div>
+      <a href="./">Return to Kingmaker</a>
+    </header>
+    <section class="toolbar" aria-label="Map display options">
+      <label><input type="checkbox" data-show-rooms checked> Room regions</label>
+      <label><input type="checkbox" data-show-solids> Solid bounds</label>
+      <output data-inspector>Move over the map to inspect a tile</output>
+    </section>
+    <div class="map-frame">
+      <canvas data-map aria-label="Map of the Palace of Caerwyn"></canvas>
+    </div>
+    <footer>Tiles: Tiny Dungeon by Kenney · CC0</footer>
+  </main>
+  <script type="module" src="./src/palace.ts"></script>
+</body>
+</html>
