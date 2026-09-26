@@ -19,6 +19,7 @@ import {
   ScenarioSchema,
   WorldMapSchema,
   TranscriptRole,
+  TilePositionSchema,
   type Scenario,
 } from "../packages/contracts/src/index.js";
 import { FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter, characterDecisionContext } from "../packages/core/src/context.js";
@@ -227,6 +228,9 @@ test("creating the emissary begins day one with the whole cast in the Great Hall
   assert.equal(scenario.world?.phase, GamePhase.CONVERSATIONS);
   assert.deepEqual(scenario.world?.actors.map(actor => actor.characterId).sort(), ["king", "lancelot", "merlin", "player"]);
   assert.ok(scenario.world?.actors.every(actor => actor.roomId === "great_hall" && actor.awake));
+  for (const actor of scenario.world!.actors) {
+    assert.deepEqual(actor.position, scenario.courtArrivalPlacements.find(placement => placement.characterId === actor.characterId)!.position);
+  }
   assert.ok(npcIds.every(id => scenario.characters.find(character => character.id === id)?.relationships.some(relationship => relationship.characterId === "player")));
   const arrivals = scenario.events.filter(event => event.type === "arrival");
   assert.equal(arrivals.length, 3);
@@ -1157,11 +1161,11 @@ test("unknown or self relationship targets fail clearly without losing the palac
 });
 
 test("main palace markers use saved rooms and separate characters on walkable tiles", () => {
-  const markers = courtMarkers(["merlin", "lancelot", "king", "player"].map(id => ({ id, name: id, roomId: "great_hall" })));
+  const markers = courtMarkers(load().courtArrivalPlacements.map(item => ({ id: item.characterId, name: item.characterId, roomId: item.roomId, position: item.position! })));
   assert.equal(new Set(markers.map(marker => pointKey(marker.point!))).size, 4);
   assert.ok(markers.every(marker => courtRoomAt(marker.point!)?.id === "great_hall"));
   assert.ok(markers.every(marker => courtPath(markers[0]!.point!, marker.point!)));
-  const merlin = courtMarkers([{ id: "merlin", name: "Merlin", roomId: "merlin_chamber" }])[0]!;
+  const merlin = courtMarkers([{ id: "merlin", name: "Merlin", roomId: "merlin_chamber", position: { x: 5, y: 5 } }])[0]!;
   assert.equal(courtRoomAt(merlin.point!)?.id, "merlin_chamber");
   assert.equal(courtMarkers([{ id: "king", name: "King", roomId: "old_chapel" }])[0]!.point, undefined);
 });
@@ -1170,13 +1174,13 @@ test("main palace movement validates routes and survives saving and restoring", 
   const scenario = load(); scenario.characters.push(createPalacePlayer()); scenario.playerCharacterId = "player";
   scenario.world!.phase = GamePhase.CONVERSATIONS;
   for (const actor of scenario.world!.actors) actor.roomId = "great_hall";
-  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true });
+  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 16, y: 22 }) });
   const runtime = new BrowserGameRuntime(scenario, "test");
   runtime.movePlayer({ x: 5, y: 5 });
-  assert.deepEqual(runtime.snapshot().palacePosition, { x: 5, y: 5 });
+  assert.deepEqual(fromJson(ScenarioSchema, runtime.snapshot().scenario).world!.actors.find(actor => actor.characterId === "player")!.position, create(TilePositionSchema, { x: 5, y: 5 }));
   assert.equal(runtime.view().location, "Merlin's Chamber");
   const restored = new BrowserGameRuntime(scenario, "test", structuredClone(runtime.snapshot()));
-  assert.deepEqual(restored.view().player && (restored.view().player as { position: unknown }).position, { x: 5, y: 5 });
+  assert.deepEqual(restored.view().player && (restored.view().player as { position: unknown }).position, create(TilePositionSchema, { x: 5, y: 5 }));
   const before = JSON.stringify(restored.snapshot());
   assert.throws(() => restored.movePlayer({ x: 0, y: 0 }), /not reachable/);
   assert.throws(() => restored.movePlayer({ x: 6, y: 4 }), /not reachable/);
@@ -1184,7 +1188,7 @@ test("main palace movement validates routes and survives saving and restoring", 
   assert.equal(JSON.stringify(restored.snapshot()), before);
   restored.movePlayer({ x: 15, y: 29 });
   assert.equal(restored.view().location, "Entrance Hall");
-  restored.reset(); assert.equal(restored.snapshot().palacePosition, undefined);
+  restored.reset(); assert.deepEqual(fromJson(ScenarioSchema, restored.snapshot().scenario).world!.actors.find(actor => actor.characterId === "player")!.position, create(TilePositionSchema, { x: 16, y: 22 }));
   assert.throws(() => new BrowserGameRuntime(load(), "test").movePlayer({ x: 5, y: 5 }), /Enter the court/);
 });
 
@@ -1202,4 +1206,20 @@ test("mid-walk redirection preserves the current visual position and rejects blo
   assert.deepEqual(again.at(-1), { x: 15, y: 21 });
   const stop = redirectCourtPath(original, 3, original[3]!)!;
   assert.equal(stop.length, 1);
+});
+
+
+test("authored actor coordinates round-trip and rendering never invents positions", () => {
+  const scenario = load();
+  const restored = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, scenario));
+  for (const actor of restored.world!.actors) {
+    assert.ok(actor.position);
+    assert.equal(courtRoomAt(actor.position)?.id, actor.roomId);
+    const marker = courtMarkers([{ id: actor.characterId, name: actor.characterId, roomId: actor.roomId, position: actor.position }])[0]!;
+    assert.deepEqual(marker.point, actor.position);
+  }
+  assert.equal(courtMarkers([{ id: "merlin", name: "Merlin", roomId: "great_hall" }])[0]!.point, undefined);
+  const customized = { x: 14, y: 21 };
+  assert.deepEqual(courtMarkers([{ id: "merlin", name: "Merlin", roomId: "great_hall", position: customized }])[0]!.point, customized);
+  assert.equal(courtMarkers([{ id: "merlin", name: "Merlin", roomId: "great_hall", position: { x: 5, y: 5 } }])[0]!.point, undefined);
 });

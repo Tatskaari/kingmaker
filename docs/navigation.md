@@ -167,7 +167,7 @@ chat/review request is pending.
 
 After character creation, the main game's day screen shows the shared palace map.
 Character sprites open the existing saved conversations; End the day remains below
-the map. Character placement comes from the saved actor room IDs. Rooms absent
+the map. Character placement comes directly from saved actor room IDs and tile positions. Rooms absent
 from this map retain an accessible named control below it rather than inventing
 a location. The prototype's coffer/key/loot state is not imported.
 
@@ -176,6 +176,20 @@ player marker interpolates along the route with the same elapsed-time timer loop
 as the prototype (the embedded browser can throttle animation frames). Arrival is
 validated and saved through the worker, including exact tile position and the
 player's narrative room. Failed saves restore the previous position. Leaving the
-screen cancels unfinished walks. Legacy saves derive a starting tile from their
-actor room. Passageways are currently open; door interactions and autonomous NPC
+screen cancels unfinished walks. Older saves without actor positions are not migrated; start a new game. Passageways are currently open; door interactions and autonomous NPC
 movement remain in the prototype.
+
+
+### Authored actor positions
+
+`WorldState.actors[].position` stores each actor's integer tile coordinates next to
+`roomId`. The player uses this same field; the separate `palacePosition` snapshot
+field has been removed. Scene rendering never chooses or relocates actor tiles.
+Missing, blocked or room-inconsistent positions are presented as named controls
+off the map rather than silently replaced.
+
+Edit `content/scenarios/last-night.json` to hand-place the cast. Initial bedroom
+positions live in `world.actors`; `courtArrivalPlacements` explicitly places
+Merlin at (12,20), the king at (16,18), Lancelot at (20,20), and the player at
+(16,22) when character creation ends. These placements are copied into actor state
+on arrival and retained through protobuf serialization and saved games.

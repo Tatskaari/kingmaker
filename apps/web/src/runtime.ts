@@ -1,4 +1,4 @@
-import { courtMarkers, courtPath, courtRoomAt } from "./court-map.js";
+import { courtPath, courtRoomAt } from "./court-map.js";
 import type { Point } from "./navigation.js";
 import { compulsionNarration, parseReplyOptions, type ReplyOptions } from "./reply-options.js";
 import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
@@ -6,7 +6,7 @@ import {
   CharacterSchema, ConversationMemorySchema, DialogueRequestSchema, EventSchema,
   EventVisibility, GameMasterRequestSchema, GamePhase,
   PlayerSetupSchema, RelationshipSchema, RelationshipUpdateSchema, ScenarioSchema,
-  TranscriptMessageSchema, TranscriptRole, WorldStateSchema,
+  TranscriptMessageSchema, TranscriptRole, WorldStateSchema, TilePositionSchema,
   type Scenario, type TranscriptMessage,
 } from "../../../packages/contracts/src/index.js";
 import { FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter } from "../../../packages/core/src/context.js";
@@ -27,7 +27,6 @@ export interface RuntimeSnapshot {
   conversationReplyOptions?: Record<string, string[]>;
   gameMasterHistory: OpenRouterMessage[];
   conversations: Record<string, JsonValue[]>;
-  palacePosition?: Point;
 }
 
 const gmTools: readonly OpenRouterTool[] = [
@@ -154,7 +153,6 @@ function text(value: unknown, field: string): string {
 export class BrowserGameRuntime {
   readonly #initialScenario: Scenario;
   #game: MemoryGame;
-  #palacePosition: Point | undefined;
   #client: OpenRouterClient;
   #gmHistory: OpenRouterMessage[] = [];
   #gmTrace: GameMasterTrace[] = [];
@@ -171,7 +169,6 @@ export class BrowserGameRuntime {
   }
 
   reset(): void {
-    this.#palacePosition = undefined;
     this.#game = new MemoryGame(this.#initialScenario);
     this.#gmHistory = [];
     this.#playerDraft = null;
@@ -182,7 +179,6 @@ export class BrowserGameRuntime {
   }
 
   restore(snapshot: RuntimeSnapshot): void {
-    this.#palacePosition = snapshot.palacePosition;
     this.#game = new MemoryGame(fromJson(ScenarioSchema, snapshot.scenario));
     this.#gmHistory = snapshot.gameMasterHistory || [];
     this.#playerDraft = snapshot.playerDraft || null;
@@ -196,7 +192,6 @@ export class BrowserGameRuntime {
 
   snapshot(): RuntimeSnapshot {
     return {
-      ...(this.#palacePosition ? { palacePosition: this.#palacePosition } : {}),
       scenario: toJson(ScenarioSchema, this.#game.scenario(), { alwaysEmitImplicit: true }),
       gameMasterHistory: this.#gmHistory,
       playerDraft: this.#playerDraft,
@@ -319,9 +314,7 @@ export class BrowserGameRuntime {
     const player = scenario.characters.find(character => character.id === scenario.playerCharacterId);
     const actor = world.actors.find(actor => actor.characterId === player?.id);
     if (!player || !actor) throw new Error("Player is missing from the palace.");
-    const start = this.#palacePosition ?? courtMarkers(scenario.characters.map(character => ({
-      id: character.id, name: character.name, roomId: world.actors.find(actor => actor.characterId === character.id)?.roomId ?? "",
-    }))).find(marker => marker.id === player.id)?.point;
+    const start = actor.position;
     if (!start || !courtPath(start, destination)) throw new Error("That destination is not reachable.");
     const room = courtRoomAt(destination);
     if (!room) throw new Error("That destination is outside the palace.");
@@ -333,7 +326,7 @@ export class BrowserGameRuntime {
       if (hall && !hall.exitRoomIds.includes(room.id)) hall.exitRoomIds.push(room.id);
     }
     actor.roomId = room.id; world.revision++;
-    this.#palacePosition = { x: destination.x, y: destination.y };
+    actor.position = create(TilePositionSchema, destination);
     this.#game = new MemoryGame(scenario);
   }
 
@@ -348,14 +341,14 @@ export class BrowserGameRuntime {
       location: world?.rooms.find(room => room.id === world.actors.find(actor => actor.characterId === player?.id)?.roomId)?.name || "Great Hall",
       premise: scenario.premise,
       player: player ? {
-        id: player.id, name: player.name, position: this.#palacePosition, roomId: world?.actors.find(actor => actor.characterId === player.id)?.roomId, lore: player.lore, currentGoal: player.currentGoal,
+        id: player.id, name: player.name, position: world?.actors.find(actor => actor.characterId === player.id)?.position, roomId: world?.actors.find(actor => actor.characterId === player.id)?.roomId, lore: player.lore, currentGoal: player.currentGoal,
         relationships: player.relationships.map(relationship => ({
           characterId: relationship.characterId,
           characterName: scenario.characters.find(character => character.id === relationship.characterId)?.name || relationship.characterId,
           description: relationship.description,
         })),
       } : null,
-      characters: scenario.characters.filter(character => character.id !== "player").map(character => ({ id: character.id, name: character.name, roomId: world?.actors.find(actor => actor.characterId === character.id)?.roomId })),
+      characters: scenario.characters.filter(character => character.id !== "player").map(character => ({ id: character.id, name: character.name, position: world?.actors.find(actor => actor.characterId === character.id)?.position, roomId: world?.actors.find(actor => actor.characterId === character.id)?.roomId })),
       gmReplyOptions: this.#gmReplyOptions,
       conversationReplyOptions: this.#conversationReplyOptions,
       gmMessages: this.#gmHistory.filter(message => (message.role === "user" || message.role === "assistant") && !message.tool_calls?.length && message.content).map(message => ({ role: message.role, text: message.content })),

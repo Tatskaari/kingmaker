@@ -117,11 +117,25 @@ message Room {
   repeated SearchSpot search_spots = 5;
 }
 
+// Integer tile coordinates on the palace map.
+message TilePosition {
+  uint32 x = 1;
+  uint32 y = 2;
+}
+
+// Authored placement for a scenario transition, such as entering court.
+message ActorPlacement {
+  string character_id = 1;
+  string room_id = 2;
+  TilePosition position = 3;
+}
+
 message ActorState {
   string character_id = 1;
   string home_room_id = 2;
   string room_id = 3;
   bool awake = 4;
+  TilePosition position = 5;
 }
 
 message ObjectState {
@@ -164,6 +178,7 @@ message Scenario {
   repeated Event events = 6;
   WorldState world = 7;
   optional string player_character_id = 8;
+  repeated ActorPlacement court_arrival_placements = 9;
 }
 
 enum TranscriptRole {

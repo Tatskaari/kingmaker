@@ -78,6 +78,13 @@ export class MemoryGame implements GameState {
       awake: true,
     }));
 
+    for (const actor of world.actors) {
+      const placement = this.#scenario.courtArrivalPlacements.find(item => item.characterId === actor.characterId);
+      // Crossing into the court invalidates the old bedroom tile.
+      actor.position = placement?.position ? { ...placement.position } : undefined;
+      if (placement) actor.roomId = placement.roomId;
+    }
+
     const identity = `${player.name}, ${setup.embassyRole} from ${setup.homeland}`;
     for (const npcId of NPC_IDS) {
       this.#scenario.events.push(create(EventSchema, {

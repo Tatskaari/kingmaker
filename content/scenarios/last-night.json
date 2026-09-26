@@ -79,6 +79,12 @@
       "visibility": "EVENT_VISIBILITY_PUBLIC"
     }
   ],
+  "courtArrivalPlacements": [
+    { "characterId": "merlin", "roomId": "great_hall", "position": { "x": 12, "y": 20 } },
+    { "characterId": "king", "roomId": "great_hall", "position": { "x": 16, "y": 18 } },
+    { "characterId": "lancelot", "roomId": "great_hall", "position": { "x": 20, "y": 20 } },
+    { "characterId": "player", "roomId": "great_hall", "position": { "x": 16, "y": 22 } }
+  ],
   "world": {
     "revision": 0,
     "day": 0,
@@ -175,9 +181,9 @@
       }
     ],
     "actors": [
-      { "characterId": "merlin", "homeRoomId": "merlin_chamber", "roomId": "merlin_chamber", "awake": false },
-      { "characterId": "lancelot", "homeRoomId": "lancelot_chamber", "roomId": "lancelot_chamber", "awake": false },
-      { "characterId": "king", "homeRoomId": "royal_bedchamber", "roomId": "royal_bedchamber", "awake": false }
+      { "characterId": "merlin", "homeRoomId": "merlin_chamber", "roomId": "merlin_chamber", "awake": false, "position": { "x": 5, "y": 5 } },
+      { "characterId": "lancelot", "homeRoomId": "lancelot_chamber", "roomId": "lancelot_chamber", "awake": false, "position": { "x": 26, "y": 5 } },
+      { "characterId": "king", "homeRoomId": "royal_bedchamber", "roomId": "royal_bedchamber", "awake": false, "position": { "x": 15, "y": 5 } }
     ],
     "objects": [
       { "id": "brass_key", "name": "Spare brass key", "locationId": "merlin_desk", "concealed": true, "properties": { "opens": "crown_box" } },

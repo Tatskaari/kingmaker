@@ -11,7 +11,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file kingmaker/v1/game.proto.
  */
 export const file_kingmaker_v1_game: GenFile = /*@__PURE__*/
-  fileDesc("ChdraW5nbWFrZXIvdjEvZ2FtZS5wcm90bxIMa2luZ21ha2VyLnYxIkIKC1BpeGVsQm91bmRzEgkKAXgYASABKBESCQoBeRgCIAEoERINCgV3aWR0aBgDIAEoDRIOCgZoZWlnaHQYBCABKA0iQQoKVGlsZUJvdW5kcxIJCgF4GAEgASgNEgkKAXkYAiABKA0SDQoFd2lkdGgYAyABKA0SDgoGaGVpZ2h0GAQgASgNIncKB1RpbGVzZXQSCgoCaWQYASABKAkSEgoKaW1hZ2VfcGF0aBgCIAEoCRISCgp0aWxlX3dpZHRoGAMgASgNEhMKC3RpbGVfaGVpZ2h0GAQgASgNEg8KB2NvbHVtbnMYBSABKA0SEgoKdGlsZV9jb3VudBgGIAEoDSKtAQoJVGlsZUxheWVyEhIKCnRpbGVzZXRfaWQYASABKAkSDwoHdGlsZV9pZBgCIAEoDRIpCgZib3VuZHMYAyABKAsyGS5raW5nbWFrZXIudjEuUGl4ZWxCb3VuZHMSDQoFc29saWQYBCABKAgSFAoMaW50ZXJhY3RhYmxlGAUgASgIEisKCnByb3BlcnRpZXMYBiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ii8KBFRpbGUSJwoGbGF5ZXJzGAEgAygLMhcua2luZ21ha2VyLnYxLlRpbGVMYXllciJOCgdNYXBSb29tEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSKQoHcmVnaW9ucxgDIAMoCzIYLmtpbmdtYWtlci52MS5UaWxlQm91bmRzIt4BCghXb3JsZE1hcBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEg0KBXdpZHRoGAMgASgNEg4KBmhlaWdodBgEIAEoDRISCgp0aWxlX3dpZHRoGAUgASgNEhMKC3RpbGVfaGVpZ2h0GAYgASgNEicKCHRpbGVzZXRzGAcgAygLMhUua2luZ21ha2VyLnYxLlRpbGVzZXQSIQoFdGlsZXMYCCADKAsyEi5raW5nbWFrZXIudjEuVGlsZRIkCgVyb29tcxgJIAMoCzIVLmtpbmdtYWtlci52MS5NYXBSb29tIjkKDFJlbGF0aW9uc2hpcBIUCgxjaGFyYWN0ZXJfaWQYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkifAoJQ2hhcmFjdGVyEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSDAoEbG9yZRgDIAEoCRIxCg1yZWxhdGlvbnNoaXBzGAQgAygLMhoua2luZ21ha2VyLnYxLlJlbGF0aW9uc2hpcBIUCgxjdXJyZW50X2dvYWwYBSABKAkiswEKBUV2ZW50EgoKAmlkGAEgASgJEgsKA2RheRgCIAEoDRIMCgR0eXBlGAMgASgJEg8KB3N1bW1hcnkYBCABKAkSFQoNY2hhcmFjdGVyX2lkcxgFIAMoCRIxCgp2aXNpYmlsaXR5GAYgASgOMh0ua2luZ21ha2VyLnYxLkV2ZW50VmlzaWJpbGl0eRIoCgdkZXRhaWxzGAcgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCLHAQoKU2VhcmNoU3BvdBIKCgJpZBgBIAEoCRIUCgxhY3Rpb25fbGFiZWwYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSGgoSY29udGVudF9vYmplY3RfaWRzGAQgAygJEh4KFmtub3duX2J5X2NoYXJhY3Rlcl9pZHMYBSADKAkSIwobZGlzY292ZXJlZF9ieV9jaGFyYWN0ZXJfaWRzGAYgAygJEiEKGXNlYXJjaGVkX2J5X2NoYXJhY3Rlcl9pZHMYByADKAkifAoEUm9vbRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhUKDWV4aXRfcm9vbV9pZHMYBCADKAkSLgoMc2VhcmNoX3Nwb3RzGAUgAygLMhgua2luZ21ha2VyLnYxLlNlYXJjaFNwb3QiWAoKQWN0b3JTdGF0ZRIUCgxjaGFyYWN0ZXJfaWQYASABKAkSFAoMaG9tZV9yb29tX2lkGAIgASgJEg8KB3Jvb21faWQYAyABKAkSDQoFYXdha2UYBCABKAgifAoLT2JqZWN0U3RhdGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtsb2NhdGlvbl9pZBgDIAEoCRIRCgljb25jZWFsZWQYBCABKAgSKwoKcHJvcGVydGllcxgFIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QiigIKCldvcmxkU3RhdGUSEAoIcmV2aXNpb24YASABKA0SCwoDZGF5GAIgASgNEhQKDHNvbHN0aWNlX2RheRgDIAEoDRIhCgVyb29tcxgEIAMoCzISLmtpbmdtYWtlci52MS5Sb29tEigKBmFjdG9ycxgFIAMoCzIYLmtpbmdtYWtlci52MS5BY3RvclN0YXRlEioKB29iamVjdHMYBiADKAsyGS5raW5nbWFrZXIudjEuT2JqZWN0U3RhdGUSJgoFZmFjdHMYByABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EiYKBXBoYXNlGAggASgOMhcua2luZ21ha2VyLnYxLkdhbWVQaGFzZSKPAgoIU2NlbmFyaW8SCgoCaWQYASABKAkSFQoNc3lzdGVtX3Byb21wdBgCIAEoCRIPCgdwcmVtaXNlGAMgASgJEhoKEmdhbWVfbWFzdGVyX3Byb21wdBgEIAEoCRIrCgpjaGFyYWN0ZXJzGAUgAygLMhcua2luZ21ha2VyLnYxLkNoYXJhY3RlchIjCgZldmVudHMYBiADKAsyEy5raW5nbWFrZXIudjEuRXZlbnQSJwoFd29ybGQYByABKAsyGC5raW5nbWFrZXIudjEuV29ybGRTdGF0ZRIgChNwbGF5ZXJfY2hhcmFjdGVyX2lkGAggASgJSACIAQFCFgoUX3BsYXllcl9jaGFyYWN0ZXJfaWQiYQoRVHJhbnNjcmlwdE1lc3NhZ2USKgoEcm9sZRgBIAEoDjIcLmtpbmdtYWtlci52MS5UcmFuc2NyaXB0Um9sZRISCgpzcGVha2VyX2lkGAIgASgJEgwKBHRleHQYAyABKAkihgEKD0RpYWxvZ3VlUmVxdWVzdBIUCgxjaGFyYWN0ZXJfaWQYASABKAkSKAoIc2NlbmFyaW8YAiABKAsyFi5raW5nbWFrZXIudjEuU2NlbmFyaW8SMwoKdHJhbnNjcmlwdBgDIAMoCzIfLmtpbmdtYWtlci52MS5UcmFuc2NyaXB0TWVzc2FnZSIqCgpHb2FsVXBkYXRlEgwKBGdvYWwYASABKAkSDgoGcmVhc29uGAIgASgJIqkBChBEaWFsb2d1ZVJlc3BvbnNlEhEKCXV0dGVyYW5jZRgBIAEoCRInCgpuZXdfZXZlbnRzGAIgAygLMhMua2luZ21ha2VyLnYxLkV2ZW50EjIKC2dvYWxfdXBkYXRlGAMgASgLMhgua2luZ21ha2VyLnYxLkdvYWxVcGRhdGVIAIgBARIVCg1yZXBseV9vcHRpb25zGAQgAygJQg4KDF9nb2FsX3VwZGF0ZSLQAQoSQ29udmVyc2F0aW9uTWVtb3J5EicKCm5ld19ldmVudHMYASADKAsyEy5raW5nbWFrZXIudjEuRXZlbnQSMgoLZ29hbF91cGRhdGUYAiABKAsyGC5raW5nbWFrZXIudjEuR29hbFVwZGF0ZUgAiAEBEjEKDXJlbGF0aW9uc2hpcHMYAyADKAsyGi5raW5nbWFrZXIudjEuUmVsYXRpb25zaGlwEhEKBGxvcmUYBCABKAlIAYgBAUIOCgxfZ29hbF91cGRhdGVCBwoFX2xvcmUiYgoSUmVsYXRpb25zaGlwVXBkYXRlEhoKEm93bmVyX2NoYXJhY3Rlcl9pZBgBIAEoCRIwCgxyZWxhdGlvbnNoaXAYAiABKAsyGi5raW5nbWFrZXIudjEuUmVsYXRpb25zaGlwIpsBCgtQbGF5ZXJTZXR1cBInCgZwbGF5ZXIYASABKAsyFy5raW5nbWFrZXIudjEuQ2hhcmFjdGVyEjsKEW5wY19yZWxhdGlvbnNoaXBzGAIgAygLMiAua2luZ21ha2VyLnYxLlJlbGF0aW9uc2hpcFVwZGF0ZRIQCghob21lbGFuZBgDIAEoCRIUCgxlbWJhc3N5X3JvbGUYBCABKAkicgoRR2FtZU1hc3RlclJlcXVlc3QSKAoIc2NlbmFyaW8YASABKAsyFi5raW5nbWFrZXIudjEuU2NlbmFyaW8SMwoKdHJhbnNjcmlwdBgCIAMoCzIfLmtpbmdtYWtlci52MS5UcmFuc2NyaXB0TWVzc2FnZSKXAQoSR2FtZU1hc3RlclJlc3BvbnNlEhEKCXV0dGVyYW5jZRgBIAEoCRI0CgxwbGF5ZXJfc2V0dXAYAiABKAsyGS5raW5nbWFrZXIudjEuUGxheWVyU2V0dXBIAIgBARInCgpuZXdfZXZlbnRzGAMgAygLMhMua2luZ21ha2VyLnYxLkV2ZW50Qg8KDV9wbGF5ZXJfc2V0dXAibQoPQXZhaWxhYmxlQWN0aW9uEgoKAmlkGAEgASgJEgwKBHR5cGUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSKwoKcGFyYW1ldGVycxgEIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QizAEKD0RlY2lzaW9uUmVxdWVzdBIqCgljaGFyYWN0ZXIYASABKAsyFy5raW5nbWFrZXIudjEuQ2hhcmFjdGVyEicKBXdvcmxkGAIgASgLMhgua2luZ21ha2VyLnYxLldvcmxkU3RhdGUSKgoNcmVjZW50X2V2ZW50cxgDIAMoCzITLmtpbmdtYWtlci52MS5FdmVudBI4ChFhdmFpbGFibGVfYWN0aW9ucxgEIAMoCzIdLmtpbmdtYWtlci52MS5BdmFpbGFibGVBY3Rpb24igQIKEERlY2lzaW9uUmVzcG9uc2USGAoQY2hvc2VuX2FjdGlvbl9pZBgBIAEoCRJICg1wcm9iYWJpbGl0aWVzGAIgAygLMjEua2luZ21ha2VyLnYxLkRlY2lzaW9uUmVzcG9uc2UuUHJvYmFiaWxpdGllc0VudHJ5EhcKCmNvbmZpZGVuY2UYAyABKAFIAIgBARIQCghtb2RlbF9pZBgEIAEoCRIZChFiYXNlZF9vbl9yZXZpc2lvbhgFIAEoDRo0ChJQcm9iYWJpbGl0aWVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgBOgI4AUINCgtfY29uZmlkZW5jZSJhCgxBY3Rpb25SZXN1bHQSEQoJYWN0aW9uX2lkGAEgASgJEhkKEWJhc2VkX29uX3JldmlzaW9uGAIgASgNEiMKBmV2ZW50cxgDIAMoCzITLmtpbmdtYWtlci52MS5FdmVudCpuCg9FdmVudFZpc2liaWxpdHkSIAocRVZFTlRfVklTSUJJTElUWV9VTlNQRUNJRklFRBAAEhsKF0VWRU5UX1ZJU0lCSUxJVFlfUFVCTElDEAESHAoYRVZFTlRfVklTSUJJTElUWV9QUklWQVRFEAIqtQEKCUdhbWVQaGFzZRIaChZHQU1FX1BIQVNFX1VOU1BFQ0lGSUVEEAASHgoaR0FNRV9QSEFTRV9QTEFZRVJfQ1JFQVRJT04QARIcChhHQU1FX1BIQVNFX0NPTlZFUlNBVElPTlMQAhIcChhHQU1FX1BIQVNFX05JR0hUX0FDVElPTlMQAxIXChNHQU1FX1BIQVNFX1NPTFNUSUNFEAQSFwoTR0FNRV9QSEFTRV9SRVNPTFZFRBAFKrIBCg5UcmFuc2NyaXB0Um9sZRIfChtUUkFOU0NSSVBUX1JPTEVfVU5TUEVDSUZJRUQQABIaChZUUkFOU0NSSVBUX1JPTEVfUExBWUVSEAESHQoZVFJBTlNDUklQVF9ST0xFX0NIQVJBQ1RFUhACEiMKH1RSQU5TQ1JJUFRfUk9MRV9PVEhFUl9DSEFSQUNURVIQAxIfChtUUkFOU0NSSVBUX1JPTEVfR0FNRV9NQVNURVIQBGIGcHJvdG8z", [file_google_protobuf_struct]);
+  fileDesc("ChdraW5nbWFrZXIvdjEvZ2FtZS5wcm90bxIMa2luZ21ha2VyLnYxIkIKC1BpeGVsQm91bmRzEgkKAXgYASABKBESCQoBeRgCIAEoERINCgV3aWR0aBgDIAEoDRIOCgZoZWlnaHQYBCABKA0iQQoKVGlsZUJvdW5kcxIJCgF4GAEgASgNEgkKAXkYAiABKA0SDQoFd2lkdGgYAyABKA0SDgoGaGVpZ2h0GAQgASgNIncKB1RpbGVzZXQSCgoCaWQYASABKAkSEgoKaW1hZ2VfcGF0aBgCIAEoCRISCgp0aWxlX3dpZHRoGAMgASgNEhMKC3RpbGVfaGVpZ2h0GAQgASgNEg8KB2NvbHVtbnMYBSABKA0SEgoKdGlsZV9jb3VudBgGIAEoDSKtAQoJVGlsZUxheWVyEhIKCnRpbGVzZXRfaWQYASABKAkSDwoHdGlsZV9pZBgCIAEoDRIpCgZib3VuZHMYAyABKAsyGS5raW5nbWFrZXIudjEuUGl4ZWxCb3VuZHMSDQoFc29saWQYBCABKAgSFAoMaW50ZXJhY3RhYmxlGAUgASgIEisKCnByb3BlcnRpZXMYBiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ii8KBFRpbGUSJwoGbGF5ZXJzGAEgAygLMhcua2luZ21ha2VyLnYxLlRpbGVMYXllciJOCgdNYXBSb29tEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSKQoHcmVnaW9ucxgDIAMoCzIYLmtpbmdtYWtlci52MS5UaWxlQm91bmRzIt4BCghXb3JsZE1hcBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEg0KBXdpZHRoGAMgASgNEg4KBmhlaWdodBgEIAEoDRISCgp0aWxlX3dpZHRoGAUgASgNEhMKC3RpbGVfaGVpZ2h0GAYgASgNEicKCHRpbGVzZXRzGAcgAygLMhUua2luZ21ha2VyLnYxLlRpbGVzZXQSIQoFdGlsZXMYCCADKAsyEi5raW5nbWFrZXIudjEuVGlsZRIkCgVyb29tcxgJIAMoCzIVLmtpbmdtYWtlci52MS5NYXBSb29tIjkKDFJlbGF0aW9uc2hpcBIUCgxjaGFyYWN0ZXJfaWQYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkifAoJQ2hhcmFjdGVyEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSDAoEbG9yZRgDIAEoCRIxCg1yZWxhdGlvbnNoaXBzGAQgAygLMhoua2luZ21ha2VyLnYxLlJlbGF0aW9uc2hpcBIUCgxjdXJyZW50X2dvYWwYBSABKAkiswEKBUV2ZW50EgoKAmlkGAEgASgJEgsKA2RheRgCIAEoDRIMCgR0eXBlGAMgASgJEg8KB3N1bW1hcnkYBCABKAkSFQoNY2hhcmFjdGVyX2lkcxgFIAMoCRIxCgp2aXNpYmlsaXR5GAYgASgOMh0ua2luZ21ha2VyLnYxLkV2ZW50VmlzaWJpbGl0eRIoCgdkZXRhaWxzGAcgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCLHAQoKU2VhcmNoU3BvdBIKCgJpZBgBIAEoCRIUCgxhY3Rpb25fbGFiZWwYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSGgoSY29udGVudF9vYmplY3RfaWRzGAQgAygJEh4KFmtub3duX2J5X2NoYXJhY3Rlcl9pZHMYBSADKAkSIwobZGlzY292ZXJlZF9ieV9jaGFyYWN0ZXJfaWRzGAYgAygJEiEKGXNlYXJjaGVkX2J5X2NoYXJhY3Rlcl9pZHMYByADKAkifAoEUm9vbRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhUKDWV4aXRfcm9vbV9pZHMYBCADKAkSLgoMc2VhcmNoX3Nwb3RzGAUgAygLMhgua2luZ21ha2VyLnYxLlNlYXJjaFNwb3QiJAoMVGlsZVBvc2l0aW9uEgkKAXgYASABKA0SCQoBeRgCIAEoDSJlCg5BY3RvclBsYWNlbWVudBIUCgxjaGFyYWN0ZXJfaWQYASABKAkSDwoHcm9vbV9pZBgCIAEoCRIsCghwb3NpdGlvbhgDIAEoCzIaLmtpbmdtYWtlci52MS5UaWxlUG9zaXRpb24ihgEKCkFjdG9yU3RhdGUSFAoMY2hhcmFjdGVyX2lkGAEgASgJEhQKDGhvbWVfcm9vbV9pZBgCIAEoCRIPCgdyb29tX2lkGAMgASgJEg0KBWF3YWtlGAQgASgIEiwKCHBvc2l0aW9uGAUgASgLMhoua2luZ21ha2VyLnYxLlRpbGVQb3NpdGlvbiJ8CgtPYmplY3RTdGF0ZRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2xvY2F0aW9uX2lkGAMgASgJEhEKCWNvbmNlYWxlZBgEIAEoCBIrCgpwcm9wZXJ0aWVzGAUgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCKKAgoKV29ybGRTdGF0ZRIQCghyZXZpc2lvbhgBIAEoDRILCgNkYXkYAiABKA0SFAoMc29sc3RpY2VfZGF5GAMgASgNEiEKBXJvb21zGAQgAygLMhIua2luZ21ha2VyLnYxLlJvb20SKAoGYWN0b3JzGAUgAygLMhgua2luZ21ha2VyLnYxLkFjdG9yU3RhdGUSKgoHb2JqZWN0cxgGIAMoCzIZLmtpbmdtYWtlci52MS5PYmplY3RTdGF0ZRImCgVmYWN0cxgHIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSJgoFcGhhc2UYCCABKA4yFy5raW5nbWFrZXIudjEuR2FtZVBoYXNlIs8CCghTY2VuYXJpbxIKCgJpZBgBIAEoCRIVCg1zeXN0ZW1fcHJvbXB0GAIgASgJEg8KB3ByZW1pc2UYAyABKAkSGgoSZ2FtZV9tYXN0ZXJfcHJvbXB0GAQgASgJEisKCmNoYXJhY3RlcnMYBSADKAsyFy5raW5nbWFrZXIudjEuQ2hhcmFjdGVyEiMKBmV2ZW50cxgGIAMoCzITLmtpbmdtYWtlci52MS5FdmVudBInCgV3b3JsZBgHIAEoCzIYLmtpbmdtYWtlci52MS5Xb3JsZFN0YXRlEiAKE3BsYXllcl9jaGFyYWN0ZXJfaWQYCCABKAlIAIgBARI+Chhjb3VydF9hcnJpdmFsX3BsYWNlbWVudHMYCSADKAsyHC5raW5nbWFrZXIudjEuQWN0b3JQbGFjZW1lbnRCFgoUX3BsYXllcl9jaGFyYWN0ZXJfaWQiYQoRVHJhbnNjcmlwdE1lc3NhZ2USKgoEcm9sZRgBIAEoDjIcLmtpbmdtYWtlci52MS5UcmFuc2NyaXB0Um9sZRISCgpzcGVha2VyX2lkGAIgASgJEgwKBHRleHQYAyABKAkihgEKD0RpYWxvZ3VlUmVxdWVzdBIUCgxjaGFyYWN0ZXJfaWQYASABKAkSKAoIc2NlbmFyaW8YAiABKAsyFi5raW5nbWFrZXIudjEuU2NlbmFyaW8SMwoKdHJhbnNjcmlwdBgDIAMoCzIfLmtpbmdtYWtlci52MS5UcmFuc2NyaXB0TWVzc2FnZSIqCgpHb2FsVXBkYXRlEgwKBGdvYWwYASABKAkSDgoGcmVhc29uGAIgASgJIqkBChBEaWFsb2d1ZVJlc3BvbnNlEhEKCXV0dGVyYW5jZRgBIAEoCRInCgpuZXdfZXZlbnRzGAIgAygLMhMua2luZ21ha2VyLnYxLkV2ZW50EjIKC2dvYWxfdXBkYXRlGAMgASgLMhgua2luZ21ha2VyLnYxLkdvYWxVcGRhdGVIAIgBARIVCg1yZXBseV9vcHRpb25zGAQgAygJQg4KDF9nb2FsX3VwZGF0ZSLQAQoSQ29udmVyc2F0aW9uTWVtb3J5EicKCm5ld19ldmVudHMYASADKAsyEy5raW5nbWFrZXIudjEuRXZlbnQSMgoLZ29hbF91cGRhdGUYAiABKAsyGC5raW5nbWFrZXIudjEuR29hbFVwZGF0ZUgAiAEBEjEKDXJlbGF0aW9uc2hpcHMYAyADKAsyGi5raW5nbWFrZXIudjEuUmVsYXRpb25zaGlwEhEKBGxvcmUYBCABKAlIAYgBAUIOCgxfZ29hbF91cGRhdGVCBwoFX2xvcmUiYgoSUmVsYXRpb25zaGlwVXBkYXRlEhoKEm93bmVyX2NoYXJhY3Rlcl9pZBgBIAEoCRIwCgxyZWxhdGlvbnNoaXAYAiABKAsyGi5raW5nbWFrZXIudjEuUmVsYXRpb25zaGlwIpsBCgtQbGF5ZXJTZXR1cBInCgZwbGF5ZXIYASABKAsyFy5raW5nbWFrZXIudjEuQ2hhcmFjdGVyEjsKEW5wY19yZWxhdGlvbnNoaXBzGAIgAygLMiAua2luZ21ha2VyLnYxLlJlbGF0aW9uc2hpcFVwZGF0ZRIQCghob21lbGFuZBgDIAEoCRIUCgxlbWJhc3N5X3JvbGUYBCABKAkicgoRR2FtZU1hc3RlclJlcXVlc3QSKAoIc2NlbmFyaW8YASABKAsyFi5raW5nbWFrZXIudjEuU2NlbmFyaW8SMwoKdHJhbnNjcmlwdBgCIAMoCzIfLmtpbmdtYWtlci52MS5UcmFuc2NyaXB0TWVzc2FnZSKXAQoSR2FtZU1hc3RlclJlc3BvbnNlEhEKCXV0dGVyYW5jZRgBIAEoCRI0CgxwbGF5ZXJfc2V0dXAYAiABKAsyGS5raW5nbWFrZXIudjEuUGxheWVyU2V0dXBIAIgBARInCgpuZXdfZXZlbnRzGAMgAygLMhMua2luZ21ha2VyLnYxLkV2ZW50Qg8KDV9wbGF5ZXJfc2V0dXAibQoPQXZhaWxhYmxlQWN0aW9uEgoKAmlkGAEgASgJEgwKBHR5cGUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSKwoKcGFyYW1ldGVycxgEIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QizAEKD0RlY2lzaW9uUmVxdWVzdBIqCgljaGFyYWN0ZXIYASABKAsyFy5raW5nbWFrZXIudjEuQ2hhcmFjdGVyEicKBXdvcmxkGAIgASgLMhgua2luZ21ha2VyLnYxLldvcmxkU3RhdGUSKgoNcmVjZW50X2V2ZW50cxgDIAMoCzITLmtpbmdtYWtlci52MS5FdmVudBI4ChFhdmFpbGFibGVfYWN0aW9ucxgEIAMoCzIdLmtpbmdtYWtlci52MS5BdmFpbGFibGVBY3Rpb24igQIKEERlY2lzaW9uUmVzcG9uc2USGAoQY2hvc2VuX2FjdGlvbl9pZBgBIAEoCRJICg1wcm9iYWJpbGl0aWVzGAIgAygLMjEua2luZ21ha2VyLnYxLkRlY2lzaW9uUmVzcG9uc2UuUHJvYmFiaWxpdGllc0VudHJ5EhcKCmNvbmZpZGVuY2UYAyABKAFIAIgBARIQCghtb2RlbF9pZBgEIAEoCRIZChFiYXNlZF9vbl9yZXZpc2lvbhgFIAEoDRo0ChJQcm9iYWJpbGl0aWVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgBOgI4AUINCgtfY29uZmlkZW5jZSJhCgxBY3Rpb25SZXN1bHQSEQoJYWN0aW9uX2lkGAEgASgJEhkKEWJhc2VkX29uX3JldmlzaW9uGAIgASgNEiMKBmV2ZW50cxgDIAMoCzITLmtpbmdtYWtlci52MS5FdmVudCpuCg9FdmVudFZpc2liaWxpdHkSIAocRVZFTlRfVklTSUJJTElUWV9VTlNQRUNJRklFRBAAEhsKF0VWRU5UX1ZJU0lCSUxJVFlfUFVCTElDEAESHAoYRVZFTlRfVklTSUJJTElUWV9QUklWQVRFEAIqtQEKCUdhbWVQaGFzZRIaChZHQU1FX1BIQVNFX1VOU1BFQ0lGSUVEEAASHgoaR0FNRV9QSEFTRV9QTEFZRVJfQ1JFQVRJT04QARIcChhHQU1FX1BIQVNFX0NPTlZFUlNBVElPTlMQAhIcChhHQU1FX1BIQVNFX05JR0hUX0FDVElPTlMQAxIXChNHQU1FX1BIQVNFX1NPTFNUSUNFEAQSFwoTR0FNRV9QSEFTRV9SRVNPTFZFRBAFKrIBCg5UcmFuc2NyaXB0Um9sZRIfChtUUkFOU0NSSVBUX1JPTEVfVU5TUEVDSUZJRUQQABIaChZUUkFOU0NSSVBUX1JPTEVfUExBWUVSEAESHQoZVFJBTlNDUklQVF9ST0xFX0NIQVJBQ1RFUhACEiMKH1RSQU5TQ1JJUFRfUk9MRV9PVEhFUl9DSEFSQUNURVIQAxIfChtUUkFOU0NSSVBUX1JPTEVfR0FNRV9NQVNURVIQBGIGcHJvdG8z", [file_google_protobuf_struct]);
 
 /**
  * Pixel coordinates are relative to the top-left corner of a map tile.
@@ -473,6 +473,59 @@ export const RoomSchema: GenMessage<Room> = /*@__PURE__*/
   messageDesc(file_kingmaker_v1_game, 11);
 
 /**
+ * Integer tile coordinates on the palace map.
+ *
+ * @generated from message kingmaker.v1.TilePosition
+ */
+export type TilePosition = Message<"kingmaker.v1.TilePosition"> & {
+  /**
+   * @generated from field: uint32 x = 1;
+   */
+  x: number;
+
+  /**
+   * @generated from field: uint32 y = 2;
+   */
+  y: number;
+};
+
+/**
+ * Describes the message kingmaker.v1.TilePosition.
+ * Use `create(TilePositionSchema)` to create a new message.
+ */
+export const TilePositionSchema: GenMessage<TilePosition> = /*@__PURE__*/
+  messageDesc(file_kingmaker_v1_game, 12);
+
+/**
+ * Authored placement for a scenario transition, such as entering court.
+ *
+ * @generated from message kingmaker.v1.ActorPlacement
+ */
+export type ActorPlacement = Message<"kingmaker.v1.ActorPlacement"> & {
+  /**
+   * @generated from field: string character_id = 1;
+   */
+  characterId: string;
+
+  /**
+   * @generated from field: string room_id = 2;
+   */
+  roomId: string;
+
+  /**
+   * @generated from field: kingmaker.v1.TilePosition position = 3;
+   */
+  position?: TilePosition | undefined;
+};
+
+/**
+ * Describes the message kingmaker.v1.ActorPlacement.
+ * Use `create(ActorPlacementSchema)` to create a new message.
+ */
+export const ActorPlacementSchema: GenMessage<ActorPlacement> = /*@__PURE__*/
+  messageDesc(file_kingmaker_v1_game, 13);
+
+/**
  * @generated from message kingmaker.v1.ActorState
  */
 export type ActorState = Message<"kingmaker.v1.ActorState"> & {
@@ -495,6 +548,11 @@ export type ActorState = Message<"kingmaker.v1.ActorState"> & {
    * @generated from field: bool awake = 4;
    */
   awake: boolean;
+
+  /**
+   * @generated from field: kingmaker.v1.TilePosition position = 5;
+   */
+  position?: TilePosition | undefined;
 };
 
 /**
@@ -502,7 +560,7 @@ export type ActorState = Message<"kingmaker.v1.ActorState"> & {
  * Use `create(ActorStateSchema)` to create a new message.
  */
 export const ActorStateSchema: GenMessage<ActorState> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 12);
+  messageDesc(file_kingmaker_v1_game, 14);
 
 /**
  * @generated from message kingmaker.v1.ObjectState
@@ -539,7 +597,7 @@ export type ObjectState = Message<"kingmaker.v1.ObjectState"> & {
  * Use `create(ObjectStateSchema)` to create a new message.
  */
 export const ObjectStateSchema: GenMessage<ObjectState> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 13);
+  messageDesc(file_kingmaker_v1_game, 15);
 
 /**
  * The authoritative state contains every room, spot and object. Before model
@@ -595,7 +653,7 @@ export type WorldState = Message<"kingmaker.v1.WorldState"> & {
  * Use `create(WorldStateSchema)` to create a new message.
  */
 export const WorldStateSchema: GenMessage<WorldState> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 14);
+  messageDesc(file_kingmaker_v1_game, 16);
 
 /**
  * @generated from message kingmaker.v1.Scenario
@@ -640,6 +698,11 @@ export type Scenario = Message<"kingmaker.v1.Scenario"> & {
    * @generated from field: optional string player_character_id = 8;
    */
   playerCharacterId?: string | undefined;
+
+  /**
+   * @generated from field: repeated kingmaker.v1.ActorPlacement court_arrival_placements = 9;
+   */
+  courtArrivalPlacements: ActorPlacement[];
 };
 
 /**
@@ -647,7 +710,7 @@ export type Scenario = Message<"kingmaker.v1.Scenario"> & {
  * Use `create(ScenarioSchema)` to create a new message.
  */
 export const ScenarioSchema: GenMessage<Scenario> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 15);
+  messageDesc(file_kingmaker_v1_game, 17);
 
 /**
  * @generated from message kingmaker.v1.TranscriptMessage
@@ -674,7 +737,7 @@ export type TranscriptMessage = Message<"kingmaker.v1.TranscriptMessage"> & {
  * Use `create(TranscriptMessageSchema)` to create a new message.
  */
 export const TranscriptMessageSchema: GenMessage<TranscriptMessage> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 16);
+  messageDesc(file_kingmaker_v1_game, 18);
 
 /**
  * @generated from message kingmaker.v1.DialogueRequest
@@ -701,7 +764,7 @@ export type DialogueRequest = Message<"kingmaker.v1.DialogueRequest"> & {
  * Use `create(DialogueRequestSchema)` to create a new message.
  */
 export const DialogueRequestSchema: GenMessage<DialogueRequest> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 17);
+  messageDesc(file_kingmaker_v1_game, 19);
 
 /**
  * @generated from message kingmaker.v1.GoalUpdate
@@ -723,7 +786,7 @@ export type GoalUpdate = Message<"kingmaker.v1.GoalUpdate"> & {
  * Use `create(GoalUpdateSchema)` to create a new message.
  */
 export const GoalUpdateSchema: GenMessage<GoalUpdate> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 18);
+  messageDesc(file_kingmaker_v1_game, 20);
 
 /**
  * @generated from message kingmaker.v1.DialogueResponse
@@ -757,7 +820,7 @@ export type DialogueResponse = Message<"kingmaker.v1.DialogueResponse"> & {
  * Use `create(DialogueResponseSchema)` to create a new message.
  */
 export const DialogueResponseSchema: GenMessage<DialogueResponse> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 19);
+  messageDesc(file_kingmaker_v1_game, 21);
 
 /**
  * Durable NPC memory extracted once from a completed conversation.
@@ -791,7 +854,7 @@ export type ConversationMemory = Message<"kingmaker.v1.ConversationMemory"> & {
  * Use `create(ConversationMemorySchema)` to create a new message.
  */
 export const ConversationMemorySchema: GenMessage<ConversationMemory> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 20);
+  messageDesc(file_kingmaker_v1_game, 22);
 
 /**
  * @generated from message kingmaker.v1.RelationshipUpdate
@@ -813,7 +876,7 @@ export type RelationshipUpdate = Message<"kingmaker.v1.RelationshipUpdate"> & {
  * Use `create(RelationshipUpdateSchema)` to create a new message.
  */
 export const RelationshipUpdateSchema: GenMessage<RelationshipUpdate> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 21);
+  messageDesc(file_kingmaker_v1_game, 23);
 
 /**
  * Once the interview has enough material, the game master creates the player
@@ -848,7 +911,7 @@ export type PlayerSetup = Message<"kingmaker.v1.PlayerSetup"> & {
  * Use `create(PlayerSetupSchema)` to create a new message.
  */
 export const PlayerSetupSchema: GenMessage<PlayerSetup> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 22);
+  messageDesc(file_kingmaker_v1_game, 24);
 
 /**
  * @generated from message kingmaker.v1.GameMasterRequest
@@ -870,7 +933,7 @@ export type GameMasterRequest = Message<"kingmaker.v1.GameMasterRequest"> & {
  * Use `create(GameMasterRequestSchema)` to create a new message.
  */
 export const GameMasterRequestSchema: GenMessage<GameMasterRequest> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 23);
+  messageDesc(file_kingmaker_v1_game, 25);
 
 /**
  * @generated from message kingmaker.v1.GameMasterResponse
@@ -897,7 +960,7 @@ export type GameMasterResponse = Message<"kingmaker.v1.GameMasterResponse"> & {
  * Use `create(GameMasterResponseSchema)` to create a new message.
  */
 export const GameMasterResponseSchema: GenMessage<GameMasterResponse> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 24);
+  messageDesc(file_kingmaker_v1_game, 26);
 
 /**
  * The engine creates bound, currently legal candidates. Jev chooses an ID and
@@ -932,7 +995,7 @@ export type AvailableAction = Message<"kingmaker.v1.AvailableAction"> & {
  * Use `create(AvailableActionSchema)` to create a new message.
  */
 export const AvailableActionSchema: GenMessage<AvailableAction> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 25);
+  messageDesc(file_kingmaker_v1_game, 27);
 
 /**
  * @generated from message kingmaker.v1.DecisionRequest
@@ -966,7 +1029,7 @@ export type DecisionRequest = Message<"kingmaker.v1.DecisionRequest"> & {
  * Use `create(DecisionRequestSchema)` to create a new message.
  */
 export const DecisionRequestSchema: GenMessage<DecisionRequest> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 26);
+  messageDesc(file_kingmaker_v1_game, 28);
 
 /**
  * @generated from message kingmaker.v1.DecisionResponse
@@ -1003,7 +1066,7 @@ export type DecisionResponse = Message<"kingmaker.v1.DecisionResponse"> & {
  * Use `create(DecisionResponseSchema)` to create a new message.
  */
 export const DecisionResponseSchema: GenMessage<DecisionResponse> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 27);
+  messageDesc(file_kingmaker_v1_game, 29);
 
 /**
  * @generated from message kingmaker.v1.ActionResult
@@ -1030,7 +1093,7 @@ export type ActionResult = Message<"kingmaker.v1.ActionResult"> & {
  * Use `create(ActionResultSchema)` to create a new message.
  */
 export const ActionResultSchema: GenMessage<ActionResult> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 28);
+  messageDesc(file_kingmaker_v1_game, 30);
 
 /**
  * @generated from enum kingmaker.v1.EventVisibility

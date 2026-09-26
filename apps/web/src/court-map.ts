@@ -11,31 +11,13 @@ const scenery = createFurniture().furniture.filter(item => item.kind !== "lockbo
 export const courtBlockers = new Set(scenery.map(pointKey));
 
 export function courtMarkers(characters: readonly CourtCharacter[]): CourtMarker[] {
-  const occupied: Point[] = [];
   return characters.map(character => {
     const room = palaceMap.rooms.find(room => room.id === character.roomId);
     const sprite = character.id === "merlin" ? 84 : character.id === "lancelot" ? 96 : character.id === "king" ? 85 : 98;
-    if (!room) return { ...character, roomName: character.roomId || "Location unknown", sprite };
-    if (character.position && canWalk(palaceMap, character.position, courtBlockers)) {
-      occupied.push(character.position);
-      return { ...character, roomName: room.name, sprite, point: character.position };
-    }
-    const candidates: Point[] = [];
-    for (const region of room.regions) for (let y = region.y + 1; y < region.y + region.height - 1; y++) {
-      for (let x = region.x + 1; x < region.x + region.width - 1; x++) {
-        if (canWalk(palaceMap, { x, y }, courtBlockers)) candidates.push({ x, y });
-      }
-    }
-    const primary = room.regions[0]!;
-    const center = { x: primary.x + (primary.width - 1) / 2, y: primary.y + (primary.height - 1) / 2 };
-    candidates.sort((a, b) => Math.abs(a.x - center.x) + Math.abs(a.y - center.y) - Math.abs(b.x - center.x) - Math.abs(b.y - center.y));
-    const distance = (a: Point, b: Point) => Math.hypot(a.x - b.x, a.y - b.y);
-    const hallSpots: Record<string, Point> = { merlin: { x: 12, y: 20 }, king: { x: 16, y: 18 }, lancelot: { x: 20, y: 20 }, player: { x: 16, y: 22 } };
-    const preferred = room.id === "great_hall" ? hallSpots[character.id] : undefined;
-    const point = (preferred && canWalk(palaceMap, preferred, courtBlockers) ? preferred : undefined) ?? candidates.find(candidate => occupied.every(other => distance(candidate, other) >= 4))
-      ?? candidates.find(candidate => occupied.every(other => distance(candidate, other) >= 1));
-    if (point) occupied.push(point);
-    return { ...character, roomName: room.name, sprite, ...(point ? { point } : {}) };
+    const point = character.position;
+    const valid = point && canWalk(palaceMap, point, courtBlockers) && courtRoomAt(point)?.id === room?.id;
+    return { ...character, roomName: room?.name ?? character.roomId ?? "Location unknown", sprite,
+      ...(valid ? { point } : {}) };
   });
 }
 
