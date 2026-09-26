@@ -176,9 +176,9 @@ import { OpenRouterClient, type OpenRouterMessage } from "../packages/providers/
 import { compulsionNarration, parseReplyOptions } from "../apps/web/src/reply-options.js";
 
 const offer = (compelled: boolean, options = ["I want to protect my family.", "I intend to earn a place at court."]): OpenRouterMessage => ({
-  role: "assistant", content: null,
+  role: "assistant", content: "What do you want from this journey?",
   tool_calls: [{ id: "offer-1", type: "function", function: {
-    name: "offer_replies", arguments: JSON.stringify({ question: "What do you want from this journey?", options, compelled }),
+    name: "offer_replies", arguments: JSON.stringify({ options, compelled }),
   } }],
 });
 
@@ -285,4 +285,18 @@ test("GM tool-call prose and suggested question render as one complete reply", a
     const restored = new BrowserGameRuntime(load(), "test", structuredClone(runtime.snapshot()));
     assert.deepEqual(restored.view().gmMessages, messages);
   }
+});
+
+
+test("options-only tool calls wait for spoken dialogue rather than supplying a question", async t => {
+  const toolReply = offer(true);
+  toolReply.content = null;
+  const replies: OpenRouterMessage[] = [toolReply, { role: "assistant", content: "What did you leave behind?" }];
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => replies.shift()!);
+  const runtime = new BrowserGameRuntime(load(), "test");
+  const reply = await runtime.talkToGameMaster("I cannot say.");
+  assert.equal(reply, `${compulsionNarration}\n\nWhat did you leave behind?`);
+  const messages = runtime.view().gmMessages as Array<{ role: string; text: string }>;
+  assert.deepEqual(messages.filter(message => message.role === "assistant"), [{ role: "assistant", text: reply }]);
+  assert.deepEqual(Object.keys(JSON.parse(toolReply.tool_calls![0]!.function.arguments)).sort(), ["compelled", "options"]);
 });
