@@ -24,7 +24,7 @@
     {
       "id": "lancelot",
       "name": "Lancelot",
-      "lore": "The king's foremost knight: direct, proud, and accustomed to camaraderie through teasing. Lancelot knows the crown lockbox is concealed beneath a loose stone at the old chapel altar. He wants a peaceful succession, but will not help crown an unspecified or obviously dangerous successor.",
+      "lore": "The king's foremost knight: direct, proud, and accustomed to camaraderie through teasing. Lancelot knows the crown lockbox is concealed in the bedside chest in the Royal Bedchamber. He wants a peaceful succession, but will not help crown an unspecified or obviously dangerous successor.",
       "relationships": [
         {
           "characterId": "merlin",
@@ -98,7 +98,7 @@
         "id": "great_hall",
         "name": "Great Hall",
         "description": "A cavernous ceremonial hall, deserted after the embassy feast.",
-        "exitRoomIds": ["north_corridor", "guest_chamber", "old_chapel", "treasury"],
+        "exitRoomIds": ["north_corridor", "guest_chamber", "entrance_hall", "treasury"],
         "searchSpots": [
           { "id": "hall_dais", "actionLabel": "Look beneath the royal dais", "description": "The raised platform beneath the throne." },
           { "id": "hall_tapestries", "actionLabel": "Search behind the battle tapestries", "description": "Heavy hangings cover much of the stonework." },
@@ -162,21 +162,15 @@
         "searchSpots": [
           { "id": "royal_bed", "actionLabel": "Search beneath the royal bed", "description": "A vast carved bed dominates the chamber." },
           { "id": "royal_wardrobe", "actionLabel": "Open the royal wardrobe", "description": "Formal robes fill a cedar wardrobe." },
-          { "id": "royal_bedside_chest", "actionLabel": "Open the bedside chest", "description": "A small locked chest stands within arm's reach." },
+          { "id": "royal_bedside_chest", "actionLabel": "Open the bedside chest", "description": "A small locked chest stands within arm's reach.", "contentObjectIds": ["crown_box"], "knownByCharacterIds": ["lancelot"] },
           { "id": "royal_fireplace", "actionLabel": "Inspect the fireplace", "description": "The dying fire gives the room a ruddy glow." }
         ]
       },
       {
-        "id": "old_chapel",
-        "name": "Old Chapel",
-        "description": "An unused royal chapel whose saints have watched generations of coronations.",
-        "exitRoomIds": ["great_hall"],
-        "searchSpots": [
-          { "id": "chapel_altar", "actionLabel": "Test the stones beneath the altar", "description": "The old altar rests on uneven flagstones.", "contentObjectIds": ["crown_box"], "knownByCharacterIds": ["lancelot"] },
-          { "id": "chapel_pews", "actionLabel": "Search beneath the pews", "description": "Dust and old prayer books gather below the pews." },
-          { "id": "chapel_statue", "actionLabel": "Inspect the hollow saint", "description": "A cracked wooden statue sounds hollow when touched." },
-          { "id": "chapel_font", "actionLabel": "Examine the dry font", "description": "The stone font has been dry for years." }
-        ]
+        "id": "entrance_hall",
+        "name": "Entrance Hall",
+        "description": "The palace entrance opens into a broad hall leading to the Great Hall.",
+        "exitRoomIds": ["great_hall"]
       },
       {
         "id": "treasury",
@@ -599,7 +593,7 @@
       {"id":"palace_ribbon","name":"Blue ribbon","locationId":"palace_coffer_02","concealed":true},
       { "id": "brass_key", "name": "Spare brass key", "locationId": "merlin_desk", "concealed": true, "properties": { "opens": "crown_box" } },
       { "id": "royal_signet", "name": "Royal signet key", "locationId": "king", "properties": { "opens": "crown_box" } },
-      { "id": "crown_box", "name": "Crown lockbox", "locationId": "chapel_altar", "concealed": true, "properties": { "locked": true } },
+      { "id": "crown_box", "name": "Crown lockbox", "locationId": "royal_bedside_chest", "concealed": true, "properties": { "locked": true } },
       { "id": "crown", "name": "Crown of Winter", "locationId": "crown_box", "concealed": true }
     ],
     "doors": [

@@ -37,7 +37,7 @@ Day 1 begins with the player and all three NPCs awake in the Great Hall. When th
 player ends the day, every NPC retires to their own room. At night they can wake,
 sneak through adjacent rooms, search a room to reveal plausible hiding places,
 and investigate those places. The spare key is in Merlin's desk; the crown box is
-beneath the old chapel altar. Only characters who already know those locations see
+in the bedside chest in the Royal Bedchamber. Only characters who already know those locations see
 them before searching. Other rooms contain enough empty possibilities to make the
 useful choice unobvious.
 

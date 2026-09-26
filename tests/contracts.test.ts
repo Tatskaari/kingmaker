@@ -150,7 +150,7 @@ test("Merlin sees his known key location but not Lancelot's hidden lockbox", () 
   assert.match(prompt, /merlin_desk/);
   assert.match(prompt, /left humiliated/);
   assert.ok(!world.objects.some(object => object.id === "crown_box"));
-  assert.ok(!world.rooms.flatMap(room => room.searchSpots).some(spot => spot.id === "chapel_altar"));
+  assert.ok(!world.rooms.flatMap(room => room.searchSpots).some(spot => spot.id === "royal_bedside_chest"));
   assert.doesNotMatch(prompt, /ordinary banter|unexpectedly took offence/);
 });
 
@@ -159,13 +159,13 @@ test("Lancelot sees the crown box while an uninformed king sees neither hiding p
   assert.ok(scenario.world);
   const lancelot = worldForCharacter(scenario.world, "lancelot");
   const king = worldForCharacter(scenario.world, "king");
-  assert.ok(lancelot.rooms.flatMap(room => room.searchSpots).some(spot => spot.id === "chapel_altar"));
+  assert.ok(lancelot.rooms.flatMap(room => room.searchSpots).some(spot => spot.id === "royal_bedside_chest"));
   assert.ok(lancelot.objects.some(object => object.id === "crown_box"));
   assert.ok(!lancelot.objects.some(object => object.id === "brass_key"));
   assert.ok(!lancelot.rooms.flatMap(room => room.searchSpots).some(spot => spot.id === "merlin_desk"));
   assert.ok(!king.objects.some(object => object.id === "brass_key" || object.id === "crown_box"));
   assert.ok(!king.rooms.flatMap(room => room.searchSpots).some(spot =>
-    spot.id === "merlin_desk" || spot.id === "chapel_altar",
+    spot.id === "merlin_desk" || spot.id === "royal_bedside_chest",
   ));
 });
 
@@ -1173,7 +1173,7 @@ test("main palace markers use saved rooms and separate characters on walkable ti
   assert.ok(markers.every(marker => courtPath(markers[0]!.point!, marker.point!)));
   const merlin = courtMarkers([{ id: "merlin", name: "Merlin", roomId: "merlin_chamber", position: { x: 5, y: 5 } }])[0]!;
   assert.equal(courtRoomAt(merlin.point!)?.id, "merlin_chamber");
-  assert.equal(courtMarkers([{ id: "king", name: "King", roomId: "old_chapel" }])[0]!.point, undefined);
+  assert.equal(courtMarkers([{ id: "king", name: "King", roomId: "nonexistent_room" }])[0]!.point, undefined);
 });
 
 test("main palace movement validates routes and survives saving and restoring", () => {
@@ -1728,4 +1728,13 @@ test("resetCharacters restores authored NPCs and events, clears dialogue and tas
   assert.deepEqual(after.conversationEndRequested, {});
   assert.deepEqual(new BrowserGameRuntime(initial, "test", after).snapshot(), after);
   assert.throws(() => new BrowserGameRuntime(initial, "test").resetCharacters(), /Create your character/);
+});
+
+test("authored world rooms and connections match the palace map", () => {
+  const scenario = load(), rooms = scenario.world!.rooms;
+  const ids = new Set(rooms.map(room => room.id));
+  assert.deepEqual([...ids].sort(), palaceMap.rooms.map(room => room.id).sort());
+  for (const room of rooms) for (const exit of room.exitRoomIds) assert.ok(ids.has(exit), `${room.id} exits to missing room ${exit}`);
+  for (const fixture of scenario.world!.fixtures) assert.ok(ids.has(fixture.roomId), `${fixture.id} belongs to missing room ${fixture.roomId}`);
+  assert.doesNotMatch(JSON.stringify(scenario), /chapel/i);
 });
