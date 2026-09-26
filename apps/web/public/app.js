@@ -4,6 +4,18 @@ let activeCharacter = null;
 let busy = false;
 let notice = "";
 let sheetOpen = false;
+let debugOpen = false;
+let debugData = null;
+let debugError = "";
+let debugTitle = "Debug Inspector";
+let debugPath = "/api/debug";
+
+const devEvents = new EventSource("/__dev/events");
+devEvents.addEventListener("ready", event => {
+  const previous = sessionStorage.getItem("kingmaker-dev-instance");
+  sessionStorage.setItem("kingmaker-dev-instance", event.data);
+  if (previous && previous !== event.data) location.reload();
+});
 
 async function api(path, options = {}) {
   const response = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
@@ -19,7 +31,7 @@ function escapeHtml(value) {
 function shell(content) {
   const sheetButton = state?.player ? `<button class="sheet-tab" data-sheet-open aria-label="Open character sheet"><span class="sheet-tab-icon">♙</span><span>Character</span></button>` : "";
   const sheet = state?.player ? characterSheet() : "";
-  return `${sheetButton}<div class="shell"><header class="masthead"><div class="eyebrow">An improvised political cRPG</div><h1>Kingmaker</h1><div class="rule"></div><p class="subtitle">Whoever holds the Crown of Winter at solstice dawn will rule.</p></header>${content}<div class="footer"><button class="reset" data-reset>Start over</button></div></div>${sheet}`;
+  return `<button class="debug-button" data-debug-open aria-label="Open debug inspector">⌘ <span>Debug</span></button>${sheetButton}<div class="shell"><header class="masthead"><div class="eyebrow">An improvised political cRPG</div><h1>Kingmaker</h1><div class="rule"></div><p class="subtitle">Whoever holds the Crown of Winter at solstice dawn will rule.</p></header>${content}<div class="footer"><button class="reset" data-reset>Start over</button></div></div>${sheet}${debugInspector()}`;
 }
 
 function characterSheet() {
@@ -29,6 +41,28 @@ function characterSheet() {
     ? player.relationships.map(relationship => `<li><strong>${escapeHtml(relationship.characterName)}</strong><p>${escapeHtml(relationship.description)}</p></li>`).join("")
     : `<li><p>No relationships recorded yet.</p></li>`;
   return `<div class="sheet-scrim ${sheetOpen ? "open" : ""}" data-sheet-close></div><aside class="character-sheet ${sheetOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Character sheet" aria-hidden="${sheetOpen ? "false" : "true"}"><button class="sheet-close" data-sheet-close aria-label="Close character sheet">×</button><div class="eyebrow">Your character</div><h2>${escapeHtml(player.name)}</h2><div class="sheet-seal">${escapeHtml(initials)}</div><section><h3>Biography</h3><p>${escapeHtml(player.lore)}</p></section><section class="goal"><h3>Current goal</h3><p>${escapeHtml(player.currentGoal || "No goal yet.")}</p></section><section><h3>Relationships</h3><ul class="relationship-list">${relationships}</ul></section></aside>`;
+}
+
+function debugInspector() {
+  const content = debugError
+    ? `<p class="debug-error">${escapeHtml(debugError)}</p>`
+    : debugData
+      ? `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
+      : `<p class="debug-loading">Reading server state…</p>`;
+  return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}"><header><div><div class="eyebrow">Live server memory</div><h2>${escapeHtml(debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">Character state, visible events, known world, conversation, and assembled model context. The global inspector includes the authoritative world. Secrets and API keys are excluded.</p>${content}</aside>`;
+}
+
+async function openDebug(path = debugPath, title = debugTitle) {
+  debugOpen = true;
+  sheetOpen = false;
+  debugPath = path;
+  debugTitle = title;
+  debugData = null;
+  debugError = "";
+  render();
+  try { debugData = await api(debugPath); }
+  catch (error) { debugError = error.message; }
+  render();
 }
 
 function messageList(messages, assistantName) {
@@ -60,7 +94,7 @@ function renderConversation() {
   const character = state.characters.find(item => item.id === activeCharacter);
   if (!character) { activeCharacter = null; return renderDay(); }
   const messages = state.conversations?.[activeCharacter] || [];
-  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><button class="back" data-back>← Return to the Great Hall</button><span class="eyebrow">A private audience</span></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.</div>`}</div><form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><button class="back" data-back>← Return to the Great Hall</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.</div>`}</div><form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
   bind();
   document.querySelector(".messages")?.scrollTo(0, 999999);
 }
@@ -80,8 +114,15 @@ async function run(action) {
 }
 
 function bind() {
-  document.querySelector("[data-sheet-open]")?.addEventListener("click", () => { sheetOpen = true; render(); });
+  document.querySelector("[data-sheet-open]")?.addEventListener("click", () => { sheetOpen = true; debugOpen = false; render(); });
   document.querySelectorAll("[data-sheet-close]").forEach(button => button.addEventListener("click", () => { sheetOpen = false; render(); }));
+  document.querySelector("[data-debug-open]")?.addEventListener("click", () => openDebug("/api/debug", "Debug Inspector"));
+  document.querySelector("[data-character-debug]")?.addEventListener("click", () => {
+    const character = state.characters.find(item => item.id === activeCharacter);
+    openDebug(`/api/debug/character/${activeCharacter}`, `${character?.name || activeCharacter} Debug`);
+  });
+  document.querySelector("[data-debug-refresh]")?.addEventListener("click", () => openDebug());
+  document.querySelectorAll("[data-debug-close]").forEach(button => button.addEventListener("click", () => { debugOpen = false; render(); }));
   document.querySelector("[data-begin]")?.addEventListener("click", () => run(async () => {
     const result = await api("/api/gm", { method: "POST", body: JSON.stringify({ message: "Introduce the situation and help me create my emissary." }) }); state = result.state;
   }));
@@ -96,11 +137,11 @@ function bind() {
   });
   document.querySelector("[data-back]")?.addEventListener("click", () => { activeCharacter = null; notice = ""; render(); });
   document.querySelector("[data-end-day]")?.addEventListener("click", () => { notice = "The twelve-hour night phase is the next milestone. For now, the day remains yours."; render(); });
-  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { state = await api("/api/reset", { method: "POST" }); activeCharacter = null; sheetOpen = false; }));
+  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { state = await api("/api/reset", { method: "POST" }); activeCharacter = null; sheetOpen = false; debugOpen = false; }));
 }
 
 document.addEventListener("keydown", event => {
-  if (event.key === "Escape" && sheetOpen) { sheetOpen = false; render(); }
+  if (event.key === "Escape" && (sheetOpen || debugOpen)) { sheetOpen = false; debugOpen = false; render(); }
 });
 
 state = await api("/api/state");

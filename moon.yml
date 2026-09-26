@@ -23,7 +23,7 @@ tasks:
     options:
       cache: false
   dev:
-    command: npx --no-install tsx apps/server/src/index.ts
+    command: env KINGMAKER_DEV_STATE_FILE=.moon/cache/dev-state.json npx --no-install tsx watch --include 'apps/web/public/**/*' apps/server/src/index.ts
     deps: [contracts:generate]
     inputs: ['apps/**/*', 'packages/**/*', 'content/**/*', 'package.json', 'package-lock.json']
     options:

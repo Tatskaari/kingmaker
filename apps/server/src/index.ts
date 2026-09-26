@@ -1,16 +1,16 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { readFileSync, existsSync, statSync } from "node:fs";
-import { extname, join, normalize } from "node:path";
+import { readFileSync, existsSync, mkdirSync, statSync, writeFileSync } from "node:fs";
+import { dirname, extname, join, normalize } from "node:path";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
-import { create, fromJsonString } from "@bufbuild/protobuf";
+import { create, fromJson, fromJsonString, toJson, type JsonValue } from "@bufbuild/protobuf";
 import {
   CharacterSchema, DialogueRequestSchema, DialogueResponseSchema, EventSchema,
   EventVisibility, GameMasterRequestSchema, GamePhase, GoalUpdateSchema,
   PlayerSetupSchema, RelationshipSchema, RelationshipUpdateSchema, ScenarioSchema,
-  TranscriptMessageSchema, TranscriptRole, type TranscriptMessage,
+  TranscriptMessageSchema, TranscriptRole, WorldStateSchema, type TranscriptMessage,
 } from "../../../packages/contracts/src/index.js";
-import { FullContextBuilder, FullGameMasterContextBuilder } from "../../../packages/core/src/context.js";
+import { FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter } from "../../../packages/core/src/context.js";
 import { MemoryGame } from "../../../packages/core/src/game.js";
 import { OpenRouterClient, type OpenRouterMessage, type OpenRouterTool } from "../../../packages/providers/src/openrouter.js";
 
@@ -19,6 +19,11 @@ const scenarioFile = join(root, "content/scenarios/last-night.json");
 const publicDir = join(root, "apps/web/public");
 const dialogueModel = process.env.DIALOGUE_MODEL || "openai/gpt-5.4-mini";
 const port = Number(process.env.PORT || 4317);
+const devStateFile = process.env.KINGMAKER_DEV_STATE_FILE
+  ? join(root, process.env.KINGMAKER_DEV_STATE_FILE)
+  : undefined;
+const devInstanceId = `${Date.now()}-${process.pid}`;
+const devEventClients = new Set<ServerResponse>();
 
 function expandHome(path: string): string {
   return path === "~" ? homedir() : path.startsWith("~/") ? join(homedir(), path.slice(2)) : path;
@@ -38,6 +43,38 @@ const client = new OpenRouterClient(loadKey());
 let game = new MemoryGame(fromJsonString(ScenarioSchema, readFileSync(scenarioFile, "utf8")));
 let gmHistory: OpenRouterMessage[] = [];
 let conversations = new Map<string, TranscriptMessage[]>();
+
+if (devStateFile && existsSync(devStateFile)) {
+  try {
+    const saved = JSON.parse(readFileSync(devStateFile, "utf8")) as {
+      scenario: JsonValue;
+      gameMasterHistory?: OpenRouterMessage[];
+      conversations?: Record<string, JsonValue[]>;
+    };
+    game = new MemoryGame(fromJson(ScenarioSchema, saved.scenario));
+    gmHistory = saved.gameMasterHistory || [];
+    conversations = new Map(Object.entries(saved.conversations || {}).map(([characterId, messages]) => [
+      characterId,
+      messages.map(message => fromJson(TranscriptMessageSchema, message)),
+    ]));
+    console.log(`Restored development state from ${devStateFile}`);
+  } catch (error) {
+    console.warn(`Could not restore development state: ${error instanceof Error ? error.message : String(error)}`);
+  }
+}
+
+function persistDevelopmentState(): void {
+  if (!devStateFile) return;
+  mkdirSync(dirname(devStateFile), { recursive: true });
+  writeFileSync(devStateFile, JSON.stringify({
+    scenario: toJson(ScenarioSchema, game.scenario(), { alwaysEmitImplicit: true }),
+    gameMasterHistory: gmHistory,
+    conversations: Object.fromEntries([...conversations].map(([characterId, messages]) => [
+      characterId,
+      messages.map(message => toJson(TranscriptMessageSchema, message, { alwaysEmitImplicit: true })),
+    ])),
+  }));
+}
 
 const gmTools: readonly OpenRouterTool[] = [
   {
@@ -158,11 +195,15 @@ async function talkToGameMaster(text: string): Promise<string> {
       tools: gmTools, temperature: 0.8, max_tokens: 900,
     });
     gmHistory.push(message);
-    if (!message.tool_calls?.length) return message.content || "The game master pauses, considering your answer.";
+    if (!message.tool_calls?.length) {
+      persistDevelopmentState();
+      return message.content || "The game master pauses, considering your answer.";
+    }
     for (const call of message.tool_calls) {
       let result: JsonObject;
       try {
         result = executeGmTool(call.function.name, JSON.parse(call.function.arguments) as JsonObject);
+        persistDevelopmentState();
       } catch (error) {
         result = { ok: false, error: error instanceof Error ? error.message : String(error) };
       }
@@ -218,6 +259,7 @@ async function talkToCharacter(characterId: string, text: string): Promise<strin
   conversations.set(characterId, [...history, playerMessage, create(TranscriptMessageSchema, {
     role: TranscriptRole.CHARACTER, speakerId: characterId, text: response.utterance,
   })]);
+  persistDevelopmentState();
   return response.utterance;
 }
 
@@ -244,6 +286,40 @@ function viewState(): JsonObject {
     conversations: Object.fromEntries([...conversations].map(([id, messages]) => [id, messages.map(message => ({
       role: message.role === TranscriptRole.CHARACTER ? "character" : "player", text: message.text,
     }))])),
+  };
+}
+
+function debugState(): JsonObject {
+  return {
+    runtime: {
+      dialogueModel,
+      devInstanceId,
+      eventClients: devEventClients.size,
+    },
+    scenario: toJson(ScenarioSchema, game.scenario(), { alwaysEmitImplicit: true }),
+    gameMasterHistory: gmHistory,
+    conversations: Object.fromEntries([...conversations].map(([characterId, messages]) => [
+      characterId,
+      messages.map(message => toJson(TranscriptMessageSchema, message, { alwaysEmitImplicit: true })),
+    ])),
+  };
+}
+
+function debugCharacter(characterId: string): JsonObject {
+  const scenario = game.scenario();
+  const character = scenario.characters.find(item => item.id === characterId);
+  if (!character || characterId === "player") throw new Error(`Unknown NPC: ${characterId}`);
+  if (!scenario.world) throw new Error("Scenario has no world");
+  const transcript = conversations.get(characterId) || [];
+  const request = create(DialogueRequestSchema, { characterId, scenario, transcript });
+  return {
+    character: toJson(CharacterSchema, character, { alwaysEmitImplicit: true }),
+    visibleEvents: scenario.events
+      .filter(event => event.visibility === EventVisibility.PUBLIC || event.characterIds.includes(characterId))
+      .map(event => toJson(EventSchema, event, { alwaysEmitImplicit: true })),
+    knownWorld: toJson(WorldStateSchema, worldForCharacter(scenario.world, characterId), { alwaysEmitImplicit: true }),
+    conversation: transcript.map(message => toJson(TranscriptMessageSchema, message, { alwaysEmitImplicit: true })),
+    modelMessages: new FullContextBuilder().build(request),
   };
 }
 
@@ -278,9 +354,24 @@ function serveFile(pathname: string, response: ServerResponse): void {
 const server = createServer(async (request, response) => {
   try {
     const url = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`);
+    if (request.method === "GET" && url.pathname === "/__dev/events") {
+      response.writeHead(200, {
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache, no-transform",
+        Connection: "keep-alive",
+      });
+      response.write(`event: ready\ndata: ${devInstanceId}\n\n`);
+      devEventClients.add(response);
+      request.on("close", () => devEventClients.delete(response));
+      return;
+    }
     if (request.method === "GET" && url.pathname === "/api/state") return json(response, 200, viewState());
+    if (request.method === "GET" && url.pathname === "/api/debug") return json(response, 200, debugState());
+    const characterDebug = request.method === "GET" ? url.pathname.match(/^\/api\/debug\/character\/([a-z_]+)$/) : null;
+    if (characterDebug) return json(response, 200, debugCharacter(characterDebug[1]!));
     if (request.method === "POST" && url.pathname === "/api/reset") {
       game = new MemoryGame(fromJsonString(ScenarioSchema, readFileSync(scenarioFile, "utf8"))); gmHistory = []; conversations = new Map();
+      persistDevelopmentState();
       return json(response, 200, viewState());
     }
     if (request.method === "POST" && url.pathname === "/api/gm") {
@@ -305,3 +396,7 @@ server.listen(port, "127.0.0.1", () => {
   console.log(`Kingmaker is ready at http://127.0.0.1:${port}`);
   console.log(`Dialogue model: ${dialogueModel}`);
 });
+
+setInterval(() => {
+  for (const response of devEventClients) response.write(": keepalive\n\n");
+}, 15_000).unref();
