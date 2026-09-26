@@ -1,3 +1,4 @@
+import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
 import { courtAgentObservation } from "../apps/web/src/court-agent.js";
 import { doorActionLegality } from "../packages/core/src/access.js";
 import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
@@ -1581,4 +1582,49 @@ test("treasury can be opened from the hall and closed from inside, with sides ex
   observation = observe();
   assert.ok(observation.actions.some(action => action.id === "open_treasury_door_1"));
   assert.ok(!observation.actions.some(action => action.id === "open_treasury_door_0"));
+});
+
+test("recent transcripts capture every main-game model stage and retain failed requests across rollback", async t => {
+  const runtime = new BrowserGameRuntime(load(), "sk-test-secret");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => ({ role: "assistant", content: "Welcome, traveller." }));
+  await runtime.talkToGameMaster("Hello.");
+  runtime.restore(new BrowserGameRuntime(furnishedCourt(), "test").snapshot());
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "I will go." }));
+  await runtime.talkToCharacter("merlin", "Go to the Treasury.");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: { goal: "Go to the Treasury.", reason: "Agreed." } }));
+  await runtime.endConversation("merlin");
+  const before = runtime.snapshot();
+  t.mock.method(JevClient.prototype, "choose", async () => { throw new Error("Rejected sk-test-secret"); });
+  await assert.rejects(runtime.planNpc("merlin", [], new AbortController().signal), /Rejected/);
+  runtime.restore(before);
+  runtime.finishNpcRun("merlin", "error", "Request failed.");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: null }));
+  await runtime.reviewNpcOutcome("merlin");
+  const entries = runtime.recentTranscripts();
+  assert.deepEqual(entries.map(entry => entry.kind), ["outcome_review", "jev", "conversation_review", "dialogue", "game_master"]);
+  assert.equal(entries[1]!.status, "error");
+  assert.match(entries[1]!.error!, /redacted/);
+  assert.equal((entries[1]!.request as any).model, "typesafe/jev-1.13");
+  assert.ok((entries[1]!.request as any).questions.next.criteria);
+  assert.ok((entries[2]!.request as any).messages.length);
+  assert.ok(entries.every(entry => typeof entry.durationMs === "number"));
+  assert.doesNotMatch(JSON.stringify(entries), /sk-test-secret/);
+  assert.deepEqual(new BrowserGameRuntime(load(), "test", runtime.snapshot()).recentTranscripts(), [], "A fresh loaded session starts a new log");
+});
+
+test("transcript recorder shows pending calls, bounds history, and isolates mutable and secret data", async () => {
+  const log = new ModelTranscripts("private-key");
+  let finish!: (value: unknown) => void;
+  const input = { prompt: "private-key" };
+  const pending = log.record("dialogue", "merlin", input, () => new Promise(resolve => { finish = resolve; }));
+  input.prompt = "changed after dispatch";
+  assert.equal(log.recent()[0]!.status, "pending");
+  assert.deepEqual(log.recent()[0]!.request, { prompt: "[redacted]" });
+  finish({ text: "sk-another-secret" }); await pending;
+  const copy = log.recent(); copy[0]!.status = "error";
+  assert.equal(log.recent()[0]!.status, "success");
+  assert.deepEqual(log.recent()[0]!.response, { text: "[redacted]" });
+  for (let i = 0; i < 55; i++) await log.record("jev", "merlin", { i }, async () => ({ choice: "complete" }));
+  assert.equal(log.recent().length, 50);
+  assert.equal(log.recent()[0]!.id, 56);
 });

@@ -1,4 +1,4 @@
-import { debugOverview } from "./debug-view.js";
+import { debugOverview, recentTranscriptsView } from "./debug-view.js";
 import { mountCourtMap, animateCourtCharacter } from "./court-map.js";
 import { introduction, introductionHandoff, handoffPrefix, nameSuggestions, homelandSuggestions, patronName } from "./introduction.js";
 
@@ -34,6 +34,10 @@ let requestSequence = 0;
 const gameWorker = new Worker(new URL("./game.worker.ts", import.meta.url), { type: "module" });
 const pendingRequests = new Map();
 gameWorker.addEventListener("message", event => {
+  if (event.data.type === "transcripts_changed") {
+    if (debugOpen && debugTab === "transcripts") void openDebug();
+    return;
+  }
   const pending = pendingRequests.get(event.data.id);
   if (!pending) return;
   pendingRequests.delete(event.data.id);
@@ -151,9 +155,9 @@ function debugInspector() {
   const content = debugError
     ? `<p class="debug-error">${escapeHtml(debugError)}</p>`
     : debugData
-      ? debugTab === "overview" ? debugOverview(debugRequest.type, debugData) : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
+      ? debugTab === "overview" ? debugOverview(debugRequest.type, debugData) : debugTab === "transcripts" ? recentTranscriptsView(debugData.transcripts) : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
       : `<p class="debug-loading">Reading worker state…</p>`;
-  const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${[["overview", "Overview"], ["json", "Raw JSON"]].map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
+  const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${[["overview", "Overview"], ["json", "Raw JSON"], ["transcripts", "Recent transcripts"]].map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
   return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}"><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">Character state, visible events, known world, conversation, and assembled model context. The global inspector includes the authoritative world. GM debug includes prompts, raw model responses, and tool results—not hidden reasoning. API keys are excluded.</p>${tabs}<div id="debug-panel" class="debug-panel" role="tabpanel" aria-labelledby="debug-tab-${debugTab}" tabindex="0">${content}</div></aside>`;
 }
 
@@ -168,7 +172,7 @@ async function openDebug(request = debugRequest, title = debugTitle) {
   debugError = "";
   render();
   try {
-    const data = await rpc(request.type, request.payload);
+    const data = await rpc(debugTab === "transcripts" ? "debug_transcripts" : request.type, request.payload);
     if (readSequence !== debugReadSequence) return;
     debugData = data;
   }
@@ -339,16 +343,18 @@ function bind() {
     openDebug({ type: "debug_character", payload: { characterId: activeCharacter } }, `${character?.name || activeCharacter} Debug`);
   });
   document.querySelectorAll("[data-debug-tab]").forEach(button => {
-    const select = tab => {
+    const select = async tab => {
       debugTab = tab;
-      render();
+      await openDebug();
       document.querySelector(`[data-debug-tab="${tab}"]`)?.focus();
     };
     button.addEventListener("click", () => select(button.dataset.debugTab));
     button.addEventListener("keydown", event => {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
       event.preventDefault();
-      select(event.key === "Home" ? "overview" : event.key === "End" ? "json" : debugTab === "overview" ? "json" : "overview");
+      const tabs = ["overview", "json", "transcripts"];
+      const index = tabs.indexOf(debugTab);
+      select(event.key === "Home" ? tabs[0] : event.key === "End" ? tabs[2] : tabs[(index + (event.key === "ArrowRight" ? 1 : 2)) % 3]);
     });
   });
   document.querySelector("[data-debug-refresh]")?.addEventListener("click", () => openDebug());

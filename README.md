@@ -156,3 +156,15 @@ The panel below the map shows the observations and decisions. Waiting goals can
 complete at the requested location; the planner cannot initiate dialogue or
 compel the player to follow. `resetWorld()` returns all NPCs to idle while keeping
 their character data and goal text.
+
+### Recent model transcripts
+
+The debug inspector's **Recent transcripts** tab shows the last 50 model calls
+for the loaded game session, newest first: game-master calls, NPC dialogue,
+conversation reviews, Jev decisions, and planner-outcome reviews. Expand a call
+to see its request, returned response, duration and provider/network errors.
+Pending calls are visible and the tab refreshes when calls start or finish.
+Logs survive game-state rollback, but are not game-save data: reloading the page
+or loading another game starts a fresh log. Authentication headers are never
+recorded, and API-key strings are redacted. This displays supplied prompts and
+returned responses, not hidden model reasoning.

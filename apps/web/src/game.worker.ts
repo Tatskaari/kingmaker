@@ -80,7 +80,7 @@ async function createGame(): Promise<Record<string, unknown>> {
   if (!apiKey) throw new Error("Enter an OpenRouter key first");
   const scenario = await scenarioPromise;
   const now = new Date().toISOString();
-  runtime = new BrowserGameRuntime(scenario, apiKey);
+  runtime = new BrowserGameRuntime(scenario, apiKey, undefined, () => worker.postMessage({ type: "transcripts_changed" }));
   activeSave = {
     id: crypto.randomUUID(),
     characterName: "New emissary",
@@ -97,7 +97,7 @@ async function loadGame(saveId: string): Promise<Record<string, unknown>> {
   if (!apiKey) throw new Error("Enter an OpenRouter key first");
   const saved = await transaction<SaveRecord | undefined>("readonly", store => store.get(saveId));
   if (!saved) throw new Error("That saved game no longer exists");
-  runtime = new BrowserGameRuntime(await scenarioPromise, apiKey, saved.snapshot);
+  runtime = new BrowserGameRuntime(await scenarioPromise, apiKey, saved.snapshot, () => worker.postMessage({ type: "transcripts_changed" }));
   activeSave = saved;
   return { state: runtime.view(), activeSaveId: saved.id, saves: await listSaves() };
 }
@@ -212,6 +212,7 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     await persist();
     return { state: requireRuntime().view(), saves: await listSaves(), activeSaveId: activeSave?.id };
   }
+  if (type === "debug_transcripts") return { transcripts: requireRuntime().recentTranscripts() };
   if (type === "debug_gm") return requireRuntime().debugGameMaster();
   if (type === "debug") return requireRuntime().debug();
   if (type === "debug_character") return requireRuntime().debugCharacter(String(payload.characterId || ""));
@@ -232,6 +233,6 @@ worker.addEventListener("message", event => {
   };
   // Decisions operate on a snapshot and never mutate the game. Keep cancellation
   // responsive while the network request runs; execution still uses the save queue.
-  if (request.type === "plan_npc" || request.type === "cancel_npc") void process();
+  if (request.type === "plan_npc" || request.type === "cancel_npc" || request.type === "debug_transcripts") void process();
   else requests = requests.then(process);
 });

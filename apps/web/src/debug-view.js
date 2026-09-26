@@ -45,3 +45,9 @@ export function debugOverview(type, data) {
   }
   return `<div class="debug-grid">${content}</div>`;
 }
+
+export function recentTranscriptsView(entries = []) {
+  const kinds = { game_master: "Game master", dialogue: "Dialogue", conversation_review: "Conversation review", jev: "Jev decision", outcome_review: "Outcome review" };
+  return `<p class="debug-note">Latest 50 model calls for this loaded game session, newest first. Includes requests, returned responses and network/provider errors. Reloading or loading a game starts a fresh log. No hidden reasoning or authentication headers are captured.</p>`
+    + (entries.length ? entries.map(entry => `<article class="debug-card"><details><summary><strong>${escape(kinds[entry.kind] || entry.kind)} · ${escape(entry.characterId)}</strong> — ${escape(entry.status === "success" ? "Response received" : entry.status)} <span class="debug-meta">${escape(entry.startedAt)}${entry.durationMs === undefined ? "" : ` · ${(entry.durationMs / 1000).toFixed(2)}s`}</span></summary><h4>Request</h4><pre>${escape(JSON.stringify(entry.request, null, 2))}</pre>${entry.response === undefined ? "" : `<h4>Response</h4><pre>${escape(JSON.stringify(entry.response, null, 2))}</pre>`}${entry.error ? `<h4>Error</h4><pre class="debug-error">${escape(entry.error)}</pre>` : ""}</details></article>`).join("") : empty("No model calls recorded yet in this session."));
+}
