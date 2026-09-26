@@ -81,7 +81,9 @@ proto run moon -- run workspace:build
 
 Start the prototype with `proto run npm -- run dev`, then open
 `http://127.0.0.1:5173`. Enter an OpenRouter key in the browser; it remains in
-the worker's memory for that tab and is excluded from saves and debug output.
+tab-scoped session storage across reloads and is excluded from saves and debug
+output. Reloading reconnects the worker and opens the save picker. Use **Change
+OpenRouter key** to clear the remembered key.
 The first paid request occurs when the player clicks **Begin**. Vite hot-reloads
 the UI and game worker during development.
 
