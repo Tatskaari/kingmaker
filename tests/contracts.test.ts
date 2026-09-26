@@ -1,3 +1,4 @@
+import { doorActionLegality } from "../packages/core/src/access.js";
 import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
 import { courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath, courtInteractionPoint, nearestDoorSpot } from "../apps/web/src/court-map.js";
 import { PalaceDialogue, palaceSurroundings, palaceDialogueContext, createPalacePlayer } from "../apps/web/src/palace-dialogue.js";
@@ -1286,4 +1287,23 @@ test("door operations validate approach and occupancy, and persist through saves
   occupied.world!.actors.find(actor => actor.characterId === "merlin")!.position = create(TilePositionSchema, { x: 5, y: 9 });
   const blocked = new BrowserGameRuntime(occupied, "test");
   assert.throws(() => blocked.setDoor("merlin_door", false), /standing in the doorway/);
+});
+
+
+test("bedroom doors are illegal to open except for characters on the room access list", () => {
+  const world = load().world!;
+  for (const [id, resident] of [["merlin_door", "merlin"], ["lancelot_door", "lancelot"], ["royal_door", "king"], ["guest_door", "player"]]) {
+    const door = world.doors.find(door => door.id === id)!;
+    assert.equal(doorActionLegality(door, world.rooms, resident!), "normal");
+    assert.equal(doorActionLegality(door, world.rooms, "stranger"), "illegal");
+    assert.equal(doorActionLegality({ ...door, open: true }, world.rooms, "stranger"), "normal");
+  }
+  const merlin = world.doors.find(door => door.id === "merlin_door")!;
+  assert.equal(doorActionLegality(merlin, world.rooms, "player"), "illegal");
+  world.rooms.find(room => room.id === "merlin_chamber")!.allowedCharacterIds.push("player");
+  assert.equal(doorActionLegality(merlin, world.rooms, "player"), "normal");
+  const hall = world.doors.find(door => door.id === "hall_door")!;
+  assert.equal(doorActionLegality({ ...hall, open: false }, world.rooms, "stranger"), "normal");
+  const restored = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, load())).world!;
+  assert.equal(doorActionLegality(restored.doors.find(door => door.id === "royal_door")!, restored.rooms, "player"), "illegal");
 });

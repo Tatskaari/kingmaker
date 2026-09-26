@@ -115,6 +115,8 @@ message Room {
   string description = 3;
   repeated string exit_room_ids = 4;
   repeated SearchSpot search_spots = 5;
+  bool private = 6;
+  repeated string allowed_character_ids = 7;
 }
 
 // Integer tile coordinates on the palace map.

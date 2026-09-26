@@ -110,6 +110,8 @@
       },
       {
         "id": "guest_chamber",
+        "private": true,
+        "allowedCharacterIds": ["player"],
         "name": "Embassy Guest Chamber",
         "description": "A comfortable room prepared for the visiting emissary near the Great Hall.",
         "exitRoomIds": ["great_hall"],
@@ -121,6 +123,8 @@
       },
       {
         "id": "merlin_chamber",
+        "private": true,
+        "allowedCharacterIds": ["merlin"],
         "name": "Merlin's Chamber",
         "description": "A private bedroom and cramped study crowded with books and instruments.",
         "exitRoomIds": ["north_corridor"],
@@ -133,6 +137,8 @@
       },
       {
         "id": "lancelot_chamber",
+        "private": true,
+        "allowedCharacterIds": ["lancelot"],
         "name": "Lancelot's Chamber",
         "description": "A disciplined soldier's room softened by expensive gifts from admirers.",
         "exitRoomIds": ["north_corridor"],
@@ -145,6 +151,8 @@
       },
       {
         "id": "royal_bedchamber",
+        "private": true,
+        "allowedCharacterIds": ["king"],
         "name": "Royal Bedchamber",
         "description": "The king sleeps here behind embroidered curtains and a guarded reputation.",
         "exitRoomIds": ["north_corridor"],

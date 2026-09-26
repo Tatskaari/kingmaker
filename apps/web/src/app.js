@@ -163,7 +163,7 @@ function renderDay(bindPage = true) {
     const result = await rpc("set_door", { id, open });
     state = result.state; saves = result.saves;
     return state.doors;
-  }).catch(() => {
+  }, state.roomAccess).catch(() => {
     if (!mapRoot.isConnected) return;
     const message = document.createElement("p"); message.className = "status error";
     message.textContent = "The palace artwork could not load. You can still select a character by name."; mapRoot.append(message);

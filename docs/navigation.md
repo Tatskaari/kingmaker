@@ -227,5 +227,11 @@ choice. The player walks to that spot before the door changes. Closed doors bloc
 both tiles for walks, reroutes and other interaction approaches. Dispatch checks
 the player's exact approach position and refuses to close onto any actor. Failed
 saves roll back the door mutation without undoing an already saved approach walk.
-Doors currently have no ownership/permission rules, so these actions are normal
-(grey); legality remains a separate action property for future access rules.
+Bedroom rooms now declare `private` and `allowedCharacterIds`. Opening a door
+connected to a private room is illegal unless the actor is on that room's access
+list. The menu shows the available action in red with an Illegal label; this does
+not lock the door or block intentional trespassing. Closing stays normal. The
+scenario permits Merlin, Lancelot and the king in their respective bedrooms and
+the player in the guest chamber. Other rooms remain public. Add IDs to the room's
+allowlist to grant access. Access data persists with the saved world; old saves
+are not migrated.

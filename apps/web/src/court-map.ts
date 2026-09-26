@@ -1,3 +1,4 @@
+import { doorActionLegality, type RoomAccess } from "../../../packages/core/src/access.js";
 import type { DoorState } from "../../../packages/contracts/src/index.js";
 import { drawDoors } from "./draw-doors.js";
 import { actionsAtTile, type CourtInteractionLayer } from "./court-interactions.js";
@@ -64,7 +65,7 @@ export function redirectCourtPath(path: readonly Point[], progress: number, dest
 
 /** Mount inside the day screen; native buttons retain keyboard and touch access. */
 export async function mountCourtMap(root: HTMLElement, characters: readonly CourtCharacter[], player: CourtCharacter | null,
-  selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<void>, doors: DoorState[] = [], changeDoor?: (id: string, open: boolean) => Promise<DoorState[]>): Promise<void> {
+  selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<void>, doors: DoorState[] = [], changeDoor?: (id: string, open: boolean) => Promise<DoorState[]>, rooms: readonly RoomAccess[] = []): Promise<void> {
   const viewport = document.createElement("div"); viewport.className = "court-map-scroll";
   const stage = document.createElement("div"); stage.className = "court-map-stage";
   const canvas = document.createElement("canvas"); canvas.setAttribute("aria-label", "Palace of Caerwyn");
@@ -102,7 +103,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       actions: [{ id: "walk", label: "Walk here", type: "walk", target: "ground", order: 100, legality: "normal" }] });
     for (const door of doors) for (const doorTile of door.tiles) layers.push({ id: door.id, position: doorTile, order: 15,
       actions: [{ id: `${door.open ? "close" : "open"}_${door.id}`, label: `${door.open ? "Close" : "Open"} ${door.name}`,
-        type: "door", target: door.id, order: 15, legality: "normal" }] });
+        type: "door", target: door.id, order: 15, legality: doorActionLegality(door, rooms, player?.id ?? "") }] });
     for (const item of scenery) layers.push({ id: item.id, position: item, order: 20,
       actions: [{ id: `inspect_${item.id}`, label: `Inspect ${item.name}`, type: "inspect", target: item.id, order: 20, legality: "normal" }] });
     for (const marker of markers) {

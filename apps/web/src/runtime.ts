@@ -319,7 +319,7 @@ export class BrowserGameRuntime {
     const room = courtRoomAt(destination);
     if (!room) throw new Error("That destination is outside the palace.");
     if (!world.rooms.some(existing => existing.id === room.id)) {
-      world.rooms.push({ $typeName: "kingmaker.v1.Room", id: room.id, name: room.name, description: "The palace entrance hall.", exitRoomIds: ["great_hall"], searchSpots: [] });
+      world.rooms.push({ $typeName: "kingmaker.v1.Room", id: room.id, name: room.name, description: "The palace entrance hall.", private: false, allowedCharacterIds: [], exitRoomIds: ["great_hall"], searchSpots: [] });
     }
     if (room.id === "entrance_hall") {
       const hall = world.rooms.find(existing => existing.id === "great_hall");
@@ -353,6 +353,7 @@ export class BrowserGameRuntime {
       phase: this.#playerDraft ? "character_review" : world?.phase === GamePhase.PLAYER_CREATION ? "player_creation" : world?.phase === GamePhase.CONVERSATIONS ? "conversations" : "other",
       day: world?.day || 0,
       doors: world?.doors ?? [],
+      roomAccess: world?.rooms.map(({ id, private: restricted, allowedCharacterIds }) => ({ id, private: restricted, allowedCharacterIds })) ?? [],
       location: world?.rooms.find(room => room.id === world.actors.find(actor => actor.characterId === player?.id)?.roomId)?.name || "Great Hall",
       premise: scenario.premise,
       player: player ? {
