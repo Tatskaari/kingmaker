@@ -193,3 +193,23 @@ positions live in `world.actors`; `courtArrivalPlacements` explicitly places
 Merlin at (12,20), the king at (16,18), Lancelot at (20,20), and the player at
 (16,22) when character creation ends. These placements are copied into actor state
 on arrival and retained through protobuf serialization and saved games.
+
+### Tile interaction menu
+
+Left-clicking a floor tile or character walks there (and can redirect an active
+walk); it never starts dialogue. Right-clicking gathers the actions contributed
+by every scenery/character layer at that tile, plus ground movement. Actions sort
+by explicit action `order`, layer `order`, then stable IDs. Normal actions are
+grey; `legality: "illegal"` actions are red and labelled Illegal. Current main-game
+actions are walking, talking and inspecting scenery; theft and restricted doors
+still need their game rules before they can contribute executable illegal actions.
+
+The menu stays open until selecting an action, clicking outside, Escape, or a
+second right-click. Character buttons support Shift+F10 / the context-menu key.
+Hovering characters no longer draws a selection box; keyboard focus remains
+visible. Talking and inspection first walk to an interaction spot and execute only after arrival is saved. Furniture uses its authored approach point; characters use the nearest reachable adjacent tile. A new walk cancels the queued interaction, and selecting another interaction replaces it. Menu listeners are cleaned up when leaving the screen.
+
+Conversations open in a native modal over the palace map. The map is inert while
+it is open, and the existing conversation review/save runs when ending the chat
+or dismissing it with Escape. Failed reviews leave the modal open for retry.
+Character debugging stays within the modal's focus boundary.

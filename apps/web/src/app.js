@@ -148,10 +148,10 @@ function renderCharacterReview() {
   bind();
 }
 
-function renderDay() {
+function renderDay(bindPage = true) {
   const playerName = state.player?.name || "The Emissary";
-  app.innerHTML = shell(`<section class="panel court-panel"><div class="day-heading"><div><div class="eyebrow">Day ${state.day} · Palace of Caerwyn</div><h2>Welcome to court, <span class="player-name">${escapeHtml(playerName)}</span></h2></div></div><p class="scene">Choose someone on the palace map to request a private word.</p><div data-court-map></div><div class="court-day-footer"><span class="map-credit">Tiny Dungeon tiles by Kenney · CC0</span><button class="primary" data-end-day ${busy ? "disabled" : ""}>End the day →</button></div><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
-  bind();
+  app.innerHTML = shell(`<section class="panel court-panel"><div class="day-heading"><div><div class="eyebrow">Day ${state.day} · Palace of Caerwyn</div><h2>Welcome to court, <span class="player-name">${escapeHtml(playerName)}</span></h2></div></div><p class="scene">Left-click to walk around the palace. Right-click characters and objects to see their actions.</p><div data-court-map></div><div class="court-day-footer"><span class="map-credit">Tiny Dungeon tiles by Kenney · CC0</span><button class="primary" data-end-day ${busy ? "disabled" : ""}>End the day →</button></div><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  if (bindPage) bind();
   const mapRoot = document.querySelector("[data-court-map]");
   void mountCourtMap(mapRoot, state.characters, state.player, id => {
     if (busy || !mapRoot.isConnected) return;
@@ -170,9 +170,23 @@ function renderConversation() {
   const character = state.characters.find(item => item.id === activeCharacter);
   if (!character) { activeCharacter = null; return renderDay(); }
   const messages = state.conversations?.[activeCharacter] || [];
-  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><button class="back" data-end-conversation ${busy ? "disabled" : ""}>${busy ? "Please wait…" : "End conversation"}</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.</div>`}</div>${replyOptions(state.conversationReplyOptions?.[activeCharacter], activeCharacter)}<form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  renderDay(false);
+  const dialog = document.createElement("dialog");
+  dialog.className = "conversation-modal";
+  dialog.setAttribute("aria-label", `Conversation with ${character.name}`);
+  dialog.innerHTML = `<section class="panel"><div class="conversation-head"><button class="back" data-end-conversation ${busy ? "disabled" : ""}>${busy ? "Please wait…" : "End conversation"}</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.</div>`}</div>${replyOptions(state.conversationReplyOptions?.[activeCharacter], activeCharacter)}<form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`;
+  // Keep character debugging within the modal's focus boundary.
+  for (const panel of app.querySelectorAll(".debug-scrim, .debug-inspector")) dialog.append(panel);
+  app.append(dialog);
+  dialog.addEventListener("cancel", event => {
+    event.preventDefault();
+    if (debugOpen) { debugOpen = false; render(); return; }
+    if (!busy) dialog.querySelector("[data-end-conversation]")?.click();
+  });
+  dialog.showModal();
   bind();
-  document.querySelector(".messages")?.scrollTo(0, 999999);
+  dialog.querySelector(".messages")?.scrollTo(0, 999999);
+  if (!busy && !debugOpen) dialog.querySelector("textarea")?.focus();
 }
 
 function render() {

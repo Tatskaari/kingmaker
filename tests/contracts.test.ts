@@ -1,4 +1,5 @@
-import { courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath } from "../apps/web/src/court-map.js";
+import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
+import { courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath, courtInteractionPoint } from "../apps/web/src/court-map.js";
 import { PalaceDialogue, palaceSurroundings, palaceDialogueContext, createPalacePlayer } from "../apps/web/src/palace-dialogue.js";
 import { interactionActions, executeInteraction } from "../apps/web/src/palace-interactions.js";
 import assert from "node:assert/strict";
@@ -1222,4 +1223,33 @@ test("authored actor coordinates round-trip and rendering never invents position
   const customized = { x: 14, y: 21 };
   assert.deepEqual(courtMarkers([{ id: "merlin", name: "Merlin", roomId: "great_hall", position: customized }])[0]!.point, customized);
   assert.equal(courtMarkers([{ id: "merlin", name: "Merlin", roomId: "great_hall", position: { x: 5, y: 5 } }])[0]!.point, undefined);
+});
+
+
+test("tile menus gather every layer with stable action and layer order and preserve legality", () => {
+  const layers: CourtInteractionLayer[] = [
+    { id: "merlin", position: { x: 5, y: 5 }, order: 30, actions: [{ id: "talk", label: "Talk to Merlin", type: "talk", target: "merlin", order: 10, legality: "normal" }] },
+    { id: "drawer", position: { x: 5, y: 5 }, order: 20, actions: [{ id: "inspect", label: "Inspect drawer", type: "inspect", target: "drawer", order: 20, legality: "illegal" }] },
+    { id: "floor", position: { x: 5, y: 5 }, order: 0, actions: [{ id: "walk", label: "Walk here", type: "walk", target: "floor", order: 100, legality: "normal" }] },
+    { id: "other", position: { x: 6, y: 5 }, order: 0, actions: [{ id: "wrong", label: "Elsewhere", type: "walk", target: "other", order: 0, legality: "normal" }] },
+  ];
+  const actions = actionsAtTile({ x: 5, y: 5 }, layers);
+  assert.deepEqual(actions.map(action => action.id), ["talk", "inspect", "walk"]);
+  assert.equal(actions[1]!.legality, "illegal");
+  assert.deepEqual(actionsAtTile({ x: 5, y: 5 }, [...layers].reverse()), actions);
+  const tied = layers.slice(0, 3).map(layer => ({ ...layer, actions: layer.actions.map(action => ({ ...action, order: 1 })) }));
+  assert.deepEqual(actionsAtTile({ x: 5, y: 5 }, tied).map(action => action.id), ["walk", "inspect", "talk"]);
+  assert.deepEqual(actionsAtTile({ x: 0, y: 0 }, layers), []);
+});
+
+
+test("interaction spots approach characters and honor authored furniture points", () => {
+  const target = { x: 12, y: 20 }, start = { x: 16, y: 22 };
+  const spot = courtInteractionPoint(start, target)!;
+  assert.equal(Math.abs(spot.x - target.x) + Math.abs(spot.y - target.y), 1);
+  assert.ok(courtPath(start, spot));
+  assert.deepEqual(courtInteractionPoint(spot, target), spot);
+  const authored = { x: 6, y: 5 };
+  assert.deepEqual(courtInteractionPoint(start, { x: 6, y: 4 }, authored), authored);
+  assert.equal(courtInteractionPoint(start, target, { x: 0, y: 0 }), undefined);
 });
