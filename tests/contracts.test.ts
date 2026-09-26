@@ -1318,7 +1318,8 @@ test("NPC dialogue frames the current goal as a concrete planner task while reta
   const context = messages.map(message => message.content).join("\n");
   assert.match(context, /Immediate goal for the action planner/);
   assert.match(context, /bounded list of available actions/);
-  assert.match(context, /observable completion or waiting condition/);
+  assert.match(context, /observable completion condition/);
+  assert.match(context, /Return goalUpdate: null when nothing needs doing now/);
   assert.match(context, /Return null when the character has not adopted a new task/);
   assert.match(context, /He wants the king replaced/);
 });

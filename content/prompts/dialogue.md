@@ -39,7 +39,7 @@ NPC `currentGoal` and conversation-review `goalUpdate` describe the next concret
 task for the action planner. Longer-term ambitions remain character context.
 The shared guidance in `packages/core/src/goal-guidance.ts` is included in the
 character context used by both dialogue and review, including the palace demo.
-It asks for explicit targets and observable completion or waiting conditions,
+It asks for explicit targets and observable completion conditions,
 preserves character agency, and leaves pathfinding and action selection to the
 engine and planner. No change of intent means `goalUpdate: null`.
 
@@ -50,3 +50,9 @@ search recipes or force the NPC to agree to the player's proposals.
 Authored `objectives` hold the broader ambitions of each NPC. They inform dialogue,
 review, and planner character context independently of `currentGoal`. Conversation
 review updates immediate intent without replacing these objectives.
+
+Passive waiting is idle intent. Once the NPC is in the intended place and any
+required physical work is done, both conversation and planner-outcome reviews
+return `goalUpdate: null` for waiting on speech, someone leaving, or a future
+request. Record meaningful intentions in memory; do not re-activate Jev just to
+maintain an already-achieved state. A non-null goal is for work needed now.
