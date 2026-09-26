@@ -46,8 +46,46 @@ export function debugOverview(type, data) {
   return `<div class="debug-grid">${content}</div>`;
 }
 
+const object = value => value && typeof value === "object" && !Array.isArray(value) ? value : null;
+const array = value => Array.isArray(value) ? value : [];
+function parsedContent(response) {
+  try { return object(JSON.parse(response?.content)); } catch { return null; }
+}
+
+function transcriptSummary(entry) {
+  if (entry.status === "pending") return empty("Waiting for the model…");
+  if (entry.error) return `<p class="debug-error">${escape(entry.error)}</p>`;
+  const response = object(entry.response);
+  if (!response) return empty("No response recorded.");
+  if (entry.kind === "jev") {
+    const state = entry.request?.state;
+    const action = array(state?.actions).find(item => item?.id === response.choice);
+    const choice = response.choice === "complete" ? "Planner reports complete" : response.choice === "unable" ? "Planner reports unable to progress" : action?.description || response.choice;
+    const probability = object(response.probabilities)?.[response.choice];
+    return `<h4>Goal</h4><p>${escape(state?.goal || "Not recorded")}</p><h4>Decision</h4><p>${escape(choice)}</p>`
+      + facts([["Choice", response.choice], ...(typeof probability === "number" ? [["Choice probability", `${Math.round(probability * 100)}%`]] : []), ...(typeof response.confidence === "number" ? [["Confidence", `${Math.round(response.confidence * 100)}%`]] : [])])
+      + `<p class="debug-meta">This is the planner's decision, not confirmation that an action was executed.</p>`;
+  }
+  const output = parsedContent(response);
+  if (entry.kind === "conversation_review" || entry.kind === "outcome_review") {
+    if (!output) return empty("Could not read structured review output. See the full response below.");
+    const newEvents = array(output.newEvents), relationships = array(output.relationships), goal = object(output.goalUpdate);
+    return `<h4>Events returned (${newEvents.length})</h4>${list(newEvents, event => `<strong>${escape(event?.type)}</strong><p>${escape(event?.summary)}</p>`, "No new events.")}`
+      + `<h4>Immediate goal</h4>${goal ? `<p>${escape(goal.goal)}</p><p class="debug-meta">Reason: ${escape(goal.reason)}</p>` : output.goalUpdate === null ? empty("No new goal — stay idle.") : empty("No goal update returned.")}`
+      + `<h4>Relationship updates (${relationships.length})</h4>${list(relationships, relationship => `<strong>${escape(relationship?.characterId)}</strong><p>${escape(relationship?.description)}</p>`, "No relationship changes.")}`
+      + `<h4>Biography</h4>${typeof output.lore === "string" ? `<p>${escape(output.lore)}</p>` : empty("Unchanged.")}`
+      + `<p class="debug-meta">These are model-returned updates; validation and saving happen afterwards.</p>`;
+  }
+  if (entry.kind === "dialogue" && output) {
+    return `<h4>Character said</h4><p>${escape(output.utterance)}</p><p class="debug-meta">${output.endConversation === true ? "Chose to end the conversation." : "Conversation continues."}</p>`
+      + `<h4>Suggested player replies</h4>${list(array(output.replyOptions), reply => escape(reply), "No suggested replies.")}`;
+  }
+  return (response.content ? `<h4>Response</h4><p>${escape(response.content)}</p>` : empty("No spoken response."))
+    + (array(response.tool_calls).length ? `<h4>Tools requested</h4>${list(response.tool_calls, call => `<strong>${escape(call?.function?.name)}</strong><pre>${escape(call?.function?.arguments)}</pre>`, "No tools.")}` : "");
+}
+
 export function recentTranscriptsView(entries = []) {
   const kinds = { game_master: "Game master", dialogue: "Dialogue", conversation_review: "Conversation review", jev: "Jev decision", outcome_review: "Outcome review" };
-  return `<p class="debug-note">Latest 50 model calls for this loaded game session, newest first. Includes requests, returned responses and network/provider errors. Reloading or loading a game starts a fresh log. No hidden reasoning or authentication headers are captured.</p>`
-    + (entries.length ? entries.map(entry => `<article class="debug-card"><details><summary><strong>${escape(kinds[entry.kind] || entry.kind)} · ${escape(entry.characterId)}</strong> — ${escape(entry.status === "success" ? "Response received" : entry.status)} <span class="debug-meta">${escape(entry.startedAt)}${entry.durationMs === undefined ? "" : ` · ${(entry.durationMs / 1000).toFixed(2)}s`}</span></summary><h4>Request</h4><pre>${escape(JSON.stringify(entry.request, null, 2))}</pre>${entry.response === undefined ? "" : `<h4>Response</h4><pre>${escape(JSON.stringify(entry.response, null, 2))}</pre>`}${entry.error ? `<h4>Error</h4><pre class="debug-error">${escape(entry.error)}</pre>` : ""}</details></article>`).join("") : empty("No model calls recorded yet in this session."));
+  return `<p class="debug-note">Latest 50 model calls for this loaded game session, newest first. Reloading or loading a game starts a fresh log. No hidden reasoning or authentication headers are captured.</p>`
+    + (entries.length ? entries.map(entry => `<article class="debug-card transcript-card"><h3>${escape(kinds[entry.kind] || entry.kind)} · ${escape(entry.characterId)}</h3><p class="debug-meta">${escape(entry.status === "success" ? "Response received" : entry.status)} · ${escape(entry.startedAt)}${entry.durationMs === undefined ? "" : ` · ${(entry.durationMs / 1000).toFixed(2)}s`}</p><div class="transcript-summary">${transcriptSummary(entry)}</div><details><summary>Full request and response</summary><h4>Request</h4><pre>${escape(JSON.stringify(entry.request, null, 2))}</pre>${entry.response === undefined ? "" : `<h4>Response</h4><pre>${escape(JSON.stringify(entry.response, null, 2))}</pre>`}${entry.error ? `<h4>Error</h4><pre class="debug-error">${escape(entry.error)}</pre>` : ""}</details></article>`).join("") : empty("No model calls recorded yet in this session."));
 }

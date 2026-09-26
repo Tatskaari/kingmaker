@@ -184,3 +184,7 @@ button.court-character:hover:not(:focus-visible) { border-color: transparent; ba
 .court-character:not(.court-off-map) .court-character-name { position: absolute; top: 36px; width: max-content; pointer-events: none; }
 .npc-planner { margin-top: 16px; padding: 12px; border: 1px solid var(--line); }
 .npc-planner pre { max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
+.transcript-card + .transcript-card { margin-top: 16px; }
+.transcript-summary p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.transcript-summary h4 { margin: 14px 0 6px; color: var(--gold); }
+.transcript-card > details { margin-top: 16px; }
