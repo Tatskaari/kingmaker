@@ -83,7 +83,7 @@ export class MemoryGame implements GameState {
         id: `arrival-${npcId}`,
         day: world.day,
         type: "arrival",
-        summary: `${identity}, has arrived with the allied embassy and is greeting ${npcId} in the Great Hall.`,
+        summary: `${identity}, has arrived with the diplomatic delegation and is greeting ${npcId} in the Great Hall.`,
         characterIds: [npcId, player.id],
         visibility: EventVisibility.PRIVATE,
         details: { homeland: setup.homeland, embassyRole: setup.embassyRole },

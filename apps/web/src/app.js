@@ -1,3 +1,5 @@
+import { introduction, introductionHandoff, handoffPrefix, nameSuggestions, homelandSuggestions, patronName } from "./introduction.js";
+
 const app = document.querySelector("#app");
 let state;
 let activeCharacter = null;
@@ -11,6 +13,8 @@ let debugTitle = "Debug Inspector";
 let debugRequest = { type: "debug", payload: {} };
 let apiKey = "";
 let screen = "key";
+let introPage = 0;
+let traveller = { name: "", homeland: "" };
 let saves = [];
 let activeSaveId = null;
 let requestSequence = 0;
@@ -96,12 +100,20 @@ function messageList(messages, assistantName) {
 }
 
 function renderCreation() {
-  const messages = state.gmMessages || [];
+  const messages = (state.gmMessages || []).filter(message => !(message.role === "user" && message.text.startsWith(handoffPrefix)));
   if (!messages.length) {
-    app.innerHTML = shell(`<section class="panel begin"><div><h2>Enter the Great Hall</h2><p>You arrive with an embassy from a neighbouring allied kingdom. The Game Master will help decide who you are, where you came from, and what brought you here.</p><button class="primary" data-begin ${busy ? "disabled" : ""}>Begin</button><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></div></section>`);
+    let content;
+    if (introPage < introduction.length) {
+      content = `${introduction[introPage].map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join("")}<button class="dialogue-option" data-intro-next>${introPage === introduction.length - 1 ? "Embark..." : "Continue..."}</button>`;
+    } else if (introPage === introduction.length) {
+      content = `<p>On the road to Caerwyn, every traveller has a name and a place they call home.</p><form data-traveller-form><label for="traveller-name">Your name</label><div class="identity-field"><input id="traveller-name" name="name" value="${escapeHtml(traveller.name)}" maxlength="80" required autocomplete="off"><button type="button" data-roll="name" aria-label="Generate a name">⚄</button></div><label for="traveller-homeland">Where are you from?</label><p class="field-hint" id="homeland-hint">Your homeland is a vassal state of Caerwyn. Invent one, or roll the dice.</p><div class="identity-field"><input id="traveller-homeland" name="homeland" value="${escapeHtml(traveller.homeland)}" maxlength="80" required aria-describedby="homeland-hint" autocomplete="off"><button type="button" data-roll="homeland" aria-label="Generate a homeland">⚄</button></div><button class="dialogue-option">Continue...</button></form>`;
+    } else {
+      content = `<p>On the road from ${escapeHtml(traveller.homeland)}, you, ${escapeHtml(traveller.name)}, encounter a stranger at a crossroads. He sits on a milestone beneath a bare winter tree, turning a coin between his fingers. He laughs knowingly as you approach.</p><button class="dialogue-option" data-begin ${busy ? "disabled" : ""}>Continue...</button>`;
+    }
+    app.innerHTML = shell(`<section class="introduction" aria-label="Your journey" tabindex="-1">${content}<p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
     return bind();
   }
-  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><h2>The Game Master</h2><span class="eyebrow">Character creation</span></div><div class="messages">${messageList(messages, "Game Master")}</div><form class="composer" data-gm-form><textarea name="message" placeholder="Answer in your own words…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div></div><div class="messages">${messageList(messages, patronName)}</div><form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Tell him what you desire…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
   bind();
   document.querySelector(".messages")?.scrollTo(0, 999999);
 }
@@ -131,7 +143,7 @@ function render() {
 }
 
 async function run(action) {
-  busy = true; notice = "The court considers your words…"; render();
+  busy = true; notice = state?.phase === "player_creation" ? "Somewhere in the dark, the Stranger smiles…" : "The court considers your words…"; render();
   try { await action(); notice = ""; }
   catch (error) { notice = `Error: ${error.message}`; }
   finally { busy = false; render(); }
@@ -145,10 +157,10 @@ function bind() {
   });
   document.querySelector("[data-key-change]")?.addEventListener("click", () => { apiKey = ""; state = null; screen = "key"; render(); });
   document.querySelector("[data-new-game]")?.addEventListener("click", () => run(async () => {
-    const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    introPage = 0; traveller = { name: "", homeland: "" }; const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   }));
   document.querySelectorAll("[data-save-load]").forEach(button => button.addEventListener("click", () => run(async () => {
-    const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    introPage = 0; traveller = { name: "", homeland: "" }; const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   })));
   document.querySelectorAll("[data-save-delete]").forEach(button => button.addEventListener("click", () => run(async () => {
     const result = await rpc("delete_game", { saveId: button.dataset.saveDelete }); saves = result.saves;
@@ -163,8 +175,29 @@ function bind() {
   });
   document.querySelector("[data-debug-refresh]")?.addEventListener("click", () => openDebug());
   document.querySelectorAll("[data-debug-close]").forEach(button => button.addEventListener("click", () => { debugOpen = false; render(); }));
+  document.querySelector("[data-intro-next]")?.addEventListener("click", () => { introPage += 1; render(); document.querySelector(".introduction")?.focus({ preventScroll: true }); window.scrollTo(0, 0); });
+  document.querySelectorAll("[data-roll]").forEach(button => button.addEventListener("click", () => {
+    const field = button.dataset.roll;
+    const input = document.querySelector(`[name="${field}"]`);
+    const suggestions = (field === "name" ? nameSuggestions : homelandSuggestions).filter(value => value !== input.value);
+    input.value = suggestions[Math.floor(Math.random() * suggestions.length)];
+    traveller[field] = input.value;
+    input.focus();
+  }));
+  document.querySelector("[data-traveller-form]")?.addEventListener("input", event => { if (event.target.name) traveller[event.target.name] = event.target.value; });
+  document.querySelector("[data-traveller-form]")?.addEventListener("submit", event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    for (const field of ["name", "homeland"]) {
+      const input = form.elements.namedItem(field);
+      input.value = input.value.trim();
+      if (!input.reportValidity()) return;
+      traveller[field] = input.value;
+    }
+    introPage += 1; render(); document.querySelector(".introduction")?.focus({ preventScroll: true }); window.scrollTo(0, 0);
+  });
   document.querySelector("[data-begin]")?.addEventListener("click", () => run(async () => {
-    const result = await rpc("gm", { message: "Introduce the situation and help me create my emissary." }); state = result.state; saves = result.saves;
+    const result = await rpc("gm", { message: introductionHandoff(traveller.name, traveller.homeland) }); state = result.state; saves = result.saves;
   }));
   document.querySelector("[data-gm-form]")?.addEventListener("submit", event => {
     event.preventDefault(); const message = new FormData(event.currentTarget).get("message");
@@ -177,7 +210,7 @@ function bind() {
   });
   document.querySelector("[data-back]")?.addEventListener("click", () => { activeCharacter = null; notice = ""; render(); });
   document.querySelector("[data-end-day]")?.addEventListener("click", () => { notice = "The twelve-hour night phase is the next milestone. For now, the day remains yours."; render(); });
-  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
+  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { introPage = 0; traveller = { name: "", homeland: "" }; const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
 }
 
 document.addEventListener("keydown", event => {
