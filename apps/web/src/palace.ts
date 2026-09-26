@@ -4,10 +4,11 @@ import { characterDecisionContext } from "../../../packages/core/src/context.js"
 import { CanvasMapRenderer } from "./map-renderer.js";
 import { palaceMap } from "./palace-map.js";
 import { findPath, reachableRoutes, type NavRoute, type Point } from "./navigation.js";
-import { createDoors, doorGraph, doorBlockers, canUseDoor, toggleDoor, type Door } from "./palace-doors.js";
-import { PalaceAgent, legalActions, PALACE_INSTRUCTIONS, palaceCriteria, type PalaceAction } from "./palace-agent.js";
+import { createDoors, doorGraph, doorBlockers, toggleDoor, type Door } from "./palace-doors.js";
+import { PalaceAgent, PALACE_INSTRUCTIONS, palaceCriteria, type PalaceAction } from "./palace-agent.js";
 import { JevClient } from "../../../packages/providers/src/jev.js";
-import { createFurniture, addFurnitureNodes, furnitureBlockers, furnitureActions, applyFurnitureAction, observeFurniture, besideFurniture, furnitureName } from "./palace-furniture.js";
+import { createFurniture, addFurnitureNodes, furnitureBlockers, applyFurnitureAction, observeFurniture, furnitureName } from "./palace-furniture.js";
+import { interactionActions, executeInteraction } from "./palace-interactions.js";
 const scenarioResponse = await fetch(new URL("../../../content/scenarios/last-night.json", import.meta.url));
 if (!scenarioResponse.ok) throw new Error("Could not load Merlin's character sheet.");
 const scenario = fromJsonString(ScenarioSchema, await scenarioResponse.text());
@@ -55,19 +56,7 @@ let movementDone: (() => void) | undefined;
 const agent = new PalaceAgent({
   characterContext: goal => characterDecisionContext(scenario, merlin.id, goal),
   snapshot: () => ({ at: current.id, revision, actions: availableActions(), world: worldObservation() }),
-  execute: async (action: PalaceAction) => {
-    if (action.type === "move") {
-      await new Promise<void>((resolve, reject) => {
-        movementDone = resolve;
-        if (!travel(action.target)) { movementDone = undefined; reject(new Error("Destination is no longer reachable.")); }
-      });
-    } else if (action.type === "open_container" || action.type === "close_container" || action.type === "take_item" || action.type === "inspect_container") {
-      useFurniture(action.id);
-    } else {
-      const door = doors.find(door => door.id === action.target);
-      if (!door || door.open !== (action.type === "close") || !interact(door)) throw new Error("Door action is no longer available.");
-    }
-  },
+  execute: (action, signal) => performAction(action, signal),
   report: (message, decision) => {
     agentStatus.textContent = message;
     if (decision) element("[data-jev-response]").textContent = JSON.stringify(decision, null, 2);
@@ -88,23 +77,41 @@ function worldObservation(): unknown {
       connects: door.connection, approachNodes: door.sides.map(side => side.id) })),
     furniture: observeFurniture(furnitureState),
     inventory: furnitureState.inventory,
-    rules: "Furniture containers must be opened before their contents are known. The royal lockbox requires carrying its key to open. Only reachable moves are offered. Doors must be opened from an adjacent approach node before crossing. Full palace layout is known.",
+    rules: "Furniture containers must be opened before their contents are known. The royal lockbox requires carrying its key to open. Interactions include walking to their reachable interaction spot before performing the action. Doors have a spot on each side; a closed door blocks crossing. Only currently reachable moves and interactions are offered. Full palace layout is known.",
   };
 }
 const blocked = (): Set<string> => new Set([...doorBlockers(doors), ...furnitureBlockers(furnitureState)]);
 function availableActions(): PalaceAction[] {
   if (movement) return [];
-  const movesAndDoors = legalActions(routes, doors, position).map(action => {
-    if (action.type !== "move") return action;
-    const door = doors.find(door => door.sides.some(side => side.id === action.target));
-    const furniture = furnitureState.furniture.find(item => item.approach?.id === action.target);
-    const effect = furniture ? ` This puts you beside ${furnitureName(furniture)}, ${furniture.searched ? "already inspected" : "an unsearched container"}, to interact with it.`
-      : door ? ` This puts you beside ${door.name} so you can ${door.open ? "close it or pass through" : "open it to reach " + door.connection.map(id => palaceNodes.find(node => node.id === id)?.name ?? id).join(" / ")}.`
-      : "";
-    return { ...action, description: action.description + effect };
-  });
-  return [...movesAndDoors, ...furnitureActions(furnitureState, position)];
+  return interactionActions(routes, doors, furnitureState, position);
 }
+function walkTo(destination: string): Promise<void> {
+  return new Promise<void>((resolve, reject) => {
+    movementDone = resolve;
+    if (!travel(destination)) { movementDone = undefined; reject(new Error("Destination is no longer reachable.")); }
+  });
+}
+let interactionGeneration = 0;
+async function performAction(action: PalaceAction, signal?: AbortSignal): Promise<void> {
+  const generation = interactionGeneration;
+  if (action.type === "move") { await walkTo(action.target); return; }
+  await executeInteraction(action, {
+    actions: availableActions,
+    at: () => current.id,
+    walk: walkTo,
+    apply: action => {
+      if (generation !== interactionGeneration) throw new Error("World was reset.");
+      if (action.type === "open" || action.type === "close") {
+        const door = doors.find(door => door.id === action.target);
+        if (!door || door.open !== (action.type === "close") || !interact(door)) throw new Error("Door action is no longer available.");
+      } else useFurniture(action.id);
+    },
+  }, signal);
+}
+function manualInteraction(action: PalaceAction): void {
+  void performAction(action).catch(error => { status.textContent = error instanceof Error ? error.message : "Interaction failed."; });
+}
+
 function useFurniture(actionId: string): void {
   status.textContent = applyFurnitureAction(furnitureState, position, actionId, !!movement);
   revision++; refresh();
@@ -222,6 +229,7 @@ function animate(time: number): void {
   render(); frame = window.setTimeout(() => animate(performance.now()), 16);
 }
 element("[data-reset]").addEventListener("click", () => {
+  interactionGeneration++;
   agent.reset();
   agentLog.replaceChildren();
   element("[data-jev-request]").textContent = "No request yet.";
@@ -245,15 +253,23 @@ canvas.addEventListener("click", event => {
 canvas.addEventListener("contextmenu", event => {
   const hit = renderer.hit(event.clientX, event.clientY);
   const door = hit && doors.find(door => door.tiles.some(tile => tile.x === hit.tileX && tile.y === hit.tileY));
-  if (door) { event.preventDefault(); if (!agent.running) interact(door); return; }
+  if (door) { event.preventDefault(); if (!agent.running && !movement) {
+    const action = availableActions().filter(action => action.target === door.id).sort((a, b) => {
+      const distance = (action: PalaceAction): number => action.interactionSpot === current.id ? 0
+        : routes.find(route => route.node.id === action.interactionSpot)?.path.length ?? Infinity;
+      return distance(a) - distance(b);
+    })[0];
+    if (action) manualInteraction(action);
+    else status.textContent = "Neither side of this door is reachable.";
+  } return; }
   const furniture = hit && furnitureState.furniture.find(item => item.x === hit.tileX && item.y === hit.tileY);
   if (!furniture || furniture.kind === "decoration") return;
   event.preventDefault();
   if (agent.running || movement) return;
-  const actions = furnitureActions(furnitureState, position).filter(action => action.target === furniture.id);
+  const actions = availableActions().filter(action => action.target === furniture.id);
   const action = actions.find(action => action.type === "take_item" || action.type === "inspect_container") ?? actions[0];
-  if (action) useFurniture(action.id);
-  else status.textContent = besideFurniture(furniture, position) ? "This container is locked. You need its matching key." : `Walk to ${furnitureName(furniture)}'s waypoint first.`;
+  if (action) manualInteraction(action);
+  else status.textContent = "No interaction is available: the spot is unreachable or the container needs its matching key.";
 });
 canvas.addEventListener("pointermove", event => {
   const hit = renderer.hit(event.clientX, event.clientY);

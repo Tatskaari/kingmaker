@@ -2,7 +2,7 @@ import type { Choose, JevChoice } from "../../../packages/providers/src/jev.js";
 import type { NavRoute, Point } from "./navigation.js";
 import { canUseDoor, type Door } from "./palace-doors.js";
 
-export interface PalaceAction { id: string; type: "move" | "open" | "close" | "open_container" | "close_container" | "take_item" | "inspect_container"; target: string; itemId?: string; description: string }
+export interface PalaceAction { id: string; type: "move" | "open" | "close" | "open_container" | "close_container" | "take_item" | "inspect_container"; target: string; interactionSpot?: string; itemId?: string; description: string }
 export function legalActions(routes: readonly NavRoute[], doors: readonly Door[], position: Point): PalaceAction[] {
   return [
     ...routes.map(route => ({ id: `move_${route.node.id}`, type: "move" as const, target: route.node.id,
@@ -32,7 +32,7 @@ export interface AgentSnapshot { at: string; revision: number; actions: PalaceAc
 export interface AgentHost {
   snapshot(): AgentSnapshot;
   characterContext?(goal: string): unknown;
-  execute(action: PalaceAction): Promise<void>;
+  execute(action: PalaceAction, signal?: AbortSignal): Promise<void>;
   report(message: string, decision?: JevChoice): void;
   changed(): void;
 }
@@ -75,7 +75,7 @@ export class PalaceAgent {
         this.#steps++;
         this.host.report(action.description, result);
         const history = this.#history;
-        await this.host.execute(action);
+        await this.host.execute(action, controller.signal);
         history.push(`Completed: ${action.description} Now at ${this.host.snapshot().at}.`);
         if (!active()) return;
         if (singleStep) { this.host.report("Step complete."); break; }

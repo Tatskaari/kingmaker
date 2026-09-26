@@ -7,7 +7,7 @@ the active route. Reset cancels movement and restores the initial door states.
 
 Seven two-tile doors guard the chambers, treasury, guest room, and hall connections.
 Hall doors start open; private-room doors start closed. Each threshold has a waypoint
-on either side. Walk to one, then right-click either door tile to open/close it. Closed doors block both threshold tiles. Door interaction is
+on either side. Right-click either door tile to walk to the nearest reachable spot and open/close it. Closed doors block both threshold tiles. Door interaction is
 permitted only one cardinal tile away, never remotely, while moving, or from inside
 the threshold itself. Closing a door inside a room removes routes out until reopened.
 
@@ -114,7 +114,7 @@ one storage barrel is empty. Initial contents are never included in observations
 or action choices. Once opened, contents are remembered, and taking an item moves
 it exactly once into inventory.
 
-Three coffers share neutral outward descriptions. An adjacent inspect action
+Three coffers share neutral outward descriptions. An inspect interaction
 reveals a coffer's identity and lock requirement without opening it or revealing
 contents. The royal lockbox uses an opaque coffer ID and neutral waypoint label,
 so its identity is not leaked through navigation IDs. The other coffers contain
@@ -125,3 +125,16 @@ The default goal is now “Find and open the king's lockbox.” It does not supp
 room or a search procedure. The additional items are collectibles, not new spell,
 combat or dialogue abilities. These changes add search choices but do not claim a
 measured change in Jev's success rate.
+
+
+### Combined interactions
+
+Jev chooses an interaction together with its destination: inspect/open/close a
+container, take an exposed item, or open/close a door. The engine walks to the
+interaction spot with A* and only applies the effect after arrival and revalidation.
+Furniture has one authored spot; each door has independent inside/outside choices.
+Only currently reachable spots are offered, so closed doors must be opened before
+interacting with furniture beyond them. Interaction spots no longer appear as
+separate move choices; ordinary room/corridor destinations remain available.
+Pausing finishes the active walk but cancels its pending interaction. Reset cancels
+pending effects too. Right-click debugging uses the same combined execution.

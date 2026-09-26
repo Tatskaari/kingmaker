@@ -1,3 +1,4 @@
+import { interactionActions, executeInteraction } from "../apps/web/src/palace-interactions.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -976,4 +977,73 @@ test("different coffers require their own matching keys", () => {
   assert.throws(() => applyFurnitureAction(state, gatekeeper.approach!, "open_coffer_01"), /unavailable/);
   assert.ok(jewellery.open);
   assert.equal(state.inventory.length, 1);
+});
+
+test("interaction choices bundle reachable spots and distinguish both door sides", () => {
+  const doors = createDoors(), furniture = createFurniture(), graph = doorGraph(doors);
+  addFurnitureNodes(graph, furniture);
+  const actionsAt = (id: string) => {
+    const position = graph.nodes.find(node => node.id === id)!;
+    const blocked = new Set([...doorBlockers(doors), ...furnitureBlockers(furniture)]);
+    return interactionActions(reachableRoutes(palaceMap, graph.nodes, graph.edges, id, blocked), doors, furniture, position);
+  };
+  const initial = actionsAt("great_hall");
+  assert.ok(initial.some(action => action.id === "open_hall_cabinet" && action.interactionSpot === "hall_cabinet_approach"));
+  assert.ok(!initial.some(action => action.id === "open_merlin_drawers"));
+  assert.ok(!initial.some(action => action.type === "move" && action.target.endsWith("_approach")));
+  const merlinChoices = initial.filter(action => action.target === "merlin_door");
+  assert.deepEqual(merlinChoices.map(action => action.interactionSpot), ["merlin_door_outside"]);
+  assert.equal(initial.filter(action => action.target === "hall_door").length, 2);
+  doors.find(door => door.id === "merlin_door")!.open = true;
+  assert.ok(actionsAt("great_hall").some(action => action.id === "open_merlin_drawers"));
+  assert.ok(actionsAt("merlin_drawers_approach").some(action => action.id === "open_merlin_drawers"));
+  assert.ok(!actionsAt("royal").some(action => action.id === "open_coffer_03"));
+});
+
+test("combined interactions apply after arrival and revalidate or cancel before effects", async () => {
+  const action = { id: "open_drawers", type: "open_container" as const, target: "drawers", interactionSpot: "spot", description: "Open drawers" };
+  let at = "room", available = true, effects = 0;
+  const order: string[] = [];
+  const host = {
+    actions: () => available ? [action] : [], at: () => at,
+    walk: async (destination: string) => { order.push("walk"); at = destination; },
+    apply: () => { assert.equal(at, "spot"); order.push("open"); effects++; },
+  };
+  await executeInteraction(action, host);
+  assert.deepEqual(order, ["walk", "open"]);
+  await executeInteraction(action, host);
+  assert.deepEqual(order, ["walk", "open", "open"]);
+  at = "room";
+  await assert.rejects(executeInteraction(action, { ...host, walk: async () => { at = "spot"; available = false; } }), /no longer available/);
+  assert.equal(effects, 2);
+  available = true; at = "room";
+  const controller = new AbortController();
+  await assert.rejects(executeInteraction(action, { ...host, walk: async () => { at = "spot"; controller.abort(); } }, controller.signal), /abort/i);
+  assert.equal(effects, 2);
+});
+
+test("combined actions navigate through doors, fetch the key and open the royal coffer", async () => {
+  const doors = createDoors(), furniture = createFurniture(), graph = doorGraph(doors);
+  addFurnitureNodes(graph, furniture);
+  let current = graph.nodes.find(node => node.id === "great_hall")!;
+  const routes = () => reachableRoutes(palaceMap, graph.nodes, graph.edges, current.id,
+    new Set([...doorBlockers(doors), ...furnitureBlockers(furniture)]));
+  const actions = () => interactionActions(routes(), doors, furniture, current);
+  const host = {
+    actions, at: () => current.id,
+    walk: async (id: string) => { const route = routes().find(route => route.node.id === id); assert.ok(route); current = route.node; },
+    apply: (action: ReturnType<typeof actions>[number]) => {
+      if (action.type === "open" || action.type === "close") {
+        assert.ok(toggleDoor(doors.find(door => door.id === action.target)!, current));
+      } else applyFurnitureAction(furniture, current, action.id);
+    },
+  };
+  for (const id of ["open_merlin_door_from_merlin_door_outside", "open_merlin_drawers", "take_royal_key",
+    "open_royal_door_from_royal_door_outside", "open_coffer_03"]) {
+    const action = actions().find(action => action.id === id); assert.ok(action, id);
+    await executeInteraction(action, host);
+  }
+  assert.equal(current.id, "coffer_03_approach");
+  assert.ok(furniture.inventory.some(item => item.id === "royal_key"));
+  assert.ok(furniture.furniture.find(item => item.id === "coffer_03")!.open);
 });
