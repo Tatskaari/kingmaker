@@ -306,3 +306,44 @@ test("the documented Stranger checklist and escalation are the runtime prompt", 
     .replace(/^# The Laughing Stranger\s+/, "").trim();
   assert.equal(load().gameMasterPrompt, documented);
 });
+
+test("GM debug distinguishes consumed flags, raw responses, outdated prompts, and failures", async t => {
+  const runtime = new BrowserGameRuntime(load(), "do-not-display-this-key");
+  let debug = runtime.debugGameMaster() as any;
+  assert.equal(debug.compulsion.consumedFlag, null);
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => offer(true));
+  await runtime.talkToGameMaster("I refuse again.");
+  debug = runtime.debugGameMaster();
+  assert.equal(debug.compulsion.active, true);
+  assert.equal(debug.compulsion.consumedFlag, true);
+  assert.equal(debug.compulsion.latestOffers[0].arguments.compelled, true);
+  assert.equal(debug.latestTurnCalls[0].response.content, "What do you want from this journey?");
+  assert.equal(debug.latestTurnCalls[0].toolResults[0].result.ok, true);
+  assert.ok(debug.latestTurnCalls[0].request.messages.length > 0);
+  assert.ok(!JSON.stringify(debug).includes("do-not-display-this-key"));
+  const saved = runtime.snapshot();
+  (saved.scenario as any).gameMasterPrompt = "An older prompt";
+  assert.equal(new BrowserGameRuntime(load(), "test", saved).debugGameMaster().promptMatchesCurrentScenario, false);
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => { throw new Error("failed request"); });
+  await assert.rejects(runtime.talkToGameMaster("I want to protect my family."), /failed request/);
+  debug = runtime.debugGameMaster();
+  assert.equal(debug.latestTurnCalls[0].error, "failed request");
+  assert.equal(debug.compulsion.active, true, "Failed requests preserve the last accepted choices");
+});
+
+
+test("compulsion requires an offered choice, then releases free-text input", async t => {
+  const replies: OpenRouterMessage[] = [offer(true), { role: "assistant", content: "Good. Tell me more." }, { role: "assistant", content: "I see." }];
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => { calls += 1; return replies.shift()!; });
+  const runtime = new BrowserGameRuntime(load(), "test");
+  await runtime.talkToGameMaster("I refuse.");
+  const before = structuredClone(runtime.snapshot());
+  await assert.rejects(runtime.talkToGameMaster("I still refuse."), /Choose one of the offered responses/);
+  assert.equal(calls, 1);
+  assert.deepEqual(runtime.snapshot(), before);
+  await runtime.talkToGameMaster("I want to protect my family.");
+  assert.equal(runtime.view().gmReplyOptions, null);
+  await runtime.talkToGameMaster("Here is my own answer.");
+  assert.equal(calls, 3);
+});

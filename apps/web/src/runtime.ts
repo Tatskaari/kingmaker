@@ -9,7 +9,14 @@ import {
 } from "../../../packages/contracts/src/index.js";
 import { FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter } from "../../../packages/core/src/context.js";
 import { MemoryGame } from "../../../packages/core/src/game.js";
-import { OpenRouterClient, type OpenRouterMessage, type OpenRouterTool } from "../../../packages/providers/src/openrouter.js";
+import { OpenRouterClient, type OpenRouterMessage, type OpenRouterTool, type ChatCompletionRequest } from "../../../packages/providers/src/openrouter.js";
+
+interface GameMasterTrace {
+  request: ChatCompletionRequest;
+  response?: OpenRouterMessage;
+  error?: string;
+  toolResults: Array<{ name: string; result: JsonObject }>;
+}
 
 export interface RuntimeSnapshot {
   scenario: JsonValue;
@@ -29,7 +36,10 @@ const gmTools: readonly OpenRouterTool[] = [
         type: "object", additionalProperties: false, required: ["options", "compelled"],
         properties: {
           options: { type: "array", minItems: 1, items: { type: "string", maxLength: 300 } },
-          compelled: { type: "boolean" },
+          compelled: {
+            type: "boolean",
+            description: "Set false for ordinary optional roleplaying suggestions. Set true when the player has evaded or refused a still-missing creation detail after both your natural question and a firmer warning: this is the moment your jovial mask cracks and you use divine power to demand an answer. Continued in-character refusal is the cue to use this flag, not to abandon the interview. True makes the app display the loss-of-free-will narration and mark these options as compelled. Speak the sudden cold demand in your transcript reply. The app hides free-text input and the player must choose one of the offered options; never choose for them. GM only, during character creation. Do not use for an answered detail, genuine uncertainty, an allegiance, or readiness to depart.",
+          },
         },
       },
     },
@@ -121,6 +131,7 @@ export class BrowserGameRuntime {
   #game: MemoryGame;
   #client: OpenRouterClient;
   #gmHistory: OpenRouterMessage[] = [];
+  #gmTrace: GameMasterTrace[] = [];
   #gmReplyOptions: ReplyOptions | null = null;
   #conversationReplyOptions: Record<string, string[]> = {};
   #conversations = new Map<string, TranscriptMessage[]>();
@@ -135,6 +146,7 @@ export class BrowserGameRuntime {
   reset(): void {
     this.#game = new MemoryGame(this.#initialScenario);
     this.#gmHistory = [];
+    this.#gmTrace = [];
     this.#gmReplyOptions = null;
     this.#conversationReplyOptions = {};
     this.#conversations = new Map();
@@ -165,17 +177,25 @@ export class BrowserGameRuntime {
   }
 
   async talkToGameMaster(messageText: string): Promise<string> {
+    if (this.#gmReplyOptions?.compelled && !this.#gmReplyOptions.options.includes(messageText)) {
+      throw new Error("Compulsion is active. Choose one of the offered responses.");
+    }
     const before = structuredClone(this.snapshot());
+    this.#gmTrace = [];
     try {
       this.#gmReplyOptions = null;
       this.#gmHistory.push({ role: "user", content: messageText });
       for (let step = 0; step < 5; step += 1) {
         const setup = new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario: this.#game.scenario() }));
-        const message = await this.#client.complete({
+        const request: ChatCompletionRequest = {
           model: "openai/gpt-5.4-mini",
           messages: [...setup.map(item => ({ role: item.role, content: item.content } satisfies OpenRouterMessage)), ...this.#gmHistory],
           tools: gmTools, temperature: 0.8, max_tokens: 900,
-        });
+        };
+        const trace: GameMasterTrace = { request: structuredClone(request), toolResults: [] };
+        this.#gmTrace.push(trace);
+        const message = await this.#client.complete(request);
+        trace.response = structuredClone(message);
         this.#gmHistory.push(message);
         if (!message.tool_calls?.length) {
           message.content = this.gameMasterReply(message.content);
@@ -188,6 +208,7 @@ export class BrowserGameRuntime {
             result = this.executeTool(call.function.name, JSON.parse(call.function.arguments) as JsonObject);
           }
           catch (error) { result = { ok: false, error: error instanceof Error ? error.message : String(error) }; }
+          trace.toolResults.push({ name: call.function.name, result: structuredClone(result) });
           this.#gmHistory.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result) });
           if (call.function.name === "offer_replies" && result.ok && message.content?.trim()) {
             const reply = this.gameMasterReply(message.content);
@@ -198,6 +219,8 @@ export class BrowserGameRuntime {
       }
       throw new Error("The game master used too many consecutive tool calls");
     } catch (error) {
+      const trace = this.#gmTrace.at(-1);
+      if (trace) trace.error = error instanceof Error ? error.message : String(error);
       this.restore(before);
       throw error;
     }
@@ -263,6 +286,34 @@ export class BrowserGameRuntime {
 
   debug(): JsonObject {
     return { scenario: toJson(ScenarioSchema, this.#game.scenario(), { alwaysEmitImplicit: true }), gameMasterHistory: this.#gmHistory, conversations: this.snapshot().conversations };
+  }
+
+  debugGameMaster(): JsonObject {
+    const scenario = this.#game.scenario();
+    const latestUser = this.#gmHistory.findLastIndex(message => message.role === "user");
+    const latestTurn = this.#gmHistory.slice(latestUser + 1);
+    const offers = latestTurn.flatMap(message => (message.tool_calls || [])
+      .filter(call => call.function.name === "offer_replies")
+      .map(call => {
+        let arguments_: unknown;
+        try { arguments_ = JSON.parse(call.function.arguments); }
+        catch { arguments_ = call.function.arguments; }
+        return { arguments: arguments_, result: latestTurn.find(item => item.role === "tool" && item.tool_call_id === call.id)?.content || null };
+      }));
+    return {
+      compulsion: {
+        active: this.#gmReplyOptions?.compelled === true,
+        consumedFlag: this.#gmReplyOptions?.compelled ?? null,
+        options: this.#gmReplyOptions?.options || [],
+        latestOffers: offers,
+      },
+      promptMatchesCurrentScenario: scenario.gameMasterPrompt === this.#initialScenario.gameMasterPrompt,
+      traceNote: "Exact requests and raw responses cover the latest GM turn in this runtime, including failures. After loading a save, use savedTranscript until another turn runs. Reconstructed context reflects current state, not necessarily the previous request. No hidden model reasoning is available.",
+      latestTurnCalls: this.#gmTrace,
+      savedTranscript: this.#gmHistory,
+      reconstructedContext: new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario })),
+      availableTools: gmTools,
+    };
   }
 
   debugCharacter(characterId: string): JsonObject {

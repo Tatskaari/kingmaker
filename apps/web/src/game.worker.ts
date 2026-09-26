@@ -141,6 +141,7 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     await persist();
     return { state: requireRuntime().view(), saves: await listSaves(), activeSaveId: activeSave?.id };
   }
+  if (type === "debug_gm") return requireRuntime().debugGameMaster();
   if (type === "debug") return requireRuntime().debug();
   if (type === "debug_character") return requireRuntime().debugCharacter(String(payload.characterId || ""));
   throw new Error(`Unknown worker request: ${type}`);

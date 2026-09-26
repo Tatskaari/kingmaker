@@ -78,7 +78,10 @@ function debugInspector() {
     : debugData
       ? `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
       : `<p class="debug-loading">Reading worker state…</p>`;
-  return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}"><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">Character state, visible events, known world, conversation, and assembled model context. The global inspector includes the authoritative world. Secrets and API keys are excluded.</p>${content}</aside>`;
+  const gmStatus = debugRequest.type === "debug_gm" && debugData?.compulsion
+    ? `<p class="debug-note" role="status">Compulsion: <strong>${debugData.compulsion.active ? "ON" : "OFF"}</strong> · Consumed flag: <strong>${debugData.compulsion.consumedFlag === null ? "no accepted options call" : escapeHtml(debugData.compulsion.consumedFlag)}</strong> · Prompt: <strong>${debugData.promptMatchesCurrentScenario ? "current" : "older saved version"}</strong></p>`
+    : "";
+  return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}"><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">Character state, visible events, known world, conversation, and assembled model context. The global inspector includes the authoritative world. GM debug includes prompts, raw model responses, and tool results—not hidden reasoning. API keys are excluded.</p>${gmStatus}${content}</aside>`;
 }
 
 async function openDebug(request = debugRequest, title = debugTitle) {
@@ -121,7 +124,7 @@ function renderCreation() {
     app.innerHTML = shell(`<section class="introduction" aria-label="Your journey" tabindex="-1">${content}<p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
     return bind();
   }
-  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div></div><div class="messages">${messageList(messages, patronName)}</div>${replyOptions(state.gmReplyOptions?.options, "gm", state.gmReplyOptions?.compelled)}<form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Tell him what you desire…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div><button class="character-debug" data-gm-debug>Debug Stranger</button></div><div class="messages">${messageList(messages, patronName)}</div>${replyOptions(state.gmReplyOptions?.options, "gm", state.gmReplyOptions?.compelled)}${state.gmReplyOptions?.compelled ? `<p class="compelled-hint">You must choose a response.</p>` : `<form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Tell him what you desire…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
   bind();
   document.querySelector(".messages")?.scrollTo(0, 999999);
 }
@@ -183,6 +186,7 @@ function bind() {
   document.querySelector("[data-sheet-open]")?.addEventListener("click", () => { sheetOpen = true; debugOpen = false; render(); });
   document.querySelectorAll("[data-sheet-close]").forEach(button => button.addEventListener("click", () => { sheetOpen = false; render(); }));
   document.querySelector("[data-debug-open]")?.addEventListener("click", () => openDebug({ type: "debug", payload: {} }, "Debug Inspector"));
+  document.querySelector("[data-gm-debug]")?.addEventListener("click", () => openDebug({ type: "debug_gm", payload: {} }, "Laughing Stranger Debug"));
   document.querySelector("[data-character-debug]")?.addEventListener("click", () => {
     const character = state.characters.find(item => item.id === activeCharacter);
     openDebug({ type: "debug_character", payload: { characterId: activeCharacter } }, `${character?.name || activeCharacter} Debug`);
