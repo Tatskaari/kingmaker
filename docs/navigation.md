@@ -166,8 +166,7 @@ chat/review request is pending.
 ### Main game palace screen
 
 After character creation, the main game's day screen shows the shared palace map.
-Character sprites open the existing saved conversations; End the day remains below
-the map. Character placement comes directly from saved actor room IDs and tile positions. Rooms absent
+Character interactions open the existing saved conversations. There is no End the day control. Character placement comes directly from saved actor room IDs and tile positions. Rooms absent
 from this map retain an accessible named control below it rather than inventing
 a location. The prototype's coffer/key/loot state is not imported.
 
