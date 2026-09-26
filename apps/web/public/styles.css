@@ -38,6 +38,14 @@ textarea:focus { border-color: var(--gold); }
 .key-entry form { display: grid; grid-template-columns: minmax(220px, 390px) auto; gap: 10px; justify-content: center; margin-top: 22px; }
 .key-entry input { background: #0e0c09; color: #f5ead4; border: 1px solid #514838; padding: 13px; outline: none; }
 .key-entry input:focus { border-color: var(--gold); }
+.save-picker { min-height: 300px; }
+.save-list { display: grid; gap: 10px; margin-top: 22px; }
+.save-card { display: grid; grid-template-columns: 1fr auto; border: 1px solid #4d4436; background: #100e0b; }
+.save-load { display: grid; gap: 4px; text-align: left; border: 0; background: transparent; color: #ecdfc4; padding: 16px 18px; }
+.save-load strong { font-family: Cinzel, serif; font-weight: 500; color: #f2dfb7; }
+.save-load span, .empty-saves { color: var(--dim); }
+.save-delete { width: 48px; border: 0; border-left: 1px solid #4d4436; background: transparent; color: #9f8e74; font-size: 1.5rem; }
+.save-load:hover, .save-delete:hover { background: #c9a6620d; color: #f2dfb7; }
 .primary, .choice { border: 1px solid var(--gold); background: #4a3820; color: #fff1cd; padding: 12px 22px; font-family: Cinzel, serif; letter-spacing: .04em; }
 .primary:hover, .choice:hover { background: #674c28; }
 button:disabled { opacity: .48; cursor: wait; }

@@ -85,8 +85,11 @@ The OpenRouter key remains outside the repository at
 with `proto run npm -- run dev`, then open `http://127.0.0.1:5173`. Enter an
 OpenRouter key in the browser; it remains in tab memory and is excluded from
 saves and debug output. The first paid request occurs when the player clicks
-**Begin**. Vite hot-reloads browser changes while the API process watches server code.
-The dev command snapshots game memory under `.moon/cache`, so watcher restarts
-preserve the current character and conversations.
+**Begin**. Vite hot-reloads the UI and game worker during development.
+
+The browser worker owns the authoritative game state and stores each game in
+IndexedDB. The save picker names a game after its player character once the GM
+creates them. Stable internal IDs allow two saved characters to share a name,
+and the last-played time distinguishes them.
 The top-right debug inspector reads the complete in-memory protobuf scenario and
 model histories from `/api/debug`; credentials are deliberately omitted.
