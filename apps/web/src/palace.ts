@@ -28,11 +28,8 @@ const inspector = element("[data-inspector]");
 const roomsToggle = element<HTMLInputElement>("[data-show-rooms]");
 const solidsToggle = element<HTMLInputElement>("[data-show-solids]");
 const navToggle = element<HTMLInputElement>("[data-show-nav]");
-const destinations = element("[data-destinations]");
 const status = element("[data-status]");
 const location = element("[data-location]");
-const doorActions = element("[data-door-actions]");
-const furnitureControls = element("[data-furniture-actions]");
 const inventory = element("[data-inventory]");
 const lockboxStatus = element("[data-lockbox-status]");
 const observation = element("[data-observation]");
@@ -129,32 +126,6 @@ function refresh(): void {
     const path = findPath(palaceMap, palaceNodes.find(node => node.id === edge.from)!, palaceNodes.find(node => node.id === edge.to)!, blocked());
     return path ? [path] : [];
   });
-  destinations.replaceChildren(...routes.map(route => {
-    const button = document.createElement("button");
-    button.textContent = `${route.node.name} · ${route.path.length - 1} steps`;
-    button.disabled = !!movement || agent.running;
-    button.addEventListener("click", () => { if (!agent.running) travel(route.node.id); });
-    return button;
-  }));
-  const nearbyDoors = doors.filter(door => canUseDoor(door, position, !!movement));
-  doorActions.replaceChildren(...nearbyDoors.map(door => {
-    const button = document.createElement("button");
-    button.textContent = `${door.open ? "Close" : "Open"} ${door.name}`;
-    button.disabled = agent.running;
-    button.addEventListener("click", () => { if (!agent.running) interact(door); });
-    return button;
-  }));
-  if (!nearbyDoors.length) doorActions.textContent = "Walk to a door's approach waypoint to interact.";
-  const nearbyFurniture = furnitureState.furniture.filter(item => item.kind !== "decoration" && besideFurniture(item, position));
-  furnitureControls.replaceChildren(...furnitureActions(furnitureState, position, !!movement).map(action => {
-    const button = document.createElement("button"); button.textContent = action.description;
-    button.disabled = agent.running;
-    button.addEventListener("click", () => { if (!agent.running) useFurniture(action.id); });
-    return button;
-  }));
-  if (!furnitureControls.children.length) furnitureControls.textContent = nearbyFurniture.length
-    ? "Locked — you need the Royal lockbox key in your inventory."
-    : "Walk beside the drawers or lockbox to interact.";
   inventory.textContent = furnitureState.inventory.map(item => item.name).join(", ") || "Empty";
   lockboxStatus.textContent = furnitureState.furniture.find(item => item.id === "royal_lockbox")!.open ? "King's lockbox: open" : "King's lockbox: locked";
   location.textContent = movement ? `To ${movement.route.node.name}` : current.name;

@@ -1,14 +1,13 @@
 # Palace navigation and doors
 
-Open `/palace.html`, then select a waypoint in the sidebar or click its mint marker.
+Open `/palace.html` and use the Jev controls beneath the map. For manual debugging, click a mint waypoint marker.
 The character starts in the Great Hall. Grey markers are unreachable and omitted
 from available actions. The graph overlay follows actual tile paths; gold shows
 the active route. Reset cancels movement and restores the initial door states.
 
 Seven two-tile doors guard the chambers, treasury, guest room, and hall connections.
 Hall doors start open; private-room doors start closed. Each threshold has a waypoint
-on either side. Walk to one, then right-click either door tile or use the Nearby doors
-button to open/close it. Closed doors block both threshold tiles. Door interaction is
+on either side. Walk to one, then right-click either door tile to open/close it. Closed doors block both threshold tiles. Door interaction is
 permitted only one cardinal tile away, never remotely, while moving, or from inside
 the threshold itself. Closing a door inside a room removes routes out until reopened.
 
@@ -22,7 +21,7 @@ dynamic blockers, and validates interactions. `navigation.ts` runs four-neighbou
 A* for each graph edge against tile collision plus closed-door blockers. Dijkstra
 selects the shortest sequence of live edges. UI actions are regenerated after every
 arrival or door change and revalidated at dispatch. Door rendering and hit-testing
-use the same footprints as collision. Keyboard users can use the sidebar buttons.
+use the same footprints as collision. Run/Step/Pause/Reset and read-only world status are beneath the map, alongside the full-width Jev inspectors.
 
 The demo remains outside the map protobuf and narrative world engine. Door state
 is in memory and resets on reload. Doors have no locks or permissions; the furniture lockbox requires a key.
@@ -66,8 +65,7 @@ live operation requires an accepted key and endpoint access.
 ## Furniture and the key
 
 Merlin's chest of drawers contains the Royal lockbox key. The King's lockbox is in
-the Royal Bedchamber. Both have adjacent navigation points. Use the Nearby furniture
-buttons or right-click the fixture: a closed container opens; an open drawer with
+the Royal Bedchamber. Both have adjacent navigation points. Right-click the fixture: a closed container opens; an open drawer with
 an item transfers that item; an empty open container closes. Opening the lockbox
 requires carrying the matching key, which is retained. Remote/in-transit actions
 are rejected. Contents are unknown until inspection, then remembered after closing.

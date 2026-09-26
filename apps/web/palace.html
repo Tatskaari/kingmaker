@@ -10,9 +10,9 @@
   <main>
     <header>
       <div>
-        <p class="eyebrow">Navigation prototype</p>
+        <p class="eyebrow">Jev playground</p>
         <h1>Palace of Caerwyn</h1>
-        <p>Choose a waypoint to send your character through the palace. Walk beside a door, then right-click it to open or close it.</p>
+        <p>Give Merlin a goal, watch him act, and inspect the context and decisions below the map.</p>
       </div>
       <a href="./">Return to Kingmaker</a>
     </header>
@@ -22,22 +22,28 @@
       <label><input type="checkbox" data-show-solids> Solid bounds</label>
       <output data-inspector>Move over the map to inspect a tile</output>
     </section>
-    <div class="explorer"><div class="map-frame">
+    <div class="map-frame">
       <canvas data-map aria-label="Map of the Palace of Caerwyn"></canvas>
     </div>
-    <aside class="navigation-panel">
+    <section class="debug-panel" aria-label="Jev debugging">
       <p class="eyebrow">Palace agent</p>
       <h2 data-character-name>Merlin</h2>
-      <details open><summary>Character context · shared scenario</summary><pre data-character-context></pre></details>
       <form data-agent-form class="agent-controls">
         <label for="jev-key">OpenRouter key</label>
         <input id="jev-key" data-jev-key type="password" autocomplete="off" placeholder="Use your OpenRouter key">
         <label for="agent-goal">What should I do?</label>
         <textarea id="agent-goal" data-agent-goal rows="2" maxlength="500">Get the key from Merlin's chest of drawers, then open the lockbox in the king's bedchamber</textarea>
-        <div class="agent-buttons"><button data-agent-run type="submit">Run goal</button><button data-agent-step type="button">Step</button><button data-agent-pause type="button" disabled>Pause</button></div>
+        <div class="agent-buttons"><button data-agent-run type="submit">Run goal</button><button data-agent-step type="button">Step</button><button data-agent-pause type="button" disabled>Pause</button><button data-reset type="button" class="secondary">Reset world</button></div>
         <p class="hint">Jev · free-form goals · up to 24 actions. Your key is kept only in this tab's session.</p>
         <p data-agent-status role="status" aria-live="polite">Ready for a goal.</p>
       </form>
+      <div class="world-summary" aria-label="World status">
+        <p><strong>Location</strong> <span data-location>Great Hall</span></p>
+        <p><strong>Inventory</strong> <span data-inventory>Empty</span></p>
+        <p data-lockbox-status>King's lockbox: locked</p>
+        <p data-status role="status" aria-live="polite">Ready.</p>
+      </div>
+      <details open><summary>Character context · shared scenario</summary><pre data-character-context></pre></details>
       <section class="prompt-preview" aria-label="Jev prompt">
         <h3>Prompt sent to Jev</h3>
         <p class="hint">These are the exact instructions used on every decision. Your goal and the world state are sent alongside them.</p>
@@ -47,18 +53,8 @@
       <details><summary>Jev decisions</summary><ol data-agent-log></ol></details>
       <details><summary>Last Jev request (no credentials)</summary><pre data-jev-request>No request yet.</pre></details>
       <details><summary>Last Jev choice probabilities</summary><pre data-jev-response>No response yet.</pre></details>
-      <h2 data-location>Great Hall</h2>
-      <p data-status role="status" aria-live="polite">Choose a destination.</p>
-      <h3>Reachable waypoints</h3>
-      <div data-destinations class="destinations"></div>
-      <h3>Nearby doors</h3>
-      <div data-door-actions class="destinations hint"></div>
-      <h3>Inventory</h3><p data-inventory>Empty</p>
-      <h3>Nearby furniture</h3><div data-furniture-actions class="destinations hint"></div>
-      <p data-lockbox-status class="hint">King's lockbox: locked</p>
-      <button data-reset class="secondary">Reset demo</button>
       <details><summary>Agent observation</summary><pre data-observation></pre></details>
-    </aside></div>
+    </section>
     <footer>Tiles: Tiny Dungeon by Kenney · CC0</footer>
   </main>
   <script type="module" src="./src/palace.ts"></script>
