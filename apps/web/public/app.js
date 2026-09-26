@@ -5,6 +5,13 @@ let busy = false;
 let notice = "";
 let sheetOpen = false;
 
+const devEvents = new EventSource("/__dev/events");
+devEvents.addEventListener("ready", event => {
+  const previous = sessionStorage.getItem("kingmaker-dev-instance");
+  sessionStorage.setItem("kingmaker-dev-instance", event.data);
+  if (previous && previous !== event.data) location.reload();
+});
+
 async function api(path, options = {}) {
   const response = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
   const body = await response.json();
