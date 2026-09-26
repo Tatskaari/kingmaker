@@ -269,3 +269,20 @@ test("GM compulsion is rejected after character creation", async t => {
   assert.equal(runtime.view().gmReplyOptions, null);
   assert.ok(runtime.snapshot().gameMasterHistory.some(message => message.role === "tool" && message.content?.includes("Compulsion is only available during character creation")));
 });
+
+test("GM tool-call prose and suggested question render as one complete reply", async t => {
+  for (const compelled of [false, true]) {
+    const modelReply = offer(compelled);
+    modelReply.content = "Oh, Maren—fate keeps its appointments. What do you want from this journey?";
+    t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply);
+    const runtime = new BrowserGameRuntime(load(), "test");
+    await runtime.talkToGameMaster("How do you know my name?");
+    const messages = runtime.view().gmMessages as Array<{ role: string; text: string }>;
+    const displayed = messages.filter(message => message.role === "assistant");
+    assert.equal(displayed.length, 1);
+    assert.equal(displayed[0]?.text, compelled ? `${compulsionNarration}\n\n${modelReply.content}` : modelReply.content);
+    assert.equal(displayed[0]?.text.match(/What do you want from this journey\?/g)?.length, 1);
+    const restored = new BrowserGameRuntime(load(), "test", structuredClone(runtime.snapshot()));
+    assert.deepEqual(restored.view().gmMessages, messages);
+  }
+});

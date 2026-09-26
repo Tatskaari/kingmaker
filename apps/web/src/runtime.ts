@@ -24,11 +24,11 @@ const gmTools: readonly OpenRouterTool[] = [
     type: "function",
     function: {
       name: "offer_replies",
-      description: "End this turn with a question and one or more suggested player replies. Call alone. Only the GM may set compelled=true, and only to obtain a missing creation detail after the player avoids answering. Never choose an answer for the player.",
+      description: "End this turn with one complete player-facing reply and one or more suggested player replies. Put all narration and the question in question; leave assistant content empty. Call alone. Only the GM may set compelled=true, and only to obtain a missing creation detail after the player avoids answering. Never choose an answer for the player.",
       parameters: {
         type: "object", additionalProperties: false, required: ["question", "options", "compelled"],
         properties: {
-          question: { type: "string" },
+          question: { type: "string", description: "The complete reply shown to the player, including any greeting, narration, and final question." },
           options: { type: "array", minItems: 1, items: { type: "string", maxLength: 300 } },
           compelled: { type: "boolean" },
         },
@@ -188,7 +188,12 @@ export class BrowserGameRuntime {
           catch (error) { result = { ok: false, error: error instanceof Error ? error.message : String(error) }; }
           this.#gmHistory.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result) });
           if (call.function.name === "offer_replies" && result.ok) {
-            const reply = String(result.narration);
+            // Some models also speak alongside the tool call. Preserve that full
+            // reply instead of showing its question a second time.
+            const spoken = message.content?.trim();
+            const reply = spoken
+              ? (result.compelled && !spoken.includes(compulsionNarration) ? `${compulsionNarration}\n\n${spoken}` : spoken)
+              : String(result.narration);
             this.#gmHistory.push({ role: "assistant", content: reply });
             return reply;
           }
@@ -252,7 +257,7 @@ export class BrowserGameRuntime {
       characters: scenario.characters.filter(character => character.id !== "player").map(character => ({ id: character.id, name: character.name })),
       gmReplyOptions: this.#gmReplyOptions,
       conversationReplyOptions: this.#conversationReplyOptions,
-      gmMessages: this.#gmHistory.filter(message => (message.role === "user" || message.role === "assistant") && message.content).map(message => ({ role: message.role, text: message.content })),
+      gmMessages: this.#gmHistory.filter(message => (message.role === "user" || message.role === "assistant") && !message.tool_calls?.length && message.content).map(message => ({ role: message.role, text: message.content })),
       conversations: Object.fromEntries([...this.#conversations].map(([id, transcript]) => [id, transcript.map(message => ({
         role: message.role === TranscriptRole.CHARACTER ? "character" : "player", text: message.text,
       }))])),
@@ -284,7 +289,7 @@ export class BrowserGameRuntime {
       if (typeof input.compelled !== "boolean") throw new Error("compelled must be a boolean");
       if (input.compelled && this.#game.scenario().world?.phase !== GamePhase.PLAYER_CREATION) throw new Error("Compulsion is only available during character creation");
       this.#gmReplyOptions = { options, compelled: input.compelled };
-      return { ok: true, narration: input.compelled ? `${compulsionNarration}\n\n${question}` : question };
+      return { ok: true, compelled: input.compelled, narration: input.compelled ? `${compulsionNarration}\n\n${question}` : question };
     }
     if (name === "create_player") {
       const relationships = Array.isArray(input.relationships) ? input.relationships as JsonObject[] : [];
