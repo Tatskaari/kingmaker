@@ -1,4 +1,5 @@
 import { debugOverview } from "./debug-view.js";
+import { mountCourtMap } from "./court-map.js";
 import { introduction, introductionHandoff, handoffPrefix, nameSuggestions, homelandSuggestions, patronName } from "./introduction.js";
 
 const app = document.querySelector("#app");
@@ -149,8 +150,20 @@ function renderCharacterReview() {
 
 function renderDay() {
   const playerName = state.player?.name || "The Emissary";
-  app.innerHTML = shell(`<section class="panel"><div class="day-heading"><div><div class="eyebrow">Day ${state.day} · ${escapeHtml(state.location)}</div><h2>All eyes turn to <span class="player-name">${escapeHtml(playerName)}</span></h2></div></div><p class="scene">The embassy’s formal greeting is complete. King Aldren holds court beneath winter banners; Merlin watches from the edge of the dais; Lancelot stands beside the throne. You have enough standing to request a private word with any of them.</p><div class="choices">${state.characters.map(character => `<button class="choice" data-character="${escapeHtml(character.id)}">Talk to ${escapeHtml(character.name)}<span>Private audience →</span></button>`).join("")}<button class="choice end" data-end-day>End the day<span>Night awaits →</span></button></div><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  app.innerHTML = shell(`<section class="panel court-panel"><div class="day-heading"><div><div class="eyebrow">Day ${state.day} · Palace of Caerwyn</div><h2>Welcome to court, <span class="player-name">${escapeHtml(playerName)}</span></h2></div></div><p class="scene">Choose someone on the palace map to request a private word.</p><div data-court-map></div><div class="court-day-footer"><span class="map-credit">Tiny Dungeon tiles by Kenney · CC0</span><button class="primary" data-end-day ${busy ? "disabled" : ""}>End the day →</button></div><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
   bind();
+  const mapRoot = document.querySelector("[data-court-map]");
+  void mountCourtMap(mapRoot, state.characters, state.player, id => {
+    if (busy || !mapRoot.isConnected) return;
+    activeCharacter = id; notice = ""; render();
+  }, busy, async point => {
+    const result = await rpc("move_player", point);
+    state = result.state; saves = result.saves;
+  }).catch(() => {
+    if (!mapRoot.isConnected) return;
+    const message = document.createElement("p"); message.className = "status error";
+    message.textContent = "The palace artwork could not load. You can still select a character by name."; mapRoot.append(message);
+  });
 }
 
 function renderConversation() {
@@ -279,7 +292,6 @@ function bind() {
     event.preventDefault(); const message = new FormData(event.currentTarget).get("message");
     run(async () => { const result = await rpc("gm", { message }); state = result.state; saves = result.saves; });
   });
-  document.querySelectorAll("[data-character]").forEach(button => button.addEventListener("click", () => { activeCharacter = button.dataset.character; notice = ""; render(); }));
   document.querySelector("[data-talk-form]")?.addEventListener("submit", event => {
     event.preventDefault(); const message = new FormData(event.currentTarget).get("message");
     run(async () => { const result = await rpc("talk", { characterId: activeCharacter, message }); state = result.state; saves = result.saves; });

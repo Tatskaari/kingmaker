@@ -1,3 +1,5 @@
+import { courtMarkers, courtPath, courtRoomAt } from "./court-map.js";
+import type { Point } from "./navigation.js";
 import { compulsionNarration, parseReplyOptions, type ReplyOptions } from "./reply-options.js";
 import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import {
@@ -25,6 +27,7 @@ export interface RuntimeSnapshot {
   conversationReplyOptions?: Record<string, string[]>;
   gameMasterHistory: OpenRouterMessage[];
   conversations: Record<string, JsonValue[]>;
+  palacePosition?: Point;
 }
 
 const gmTools: readonly OpenRouterTool[] = [
@@ -151,6 +154,7 @@ function text(value: unknown, field: string): string {
 export class BrowserGameRuntime {
   readonly #initialScenario: Scenario;
   #game: MemoryGame;
+  #palacePosition: Point | undefined;
   #client: OpenRouterClient;
   #gmHistory: OpenRouterMessage[] = [];
   #gmTrace: GameMasterTrace[] = [];
@@ -167,6 +171,7 @@ export class BrowserGameRuntime {
   }
 
   reset(): void {
+    this.#palacePosition = undefined;
     this.#game = new MemoryGame(this.#initialScenario);
     this.#gmHistory = [];
     this.#playerDraft = null;
@@ -177,6 +182,7 @@ export class BrowserGameRuntime {
   }
 
   restore(snapshot: RuntimeSnapshot): void {
+    this.#palacePosition = snapshot.palacePosition;
     this.#game = new MemoryGame(fromJson(ScenarioSchema, snapshot.scenario));
     this.#gmHistory = snapshot.gameMasterHistory || [];
     this.#playerDraft = snapshot.playerDraft || null;
@@ -190,6 +196,7 @@ export class BrowserGameRuntime {
 
   snapshot(): RuntimeSnapshot {
     return {
+      ...(this.#palacePosition ? { palacePosition: this.#palacePosition } : {}),
       scenario: toJson(ScenarioSchema, this.#game.scenario(), { alwaysEmitImplicit: true }),
       gameMasterHistory: this.#gmHistory,
       playerDraft: this.#playerDraft,
@@ -306,6 +313,30 @@ export class BrowserGameRuntime {
     delete this.#conversationReplyOptions[characterId];
   }
 
+  movePlayer(destination: Point): void {
+    const scenario = this.#game.scenario(), world = scenario.world;
+    if (world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter the court before walking around.");
+    const player = scenario.characters.find(character => character.id === scenario.playerCharacterId);
+    const actor = world.actors.find(actor => actor.characterId === player?.id);
+    if (!player || !actor) throw new Error("Player is missing from the palace.");
+    const start = this.#palacePosition ?? courtMarkers(scenario.characters.map(character => ({
+      id: character.id, name: character.name, roomId: world.actors.find(actor => actor.characterId === character.id)?.roomId ?? "",
+    }))).find(marker => marker.id === player.id)?.point;
+    if (!start || !courtPath(start, destination)) throw new Error("That destination is not reachable.");
+    const room = courtRoomAt(destination);
+    if (!room) throw new Error("That destination is outside the palace.");
+    if (!world.rooms.some(existing => existing.id === room.id)) {
+      world.rooms.push({ $typeName: "kingmaker.v1.Room", id: room.id, name: room.name, description: "The palace entrance hall.", exitRoomIds: ["great_hall"], searchSpots: [] });
+    }
+    if (room.id === "entrance_hall") {
+      const hall = world.rooms.find(existing => existing.id === "great_hall");
+      if (hall && !hall.exitRoomIds.includes(room.id)) hall.exitRoomIds.push(room.id);
+    }
+    actor.roomId = room.id; world.revision++;
+    this.#palacePosition = { x: destination.x, y: destination.y };
+    this.#game = new MemoryGame(scenario);
+  }
+
   view(): JsonObject {
     const scenario = this.#game.scenario();
     const world = scenario.world;
@@ -314,17 +345,17 @@ export class BrowserGameRuntime {
       playerDraft: this.#playerDraft,
       phase: this.#playerDraft ? "character_review" : world?.phase === GamePhase.PLAYER_CREATION ? "player_creation" : world?.phase === GamePhase.CONVERSATIONS ? "conversations" : "other",
       day: world?.day || 0,
-      location: world?.rooms.find(room => room.id === "great_hall")?.name || "Great Hall",
+      location: world?.rooms.find(room => room.id === world.actors.find(actor => actor.characterId === player?.id)?.roomId)?.name || "Great Hall",
       premise: scenario.premise,
       player: player ? {
-        id: player.id, name: player.name, lore: player.lore, currentGoal: player.currentGoal,
+        id: player.id, name: player.name, position: this.#palacePosition, roomId: world?.actors.find(actor => actor.characterId === player.id)?.roomId, lore: player.lore, currentGoal: player.currentGoal,
         relationships: player.relationships.map(relationship => ({
           characterId: relationship.characterId,
           characterName: scenario.characters.find(character => character.id === relationship.characterId)?.name || relationship.characterId,
           description: relationship.description,
         })),
       } : null,
-      characters: scenario.characters.filter(character => character.id !== "player").map(character => ({ id: character.id, name: character.name })),
+      characters: scenario.characters.filter(character => character.id !== "player").map(character => ({ id: character.id, name: character.name, roomId: world?.actors.find(actor => actor.characterId === character.id)?.roomId })),
       gmReplyOptions: this.#gmReplyOptions,
       conversationReplyOptions: this.#conversationReplyOptions,
       gmMessages: this.#gmHistory.filter(message => (message.role === "user" || message.role === "assistant") && !message.tool_calls?.length && message.content).map(message => ({ role: message.role, text: message.content })),

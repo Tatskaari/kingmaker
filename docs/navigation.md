@@ -162,3 +162,20 @@ Failures preserve the conversation for retry. Reset world aborts pending replies
 and reviews and clears conversation memory; refreshing also loses this prototype's
 in-memory conversation state. Movement and model decisions are disabled while a
 chat/review request is pending.
+
+### Main game palace screen
+
+After character creation, the main game's day screen shows the shared palace map.
+Character sprites open the existing saved conversations; End the day remains below
+the map. Character placement comes from the saved actor room IDs. Rooms absent
+from this map retain an accessible named control below it rather than inventing
+a location. The prototype's coffer/key/loot state is not imported.
+
+Click a clear floor tile to walk there. A* avoids walls and scenic furniture; the
+player marker interpolates along the route with the same elapsed-time timer loop
+as the prototype (the embedded browser can throttle animation frames). Arrival is
+validated and saved through the worker, including exact tile position and the
+player's narrative room. Failed saves restore the previous position. Leaving the
+screen cancels unfinished walks. Legacy saves derive a starting tile from their
+actor room. Passageways are currently open; door interactions and autonomous NPC
+movement remain in the prototype.

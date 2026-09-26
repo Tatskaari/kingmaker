@@ -141,6 +141,12 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     }
     return { state: game.view(), saves: await listSaves() };
   }
+  if (type === "move_player") {
+    const game = requireRuntime(), before = structuredClone(game.snapshot());
+    try { game.movePlayer({ x: Number(payload.x), y: Number(payload.y) }); await persist(); }
+    catch (error) { game.restore(before); throw error; }
+    return { state: game.view(), saves: await listSaves() };
+  }
   if (type === "talk") {
     const reply = await requireRuntime().talkToCharacter(String(payload.characterId || ""), String(payload.message || ""));
     await persist();
