@@ -1318,10 +1318,10 @@ test("NPC dialogue frames the current goal as a concrete planner task while reta
   const messages = new FullContextBuilder().build(create(DialogueRequestSchema, { scenario, characterId: "merlin" }));
   const context = messages.map(message => message.content).join("\n");
   assert.match(context, /Immediate goal for the action planner/);
-  assert.match(context, /bounded list of available actions/);
-  assert.match(context, /observable completion condition/);
-  assert.match(context, /Return goalUpdate: null when nothing needs doing now/);
-  assert.match(context, /Return null when the character has not adopted a new task/);
+  assert.match(context, /available actions such as moving, talking/);
+  assert.match(context, /concrete next step rather than an open-ended objective/);
+  assert.match(context, /Return null if there is no task to perform/);
+  assert.match(context, /follow through after ending the conversation/);
   assert.match(context, /He wants the king replaced/);
 });
 
