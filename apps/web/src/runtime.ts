@@ -271,7 +271,7 @@ export class BrowserGameRuntime {
     const parsed = JSON.parse(completion.content) as { replyOptions?: unknown; utterance?: unknown };
     const utterance = text(parsed.utterance, "utterance");
     this.#conversations.set(characterId, [...history, playerMessage, create(TranscriptMessageSchema, {
-      role: TranscriptRole.CHARACTER, speakerId: characterId, text: response.utterance,
+      role: TranscriptRole.CHARACTER, speakerId: characterId, text: utterance,
     })]);
     this.#conversationReplyOptions[characterId] = parseReplyOptions(parsed.replyOptions);
     return utterance;
@@ -293,7 +293,13 @@ export class BrowserGameRuntime {
       ],
     });
     if (!completion.content) throw new Error("Character returned no conversation memory");
-    const memory = fromJson(ConversationMemorySchema, JSON.parse(completion.content));
+    // Protobuf parsing rejects malformed output before any memory is committed.
+    const parsed = JSON.parse(completion.content) as JsonObject | null;
+    if (!parsed || !Array.isArray(parsed.newEvents) || !Array.isArray(parsed.relationships)
+      || !("goalUpdate" in parsed) || !("lore" in parsed)) {
+      throw new Error("Character returned incomplete conversation memory");
+    }
+    const memory = fromJson(ConversationMemorySchema, parsed as JsonValue);
     const committed = this.#game.commitConversation(characterId, memory);
     if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
     this.#conversations.delete(characterId);

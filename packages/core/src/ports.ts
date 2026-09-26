@@ -2,6 +2,7 @@ import type {
   ActionResult,
   AvailableAction,
   Character,
+  ConversationMemory,
   DecisionRequest,
   DecisionResponse,
   DialogueRequest,
@@ -84,5 +85,6 @@ export interface GameState {
   createPlayer(setup: PlayerSetup): Validation<Character>;
   replaceGoal(characterId: string, goal: string): Validation<Character>;
   commitDialogue(characterId: string, response: DialogueResponse): Validation<readonly Event[]>;
+  commitConversation(characterId: string, memory: ConversationMemory): Validation<readonly Event[]>;
   commitGameMaster(response: GameMasterResponse): Validation<readonly Event[]>;
 }

@@ -172,12 +172,16 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
   throw new Error(`Unknown worker request: ${type}`);
 }
 
-worker.addEventListener("message", async event => {
+// Keep state changes and their saves in order, including while a model is running.
+let requests = Promise.resolve();
+worker.addEventListener("message", event => {
   const request = event.data as WorkerRequest;
-  try {
-    const value = await handle(request.type, request.payload || {});
-    worker.postMessage({ id: request.id, ok: true, value });
-  } catch (error) {
-    worker.postMessage({ id: request.id, ok: false, error: error instanceof Error ? error.message : String(error) });
-  }
+  requests = requests.then(async () => {
+    try {
+      const value = await handle(request.type, request.payload || {});
+      worker.postMessage({ id: request.id, ok: true, value });
+    } catch (error) {
+      worker.postMessage({ id: request.id, ok: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
 });
