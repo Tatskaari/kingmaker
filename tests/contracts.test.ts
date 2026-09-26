@@ -27,6 +27,9 @@ import { palaceNodes, palaceEdges } from "../apps/web/src/palace-navigation.js";
 
 import { createDoors, doorBlockers, doorGraph, toggleDoor } from "../apps/web/src/palace-doors.js";
 
+import { JevClient, type Choose, type JevChoice } from "../packages/providers/src/jev.js";
+import { PalaceAgent, legalActions, type AgentHost } from "../apps/web/src/palace-agent.js";
+
 const fixturePath = new URL("../content/scenarios/last-night.json", import.meta.url);
 const load = (): Scenario => fromJsonString(ScenarioSchema, readFileSync(fixturePath, "utf8"));
 
@@ -633,4 +636,168 @@ test("door approaches remain reachable while destinations behind closed doors ar
   assert.ok(opened.some(route => route.node.id === "royal"));
   assert.ok(!opened.some(route => route.node.id === "merlin"));
   for (const route of opened) assert.ok(route.path.every(point => canWalk(palaceMap, point, doorBlockers(doors))));
+});
+
+test("Jev transport sends typed choices and rejects invalid responses and HTTP failures", async () => {
+  let sent: Record<string, any> = {};
+  const client = new JevClient("test-key", async (url, init) => {
+    assert.equal(url, "https://openrouter.ai/api/alpha/decisions");
+    sent = JSON.parse(String(init?.body));
+    assert.equal((init?.headers as Record<string, string>).Authorization, "Bearer test-key");
+    return new Response(JSON.stringify({ answers: { next: { type: "choice", choice: "walk", probabilities: { walk: 1, stop: 0 }, confidence: 1 } } }));
+  });
+  const criteria = { walk: "Walk to Merlin", stop: "Stop" };
+  assert.equal((await client.choose({ goal: "Merlin" }, "Choose", criteria, new AbortController().signal)).choice, "walk");
+  assert.equal(sent.model, "typesafe/jev-1.13");
+  assert.deepEqual(sent.questions.next.criteria, criteria);
+  assert.ok(!JSON.stringify(sent).includes("test-key"));
+  for (const answer of [
+    { type: "choice", choice: "invented", probabilities: { walk: 1, stop: 0 } },
+    { type: "choice", choice: "walk", probabilities: { walk: 2, stop: 0 } },
+    { type: "choice", choice: "walk", probabilities: {} },
+    { type: "noul", choice: "walk", probabilities: { walk: 1, stop: 0 } },
+  ]) {
+    const bad = new JevClient("key", async () => new Response(JSON.stringify({ answers: { next: answer } })));
+    await assert.rejects(() => bad.choose({}, "", criteria, new AbortController().signal), /invalid/);
+  }
+  const failed = new JevClient("key", async () => new Response("unauthorized", { status: 401 }));
+  await assert.rejects(() => failed.choose({}, "", criteria, new AbortController().signal), /HTTP 401/);
+});
+
+function agentFixture() {
+  const doors = createDoors();
+  const graph = doorGraph(doors);
+  let current = graph.nodes[0]!;
+  let revision = 0;
+  const executed: string[] = [], reports: string[] = [];
+  const host: AgentHost = {
+    snapshot: () => ({ at: current.id, revision, world: { doors: doors.map(door => ({ id: door.id, open: door.open })) },
+      actions: legalActions(reachableRoutes(palaceMap, graph.nodes, graph.edges, current.id, doorBlockers(doors)), doors, current) }),
+    execute: async action => {
+      assert.ok(host.snapshot().actions.some(candidate => candidate.id === action.id));
+      if (action.type === "move") current = graph.nodes.find(node => node.id === action.target)!;
+      else assert.ok(toggleDoor(doors.find(door => door.id === action.target)!, current));
+      executed.push(action.id); revision++;
+    },
+    report: message => { reports.push(message); }, changed: () => {},
+  };
+  return { agent: new PalaceAgent(host), host, executed, reports, mutate: () => { revision++; } };
+}
+function choices(...ids: string[]): Choose {
+  return async (_state, _instructions, criteria) => {
+    const choice = ids.shift()!;
+    assert.ok(Object.hasOwn(criteria, choice), `Missing candidate ${choice}`);
+    return { choice, probabilities: Object.fromEntries(Object.keys(criteria).map(id => [id, id === choice ? 1 : 0])) };
+  };
+}
+
+test("agent opens a blocking door and reaches its goal using only legal actions", async () => {
+  const { agent, executed, reports } = agentFixture();
+  await agent.run("Go to Merlin", choices("move_merlin_door_outside", "open_merlin_door", "move_merlin", "complete"));
+  assert.deepEqual(executed, ["move_merlin_door_outside", "open_merlin_door", "move_merlin"]);
+  assert.match(reports.at(-1)!, /reports the goal complete/);
+  assert.equal(agent.running, false);
+});
+
+test("Step does one action; resume retains history; new goals start fresh", async () => {
+  const { agent, executed, reports } = agentFixture();
+  await agent.run("Go to Merlin", choices("move_merlin_door_outside"), true);
+  assert.equal(executed.length, 1);
+  assert.equal(agent.history.length, 1);
+  await agent.run("Go to Merlin", choices("open_merlin_door", "move_merlin", "complete"));
+  await agent.run("Return to Great Hall", choices("move_great_hall", "complete"));
+  assert.equal(agent.history.length, 1);
+  assert.match(reports.at(-1)!, /reports the goal complete/);
+});
+
+test("pause and reset discard in-flight Jev answers", async () => {
+  for (const reset of [false, true]) {
+    const { agent, executed } = agentFixture();
+    await agent.run("Merlin", choices("move_merlin_door_outside"), true);
+    let resolve!: (value: JevChoice) => void;
+    const pending = agent.run("Merlin", () => new Promise(done => { resolve = done; }));
+    if (reset) agent.reset(); else agent.pause();
+    resolve({ choice: "open_merlin_door", probabilities: { open_merlin_door: 1 } });
+    await pending;
+    assert.equal(executed.length, 1);
+    assert.equal(agent.running, false);
+  }
+});
+
+test("agent rejects stale decisions, invented actions, network errors and unfulfillable goals", async () => {
+  for (const failure of ["stale", "invented", "network", "unable"]) {
+    const fixture = agentFixture();
+    await fixture.agent.run("Go to Merlin", async () => {
+      if (failure === "network") throw new Error("Network unavailable");
+      if (failure === "unable") return { choice: "unable", probabilities: { unsupported: 1 } };
+      if (failure === "stale") fixture.mutate();
+      return { choice: failure === "invented" ? "teleport" : "move_merlin_door_outside", probabilities: {} };
+    });
+    assert.equal(fixture.executed.length, 0);
+    assert.equal(fixture.agent.running, false);
+    assert.ok(!fixture.reports.at(-1)!.includes("Goal reached"));
+  }
+});
+
+test("arbitrary multi-stop goals are passed verbatim and do not stop at the first room", async () => {
+  const { agent, executed, reports } = agentFixture();
+  const goal = "Visit Merlin, return to the Great Hall, then close the hall door";
+  const scripted = choices("move_merlin_door_outside", "open_merlin_door", "move_merlin", "move_great_hall", "move_hall_door_outside", "close_hall_door", "complete");
+  await agent.run(goal, async (state, instructions, criteria, signal) => {
+    assert.equal((state as { goal: string }).goal, goal);
+    assert.ok(!Object.hasOwn(criteria, "merlin"), "no room-classification gate");
+    return scripted(state, instructions, criteria, signal);
+  });
+  assert.equal(executed.length, 6);
+  assert.match(reports.at(-1)!, /reports the goal complete/);
+});
+
+test("intentional repeated actions are allowed but the run stops at its action budget", async () => {
+  const { agent, executed, reports } = agentFixture();
+  await agent.run("Patrol back and forth forever", choices(...Array.from({length: 24}, (_, i) => i % 2 ? "move_great_hall" : "move_entrance")));
+  assert.equal(executed.length, 24);
+  assert.match(reports.at(-1)!, /Stopped after 24 actions/);
+});
+
+test("Jev default transport preserves the browser fetch receiver", async () => {
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = async function (this: unknown) {
+      assert.equal(this, globalThis, "native browser fetch requires its Window receiver");
+      return new Response(JSON.stringify({ answers: { next: { type: "choice", choice: "walk", probabilities: { walk: 1 } } } }));
+    };
+    const result = await new JevClient("test-key").choose({}, "Choose", { walk: "Walk" }, new AbortController().signal);
+    assert.equal(result.choice, "walk");
+  } finally { globalThis.fetch = original; }
+});
+
+test("401 diagnostics distinguish invalid keys from Decisions access and redact secrets", async () => {
+  for (const valid of [false, true]) {
+    const urls: string[] = [];
+    const client = new JevClient("sk-or-secret", async url => {
+      urls.push(String(url));
+      if (String(url).endsWith("/key")) return new Response("{}", { status: valid ? 200 : 401 });
+      return new Response(JSON.stringify({ error: { message: "Rejected sk-or-secret" } }), { status: 401 });
+    });
+    await assert.rejects(() => client.choose({}, "", { walk: "Walk" }, new AbortController().signal), error => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, valid ? /key authenticates/ : /also rejected this key/);
+      assert.ok(!error.message.includes("sk-or-secret"));
+      return true;
+    });
+    assert.equal(urls.length, 2);
+  }
+});
+
+test("pausing during movement preserves the completed action for resuming a multi-step goal", async () => {
+  const fixture = agentFixture();
+  const execute = fixture.host.execute;
+  let finish!: () => void;
+  fixture.host.execute = action => new Promise(resolve => { finish = () => { void execute(action).then(resolve); }; });
+  const pending = fixture.agent.run("Visit entrance then return", choices("move_entrance"));
+  // Let the decision dispatch before pausing the in-flight movement.
+  await Promise.resolve();
+  fixture.agent.pause(); finish(); await pending;
+  assert.equal(fixture.agent.history.length, 1);
+  assert.match(fixture.agent.history[0]!, /entrance/i);
 });

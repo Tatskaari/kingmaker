@@ -27,6 +27,16 @@
     </div>
     <aside class="navigation-panel">
       <p class="eyebrow">Your character</p>
+      <form data-agent-form class="agent-controls">
+        <label for="jev-key">OpenRouter key</label>
+        <input id="jev-key" data-jev-key type="password" autocomplete="off" placeholder="Use your OpenRouter key">
+        <label for="agent-goal">What should I do?</label>
+        <textarea id="agent-goal" data-agent-goal rows="2" maxlength="500">Visit Merlin's Chamber, then return to the Great Hall</textarea>
+        <div class="agent-buttons"><button data-agent-run type="submit">Run goal</button><button data-agent-step type="button">Step</button><button data-agent-pause type="button" disabled>Pause</button></div>
+        <p class="hint">Jev · free-form goals · up to 24 actions. Your key is kept only in this tab's session.</p>
+        <p data-agent-status role="status" aria-live="polite">Ready for a goal.</p>
+      </form>
+      <details><summary>Jev decisions</summary><ol data-agent-log></ol></details>
       <h2 data-location>Great Hall</h2>
       <p data-status role="status" aria-live="polite">Choose a destination.</p>
       <h3>Reachable waypoints</h3>

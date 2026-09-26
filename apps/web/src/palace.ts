@@ -2,6 +2,8 @@ import { CanvasMapRenderer } from "./map-renderer.js";
 import { palaceMap } from "./palace-map.js";
 import { findPath, reachableRoutes, type NavRoute, type Point } from "./navigation.js";
 import { createDoors, doorGraph, doorBlockers, canUseDoor, toggleDoor, type Door } from "./palace-doors.js";
+import { PalaceAgent, legalActions, type PalaceAction } from "./palace-agent.js";
+import { JevClient } from "../../../packages/providers/src/jev.js";
 const doors = createDoors();
 const { nodes: palaceNodes, edges: palaceEdges } = doorGraph(doors);
 
@@ -20,6 +22,14 @@ const status = element("[data-status]");
 const location = element("[data-location]");
 const doorActions = element("[data-door-actions]");
 const observation = element("[data-observation]");
+const goalInput = element<HTMLTextAreaElement>("[data-agent-goal]");
+const keyInput = element<HTMLInputElement>("[data-jev-key]");
+const runButton = element<HTMLButtonElement>("[data-agent-run]");
+const stepButton = element<HTMLButtonElement>("[data-agent-step]");
+const pauseButton = element<HTMLButtonElement>("[data-agent-pause]");
+const agentStatus = element("[data-agent-status]");
+const agentLog = element("[data-agent-log]");
+try { keyInput.value = sessionStorage.getItem("kingmaker.openrouter-api-key") ?? ""; } catch { /* Storage may be unavailable. */ }
 const renderer = new CanvasMapRenderer(canvas, palaceMap);
 await renderer.load();
 const context = canvas.getContext("2d")!;
@@ -29,14 +39,52 @@ let routes: NavRoute[] = [];
 let movement: { route: NavRoute; started: number } | undefined;
 let activeEdges: Point[][] = [];
 let frame = 0;
+let revision = 0;
+let movementDone: (() => void) | undefined;
+const agent = new PalaceAgent({
+  snapshot: () => ({ at: current.id, revision, actions: movement ? [] : legalActions(routes, doors, position), world: worldObservation() }),
+  execute: async (action: PalaceAction) => {
+    if (action.type === "move") {
+      await new Promise<void>((resolve, reject) => {
+        movementDone = resolve;
+        if (!travel(action.target)) { movementDone = undefined; reject(new Error("Destination is no longer reachable.")); }
+      });
+    } else {
+      const door = doors.find(door => door.id === action.target);
+      if (!door || door.open !== (action.type === "close") || !interact(door)) throw new Error("Door action is no longer available.");
+    }
+  },
+  report: (message, decision) => {
+    agentStatus.textContent = message;
+    const row = document.createElement("li");
+    row.textContent = message + (decision ? ` [${decision.choice}: ${Math.round((decision.probabilities[decision.choice] ?? 0) * 100)}%]` : "");
+    agentLog.append(row);
+    while (agentLog.children.length > 60) agentLog.firstElementChild?.remove();
+  },
+  changed: () => refresh(),
+});
+function worldObservation(): unknown {
+  return {
+    at: current.id, position, revision,
+    nodes: palaceNodes,
+    traversableConnections: palaceEdges.filter(edge => findPath(palaceMap,
+      palaceNodes.find(node => node.id === edge.from)!, palaceNodes.find(node => node.id === edge.to)!, blocked())),
+    doors: doors.map(door => ({ id: door.id, name: door.name, state: door.open ? "open" : "closed",
+      connects: door.connection, approachNodes: door.sides.map(side => side.id) })),
+    rules: "Only reachable moves are offered. Doors must be opened from an adjacent approach node before crossing. Full palace layout is known.",
+    availableActions: movement ? [] : legalActions(routes, doors, position),
+  };
+}
 const blocked = (): Set<string> => doorBlockers(doors);
-function interact(door: Door): void {
+function interact(door: Door): boolean {
   if (!toggleDoor(door, position, !!movement)) {
     status.textContent = `Move to a waypoint beside ${door.name} first, then right-click the door or use its button.`;
-    return;
+    return false;
   }
+  revision++;
   status.textContent = `${door.name} ${door.open ? "opened" : "closed"}. Routes updated.`;
   refresh();
+  return true;
 }
 
 function refresh(): void {
@@ -48,27 +96,24 @@ function refresh(): void {
   destinations.replaceChildren(...routes.map(route => {
     const button = document.createElement("button");
     button.textContent = `${route.node.name} · ${route.path.length - 1} steps`;
-    button.disabled = !!movement;
-    button.addEventListener("click", () => travel(route.node.id));
+    button.disabled = !!movement || agent.running;
+    button.addEventListener("click", () => { if (!agent.running) travel(route.node.id); });
     return button;
   }));
   const nearbyDoors = doors.filter(door => canUseDoor(door, position, !!movement));
   doorActions.replaceChildren(...nearbyDoors.map(door => {
     const button = document.createElement("button");
     button.textContent = `${door.open ? "Close" : "Open"} ${door.name}`;
-    button.addEventListener("click", () => interact(door));
+    button.disabled = agent.running;
+    button.addEventListener("click", () => { if (!agent.running) interact(door); });
     return button;
   }));
   if (!nearbyDoors.length) doorActions.textContent = "Walk to a door's approach waypoint to interact.";
   location.textContent = movement ? `To ${movement.route.node.name}` : current.name;
-  observation.textContent = JSON.stringify({
-    at: movement ? "in_transit" : current.id,
-    doors: doors.map(door => ({ id: door.id, state: door.open ? "open" : "closed" })),
-    availableActions: movement ? [] : [
-      ...routes.map(route => ({ type: "move_to_node", nodeId: route.node.id, via: route.via.slice(1), steps: route.path.length - 1 })),
-      ...nearbyDoors.map(door => ({ type: door.open ? "close_door" : "open_door", doorId: door.id })),
-    ],
-  }, null, 2);
+  observation.textContent = JSON.stringify({ goal: goalInput.value, world: worldObservation(), recentEvents: agent.history }, null, 2);
+  runButton.disabled = stepButton.disabled = agent.running || !!movement;
+  pauseButton.disabled = !agent.running;
+  goalInput.disabled = keyInput.disabled = agent.running || !!movement;
   render();
 }
 function line(path: Point[], color: string, width: number): void {
@@ -120,24 +165,28 @@ function render(): void {
   context.fillStyle = "#624631"; context.fillRect(x - 3, y - 8, 6, 2);
   context.fillStyle = "#e7ebd5"; context.fillRect(x - 3, y + 5, 2, 2); context.fillRect(x + 1, y + 5, 2, 2);
 }
-function travel(id: string): void {
-  if (movement) return;
+function travel(id: string): boolean {
+  if (movement) return false;
   // Revalidate at dispatch, rather than trusting a previously displayed action.
   const route = reachableRoutes(palaceMap, palaceNodes, palaceEdges, current.id, blocked()).find(candidate => candidate.node.id === id);
-  if (!route) { status.textContent = "That waypoint is not reachable. Approach and open the door blocking the route."; return; }
+  if (!route) { status.textContent = "That waypoint is not reachable. Approach and open the door blocking the route."; return false; }
+  revision++;
   movement = { route, started: performance.now() };
   status.textContent = `Walking ${route.path.length - 1} tiles via ${route.via.map(id => palaceNodes.find(node => node.id === id)!.name).join(" → ")}.`;
   refresh();
   frame = window.setTimeout(() => animate(performance.now()), 16);
+  return true;
 }
 function animate(time: number): void {
   if (!movement) return;
   const { route, started } = movement;
   const progress = (time - started) / 150;
   if (progress >= route.path.length - 1) {
-    current = route.node; position = current; movement = undefined;
+    current = route.node; position = current; movement = undefined; revision++;
     status.textContent = `Arrived at ${current.name}.`;
-    refresh(); return;
+    refresh();
+    const done = movementDone; movementDone = undefined; done?.();
+    return;
   }
   const index = Math.floor(progress), fraction = progress - index;
   const from = route.path[index]!, to = route.path[index + 1]!;
@@ -145,6 +194,10 @@ function animate(time: number): void {
   render(); frame = window.setTimeout(() => animate(performance.now()), 16);
 }
 element("[data-reset]").addEventListener("click", () => {
+  agent.reset();
+  agentLog.replaceChildren(); agentStatus.textContent = "Ready for a goal.";
+  revision++;
+  const done = movementDone; movementDone = undefined; done?.();
   window.clearTimeout(frame); movement = undefined; current = palaceNodes[0]!; position = current;
   const initial = createDoors();
   doors.forEach((door, index) => { door.open = initial[index]!.open; });
@@ -154,13 +207,13 @@ for (const toggle of [roomsToggle, solidsToggle, navToggle]) toggle.addEventList
 canvas.addEventListener("click", event => {
   const hit = renderer.hit(event.clientX, event.clientY);
   const node = hit && palaceNodes.find(node => node.x === hit.tileX && node.y === hit.tileY);
-  if (node) travel(node.id);
+  if (node && !agent.running) travel(node.id);
 });
 canvas.addEventListener("contextmenu", event => {
   const hit = renderer.hit(event.clientX, event.clientY);
   const door = hit && doors.find(door => door.tiles.some(tile => tile.x === hit.tileX && tile.y === hit.tileY));
   if (!door) return;
-  event.preventDefault(); interact(door);
+  event.preventDefault(); if (!agent.running) interact(door);
 });
 canvas.addEventListener("pointermove", event => {
   const hit = renderer.hit(event.clientX, event.clientY);
@@ -170,3 +223,16 @@ canvas.addEventListener("pointermove", event => {
 });
 canvas.addEventListener("pointerleave", () => { inspector.textContent = "Click a waypoint to travel"; });
 refresh();
+
+function runAgent(singleStep: boolean): void {
+  if (movement || agent.running) return;
+  const key = keyInput.value.trim();
+  if (!key) { agentStatus.textContent = "Enter your OpenRouter key first."; keyInput.focus(); return; }
+  if (!goalInput.value.trim()) { agentStatus.textContent = "Enter a goal first."; goalInput.focus(); return; }
+  try { sessionStorage.setItem("kingmaker.openrouter-api-key", key); } catch { /* Keep working without storage. */ }
+  const client = new JevClient(key);
+  void agent.run(goalInput.value.trim(), client.choose.bind(client), singleStep);
+}
+element<HTMLFormElement>("[data-agent-form]").addEventListener("submit", event => { event.preventDefault(); runAgent(false); });
+stepButton.addEventListener("click", () => runAgent(true));
+pauseButton.addEventListener("click", () => agent.pause());
