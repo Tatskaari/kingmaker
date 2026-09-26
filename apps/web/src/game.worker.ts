@@ -30,6 +30,7 @@ let apiKey = "";
 let runtime: BrowserGameRuntime | undefined;
 let activeSave: SaveRecord | undefined;
 let npcPlanning: AbortController | undefined;
+let npcInteraction: AbortController | undefined;
 
 function database(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -142,7 +143,7 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     }
     return { state: game.view(), saves: await listSaves() };
   }
-  if (type === "cancel_npc") { npcPlanning?.abort(); return {}; }
+  if (type === "cancel_npc") { npcPlanning?.abort(); npcInteraction?.abort(); return {}; }
   if (type === "plan_npc") {
     npcPlanning?.abort();
     const controller = new AbortController(); npcPlanning = controller;
@@ -159,10 +160,14 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
   }
   if (type === "execute_npc") {
     const game = requireRuntime(), before = structuredClone(game.snapshot()), savedBefore = activeSave;
+    const controller = new AbortController(); npcInteraction = controller;
     try {
-      const message = game.executeNpcAction(String(payload.characterId), String(payload.actionId), Number(payload.revision), String(payload.goal));
+      const message = String(payload.actionId).startsWith("talk_")
+        ? await game.executeNpcTalk(String(payload.characterId), String(payload.actionId), Number(payload.revision), String(payload.goal), controller.signal)
+        : game.executeNpcAction(String(payload.characterId), String(payload.actionId), Number(payload.revision), String(payload.goal));
       await persist(); return { message, state: game.view(), saves: await listSaves() };
     } catch (error) { game.restore(before); activeSave = savedBefore; throw error; }
+    finally { if (npcInteraction === controller) npcInteraction = undefined; }
   }
   if (type === "reset_world" || type === "interact_fixture") {
     const game = requireRuntime(), before = structuredClone(game.snapshot()), savedBefore = activeSave;

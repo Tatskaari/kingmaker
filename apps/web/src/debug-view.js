@@ -67,6 +67,8 @@ function transcriptSummary(entry) {
       + `<p class="debug-meta">This is the planner's decision, not confirmation that an action was executed.</p>`;
   }
   const output = parsedContent(response);
+  if (entry.kind === "npc_request" && output) return `<h4>Request</h4><p>${escape(output.request)}</p><h4>Private intent</h4><p>${escape(output.intent)}</p>`;
+  if (entry.kind === "npc_resolution" && output) return `<h4>Exchange</h4><p>${escape(output.summary)}</p>` + ["initiator", "recipient"].map(role => `<h4>${escape(role)}</h4>` + transcriptSummary({ ...entry, kind: "conversation_review", response: { content: JSON.stringify(output[role]) } })).join("");
   if (entry.kind === "conversation_review" || entry.kind === "outcome_review") {
     if (!output) return empty("Could not read structured review output. See the full response below.");
     const newEvents = array(output.newEvents), relationships = array(output.relationships), goal = object(output.goalUpdate);
@@ -85,7 +87,7 @@ function transcriptSummary(entry) {
 }
 
 export function recentTranscriptsView(entries = []) {
-  const kinds = { game_master: "Game master", dialogue: "Dialogue", conversation_review: "Conversation review", jev: "Jev decision", outcome_review: "Outcome review" };
+  const kinds = { npc_request: "NPC request", npc_resolution: "NPC conversation resolution", game_master: "Game master", dialogue: "Dialogue", conversation_review: "Conversation review", jev: "Jev decision", outcome_review: "Outcome review" };
   return `<p class="debug-note">Latest 50 model calls for this loaded game session, newest first. Reloading or loading a game starts a fresh log. No hidden reasoning or authentication headers are captured.</p>`
     + (entries.length ? entries.map(entry => `<article class="debug-card transcript-card"><h3>${escape(kinds[entry.kind] || entry.kind)} · ${escape(entry.characterId)}</h3><p class="debug-meta">${escape(entry.status === "success" ? "Response received" : entry.status)} · ${escape(entry.startedAt)}${entry.durationMs === undefined ? "" : ` · ${(entry.durationMs / 1000).toFixed(2)}s`}</p><div class="transcript-summary">${transcriptSummary(entry)}</div><details><summary>Full request and response</summary><h4>Request</h4><pre>${escape(JSON.stringify(entry.request, null, 2))}</pre>${entry.response === undefined ? "" : `<h4>Response</h4><pre>${escape(JSON.stringify(entry.response, null, 2))}</pre>`}${entry.error ? `<h4>Error</h4><pre class="debug-error">${escape(entry.error)}</pre>` : ""}</details></article>`).join("") : empty("No model calls recorded yet in this session."));
 }

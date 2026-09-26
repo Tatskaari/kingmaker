@@ -60,7 +60,7 @@ function stopNpcGoal() {
   void rpc("cancel_npc").catch(() => {});
 }
 
-async function runNpcGoal(characterId) {
+async function runNpcGoal(characterId, queued = [], handoffs = 3) {
   if (state.npcActivities?.[characterId]?.status !== "active") return;
   stopNpcGoal();
   const controller = new AbortController(); controller.characterId = characterId; npcRun = controller; npcTrace = [];
@@ -85,6 +85,10 @@ async function runNpcGoal(characterId) {
           const result = await rpc("execute_npc", { characterId, actionId: plan.action.id, revision: plan.revision, goal: plan.goal });
           if (!active()) return;
           state = result.state; saves = result.saves;
+          if (plan.action.type === "talk") {
+            if (state.npcActivities[plan.action.target]?.status === "active") queued.push(plan.action.target);
+            if (state.npcActivities[characterId]?.status !== "active") { npcStatus = `${name}: idle after conversation.`; return; }
+          }
         }
       } catch (error) { if (!active()) return; reason = "error"; detail = error.message; }
       if (!active()) return;
@@ -99,7 +103,11 @@ async function runNpcGoal(characterId) {
       }
     }
   } catch (error) { if (active()) npcStatus = `${name}: ${error.message} Outcome saved for review retry.`; }
-  finally { if (npcRun === controller) { npcRun = null; render(); } }
+  finally { if (npcRun === controller) {
+    npcRun = null; render();
+    const next = queued.find(id => state.npcActivities[id]?.status === "active");
+    if (next && handoffs > 0 && !controller.signal.aborted) void runNpcGoal(next, queued.filter(id => id !== next), handoffs - 1);
+  } }
 }
 
 // Development convenience: refresh the physical world without recreating an emissary.

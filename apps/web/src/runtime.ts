@@ -193,8 +193,8 @@ export class BrowserGameRuntime {
 
   recentTranscripts() { return this.#modelTranscripts.recent(); }
 
-  #complete(kind: ModelCallKind, characterId: string, request: ChatCompletionRequest) {
-    return this.#modelTranscripts.record(kind, characterId, request, () => this.#client.complete(request));
+  #complete(kind: ModelCallKind, characterId: string, request: ChatCompletionRequest, signal?: AbortSignal) {
+    return this.#modelTranscripts.record(kind, characterId, request, () => this.#client.complete(request, signal));
   }
 
   reset(): void {
@@ -381,11 +381,12 @@ export class BrowserGameRuntime {
     if (activity?.status !== "active" || activity.reviewPending) throw new Error("This NPC is idle; the LLM must assign a task first.");
     if (activity.history.length >= 24) throw new Error("NPC action limit reached.");
     const observation = courtAgentObservation(scenario, characterId);
+    observation.actions = observation.actions.filter(action => action.type !== "talk" || (!this.#conversations.get(action.target)?.length && !this.#npcActivities[action.target]?.reviewPending));
     const criteria = { ...Object.fromEntries(observation.actions.map(action => [action.id, `${action.description}${action.legality === "illegal" ? " This is illegal for this character." : ""}`])),
       complete: "The whole immediate goal is achieved, or you are already at the requested place and waiting as requested.",
       unable: "No available action can make progress, or essential clarification is needed." };
     const state = { ...observation, actions: observation.actions.map(({ path, ...action }) => action), recentEvents: activity.history };
-    const instructions = { ...PALACE_INSTRUCTIONS, legality: "Actions are mechanically possible. Those marked illegal violate ownership or room access; weigh them against your character's intentions. Waiting in a room is satisfied by being there; you cannot initiate dialogue or force another character to follow you." };
+    const instructions = { ...PALACE_INSTRUCTIONS, legality: "Actions are mechanically possible. Those marked illegal violate ownership or room access; weigh them against your character's intentions. Waiting in a room is satisfied by being there. Use offered talk actions to make requests of other NPCs. You cannot force agreement or speak for the player." };
     const decision = await this.#modelTranscripts.record("jev", characterId, jevRequest(state, instructions, criteria), () => this.#jev.choose(state, instructions, criteria, signal));
     return { decision, revision: observation.revision, goal: observation.goal, action: observation.actions.find(action => action.id === decision.choice), observation };
   }
@@ -399,6 +400,7 @@ export class BrowserGameRuntime {
     if (observation.goal !== goal) throw new Error("Goal changed; replan before acting.");
     const action = observation.actions.find(item => item.id === actionId);
     if (!action) throw new Error("That NPC action is no longer available.");
+    if (action.type === "talk") throw new Error("Talk requires conversation resolution.");
     const actor = world.actors.find(actor => actor.characterId === characterId)!;
     const destination = action.path.at(-1)!;
     if (action.type === "door" && !action.open && world.actors.some(other => other.characterId !== characterId && other.position && world.doors.find(door => door.id === action.target)!.tiles.some(tile => tile.x === other.position!.x && tile.y === other.position!.y))) throw new Error("Someone is standing in the doorway.");
@@ -410,6 +412,65 @@ export class BrowserGameRuntime {
     world.revision++; this.#game = new MemoryGame(scenario);
     activity.history.push(message);
     return message;
+  }
+
+  async executeNpcTalk(characterId: string, actionId: string, revision: number, goal: string, signal: AbortSignal): Promise<string> {
+    const scenario = this.#game.scenario(), world = scenario.world!;
+    const activity = this.#npcActivities[characterId];
+    const action = courtAgentObservation(scenario, characterId).actions.find(item => item.id === actionId && item.type === "talk");
+    const valid = () => {
+      signal.throwIfAborted();
+      if (!action || this.#game.scenario().world?.revision !== revision || world.phase !== GamePhase.CONVERSATIONS
+        || this.#npcActivities[characterId] !== activity || activity?.status !== "active" || activity.reviewPending || activity.history.length >= 24
+        || scenario.characters.find(item => item.id === characterId)?.currentGoal !== goal
+        || this.#conversations.get(characterId)?.length || this.#conversations.get(action.target)?.length || this.#npcActivities[action.target]?.reviewPending)
+        throw new Error("Conversation is no longer available; replan before acting.");
+    };
+    valid();
+    if (!action) throw new Error("Talk action unavailable.");
+    const actor = world.actors.find(item => item.characterId === characterId)!;
+    actor.position = create(TilePositionSchema, action.path.at(-1)!);
+    actor.roomId = courtRoomAt(actor.position)?.id ?? actor.roomId;
+    const context = new FullContextBuilder().build(create(DialogueRequestSchema, { characterId, scenario }));
+    const request = await this.#complete("npc_request", characterId, {
+      model: "openai/gpt-5.4-mini", temperature: 0.4, max_tokens: 700,
+      response_format: { type: "json_schema", json_schema: { name: "npc_request", strict: true, schema: {
+        type: "object", additionalProperties: false, required: ["request", "intent"],
+        properties: { request: { type: "string" }, intent: { type: "string" } },
+      } } },
+      messages: [...context, { role: "system", content: "You are initiating a brief conversation with the named NPC to advance your immediate goal. Return the words you say as request and your private purpose as intent. Do not invent their response, knowledge, consent, or physical actions." },
+        { role: "user", content: JSON.stringify({ target: action.target, goal, surroundings: courtAgentObservation(scenario, characterId).world }) }],
+    }, signal);
+    valid();
+    const proposal = JSON.parse(request.content || "null");
+    text(proposal?.request, "request"); text(proposal?.intent, "intent");
+    const resolution = await this.#complete("npc_resolution", characterId, {
+      model: "openai/gpt-5.4-mini", temperature: 0.2, max_tokens: 3000,
+      response_format: { type: "json_schema", json_schema: { name: "npc_resolution", strict: true, schema: {
+        type: "object", additionalProperties: false, required: ["summary", "initiator", "recipient"],
+        properties: { summary: { type: "string" }, initiator: memoryFormat.json_schema.schema, recipient: memoryFormat.json_schema.schema },
+      } } },
+      messages: [{ role: "system", content: `Resolve a single NPC-to-NPC exchange as the GM, without a full dialogue. Respect each participant's motives and agency: requests can be refused, negotiated, or met with deception. Intent is private, not spoken. Return a summary of what was actually exchanged and separate memory updates for initiator and recipient. Private facts must not leak into the other participant's memories unless actually disclosed. Never invent player speech. This resolution cannot transfer items, open containers, move the recipient, or otherwise change physical state. Such work needs a concrete planner goal. ${IMMEDIATE_GOAL_DESCRIPTION} Return goalUpdate null for passive waiting, completed work, or no further task; otherwise give remaining concrete work. Each participant's newEvents are private to them. Do not claim actions happened merely because someone promised them.` },
+        { role: "user", content: JSON.stringify({ premise: scenario.premise, initiator: characterId, recipient: action.target, proposal,
+          participants: [characterId, action.target].map(id => ({ character: scenario.characters.find(item => item.id === id), context: new FullContextBuilder().build(create(DialogueRequestSchema, { characterId: id, scenario })) })),
+          surroundings: courtAgentObservation(scenario, characterId).world }) }],
+    }, signal);
+    valid();
+    const result = JSON.parse(resolution.content || "null");
+    const summary = text(result?.summary, "summary");
+    const staged = new MemoryGame(scenario);
+    const updates: Record<string, NpcActivity> = {};
+    for (const [id, output] of [[characterId, result.initiator], [action.target, result.recipient]] as const) {
+      if (!output || !Array.isArray(output.newEvents) || !Array.isArray(output.relationships) || !("goalUpdate" in output) || !("lore" in output)) throw new Error("Incomplete NPC conversation memory.");
+      const memory = fromJson(ConversationMemorySchema, output);
+      memory.newEvents.push(create(EventSchema, { type: "npc_conversation", summary }));
+      const committed = staged.commitConversation(id, memory, false);
+      if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
+      updates[id] = { status: memory.goalUpdate ? "active" : "idle", goal: memory.goalUpdate?.goal ?? scenario.characters.find(item => item.id === id)!.currentGoal, history: [summary] };
+    }
+    this.#game = staged;
+    Object.assign(this.#npcActivities, updates);
+    return summary;
   }
 
   finishNpcRun(characterId: string, reason: NonNullable<NpcActivity["result"]>["reason"], detail: string): void {

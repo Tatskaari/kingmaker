@@ -1628,3 +1628,76 @@ test("transcript recorder shows pending calls, bounds history, and isolates muta
   assert.equal(log.recent().length, 50);
   assert.equal(log.recent()[0]!.id, 56);
 });
+
+function talkingCourt() {
+  const scenario = furnishedCourt();
+  for (const actor of scenario.world!.actors) {
+    const placement = scenario.courtArrivalPlacements.find(item => item.characterId === actor.characterId);
+    if (placement) { actor.position = placement.position; actor.roomId = placement.roomId; }
+    actor.awake = true;
+  }
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  const snapshot = runtime.snapshot();
+  snapshot.npcActivities = { merlin: { status: "active", goal: scenario.characters.find(item => item.id === "merlin")!.currentGoal, history: [] } };
+  runtime.restore(snapshot);
+  const observation = courtAgentObservation(scenario, "merlin");
+  const action = observation.actions.find(item => item.type === "talk")!;
+  assert.ok(action);
+  return { scenario, runtime, observation, action };
+}
+
+test("Jev receives reachable NPC talk actions, then both participants save private memories and goals", async t => {
+  const { scenario, runtime, observation, action } = talkingCourt();
+  assert.ok(!observation.actions.some(item => item.id === "talk_player" || item.id === "talk_merlin"));
+  assert.throws(() => runtime.executeNpcAction("merlin", action.id, observation.revision, observation.goal), /resolution/);
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => {
+    calls++;
+    if (calls === 1) return modelReply({ request: "Meet me in the Treasury.", intent: "Arrange a private discussion." });
+    return modelReply({ summary: "They agree to meet in the Treasury.",
+      initiator: { newEvents: [], relationships: [], lore: null, goalUpdate: null },
+      recipient: { newEvents: [], relationships: [], lore: null, goalUpdate: { goal: "Walk to the Treasury.", reason: "Agreed to meet." } } });
+  });
+  await runtime.executeNpcTalk("merlin", action.id, observation.revision, observation.goal, new AbortController().signal);
+  const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  assert.equal(calls, 2);
+  assert.equal(runtime.snapshot().npcActivities?.merlin?.status, "idle");
+  assert.equal(runtime.snapshot().npcActivities?.[action.target]?.status, "active");
+  assert.deepEqual(saved.world!.objects, scenario.world!.objects);
+  const events = saved.events.filter(item => item.type === "npc_conversation");
+  assert.equal(events.length, 2);
+  assert.ok(events.every(item => item.characterIds.length === 1 && !item.characterIds.includes("player")));
+  assert.deepEqual(runtime.recentTranscripts().map(item => item.kind), ["npc_resolution", "npc_request"]);
+});
+
+test("NPC conversation validation and cancellation cannot partially update either character", async t => {
+  const { runtime, observation, action } = talkingCourt();
+  const before = runtime.snapshot();
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => ++calls % 2 === 1
+    ? modelReply({ request: "Hello", intent: "Greet them" })
+    : modelReply({ summary: "A greeting", initiator: { newEvents: [{ type: "test", summary: "Must not persist" }], relationships: [], lore: null, goalUpdate: null }, recipient: { newEvents: [], relationships: [{ characterId: "unknown", description: "Invalid" }], lore: null, goalUpdate: null } }));
+  await assert.rejects(runtime.executeNpcTalk("merlin", action.id, observation.revision, observation.goal, new AbortController().signal), /relationship/);
+  assert.deepEqual(runtime.snapshot(), before);
+  const controller = new AbortController(); controller.abort();
+  await assert.rejects(runtime.executeNpcTalk("merlin", action.id, observation.revision, observation.goal, controller.signal), /abort/i);
+  assert.deepEqual(runtime.snapshot(), before);
+});
+
+test("talk availability follows closed doors and Jev gets the offered talk choice", async t => {
+  const { scenario, runtime, observation, action } = talkingCourt();
+  t.mock.method(JevClient.prototype, "choose", async (_state: unknown, instructions: unknown, criteria: Record<string, string>) => {
+    assert.ok(action.id in criteria);
+    assert.match(JSON.stringify(instructions), /offered talk actions/);
+    return { choice: action.id, probabilities: { [action.id]: 1 } };
+  });
+  const plan = await runtime.planNpc("merlin", [], new AbortController().signal);
+  assert.equal(plan.action?.type, "talk");
+  const recipient = scenario.world!.actors.find(item => item.characterId === action.target)!;
+  recipient.position = create(TilePositionSchema, { x: 5, y: 5 }); recipient.roomId = "merlin_chamber";
+  for (const door of scenario.world!.doors) door.open = false;
+  assert.ok(!courtAgentObservation(scenario, "merlin").actions.some(item => item.id === action.id));
+  for (const door of scenario.world!.doors) door.open = true;
+  assert.ok(courtAgentObservation(scenario, "merlin").actions.some(item => item.id === action.id));
+  assert.ok(observation.actions.some(item => item.id === action.id));
+});

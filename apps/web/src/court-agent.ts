@@ -7,7 +7,7 @@ import { palaceNodes } from "./palace-navigation.js";
 import type { Point } from "./navigation.js";
 
 export interface CourtAgentAction {
-  id: string; type: "move" | "door" | "fixture"; target: string;
+  id: string; type: "move" | "door" | "fixture" | "talk"; target: string;
   description: string; path: Point[]; interactionRoomId?: string; open?: boolean; legality?: "normal" | "illegal";
 }
 
@@ -40,6 +40,19 @@ export function courtAgentObservation(scenario: Scenario, characterId: string) {
     const path = spot && pathTo(spot);
     if (path) actions.push({ id: action.id, target: action.target, type: "fixture", path, legality: action.legality,
       description: `Walk ${path.length - 1} steps to the interaction spot, then ${action.label}.` });
+  }
+  for (const other of world.actors) {
+    if (other.characterId === characterId || other.characterId === scenario.playerCharacterId || !other.awake || !other.position) continue;
+    const target = scenario.characters.find(item => item.id === other.characterId);
+    if (!target) continue;
+    const position = other.position;
+    const paths = [{ x: position.x - 1, y: position.y }, { x: position.x + 1, y: position.y },
+      { x: position.x, y: position.y - 1 }, { x: position.x, y: position.y + 1 }]
+      .filter(point => courtRoomAt(point)?.id === other.roomId)
+      .map(pathTo).filter((path): path is Point[] => !!path).sort((a, b) => a.length - b.length);
+    const path = paths[0];
+    if (path) actions.push({ id: `talk_${other.characterId}`, type: "talk", target: other.characterId, path,
+      description: `Walk ${path.length - 1} steps to ${target.name} and talk about your immediate goal. They may agree, refuse, or propose conditions; talking cannot transfer items or move them.` });
   }
   const known = worldForCharacter(world, characterId);
   return {
