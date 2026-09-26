@@ -22,6 +22,9 @@ import { FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter } f
 import { MemoryGame } from "../packages/core/src/game.js";
 import { palaceMap } from "../apps/web/src/palace-map.js";
 
+import { canWalk, findPath, pointKey, reachableRoutes } from "../apps/web/src/navigation.js";
+import { palaceNodes, palaceEdges, royalGate } from "../apps/web/src/palace-navigation.js";
+
 const fixturePath = new URL("../content/scenarios/last-night.json", import.meta.url);
 const load = (): Scenario => fromJsonString(ScenarioSchema, readFileSync(fixturePath, "utf8"));
 
@@ -547,4 +550,51 @@ test("ending one NPC's thread leaves other conversations intact and saves biogra
   await runtime.endConversation("merlin");
   assert.deepEqual(runtime.snapshot().conversations.king, kingHistory);
   assert.equal(fromJson(ScenarioSchema, runtime.snapshot().scenario).characters[0]!.lore, "Merlin remembers his new appointment as court adviser.");
+});
+
+// Navigation tests exercise actual palace geometry, dynamic obstruction and A* optimality.
+
+test("closed royal gate filters destinations; opening it restores valid paths", () => {
+  const blocked = new Set(royalGate.map(pointKey));
+  const closed = reachableRoutes(palaceMap, palaceNodes, palaceEdges, "great_hall", blocked);
+  assert.equal(closed.length, palaceNodes.length - 2);
+  assert.ok(!closed.some(route => route.node.id === "royal"));
+  assert.ok(closed.some(route => route.node.id === "merlin"));
+  assert.ok(closed.some(route => route.node.id === "north_junction"));
+  const open = reachableRoutes(palaceMap, palaceNodes, palaceEdges, "great_hall");
+  assert.equal(open.length, palaceNodes.length - 1);
+  assert.deepEqual(open.find(route => route.node.id === "royal")?.via, ["great_hall", "north_junction", "royal"]);
+  for (const route of [...closed, ...open]) {
+    route.path.forEach((point, i) => {
+      assert.ok(canWalk(palaceMap, point, new Set()));
+      if (i) assert.equal(Math.abs(point.x - route.path[i - 1]!.x) + Math.abs(point.y - route.path[i - 1]!.y), 1);
+    });
+    assert.equal(pointKey(route.path.at(-1)!), pointKey(route.node));
+  }
+  const inside = reachableRoutes(palaceMap, palaceNodes, palaceEdges, "royal", blocked);
+  assert.equal(inside.length, 0);
+  assert.equal(findPath(palaceMap, { x: -1, y: 5 }, palaceNodes[0]!), undefined);
+  assert.equal(findPath(palaceMap, { x: 0, y: 0 }, palaceNodes[0]!), undefined);
+});
+
+test("A* detours around blockers and matches a breadth-first shortest path", () => {
+  const start = palaceNodes[0]!;
+  const goal = palaceNodes.find(node => node.id === "merlin")!;
+  const blocked = new Set(["15,20", "14,20", "16,20"]);
+  const path = findPath(palaceMap, start, goal, blocked)!;
+  assert.ok(path);
+  assert.ok(path.every(point => !blocked.has(pointKey(point))));
+  const queue = [{ x: start.x, y: start.y, distance: 0 }];
+  const seen = new Set([pointKey(start)]);
+  for (let i = 0; i < queue.length; i++) {
+    const current = queue[i]!;
+    if (pointKey(current) === pointKey(goal)) { assert.equal(path.length - 1, current.distance); return; }
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const next = { x: current.x + dx, y: current.y + dy, distance: current.distance + 1 };
+      if (!seen.has(pointKey(next)) && canWalk(palaceMap, next, blocked)) {
+        seen.add(pointKey(next)); queue.push(next);
+      }
+    }
+  }
+  assert.fail("Goal should be reachable");
 });
