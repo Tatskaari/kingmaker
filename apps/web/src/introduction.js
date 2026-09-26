@@ -16,19 +16,19 @@ export const introduction = [
     symbol: "☾",
   },
   {
-    chapter: "III · The arrival",
-    title: "You were\nexpected.",
-    body: "You arrive with an embassy from a neighbouring allied kingdom. The court opens its doors. A private word with a king, a mage, a knight—all within your reach.",
-    aside: "Your papers are quite convincing. You do not remember signing them.",
+    chapter: "III · The crossroads",
+    title: "All roads\nmeet here.",
+    body: "On your travels, you reach a crossroads beneath a bare winter tree. One road leads to the royal court. A stranger sits on the milestone, turning a coin that never seems to land.",
+    aside: "“There you are,” he says. “I was beginning to think you might take the sensible road.”",
     symbol: "♙",
   },
   {
     chapter: "IV · The hand behind yours",
     title: "Ah.\nMy little pawn.",
-    body: "“Call me the Laughing Stranger. A god of fortunate accidents. Yours, for instance. I have placed you here to upset a rather tedious certainty. Why? Let us preserve a little mystery.”",
-    aside: "“I chose where you begin. What you want—and what you become—is yours.”",
+    body: "“Call me the Laughing Stranger. A god of fortunate accidents. Yours, for instance. An embassy from a neighbouring allied kingdom is on its way to court. I have arranged a place for you. A king, a mage, a knight—all within your reach.”",
+    aside: "“Why send you? A private matter between gods. But tell me, little pawn—what are you hoping to find at the end of your road?”",
     symbol: "◇",
   },
 ];
 
-export const introductionHandoff = "I have seen the opening: the crown law, the divided court, my arrival with the embassy, and your introduction as the Laughing Stranger who placed me here. Continue our private conversation without repeating the premise. Ask what I want from this night; help me discover who my emissary is, one question at a time.";
+export const introductionHandoff = "I have seen the opening: the crown law, the divided court, our meeting at a winter crossroads on my travels, and your introduction as the Laughing Stranger who arranged a place for me with an embassy bound for court. We are still beside the milestone beneath the bare tree; I have not arrived at court yet. Continue our private conversation without repeating the premise. Ask what I want from this night; help me discover who my emissary is, one question at a time.";
