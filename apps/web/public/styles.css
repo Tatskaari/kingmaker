@@ -125,3 +125,22 @@ button:focus-visible, .identity-field input:focus-visible { outline: 2px solid #
 .character-review input { width: 100%; padding: 12px; background: #0e0c09; color: #f5ead4; border: 1px solid #514838; }
 .character-review textarea { min-height: 100px; resize: vertical; }
 .character-review h3 { margin-top: 12px; }
+
+.debug-tabs { display: flex; gap: 6px; border-bottom: 1px solid #625846; margin-bottom: 16px; }
+.debug-tabs button { padding: 10px 18px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: #aaa18f; }
+.debug-tabs button[aria-selected="true"] { color: #f1dfb5; border-bottom-color: var(--gold); background: #211c15; }
+.debug-inspector :focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+.debug-panel { flex: 1; min-height: 0; overflow: auto; }
+.debug-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); align-items: start; gap: 16px; }
+.debug-card { min-width: 0; padding: 18px; border: 1px solid #393b32; background: #151813; overflow-wrap: anywhere; }
+.debug-card h3 { margin: 0 0 14px; color: #eee1c7; }
+.debug-card h4 { margin: 16px 0 6px; color: #c9b88f; }
+.debug-card p { margin: 6px 0 12px; white-space: pre-wrap; }
+.debug-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin: 0; }
+.debug-facts dt, .debug-meta, .debug-empty { color: #aaa18f; font-size: .85rem; }
+.debug-facts dd { margin: 4px 0 0; color: #e5d5b3; font-size: 1.1rem; }
+.debug-list { list-style: none; margin: 0; padding: 0; }
+.debug-list > li + li { border-top: 1px solid #30352c; padding-top: 12px; margin-top: 12px; }
+.debug-card summary { cursor: pointer; color: #d4c6aa; }
+.debug-card .debug-error { padding: 0; }
+@media (max-width: 620px) { .debug-inspector header { align-items: start; gap: 8px; } .debug-inspector h2 { font-size: 1.3rem; } .debug-actions { gap: 4px; } }

@@ -1,3 +1,4 @@
+import { debugOverview } from "./debug-view.js";
 import { introduction, introductionHandoff, handoffPrefix, nameSuggestions, homelandSuggestions, patronName } from "./introduction.js";
 
 const app = document.querySelector("#app");
@@ -7,6 +8,8 @@ let busy = false;
 let notice = "";
 let sheetOpen = false;
 let debugOpen = false;
+let debugTab = "overview";
+let debugReadSequence = 0;
 let debugData = null;
 let debugError = "";
 let debugTitle = "Debug Inspector";
@@ -77,15 +80,15 @@ function debugInspector() {
   const content = debugError
     ? `<p class="debug-error">${escapeHtml(debugError)}</p>`
     : debugData
-      ? `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
+      ? debugTab === "overview" ? debugOverview(debugRequest.type, debugData) : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
       : `<p class="debug-loading">Reading worker state…</p>`;
-  const gmStatus = debugRequest.type === "debug_gm" && debugData?.compulsion
-    ? `<p class="debug-note" role="status">Compulsion: <strong>${debugData.compulsion.active ? "ON" : "OFF"}</strong> · Consumed flag: <strong>${debugData.compulsion.consumedFlag === null ? "no accepted options call" : escapeHtml(debugData.compulsion.consumedFlag)}</strong> · Prompt: <strong>${debugData.promptMatchesCurrentScenario ? "current" : "older saved version"}</strong></p>`
-    : "";
-  return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}"><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">Character state, visible events, known world, conversation, and assembled model context. The global inspector includes the authoritative world. GM debug includes prompts, raw model responses, and tool results—not hidden reasoning. API keys are excluded.</p>${gmStatus}${content}</aside>`;
+  const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${[["overview", "Overview"], ["json", "Raw JSON"]].map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
+  return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}"><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">Character state, visible events, known world, conversation, and assembled model context. The global inspector includes the authoritative world. GM debug includes prompts, raw model responses, and tool results—not hidden reasoning. API keys are excluded.</p>${tabs}<div id="debug-panel" class="debug-panel" role="tabpanel" aria-labelledby="debug-tab-${debugTab}" tabindex="0">${content}</div></aside>`;
 }
 
 async function openDebug(request = debugRequest, title = debugTitle) {
+  const readSequence = ++debugReadSequence;
+  if (!debugOpen || request.type !== debugRequest.type || request.payload.characterId !== debugRequest.payload.characterId) debugTab = "overview";
   debugOpen = true;
   sheetOpen = false;
   debugRequest = request;
@@ -93,8 +96,15 @@ async function openDebug(request = debugRequest, title = debugTitle) {
   debugData = null;
   debugError = "";
   render();
-  try { debugData = await rpc(debugRequest.type, debugRequest.payload); }
-  catch (error) { debugError = error.message; }
+  try {
+    const data = await rpc(request.type, request.payload);
+    if (readSequence !== debugReadSequence) return;
+    debugData = data;
+  }
+  catch (error) {
+    if (readSequence !== debugReadSequence) return;
+    debugError = error.message;
+  }
   render();
 }
 
@@ -200,6 +210,19 @@ function bind() {
   document.querySelector("[data-character-debug]")?.addEventListener("click", () => {
     const character = state.characters.find(item => item.id === activeCharacter);
     openDebug({ type: "debug_character", payload: { characterId: activeCharacter } }, `${character?.name || activeCharacter} Debug`);
+  });
+  document.querySelectorAll("[data-debug-tab]").forEach(button => {
+    const select = tab => {
+      debugTab = tab;
+      render();
+      document.querySelector(`[data-debug-tab="${tab}"]`)?.focus();
+    };
+    button.addEventListener("click", () => select(button.dataset.debugTab));
+    button.addEventListener("keydown", event => {
+      if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+      event.preventDefault();
+      select(event.key === "Home" ? "overview" : event.key === "End" ? "json" : debugTab === "overview" ? "json" : "overview");
+    });
   });
   document.querySelector("[data-debug-refresh]")?.addEventListener("click", () => openDebug());
   document.querySelectorAll("[data-debug-close]").forEach(button => button.addEventListener("click", () => { debugOpen = false; render(); }));
