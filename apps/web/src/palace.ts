@@ -48,7 +48,8 @@ function refresh(): void {
   gateButton.disabled = !!movement || !nearGate();
   gateButton.textContent = `${gateOpen ? "Close" : "Open"} royal gate`;
   gateHint.textContent = gateOpen ? "Gate open · the royal bedchamber is reachable."
-    : "Gate closed · approach the North Junction to open it.";
+    : nearGate() ? "Gate closed · open it here to restore the route."
+      : "Gate closed · approach the North Junction to open it.";
   location.textContent = movement ? `To ${movement.route.node.name}` : current.name;
   observation.textContent = JSON.stringify({
     at: movement ? "in_transit" : current.id,
