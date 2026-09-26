@@ -169,11 +169,12 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     } catch (error) { game.restore(before); activeSave = savedBefore; throw error; }
     finally { if (npcInteraction === controller) npcInteraction = undefined; }
   }
-  if (type === "reset_world" || type === "interact_fixture") {
+  if (type === "reset_world" || type === "reset_characters" || type === "interact_fixture") {
     const game = requireRuntime(), before = structuredClone(game.snapshot()), savedBefore = activeSave;
     let message: string | undefined;
     try {
       if (type === "reset_world") game.resetWorld();
+      else if (type === "reset_characters") game.resetCharacters();
       else message = game.interactFixture(String(payload.actionId || ""));
       await persist();
     } catch (error) { game.restore(before); activeSave = savedBefore; throw error; }

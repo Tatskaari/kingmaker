@@ -8,11 +8,12 @@ import { interactionActions, executeInteraction } from "../apps/web/src/palace-i
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { create, fromBinary, fromJson, fromJsonString, toBinary, toJsonString } from "@bufbuild/protobuf";
+import { create, fromBinary, fromJson, fromJsonString, toBinary, toJson, toJsonString } from "@bufbuild/protobuf";
 import {
   AvailableActionSchema,
   DecisionRequestSchema,
   DialogueRequestSchema,
+  EventSchema,
   EventVisibility,
   GameMasterRequestSchema,
   GamePhase,
@@ -1700,4 +1701,31 @@ test("talk availability follows closed doors and Jev gets the offered talk choic
   for (const door of scenario.world!.doors) door.open = true;
   assert.ok(courtAgentObservation(scenario, "merlin").actions.some(item => item.id === action.id));
   assert.ok(observation.actions.some(item => item.id === action.id));
+});
+
+test("resetCharacters restores authored NPCs and events, clears dialogue and tasks, and preserves player and physical world", async t => {
+  const initial = load(), scenario = furnishedCourt();
+  const merlin = scenario.characters.find(item => item.id === "merlin")!;
+  merlin.lore = "Changed biography"; merlin.currentGoal = "Search the Treasury";
+  const runtime = new BrowserGameRuntime(initial, "test", new BrowserGameRuntime(scenario, "test").snapshot());
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Goodbye", endConversation: true, replyOptions: [] }));
+  await runtime.talkToCharacter("merlin", "Hello");
+  const snapshot = runtime.snapshot();
+  snapshot.npcActivities = { merlin: { status: "active", goal: "Search the Treasury", history: ["An old action"] } };
+  const changed = fromJson(ScenarioSchema, snapshot.scenario);
+  changed.events.push(create(EventSchema, { id: "learned", type: "belief", summary: "A learned fact", characterIds: ["merlin"] }));
+  snapshot.scenario = toJson(ScenarioSchema, changed);
+  runtime.restore(snapshot);
+  const before = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  runtime.resetCharacters();
+  const after = runtime.snapshot(), saved = fromJson(ScenarioSchema, after.scenario);
+  assert.deepEqual(saved.characters.find(item => item.id === "merlin"), initial.characters.find(item => item.id === "merlin"));
+  assert.deepEqual(saved.characters.find(item => item.id === "player"), before.characters.find(item => item.id === "player"));
+  assert.deepEqual(saved.events, initial.events);
+  assert.deepEqual(saved.world, { ...before.world!, revision: before.world!.revision + 1 });
+  assert.deepEqual(after.npcActivities, {});
+  assert.deepEqual(after.conversations, {});
+  assert.deepEqual(after.conversationEndRequested, {});
+  assert.deepEqual(new BrowserGameRuntime(initial, "test", after).snapshot(), after);
+  assert.throws(() => new BrowserGameRuntime(initial, "test").resetCharacters(), /Create your character/);
 });

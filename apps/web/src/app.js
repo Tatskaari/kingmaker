@@ -46,7 +46,7 @@ gameWorker.addEventListener("message", event => {
 });
 
 function rpc(type, payload = {}) {
-  if (["reset_world", "reset", "load_game", "create_game", "configure", "delete_game"].includes(type)) stopNpcGoal();
+  if (["reset_world", "reset_characters", "reset", "load_game", "create_game", "configure", "delete_game"].includes(type)) stopNpcGoal();
   const id = ++requestSequence;
   gameWorker.postMessage({ id, type, payload });
   return new Promise((resolve, reject) => pendingRequests.set(id, { resolve, reject }));
@@ -120,6 +120,22 @@ window.resetWorld = async function resetWorld() {
     state = result.state; saves = result.saves;
     activeCharacter = null; closedConversation = null; debugData = null;
     notice = "Palace reset. Your character and conversations have been kept.";
+    return { reset: true };
+  } catch (error) { notice = `Error: ${error.message}`; throw error; }
+  finally { busy = false; render(); }
+};
+
+// Restore authored NPC personalities and clear learned events without resetting the palace.
+window.resetCharacters = async function resetCharacters() {
+  if (busy) throw new Error("Wait for the current request to finish before resetting the characters.");
+  if (!state?.player) throw new Error("Load a game with a created character first.");
+  busy = true; notice = "Resetting characters…"; render();
+  try {
+    const result = await rpc("reset_characters");
+    state = result.state; saves = result.saves;
+    activeCharacter = null; closedConversation = null; debugData = null;
+    npcTrace = []; npcStatus = "";
+    notice = "NPCs reset. Conversations and learned events cleared; your character and palace have been kept.";
     return { reset: true };
   } catch (error) { notice = `Error: ${error.message}`; throw error; }
   finally { busy = false; render(); }

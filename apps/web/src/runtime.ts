@@ -501,6 +501,21 @@ export class BrowserGameRuntime {
     if (memory.goalUpdate && allowNextGoal) this.#npcActivities[characterId] = { status: "active", goal: memory.goalUpdate.goal, history: [] };
   }
 
+  resetCharacters(): void {
+    const current = this.#game.scenario();
+    if (!current.playerCharacterId || !current.world) throw new Error("Create your character before resetting the NPCs.");
+    const initial = fromJson(ScenarioSchema, toJson(ScenarioSchema, this.#initialScenario));
+    current.characters = current.characters.map(character => character.id === current.playerCharacterId
+      ? character : initial.characters.find(item => item.id === character.id) ?? character);
+    current.events = initial.events;
+    current.world.revision++;
+    this.#game = new MemoryGame(current);
+    this.#npcActivities = {};
+    this.#conversations.clear();
+    this.#conversationReplyOptions = {};
+    this.#conversationEndRequested = {};
+  }
+
   resetWorld(): void {
     const current = this.#game.scenario();
     if (!current.playerCharacterId || !current.world) throw new Error("Create your character before resetting the world.");
