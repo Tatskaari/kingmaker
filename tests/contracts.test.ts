@@ -1,3 +1,4 @@
+import { courtAgentObservation } from "../apps/web/src/court-agent.js";
 import { doorActionLegality } from "../packages/core/src/access.js";
 import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
 import { courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath, courtInteractionPoint, nearestDoorSpot } from "../apps/web/src/court-map.js";
@@ -1423,4 +1424,130 @@ test("resetting physical world keeps character and conversation while refreshing
   assert.equal(result.world!.actors.filter(actor => actor.characterId === "player").length, 1);
   assert.deepEqual(new BrowserGameRuntime(authored, "test", after).snapshot(), after);
   assert.throws(() => new BrowserGameRuntime(authored, "test").resetWorld(), /Create your character/);
+});
+
+test("reviewed immediate goal reaches Jev, which opens doors and moves the NPC in saved world state", async t => {
+  const scenario = furnishedCourt();
+  for (const actor of scenario.world!.actors) {
+    const placement = scenario.courtArrivalPlacements.find(item => item.characterId === actor.characterId)!;
+    actor.position = placement.position; actor.roomId = placement.roomId;
+  }
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Meet me in my chamber." }));
+  await runtime.talkToCharacter("merlin", "Let's speak privately.");
+  await assert.rejects(runtime.planNpc("merlin", [], new AbortController().signal), /review first/);
+  const goal = "Go to Merlin's Chamber and wait for the player.";
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], goalUpdate: { goal, reason: "Agreed a meeting." }, lore: null }));
+  await runtime.endConversation("merlin");
+  let step = 0;
+  t.mock.method(JevClient.prototype, "choose", async (state: any, _instructions: unknown, criteria: Record<string, string>) => {
+    assert.equal(state.goal, goal);
+    assert.equal(state.characterContext.character.id, "merlin");
+    assert.equal(state.characterContext.character.objectives.length, 3);
+    assert.ok(!JSON.stringify(state.world).includes("Sealed royal decree"));
+    const choice = ["open_merlin_door_0", "move_merlin", "complete"][step++]!;
+    assert.ok(criteria[choice]);
+    if (step === 1) assert.ok(!criteria.move_merlin, "Closed room cannot be selected as a move target");
+    return { choice, probabilities: { [choice]: 1 } };
+  });
+  for (let i = 0; i < 2; i++) {
+    const plan = await runtime.planNpc("merlin", [], new AbortController().signal);
+    assert.ok(plan.action);
+    runtime.executeNpcAction("merlin", plan.action.id, plan.revision, plan.goal);
+  }
+  const finished = await runtime.planNpc("merlin", [], new AbortController().signal);
+  assert.equal(finished.decision.choice, "complete");
+  const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  assert.equal(saved.world!.actors.find(actor => actor.characterId === "merlin")!.roomId, "merlin_chamber");
+  assert.deepEqual(saved.world!.actors.find(actor => actor.characterId === "player")!.position, scenario.world!.actors.find(actor => actor.characterId === "player")!.position);
+  assert.deepEqual(new BrowserGameRuntime(scenario, "test", runtime.snapshot()).snapshot(), runtime.snapshot());
+});
+
+test("NPC actions use their own keys and inventory, reject stale plans, and preserve the player's inventory", () => {
+  const scenario = furnishedCourt();
+  for (const door of scenario.world!.doors) door.open = true;
+  const merlin = scenario.world!.actors.find(actor => actor.characterId === "merlin")!;
+  merlin.roomId = "merlin_chamber"; merlin.position = create(TilePositionSchema, { x: 5, y: 5 });
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  const activeSnapshot = runtime.snapshot();
+  activeSnapshot.npcActivities = { merlin: { status: "active", goal: scenario.characters.find(item => item.id === "merlin")!.currentGoal, history: [] } };
+  runtime.restore(activeSnapshot);
+  function execute(id: string) {
+    const s = fromJson(ScenarioSchema, runtime.snapshot().scenario), observation = courtAgentObservation(s, "merlin");
+    assert.ok(observation.actions.some(action => action.id === id));
+    return runtime.executeNpcAction("merlin", id, observation.revision, observation.goal);
+  }
+  execute("open_palace_merlin_drawers"); execute("take_palace_royal_key"); execute("move_royal"); execute("open_palace_coffer_03"); execute("take_palace_royal_seal");
+  const snapshot = runtime.snapshot(), saved = fromJson(ScenarioSchema, snapshot.scenario);
+  assert.equal(saved.world!.objects.find(item => item.id === "palace_royal_key")!.locationId, "merlin");
+  assert.equal(saved.world!.objects.find(item => item.id === "palace_royal_seal")!.locationId, "merlin");
+  assert.deepEqual(runtime.view().inventory, []);
+  const observation = courtAgentObservation(saved, "merlin");
+  runtime.resetWorld();
+  assert.throws(() => runtime.executeNpcAction("merlin", observation.actions[0]!.id, observation.revision, observation.goal), /World changed|not accepting actions/);
+  assert.throws(() => courtAgentObservation(saved, "player"), /NPC/);
+});
+
+test("greeting goal is idle until the LLM explicitly assigns a task", async t => {
+  const runtime = new BrowserGameRuntime(furnishedCourt(), "test");
+  assert.ok(Object.values(runtime.view().npcActivities as Record<string, {status: string}>).every(activity => activity.status === "idle"));
+  await assert.rejects(runtime.planNpc("merlin", [], new AbortController().signal), /idle/);
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Welcome." }));
+  await runtime.talkToCharacter("merlin", "Hello.");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], goalUpdate: null, lore: null }));
+  await runtime.endConversation("merlin");
+  assert.equal(runtime.snapshot().npcActivities?.merlin?.status, "idle");
+  assert.match(fromJson(ScenarioSchema, runtime.snapshot().scenario).characters[0]!.currentGoal, /greet the visiting player/);
+  await assert.rejects(runtime.planNpc("merlin", [], new AbortController().signal), /idle/);
+});
+
+test("NPC reviews actual planner results, can activate a follow-up, and later returns idle", async t => {
+  const runtime = new BrowserGameRuntime(furnishedCourt(), "test");
+  const active = runtime.snapshot();
+  active.npcActivities = { merlin: { status: "active", goal: "Inspect my drawers.", history: ["Merlin's chest of drawers is closed."] } };
+  runtime.restore(active);
+  runtime.finishNpcRun("merlin", "complete", "Jev chose complete with confidence 0.8.");
+  const ended = runtime.snapshot();
+  assert.equal(ended.npcActivities!.merlin!.status, "idle");
+  assert.equal(ended.npcActivities!.merlin!.reviewPending, true);
+  await assert.rejects(runtime.planNpc("merlin", [], new AbortController().signal), /idle/);
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: { messages: {content: string}[] }) => {
+    const outcome = JSON.parse(request.messages.at(-1)!.content);
+    assert.equal(outcome.goal, "Inspect my drawers.");
+    assert.deepEqual(outcome.actionsPerformed, ["Merlin's chest of drawers is closed."]);
+    assert.equal(outcome.result.reason, "complete");
+    assert.ok(outcome.observations.location);
+    return modelReply({ newEvents: [{ type: "observation", summary: "My drawers are closed." }], relationships: [], lore: null,
+      goalUpdate: { goal: "Open my drawers.", reason: "I want to examine the contents." } });
+  });
+  await runtime.reviewNpcOutcome("merlin");
+  assert.equal(runtime.snapshot().npcActivities!.merlin!.status, "active");
+  assert.equal(runtime.snapshot().npcActivities!.merlin!.goal, "Open my drawers.");
+  assert.deepEqual(runtime.snapshot().npcActivities!.merlin!.history, []);
+  assert.deepEqual(fromJson(ScenarioSchema, runtime.snapshot().scenario).events.at(-1)!.characterIds, ["merlin"], "Private planner memories do not become player knowledge");
+  runtime.finishNpcRun("merlin", "unable", "No progress possible.");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: null }));
+  await runtime.reviewNpcOutcome("merlin");
+  assert.equal(runtime.snapshot().npcActivities!.merlin!.status, "idle");
+  assert.equal(runtime.snapshot().npcActivities!.merlin!.reviewPending, false);
+  const done = runtime.snapshot();
+  await runtime.reviewNpcOutcome("merlin");
+  assert.deepEqual(runtime.snapshot(), done, "Repeated review is a no-op");
+});
+
+test("outcome review survives reload and failure; replanning cap leaves a proposed goal idle", async t => {
+  const scenario = furnishedCourt(), runtime = new BrowserGameRuntime(scenario, "test");
+  const active = runtime.snapshot(); active.npcActivities = { merlin: { status: "active", goal: "Find a way through.", history: [] } }; runtime.restore(active);
+  runtime.finishNpcRun("merlin", "limit", "24 actions exhausted.");
+  const pending = runtime.snapshot();
+  const restored = new BrowserGameRuntime(scenario, "test", pending);
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => { throw new Error("Offline"); });
+  await assert.rejects(restored.reviewNpcOutcome("merlin"), /Offline/);
+  assert.deepEqual(restored.snapshot(), pending);
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: {goal: "Go to the Great Hall.", reason: "Try later."} }));
+  await restored.reviewNpcOutcome("merlin", false);
+  assert.equal(restored.snapshot().npcActivities!.merlin!.status, "idle");
+  assert.equal(restored.snapshot().npcActivities!.merlin!.reviewPending, false);
+  assert.equal(fromJson(ScenarioSchema, restored.snapshot().scenario).characters[0]!.currentGoal, "Go to the Great Hall.");
+  await assert.rejects(restored.planNpc("merlin", [], new AbortController().signal), /idle/);
 });

@@ -161,6 +161,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   for (const marker of markers) {
     const isPlayer = marker.id === player?.id;
     const control = document.createElement(isPlayer ? "div" : "button");
+    control.dataset.characterId = marker.id;
     control.className = `court-character${isPlayer ? " court-player" : ""}`;
     if (control instanceof HTMLButtonElement) {
       control.type = "button"; control.disabled = disabled;
@@ -291,5 +292,24 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   canvas.addEventListener("contextmenu", event => {
     event.preventDefault(); const hit = renderer.hit(event.clientX, event.clientY);
     if (hit) showMenu({ x: hit.tileX, y: hit.tileY }, event.clientX, event.clientY);
+  });
+}
+
+/** Animate only the preview; the worker validates and commits the final action. */
+export async function animateCourtCharacter(root: HTMLElement, characterId: string, path: readonly Point[], signal: AbortSignal): Promise<void> {
+  if (!path.length) return;
+  const started = performance.now();
+  await new Promise<void>((resolve, reject) => {
+    const frame = () => {
+      if (signal.aborted) { reject(new Error("Jev stopped.")); return; }
+      const marker = root.querySelector<HTMLElement>(`[data-character-id="${CSS.escape(characterId)}"]`);
+      if (!marker) { reject(new Error("Palace view changed; Jev stopped.")); return; }
+      const progress = Math.min((performance.now() - started) / 100, path.length - 1);
+      const point = courtWalkPoint(path, progress);
+      marker.style.left = `${(point.x + 0.5) / palaceMap.width * 100}%`;
+      marker.style.top = `${(point.y + 0.5) / palaceMap.height * 100}%`;
+      if (progress === path.length - 1) resolve(); else window.setTimeout(frame, 16);
+    };
+    frame();
   });
 }

@@ -125,7 +125,7 @@ export class MemoryGame implements GameState {
     return { ok: true, value: events };
   }
 
-  commitConversation(characterId: string, memory: ConversationMemory): Validation<readonly Event[]> {
+  commitConversation(characterId: string, memory: ConversationMemory, includePlayer = true): Validation<readonly Event[]> {
     const character = this.#scenario.characters.find(item => item.id === characterId);
     if (!character || characterId === "player") return failure("unknown_character", "Unknown NPC.");
     if (!this.#scenario.world) return failure("missing_world", "Scenario has no world.");
@@ -149,7 +149,7 @@ export class MemoryGame implements GameState {
       day: this.#scenario.world!.day,
       type: event.type,
       summary: event.summary,
-      characterIds: [characterId, "player"],
+      characterIds: includePlayer ? [characterId, "player"] : [characterId],
       visibility: EventVisibility.PRIVATE,
     }));
     if (memory.goalUpdate) character.currentGoal = memory.goalUpdate.goal;

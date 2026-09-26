@@ -29,6 +29,7 @@ const scenarioPromise: Promise<Scenario> = fetch(scenarioUrl).then(async respons
 let apiKey = "";
 let runtime: BrowserGameRuntime | undefined;
 let activeSave: SaveRecord | undefined;
+let npcPlanning: AbortController | undefined;
 
 function database(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -141,6 +142,28 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     }
     return { state: game.view(), saves: await listSaves() };
   }
+  if (type === "cancel_npc") { npcPlanning?.abort(); return {}; }
+  if (type === "plan_npc") {
+    npcPlanning?.abort();
+    const controller = new AbortController(); npcPlanning = controller;
+    try { return await requireRuntime().planNpc(String(payload.characterId), Array.isArray(payload.history) ? payload.history.map(String).slice(-24) : [], controller.signal); }
+    finally { if (npcPlanning === controller) npcPlanning = undefined; }
+  }
+  if (type === "finish_npc" || type === "review_npc") {
+    const game = requireRuntime(), before = structuredClone(game.snapshot()), savedBefore = activeSave;
+    try {
+      if (type === "finish_npc") game.finishNpcRun(String(payload.characterId), String(payload.reason) as "complete" | "unable" | "error" | "limit" | "cancelled", String(payload.detail || ""));
+      else await game.reviewNpcOutcome(String(payload.characterId), payload.allowNextGoal !== false);
+      await persist(); return { state: game.view(), saves: await listSaves() };
+    } catch (error) { game.restore(before); activeSave = savedBefore; throw error; }
+  }
+  if (type === "execute_npc") {
+    const game = requireRuntime(), before = structuredClone(game.snapshot()), savedBefore = activeSave;
+    try {
+      const message = game.executeNpcAction(String(payload.characterId), String(payload.actionId), Number(payload.revision), String(payload.goal));
+      await persist(); return { message, state: game.view(), saves: await listSaves() };
+    } catch (error) { game.restore(before); activeSave = savedBefore; throw error; }
+  }
   if (type === "reset_world" || type === "interact_fixture") {
     const game = requireRuntime(), before = structuredClone(game.snapshot()), savedBefore = activeSave;
     let message: string | undefined;
@@ -199,12 +222,16 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
 let requests = Promise.resolve();
 worker.addEventListener("message", event => {
   const request = event.data as WorkerRequest;
-  requests = requests.then(async () => {
+  const process = async () => {
     try {
       const value = await handle(request.type, request.payload || {});
       worker.postMessage({ id: request.id, ok: true, value });
     } catch (error) {
       worker.postMessage({ id: request.id, ok: false, error: error instanceof Error ? error.message : String(error) });
     }
-  });
+  };
+  // Decisions operate on a snapshot and never mutate the game. Keep cancellation
+  // responsive while the network request runs; execution still uses the save queue.
+  if (request.type === "plan_npc" || request.type === "cancel_npc") void process();
+  else requests = requests.then(process);
 });

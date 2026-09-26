@@ -127,3 +127,32 @@ in the player's inventory; taking items from someone else's furniture is marked
 illegal. Inventory is shown in the character sheet. These prototype containers
 retain their original loot; the narrative Crown of Winter remains in its existing
 crown box and is not duplicated in the royal coffer.
+
+### NPC activity and planner lifecycle
+
+Every NPC begins **idle**, even though their authored `currentGoal` describes
+receiving the player in the Great Hall. That text demonstrates immediate intent;
+it does not automatically schedule work. A non-null LLM `goalUpdate` explicitly
+assigns a task and makes the NPC **active**. A null update preserves their goal
+text without starting the planner.
+
+After conversation review, active NPCs give Jev their reviewed goal, character
+context, current surroundings and reachable actions. Jev can navigate, operate
+doors and containers, and take items into that NPC's own inventory. Each action
+is animated, validated against the current world and goal, and saved.
+
+When Jev completes, cannot progress, encounters an error, or reaches 24 actions,
+the result and engine-recorded actions are saved. The NPC's LLM reviews those
+alongside current observations, updates private memory and intentions, and either
+assigns another task or remains idle. Planner outcome memories are private to
+the NPC. Failed reviews can be retried without repeating the physical actions.
+Automatic chains stop after three planner runs and their reviews.
+
+For this prototype one NPC runs at a time and map controls pause during the run.
+**Stop Jev** cancels an outstanding decision or uncommitted walk; its outcome can
+be reviewed explicitly. Switching saves or resetting stops the local runner.
+Reloaded active tasks and pending reviews have explicit resume/review controls.
+The panel below the map shows the observations and decisions. Waiting goals can
+complete at the requested location; the planner cannot initiate dialogue or
+compel the player to follow. `resetWorld()` returns all NPCs to idle while keeping
+their character data and goal text.

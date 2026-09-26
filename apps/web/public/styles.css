@@ -182,3 +182,5 @@ button.court-character:hover:not(:focus-visible) { border-color: transparent; ba
 /* Name labels must not intercept interactions with the furniture below them. */
 .court-character:not(.court-off-map) { width: 34px; height: 34px; padding: 0; }
 .court-character:not(.court-off-map) .court-character-name { position: absolute; top: 36px; width: max-content; pointer-events: none; }
+.npc-planner { margin-top: 16px; padding: 12px; border: 1px solid var(--line); }
+.npc-planner pre { max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
