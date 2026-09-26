@@ -47,9 +47,8 @@ async function transaction<T>(mode: IDBTransactionMode, action: (store: IDBObjec
   return new Promise((resolve, reject) => {
     const tx = db.transaction("games", mode);
     const request = action(tx.objectStore("games"));
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-    tx.oncomplete = () => db.close();
+    tx.oncomplete = () => { db.close(); resolve(request.result); };
+    tx.onabort = () => { db.close(); reject(tx.error || new Error("Save transaction aborted")); };
     tx.onerror = () => reject(tx.error);
   });
 }
@@ -147,6 +146,20 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     await persist();
     return { reply, state: requireRuntime().view(), saves: await listSaves(), activeSaveId: activeSave?.id };
   }
+  if (type === "end_conversation") {
+    const game = requireRuntime();
+    const before = structuredClone(game.snapshot());
+    const savedBefore = activeSave;
+    try {
+      await game.endConversation(String(payload.characterId || ""));
+      await persist();
+    } catch (error) {
+      game.restore(before);
+      activeSave = savedBefore;
+      throw error;
+    }
+    return { state: game.view(), saves: await listSaves(), activeSaveId: activeSave?.id };
+  }
   if (type === "reset") {
     requireRuntime().reset();
     if (activeSave) { activeSave.characterName = "New emissary"; activeSave.normalizedName = "new emissary"; }
@@ -159,12 +172,16 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
   throw new Error(`Unknown worker request: ${type}`);
 }
 
-worker.addEventListener("message", async event => {
+// Keep state changes and their saves in order, including while a model is running.
+let requests = Promise.resolve();
+worker.addEventListener("message", event => {
   const request = event.data as WorkerRequest;
-  try {
-    const value = await handle(request.type, request.payload || {});
-    worker.postMessage({ id: request.id, ok: true, value });
-  } catch (error) {
-    worker.postMessage({ id: request.id, ok: false, error: error instanceof Error ? error.message : String(error) });
-  }
+  requests = requests.then(async () => {
+    try {
+      const value = await handle(request.type, request.payload || {});
+      worker.postMessage({ id: request.id, ok: true, value });
+    } catch (error) {
+      worker.postMessage({ id: request.id, ok: false, error: error instanceof Error ? error.message : String(error) });
+    }
+  });
 });

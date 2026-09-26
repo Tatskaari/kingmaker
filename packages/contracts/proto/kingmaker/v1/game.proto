@@ -139,6 +139,14 @@ message DialogueResponse {
   repeated string reply_options = 4;
 }
 
+// Durable NPC memory extracted once from a completed conversation.
+message ConversationMemory {
+  repeated Event new_events = 1;
+  optional GoalUpdate goal_update = 2;
+  repeated Relationship relationships = 3;
+  optional string lore = 4;
+}
+
 message RelationshipUpdate {
   string owner_character_id = 1;
   Relationship relationship = 2;

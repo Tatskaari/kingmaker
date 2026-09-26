@@ -7,6 +7,7 @@ import {
   GamePhase,
   ScenarioSchema,
   type Character,
+  type ConversationMemory,
   type DialogueResponse,
   type Event,
   type GameMasterResponse,
@@ -114,6 +115,44 @@ export class MemoryGame implements GameState {
     }));
     this.#scenario.events.push(...events);
     world.revision += 1;
+    return { ok: true, value: events };
+  }
+
+  commitConversation(characterId: string, memory: ConversationMemory): Validation<readonly Event[]> {
+    const character = this.#scenario.characters.find(item => item.id === characterId);
+    if (!character || characterId === "player") return failure("unknown_character", "Unknown NPC.");
+    if (!this.#scenario.world) return failure("missing_world", "Scenario has no world.");
+    const targets = new Set<string>();
+    for (const relationship of memory.relationships) {
+      if (relationship.characterId === characterId || targets.has(relationship.characterId)
+        || !this.#scenario.characters.some(item => item.id === relationship.characterId)
+        || !relationship.description.trim()) {
+        return failure("invalid_relationship", "Memory contains an invalid or duplicate relationship.");
+      }
+      targets.add(relationship.characterId);
+    }
+    // Validate everything before applying any part of the review.
+    if (memory.newEvents.some(event => !event.type.trim() || !event.summary.trim())
+      || (memory.goalUpdate && !memory.goalUpdate.goal.trim())
+      || (memory.lore !== undefined && !memory.lore.trim())) {
+      return failure("invalid_memory", "Memory updates must not be empty.");
+    }
+    const events = memory.newEvents.map(event => create(EventSchema, {
+      id: `conversation-${crypto.randomUUID()}`,
+      day: this.#scenario.world!.day,
+      type: event.type,
+      summary: event.summary,
+      characterIds: [characterId, "player"],
+      visibility: EventVisibility.PRIVATE,
+    }));
+    if (memory.goalUpdate) character.currentGoal = memory.goalUpdate.goal;
+    if (memory.lore !== undefined) character.lore = memory.lore;
+    for (const relationship of memory.relationships) {
+      character.relationships = character.relationships.filter(item => item.characterId !== relationship.characterId);
+      character.relationships.push({ ...relationship });
+    }
+    this.#scenario.events.push(...events);
+    this.#scenario.world.revision += 1;
     return { ok: true, value: events };
   }
 

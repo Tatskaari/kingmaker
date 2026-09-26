@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { create, fromBinary, fromJsonString, toBinary, toJsonString } from "@bufbuild/protobuf";
+import { create, fromBinary, fromJson, fromJsonString, toBinary, toJsonString } from "@bufbuild/protobuf";
 import {
   AvailableActionSchema,
   DecisionRequestSchema,
@@ -382,4 +382,118 @@ test("generated character waits for editable review and only enters court on exp
   assert.equal(restored.snapshot().playerDraft, null);
   assert.match(JSON.stringify(restored.snapshot().scenario), /Maren Reed, Envoy from Westmere/);
   assert.throws(() => restored.confirmPlayer(draft), /No character is awaiting review/);
+});
+
+// Script model responses to verify the complete conversation lifecycle offline.
+
+function conversationScenario(): Scenario {
+  const scenario = load();
+  scenario.world!.phase = GamePhase.CONVERSATIONS;
+  scenario.world!.day = 1;
+  scenario.playerCharacterId = "player";
+  scenario.characters.push(create(CharacterSchema, { id: "player", name: "Envoy" }));
+  return scenario;
+}
+
+const remembered = {
+  newEvents: [{ type: "promise", summary: "The envoy promised Merlin help securing the succession." }],
+  goalUpdate: { goal: "Meet the envoy tonight.", reason: "They offered help." },
+  relationships: [{ characterId: "player", description: "A potential ally who offered help." }],
+  lore: null,
+};
+const modelReply = (value: unknown): OpenRouterMessage => ({ role: "assistant", content: JSON.stringify(value) });
+
+test("ending reviews the full transcript, saves private memory, and starts a fresh thread after reload", async t => {
+  const requests: Array<{ messages: readonly { role: string; content: string | null }[] }> = [];
+  const replies = [
+    { utterance: "I need an ally." }, { utterance: "Then meet me tonight." }, remembered,
+    { utterance: "Welcome back, my ally." },
+  ];
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: typeof requests[number]) => {
+    requests.push(request);
+    return modelReply(replies.shift());
+  });
+  const scenario = conversationScenario();
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  await runtime.talkToCharacter("merlin", "What troubles you?");
+  await runtime.talkToCharacter("merlin", "I offer my help.");
+  assert.deepEqual(fromJson(ScenarioSchema, runtime.snapshot().scenario), scenario, "Speaking does not prematurely commit memory");
+  const openSave = structuredClone(runtime.snapshot());
+  const restored = new BrowserGameRuntime(scenario, "test", openSave);
+  await restored.endConversation("merlin");
+  const review = requests[2]!.messages;
+  assert.deepEqual(JSON.parse(review.at(-1)!.content!), [
+    { speakerId: "player", text: "What troubles you?" }, { speakerId: "merlin", text: "I need an ally." },
+    { speakerId: "player", text: "I offer my help." }, { speakerId: "merlin", text: "Then meet me tonight." },
+  ]);
+  const saved = structuredClone(restored.snapshot());
+  assert.equal(saved.conversations.merlin, undefined);
+  const updated = fromJson(ScenarioSchema, saved.scenario);
+  const merlin = updated.characters.find(character => character.id === "merlin")!;
+  assert.equal(merlin.currentGoal, remembered.goalUpdate.goal);
+  assert.equal(merlin.lore, scenario.characters[0]!.lore);
+  assert.equal(merlin.relationships.find(item => item.characterId === "player")?.description, remembered.relationships[0]!.description);
+  assert.deepEqual(merlin.relationships.filter(item => item.characterId !== "player"), scenario.characters[0]!.relationships);
+  assert.deepEqual(updated.characters.slice(1), scenario.characters.slice(1));
+  const event = updated.events.at(-1)!;
+  assert.equal(event.summary, remembered.newEvents[0]!.summary);
+  assert.equal(event.visibility, EventVisibility.PRIVATE);
+  assert.deepEqual(event.characterIds, ["merlin", "player"]);
+  assert.equal(event.day, 1);
+  assert.deepEqual(updated.events.slice(0, -1), scenario.events);
+  assert.deepEqual(updated.world, { ...scenario.world, revision: scenario.world!.revision + 1 });
+  const nextVisit = new BrowserGameRuntime(scenario, "test", saved);
+  await nextVisit.endConversation("merlin");
+  assert.equal(requests.length, 3, "Repeated end must not duplicate memory or call the model");
+  await nextVisit.talkToCharacter("merlin", "Hello again.");
+  const nextPrompt = requests[3]!.messages;
+  assert.deepEqual(nextPrompt.filter(message => message.role !== "system"), [{ role: "user", content: "Hello again." }]);
+  assert.match(nextPrompt.map(message => message.content).join("\n"), /potential ally|Meet the envoy tonight/);
+  assert.equal(nextVisit.snapshot().conversations.merlin?.length, 2);
+  const kingContext = nextVisit.debugCharacter("king");
+  assert.doesNotMatch(JSON.stringify(kingContext), /envoy promised Merlin/);
+});
+
+test("failed or malformed reviews keep every part of the open conversation for retry", async t => {
+  const runtime = new BrowserGameRuntime(conversationScenario(), "test");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "I will consider it." }));
+  await runtime.talkToCharacter("merlin", "Will you help?");
+  const before = structuredClone(runtime.snapshot());
+  const failures = [null, "{", "{}", JSON.stringify({ ...remembered, relationships: [{ characterId: "unknown", description: "An ally" }] }), JSON.stringify({ ...remembered, newEvents: [{ type: "promise", summary: " " }] })];
+  for (const content of failures) {
+    t.mock.method(OpenRouterClient.prototype, "complete", async () => ({ role: "assistant", content }));
+    await assert.rejects(runtime.endConversation("merlin"));
+    assert.deepEqual(runtime.snapshot(), before);
+  }
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => { throw new Error("Network failure"); });
+  await assert.rejects(runtime.endConversation("merlin"), /Network failure/);
+  assert.deepEqual(runtime.snapshot(), before);
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply(remembered));
+  await runtime.endConversation("merlin");
+  assert.equal(runtime.snapshot().conversations.merlin, undefined);
+});
+
+test("empty conversations do not call the model and invalid targets cannot be ended", async t => {
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => { assert.fail("No model call expected"); });
+  const runtime = new BrowserGameRuntime(conversationScenario(), "test");
+  const before = runtime.snapshot();
+  await runtime.endConversation("merlin");
+  assert.deepEqual(runtime.snapshot(), before);
+  await assert.rejects(runtime.endConversation("player"), /Unknown character/);
+  await assert.rejects(runtime.endConversation("unknown"), /Unknown character/);
+  await assert.rejects(new BrowserGameRuntime(load(), "test").endConversation("merlin"), /have not begun/);
+});
+
+test("ending one NPC's thread leaves other conversations intact and saves biography updates", async t => {
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Good evening." }));
+  const runtime = new BrowserGameRuntime(conversationScenario(), "test");
+  await runtime.talkToCharacter("merlin", "Hello.");
+  await runtime.talkToCharacter("king", "Your Majesty.");
+  const kingHistory = runtime.snapshot().conversations.king;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({
+    newEvents: [], goalUpdate: null, relationships: [], lore: "Merlin remembers his new appointment as court adviser.",
+  }));
+  await runtime.endConversation("merlin");
+  assert.deepEqual(runtime.snapshot().conversations.king, kingHistory);
+  assert.equal(fromJson(ScenarioSchema, runtime.snapshot().scenario).characters[0]!.lore, "Merlin remembers his new appointment as court adviser.");
 });
