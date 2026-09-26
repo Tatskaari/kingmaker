@@ -18,5 +18,3 @@ export const palaceEdges: NavEdge[] = [
   ["north_junction", "west_junction"], ["north_junction", "east_junction"],
   ["west_junction", "merlin"], ["east_junction", "lancelot"], ["north_junction", "royal"],
 ].map(([from, to]) => ({ from: from!, to: to! }));
-// A temporary two-tile gate demonstrates dynamic collision without changing map protos.
-export const royalGate = [{ x: 15, y: 10 }, { x: 16, y: 10 }];

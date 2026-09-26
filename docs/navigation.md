@@ -1,29 +1,35 @@
-# Palace navigation proof of concept
+# Palace navigation and doors
 
 Open `/palace.html`, then select a waypoint in the sidebar or click its mint marker.
-The character starts in the Great Hall. Grey markers are unreachable and are omitted
-from the available-action list. The graph overlay follows actual tile paths; the gold
-line is the active route. Reset cancels movement and restores the closed gate.
+The character starts in the Great Hall. Grey markers are unreachable and omitted
+from available actions. The graph overlay follows actual tile paths; gold shows
+the active route. Reset cancels movement and restores the initial door states.
 
-Try Great Hall → Merlin's Chamber → North Junction → Open royal gate → Royal
-Bedchamber. Closing the gate from inside removes all outward routes until reopened.
-The expandable Agent observation panel previews structured actions for a future
-policy; this demo does not call Jev.
+Seven two-tile doors guard the chambers, treasury, guest room, and hall connections.
+Hall doors start open; private-room doors start closed. Each threshold has a waypoint
+on either side. Walk to one, then right-click either door tile or use the Nearby doors
+button to open/close it. Closed doors block both threshold tiles. Door interaction is
+permitted only one cardinal tile away, never remotely, while moving, or from inside
+the threshold itself. Closing a door inside a room removes routes out until reopened.
 
-`palace-navigation.ts` authors ten logical nodes and their undirected connections.
-`navigation.ts` runs four-neighbour A* for each graph edge against tile collision and
-current gate blockers. Dijkstra selects the shortest sequence of live edges; movement
-follows their tile paths. Actions are recomputed at dispatch as well as after arrival
-and gate changes. Movement is exclusive: other commands are disabled until arrival,
-except Reset. The same reachable routes populate the UI and observation.
+Try Royal door · outside → Open Royal door → Royal Bedchamber. To close the door
+behind you, visit Royal door · inside and close it. The Agent observation panel shows
+current door states and reachable move/open/close actions; no Jev calls are made.
 
-This intentionally stays outside the map protobuf and narrative world engine while
-we test the interaction. Actors conservatively occupy a full tile: any intersecting
-solid layer blocks that tile. Room permissions do not affect physical walkability.
-The royal gate is a temporary dynamic blocker across both passage tiles, operated
-from either neighbouring waypoint, not a general door/item system. The PoC assumes
-full knowledge of the graph and a single character. Future moving blockers must
-invalidate or replan an in-flight path; currently gate changes are disabled in transit.
+`palace-navigation.ts` authors room/junction nodes. `palace-doors.ts` defines door
+state and footprints, splits the relevant graph edges with approach nodes, derives
+dynamic blockers, and validates interactions. `navigation.ts` runs four-neighbour
+A* for each graph edge against tile collision plus closed-door blockers. Dijkstra
+selects the shortest sequence of live edges. UI actions are regenerated after every
+arrival or door change and revalidated at dispatch. Door rendering and hit-testing
+use the same footprints as collision. Keyboard users can use the sidebar buttons.
 
-Tests verify gate-dependent graph reachability, contiguous walkable routes, invalid
-endpoints, and A* optimality against an independent breadth-first search.
+The demo remains outside the map protobuf and narrative world engine. Door state
+is in memory, resets on reload, and has no locks, keys, permissions or persistence.
+Actors occupy a full tile: any intersecting solid layer blocks it. The PoC assumes
+full graph knowledge and one character. Movement is exclusive except Reset;
+future concurrent actors/blockers will require in-flight path invalidation.
+
+Tests verify every threshold blocks traversal, operation from either side, rejection
+of remote/in-transit/occupied-threshold interactions, reachable approach nodes,
+route filtering/restoration, path continuity, and A* optimality against BFS.

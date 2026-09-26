@@ -23,7 +23,9 @@ import { MemoryGame } from "../packages/core/src/game.js";
 import { palaceMap } from "../apps/web/src/palace-map.js";
 
 import { canWalk, findPath, pointKey, reachableRoutes } from "../apps/web/src/navigation.js";
-import { palaceNodes, palaceEdges, royalGate } from "../apps/web/src/palace-navigation.js";
+import { palaceNodes, palaceEdges } from "../apps/web/src/palace-navigation.js";
+
+import { createDoors, doorBlockers, doorGraph, toggleDoor } from "../apps/web/src/palace-doors.js";
 
 const fixturePath = new URL("../content/scenarios/last-night.json", import.meta.url);
 const load = (): Scenario => fromJsonString(ScenarioSchema, readFileSync(fixturePath, "utf8"));
@@ -554,8 +556,8 @@ test("ending one NPC's thread leaves other conversations intact and saves biogra
 
 // Navigation tests exercise actual palace geometry, dynamic obstruction and A* optimality.
 
-test("closed royal gate filters destinations; opening it restores valid paths", () => {
-  const blocked = new Set(royalGate.map(pointKey));
+test("closed threshold filters destinations; opening it restores valid paths", () => {
+  const blocked = new Set(createDoors().find(door => door.id === "royal_door")!.tiles.map(pointKey));
   const closed = reachableRoutes(palaceMap, palaceNodes, palaceEdges, "great_hall", blocked);
   assert.equal(closed.length, palaceNodes.length - 2);
   assert.ok(!closed.some(route => route.node.id === "royal"));
@@ -597,4 +599,38 @@ test("A* detours around blockers and matches a breadth-first shortest path", () 
     }
   }
   assert.fail("Goal should be reachable");
+});
+
+test("every palace door blocks its full threshold and can be operated from either side", () => {
+  for (const candidate of createDoors()) {
+    const doors = createDoors();
+    doors.forEach(door => { door.open = true; });
+    const door = doors.find(door => door.id === candidate.id)!;
+    const [outside, inside] = door.sides;
+    assert.ok(findPath(palaceMap, outside, inside, doorBlockers(doors)));
+    assert.ok(toggleDoor(door, outside));
+    assert.equal(door.open, false);
+    assert.equal(findPath(palaceMap, outside, inside, doorBlockers(doors)), undefined);
+    assert.equal(toggleDoor(door, palaceNodes[0]!), false, "remote interaction rejected");
+    assert.equal(toggleDoor(door, outside, true), false, "interaction during movement rejected");
+    assert.equal(toggleDoor(door, door.tiles[0]!), false, "occupied threshold rejected");
+    assert.ok(toggleDoor(door, inside));
+    assert.ok(findPath(palaceMap, outside, inside, doorBlockers(doors)));
+  }
+});
+
+test("door approaches remain reachable while destinations behind closed doors are hidden", () => {
+  const doors = createDoors();
+  const graph = doorGraph(doors);
+  const routes = reachableRoutes(palaceMap, graph.nodes, graph.edges, "great_hall", doorBlockers(doors));
+  for (const id of ["merlin", "royal", "lancelot", "guest", "treasury"]) {
+    assert.ok(!routes.some(route => route.node.id === id));
+  }
+  assert.ok(routes.some(route => route.node.id === "royal_door_outside"));
+  const royal = doors.find(door => door.id === "royal_door")!;
+  assert.ok(toggleDoor(royal, royal.sides[0]));
+  const opened = reachableRoutes(palaceMap, graph.nodes, graph.edges, royal.sides[0].id, doorBlockers(doors));
+  assert.ok(opened.some(route => route.node.id === "royal"));
+  assert.ok(!opened.some(route => route.node.id === "merlin"));
+  for (const route of opened) assert.ok(route.path.every(point => canWalk(palaceMap, point, doorBlockers(doors))));
 });

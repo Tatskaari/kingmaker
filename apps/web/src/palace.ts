@@ -1,7 +1,9 @@
 import { CanvasMapRenderer } from "./map-renderer.js";
 import { palaceMap } from "./palace-map.js";
-import { findPath, pointKey, reachableRoutes, type NavRoute, type Point } from "./navigation.js";
-import { palaceEdges, palaceNodes, royalGate } from "./palace-navigation.js";
+import { findPath, reachableRoutes, type NavRoute, type Point } from "./navigation.js";
+import { createDoors, doorGraph, doorBlockers, canUseDoor, toggleDoor, type Door } from "./palace-doors.js";
+const doors = createDoors();
+const { nodes: palaceNodes, edges: palaceEdges } = doorGraph(doors);
 
 function element<T extends HTMLElement>(selector: string): T {
   const result = document.querySelector<T>(selector);
@@ -16,21 +18,26 @@ const navToggle = element<HTMLInputElement>("[data-show-nav]");
 const destinations = element("[data-destinations]");
 const status = element("[data-status]");
 const location = element("[data-location]");
-const gateButton = element<HTMLButtonElement>("[data-gate]");
-const gateHint = element("[data-gate-hint]");
+const doorActions = element("[data-door-actions]");
 const observation = element("[data-observation]");
 const renderer = new CanvasMapRenderer(canvas, palaceMap);
 await renderer.load();
 const context = canvas.getContext("2d")!;
 let current = palaceNodes[0]!;
 let position: Point = current;
-let gateOpen = false;
 let routes: NavRoute[] = [];
 let movement: { route: NavRoute; started: number } | undefined;
 let activeEdges: Point[][] = [];
 let frame = 0;
-const blocked = (): Set<string> => new Set(gateOpen ? [] : royalGate.map(pointKey));
-const nearGate = (): boolean => current.id === "north_junction" || current.id === "royal";
+const blocked = (): Set<string> => doorBlockers(doors);
+function interact(door: Door): void {
+  if (!toggleDoor(door, position, !!movement)) {
+    status.textContent = `Move to a waypoint beside ${door.name} first, then right-click the door or use its button.`;
+    return;
+  }
+  status.textContent = `${door.name} ${door.open ? "opened" : "closed"}. Routes updated.`;
+  refresh();
+}
 
 function refresh(): void {
   routes = reachableRoutes(palaceMap, palaceNodes, palaceEdges, current.id, blocked());
@@ -45,18 +52,21 @@ function refresh(): void {
     button.addEventListener("click", () => travel(route.node.id));
     return button;
   }));
-  gateButton.disabled = !!movement || !nearGate();
-  gateButton.textContent = `${gateOpen ? "Close" : "Open"} royal gate`;
-  gateHint.textContent = gateOpen ? "Gate open · the royal bedchamber is reachable."
-    : nearGate() ? "Gate closed · open it here to restore the route."
-      : "Gate closed · approach the North Junction to open it.";
+  const nearbyDoors = doors.filter(door => canUseDoor(door, position, !!movement));
+  doorActions.replaceChildren(...nearbyDoors.map(door => {
+    const button = document.createElement("button");
+    button.textContent = `${door.open ? "Close" : "Open"} ${door.name}`;
+    button.addEventListener("click", () => interact(door));
+    return button;
+  }));
+  if (!nearbyDoors.length) doorActions.textContent = "Walk to a door's approach waypoint to interact.";
   location.textContent = movement ? `To ${movement.route.node.name}` : current.name;
   observation.textContent = JSON.stringify({
     at: movement ? "in_transit" : current.id,
-    gate: gateOpen ? "open" : "closed",
+    doors: doors.map(door => ({ id: door.id, state: door.open ? "open" : "closed" })),
     availableActions: movement ? [] : [
       ...routes.map(route => ({ type: "move_to_node", nodeId: route.node.id, via: route.via.slice(1), steps: route.path.length - 1 })),
-      ...(nearGate() ? [{ type: gateOpen ? "close_gate" : "open_gate" }] : []),
+      ...nearbyDoors.map(door => ({ type: door.open ? "close_door" : "open_door", doorId: door.id })),
     ],
   }, null, 2);
   render();
@@ -79,12 +89,27 @@ function render(): void {
     }
   }
   if (movement) line(movement.route.path, "#ffe0a3", 2);
-  // Gate spans the whole passage; its collision uses these exact two tiles.
-  context.fillStyle = gateOpen ? "#70b695" : "#553527";
-  context.fillRect(15 * 16, 10 * 16 + 5, gateOpen ? 3 : 32, 6);
-  if (!gateOpen) {
-    context.fillStyle = "#dbc191";
-    for (let x = 15 * 16 + 2; x < 17 * 16; x += 5) context.fillRect(x, 10 * 16 + 3, 2, 10);
+  for (const door of doors) {
+    const first = door.tiles[0]!, vertical = door.tiles[1]!.y !== first.y;
+    context.save();
+    context.translate(first.x * 16 + 8, first.y * 16 + 8);
+    if (vertical) context.rotate(Math.PI / 2);
+    // Two leaves fill a two-tile threshold. Open leaves fold against the jambs.
+    context.fillStyle = "#35241d";
+    context.fillRect(-8, -6, 3, 12); context.fillRect(21, -6, 3, 12);
+    if (door.open) {
+      context.fillStyle = "#b77943";
+      context.fillRect(-5, -6, 3, 12); context.fillRect(18, -6, 3, 12);
+    } else {
+      context.fillStyle = "#583522"; context.fillRect(-5, -5, 26, 10);
+      context.fillStyle = "#b77943"; context.fillRect(-4, -4, 11, 8); context.fillRect(9, -4, 11, 8);
+      context.fillStyle = "#e9c276"; context.fillRect(4, -1, 2, 2); context.fillRect(10, -1, 2, 2);
+      context.fillStyle = "#45362b"; context.fillRect(-4, -3, 3, 2); context.fillRect(17, 2, 3, 2);
+    }
+    if (solidsToggle.checked && !door.open) {
+      context.fillStyle = "#e8494966"; context.fillRect(-8, -8, 32, 16);
+    }
+    context.restore();
   }
   // Small pixel character, anchored at the centre of its occupied tile.
   const x = Math.round(position.x * 16 + 8), y = Math.round(position.y * 16 + 8);
@@ -99,7 +124,7 @@ function travel(id: string): void {
   if (movement) return;
   // Revalidate at dispatch, rather than trusting a previously displayed action.
   const route = reachableRoutes(palaceMap, palaceNodes, palaceEdges, current.id, blocked()).find(candidate => candidate.node.id === id);
-  if (!route) { status.textContent = "That waypoint is not reachable. Open the royal gate from the North Junction."; return; }
+  if (!route) { status.textContent = "That waypoint is not reachable. Approach and open the door blocking the route."; return; }
   movement = { route, started: performance.now() };
   status.textContent = `Walking ${route.path.length - 1} tiles via ${route.via.map(id => palaceNodes.find(node => node.id === id)!.name).join(" → ")}.`;
   refresh();
@@ -119,14 +144,10 @@ function animate(time: number): void {
   position = { x: from.x + (to.x - from.x) * fraction, y: from.y + (to.y - from.y) * fraction };
   render(); frame = window.setTimeout(() => animate(performance.now()), 16);
 }
-gateButton.addEventListener("click", () => {
-  if (movement || !nearGate()) return;
-  gateOpen = !gateOpen;
-  status.textContent = gateOpen ? "Royal gate opened. New routes are available." : "Royal gate closed. Routes updated.";
-  refresh();
-});
 element("[data-reset]").addEventListener("click", () => {
-  window.clearTimeout(frame); movement = undefined; current = palaceNodes[0]!; position = current; gateOpen = false;
+  window.clearTimeout(frame); movement = undefined; current = palaceNodes[0]!; position = current;
+  const initial = createDoors();
+  doors.forEach((door, index) => { door.open = initial[index]!.open; });
   status.textContent = "Choose a destination."; refresh();
 });
 for (const toggle of [roomsToggle, solidsToggle, navToggle]) toggle.addEventListener("change", render);
@@ -135,10 +156,17 @@ canvas.addEventListener("click", event => {
   const node = hit && palaceNodes.find(node => node.x === hit.tileX && node.y === hit.tileY);
   if (node) travel(node.id);
 });
+canvas.addEventListener("contextmenu", event => {
+  const hit = renderer.hit(event.clientX, event.clientY);
+  const door = hit && doors.find(door => door.tiles.some(tile => tile.x === hit.tileX && tile.y === hit.tileY));
+  if (!door) return;
+  event.preventDefault(); interact(door);
+});
 canvas.addEventListener("pointermove", event => {
   const hit = renderer.hit(event.clientX, event.clientY);
   const node = hit && palaceNodes.find(node => node.x === hit.tileX && node.y === hit.tileY);
-  inspector.textContent = hit ? `${node?.name ?? hit.roomName ?? "Outside"} · tile ${hit.tileX}, ${hit.tileY}` : "Click a waypoint to travel";
+  const door = hit && doors.find(door => door.tiles.some(tile => tile.x === hit.tileX && tile.y === hit.tileY));
+  inspector.textContent = door ? `${door.name} · ${door.open ? "open" : "closed"} · right-click to interact` : hit ? `${node?.name ?? hit.roomName ?? "Outside"} · tile ${hit.tileX}, ${hit.tileY}` : "Click a waypoint to travel";
 });
 canvas.addEventListener("pointerleave", () => { inspector.textContent = "Click a waypoint to travel"; });
 refresh();
