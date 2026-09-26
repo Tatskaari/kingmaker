@@ -101,22 +101,13 @@ message Event {
   google.protobuf.Struct details = 7;
 }
 
-message SearchSpot {
-  string id = 1;
-  string action_label = 2;
-  string description = 3;
-  repeated string content_object_ids = 4;
-  repeated string known_by_character_ids = 5;
-  repeated string discovered_by_character_ids = 6;
-  repeated string searched_by_character_ids = 7;
-}
-
 message Room {
   string id = 1;
   string name = 2;
   string description = 3;
   repeated string exit_room_ids = 4;
-  repeated SearchSpot search_spots = 5;
+  reserved 5;
+  reserved "search_spots";
   bool private = 6;
   repeated string allowed_character_ids = 7;
 }
@@ -150,8 +141,8 @@ message ObjectState {
   google.protobuf.Struct properties = 5;
 }
 
-// The authoritative state contains every room, spot and object. Before model
-// calls, concealed objects and undiscovered spots are removed unless known by
+// The authoritative state contains every room, fixture and object. Before model
+// calls, concealed contents and undiscovered fixture details are removed unless known by
 // that character. Facts remain flexible for incidental scenario state.
 message DoorState {
   string id = 1;
@@ -196,9 +187,8 @@ enum GamePhase {
   GAME_PHASE_UNSPECIFIED = 0;
   GAME_PHASE_PLAYER_CREATION = 1;
   GAME_PHASE_CONVERSATIONS = 2;
-  GAME_PHASE_NIGHT_ACTIONS = 3;
-  GAME_PHASE_SOLSTICE = 4;
-  GAME_PHASE_RESOLVED = 5;
+  reserved 3, 4, 5;
+  reserved "GAME_PHASE_NIGHT_ACTIONS", "GAME_PHASE_SOLSTICE", "GAME_PHASE_RESOLVED";
 }
 
 message Scenario {
@@ -238,14 +228,6 @@ message GoalUpdate {
   string reason = 2;
 }
 
-message DialogueResponse {
-  string utterance = 1;
-  repeated Event new_events = 2;
-  optional GoalUpdate goal_update = 3;
-  // Optional player suggestions, never actions or compelled responses.
-  repeated string reply_options = 4;
-}
-
 // Durable NPC memory extracted once from a completed conversation.
 message ConversationMemory {
   repeated Event new_events = 1;
@@ -271,41 +253,4 @@ message PlayerSetup {
 message GameMasterRequest {
   Scenario scenario = 1;
   repeated TranscriptMessage transcript = 2;
-}
-
-message GameMasterResponse {
-  string utterance = 1;
-  optional PlayerSetup player_setup = 2;
-  repeated Event new_events = 3;
-}
-
-// The engine creates bound, currently legal candidates. Jev chooses an ID and
-// cannot invent a type or parameters.
-message AvailableAction {
-  string id = 1;
-  string type = 2;
-  string description = 3;
-  google.protobuf.Struct parameters = 4;
-}
-
-message DecisionRequest {
-  Character character = 1;
-  // A knowledge-filtered projection, never the authoritative secret state.
-  WorldState world = 2;
-  repeated Event recent_events = 3;
-  repeated AvailableAction available_actions = 4;
-}
-
-message DecisionResponse {
-  string chosen_action_id = 1;
-  map<string, double> probabilities = 2;
-  optional double confidence = 3;
-  string model_id = 4;
-  uint32 based_on_revision = 5;
-}
-
-message ActionResult {
-  string action_id = 1;
-  uint32 based_on_revision = 2;
-  repeated Event events = 3;
 }

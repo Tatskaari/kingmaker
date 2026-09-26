@@ -25,8 +25,7 @@ the rules support arbitrary one-cell walls or all possible dungeon shapes.
 
 Walkability comes from the authored floor mask, independently of sprite choice.
 A solid bounded layer blocks movement even under a non-solid decoration. Brown
-background layers under walkable floors are therefore non-solid. No runtime
-movement or object interactions are implemented in this prototype.
+background layers under walkable floors are therefore non-solid. The main palace runtime adds door and fixture blockers to this static floor mask.
 
 The map test checks every room and connector floor is reachable from the Great
 Hall, keeps the southern exterior entrance open, and checks representative

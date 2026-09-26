@@ -5,15 +5,12 @@ import { drawDoors } from "./draw-doors.js";
 import { actionsAtTile, type CourtInteractionLayer } from "./court-interactions.js";
 import { CanvasMapRenderer } from "./map-renderer.js";
 import { palaceMap } from "./palace-map.js";
-import { createFurniture } from "./palace-furniture.js";
 import { canWalk, findPath, pointKey, type Point } from "./navigation.js";
 
 export interface CourtCharacter { id: string; name: string; roomId?: string; position?: Point }
 export interface CourtMarker extends CourtCharacter { point?: Point; roomName: string; sprite: number }
-const scenery = createFurniture().furniture;
-export const courtBlockers = new Set(scenery.map(pointKey));
 
-export function courtMarkers(characters: readonly CourtCharacter[], fixtures?: readonly MapFixture[]): CourtMarker[] {
+export function courtMarkers(characters: readonly CourtCharacter[], fixtures: readonly MapFixture[] = []): CourtMarker[] {
   return characters.map(character => {
     const room = palaceMap.rooms.find(room => room.id === character.roomId);
     const sprite = character.id === "merlin" ? 84 : character.id === "lancelot" ? 96 : character.id === "king" ? 85 : 98;
@@ -28,21 +25,21 @@ export function courtRoomAt(point: Point) {
   return palaceMap.rooms.find(room => room.regions.some(region => point.x >= region.x && point.y >= region.y
     && point.x < region.x + region.width && point.y < region.y + region.height));
 }
-export function courtDoorBlockers(doors: readonly DoorState[], fixtures?: readonly MapFixture[]): Set<string> {
-  return new Set([...(fixtures ? fixtures.flatMap(item => item.position ? [pointKey(item.position)] : []) : courtBlockers), ...doors.filter(door => !door.open).flatMap(door => door.tiles.map(pointKey))]);
+export function courtDoorBlockers(doors: readonly DoorState[], fixtures: readonly MapFixture[] = []): Set<string> {
+  return new Set([...fixtures.flatMap(item => item.position ? [pointKey(item.position)] : []), ...doors.filter(door => !door.open).flatMap(door => door.tiles.map(pointKey))]);
 }
-export function courtPath(start: Point, end: Point, doors: readonly DoorState[] = [], fixtures?: readonly MapFixture[]): Point[] | undefined {
+export function courtPath(start: Point, end: Point, doors: readonly DoorState[] = [], fixtures: readonly MapFixture[] = []): Point[] | undefined {
   return findPath(palaceMap, start, end, courtDoorBlockers(doors, fixtures));
 }
 
-export function courtInteractionPoint(start: Point, target: Point, authored?: Point, doors: readonly DoorState[] = [], fixtures?: readonly MapFixture[]): Point | undefined {
+export function courtInteractionPoint(start: Point, target: Point, authored?: Point, doors: readonly DoorState[] = [], fixtures: readonly MapFixture[] = []): Point | undefined {
   const candidates = authored ? [authored] : [{ x: target.x, y: target.y + 1 }, { x: target.x - 1, y: target.y },
     { x: target.x + 1, y: target.y }, { x: target.x, y: target.y - 1 }];
   return candidates.map(point => ({ point, path: courtPath(start, point, doors, fixtures) })).filter(candidate => candidate.path)
     .sort((a, b) => a.path!.length - b.path!.length)[0]?.point;
 }
 
-export function nearestDoorSpot(start: Point, door: DoorState, doors: readonly DoorState[], fixtures?: readonly MapFixture[]): Point | undefined {
+export function nearestDoorSpot(start: Point, door: DoorState, doors: readonly DoorState[], fixtures: readonly MapFixture[] = []): Point | undefined {
   return door.interactionSpots.map(point => ({ point, path: courtPath(start, point, doors, fixtures) }))
     .filter(candidate => candidate.path).sort((a, b) => a.path!.length - b.path!.length)[0]?.point;
 }
@@ -53,7 +50,7 @@ export function courtWalkPoint(path: readonly Point[], progress: number): Point 
   return { x: from.x + (to.x - from.x) * (offset - index), y: from.y + (to.y - from.y) * (offset - index) };
 }
 /** Finish the current partial tile step, then follow the replacement A* route. */
-export function redirectCourtPath(path: readonly Point[], progress: number, destination: Point, doors: readonly DoorState[] = [], fixtures?: readonly MapFixture[]): Point[] | undefined {
+export function redirectCourtPath(path: readonly Point[], progress: number, destination: Point, doors: readonly DoorState[] = [], fixtures: readonly MapFixture[] = []): Point[] | undefined {
   const offset = Math.max(0, Math.min(progress, path.length - 1));
   const pivot = path[Math.ceil(offset)]!;
   const route = courtPath(pivot, destination, doors, fixtures);
@@ -62,7 +59,7 @@ export function redirectCourtPath(path: readonly Point[], progress: number, dest
   return visual.x === pivot.x && visual.y === pivot.y ? route : [visual, ...route];
 }
 
-/** Mount inside the day screen; native buttons retain keyboard and touch access. */
+/** Mount inside the court screen; native buttons retain keyboard and touch access. */
 export async function mountCourtMap(root: HTMLElement, characters: readonly CourtCharacter[], player: CourtCharacter | null,
   selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<void>, doors: DoorState[] = [], changeDoor?: (id: string, open: boolean) => Promise<DoorState[]>, rooms: readonly RoomAccess[] = [], fixtures: readonly MapFixture[] = [], fixtureChoices: readonly FixtureAction[] = [], interactFixture?: (actionId: string) => Promise<void>): Promise<void> {
   const viewport = document.createElement("div"); viewport.className = "court-map-scroll";
@@ -138,14 +135,9 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
           void walkTo(spot, () => interactFixture(action.id));
         } else {
           const character = markers.find(marker => marker.id === action.target);
-          const item = scenery.find(item => item.id === action.target);
-          const target = action.type === "talk" ? character?.point : item;
-          const spot = target && approach(target, item?.approach);
-          if (!spot) { status.textContent = "There is no reachable interaction spot for that target."; return; }
-          void walkTo(spot, () => {
-            if (action.type === "talk") selectCharacter(action.target);
-            else status.textContent = `${item?.name ?? "Furniture"} · ${courtRoomAt(tile)?.name ?? "Palace"}.`;
-          });
+          const spot = character?.point && approach(character.point);
+          if (!spot) { status.textContent = "There is no reachable interaction spot for that character."; return; }
+          void walkTo(spot, () => selectCharacter(action.target));
         }
       });
       menu.append(button);
@@ -197,7 +189,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   if (!root.isConnected) return;
   let position = markers.find(marker => marker.id === player?.id)?.point;
   const draw = () => {
-    renderer.render(false, false);
+    renderer.render();
     for (const item of fixtures) if (item.position) {
       renderer.drawSprite("tiny-dungeon", item.sprite, item.position.x, item.position.y);
       if (item.open) {
@@ -266,7 +258,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
         if (progress === path!.length - 1) resolve(true); else window.setTimeout(() => animate(performance.now()), 16);
       };
       // The embedded browser can throttle requestAnimationFrame even while the
-      // map is visible. Match the palace prototype's elapsed-time timer loop.
+      // map is visible. Use elapsed time so animation continues between renders.
       window.setTimeout(() => animate(performance.now()), 16);
     });
     redirect = undefined;

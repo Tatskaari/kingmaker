@@ -2,7 +2,6 @@ import type { WorldMap } from "../../../packages/contracts/src/index.js";
 
 export interface Point { x: number; y: number }
 export interface NavNode extends Point { id: string; name: string }
-export interface NavEdge { from: string; to: string }
 export const pointKey = (point: Point): string => `${point.x},${point.y}`;
 const distance = (a: Point, b: Point): number => Math.abs(a.x - b.x) + Math.abs(a.y - b.y);
 
@@ -43,33 +42,4 @@ export function findPath(map: WorldMap, start: Point, goal: Point, blocked: Read
     }
   }
   return undefined;
-}
-
-export interface NavRoute { node: NavNode; via: string[]; path: Point[] }
-// Dijkstra over the logical graph; each live edge is backed by a real A* tile path.
-export function reachableRoutes(map: WorldMap, nodes: readonly NavNode[], edges: readonly NavEdge[], startId: string,
-  blocked: ReadonlySet<string> = new Set()): NavRoute[] {
-  const start = nodes.find(node => node.id === startId);
-  if (!start || !canWalk(map, start, blocked)) return [];
-  const routes = new Map<string, NavRoute>([[startId, { node: start, via: [startId], path: [start] }]]);
-  const visited = new Set<string>();
-  while (true) {
-    const current = [...routes.values()].filter(route => !visited.has(route.node.id))
-      .sort((a, b) => a.path.length - b.path.length)[0];
-    if (!current) break;
-    visited.add(current.node.id);
-    for (const edge of edges) {
-      const id = edge.from === current.node.id ? edge.to : edge.to === current.node.id ? edge.from : undefined;
-      if (!id || visited.has(id)) continue;
-      const node = nodes.find(candidate => candidate.id === id);
-      if (!node) continue;
-      const segment = findPath(map, current.node, node, blocked);
-      if (!segment) continue;
-      const path = [...current.path, ...segment.slice(1)];
-      if (path.length < (routes.get(id)?.path.length ?? Infinity)) {
-        routes.set(id, { node, path, via: [...current.via, id] });
-      }
-    }
-  }
-  return [...routes.values()].filter(route => route.node.id !== startId);
 }

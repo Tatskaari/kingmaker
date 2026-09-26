@@ -1,24 +1,18 @@
 # Jev action policy
 
-For each autonomous turn, send Jev:
+`courtAgentObservation` supplies the character's lore, relationships, objectives,
+immediate goal, visible events, current surroundings and reachable actions.
+`court-instructions.ts` contains the actual shared planner instructions.
 
-- the whole character, including lore, relationships, and current free-text goal;
-- every event visible to that character;
-- the character's complete known world state;
-- every concrete action currently offered by the engine.
+Each Decisions API criterion is an action ID and description. Move actions target
+named waypoints. Door, container and talk actions combine walking to an interaction
+spot with the effect. Closed doors and fixtures block A* paths; illegal ownership
+or room-access actions remain available and explicitly labelled.
 
-Ask one Choice question: "Which action should this character perform next to
-pursue their current goal, given who they are and what has happened?"
+Jev must choose an offered ID, complete, or unable. The runtime revalidates the
+world revision, current goal, path and target before applying any action. After
+termination, a separate model review uses the actual actions and outcome to choose
+a concrete follow-up or leave the NPC idle.
 
-Each criterion is an action ID paired with its plain-language description. The
-engine should enumerate generously. A sleeping character can wake. An awake
-character can move to an adjacent room or search the current room. Searching
-reveals several plausible interactions—open a desk, look under a bed, inspect a
-hearth—without identifying which is useful. Investigating a spot may reveal an
-object and therefore actions such as take, unlock, open, or give. Jev must return
-one supplied ID. The engine revalidates it before applying it.
-
-This is reactive goal-oriented action selection, not a shortest-path GOAP search.
-The hypothesis is that free goals and social context produce more novel behaviour
-than a symbolic plan. If agents become aimless, repetitive, or short-sighted, that
-result tells us what planning structure to add next.
+There are no wake, room-search, give-item or night-turn actions. Searching means
+interacting with live containers. Dialogue alone never changes physical state.

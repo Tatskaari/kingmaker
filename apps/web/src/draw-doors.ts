@@ -1,6 +1,6 @@
 import type { Point } from "./navigation.js";
 
-export function drawDoors(context: CanvasRenderingContext2D, doors: readonly { tiles: readonly Point[]; open: boolean }[], showSolids = false): void {
+export function drawDoors(context: CanvasRenderingContext2D, doors: readonly { tiles: readonly Point[]; open: boolean }[]): void {
   for (const door of doors) {
     const first = door.tiles[0]!, vertical = door.tiles[1]!.y !== first.y;
     context.save();
@@ -17,9 +17,6 @@ export function drawDoors(context: CanvasRenderingContext2D, doors: readonly { t
       context.fillStyle = "#b77943"; context.fillRect(-4, -4, 11, 8); context.fillRect(9, -4, 11, 8);
       context.fillStyle = "#e9c276"; context.fillRect(4, -1, 2, 2); context.fillRect(10, -1, 2, 2);
       context.fillStyle = "#45362b"; context.fillRect(-4, -3, 3, 2); context.fillRect(17, 2, 3, 2);
-    }
-    if (showSolids && !door.open) {
-      context.fillStyle = "#e8494966"; context.fillRect(-8, -8, 32, 16);
     }
     context.restore();
   }

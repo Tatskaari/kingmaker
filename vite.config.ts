@@ -13,7 +13,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         game: `${repositoryRoot}/apps/web/index.html`,
-        palace: `${repositoryRoot}/apps/web/palace.html`,
       },
     },
   },

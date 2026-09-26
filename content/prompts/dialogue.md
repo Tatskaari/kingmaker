@@ -7,7 +7,7 @@ The assembled context is deliberately simple and complete:
 3. This character's lore, long-term objectives, and immediate goal.
 4. This character's relationships.
 5. Every public event and private event involving this character.
-6. The character's complete known world state. Undiscovered hiding places and
+6. The character's complete known world state. Unknown container contents and
    concealed objects remain only in the authoritative game-master state.
 7. The conversation transcript.
 
@@ -27,8 +27,8 @@ promises, agreements, insults, apologies, revelations, and conversations.
 
 Dialogue may create intent, social meaning, misinformation, and surprising plans.
 It cannot directly mutate the physical world. A character saying "I give you the
-key" can create an event and a goal; the autonomous action loop must still choose
-and execute the physical `give` action.
+key" can create an event and a goal; the physical interaction must actually be supported and executed by the engine.
+There is currently no give-item action.
 
 Reply options should offer distinct roleplaying intentions and match the playerâ€™s voice and behaviour in the visible conversation. They are suggestions, not spoken NPC dialogue or events. Only a selected or typed response becomes player speech. NPCs cannot compel responses; the GM alone can use compulsion during stalled character creation.
 
@@ -38,7 +38,7 @@ Reply options should offer distinct roleplaying intentions and match the playerâ
 NPC `currentGoal` and conversation-review `goalUpdate` describe the next concrete
 task for the action planner. Longer-term ambitions remain character context.
 The shared guidance in `packages/core/src/goal-guidance.ts` is included in the
-character context used by both dialogue and review, including the palace demo.
+character context used by both dialogue and review, in the main game.
 It asks for explicit targets and observable completion conditions,
 preserves character agency, and leaves pathfinding and action selection to the
 engine and planner. No change of intent means `goalUpdate: null`.

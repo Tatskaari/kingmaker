@@ -1,4 +1,4 @@
-import type { NavEdge, NavNode } from "./navigation.js";
+import type { NavNode } from "./navigation.js";
 
 export const palaceNodes: NavNode[] = [
   { id: "great_hall", name: "Great Hall", x: 15, y: 21 },
@@ -12,9 +12,3 @@ export const palaceNodes: NavNode[] = [
   { id: "guest", name: "Guest Chamber", x: 5, y: 25 },
   { id: "treasury", name: "Treasury", x: 26, y: 25 },
 ];
-export const palaceEdges: NavEdge[] = [
-  ["great_hall", "entrance"], ["great_hall", "north_junction"],
-  ["great_hall", "guest"], ["great_hall", "treasury"],
-  ["north_junction", "west_junction"], ["north_junction", "east_junction"],
-  ["west_junction", "merlin"], ["east_junction", "lancelot"], ["north_junction", "royal"],
-].map(([from, to]) => ({ from: from!, to: to! }));

@@ -1,10 +1,8 @@
-import type { TileLayer, Tileset, WorldMap } from "../../../packages/contracts/src/index.js";
+import type { TileLayer, WorldMap } from "../../../packages/contracts/src/index.js";
 
 export interface MapHit {
   tileX: number;
   tileY: number;
-  roomName: string | undefined;
-  layer: TileLayer | undefined;
 }
 
 export class CanvasMapRenderer {
@@ -36,7 +34,7 @@ export class CanvasMapRenderer {
     })));
   }
 
-  render(showRooms = true, showSolids = false): void {
+  render(): void {
     const context = this.#context;
     context.clearRect(0, 0, this.#canvas.width, this.#canvas.height);
     context.fillStyle = "#090807";
@@ -48,8 +46,6 @@ export class CanvasMapRenderer {
       for (const layer of tile.layers) this.#drawLayer(layer, tileX, tileY);
     });
 
-    if (showRooms) this.#drawRooms();
-    if (showSolids) this.#drawSolids();
   }
 
   drawSprite(tilesetId: string, tileId: number, x: number, y: number): void {
@@ -69,11 +65,7 @@ export class CanvasMapRenderer {
     const tileY = Math.floor(worldY / this.#map.tileHeight);
     if (tileX < 0 || tileY < 0 || tileX >= this.#map.width || tileY >= this.#map.height) return undefined;
 
-    const localX = worldX - tileX * this.#map.tileWidth;
-    const localY = worldY - tileY * this.#map.tileHeight;
-    const tile = this.#map.tiles[tileY * this.#map.width + tileX];
-    const layer = tile && this.#layerAt(tile.layers, localX, localY);
-    return { tileX, tileY, roomName: this.#roomAt(tileX, tileY), layer };
+    return { tileX, tileY };
   }
 
   #drawLayer(layer: TileLayer, tileX: number, tileY: number): void {
@@ -95,75 +87,4 @@ export class CanvasMapRenderer {
     );
   }
 
-  #drawRooms(): void {
-    this.#context.font = "5px ui-monospace, monospace";
-    this.#context.textAlign = "center";
-    this.#context.textBaseline = "middle";
-    for (const room of this.#map.rooms) {
-      if (!room.regions.length) continue;
-      for (const region of room.regions) {
-        const x = region.x * this.#map.tileWidth;
-        const y = region.y * this.#map.tileHeight;
-        const width = region.width * this.#map.tileWidth;
-        const height = region.height * this.#map.tileHeight;
-        this.#context.fillStyle = "#d8b56816";
-        this.#context.fillRect(x, y, width, height);
-        this.#context.strokeStyle = "#efd18d88";
-        this.#context.lineWidth = 0.5;
-        this.#context.strokeRect(x + 0.25, y + 0.25, width - 0.5, height - 0.5);
-      }
-      const labelRegion = room.regions.reduce((largest, region) =>
-        region.width * region.height > largest.width * largest.height ? region : largest,
-      );
-      const x = labelRegion.x * this.#map.tileWidth;
-      const y = labelRegion.y * this.#map.tileHeight;
-      const width = labelRegion.width * this.#map.tileWidth;
-      const height = labelRegion.height * this.#map.tileHeight;
-      this.#context.fillStyle = "#fff0c9";
-      this.#context.fillText(room.name, x + width / 2, y + height / 2, Math.max(0, width - 8));
-    }
-  }
-
-  #drawSolids(): void {
-    this.#context.fillStyle = "#e8494966";
-    this.#map.tiles.forEach((tile, index) => {
-      const tileX = index % this.#map.width;
-      const tileY = Math.floor(index / this.#map.width);
-      for (let localY = 0; localY < this.#map.tileHeight; localY += 1) {
-        let runStart: number | undefined;
-        for (let localX = 0; localX <= this.#map.tileWidth; localX += 1) {
-          const solid = localX < this.#map.tileWidth && tile.layers.some(layer => {
-            const bounds = layer.bounds;
-            return layer.solid && bounds && localX >= bounds.x && localY >= bounds.y
-              && localX < bounds.x + bounds.width && localY < bounds.y + bounds.height;
-          });
-          if (solid && runStart === undefined) runStart = localX;
-          if (!solid && runStart !== undefined) {
-            this.#context.fillRect(
-              tileX * this.#map.tileWidth + runStart,
-              tileY * this.#map.tileHeight + localY,
-              localX - runStart,
-              1,
-            );
-            runStart = undefined;
-          }
-        }
-      }
-    });
-  }
-
-  #layerAt(layers: readonly TileLayer[], x: number, y: number): TileLayer | undefined {
-    return layers.findLast(layer => {
-      const bounds = layer.bounds;
-      return bounds && x >= bounds.x && y >= bounds.y
-        && x < bounds.x + bounds.width && y < bounds.y + bounds.height;
-    });
-  }
-
-  #roomAt(tileX: number, tileY: number): string | undefined {
-    return this.#map.rooms.find(room => room.regions.some(region =>
-      tileX >= region.x && tileY >= region.y
-      && tileX < region.x + region.width && tileY < region.y + region.height,
-    ))?.name;
-  }
 }

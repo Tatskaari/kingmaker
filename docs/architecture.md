@@ -1,64 +1,38 @@
-# MVP architecture
+# Runtime architecture
 
-## Dialogue turn
+The browser UI sends commands to `game.worker.ts`. `BrowserGameRuntime` owns the
+current protobuf scenario, conversations and NPC activities. The worker persists
+snapshots in IndexedDB and restores the previous snapshot if a mutation or save
+fails. Credentials and recent model transcripts are kept outside save snapshots.
 
-`FullContextBuilder` creates separate system messages containing, in order: the
-game instructions, scenario premise, character lore and current goal,
-relationships, visible events, and the character's known world state. The existing
-conversation follows as normal messages.
+The GM interviews the player and proposes an editable character. Saving enters
+the palace with authored actor positions. Walking and object interactions operate
+on that same world state; there is no separate demo or night-turn engine.
 
-The authoritative world contains hidden search spots and their contents. Character
-contexts redact undiscovered spots and concealed objects. Searching a room reveals
-several interaction choices; investigating one reveals its contents. The game
-master retains the complete state.
+`FullContextBuilder` combines authored character context, objectives, immediate
+intent, visible events, known fixture contents and dialogue history. Spoken turns
+return dialogue, reply suggestions and an optional conversation-ending flag.
+A separate review commits durable memories, relationships, biography and a goal.
+A non-null goal activates Jev; null leaves the NPC idle.
 
-The dialogue model returns:
+`courtAgentObservation` enumerates physically reachable movement and interaction
+actions. Jev chooses one supplied ID. The runtime rechecks revision, goal and
+availability before committing movement or interactions. Illegal actions remain
+mechanically available but are labelled for the character to judge.
 
-- what the character says;
-- events worth retaining;
-- an optional replacement free-text goal.
+Planner termination triggers an outcome review, which can assign another concrete
+task. NPC-to-NPC conversations use an initiating request and a GM resolution,
+with both participants' private updates committed atomically. Physical changes
+still require engine actions.
 
-The browser worker validates IDs and appends the result. Social events have no
-bespoke reducers. Their meaning remains available to later model calls as prose.
+GPT-6 Luna handles spoken dialogue without reasoning. GPT-6 Sol uses medium
+reasoning for the GM, reviews and NPC conversation resolution. The OpenRouter
+Responses adapter preserves tool-call continuity. Jev uses its Decisions API.
 
-## Player creation
+The palace renderer consumes map geometry and saved fixtures/actors. It animates
+walks but does not own game state. Debug transcript summaries are views of actual
+model responses, not evidence that a proposed update was committed.
 
-The game master introduces the crown law and the player's arrival with an embassy
-from an allied kingdom. It interviews rather than selects: the player may define
-their homeland, place in the embassy, public mission, private agenda, and history.
-Once sufficient, `PlayerSetup` adds the player character and a player relationship
-to each NPC. That diplomatic role explains why all three accept private meetings.
-
-## Autonomous turn
-
-`ActionSource` reads the authoritative world and produces concrete candidates,
-such as `move:hall`, `talk:lancelot`, or `take:brass_key`. Candidates are already
-bound to targets and currently legal. It should enumerate broadly so game design
-does not quietly force a preferred solution.
-
-`ActionPolicy` converts the decision request into one Jev Choice. Each criterion
-maps an action ID to its description. The selected ID must exist in the request.
-`WorldEngine` revalidates and applies it, then emits events.
-
-Physical grounding is the only hard boundary: dialogue may invent intentions and
-strategies, but cannot move items, unlock boxes, or relocate characters by prose.
-
-## What is intentionally absent
-
-- Quest and outcome models.
-- Agreement, commitment, and promise state machines.
-- Numeric personality or relationship dimensions.
-- Separate belief and memory graphs.
-- Symbolic goal predicates and GOAP search.
-- Partial context retrieval and model tools.
-- Rendering, persistence, and live provider implementations.
-
-The world uses `google.protobuf.Struct` for MVP flexibility. Once behaviour exposes
-important invariants, those specific fields can become typed protobuf messages.
-
-## First measurement
-
-Record the dialogue input/output, goal changes, Jev input/distribution, selected
-action, and resulting event. We want to see whether agents pursue multi-step social
-goals, revise them coherently, exploit unexpected combinations of ordinary actions,
-and recover after another character disrupts their intention.
+Current limits: one active NPC runner; no give-item action, autonomous player
+speech, visibility simulation, time progression or automated coronation. The
+solstice remains the narrative premise, not a working scheduler.

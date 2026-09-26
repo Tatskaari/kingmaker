@@ -41,29 +41,11 @@ export function characterDecisionContext(scenario: Scenario, characterId: string
   };
 }
 
-/** Removes undiscovered search spots and concealed objects. The game master sees
+/** Removes concealed container contents and undiscovered fixture details. The game master sees
  * the authoritative world; character models see only this projection. */
 export function worldForCharacter(world: WorldState, characterId: string): WorldState {
   const view = clone(WorldStateSchema, world);
   const visibleObjectIds = new Set<string>();
-
-  for (const room of view.rooms) {
-    room.searchSpots = room.searchSpots.filter(spot => {
-      const known = spot.knownByCharacterIds.includes(characterId);
-      const discovered = spot.discoveredByCharacterIds.includes(characterId);
-      const searched = spot.searchedByCharacterIds.includes(characterId);
-      if (!known && !discovered && !searched) return false;
-      if (known || searched) {
-        for (const objectId of spot.contentObjectIds) visibleObjectIds.add(objectId);
-      } else {
-        spot.contentObjectIds = [];
-      }
-      spot.knownByCharacterIds = known ? [characterId] : [];
-      spot.discoveredByCharacterIds = discovered ? [characterId] : [];
-      spot.searchedByCharacterIds = searched ? [characterId] : [];
-      return true;
-    });
-  }
 
   for (const fixture of view.fixtures) {
     const known = fixture.open || fixture.searchedBy.includes(characterId);
@@ -78,17 +60,6 @@ export function worldForCharacter(world: WorldState, characterId: string): World
     fixture.searchedBy = fixture.searchedBy.filter(id => id === characterId);
   }
 
-  // Objects inside a known object are also known, such as the crown in its box.
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const object of view.objects) {
-      if (object.concealed && visibleObjectIds.has(object.locationId) && !visibleObjectIds.has(object.id)) {
-        visibleObjectIds.add(object.id);
-        changed = true;
-      }
-    }
-  }
   view.objects = view.objects.filter(object => !object.concealed || visibleObjectIds.has(object.id));
   return view;
 }

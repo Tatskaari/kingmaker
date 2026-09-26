@@ -147,7 +147,7 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
   if (type === "plan_npc") {
     npcPlanning?.abort();
     const controller = new AbortController(); npcPlanning = controller;
-    try { return await requireRuntime().planNpc(String(payload.characterId), Array.isArray(payload.history) ? payload.history.map(String).slice(-24) : [], controller.signal); }
+    try { return await requireRuntime().planNpc(String(payload.characterId), controller.signal); }
     finally { if (npcPlanning === controller) npcPlanning = undefined; }
   }
   if (type === "finish_npc" || type === "review_npc") {

@@ -1,7 +1,7 @@
 import { DIALOGUE_MODEL, REASONING_MODEL } from "./model-settings.js";
 import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
 import { courtAgentObservation } from "./court-agent.js";
-import { PALACE_INSTRUCTIONS } from "./palace-agent.js";
+import { COURT_INSTRUCTIONS } from "./court-instructions.js";
 import { JevClient, jevRequest } from "../../../packages/providers/src/jev.js";
 import { applyFixtureAction, fixtureActions } from "../../../packages/core/src/fixtures.js";
 import { IMMEDIATE_GOAL_DESCRIPTION } from "../../../packages/core/src/goal-guidance.js";
@@ -361,19 +361,13 @@ export class BrowserGameRuntime {
     if (!start || !courtPath(start, destination, world.doors, world.fixtures)) throw new Error("That destination is not reachable.");
     const room = courtRoomAt(destination);
     if (!room) throw new Error("That destination is outside the palace.");
-    if (!world.rooms.some(existing => existing.id === room.id)) {
-      world.rooms.push({ $typeName: "kingmaker.v1.Room", id: room.id, name: room.name, description: "The palace entrance hall.", private: false, allowedCharacterIds: [], exitRoomIds: ["great_hall"], searchSpots: [] });
-    }
-    if (room.id === "entrance_hall") {
-      const hall = world.rooms.find(existing => existing.id === "great_hall");
-      if (hall && !hall.exitRoomIds.includes(room.id)) hall.exitRoomIds.push(room.id);
-    }
+    if (!world.rooms.some(existing => existing.id === room.id)) throw new Error("Destination room is missing from the authored world.");
     actor.roomId = room.id; world.revision++;
     actor.position = create(TilePositionSchema, destination);
     this.#game = new MemoryGame(scenario);
   }
 
-  async planNpc(characterId: string, history: string[], signal: AbortSignal) {
+  async planNpc(characterId: string, signal: AbortSignal) {
     const scenario = this.#game.scenario();
     if (scenario.world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter court before running Jev.");
     if (this.#conversations.get(characterId)?.length) throw new Error("Finish this character's conversation review first.");
@@ -386,7 +380,7 @@ export class BrowserGameRuntime {
       complete: "The whole immediate goal is achieved, or you are already at the requested place and waiting as requested.",
       unable: "No available action can make progress, or essential clarification is needed." };
     const state = { ...observation, actions: observation.actions.map(({ path, ...action }) => action), recentEvents: activity.history };
-    const instructions = { ...PALACE_INSTRUCTIONS, legality: "Actions are mechanically possible. Those marked illegal violate ownership or room access; weigh them against your character's intentions. Waiting in a room is satisfied by being there. Use offered talk actions to make requests of other NPCs. You cannot force agreement or speak for the player." };
+    const instructions = { ...COURT_INSTRUCTIONS, legality: "Actions are mechanically possible. Those marked illegal violate ownership or room access; weigh them against your character's intentions. Waiting in a room is satisfied by being there. Use offered talk actions to make requests of other NPCs. You cannot force agreement or speak for the player." };
     const decision = await this.#modelTranscripts.record("jev", characterId, jevRequest(state, instructions, criteria), () => this.#jev.choose(state, instructions, criteria, signal));
     return { decision, revision: observation.revision, goal: observation.goal, action: observation.actions.find(action => action.id === decision.choice), observation };
   }

@@ -3,15 +3,11 @@ import { courtAgentObservation } from "../apps/web/src/court-agent.js";
 import { doorActionLegality } from "../packages/core/src/access.js";
 import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
 import { courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath, courtInteractionPoint, nearestDoorSpot } from "../apps/web/src/court-map.js";
-import { PalaceDialogue, palaceSurroundings, palaceDialogueContext, createPalacePlayer } from "../apps/web/src/palace-dialogue.js";
-import { interactionActions, executeInteraction } from "../apps/web/src/palace-interactions.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { create, fromBinary, fromJson, fromJsonString, toBinary, toJson, toJsonString } from "@bufbuild/protobuf";
 import {
-  AvailableActionSchema,
-  DecisionRequestSchema,
   DialogueRequestSchema,
   EventSchema,
   EventVisibility,
@@ -27,19 +23,16 @@ import {
   TilePositionSchema,
   type Scenario,
 } from "../packages/contracts/src/index.js";
-import { FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter, characterDecisionContext } from "../packages/core/src/context.js";
+import { FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter } from "../packages/core/src/context.js";
 import { MemoryGame } from "../packages/core/src/game.js";
 import { palaceMap } from "../apps/web/src/palace-map.js";
 
-import { canWalk, findPath, pointKey, reachableRoutes } from "../apps/web/src/navigation.js";
-import { palaceNodes, palaceEdges } from "../apps/web/src/palace-navigation.js";
+import { canWalk, findPath, pointKey } from "../apps/web/src/navigation.js";
+import { palaceNodes } from "../apps/web/src/palace-navigation.js";
 
-import { createDoors, doorBlockers, doorGraph, toggleDoor } from "../apps/web/src/palace-doors.js";
 
-import { JevClient, type Choose, type JevChoice } from "../packages/providers/src/jev.js";
-import { PalaceAgent, legalActions, type AgentHost } from "../apps/web/src/palace-agent.js";
+import { JevClient } from "../packages/providers/src/jev.js";
 
-import { createFurniture, addFurnitureNodes, furnitureBlockers, furnitureActions, applyFurnitureAction, observeFurniture } from "../apps/web/src/palace-furniture.js";
 
 const fixturePath = new URL("../content/scenarios/last-night.json", import.meta.url);
 const load = (): Scenario => fromJsonString(ScenarioSchema, readFileSync(fixturePath, "utf8"));
@@ -54,7 +47,6 @@ test("the small authored scenario strictly parses and survives protobuf", () => 
   assert.equal(scenario.world?.phase, GamePhase.PLAYER_CREATION);
   assert.ok(scenario.world?.actors.every(actor => !actor.awake && actor.roomId === actor.homeRoomId));
   assert.equal(scenario.world?.rooms.length, 8);
-  assert.ok(scenario.world?.rooms.every(room => room.searchSpots.length === 0 || room.searchSpots.length >= 3));
 });
 
 test("the palace map is a complete layered tile grid", () => {
@@ -140,60 +132,17 @@ test("dialogue context includes premise before character context and conversatio
   assert.equal(messages[7]?.role, "assistant");
 });
 
-test("Merlin sees his known key location but not Lancelot's hidden lockbox", () => {
+test("character knowledge refers to live fixtures and conceals other characters' secrets", () => {
   const scenario = load();
-  assert.ok(scenario.world);
-  const request = create(DialogueRequestSchema, { characterId: "merlin", scenario });
-  const prompt = new FullContextBuilder().build(request).map(message => message.content).join("\n");
-  const world = worldForCharacter(scenario.world, "merlin");
-  assert.match(prompt, /brass_key/);
-  assert.match(prompt, /merlin_desk/);
-  assert.match(prompt, /left humiliated/);
-  assert.ok(!world.objects.some(object => object.id === "crown_box"));
-  assert.ok(!world.rooms.flatMap(room => room.searchSpots).some(spot => spot.id === "royal_bedside_chest"));
-  assert.doesNotMatch(prompt, /ordinary banter|unexpectedly took offence/);
-});
-
-test("Lancelot sees the crown box while an uninformed king sees neither hiding place", () => {
-  const scenario = load();
-  assert.ok(scenario.world);
-  const lancelot = worldForCharacter(scenario.world, "lancelot");
-  const king = worldForCharacter(scenario.world, "king");
-  assert.ok(lancelot.rooms.flatMap(room => room.searchSpots).some(spot => spot.id === "royal_bedside_chest"));
-  assert.ok(lancelot.objects.some(object => object.id === "crown_box"));
-  assert.ok(!lancelot.objects.some(object => object.id === "brass_key"));
-  assert.ok(!lancelot.rooms.flatMap(room => room.searchSpots).some(spot => spot.id === "merlin_desk"));
-  assert.ok(!king.objects.some(object => object.id === "brass_key" || object.id === "crown_box"));
-  assert.ok(!king.rooms.flatMap(room => room.searchSpots).some(spot =>
-    spot.id === "merlin_desk" || spot.id === "royal_bedside_chest",
-  ));
-});
-
-test("Jev request carries free goal, events, world and grounded actions", () => {
-  const scenario = load();
-  const merlin = scenario.characters.find(character => character.id === "merlin");
-  assert.ok(merlin && scenario.world);
-  const actions = [
-    create(AvailableActionSchema, {
-      id: "wake:merlin",
-      type: "wake",
-      description: "Wake up in Merlin's chamber.",
-      parameters: {},
-    }),
-  ];
-  const request = create(DecisionRequestSchema, {
-    character: merlin,
-    world: worldForCharacter(scenario.world, "merlin"),
-    recentEvents: scenario.events.filter(event =>
-      event.characterIds.includes("merlin") || event.visibility === EventVisibility.PUBLIC,
-    ),
-    availableActions: actions,
-  });
-  assert.match(request.character?.currentGoal ?? "", /Remain in the Great Hall and greet the visiting player/);
-  assert.deepEqual(request.availableActions.map(action => action.id), ["wake:merlin"]);
-  assert.equal(request.world?.revision, 0);
-  assert.equal(request.world?.day, 0);
-  assert.equal(request.world?.solsticeDay, 2);
+  const merlin = worldForCharacter(scenario.world!, "merlin");
+  const lancelot = worldForCharacter(scenario.world!, "lancelot");
+  const player = worldForCharacter(scenario.world!, "player");
+  assert.ok(merlin.objects.some(item => item.id === "palace_royal_key"));
+  assert.ok(!merlin.objects.some(item => item.id === "crown"));
+  assert.ok(lancelot.objects.some(item => item.id === "crown" && item.locationId === "palace_coffer_03"));
+  assert.ok(!lancelot.objects.some(item => item.id === "palace_royal_key"));
+  assert.ok(!player.objects.some(item => ["crown", "palace_royal_key"].includes(item.id)));
+  assert.equal(player.fixtures.find(item => item.id === "palace_coffer_03")!.revealedName, "");
 });
 
 test("unknown fixture fields remain schema errors", () => {
@@ -575,29 +524,6 @@ test("ending one NPC's thread leaves other conversations intact and saves biogra
 
 // Navigation tests exercise actual palace geometry, dynamic obstruction and A* optimality.
 
-test("closed threshold filters destinations; opening it restores valid paths", () => {
-  const blocked = new Set(createDoors().find(door => door.id === "royal_door")!.tiles.map(pointKey));
-  const closed = reachableRoutes(palaceMap, palaceNodes, palaceEdges, "great_hall", blocked);
-  assert.equal(closed.length, palaceNodes.length - 2);
-  assert.ok(!closed.some(route => route.node.id === "royal"));
-  assert.ok(closed.some(route => route.node.id === "merlin"));
-  assert.ok(closed.some(route => route.node.id === "north_junction"));
-  const open = reachableRoutes(palaceMap, palaceNodes, palaceEdges, "great_hall");
-  assert.equal(open.length, palaceNodes.length - 1);
-  assert.deepEqual(open.find(route => route.node.id === "royal")?.via, ["great_hall", "north_junction", "royal"]);
-  for (const route of [...closed, ...open]) {
-    route.path.forEach((point, i) => {
-      assert.ok(canWalk(palaceMap, point, new Set()));
-      if (i) assert.equal(Math.abs(point.x - route.path[i - 1]!.x) + Math.abs(point.y - route.path[i - 1]!.y), 1);
-    });
-    assert.equal(pointKey(route.path.at(-1)!), pointKey(route.node));
-  }
-  const inside = reachableRoutes(palaceMap, palaceNodes, palaceEdges, "royal", blocked);
-  assert.equal(inside.length, 0);
-  assert.equal(findPath(palaceMap, { x: -1, y: 5 }, palaceNodes[0]!), undefined);
-  assert.equal(findPath(palaceMap, { x: 0, y: 0 }, palaceNodes[0]!), undefined);
-});
-
 test("A* detours around blockers and matches a breadth-first shortest path", () => {
   const start = palaceNodes[0]!;
   const goal = palaceNodes.find(node => node.id === "merlin")!;
@@ -618,40 +544,6 @@ test("A* detours around blockers and matches a breadth-first shortest path", () 
     }
   }
   assert.fail("Goal should be reachable");
-});
-
-test("every palace door blocks its full threshold and can be operated from either side", () => {
-  for (const candidate of createDoors()) {
-    const doors = createDoors();
-    doors.forEach(door => { door.open = true; });
-    const door = doors.find(door => door.id === candidate.id)!;
-    const [outside, inside] = door.sides;
-    assert.ok(findPath(palaceMap, outside, inside, doorBlockers(doors)));
-    assert.ok(toggleDoor(door, outside));
-    assert.equal(door.open, false);
-    assert.equal(findPath(palaceMap, outside, inside, doorBlockers(doors)), undefined);
-    assert.equal(toggleDoor(door, palaceNodes[0]!), false, "remote interaction rejected");
-    assert.equal(toggleDoor(door, outside, true), false, "interaction during movement rejected");
-    assert.equal(toggleDoor(door, door.tiles[0]!), false, "occupied threshold rejected");
-    assert.ok(toggleDoor(door, inside));
-    assert.ok(findPath(palaceMap, outside, inside, doorBlockers(doors)));
-  }
-});
-
-test("door approaches remain reachable while destinations behind closed doors are hidden", () => {
-  const doors = createDoors();
-  const graph = doorGraph(doors);
-  const routes = reachableRoutes(palaceMap, graph.nodes, graph.edges, "great_hall", doorBlockers(doors));
-  for (const id of ["merlin", "royal", "lancelot", "guest", "treasury"]) {
-    assert.ok(!routes.some(route => route.node.id === id));
-  }
-  assert.ok(routes.some(route => route.node.id === "royal_door_outside"));
-  const royal = doors.find(door => door.id === "royal_door")!;
-  assert.ok(toggleDoor(royal, royal.sides[0]));
-  const opened = reachableRoutes(palaceMap, graph.nodes, graph.edges, royal.sides[0].id, doorBlockers(doors));
-  assert.ok(opened.some(route => route.node.id === "royal"));
-  assert.ok(!opened.some(route => route.node.id === "merlin"));
-  for (const route of opened) assert.ok(route.path.every(point => canWalk(palaceMap, point, doorBlockers(doors))));
 });
 
 test("Jev transport sends typed choices and rejects invalid responses and HTTP failures", async () => {
@@ -678,101 +570,6 @@ test("Jev transport sends typed choices and rejects invalid responses and HTTP f
   }
   const failed = new JevClient("key", async () => new Response("unauthorized", { status: 401 }));
   await assert.rejects(() => failed.choose({}, "", criteria, new AbortController().signal), /HTTP 401/);
-});
-
-function agentFixture() {
-  const doors = createDoors();
-  const graph = doorGraph(doors);
-  let current = graph.nodes[0]!;
-  let revision = 0;
-  const executed: string[] = [], reports: string[] = [];
-  const host: AgentHost = {
-    snapshot: () => ({ at: current.id, revision, world: { doors: doors.map(door => ({ id: door.id, open: door.open })) },
-      actions: legalActions(reachableRoutes(palaceMap, graph.nodes, graph.edges, current.id, doorBlockers(doors)), doors, current) }),
-    execute: async action => {
-      assert.ok(host.snapshot().actions.some(candidate => candidate.id === action.id));
-      if (action.type === "move") current = graph.nodes.find(node => node.id === action.target)!;
-      else assert.ok(toggleDoor(doors.find(door => door.id === action.target)!, current));
-      executed.push(action.id); revision++;
-    },
-    report: message => { reports.push(message); }, changed: () => {},
-  };
-  return { agent: new PalaceAgent(host), host, executed, reports, mutate: () => { revision++; } };
-}
-function choices(...ids: string[]): Choose {
-  return async (_state, _instructions, criteria) => {
-    const choice = ids.shift()!;
-    assert.ok(Object.hasOwn(criteria, choice), `Missing candidate ${choice}`);
-    return { choice, probabilities: Object.fromEntries(Object.keys(criteria).map(id => [id, id === choice ? 1 : 0])) };
-  };
-}
-
-test("agent opens a blocking door and reaches its goal using only legal actions", async () => {
-  const { agent, executed, reports } = agentFixture();
-  await agent.run("Go to Merlin", choices("move_merlin_door_outside", "open_merlin_door", "move_merlin", "complete"));
-  assert.deepEqual(executed, ["move_merlin_door_outside", "open_merlin_door", "move_merlin"]);
-  assert.match(reports.at(-1)!, /reports the goal complete/);
-  assert.equal(agent.running, false);
-});
-
-test("Step does one action; resume retains history; new goals start fresh", async () => {
-  const { agent, executed, reports } = agentFixture();
-  await agent.run("Go to Merlin", choices("move_merlin_door_outside"), true);
-  assert.equal(executed.length, 1);
-  assert.equal(agent.history.length, 1);
-  await agent.run("Go to Merlin", choices("open_merlin_door", "move_merlin", "complete"));
-  await agent.run("Return to Great Hall", choices("move_great_hall", "complete"));
-  assert.equal(agent.history.length, 1);
-  assert.match(reports.at(-1)!, /reports the goal complete/);
-});
-
-test("pause and reset discard in-flight Jev answers", async () => {
-  for (const reset of [false, true]) {
-    const { agent, executed } = agentFixture();
-    await agent.run("Merlin", choices("move_merlin_door_outside"), true);
-    let resolve!: (value: JevChoice) => void;
-    const pending = agent.run("Merlin", () => new Promise(done => { resolve = done; }));
-    if (reset) agent.reset(); else agent.pause();
-    resolve({ choice: "open_merlin_door", probabilities: { open_merlin_door: 1 } });
-    await pending;
-    assert.equal(executed.length, 1);
-    assert.equal(agent.running, false);
-  }
-});
-
-test("agent rejects stale decisions, invented actions, network errors and unfulfillable goals", async () => {
-  for (const failure of ["stale", "invented", "network", "unable"]) {
-    const fixture = agentFixture();
-    await fixture.agent.run("Go to Merlin", async () => {
-      if (failure === "network") throw new Error("Network unavailable");
-      if (failure === "unable") return { choice: "unable", probabilities: { unsupported: 1 } };
-      if (failure === "stale") fixture.mutate();
-      return { choice: failure === "invented" ? "teleport" : "move_merlin_door_outside", probabilities: {} };
-    });
-    assert.equal(fixture.executed.length, 0);
-    assert.equal(fixture.agent.running, false);
-    assert.ok(!fixture.reports.at(-1)!.includes("Goal reached"));
-  }
-});
-
-test("arbitrary multi-stop goals are passed verbatim and do not stop at the first room", async () => {
-  const { agent, executed, reports } = agentFixture();
-  const goal = "Visit Merlin, return to the Great Hall, then close the hall door";
-  const scripted = choices("move_merlin_door_outside", "open_merlin_door", "move_merlin", "move_great_hall", "move_hall_door_outside", "close_hall_door", "complete");
-  await agent.run(goal, async (state, instructions, criteria, signal) => {
-    assert.equal((state as { goal: string }).goal, goal);
-    assert.ok(!Object.hasOwn(criteria, "merlin"), "no room-classification gate");
-    return scripted(state, instructions, criteria, signal);
-  });
-  assert.equal(executed.length, 6);
-  assert.match(reports.at(-1)!, /reports the goal complete/);
-});
-
-test("intentional repeated actions are allowed but the run stops at its action budget", async () => {
-  const { agent, executed, reports } = agentFixture();
-  await agent.run("Patrol back and forth forever", choices(...Array.from({length: 24}, (_, i) => i % 2 ? "move_great_hall" : "move_entrance")));
-  assert.equal(executed.length, 24);
-  assert.match(reports.at(-1)!, /Stopped after 24 actions/);
 });
 
 test("Jev default transport preserves the browser fetch receiver", async () => {
@@ -805,368 +602,6 @@ test("401 diagnostics distinguish invalid keys from Decisions access and redact 
   }
 });
 
-test("pausing during movement preserves the completed action for resuming a multi-step goal", async () => {
-  const fixture = agentFixture();
-  const execute = fixture.host.execute;
-  let finish!: () => void;
-  fixture.host.execute = action => new Promise(resolve => { finish = () => { void execute(action).then(resolve); }; });
-  const pending = fixture.agent.run("Visit entrance then return", choices("move_entrance"));
-  // Let the decision dispatch before pausing the in-flight movement.
-  await Promise.resolve();
-  fixture.agent.pause(); finish(); await pending;
-  assert.equal(fixture.agent.history.length, 1);
-  assert.match(fixture.agent.history[0]!, /entrance/i);
-});
-
-test("drawer contents are hidden until opened; taking the key transfers it exactly once", () => {
-  const state = createFurniture();
-  const drawers = state.furniture.find(item => item.id === "merlin_drawers")!;
-  const beside = drawers.approach!;
-  const observed = () => observeFurniture(state).find(item => (item as { id: string }).id === drawers.id);
-  assert.ok(!JSON.stringify(observed()).includes("royal_key"));
-  assert.ok(!furnitureActions(state, beside).some(action => action.type === "take_item"));
-  assert.throws(() => applyFurnitureAction(state, beside, "take_royal_key"), /unavailable/);
-  assert.throws(() => applyFurnitureAction(state, { x: 15, y: 21 }, "open_merlin_drawers"), /unavailable/);
-  assert.throws(() => applyFurnitureAction(state, beside, "open_merlin_drawers", true), /unavailable/);
-  applyFurnitureAction(state, beside, "open_merlin_drawers");
-  assert.ok(JSON.stringify(observed()).includes("royal_key"));
-  applyFurnitureAction(state, beside, "take_royal_key");
-  assert.deepEqual(state.inventory.map(item => item.id), ["royal_key"]);
-  assert.equal(drawers.contents.length, 0);
-  assert.throws(() => applyFurnitureAction(state, beside, "take_royal_key"), /unavailable/);
-  applyFurnitureAction(state, beside, "close_merlin_drawers");
-  applyFurnitureAction(state, beside, "open_merlin_drawers");
-  assert.ok(!furnitureActions(state, beside).some(action => action.type === "take_item"));
-});
-
-test("lockbox rejects keyless and remote opens; matching key is retained after use", () => {
-  const state = createFurniture();
-  const box = state.furniture.find(item => item.id === "coffer_03")!;
-  const drawers = state.furniture.find(item => item.id === "merlin_drawers")!;
-  assert.ok(!furnitureActions(state, box.approach!).some(action => action.id === "open_coffer_03"));
-  assert.throws(() => applyFurnitureAction(state, box.approach!, "open_coffer_03"), /unavailable/);
-  state.inventory.push({ id: "wrong_key", name: "Wrong key" });
-  assert.throws(() => applyFurnitureAction(state, box.approach!, "open_coffer_03"), /unavailable/);
-  applyFurnitureAction(state, drawers.approach!, "open_merlin_drawers");
-  applyFurnitureAction(state, drawers.approach!, "take_royal_key");
-  assert.throws(() => applyFurnitureAction(state, drawers.approach!, "open_coffer_03"), /unavailable/);
-  applyFurnitureAction(state, box.approach!, "open_coffer_03");
-  assert.equal(box.open, true);
-  assert.ok(state.inventory.some(item => item.id === "royal_key"));
-  applyFurnitureAction(state, box.approach!, "close_coffer_03");
-  applyFurnitureAction(state, box.approach!, "open_coffer_03");
-  assert.equal(box.open, true);
-  const reset = createFurniture();
-  assert.equal(reset.inventory.length, 0);
-  assert.equal(reset.furniture.find(item => item.id === "coffer_03")!.open, false);
-  assert.equal(reset.furniture.find(item => item.id === "merlin_drawers")!.contents.length, 1);
-});
-
-test("furnishing blocks occupied tiles but preserves every waypoint when doors are open", () => {
-  const state = createFurniture();
-  const doors = createDoors(); doors.forEach(door => { door.open = true; });
-  const graph = doorGraph(doors); addFurnitureNodes(graph, state);
-  const blocked = new Set([...doorBlockers(doors), ...furnitureBlockers(state)]);
-  assert.equal(new Set(furnitureBlockers(state)).size, state.furniture.length);
-  for (const furniture of state.furniture) {
-    assert.ok(canWalk(palaceMap, furniture, new Set()), "furniture is placed on floor");
-    assert.ok(!canWalk(palaceMap, furniture, blocked));
-  }
-  const routes = reachableRoutes(palaceMap, graph.nodes, graph.edges, "great_hall", blocked);
-  assert.equal(routes.length, graph.nodes.length - 1);
-  for (const route of routes) assert.ok(route.path.every(point => canWalk(palaceMap, point, blocked)));
-});
-
-test("Jev action loop can fetch the key and open the king's lockbox through actual furniture state", async () => {
-  const state = createFurniture(), doors = createDoors(), graph = doorGraph(doors);
-  addFurnitureNodes(graph, state);
-  let current = graph.nodes[0]!, revision = 0;
-  const reports: string[] = [];
-  const host: AgentHost = {
-    snapshot: () => {
-      const blocked = new Set([...doorBlockers(doors), ...furnitureBlockers(state)]);
-      return { at: current.id, revision, world: { furniture: observeFurniture(state), inventory: state.inventory },
-        actions: [...legalActions(reachableRoutes(palaceMap, graph.nodes, graph.edges, current.id, blocked), doors, current), ...furnitureActions(state, current)] };
-    },
-    execute: async action => {
-      assert.ok(host.snapshot().actions.some(legal => legal.id === action.id));
-      if (action.type === "move") current = graph.nodes.find(node => node.id === action.target)!;
-      else if (action.type === "open" || action.type === "close") assert.ok(toggleDoor(doors.find(door => door.id === action.target)!, current));
-      else applyFurnitureAction(state, current, action.id);
-      revision++;
-    }, report: message => { reports.push(message); }, changed: () => {},
-  };
-  const agent = new PalaceAgent(host);
-  await agent.run("Get the key from Merlin's drawers and open the king's lockbox", choices(
-    "move_merlin_door_outside", "open_merlin_door", "move_merlin_drawers_approach", "open_merlin_drawers", "take_royal_key",
-    "move_royal_door_outside", "open_royal_door", "move_coffer_03_approach", "open_coffer_03", "complete"));
-  assert.ok(state.furniture.find(item => item.id === "coffer_03")!.open);
-  assert.deepEqual(state.inventory.map(item => item.id), ["royal_key"]);
-  assert.match(reports.at(-1)!, /reports the goal complete/);
-});
-
-
-test("palace decisions reuse Merlin's authored lore, relationships and only visible memories", () => {
-  const scenario = load();
-  const original = scenario.characters.find(character => character.id === "merlin")!;
-  const context = characterDecisionContext(scenario, "merlin", "Find the key and open the royal lockbox");
-  assert.equal(context.character.name, "Merlin");
-  assert.equal(context.character.lore, original.lore);
-  assert.deepEqual(context.character.objectives, original.objectives);
-  assert.equal(context.character.currentGoal, "Find the key and open the royal lockbox");
-  assert.equal(context.character.relationships.length, original.relationships.length);
-  assert.equal(context.premise, scenario.premise);
-  assert.ok(context.visibleEvents.some(event => event.id === "feast_joke_merlin"));
-  assert.ok(context.visibleEvents.some(event => event.id === "solstice_rule"));
-  assert.ok(!context.visibleEvents.some(event => event.id === "feast_joke_lancelot"));
-  assert.notEqual(original.currentGoal, context.character.currentGoal, "source character is not mutated");
-  assert.ok(!JSON.stringify(context).includes("Return spoken dialogue"), "dialogue output instructions are not decision instructions");
-});
-
-test("every agent decision receives the shared character context with the free-form task", async () => {
-  const fixture = agentFixture();
-  fixture.host.characterContext = goal => characterDecisionContext(load(), "merlin", goal);
-  let inspected = false;
-  await fixture.agent.run("Find the key", async state => {
-    const request = state as { goal: string; characterContext: ReturnType<typeof characterDecisionContext> };
-    assert.equal(request.characterContext.character.name, "Merlin");
-    assert.equal(request.characterContext.character.currentGoal, request.goal);
-    inspected = true;
-    return { choice: "unable", probabilities: { unable: 1 } };
-  });
-  assert.ok(inspected);
-});
-
-test("coffers do not advertise the royal lockbox or key requirements before examination", () => {
-  const state = createFurniture();
-  const box = state.furniture.find(item => item.id === "coffer_03")!;
-  const initial = JSON.stringify(observeFurniture(state));
-  assert.ok(!initial.includes("King's lockbox"));
-  assert.ok(!initial.includes("requiresItemToOpen"));
-  assert.ok(!initial.includes("royal_seal"));
-  assert.equal(box.approach!.name, "Carved wooden coffer");
-  assert.throws(() => applyFurnitureAction(state, palaceNodes[0]!, "inspect_coffer_03"), /unavailable/);
-  applyFurnitureAction(state, box.approach!, "inspect_coffer_03");
-  const inspected = JSON.stringify(observeFurniture(state));
-  assert.ok(inspected.includes("King's lockbox"));
-  assert.ok(inspected.includes("requiresItemToOpen"));
-  assert.ok(!inspected.includes("royal_seal"));
-  assert.equal(box.open, false);
-  assert.equal(box.searched, false);
-  assert.ok(!furnitureActions(state, box.approach!).some(action => action.id === "open_coffer_03"));
-});
-
-test("all new containers expose and transfer their distinct contents only after opening", () => {
-  const state = createFurniture();
-  const containers = state.furniture.filter(item => item.kind !== "decoration");
-  assert.equal(containers.length, 14);
-  const itemIds = containers.flatMap(item => item.contents.map(item => item.id));
-  assert.equal(new Set(itemIds).size, itemIds.length);
-  assert.ok(itemIds.length >= 20);
-  // Collect ordinary containers first; they include all three matching keys.
-  const ordered = [...containers.filter(item => !item.requiredKey), ...containers.filter(item => item.requiredKey)];
-  for (const container of ordered) {
-    const before = furnitureActions(state, container.approach!);
-    assert.ok(!before.some(action => action.target === container.id && action.type === "take_item"));
-    applyFurnitureAction(state, container.approach!, `open_${container.id}`);
-    const contents = [...container.contents];
-    for (const item of contents) applyFurnitureAction(state, container.approach!, `take_${item.id}`);
-    assert.equal(container.contents.length, 0);
-    applyFurnitureAction(state, container.approach!, `close_${container.id}`);
-    assert.ok(container.searched);
-  }
-  assert.equal(state.inventory.length, itemIds.length);
-  assert.equal(new Set(state.inventory.map(item => item.id)).size, itemIds.length);
-});
-
-test("different coffers require their own matching keys", () => {
-  const state = createFurniture();
-  state.inventory.push({ id: "brass_key", name: "Small brass key" });
-  const jewellery = state.furniture.find(item => item.id === "coffer_02")!;
-  const royal = state.furniture.find(item => item.id === "coffer_03")!;
-  const gatekeeper = state.furniture.find(item => item.id === "coffer_01")!;
-  applyFurnitureAction(state, jewellery.approach!, "open_coffer_02");
-  assert.throws(() => applyFurnitureAction(state, royal.approach!, "open_coffer_03"), /unavailable/);
-  assert.throws(() => applyFurnitureAction(state, gatekeeper.approach!, "open_coffer_01"), /unavailable/);
-  assert.ok(jewellery.open);
-  assert.equal(state.inventory.length, 1);
-});
-
-test("interaction choices bundle reachable spots and distinguish both door sides", () => {
-  const doors = createDoors(), furniture = createFurniture(), graph = doorGraph(doors);
-  addFurnitureNodes(graph, furniture);
-  const actionsAt = (id: string) => {
-    const position = graph.nodes.find(node => node.id === id)!;
-    const blocked = new Set([...doorBlockers(doors), ...furnitureBlockers(furniture)]);
-    return interactionActions(reachableRoutes(palaceMap, graph.nodes, graph.edges, id, blocked), doors, furniture, position);
-  };
-  const initial = actionsAt("great_hall");
-  assert.ok(initial.some(action => action.id === "open_hall_cabinet" && action.interactionSpot === "hall_cabinet_approach"));
-  assert.ok(!initial.some(action => action.id === "open_merlin_drawers"));
-  assert.ok(!initial.some(action => action.type === "move" && action.target.endsWith("_approach")));
-  const merlinChoices = initial.filter(action => action.target === "merlin_door");
-  assert.deepEqual(merlinChoices.map(action => action.interactionSpot), ["merlin_door_outside"]);
-  assert.equal(initial.filter(action => action.target === "hall_door").length, 2);
-  doors.find(door => door.id === "merlin_door")!.open = true;
-  assert.ok(actionsAt("great_hall").some(action => action.id === "open_merlin_drawers"));
-  assert.ok(actionsAt("merlin_drawers_approach").some(action => action.id === "open_merlin_drawers"));
-  assert.ok(!actionsAt("royal").some(action => action.id === "open_coffer_03"));
-});
-
-test("combined interactions apply after arrival and revalidate or cancel before effects", async () => {
-  const action = { id: "open_drawers", type: "open_container" as const, target: "drawers", interactionSpot: "spot", description: "Open drawers" };
-  let at = "room", available = true, effects = 0;
-  const order: string[] = [];
-  const host = {
-    actions: () => available ? [action] : [], at: () => at,
-    walk: async (destination: string) => { order.push("walk"); at = destination; },
-    apply: () => { assert.equal(at, "spot"); order.push("open"); effects++; },
-  };
-  await executeInteraction(action, host);
-  assert.deepEqual(order, ["walk", "open"]);
-  await executeInteraction(action, host);
-  assert.deepEqual(order, ["walk", "open", "open"]);
-  at = "room";
-  await assert.rejects(executeInteraction(action, { ...host, walk: async () => { at = "spot"; available = false; } }), /no longer available/);
-  assert.equal(effects, 2);
-  available = true; at = "room";
-  const controller = new AbortController();
-  await assert.rejects(executeInteraction(action, { ...host, walk: async () => { at = "spot"; controller.abort(); } }, controller.signal), /abort/i);
-  assert.equal(effects, 2);
-});
-
-test("combined actions navigate through doors, fetch the key and open the royal coffer", async () => {
-  const doors = createDoors(), furniture = createFurniture(), graph = doorGraph(doors);
-  addFurnitureNodes(graph, furniture);
-  let current = graph.nodes.find(node => node.id === "great_hall")!;
-  const routes = () => reachableRoutes(palaceMap, graph.nodes, graph.edges, current.id,
-    new Set([...doorBlockers(doors), ...furnitureBlockers(furniture)]));
-  const actions = () => interactionActions(routes(), doors, furniture, current);
-  const host = {
-    actions, at: () => current.id,
-    walk: async (id: string) => { const route = routes().find(route => route.node.id === id); assert.ok(route); current = route.node; },
-    apply: (action: ReturnType<typeof actions>[number]) => {
-      if (action.type === "open" || action.type === "close") {
-        assert.ok(toggleDoor(doors.find(door => door.id === action.target)!, current));
-      } else applyFurnitureAction(furniture, current, action.id);
-    },
-  };
-  for (const id of ["open_merlin_door_from_merlin_door_outside", "open_merlin_drawers", "take_royal_key",
-    "open_royal_door_from_royal_door_outside", "open_coffer_03"]) {
-    const action = actions().find(action => action.id === id); assert.ok(action, id);
-    await executeInteraction(action, host);
-  }
-  assert.equal(current.id, "coffer_03_approach");
-  assert.ok(furniture.inventory.some(item => item.id === "royal_key"));
-  assert.ok(furniture.furniture.find(item => item.id === "coffer_03")!.open);
-});
-
-test("palace dialogue sees its actual room and conceals unopened contents and other rooms", () => {
-  const furniture = createFurniture(), doors = createDoors();
-  const room = palaceSurroundings({ x: 15, y: 21 }, doors, furniture);
-  assert.equal(room.room, "Great Hall");
-  const view = JSON.stringify(room);
-  assert.match(view, /Hall sideboard/);
-  assert.doesNotMatch(view, /Iron storeroom key|royal_seal|Merlin's bookcase|Carved wooden coffer/);
-  const scenario = load(); scenario.characters.push(createPalacePlayer());
-  const context = palaceDialogueContext(scenario, "Visit the treasury", room);
-  const text = JSON.stringify(context);
-  assert.match(text, /Alden/); assert.match(text, /cousin/);
-  assert.match(text, /Visit the treasury/);
-  assert.ok(!context.some(message => message.content.startsWith("# Known world state")));
-  assert.doesNotMatch(text, /feast_joke_lancelot/);
-  const sideboard = furniture.furniture.find(item => item.id === "hall_cabinet")!;
-  applyFurnitureAction(furniture, sideboard.approach!, "open_hall_cabinet");
-  assert.match(JSON.stringify(palaceSurroundings({ x: 15, y: 21 }, doors, furniture)), /Iron storeroom key/);
-});
-
-test("palace dialogue reviews intent into a returned goal and durable private memory without moving objects", async () => {
-  const scenario = load(); scenario.characters.push(createPalacePlayer());
-  const originalWorld = JSON.stringify(scenario.world);
-  const eventsBefore = scenario.events.length;
-  const dialogue = new PalaceDialogue(scenario, () => ({ room: "Great Hall" }), () => "Wait in the hall");
-  await dialogue.speak("Please visit the treasury.", async request => {
-    assert.equal(request.messages.at(-1)?.content, "Please visit the treasury.");
-    return { role: "assistant", content: JSON.stringify({ utterance: "I shall go there.", replyOptions: ["Thank you."] }) };
-  });
-  assert.equal(dialogue.transcript.length, 2);
-  const result = await dialogue.finish(async request => {
-    assert.match(request.messages.at(-1)!.content!, /I shall go there/);
-    return { role: "assistant", content: JSON.stringify({ newEvents: [{ type: "agreement", summary: "I agreed to visit the treasury at Alden's request." }],
-      goalUpdate: { goal: "Visit the treasury", reason: "I agreed to Alden's request." }, relationships: [], lore: null }) };
-  });
-  assert.equal(result.goal, "Visit the treasury");
-  assert.match(result.reason, /agreed/);
-  assert.equal(scenario.characters.find(character => character.id === "merlin")!.currentGoal, result.goal);
-  assert.equal(scenario.events.length, eventsBefore + 1);
-  assert.equal(scenario.events.at(-1)!.visibility, EventVisibility.PRIVATE);
-  assert.deepEqual(scenario.events.at(-1)!.characterIds, ["merlin", "player"]);
-  assert.equal(JSON.stringify(scenario.world), originalWorld);
-  assert.equal(dialogue.transcript.length, 0);
-  assert.match(JSON.stringify(dialogue.context()), /I agreed to visit the treasury/);
-});
-
-test("palace review preserves conversation on invalid output and returns unchanged goal when appropriate", async () => {
-  const scenario = load();
-  const dialogue = new PalaceDialogue(scenario, () => ({ room: "Great Hall" }), () => "Stay here");
-  await dialogue.speak("Hello", async () => ({ role: "assistant", content: '{"utterance":"Hello","replyOptions":[]}' }));
-  const before = JSON.stringify(scenario);
-  await assert.rejects(dialogue.finish(async () => ({ role: "assistant", content: '{"goalUpdate":{"goal":"Leave"}}' })), /incomplete/);
-  assert.equal(dialogue.transcript.length, 2);
-  assert.equal(JSON.stringify(scenario), before);
-  const result = await dialogue.finish(async () => ({ role: "assistant", content: '{"newEvents":[],"goalUpdate":null,"relationships":[],"lore":null}' }));
-  assert.equal(result.goal, "Stay here");
-  assert.match(result.reason, /did not change/);
-});
-
-test("aborted palace replies and reviews cannot restore a reset conversation or mutate memory", async () => {
-  const scenario = load(), controller = new AbortController();
-  const dialogue = new PalaceDialogue(scenario, () => ({ room: "Great Hall" }), () => "Wait");
-  await assert.rejects(dialogue.speak("Hello", async () => {
-    controller.abort(); dialogue.reset();
-    return { role: "assistant", content: '{"utterance":"Hello","replyOptions":[]}' };
-  }, controller.signal), /abort/i);
-  assert.equal(dialogue.transcript.length, 0);
-  await dialogue.speak("Hello", async () => ({ role: "assistant", content: '{"utterance":"Hello","replyOptions":[]}' }));
-  const before = JSON.stringify(scenario), reviewController = new AbortController();
-  await assert.rejects(dialogue.finish(async () => {
-    reviewController.abort(); dialogue.reset();
-    return { role: "assistant", content: '{"newEvents":[],"goalUpdate":{"goal":"Leave","reason":"Agreed"},"relationships":[],"lore":null}' };
-  }, reviewController.signal), /abort/i);
-  assert.equal(dialogue.transcript.length, 0);
-  assert.equal(JSON.stringify(scenario), before);
-});
-
-test("palace memory schema limits targets and normalizes names and duplicate relationship entries", async () => {
-  const scenario = load(); scenario.characters.push(createPalacePlayer());
-  const dialogue = new PalaceDialogue(scenario, () => ({ room: "Great Hall" }), () => "Wait");
-  await dialogue.speak("Can you help me?", async () => ({ role: "assistant", content: '{"utterance":"Yes","replyOptions":[]}' }));
-  const result = await dialogue.finish(async request => {
-    const schema = request.response_format as { json_schema: { schema: { properties: { relationships: { items: { properties: { characterId: { enum: string[] } } } } } } } };
-    assert.deepEqual(schema.json_schema.schema.properties.relationships.items.properties.characterId.enum, ["lancelot", "king", "player"]);
-    return { role: "assistant", content: JSON.stringify({ newEvents: [], goalUpdate: { goal: "Help Alden", reason: "Agreed" }, lore: null,
-      relationships: [{ characterId: "Alden", description: "He asked for help." }, { characterId: "player", description: "He asked for help." },
-        { characterId: "alden", description: "I am willing to listen." }] }) };
-  });
-  assert.equal(result.goal, "Help Alden");
-  const relationship = scenario.characters.find(character => character.id === "merlin")!.relationships.filter(item => item.characterId === "player");
-  assert.equal(relationship.length, 1);
-  assert.equal(relationship[0]!.description, "He asked for help.\nI am willing to listen.");
-});
-
-test("unknown or self relationship targets fail clearly without losing the palace conversation", async () => {
-  const scenario = load(); scenario.characters.push(createPalacePlayer());
-  const dialogue = new PalaceDialogue(scenario, () => ({}), () => "Wait");
-  await dialogue.speak("Hello", async () => ({ role: "assistant", content: '{"utterance":"Hello","replyOptions":[]}' }));
-  const before = JSON.stringify(scenario);
-  for (const target of ["imaginary_person", "merlin"]) {
-    await assert.rejects(dialogue.finish(async () => ({ role: "assistant", content: JSON.stringify({ newEvents: [], goalUpdate: null,
-      relationships: [{ characterId: target, description: "A friend" }], lore: null }) })), /invalid relationship target/);
-  }
-  assert.equal(dialogue.transcript.length, 2);
-  assert.equal(JSON.stringify(scenario), before);
-});
-
 test("main palace markers use saved rooms and separate characters on walkable tiles", () => {
   const markers = courtMarkers(load().courtArrivalPlacements.map(item => ({ id: item.characterId, name: item.characterId, roomId: item.roomId, position: item.position! })));
   assert.equal(new Set(markers.map(marker => pointKey(marker.point!))).size, 4);
@@ -1178,7 +613,7 @@ test("main palace markers use saved rooms and separate characters on walkable ti
 });
 
 test("main palace movement validates routes and survives saving and restoring", () => {
-  const scenario = load(); scenario.characters.push(createPalacePlayer()); scenario.playerCharacterId = "player";
+  const scenario = load(); scenario.characters.push(create(CharacterSchema, { id: "player", name: "Envoy" })); scenario.playerCharacterId = "player";
   scenario.world!.phase = GamePhase.CONVERSATIONS;
   for (const actor of scenario.world!.actors) actor.roomId = "great_hall";
   scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 16, y: 22 }) });
@@ -1275,7 +710,7 @@ test("main doors choose the closest reachable side and block paths until opened"
 });
 
 test("door operations validate approach and occupancy, and persist through saves", () => {
-  const scenario = load(); scenario.characters.push(createPalacePlayer()); scenario.playerCharacterId = "player";
+  const scenario = load(); scenario.characters.push(create(CharacterSchema, { id: "player", name: "Envoy" })); scenario.playerCharacterId = "player";
   scenario.world!.phase = GamePhase.CONVERSATIONS;
   scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true,
     position: create(TilePositionSchema, { x: 16, y: 22 }) });
@@ -1386,12 +821,13 @@ test("main containers enforce approaches and keys, conceal contents, and persist
   runtime.movePlayer({ x: 17, y: 5 });
   runtime.interactFixture("open_palace_coffer_03");
   runtime.interactFixture("take_palace_royal_seal");
+  runtime.interactFixture("take_crown");
   const restored = new BrowserGameRuntime(scenario, "test", structuredClone(runtime.snapshot()));
   saved = fromJson(ScenarioSchema, restored.snapshot().scenario);
   assert.equal(saved.world!.objects.find(item => item.id === "palace_royal_seal")!.locationId, "player");
   assert.equal(saved.world!.objects.find(item => item.id === "palace_royal_key")!.locationId, "player", "Key is not consumed");
   assert.equal(saved.world!.fixtures.find(item => item.id === "palace_coffer_03")!.open, true);
-  assert.equal(saved.world!.objects.find(item => item.id === "crown")!.locationId, "crown_box");
+  assert.equal(saved.world!.objects.find(item => item.id === "crown")!.locationId, "player");
 });
 
 test("trying locked containers needs the correct carried key and preserves concealed loot", () => {
@@ -1439,7 +875,7 @@ test("reviewed immediate goal reaches Jev, which opens doors and moves the NPC i
   const runtime = new BrowserGameRuntime(scenario, "test");
   t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Meet me in my chamber." }));
   await runtime.talkToCharacter("merlin", "Let's speak privately.");
-  await assert.rejects(runtime.planNpc("merlin", [], new AbortController().signal), /review first/);
+  await assert.rejects(runtime.planNpc("merlin", new AbortController().signal), /review first/);
   const goal = "Go to Merlin's Chamber and wait for the player.";
   t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], goalUpdate: { goal, reason: "Agreed a meeting." }, lore: null }));
   await runtime.endConversation("merlin");
@@ -1455,11 +891,11 @@ test("reviewed immediate goal reaches Jev, which opens doors and moves the NPC i
     return { choice, probabilities: { [choice]: 1 } };
   });
   for (let i = 0; i < 2; i++) {
-    const plan = await runtime.planNpc("merlin", [], new AbortController().signal);
+    const plan = await runtime.planNpc("merlin", new AbortController().signal);
     assert.ok(plan.action);
     runtime.executeNpcAction("merlin", plan.action.id, plan.revision, plan.goal);
   }
-  const finished = await runtime.planNpc("merlin", [], new AbortController().signal);
+  const finished = await runtime.planNpc("merlin", new AbortController().signal);
   assert.equal(finished.decision.choice, "complete");
   const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
   assert.equal(saved.world!.actors.find(actor => actor.characterId === "merlin")!.roomId, "merlin_chamber");
@@ -1481,10 +917,11 @@ test("NPC actions use their own keys and inventory, reject stale plans, and pres
     assert.ok(observation.actions.some(action => action.id === id));
     return runtime.executeNpcAction("merlin", id, observation.revision, observation.goal);
   }
-  execute("open_palace_merlin_drawers"); execute("take_palace_royal_key"); execute("move_royal"); execute("open_palace_coffer_03"); execute("take_palace_royal_seal");
+  execute("open_palace_merlin_drawers"); execute("take_palace_royal_key"); execute("move_royal"); execute("open_palace_coffer_03"); execute("take_palace_royal_seal"); execute("take_crown");
   const snapshot = runtime.snapshot(), saved = fromJson(ScenarioSchema, snapshot.scenario);
   assert.equal(saved.world!.objects.find(item => item.id === "palace_royal_key")!.locationId, "merlin");
   assert.equal(saved.world!.objects.find(item => item.id === "palace_royal_seal")!.locationId, "merlin");
+  assert.equal(saved.world!.objects.find(item => item.id === "crown")!.locationId, "merlin");
   assert.deepEqual(runtime.view().inventory, []);
   const observation = courtAgentObservation(saved, "merlin");
   runtime.resetWorld();
@@ -1495,14 +932,14 @@ test("NPC actions use their own keys and inventory, reject stale plans, and pres
 test("greeting goal is idle until the LLM explicitly assigns a task", async t => {
   const runtime = new BrowserGameRuntime(furnishedCourt(), "test");
   assert.ok(Object.values(runtime.view().npcActivities as Record<string, {status: string}>).every(activity => activity.status === "idle"));
-  await assert.rejects(runtime.planNpc("merlin", [], new AbortController().signal), /idle/);
+  await assert.rejects(runtime.planNpc("merlin", new AbortController().signal), /idle/);
   t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Welcome." }));
   await runtime.talkToCharacter("merlin", "Hello.");
   t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], goalUpdate: null, lore: null }));
   await runtime.endConversation("merlin");
   assert.equal(runtime.snapshot().npcActivities?.merlin?.status, "idle");
   assert.match(fromJson(ScenarioSchema, runtime.snapshot().scenario).characters[0]!.currentGoal, /greet the visiting player/);
-  await assert.rejects(runtime.planNpc("merlin", [], new AbortController().signal), /idle/);
+  await assert.rejects(runtime.planNpc("merlin", new AbortController().signal), /idle/);
 });
 
 test("NPC reviews actual planner results, can activate a follow-up, and later returns idle", async t => {
@@ -1514,7 +951,7 @@ test("NPC reviews actual planner results, can activate a follow-up, and later re
   const ended = runtime.snapshot();
   assert.equal(ended.npcActivities!.merlin!.status, "idle");
   assert.equal(ended.npcActivities!.merlin!.reviewPending, true);
-  await assert.rejects(runtime.planNpc("merlin", [], new AbortController().signal), /idle/);
+  await assert.rejects(runtime.planNpc("merlin", new AbortController().signal), /idle/);
   t.mock.method(OpenRouterClient.prototype, "complete", async (request: { messages: {content: string}[] }) => {
     const outcome = JSON.parse(request.messages.at(-1)!.content);
     assert.equal(outcome.goal, "Inspect my drawers.");
@@ -1553,7 +990,7 @@ test("outcome review survives reload and failure; replanning cap leaves a propos
   assert.equal(restored.snapshot().npcActivities!.merlin!.status, "idle");
   assert.equal(restored.snapshot().npcActivities!.merlin!.reviewPending, false);
   assert.equal(fromJson(ScenarioSchema, restored.snapshot().scenario).characters[0]!.currentGoal, "Go to the Great Hall.");
-  await assert.rejects(restored.planNpc("merlin", [], new AbortController().signal), /idle/);
+  await assert.rejects(restored.planNpc("merlin", new AbortController().signal), /idle/);
 });
 
 test("treasury can be opened from the hall and closed from inside, with sides explicit to Jev", () => {
@@ -1597,7 +1034,7 @@ test("recent transcripts capture every main-game model stage and retain failed r
   await runtime.endConversation("merlin");
   const before = runtime.snapshot();
   t.mock.method(JevClient.prototype, "choose", async () => { throw new Error("Rejected sk-test-secret"); });
-  await assert.rejects(runtime.planNpc("merlin", [], new AbortController().signal), /Rejected/);
+  await assert.rejects(runtime.planNpc("merlin", new AbortController().signal), /Rejected/);
   runtime.restore(before);
   runtime.finishNpcRun("merlin", "error", "Request failed.");
   t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: null }));
@@ -1693,7 +1130,7 @@ test("talk availability follows closed doors and Jev gets the offered talk choic
     assert.match(JSON.stringify(instructions), /offered talk actions/);
     return { choice: action.id, probabilities: { [action.id]: 1 } };
   });
-  const plan = await runtime.planNpc("merlin", [], new AbortController().signal);
+  const plan = await runtime.planNpc("merlin", new AbortController().signal);
   assert.equal(plan.action?.type, "talk");
   const recipient = scenario.world!.actors.find(item => item.characterId === action.target)!;
   recipient.position = create(TilePositionSchema, { x: 5, y: 5 }); recipient.roomId = "merlin_chamber";
@@ -1737,6 +1174,12 @@ test("authored world rooms and connections match the palace map", () => {
   assert.deepEqual([...ids].sort(), palaceMap.rooms.map(room => room.id).sort());
   for (const room of rooms) for (const exit of room.exitRoomIds) assert.ok(ids.has(exit), `${room.id} exits to missing room ${exit}`);
   for (const fixture of scenario.world!.fixtures) assert.ok(ids.has(fixture.roomId), `${fixture.id} belongs to missing room ${fixture.roomId}`);
+  const world = scenario.world!;
+  const locations = new Set([...ids, ...world.fixtures.map(item => item.id), ...scenario.characters.map(item => item.id)]);
+  const objects = new Set(world.objects.map(item => item.id));
+  assert.equal(objects.size, world.objects.length, "Object IDs must be unique");
+  for (const item of world.objects) assert.ok(locations.has(item.locationId), `${item.id} is in a nonexistent container or location ${item.locationId}`);
+  for (const fixture of world.fixtures) if (fixture.requiredKeyId) assert.ok(objects.has(fixture.requiredKeyId), `${fixture.id} needs a missing key`);
   assert.doesNotMatch(JSON.stringify(scenario), /chapel/i);
 });
 
