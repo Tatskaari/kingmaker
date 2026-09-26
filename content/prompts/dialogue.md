@@ -28,3 +28,18 @@ key" can create an event and a goal; the autonomous action loop must still choos
 and execute the physical `give` action.
 
 Reply options should offer distinct roleplaying intentions and match the player’s voice and behaviour in the visible conversation. They are suggestions, not spoken NPC dialogue or events. Only a selected or typed response becomes player speech. NPCs cannot compel responses; the GM alone can use compulsion during stalled character creation.
+
+
+## Immediate goals
+
+NPC `currentGoal` and conversation-review `goalUpdate` describe the next concrete
+task for the action planner. Longer-term ambitions remain character context.
+The shared guidance in `packages/core/src/goal-guidance.ts` is included in the
+character context used by both dialogue and review, including the palace demo.
+It asks for explicit targets and observable completion or waiting conditions,
+preserves character agency, and leaves pathfinding and action selection to the
+engine and planner. No change of intent means `goalUpdate: null`.
+
+This framing follows Jev's guidance on direct, literal conditions and reduced
+indirection: https://docs.typesafe.ai/model-jaggedness/jev-1.13 . It does not supply
+search recipes or force the NPC to agree to the player's proposals.

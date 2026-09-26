@@ -1,3 +1,4 @@
+import { IMMEDIATE_GOAL_DESCRIPTION } from "../../../packages/core/src/goal-guidance.js";
 // Prototype adapter: dialogue/review formats and prompts copied from runtime.ts.
 // Keep the main game independent while the palace interaction model evolves.
 import { clone, create, fromJson, type JsonValue } from "@bufbuild/protobuf";
@@ -76,7 +77,7 @@ const memoryFormat = {
       } },
       goalUpdate: { anyOf: [
         { type: "object", additionalProperties: false, required: ["goal", "reason"],
-          properties: { goal: { type: "string" }, reason: { type: "string" } } },
+          properties: { goal: { type: "string", description: IMMEDIATE_GOAL_DESCRIPTION }, reason: { type: "string" } } },
         { type: "null" },
       ] },
       relationships: { type: "array", items: {

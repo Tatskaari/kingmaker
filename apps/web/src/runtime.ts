@@ -1,3 +1,4 @@
+import { IMMEDIATE_GOAL_DESCRIPTION } from "../../../packages/core/src/goal-guidance.js";
 import { courtPath, courtRoomAt } from "./court-map.js";
 import type { Point } from "./navigation.js";
 import { compulsionNarration, parseReplyOptions, type ReplyOptions } from "./reply-options.js";
@@ -131,7 +132,7 @@ const memoryFormat = {
       } },
       goalUpdate: { anyOf: [
         { type: "object", additionalProperties: false, required: ["goal", "reason"],
-          properties: { goal: { type: "string" }, reason: { type: "string" } } },
+          properties: { goal: { type: "string", description: IMMEDIATE_GOAL_DESCRIPTION }, reason: { type: "string" } } },
         { type: "null" },
       ] },
       relationships: { type: "array", items: {

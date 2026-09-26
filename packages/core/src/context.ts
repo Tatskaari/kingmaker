@@ -1,3 +1,4 @@
+import { IMMEDIATE_GOAL_GUIDANCE } from "./goal-guidance.js";
 import { clone, toJson } from "@bufbuild/protobuf";
 import {
   EventVisibility,
@@ -99,7 +100,7 @@ export class FullContextBuilder implements DialogueContextBuilder {
       { role: "system", content: `# Scenario premise\n${scenario.premise}` },
       {
         role: "system",
-        content: `# Character\n${character.name} (${character.id})\n\n${character.lore}\n\n# Current goal\n${character.currentGoal || "No goal yet."}`,
+        content: `# Character\n${character.name} (${character.id})\n\n${character.lore}\n\n# Current goal\n${character.currentGoal || "No goal yet."}\n\n${IMMEDIATE_GOAL_GUIDANCE}`,
       },
       { role: "system", content: `# Relationships\n${relationships}` },
       { role: "system", content: `# Events visible to this character\n${recent}` },

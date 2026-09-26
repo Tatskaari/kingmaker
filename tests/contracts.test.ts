@@ -1307,3 +1307,16 @@ test("bedroom doors are illegal to open except for characters on the room access
   const restored = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, load())).world!;
   assert.equal(doorActionLegality(restored.doors.find(door => door.id === "royal_door")!, restored.rooms, "player"), "illegal");
 });
+
+
+test("NPC dialogue frames the current goal as a concrete planner task while retaining motives", () => {
+  const scenario = load();
+  assert.ok(scenario.characters.every(character => character.currentGoal.includes("greet the visiting player")));
+  const messages = new FullContextBuilder().build(create(DialogueRequestSchema, { scenario, characterId: "merlin" }));
+  const context = messages.map(message => message.content).join("\n");
+  assert.match(context, /Immediate goal for the action planner/);
+  assert.match(context, /bounded list of available actions/);
+  assert.match(context, /observable completion or waiting condition/);
+  assert.match(context, /Return null when the character has not adopted a new task/);
+  assert.match(context, /He wants the king replaced/);
+});
