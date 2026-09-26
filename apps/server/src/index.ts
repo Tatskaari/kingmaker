@@ -8,9 +8,9 @@ import {
   CharacterSchema, DialogueRequestSchema, DialogueResponseSchema, EventSchema,
   EventVisibility, GameMasterRequestSchema, GamePhase, GoalUpdateSchema,
   PlayerSetupSchema, RelationshipSchema, RelationshipUpdateSchema, ScenarioSchema,
-  TranscriptMessageSchema, TranscriptRole, type TranscriptMessage,
+  TranscriptMessageSchema, TranscriptRole, WorldStateSchema, type TranscriptMessage,
 } from "../../../packages/contracts/src/index.js";
-import { FullContextBuilder, FullGameMasterContextBuilder } from "../../../packages/core/src/context.js";
+import { FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter } from "../../../packages/core/src/context.js";
 import { MemoryGame } from "../../../packages/core/src/game.js";
 import { OpenRouterClient, type OpenRouterMessage, type OpenRouterTool } from "../../../packages/providers/src/openrouter.js";
 
@@ -289,6 +289,40 @@ function viewState(): JsonObject {
   };
 }
 
+function debugState(): JsonObject {
+  return {
+    runtime: {
+      dialogueModel,
+      devInstanceId,
+      eventClients: devEventClients.size,
+    },
+    scenario: toJson(ScenarioSchema, game.scenario(), { alwaysEmitImplicit: true }),
+    gameMasterHistory: gmHistory,
+    conversations: Object.fromEntries([...conversations].map(([characterId, messages]) => [
+      characterId,
+      messages.map(message => toJson(TranscriptMessageSchema, message, { alwaysEmitImplicit: true })),
+    ])),
+  };
+}
+
+function debugCharacter(characterId: string): JsonObject {
+  const scenario = game.scenario();
+  const character = scenario.characters.find(item => item.id === characterId);
+  if (!character || characterId === "player") throw new Error(`Unknown NPC: ${characterId}`);
+  if (!scenario.world) throw new Error("Scenario has no world");
+  const transcript = conversations.get(characterId) || [];
+  const request = create(DialogueRequestSchema, { characterId, scenario, transcript });
+  return {
+    character: toJson(CharacterSchema, character, { alwaysEmitImplicit: true }),
+    visibleEvents: scenario.events
+      .filter(event => event.visibility === EventVisibility.PUBLIC || event.characterIds.includes(characterId))
+      .map(event => toJson(EventSchema, event, { alwaysEmitImplicit: true })),
+    knownWorld: toJson(WorldStateSchema, worldForCharacter(scenario.world, characterId), { alwaysEmitImplicit: true }),
+    conversation: transcript.map(message => toJson(TranscriptMessageSchema, message, { alwaysEmitImplicit: true })),
+    modelMessages: new FullContextBuilder().build(request),
+  };
+}
+
 async function readJson(request: IncomingMessage): Promise<JsonObject> {
   const chunks: Buffer[] = [];
   let size = 0;
@@ -332,6 +366,9 @@ const server = createServer(async (request, response) => {
       return;
     }
     if (request.method === "GET" && url.pathname === "/api/state") return json(response, 200, viewState());
+    if (request.method === "GET" && url.pathname === "/api/debug") return json(response, 200, debugState());
+    const characterDebug = request.method === "GET" ? url.pathname.match(/^\/api\/debug\/character\/([a-z_]+)$/) : null;
+    if (characterDebug) return json(response, 200, debugCharacter(characterDebug[1]!));
     if (request.method === "POST" && url.pathname === "/api/reset") {
       game = new MemoryGame(fromJsonString(ScenarioSchema, readFileSync(scenarioFile, "utf8"))); gmHistory = []; conversations = new Map();
       persistDevelopmentState();

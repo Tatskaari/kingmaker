@@ -87,3 +87,5 @@ request occurs when the player clicks **Begin**. During development, changes to
 the server or browser files restart the server and refresh connected pages.
 The dev command snapshots game memory under `.moon/cache`, so watcher restarts
 preserve the current character and conversations.
+The top-right debug inspector reads the complete in-memory protobuf scenario and
+model histories from `/api/debug`; credentials are deliberately omitted.
