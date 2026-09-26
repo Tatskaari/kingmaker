@@ -24,7 +24,7 @@ const gmTools: readonly OpenRouterTool[] = [
     type: "function",
     function: {
       name: "offer_replies",
-      description: "Attach one or more suggested replies to your spoken response. Put all narration and questions in assistant content, never in tool arguments. Call alone. If calling without content, deliver the spoken response after the tool result without calling this tool again. Only the GM may set compelled=true, and only to obtain a missing creation detail after the player avoids answering. Never choose an answer for the player.",
+      description: "Attach one or more suggested replies to your spoken response. Put all narration and questions in assistant content, never in tool arguments. Call alone. If calling without content, deliver the spoken response after the tool result without calling this tool again. Only the GM may set compelled=true, and only to obtain a missing creation detail after the player resists a natural question and then a firmer warning; never for genuine uncertainty or readiness. Never choose an answer for the player.",
       parameters: {
         type: "object", additionalProperties: false, required: ["options", "compelled"],
         properties: {

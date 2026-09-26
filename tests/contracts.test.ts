@@ -300,3 +300,9 @@ test("options-only tool calls wait for spoken dialogue rather than supplying a q
   assert.deepEqual(messages.filter(message => message.role === "assistant"), [{ role: "assistant", text: reply }]);
   assert.deepEqual(Object.keys(JSON.parse(toolReply.tool_calls![0]!.function.arguments)).sort(), ["compelled", "options"]);
 });
+
+test("the documented Stranger checklist and escalation are the runtime prompt", () => {
+  const documented = readFileSync(new URL("../content/prompts/game-master.md", import.meta.url), "utf8")
+    .replace(/^# The Laughing Stranger\s+/, "").trim();
+  assert.equal(load().gameMasterPrompt, documented);
+});
