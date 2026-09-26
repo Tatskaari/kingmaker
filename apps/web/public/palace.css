@@ -48,3 +48,5 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; color: #a9cabe; font: 10px
 .prompt-preview { border-top: 1px solid #433826; margin-top: 16px; padding-top: 4px; }
 .prompt-preview > pre { max-height: 260px; overflow: auto; padding: 10px; background: #100e0b; font-size: 11px; }
 [data-jev-request], [data-jev-response], [data-jev-criteria] { max-height: 360px; overflow: auto; }
+
+[data-character-context] { max-height: 240px; overflow: auto; padding: 10px; background: #100e0b; font-size: 11px; }

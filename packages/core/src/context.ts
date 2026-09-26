@@ -4,6 +4,7 @@ import {
   GamePhase,
   TranscriptRole,
   WorldStateSchema,
+  type Scenario,
   type DialogueRequest,
   type Event,
   type GameMasterRequest,
@@ -15,6 +16,28 @@ function visibleEvents(events: readonly Event[], characterId: string): readonly 
   return events.filter(event =>
     event.visibility === EventVisibility.PUBLIC || event.characterIds.includes(characterId),
   );
+}
+
+/** Shared authored character context for dialogue and physical decisions. */
+export function characterContextFor(scenario: Scenario, characterId: string) {
+  const character = scenario.characters.find(item => item.id === characterId);
+  if (!character) throw new Error(`Cannot build context for unknown character ${characterId}`);
+  return { character, premise: scenario.premise, events: visibleEvents(scenario.events, characterId) };
+}
+
+/** Plain data for a decision model; the task overrides current intent, not biography. */
+export function characterDecisionContext(scenario: Scenario, characterId: string, goal: string) {
+  const { character, premise, events } = characterContextFor(scenario, characterId);
+  return {
+    premise,
+    character: {
+      id: character.id, name: character.name, lore: character.lore,
+      relationships: character.relationships.map(({ characterId, description }) => ({ characterId, description })),
+      motivation: character.currentGoal,
+      currentGoal: goal,
+    },
+    visibleEvents: events.map(({ id, day, type, summary }) => ({ id, day, type, summary })),
+  };
 }
 
 /** Removes undiscovered search spots and concealed objects. The game master sees
@@ -59,15 +82,14 @@ export function worldForCharacter(world: WorldState, characterId: string): World
 export class FullContextBuilder implements DialogueContextBuilder {
   build(request: DialogueRequest): readonly PromptMessage[] {
     const scenario = request.scenario;
-    const character = scenario?.characters.find(item => item.id === request.characterId);
-    if (!scenario || !character || !scenario.world) {
+    if (!scenario || !scenario.world) {
       throw new Error(`Cannot build context for unknown character ${request.characterId}`);
     }
 
+    const { character, events } = characterContextFor(scenario, request.characterId);
     const relationships = character.relationships.length
       ? character.relationships.map(item => `- ${item.characterId}: ${item.description}`).join("\n")
       : "- None recorded.";
-    const events = visibleEvents(scenario.events, character.id);
     const recent = events.length
       ? events.map(event => `- [day ${event.day}] ${event.type}: ${event.summary}`).join("\n")
       : "- Nothing has happened yet.";

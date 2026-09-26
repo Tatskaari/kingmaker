@@ -13,9 +13,9 @@ export function legalActions(routes: readonly NavRoute[], doors: readonly Door[]
   ];
 }
 export const PALACE_INSTRUCTIONS = {
-            role: "You control one character in a simulated palace. Rooms contain doors and furniture. You can move between named places, operate nearby doors and containers, and carry items.",
-            question: "Which available next action best advances the character's `goal` from its current situation?",
-            evidence: ["world", "actions", "recentEvents"],
+            role: "Choose physical actions for the character described in `characterContext.character`, within the supplied scenario and current world. Use their authored identity, lore, relationships, motivation and visible events as context.",
+            question: "Which action should this character perform next to pursue their current goal, given who they are and what has happened?",
+            evidence: ["characterContext", "goal", "world", "actions", "recentEvents"],
             knowledge: "The world describes what the character knows. Unknown facts are unknown, not false. The offered actions are legal now; their descriptions explain their immediate effects. Actions may change which actions become available next.",
             goalOrder: "Respect the full free-form goal, including ordering and conditions. Recent events describe completed actions, not future plans.",
             completion: "Choose complete only when the current situation and completed events establish that the entire goal has been achieved.",
@@ -31,6 +31,7 @@ export function palaceCriteria(actions: readonly PalaceAction[]): Record<string,
 export interface AgentSnapshot { at: string; revision: number; actions: PalaceAction[]; world: unknown }
 export interface AgentHost {
   snapshot(): AgentSnapshot;
+  characterContext?(goal: string): unknown;
   execute(action: PalaceAction): Promise<void>;
   report(message: string, decision?: JevChoice): void;
   changed(): void;
@@ -62,7 +63,7 @@ export class PalaceAgent {
         const before = this.host.snapshot();
         if (this.#steps >= 24) throw new Error("Stopped after 24 actions. Set a new goal or reset to try again.");
         this.host.report(`Jev is choosing action ${this.#steps + 1}…`);
-        const result = await choose({ goal, ...before, recentEvents: this.#history },
+        const result = await choose({ goal, ...(this.host.characterContext ? { characterContext: this.host.characterContext(goal) } : {}), ...before, recentEvents: this.#history },
           PALACE_INSTRUCTIONS, palaceCriteria(before.actions), controller.signal);
         if (!active()) return;
         const now = this.host.snapshot();

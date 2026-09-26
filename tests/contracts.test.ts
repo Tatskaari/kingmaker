@@ -18,7 +18,7 @@ import {
   TranscriptRole,
   type Scenario,
 } from "../packages/contracts/src/index.js";
-import { FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter } from "../packages/core/src/context.js";
+import { FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter, characterDecisionContext } from "../packages/core/src/context.js";
 import { MemoryGame } from "../packages/core/src/game.js";
 import { palaceMap } from "../apps/web/src/palace-map.js";
 
@@ -889,4 +889,36 @@ test("Jev action loop can fetch the key and open the king's lockbox through actu
   assert.ok(state.furniture.find(item => item.id === "royal_lockbox")!.open);
   assert.deepEqual(state.inventory.map(item => item.id), ["royal_key"]);
   assert.match(reports.at(-1)!, /reports the goal complete/);
+});
+
+
+test("palace decisions reuse Merlin's authored lore, relationships and only visible memories", () => {
+  const scenario = load();
+  const original = scenario.characters.find(character => character.id === "merlin")!;
+  const context = characterDecisionContext(scenario, "merlin", "Find the key and open the royal lockbox");
+  assert.equal(context.character.name, "Merlin");
+  assert.equal(context.character.lore, original.lore);
+  assert.equal(context.character.motivation, original.currentGoal);
+  assert.equal(context.character.currentGoal, "Find the key and open the royal lockbox");
+  assert.equal(context.character.relationships.length, original.relationships.length);
+  assert.equal(context.premise, scenario.premise);
+  assert.ok(context.visibleEvents.some(event => event.id === "feast_joke_merlin"));
+  assert.ok(context.visibleEvents.some(event => event.id === "solstice_rule"));
+  assert.ok(!context.visibleEvents.some(event => event.id === "feast_joke_lancelot"));
+  assert.notEqual(original.currentGoal, context.character.currentGoal, "source character is not mutated");
+  assert.ok(!JSON.stringify(context).includes("Return spoken dialogue"), "dialogue output instructions are not decision instructions");
+});
+
+test("every agent decision receives the shared character context with the free-form task", async () => {
+  const fixture = agentFixture();
+  fixture.host.characterContext = goal => characterDecisionContext(load(), "merlin", goal);
+  let inspected = false;
+  await fixture.agent.run("Find the key", async state => {
+    const request = state as { goal: string; characterContext: ReturnType<typeof characterDecisionContext> };
+    assert.equal(request.characterContext.character.name, "Merlin");
+    assert.equal(request.characterContext.character.currentGoal, request.goal);
+    inspected = true;
+    return { choice: "unable", probabilities: { unable: 1 } };
+  });
+  assert.ok(inspected);
 });

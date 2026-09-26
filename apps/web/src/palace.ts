@@ -1,3 +1,6 @@
+import { fromJsonString } from "@bufbuild/protobuf";
+import { ScenarioSchema } from "../../../packages/contracts/src/index.js";
+import { characterDecisionContext } from "../../../packages/core/src/context.js";
 import { CanvasMapRenderer } from "./map-renderer.js";
 import { palaceMap } from "./palace-map.js";
 import { findPath, reachableRoutes, type NavRoute, type Point } from "./navigation.js";
@@ -5,6 +8,10 @@ import { createDoors, doorGraph, doorBlockers, canUseDoor, toggleDoor, type Door
 import { PalaceAgent, legalActions, PALACE_INSTRUCTIONS, palaceCriteria, type PalaceAction } from "./palace-agent.js";
 import { JevClient } from "../../../packages/providers/src/jev.js";
 import { createFurniture, addFurnitureNodes, furnitureBlockers, furnitureActions, applyFurnitureAction, observeFurniture, besideFurniture } from "./palace-furniture.js";
+const scenarioResponse = await fetch(new URL("../../../content/scenarios/last-night.json", import.meta.url));
+if (!scenarioResponse.ok) throw new Error("Could not load Merlin's character sheet.");
+const scenario = fromJsonString(ScenarioSchema, await scenarioResponse.text());
+const merlin = scenario.characters.find(character => character.id === "merlin")!;
 const doors = createDoors();
 const furnitureState = createFurniture();
 const graph = doorGraph(doors);
@@ -49,6 +56,7 @@ let frame = 0;
 let revision = 0;
 let movementDone: (() => void) | undefined;
 const agent = new PalaceAgent({
+  characterContext: goal => characterDecisionContext(scenario, merlin.id, goal),
   snapshot: () => ({ at: current.id, revision, actions: availableActions(), world: worldObservation() }),
   execute: async (action: PalaceAction) => {
     if (action.type === "move") {
@@ -150,9 +158,11 @@ function refresh(): void {
   inventory.textContent = furnitureState.inventory.map(item => item.name).join(", ") || "Empty";
   lockboxStatus.textContent = furnitureState.furniture.find(item => item.id === "royal_lockbox")!.open ? "King's lockbox: open" : "King's lockbox: locked";
   location.textContent = movement ? `To ${movement.route.node.name}` : current.name;
+  element("[data-character-name]").textContent = merlin.name;
+  element("[data-character-context]").textContent = JSON.stringify(characterDecisionContext(scenario, merlin.id, goalInput.value), null, 2);
   element("[data-jev-prompt]").textContent = JSON.stringify(PALACE_INSTRUCTIONS, null, 2);
   element("[data-jev-criteria]").textContent = JSON.stringify(palaceCriteria(availableActions()), null, 2);
-  observation.textContent = JSON.stringify({ goal: goalInput.value, world: worldObservation(), recentEvents: agent.history }, null, 2);
+  observation.textContent = JSON.stringify({ goal: goalInput.value, characterContext: characterDecisionContext(scenario, merlin.id, goalInput.value), world: worldObservation(), recentEvents: agent.history }, null, 2);
   runButton.disabled = stepButton.disabled = agent.running || !!movement;
   pauseButton.disabled = !agent.running;
   goalInput.disabled = keyInput.disabled = agent.running || !!movement;
@@ -209,14 +219,8 @@ function render(): void {
     }
     context.restore();
   }
-  // Small pixel character, anchored at the centre of its occupied tile.
-  const x = Math.round(position.x * 16 + 8), y = Math.round(position.y * 16 + 8);
-  context.fillStyle = "#0008"; context.fillRect(x - 5, y + 5, 10, 3);
-  context.fillStyle = "#172c3e"; context.fillRect(x - 4, y - 3, 8, 10);
-  context.fillStyle = "#67c9e0"; context.fillRect(x - 3, y - 2, 6, 7);
-  context.fillStyle = "#f6cf91"; context.fillRect(x - 3, y - 7, 6, 5);
-  context.fillStyle = "#624631"; context.fillRect(x - 3, y - 8, 6, 2);
-  context.fillStyle = "#e7ebd5"; context.fillRect(x - 3, y + 5, 2, 2); context.fillRect(x + 1, y + 5, 2, 2);
+  // Merlin uses the wizard sprite from the same Kenney tileset.
+  renderer.drawSprite("tiny-dungeon", 84, position.x, position.y);
 }
 function travel(id: string): boolean {
   if (movement) return false;

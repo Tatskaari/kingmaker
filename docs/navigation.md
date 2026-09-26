@@ -90,3 +90,19 @@ Prompt design references: TypeSafe's [state guide](https://docs.typesafe.ai/conc
 observation still exposes the known logical graph; a more compact character-centred
 projection and separate completion judgment are follow-up design considerations,
 not claims that arbitrary planning reliability has been demonstrated.
+
+## Merlin's character context
+
+The palace agent uses Merlin from `content/scenarios/last-night.json`. Dialogue
+and physical decisions share `characterContextFor`, including event visibility.
+Every Jev request includes the authored premise, Merlin's lore and relationships,
+his original motivation, and his visible public/private events. The goal input
+supplies his current task without mutating the source character sheet. The
+Character context panel displays this exact projection before any request.
+
+Merlin's authored lore already says he knows the key is in his study drawer;
+this is legitimate character knowledge, not a search hint invented for the model.
+The physical lockbox still checks actual key possession. Dialogue-specific output
+instructions are not copied into the Decisions API. The prototype loads the shared
+starting scenario; it does not yet import character edits from a separate saved
+conversation. Merlin's sprite now uses the existing Kenney wizard tile.
