@@ -1,0 +1,21 @@
+# Dialogue model
+
+The assembled context is deliberately simple and complete:
+
+1. System instructions.
+2. The scenario premise and ancient law.
+3. This character's lore and current free-text goal.
+4. This character's relationships.
+5. Every public event and private event involving this character.
+6. The character's complete known world state. Undiscovered hiding places and
+   concealed objects remain only in the authoritative game-master state.
+7. The conversation transcript.
+
+The response contains an utterance, zero or more new events, and an optional
+replacement goal. Events cover every social concept: observations, thoughts,
+promises, agreements, insults, apologies, revelations, and conversations.
+
+Dialogue may create intent, social meaning, misinformation, and surprising plans.
+It cannot directly mutate the physical world. A character saying "I give you the
+key" can create an event and a goal; the autonomous action loop must still choose
+and execute the physical `give` action.

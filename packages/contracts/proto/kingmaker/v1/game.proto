@@ -1,0 +1,194 @@
+syntax = "proto3";
+
+package kingmaker.v1;
+
+import "google/protobuf/struct.proto";
+
+// Authored prose from this character's point of view. It may be unfair,
+// incomplete, or changed by later events.
+message Relationship {
+  string character_id = 1;
+  string description = 2;
+}
+
+// The dialogue model may replace current_goal. Jev receives it verbatim when
+// choosing the character's next action.
+message Character {
+  string id = 1;
+  string name = 2;
+  string lore = 3;
+  repeated Relationship relationships = 4;
+  string current_goal = 5;
+}
+
+enum EventVisibility {
+  EVENT_VISIBILITY_UNSPECIFIED = 0;
+  EVENT_VISIBILITY_PUBLIC = 1;
+  EVENT_VISIBILITY_PRIVATE = 2;
+}
+
+// Conversations, promises, insults, observations, actions and thoughts all use
+// the same append-only shape. Details are optional structure for engine facts.
+message Event {
+  string id = 1;
+  uint32 day = 2;
+  string type = 3;
+  string summary = 4;
+  repeated string character_ids = 5;
+  EventVisibility visibility = 6;
+  google.protobuf.Struct details = 7;
+}
+
+message SearchSpot {
+  string id = 1;
+  string action_label = 2;
+  string description = 3;
+  repeated string content_object_ids = 4;
+  repeated string known_by_character_ids = 5;
+  repeated string discovered_by_character_ids = 6;
+  repeated string searched_by_character_ids = 7;
+}
+
+message Room {
+  string id = 1;
+  string name = 2;
+  string description = 3;
+  repeated string exit_room_ids = 4;
+  repeated SearchSpot search_spots = 5;
+}
+
+message ActorState {
+  string character_id = 1;
+  string home_room_id = 2;
+  string room_id = 3;
+  bool awake = 4;
+}
+
+message ObjectState {
+  string id = 1;
+  string name = 2;
+  string location_id = 3;
+  bool concealed = 4;
+  google.protobuf.Struct properties = 5;
+}
+
+// The authoritative state contains every room, spot and object. Before model
+// calls, concealed objects and undiscovered spots are removed unless known by
+// that character. Facts remain flexible for incidental scenario state.
+message WorldState {
+  uint32 revision = 1;
+  uint32 day = 2;
+  uint32 solstice_day = 3;
+  repeated Room rooms = 4;
+  repeated ActorState actors = 5;
+  repeated ObjectState objects = 6;
+  google.protobuf.Struct facts = 7;
+  GamePhase phase = 8;
+}
+
+enum GamePhase {
+  GAME_PHASE_UNSPECIFIED = 0;
+  GAME_PHASE_PLAYER_CREATION = 1;
+  GAME_PHASE_CONVERSATIONS = 2;
+  GAME_PHASE_NIGHT_ACTIONS = 3;
+  GAME_PHASE_SOLSTICE = 4;
+  GAME_PHASE_RESOLVED = 5;
+}
+
+message Scenario {
+  string id = 1;
+  string system_prompt = 2;
+  string premise = 3;
+  string game_master_prompt = 4;
+  repeated Character characters = 5;
+  repeated Event events = 6;
+  WorldState world = 7;
+  optional string player_character_id = 8;
+}
+
+enum TranscriptRole {
+  TRANSCRIPT_ROLE_UNSPECIFIED = 0;
+  TRANSCRIPT_ROLE_PLAYER = 1;
+  TRANSCRIPT_ROLE_CHARACTER = 2;
+  TRANSCRIPT_ROLE_OTHER_CHARACTER = 3;
+  TRANSCRIPT_ROLE_GAME_MASTER = 4;
+}
+
+message TranscriptMessage {
+  TranscriptRole role = 1;
+  string speaker_id = 2;
+  string text = 3;
+}
+
+message DialogueRequest {
+  string character_id = 1;
+  Scenario scenario = 2;
+  repeated TranscriptMessage transcript = 3;
+}
+
+message GoalUpdate {
+  string goal = 1;
+  string reason = 2;
+}
+
+message DialogueResponse {
+  string utterance = 1;
+  repeated Event new_events = 2;
+  optional GoalUpdate goal_update = 3;
+}
+
+message RelationshipUpdate {
+  string owner_character_id = 1;
+  Relationship relationship = 2;
+}
+
+// Once the interview has enough material, the game master creates the player
+// and describes how each existing character initially understands them.
+message PlayerSetup {
+  Character player = 1;
+  repeated RelationshipUpdate npc_relationships = 2;
+  string homeland = 3;
+  string embassy_role = 4;
+}
+
+message GameMasterRequest {
+  Scenario scenario = 1;
+  repeated TranscriptMessage transcript = 2;
+}
+
+message GameMasterResponse {
+  string utterance = 1;
+  optional PlayerSetup player_setup = 2;
+  repeated Event new_events = 3;
+}
+
+// The engine creates bound, currently legal candidates. Jev chooses an ID and
+// cannot invent a type or parameters.
+message AvailableAction {
+  string id = 1;
+  string type = 2;
+  string description = 3;
+  google.protobuf.Struct parameters = 4;
+}
+
+message DecisionRequest {
+  Character character = 1;
+  // A knowledge-filtered projection, never the authoritative secret state.
+  WorldState world = 2;
+  repeated Event recent_events = 3;
+  repeated AvailableAction available_actions = 4;
+}
+
+message DecisionResponse {
+  string chosen_action_id = 1;
+  map<string, double> probabilities = 2;
+  optional double confidence = 3;
+  string model_id = 4;
+  uint32 based_on_revision = 5;
+}
+
+message ActionResult {
+  string action_id = 1;
+  uint32 based_on_revision = 2;
+  repeated Event events = 3;
+}

@@ -1,0 +1,31 @@
+toolchains:
+  default: node
+tasks:
+  typecheck:
+    command: npx --no-install tsc --noEmit
+    deps: [contracts:generate]
+    inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
+  test:
+    command: npx --no-install tsx --test tests/contracts.test.ts
+    deps: [contracts:generate]
+    inputs: ['packages/**/*', 'tests/**/*', 'content/**/*', 'package.json', 'package-lock.json']
+  build:
+    command: npx --no-install tsc --outDir dist
+    deps: [contracts:generate]
+    inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
+    outputs: [dist]
+  check:
+    deps: [contracts:lint, typecheck, test]
+  renderContexts:
+    command: npx --no-install tsx scripts/render-dialogue-contexts.ts /tmp/kingmaker-openrouter-contexts
+    deps: [contracts:generate]
+    inputs: ['scripts/**/*', 'content/**/*', 'packages/core/**/*', 'packages/contracts/**/*']
+    options:
+      cache: false
+  dev:
+    command: npx --no-install tsx apps/server/src/index.ts
+    deps: [contracts:generate]
+    inputs: ['apps/**/*', 'packages/**/*', 'content/**/*', 'package.json', 'package-lock.json']
+    options:
+      cache: false
+      persistent: true

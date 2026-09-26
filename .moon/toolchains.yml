@@ -1,0 +1,8 @@
+# Runtime versions inherit from .prototools.
+proto:
+  version: '0.62.0'
+javascript:
+  packageManager: npm
+  inferTasksFromScripts: false
+node: {}
+npm: {}

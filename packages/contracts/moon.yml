@@ -1,0 +1,10 @@
+toolchains:
+  default: node
+tasks:
+  lint:
+    command: npx --no-install buf lint
+    inputs: ['proto/**/*', 'buf.yaml']
+  generate:
+    command: npx --no-install buf generate
+    inputs: ['proto/**/*', 'buf.yaml', 'buf.gen.yaml', '/package.json', '/package-lock.json']
+    outputs: [src/gen]
