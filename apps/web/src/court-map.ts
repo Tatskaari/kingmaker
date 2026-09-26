@@ -47,6 +47,21 @@ export function courtPath(start: Point, end: Point): Point[] | undefined {
   return findPath(palaceMap, start, end, courtBlockers);
 }
 
+export function courtWalkPoint(path: readonly Point[], progress: number): Point {
+  const offset = Math.max(0, Math.min(progress, path.length - 1));
+  const index = Math.floor(offset), from = path[index]!, to = path[Math.min(index + 1, path.length - 1)]!;
+  return { x: from.x + (to.x - from.x) * (offset - index), y: from.y + (to.y - from.y) * (offset - index) };
+}
+/** Finish the current partial tile step, then follow the replacement A* route. */
+export function redirectCourtPath(path: readonly Point[], progress: number, destination: Point): Point[] | undefined {
+  const offset = Math.max(0, Math.min(progress, path.length - 1));
+  const pivot = path[Math.ceil(offset)]!;
+  const route = courtPath(pivot, destination);
+  if (!route) return undefined;
+  const visual = courtWalkPoint(path, offset);
+  return visual.x === pivot.x && visual.y === pivot.y ? route : [visual, ...route];
+}
+
 /** Mount inside the day screen; native buttons retain keyboard and touch access. */
 export async function mountCourtMap(root: HTMLElement, characters: readonly CourtCharacter[], player: CourtCharacter | null,
   selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<void>): Promise<void> {
@@ -55,8 +70,9 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   const canvas = document.createElement("canvas"); canvas.setAttribute("aria-label", "Palace of Caerwyn");
   stage.append(canvas); viewport.append(stage); root.append(viewport);
   const status = document.createElement("p"); status.className = "status"; status.setAttribute("role", "status");
-  status.textContent = "Click a floor tile to walk there. Select a character to talk."; root.append(status);
+  status.textContent = "Click a floor tile to walk there; click again to change destination. Select a character to talk."; root.append(status);
   let moving = false;
+  let redirect: ((destination: Point) => boolean) | undefined;
   let playerControl: HTMLElement | undefined;
   const markers = courtMarkers([...characters, ...(player ? [player] : [])]);
   for (const marker of markers) {
@@ -86,7 +102,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   await renderer.load();
   if (!root.isConnected) return;
   const draw = () => {
-    renderer.render(true, false);
+    renderer.render(false, false);
     for (const item of scenery) renderer.drawSprite("tiny-dungeon", item.sprite, item.x, item.y);
   };
   draw();
@@ -97,31 +113,49 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     playerControl.style.top = `${(point.y + 0.5) / palaceMap.height * 100}%`;
   };
   canvas.addEventListener("click", async event => {
-    if (disabled || moving || !position || !movePlayer) return;
+    if (disabled || !position || !movePlayer) return;
     const hit = renderer.hit(event.clientX, event.clientY);
-    const path = hit && courtPath(position, { x: hit.tileX, y: hit.tileY });
+    if (moving) {
+      if (hit && redirect && !redirect({ x: hit.tileX, y: hit.tileY })) status.textContent = "That tile is blocked; continuing to your previous destination.";
+      return;
+    }
+    let path = hit && courtPath(position, { x: hit.tileX, y: hit.tileY });
     if (!path) { status.textContent = "You cannot walk there. Choose a clear floor tile."; return; }
     if (path.length < 2) return;
     moving = true;
     for (const button of root.querySelectorAll("button")) button.disabled = true;
-    const start = position, destination = path[path.length - 1]!;
+    const start = position;
+    let destination = path[path.length - 1]!;
     status.textContent = `Walking to ${courtRoomAt(destination)?.name ?? "the passage"}…`;
     const context = canvas.getContext("2d")!;
-    context.beginPath(); context.strokeStyle = "#fff0aa"; context.lineWidth = 2;
-    path.forEach((point, index) => { if (!index) context.moveTo(point.x * 16 + 8, point.y * 16 + 8); else context.lineTo(point.x * 16 + 8, point.y * 16 + 8); }); context.stroke();
-    const started = performance.now();
+    const drawRoute = () => {
+      draw();
+      context.beginPath(); context.strokeStyle = "#fff0aa"; context.lineWidth = 2;
+      path!.forEach((point, index) => { if (!index) context.moveTo(point.x * 16 + 8, point.y * 16 + 8); else context.lineTo(point.x * 16 + 8, point.y * 16 + 8); }); context.stroke();
+    };
+    drawRoute();
+    let started = performance.now();
+    redirect = target => {
+      const now = performance.now();
+      const replacement = redirectCourtPath(path!, (now - started) / 100, target);
+      if (!replacement) return false;
+      path = replacement; started = now; destination = target;
+      place(path[0]!); drawRoute();
+      status.textContent = `Changed course: walking to ${courtRoomAt(target)?.name ?? "the passage"}…`;
+      return true;
+    };
     const arrived = await new Promise<boolean>(resolve => {
       const animate = (time: number) => {
         if (!root.isConnected) { resolve(false); return; }
-        const progress = Math.min((time - started) / 100, path.length - 1);
-        const index = Math.floor(progress), from = path[index]!, to = path[Math.min(index + 1, path.length - 1)]!;
-        place({ x: from.x + (to.x - from.x) * (progress - index), y: from.y + (to.y - from.y) * (progress - index) });
-        if (progress === path.length - 1) resolve(true); else window.setTimeout(() => animate(performance.now()), 16);
+        const progress = Math.min((time - started) / 100, path!.length - 1);
+        place(courtWalkPoint(path!, progress));
+        if (progress === path!.length - 1) resolve(true); else window.setTimeout(() => animate(performance.now()), 16);
       };
       // The embedded browser can throttle requestAnimationFrame even while the
       // map is visible. Match the palace prototype's elapsed-time timer loop.
       window.setTimeout(() => animate(performance.now()), 16);
     });
+    redirect = undefined;
     if (!arrived) return;
     try {
       await movePlayer(destination); position = destination;

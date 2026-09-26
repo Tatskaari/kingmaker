@@ -171,7 +171,7 @@ the map. Character placement comes from the saved actor room IDs. Rooms absent
 from this map retain an accessible named control below it rather than inventing
 a location. The prototype's coffer/key/loot state is not imported.
 
-Click a clear floor tile to walk there. A* avoids walls and scenic furniture; the
+The main map hides the room-name overlay. Click a clear floor tile to walk there; another click during movement replaces the route from the current position. Blocked targets leave the previous route intact. A* avoids walls and scenic furniture; the
 player marker interpolates along the route with the same elapsed-time timer loop
 as the prototype (the embedded browser can throttle animation frames). Arrival is
 validated and saved through the worker, including exact tile position and the

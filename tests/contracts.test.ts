@@ -1,4 +1,4 @@
-import { courtMarkers, courtPath, courtRoomAt } from "../apps/web/src/court-map.js";
+import { courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath } from "../apps/web/src/court-map.js";
 import { PalaceDialogue, palaceSurroundings, palaceDialogueContext, createPalacePlayer } from "../apps/web/src/palace-dialogue.js";
 import { interactionActions, executeInteraction } from "../apps/web/src/palace-interactions.js";
 import assert from "node:assert/strict";
@@ -1186,4 +1186,20 @@ test("main palace movement validates routes and survives saving and restoring", 
   assert.equal(restored.view().location, "Entrance Hall");
   restored.reset(); assert.equal(restored.snapshot().palacePosition, undefined);
   assert.throws(() => new BrowserGameRuntime(load(), "test").movePlayer({ x: 5, y: 5 }), /Enter the court/);
+});
+
+
+test("mid-walk redirection preserves the current visual position and rejects blocked destinations", () => {
+  const original = courtPath({ x: 15, y: 21 }, { x: 5, y: 5 })!;
+  const visual = courtWalkPoint(original, 2.4);
+  const changed = redirectCourtPath(original, 2.4, { x: 26, y: 25 })!;
+  assert.deepEqual(changed[0], visual);
+  assert.deepEqual(changed[1], original[3]);
+  assert.deepEqual(changed.at(-1), { x: 26, y: 25 });
+  assert.equal(redirectCourtPath(original, 2.4, { x: 0, y: 0 }), undefined);
+  const again = redirectCourtPath(changed, 0.2, { x: 15, y: 21 })!;
+  assert.deepEqual(again[0], courtWalkPoint(changed, 0.2));
+  assert.deepEqual(again.at(-1), { x: 15, y: 21 });
+  const stop = redirectCourtPath(original, 3, original[3]!)!;
+  assert.equal(stop.length, 1);
 });
