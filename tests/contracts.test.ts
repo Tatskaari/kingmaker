@@ -1124,3 +1124,33 @@ test("aborted palace replies and reviews cannot restore a reset conversation or 
   assert.equal(dialogue.transcript.length, 0);
   assert.equal(JSON.stringify(scenario), before);
 });
+
+test("palace memory schema limits targets and normalizes names and duplicate relationship entries", async () => {
+  const scenario = load(); scenario.characters.push(createPalacePlayer());
+  const dialogue = new PalaceDialogue(scenario, () => ({ room: "Great Hall" }), () => "Wait");
+  await dialogue.speak("Can you help me?", async () => ({ role: "assistant", content: '{"utterance":"Yes","replyOptions":[]}' }));
+  const result = await dialogue.finish(async request => {
+    const schema = request.response_format as { json_schema: { schema: { properties: { relationships: { items: { properties: { characterId: { enum: string[] } } } } } } } };
+    assert.deepEqual(schema.json_schema.schema.properties.relationships.items.properties.characterId.enum, ["lancelot", "king", "player"]);
+    return { role: "assistant", content: JSON.stringify({ newEvents: [], goalUpdate: { goal: "Help Alden", reason: "Agreed" }, lore: null,
+      relationships: [{ characterId: "Alden", description: "He asked for help." }, { characterId: "player", description: "He asked for help." },
+        { characterId: "alden", description: "I am willing to listen." }] }) };
+  });
+  assert.equal(result.goal, "Help Alden");
+  const relationship = scenario.characters.find(character => character.id === "merlin")!.relationships.filter(item => item.characterId === "player");
+  assert.equal(relationship.length, 1);
+  assert.equal(relationship[0]!.description, "He asked for help.\nI am willing to listen.");
+});
+
+test("unknown or self relationship targets fail clearly without losing the palace conversation", async () => {
+  const scenario = load(); scenario.characters.push(createPalacePlayer());
+  const dialogue = new PalaceDialogue(scenario, () => ({}), () => "Wait");
+  await dialogue.speak("Hello", async () => ({ role: "assistant", content: '{"utterance":"Hello","replyOptions":[]}' }));
+  const before = JSON.stringify(scenario);
+  for (const target of ["imaginary_person", "merlin"]) {
+    await assert.rejects(dialogue.finish(async () => ({ role: "assistant", content: JSON.stringify({ newEvents: [], goalUpdate: null,
+      relationships: [{ characterId: target, description: "A friend" }], lore: null }) })), /invalid relationship target/);
+  }
+  assert.equal(dialogue.transcript.length, 2);
+  assert.equal(JSON.stringify(scenario), before);
+});

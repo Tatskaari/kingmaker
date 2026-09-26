@@ -349,9 +349,11 @@ async function converse(finish: boolean): Promise<void> {
   dialogueStatus.textContent = finish ? "Reviewing the conversation…" : "Merlin is replying…";
   refresh();
   const client = new OpenRouterClient(key);
-  const complete: typeof client.complete = (request, signal) => {
+  const complete: typeof client.complete = async (request, signal) => {
     element("[data-dialogue-request]").textContent = JSON.stringify(request, null, 2);
-    return client.complete(request, signal);
+    const response = await client.complete(request, signal);
+    if (finish && !signal?.aborted) element("[data-dialogue-review]").textContent = response.content ?? "No review content returned.";
+    return response;
   };
   try {
     if (finish) {
