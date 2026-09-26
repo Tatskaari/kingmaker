@@ -176,8 +176,7 @@ player marker interpolates along the route with the same elapsed-time timer loop
 as the prototype (the embedded browser can throttle animation frames). Arrival is
 validated and saved through the worker, including exact tile position and the
 player's narrative room. Failed saves restore the previous position. Leaving the
-screen cancels unfinished walks. Older saves without actor positions are not migrated; start a new game. Passageways are currently open; door interactions and autonomous NPC
-movement remain in the prototype.
+screen cancels unfinished walks. Older saves without actor positions are not migrated; start a new game. Doors now block passage when closed; autonomous NPC movement remains in the prototype.
 
 
 ### Authored actor positions
@@ -213,3 +212,20 @@ Conversations open in a native modal over the palace map. The map is inert while
 it is open, and the existing conversation review/save runs when ending the chat
 or dismissing it with Escape. Failed reviews leave the modal open for retry.
 Character debugging stays within the modal's focus boundary.
+
+
+### Main-game doors
+
+The scenario's `world.doors` authors seven doors, their two-tile thresholds,
+inside/outside interaction spots, connected room IDs and initial open state.
+The main game and prototype share door rendering. Main-game state is serialized
+with the rest of the world; older saves without doors are not migrated.
+
+Right-click either threshold tile for a single Open or Close action. The player's
+side is chosen by the shortest currently reachable A* route, not a separate menu
+choice. The player walks to that spot before the door changes. Closed doors block
+both tiles for walks, reroutes and other interaction approaches. Dispatch checks
+the player's exact approach position and refuses to close onto any actor. Failed
+saves roll back the door mutation without undoing an already saved approach walk.
+Doors currently have no ownership/permission rules, so these actions are normal
+(grey); legality remains a separate action property for future access rules.

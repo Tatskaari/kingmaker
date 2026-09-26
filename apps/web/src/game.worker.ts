@@ -141,6 +141,13 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     }
     return { state: game.view(), saves: await listSaves() };
   }
+  if (type === "set_door") {
+    if (typeof payload.open !== "boolean") throw new Error("Door state must be open or closed.");
+    const game = requireRuntime(), before = structuredClone(game.snapshot());
+    try { game.setDoor(String(payload.id), payload.open); await persist(); }
+    catch (error) { game.restore(before); throw error; }
+    return { state: game.view(), saves: await listSaves() };
+  }
   if (type === "move_player") {
     const game = requireRuntime(), before = structuredClone(game.snapshot());
     try { game.movePlayer({ x: Number(payload.x), y: Number(payload.y) }); await persist(); }

@@ -149,6 +149,15 @@ message ObjectState {
 // The authoritative state contains every room, spot and object. Before model
 // calls, concealed objects and undiscovered spots are removed unless known by
 // that character. Facts remain flexible for incidental scenario state.
+message DoorState {
+  string id = 1;
+  string name = 2;
+  repeated TilePosition tiles = 3;
+  repeated TilePosition interaction_spots = 4;
+  repeated string room_ids = 5;
+  bool open = 6;
+}
+
 message WorldState {
   uint32 revision = 1;
   uint32 day = 2;
@@ -158,6 +167,7 @@ message WorldState {
   repeated ObjectState objects = 6;
   google.protobuf.Struct facts = 7;
   GamePhase phase = 8;
+  repeated DoorState doors = 9;
 }
 
 enum GamePhase {

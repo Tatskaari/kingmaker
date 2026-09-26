@@ -315,7 +315,7 @@ export class BrowserGameRuntime {
     const actor = world.actors.find(actor => actor.characterId === player?.id);
     if (!player || !actor) throw new Error("Player is missing from the palace.");
     const start = actor.position;
-    if (!start || !courtPath(start, destination)) throw new Error("That destination is not reachable.");
+    if (!start || !courtPath(start, destination, world.doors)) throw new Error("That destination is not reachable.");
     const room = courtRoomAt(destination);
     if (!room) throw new Error("That destination is outside the palace.");
     if (!world.rooms.some(existing => existing.id === room.id)) {
@@ -330,6 +330,20 @@ export class BrowserGameRuntime {
     this.#game = new MemoryGame(scenario);
   }
 
+  setDoor(id: string, open: boolean): void {
+    const scenario = this.#game.scenario(), world = scenario.world;
+    if (world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter the court before using doors.");
+    const door = world.doors.find(door => door.id === id);
+    const player = world.actors.find(actor => actor.characterId === scenario.playerCharacterId);
+    if (!door || door.open === open || !player?.position || !door.interactionSpots.some(spot => spot.x === player.position!.x && spot.y === player.position!.y)) {
+      throw new Error("Walk to a door interaction spot before using it.");
+    }
+    if (!open && world.actors.some(actor => actor.position && door.tiles.some(tile => tile.x === actor.position!.x && tile.y === actor.position!.y))) {
+      throw new Error("Someone is standing in the doorway.");
+    }
+    door.open = open; world.revision++; this.#game = new MemoryGame(scenario);
+  }
+
   view(): JsonObject {
     const scenario = this.#game.scenario();
     const world = scenario.world;
@@ -338,6 +352,7 @@ export class BrowserGameRuntime {
       playerDraft: this.#playerDraft,
       phase: this.#playerDraft ? "character_review" : world?.phase === GamePhase.PLAYER_CREATION ? "player_creation" : world?.phase === GamePhase.CONVERSATIONS ? "conversations" : "other",
       day: world?.day || 0,
+      doors: world?.doors ?? [],
       location: world?.rooms.find(room => room.id === world.actors.find(actor => actor.characterId === player?.id)?.roomId)?.name || "Great Hall",
       premise: scenario.premise,
       player: player ? {

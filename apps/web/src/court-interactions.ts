@@ -3,7 +3,7 @@ import type { Point } from "./navigation.js";
 export interface CourtAction {
   id: string;
   label: string;
-  type: "walk" | "talk" | "inspect";
+  type: "walk" | "talk" | "inspect" | "door";
   target: string;
   order: number;
   legality: "normal" | "illegal";

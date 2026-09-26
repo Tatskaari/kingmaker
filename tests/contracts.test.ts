@@ -1,5 +1,5 @@
 import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
-import { courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath, courtInteractionPoint } from "../apps/web/src/court-map.js";
+import { courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath, courtInteractionPoint, nearestDoorSpot } from "../apps/web/src/court-map.js";
 import { PalaceDialogue, palaceSurroundings, palaceDialogueContext, createPalacePlayer } from "../apps/web/src/palace-dialogue.js";
 import { interactionActions, executeInteraction } from "../apps/web/src/palace-interactions.js";
 import assert from "node:assert/strict";
@@ -1177,6 +1177,8 @@ test("main palace movement validates routes and survives saving and restoring", 
   for (const actor of scenario.world!.actors) actor.roomId = "great_hall";
   scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 16, y: 22 }) });
   const runtime = new BrowserGameRuntime(scenario, "test");
+  runtime.movePlayer({ x: 5, y: 10 });
+  runtime.setDoor("merlin_door", true);
   runtime.movePlayer({ x: 5, y: 5 });
   assert.deepEqual(fromJson(ScenarioSchema, runtime.snapshot().scenario).world!.actors.find(actor => actor.characterId === "player")!.position, create(TilePositionSchema, { x: 5, y: 5 }));
   assert.equal(runtime.view().location, "Merlin's Chamber");
@@ -1252,4 +1254,36 @@ test("interaction spots approach characters and honor authored furniture points"
   const authored = { x: 6, y: 5 };
   assert.deepEqual(courtInteractionPoint(start, { x: 6, y: 4 }, authored), authored);
   assert.equal(courtInteractionPoint(start, target, { x: 0, y: 0 }), undefined);
+});
+
+
+test("main doors choose the closest reachable side and block paths until opened", () => {
+  const doors = load().world!.doors;
+  const merlin = doors.find(door => door.id === "merlin_door")!;
+  assert.equal(courtPath({ x: 15, y: 21 }, { x: 5, y: 5 }, doors), undefined);
+  assert.deepEqual(nearestDoorSpot({ x: 15, y: 21 }, merlin, doors), merlin.interactionSpots[0]);
+  merlin.open = true;
+  assert.ok(courtPath({ x: 15, y: 21 }, { x: 5, y: 5 }, doors));
+  assert.deepEqual(nearestDoorSpot({ x: 5, y: 5 }, merlin, doors), merlin.interactionSpots[1]);
+  assert.deepEqual(nearestDoorSpot({ x: 5, y: 12 }, merlin, doors), merlin.interactionSpots[0]);
+});
+
+test("door operations validate approach and occupancy, and persist through saves", () => {
+  const scenario = load(); scenario.characters.push(createPalacePlayer()); scenario.playerCharacterId = "player";
+  scenario.world!.phase = GamePhase.CONVERSATIONS;
+  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true,
+    position: create(TilePositionSchema, { x: 16, y: 22 }) });
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  assert.throws(() => runtime.setDoor("merlin_door", true), /interaction spot/);
+  assert.throws(() => runtime.movePlayer({ x: 5, y: 5 }), /not reachable/);
+  runtime.movePlayer({ x: 5, y: 10 }); runtime.setDoor("merlin_door", true);
+  runtime.movePlayer({ x: 5, y: 8 }); runtime.setDoor("merlin_door", false);
+  const restored = new BrowserGameRuntime(scenario, "test", structuredClone(runtime.snapshot()));
+  assert.equal(fromJson(ScenarioSchema, restored.snapshot().scenario).world!.doors.find(door => door.id === "merlin_door")!.open, false);
+  assert.throws(() => restored.movePlayer({ x: 5, y: 12 }), /not reachable/);
+  restored.setDoor("merlin_door", true);
+  const occupied = fromJson(ScenarioSchema, restored.snapshot().scenario);
+  occupied.world!.actors.find(actor => actor.characterId === "merlin")!.position = create(TilePositionSchema, { x: 5, y: 9 });
+  const blocked = new BrowserGameRuntime(occupied, "test");
+  assert.throws(() => blocked.setDoor("merlin_door", false), /standing in the doorway/);
 });

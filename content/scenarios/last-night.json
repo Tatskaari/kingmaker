@@ -191,6 +191,211 @@
       { "id": "crown_box", "name": "Crown lockbox", "locationId": "chapel_altar", "concealed": true, "properties": { "locked": true } },
       { "id": "crown", "name": "Crown of Winter", "locationId": "crown_box", "concealed": true }
     ],
+    "doors": [
+      {
+        "id": "merlin_door",
+        "name": "Merlin's door",
+        "tiles": [
+          {
+            "x": 5,
+            "y": 9
+          },
+          {
+            "x": 6,
+            "y": 9
+          }
+        ],
+        "interactionSpots": [
+          {
+            "x": 5,
+            "y": 10
+          },
+          {
+            "x": 5,
+            "y": 8
+          }
+        ],
+        "roomIds": [
+          "north_corridor",
+          "merlin_chamber"
+        ],
+        "open": false
+      },
+      {
+        "id": "royal_door",
+        "name": "Royal door",
+        "tiles": [
+          {
+            "x": 15,
+            "y": 9
+          },
+          {
+            "x": 16,
+            "y": 9
+          }
+        ],
+        "interactionSpots": [
+          {
+            "x": 15,
+            "y": 10
+          },
+          {
+            "x": 15,
+            "y": 8
+          }
+        ],
+        "roomIds": [
+          "north_corridor",
+          "royal_bedchamber"
+        ],
+        "open": false
+      },
+      {
+        "id": "lancelot_door",
+        "name": "Lancelot's door",
+        "tiles": [
+          {
+            "x": 25,
+            "y": 9
+          },
+          {
+            "x": 26,
+            "y": 9
+          }
+        ],
+        "interactionSpots": [
+          {
+            "x": 25,
+            "y": 10
+          },
+          {
+            "x": 25,
+            "y": 8
+          }
+        ],
+        "roomIds": [
+          "north_corridor",
+          "lancelot_chamber"
+        ],
+        "open": false
+      },
+      {
+        "id": "hall_door",
+        "name": "Great Hall door",
+        "tiles": [
+          {
+            "x": 15,
+            "y": 15
+          },
+          {
+            "x": 16,
+            "y": 15
+          }
+        ],
+        "interactionSpots": [
+          {
+            "x": 15,
+            "y": 16
+          },
+          {
+            "x": 15,
+            "y": 14
+          }
+        ],
+        "roomIds": [
+          "great_hall",
+          "north_corridor"
+        ],
+        "open": true
+      },
+      {
+        "id": "entrance_door",
+        "name": "Entrance Hall door",
+        "tiles": [
+          {
+            "x": 15,
+            "y": 25
+          },
+          {
+            "x": 16,
+            "y": 25
+          }
+        ],
+        "interactionSpots": [
+          {
+            "x": 15,
+            "y": 26
+          },
+          {
+            "x": 15,
+            "y": 24
+          }
+        ],
+        "roomIds": [
+          "entrance_hall",
+          "great_hall"
+        ],
+        "open": true
+      },
+      {
+        "id": "guest_door",
+        "name": "Guest door",
+        "tiles": [
+          {
+            "x": 8,
+            "y": 22
+          },
+          {
+            "x": 8,
+            "y": 23
+          }
+        ],
+        "interactionSpots": [
+          {
+            "x": 7,
+            "y": 22
+          },
+          {
+            "x": 9,
+            "y": 22
+          }
+        ],
+        "roomIds": [
+          "guest_chamber",
+          "great_hall"
+        ],
+        "open": false
+      },
+      {
+        "id": "treasury_door",
+        "name": "Treasury door",
+        "tiles": [
+          {
+            "x": 23,
+            "y": 22
+          },
+          {
+            "x": 23,
+            "y": 23
+          }
+        ],
+        "interactionSpots": [
+          {
+            "x": 22,
+            "y": 22
+          },
+          {
+            "x": 24,
+            "y": 22
+          }
+        ],
+        "roomIds": [
+          "great_hall",
+          "treasury"
+        ],
+        "open": false
+      }
+    ],
     "facts": {
       "rule": "At dawn on day 2, whoever physically carries the Crown of Winter becomes king. If nobody carries it, King Aldren remains king."
     }
