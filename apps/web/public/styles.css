@@ -100,42 +100,18 @@ button:disabled { opacity: .48; cursor: wait; }
 .debug-error { color: #ef9a85; }
 @media (max-width: 620px) { .choices, .key-entry form { grid-template-columns: 1fr; } .composer { grid-template-columns: 1fr; } .message { max-width: 95%; } .sheet-tab { top: auto; bottom: 18px; writing-mode: horizontal-tb; display: flex; align-items: center; } .character-sheet { padding: 40px 25px 50px; } .debug-button span { display: none; } .debug-inspector { inset: 8px; padding: 16px; } .debug-note { font-size: .9rem; } }
 
-/* A page-turning prologue, with the patron emerging from the same darkness. */
-.shell:has(.introduction) { width: min(1120px, calc(100% - 40px)); padding-top: 24px; }
-.shell:has(.introduction) .masthead { margin-bottom: 24px; }
-.shell:has(.introduction) .masthead h1 { font-size: 1.2rem; letter-spacing: .3em; }
-.shell:has(.introduction) .masthead .eyebrow,
-.shell:has(.introduction) .masthead .rule,
-.shell:has(.introduction) .masthead .subtitle { display: none; }
-.introduction { position: relative; isolation: isolate; overflow: hidden; min-height: 690px; padding: clamp(24px, 5vw, 60px); border: 1px solid var(--line); background: radial-gradient(ellipse at 88% 40%, #68502a30, transparent 60%), #13110ed9; }
-.intro-topline, .intro-navigation { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
-.intro-count { color: var(--dim); font-size: .85rem; letter-spacing: .15em; }
-.intro-copy { position: relative; max-width: 720px; padding: 48px 0 32px; }
-.intro-copy h2 { white-space: pre-line; font-size: clamp(2.6rem, 6.2vw, 5rem); line-height: 1.08; letter-spacing: -.035em; color: #f7e9c9; }
-.intro-copy h2:focus { outline: none; }
-.intro-body { max-width: 590px; font-size: clamp(1.2rem, 2vw, 1.45rem); line-height: 1.5; color: #d4c7ad; margin: 26px 0 18px; }
-.intro-aside { max-width: 570px; color: var(--gold); font-size: 1.14rem; line-height: 1.5; font-style: italic; }
-.intro-symbol { position: absolute; z-index: -1; right: 3%; top: 14%; font-size: 24rem; line-height: 1; color: #c9a6620e; transform: rotate(-12deg); user-select: none; }
-.intro-progress { display: flex; gap: 8px; }
-.intro-progress span { width: 6px; height: 6px; background: #685c46; transform: rotate(45deg); }
-.intro-progress .current { background: #f1d99d; box-shadow: 0 0 12px #d9b76688; }
-.intro-navigation { border-top: 1px solid var(--line); padding-top: 24px; }
-.patron-reveal { background: radial-gradient(ellipse at 88% 30%, #59514740, transparent 65%), #100f0ed9; }
-.patron-reveal .intro-symbol { color: #e1d2ab15; }
+/* Plain prose and dialogue choices keep the opening focused on the story. */
+.shell:has(.introduction) { width: min(760px, calc(100% - 40px)); padding-top: 70px; }
+.shell:has(.introduction) .masthead { display: none; }
+.introduction { padding: clamp(12px, 4vw, 32px); }
+.introduction:focus { outline: none; }
+.introduction > p:not(.status) { font-size: 1.35rem; line-height: 1.7; margin: 0 0 26px; }
+.dialogue-option { display: block; margin-top: 32px; padding: 10px 0; background: none; border: 0; color: var(--gold); font-size: 1.25rem; text-align: left; text-decoration: underline; text-underline-offset: 5px; }
+.dialogue-option:hover { color: #fff1cd; }
+.introduction label { display: block; margin: 22px 0 8px; font-size: 1.15rem; }
+.identity-field { display: flex; gap: 10px; }
+.identity-field input { min-width: 0; flex: 1; padding: 12px; background: #0e0c09; border: 1px solid #514838; color: #f5ead4; }
+.identity-field button { width: 48px; background: #2c251c; color: var(--gold); border: 1px solid #514838; font-size: 1.6rem; }
+.field-hint { color: var(--dim); margin: 0 0 12px; }
 .footer { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 24px; }
-button:focus-visible { outline: 2px solid #f1d99d; outline-offset: 5px; }
-@media (max-width: 620px) {
-  .introduction { min-height: 0; }
-  .intro-copy { padding-top: 32px; }
-  .intro-symbol { font-size: 17rem; right: -15%; top: 24%; }
-  .intro-navigation { flex-wrap: wrap; }
-  .intro-navigation .primary { width: 100%; order: 3; }
-  .conversation-head h2 { font-size: 1.4rem; margin-top: 8px; }
-}
-@media (min-width: 621px) and (max-height: 800px) {
-  .introduction { min-height: 0; padding: 28px 46px; }
-  .intro-copy { padding: 20px 0 16px; }
-  .intro-copy h2 { font-size: clamp(2.6rem, 5vw, 3.7rem); }
-  .intro-body { font-size: 1.2rem; margin-top: 20px; }
-  .intro-navigation { padding-top: 16px; }
-}
+button:focus-visible, .identity-field input:focus-visible { outline: 2px solid #f1d99d; outline-offset: 5px; }

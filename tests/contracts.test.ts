@@ -29,7 +29,7 @@ test("the small authored scenario strictly parses and survives protobuf", () => 
   assert.equal(toJsonString(ScenarioSchema, decoded), toJsonString(ScenarioSchema, scenario));
   assert.deepEqual(scenario.characters.map(character => character.id), ["merlin", "lancelot", "king"]);
   assert.equal(scenario.events.length, 3);
-  assert.match(scenario.premise, /embassy from a neighbouring allied kingdom/);
+  assert.match(scenario.premise, /emissary from a vassal state of Caerwyn/);
   assert.equal(scenario.world?.phase, GamePhase.PLAYER_CREATION);
   assert.ok(scenario.world?.actors.every(actor => !actor.awake && actor.roomId === actor.homeRoomId));
   assert.equal(scenario.world?.rooms.length, 8);
@@ -43,7 +43,7 @@ test("game master context frames an emissary interview without defining the play
   const prompt = messages.map(message => message.content).join("\n");
   assert.equal(messages.length, 5);
   assert.match(prompt, /player define or invent their homeland/i);
-  assert.match(prompt, /embassy from a neighbouring allied kingdom/i);
+  assert.match(prompt, /emissary from a vassal state of Caerwyn/i);
   assert.match(prompt, /Interview the player/);
   assert.doesNotMatch(prompt, /playerCharacterId/);
 });

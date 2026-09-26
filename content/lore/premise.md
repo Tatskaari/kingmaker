@@ -1,5 +1,5 @@
 # Kingmaker: The Last Night
-By ancient law, whoever physically holds the Crown of Winter at dawn on the
+In the kingdom of Caerwyn, by ancient law, whoever physically holds the Crown of Winter at dawn on the
 solstice day becomes king. The current king lives and expects to keep it. Merlin knows where the spare key is;
 Lancelot knows the crown box's concealed location. They cannot displace the king
 without cooperating, but neither begins the night willing to trust the other.
@@ -15,3 +15,5 @@ MVP rules proposed for review:
 
 Historical negative encounters do not assign numerical relationship scores.
 The win condition is engine-evaluated, not declared by a model.
+
+The player is an emissary from a vassal state of Caerwyn, officially sent to witness the accession and recognise the king. Before arriving, they meet the Laughing Stranger at a crossroads on the road from their chosen homeland.
