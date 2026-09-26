@@ -35,7 +35,11 @@ const gmTools: readonly OpenRouterTool[] = [
       parameters: {
         type: "object", additionalProperties: false, required: ["options", "compelled"],
         properties: {
-          options: { type: "array", minItems: 1, items: { type: "string", maxLength: 300 } },
+          options: {
+            type: "array", minItems: 1,
+            description: "Possible first-person PLAYER answers, never the Stranger's speech. When compelled=true, every option must supply a concrete answer to the same missing character-sheet detail requested in your spoken question (occupation, history, personal goal, or court connection). No evasion, counterquestions, or restating already-known information. Match the player's tone without allowing the option to dodge the detail. Do not speak or record any answer until the human selects it. Non-compelled suggestions may include refusal or counterquestions.",
+            items: { type: "string", maxLength: 300 },
+          },
           compelled: {
             type: "boolean",
             description: "Set false for ordinary optional roleplaying suggestions. Set true when the player has evaded or refused a still-missing creation detail after both your natural question and a firmer warning: this is the moment your jovial mask cracks and you use divine power to demand an answer. Continued in-character refusal is the cue to use this flag, not to abandon the interview. True makes the app display the loss-of-free-will narration and mark these options as compelled. Speak the sudden cold demand in your transcript reply. The app hides free-text input and the player must choose one of the offered options; never choose for them. GM only, during character creation. Do not use for an answered detail, genuine uncertainty, an allegiance, or readiness to depart.",
@@ -343,7 +347,7 @@ export class BrowserGameRuntime {
       if (typeof input.compelled !== "boolean") throw new Error("compelled must be a boolean");
       if (input.compelled && this.#game.scenario().world?.phase !== GamePhase.PLAYER_CREATION) throw new Error("Compulsion is only available during character creation");
       this.#gmReplyOptions = { options, compelled: input.compelled };
-      return { ok: true, instruction: "Options attached. If you have not spoken yet, deliver your reply now without calling offer_replies again." };
+      return { ok: true, instruction: "Player choices attached; none has been selected. If you have not spoken yet, speak AS THE LAUGHING STRANGER and ask for the missing detail now. Do not speak as the player or copy an option into your reply. Do not call offer_replies again. Wait for the human to choose." };
     }
     if (name === "create_player") {
       const relationships = Array.isArray(input.relationships) ? input.relationships as JsonObject[] : [];
