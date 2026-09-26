@@ -16,14 +16,22 @@ side; Jev receives explicit inside/outside choices. Closing an occupied doorway
 is rejected.
 
 Positions, doors, fixtures and item locations live in the saved scenario. Renderer
-animation is visual; arrival/action commits increment the world revision. Stale
-plans, unreachable approaches and cancelled model calls cannot apply effects.
+animation is visual; player arrivals, NPC tile steps and interactions increment
+the world revision. Each NPC step rechecks its route against current doors and
+fixtures. Stale plans, unreachable approaches and cancelled model calls cannot
+apply effects.
 
 NPCs use reachable named waypoints plus combined door, container, take and talk
 actions. Talking to another NPC walks to an adjacent point, generates the
 initiator's request, then asks the GM to resolve both participants' memories and
 goals atomically. This does not simulate the player or transfer items by narration.
 
-One NPC runs at a time. Planner runs and automatic handoffs are bounded. Reloaded
+One NPC runner executes in the Web Worker independently of player controls. Model
+requests and outcome reviews do not block player movement or interactions. The map
+receives incremental actor updates without rebuilding the screen. Choosing Talk
+pauses the target before approaching it; paused goals can be resumed explicitly.
+Completed tile steps remain saved when activity is paused.
+
+Planner runs and automatic handoffs are bounded. Reloaded
 active tasks and pending outcome reviews have explicit resume/review controls.
 The debug inspector exposes the current state and recent model transcripts.

@@ -385,6 +385,64 @@ export class BrowserGameRuntime {
     return { decision, revision: observation.revision, goal: observation.goal, action: observation.actions.find(action => action.id === decision.choice), observation };
   }
 
+  /** Model work happens on a snapshot; only a validated merge touches the live game. */
+  forkForNpc(): BrowserGameRuntime {
+    const fork = new BrowserGameRuntime(this.#initialScenario, "", this.snapshot());
+    fork.#client = this.#client; fork.#jev = this.#jev; fork.#modelTranscripts = this.#modelTranscripts;
+    return fork;
+  }
+
+  commitCharacterFork(before: RuntimeSnapshot, fork: BrowserGameRuntime, characterIds: string[]): void {
+    const base = fromJson(ScenarioSchema, before.scenario), current = this.#game.scenario(), next = fork.#game.scenario();
+    const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+    if (!current.world || !base.world || !next.world || current.world.phase !== base.world.phase) throw new Error("World changed; retry NPC review.");
+    for (const id of characterIds) {
+      if (!same(current.events.filter(e => e.characterIds.includes(id)), base.events.filter(e => e.characterIds.includes(id)))
+        || !same(current.characters.find(c => c.id === id), base.characters.find(c => c.id === id))
+        || !same(current.world.actors.find(a => a.characterId === id), base.world.actors.find(a => a.characterId === id))
+        || !same(this.#npcActivities[id], before.npcActivities?.[id])
+        || !same(this.snapshot().conversations[id], before.conversations[id])) throw new Error("Character changed; retry NPC review.");
+    }
+    // Never replace an unrelated player's move, inventory, conversation or memory.
+    for (const id of characterIds) {
+      const character = next.characters.find(c => c.id === id)!;
+      current.characters = current.characters.map(c => c.id === id ? character : c);
+      const actor = next.world.actors.find(a => a.characterId === id)!;
+      current.world.actors = current.world.actors.map(a => a.characterId === id ? actor : a);
+      const activity = fork.#npcActivities[id];
+      if (activity) this.#npcActivities[id] = structuredClone(activity);
+      const conversation = fork.#conversations.get(id);
+      if (conversation) this.#conversations.set(id, structuredClone(conversation)); else this.#conversations.delete(id);
+      const replies = fork.#conversationReplyOptions[id];
+      if (replies) this.#conversationReplyOptions[id] = [...replies]; else delete this.#conversationReplyOptions[id];
+      const ended = fork.#conversationEndRequested[id];
+      if (ended === undefined) delete this.#conversationEndRequested[id]; else this.#conversationEndRequested[id] = ended;
+    }
+    current.events.push(...next.events.slice(base.events.length));
+    current.world.revision++;
+    this.#game = new MemoryGame(current);
+  }
+
+  /** Advance at most one tile, validating the current path on every tick. */
+  stepNpcAction(characterId: string, actionId: string, goal: string): { done: boolean; talkTarget?: string } {
+    const scenario = this.#game.scenario(), activity = this.#npcActivities[characterId];
+    if (activity?.status !== "active" || activity.reviewPending || this.#conversations.get(characterId)?.length) throw new Error("NPC paused for conversation.");
+    const observation = courtAgentObservation(scenario, characterId);
+    const action = observation.actions.find(item => item.id === actionId);
+    if (observation.goal !== goal || !action) throw new Error("Action changed; replan.");
+    if (action.path.length <= 2 && action.type !== "talk") {
+      this.executeNpcAction(characterId, actionId, observation.revision, goal);
+      return { done: true };
+    }
+    const next = action.path[1];
+    if (next) {
+      const actor = scenario.world!.actors.find(a => a.characterId === characterId)!;
+      actor.position = create(TilePositionSchema, next); actor.roomId = courtRoomAt(next)?.id ?? actor.roomId;
+      scenario.world!.revision++; this.#game = new MemoryGame(scenario);
+    }
+    return action.type === "talk" && action.path.length <= 2 ? { done: true, talkTarget: action.target } : { done: false };
+  }
+
   executeNpcAction(characterId: string, actionId: string, revision: number, goal: string): string {
     const scenario = this.#game.scenario(), world = scenario.world!;
     const activity = this.#npcActivities[characterId];
@@ -476,7 +534,7 @@ export class BrowserGameRuntime {
     activity.reviewPending = true;
   }
 
-  async reviewNpcOutcome(characterId: string, allowNextGoal = true): Promise<void> {
+  async reviewNpcOutcome(characterId: string, allowNextGoal = true, signal?: AbortSignal): Promise<void> {
     const activity = this.#npcActivities[characterId];
     if (!activity?.reviewPending || !activity.result) return;
     const scenario = this.#game.scenario();
@@ -486,7 +544,8 @@ export class BrowserGameRuntime {
       messages: [...context,
         { role: "system", content: "Your action planner has finished. Review its result, actions performed, and current observations. Save warranted memories, relationship changes, and biography changes. Set goalUpdate to the next concrete task if there is more to do, or null if there is none. Base this on what actually happened, not just the planner's completion judgment. This review cannot change the physical world. Return newEvents, goalUpdate, relationships, and lore (null when unchanged)." },
         { role: "user", content: JSON.stringify({ goal: activity.goal, actionsPerformed: activity.history, result: activity.result, observations: courtAgentObservation(scenario, characterId).world }) }],
-    });
+    }, signal);
+    signal?.throwIfAborted();
     const parsed = JSON.parse(completion.content || "null");
     if (!parsed || !Array.isArray(parsed.newEvents) || !Array.isArray(parsed.relationships) || !("goalUpdate" in parsed) || !("lore" in parsed)) throw new Error("NPC returned incomplete outcome memory.");
     const memory = fromJson(ConversationMemorySchema, parsed);
@@ -570,6 +629,7 @@ export class BrowserGameRuntime {
     const world = scenario.world;
     const player = scenario.characters.find(character => character.id === scenario.playerCharacterId);
     return {
+      revision: world?.revision ?? 0,
       npcActivities: Object.fromEntries(scenario.characters.filter(item => item.id !== scenario.playerCharacterId).map(item => [item.id, this.#npcActivities[item.id] ?? { status: "idle", goal: item.currentGoal, history: [] }])),
       playerDraft: this.#playerDraft,
       phase: this.#playerDraft ? "character_review" : world?.phase === GamePhase.PLAYER_CREATION ? "player_creation" : world?.phase === GamePhase.CONVERSATIONS ? "conversations" : "other",

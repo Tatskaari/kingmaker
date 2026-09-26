@@ -1,5 +1,5 @@
 import { debugOverview, recentTranscriptsView } from "./debug-view.js";
-import { mountCourtMap, animateCourtCharacter } from "./court-map.js";
+import { mountCourtMap, updateCourtMap } from "./court-map.js";
 import { introduction, introductionHandoff, handoffPrefix, nameSuggestions, homelandSuggestions, patronName } from "./introduction.js";
 
 const app = document.querySelector("#app");
@@ -33,81 +33,60 @@ let requestSequence = 0;
 
 const gameWorker = new Worker(new URL("./game.worker.ts", import.meta.url), { type: "module" });
 const pendingRequests = new Map();
+const gameReplacementRequests = new Set(["reset_world", "reset_characters", "reset", "load_game", "create_game", "configure", "delete_game"]);
 gameWorker.addEventListener("message", event => {
   if (event.data.type === "transcripts_changed") {
     if (debugOpen && debugTab === "transcripts") void openDebug();
     return;
   }
+  if (event.data.type === "npc_update") {
+    if (event.data.activeSaveId !== activeSaveId) return;
+    if (!state || event.data.state.revision >= (state.revision ?? 0)) state = event.data.state;
+    npcRun = event.data.running; npcStatus = event.data.status;
+    if (event.data.trace) { npcTrace.push(event.data.trace); npcTrace = npcTrace.slice(-50); }
+    updateCourtMap(document.querySelector("[data-court-map]"), state);
+    updateNpcPanel();
+    return;
+  }
   const pending = pendingRequests.get(event.data.id);
   if (!pending) return;
   pendingRequests.delete(event.data.id);
-  if (event.data.ok) pending.resolve(event.data.value);
+  if (event.data.ok) {
+    const value = event.data.value;
+    // A background commit can arrive while a dialogue response is listing saves.
+    if (value?.state && state && !gameReplacementRequests.has(pending.type)
+      && value.state.revision < state.revision) value.state = state;
+    pending.resolve(value);
+  }
   else pending.reject(new Error(event.data.error));
 });
 
 function rpc(type, payload = {}) {
-  if (["reset_world", "reset_characters", "reset", "load_game", "create_game", "configure", "delete_game"].includes(type)) stopNpcGoal();
+  if (gameReplacementRequests.has(type)) stopNpcGoal();
   const id = ++requestSequence;
   gameWorker.postMessage({ id, type, payload });
-  return new Promise((resolve, reject) => pendingRequests.set(id, { resolve, reject }));
+  return new Promise((resolve, reject) => pendingRequests.set(id, { resolve, reject, type }));
 }
 
 function stopNpcGoal() {
-  if (!npcRun) return;
-  const characterId = npcRun.characterId;
-  npcRun.abort(); npcRun = null; npcStatus = "Jev stopped.";
-  void rpc("finish_npc", { characterId, reason: "cancelled", detail: "The player stopped the run." }).catch(() => {});
+  npcRun = null;
   void rpc("cancel_npc").catch(() => {});
 }
-
-async function runNpcGoal(characterId, queued = [], handoffs = 3) {
-  if (state.npcActivities?.[characterId]?.status !== "active") return;
-  stopNpcGoal();
-  const controller = new AbortController(); controller.characterId = characterId; npcRun = controller; npcTrace = [];
-  const name = state.characters.find(item => item.id === characterId)?.name || characterId;
-  const active = () => npcRun === controller && !controller.signal.aborted;
-  try {
-    for (let round = 0; round < 3 && active(); round++) {
-      let reason = "limit", detail = "Stopped at the 24-action limit.";
-      try {
-        for (let step = 0; step < 24 && active(); step++) {
-          npcStatus = `${name}: Jev is choosing action ${step + 1}…`; render();
-          const plan = await rpc("plan_npc", { characterId });
-          if (!active()) return;
-          npcTrace.push(plan);
-          if (plan.decision.choice === "complete" || plan.decision.choice === "unable") {
-            reason = plan.decision.choice; detail = JSON.stringify(plan.decision); break;
-          }
-          if (!plan.action) throw new Error("Jev returned no available action.");
-          npcStatus = `${name}: ${plan.action.description}`; render();
-          await animateCourtCharacter(app, characterId, plan.action.path, controller.signal);
-          if (!active()) return;
-          const result = await rpc("execute_npc", { characterId, actionId: plan.action.id, revision: plan.revision, goal: plan.goal });
-          if (!active()) return;
-          state = result.state; saves = result.saves;
-          if (plan.action.type === "talk") {
-            if (state.npcActivities[plan.action.target]?.status === "active") queued.push(plan.action.target);
-            if (state.npcActivities[characterId]?.status !== "active") { npcStatus = `${name}: idle after conversation.`; return; }
-          }
-        }
-      } catch (error) { if (!active()) return; reason = "error"; detail = error.message; }
-      if (!active()) return;
-      const finished = await rpc("finish_npc", { characterId, reason, detail });
-      state = finished.state; saves = finished.saves;
-      npcStatus = `${name}: reviewing Jev's ${reason} result…`; render();
-      const reviewed = await rpc("review_npc", { characterId, allowNextGoal: round < 2 });
-      state = reviewed.state; saves = reviewed.saves;
-      if (!active()) return;
-      if (state.npcActivities[characterId].status !== "active") {
-        npcStatus = `${name}: idle${round === 2 ? " (automatic replanning limit reached)" : ""}.`; break;
-      }
-    }
-  } catch (error) { if (active()) npcStatus = `${name}: ${error.message} Outcome saved for review retry.`; }
-  finally { if (npcRun === controller) {
-    npcRun = null; render();
-    const next = queued.find(id => state.npcActivities[id]?.status === "active");
-    if (next && handoffs > 0 && !controller.signal.aborted) void runNpcGoal(next, queued.filter(id => id !== next), handoffs - 1);
-  } }
+async function runNpcGoal(characterId) {
+  await rpc("start_npc", { characterId });
+}
+function updateNpcPanel() {
+  const panel = document.querySelector("[data-npc-panel]"); if (!panel) return;
+  const expanded = panel.querySelector("details")?.open;
+  panel.innerHTML = `<p role="status">${escapeHtml(npcStatus)}</p>${npcRun ? '<button data-background-stop>Pause NPC activity</button>' : ""}
+    ${Object.entries(state.npcActivities || {}).filter(([id, activity]) => id !== npcRun && (activity.status === "active" || activity.reviewPending)).map(([id, activity]) => `<button data-background-resume="${escapeHtml(id)}">${activity.reviewPending ? "Review outcome" : "Resume goal"} · ${escapeHtml(state.characters.find(character => character.id === id)?.name || id)}</button>`).join("")}
+    <details ${expanded ? "open" : ""}><summary>Jev decisions and world context</summary><pre>${escapeHtml(JSON.stringify(npcTrace, null, 2))}</pre></details>`;
+  panel.hidden = !npcStatus && !Object.values(state.npcActivities || {}).some(a => a.status === "active" || a.reviewPending);
+  panel.onclick = event => {
+    if (event.target.closest("[data-background-stop]")) stopNpcGoal();
+    const resume = event.target.closest("[data-background-resume]");
+    if (resume) void runNpcGoal(resume.dataset.backgroundResume);
+  };
 }
 
 // Development convenience: refresh the physical world without recreating an emissary.
@@ -248,13 +227,14 @@ function renderCharacterReview() {
 
 function renderDay(bindPage = true) {
   const playerName = state.player?.name || "The Emissary";
-  app.innerHTML = shell(`<section class="panel court-panel"><div class="day-heading"><div><div class="eyebrow">Palace of Caerwyn</div><h2>Welcome to court, <span class="player-name">${escapeHtml(playerName)}</span></h2></div></div><p class="scene">Left-click to walk around the palace. Right-click characters and objects to see their actions.</p><div data-court-map></div>${npcStatus || Object.values(state.npcActivities || {}).some(activity => activity.reviewPending || activity.status === "active") ? `<section class="npc-planner"><p role="status">${escapeHtml(npcStatus)}</p>${npcRun ? `<button data-stop-npc>Stop Jev</button>` : ""}${!npcRun ? Object.entries(state.npcActivities || {}).filter(([, activity]) => activity.reviewPending || activity.status === "active").map(([id, activity]) => `<button data-npc-continue="${escapeHtml(id)}">${activity.reviewPending ? "Review outcome" : "Resume goal"} · ${escapeHtml(state.characters.find(character => character.id === id)?.name || id)}</button>`).join("") : ""}<details><summary>Jev decisions and world context</summary><pre>${escapeHtml(JSON.stringify(npcTrace, null, 2))}</pre></details></section>` : ""}<div class="court-day-footer"><span class="map-credit">Tiny Dungeon tiles by Kenney · CC0</span></div><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  app.innerHTML = shell(`<section class="panel court-panel"><div class="day-heading"><div><div class="eyebrow">Palace of Caerwyn</div><h2>Welcome to court, <span class="player-name">${escapeHtml(playerName)}</span></h2></div></div><p class="scene">Left-click to walk around the palace. Right-click characters and objects to see their actions.</p><div data-court-map></div><section class="npc-planner" data-npc-panel></section><div class="court-day-footer"><span class="map-credit">Tiny Dungeon tiles by Kenney · CC0</span></div><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
   if (bindPage) bind();
+  updateNpcPanel();
   const mapRoot = document.querySelector("[data-court-map]");
-  void mountCourtMap(mapRoot, state.characters, state.player, id => {
+  void mountCourtMap(mapRoot, state.characters, state.player, async id => {
     if (busy || !mapRoot.isConnected) return;
     activeCharacter = id; closedConversation = null; notice = ""; render();
-  }, busy || !!npcRun, async point => {
+  }, busy, async point => {
     const result = await rpc("move_player", point);
     state = result.state; saves = result.saves;
   }, state.doors, async (id, open) => {
@@ -264,7 +244,7 @@ function renderDay(bindPage = true) {
   }, state.roomAccess, state.fixtures, state.fixtureActions, async actionId => {
     const result = await rpc("interact_fixture", { actionId });
     state = result.state; saves = result.saves; notice = result.message; render();
-  }).catch(() => {
+  }, async id => { await rpc("pause_npc", { characterId: id }); }).then(() => updateCourtMap(mapRoot, state)).catch(() => {
     if (!mapRoot.isConnected) return;
     const message = document.createElement("p"); message.className = "status error";
     message.textContent = "The palace artwork could not load. You can still select a character by name."; mapRoot.append(message);
@@ -327,15 +307,6 @@ async function run(action) {
 }
 
 function bind() {
-  document.querySelectorAll("[data-npc-continue]").forEach(button => button.addEventListener("click", () => run(async () => {
-    const characterId = button.dataset.npcContinue;
-    if (state.npcActivities?.[characterId]?.reviewPending) {
-      const result = await rpc("review_npc", { characterId }); state = result.state; saves = result.saves;
-    }
-    void runNpcGoal(characterId);
-  })));
-
-  document.querySelector("[data-stop-npc]")?.addEventListener("click", async () => { stopNpcGoal(); render(); const result = await rpc("state"); state = result.state; render(); });
   document.querySelector("[data-key-form]")?.addEventListener("submit", event => {
     event.preventDefault();
     if (busy) return;

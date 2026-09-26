@@ -61,7 +61,7 @@ export function redirectCourtPath(path: readonly Point[], progress: number, dest
 
 /** Mount inside the court screen; native buttons retain keyboard and touch access. */
 export async function mountCourtMap(root: HTMLElement, characters: readonly CourtCharacter[], player: CourtCharacter | null,
-  selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<void>, doors: DoorState[] = [], changeDoor?: (id: string, open: boolean) => Promise<DoorState[]>, rooms: readonly RoomAccess[] = [], fixtures: readonly MapFixture[] = [], fixtureChoices: readonly FixtureAction[] = [], interactFixture?: (actionId: string) => Promise<void>): Promise<void> {
+  selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<void>, doors: DoorState[] = [], changeDoor?: (id: string, open: boolean) => Promise<DoorState[]>, rooms: readonly RoomAccess[] = [], fixtures: readonly MapFixture[] = [], fixtureChoices: readonly FixtureAction[] = [], interactFixture?: (actionId: string) => Promise<void>, pauseCharacter?: (id: string) => Promise<void>): Promise<void> {
   const viewport = document.createElement("div"); viewport.className = "court-map-scroll";
   const stage = document.createElement("div"); stage.className = "court-map-stage";
   const canvas = document.createElement("canvas"); canvas.setAttribute("aria-label", "Palace of Caerwyn");
@@ -116,7 +116,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       button.className = `court-menu-action court-action-${action.legality}`;
       button.textContent = action.label + (action.legality === "illegal" ? " · Illegal" : "");
       button.disabled = !movePlayer || !visualPosition || (moving && !redirect);
-      button.addEventListener("click", () => {
+      button.addEventListener("click", async () => {
         closeMenu();
         if (action.type === "walk") void walkTo(tile);
         else if (action.type === "door") {
@@ -134,6 +134,8 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
           if (!spot || !interactFixture) { status.textContent = "No reachable interaction spot for this furniture."; return; }
           void walkTo(spot, () => interactFixture(action.id));
         } else {
+          try { await pauseCharacter?.(action.target); }
+          catch { status.textContent = "Could not pause this character. Try again."; return; }
           const character = markers.find(marker => marker.id === action.target);
           const spot = character?.point && approach(character.point);
           if (!spot) { status.textContent = "There is no reachable interaction spot for that character."; return; }
@@ -209,6 +211,25 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     playerControl.style.left = `${(point.x + 0.5) / palaceMap.width * 100}%`;
     playerControl.style.top = `${(point.y + 0.5) / palaceMap.height * 100}%`;
   };
+  root.addEventListener("court-state", event => {
+    const next = (event as CustomEvent<{ characters: CourtCharacter[]; player: CourtCharacter; doors: DoorState[];
+      fixtures: MapFixture[]; fixtureActions: FixtureAction[]; roomAccess: RoomAccess[] }>).detail;
+    doors = next.doors; fixtures = next.fixtures; fixtureChoices = next.fixtureActions; rooms = next.roomAccess;
+    const updated = courtMarkers([...next.characters, next.player], fixtures);
+    for (const marker of markers) {
+      const current = updated.find(item => item.id === marker.id); if (!current) continue;
+      Object.assign(marker, current);
+      if (marker.id === player?.id) { if (!moving && marker.point) { position = marker.point; place(marker.point); } continue; }
+      const control = stage.querySelector<HTMLElement>(`[data-character-id="${CSS.escape(marker.id)}"]`);
+      if (control && marker.point) {
+        control.style.transition = "left 100ms linear, top 100ms linear";
+        control.style.left = `${(marker.point.x + 0.5) / palaceMap.width * 100}%`;
+        control.style.top = `${(marker.point.y + 0.5) / palaceMap.height * 100}%`;
+        control.setAttribute("aria-label", `Walk to ${marker.name} · ${marker.roomName}`);
+      }
+    }
+    draw();
+  }, { signal: listeners.signal });
   walkTo = async (target, interaction) => {
     if (disabled || !position || !movePlayer) return;
     if (moving) {
@@ -254,6 +275,10 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       const animate = (time: number) => {
         if (!root.isConnected) { resolve(false); return; }
         const progress = Math.min((time - started) / 100, path!.length - 1);
+        if (!canWalk(palaceMap, path![Math.ceil(progress)]!, courtDoorBlockers(doors, fixtures))) {
+          status.textContent = "The route changed. Choose another destination.";
+          resolve(false); return;
+        }
         place(courtWalkPoint(path!, progress));
         if (progress === path!.length - 1) resolve(true); else window.setTimeout(() => animate(performance.now()), 16);
       };
@@ -262,7 +287,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       window.setTimeout(() => animate(performance.now()), 16);
     });
     redirect = undefined;
-    if (!arrived) return;
+    if (!arrived) { moving = false; pendingInteraction = undefined; place(start); draw(); return; }
     let committed = false;
     try {
       await movePlayer(destination); position = destination; committed = true;
@@ -287,21 +312,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   });
 }
 
-/** Animate only the preview; the worker validates and commits the final action. */
-export async function animateCourtCharacter(root: HTMLElement, characterId: string, path: readonly Point[], signal: AbortSignal): Promise<void> {
-  if (!path.length) return;
-  const started = performance.now();
-  await new Promise<void>((resolve, reject) => {
-    const frame = () => {
-      if (signal.aborted) { reject(new Error("Jev stopped.")); return; }
-      const marker = root.querySelector<HTMLElement>(`[data-character-id="${CSS.escape(characterId)}"]`);
-      if (!marker) { reject(new Error("Palace view changed; Jev stopped.")); return; }
-      const progress = Math.min((performance.now() - started) / 100, path.length - 1);
-      const point = courtWalkPoint(path, progress);
-      marker.style.left = `${(point.x + 0.5) / palaceMap.width * 100}%`;
-      marker.style.top = `${(point.y + 0.5) / palaceMap.height * 100}%`;
-      if (progress === path.length - 1) resolve(); else window.setTimeout(frame, 16);
-    };
-    frame();
-  });
+/** Refresh live state without replacing the map or interrupting a player walk. */
+export function updateCourtMap(root: HTMLElement | null, state: unknown): void {
+  root?.dispatchEvent(new CustomEvent("court-state", { detail: state }));
 }

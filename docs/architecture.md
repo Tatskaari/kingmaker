@@ -3,7 +3,11 @@
 The browser UI sends commands to `game.worker.ts`. `BrowserGameRuntime` owns the
 current protobuf scenario, conversations and NPC activities. The worker persists
 snapshots in IndexedDB and restores the previous snapshot if a mutation or save
-fails. Credentials and recent model transcripts are kept outside save snapshots.
+fails. NPC planning, dialogue and reviews wait outside that mutation queue; they
+merge affected character state from a snapshot only if it has not changed. Player
+movement, inventory and unrelated conversations survive those merges. Resetting
+or switching games cancels background execution and rejects late results.
+Credentials and recent model transcripts are kept outside save snapshots.
 
 The GM interviews the player and proposes an editable character. Saving enters
 the palace with authored actor positions. Walking and object interactions operate
@@ -17,7 +21,9 @@ A non-null goal activates Jev; null leaves the NPC idle.
 
 `courtAgentObservation` enumerates physically reachable movement and interaction
 actions. Jev chooses one supplied ID. The runtime rechecks revision, goal and
-availability before committing movement or interactions. Illegal actions remain
+availability before committing movement or interactions. The worker advances NPC
+movement one tile at a time and publishes state updates; the player can keep
+walking and interacting during planning, movement and outcome reviews. Illegal actions remain
 mechanically available but are labelled for the character to judge.
 
 Planner termination triggers an outcome review, which can assign another concrete

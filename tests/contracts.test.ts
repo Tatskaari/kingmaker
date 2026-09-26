@@ -1228,3 +1228,57 @@ test("GPT-6 Responses adapter maps structured output and rejects truncated resul
   truncated = true;
   await assert.rejects(Object.assign(new OpenRouterClient("test"), { complete: originalOpenRouterComplete }).complete(request), /incomplete: max_output_tokens/);
 });
+
+test("background NPC review merges its memories without undoing concurrent player movement or items", async t => {
+  const { runtime, action } = talkingCourt();
+  runtime.finishNpcRun("merlin", "complete", "Arrived.");
+  const before = runtime.snapshot(), fork = runtime.forkForNpc();
+  let release!: () => void;
+  const waiting = new Promise<void>(resolve => { release = resolve; });
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => {
+    await waiting;
+    return modelReply({ newEvents: [{ type: "observation", summary: "I have arrived." }], relationships: [], lore: null, goalUpdate: null });
+  });
+  const review = fork.reviewNpcOutcome("merlin");
+  runtime.movePlayer({ x: 20, y: 21 });
+  runtime.interactFixture("open_palace_hall_cabinet");
+  runtime.interactFixture("take_palace_iron_key");
+  release(); await review;
+  runtime.commitCharacterFork(before, fork, ["merlin"]);
+  const after = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  assert.deepEqual(after.world!.actors.find(a => a.characterId === "player")!.position, create(TilePositionSchema, { x: 20, y: 21 }));
+  assert.equal(after.world!.objects.find(o => o.id === "palace_iron_key")!.locationId, "player");
+  assert.ok(after.events.some(e => e.summary === "I have arrived."));
+  assert.equal(runtime.snapshot().npcActivities?.merlin?.reviewPending, false);
+  assert.ok(action.target);
+});
+
+test("background character updates reject stale goals and do not overwrite newer conversations", async t => {
+  const { runtime } = talkingCourt();
+  const before = runtime.snapshot(), fork = runtime.forkForNpc();
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Hello", replyOptions: [], endConversation: false }));
+  await fork.talkToCharacter("merlin", "First request");
+  await runtime.talkToCharacter("merlin", "Newer request");
+  const latest = runtime.snapshot();
+  assert.throws(() => runtime.commitCharacterFork(before, fork, ["merlin"]), /Character changed/);
+  assert.deepEqual(runtime.snapshot(), latest);
+});
+
+test("NPC movement commits one tile at a time and replans when a door closes", () => {
+  const { runtime } = talkingCourt();
+  const initial = runtime.snapshot();
+  const scenario = fromJson(ScenarioSchema, initial.scenario);
+  const actor = scenario.world!.actors.find(a => a.characterId === "merlin")!;
+  actor.position = create(TilePositionSchema, { x: 15, y: 17 }); actor.roomId = "great_hall";
+  initial.scenario = toJson(ScenarioSchema, scenario); runtime.restore(initial);
+  const goal = scenario.characters.find(c => c.id === "merlin")!.currentGoal;
+  const result = runtime.stepNpcAction("merlin", "move_north_junction", goal);
+  assert.equal(result.done, false);
+  const moved = fromJson(ScenarioSchema, runtime.snapshot().scenario).world!.actors.find(a => a.characterId === "merlin")!.position!;
+  assert.equal(Math.abs(moved.x - 15) + Math.abs(moved.y - 17), 1);
+  const closed = runtime.snapshot(), changed = fromJson(ScenarioSchema, closed.scenario);
+  changed.world!.doors.find(d => d.id === "hall_door")!.open = false;
+  closed.scenario = toJson(ScenarioSchema, changed); runtime.restore(closed);
+  assert.throws(() => runtime.stepNpcAction("merlin", "move_north_junction", goal), /replan/);
+  assert.deepEqual(fromJson(ScenarioSchema, runtime.snapshot().scenario).world!.actors.find(a => a.characterId === "merlin")!.position, moved);
+});
