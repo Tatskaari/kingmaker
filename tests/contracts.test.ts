@@ -186,7 +186,7 @@ test("Jev request carries free goal, events, world and grounded actions", () => 
     ),
     availableActions: actions,
   });
-  assert.match(request.character?.currentGoal ?? "", /Prevent the king/);
+  assert.match(request.character?.currentGoal ?? "", /Remain in the Great Hall and greet the visiting player/);
   assert.deepEqual(request.availableActions.map(action => action.id), ["wake:merlin"]);
   assert.equal(request.world?.revision, 0);
   assert.equal(request.world?.day, 0);

@@ -18,7 +18,7 @@
           "description": "The king values Merlin's power but rarely his counsel. Merlin believes another reign will turn service into captivity."
         }
       ],
-      "currentGoal": "Prevent the king from renewing his reign without placing myself at Lancelot's mercy."
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation."
     },
     {
       "id": "lancelot",
@@ -34,7 +34,7 @@
           "description": "Lancelot has served the king faithfully but increasingly mistakes obedience for cowardice. He wants lawful change without bloodshed."
         }
       ],
-      "currentGoal": "Ensure the crown reaches a named, defensible successor without bloodshed."
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation."
     },
     {
       "id": "king",
@@ -50,7 +50,7 @@
           "description": "A dependable knight whose literal sense of honour makes him predictable."
         }
       ],
-      "currentGoal": "Retrieve the crown and be wearing it when the solstice arrives."
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation."
     }
   ],
   "events": [
