@@ -1551,3 +1551,33 @@ test("outcome review survives reload and failure; replanning cap leaves a propos
   assert.equal(fromJson(ScenarioSchema, restored.snapshot().scenario).characters[0]!.currentGoal, "Go to the Great Hall.");
   await assert.rejects(restored.planNpc("merlin", [], new AbortController().signal), /idle/);
 });
+
+test("treasury can be opened from the hall and closed from inside, with sides explicit to Jev", () => {
+  const scenario = furnishedCourt(), actor = scenario.world!.actors.find(item => item.characterId === "merlin")!;
+  actor.position = create(TilePositionSchema, { x: 22, y: 22 }); actor.roomId = "great_hall";
+  scenario.characters.find(item => item.id === "merlin")!.currentGoal = "Go into the Treasury, close the door from inside, and wait there.";
+  const runtime = new BrowserGameRuntime(scenario, "test"), snapshot = runtime.snapshot();
+  snapshot.npcActivities = { merlin: { status: "active", goal: scenario.characters[0]!.currentGoal, history: [] } }; runtime.restore(snapshot);
+  const observe = () => courtAgentObservation(fromJson(ScenarioSchema, runtime.snapshot().scenario), "merlin");
+  let observation = observe();
+  const open = observation.actions.find(action => action.id === "open_treasury_door_0")!;
+  assert.ok(open); assert.equal(open.legality, "normal"); assert.equal(open.path.length, 1);
+  assert.equal(open.interactionRoomId, "great_hall");
+  assert.ok(!observation.actions.some(action => action.id === "move_treasury"));
+  runtime.executeNpcAction("merlin", open.id, observation.revision, observation.goal);
+  observation = observe();
+  assert.ok(observation.actions.some(action => action.id === "move_treasury"));
+  const outside = observation.actions.find(action => action.id === "close_treasury_door_0")!;
+  const inside = observation.actions.find(action => action.id === "close_treasury_door_1")!;
+  assert.equal(outside.interactionRoomId, "great_hall");
+  assert.equal(inside.interactionRoomId, "treasury");
+  assert.match(inside.description, /Treasury side/);
+  assert.notEqual(inside.description, outside.description);
+  runtime.executeNpcAction("merlin", inside.id, observation.revision, observation.goal);
+  const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  assert.equal(saved.world!.doors.find(door => door.id === "treasury_door")!.open, false);
+  assert.equal(saved.world!.actors.find(item => item.characterId === "merlin")!.roomId, "treasury");
+  observation = observe();
+  assert.ok(observation.actions.some(action => action.id === "open_treasury_door_1"));
+  assert.ok(!observation.actions.some(action => action.id === "open_treasury_door_0"));
+});

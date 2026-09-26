@@ -8,7 +8,7 @@ import type { Point } from "./navigation.js";
 
 export interface CourtAgentAction {
   id: string; type: "move" | "door" | "fixture"; target: string;
-  description: string; path: Point[]; open?: boolean; legality?: "normal" | "illegal";
+  description: string; path: Point[]; interactionRoomId?: string; open?: boolean; legality?: "normal" | "illegal";
 }
 
 export function courtAgentObservation(scenario: Scenario, characterId: string) {
@@ -26,9 +26,11 @@ export function courtAgentObservation(scenario: Scenario, characterId: string) {
   for (const door of world.doors) for (const [side, spot] of door.interactionSpots.entries()) {
     const path = pathTo(spot);
     if (!path) continue;
+    const interactionRoom = courtRoomAt(spot);
     actions.push({ id: `${door.open ? "close" : "open"}_${door.id}_${side}`, type: "door", target: door.id, path, open: !door.open,
+      ...(interactionRoom ? { interactionRoomId: interactionRoom.id } : {}),
       legality: doorActionLegality(door, world.rooms, characterId),
-      description: `Walk ${path.length - 1} steps, then ${door.open ? "close" : "open"} ${door.name}, connecting ${door.roomIds.join(" and ")}.` });
+      description: `Walk ${path.length - 1} steps to the ${interactionRoom?.name ?? "palace"} side, then ${door.open ? "close" : "open"} ${door.name}, connecting ${door.roomIds.join(" and ")}. You finish on the ${interactionRoom?.name ?? "palace"} side of the door.` });
   }
   for (const action of fixtureActions(scenario, characterId)) {
     const fixture = world.fixtures.find(item => item.id === action.target)!;
