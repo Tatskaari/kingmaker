@@ -25,7 +25,7 @@ arrival or door change and revalidated at dispatch. Door rendering and hit-testi
 use the same footprints as collision. Keyboard users can use the sidebar buttons.
 
 The demo remains outside the map protobuf and narrative world engine. Door state
-is in memory, resets on reload, and has no locks, keys, permissions or persistence.
+is in memory and resets on reload. Doors have no locks or permissions; the furniture lockbox requires a key.
 Actors occupy a full tile: any intersecting solid layer blocks it. The PoC assumes
 full graph knowledge and one character. Movement is exclusive except Reset;
 future concurrent actors/blockers will require in-flight path invalidation.
@@ -39,8 +39,7 @@ route filtering/restoration, path continuity, and A* optimality against BFS.
 Enter an OpenRouter API key and a free-form goal, then Run goal or Step. For example:
 “Visit Merlin's Chamber, return to the Great Hall, then close the hall door.” Goals
 are sent verbatim; there is no room classifier or prescribed sequence. The available
-capabilities are movement and opening/closing doors. Items, combat and conversation
-are not yet implemented. Jev can choose `unable` for an unachievable or unclear goal.
+capabilities are movement, opening/closing doors and containers, and taking items. Combat and conversation are not yet implemented. Jev can choose `unable` for an unachievable or unclear goal.
 
 The browser calls `https://openrouter.ai/api/alpha/decisions` with
 `typesafe/jev-1.13`, following the [official Decisions example](https://openrouter.ai/blog/tutorials/how-to-use-jev/).
@@ -62,3 +61,32 @@ fetch retains its Window receiver. A 401 triggers a read-only `/api/v1/key` chec
 to distinguish rejected credentials from Decisions-specific access. Provider errors
 are displayed with credential redaction. The Decisions endpoint is an alpha API;
 live operation requires an accepted key and endpoint access.
+
+
+## Furniture and the key
+
+Merlin's chest of drawers contains the Royal lockbox key. The King's lockbox is in
+the Royal Bedchamber. Both have adjacent navigation points. Use the Nearby furniture
+buttons or right-click the fixture: a closed container opens; an open drawer with
+an item transfers that item; an empty open container closes. Opening the lockbox
+requires carrying the matching key, which is retained. Remote/in-transit actions
+are rejected. Contents are unknown until inspection, then remembered after closing.
+Reset restores the key to the drawers, empties inventory and closes both containers.
+
+Tables, stools, bookcases, cabinets and barrels use the existing Kenney sprites.
+Every furniture tile blocks navigation. Tests ensure all waypoints remain reachable
+with doors open and exercise the full key/lockbox sequence with a scripted policy.
+
+The Last Jev request panel shows the exact JSON body sent to the API, excluding
+credentials. Last Jev choice probabilities shows the validated answer, including
+the distribution over offered actions. The role instruction frames one character
+in a palace, and action descriptions state immediate effects. There is no scripted
+search strategy: Jev chooses how to pursue the goal. `unable` is displayed as a
+model decision, never an engine proof of impossibility.
+
+Prompt design references: TypeSafe's [state guide](https://docs.typesafe.ai/concepts/state),
+[structured questions](https://docs.typesafe.ai/primitives/advanced), and
+[known limitations](https://docs.typesafe.ai/model-jaggedness/jev-1.13). The current
+observation still exposes the known logical graph; a more compact character-centred
+projection and separate completion judgment are follow-up design considerations,
+not claims that arbitrary planning reliability has been demonstrated.

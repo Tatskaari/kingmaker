@@ -30,6 +30,8 @@ import { createDoors, doorBlockers, doorGraph, toggleDoor } from "../apps/web/sr
 import { JevClient, type Choose, type JevChoice } from "../packages/providers/src/jev.js";
 import { PalaceAgent, legalActions, type AgentHost } from "../apps/web/src/palace-agent.js";
 
+import { createFurniture, addFurnitureNodes, furnitureBlockers, furnitureActions, applyFurnitureAction, observeFurniture } from "../apps/web/src/palace-furniture.js";
+
 const fixturePath = new URL("../content/scenarios/last-night.json", import.meta.url);
 const load = (): Scenario => fromJsonString(ScenarioSchema, readFileSync(fixturePath, "utf8"));
 
@@ -800,4 +802,91 @@ test("pausing during movement preserves the completed action for resuming a mult
   fixture.agent.pause(); finish(); await pending;
   assert.equal(fixture.agent.history.length, 1);
   assert.match(fixture.agent.history[0]!, /entrance/i);
+});
+
+test("drawer contents are hidden until opened; taking the key transfers it exactly once", () => {
+  const state = createFurniture();
+  const drawers = state.furniture.find(item => item.id === "merlin_drawers")!;
+  const beside = drawers.approach!;
+  const observed = () => observeFurniture(state).find(item => (item as { id: string }).id === drawers.id);
+  assert.ok(!JSON.stringify(observed()).includes("royal_key"));
+  assert.ok(!furnitureActions(state, beside).some(action => action.type === "take_item"));
+  assert.throws(() => applyFurnitureAction(state, beside, "take_royal_key"), /unavailable/);
+  assert.throws(() => applyFurnitureAction(state, { x: 15, y: 21 }, "open_merlin_drawers"), /unavailable/);
+  assert.throws(() => applyFurnitureAction(state, beside, "open_merlin_drawers", true), /unavailable/);
+  applyFurnitureAction(state, beside, "open_merlin_drawers");
+  assert.ok(JSON.stringify(observed()).includes("royal_key"));
+  applyFurnitureAction(state, beside, "take_royal_key");
+  assert.deepEqual(state.inventory.map(item => item.id), ["royal_key"]);
+  assert.equal(drawers.contents.length, 0);
+  assert.throws(() => applyFurnitureAction(state, beside, "take_royal_key"), /unavailable/);
+  applyFurnitureAction(state, beside, "close_merlin_drawers");
+  applyFurnitureAction(state, beside, "open_merlin_drawers");
+  assert.ok(!furnitureActions(state, beside).some(action => action.type === "take_item"));
+});
+
+test("lockbox rejects keyless and remote opens; matching key is retained after use", () => {
+  const state = createFurniture();
+  const box = state.furniture.find(item => item.id === "royal_lockbox")!;
+  const drawers = state.furniture.find(item => item.id === "merlin_drawers")!;
+  assert.ok(!furnitureActions(state, box.approach!).some(action => action.id === "open_royal_lockbox"));
+  assert.throws(() => applyFurnitureAction(state, box.approach!, "open_royal_lockbox"), /unavailable/);
+  state.inventory.push({ id: "wrong_key", name: "Wrong key" });
+  assert.throws(() => applyFurnitureAction(state, box.approach!, "open_royal_lockbox"), /unavailable/);
+  applyFurnitureAction(state, drawers.approach!, "open_merlin_drawers");
+  applyFurnitureAction(state, drawers.approach!, "take_royal_key");
+  assert.throws(() => applyFurnitureAction(state, drawers.approach!, "open_royal_lockbox"), /unavailable/);
+  applyFurnitureAction(state, box.approach!, "open_royal_lockbox");
+  assert.equal(box.open, true);
+  assert.ok(state.inventory.some(item => item.id === "royal_key"));
+  applyFurnitureAction(state, box.approach!, "close_royal_lockbox");
+  applyFurnitureAction(state, box.approach!, "open_royal_lockbox");
+  assert.equal(box.open, true);
+  const reset = createFurniture();
+  assert.equal(reset.inventory.length, 0);
+  assert.equal(reset.furniture.find(item => item.id === "royal_lockbox")!.open, false);
+  assert.equal(reset.furniture.find(item => item.id === "merlin_drawers")!.contents.length, 1);
+});
+
+test("furnishing blocks occupied tiles but preserves every waypoint when doors are open", () => {
+  const state = createFurniture();
+  const doors = createDoors(); doors.forEach(door => { door.open = true; });
+  const graph = doorGraph(doors); addFurnitureNodes(graph, state);
+  const blocked = new Set([...doorBlockers(doors), ...furnitureBlockers(state)]);
+  assert.equal(new Set(furnitureBlockers(state)).size, state.furniture.length);
+  for (const furniture of state.furniture) {
+    assert.ok(canWalk(palaceMap, furniture, new Set()), "furniture is placed on floor");
+    assert.ok(!canWalk(palaceMap, furniture, blocked));
+  }
+  const routes = reachableRoutes(palaceMap, graph.nodes, graph.edges, "great_hall", blocked);
+  assert.equal(routes.length, graph.nodes.length - 1);
+  for (const route of routes) assert.ok(route.path.every(point => canWalk(palaceMap, point, blocked)));
+});
+
+test("Jev action loop can fetch the key and open the king's lockbox through actual furniture state", async () => {
+  const state = createFurniture(), doors = createDoors(), graph = doorGraph(doors);
+  addFurnitureNodes(graph, state);
+  let current = graph.nodes[0]!, revision = 0;
+  const reports: string[] = [];
+  const host: AgentHost = {
+    snapshot: () => {
+      const blocked = new Set([...doorBlockers(doors), ...furnitureBlockers(state)]);
+      return { at: current.id, revision, world: { furniture: observeFurniture(state), inventory: state.inventory },
+        actions: [...legalActions(reachableRoutes(palaceMap, graph.nodes, graph.edges, current.id, blocked), doors, current), ...furnitureActions(state, current)] };
+    },
+    execute: async action => {
+      assert.ok(host.snapshot().actions.some(legal => legal.id === action.id));
+      if (action.type === "move") current = graph.nodes.find(node => node.id === action.target)!;
+      else if (action.type === "open" || action.type === "close") assert.ok(toggleDoor(doors.find(door => door.id === action.target)!, current));
+      else applyFurnitureAction(state, current, action.id);
+      revision++;
+    }, report: message => { reports.push(message); }, changed: () => {},
+  };
+  const agent = new PalaceAgent(host);
+  await agent.run("Get the key from Merlin's drawers and open the king's lockbox", choices(
+    "move_merlin_door_outside", "open_merlin_door", "move_merlin_drawers_approach", "open_merlin_drawers", "take_royal_key",
+    "move_royal_door_outside", "open_royal_door", "move_royal_lockbox_approach", "open_royal_lockbox", "complete"));
+  assert.ok(state.furniture.find(item => item.id === "royal_lockbox")!.open);
+  assert.deepEqual(state.inventory.map(item => item.id), ["royal_key"]);
+  assert.match(reports.at(-1)!, /reports the goal complete/);
 });

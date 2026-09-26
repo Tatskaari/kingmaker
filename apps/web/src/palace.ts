@@ -2,10 +2,14 @@ import { CanvasMapRenderer } from "./map-renderer.js";
 import { palaceMap } from "./palace-map.js";
 import { findPath, reachableRoutes, type NavRoute, type Point } from "./navigation.js";
 import { createDoors, doorGraph, doorBlockers, canUseDoor, toggleDoor, type Door } from "./palace-doors.js";
-import { PalaceAgent, legalActions, type PalaceAction } from "./palace-agent.js";
+import { PalaceAgent, legalActions, PALACE_INSTRUCTIONS, palaceCriteria, type PalaceAction } from "./palace-agent.js";
 import { JevClient } from "../../../packages/providers/src/jev.js";
+import { createFurniture, addFurnitureNodes, furnitureBlockers, furnitureActions, applyFurnitureAction, observeFurniture, besideFurniture } from "./palace-furniture.js";
 const doors = createDoors();
-const { nodes: palaceNodes, edges: palaceEdges } = doorGraph(doors);
+const furnitureState = createFurniture();
+const graph = doorGraph(doors);
+addFurnitureNodes(graph, furnitureState);
+const { nodes: palaceNodes, edges: palaceEdges } = graph;
 
 function element<T extends HTMLElement>(selector: string): T {
   const result = document.querySelector<T>(selector);
@@ -21,6 +25,9 @@ const destinations = element("[data-destinations]");
 const status = element("[data-status]");
 const location = element("[data-location]");
 const doorActions = element("[data-door-actions]");
+const furnitureControls = element("[data-furniture-actions]");
+const inventory = element("[data-inventory]");
+const lockboxStatus = element("[data-lockbox-status]");
 const observation = element("[data-observation]");
 const goalInput = element<HTMLTextAreaElement>("[data-agent-goal]");
 const keyInput = element<HTMLInputElement>("[data-jev-key]");
@@ -42,13 +49,15 @@ let frame = 0;
 let revision = 0;
 let movementDone: (() => void) | undefined;
 const agent = new PalaceAgent({
-  snapshot: () => ({ at: current.id, revision, actions: movement ? [] : legalActions(routes, doors, position), world: worldObservation() }),
+  snapshot: () => ({ at: current.id, revision, actions: availableActions(), world: worldObservation() }),
   execute: async (action: PalaceAction) => {
     if (action.type === "move") {
       await new Promise<void>((resolve, reject) => {
         movementDone = resolve;
         if (!travel(action.target)) { movementDone = undefined; reject(new Error("Destination is no longer reachable.")); }
       });
+    } else if (action.type === "open_container" || action.type === "close_container" || action.type === "take_item") {
+      useFurniture(action.id);
     } else {
       const door = doors.find(door => door.id === action.target);
       if (!door || door.open !== (action.type === "close") || !interact(door)) throw new Error("Door action is no longer available.");
@@ -56,6 +65,7 @@ const agent = new PalaceAgent({
   },
   report: (message, decision) => {
     agentStatus.textContent = message;
+    if (decision) element("[data-jev-response]").textContent = JSON.stringify(decision, null, 2);
     const row = document.createElement("li");
     row.textContent = message + (decision ? ` [${decision.choice}: ${Math.round((decision.probabilities[decision.choice] ?? 0) * 100)}%]` : "");
     agentLog.append(row);
@@ -66,16 +76,34 @@ const agent = new PalaceAgent({
 function worldObservation(): unknown {
   return {
     at: current.id, position, revision,
-    nodes: palaceNodes,
+    nodes: palaceNodes.map(({ id, name }) => ({ id, name })),
     traversableConnections: palaceEdges.filter(edge => findPath(palaceMap,
       palaceNodes.find(node => node.id === edge.from)!, palaceNodes.find(node => node.id === edge.to)!, blocked())),
     doors: doors.map(door => ({ id: door.id, name: door.name, state: door.open ? "open" : "closed",
       connects: door.connection, approachNodes: door.sides.map(side => side.id) })),
-    rules: "Only reachable moves are offered. Doors must be opened from an adjacent approach node before crossing. Full palace layout is known.",
-    availableActions: movement ? [] : legalActions(routes, doors, position),
+    furniture: observeFurniture(furnitureState),
+    inventory: furnitureState.inventory,
+    rules: "Furniture containers must be opened before their contents are known. The royal lockbox requires carrying its key to open. Only reachable moves are offered. Doors must be opened from an adjacent approach node before crossing. Full palace layout is known.",
   };
 }
-const blocked = (): Set<string> => doorBlockers(doors);
+const blocked = (): Set<string> => new Set([...doorBlockers(doors), ...furnitureBlockers(furnitureState)]);
+function availableActions(): PalaceAction[] {
+  if (movement) return [];
+  const movesAndDoors = legalActions(routes, doors, position).map(action => {
+    if (action.type !== "move") return action;
+    const door = doors.find(door => door.sides.some(side => side.id === action.target));
+    const furniture = furnitureState.furniture.find(item => item.approach?.id === action.target);
+    const effect = furniture ? ` This puts you beside ${furniture.name}, ${furniture.searched ? "already inspected" : "an unsearched container"}, to interact with it.`
+      : door ? ` This puts you beside ${door.name} so you can ${door.open ? "close it or pass through" : "open it to reach " + door.connection.map(id => palaceNodes.find(node => node.id === id)?.name ?? id).join(" / ")}.`
+      : "";
+    return { ...action, description: action.description + effect };
+  });
+  return [...movesAndDoors, ...furnitureActions(furnitureState, position)];
+}
+function useFurniture(actionId: string): void {
+  status.textContent = applyFurnitureAction(furnitureState, position, actionId, !!movement);
+  revision++; refresh();
+}
 function interact(door: Door): boolean {
   if (!toggleDoor(door, position, !!movement)) {
     status.textContent = `Move to a waypoint beside ${door.name} first, then right-click the door or use its button.`;
@@ -109,7 +137,21 @@ function refresh(): void {
     return button;
   }));
   if (!nearbyDoors.length) doorActions.textContent = "Walk to a door's approach waypoint to interact.";
+  const nearbyFurniture = furnitureState.furniture.filter(item => item.kind !== "decoration" && besideFurniture(item, position));
+  furnitureControls.replaceChildren(...furnitureActions(furnitureState, position, !!movement).map(action => {
+    const button = document.createElement("button"); button.textContent = action.description;
+    button.disabled = agent.running;
+    button.addEventListener("click", () => { if (!agent.running) useFurniture(action.id); });
+    return button;
+  }));
+  if (!furnitureControls.children.length) furnitureControls.textContent = nearbyFurniture.length
+    ? "Locked — you need the Royal lockbox key in your inventory."
+    : "Walk beside the drawers or lockbox to interact.";
+  inventory.textContent = furnitureState.inventory.map(item => item.name).join(", ") || "Empty";
+  lockboxStatus.textContent = furnitureState.furniture.find(item => item.id === "royal_lockbox")!.open ? "King's lockbox: open" : "King's lockbox: locked";
   location.textContent = movement ? `To ${movement.route.node.name}` : current.name;
+  element("[data-jev-prompt]").textContent = JSON.stringify(PALACE_INSTRUCTIONS, null, 2);
+  element("[data-jev-criteria]").textContent = JSON.stringify(palaceCriteria(availableActions()), null, 2);
   observation.textContent = JSON.stringify({ goal: goalInput.value, world: worldObservation(), recentEvents: agent.history }, null, 2);
   runButton.disabled = stepButton.disabled = agent.running || !!movement;
   pauseButton.disabled = !agent.running;
@@ -124,6 +166,17 @@ function line(path: Point[], color: string, width: number): void {
 }
 function render(): void {
   renderer.render(roomsToggle.checked, solidsToggle.checked);
+  for (const furniture of furnitureState.furniture) {
+    renderer.drawSprite("tiny-dungeon", furniture.kind === "lockbox" && furniture.open ? 89 : furniture.sprite, furniture.x, furniture.y);
+    if (furniture.kind === "drawers" && furniture.open) {
+      context.fillStyle = "#553326"; context.fillRect(furniture.x * 16 + 2, furniture.y * 16 + 8, 12, 6);
+      context.fillStyle = "#d69d65"; context.fillRect(furniture.x * 16 + 2, furniture.y * 16 + 12, 12, 3);
+      if (furniture.contents.length) {
+        context.fillStyle = "#fff1a2"; context.fillRect(furniture.x * 16 + 5, furniture.y * 16 + 9, 6, 2);
+      }
+    }
+    if (solidsToggle.checked) { context.fillStyle = "#e8494966"; context.fillRect(furniture.x * 16, furniture.y * 16, 16, 16); }
+  }
   if (navToggle.checked) {
     for (const path of activeEdges) line(path, "#71d7bf66", 1);
     for (const node of palaceNodes) {
@@ -195,10 +248,15 @@ function animate(time: number): void {
 }
 element("[data-reset]").addEventListener("click", () => {
   agent.reset();
-  agentLog.replaceChildren(); agentStatus.textContent = "Ready for a goal.";
+  agentLog.replaceChildren();
+  element("[data-jev-request]").textContent = "No request yet.";
+  element("[data-jev-response]").textContent = "No response yet.";
+  agentStatus.textContent = "Ready for a goal.";
   revision++;
   const done = movementDone; movementDone = undefined; done?.();
   window.clearTimeout(frame); movement = undefined; current = palaceNodes[0]!; position = current;
+  const initialFurniture = createFurniture();
+  furnitureState.furniture = initialFurniture.furniture; furnitureState.inventory = [];
   const initial = createDoors();
   doors.forEach((door, index) => { door.open = initial[index]!.open; });
   status.textContent = "Choose a destination."; refresh();
@@ -212,14 +270,22 @@ canvas.addEventListener("click", event => {
 canvas.addEventListener("contextmenu", event => {
   const hit = renderer.hit(event.clientX, event.clientY);
   const door = hit && doors.find(door => door.tiles.some(tile => tile.x === hit.tileX && tile.y === hit.tileY));
-  if (!door) return;
-  event.preventDefault(); if (!agent.running) interact(door);
+  if (door) { event.preventDefault(); if (!agent.running) interact(door); return; }
+  const furniture = hit && furnitureState.furniture.find(item => item.x === hit.tileX && item.y === hit.tileY);
+  if (!furniture || furniture.kind === "decoration") return;
+  event.preventDefault();
+  if (agent.running || movement) return;
+  const actions = furnitureActions(furnitureState, position).filter(action => action.target === furniture.id);
+  const action = actions.find(action => action.type === "take_item") ?? actions[0];
+  if (action) useFurniture(action.id);
+  else status.textContent = besideFurniture(furniture, position) ? "The lockbox requires the Royal lockbox key in your inventory." : `Walk to ${furniture.name}'s waypoint first.`;
 });
 canvas.addEventListener("pointermove", event => {
   const hit = renderer.hit(event.clientX, event.clientY);
   const node = hit && palaceNodes.find(node => node.x === hit.tileX && node.y === hit.tileY);
   const door = hit && doors.find(door => door.tiles.some(tile => tile.x === hit.tileX && tile.y === hit.tileY));
-  inspector.textContent = door ? `${door.name} · ${door.open ? "open" : "closed"} · right-click to interact` : hit ? `${node?.name ?? hit.roomName ?? "Outside"} · tile ${hit.tileX}, ${hit.tileY}` : "Click a waypoint to travel";
+  const furniture = hit && furnitureState.furniture.find(item => item.x === hit.tileX && item.y === hit.tileY);
+  inspector.textContent = furniture ? `${furniture.name} · ${furniture.kind === "decoration" ? "furniture" : furniture.open ? "open · right-click to interact" : "closed · right-click to interact"}` : door ? `${door.name} · ${door.open ? "open" : "closed"} · right-click to interact` : hit ? `${node?.name ?? hit.roomName ?? "Outside"} · tile ${hit.tileX}, ${hit.tileY}` : "Click a waypoint to travel";
 });
 canvas.addEventListener("pointerleave", () => { inspector.textContent = "Click a waypoint to travel"; });
 refresh();
@@ -230,9 +296,13 @@ function runAgent(singleStep: boolean): void {
   if (!key) { agentStatus.textContent = "Enter your OpenRouter key first."; keyInput.focus(); return; }
   if (!goalInput.value.trim()) { agentStatus.textContent = "Enter a goal first."; goalInput.focus(); return; }
   try { sessionStorage.setItem("kingmaker.openrouter-api-key", key); } catch { /* Keep working without storage. */ }
-  const client = new JevClient(key);
+  const client = new JevClient(key, undefined, request => {
+    element("[data-jev-request]").textContent = JSON.stringify(request, null, 2);
+  });
   void agent.run(goalInput.value.trim(), client.choose.bind(client), singleStep);
 }
 element<HTMLFormElement>("[data-agent-form]").addEventListener("submit", event => { event.preventDefault(); runAgent(false); });
 stepButton.addEventListener("click", () => runAgent(true));
 pauseButton.addEventListener("click", () => agent.pause());
+
+goalInput.addEventListener("input", () => refresh());

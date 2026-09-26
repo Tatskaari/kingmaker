@@ -2,7 +2,7 @@ import type { Choose, JevChoice } from "../../../packages/providers/src/jev.js";
 import type { NavRoute, Point } from "./navigation.js";
 import { canUseDoor, type Door } from "./palace-doors.js";
 
-export interface PalaceAction { id: string; type: "move" | "open" | "close"; target: string; description: string }
+export interface PalaceAction { id: string; type: "move" | "open" | "close" | "open_container" | "close_container" | "take_item"; target: string; itemId?: string; description: string }
 export function legalActions(routes: readonly NavRoute[], doors: readonly Door[], position: Point): PalaceAction[] {
   return [
     ...routes.map(route => ({ id: `move_${route.node.id}`, type: "move" as const, target: route.node.id,
@@ -12,6 +12,22 @@ export function legalActions(routes: readonly NavRoute[], doors: readonly Door[]
       description: `${door.open ? "Close" : "Open"} ${door.name}, connecting ${door.connection.join(" and ")}.` })),
   ];
 }
+export const PALACE_INSTRUCTIONS = {
+            role: "You control one character in a simulated palace. Rooms contain doors and furniture. You can move between named places, operate nearby doors and containers, and carry items.",
+            question: "Which available next action best advances the character's `goal` from its current situation?",
+            evidence: ["world", "actions", "recentEvents"],
+            knowledge: "The world describes what the character knows. Unknown facts are unknown, not false. The offered actions are legal now; their descriptions explain their immediate effects. Actions may change which actions become available next.",
+            goalOrder: "Respect the full free-form goal, including ordering and conditions. Recent events describe completed actions, not future plans.",
+            completion: "Choose complete only when the current situation and completed events establish that the entire goal has been achieved.",
+            stopping: "Choose unable only when no available action can make progress, or when essential clarification is required. Judge progress toward the goal, not whether a single action completes it.",
+          };
+
+export function palaceCriteria(actions: readonly PalaceAction[]): Record<string, string> {
+  return { ...Object.fromEntries(actions.map(action => [action.id, action.description])),
+            complete: "The entire goal is already satisfied, as evidenced by the current world and completed events.",
+            unable: "No offered action can make progress toward the goal, or essential clarification is required." };
+}
+
 export interface AgentSnapshot { at: string; revision: number; actions: PalaceAction[]; world: unknown }
 export interface AgentHost {
   snapshot(): AgentSnapshot;
@@ -47,15 +63,12 @@ export class PalaceAgent {
         if (this.#steps >= 24) throw new Error("Stopped after 24 actions. Set a new goal or reset to try again.");
         this.host.report(`Jev is choosing action ${this.#steps + 1}…`);
         const result = await choose({ goal, ...before, recentEvents: this.#history },
-          "Choose the next available action to fulfil `goal`, using the current world and the completed `recentEvents`. The goal is free-form and may require visiting multiple places, opening or closing doors, returning, or repeating actions. Honour order and conditions in the goal. Walk to a reachable door approach and open a blocking door before crossing. Only supplied actions exist; there are no item, combat or dialogue actions yet. Choose complete only if the ENTIRE goal is already satisfied by the world and completed events, never just because it is achievable or a subgoal is done. Choose unable if the goal cannot be fulfilled with the world's capabilities. Never invent outcomes.",
-          { ...Object.fromEntries(before.actions.map(action => [action.id, action.description])),
-            complete: "The entire goal is already satisfied, as evidenced by the current world and completed events.",
-            unable: "The goal cannot be achieved using the available world capabilities, or needs clarification." }, controller.signal);
+          PALACE_INSTRUCTIONS, palaceCriteria(before.actions), controller.signal);
         if (!active()) return;
         const now = this.host.snapshot();
         if (now.revision !== before.revision) throw new Error("World changed. Run again to replan.");
         if (result.choice === "complete") { this.host.report("Jev reports the goal complete.", result); break; }
-        if (result.choice === "unable") { this.host.report("Jev cannot fulfil this goal with the current actions (move, open door, close door), or needs a clearer goal.", result); break; }
+        if (result.choice === "unable") { this.host.report("Jev chose to stop: it judged that no available action would fulfil this goal, or that it needs clarification. This is a model judgment, not an engine verdict.", result); break; }
         const action = now.actions.find(action => action.id === result.choice);
         if (now.revision !== before.revision || !action) throw new Error("World changed or action is unavailable. Run again to replan.");
         this.#steps++;

@@ -31,18 +31,29 @@
         <label for="jev-key">OpenRouter key</label>
         <input id="jev-key" data-jev-key type="password" autocomplete="off" placeholder="Use your OpenRouter key">
         <label for="agent-goal">What should I do?</label>
-        <textarea id="agent-goal" data-agent-goal rows="2" maxlength="500">Visit Merlin's Chamber, then return to the Great Hall</textarea>
+        <textarea id="agent-goal" data-agent-goal rows="2" maxlength="500">Get the key from Merlin's chest of drawers, then open the lockbox in the king's bedchamber</textarea>
         <div class="agent-buttons"><button data-agent-run type="submit">Run goal</button><button data-agent-step type="button">Step</button><button data-agent-pause type="button" disabled>Pause</button></div>
         <p class="hint">Jev · free-form goals · up to 24 actions. Your key is kept only in this tab's session.</p>
         <p data-agent-status role="status" aria-live="polite">Ready for a goal.</p>
       </form>
+      <section class="prompt-preview" aria-label="Jev prompt">
+        <h3>Prompt sent to Jev</h3>
+        <p class="hint">These are the exact instructions used on every decision. Your goal and the world state are sent alongside them.</p>
+        <pre data-jev-prompt></pre>
+        <details><summary>Current action criteria</summary><pre data-jev-criteria></pre></details>
+      </section>
       <details><summary>Jev decisions</summary><ol data-agent-log></ol></details>
+      <details><summary>Last Jev request (no credentials)</summary><pre data-jev-request>No request yet.</pre></details>
+      <details><summary>Last Jev choice probabilities</summary><pre data-jev-response>No response yet.</pre></details>
       <h2 data-location>Great Hall</h2>
       <p data-status role="status" aria-live="polite">Choose a destination.</p>
       <h3>Reachable waypoints</h3>
       <div data-destinations class="destinations"></div>
       <h3>Nearby doors</h3>
       <div data-door-actions class="destinations hint"></div>
+      <h3>Inventory</h3><p data-inventory>Empty</p>
+      <h3>Nearby furniture</h3><div data-furniture-actions class="destinations hint"></div>
+      <p data-lockbox-status class="hint">King's lockbox: locked</p>
       <button data-reset class="secondary">Reset demo</button>
       <details><summary>Agent observation</summary><pre data-observation></pre></details>
     </aside></div>

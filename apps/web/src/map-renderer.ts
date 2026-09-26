@@ -52,6 +52,15 @@ export class CanvasMapRenderer {
     if (showSolids) this.#drawSolids();
   }
 
+  drawSprite(tilesetId: string, tileId: number, x: number, y: number): void {
+    const tileset = this.#map.tilesets.find(candidate => candidate.id === tilesetId);
+    const image = this.#images.get(tilesetId);
+    if (!tileset || !image) return;
+    this.#context.drawImage(image, tileId % tileset.columns * tileset.tileWidth,
+      Math.floor(tileId / tileset.columns) * tileset.tileHeight, tileset.tileWidth, tileset.tileHeight,
+      x * this.#map.tileWidth, y * this.#map.tileHeight, this.#map.tileWidth, this.#map.tileHeight);
+  }
+
   hit(clientX: number, clientY: number): MapHit | undefined {
     const rect = this.#canvas.getBoundingClientRect();
     const worldX = (clientX - rect.left) * this.#canvas.width / rect.width;

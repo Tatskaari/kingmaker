@@ -44,3 +44,7 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; color: #a9cabe; font: 10px
 [data-agent-status] { margin: 0; color: #a9dec9; }
 [data-agent-log] { max-height: 220px; overflow: auto; padding-left: 20px; font-size: .85rem; }
 [data-agent-log] li { margin-bottom: 8px; }
+
+.prompt-preview { border-top: 1px solid #433826; margin-top: 16px; padding-top: 4px; }
+.prompt-preview > pre { max-height: 260px; overflow: auto; padding: 10px; background: #100e0b; font-size: 11px; }
+[data-jev-request], [data-jev-response], [data-jev-criteria] { max-height: 360px; overflow: auto; }

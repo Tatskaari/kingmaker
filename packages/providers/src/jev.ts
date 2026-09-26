@@ -1,14 +1,20 @@
 /** OpenRouter Decisions API; criteria keys are the only permissible results. */
 export interface JevChoice { choice: string; probabilities: Record<string, number>; confidence?: number }
-export type Choose = (state: unknown, instructions: string, criteria: Record<string, string>, signal: AbortSignal) => Promise<JevChoice>;
+export type JevInstructions = string | Record<string, unknown>;
+export const jevRequest = (state: unknown, instructions: JevInstructions, criteria: Record<string, string>) =>
+  ({ model: "typesafe/jev-1.13", state, questions: { next: { type: "choice", instructions, criteria } } });
+export type Choose = (state: unknown, instructions: JevInstructions, criteria: Record<string, string>, signal: AbortSignal) => Promise<JevChoice>;
 export class JevClient {
-  constructor(private readonly apiKey: string, private readonly http: typeof fetch = (input, init) => globalThis.fetch(input, init)) {}
-  async choose(state: unknown, instructions: string, criteria: Record<string, string>, signal: AbortSignal): Promise<JevChoice> {
+  constructor(private readonly apiKey: string, private readonly http: typeof fetch = (input, init) => globalThis.fetch(input, init),
+    private readonly onRequest?: (request: ReturnType<typeof jevRequest>) => void) {}
+  async choose(state: unknown, instructions: JevInstructions, criteria: Record<string, string>, signal: AbortSignal): Promise<JevChoice> {
     if (!this.apiKey.trim()) throw new Error("Enter your OpenRouter key first.");
+    const request = jevRequest(state, instructions, criteria);
+    this.onRequest?.(request);
     const response = await this.http("https://openrouter.ai/api/alpha/decisions", {
       method: "POST",
       headers: { Authorization: `Bearer ${this.apiKey.trim()}`, "Content-Type": "application/json", "X-Title": "Kingmaker Palace" },
-      body: JSON.stringify({ model: "typesafe/jev-1.13", state, questions: { next: { type: "choice", instructions, criteria } } }),
+      body: JSON.stringify(request),
       signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
     });
     if (!response.ok) {
