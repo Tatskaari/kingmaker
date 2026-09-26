@@ -63,11 +63,7 @@ export class CanvasMapRenderer {
     const localX = worldX - tileX * this.#map.tileWidth;
     const localY = worldY - tileY * this.#map.tileHeight;
     const tile = this.#map.tiles[tileY * this.#map.width + tileX];
-    const layer = tile?.layers.findLast(candidate => {
-      const bounds = candidate.bounds;
-      return bounds && localX >= bounds.x && localY >= bounds.y
-        && localX < bounds.x + bounds.width && localY < bounds.y + bounds.height;
-    });
+    const layer = tile && this.#layerAt(tile.layers, localX, localY);
     return { tileX, tileY, roomName: this.#roomAt(tileX, tileY), layer };
   }
 
@@ -95,6 +91,7 @@ export class CanvasMapRenderer {
     this.#context.textAlign = "center";
     this.#context.textBaseline = "middle";
     for (const room of this.#map.rooms) {
+      if (!room.regions.length) continue;
       for (const region of room.regions) {
         const x = region.x * this.#map.tileWidth;
         const y = region.y * this.#map.tileHeight;
@@ -119,19 +116,38 @@ export class CanvasMapRenderer {
   }
 
   #drawSolids(): void {
+    this.#context.fillStyle = "#e8494966";
     this.#map.tiles.forEach((tile, index) => {
       const tileX = index % this.#map.width;
       const tileY = Math.floor(index / this.#map.width);
-      for (const layer of tile.layers.filter(candidate => candidate.solid && candidate.bounds)) {
-        const bounds = layer.bounds!;
-        this.#context.fillStyle = "#e8494966";
-        this.#context.fillRect(
-          tileX * this.#map.tileWidth + bounds.x,
-          tileY * this.#map.tileHeight + bounds.y,
-          bounds.width,
-          bounds.height,
-        );
+      for (let localY = 0; localY < this.#map.tileHeight; localY += 1) {
+        let runStart: number | undefined;
+        for (let localX = 0; localX <= this.#map.tileWidth; localX += 1) {
+          const solid = localX < this.#map.tileWidth && tile.layers.some(layer => {
+            const bounds = layer.bounds;
+            return layer.solid && bounds && localX >= bounds.x && localY >= bounds.y
+              && localX < bounds.x + bounds.width && localY < bounds.y + bounds.height;
+          });
+          if (solid && runStart === undefined) runStart = localX;
+          if (!solid && runStart !== undefined) {
+            this.#context.fillRect(
+              tileX * this.#map.tileWidth + runStart,
+              tileY * this.#map.tileHeight + localY,
+              localX - runStart,
+              1,
+            );
+            runStart = undefined;
+          }
+        }
       }
+    });
+  }
+
+  #layerAt(layers: readonly TileLayer[], x: number, y: number): TileLayer | undefined {
+    return layers.findLast(layer => {
+      const bounds = layer.bounds;
+      return bounds && x >= bounds.x && y >= bounds.y
+        && x < bounds.x + bounds.width && y < bounds.y + bounds.height;
     });
   }
 

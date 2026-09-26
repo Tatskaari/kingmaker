@@ -1,4 +1,5 @@
 import { create } from "@bufbuild/protobuf";
+import { autotileDungeon } from "./dungeon-autotile.js";
 import {
   WorldMapSchema,
   type Tile,
@@ -7,19 +8,12 @@ import {
 } from "../../../packages/contracts/src/index.js";
 
 const WIDTH = 32;
-const HEIGHT = 22;
+const HEIGHT = 32;
 const TILE_SIZE = 16;
+const BACKGROUND = 0;
 const FLOOR = 48;
 const FLOOR_VARIANT = 49;
 const FLOOR_DETAIL = 42;
-const WALL_TOP_LEFT = 1;
-const WALL_TOP = 2;
-const WALL_TOP_RIGHT = 3;
-const WALL_LEFT = 13;
-const WALL_RIGHT = 15;
-const WALL_BOTTOM_LEFT = 25;
-const WALL_BOTTOM = 26;
-const WALL_BOTTOM_RIGHT = 27;
 const tiles: Array<{ layers: TileLayer[] }> = Array.from(
   { length: WIDTH * HEIGHT },
   () => ({ layers: [] }),
@@ -60,50 +54,50 @@ function floorRegion(x: number, y: number, width: number, height: number): void 
   }
 }
 
-floorRegion(3, 2, 5, 5);   // Merlin's Chamber
-floorRegion(13, 1, 6, 4);  // Royal Bedchamber
-floorRegion(24, 2, 5, 5);  // Lancelot's Chamber
-floorRegion(8, 6, 16, 2);  // North Corridor
-floorRegion(15, 5, 2, 1);  // Royal doorway
-floorRegion(15, 8, 2, 1);  // Great Hall doorway
-floorRegion(10, 9, 12, 7); // Great Hall
-floorRegion(3, 13, 6, 7);  // Embassy Guest Chamber
-floorRegion(9, 13, 1, 1);  // Guest doorway
-floorRegion(12, 17, 8, 4); // Entrance Hall
-floorRegion(15, 16, 2, 1); // Great Hall doorway
-floorRegion(15, 21, 2, 1); // Palace entrance
-floorRegion(23, 13, 6, 7); // Treasury
-floorRegion(22, 13, 1, 1); // Treasury doorway
-
-function wallTile(x: number, y: number): number | undefined {
-  const above = isWalkable(x, y - 1);
-  const below = isWalkable(x, y + 1);
-  const left = isWalkable(x - 1, y);
-  const right = isWalkable(x + 1, y);
-  if ((below && right) || (!below && !right && isWalkable(x + 1, y + 1))) return WALL_TOP_LEFT;
-  if ((below && left) || (!below && !left && isWalkable(x - 1, y + 1))) return WALL_TOP_RIGHT;
-  if ((above && right) || (!above && !right && isWalkable(x + 1, y - 1))) return WALL_BOTTOM_LEFT;
-  if ((above && left) || (!above && !left && isWalkable(x - 1, y - 1))) return WALL_BOTTOM_RIGHT;
-  if (below) return WALL_TOP;
-  if (above) return WALL_BOTTOM;
-  if (right) return WALL_LEFT;
-  if (left) return WALL_RIGHT;
-  return undefined;
+// Floor regions are the single source for both room overlays and geometry.
+// Three solid rows between floors leave room for a bottom edge, cap and face;
+// two solid columns leave room for both facing vertical wall edges.
+const rooms = [
+  { id: "merlin_chamber", name: "Merlin's Chamber", regions: [{ x: 3, y: 3, width: 5, height: 5 }] },
+  { id: "royal_bedchamber", name: "Royal Bedchamber", regions: [{ x: 13, y: 3, width: 6, height: 5 }] },
+  { id: "lancelot_chamber", name: "Lancelot's Chamber", regions: [{ x: 24, y: 3, width: 5, height: 5 }] },
+  { id: "north_corridor", name: "North Corridor", regions: [
+    { x: 3, y: 11, width: 26, height: 3 },
+    { x: 5, y: 8, width: 2, height: 3 },
+    { x: 15, y: 8, width: 2, height: 3 },
+    { x: 25, y: 8, width: 2, height: 3 },
+    { x: 15, y: 14, width: 2, height: 3 },
+  ] },
+  { id: "great_hall", name: "Great Hall", regions: [
+    { x: 10, y: 17, width: 12, height: 7 },
+    { x: 8, y: 22, width: 2, height: 2 },
+    { x: 22, y: 22, width: 2, height: 2 },
+    { x: 15, y: 24, width: 2, height: 3 },
+  ] },
+  { id: "guest_chamber", name: "Embassy Guest Chamber", regions: [{ x: 2, y: 20, width: 6, height: 9 }] },
+  { id: "entrance_hall", name: "Entrance Hall", regions: [
+    { x: 12, y: 27, width: 8, height: 4 },
+    { x: 15, y: 31, width: 2, height: 1 },
+  ] },
+  { id: "treasury", name: "Treasury", regions: [{ x: 24, y: 20, width: 6, height: 9 }] },
+];
+for (const room of rooms) {
+  for (const region of room.regions) floorRegion(region.x, region.y, region.width, region.height);
 }
 
+const scenery = autotileDungeon(walkable, WIDTH, HEIGHT);
 for (let y = 0; y < HEIGHT; y += 1) {
   for (let x = 0; x < WIDTH; x += 1) {
-    if (isWalkable(x, y)) {
-      at(x, y).layers.push(layer((x * 17 + y * 31) % 11 === 0 ? FLOOR_VARIANT : FLOOR));
-      continue;
-    }
-    const tileId = wallTile(x, y);
-    if (tileId !== undefined) at(x, y).layers.push(layer(tileId, true));
+    const solid = !isWalkable(x, y);
+    at(x, y).layers.push(layer(BACKGROUND, solid));
+    const tileId = scenery[y * WIDTH + x]!;
+    const sprite = tileId === FLOOR && (x * 17 + y * 31) % 11 === 0 ? FLOOR_VARIANT : tileId;
+    if (sprite !== BACKGROUND) at(x, y).layers.push(layer(sprite, solid));
   }
 }
 
 // Decorative paving demonstrates a second bounded layer on a floor tile.
-for (const [x, y] of [[13, 11], [18, 11], [13, 14], [18, 14]] as const) {
+for (const [x, y] of [[13, 19], [18, 19], [13, 22], [18, 22]] as const) {
   at(x, y).layers.push(layer(FLOOR_DETAIL));
 }
 
@@ -123,14 +117,5 @@ export const palaceMap: WorldMap = create(WorldMapSchema, {
     tileCount: 132,
   }],
   tiles: tiles as Tile[],
-  rooms: [
-    { id: "merlin_chamber", name: "Merlin's Chamber", regions: [{ x: 3, y: 2, width: 5, height: 5 }] },
-    { id: "royal_bedchamber", name: "Royal Bedchamber", regions: [{ x: 13, y: 1, width: 6, height: 4 }] },
-    { id: "lancelot_chamber", name: "Lancelot's Chamber", regions: [{ x: 24, y: 2, width: 5, height: 5 }] },
-    { id: "north_corridor", name: "North Corridor", regions: [{ x: 8, y: 6, width: 16, height: 2 }, { x: 15, y: 5, width: 2, height: 1 }, { x: 15, y: 8, width: 2, height: 1 }] },
-    { id: "great_hall", name: "Great Hall", regions: [{ x: 10, y: 9, width: 12, height: 7 }, { x: 9, y: 13, width: 1, height: 1 }, { x: 15, y: 16, width: 2, height: 1 }, { x: 22, y: 13, width: 1, height: 1 }] },
-    { id: "guest_chamber", name: "Embassy Guest Chamber", regions: [{ x: 3, y: 13, width: 6, height: 7 }] },
-    { id: "entrance_hall", name: "Entrance Hall", regions: [{ x: 12, y: 17, width: 8, height: 4 }, { x: 15, y: 21, width: 2, height: 1 }] },
-    { id: "treasury", name: "Treasury", regions: [{ x: 23, y: 13, width: 6, height: 7 }] },
-  ],
+  rooms,
 });

@@ -52,6 +52,7 @@ test("the palace map is a complete layered tile grid", () => {
   assert.ok([13, 15].every(tileId => solidTileIds.has(tileId)), "vertical wall sprites are used");
 
   const passable = (x: number, y: number): boolean => {
+    if (x < 0 || y < 0 || x >= decoded.width || y >= decoded.height) return false;
     const tile = decoded.tiles[y * decoded.width + x];
     return Boolean(tile?.layers.length && tile.layers.every(layer => !layer.solid));
   };
@@ -66,9 +67,24 @@ test("the palace map is a complete layered tile grid", () => {
     pending.push([x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]);
   }
   for (const room of decoded.rooms) {
-    const region = room.regions[0]!;
-    assert.ok(reached.has(`${region.x},${region.y}`), `${room.name} is reachable from the Great Hall`);
+    for (const region of room.regions) {
+      for (let y = region.y; y < region.y + region.height; y += 1) {
+        for (let x = region.x; x < region.x + region.width; x += 1) {
+          assert.ok(reached.has(`${x},${y}`), `${room.name} floor at ${x},${y} is reachable`);
+        }
+      }
+    }
   }
+  // Facing rooms need a bottom edge, north cap and masonry face in separate
+  // solid rows. A one-row band formerly produced overlapping, broken walls.
+  for (const [x, y] of [[3, 8], [12, 14], [13, 24]] as const) {
+    const band = [0, 1, 2].map(dy => decoded.tiles[(y + dy) * decoded.width + x]!.layers.at(-1)!.tileId);
+    assert.deepEqual(band, [26, 2, 40]);
+    assert.ok([0, 1, 2].every(dy => !passable(x, y + dy)));
+  }
+  const doorwayEdge = [0, 1, 2].map(dy => decoded.tiles[(8 + dy) * decoded.width + 4]!.layers.at(-1)!.tileId);
+  assert.deepEqual(doorwayEdge, [5, 17, 59], "doorway uses inner corners and a wall end");
+  assert.ok(reached.has(`15,${decoded.height - 1}`), "exterior entrance stays open");
 });
 
 test("game master context frames an emissary interview without defining the player", () => {
