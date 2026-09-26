@@ -9,6 +9,7 @@ let debugData = null;
 let debugError = "";
 let debugTitle = "Debug Inspector";
 let debugPath = "/api/debug";
+let apiKey = "";
 
 const devEvents = new EventSource("/__dev/events");
 devEvents.addEventListener("ready", event => {
@@ -18,7 +19,7 @@ devEvents.addEventListener("ready", event => {
 });
 
 async function api(path, options = {}) {
-  const response = await fetch(path, { headers: { "Content-Type": "application/json" }, ...options });
+  const response = await fetch(path, { headers: { "Content-Type": "application/json", "X-OpenRouter-Key": apiKey }, ...options });
   const body = await response.json();
   if (!response.ok) throw new Error(body.error || `Request failed (${response.status})`);
   return body;
@@ -31,7 +32,13 @@ function escapeHtml(value) {
 function shell(content) {
   const sheetButton = state?.player ? `<button class="sheet-tab" data-sheet-open aria-label="Open character sheet"><span class="sheet-tab-icon">♙</span><span>Character</span></button>` : "";
   const sheet = state?.player ? characterSheet() : "";
-  return `<button class="debug-button" data-debug-open aria-label="Open debug inspector">⌘ <span>Debug</span></button>${sheetButton}<div class="shell"><header class="masthead"><div class="eyebrow">An improvised political cRPG</div><h1>Kingmaker</h1><div class="rule"></div><p class="subtitle">Whoever holds the Crown of Winter at solstice dawn will rule.</p></header>${content}<div class="footer"><button class="reset" data-reset>Start over</button></div></div>${sheet}${debugInspector()}`;
+  const keyControl = apiKey ? `<button class="reset" data-key-change>Change OpenRouter key</button>` : "";
+  return `<button class="debug-button" data-debug-open aria-label="Open debug inspector">⌘ <span>Debug</span></button>${sheetButton}<div class="shell"><header class="masthead"><div class="eyebrow">An improvised political cRPG</div><h1>Kingmaker</h1><div class="rule"></div><p class="subtitle">Whoever holds the Crown of Winter at solstice dawn will rule.</p></header>${content}<div class="footer">${state ? `<button class="reset" data-reset>Start over</button>` : ""}${keyControl}</div></div>${sheet}${debugInspector()}`;
+}
+
+function renderKeyEntry() {
+  app.innerHTML = shell(`<section class="panel key-entry"><div><div class="eyebrow">Connect your model</div><h2>Enter an OpenRouter key</h2><p>The key stays in this browser tab and is never included in game saves or debug output.</p><form data-key-form><input type="password" name="apiKey" autocomplete="off" placeholder="sk-or-v1-…" required><button class="primary">Continue</button></form></div></section>`);
+  bind();
 }
 
 function characterSheet() {
@@ -100,6 +107,7 @@ function renderConversation() {
 }
 
 function render() {
+  if (!apiKey) return renderKeyEntry();
   if (!state) return;
   if (state.phase === "player_creation") return renderCreation();
   if (activeCharacter) return renderConversation();
@@ -114,6 +122,12 @@ async function run(action) {
 }
 
 function bind() {
+  document.querySelector("[data-key-form]")?.addEventListener("submit", event => {
+    event.preventDefault();
+    apiKey = String(new FormData(event.currentTarget).get("apiKey") || "").trim();
+    run(async () => { state = await api("/api/state"); });
+  });
+  document.querySelector("[data-key-change]")?.addEventListener("click", () => { apiKey = ""; state = null; render(); });
   document.querySelector("[data-sheet-open]")?.addEventListener("click", () => { sheetOpen = true; debugOpen = false; render(); });
   document.querySelectorAll("[data-sheet-close]").forEach(button => button.addEventListener("click", () => { sheetOpen = false; render(); }));
   document.querySelector("[data-debug-open]")?.addEventListener("click", () => openDebug("/api/debug", "Debug Inspector"));
@@ -144,5 +158,4 @@ document.addEventListener("keydown", event => {
   if (event.key === "Escape" && (sheetOpen || debugOpen)) { sheetOpen = false; debugOpen = false; render(); }
 });
 
-state = await api("/api/state");
 render();

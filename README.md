@@ -82,9 +82,10 @@ proto run moon -- run workspace:build
 The OpenRouter key remains outside the repository at
 `~/secrets/kingmaker-dev-openrouter.txt`. The server loads it through
 `OPENROUTER_API_KEY_FILE` and never sends it to the browser. Start the prototype
-with `proto run npm -- run dev`, then open `http://127.0.0.1:4317`. The first paid
-request occurs when the player clicks **Begin**. During development, changes to
-the server or browser files restart the server and refresh connected pages.
+with `proto run npm -- run dev`, then open `http://127.0.0.1:5173`. Enter an
+OpenRouter key in the browser; it remains in tab memory and is excluded from
+saves and debug output. The first paid request occurs when the player clicks
+**Begin**. Vite hot-reloads browser changes while the API process watches server code.
 The dev command snapshots game memory under `.moon/cache`, so watcher restarts
 preserve the current character and conversations.
 The top-right debug inspector reads the complete in-memory protobuf scenario and

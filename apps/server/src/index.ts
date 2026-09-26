@@ -29,17 +29,16 @@ function expandHome(path: string): string {
   return path === "~" ? homedir() : path.startsWith("~/") ? join(homedir(), path.slice(2)) : path;
 }
 
-function loadKey(): string {
+function loadKey(): string | undefined {
   const direct = process.env.OPENROUTER_API_KEY?.trim();
   if (direct) return direct;
   const file = expandHome(process.env.OPENROUTER_API_KEY_FILE || "~/secrets/kingmaker-dev-openrouter.txt");
-  if (!existsSync(file)) throw new Error(`OpenRouter key file not found: ${file}`);
+  if (!existsSync(file)) return undefined;
   const key = readFileSync(file, "utf8").trim();
-  if (!key) throw new Error(`OpenRouter key file is empty: ${file}`);
-  return key;
+  return key || undefined;
 }
 
-const client = new OpenRouterClient(loadKey());
+const fallbackApiKey = loadKey();
 let game = new MemoryGame(fromJsonString(ScenarioSchema, readFileSync(scenarioFile, "utf8")));
 let gmHistory: OpenRouterMessage[] = [];
 let conversations = new Map<string, TranscriptMessage[]>();
@@ -185,7 +184,14 @@ function executeGmTool(name: string, input: JsonObject): JsonObject {
   throw new Error(`Unknown game-master tool: ${name}`);
 }
 
-async function talkToGameMaster(text: string): Promise<string> {
+function openRouter(apiKey: string | undefined): OpenRouterClient {
+  const key = apiKey?.trim() || fallbackApiKey;
+  if (!key) throw new Error("Enter an OpenRouter API key to continue");
+  return new OpenRouterClient(key);
+}
+
+async function talkToGameMaster(text: string, apiKey?: string): Promise<string> {
+  const client = openRouter(apiKey);
   gmHistory.push({ role: "user", content: text });
   for (let step = 0; step < 5; step += 1) {
     const setup = new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario: game.scenario() }));
@@ -233,7 +239,8 @@ const dialogueFormat = {
   },
 } as const;
 
-async function talkToCharacter(characterId: string, text: string): Promise<string> {
+async function talkToCharacter(characterId: string, text: string, apiKey?: string): Promise<string> {
+  const client = openRouter(apiKey);
   const scenario = game.scenario();
   if (scenario.world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Character conversations have not begun");
   if (!scenario.characters.some(character => character.id === characterId && character.id !== "player")) throw new Error("Unknown character");
@@ -339,6 +346,11 @@ function json(response: ServerResponse, status: number, value: unknown): void {
   response.end(JSON.stringify(value));
 }
 
+function requestApiKey(request: IncomingMessage): string | undefined {
+  const value = request.headers["x-openrouter-key"];
+  return Array.isArray(value) ? value[0] : value;
+}
+
 function serveFile(pathname: string, response: ServerResponse): void {
   const requested = pathname === "/" ? "index.html" : pathname.slice(1);
   const safe = normalize(requested).replace(/^(\.\.(\/|\\|$))+/, "");
@@ -375,12 +387,12 @@ const server = createServer(async (request, response) => {
       return json(response, 200, viewState());
     }
     if (request.method === "POST" && url.pathname === "/api/gm") {
-      const body = await readJson(request); const reply = await talkToGameMaster(asText(body.message, "message"));
+      const body = await readJson(request); const reply = await talkToGameMaster(asText(body.message, "message"), requestApiKey(request));
       return json(response, 200, { reply, state: viewState() });
     }
     const talk = request.method === "POST" ? url.pathname.match(/^\/api\/talk\/([a-z_]+)$/) : null;
     if (talk) {
-      const body = await readJson(request); const reply = await talkToCharacter(talk[1]!, asText(body.message, "message"));
+      const body = await readJson(request); const reply = await talkToCharacter(talk[1]!, asText(body.message, "message"), requestApiKey(request));
       return json(response, 200, { reply, state: viewState() });
     }
     if (request.method === "POST" && url.pathname === "/api/end-day") return json(response, 501, { error: "The twelve-hour night loop is the next milestone." });
