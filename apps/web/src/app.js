@@ -1,3 +1,5 @@
+import { introduction, introductionHandoff, patronName } from "./introduction.js";
+
 const app = document.querySelector("#app");
 let state;
 let activeCharacter = null;
@@ -11,6 +13,7 @@ let debugTitle = "Debug Inspector";
 let debugRequest = { type: "debug", payload: {} };
 let apiKey = "";
 let screen = "key";
+let introPage = 0;
 let saves = [];
 let activeSaveId = null;
 let requestSequence = 0;
@@ -96,12 +99,13 @@ function messageList(messages, assistantName) {
 }
 
 function renderCreation() {
-  const messages = state.gmMessages || [];
+  const messages = (state.gmMessages || []).filter(message => message.text !== introductionHandoff);
   if (!messages.length) {
-    app.innerHTML = shell(`<section class="panel begin"><div><h2>Enter the Great Hall</h2><p>You arrive with an embassy from a neighbouring allied kingdom. The Game Master will help decide who you are, where you came from, and what brought you here.</p><button class="primary" data-begin ${busy ? "disabled" : ""}>Begin</button><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></div></section>`);
+    const page = introduction[introPage];
+    app.innerHTML = shell(`<section class="introduction ${introPage === introduction.length - 1 ? "patron-reveal" : ""}" aria-labelledby="intro-title"><div class="intro-topline"><span class="eyebrow">The Last Night</span><span class="intro-count" aria-label="Page ${introPage + 1} of ${introduction.length}">0${introPage + 1} / 0${introduction.length}</span></div><div class="intro-symbol" aria-hidden="true">${page.symbol}</div><div class="intro-copy"><p class="eyebrow">${page.chapter}</p><h2 id="intro-title" tabindex="-1">${escapeHtml(page.title)}</h2><p class="intro-body">${escapeHtml(page.body)}</p><p class="intro-aside">${escapeHtml(page.aside)}</p></div><div class="intro-navigation"><button class="back" data-intro-back ${introPage === 0 || busy ? "disabled" : ""}>← Back</button><div class="intro-progress" aria-hidden="true">${introduction.map((_, index) => `<span class="${index === introPage ? "current" : ""}"></span>`).join("")}</div>${introPage < introduction.length - 1 ? `<button class="primary" data-intro-next>Next →</button>` : `<button class="primary" data-begin ${busy ? "disabled" : ""}>Who am I to you? →</button>`}</div><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
     return bind();
   }
-  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><h2>The Game Master</h2><span class="eyebrow">Character creation</span></div><div class="messages">${messageList(messages, "Game Master")}</div><form class="composer" data-gm-form><textarea name="message" placeholder="Answer in your own words…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div></div><div class="messages">${messageList(messages, patronName)}</div><form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Tell him what you desire…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
   bind();
   document.querySelector(".messages")?.scrollTo(0, 999999);
 }
@@ -131,7 +135,7 @@ function render() {
 }
 
 async function run(action) {
-  busy = true; notice = "The court considers your words…"; render();
+  busy = true; notice = state?.phase === "player_creation" ? "Somewhere in the dark, the Stranger smiles…" : "The court considers your words…"; render();
   try { await action(); notice = ""; }
   catch (error) { notice = `Error: ${error.message}`; }
   finally { busy = false; render(); }
@@ -145,10 +149,10 @@ function bind() {
   });
   document.querySelector("[data-key-change]")?.addEventListener("click", () => { apiKey = ""; state = null; screen = "key"; render(); });
   document.querySelector("[data-new-game]")?.addEventListener("click", () => run(async () => {
-    const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    introPage = 0; const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   }));
   document.querySelectorAll("[data-save-load]").forEach(button => button.addEventListener("click", () => run(async () => {
-    const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    introPage = 0; const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   })));
   document.querySelectorAll("[data-save-delete]").forEach(button => button.addEventListener("click", () => run(async () => {
     const result = await rpc("delete_game", { saveId: button.dataset.saveDelete }); saves = result.saves;
@@ -163,8 +167,10 @@ function bind() {
   });
   document.querySelector("[data-debug-refresh]")?.addEventListener("click", () => openDebug());
   document.querySelectorAll("[data-debug-close]").forEach(button => button.addEventListener("click", () => { debugOpen = false; render(); }));
+  document.querySelector("[data-intro-next]")?.addEventListener("click", () => { introPage = Math.min(introPage + 1, introduction.length - 1); render(); document.querySelector("#intro-title")?.focus({ preventScroll: true }); window.scrollTo(0, 0); });
+  document.querySelector("[data-intro-back]")?.addEventListener("click", () => { introPage = Math.max(introPage - 1, 0); render(); document.querySelector("#intro-title")?.focus({ preventScroll: true }); window.scrollTo(0, 0); });
   document.querySelector("[data-begin]")?.addEventListener("click", () => run(async () => {
-    const result = await rpc("gm", { message: "Introduce the situation and help me create my emissary." }); state = result.state; saves = result.saves;
+    const result = await rpc("gm", { message: introductionHandoff }); state = result.state; saves = result.saves;
   }));
   document.querySelector("[data-gm-form]")?.addEventListener("submit", event => {
     event.preventDefault(); const message = new FormData(event.currentTarget).get("message");
@@ -177,7 +183,7 @@ function bind() {
   });
   document.querySelector("[data-back]")?.addEventListener("click", () => { activeCharacter = null; notice = ""; render(); });
   document.querySelector("[data-end-day]")?.addEventListener("click", () => { notice = "The twelve-hour night phase is the next milestone. For now, the day remains yours."; render(); });
-  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
+  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { introPage = 0; const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
 }
 
 document.addEventListener("keydown", event => {
