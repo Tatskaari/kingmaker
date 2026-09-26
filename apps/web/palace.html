@@ -37,6 +37,23 @@
         <p class="hint">Jev · free-form goals · up to 24 actions. Your key is kept only in this tab's session.</p>
         <p data-agent-status role="status" aria-live="polite">Ready for a goal.</p>
       </form>
+      <section class="palace-conversation" aria-label="Conversation with Merlin">
+        <h3>Talk with Merlin</h3>
+        <p data-player-description></p>
+        <p class="hint">End the conversation to see Merlin's resulting goal and why it changed. Choose Run goal when you want him to act.</p>
+        <div data-dialogue-transcript role="log" aria-live="polite"></div>
+        <div data-dialogue-options class="agent-buttons"></div>
+        <form data-dialogue-form class="agent-controls">
+          <label for="dialogue-message">Speak as Alden</label>
+          <textarea id="dialogue-message" data-dialogue-message rows="3" required placeholder="Merlin, could you help me with something?"></textarea>
+          <div class="agent-buttons"><button data-dialogue-send type="submit">Speak</button><button data-dialogue-end type="button" disabled>End conversation &amp; return goal</button></div>
+        </form>
+        <p data-dialogue-status role="status">Merlin is ready to talk.</p>
+        <div data-dialogue-result hidden><h3>Goal after the conversation</h3><p data-dialogue-goal></p><p data-dialogue-reason></p></div>
+        <details><summary>Current dialogue context</summary><pre data-dialogue-context></pre></details>
+        <details><summary>Last dialogue / review request (no credentials)</summary><pre data-dialogue-request>No request yet.</pre></details>
+        <details><summary>Last conversation review</summary><pre data-dialogue-review>No review yet.</pre></details>
+      </section>
       <div class="world-summary" aria-label="World status">
         <p><strong>Location</strong> <span data-location>Great Hall</span></p>
         <p><strong>Inventory</strong> <span data-inventory>Empty</span></p>

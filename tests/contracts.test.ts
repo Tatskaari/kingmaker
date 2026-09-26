@@ -1,3 +1,4 @@
+import { PalaceDialogue, palaceSurroundings, palaceDialogueContext, createPalacePlayer } from "../apps/web/src/palace-dialogue.js";
 import { interactionActions, executeInteraction } from "../apps/web/src/palace-interactions.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -1046,4 +1047,80 @@ test("combined actions navigate through doors, fetch the key and open the royal 
   assert.equal(current.id, "coffer_03_approach");
   assert.ok(furniture.inventory.some(item => item.id === "royal_key"));
   assert.ok(furniture.furniture.find(item => item.id === "coffer_03")!.open);
+});
+
+test("palace dialogue sees its actual room and conceals unopened contents and other rooms", () => {
+  const furniture = createFurniture(), doors = createDoors();
+  const room = palaceSurroundings({ x: 15, y: 21 }, doors, furniture);
+  assert.equal(room.room, "Great Hall");
+  const view = JSON.stringify(room);
+  assert.match(view, /Hall sideboard/);
+  assert.doesNotMatch(view, /Iron storeroom key|royal_seal|Merlin's bookcase|Carved wooden coffer/);
+  const scenario = load(); scenario.characters.push(createPalacePlayer());
+  const context = palaceDialogueContext(scenario, "Visit the treasury", room);
+  const text = JSON.stringify(context);
+  assert.match(text, /Alden/); assert.match(text, /cousin/);
+  assert.match(text, /Visit the treasury/);
+  assert.ok(!context.some(message => message.content.startsWith("# Known world state")));
+  assert.doesNotMatch(text, /feast_joke_lancelot/);
+  const sideboard = furniture.furniture.find(item => item.id === "hall_cabinet")!;
+  applyFurnitureAction(furniture, sideboard.approach!, "open_hall_cabinet");
+  assert.match(JSON.stringify(palaceSurroundings({ x: 15, y: 21 }, doors, furniture)), /Iron storeroom key/);
+});
+
+test("palace dialogue reviews intent into a returned goal and durable private memory without moving objects", async () => {
+  const scenario = load(); scenario.characters.push(createPalacePlayer());
+  const originalWorld = JSON.stringify(scenario.world);
+  const eventsBefore = scenario.events.length;
+  const dialogue = new PalaceDialogue(scenario, () => ({ room: "Great Hall" }), () => "Wait in the hall");
+  await dialogue.speak("Please visit the treasury.", async request => {
+    assert.equal(request.messages.at(-1)?.content, "Please visit the treasury.");
+    return { role: "assistant", content: JSON.stringify({ utterance: "I shall go there.", replyOptions: ["Thank you."] }) };
+  });
+  assert.equal(dialogue.transcript.length, 2);
+  const result = await dialogue.finish(async request => {
+    assert.match(request.messages.at(-1)!.content!, /I shall go there/);
+    return { role: "assistant", content: JSON.stringify({ newEvents: [{ type: "agreement", summary: "I agreed to visit the treasury at Alden's request." }],
+      goalUpdate: { goal: "Visit the treasury", reason: "I agreed to Alden's request." }, relationships: [], lore: null }) };
+  });
+  assert.equal(result.goal, "Visit the treasury");
+  assert.match(result.reason, /agreed/);
+  assert.equal(scenario.characters.find(character => character.id === "merlin")!.currentGoal, result.goal);
+  assert.equal(scenario.events.length, eventsBefore + 1);
+  assert.equal(scenario.events.at(-1)!.visibility, EventVisibility.PRIVATE);
+  assert.deepEqual(scenario.events.at(-1)!.characterIds, ["merlin", "player"]);
+  assert.equal(JSON.stringify(scenario.world), originalWorld);
+  assert.equal(dialogue.transcript.length, 0);
+  assert.match(JSON.stringify(dialogue.context()), /I agreed to visit the treasury/);
+});
+
+test("palace review preserves conversation on invalid output and returns unchanged goal when appropriate", async () => {
+  const scenario = load();
+  const dialogue = new PalaceDialogue(scenario, () => ({ room: "Great Hall" }), () => "Stay here");
+  await dialogue.speak("Hello", async () => ({ role: "assistant", content: '{"utterance":"Hello","replyOptions":[]}' }));
+  const before = JSON.stringify(scenario);
+  await assert.rejects(dialogue.finish(async () => ({ role: "assistant", content: '{"goalUpdate":{"goal":"Leave"}}' })), /incomplete/);
+  assert.equal(dialogue.transcript.length, 2);
+  assert.equal(JSON.stringify(scenario), before);
+  const result = await dialogue.finish(async () => ({ role: "assistant", content: '{"newEvents":[],"goalUpdate":null,"relationships":[],"lore":null}' }));
+  assert.equal(result.goal, "Stay here");
+  assert.match(result.reason, /did not change/);
+});
+
+test("aborted palace replies and reviews cannot restore a reset conversation or mutate memory", async () => {
+  const scenario = load(), controller = new AbortController();
+  const dialogue = new PalaceDialogue(scenario, () => ({ room: "Great Hall" }), () => "Wait");
+  await assert.rejects(dialogue.speak("Hello", async () => {
+    controller.abort(); dialogue.reset();
+    return { role: "assistant", content: '{"utterance":"Hello","replyOptions":[]}' };
+  }, controller.signal), /abort/i);
+  assert.equal(dialogue.transcript.length, 0);
+  await dialogue.speak("Hello", async () => ({ role: "assistant", content: '{"utterance":"Hello","replyOptions":[]}' }));
+  const before = JSON.stringify(scenario), reviewController = new AbortController();
+  await assert.rejects(dialogue.finish(async () => {
+    reviewController.abort(); dialogue.reset();
+    return { role: "assistant", content: '{"newEvents":[],"goalUpdate":{"goal":"Leave","reason":"Agreed"},"relationships":[],"lore":null}' };
+  }, reviewController.signal), /abort/i);
+  assert.equal(dialogue.transcript.length, 0);
+  assert.equal(JSON.stringify(scenario), before);
 });

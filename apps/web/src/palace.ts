@@ -1,4 +1,4 @@
-import { fromJsonString } from "@bufbuild/protobuf";
+import { clone, fromJsonString } from "@bufbuild/protobuf";
 import { ScenarioSchema } from "../../../packages/contracts/src/index.js";
 import { characterDecisionContext } from "../../../packages/core/src/context.js";
 import { CanvasMapRenderer } from "./map-renderer.js";
@@ -9,9 +9,14 @@ import { PalaceAgent, PALACE_INSTRUCTIONS, palaceCriteria, type PalaceAction } f
 import { JevClient } from "../../../packages/providers/src/jev.js";
 import { createFurniture, addFurnitureNodes, furnitureBlockers, applyFurnitureAction, observeFurniture, furnitureName } from "./palace-furniture.js";
 import { interactionActions, executeInteraction } from "./palace-interactions.js";
+import { PalaceDialogue, palaceSurroundings, createPalacePlayer } from "./palace-dialogue.js";
+import { OpenRouterClient } from "../../../packages/providers/src/openrouter.js";
 const scenarioResponse = await fetch(new URL("../../../content/scenarios/last-night.json", import.meta.url));
 if (!scenarioResponse.ok) throw new Error("Could not load Merlin's character sheet.");
 const scenario = fromJsonString(ScenarioSchema, await scenarioResponse.text());
+scenario.characters.push(createPalacePlayer());
+scenario.premise = scenario.premise.split(" On Day 1,")[0] + " Alden, the king's cousin, is visiting the palace and speaking with members of the court.";
+const initialDialogueScenario = clone(ScenarioSchema, scenario);
 const merlin = scenario.characters.find(character => character.id === "merlin")!;
 const doors = createDoors();
 const furnitureState = createFurniture();
@@ -53,6 +58,11 @@ let activeEdges: Point[][] = [];
 let frame = 0;
 let revision = 0;
 let movementDone: (() => void) | undefined;
+let dialogueController: AbortController | undefined;
+const dialogue = new PalaceDialogue(scenario, () => palaceSurroundings(position, doors, furnitureState), () => goalInput.value);
+const dialogueInput = element<HTMLTextAreaElement>("[data-dialogue-message]");
+const dialogueStatus = element("[data-dialogue-status]");
+element("[data-player-description]").textContent = "You are Alden, the king's cousin: a visitor familiar with court life, with no official office or special powers.";
 const agent = new PalaceAgent({
   characterContext: goal => characterDecisionContext(scenario, merlin.id, goal),
   snapshot: () => ({ at: current.id, revision, actions: availableActions(), world: worldObservation() }),
@@ -141,9 +151,15 @@ function refresh(): void {
   element("[data-jev-prompt]").textContent = JSON.stringify(PALACE_INSTRUCTIONS, null, 2);
   element("[data-jev-criteria]").textContent = JSON.stringify(palaceCriteria(availableActions()), null, 2);
   observation.textContent = JSON.stringify({ goal: goalInput.value, characterContext: characterDecisionContext(scenario, merlin.id, goalInput.value), world: worldObservation(), recentEvents: agent.history }, null, 2);
-  runButton.disabled = stepButton.disabled = agent.running || !!movement;
+  runButton.disabled = stepButton.disabled = agent.running || !!movement || !!dialogueController;
   pauseButton.disabled = !agent.running;
-  goalInput.disabled = keyInput.disabled = agent.running || !!movement;
+  goalInput.disabled = keyInput.disabled = agent.running || !!movement || !!dialogueController;
+  const dialogueBlocked = agent.running || !!movement || !!dialogueController;
+  element<HTMLButtonElement>("[data-dialogue-send]").disabled = dialogueBlocked;
+  element<HTMLButtonElement>("[data-dialogue-end]").disabled = dialogueBlocked || !dialogue.transcript.length;
+  dialogueInput.disabled = dialogueBlocked;
+  for (const button of element("[data-dialogue-options]").querySelectorAll("button")) button.disabled = dialogueBlocked;
+  element("[data-dialogue-context]").textContent = JSON.stringify(dialogue.context(), null, 2);
   render();
 }
 function line(path: Point[], color: string, width: number): void {
@@ -230,6 +246,17 @@ function animate(time: number): void {
 }
 element("[data-reset]").addEventListener("click", () => {
   interactionGeneration++;
+  dialogueController?.abort(); dialogueController = undefined;
+  dialogue.reset();
+  const restored = clone(ScenarioSchema, initialDialogueScenario);
+  Object.assign(merlin, restored.characters.find(character => character.id === "merlin")!);
+  scenario.events = restored.events;
+  element("[data-dialogue-transcript]").replaceChildren();
+  element("[data-dialogue-options]").replaceChildren();
+  element("[data-dialogue-result]").hidden = true;
+  element("[data-dialogue-request]").textContent = "No request yet.";
+  element("[data-dialogue-review]").textContent = "No review yet.";
+  dialogueInput.value = ""; dialogueStatus.textContent = "Merlin is ready to talk.";
   agent.reset();
   agentLog.replaceChildren();
   element("[data-jev-request]").textContent = "No request yet.";
@@ -248,12 +275,12 @@ for (const toggle of [roomsToggle, solidsToggle, navToggle]) toggle.addEventList
 canvas.addEventListener("click", event => {
   const hit = renderer.hit(event.clientX, event.clientY);
   const node = hit && palaceNodes.find(node => node.x === hit.tileX && node.y === hit.tileY);
-  if (node && !agent.running) travel(node.id);
+  if (node && !agent.running && !dialogueController) travel(node.id);
 });
 canvas.addEventListener("contextmenu", event => {
   const hit = renderer.hit(event.clientX, event.clientY);
   const door = hit && doors.find(door => door.tiles.some(tile => tile.x === hit.tileX && tile.y === hit.tileY));
-  if (door) { event.preventDefault(); if (!agent.running && !movement) {
+  if (door) { event.preventDefault(); if (!agent.running && !movement && !dialogueController) {
     const action = availableActions().filter(action => action.target === door.id).sort((a, b) => {
       const distance = (action: PalaceAction): number => action.interactionSpot === current.id ? 0
         : routes.find(route => route.node.id === action.interactionSpot)?.path.length ?? Infinity;
@@ -265,7 +292,7 @@ canvas.addEventListener("contextmenu", event => {
   const furniture = hit && furnitureState.furniture.find(item => item.x === hit.tileX && item.y === hit.tileY);
   if (!furniture || furniture.kind === "decoration") return;
   event.preventDefault();
-  if (agent.running || movement) return;
+  if (agent.running || movement || dialogueController) return;
   const actions = availableActions().filter(action => action.target === furniture.id);
   const action = actions.find(action => action.type === "take_item" || action.type === "inspect_container") ?? actions[0];
   if (action) manualInteraction(action);
@@ -282,7 +309,7 @@ canvas.addEventListener("pointerleave", () => { inspector.textContent = "Click a
 refresh();
 
 function runAgent(singleStep: boolean): void {
-  if (movement || agent.running) return;
+  if (movement || agent.running || dialogueController) return;
   const key = keyInput.value.trim();
   if (!key) { agentStatus.textContent = "Enter your OpenRouter key first."; keyInput.focus(); return; }
   if (!goalInput.value.trim()) { agentStatus.textContent = "Enter a goal first."; goalInput.focus(); return; }
@@ -297,3 +324,57 @@ stepButton.addEventListener("click", () => runAgent(true));
 pauseButton.addEventListener("click", () => agent.pause());
 
 goalInput.addEventListener("input", () => refresh());
+
+function renderDialogue(): void {
+  const transcript = element("[data-dialogue-transcript]");
+  transcript.replaceChildren();
+  for (const message of dialogue.transcript) {
+    const row = document.createElement("p");
+    const speaker = document.createElement("strong");
+    speaker.textContent = message.speakerId === "merlin" ? "Merlin: " : "Alden: ";
+    row.append(speaker, document.createTextNode(message.text)); transcript.append(row);
+  }
+  const options = element("[data-dialogue-options]"); options.replaceChildren();
+  for (const option of dialogue.replyOptions) {
+    const button = document.createElement("button"); button.type = "button"; button.textContent = option;
+    button.addEventListener("click", () => { dialogueInput.value = option; void converse(false); }); options.append(button);
+  }
+}
+async function converse(finish: boolean): Promise<void> {
+  if (agent.running || movement || dialogueController) return;
+  const key = keyInput.value.trim();
+  if (!key) { dialogueStatus.textContent = "Enter your OpenRouter key above first."; keyInput.focus(); return; }
+  if (!finish && !dialogueInput.value.trim()) return;
+  const controller = new AbortController(); dialogueController = controller;
+  dialogueStatus.textContent = finish ? "Reviewing the conversation…" : "Merlin is replying…";
+  refresh();
+  const client = new OpenRouterClient(key);
+  const complete: typeof client.complete = (request, signal) => {
+    element("[data-dialogue-request]").textContent = JSON.stringify(request, null, 2);
+    return client.complete(request, signal);
+  };
+  try {
+    if (finish) {
+      const result = await dialogue.finish(complete, controller.signal);
+      goalInput.value = result.goal;
+      element("[data-dialogue-goal]").textContent = result.goal;
+      element("[data-dialogue-reason]").textContent = result.reason;
+      element("[data-dialogue-review]").textContent = JSON.stringify(result.memory, null, 2);
+      element("[data-dialogue-result]").hidden = false;
+      element("[data-dialogue-options]").replaceChildren();
+      dialogueStatus.textContent = "Conversation saved. Merlin's goal is in the goal field above. Run it when ready, or start a new conversation.";
+      revision++;
+    } else {
+      await dialogue.speak(dialogueInput.value, complete, controller.signal);
+      dialogueInput.value = "";
+      element("[data-dialogue-result]").hidden = true;
+      renderDialogue(); dialogueStatus.textContent = "Continue talking, or end the conversation to return Merlin's goal.";
+    }
+  } catch (error) {
+    if (!controller.signal.aborted) dialogueStatus.textContent = error instanceof Error ? error.message : "Conversation failed. Try again.";
+  } finally {
+    if (dialogueController === controller) { dialogueController = undefined; refresh(); }
+  }
+}
+element<HTMLFormElement>("[data-dialogue-form]").addEventListener("submit", event => { event.preventDefault(); void converse(false); });
+element("[data-dialogue-end]").addEventListener("click", () => { void converse(true); });

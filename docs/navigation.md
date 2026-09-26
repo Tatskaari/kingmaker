@@ -138,3 +138,27 @@ interacting with furniture beyond them. Interaction spots no longer appear as
 separate move choices; ordinary room/corridor destinations remain available.
 Pausing finishes the active walk but cancels its pending interaction. Reset cancels
 pending effects too. Right-click debugging uses the same combined execution.
+
+### Palace conversations
+
+Speak as Alden, the king's cousin, using the conversation panel beneath the goal
+controls. This prototype copies the main runtime's dialogue/review JSON formats
+and review prompt, using the same OpenRouter chat model and shared character
+context builder. The main runtime is unchanged. The palace premise substitutes
+Alden for the narrative game's emissary setup.
+
+The dialogue replaces the narrative world projection with the current palace
+room, its furniture and bordering doors, and carried items. Visibility is by room,
+not a ray-cast field of view. Container contents stay concealed until inspected.
+Authored character knowledge still applies. Exact context and last request/review
+are inspectable below the chat; credentials are excluded.
+
+End conversation runs a separate review, validates it through ConversationMemory
+and MemoryGame, and returns Merlin's resulting goal and reason. No change retains
+the current goal. Private events, relationships and lore carry into later chats
+and Jev decisions in this tab; physical state cannot be changed by dialogue.
+The goal field is filled, but Run goal remains an explicit separate action.
+Failures preserve the conversation for retry. Reset world aborts pending replies
+and reviews and clears conversation memory; refreshing also loses this prototype's
+in-memory conversation state. Movement and model decisions are disabled while a
+chat/review request is pending.
