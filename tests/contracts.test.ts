@@ -827,24 +827,24 @@ test("drawer contents are hidden until opened; taking the key transfers it exact
 
 test("lockbox rejects keyless and remote opens; matching key is retained after use", () => {
   const state = createFurniture();
-  const box = state.furniture.find(item => item.id === "royal_lockbox")!;
+  const box = state.furniture.find(item => item.id === "coffer_03")!;
   const drawers = state.furniture.find(item => item.id === "merlin_drawers")!;
-  assert.ok(!furnitureActions(state, box.approach!).some(action => action.id === "open_royal_lockbox"));
-  assert.throws(() => applyFurnitureAction(state, box.approach!, "open_royal_lockbox"), /unavailable/);
+  assert.ok(!furnitureActions(state, box.approach!).some(action => action.id === "open_coffer_03"));
+  assert.throws(() => applyFurnitureAction(state, box.approach!, "open_coffer_03"), /unavailable/);
   state.inventory.push({ id: "wrong_key", name: "Wrong key" });
-  assert.throws(() => applyFurnitureAction(state, box.approach!, "open_royal_lockbox"), /unavailable/);
+  assert.throws(() => applyFurnitureAction(state, box.approach!, "open_coffer_03"), /unavailable/);
   applyFurnitureAction(state, drawers.approach!, "open_merlin_drawers");
   applyFurnitureAction(state, drawers.approach!, "take_royal_key");
-  assert.throws(() => applyFurnitureAction(state, drawers.approach!, "open_royal_lockbox"), /unavailable/);
-  applyFurnitureAction(state, box.approach!, "open_royal_lockbox");
+  assert.throws(() => applyFurnitureAction(state, drawers.approach!, "open_coffer_03"), /unavailable/);
+  applyFurnitureAction(state, box.approach!, "open_coffer_03");
   assert.equal(box.open, true);
   assert.ok(state.inventory.some(item => item.id === "royal_key"));
-  applyFurnitureAction(state, box.approach!, "close_royal_lockbox");
-  applyFurnitureAction(state, box.approach!, "open_royal_lockbox");
+  applyFurnitureAction(state, box.approach!, "close_coffer_03");
+  applyFurnitureAction(state, box.approach!, "open_coffer_03");
   assert.equal(box.open, true);
   const reset = createFurniture();
   assert.equal(reset.inventory.length, 0);
-  assert.equal(reset.furniture.find(item => item.id === "royal_lockbox")!.open, false);
+  assert.equal(reset.furniture.find(item => item.id === "coffer_03")!.open, false);
   assert.equal(reset.furniture.find(item => item.id === "merlin_drawers")!.contents.length, 1);
 });
 
@@ -885,8 +885,8 @@ test("Jev action loop can fetch the key and open the king's lockbox through actu
   const agent = new PalaceAgent(host);
   await agent.run("Get the key from Merlin's drawers and open the king's lockbox", choices(
     "move_merlin_door_outside", "open_merlin_door", "move_merlin_drawers_approach", "open_merlin_drawers", "take_royal_key",
-    "move_royal_door_outside", "open_royal_door", "move_royal_lockbox_approach", "open_royal_lockbox", "complete"));
-  assert.ok(state.furniture.find(item => item.id === "royal_lockbox")!.open);
+    "move_royal_door_outside", "open_royal_door", "move_coffer_03_approach", "open_coffer_03", "complete"));
+  assert.ok(state.furniture.find(item => item.id === "coffer_03")!.open);
   assert.deepEqual(state.inventory.map(item => item.id), ["royal_key"]);
   assert.match(reports.at(-1)!, /reports the goal complete/);
 });
@@ -921,4 +921,59 @@ test("every agent decision receives the shared character context with the free-f
     return { choice: "unable", probabilities: { unable: 1 } };
   });
   assert.ok(inspected);
+});
+
+test("coffers do not advertise the royal lockbox or key requirements before examination", () => {
+  const state = createFurniture();
+  const box = state.furniture.find(item => item.id === "coffer_03")!;
+  const initial = JSON.stringify(observeFurniture(state));
+  assert.ok(!initial.includes("King's lockbox"));
+  assert.ok(!initial.includes("requiresItemToOpen"));
+  assert.ok(!initial.includes("royal_seal"));
+  assert.equal(box.approach!.name, "Carved wooden coffer");
+  assert.throws(() => applyFurnitureAction(state, palaceNodes[0]!, "inspect_coffer_03"), /unavailable/);
+  applyFurnitureAction(state, box.approach!, "inspect_coffer_03");
+  const inspected = JSON.stringify(observeFurniture(state));
+  assert.ok(inspected.includes("King's lockbox"));
+  assert.ok(inspected.includes("requiresItemToOpen"));
+  assert.ok(!inspected.includes("royal_seal"));
+  assert.equal(box.open, false);
+  assert.equal(box.searched, false);
+  assert.ok(!furnitureActions(state, box.approach!).some(action => action.id === "open_coffer_03"));
+});
+
+test("all new containers expose and transfer their distinct contents only after opening", () => {
+  const state = createFurniture();
+  const containers = state.furniture.filter(item => item.kind !== "decoration");
+  assert.equal(containers.length, 14);
+  const itemIds = containers.flatMap(item => item.contents.map(item => item.id));
+  assert.equal(new Set(itemIds).size, itemIds.length);
+  assert.ok(itemIds.length >= 20);
+  // Collect ordinary containers first; they include all three matching keys.
+  const ordered = [...containers.filter(item => !item.requiredKey), ...containers.filter(item => item.requiredKey)];
+  for (const container of ordered) {
+    const before = furnitureActions(state, container.approach!);
+    assert.ok(!before.some(action => action.target === container.id && action.type === "take_item"));
+    applyFurnitureAction(state, container.approach!, `open_${container.id}`);
+    const contents = [...container.contents];
+    for (const item of contents) applyFurnitureAction(state, container.approach!, `take_${item.id}`);
+    assert.equal(container.contents.length, 0);
+    applyFurnitureAction(state, container.approach!, `close_${container.id}`);
+    assert.ok(container.searched);
+  }
+  assert.equal(state.inventory.length, itemIds.length);
+  assert.equal(new Set(state.inventory.map(item => item.id)).size, itemIds.length);
+});
+
+test("different coffers require their own matching keys", () => {
+  const state = createFurniture();
+  state.inventory.push({ id: "brass_key", name: "Small brass key" });
+  const jewellery = state.furniture.find(item => item.id === "coffer_02")!;
+  const royal = state.furniture.find(item => item.id === "coffer_03")!;
+  const gatekeeper = state.furniture.find(item => item.id === "coffer_01")!;
+  applyFurnitureAction(state, jewellery.approach!, "open_coffer_02");
+  assert.throws(() => applyFurnitureAction(state, royal.approach!, "open_coffer_03"), /unavailable/);
+  assert.throws(() => applyFurnitureAction(state, gatekeeper.approach!, "open_coffer_01"), /unavailable/);
+  assert.ok(jewellery.open);
+  assert.equal(state.inventory.length, 1);
 });

@@ -2,7 +2,7 @@ import type { Choose, JevChoice } from "../../../packages/providers/src/jev.js";
 import type { NavRoute, Point } from "./navigation.js";
 import { canUseDoor, type Door } from "./palace-doors.js";
 
-export interface PalaceAction { id: string; type: "move" | "open" | "close" | "open_container" | "close_container" | "take_item"; target: string; itemId?: string; description: string }
+export interface PalaceAction { id: string; type: "move" | "open" | "close" | "open_container" | "close_container" | "take_item" | "inspect_container"; target: string; itemId?: string; description: string }
 export function legalActions(routes: readonly NavRoute[], doors: readonly Door[], position: Point): PalaceAction[] {
   return [
     ...routes.map(route => ({ id: `move_${route.node.id}`, type: "move" as const, target: route.node.id,

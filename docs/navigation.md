@@ -104,3 +104,24 @@ The physical lockbox still checks actual key possession. Dialogue-specific outpu
 instructions are not copied into the Decisions API. The prototype loads the shared
 starting scenario; it does not yet import character edits from a separate saved
 conversation. Merlin's sprite now uses the existing Kenney wizard tile.
+
+
+## More places to search
+
+The furnished palace has 14 searchable containers and three different matching
+keys. Bookcases, desks, cupboards and barrels hold distinct collectible items;
+one storage barrel is empty. Initial contents are never included in observations
+or action choices. Once opened, contents are remembered, and taking an item moves
+it exactly once into inventory.
+
+Three coffers share neutral outward descriptions. An adjacent inspect action
+reveals a coffer's identity and lock requirement without opening it or revealing
+contents. The royal lockbox uses an opaque coffer ID and neutral waypoint label,
+so its identity is not leaked through navigation IDs. The other coffers contain
+jewellery and a gatekeeper's ledger and require their own brass/iron keys.
+The existing royal key remains in Merlin's drawers, as his authored lore states.
+
+The default goal is now “Find and open the king's lockbox.” It does not supply the
+room or a search procedure. The additional items are collectibles, not new spell,
+combat or dialogue abilities. These changes add search choices but do not claim a
+measured change in Jev's success rate.

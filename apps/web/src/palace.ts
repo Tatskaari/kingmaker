@@ -7,7 +7,7 @@ import { findPath, reachableRoutes, type NavRoute, type Point } from "./navigati
 import { createDoors, doorGraph, doorBlockers, canUseDoor, toggleDoor, type Door } from "./palace-doors.js";
 import { PalaceAgent, legalActions, PALACE_INSTRUCTIONS, palaceCriteria, type PalaceAction } from "./palace-agent.js";
 import { JevClient } from "../../../packages/providers/src/jev.js";
-import { createFurniture, addFurnitureNodes, furnitureBlockers, furnitureActions, applyFurnitureAction, observeFurniture, besideFurniture } from "./palace-furniture.js";
+import { createFurniture, addFurnitureNodes, furnitureBlockers, furnitureActions, applyFurnitureAction, observeFurniture, besideFurniture, furnitureName } from "./palace-furniture.js";
 const scenarioResponse = await fetch(new URL("../../../content/scenarios/last-night.json", import.meta.url));
 if (!scenarioResponse.ok) throw new Error("Could not load Merlin's character sheet.");
 const scenario = fromJsonString(ScenarioSchema, await scenarioResponse.text());
@@ -61,7 +61,7 @@ const agent = new PalaceAgent({
         movementDone = resolve;
         if (!travel(action.target)) { movementDone = undefined; reject(new Error("Destination is no longer reachable.")); }
       });
-    } else if (action.type === "open_container" || action.type === "close_container" || action.type === "take_item") {
+    } else if (action.type === "open_container" || action.type === "close_container" || action.type === "take_item" || action.type === "inspect_container") {
       useFurniture(action.id);
     } else {
       const door = doors.find(door => door.id === action.target);
@@ -98,7 +98,7 @@ function availableActions(): PalaceAction[] {
     if (action.type !== "move") return action;
     const door = doors.find(door => door.sides.some(side => side.id === action.target));
     const furniture = furnitureState.furniture.find(item => item.approach?.id === action.target);
-    const effect = furniture ? ` This puts you beside ${furniture.name}, ${furniture.searched ? "already inspected" : "an unsearched container"}, to interact with it.`
+    const effect = furniture ? ` This puts you beside ${furnitureName(furniture)}, ${furniture.searched ? "already inspected" : "an unsearched container"}, to interact with it.`
       : door ? ` This puts you beside ${door.name} so you can ${door.open ? "close it or pass through" : "open it to reach " + door.connection.map(id => palaceNodes.find(node => node.id === id)?.name ?? id).join(" / ")}.`
       : "";
     return { ...action, description: action.description + effect };
@@ -127,7 +127,7 @@ function refresh(): void {
     return path ? [path] : [];
   });
   inventory.textContent = furnitureState.inventory.map(item => item.name).join(", ") || "Empty";
-  lockboxStatus.textContent = furnitureState.furniture.find(item => item.id === "royal_lockbox")!.open ? "King's lockbox: open" : "King's lockbox: locked";
+  lockboxStatus.textContent = furnitureState.furniture.find(item => item.id === "coffer_03")!.open ? "King's lockbox: open" : "King's lockbox: locked";
   location.textContent = movement ? `To ${movement.route.node.name}` : current.name;
   element("[data-character-name]").textContent = merlin.name;
   element("[data-character-context]").textContent = JSON.stringify(characterDecisionContext(scenario, merlin.id, goalInput.value), null, 2);
@@ -251,16 +251,16 @@ canvas.addEventListener("contextmenu", event => {
   event.preventDefault();
   if (agent.running || movement) return;
   const actions = furnitureActions(furnitureState, position).filter(action => action.target === furniture.id);
-  const action = actions.find(action => action.type === "take_item") ?? actions[0];
+  const action = actions.find(action => action.type === "take_item" || action.type === "inspect_container") ?? actions[0];
   if (action) useFurniture(action.id);
-  else status.textContent = besideFurniture(furniture, position) ? "The lockbox requires the Royal lockbox key in your inventory." : `Walk to ${furniture.name}'s waypoint first.`;
+  else status.textContent = besideFurniture(furniture, position) ? "This container is locked. You need its matching key." : `Walk to ${furnitureName(furniture)}'s waypoint first.`;
 });
 canvas.addEventListener("pointermove", event => {
   const hit = renderer.hit(event.clientX, event.clientY);
   const node = hit && palaceNodes.find(node => node.x === hit.tileX && node.y === hit.tileY);
   const door = hit && doors.find(door => door.tiles.some(tile => tile.x === hit.tileX && tile.y === hit.tileY));
   const furniture = hit && furnitureState.furniture.find(item => item.x === hit.tileX && item.y === hit.tileY);
-  inspector.textContent = furniture ? `${furniture.name} · ${furniture.kind === "decoration" ? "furniture" : furniture.open ? "open · right-click to interact" : "closed · right-click to interact"}` : door ? `${door.name} · ${door.open ? "open" : "closed"} · right-click to interact` : hit ? `${node?.name ?? hit.roomName ?? "Outside"} · tile ${hit.tileX}, ${hit.tileY}` : "Click a waypoint to travel";
+  inspector.textContent = furniture ? `${furnitureName(furniture)} · ${furniture.kind === "decoration" ? "furniture" : furniture.open ? "open · right-click to interact" : "closed · right-click to interact"}` : door ? `${door.name} · ${door.open ? "open" : "closed"} · right-click to interact` : hit ? `${node?.name ?? hit.roomName ?? "Outside"} · tile ${hit.tileX}, ${hit.tileY}` : "Click a waypoint to travel";
 });
 canvas.addEventListener("pointerleave", () => { inspector.textContent = "Click a waypoint to travel"; });
 refresh();
