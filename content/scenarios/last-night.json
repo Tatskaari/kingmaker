@@ -18,6 +18,7 @@
           "description": "The king values Merlin's power but rarely his counsel. Merlin believes another reign will turn service into captivity."
         }
       ],
+      "objectives": ["Prevent Aldren’s renewed reign.", "Discover who could credibly replace him.", "Secure influence without becoming another ruler’s disposable servant."],
       "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation."
     },
     {
@@ -34,6 +35,7 @@
           "description": "Lancelot has served the king faithfully but increasingly mistakes obedience for cowardice. He wants lawful change without bloodshed."
         }
       ],
+      "objectives": ["Ensure a peaceful succession.", "Identify a worthy successor.", "Establish whom he can trust with the crown’s location."],
       "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation."
     },
     {
@@ -50,6 +52,7 @@
           "description": "A dependable knight whose literal sense of honour makes him predictable."
         }
       ],
+      "objectives": ["Retain the crown and throne.", "Uncover disloyalty within the court.", "Secure the visiting player’s support."],
       "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation."
     }
   ],

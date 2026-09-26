@@ -1,6 +1,6 @@
 import { doorActionLegality } from "../packages/core/src/access.js";
 import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
-import { courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath, courtInteractionPoint, nearestDoorSpot } from "../apps/web/src/court-map.js";
+import { courtReachableTiles, courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath, courtInteractionPoint, nearestDoorSpot } from "../apps/web/src/court-map.js";
 import { PalaceDialogue, palaceSurroundings, palaceDialogueContext, createPalacePlayer } from "../apps/web/src/palace-dialogue.js";
 import { interactionActions, executeInteraction } from "../apps/web/src/palace-interactions.js";
 import assert from "node:assert/strict";
@@ -501,6 +501,7 @@ test("ending reviews the full transcript, saves private memory, and starts a fre
   const updated = fromJson(ScenarioSchema, saved.scenario);
   const merlin = updated.characters.find(character => character.id === "merlin")!;
   assert.equal(merlin.currentGoal, remembered.goalUpdate.goal);
+  assert.deepEqual(merlin.objectives, scenario.characters[0]!.objectives);
   assert.equal(merlin.lore, scenario.characters[0]!.lore);
   assert.equal(merlin.relationships.find(item => item.characterId === "player")?.description, remembered.relationships[0]!.description);
   assert.deepEqual(merlin.relationships.filter(item => item.characterId !== "player"), scenario.characters[0]!.relationships);
@@ -907,7 +908,7 @@ test("palace decisions reuse Merlin's authored lore, relationships and only visi
   const context = characterDecisionContext(scenario, "merlin", "Find the key and open the royal lockbox");
   assert.equal(context.character.name, "Merlin");
   assert.equal(context.character.lore, original.lore);
-  assert.equal(context.character.motivation, original.currentGoal);
+  assert.deepEqual(context.character.objectives, original.objectives);
   assert.equal(context.character.currentGoal, "Find the key and open the royal lockbox");
   assert.equal(context.character.relationships.length, original.relationships.length);
   assert.equal(context.premise, scenario.premise);
@@ -1319,4 +1320,53 @@ test("NPC dialogue frames the current goal as a concrete planner task while reta
   assert.match(context, /observable completion or waiting condition/);
   assert.match(context, /Return null when the character has not adopted a new task/);
   assert.match(context, /He wants the king replaced/);
+});
+
+test("NPC leave-taking persists, blocks more speech, and reviews closing words once", async t => {
+  const runtime = new BrowserGameRuntime(conversationScenario(), "test");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Excuse me; I must attend to my duties.", endConversation: true, replyOptions: [] }));
+  await runtime.talkToCharacter("merlin", "Good evening.");
+  const saved = structuredClone(runtime.snapshot());
+  assert.equal(saved.conversationEndRequested?.merlin, true);
+  assert.deepEqual(saved.conversationReplyOptions?.merlin, []);
+  const restored = new BrowserGameRuntime(conversationScenario(), "test", saved);
+  await assert.rejects(restored.talkToCharacter("merlin", "Wait!"), /ended the conversation/);
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => { throw new Error("Offline"); });
+  await assert.rejects(restored.endConversation("merlin"), /Offline/);
+  assert.deepEqual(restored.snapshot(), saved);
+  let reviews = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: { messages: readonly { content: string | null }[] }) => {
+    reviews++;
+    assert.match(request.messages.at(-1)!.content!, /attend to my duties/);
+    assert.match(JSON.stringify(request.messages), /Long-term objectives/);
+    return modelReply(remembered);
+  });
+  await restored.endConversation("merlin");
+  await restored.endConversation("merlin");
+  assert.equal(reviews, 1);
+  assert.equal(restored.snapshot().conversationEndRequested?.merlin, undefined);
+});
+
+test("authored objectives remain distinct from immediate greeting goals in model context", () => {
+  const scenario = load();
+  for (const character of scenario.characters) {
+    assert.equal(character.objectives.length, 3);
+    const context = new FullContextBuilder().build(create(DialogueRequestSchema, { scenario, characterId: character.id }));
+    for (const objective of character.objectives) assert.ok(context.some(message => message.content.includes(objective)));
+    assert.match(character.currentGoal, /greet the visiting player/);
+  }
+});
+
+test("reachability shading follows closed and reopened doors using the walking rules", () => {
+  const scenario = load(), doors = scenario.world!.doors;
+  const start = { x: 16, y: 22 }, merlin = { x: 5, y: 5 };
+  const closed = courtReachableTiles(start, doors);
+  assert.ok(closed.has(pointKey(start)));
+  assert.ok(!closed.has(pointKey(merlin)));
+  for (const door of doors) door.open = true;
+  const open = courtReachableTiles(start, doors);
+  assert.ok(open.has(pointKey(merlin)));
+  assert.ok(courtPath(start, merlin, doors));
+  assert.ok(!open.has("0,0"));
+  assert.equal(courtReachableTiles({ x: -1, y: 0 }, doors).size, 0);
 });

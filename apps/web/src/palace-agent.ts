@@ -13,7 +13,7 @@ export function legalActions(routes: readonly NavRoute[], doors: readonly Door[]
   ];
 }
 export const PALACE_INSTRUCTIONS = {
-            role: "Choose physical actions for the character described in `characterContext.character`, within the supplied scenario and current world. Use their authored identity, lore, relationships, motivation and visible events as context.",
+            role: "Choose physical actions for the character described in `characterContext.character`, within the supplied scenario and current world. Use their authored identity, lore, relationships, long-term objectives and visible events as context.",
             question: "Which action should this character perform next to pursue their current goal, given who they are and what has happened?",
             evidence: ["characterContext", "goal", "world", "actions", "recentEvents"],
             knowledge: "The world describes what the character knows. Unknown facts are unknown, not false. The offered actions are legal now; their descriptions explain their immediate effects. Actions may change which actions become available next.",

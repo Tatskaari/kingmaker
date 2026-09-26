@@ -5,6 +5,7 @@ import { introduction, introductionHandoff, handoffPrefix, nameSuggestions, home
 const app = document.querySelector("#app");
 let state;
 let activeCharacter = null;
+let closedConversation = null;
 let busy = false;
 let notice = "";
 let sheetOpen = false;
@@ -155,7 +156,7 @@ function renderDay(bindPage = true) {
   const mapRoot = document.querySelector("[data-court-map]");
   void mountCourtMap(mapRoot, state.characters, state.player, id => {
     if (busy || !mapRoot.isConnected) return;
-    activeCharacter = id; notice = ""; render();
+    activeCharacter = id; closedConversation = null; notice = ""; render();
   }, busy, async point => {
     const result = await rpc("move_player", point);
     state = result.state; saves = result.saves;
@@ -173,12 +174,14 @@ function renderDay(bindPage = true) {
 function renderConversation() {
   const character = state.characters.find(item => item.id === activeCharacter);
   if (!character) { activeCharacter = null; return renderDay(); }
-  const messages = state.conversations?.[activeCharacter] || [];
+  const ended = closedConversation?.id === activeCharacter;
+  const ending = !!state.conversationEndRequested?.[activeCharacter];
+  const messages = ended ? closedConversation.messages : state.conversations?.[activeCharacter] || [];
   renderDay(false);
   const dialog = document.createElement("dialog");
   dialog.className = "conversation-modal";
   dialog.setAttribute("aria-label", `Conversation with ${character.name}`);
-  dialog.innerHTML = `<section class="panel"><div class="conversation-head"><button class="back" data-end-conversation ${busy ? "disabled" : ""}>${busy ? "Please wait…" : "End conversation"}</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.</div>`}</div>${replyOptions(state.conversationReplyOptions?.[activeCharacter], activeCharacter)}<form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`;
+  dialog.innerHTML = `<section class="panel"><div class="conversation-head"><button class="back" data-end-conversation ${busy ? "disabled" : ""}>${busy ? "Please wait…" : ended ? "Return to palace" : ending ? "Finish conversation review" : "End conversation"}</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.</div>`}</div>${ended || ending ? `<p class="scene">${escapeHtml(character.name)} has ended the conversation.${ended ? " Their memories and goal have been reviewed." : " Saving their memories and next goal."}</p>` : `${replyOptions(state.conversationReplyOptions?.[activeCharacter], activeCharacter)}<form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`;
   // Keep character debugging within the modal's focus boundary.
   for (const panel of app.querySelectorAll(".debug-scrim, .debug-inspector")) dialog.append(panel);
   app.append(dialog);
@@ -201,6 +204,17 @@ function render() {
   if (state.phase === "player_creation") return renderCreation();
   if (activeCharacter) return renderConversation();
   renderDay();
+}
+
+async function talkAndReview(characterId, message) {
+  const response = await rpc("talk", { characterId, message });
+  state = response.state; saves = response.saves;
+  if (!state.conversationEndRequested?.[characterId]) return;
+  const messages = state.conversations?.[characterId] || [];
+  notice = "Remembering the conversation…"; render();
+  const reviewed = await rpc("end_conversation", { characterId });
+  state = reviewed.state; saves = reviewed.saves;
+  closedConversation = { id: characterId, messages };
 }
 
 async function run(action) {
@@ -288,7 +302,8 @@ function bind() {
     const message = options?.[Number(button.dataset.replyIndex)];
     if (!message) return;
     run(async () => {
-      const result = await rpc(target === "gm" ? "gm" : "talk", { message, characterId: target });
+      if (target !== "gm") { await talkAndReview(target, message); return; }
+      const result = await rpc("gm", { message });
       state = result.state; saves = result.saves;
     });
   }));
@@ -312,13 +327,16 @@ function bind() {
   });
   document.querySelector("[data-talk-form]")?.addEventListener("submit", event => {
     event.preventDefault(); const message = new FormData(event.currentTarget).get("message");
-    run(async () => { const result = await rpc("talk", { characterId: activeCharacter, message }); state = result.state; saves = result.saves; });
+    run(() => talkAndReview(activeCharacter, message));
   });
-  document.querySelector("[data-end-conversation]")?.addEventListener("click", () => run(async () => {
+  document.querySelector("[data-end-conversation]")?.addEventListener("click", () => {
+    if (closedConversation?.id === activeCharacter) { activeCharacter = null; closedConversation = null; notice = ""; render(); return; }
+    void run(async () => {
     notice = "Remembering your conversation…"; render();
     const result = await rpc("end_conversation", { characterId: activeCharacter });
     state = result.state; saves = result.saves; activeCharacter = null;
-  }));
+    });
+  });
   document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { introPage = 0; reviewDraft = null; traveller = { name: "", homeland: "" }; const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
 }
 

@@ -36,6 +36,22 @@ export function courtPath(start: Point, end: Point, doors: readonly DoorState[] 
   return findPath(palaceMap, start, end, courtDoorBlockers(doors));
 }
 
+/** The same four-way walkability rules as A*, in one flood fill for shading. */
+export function courtReachableTiles(start: Point, doors: readonly DoorState[]): Set<string> {
+  const blocked = courtDoorBlockers(doors), reached = new Set<string>();
+  if (!canWalk(palaceMap, start, blocked)) return reached;
+  const queue = [start]; reached.add(pointKey(start));
+  for (let i = 0; i < queue.length; i++) {
+    const current = queue[i]!;
+    for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]] as const) {
+      const next = { x: current.x + dx, y: current.y + dy }, key = pointKey(next);
+      if (reached.has(key) || !canWalk(palaceMap, next, blocked)) continue;
+      reached.add(key); queue.push(next);
+    }
+  }
+  return reached;
+}
+
 export function courtInteractionPoint(start: Point, target: Point, authored?: Point, doors: readonly DoorState[] = []): Point | undefined {
   const candidates = authored ? [authored] : [{ x: target.x, y: target.y + 1 }, { x: target.x - 1, y: target.y },
     { x: target.x + 1, y: target.y }, { x: target.x, y: target.y - 1 }];
@@ -190,13 +206,22 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   const renderer = new CanvasMapRenderer(canvas, palaceMap);
   await renderer.load();
   if (!root.isConnected) return;
+  let position = markers.find(marker => marker.id === player?.id)?.point;
   const draw = () => {
     renderer.render(false, false);
     for (const item of scenery) renderer.drawSprite("tiny-dungeon", item.sprite, item.x, item.y);
     drawDoors(canvas.getContext("2d")!, doors);
+    if (position) {
+      const reachable = courtReachableTiles(position, doors);
+      const context = canvas.getContext("2d")!;
+      context.save(); context.fillStyle = "rgba(0, 0, 0, 0.55)";
+      for (let y = 0; y < palaceMap.height; y++) for (let x = 0; x < palaceMap.width; x++) {
+        if (!reachable.has(pointKey({ x, y }))) context.fillRect(x * palaceMap.tileWidth, y * palaceMap.tileHeight, palaceMap.tileWidth, palaceMap.tileHeight);
+      }
+      context.restore();
+    }
   };
   draw();
-  let position = markers.find(marker => marker.id === player?.id)?.point;
   visualPosition = position;
   const place = (point: Point) => {
     visualPosition = point;

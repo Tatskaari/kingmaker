@@ -79,6 +79,8 @@ message Character {
   string lore = 3;
   repeated Relationship relationships = 4;
   string current_goal = 5;
+  // Long-term ambitions that inform dialogue and immediate intent.
+  repeated string objectives = 6;
 }
 
 enum EventVisibility {

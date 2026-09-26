@@ -26,6 +26,7 @@ export interface RuntimeSnapshot {
   playerDraft?: JsonValue | null;
   gameMasterReplyOptions?: ReplyOptions | null;
   conversationReplyOptions?: Record<string, string[]>;
+  conversationEndRequested?: Record<string, boolean>;
   gameMasterHistory: OpenRouterMessage[];
   conversations: Record<string, JsonValue[]>;
 }
@@ -111,9 +112,10 @@ const dialogueFormat = {
   json_schema: {
     name: "character_dialogue", strict: true,
     schema: {
-      type: "object", additionalProperties: false, required: ["utterance", "replyOptions"],
+      type: "object", additionalProperties: false, required: ["utterance", "replyOptions", "endConversation"],
       properties: {
         utterance: { type: "string" },
+        endConversation: { type: "boolean", description: "True when this character chooses to end the conversation after this utterance. Give closing words and an empty replyOptions array. False to continue." },
         replyOptions: { type: "array", items: { type: "string", maxLength: 300 } },
       },
     },
@@ -160,6 +162,7 @@ export class BrowserGameRuntime {
   #playerDraft: JsonValue | null = null;
   #gmReplyOptions: ReplyOptions | null = null;
   #conversationReplyOptions: Record<string, string[]> = {};
+  #conversationEndRequested: Record<string, boolean> = {};
   #conversations = new Map<string, TranscriptMessage[]>();
 
   constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot) {
@@ -176,6 +179,7 @@ export class BrowserGameRuntime {
     this.#gmTrace = [];
     this.#gmReplyOptions = null;
     this.#conversationReplyOptions = {};
+    this.#conversationEndRequested = {};
     this.#conversations = new Map();
   }
 
@@ -185,6 +189,7 @@ export class BrowserGameRuntime {
     this.#playerDraft = snapshot.playerDraft || null;
     this.#gmReplyOptions = snapshot.gameMasterReplyOptions || null;
     this.#conversationReplyOptions = snapshot.conversationReplyOptions || {};
+    this.#conversationEndRequested = snapshot.conversationEndRequested || {};
     this.#conversations = new Map(Object.entries(snapshot.conversations || {}).map(([characterId, messages]) => [
       characterId,
       messages.map(message => fromJson(TranscriptMessageSchema, message)),
@@ -198,6 +203,7 @@ export class BrowserGameRuntime {
       playerDraft: this.#playerDraft,
       gameMasterReplyOptions: this.#gmReplyOptions,
       conversationReplyOptions: this.#conversationReplyOptions,
+      conversationEndRequested: this.#conversationEndRequested,
       conversations: Object.fromEntries([...this.#conversations].map(([characterId, messages]) => [
         characterId,
         messages.map(message => toJson(TranscriptMessageSchema, message, { alwaysEmitImplicit: true })),
@@ -265,18 +271,23 @@ export class BrowserGameRuntime {
     const scenario = this.#game.scenario();
     if (scenario.world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Character conversations have not begun");
     if (!scenario.characters.some(character => character.id === characterId && character.id !== "player")) throw new Error("Unknown character");
+    if (this.#conversationEndRequested[characterId]) throw new Error("This character has ended the conversation. Finish the conversation review before speaking again.");
     const history = this.#conversations.get(characterId) || [];
     const playerMessage = create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: messageText });
     const request = create(DialogueRequestSchema, { characterId, scenario, transcript: [...history, playerMessage] });
     const messages = new FullContextBuilder().build(request).map(item => ({ role: item.role, content: item.content } satisfies OpenRouterMessage));
+    messages.unshift({ role: "system", content: "You may choose to end this conversation. Set endConversation=true when you take your leave, refuse further discussion, or conclude the exchange to pursue your immediate task. Express that decision naturally in utterance and return replyOptions=[]. Do not end merely because you answered one question; use your own intentions, relationships and the exchange. Otherwise set endConversation=false. Ending triggers a separate memory and goal review; speech alone does not move you or complete physical tasks." });
     const completion = await this.#client.complete({ model: "openai/gpt-5.4-mini", messages, response_format: dialogueFormat, temperature: 0.9, max_tokens: 900 });
     if (!completion.content) throw new Error("Character returned no dialogue");
-    const parsed = JSON.parse(completion.content) as { replyOptions?: unknown; utterance?: unknown };
+    const parsed = JSON.parse(completion.content) as { replyOptions?: unknown; utterance?: unknown; endConversation?: unknown };
     const utterance = text(parsed.utterance, "utterance");
+    if (parsed.endConversation !== undefined && typeof parsed.endConversation !== "boolean") throw new Error("endConversation must be a boolean");
+    const replyOptions = parseReplyOptions(parsed.replyOptions);
     this.#conversations.set(characterId, [...history, playerMessage, create(TranscriptMessageSchema, {
       role: TranscriptRole.CHARACTER, speakerId: characterId, text: utterance,
     })]);
-    this.#conversationReplyOptions[characterId] = parseReplyOptions(parsed.replyOptions);
+    this.#conversationEndRequested[characterId] = parsed.endConversation === true;
+    this.#conversationReplyOptions[characterId] = parsed.endConversation === true ? [] : replyOptions;
     return utterance;
   }
 
@@ -307,6 +318,7 @@ export class BrowserGameRuntime {
     if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
     this.#conversations.delete(characterId);
     delete this.#conversationReplyOptions[characterId];
+    delete this.#conversationEndRequested[characterId];
   }
 
   movePlayer(destination: Point): void {
@@ -368,6 +380,7 @@ export class BrowserGameRuntime {
       characters: scenario.characters.filter(character => character.id !== "player").map(character => ({ id: character.id, name: character.name, position: world?.actors.find(actor => actor.characterId === character.id)?.position, roomId: world?.actors.find(actor => actor.characterId === character.id)?.roomId })),
       gmReplyOptions: this.#gmReplyOptions,
       conversationReplyOptions: this.#conversationReplyOptions,
+      conversationEndRequested: this.#conversationEndRequested,
       gmMessages: this.#gmHistory.filter(message => (message.role === "user" || message.role === "assistant") && !message.tool_calls?.length && message.content).map(message => ({ role: message.role, text: message.content })),
       conversations: Object.fromEntries([...this.#conversations].map(([id, transcript]) => [id, transcript.map(message => ({
         role: message.role === TranscriptRole.CHARACTER ? "character" : "player", text: message.text,
