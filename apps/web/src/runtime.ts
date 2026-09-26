@@ -1,3 +1,4 @@
+import { compulsionNarration, parseReplyOptions, type ReplyOptions } from "./reply-options.js";
 import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import {
   CharacterSchema, DialogueRequestSchema, DialogueResponseSchema, EventSchema,
@@ -8,10 +9,20 @@ import {
 } from "../../../packages/contracts/src/index.js";
 import { FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter } from "../../../packages/core/src/context.js";
 import { MemoryGame } from "../../../packages/core/src/game.js";
-import { OpenRouterClient, type OpenRouterMessage, type OpenRouterTool } from "../../../packages/providers/src/openrouter.js";
+import { OpenRouterClient, type OpenRouterMessage, type OpenRouterTool, type ChatCompletionRequest } from "../../../packages/providers/src/openrouter.js";
+
+interface GameMasterTrace {
+  request: ChatCompletionRequest;
+  response?: OpenRouterMessage;
+  error?: string;
+  toolResults: Array<{ name: string; result: JsonObject }>;
+}
 
 export interface RuntimeSnapshot {
   scenario: JsonValue;
+  playerDraft?: JsonValue | null;
+  gameMasterReplyOptions?: ReplyOptions | null;
+  conversationReplyOptions?: Record<string, string[]>;
   gameMasterHistory: OpenRouterMessage[];
   conversations: Record<string, JsonValue[]>;
 }
@@ -20,8 +31,29 @@ const gmTools: readonly OpenRouterTool[] = [
   {
     type: "function",
     function: {
+      name: "offer_replies",
+      description: "Attach one or more suggested replies to your spoken response. Put all narration and questions in assistant content, never in tool arguments. Call alone. If calling without content, deliver the spoken response after the tool result without calling this tool again. Only the GM may set compelled=true, and only to obtain a missing creation detail after the player resists a natural question and then a firmer warning; never for genuine uncertainty or readiness. Never choose an answer for the player.",
+      parameters: {
+        type: "object", additionalProperties: false, required: ["options", "compelled"],
+        properties: {
+          options: {
+            type: "array", minItems: 1,
+            description: "Possible first-person PLAYER answers, never the Stranger's speech. When compelled=true, every option must supply a concrete answer to the same missing character-sheet detail requested in your spoken question (occupation, history, personal goal, or court connection). No evasion, counterquestions, or restating already-known information. Match the player's tone without allowing the option to dodge the detail. Do not speak or record any answer until the human selects it. Non-compelled suggestions may include refusal or counterquestions.",
+            items: { type: "string", maxLength: 300 },
+          },
+          compelled: {
+            type: "boolean",
+            description: "Set false for ordinary optional roleplaying suggestions. Set true when the player has evaded or refused a still-missing creation detail after both your natural question and a firmer warning: this is the moment your jovial mask cracks and you use divine power to demand an answer. Continued in-character refusal is the cue to use this flag, not to abandon the interview. True makes the app display the loss-of-free-will narration and mark these options as compelled. Speak the sudden cold demand in your transcript reply. The app hides free-text input and the player must choose one of the offered options; never choose for them. GM only, during character creation. Do not use for an answered detail, genuine uncertainty, an allegiance, or readiness to depart.",
+          },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "create_player",
-      description: "Finish the interview, create the visiting emissary, establish every initial relationship, and begin Day 1 in the Great Hall. Call once enough is known.",
+      description: "Finish the interview and prepare the visiting emissary and initial relationships for an editable review page. This does not save the character or begin Day 1. Call alone when enough is known; the human must review and save before entering court.",
       parameters: {
         type: "object", additionalProperties: false,
         required: ["name", "homeland", "embassyRole", "lore", "currentGoal", "relationships", "npcViews"],
@@ -76,9 +108,10 @@ const dialogueFormat = {
   json_schema: {
     name: "character_dialogue", strict: true,
     schema: {
-      type: "object", additionalProperties: false, required: ["utterance", "newEvents", "goalUpdate"],
+      type: "object", additionalProperties: false, required: ["utterance", "newEvents", "goalUpdate", "replyOptions"],
       properties: {
         utterance: { type: "string" },
+        replyOptions: { type: "array", items: { type: "string", maxLength: 300 } },
         newEvents: { type: "array", items: { type: "object", additionalProperties: false, required: ["type", "summary"], properties: {
           type: { type: "string" }, summary: { type: "string" },
         } } },
@@ -103,6 +136,10 @@ export class BrowserGameRuntime {
   #game: MemoryGame;
   #client: OpenRouterClient;
   #gmHistory: OpenRouterMessage[] = [];
+  #gmTrace: GameMasterTrace[] = [];
+  #playerDraft: JsonValue | null = null;
+  #gmReplyOptions: ReplyOptions | null = null;
+  #conversationReplyOptions: Record<string, string[]> = {};
   #conversations = new Map<string, TranscriptMessage[]>();
 
   constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot) {
@@ -115,12 +152,19 @@ export class BrowserGameRuntime {
   reset(): void {
     this.#game = new MemoryGame(this.#initialScenario);
     this.#gmHistory = [];
+    this.#playerDraft = null;
+    this.#gmTrace = [];
+    this.#gmReplyOptions = null;
+    this.#conversationReplyOptions = {};
     this.#conversations = new Map();
   }
 
   restore(snapshot: RuntimeSnapshot): void {
     this.#game = new MemoryGame(fromJson(ScenarioSchema, snapshot.scenario));
     this.#gmHistory = snapshot.gameMasterHistory || [];
+    this.#playerDraft = snapshot.playerDraft || null;
+    this.#gmReplyOptions = snapshot.gameMasterReplyOptions || null;
+    this.#conversationReplyOptions = snapshot.conversationReplyOptions || {};
     this.#conversations = new Map(Object.entries(snapshot.conversations || {}).map(([characterId, messages]) => [
       characterId,
       messages.map(message => fromJson(TranscriptMessageSchema, message)),
@@ -131,6 +175,9 @@ export class BrowserGameRuntime {
     return {
       scenario: toJson(ScenarioSchema, this.#game.scenario(), { alwaysEmitImplicit: true }),
       gameMasterHistory: this.#gmHistory,
+      playerDraft: this.#playerDraft,
+      gameMasterReplyOptions: this.#gmReplyOptions,
+      conversationReplyOptions: this.#conversationReplyOptions,
       conversations: Object.fromEntries([...this.#conversations].map(([characterId, messages]) => [
         characterId,
         messages.map(message => toJson(TranscriptMessageSchema, message, { alwaysEmitImplicit: true })),
@@ -139,24 +186,59 @@ export class BrowserGameRuntime {
   }
 
   async talkToGameMaster(messageText: string): Promise<string> {
-    this.#gmHistory.push({ role: "user", content: messageText });
-    for (let step = 0; step < 5; step += 1) {
-      const setup = new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario: this.#game.scenario() }));
-      const message = await this.#client.complete({
-        model: "openai/gpt-5.4-mini",
-        messages: [...setup.map(item => ({ role: item.role, content: item.content } satisfies OpenRouterMessage)), ...this.#gmHistory],
-        tools: gmTools, temperature: 0.8, max_tokens: 900,
-      });
-      this.#gmHistory.push(message);
-      if (!message.tool_calls?.length) return message.content || "The game master pauses, considering your answer.";
-      for (const call of message.tool_calls) {
-        let result: JsonObject;
-        try { result = this.executeTool(call.function.name, JSON.parse(call.function.arguments) as JsonObject); }
-        catch (error) { result = { ok: false, error: error instanceof Error ? error.message : String(error) }; }
-        this.#gmHistory.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result) });
-      }
+    if (this.#playerDraft) throw new Error("Review and save your character before continuing.");
+    if (this.#gmReplyOptions?.compelled && !this.#gmReplyOptions.options.includes(messageText)) {
+      throw new Error("Compulsion is active. Choose one of the offered responses.");
     }
-    throw new Error("The game master used too many consecutive tool calls");
+    const before = structuredClone(this.snapshot());
+    this.#gmTrace = [];
+    try {
+      this.#gmReplyOptions = null;
+      this.#gmHistory.push({ role: "user", content: messageText });
+      for (let step = 0; step < 5; step += 1) {
+        const setup = new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario: this.#game.scenario() }));
+        const request: ChatCompletionRequest = {
+          model: "openai/gpt-5.4-mini",
+          messages: [...setup.map(item => ({ role: item.role, content: item.content } satisfies OpenRouterMessage)), ...this.#gmHistory],
+          tools: gmTools, temperature: 0.8, max_tokens: 900,
+        };
+        const trace: GameMasterTrace = { request: structuredClone(request), toolResults: [] };
+        this.#gmTrace.push(trace);
+        const message = await this.#client.complete(request);
+        trace.response = structuredClone(message);
+        this.#gmHistory.push(message);
+        if (!message.tool_calls?.length) {
+          message.content = this.gameMasterReply(message.content);
+          return message.content;
+        }
+        for (const call of message.tool_calls) {
+          let result: JsonObject;
+          try {
+            if (["offer_replies", "create_player"].includes(call.function.name) && message.tool_calls.length !== 1) throw new Error("Call the final creation or reply tool alone, after any other tools");
+            result = this.executeTool(call.function.name, JSON.parse(call.function.arguments) as JsonObject);
+          }
+          catch (error) { result = { ok: false, error: error instanceof Error ? error.message : String(error) }; }
+          trace.toolResults.push({ name: call.function.name, result: structuredClone(result) });
+          this.#gmHistory.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result) });
+          if (call.function.name === "create_player" && result.ok) {
+            const reply = "Review your character before continuing to Caerwyn.";
+            this.#gmHistory.push({ role: "assistant", content: reply });
+            return reply;
+          }
+          if (call.function.name === "offer_replies" && result.ok && message.content?.trim()) {
+            const reply = this.gameMasterReply(message.content);
+            this.#gmHistory.push({ role: "assistant", content: reply });
+            return reply;
+          }
+        }
+      }
+      throw new Error("The game master used too many consecutive tool calls");
+    } catch (error) {
+      const trace = this.#gmTrace.at(-1);
+      if (trace) trace.error = error instanceof Error ? error.message : String(error);
+      this.restore(before);
+      throw error;
+    }
   }
 
   async talkToCharacter(characterId: string, messageText: string): Promise<string> {
@@ -169,9 +251,10 @@ export class BrowserGameRuntime {
     const messages = new FullContextBuilder().build(request).map(item => ({ role: item.role, content: item.content } satisfies OpenRouterMessage));
     const completion = await this.#client.complete({ model: "openai/gpt-5.4-mini", messages, response_format: dialogueFormat, temperature: 0.9, max_tokens: 900 });
     if (!completion.content) throw new Error("Character returned no dialogue");
-    const parsed = JSON.parse(completion.content) as { utterance?: unknown; newEvents?: Array<{ type?: unknown; summary?: unknown }>; goalUpdate?: { goal?: unknown; reason?: unknown } | null };
+    const parsed = JSON.parse(completion.content) as { replyOptions?: unknown; utterance?: unknown; newEvents?: Array<{ type?: unknown; summary?: unknown }>; goalUpdate?: { goal?: unknown; reason?: unknown } | null };
     const response = create(DialogueResponseSchema, {
       utterance: text(parsed.utterance, "utterance"),
+      replyOptions: parseReplyOptions(parsed.replyOptions),
       newEvents: (parsed.newEvents || []).map(event => create(EventSchema, {
         type: text(event.type, "newEvents.type"), summary: text(event.summary, "newEvents.summary"),
         characterIds: [characterId, "player"], visibility: EventVisibility.PRIVATE, details: {},
@@ -185,6 +268,7 @@ export class BrowserGameRuntime {
     this.#conversations.set(characterId, [...history, playerMessage, create(TranscriptMessageSchema, {
       role: TranscriptRole.CHARACTER, speakerId: characterId, text: response.utterance,
     })]);
+    this.#conversationReplyOptions[characterId] = response.replyOptions;
     return response.utterance;
   }
 
@@ -193,7 +277,8 @@ export class BrowserGameRuntime {
     const world = scenario.world;
     const player = scenario.characters.find(character => character.id === scenario.playerCharacterId);
     return {
-      phase: world?.phase === GamePhase.PLAYER_CREATION ? "player_creation" : world?.phase === GamePhase.CONVERSATIONS ? "conversations" : "other",
+      playerDraft: this.#playerDraft,
+      phase: this.#playerDraft ? "character_review" : world?.phase === GamePhase.PLAYER_CREATION ? "player_creation" : world?.phase === GamePhase.CONVERSATIONS ? "conversations" : "other",
       day: world?.day || 0,
       location: world?.rooms.find(room => room.id === "great_hall")?.name || "Great Hall",
       premise: scenario.premise,
@@ -206,15 +291,71 @@ export class BrowserGameRuntime {
         })),
       } : null,
       characters: scenario.characters.filter(character => character.id !== "player").map(character => ({ id: character.id, name: character.name })),
-      gmMessages: this.#gmHistory.filter(message => (message.role === "user" || message.role === "assistant") && message.content).map(message => ({ role: message.role, text: message.content })),
+      gmReplyOptions: this.#gmReplyOptions,
+      conversationReplyOptions: this.#conversationReplyOptions,
+      gmMessages: this.#gmHistory.filter(message => (message.role === "user" || message.role === "assistant") && !message.tool_calls?.length && message.content).map(message => ({ role: message.role, text: message.content })),
       conversations: Object.fromEntries([...this.#conversations].map(([id, transcript]) => [id, transcript.map(message => ({
         role: message.role === TranscriptRole.CHARACTER ? "character" : "player", text: message.text,
       }))])),
     };
   }
 
+  confirmPlayer(draft: JsonValue): void {
+    if (!this.#playerDraft) throw new Error("No character is awaiting review.");
+    const setup = fromJson(PlayerSetupSchema, draft);
+    if (!setup.player) throw new Error("A character is required.");
+    setup.homeland = text(setup.homeland, "Homeland");
+    setup.embassyRole = text(setup.embassyRole, "Role");
+    setup.player.name = text(setup.player.name, "Name");
+    setup.player.lore = text(setup.player.lore, "Biography");
+    setup.player.currentGoal = text(setup.player.currentGoal, "Personal goal");
+    const npcIds = ["merlin", "lancelot", "king"];
+    const playerIds = setup.player.relationships.map(item => item.characterId);
+    const ownerIds = setup.npcRelationships.map(item => item.ownerCharacterId);
+    if (playerIds.length !== 3 || ownerIds.length !== 3 || npcIds.some(id => !playerIds.includes(id) || !ownerIds.includes(id))) {
+      throw new Error("Describe initial relationships with all three court characters.");
+    }
+    for (const item of setup.player.relationships) item.description = text(item.description, "Relationship");
+    for (const item of setup.npcRelationships) {
+      if (!item.relationship) throw new Error("An initial NPC impression is missing.");
+      item.relationship.description = text(item.relationship.description, "Initial impression");
+    }
+    const result = this.#game.createPlayer(setup);
+    if (!result.ok) throw new Error(result.issues.map(issue => issue.message).join("; "));
+    this.#playerDraft = null;
+    this.#gmReplyOptions = null;
+  }
+
   debug(): JsonObject {
     return { scenario: toJson(ScenarioSchema, this.#game.scenario(), { alwaysEmitImplicit: true }), gameMasterHistory: this.#gmHistory, conversations: this.snapshot().conversations };
+  }
+
+  debugGameMaster(): JsonObject {
+    const scenario = this.#game.scenario();
+    const latestUser = this.#gmHistory.findLastIndex(message => message.role === "user");
+    const latestTurn = this.#gmHistory.slice(latestUser + 1);
+    const offers = latestTurn.flatMap(message => (message.tool_calls || [])
+      .filter(call => call.function.name === "offer_replies")
+      .map(call => {
+        let arguments_: unknown;
+        try { arguments_ = JSON.parse(call.function.arguments); }
+        catch { arguments_ = call.function.arguments; }
+        return { arguments: arguments_, result: latestTurn.find(item => item.role === "tool" && item.tool_call_id === call.id)?.content || null };
+      }));
+    return {
+      compulsion: {
+        active: this.#gmReplyOptions?.compelled === true,
+        consumedFlag: this.#gmReplyOptions?.compelled ?? null,
+        options: this.#gmReplyOptions?.options || [],
+        latestOffers: offers,
+      },
+      promptMatchesCurrentScenario: scenario.gameMasterPrompt === this.#initialScenario.gameMasterPrompt,
+      traceNote: "Exact requests and raw responses cover the latest GM turn in this runtime, including failures. After loading a save, use savedTranscript until another turn runs. Reconstructed context reflects current state, not necessarily the previous request. No hidden model reasoning is available.",
+      latestTurnCalls: this.#gmTrace,
+      savedTranscript: this.#gmHistory,
+      reconstructedContext: new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario })),
+      availableTools: gmTools,
+    };
   }
 
   debugCharacter(characterId: string): JsonObject {
@@ -231,11 +372,25 @@ export class BrowserGameRuntime {
     };
   }
 
+  private gameMasterReply(content: string | null): string {
+    const reply = content?.trim() || "The game master pauses, considering your answer.";
+    return this.#gmReplyOptions?.compelled && !reply.includes(compulsionNarration)
+      ? `${compulsionNarration}\n\n${reply}`
+      : reply;
+  }
+
   private executeTool(name: string, input: JsonObject): JsonObject {
+    if (name === "offer_replies") {
+      const options = parseReplyOptions(input.options, false);
+      if (typeof input.compelled !== "boolean") throw new Error("compelled must be a boolean");
+      if (input.compelled && this.#game.scenario().world?.phase !== GamePhase.PLAYER_CREATION) throw new Error("Compulsion is only available during character creation");
+      this.#gmReplyOptions = { options, compelled: input.compelled };
+      return { ok: true, instruction: "Player choices attached; none has been selected. If you have not spoken yet, speak AS THE LAUGHING STRANGER and ask for the missing detail now. Do not speak as the player or copy an option into your reply. Do not call offer_replies again. Wait for the human to choose." };
+    }
     if (name === "create_player") {
       const relationships = Array.isArray(input.relationships) ? input.relationships as JsonObject[] : [];
       const npcViews = Array.isArray(input.npcViews) ? input.npcViews as JsonObject[] : [];
-      const result = this.#game.createPlayer(create(PlayerSetupSchema, {
+      const setup = create(PlayerSetupSchema, {
         homeland: text(input.homeland, "homeland"), embassyRole: text(input.embassyRole, "embassyRole"),
         player: create(CharacterSchema, {
           id: "player", name: text(input.name, "name"), lore: text(input.lore, "lore"), currentGoal: text(input.currentGoal, "currentGoal"),
@@ -245,9 +400,12 @@ export class BrowserGameRuntime {
           ownerCharacterId: text(item.characterId, "characterId"),
           relationship: create(RelationshipSchema, { characterId: "player", description: text(item.description, "description") }),
         })),
-      }));
+      });
+      const result = new MemoryGame(this.#game.scenario()).createPlayer(setup);
       if (!result.ok) throw new Error(result.issues.map(issue => issue.message).join("; "));
-      return { ok: true, player: result.value.name, phase: "conversations", day: 1 };
+      this.#playerDraft = toJson(PlayerSetupSchema, setup);
+      this.#gmReplyOptions = null;
+      return { ok: true, phase: "character_review", instruction: "Wait for the player to review and explicitly save their character. Do not narrate arrival yet." };
     }
     if (name === "update_character") {
       const result = this.#game.updateCharacter(text(input.characterId, "characterId"), typeof input.lore === "string" ? input.lore : undefined, typeof input.currentGoal === "string" ? input.currentGoal : undefined);

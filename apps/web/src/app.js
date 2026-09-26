@@ -11,9 +11,13 @@ let debugData = null;
 let debugError = "";
 let debugTitle = "Debug Inspector";
 let debugRequest = { type: "debug", payload: {} };
+const apiKeyStorageKey = "kingmaker.openrouter-api-key";
 let apiKey = "";
+try { apiKey = sessionStorage.getItem(apiKeyStorageKey)?.trim() || ""; }
+catch { /* The app still works when browser storage is unavailable. */ }
 let screen = "key";
 let introPage = 0;
+let reviewDraft = null;
 let traveller = { name: "", homeland: "" };
 let saves = [];
 let activeSaveId = null;
@@ -48,7 +52,7 @@ function shell(content) {
 }
 
 function renderKeyEntry() {
-  app.innerHTML = shell(`<section class="panel key-entry"><div><div class="eyebrow">Connect your model</div><h2>Enter an OpenRouter key</h2><p>The key stays in this browser tab and is never included in game saves or debug output.</p><form data-key-form><input type="password" name="apiKey" autocomplete="off" placeholder="sk-or-v1-…" required><button class="primary">Continue</button></form></div></section>`);
+  app.innerHTML = shell(`<section class="panel key-entry"><div><div class="eyebrow">Connect your model</div><h2>Enter an OpenRouter key</h2><p>The key stays in this browser tab across reloads and is never included in game saves or debug output.</p><form data-key-form><input type="password" name="apiKey" autocomplete="off" placeholder="sk-or-v1-…" required><button class="primary" ${busy ? "disabled" : ""}>${busy ? "Connecting…" : "Continue"}</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></div></section>`);
   bind();
 }
 
@@ -75,7 +79,10 @@ function debugInspector() {
     : debugData
       ? `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
       : `<p class="debug-loading">Reading worker state…</p>`;
-  return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}"><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">Character state, visible events, known world, conversation, and assembled model context. The global inspector includes the authoritative world. Secrets and API keys are excluded.</p>${content}</aside>`;
+  const gmStatus = debugRequest.type === "debug_gm" && debugData?.compulsion
+    ? `<p class="debug-note" role="status">Compulsion: <strong>${debugData.compulsion.active ? "ON" : "OFF"}</strong> · Consumed flag: <strong>${debugData.compulsion.consumedFlag === null ? "no accepted options call" : escapeHtml(debugData.compulsion.consumedFlag)}</strong> · Prompt: <strong>${debugData.promptMatchesCurrentScenario ? "current" : "older saved version"}</strong></p>`
+    : "";
+  return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}"><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">Character state, visible events, known world, conversation, and assembled model context. The global inspector includes the authoritative world. GM debug includes prompts, raw model responses, and tool results—not hidden reasoning. API keys are excluded.</p>${gmStatus}${content}</aside>`;
 }
 
 async function openDebug(request = debugRequest, title = debugTitle) {
@@ -99,6 +106,11 @@ function messageList(messages, assistantName) {
   }).join("");
 }
 
+function replyOptions(options, target, compelled = false) {
+  if (!options?.length) return "";
+  return `<div class="reply-options" role="group" aria-label="${compelled ? "You must respond" : "Suggested replies"}">${options.map((option, index) => `<button class="reply-option" data-reply-target="${escapeHtml(target)}" data-reply-index="${index}" ${busy ? "disabled" : ""}>${escapeHtml(option)}</button>`).join("")}</div>`;
+}
+
 function renderCreation() {
   const messages = (state.gmMessages || []).filter(message => !(message.role === "user" && message.text.startsWith(handoffPrefix)));
   if (!messages.length) {
@@ -113,9 +125,16 @@ function renderCreation() {
     app.innerHTML = shell(`<section class="introduction" aria-label="Your journey" tabindex="-1">${content}<p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
     return bind();
   }
-  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div></div><div class="messages">${messageList(messages, patronName)}</div><form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Tell him what you desire…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div><button class="character-debug" data-gm-debug>Debug Stranger</button></div><div class="messages">${messageList(messages, patronName)}</div>${replyOptions(state.gmReplyOptions?.options, "gm", state.gmReplyOptions?.compelled)}${state.gmReplyOptions?.compelled ? `<p class="compelled-hint">A powerful force compels you to respond accordingly</p>` : `<form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Tell him what you desire…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
   bind();
   document.querySelector(".messages")?.scrollTo(0, 999999);
+}
+
+function renderCharacterReview() {
+  reviewDraft ||= structuredClone(state.playerDraft);
+  const field = (label, key, value, multiline = false) => `<label>${label}${multiline ? `<textarea data-review-field="${key}" required ${busy ? "disabled" : ""}>${escapeHtml(value || "")}</textarea>` : `<input data-review-field="${key}" value="${escapeHtml(value || "")}" required ${busy ? "disabled" : ""}>`}</label>`;
+  app.innerHTML = shell(`<section class="panel character-review"><div class="eyebrow">Before you enter Caerwyn</div><h2>Review your character</h2><p>Edit any details before saving your character and entering the court.</p><form data-review-form>${field("Name", "player.name", reviewDraft.player.name)}${field("Homeland", "homeland", reviewDraft.homeland)}${field("Role", "embassyRole", reviewDraft.embassyRole)}${field("Biography", "player.lore", reviewDraft.player.lore, true)}${field("Personal goal", "player.currentGoal", reviewDraft.player.currentGoal, true)}<h3>Relationships</h3>${reviewDraft.player.relationships.map((item, index) => field(`Your view of ${escapeHtml(state.characters.find(character => character.id === item.characterId)?.name || item.characterId)}`, `player.relationships.${index}.description`, item.description, true)).join("")}<h3>Initial impressions of you</h3>${reviewDraft.npcRelationships.map((item, index) => field(escapeHtml(state.characters.find(character => character.id === item.ownerCharacterId)?.name || item.ownerCharacterId), `npcRelationships.${index}.relationship.description`, item.relationship.description, true)).join("")}<button class="primary" ${busy ? "disabled" : ""}>Save character and enter court</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
+  bind();
 }
 
 function renderDay() {
@@ -128,15 +147,16 @@ function renderConversation() {
   const character = state.characters.find(item => item.id === activeCharacter);
   if (!character) { activeCharacter = null; return renderDay(); }
   const messages = state.conversations?.[activeCharacter] || [];
-  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><button class="back" data-back>← Return to the Great Hall</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.</div>`}</div><form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><button class="back" data-back>← Return to the Great Hall</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.</div>`}</div>${replyOptions(state.conversationReplyOptions?.[activeCharacter], activeCharacter)}<form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
   bind();
   document.querySelector(".messages")?.scrollTo(0, 999999);
 }
 
 function render() {
-  if (!apiKey) return renderKeyEntry();
+  if (screen === "key" || !apiKey) return renderKeyEntry();
   if (screen === "saves") return renderSavePicker();
   if (!state) return;
+  if (state.phase === "character_review") return renderCharacterReview();
   if (state.phase === "player_creation") return renderCreation();
   if (activeCharacter) return renderConversation();
   renderDay();
@@ -152,15 +172,21 @@ async function run(action) {
 function bind() {
   document.querySelector("[data-key-form]")?.addEventListener("submit", event => {
     event.preventDefault();
-    apiKey = String(new FormData(event.currentTarget).get("apiKey") || "").trim();
-    run(async () => { const result = await rpc("configure", { apiKey }); saves = result.saves; screen = "saves"; });
+    if (busy) return;
+    const key = String(new FormData(event.currentTarget).get("apiKey") || "").trim();
+    run(() => configure(key));
   });
-  document.querySelector("[data-key-change]")?.addEventListener("click", () => { apiKey = ""; state = null; screen = "key"; render(); });
+  document.querySelector("[data-key-change]")?.addEventListener("click", () => {
+    if (busy) return;
+    try { sessionStorage.removeItem(apiKeyStorageKey); } catch {}
+    apiKey = ""; state = null; activeSaveId = null; activeCharacter = null;
+    sheetOpen = false; debugOpen = false; notice = ""; screen = "key"; render();
+  });
   document.querySelector("[data-new-game]")?.addEventListener("click", () => run(async () => {
-    introPage = 0; traveller = { name: "", homeland: "" }; const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    introPage = 0; reviewDraft = null; traveller = { name: "", homeland: "" }; const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   }));
   document.querySelectorAll("[data-save-load]").forEach(button => button.addEventListener("click", () => run(async () => {
-    introPage = 0; traveller = { name: "", homeland: "" }; const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    introPage = 0; reviewDraft = null; traveller = { name: "", homeland: "" }; const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   })));
   document.querySelectorAll("[data-save-delete]").forEach(button => button.addEventListener("click", () => run(async () => {
     const result = await rpc("delete_game", { saveId: button.dataset.saveDelete }); saves = result.saves;
@@ -169,6 +195,7 @@ function bind() {
   document.querySelector("[data-sheet-open]")?.addEventListener("click", () => { sheetOpen = true; debugOpen = false; render(); });
   document.querySelectorAll("[data-sheet-close]").forEach(button => button.addEventListener("click", () => { sheetOpen = false; render(); }));
   document.querySelector("[data-debug-open]")?.addEventListener("click", () => openDebug({ type: "debug", payload: {} }, "Debug Inspector"));
+  document.querySelector("[data-gm-debug]")?.addEventListener("click", () => openDebug({ type: "debug_gm", payload: {} }, "Laughing Stranger Debug"));
   document.querySelector("[data-character-debug]")?.addEventListener("click", () => {
     const character = state.characters.find(item => item.id === activeCharacter);
     openDebug({ type: "debug_character", payload: { characterId: activeCharacter } }, `${character?.name || activeCharacter} Debug`);
@@ -199,6 +226,31 @@ function bind() {
   document.querySelector("[data-begin]")?.addEventListener("click", () => run(async () => {
     const result = await rpc("gm", { message: introductionHandoff(traveller.name, traveller.homeland) }); state = result.state; saves = result.saves;
   }));
+  document.querySelectorAll("[data-reply-index]").forEach(button => button.addEventListener("click", () => {
+    if (busy) return;
+    const target = button.dataset.replyTarget;
+    const options = target === "gm" ? state.gmReplyOptions?.options : state.conversationReplyOptions?.[target];
+    const message = options?.[Number(button.dataset.replyIndex)];
+    if (!message) return;
+    run(async () => {
+      const result = await rpc(target === "gm" ? "gm" : "talk", { message, characterId: target });
+      state = result.state; saves = result.saves;
+    });
+  }));
+  document.querySelectorAll("[data-review-field]").forEach(input => input.addEventListener("input", () => {
+    const path = input.dataset.reviewField.split(".");
+    let owner = reviewDraft;
+    for (const key of path.slice(0, -1)) owner = owner[key];
+    owner[path.at(-1)] = input.value;
+  }));
+  document.querySelector("[data-review-form]")?.addEventListener("submit", event => {
+    event.preventDefault();
+    if (busy) return;
+    run(async () => {
+      const result = await rpc("save_character", { draft: reviewDraft });
+      state = result.state; saves = result.saves; reviewDraft = null;
+    });
+  });
   document.querySelector("[data-gm-form]")?.addEventListener("submit", event => {
     event.preventDefault(); const message = new FormData(event.currentTarget).get("message");
     run(async () => { const result = await rpc("gm", { message }); state = result.state; saves = result.saves; });
@@ -210,11 +262,20 @@ function bind() {
   });
   document.querySelector("[data-back]")?.addEventListener("click", () => { activeCharacter = null; notice = ""; render(); });
   document.querySelector("[data-end-day]")?.addEventListener("click", () => { notice = "The twelve-hour night phase is the next milestone. For now, the day remains yours."; render(); });
-  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { introPage = 0; traveller = { name: "", homeland: "" }; const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
+  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { introPage = 0; reviewDraft = null; traveller = { name: "", homeland: "" }; const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
 }
 
 document.addEventListener("keydown", event => {
   if (event.key === "Escape" && (sheetOpen || debugOpen)) { sheetOpen = false; debugOpen = false; render(); }
 });
 
-render();
+async function configure(key) {
+  const result = await rpc("configure", { apiKey: key });
+  apiKey = key;
+  try { sessionStorage.setItem(apiKeyStorageKey, key); } catch {}
+  saves = result.saves;
+  screen = "saves";
+}
+
+if (apiKey) run(() => configure(apiKey));
+else render();

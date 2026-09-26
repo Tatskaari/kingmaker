@@ -12,10 +12,12 @@ The assembled context is deliberately simple and complete:
 7. The conversation transcript.
 
 The response contains an utterance, zero or more new events, and an optional
-replacement goal. Events cover every social concept: observations, thoughts,
+replacement goal, and optional `replyOptions` (an empty array or one or more player replies). Events cover every social concept: observations, thoughts,
 promises, agreements, insults, apologies, revelations, and conversations.
 
 Dialogue may create intent, social meaning, misinformation, and surprising plans.
 It cannot directly mutate the physical world. A character saying "I give you the
 key" can create an event and a goal; the autonomous action loop must still choose
 and execute the physical `give` action.
+
+Reply options should offer distinct roleplaying intentions and match the player’s voice and behaviour in the visible conversation. They are suggestions, not spoken NPC dialogue or events. Only a selected or typed response becomes player speech. NPCs cannot compel responses; the GM alone can use compulsion during stalled character creation.

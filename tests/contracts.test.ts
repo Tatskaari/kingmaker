@@ -169,3 +169,217 @@ test("creating the emissary begins day one with the whole cast in the Great Hall
   assert.ok(arrivals.every(event => event.summary.includes("Ilyra Venn") && event.summary.includes("Valedorn")));
   assert.deepEqual(arrivals.map(event => event.characterIds[0]).sort(), [...npcIds].sort());
 });
+
+// Exercise the runtime using scripted model replies, without credentials or network calls.
+import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
+import { OpenRouterClient, type OpenRouterMessage } from "../packages/providers/src/openrouter.js";
+import { compulsionNarration, parseReplyOptions } from "../apps/web/src/reply-options.js";
+
+const offer = (compelled: boolean, options = ["I want to protect my family.", "I intend to earn a place at court."]): OpenRouterMessage => ({
+  role: "assistant", content: "What do you want from this journey?",
+  tool_calls: [{ id: "offer-1", type: "function", function: {
+    name: "offer_replies", arguments: JSON.stringify({ options, compelled }),
+  } }],
+});
+
+test("GM choices survive saves, accept selected speech, and clear after the answer", async t => {
+  const replies: OpenRouterMessage[] = [offer(true), { role: "assistant", content: "A scheme of your own! Tell me about your family." }];
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => replies.shift()!);
+  const runtime = new BrowserGameRuntime(load(), "test");
+  const reply = await runtime.talkToGameMaster("I refuse to say what I want.");
+  assert.match(reply, new RegExp(compulsionNarration.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  const saved = structuredClone(runtime.snapshot());
+  assert.equal(saved.gameMasterReplyOptions?.compelled, true);
+  assert.equal(saved.gameMasterReplyOptions?.options.length, 2);
+  const restored = new BrowserGameRuntime(load(), "test", saved);
+  await restored.talkToGameMaster(saved.gameMasterReplyOptions!.options[0]!);
+  assert.equal(restored.view().gmReplyOptions, null);
+  assert.ok(restored.snapshot().gameMasterHistory.some(message => message.role === "user" && message.content === "I want to protect my family."));
+  restored.reset();
+  assert.equal(restored.view().gmReplyOptions, null);
+});
+
+test("failed GM requests retain offered replies and do not duplicate the player's answer", async t => {
+  const runtime = new BrowserGameRuntime(load(), "test");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => offer(false));
+  await runtime.talkToGameMaster("Give me some ideas.");
+  const before = structuredClone(runtime.snapshot());
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => { throw new Error("network unavailable"); });
+  await assert.rejects(runtime.talkToGameMaster("My family."), /network unavailable/);
+  assert.deepEqual(runtime.snapshot(), before);
+});
+
+test("NPC reply options are optional speech, never compulsion, and stay with their conversation", async t => {
+  const scenario = load();
+  scenario.world!.phase = GamePhase.CONVERSATIONS;
+  const replies = [
+    { utterance: "Will you help me?", newEvents: [], goalUpdate: null, replyOptions: ["On one condition.", "You have my word."], compelled: true },
+    { utterance: "Name your condition.", newEvents: [], goalUpdate: null, replyOptions: [] },
+  ];
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: { tools?: unknown }) => {
+    assert.equal(request.tools, undefined, "NPCs must not receive GM tools");
+    return { role: "assistant", content: JSON.stringify(replies.shift()) };
+  });
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  const initialEvents = scenario.events.length;
+  await runtime.talkToCharacter("merlin", "What do you want?");
+  const saved = structuredClone(runtime.snapshot());
+  assert.deepEqual(saved.conversationReplyOptions?.merlin, ["On one condition.", "You have my word."]);
+  assert.equal(saved.gameMasterReplyOptions, null, "NPC output cannot set GM compulsion");
+  assert.equal((saved.scenario as { events: unknown[] }).events.length, initialEvents);
+  assert.equal(saved.conversations.merlin?.length, 2, "Suggestions are not player speech yet");
+  const restored = new BrowserGameRuntime(scenario, "test", saved);
+  await restored.talkToCharacter("merlin", "On one condition.");
+  assert.deepEqual(restored.snapshot().conversationReplyOptions?.merlin, []);
+  assert.equal(restored.snapshot().conversationReplyOptions?.lancelot, undefined);
+});
+
+test("reply validation rejects malformed or duplicate suggestions and old saves load without options", () => {
+  assert.deepEqual(parseReplyOptions(["I agree."], false), ["I agree."]);
+  const many = Array.from({ length: 8 }, (_, index) => `Response ${index + 1}`);
+  assert.deepEqual(parseReplyOptions(many, false), many);
+  assert.throws(() => parseReplyOptions([], false));
+  assert.throws(() => parseReplyOptions(["Yes", " Yes "]));
+  assert.throws(() => parseReplyOptions(["Yes", " "]));
+  assert.throws(() => parseReplyOptions(["Yes", 3]));
+  assert.deepEqual(parseReplyOptions(undefined), []);
+  const runtime = new BrowserGameRuntime(load(), "test");
+  const saved = runtime.snapshot();
+  delete saved.gameMasterReplyOptions;
+  delete saved.conversationReplyOptions;
+  const restored = new BrowserGameRuntime(load(), "test", saved);
+  assert.equal(restored.view().gmReplyOptions, null);
+  assert.deepEqual(restored.view().conversationReplyOptions, {});
+});
+
+test("private crossroads framing belongs to the GM, not the shared court premise", () => {
+  const scenario = load();
+  assert.doesNotMatch(scenario.premise, /crossroads|stranger/i);
+  assert.match(scenario.gameMasterPrompt, /crossroads/);
+  assert.match(scenario.systemPrompt, /cannot compel a response/);
+});
+
+test("GM compulsion is rejected after character creation", async t => {
+  const scenario = load();
+  scenario.world!.phase = GamePhase.CONVERSATIONS;
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => ++calls === 1 ? offer(true) : { role: "assistant", content: "The choice is yours." });
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  assert.equal(await runtime.talkToGameMaster("What now?"), "The choice is yours.");
+  assert.equal(runtime.view().gmReplyOptions, null);
+  assert.ok(runtime.snapshot().gameMasterHistory.some(message => message.role === "tool" && message.content?.includes("Compulsion is only available during character creation")));
+});
+
+test("GM tool-call prose and suggested question render as one complete reply", async t => {
+  for (const compelled of [false, true]) {
+    const modelReply = offer(compelled);
+    modelReply.content = "Oh, Maren—fate keeps its appointments. What do you want from this journey?";
+    t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply);
+    const runtime = new BrowserGameRuntime(load(), "test");
+    await runtime.talkToGameMaster("How do you know my name?");
+    const messages = runtime.view().gmMessages as Array<{ role: string; text: string }>;
+    const displayed = messages.filter(message => message.role === "assistant");
+    assert.equal(displayed.length, 1);
+    assert.equal(displayed[0]?.text, compelled ? `${compulsionNarration}\n\n${modelReply.content}` : modelReply.content);
+    assert.equal(displayed[0]?.text.match(/What do you want from this journey\?/g)?.length, 1);
+    const restored = new BrowserGameRuntime(load(), "test", structuredClone(runtime.snapshot()));
+    assert.deepEqual(restored.view().gmMessages, messages);
+  }
+});
+
+
+test("options-only tool calls wait for spoken dialogue rather than supplying a question", async t => {
+  const toolReply = offer(true);
+  toolReply.content = null;
+  const replies: OpenRouterMessage[] = [toolReply, { role: "assistant", content: "What did you leave behind?" }];
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => replies.shift()!);
+  const runtime = new BrowserGameRuntime(load(), "test");
+  const reply = await runtime.talkToGameMaster("I cannot say.");
+  assert.equal(reply, `${compulsionNarration}\n\nWhat did you leave behind?`);
+  const messages = runtime.view().gmMessages as Array<{ role: string; text: string }>;
+  assert.deepEqual(messages.filter(message => message.role === "assistant"), [{ role: "assistant", text: reply }]);
+  assert.deepEqual(Object.keys(JSON.parse(toolReply.tool_calls![0]!.function.arguments)).sort(), ["compelled", "options"]);
+});
+
+test("the documented Stranger checklist and escalation are the runtime prompt", () => {
+  const documented = readFileSync(new URL("../content/prompts/game-master.md", import.meta.url), "utf8")
+    .replace(/^# The Laughing Stranger\s+/, "").trim();
+  assert.equal(load().gameMasterPrompt, documented);
+});
+
+test("GM debug distinguishes consumed flags, raw responses, outdated prompts, and failures", async t => {
+  const runtime = new BrowserGameRuntime(load(), "do-not-display-this-key");
+  let debug = runtime.debugGameMaster() as any;
+  assert.equal(debug.compulsion.consumedFlag, null);
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => offer(true));
+  await runtime.talkToGameMaster("I refuse again.");
+  debug = runtime.debugGameMaster();
+  assert.equal(debug.compulsion.active, true);
+  assert.equal(debug.compulsion.consumedFlag, true);
+  assert.equal(debug.compulsion.latestOffers[0].arguments.compelled, true);
+  assert.equal(debug.latestTurnCalls[0].response.content, "What do you want from this journey?");
+  assert.equal(debug.latestTurnCalls[0].toolResults[0].result.ok, true);
+  assert.ok(debug.latestTurnCalls[0].request.messages.length > 0);
+  assert.ok(!JSON.stringify(debug).includes("do-not-display-this-key"));
+  const saved = runtime.snapshot();
+  (saved.scenario as any).gameMasterPrompt = "An older prompt";
+  assert.equal(new BrowserGameRuntime(load(), "test", saved).debugGameMaster().promptMatchesCurrentScenario, false);
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => { throw new Error("failed request"); });
+  await assert.rejects(runtime.talkToGameMaster("I want to protect my family."), /failed request/);
+  debug = runtime.debugGameMaster();
+  assert.equal(debug.latestTurnCalls[0].error, "failed request");
+  assert.equal(debug.compulsion.active, true, "Failed requests preserve the last accepted choices");
+});
+
+
+test("compulsion requires an offered choice, then releases free-text input", async t => {
+  const replies: OpenRouterMessage[] = [offer(true), { role: "assistant", content: "Good. Tell me more." }, { role: "assistant", content: "I see." }];
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => { calls += 1; return replies.shift()!; });
+  const runtime = new BrowserGameRuntime(load(), "test");
+  await runtime.talkToGameMaster("I refuse.");
+  const before = structuredClone(runtime.snapshot());
+  await assert.rejects(runtime.talkToGameMaster("I still refuse."), /Choose one of the offered responses/);
+  assert.equal(calls, 1);
+  assert.deepEqual(runtime.snapshot(), before);
+  await runtime.talkToGameMaster("I want to protect my family.");
+  assert.equal(runtime.view().gmReplyOptions, null);
+  await runtime.talkToGameMaster("Here is my own answer.");
+  assert.equal(calls, 3);
+});
+
+test("generated character waits for editable review and only enters court on explicit save", async t => {
+  const ids = ["merlin", "lancelot", "king"];
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => ({
+    role: "assistant", content: null, tool_calls: [{ id: "draft", type: "function", function: {
+      name: "create_player", arguments: JSON.stringify({ name: "Maren", homeland: "Alderreach", embassyRole: "Clerk", lore: "A clerk of the harbour.", currentGoal: "Win relief from tribute.", relationships: ids.map(characterId => ({ characterId, description: "I have not met them." })), npcViews: ids.map(characterId => ({ characterId, description: "An unknown witness." })) }),
+    } }],
+  }));
+  const runtime = new BrowserGameRuntime(load(), "test");
+  await runtime.talkToGameMaster("I am ready.");
+  assert.equal(runtime.view().phase, "character_review");
+  assert.equal(runtime.view().player, null);
+  assert.equal(runtime.view().day, 0);
+  const restored = new BrowserGameRuntime(load(), "test", structuredClone(runtime.snapshot()));
+  assert.equal(restored.view().phase, "character_review");
+  const draft = structuredClone(restored.snapshot().playerDraft) as any;
+  draft.player.name = "Maren Reed";
+  draft.homeland = "Westmere";
+  draft.embassyRole = "Envoy";
+  draft.player.currentGoal = "Return home safely.";
+  draft.player.relationships[0].description = "I distrust Merlin.";
+  draft.npcRelationships[0].relationship.description = "An envoy to watch carefully.";
+  const invalid = structuredClone(draft);
+  invalid.player.name = " ";
+  assert.throws(() => restored.confirmPlayer(invalid), /Name must/);
+  assert.equal(restored.view().phase, "character_review");
+  restored.confirmPlayer(draft);
+  assert.equal(restored.view().phase, "conversations");
+  assert.equal(restored.view().day, 1);
+  assert.equal((restored.view().player as any).name, "Maren Reed");
+  assert.equal((restored.view().player as any).currentGoal, "Return home safely.");
+  assert.equal((restored.view().player as any).relationships[0].description, "I distrust Merlin.");
+  assert.equal(restored.snapshot().playerDraft, null);
+  assert.match(JSON.stringify(restored.snapshot().scenario), /Maren Reed, Envoy from Westmere/);
+  assert.throws(() => restored.confirmPlayer(draft), /No character is awaiting review/);
+});
