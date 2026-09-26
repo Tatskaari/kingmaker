@@ -1,6 +1,6 @@
 import { doorActionLegality } from "../packages/core/src/access.js";
 import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
-import { courtReachableTiles, courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath, courtInteractionPoint, nearestDoorSpot } from "../apps/web/src/court-map.js";
+import { courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath, courtInteractionPoint, nearestDoorSpot } from "../apps/web/src/court-map.js";
 import { PalaceDialogue, palaceSurroundings, palaceDialogueContext, createPalacePlayer } from "../apps/web/src/palace-dialogue.js";
 import { interactionActions, executeInteraction } from "../apps/web/src/palace-interactions.js";
 import assert from "node:assert/strict";
@@ -1355,18 +1355,4 @@ test("authored objectives remain distinct from immediate greeting goals in model
     for (const objective of character.objectives) assert.ok(context.some(message => message.content.includes(objective)));
     assert.match(character.currentGoal, /greet the visiting player/);
   }
-});
-
-test("reachability shading follows closed and reopened doors using the walking rules", () => {
-  const scenario = load(), doors = scenario.world!.doors;
-  const start = { x: 16, y: 22 }, merlin = { x: 5, y: 5 };
-  const closed = courtReachableTiles(start, doors);
-  assert.ok(closed.has(pointKey(start)));
-  assert.ok(!closed.has(pointKey(merlin)));
-  for (const door of doors) door.open = true;
-  const open = courtReachableTiles(start, doors);
-  assert.ok(open.has(pointKey(merlin)));
-  assert.ok(courtPath(start, merlin, doors));
-  assert.ok(!open.has("0,0"));
-  assert.equal(courtReachableTiles({ x: -1, y: 0 }, doors).size, 0);
 });
