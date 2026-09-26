@@ -17,6 +17,7 @@ try { apiKey = sessionStorage.getItem(apiKeyStorageKey)?.trim() || ""; }
 catch { /* The app still works when browser storage is unavailable. */ }
 let screen = "key";
 let introPage = 0;
+let reviewDraft = null;
 let traveller = { name: "", homeland: "" };
 let saves = [];
 let activeSaveId = null;
@@ -129,6 +130,13 @@ function renderCreation() {
   document.querySelector(".messages")?.scrollTo(0, 999999);
 }
 
+function renderCharacterReview() {
+  reviewDraft ||= structuredClone(state.playerDraft);
+  const field = (label, key, value, multiline = false) => `<label>${label}${multiline ? `<textarea data-review-field="${key}" required ${busy ? "disabled" : ""}>${escapeHtml(value || "")}</textarea>` : `<input data-review-field="${key}" value="${escapeHtml(value || "")}" required ${busy ? "disabled" : ""}>`}</label>`;
+  app.innerHTML = shell(`<section class="panel character-review"><div class="eyebrow">Before you enter Caerwyn</div><h2>Review your character</h2><p>Edit any details before saving your character and entering the court.</p><form data-review-form>${field("Name", "player.name", reviewDraft.player.name)}${field("Homeland", "homeland", reviewDraft.homeland)}${field("Role", "embassyRole", reviewDraft.embassyRole)}${field("Biography", "player.lore", reviewDraft.player.lore, true)}${field("Personal goal", "player.currentGoal", reviewDraft.player.currentGoal, true)}<h3>Relationships</h3>${reviewDraft.player.relationships.map((item, index) => field(`Your view of ${escapeHtml(state.characters.find(character => character.id === item.characterId)?.name || item.characterId)}`, `player.relationships.${index}.description`, item.description, true)).join("")}<h3>Initial impressions of you</h3>${reviewDraft.npcRelationships.map((item, index) => field(escapeHtml(state.characters.find(character => character.id === item.ownerCharacterId)?.name || item.ownerCharacterId), `npcRelationships.${index}.relationship.description`, item.relationship.description, true)).join("")}<button class="primary" ${busy ? "disabled" : ""}>Save character and enter court</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
+  bind();
+}
+
 function renderDay() {
   const playerName = state.player?.name || "The Emissary";
   app.innerHTML = shell(`<section class="panel"><div class="day-heading"><div><div class="eyebrow">Day ${state.day} · ${escapeHtml(state.location)}</div><h2>All eyes turn to <span class="player-name">${escapeHtml(playerName)}</span></h2></div></div><p class="scene">The embassy’s formal greeting is complete. King Aldren holds court beneath winter banners; Merlin watches from the edge of the dais; Lancelot stands beside the throne. You have enough standing to request a private word with any of them.</p><div class="choices">${state.characters.map(character => `<button class="choice" data-character="${escapeHtml(character.id)}">Talk to ${escapeHtml(character.name)}<span>Private audience →</span></button>`).join("")}<button class="choice end" data-end-day>End the day<span>Night awaits →</span></button></div><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
@@ -148,6 +156,7 @@ function render() {
   if (screen === "key" || !apiKey) return renderKeyEntry();
   if (screen === "saves") return renderSavePicker();
   if (!state) return;
+  if (state.phase === "character_review") return renderCharacterReview();
   if (state.phase === "player_creation") return renderCreation();
   if (activeCharacter) return renderConversation();
   renderDay();
@@ -174,10 +183,10 @@ function bind() {
     sheetOpen = false; debugOpen = false; notice = ""; screen = "key"; render();
   });
   document.querySelector("[data-new-game]")?.addEventListener("click", () => run(async () => {
-    introPage = 0; traveller = { name: "", homeland: "" }; const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    introPage = 0; reviewDraft = null; traveller = { name: "", homeland: "" }; const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   }));
   document.querySelectorAll("[data-save-load]").forEach(button => button.addEventListener("click", () => run(async () => {
-    introPage = 0; traveller = { name: "", homeland: "" }; const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    introPage = 0; reviewDraft = null; traveller = { name: "", homeland: "" }; const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   })));
   document.querySelectorAll("[data-save-delete]").forEach(button => button.addEventListener("click", () => run(async () => {
     const result = await rpc("delete_game", { saveId: button.dataset.saveDelete }); saves = result.saves;
@@ -228,6 +237,20 @@ function bind() {
       state = result.state; saves = result.saves;
     });
   }));
+  document.querySelectorAll("[data-review-field]").forEach(input => input.addEventListener("input", () => {
+    const path = input.dataset.reviewField.split(".");
+    let owner = reviewDraft;
+    for (const key of path.slice(0, -1)) owner = owner[key];
+    owner[path.at(-1)] = input.value;
+  }));
+  document.querySelector("[data-review-form]")?.addEventListener("submit", event => {
+    event.preventDefault();
+    if (busy) return;
+    run(async () => {
+      const result = await rpc("save_character", { draft: reviewDraft });
+      state = result.state; saves = result.saves; reviewDraft = null;
+    });
+  });
   document.querySelector("[data-gm-form]")?.addEventListener("submit", event => {
     event.preventDefault(); const message = new FormData(event.currentTarget).get("message");
     run(async () => { const result = await rpc("gm", { message }); state = result.state; saves = result.saves; });
@@ -239,7 +262,7 @@ function bind() {
   });
   document.querySelector("[data-back]")?.addEventListener("click", () => { activeCharacter = null; notice = ""; render(); });
   document.querySelector("[data-end-day]")?.addEventListener("click", () => { notice = "The twelve-hour night phase is the next milestone. For now, the day remains yours."; render(); });
-  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { introPage = 0; traveller = { name: "", homeland: "" }; const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
+  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { introPage = 0; reviewDraft = null; traveller = { name: "", homeland: "" }; const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
 }
 
 document.addEventListener("keydown", event => {

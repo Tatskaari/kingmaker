@@ -1,6 +1,6 @@
 /// <reference lib="webworker" />
 
-import { fromJsonString } from "@bufbuild/protobuf";
+import { fromJsonString, type JsonValue } from "@bufbuild/protobuf";
 import { ScenarioSchema, type Scenario } from "../../../packages/contracts/src/index.js";
 import { BrowserGameRuntime, type RuntimeSnapshot } from "./runtime.js";
 
@@ -129,6 +129,18 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     const reply = await requireRuntime().talkToGameMaster(String(payload.message || ""));
     await persist();
     return { reply, state: requireRuntime().view(), saves: await listSaves(), activeSaveId: activeSave?.id };
+  }
+  if (type === "save_character") {
+    const game = requireRuntime();
+    const before = structuredClone(game.snapshot());
+    try {
+      game.confirmPlayer(payload.draft as JsonValue);
+      await persist();
+    } catch (error) {
+      game.restore(before);
+      throw error;
+    }
+    return { state: game.view(), saves: await listSaves() };
   }
   if (type === "talk") {
     const reply = await requireRuntime().talkToCharacter(String(payload.characterId || ""), String(payload.message || ""));

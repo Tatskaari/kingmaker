@@ -20,6 +20,7 @@ interface GameMasterTrace {
 
 export interface RuntimeSnapshot {
   scenario: JsonValue;
+  playerDraft?: JsonValue | null;
   gameMasterReplyOptions?: ReplyOptions | null;
   conversationReplyOptions?: Record<string, string[]>;
   gameMasterHistory: OpenRouterMessage[];
@@ -52,7 +53,7 @@ const gmTools: readonly OpenRouterTool[] = [
     type: "function",
     function: {
       name: "create_player",
-      description: "Finish the interview, create the visiting emissary, establish every initial relationship, and begin Day 1 in the Great Hall. Call once enough is known.",
+      description: "Finish the interview and prepare the visiting emissary and initial relationships for an editable review page. This does not save the character or begin Day 1. Call alone when enough is known; the human must review and save before entering court.",
       parameters: {
         type: "object", additionalProperties: false,
         required: ["name", "homeland", "embassyRole", "lore", "currentGoal", "relationships", "npcViews"],
@@ -136,6 +137,7 @@ export class BrowserGameRuntime {
   #client: OpenRouterClient;
   #gmHistory: OpenRouterMessage[] = [];
   #gmTrace: GameMasterTrace[] = [];
+  #playerDraft: JsonValue | null = null;
   #gmReplyOptions: ReplyOptions | null = null;
   #conversationReplyOptions: Record<string, string[]> = {};
   #conversations = new Map<string, TranscriptMessage[]>();
@@ -150,6 +152,7 @@ export class BrowserGameRuntime {
   reset(): void {
     this.#game = new MemoryGame(this.#initialScenario);
     this.#gmHistory = [];
+    this.#playerDraft = null;
     this.#gmTrace = [];
     this.#gmReplyOptions = null;
     this.#conversationReplyOptions = {};
@@ -159,6 +162,7 @@ export class BrowserGameRuntime {
   restore(snapshot: RuntimeSnapshot): void {
     this.#game = new MemoryGame(fromJson(ScenarioSchema, snapshot.scenario));
     this.#gmHistory = snapshot.gameMasterHistory || [];
+    this.#playerDraft = snapshot.playerDraft || null;
     this.#gmReplyOptions = snapshot.gameMasterReplyOptions || null;
     this.#conversationReplyOptions = snapshot.conversationReplyOptions || {};
     this.#conversations = new Map(Object.entries(snapshot.conversations || {}).map(([characterId, messages]) => [
@@ -171,6 +175,7 @@ export class BrowserGameRuntime {
     return {
       scenario: toJson(ScenarioSchema, this.#game.scenario(), { alwaysEmitImplicit: true }),
       gameMasterHistory: this.#gmHistory,
+      playerDraft: this.#playerDraft,
       gameMasterReplyOptions: this.#gmReplyOptions,
       conversationReplyOptions: this.#conversationReplyOptions,
       conversations: Object.fromEntries([...this.#conversations].map(([characterId, messages]) => [
@@ -181,6 +186,7 @@ export class BrowserGameRuntime {
   }
 
   async talkToGameMaster(messageText: string): Promise<string> {
+    if (this.#playerDraft) throw new Error("Review and save your character before continuing.");
     if (this.#gmReplyOptions?.compelled && !this.#gmReplyOptions.options.includes(messageText)) {
       throw new Error("Compulsion is active. Choose one of the offered responses.");
     }
@@ -208,12 +214,17 @@ export class BrowserGameRuntime {
         for (const call of message.tool_calls) {
           let result: JsonObject;
           try {
-            if (call.function.name === "offer_replies" && message.tool_calls.length !== 1) throw new Error("Call offer_replies alone, after any other tools");
+            if (["offer_replies", "create_player"].includes(call.function.name) && message.tool_calls.length !== 1) throw new Error("Call the final creation or reply tool alone, after any other tools");
             result = this.executeTool(call.function.name, JSON.parse(call.function.arguments) as JsonObject);
           }
           catch (error) { result = { ok: false, error: error instanceof Error ? error.message : String(error) }; }
           trace.toolResults.push({ name: call.function.name, result: structuredClone(result) });
           this.#gmHistory.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result) });
+          if (call.function.name === "create_player" && result.ok) {
+            const reply = "Review your character before continuing to Caerwyn.";
+            this.#gmHistory.push({ role: "assistant", content: reply });
+            return reply;
+          }
           if (call.function.name === "offer_replies" && result.ok && message.content?.trim()) {
             const reply = this.gameMasterReply(message.content);
             this.#gmHistory.push({ role: "assistant", content: reply });
@@ -266,7 +277,8 @@ export class BrowserGameRuntime {
     const world = scenario.world;
     const player = scenario.characters.find(character => character.id === scenario.playerCharacterId);
     return {
-      phase: world?.phase === GamePhase.PLAYER_CREATION ? "player_creation" : world?.phase === GamePhase.CONVERSATIONS ? "conversations" : "other",
+      playerDraft: this.#playerDraft,
+      phase: this.#playerDraft ? "character_review" : world?.phase === GamePhase.PLAYER_CREATION ? "player_creation" : world?.phase === GamePhase.CONVERSATIONS ? "conversations" : "other",
       day: world?.day || 0,
       location: world?.rooms.find(room => room.id === "great_hall")?.name || "Great Hall",
       premise: scenario.premise,
@@ -286,6 +298,32 @@ export class BrowserGameRuntime {
         role: message.role === TranscriptRole.CHARACTER ? "character" : "player", text: message.text,
       }))])),
     };
+  }
+
+  confirmPlayer(draft: JsonValue): void {
+    if (!this.#playerDraft) throw new Error("No character is awaiting review.");
+    const setup = fromJson(PlayerSetupSchema, draft);
+    if (!setup.player) throw new Error("A character is required.");
+    setup.homeland = text(setup.homeland, "Homeland");
+    setup.embassyRole = text(setup.embassyRole, "Role");
+    setup.player.name = text(setup.player.name, "Name");
+    setup.player.lore = text(setup.player.lore, "Biography");
+    setup.player.currentGoal = text(setup.player.currentGoal, "Personal goal");
+    const npcIds = ["merlin", "lancelot", "king"];
+    const playerIds = setup.player.relationships.map(item => item.characterId);
+    const ownerIds = setup.npcRelationships.map(item => item.ownerCharacterId);
+    if (playerIds.length !== 3 || ownerIds.length !== 3 || npcIds.some(id => !playerIds.includes(id) || !ownerIds.includes(id))) {
+      throw new Error("Describe initial relationships with all three court characters.");
+    }
+    for (const item of setup.player.relationships) item.description = text(item.description, "Relationship");
+    for (const item of setup.npcRelationships) {
+      if (!item.relationship) throw new Error("An initial NPC impression is missing.");
+      item.relationship.description = text(item.relationship.description, "Initial impression");
+    }
+    const result = this.#game.createPlayer(setup);
+    if (!result.ok) throw new Error(result.issues.map(issue => issue.message).join("; "));
+    this.#playerDraft = null;
+    this.#gmReplyOptions = null;
   }
 
   debug(): JsonObject {
@@ -352,7 +390,7 @@ export class BrowserGameRuntime {
     if (name === "create_player") {
       const relationships = Array.isArray(input.relationships) ? input.relationships as JsonObject[] : [];
       const npcViews = Array.isArray(input.npcViews) ? input.npcViews as JsonObject[] : [];
-      const result = this.#game.createPlayer(create(PlayerSetupSchema, {
+      const setup = create(PlayerSetupSchema, {
         homeland: text(input.homeland, "homeland"), embassyRole: text(input.embassyRole, "embassyRole"),
         player: create(CharacterSchema, {
           id: "player", name: text(input.name, "name"), lore: text(input.lore, "lore"), currentGoal: text(input.currentGoal, "currentGoal"),
@@ -362,9 +400,12 @@ export class BrowserGameRuntime {
           ownerCharacterId: text(item.characterId, "characterId"),
           relationship: create(RelationshipSchema, { characterId: "player", description: text(item.description, "description") }),
         })),
-      }));
+      });
+      const result = new MemoryGame(this.#game.scenario()).createPlayer(setup);
       if (!result.ok) throw new Error(result.issues.map(issue => issue.message).join("; "));
-      return { ok: true, player: result.value.name, phase: "conversations", day: 1 };
+      this.#playerDraft = toJson(PlayerSetupSchema, setup);
+      this.#gmReplyOptions = null;
+      return { ok: true, phase: "character_review", instruction: "Wait for the player to review and explicitly save their character. Do not narrate arrival yet." };
     }
     if (name === "update_character") {
       const result = this.#game.updateCharacter(text(input.characterId, "characterId"), typeof input.lore === "string" ? input.lore : undefined, typeof input.currentGoal === "string" ? input.currentGoal : undefined);

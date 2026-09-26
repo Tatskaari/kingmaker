@@ -347,3 +347,39 @@ test("compulsion requires an offered choice, then releases free-text input", asy
   await runtime.talkToGameMaster("Here is my own answer.");
   assert.equal(calls, 3);
 });
+
+test("generated character waits for editable review and only enters court on explicit save", async t => {
+  const ids = ["merlin", "lancelot", "king"];
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => ({
+    role: "assistant", content: null, tool_calls: [{ id: "draft", type: "function", function: {
+      name: "create_player", arguments: JSON.stringify({ name: "Maren", homeland: "Alderreach", embassyRole: "Clerk", lore: "A clerk of the harbour.", currentGoal: "Win relief from tribute.", relationships: ids.map(characterId => ({ characterId, description: "I have not met them." })), npcViews: ids.map(characterId => ({ characterId, description: "An unknown witness." })) }),
+    } }],
+  }));
+  const runtime = new BrowserGameRuntime(load(), "test");
+  await runtime.talkToGameMaster("I am ready.");
+  assert.equal(runtime.view().phase, "character_review");
+  assert.equal(runtime.view().player, null);
+  assert.equal(runtime.view().day, 0);
+  const restored = new BrowserGameRuntime(load(), "test", structuredClone(runtime.snapshot()));
+  assert.equal(restored.view().phase, "character_review");
+  const draft = structuredClone(restored.snapshot().playerDraft) as any;
+  draft.player.name = "Maren Reed";
+  draft.homeland = "Westmere";
+  draft.embassyRole = "Envoy";
+  draft.player.currentGoal = "Return home safely.";
+  draft.player.relationships[0].description = "I distrust Merlin.";
+  draft.npcRelationships[0].relationship.description = "An envoy to watch carefully.";
+  const invalid = structuredClone(draft);
+  invalid.player.name = " ";
+  assert.throws(() => restored.confirmPlayer(invalid), /Name must/);
+  assert.equal(restored.view().phase, "character_review");
+  restored.confirmPlayer(draft);
+  assert.equal(restored.view().phase, "conversations");
+  assert.equal(restored.view().day, 1);
+  assert.equal((restored.view().player as any).name, "Maren Reed");
+  assert.equal((restored.view().player as any).currentGoal, "Return home safely.");
+  assert.equal((restored.view().player as any).relationships[0].description, "I distrust Merlin.");
+  assert.equal(restored.snapshot().playerDraft, null);
+  assert.match(JSON.stringify(restored.snapshot().scenario), /Maren Reed, Envoy from Westmere/);
+  assert.throws(() => restored.confirmPlayer(draft), /No character is awaiting review/);
+});
