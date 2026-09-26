@@ -79,13 +79,22 @@ proto run moon -- run workspace:check
 proto run moon -- run workspace:build
 ```
 
-The OpenRouter key remains outside the repository at
-`~/secrets/kingmaker-dev-openrouter.txt`. The server loads it through
-`OPENROUTER_API_KEY_FILE` and never sends it to the browser. Start the prototype
-with `proto run npm -- run dev`, then open `http://127.0.0.1:4317`. The first paid
-request occurs when the player clicks **Begin**. During development, changes to
-the server or browser files restart the server and refresh connected pages.
-The dev command snapshots game memory under `.moon/cache`, so watcher restarts
-preserve the current character and conversations.
+Start the prototype with `proto run npm -- run dev`, then open
+`http://127.0.0.1:5173`. Enter an OpenRouter key in the browser; it remains in
+the worker's memory for that tab and is excluded from saves and debug output.
+The first paid request occurs when the player clicks **Begin**. Vite hot-reloads
+the UI and game worker during development.
+
+The browser worker owns the authoritative game state and stores each game in
+IndexedDB. The save picker names a game after its player character once the GM
+creates them. Stable internal IDs allow two saved characters to share a name,
+and the last-played time distinguishes them.
 The top-right debug inspector reads the complete in-memory protobuf scenario and
-model histories from `/api/debug`; credentials are deliberately omitted.
+model histories from the worker; credentials are deliberately omitted.
+
+## GitHub Pages
+
+The production build is a self-contained static site in `dist/web`. Merges to
+`main` run `.github/workflows/pages.yml`, which builds that directory and deploys
+it to GitHub Pages. The Vite build uses relative URLs so it also works beneath a
+repository path such as `/kingmaker/`.

@@ -9,6 +9,7 @@
   "scripts": {
     "check": "proto run moon -- run workspace:check",
     "build": "proto run moon -- run workspace:build",
+    "build:web": "vite build",
     "test": "proto run moon -- run workspace:test",
     "generate": "proto run moon -- run contracts:generate",
     "dev": "proto run moon -- run workspace:dev"
@@ -19,9 +20,10 @@
   "devDependencies": {
     "@bufbuild/buf": "1.73.0",
     "@bufbuild/protoc-gen-es": "2.15.0",
-    "typescript": "7.0.2",
+    "@types/node": "26.6.3",
     "tsx": "4.23.15",
-    "@types/node": "26.6.3"
+    "typescript": "7.0.2",
+    "vite": "^8.3.1"
   },
   "packageManager": "npm@11.16.0"
 }

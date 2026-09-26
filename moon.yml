@@ -9,11 +9,17 @@ tasks:
     command: npx --no-install tsx --test tests/contracts.test.ts
     deps: [contracts:generate]
     inputs: ['packages/**/*', 'tests/**/*', 'content/**/*', 'package.json', 'package-lock.json']
-  build:
+  compile:
     command: npx --no-install tsc --outDir dist
     deps: [contracts:generate]
     inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
     outputs: [dist]
+  webBuild:
+    command: npx --no-install vite build
+    inputs: ['apps/web/**/*', 'vite.config.ts', 'package.json', 'package-lock.json']
+    outputs: ['dist/web']
+  build:
+    deps: [compile, webBuild]
   check:
     deps: [contracts:lint, typecheck, test]
   renderContexts:
@@ -23,7 +29,7 @@ tasks:
     options:
       cache: false
   dev:
-    command: env KINGMAKER_DEV_STATE_FILE=.moon/cache/dev-state.json npx --no-install tsx watch --include 'apps/web/public/**/*' apps/server/src/index.ts
+    command: npx --no-install vite
     deps: [contracts:generate]
     inputs: ['apps/**/*', 'packages/**/*', 'content/**/*', 'package.json', 'package-lock.json']
     options:

@@ -41,6 +41,7 @@ export class OpenRouterClient {
   constructor(
     private readonly apiKey: string,
     private readonly timeoutMs = 60_000,
+    private readonly httpReferer = "http://localhost:4317",
   ) {}
 
   async complete(request: ChatCompletionRequest, signal?: AbortSignal): Promise<OpenRouterMessage> {
@@ -51,7 +52,7 @@ export class OpenRouterClient {
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "http://localhost:4317",
+        "HTTP-Referer": this.httpReferer,
         "X-Title": "Kingmaker",
       },
       body: JSON.stringify(request),
