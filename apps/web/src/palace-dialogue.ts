@@ -1,3 +1,4 @@
+import { DIALOGUE_MODEL, REASONING_MODEL } from "./model-settings.js";
 import { IMMEDIATE_GOAL_DESCRIPTION } from "../../../packages/core/src/goal-guidance.js";
 // Prototype adapter: dialogue/review formats and prompts copied from runtime.ts.
 // Keep the main game independent while the palace interaction model evolves.
@@ -137,8 +138,8 @@ export class PalaceDialogue {
   async speak(text: string, complete: CompleteDialogue, signal?: AbortSignal): Promise<string> {
     if (!text.trim()) throw new Error("Say something first.");
     const player = create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: text.trim() });
-    const request: ChatCompletionRequest = { model: "openai/gpt-5.4-mini", response_format: dialogueFormat,
-      temperature: 0.9, max_tokens: 900,
+    const request: ChatCompletionRequest = { ...DIALOGUE_MODEL, response_format: dialogueFormat,
+      max_tokens: 900,
       messages: palaceDialogueContext(this.scenario, this.goal(), this.surroundings(), [...this.transcript, player]) };
     this.lastRequest = request;
     const response = await complete(request, signal);
@@ -155,8 +156,8 @@ export class PalaceDialogue {
     if (!this.transcript.length) throw new Error("Have a conversation first.");
     const view = clone(ScenarioSchema, this.scenario);
     view.characters.find(character => character.id === "merlin")!.currentGoal = this.goal();
-    const request: ChatCompletionRequest = { model: "openai/gpt-5.4-mini", response_format: palaceMemoryFormat(view),
-      temperature: 0.2, max_tokens: 2400, messages: [
+    const request: ChatCompletionRequest = { ...REASONING_MODEL, response_format: palaceMemoryFormat(view),
+      max_tokens: 10000, messages: [
         ...palaceDialogueContext(view, this.goal(), this.surroundings()),
         { role: "system", content: reviewInstructions },
         { role: "system", content: `Relationship targets (exact characterId → name): ${JSON.stringify(view.characters.filter(character => character.id !== "merlin").map(({ id, name }) => ({ characterId: id, name })))}. Return at most one relationship update per target. Use the exact IDs, never names; do not update Merlin’s relationship with himself. Alden’s characterId is player.` },

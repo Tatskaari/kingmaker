@@ -246,6 +246,7 @@ test("creating the emissary begins day one with the whole cast in the Great Hall
 // Exercise the runtime using scripted model replies, without credentials or network calls.
 import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
 import { OpenRouterClient, type OpenRouterMessage } from "../packages/providers/src/openrouter.js";
+const originalOpenRouterComplete = OpenRouterClient.prototype.complete;
 import { compulsionNarration, parseReplyOptions } from "../apps/web/src/reply-options.js";
 
 const offer = (compelled: boolean, options = ["I want to protect my family.", "I intend to earn a place at court."]): OpenRouterMessage => ({
@@ -1737,4 +1738,50 @@ test("authored world rooms and connections match the palace map", () => {
   for (const room of rooms) for (const exit of room.exitRoomIds) assert.ok(ids.has(exit), `${room.id} exits to missing room ${exit}`);
   for (const fixture of scenario.world!.fixtures) assert.ok(ids.has(fixture.roomId), `${fixture.id} belongs to missing room ${fixture.roomId}`);
   assert.doesNotMatch(JSON.stringify(scenario), /chapel/i);
+});
+
+test("GPT-6 Responses adapter preserves tool history and encrypted reasoning across DM turns", async t => {
+  const output = [
+    { type: "reasoning", id: "rs_test", summary: [], encrypted_content: "opaque" },
+    { type: "function_call", id: "fc_test", call_id: "call_test", name: "offer_replies", arguments: '{"options":["Hello"],"compelled":false}' },
+  ];
+  let count = 0;
+  t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
+    assert.equal(url, "https://openrouter.ai/api/v1/responses");
+    const body = JSON.parse(String(init.body));
+    assert.equal(body.store, false);
+    assert.deepEqual(body.reasoning, { effort: "medium" });
+    assert.equal(body.max_output_tokens, 8000);
+    assert.ok(!("temperature" in body));
+    assert.deepEqual(body.tools[0], { type: "function", name: "offer_replies", description: "Offer choices", parameters: { type: "object" }, strict: false });
+    if (++count === 2) {
+      assert.deepEqual(body.input.slice(1, 3), output);
+      assert.deepEqual(body.input[3], { type: "function_call_output", call_id: "call_test", output: '{"ok":true}' });
+    }
+    return new Response(JSON.stringify({ status: "completed", output: count === 1 ? output : [{ type: "message", content: [{ type: "output_text", text: "Welcome" }] }] }), { status: 200 });
+  });
+  const client = Object.assign(new OpenRouterClient("test"), { complete: originalOpenRouterComplete });
+  const settings = { model: "openai/gpt-6-sol", api: "responses" as const, reasoning: { effort: "medium" as const }, max_tokens: 8000,
+    tools: [{ type: "function" as const, function: { name: "offer_replies", description: "Offer choices", parameters: { type: "object" } } }] };
+  const user = { role: "user" as const, content: "Hello" };
+  const first = await client.complete({ ...settings, messages: [user] });
+  assert.equal(first.tool_calls?.[0]?.id, "call_test");
+  const second = await client.complete({ ...settings, messages: [user, first, { role: "tool", tool_call_id: "call_test", content: '{"ok":true}' }] });
+  assert.equal(second.content, "Welcome");
+});
+
+test("GPT-6 Responses adapter maps structured output and rejects truncated results", async t => {
+  let truncated = false;
+  t.mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {
+    const body = JSON.parse(String(init.body));
+    assert.deepEqual(body.text.format, { type: "json_schema", name: "test", strict: true, schema: { type: "object" } });
+    assert.deepEqual(body.reasoning, { effort: "none" });
+    return new Response(JSON.stringify(truncated ? { status: "incomplete", incomplete_details: { reason: "max_output_tokens" }, output: [] }
+      : { status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: '{"utterance":"Hello"}' }] }] }), { status: 200 });
+  });
+  const request = { model: "openai/gpt-6-luna", api: "responses" as const, reasoning: { effort: "none" as const }, messages: [{ role: "user" as const, content: "Hello" }],
+    response_format: { type: "json_schema", json_schema: { name: "test", strict: true, schema: { type: "object" } } } };
+  assert.equal((await Object.assign(new OpenRouterClient("test"), { complete: originalOpenRouterComplete }).complete(request)).content, '{"utterance":"Hello"}');
+  truncated = true;
+  await assert.rejects(Object.assign(new OpenRouterClient("test"), { complete: originalOpenRouterComplete }).complete(request), /incomplete: max_output_tokens/);
 });
