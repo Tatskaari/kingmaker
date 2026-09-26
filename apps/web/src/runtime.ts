@@ -24,12 +24,12 @@ const gmTools: readonly OpenRouterTool[] = [
     type: "function",
     function: {
       name: "offer_replies",
-      description: "End this turn with a question and 2–4 suggested player replies. Call alone. Only the GM may set compelled=true, and only to obtain a missing creation detail after the player avoids answering. Never choose an answer for the player.",
+      description: "End this turn with a question and one or more suggested player replies. Call alone. Only the GM may set compelled=true, and only to obtain a missing creation detail after the player avoids answering. Never choose an answer for the player.",
       parameters: {
         type: "object", additionalProperties: false, required: ["question", "options", "compelled"],
         properties: {
           question: { type: "string" },
-          options: { type: "array", minItems: 2, maxItems: 4, items: { type: "string", maxLength: 300 } },
+          options: { type: "array", minItems: 1, items: { type: "string", maxLength: 300 } },
           compelled: { type: "boolean" },
         },
       },
@@ -97,7 +97,7 @@ const dialogueFormat = {
       type: "object", additionalProperties: false, required: ["utterance", "newEvents", "goalUpdate", "replyOptions"],
       properties: {
         utterance: { type: "string" },
-        replyOptions: { type: "array", maxItems: 4, items: { type: "string", maxLength: 300 } },
+        replyOptions: { type: "array", items: { type: "string", maxLength: 300 } },
         newEvents: { type: "array", items: { type: "object", additionalProperties: false, required: ["type", "summary"], properties: {
           type: { type: "string" }, summary: { type: "string" },
         } } },

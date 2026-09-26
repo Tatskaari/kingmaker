@@ -7,8 +7,8 @@ export const compulsionNarration = "You have a strange feeling wash over you, as
 
 export function parseReplyOptions(value: unknown, allowEmpty = true): string[] {
   if (value === undefined && allowEmpty) return [];
-  if (!Array.isArray(value) || (value.length !== 0 && (value.length < 2 || value.length > 4)) || (!allowEmpty && value.length === 0)) {
-    throw new Error("Reply options must contain two to four responses, or be empty when no suggestions are needed");
+  if (!Array.isArray(value) || (!allowEmpty && value.length === 0)) {
+    throw new Error("Reply options must contain one or more responses, or be empty when no suggestions are needed");
   }
   const options = value.map(option => {
     if (typeof option !== "string" || !option.trim() || option.trim().length > 300) throw new Error("Each reply option must be 1–300 characters");

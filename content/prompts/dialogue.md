@@ -12,7 +12,7 @@ The assembled context is deliberately simple and complete:
 7. The conversation transcript.
 
 The response contains an utterance, zero or more new events, and an optional
-replacement goal, and optional `replyOptions` (an empty array or 2–4 player replies). Events cover every social concept: observations, thoughts,
+replacement goal, and optional `replyOptions` (an empty array or one or more player replies). Events cover every social concept: observations, thoughts,
 promises, agreements, insults, apologies, revelations, and conversations.
 
 Dialogue may create intent, social meaning, misinformation, and surprising plans.

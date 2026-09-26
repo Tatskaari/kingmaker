@@ -235,7 +235,10 @@ test("NPC reply options are optional speech, never compulsion, and stay with the
 });
 
 test("reply validation rejects malformed or duplicate suggestions and old saves load without options", () => {
-  assert.throws(() => parseReplyOptions(["Only one"]));
+  assert.deepEqual(parseReplyOptions(["I agree."], false), ["I agree."]);
+  const many = Array.from({ length: 8 }, (_, index) => `Response ${index + 1}`);
+  assert.deepEqual(parseReplyOptions(many, false), many);
+  assert.throws(() => parseReplyOptions([], false));
   assert.throws(() => parseReplyOptions(["Yes", " Yes "]));
   assert.throws(() => parseReplyOptions(["Yes", " "]));
   assert.throws(() => parseReplyOptions(["Yes", 3]));
