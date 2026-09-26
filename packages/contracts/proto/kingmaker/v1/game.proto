@@ -135,6 +135,8 @@ message DialogueResponse {
   string utterance = 1;
   repeated Event new_events = 2;
   optional GoalUpdate goal_update = 3;
+  // Optional player suggestions, never actions or compelled responses.
+  repeated string reply_options = 4;
 }
 
 message RelationshipUpdate {

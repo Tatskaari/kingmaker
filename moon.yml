@@ -8,15 +8,16 @@ tasks:
   test:
     command: npx --no-install tsx --test tests/contracts.test.ts
     deps: [contracts:generate]
-    inputs: ['packages/**/*', 'tests/**/*', 'content/**/*', 'package.json', 'package-lock.json']
+    inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'content/**/*', 'package.json', 'package-lock.json']
   compile:
     command: npx --no-install tsc --outDir dist
     deps: [contracts:generate]
     inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
     outputs: [dist]
   webBuild:
+    deps: [contracts:generate]
     command: npx --no-install vite build
-    inputs: ['apps/web/**/*', 'vite.config.ts', 'package.json', 'package-lock.json']
+    inputs: ['apps/web/**/*', 'packages/**/*', 'content/**/*', 'vite.config.ts', 'package.json', 'package-lock.json']
     outputs: ['dist/web']
   build:
     deps: [compile, webBuild]

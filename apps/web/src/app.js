@@ -11,7 +11,10 @@ let debugData = null;
 let debugError = "";
 let debugTitle = "Debug Inspector";
 let debugRequest = { type: "debug", payload: {} };
+const apiKeyStorageKey = "kingmaker.openrouter-api-key";
 let apiKey = "";
+try { apiKey = sessionStorage.getItem(apiKeyStorageKey)?.trim() || ""; }
+catch { /* The app still works when browser storage is unavailable. */ }
 let screen = "key";
 let introPage = 0;
 let traveller = { name: "", homeland: "" };
@@ -48,7 +51,7 @@ function shell(content) {
 }
 
 function renderKeyEntry() {
-  app.innerHTML = shell(`<section class="panel key-entry"><div><div class="eyebrow">Connect your model</div><h2>Enter an OpenRouter key</h2><p>The key stays in this browser tab and is never included in game saves or debug output.</p><form data-key-form><input type="password" name="apiKey" autocomplete="off" placeholder="sk-or-v1-…" required><button class="primary">Continue</button></form></div></section>`);
+  app.innerHTML = shell(`<section class="panel key-entry"><div><div class="eyebrow">Connect your model</div><h2>Enter an OpenRouter key</h2><p>The key stays in this browser tab across reloads and is never included in game saves or debug output.</p><form data-key-form><input type="password" name="apiKey" autocomplete="off" placeholder="sk-or-v1-…" required><button class="primary" ${busy ? "disabled" : ""}>${busy ? "Connecting…" : "Continue"}</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></div></section>`);
   bind();
 }
 
@@ -99,6 +102,11 @@ function messageList(messages, assistantName) {
   }).join("");
 }
 
+function replyOptions(options, target, compelled = false) {
+  if (!options?.length) return "";
+  return `<div class="reply-options" role="group" aria-label="${compelled ? "You must respond" : "Suggested replies"}">${options.map((option, index) => `<button class="reply-option" data-reply-target="${escapeHtml(target)}" data-reply-index="${index}" ${busy ? "disabled" : ""}>${escapeHtml(option)}</button>`).join("")}</div>`;
+}
+
 function renderCreation() {
   const messages = (state.gmMessages || []).filter(message => !(message.role === "user" && message.text.startsWith(handoffPrefix)));
   if (!messages.length) {
@@ -113,7 +121,7 @@ function renderCreation() {
     app.innerHTML = shell(`<section class="introduction" aria-label="Your journey" tabindex="-1">${content}<p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
     return bind();
   }
-  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div></div><div class="messages">${messageList(messages, patronName)}</div><form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Tell him what you desire…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div></div><div class="messages">${messageList(messages, patronName)}</div>${replyOptions(state.gmReplyOptions?.options, "gm", state.gmReplyOptions?.compelled)}<form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Tell him what you desire…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
   bind();
   document.querySelector(".messages")?.scrollTo(0, 999999);
 }
@@ -128,13 +136,13 @@ function renderConversation() {
   const character = state.characters.find(item => item.id === activeCharacter);
   if (!character) { activeCharacter = null; return renderDay(); }
   const messages = state.conversations?.[activeCharacter] || [];
-  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><button class="back" data-back>← Return to the Great Hall</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.</div>`}</div><form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><button class="back" data-back>← Return to the Great Hall</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.</div>`}</div>${replyOptions(state.conversationReplyOptions?.[activeCharacter], activeCharacter)}<form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
   bind();
   document.querySelector(".messages")?.scrollTo(0, 999999);
 }
 
 function render() {
-  if (!apiKey) return renderKeyEntry();
+  if (screen === "key" || !apiKey) return renderKeyEntry();
   if (screen === "saves") return renderSavePicker();
   if (!state) return;
   if (state.phase === "player_creation") return renderCreation();
@@ -152,10 +160,16 @@ async function run(action) {
 function bind() {
   document.querySelector("[data-key-form]")?.addEventListener("submit", event => {
     event.preventDefault();
-    apiKey = String(new FormData(event.currentTarget).get("apiKey") || "").trim();
-    run(async () => { const result = await rpc("configure", { apiKey }); saves = result.saves; screen = "saves"; });
+    if (busy) return;
+    const key = String(new FormData(event.currentTarget).get("apiKey") || "").trim();
+    run(() => configure(key));
   });
-  document.querySelector("[data-key-change]")?.addEventListener("click", () => { apiKey = ""; state = null; screen = "key"; render(); });
+  document.querySelector("[data-key-change]")?.addEventListener("click", () => {
+    if (busy) return;
+    try { sessionStorage.removeItem(apiKeyStorageKey); } catch {}
+    apiKey = ""; state = null; activeSaveId = null; activeCharacter = null;
+    sheetOpen = false; debugOpen = false; notice = ""; screen = "key"; render();
+  });
   document.querySelector("[data-new-game]")?.addEventListener("click", () => run(async () => {
     introPage = 0; traveller = { name: "", homeland: "" }; const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   }));
@@ -199,6 +213,17 @@ function bind() {
   document.querySelector("[data-begin]")?.addEventListener("click", () => run(async () => {
     const result = await rpc("gm", { message: introductionHandoff(traveller.name, traveller.homeland) }); state = result.state; saves = result.saves;
   }));
+  document.querySelectorAll("[data-reply-index]").forEach(button => button.addEventListener("click", () => {
+    if (busy) return;
+    const target = button.dataset.replyTarget;
+    const options = target === "gm" ? state.gmReplyOptions?.options : state.conversationReplyOptions?.[target];
+    const message = options?.[Number(button.dataset.replyIndex)];
+    if (!message) return;
+    run(async () => {
+      const result = await rpc(target === "gm" ? "gm" : "talk", { message, characterId: target });
+      state = result.state; saves = result.saves;
+    });
+  }));
   document.querySelector("[data-gm-form]")?.addEventListener("submit", event => {
     event.preventDefault(); const message = new FormData(event.currentTarget).get("message");
     run(async () => { const result = await rpc("gm", { message }); state = result.state; saves = result.saves; });
@@ -217,4 +242,13 @@ document.addEventListener("keydown", event => {
   if (event.key === "Escape" && (sheetOpen || debugOpen)) { sheetOpen = false; debugOpen = false; render(); }
 });
 
-render();
+async function configure(key) {
+  const result = await rpc("configure", { apiKey: key });
+  apiKey = key;
+  try { sessionStorage.setItem(apiKeyStorageKey, key); } catch {}
+  saves = result.saves;
+  screen = "saves";
+}
+
+if (apiKey) run(() => configure(apiKey));
+else render();

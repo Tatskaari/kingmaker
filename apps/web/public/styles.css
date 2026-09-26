@@ -115,3 +115,7 @@ button:disabled { opacity: .48; cursor: wait; }
 .field-hint { color: var(--dim); margin: 0 0 12px; }
 .footer { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px 24px; }
 button:focus-visible, .identity-field input:focus-visible { outline: 2px solid #f1d99d; outline-offset: 5px; }
+
+.reply-options { display: grid; gap: 8px; margin: 16px 0; }
+.reply-option { text-align: left; padding: 12px 16px; color: #efdfbd; background: #c9a6620a; border: 1px solid var(--line); line-height: 1.4; }
+.reply-option:hover { background: #c9a66220; border-color: var(--gold); }
