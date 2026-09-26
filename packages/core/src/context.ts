@@ -65,6 +65,19 @@ export function worldForCharacter(world: WorldState, characterId: string): World
     });
   }
 
+  for (const fixture of view.fixtures) {
+    const known = fixture.open || fixture.searchedBy.includes(characterId);
+    if (known) for (const item of view.objects) {
+      if (item.locationId === fixture.id) visibleObjectIds.add(item.id);
+    }
+    if (!fixture.examinedBy.includes(characterId)) {
+      fixture.requiredKeyId = "";
+      fixture.revealedName = "";
+    }
+    fixture.examinedBy = fixture.examinedBy.filter(id => id === characterId);
+    fixture.searchedBy = fixture.searchedBy.filter(id => id === characterId);
+  }
+
   // Objects inside a known object are also known, such as the crown in its box.
   let changed = true;
   while (changed) {

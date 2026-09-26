@@ -196,7 +196,407 @@
       { "characterId": "lancelot", "homeRoomId": "lancelot_chamber", "roomId": "lancelot_chamber", "awake": false, "position": { "x": 26, "y": 5 } },
       { "characterId": "king", "homeRoomId": "royal_bedchamber", "roomId": "royal_bedchamber", "awake": false, "position": { "x": 15, "y": 5 } }
     ],
+    "fixtures": [
+      {
+        "id": "palace_merlin_drawers",
+        "name": "Merlin's chest of drawers",
+        "roomId": "merlin_chamber",
+        "position": {
+          "x": 6,
+          "y": 4
+        },
+        "interactionSpot": {
+          "x": 6,
+          "y": 5
+        },
+        "sprite": 75,
+        "container": true,
+        "ownerCharacterId": "merlin"
+      },
+      {
+        "id": "palace_coffer_03",
+        "name": "Carved wooden coffer",
+        "roomId": "royal_bedchamber",
+        "position": {
+          "x": 17,
+          "y": 4
+        },
+        "interactionSpot": {
+          "x": 17,
+          "y": 5
+        },
+        "sprite": 90,
+        "container": true,
+        "requiredKeyId": "palace_royal_key",
+        "revealedName": "King's lockbox",
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_merlin_books",
+        "name": "Merlin's bookcase",
+        "roomId": "merlin_chamber",
+        "position": {
+          "x": 3,
+          "y": 3
+        },
+        "interactionSpot": {
+          "x": 4,
+          "y": 3
+        },
+        "sprite": 63,
+        "container": true,
+        "ownerCharacterId": "merlin"
+      },
+      {
+        "id": "palace_merlin_desk",
+        "name": "Writing desk",
+        "roomId": "merlin_chamber",
+        "position": {
+          "x": 3,
+          "y": 6
+        },
+        "interactionSpot": {
+          "x": 3,
+          "y": 5
+        },
+        "sprite": 72,
+        "container": true,
+        "ownerCharacterId": "merlin"
+      },
+      {
+        "id": "palace_merlin_stool",
+        "name": "Desk stool",
+        "roomId": "merlin_chamber",
+        "position": {
+          "x": 4,
+          "y": 6
+        },
+        "sprite": 73,
+        "container": false,
+        "ownerCharacterId": "merlin"
+      },
+      {
+        "id": "palace_royal_cabinet",
+        "name": "Wardrobe",
+        "roomId": "royal_bedchamber",
+        "position": {
+          "x": 18,
+          "y": 3
+        },
+        "interactionSpot": {
+          "x": 18,
+          "y": 4
+        },
+        "sprite": 75,
+        "container": true,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_royal_table",
+        "name": "Royal table",
+        "roomId": "royal_bedchamber",
+        "position": {
+          "x": 13,
+          "y": 6
+        },
+        "sprite": 72,
+        "container": false,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_royal_stool",
+        "name": "Royal stool",
+        "roomId": "royal_bedchamber",
+        "position": {
+          "x": 14,
+          "y": 6
+        },
+        "sprite": 73,
+        "container": false,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_lancelot_books",
+        "name": "Lancelot's bookcase",
+        "roomId": "lancelot_chamber",
+        "position": {
+          "x": 24,
+          "y": 3
+        },
+        "interactionSpot": {
+          "x": 25,
+          "y": 3
+        },
+        "sprite": 63,
+        "container": true,
+        "ownerCharacterId": "lancelot"
+      },
+      {
+        "id": "palace_lancelot_table",
+        "name": "Lancelot's desk",
+        "roomId": "lancelot_chamber",
+        "position": {
+          "x": 27,
+          "y": 6
+        },
+        "interactionSpot": {
+          "x": 27,
+          "y": 5
+        },
+        "sprite": 72,
+        "container": true,
+        "ownerCharacterId": "lancelot"
+      },
+      {
+        "id": "palace_lancelot_stool",
+        "name": "Lancelot's stool",
+        "roomId": "lancelot_chamber",
+        "position": {
+          "x": 26,
+          "y": 6
+        },
+        "sprite": 73,
+        "container": false,
+        "ownerCharacterId": "lancelot"
+      },
+      {
+        "id": "palace_guest_table",
+        "name": "Guest table",
+        "roomId": "guest_chamber",
+        "position": {
+          "x": 3,
+          "y": 21
+        },
+        "sprite": 72,
+        "container": false,
+        "ownerCharacterId": "player"
+      },
+      {
+        "id": "palace_guest_stool",
+        "name": "Guest stool",
+        "roomId": "guest_chamber",
+        "position": {
+          "x": 4,
+          "y": 21
+        },
+        "sprite": 73,
+        "container": false,
+        "ownerCharacterId": "player"
+      },
+      {
+        "id": "palace_guest_cabinet",
+        "name": "Guest cabinet",
+        "roomId": "guest_chamber",
+        "position": {
+          "x": 6,
+          "y": 27
+        },
+        "interactionSpot": {
+          "x": 5,
+          "y": 27
+        },
+        "sprite": 75,
+        "container": true,
+        "ownerCharacterId": "player"
+      },
+      {
+        "id": "palace_treasury_barrel",
+        "name": "West storage barrel",
+        "roomId": "treasury",
+        "position": {
+          "x": 25,
+          "y": 21
+        },
+        "interactionSpot": {
+          "x": 26,
+          "y": 21
+        },
+        "sprite": 82,
+        "container": true,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_treasury_barrel_2",
+        "name": "East storage barrel",
+        "roomId": "treasury",
+        "position": {
+          "x": 28,
+          "y": 27
+        },
+        "interactionSpot": {
+          "x": 27,
+          "y": 27
+        },
+        "sprite": 82,
+        "container": true,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_treasury_shelf",
+        "name": "Treasury shelves",
+        "roomId": "treasury",
+        "position": {
+          "x": 29,
+          "y": 22
+        },
+        "interactionSpot": {
+          "x": 28,
+          "y": 22
+        },
+        "sprite": 63,
+        "container": true,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_hall_table_west",
+        "name": "Hall table",
+        "roomId": "great_hall",
+        "position": {
+          "x": 12,
+          "y": 18
+        },
+        "sprite": 72,
+        "container": false,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_hall_stool_west",
+        "name": "Hall stool",
+        "roomId": "great_hall",
+        "position": {
+          "x": 12,
+          "y": 19
+        },
+        "sprite": 73,
+        "container": false,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_hall_table_east",
+        "name": "Hall table",
+        "roomId": "great_hall",
+        "position": {
+          "x": 19,
+          "y": 18
+        },
+        "sprite": 72,
+        "container": false,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_hall_stool_east",
+        "name": "Hall stool",
+        "roomId": "great_hall",
+        "position": {
+          "x": 19,
+          "y": 19
+        },
+        "sprite": 73,
+        "container": false,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_entrance_table",
+        "name": "Entrance table",
+        "roomId": "entrance_hall",
+        "position": {
+          "x": 12,
+          "y": 28
+        },
+        "sprite": 72,
+        "container": false,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_hall_cabinet",
+        "name": "Hall sideboard",
+        "roomId": "great_hall",
+        "position": {
+          "x": 20,
+          "y": 22
+        },
+        "interactionSpot": {
+          "x": 20,
+          "y": 21
+        },
+        "sprite": 75,
+        "container": true,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_coffer_01",
+        "name": "Iron-banded coffer",
+        "roomId": "entrance_hall",
+        "position": {
+          "x": 13,
+          "y": 30
+        },
+        "interactionSpot": {
+          "x": 13,
+          "y": 29
+        },
+        "sprite": 90,
+        "container": true,
+        "requiredKeyId": "palace_iron_key",
+        "revealedName": "Gatekeeper's strongbox",
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_coffer_02",
+        "name": "Polished wooden coffer",
+        "roomId": "royal_bedchamber",
+        "position": {
+          "x": 14,
+          "y": 3
+        },
+        "interactionSpot": {
+          "x": 14,
+          "y": 4
+        },
+        "sprite": 90,
+        "container": true,
+        "requiredKeyId": "palace_brass_key",
+        "revealedName": "Jewellery box",
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_entrance_table_2",
+        "name": "Entrance table",
+        "roomId": "entrance_hall",
+        "position": {
+          "x": 18,
+          "y": 28
+        },
+        "sprite": 72,
+        "container": false,
+        "ownerCharacterId": "king"
+      }
+    ],
     "objects": [
+      {"id":"palace_royal_key","name":"Royal lockbox key","locationId":"palace_merlin_drawers","concealed":true},
+      {"id":"palace_royal_seal","name":"Royal signet seal","locationId":"palace_coffer_03","concealed":true},
+      {"id":"palace_sealed_decree","name":"Sealed royal decree","locationId":"palace_coffer_03","concealed":true},
+      {"id":"palace_star_chart","name":"Star chart","locationId":"palace_merlin_books","concealed":true},
+      {"id":"palace_spell_notes","name":"Loose spell notes","locationId":"palace_merlin_books","concealed":true},
+      {"id":"palace_quill","name":"Silver quill","locationId":"palace_merlin_desk","concealed":true},
+      {"id":"palace_blue_ink","name":"Bottle of blue ink","locationId":"palace_merlin_desk","concealed":true},
+      {"id":"palace_velvet_gloves","name":"Velvet gloves","locationId":"palace_royal_cabinet","concealed":true},
+      {"id":"palace_silk_sash","name":"Silk sash","locationId":"palace_royal_cabinet","concealed":true},
+      {"id":"palace_drill_manual","name":"Sword drill manual","locationId":"palace_lancelot_books","concealed":true},
+      {"id":"palace_old_letter","name":"Old letter","locationId":"palace_lancelot_books","concealed":true},
+      {"id":"palace_whetstone","name":"Whetstone","locationId":"palace_lancelot_table","concealed":true},
+      {"id":"palace_leather_strap","name":"Leather strap","locationId":"palace_lancelot_table","concealed":true},
+      {"id":"palace_brass_key","name":"Small brass key","locationId":"palace_guest_cabinet","concealed":true},
+      {"id":"palace_travel_cloak","name":"Travel cloak","locationId":"palace_guest_cabinet","concealed":true},
+      {"id":"palace_copper_coins","name":"Pouch of copper coins","locationId":"palace_treasury_barrel","concealed":true},
+      {"id":"palace_tally_sticks","name":"Bundle of tally sticks","locationId":"palace_treasury_barrel","concealed":true},
+      {"id":"palace_account_book","name":"Account book","locationId":"palace_treasury_shelf","concealed":true},
+      {"id":"palace_wax_sticks","name":"Sealing wax sticks","locationId":"palace_treasury_shelf","concealed":true},
+      {"id":"palace_iron_key","name":"Iron storeroom key","locationId":"palace_hall_cabinet","concealed":true},
+      {"id":"palace_silver_spoon","name":"Silver spoon","locationId":"palace_hall_cabinet","concealed":true},
+      {"id":"palace_gate_ledger","name":"Gatekeeper's ledger","locationId":"palace_coffer_01","concealed":true},
+      {"id":"palace_pearl_brooch","name":"Pearl brooch","locationId":"palace_coffer_02","concealed":true},
+      {"id":"palace_ribbon","name":"Blue ribbon","locationId":"palace_coffer_02","concealed":true},
       { "id": "brass_key", "name": "Spare brass key", "locationId": "merlin_desk", "concealed": true, "properties": { "opens": "crown_box" } },
       { "id": "royal_signet", "name": "Royal signet key", "locationId": "king", "properties": { "opens": "crown_box" } },
       { "id": "crown_box", "name": "Crown lockbox", "locationId": "chapel_altar", "concealed": true, "properties": { "locked": true } },

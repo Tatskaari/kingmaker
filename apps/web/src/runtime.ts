@@ -1,10 +1,11 @@
+import { applyFixtureAction, fixtureActions } from "../../../packages/core/src/fixtures.js";
 import { IMMEDIATE_GOAL_DESCRIPTION } from "../../../packages/core/src/goal-guidance.js";
 import { courtPath, courtRoomAt } from "./court-map.js";
 import type { Point } from "./navigation.js";
 import { compulsionNarration, parseReplyOptions, type ReplyOptions } from "./reply-options.js";
 import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import {
-  CharacterSchema, ConversationMemorySchema, DialogueRequestSchema, EventSchema,
+  ActorStateSchema, CharacterSchema, ConversationMemorySchema, DialogueRequestSchema, EventSchema,
   EventVisibility, GameMasterRequestSchema, GamePhase,
   PlayerSetupSchema, RelationshipSchema, RelationshipUpdateSchema, ScenarioSchema,
   TranscriptMessageSchema, TranscriptRole, WorldStateSchema, TilePositionSchema,
@@ -328,7 +329,7 @@ export class BrowserGameRuntime {
     const actor = world.actors.find(actor => actor.characterId === player?.id);
     if (!player || !actor) throw new Error("Player is missing from the palace.");
     const start = actor.position;
-    if (!start || !courtPath(start, destination, world.doors)) throw new Error("That destination is not reachable.");
+    if (!start || !courtPath(start, destination, world.doors, world.fixtures)) throw new Error("That destination is not reachable.");
     const room = courtRoomAt(destination);
     if (!room) throw new Error("That destination is outside the palace.");
     if (!world.rooms.some(existing => existing.id === room.id)) {
@@ -341,6 +342,45 @@ export class BrowserGameRuntime {
     actor.roomId = room.id; world.revision++;
     actor.position = create(TilePositionSchema, destination);
     this.#game = new MemoryGame(scenario);
+  }
+
+  resetWorld(): void {
+    const current = this.#game.scenario();
+    if (!current.playerCharacterId || !current.world) throw new Error("Create your character before resetting the world.");
+    const initial = fromJson(ScenarioSchema, toJson(ScenarioSchema, this.#initialScenario));
+    const world = initial.world!;
+    world.phase = GamePhase.CONVERSATIONS;
+    world.day = current.world.day;
+    world.revision = current.world.revision + 1;
+    if (!world.actors.some(actor => actor.characterId === current.playerCharacterId)) world.actors.push(create(ActorStateSchema, { characterId: current.playerCharacterId, homeRoomId: "guest_chamber" }));
+    for (const actor of world.actors) {
+      const placement = initial.courtArrivalPlacements.find(item => item.characterId === actor.characterId);
+      actor.roomId = placement?.roomId ?? actor.homeRoomId;
+      actor.position = placement?.position;
+      actor.awake = true;
+    }
+    current.world = world;
+    current.courtArrivalPlacements = initial.courtArrivalPlacements;
+    this.#game = new MemoryGame(current);
+  }
+
+  interactFixture(actionId: string): string {
+    const scenario = this.#game.scenario(), world = scenario.world;
+    if (world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter court before interacting with furniture.");
+    const actorId = scenario.playerCharacterId!;
+    const action = fixtureActions(scenario, actorId).find(item => item.id === actionId);
+    const fixture = world.fixtures.find(item => item.id === action?.target);
+    const position = world.actors.find(actor => actor.characterId === actorId)?.position;
+    if (!fixture?.position || !position) throw new Error("Unknown furniture interaction.");
+    const spot = fixture.interactionSpot;
+    if (spot ? position.x !== spot.x || position.y !== spot.y
+      : Math.abs(position.x - fixture.position.x) + Math.abs(position.y - fixture.position.y) !== 1) {
+      throw new Error("Walk to the furniture's interaction spot first.");
+    }
+    const result = applyFixtureAction(scenario, actorId, actionId);
+    world.revision++;
+    this.#game = new MemoryGame(scenario);
+    return result;
   }
 
   setDoor(id: string, open: boolean): void {
@@ -366,6 +406,9 @@ export class BrowserGameRuntime {
       phase: this.#playerDraft ? "character_review" : world?.phase === GamePhase.PLAYER_CREATION ? "player_creation" : world?.phase === GamePhase.CONVERSATIONS ? "conversations" : "other",
       day: world?.day || 0,
       doors: world?.doors ?? [],
+      fixtures: world ? worldForCharacter(world, scenario.playerCharacterId ?? "").fixtures : [],
+      fixtureActions: fixtureActions(scenario, scenario.playerCharacterId ?? ""),
+      inventory: world?.objects.filter(item => item.locationId === scenario.playerCharacterId).map(({ id, name }) => ({ id, name })) ?? [],
       roomAccess: world?.rooms.map(({ id, private: restricted, allowedCharacterIds }) => ({ id, private: restricted, allowedCharacterIds })) ?? [],
       location: world?.rooms.find(room => room.id === world.actors.find(actor => actor.characterId === player?.id)?.roomId)?.name || "Great Hall",
       premise: scenario.premise,

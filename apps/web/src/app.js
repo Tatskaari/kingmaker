@@ -44,6 +44,21 @@ function rpc(type, payload = {}) {
   return new Promise((resolve, reject) => pendingRequests.set(id, { resolve, reject }));
 }
 
+// Development convenience: refresh the physical world without recreating an emissary.
+window.resetWorld = async function resetWorld() {
+  if (busy) throw new Error("Wait for the current request to finish before resetting the world.");
+  if (!state?.player) throw new Error("Load a game with a created character first.");
+  busy = true; notice = "Resetting the palace…"; render();
+  try {
+    const result = await rpc("reset_world");
+    state = result.state; saves = result.saves;
+    activeCharacter = null; closedConversation = null; debugData = null;
+    notice = "Palace reset. Your character and conversations have been kept.";
+    return { reset: true };
+  } catch (error) { notice = `Error: ${error.message}`; throw error; }
+  finally { busy = false; render(); }
+};
+
 function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
 }
@@ -75,7 +90,7 @@ function characterSheet() {
   const relationships = player.relationships?.length
     ? player.relationships.map(relationship => `<li><strong>${escapeHtml(relationship.characterName)}</strong><p>${escapeHtml(relationship.description)}</p></li>`).join("")
     : `<li><p>No relationships recorded yet.</p></li>`;
-  return `<div class="sheet-scrim ${sheetOpen ? "open" : ""}" data-sheet-close></div><aside class="character-sheet ${sheetOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Character sheet" aria-hidden="${sheetOpen ? "false" : "true"}"><button class="sheet-close" data-sheet-close aria-label="Close character sheet">×</button><div class="eyebrow">Your character</div><h2>${escapeHtml(player.name)}</h2><div class="sheet-seal">${escapeHtml(initials)}</div><section><h3>Biography</h3><p>${escapeHtml(player.lore)}</p></section><section class="goal"><h3>Current goal</h3><p>${escapeHtml(player.currentGoal || "No goal yet.")}</p></section><section><h3>Relationships</h3><ul class="relationship-list">${relationships}</ul></section></aside>`;
+  return `<div class="sheet-scrim ${sheetOpen ? "open" : ""}" data-sheet-close></div><aside class="character-sheet ${sheetOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Character sheet" aria-hidden="${sheetOpen ? "false" : "true"}"><button class="sheet-close" data-sheet-close aria-label="Close character sheet">×</button><div class="eyebrow">Your character</div><h2>${escapeHtml(player.name)}</h2><div class="sheet-seal">${escapeHtml(initials)}</div><section><h3>Biography</h3><p>${escapeHtml(player.lore)}</p></section><section class="goal"><h3>Current goal</h3><p>${escapeHtml(player.currentGoal || "No goal yet.")}</p></section><section><h3>Inventory</h3><ul>${state.inventory?.length ? state.inventory.map(item => `<li>${escapeHtml(item.name)}</li>`).join("") : "<li>Empty</li>"}</ul></section><section><h3>Relationships</h3><ul class="relationship-list">${relationships}</ul></section></aside>`;
 }
 
 function debugInspector() {
@@ -164,7 +179,10 @@ function renderDay(bindPage = true) {
     const result = await rpc("set_door", { id, open });
     state = result.state; saves = result.saves;
     return state.doors;
-  }, state.roomAccess).catch(() => {
+  }, state.roomAccess, state.fixtures, state.fixtureActions, async actionId => {
+    const result = await rpc("interact_fixture", { actionId });
+    state = result.state; saves = result.saves; notice = result.message; render();
+  }).catch(() => {
     if (!mapRoot.isConnected) return;
     const message = document.createElement("p"); message.className = "status error";
     message.textContent = "The palace artwork could not load. You can still select a character by name."; mapRoot.append(message);

@@ -1356,3 +1356,71 @@ test("authored objectives remain distinct from immediate greeting goals in model
     assert.match(character.currentGoal, /greet the visiting player/);
   }
 });
+
+function furnishedCourt(): Scenario {
+  const scenario = conversationScenario();
+  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 16, y: 22 }) });
+  return scenario;
+}
+
+test("main containers enforce approaches and keys, conceal contents, and persist item transfers", () => {
+  const scenario = furnishedCourt(), runtime = new BrowserGameRuntime(scenario, "test");
+  const known = worldForCharacter(scenario.world!, "player");
+  assert.ok(!known.objects.some(item => item.id === "palace_royal_key"));
+  assert.equal(known.fixtures.find(item => item.id === "palace_coffer_03")!.requiredKeyId, "");
+  assert.throws(() => runtime.interactFixture("open_palace_merlin_drawers"), /interaction spot/);
+  runtime.movePlayer({ x: 5, y: 10 }); runtime.setDoor("merlin_door", true);
+  runtime.movePlayer({ x: 6, y: 5 });
+  assert.match(runtime.interactFixture("open_palace_merlin_drawers"), /Royal lockbox key/);
+  let saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  assert.ok(worldForCharacter(saved.world!, "player").objects.some(item => item.id === "palace_royal_key"));
+  assert.match(runtime.interactFixture("take_palace_royal_key"), /Picked up/);
+  assert.throws(() => runtime.interactFixture("take_palace_royal_key"), /Unknown/);
+  runtime.interactFixture("close_palace_merlin_drawers");
+  runtime.movePlayer({ x: 15, y: 10 }); runtime.setDoor("royal_door", true);
+  runtime.movePlayer({ x: 17, y: 5 });
+  runtime.interactFixture("open_palace_coffer_03");
+  runtime.interactFixture("take_palace_royal_seal");
+  const restored = new BrowserGameRuntime(scenario, "test", structuredClone(runtime.snapshot()));
+  saved = fromJson(ScenarioSchema, restored.snapshot().scenario);
+  assert.equal(saved.world!.objects.find(item => item.id === "palace_royal_seal")!.locationId, "player");
+  assert.equal(saved.world!.objects.find(item => item.id === "palace_royal_key")!.locationId, "player", "Key is not consumed");
+  assert.equal(saved.world!.fixtures.find(item => item.id === "palace_coffer_03")!.open, true);
+  assert.equal(saved.world!.objects.find(item => item.id === "crown")!.locationId, "crown_box");
+});
+
+test("trying locked containers needs the correct carried key and preserves concealed loot", () => {
+  const scenario = furnishedCourt();
+  for (const door of scenario.world!.doors) door.open = true;
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  runtime.movePlayer({ x: 17, y: 5 });
+  assert.match(runtime.interactFixture("open_palace_coffer_03"), /locked/);
+  const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  assert.equal(saved.world!.fixtures.find(item => item.id === "palace_coffer_03")!.open, false);
+  assert.ok(!worldForCharacter(saved.world!, "player").objects.some(item => item.id === "palace_royal_seal"));
+  assert.throws(() => runtime.interactFixture("take_palace_royal_seal"), /Unknown/);
+});
+
+test("resetting physical world keeps character and conversation while refreshing containers and placements", async t => {
+  const authored = load(), scenario = furnishedCourt();
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Welcome, envoy." }));
+  const runtime = new BrowserGameRuntime(authored, "test", new BrowserGameRuntime(scenario, "test").snapshot());
+  await runtime.talkToCharacter("merlin", "Hello.");
+  runtime.movePlayer({ x: 20, y: 21 });
+  runtime.interactFixture("open_palace_hall_cabinet");
+  runtime.interactFixture("take_palace_iron_key");
+  const before = runtime.snapshot(), characters = fromJson(ScenarioSchema, before.scenario).characters;
+  runtime.resetWorld();
+  const after = runtime.snapshot(), result = fromJson(ScenarioSchema, after.scenario);
+  assert.deepEqual(result.characters, characters);
+  assert.deepEqual(after.conversations, before.conversations);
+  assert.deepEqual(result.events, fromJson(ScenarioSchema, before.scenario).events);
+  assert.deepEqual(result.world!.fixtures, authored.world!.fixtures);
+  assert.deepEqual(result.world!.objects, authored.world!.objects);
+  assert.deepEqual(result.world!.doors, authored.world!.doors);
+  for (const actor of result.world!.actors) assert.deepEqual(actor.position, authored.courtArrivalPlacements.find(item => item.characterId === actor.characterId)!.position);
+  assert.equal(result.world!.phase, GamePhase.CONVERSATIONS);
+  assert.equal(result.world!.actors.filter(actor => actor.characterId === "player").length, 1);
+  assert.deepEqual(new BrowserGameRuntime(authored, "test", after).snapshot(), after);
+  assert.throws(() => new BrowserGameRuntime(authored, "test").resetWorld(), /Create your character/);
+});

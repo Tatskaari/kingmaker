@@ -141,6 +141,16 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     }
     return { state: game.view(), saves: await listSaves() };
   }
+  if (type === "reset_world" || type === "interact_fixture") {
+    const game = requireRuntime(), before = structuredClone(game.snapshot()), savedBefore = activeSave;
+    let message: string | undefined;
+    try {
+      if (type === "reset_world") game.resetWorld();
+      else message = game.interactFixture(String(payload.actionId || ""));
+      await persist();
+    } catch (error) { game.restore(before); activeSave = savedBefore; throw error; }
+    return { state: game.view(), saves: await listSaves(), message };
+  }
   if (type === "set_door") {
     if (typeof payload.open !== "boolean") throw new Error("Door state must be open or closed.");
     const game = requireRuntime(), before = structuredClone(game.snapshot());

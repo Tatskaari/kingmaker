@@ -162,6 +162,23 @@ message DoorState {
   bool open = 6;
 }
 
+// Physical map furniture; contained items use ObjectState.location_id.
+message MapFixture {
+  string id = 1;
+  string name = 2;
+  string room_id = 3;
+  TilePosition position = 4;
+  TilePosition interaction_spot = 5;
+  uint32 sprite = 6;
+  bool container = 7;
+  bool open = 8;
+  string required_key_id = 9;
+  string revealed_name = 10;
+  repeated string examined_by = 11;
+  repeated string searched_by = 12;
+  string owner_character_id = 13;
+}
+
 message WorldState {
   uint32 revision = 1;
   uint32 day = 2;
@@ -172,6 +189,7 @@ message WorldState {
   google.protobuf.Struct facts = 7;
   GamePhase phase = 8;
   repeated DoorState doors = 9;
+  repeated MapFixture fixtures = 10;
 }
 
 enum GamePhase {

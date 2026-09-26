@@ -178,3 +178,7 @@ button.court-character:hover:not(:focus-visible) { border-color: transparent; ba
 .conversation-modal > .panel { border: 0; box-shadow: none; }
 .conversation-modal .messages { min-height: 180px; max-height: 45dvh; margin-top: 18px; }
 .conversation-modal .composer { position: sticky; bottom: 0; background: #1f1b15; padding-bottom: 5px; }
+
+/* Name labels must not intercept interactions with the furniture below them. */
+.court-character:not(.court-off-map) { width: 34px; height: 34px; padding: 0; }
+.court-character:not(.court-off-map) .court-character-name { position: absolute; top: 36px; width: max-content; pointer-events: none; }

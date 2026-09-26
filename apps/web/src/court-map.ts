@@ -1,5 +1,6 @@
 import { doorActionLegality, type RoomAccess } from "../../../packages/core/src/access.js";
-import type { DoorState } from "../../../packages/contracts/src/index.js";
+import type { FixtureAction } from "../../../packages/core/src/fixtures.js";
+import type { DoorState, MapFixture } from "../../../packages/contracts/src/index.js";
 import { drawDoors } from "./draw-doors.js";
 import { actionsAtTile, type CourtInteractionLayer } from "./court-interactions.js";
 import { CanvasMapRenderer } from "./map-renderer.js";
@@ -9,17 +10,15 @@ import { canWalk, findPath, pointKey, type Point } from "./navigation.js";
 
 export interface CourtCharacter { id: string; name: string; roomId?: string; position?: Point }
 export interface CourtMarker extends CourtCharacter { point?: Point; roomName: string; sprite: number }
-// Scenery only: the narrative game's objects remain authoritative. In particular,
-// do not import the prototype's three coffers or its key/loot state into the game.
-const scenery = createFurniture().furniture.filter(item => item.kind !== "lockbox");
+const scenery = createFurniture().furniture;
 export const courtBlockers = new Set(scenery.map(pointKey));
 
-export function courtMarkers(characters: readonly CourtCharacter[]): CourtMarker[] {
+export function courtMarkers(characters: readonly CourtCharacter[], fixtures?: readonly MapFixture[]): CourtMarker[] {
   return characters.map(character => {
     const room = palaceMap.rooms.find(room => room.id === character.roomId);
     const sprite = character.id === "merlin" ? 84 : character.id === "lancelot" ? 96 : character.id === "king" ? 85 : 98;
     const point = character.position;
-    const valid = point && canWalk(palaceMap, point, courtBlockers) && courtRoomAt(point)?.id === room?.id;
+    const valid = point && canWalk(palaceMap, point, courtDoorBlockers([], fixtures)) && courtRoomAt(point)?.id === room?.id;
     return { ...character, roomName: room?.name ?? character.roomId ?? "Location unknown", sprite,
       ...(valid ? { point } : {}) };
   });
@@ -29,22 +28,22 @@ export function courtRoomAt(point: Point) {
   return palaceMap.rooms.find(room => room.regions.some(region => point.x >= region.x && point.y >= region.y
     && point.x < region.x + region.width && point.y < region.y + region.height));
 }
-export function courtDoorBlockers(doors: readonly DoorState[]): Set<string> {
-  return new Set([...courtBlockers, ...doors.filter(door => !door.open).flatMap(door => door.tiles.map(pointKey))]);
+export function courtDoorBlockers(doors: readonly DoorState[], fixtures?: readonly MapFixture[]): Set<string> {
+  return new Set([...(fixtures ? fixtures.flatMap(item => item.position ? [pointKey(item.position)] : []) : courtBlockers), ...doors.filter(door => !door.open).flatMap(door => door.tiles.map(pointKey))]);
 }
-export function courtPath(start: Point, end: Point, doors: readonly DoorState[] = []): Point[] | undefined {
-  return findPath(palaceMap, start, end, courtDoorBlockers(doors));
+export function courtPath(start: Point, end: Point, doors: readonly DoorState[] = [], fixtures?: readonly MapFixture[]): Point[] | undefined {
+  return findPath(palaceMap, start, end, courtDoorBlockers(doors, fixtures));
 }
 
-export function courtInteractionPoint(start: Point, target: Point, authored?: Point, doors: readonly DoorState[] = []): Point | undefined {
+export function courtInteractionPoint(start: Point, target: Point, authored?: Point, doors: readonly DoorState[] = [], fixtures?: readonly MapFixture[]): Point | undefined {
   const candidates = authored ? [authored] : [{ x: target.x, y: target.y + 1 }, { x: target.x - 1, y: target.y },
     { x: target.x + 1, y: target.y }, { x: target.x, y: target.y - 1 }];
-  return candidates.map(point => ({ point, path: courtPath(start, point, doors) })).filter(candidate => candidate.path)
+  return candidates.map(point => ({ point, path: courtPath(start, point, doors, fixtures) })).filter(candidate => candidate.path)
     .sort((a, b) => a.path!.length - b.path!.length)[0]?.point;
 }
 
-export function nearestDoorSpot(start: Point, door: DoorState, doors: readonly DoorState[]): Point | undefined {
-  return door.interactionSpots.map(point => ({ point, path: courtPath(start, point, doors) }))
+export function nearestDoorSpot(start: Point, door: DoorState, doors: readonly DoorState[], fixtures?: readonly MapFixture[]): Point | undefined {
+  return door.interactionSpots.map(point => ({ point, path: courtPath(start, point, doors, fixtures) }))
     .filter(candidate => candidate.path).sort((a, b) => a.path!.length - b.path!.length)[0]?.point;
 }
 
@@ -54,10 +53,10 @@ export function courtWalkPoint(path: readonly Point[], progress: number): Point 
   return { x: from.x + (to.x - from.x) * (offset - index), y: from.y + (to.y - from.y) * (offset - index) };
 }
 /** Finish the current partial tile step, then follow the replacement A* route. */
-export function redirectCourtPath(path: readonly Point[], progress: number, destination: Point, doors: readonly DoorState[] = []): Point[] | undefined {
+export function redirectCourtPath(path: readonly Point[], progress: number, destination: Point, doors: readonly DoorState[] = [], fixtures?: readonly MapFixture[]): Point[] | undefined {
   const offset = Math.max(0, Math.min(progress, path.length - 1));
   const pivot = path[Math.ceil(offset)]!;
-  const route = courtPath(pivot, destination, doors);
+  const route = courtPath(pivot, destination, doors, fixtures);
   if (!route) return undefined;
   const visual = courtWalkPoint(path, offset);
   return visual.x === pivot.x && visual.y === pivot.y ? route : [visual, ...route];
@@ -65,7 +64,7 @@ export function redirectCourtPath(path: readonly Point[], progress: number, dest
 
 /** Mount inside the day screen; native buttons retain keyboard and touch access. */
 export async function mountCourtMap(root: HTMLElement, characters: readonly CourtCharacter[], player: CourtCharacter | null,
-  selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<void>, doors: DoorState[] = [], changeDoor?: (id: string, open: boolean) => Promise<DoorState[]>, rooms: readonly RoomAccess[] = []): Promise<void> {
+  selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<void>, doors: DoorState[] = [], changeDoor?: (id: string, open: boolean) => Promise<DoorState[]>, rooms: readonly RoomAccess[] = [], fixtures: readonly MapFixture[] = [], fixtureChoices: readonly FixtureAction[] = [], interactFixture?: (actionId: string) => Promise<void>): Promise<void> {
   const viewport = document.createElement("div"); viewport.className = "court-map-scroll";
   const stage = document.createElement("div"); stage.className = "court-map-stage";
   const canvas = document.createElement("canvas"); canvas.setAttribute("aria-label", "Palace of Caerwyn");
@@ -93,19 +92,19 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   let pendingInteraction: (() => void | Promise<void>) | undefined;
   let walkTo: (point: Point, interaction?: () => void | Promise<void>) => Promise<void> = async () => {};
   const approach = (target: Point, authored?: Point) => visualPosition && courtInteractionPoint(
-    { x: Math.round(visualPosition.x), y: Math.round(visualPosition.y) }, target, authored, doors);
+    { x: Math.round(visualPosition.x), y: Math.round(visualPosition.y) }, target, authored, doors, fixtures);
   const showMenu = (tile: Point, x: number, y: number) => {
     if (disabled) return;
     if (!menu.hidden && menuTile === pointKey(tile)) { closeMenu(); return; }
     menuTile = pointKey(tile);
     const layers: CourtInteractionLayer[] = [];
-    if (canWalk(palaceMap, tile, courtDoorBlockers(doors))) layers.push({ id: "ground", position: tile, order: 0,
+    if (canWalk(palaceMap, tile, courtDoorBlockers(doors, fixtures))) layers.push({ id: "ground", position: tile, order: 0,
       actions: [{ id: "walk", label: "Walk here", type: "walk", target: "ground", order: 100, legality: "normal" }] });
     for (const door of doors) for (const doorTile of door.tiles) layers.push({ id: door.id, position: doorTile, order: 15,
       actions: [{ id: `${door.open ? "close" : "open"}_${door.id}`, label: `${door.open ? "Close" : "Open"} ${door.name}`,
         type: "door", target: door.id, order: 15, legality: doorActionLegality(door, rooms, player?.id ?? "") }] });
-    for (const item of scenery) layers.push({ id: item.id, position: item, order: 20,
-      actions: [{ id: `inspect_${item.id}`, label: `Inspect ${item.name}`, type: "inspect", target: item.id, order: 20, legality: "normal" }] });
+    for (const item of fixtures) if (item.position) layers.push({ id: item.id, position: item.position, order: 20,
+      actions: fixtureChoices.filter(action => action.target === item.id).map(action => ({ ...action, type: "fixture" })) });
     for (const marker of markers) {
       const point = marker.id === player?.id ? visualPosition ?? marker.point : marker.point;
       if (!point) continue;
@@ -125,13 +124,18 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
         if (action.type === "walk") void walkTo(tile);
         else if (action.type === "door") {
           const door = doors.find(door => door.id === action.target);
-          const spot = door && visualPosition && nearestDoorSpot({ x: Math.round(visualPosition.x), y: Math.round(visualPosition.y) }, door, doors);
+          const spot = door && visualPosition && nearestDoorSpot({ x: Math.round(visualPosition.x), y: Math.round(visualPosition.y) }, door, doors, fixtures);
           if (!door || !spot || !changeDoor) { status.textContent = "No reachable interaction spot for this door."; return; }
           const open = !door.open;
           void walkTo(spot, async () => {
             doors = await changeDoor(door.id, open);
             status.textContent = `${door.name} ${open ? "opened" : "closed"}.`; draw();
           });
+        } else if (action.type === "fixture") {
+          const fixture = fixtures.find(item => item.id === action.target);
+          const spot = fixture?.position && approach(fixture.position, fixture.interactionSpot);
+          if (!spot || !interactFixture) { status.textContent = "No reachable interaction spot for this furniture."; return; }
+          void walkTo(spot, () => interactFixture(action.id));
         } else {
           const character = markers.find(marker => marker.id === action.target);
           const item = scenery.find(item => item.id === action.target);
@@ -153,7 +157,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     menu.style.top = `${Math.max(8, Math.min(y, window.innerHeight - bounds.height - 8))}px`;
     menu.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
   };
-  const markers = courtMarkers([...characters, ...(player ? [player] : [])]);
+  const markers = courtMarkers([...characters, ...(player ? [player] : [])], fixtures);
   for (const marker of markers) {
     const isPlayer = marker.id === player?.id;
     const control = document.createElement(isPlayer ? "div" : "button");
@@ -193,7 +197,15 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   let position = markers.find(marker => marker.id === player?.id)?.point;
   const draw = () => {
     renderer.render(false, false);
-    for (const item of scenery) renderer.drawSprite("tiny-dungeon", item.sprite, item.x, item.y);
+    for (const item of fixtures) if (item.position) {
+      renderer.drawSprite("tiny-dungeon", item.sprite, item.position.x, item.position.y);
+      if (item.open) {
+        const context = canvas.getContext("2d")!;
+        context.save(); context.fillStyle = "#f5dc9a";
+        context.fillRect(item.position.x * palaceMap.tileWidth + 4, item.position.y * palaceMap.tileHeight + 12, 8, 2);
+        context.restore();
+      }
+    }
     drawDoors(canvas.getContext("2d")!, doors);
   };
   draw();
@@ -214,7 +226,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       }
       return;
     }
-    let path = courtPath(position, target, doors);
+    let path = courtPath(position, target, doors, fixtures);
     pendingInteraction = path ? interaction : undefined;
     if (!path) { status.textContent = "You cannot walk there. Choose a clear floor tile."; return; }
     if (path.length < 2) {
@@ -238,7 +250,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     let started = performance.now();
     redirect = target => {
       const now = performance.now();
-      const replacement = redirectCourtPath(path!, (now - started) / 100, target, doors);
+      const replacement = redirectCourtPath(path!, (now - started) / 100, target, doors, fixtures);
       if (!replacement) return false;
       path = replacement; started = now; destination = target;
       place(path[0]!); drawRoute();

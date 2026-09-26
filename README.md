@@ -104,3 +104,26 @@ The production build is a self-contained static site in `dist/web`. Merges to
 `main` run `.github/workflows/pages.yml`, which builds that directory and deploys
 it to GitHub Pages. The Vite build uses relative URLs so it also works beneath a
 repository path such as `/kingmaker/`.
+
+### Reset the palace without recreating a character
+
+With a saved character loaded in the main game, run this in the browser console:
+
+```js
+await resetWorld();
+```
+
+This resets physical world state to the latest authored scenario: doors,
+containers and their contents, inventories, and actor positions (everyone returns
+to their court-arrival placement). It saves into the current save. Character
+identity, biography, relationships, objectives, goals, events and conversations
+remain intact; no character-creation interview or model call is needed. Wait for
+any active model request to finish first. Reload the page after authored scenario
+changes before resetting.
+
+Right-click furniture to inspect, open, close or take items. The player walks to
+the furniture's interaction spot first. Locked coffers require the matching key
+in the player's inventory; taking items from someone else's furniture is marked
+illegal. Inventory is shown in the character sheet. These prototype containers
+retain their original loot; the narrative Crown of Winter remains in its existing
+crown box and is not duplicated in the royal coffer.
