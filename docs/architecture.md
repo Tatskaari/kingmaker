@@ -18,8 +18,8 @@ The dialogue model returns:
 - events worth retaining;
 - an optional replacement free-text goal.
 
-The server validates IDs and appends the result. Social events have no bespoke
-reducers. Their meaning remains available to later model calls as prose.
+The browser worker validates IDs and appends the result. Social events have no
+bespoke reducers. Their meaning remains available to later model calls as prose.
 
 ## Player creation
 

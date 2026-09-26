@@ -29,7 +29,7 @@ tasks:
     options:
       cache: false
   dev:
-    command: npx --no-install concurrently --kill-others --names server,web "env KINGMAKER_DEV_STATE_FILE=.moon/cache/dev-state.json npx --no-install tsx watch apps/server/src/index.ts" "npx --no-install vite"
+    command: npx --no-install vite
     deps: [contracts:generate]
     inputs: ['apps/**/*', 'packages/**/*', 'content/**/*', 'package.json', 'package-lock.json']
     options:
