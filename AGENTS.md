@@ -2,6 +2,12 @@
 
 Use the official GitHub Stacks CLI extension for related pull requests. Keep each layer independently reviewable and make every branch target the branch directly below it.
 
+## Worktrees
+
+Perform implementation work in a dedicated Git worktree for the task, not in the shared primary checkout. Create or use the task's worktree before editing files or switching implementation branches. Run stack commands, commits, and checks from that worktree. Leave unrelated worktrees and their changes untouched.
+
+When moving an existing task into a worktree, preserve its uncommitted changes with a stash and commit them on its feature branch before handoff. An unfinished checkpoint commit is allowed for this transfer; record any outstanding validation and continue it after the move.
+
 ## Create and submit a stack
 
 1. Update `main` from `origin/main` and begin from a clean working tree.

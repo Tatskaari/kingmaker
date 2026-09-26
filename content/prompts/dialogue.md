@@ -11,8 +11,15 @@ The assembled context is deliberately simple and complete:
    concealed objects remain only in the authoritative game-master state.
 7. The conversation transcript.
 
-The response contains an utterance, zero or more new events, and an optional
-replacement goal, and optional `replyOptions` (an empty array or one or more player replies). Events cover every social concept: observations, thoughts,
+Each spoken response contains an utterance and optional `replyOptions` (an empty
+array or one or more player replies). Ending the conversation triggers a separate
+review of the entire transcript and existing character context. The review saves
+new private events and any warranted goal, relationship, or biography updates,
+then clears the transcript. Returning to the NPC starts a fresh thread with that
+durable memory. Failed reviews or saves leave the conversation open for retry.
+Existing events remain historical records; changed circumstances are recorded as
+new events without duplicating earlier memories. Events cover every social
+concept: observations, thoughts,
 promises, agreements, insults, apologies, revelations, and conversations.
 
 Dialogue may create intent, social meaning, misinformation, and surprising plans.

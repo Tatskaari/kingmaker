@@ -47,9 +47,8 @@ async function transaction<T>(mode: IDBTransactionMode, action: (store: IDBObjec
   return new Promise((resolve, reject) => {
     const tx = db.transaction("games", mode);
     const request = action(tx.objectStore("games"));
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error);
-    tx.oncomplete = () => db.close();
+    tx.oncomplete = () => { db.close(); resolve(request.result); };
+    tx.onabort = () => { db.close(); reject(tx.error || new Error("Save transaction aborted")); };
     tx.onerror = () => reject(tx.error);
   });
 }
@@ -146,6 +145,20 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     const reply = await requireRuntime().talkToCharacter(String(payload.characterId || ""), String(payload.message || ""));
     await persist();
     return { reply, state: requireRuntime().view(), saves: await listSaves(), activeSaveId: activeSave?.id };
+  }
+  if (type === "end_conversation") {
+    const game = requireRuntime();
+    const before = structuredClone(game.snapshot());
+    const savedBefore = activeSave;
+    try {
+      await game.endConversation(String(payload.characterId || ""));
+      await persist();
+    } catch (error) {
+      game.restore(before);
+      activeSave = savedBefore;
+      throw error;
+    }
+    return { state: game.view(), saves: await listSaves(), activeSaveId: activeSave?.id };
   }
   if (type === "reset") {
     requireRuntime().reset();
