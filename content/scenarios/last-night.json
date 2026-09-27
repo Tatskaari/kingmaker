@@ -798,7 +798,8 @@
           "great_hall",
           "corvin_chamber",
           "garran_chamber",
-          "royal_bedchamber"
+          "royal_bedchamber",
+          "palace_back_hall"
         ]
       },
       {
@@ -876,6 +877,167 @@
         "exitRoomIds": [
           "great_hall"
         ]
+      },
+      {
+        "id": "palace_back_hall",
+        "name": "Palace Back Hall",
+        "description": "A long servants' passage links the state rooms to the three visiting delegations' apartments.",
+        "exitRoomIds": [
+          "north_corridor",
+          "ironmark_salon",
+          "greenweald_solar",
+          "saltmere_drawing_room"
+        ]
+      },
+      {
+        "id": "ironmark_salon",
+        "name": "Ironmark Salon",
+        "description": "Iron fittings, campaign maps and a plain stone hearth furnish Ironmark's public receiving room.",
+        "exitRoomIds": [
+          "palace_back_hall",
+          "ironmark_back_hall"
+        ]
+      },
+      {
+        "id": "ironmark_back_hall",
+        "private": true,
+        "allowedCharacterIds": [
+          "mara",
+          "hadrik",
+          "tessa"
+        ],
+        "name": "Ironmark Back Hall",
+        "description": "A private passage runs behind Ironmark's salon to the delegation's bedrooms.",
+        "exitRoomIds": [
+          "ironmark_salon",
+          "mara_chamber",
+          "hadrik_chamber",
+          "tessa_chamber"
+        ]
+      },
+      {
+        "id": "mara_chamber",
+        "private": true,
+        "allowedCharacterIds": ["mara"],
+        "name": "Mara's Chamber",
+        "description": "A disciplined room set aside for Princess Mara and her diplomatic papers.",
+        "exitRoomIds": ["ironmark_back_hall"]
+      },
+      {
+        "id": "hadrik_chamber",
+        "private": true,
+        "allowedCharacterIds": ["hadrik"],
+        "name": "Hadrik's Chamber",
+        "description": "Lord Hadrik's quarters hold a campaign chest and the sparse comforts of a veteran.",
+        "exitRoomIds": ["ironmark_back_hall"]
+      },
+      {
+        "id": "tessa_chamber",
+        "private": true,
+        "allowedCharacterIds": ["tessa"],
+        "name": "Tessa's Chamber",
+        "description": "Captain Tessa's compact room is kept ready for an early departure.",
+        "exitRoomIds": ["ironmark_back_hall"]
+      },
+      {
+        "id": "greenweald_solar",
+        "name": "Greenweald Solar",
+        "description": "Carved oak, woven hangings and bowls of fresh herbs mark Greenweald's shared receiving room.",
+        "exitRoomIds": [
+          "palace_back_hall",
+          "greenweald_back_hall"
+        ]
+      },
+      {
+        "id": "greenweald_back_hall",
+        "private": true,
+        "allowedCharacterIds": [
+          "elinor",
+          "oswin",
+          "rowan"
+        ],
+        "name": "Greenweald Back Hall",
+        "description": "A quiet private gallery separates Greenweald's solar from its sleeping chambers.",
+        "exitRoomIds": [
+          "greenweald_solar",
+          "elinor_chamber",
+          "oswin_chamber",
+          "rowan_chamber"
+        ]
+      },
+      {
+        "id": "elinor_chamber",
+        "private": true,
+        "allowedCharacterIds": ["elinor"],
+        "name": "Elinor's Chamber",
+        "description": "Lady Elinor's chamber provides a private desk for correspondence and negotiations.",
+        "exitRoomIds": ["greenweald_back_hall"]
+      },
+      {
+        "id": "oswin_chamber",
+        "private": true,
+        "allowedCharacterIds": ["oswin"],
+        "name": "Oswin's Chamber",
+        "description": "Prior Oswin's simple chamber includes a kneeler and a narrow writing table.",
+        "exitRoomIds": ["greenweald_back_hall"]
+      },
+      {
+        "id": "rowan_chamber",
+        "private": true,
+        "allowedCharacterIds": ["rowan"],
+        "name": "Rowan's Chamber",
+        "description": "Rowan's room is crowded with field notes, seed packets and practical designs.",
+        "exitRoomIds": ["greenweald_back_hall"]
+      },
+      {
+        "id": "saltmere_drawing_room",
+        "name": "Saltmere Drawing Room",
+        "description": "Blue silk, polished brass and a drinks cabinet make Saltmere's public room unusually lavish.",
+        "exitRoomIds": [
+          "palace_back_hall",
+          "saltmere_back_hall"
+        ]
+      },
+      {
+        "id": "saltmere_back_hall",
+        "private": true,
+        "allowedCharacterIds": [
+          "lucan",
+          "sabine",
+          "rook"
+        ],
+        "name": "Saltmere Back Hall",
+        "description": "A discreet private corridor connects Saltmere's drawing room to its individual quarters.",
+        "exitRoomIds": [
+          "saltmere_drawing_room",
+          "lucan_chamber",
+          "sabine_chamber",
+          "rook_chamber"
+        ]
+      },
+      {
+        "id": "lucan_chamber",
+        "private": true,
+        "allowedCharacterIds": ["lucan"],
+        "name": "Lucan's Chamber",
+        "description": "Prince Lucan's elegant chamber is arranged for comfort and confidential callers.",
+        "exitRoomIds": ["saltmere_back_hall"]
+      },
+      {
+        "id": "sabine_chamber",
+        "private": true,
+        "allowedCharacterIds": ["sabine"],
+        "name": "Sabine's Chamber",
+        "description": "Chancellor Sabine's locked cases and orderly ledgers dominate her private room.",
+        "exitRoomIds": ["saltmere_back_hall"]
+      },
+      {
+        "id": "rook_chamber",
+        "private": true,
+        "allowedCharacterIds": ["rook"],
+        "name": "Rook's Chamber",
+        "description": "Admiral Rook's room carries the scents of tarred rope, salt and expensive tobacco.",
+        "exitRoomIds": ["saltmere_back_hall"]
       }
     ],
     "actors": [
@@ -911,92 +1073,92 @@
       },
       {
         "characterId": "mara",
-        "roomId": "great_hall",
+        "roomId": "mara_chamber",
         "position": {
-          "x": 11,
-          "y": 22
+          "x": 53,
+          "y": 7
         },
-        "homeRoomId": "great_hall",
+        "homeRoomId": "mara_chamber",
         "awake": false
       },
       {
         "characterId": "hadrik",
-        "roomId": "great_hall",
+        "roomId": "hadrik_chamber",
         "position": {
-          "x": 11,
-          "y": 25
+          "x": 63,
+          "y": 7
         },
-        "homeRoomId": "great_hall",
+        "homeRoomId": "hadrik_chamber",
         "awake": false
       },
       {
         "characterId": "tessa",
-        "roomId": "great_hall",
+        "roomId": "tessa_chamber",
         "position": {
-          "x": 11,
-          "y": 28
+          "x": 73,
+          "y": 7
         },
-        "homeRoomId": "great_hall",
+        "homeRoomId": "tessa_chamber",
         "awake": false
       },
       {
         "characterId": "elinor",
-        "roomId": "great_hall",
+        "roomId": "elinor_chamber",
         "position": {
-          "x": 16,
-          "y": 23
+          "x": 53,
+          "y": 22
         },
-        "homeRoomId": "great_hall",
+        "homeRoomId": "elinor_chamber",
         "awake": false
       },
       {
         "characterId": "oswin",
-        "roomId": "great_hall",
+        "roomId": "oswin_chamber",
         "position": {
-          "x": 16,
-          "y": 26
+          "x": 63,
+          "y": 22
         },
-        "homeRoomId": "great_hall",
+        "homeRoomId": "oswin_chamber",
         "awake": false
       },
       {
         "characterId": "rowan",
-        "roomId": "great_hall",
+        "roomId": "rowan_chamber",
         "position": {
-          "x": 16,
-          "y": 29
+          "x": 73,
+          "y": 22
         },
-        "homeRoomId": "great_hall",
+        "homeRoomId": "rowan_chamber",
         "awake": false
       },
       {
         "characterId": "lucan",
-        "roomId": "great_hall",
+        "roomId": "lucan_chamber",
         "position": {
-          "x": 21,
-          "y": 22
+          "x": 53,
+          "y": 37
         },
-        "homeRoomId": "great_hall",
+        "homeRoomId": "lucan_chamber",
         "awake": false
       },
       {
         "characterId": "sabine",
-        "roomId": "great_hall",
+        "roomId": "sabine_chamber",
         "position": {
-          "x": 21,
-          "y": 25
+          "x": 63,
+          "y": 37
         },
-        "homeRoomId": "great_hall",
+        "homeRoomId": "sabine_chamber",
         "awake": false
       },
       {
         "characterId": "rook",
-        "roomId": "great_hall",
+        "roomId": "rook_chamber",
         "position": {
-          "x": 21,
-          "y": 28
+          "x": 73,
+          "y": 37
         },
-        "homeRoomId": "great_hall",
+        "homeRoomId": "rook_chamber",
         "awake": false
       }
     ],
@@ -1733,6 +1895,102 @@
           "great_hall",
           "treasury"
         ],
+        "open": false
+      },
+      {
+        "id": "ironmark_quarters_door",
+        "name": "Ironmark quarters door",
+        "tiles": [{ "x": 46, "y": 12 }, { "x": 46, "y": 13 }],
+        "interactionSpots": [{ "x": 45, "y": 12 }, { "x": 47, "y": 12 }],
+        "roomIds": ["ironmark_salon", "ironmark_back_hall"],
+        "open": false
+      },
+      {
+        "id": "mara_door",
+        "name": "Mara's door",
+        "tiles": [{ "x": 52, "y": 10 }, { "x": 53, "y": 10 }],
+        "interactionSpots": [{ "x": 52, "y": 9 }, { "x": 52, "y": 11 }],
+        "roomIds": ["mara_chamber", "ironmark_back_hall"],
+        "open": false
+      },
+      {
+        "id": "hadrik_door",
+        "name": "Hadrik's door",
+        "tiles": [{ "x": 62, "y": 10 }, { "x": 63, "y": 10 }],
+        "interactionSpots": [{ "x": 62, "y": 9 }, { "x": 62, "y": 11 }],
+        "roomIds": ["hadrik_chamber", "ironmark_back_hall"],
+        "open": false
+      },
+      {
+        "id": "tessa_door",
+        "name": "Tessa's door",
+        "tiles": [{ "x": 72, "y": 10 }, { "x": 73, "y": 10 }],
+        "interactionSpots": [{ "x": 72, "y": 9 }, { "x": 72, "y": 11 }],
+        "roomIds": ["tessa_chamber", "ironmark_back_hall"],
+        "open": false
+      },
+      {
+        "id": "greenweald_quarters_door",
+        "name": "Greenweald quarters door",
+        "tiles": [{ "x": 46, "y": 27 }, { "x": 46, "y": 28 }],
+        "interactionSpots": [{ "x": 45, "y": 27 }, { "x": 47, "y": 27 }],
+        "roomIds": ["greenweald_solar", "greenweald_back_hall"],
+        "open": false
+      },
+      {
+        "id": "elinor_door",
+        "name": "Elinor's door",
+        "tiles": [{ "x": 52, "y": 25 }, { "x": 53, "y": 25 }],
+        "interactionSpots": [{ "x": 52, "y": 24 }, { "x": 52, "y": 26 }],
+        "roomIds": ["elinor_chamber", "greenweald_back_hall"],
+        "open": false
+      },
+      {
+        "id": "oswin_door",
+        "name": "Oswin's door",
+        "tiles": [{ "x": 62, "y": 25 }, { "x": 63, "y": 25 }],
+        "interactionSpots": [{ "x": 62, "y": 24 }, { "x": 62, "y": 26 }],
+        "roomIds": ["oswin_chamber", "greenweald_back_hall"],
+        "open": false
+      },
+      {
+        "id": "rowan_door",
+        "name": "Rowan's door",
+        "tiles": [{ "x": 72, "y": 25 }, { "x": 73, "y": 25 }],
+        "interactionSpots": [{ "x": 72, "y": 24 }, { "x": 72, "y": 26 }],
+        "roomIds": ["rowan_chamber", "greenweald_back_hall"],
+        "open": false
+      },
+      {
+        "id": "saltmere_quarters_door",
+        "name": "Saltmere quarters door",
+        "tiles": [{ "x": 46, "y": 42 }, { "x": 46, "y": 43 }],
+        "interactionSpots": [{ "x": 45, "y": 42 }, { "x": 47, "y": 42 }],
+        "roomIds": ["saltmere_drawing_room", "saltmere_back_hall"],
+        "open": false
+      },
+      {
+        "id": "lucan_door",
+        "name": "Lucan's door",
+        "tiles": [{ "x": 52, "y": 40 }, { "x": 53, "y": 40 }],
+        "interactionSpots": [{ "x": 52, "y": 39 }, { "x": 52, "y": 41 }],
+        "roomIds": ["lucan_chamber", "saltmere_back_hall"],
+        "open": false
+      },
+      {
+        "id": "sabine_door",
+        "name": "Sabine's door",
+        "tiles": [{ "x": 62, "y": 40 }, { "x": 63, "y": 40 }],
+        "interactionSpots": [{ "x": 62, "y": 39 }, { "x": 62, "y": 41 }],
+        "roomIds": ["sabine_chamber", "saltmere_back_hall"],
+        "open": false
+      },
+      {
+        "id": "rook_door",
+        "name": "Rook's door",
+        "tiles": [{ "x": 72, "y": 40 }, { "x": 73, "y": 40 }],
+        "interactionSpots": [{ "x": 72, "y": 39 }, { "x": 72, "y": 41 }],
+        "roomIds": ["rook_chamber", "saltmere_back_hall"],
         "open": false
       }
     ],

@@ -7,8 +7,8 @@ import {
   type WorldMap,
 } from "../../../packages/contracts/src/index.js";
 
-const WIDTH = 32;
-const HEIGHT = 38;
+const WIDTH = 78;
+const HEIGHT = 49;
 const TILE_SIZE = 16;
 const BACKGROUND = 0;
 const FLOOR = 48;
@@ -77,9 +77,46 @@ const rooms = [
   { id: "guest_chamber", name: "Nobles' Parlour", regions: [{ x: 2, y: 20, width: 6, height: 9 }] },
   { id: "entrance_hall", name: "Entrance Hall", regions: [
     { x: 12, y: 33, width: 8, height: 4 },
-    { x: 15, y: 37, width: 2, height: 1 },
+    { x: 15, y: 37, width: 2, height: 12 },
   ] },
   { id: "treasury", name: "Treasury", regions: [{ x: 24, y: 20, width: 6, height: 9 }] },
+  { id: "palace_back_hall", name: "Palace Back Hall", regions: [
+    { x: 29, y: 11, width: 6, height: 3 },
+    { x: 32, y: 14, width: 3, height: 31 },
+    { x: 35, y: 12, width: 2, height: 2 },
+    { x: 35, y: 27, width: 2, height: 2 },
+    { x: 35, y: 42, width: 2, height: 2 },
+  ] },
+  { id: "ironmark_salon", name: "Ironmark Salon", regions: [{ x: 37, y: 7, width: 9, height: 9 }] },
+  { id: "ironmark_back_hall", name: "Ironmark Back Hall", regions: [
+    { x: 46, y: 12, width: 29, height: 2 },
+    { x: 52, y: 10, width: 2, height: 2 },
+    { x: 62, y: 10, width: 2, height: 2 },
+    { x: 72, y: 10, width: 2, height: 2 },
+  ] },
+  { id: "mara_chamber", name: "Mara's Chamber", regions: [{ x: 50, y: 5, width: 7, height: 5 }] },
+  { id: "hadrik_chamber", name: "Hadrik's Chamber", regions: [{ x: 60, y: 5, width: 7, height: 5 }] },
+  { id: "tessa_chamber", name: "Tessa's Chamber", regions: [{ x: 70, y: 5, width: 7, height: 5 }] },
+  { id: "greenweald_solar", name: "Greenweald Solar", regions: [{ x: 37, y: 22, width: 9, height: 9 }] },
+  { id: "greenweald_back_hall", name: "Greenweald Back Hall", regions: [
+    { x: 46, y: 27, width: 29, height: 2 },
+    { x: 52, y: 25, width: 2, height: 2 },
+    { x: 62, y: 25, width: 2, height: 2 },
+    { x: 72, y: 25, width: 2, height: 2 },
+  ] },
+  { id: "elinor_chamber", name: "Elinor's Chamber", regions: [{ x: 50, y: 20, width: 7, height: 5 }] },
+  { id: "oswin_chamber", name: "Oswin's Chamber", regions: [{ x: 60, y: 20, width: 7, height: 5 }] },
+  { id: "rowan_chamber", name: "Rowan's Chamber", regions: [{ x: 70, y: 20, width: 7, height: 5 }] },
+  { id: "saltmere_drawing_room", name: "Saltmere Drawing Room", regions: [{ x: 37, y: 37, width: 9, height: 9 }] },
+  { id: "saltmere_back_hall", name: "Saltmere Back Hall", regions: [
+    { x: 46, y: 42, width: 29, height: 2 },
+    { x: 52, y: 40, width: 2, height: 2 },
+    { x: 62, y: 40, width: 2, height: 2 },
+    { x: 72, y: 40, width: 2, height: 2 },
+  ] },
+  { id: "lucan_chamber", name: "Lucan's Chamber", regions: [{ x: 50, y: 35, width: 7, height: 5 }] },
+  { id: "sabine_chamber", name: "Sabine's Chamber", regions: [{ x: 60, y: 35, width: 7, height: 5 }] },
+  { id: "rook_chamber", name: "Rook's Chamber", regions: [{ x: 70, y: 35, width: 7, height: 5 }] },
 ];
 for (const room of rooms) {
   for (const region of room.regions) floorRegion(region.x, region.y, region.width, region.height);

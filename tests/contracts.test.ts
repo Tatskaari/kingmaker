@@ -77,13 +77,13 @@ test("the expanded authored scenario strictly parses and survives protobuf", () 
   assert.match(scenario.premise, /emissary from a vassal state of Caerwyn/);
   assert.equal(scenario.world?.phase, GamePhase.PLAYER_CREATION);
   assert.ok(scenario.world?.actors.every(actor => !actor.awake && actor.roomId === actor.homeRoomId));
-  assert.equal(scenario.world?.rooms.length, 8);
+  assert.equal(scenario.world?.rooms.length, 24);
 });
 
 test("the palace map is a complete layered tile grid", () => {
   const decoded = fromBinary(WorldMapSchema, toBinary(WorldMapSchema, palaceMap));
   assert.equal(decoded.tiles.length, decoded.width * decoded.height);
-  assert.equal(decoded.rooms.length, 8);
+  assert.equal(decoded.rooms.length, 24);
   assert.ok(decoded.tiles.some(tile => tile.layers.length > 1));
   assert.ok(decoded.tiles.flatMap(tile => tile.layers).some(layer => layer.solid && layer.bounds));
 
@@ -928,9 +928,12 @@ test("mid-walk redirection preserves the current visual position and rejects blo
 });
 
 test("court camera follows the player while clamping at map edges", () => {
-  assert.deepEqual(courtCameraScroll({ x: 15.5, y: 18.5 }, 768, 912, 400, 500), { x: 184, y: 206 });
-  assert.deepEqual(courtCameraScroll({ x: 0, y: 0 }, 768, 912, 400, 500), { x: 0, y: 0 });
-  assert.deepEqual(courtCameraScroll({ x: 31, y: 37 }, 768, 912, 400, 500), { x: 368, y: 412 });
+  const stageWidth = palaceMap.width * 24, stageHeight = palaceMap.height * 24;
+  assert.deepEqual(courtCameraScroll({ x: palaceMap.width / 2 - 0.5, y: palaceMap.height / 2 - 0.5 },
+    stageWidth, stageHeight, 400, 500), { x: stageWidth / 2 - 200, y: stageHeight / 2 - 250 });
+  assert.deepEqual(courtCameraScroll({ x: 0, y: 0 }, stageWidth, stageHeight, 400, 500), { x: 0, y: 0 });
+  assert.deepEqual(courtCameraScroll({ x: palaceMap.width - 1, y: palaceMap.height - 1 },
+    stageWidth, stageHeight, 400, 500), { x: stageWidth - 400, y: stageHeight - 500 });
   assert.deepEqual(courtCameraScroll({ x: 15, y: 18 }, 320, 380, 400, 500), { x: 0, y: 0 });
 });
 
@@ -1602,6 +1605,34 @@ test("authored world rooms and connections match the palace map", () => {
   for (const item of world.objects) assert.ok(locations.has(item.locationId), `${item.id} is in a nonexistent container or location ${item.locationId}`);
   for (const fixture of world.fixtures) if (fixture.requiredKeyId) assert.ok(objects.has(fixture.requiredKeyId), `${fixture.id} needs a missing key`);
   assert.doesNotMatch(JSON.stringify(scenario), /chapel/i);
+});
+
+test("each visiting delegation has a public room, private back hall and individual quarters", () => {
+  const scenario = load(), world = scenario.world!;
+  const delegations = [
+    { publicRoom: "ironmark_salon", publicPoint: { x: 41, y: 11 }, backHall: "ironmark_back_hall",
+      members: ["mara", "hadrik", "tessa"] },
+    { publicRoom: "greenweald_solar", publicPoint: { x: 41, y: 26 }, backHall: "greenweald_back_hall",
+      members: ["elinor", "oswin", "rowan"] },
+    { publicRoom: "saltmere_drawing_room", publicPoint: { x: 41, y: 41 }, backHall: "saltmere_back_hall",
+      members: ["lucan", "sabine", "rook"] },
+  ];
+  const openDoors = world.doors.map(door => ({ ...door, open: true }));
+  for (const delegation of delegations) {
+    assert.equal(courtRoomAt(delegation.publicPoint)?.id, delegation.publicRoom);
+    assert.ok(courtPath({ x: 15, y: 24 }, delegation.publicPoint, world.doors, world.fixtures));
+    const backHall = world.rooms.find(room => room.id === delegation.backHall)!;
+    assert.equal(backHall.private, true);
+    assert.deepEqual([...backHall.allowedCharacterIds].sort(), [...delegation.members].sort());
+    for (const member of delegation.members) {
+      const actor = world.actors.find(actor => actor.characterId === member)!;
+      assert.equal(actor.homeRoomId, `${member}_chamber`);
+      assert.equal(actor.roomId, actor.homeRoomId);
+      assert.equal(courtRoomAt(actor.position!)?.id, actor.homeRoomId);
+      assert.ok(courtPath({ x: 15, y: 24 }, actor.position!, openDoors, world.fixtures), `${member}'s room is reachable`);
+    }
+  }
+  for (const placement of scenario.courtArrivalPlacements) assert.equal(placement.roomId, "great_hall");
 });
 
 test("GPT-6 Responses adapter preserves tool history and encrypted reasoning across DM turns", async t => {
