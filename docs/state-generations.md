@@ -29,6 +29,19 @@ the conversation/action evidence. Each resource is represented as
   `append_events` appends memories; `relationships` upserts only named characters;
   `lore` replaces the biography; `current_goal` sets a goal or clears it with `null`.
   Omitted fields remain unchanged. Empty arrays do not clear existing entries.
+  For an undertaking, use `changes.active_objective` with `action: "set"`,
+  `name`, `status`, `success_criteria`, `current_goal`, and `reason`.
+  Status summarizes known facts, progress, obstacles, and the remaining execution
+  plan. This saves the objective and next goal together under the character generation.
+  Later reviews replace those fields with an updated plan and next step, retaining
+  the larger undertaking until its success criteria are actually satisfied.
+  Do not also supply the top-level `current_goal`: it is the legacy standalone
+  goal interface, and cannot change the goal of an existing active objective.
+  Use `{action: "demote" | "drop" | "complete", reason: "..."}` to stop pursuing
+  it: demote keeps its name in non-active objectives; drop abandons it; complete
+  records evidence of fulfillment. Each clears the immediate goal and records a
+  private objective event. Historical memories are not erased by dropping a task.
+  Old saves need no migration; they initially have no active objective.
 - `update_inventory`: provide `owner_id`, the **inventory's** `generation_id`, and
   `add_items`. These justified additions are validated together; existing items
   remain unchanged. This tool does not transfer, remove, or modify existing items.
@@ -56,3 +69,14 @@ receive concealed state through generation errors.
 Independent NPC jobs run concurrently; conversations reserve their participants
 until review finishes. New mutation paths must observe generations at their mutation
 boundaries and use the queue for live publication.
+
+An active objective continues across bounded scheduler batches instead of having
+its goal erased at a follow-up limit. Reviews must reactivate a useful next goal or
+explicitly resolve the objective before finishing. Busy conversation targets are
+waited for without spending repeated model decisions or exhausting the action budget;
+cancellation and game replacement still stop the job. Impossible objectives should
+be demoted, dropped, or revised by the review agent, not retried unchanged.
+
+Agent-facing schemas and field documentation live in
+`apps/web/src/resource-review.ts`; the shared objective/plan instructions live in
+`apps/web/src/objectives.ts`. No worked negotiation example has been added yet.

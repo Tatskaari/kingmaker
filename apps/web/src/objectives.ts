@@ -10,6 +10,7 @@ export const ACTIVE_OBJECTIVE_GUIDANCE = [
 ].join("\n");
 
 export function applyObjectiveChange(character: Character, value: unknown): string {
+  const previous = character.activeObjective;
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("active_objective must be a transition object.");
   const change = value as Record<string, unknown>;
   const text = (key: string) => {
@@ -35,5 +36,7 @@ export function applyObjectiveChange(character: Character, value: unknown): stri
     delete character.activeObjective;
     character.currentGoal = "";
   }
-  return "Objective " + action + ": " + reason;
+  const subject = character.activeObjective ?? previous!;
+  return "Objective " + action + " (" + subject.name + "): " + reason
+    + (action === "demote" ? " Deferred plan: " + subject.status + " Success criteria: " + subject.successCriteria : "");
 }

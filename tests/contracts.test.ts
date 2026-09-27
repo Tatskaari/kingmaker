@@ -20,6 +20,7 @@ import {
   RelationshipSchema,
   RelationshipUpdateSchema,
   CharacterSchema,
+  ActiveObjectiveSchema,
   ScenarioSchema,
   WorldMapSchema,
   TranscriptRole,
@@ -1848,6 +1849,63 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     await request("cancel_npc");
     for (const plan of plans) plan.release({});
     await new Promise(resolve => setImmediate(resolve));
+  });
+
+  await t.test("active objectives continue beyond three goal reviews and stop on completion", { timeout: 4000 }, async t => {
+    const created = await request("create_development_game"), saved = records.get(created.activeSaveId);
+    const scenario = fromJson(ScenarioSchema, saved.snapshot.scenario);
+    const character = scenario.characters.find(character => character.id === "corvin")!;
+    character.currentGoal = "Step 1";
+    character.activeObjective = create(ActiveObjectiveSchema, { name: "Gather delegates", status: "Four invitations remain.",
+      successCriteria: "All invitations delivered.", currentGoal: "Step 1" });
+    saved.snapshot.scenario = toJson(ScenarioSchema, scenario);
+    saved.snapshot.npcActivities = { corvin: { status: "active", goal: "Step 1", history: [] } };
+    await request("load_game", { saveId: created.activeSaveId });
+    let goals = 0;
+    t.mock.method(BrowserGameRuntime.prototype, "planNpc", async () => {
+      assert.ok(++goals <= 4, "Must stop after the objective is completed");
+      return { decision: { choice: "complete" } };
+    });
+    t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => {
+      const tool = (name: string, args: unknown) => ({ role: "assistant", content: null, tool_calls: [
+        { id: name, type: "function", function: { name, arguments: JSON.stringify(args) } },
+      ] });
+      if (input.messages.at(-1).role === "tool") return tool("finish_review", { summary: "Reviewed progress." });
+      const resource = input.messages.map((message: any) => { try { return JSON.parse(message.content); } catch { return {}; } })
+        .find((value: any) => value.world_state).world_state["character:corvin"];
+      return tool("update_character", { character_id: "corvin", generation_id: resource.generation_id, changes: { active_objective:
+        goals === 4 ? { action: "complete", reason: "All four invitations delivered." }
+          : { action: "set", name: "Gather delegates", status: goals + " invitations delivered; continue to the next delegate.",
+            success_criteria: "All invitations delivered.", current_goal: "Step " + (goals + 1), reason: "More invitations remain." } } });
+    });
+    await request("start_npc", { characterId: "corvin" });
+    while ((await request("debug_character", { characterId: "corvin" })).character.activeObjective
+      || npcUpdates.at(-1)?.running.includes("corvin")) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    assert.equal(goals, 4);
+    assert.equal((await request("state")).state.npcActivities.corvin.status, "idle");
+    await request("cancel_npc");
+  });
+
+  await t.test("busy conversation targets wait without repeated model decisions", async t => {
+    const created = await request("create_development_game"), saved = records.get(created.activeSaveId);
+    saved.snapshot.npcActivities = { corvin: { status: "active", goal: "Talk to Mara", history: [] } };
+    await request("load_game", { saveId: created.activeSaveId });
+    await request("pause_npc", { characterId: "mara" });
+    let decisions = 0, conversations = 0;
+    t.mock.method(BrowserGameRuntime.prototype, "planNpc", async () => {
+      decisions++; return { decision: { choice: "talk_mara" }, action: { id: "talk_mara", description: "Talk to Mara" }, goal: "Talk to Mara", generations: {} };
+    });
+    t.mock.method(BrowserGameRuntime.prototype, "stepNpcAction", () => ({ done: true, talkTarget: "mara", generations: {} }));
+    t.mock.method(BrowserGameRuntime.prototype, "executeNpcTalk", async () => { conversations++; return ""; });
+    await request("start_npc", { characterId: "corvin" });
+    await new Promise(resolve => setTimeout(resolve, 250));
+    assert.equal(decisions, 1);
+    assert.equal(conversations, 0);
+    await request("cancel_npc");
+    await new Promise(resolve => setTimeout(resolve, 120));
+    assert.equal(conversations, 0);
   });
 
   await t.test("conversation review leaves movement and other dialogue available", async () => {
