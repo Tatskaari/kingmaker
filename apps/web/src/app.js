@@ -46,6 +46,14 @@ gameWorker.addEventListener("message", event => {
     if (event.data.activeSaveId !== activeSaveId) return;
     if (!state || event.data.state.revision >= (state.revision ?? 0)) state = event.data.state;
     npcRun = event.data.running;
+    const initiatedConversation = event.data.initiatedConversation || initiatedConversationId();
+    if (initiatedConversation && !activeCharacter) {
+      activeCharacter = initiatedConversation;
+      closedConversation = null;
+      notice = "";
+      render();
+      return;
+    }
     updateCourtMap(document.querySelector("[data-court-map]"), state);
     updateNpcPanel();
     updatePlayerFeed();
@@ -75,6 +83,10 @@ function stopNpcGoal() {
   npcRun = null;
   void rpc("cancel_npc").catch(() => {});
 }
+function initiatedConversationId() {
+  return Object.entries(state?.conversations || {})
+    .find(([id, messages]) => messages[0]?.role === "character" && !state.conversationEndRequested?.[id] && !conversationReviews.has(id))?.[0] || null;
+}
 async function runNpcGoal(characterId) {
   await rpc("start_npc", { characterId });
 }
@@ -98,7 +110,7 @@ function updateNpcPanel() {
       const running = id === npcRun;
       const review = conversationReviews.get(id);
       if (review) return `<li><div class="npc-goal-content"><div class="npc-goal-heading">${escapeHtml(character?.name || id)}<span class="npc-activity-state">${review.error ? "Review failed" : "Remembering conversation"}</span></div><p>${escapeHtml(review.error || "Their memories and next goal are being reviewed.")}</p></div>${review.error ? `<button data-retry-conversation="${escapeHtml(id)}">Retry review</button>` : ""}</li>`;
-      const talking = id === activeCharacter && !closedConversation;
+      const talking = !!state.conversations?.[id]?.length && closedConversation?.id !== id;
       const status = talking ? "In conversation" : activity.reviewPending ? (running ? "Reviewing outcome" : "Awaiting review") : running ? "Acting" : "Has a goal";
       return `<li><div class="npc-goal-content"><div class="npc-goal-heading"><button class="npc-goal-name" data-npc-debug="${escapeHtml(id)}" aria-label="Debug ${escapeHtml(character?.name || id)}">${escapeHtml(character?.name || id)}</button><span class="npc-activity-state ${running ? "running" : ""}">${status}</span></div><p>${escapeHtml(activity.goal || character?.currentGoal || "No current goal.")}</p></div>${!running && !talking ? `<button class="npc-goal-resume" data-background-resume="${escapeHtml(id)}">${activity.reviewPending ? "Review outcome" : "Continue"}</button>` : ""}</li>`;
     }).join("")}</ul>` : '<p class="npc-goals-empty">No NPCs are pursuing a goal right now.</p>'}`;
@@ -335,6 +347,7 @@ function render() {
   if (!state) return;
   if (state.phase === "character_review") return renderCharacterReview();
   if (state.phase === "player_creation") return renderCreation();
+  activeCharacter ||= initiatedConversationId();
   if (activeCharacter) return renderConversation();
   renderDay();
 }

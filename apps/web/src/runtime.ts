@@ -488,12 +488,16 @@ export class BrowserGameRuntime {
     if (activity?.status !== "active" || activity.reviewPending) throw new Error("This NPC is idle; the LLM must assign a task first.");
     if (activity.history.length >= 24) throw new Error("NPC action limit reached.");
     const observation = courtAgentObservation(scenario, characterId);
-    observation.actions = observation.actions.filter(action => action.type !== "talk" || (!this.#conversations.get(action.target)?.length && !this.#npcActivities[action.target]?.reviewPending));
+    observation.actions = observation.actions.filter(action => action.type !== "talk" || (
+      !this.#conversations.get(action.target)?.length
+      && !this.#npcActivities[action.target]?.reviewPending
+      && (action.target !== scenario.playerCharacterId || this.#conversations.size === 0)
+    ));
     const criteria = { ...Object.fromEntries(observation.actions.map(action => [action.id, `${action.description}${action.legality === "illegal" ? " This is illegal for this character." : ""}`])),
       complete: "The whole immediate goal is achieved, or you are already at the requested place and waiting as requested.",
       unable: "No available action can make progress, or essential clarification is needed." };
     const state = { ...observation, actions: observation.actions.map(({ path, ...action }) => action), recentEvents: activity.history };
-    const instructions = { ...COURT_INSTRUCTIONS, legality: "Actions are mechanically possible. Those marked illegal violate ownership or room access; weigh them against your character's intentions. Waiting in a room is satisfied by being there. Use offered talk actions to make requests of other NPCs. You cannot force agreement or speak for the player." };
+    const instructions = { ...COURT_INSTRUCTIONS, legality: "Actions are mechanically possible. Those marked illegal violate ownership or room access; weigh them against your character's intentions. Waiting in a room is satisfied by being there. Use offered talk actions to initiate a conversation with the player or make requests of other NPCs. You cannot force agreement or speak for the player." };
     const decision = await this.#modelTranscripts.record("jev", characterId, jevRequest(state, instructions, criteria), () => this.#jev.choose(state, instructions, criteria, signal));
     return { decision, revision: observation.revision, goal: observation.goal, action: observation.actions.find(action => action.id === decision.choice), observation };
   }
@@ -511,10 +515,11 @@ export class BrowserGameRuntime {
       .flatMap(event => event.characterIds))].filter(id => this.#npcActivities[id]?.status === "active");
   }
 
-  commitCharacterFork(before: RuntimeSnapshot, fork: BrowserGameRuntime, characterIds: string[]): void {
+  commitCharacterFork(before: RuntimeSnapshot, fork: BrowserGameRuntime, characterIds: string[], requireUnchangedConversations = false): void {
     const base = fromJson(ScenarioSchema, before.scenario), current = this.#game.scenario(), next = fork.#game.scenario();
     const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
     if (!current.world || !base.world || !next.world || current.world.phase !== base.world.phase) throw new Error("World changed; retry NPC review.");
+    if (requireUnchangedConversations && !same(this.snapshot().conversations, before.conversations)) throw new Error("Conversation changed; retry NPC review.");
     for (const id of characterIds) {
       if (!same(current.events.filter(e => e.characterIds.includes(id)), base.events.filter(e => e.characterIds.includes(id)))
         || !same(current.characters.find(c => c.id === id), base.characters.find(c => c.id === id))
@@ -662,6 +667,43 @@ export class BrowserGameRuntime {
     this.#game = staged;
     Object.assign(this.#npcActivities, updates);
     return summary;
+  }
+
+  async initiatePlayerConversation(characterId: string, actionId: string, revision: number, goal: string, signal: AbortSignal): Promise<string> {
+    const scenario = this.#game.scenario(), world = scenario.world!;
+    const activity = this.#npcActivities[characterId];
+    const action = courtAgentObservation(scenario, characterId).actions.find(item => item.id === actionId && item.type === "talk");
+    const valid = () => {
+      signal.throwIfAborted();
+      if (!action || action.target !== scenario.playerCharacterId || action.path.length > 2 || this.#game.scenario().world?.revision !== revision
+        || world.phase !== GamePhase.CONVERSATIONS || this.#npcActivities[characterId] !== activity
+        || activity?.status !== "active" || activity.reviewPending || activity.history.length >= 24
+        || scenario.characters.find(item => item.id === characterId)?.currentGoal !== goal || this.#conversations.size)
+        throw new Error("Conversation is no longer available; replan before acting.");
+    };
+    valid();
+    const context = new FullContextBuilder().build(create(DialogueRequestSchema, { characterId, scenario }));
+    const completion = await this.#complete("dialogue", characterId, {
+      ...DIALOGUE_MODEL, response_format: dialogueFormat, max_tokens: 900,
+      messages: [
+        { role: "system", content: "Return only a JSON object matching the supplied response schema, with no Markdown fences or surrounding prose." },
+        { role: "system", content: "You have approached the player to initiate a conversation that advances your immediate goal. Speak the opening line yourself; do not invent the player's reply, agreement, knowledge, or actions. Set endConversation=false. Offer optional first-person replies the player might choose, or an empty replyOptions array." },
+        ...context,
+        { role: "system", content: dialogueEarshotPrompt(scenario, characterId, [characterId, scenario.playerCharacterId ?? "player"]) },
+        { role: "user", content: JSON.stringify({ goal, surroundings: courtAgentObservation(scenario, characterId).world }) },
+      ],
+    }, signal);
+    valid();
+    const parsed = parseModelObject(completion.content, "Court dialogue");
+    const utterance = text(parsed?.utterance, "utterance");
+    if (parsed?.endConversation !== false) throw new Error("An initiated conversation must remain open for the player.");
+    const replyOptions = parseReplyOptions(parsed.replyOptions);
+    this.#conversations.set(characterId, [create(TranscriptMessageSchema, {
+      role: TranscriptRole.CHARACTER, speakerId: characterId, text: utterance,
+    })]);
+    this.#conversationEndRequested[characterId] = false;
+    this.#conversationReplyOptions[characterId] = replyOptions;
+    return utterance;
   }
 
   finishNpcRun(characterId: string, reason: NonNullable<NpcActivity["result"]>["reason"], detail: string): void {

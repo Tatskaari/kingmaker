@@ -43,9 +43,9 @@ const pendingNpcs: Array<{ id: string; handoffs: number }> = [];
 const conversationHolds = new Set<string>();
 const conversationReviews = new Set<string>();
 
-function publishNpc(status: string, trace?: unknown) {
+function publishNpc(status: string, trace?: unknown, initiatedConversation?: string) {
   if (runtime) worker.postMessage({ type: "npc_update", state: runtime.view(), activeSaveId: activeSave?.id,
-    running: background?.id ?? null, status, ...(trace ? { trace } : {}) });
+    running: background?.id ?? null, status, ...(trace ? { trace } : {}), ...(initiatedConversation ? { initiatedConversation } : {}) });
 }
 function stopBackground(characterId?: string) {
   if (!characterId || background?.participants.includes(characterId)) {
@@ -120,6 +120,16 @@ async function drainBackground() {
           if (conversationHolds.has(target)) continue;
           job.participants = [id, target];
           const before = game.snapshot(), fork = game.forkForNpc();
+          if (target === (game.view().player as { id?: string } | null)?.id) {
+            if (conversationHolds.size) continue;
+            await fork.initiatePlayerConversation(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
+            if (conversationHolds.size) continue;
+            try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id], true); }); }
+            catch (error) { if (!valid()) return; if (/changed/i.test(String(error))) continue; throw error; }
+            conversationHolds.add(id);
+            publishNpc(`${id}: started a conversation with you.`, undefined, id);
+            return;
+          }
           await fork.executeNpcTalk(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
           try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id, target]); }); }
           catch (error) { if (!valid()) return; if (/changed/i.test(String(error))) continue; throw error; }
