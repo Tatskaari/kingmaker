@@ -26,6 +26,7 @@ catch { /* The app still works when browser storage is unavailable. */ }
 if (!apiKey) apiKey = devOpenRouterApiKey;
 let screen = "key";
 let introPage = 0;
+let strangerTutorialOpen = false;
 let reviewDraft = null;
 let traveller = newTraveller();
 let saves = [];
@@ -234,8 +235,12 @@ function renderCreation() {
     app.innerHTML = shell(`<section class="introduction" aria-label="Your journey" tabindex="-1">${content}<p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
     return bind();
   }
-  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div><button class="character-debug" data-gm-debug>Debug Stranger</button></div><div class="messages">${messageList(messages, patronName)}</div>${replyOptions(state.gmReplyOptions?.options, "gm", state.gmReplyOptions?.compelled)}${state.gmReplyOptions?.compelled ? `<p class="compelled-hint">A powerful force compels you to respond accordingly</p>` : `<form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Tell him what you desire…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  const tutorial = strangerTutorialOpen ? `<dialog class="stranger-tutorial" aria-labelledby="stranger-tutorial-title"><div class="eyebrow">Shape your story</div><h2 id="stranger-tutorial-title">The mysterious Stranger</h2><p>Before you stands a mysterious Stranger, an otherworldly character with strange power over fate and providence.</p><p>Respond in character and he will help create your backstory. What you establish together—your ambitions, relationships, and position within the court—will be shared with the other characters and used to shape the scenario around you.</p><button class="primary" data-stranger-tutorial-close>Begin the conversation</button></dialog>` : "";
+  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div><button class="character-debug" data-gm-debug>Debug Stranger</button></div><div class="messages">${messageList(messages, patronName)}</div>${replyOptions(state.gmReplyOptions?.options, "gm", state.gmReplyOptions?.compelled)}${state.gmReplyOptions?.compelled ? `<p class="compelled-hint">A powerful force compels you to respond accordingly</p>` : `<form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Tell him what you desire…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>${tutorial}`);
   bind();
+  const tutorialDialog = document.querySelector(".stranger-tutorial");
+  tutorialDialog?.addEventListener("cancel", () => { strangerTutorialOpen = false; });
+  tutorialDialog?.showModal();
   document.querySelector(".messages")?.scrollTo(0, 999999);
 }
 
@@ -358,7 +363,7 @@ function bind() {
     sheetOpen = false; debugOpen = false; notice = ""; screen = "key"; render();
   });
   document.querySelector("[data-new-game]")?.addEventListener("click", () => run(async () => {
-    introPage = 0; reviewDraft = null; traveller = newTraveller(); const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game"; if (state.travellerIdentity) { traveller = { ...state.travellerIdentity }; introPage = introduction.length + 1; }
+    introPage = 0; strangerTutorialOpen = false; reviewDraft = null; traveller = newTraveller(); const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game"; if (state.travellerIdentity) { traveller = { ...state.travellerIdentity }; introPage = introduction.length + 1; }
   }));
   document.querySelector("[data-skip-character]")?.addEventListener("click", () => run(async () => {
     introPage = 0; reviewDraft = null; traveller = { name: "", homeland: "" }; const result = await rpc("create_development_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
@@ -374,6 +379,7 @@ function bind() {
   document.querySelectorAll("[data-sheet-close]").forEach(button => button.addEventListener("click", () => { sheetOpen = false; render(); }));
   document.querySelector("[data-debug-open]")?.addEventListener("click", () => openDebug({ type: "debug", payload: {} }, "Debug Inspector"));
   document.querySelector("[data-gm-debug]")?.addEventListener("click", () => openDebug({ type: "debug_gm", payload: {} }, "Laughing Stranger Debug"));
+  document.querySelector("[data-stranger-tutorial-close]")?.addEventListener("click", () => { strangerTutorialOpen = false; render(); });
   document.querySelector("[data-character-debug]")?.addEventListener("click", () => {
     const character = state.characters.find(item => item.id === activeCharacter);
     openDebug({ type: "debug_character", payload: { characterId: activeCharacter } }, `${character?.name || activeCharacter} Debug`);
@@ -426,6 +432,7 @@ function bind() {
     run(async () => {
       const identity = await rpc("set_identity", { identity: selectedIdentity }); state = identity.state; saves = identity.saves;
       const result = await rpc("gm", { message: introductionHandoff(selectedIdentity) }); state = result.state; saves = result.saves;
+      strangerTutorialOpen = true;
     });
   });
   document.querySelectorAll("[data-reply-index]").forEach(button => button.addEventListener("click", () => {
