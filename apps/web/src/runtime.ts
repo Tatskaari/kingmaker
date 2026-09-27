@@ -179,19 +179,21 @@ const dialogueFormat = {
   },
 } as const;
 
-const askMyAideTool: OpenRouterTool = {
+const askGameMasterTool: OpenRouterTool = {
   type: "function",
   function: {
-    name: "ask_my_aide",
-    description: "Ask your aide to act when you believe your character can plausibly fulfil the user's request but the current game mechanics cannot simulate it. For example, investigate the house accounts to uncover a fact, locate your trade ledgers, or draft an agreement. The GM immediately judges the request, may update your state or inventory, or may refuse it. Wait for the returned summary and item descriptions, then respond in character using only that result.",
+    name: "ask_the_game_master",
+    description: "Privately consult the GM when responding requires a ruling about the world or your character. Ask whether you know something, whether an unestablished premise suggested by the player fits your character's history or knowledge, or whether you can plausibly fulfil a request beyond the simulated mechanics. For example: 'Would I know who keeps the royal accounts?' or 'Can my household investigate the house accounts and discover a discrepancy?' You can also request records or a drafted agreement. Use established context directly when it already answers the question. The GM may confirm, qualify or reject the premise, supply character-known information, or update your state or inventory. Wait for the ruling and item descriptions before replying in character. Keep the consultation private; retain your character's motives and choice about what to disclose or agree to.",
     parameters: {
-      type: "object", additionalProperties: false, required: ["task"],
-      properties: { task: { type: "string", minLength: 1, maxLength: 1000, description: "The specific work the aide should attempt, including the relevant subject, place, parties, or desired document." } },
+      type: "object", additionalProperties: false, required: ["request"],
+      properties: { request: { type: "string", minLength: 1, maxLength: 1000, description: "The question or proposed action for the GM, including what the player suggested and what needs a ruling. Ask whether an uncertain premise is true rather than assuming it." } },
     },
   },
 };
 
-const AIDE_REVIEW_INSTRUCTIONS = `You are the GM resolving ask_my_aide immediately during an ongoing conversation. Judge whether this character can plausibly accomplish the requested work beyond the simulated mechanics. Example: investigating their house accounts may reveal a plausible discrepancy and produce an account extract in their inventory. You decide what is discovered; a requested conclusion is not evidence. Respect existing facts, access, scarcity, secrets and agency.
+const GM_CONSULTATION_INSTRUCTIONS = `You are the GM resolving ask_the_game_master immediately during an ongoing conversation. Rule on the character's question or proposed action using the authoritative state and conversation. For knowledge questions, decide whether the character would know the answer or whether a premise the player suggested can plausibly be established. Confirm, qualify or reject it explicitly and return only what this character may know. A player's claim is not automatically true, and your omniscient context is not character knowledge. Preserve the character's motives and agency: knowing a fact does not force disclosure or agreement with the player.
+
+For actions beyond the simulated mechanics, judge what the character can plausibly accomplish. Example: investigating their house accounts may reveal a plausible discrepancy and produce an account extract in their inventory. You decide what is discovered; a requested conclusion is not evidence. Respect existing facts, access, scarcity, secrets and agency. A knowledge ruling need not create an item or a task.
 
 Lean towards progressing the story: give the player a thread they can pull. Prefer a concrete, useful discovery, partial answer, complication, or lead over "nothing useful was found." Even when the requested evidence is unavailable or the task must be refused, look for a plausible next step: a named person to question, a specific record to seek, a discrepancy to investigate, or an obstacle with a way forward. For example, house accounts might not prove theft, but an unexplained payment to a named supplier gives the player someone to investigate. Make the lead relevant to the request and actionable through the game's available interactions. Do not fabricate proof of the player's preferred conclusion, contradict established facts, bypass access restrictions, or reveal secrets the aide could not learn. If no discovery is justified, explain the concrete limitation and suggest a grounded avenue to pursue. Avoid empty non-answers, vague promises, and circular errands.
 
@@ -417,7 +419,7 @@ export class BrowserGameRuntime {
     const request = create(DialogueRequestSchema, { characterId, scenario, transcript: [...history, playerMessage] });
     const messages: OpenRouterMessage[] = new FullContextBuilder().build(request).map(item => ({ role: item.role, content: item.content }));
     if (hasDevelopmentPlayer(scenario)) messages.unshift({ role: "system", content: DEVELOPMENT_DIALOGUE_INSTRUCTIONS });
-    messages.unshift({ role: "system", content: askMyAideTool.function.description });
+    messages.unshift({ role: "system", content: askGameMasterTool.function.description });
     messages.unshift({ role: "system", content: dialogueEarshotPrompt(scenario, characterId, [characterId, scenario.playerCharacterId ?? "player"]) });
     messages.unshift({ role: "system", content: "You may choose to end this conversation. Set endConversation=true when you take your leave, refuse further discussion, or conclude the exchange to pursue your immediate task. Express that decision naturally in utterance and return replyOptions=[]. Do not end merely because you answered one question; use your own intentions, relationships and the exchange. Otherwise set endConversation=false. Ending triggers a separate memory and goal review; speech alone does not move you or complete physical tasks." });
     messages.unshift({ role: "system", content: "Return only a JSON object matching the supplied response schema, with no Markdown fences or surrounding prose." });
@@ -426,24 +428,24 @@ export class BrowserGameRuntime {
       try {
         for (let step = 0; step < 4; step++) {
           const completion = await this.#complete("dialogue", characterId, {
-            ...DIALOGUE_MODEL, messages, response_format: dialogueFormat, tools: [askMyAideTool], max_tokens: 900,
+            ...DIALOGUE_MODEL, messages, response_format: dialogueFormat, tools: [askGameMasterTool], max_tokens: 900,
           });
           if (!completion.tool_calls?.length) {
             parsed = parseModelObject(completion.content, "Court dialogue");
             break;
           }
-          if (completion.tool_calls.length !== 1 || completion.tool_calls[0]!.function.name !== "ask_my_aide") {
+          if (completion.tool_calls.length !== 1 || completion.tool_calls[0]!.function.name !== "ask_the_game_master") {
             throw new Error("Court dialogue used an invalid tool call");
           }
           const call = completion.tool_calls[0]!;
-          const args = parseModelObject(call.function.arguments, "Aide request");
-          const task = text(args.task, "task");
-          if (task.length > 1000) throw new Error("task must be at most 1000 characters");
-          const result = await this.#askMyAide(characterId, task, [...history, playerMessage]);
+          const args = parseModelObject(call.function.arguments, "GM consultation");
+          const question = text(args.request, "request");
+          if (question.length > 1000) throw new Error("request must be at most 1000 characters");
+          const result = await this.#askGameMaster(characterId, question, [...history, playerMessage]);
           messages.push(completion, { role: "tool", tool_call_id: call.id, name: call.function.name,
             content: JSON.stringify(result) });
         }
-        if (!parsed) throw new Error("Court dialogue used too many consecutive aide requests");
+        if (!parsed) throw new Error("Court dialogue used too many consecutive GM consultations");
         break;
       } catch (error) {
         const malformed = error instanceof InvalidModelJsonError;
@@ -464,7 +466,7 @@ export class BrowserGameRuntime {
     return utterance;
   }
 
-  async #askMyAide(characterId: string, task: string, transcript: TranscriptMessage[]) {
+  async #askGameMaster(characterId: string, request: string, transcript: TranscriptMessage[]) {
     // Stage GM changes on this dialogue's snapshot; the worker publishes the
     // complete turn through the existing generation-checked fork merge.
     const candidate = this.forkForNpc();
@@ -473,8 +475,8 @@ export class BrowserGameRuntime {
       kind: "conversation_review", participants: [characterId], eligibleListeners: [], playerCanHear: false, allowNextGoal: true,
     };
     const summary = await runResourceReview({ ...REASONING_MODEL, messages: [], max_tokens: 8000 }, [
-      { role: "system", content: AIDE_REVIEW_INSTRUCTIONS },
-      { role: "user", content: JSON.stringify({ characterId, task,
+      { role: "system", content: GM_CONSULTATION_INSTRUCTIONS },
+      { role: "user", content: JSON.stringify({ characterId, request,
         transcript: transcript.map(message => ({ speakerId: message.speakerId, text: message.text })) }) },
     ], {
       read: async resourceId => {
@@ -492,7 +494,7 @@ export class BrowserGameRuntime {
         }
       },
       finish: async () => {},
-      complete: input => this.#complete("aide_resolution", characterId, input),
+      complete: input => this.#complete("gm_consultation", characterId, input),
     });
     const addedItems = candidate.#game.scenario().world!.objects
       .filter(item => !originalItems.has(item.id) && item.locationId === characterId)
