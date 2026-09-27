@@ -61,7 +61,7 @@ export function redirectCourtPath(path: readonly Point[], progress: number, dest
 
 /** Mount inside the court screen; native buttons retain keyboard and touch access. */
 export async function mountCourtMap(root: HTMLElement, characters: readonly CourtCharacter[], player: CourtCharacter | null,
-  selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<void>, doors: DoorState[] = [], changeDoor?: (id: string, open: boolean) => Promise<DoorState[]>, rooms: readonly RoomAccess[] = [], fixtures: readonly MapFixture[] = [], fixtureChoices: readonly FixtureAction[] = [], interactFixture?: (actionId: string) => Promise<void>, pauseCharacter?: (id: string) => Promise<void>): Promise<void> {
+  selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<void>, doors: DoorState[] = [], changeDoor?: (id: string, open: boolean) => Promise<DoorState[]>, rooms: readonly RoomAccess[] = [], fixtures: readonly MapFixture[] = [], fixtureChoices: readonly FixtureAction[] = [], interactFixture?: (actionId: string) => Promise<void>, pauseCharacter?: (id: string) => Promise<void>, debugCharacter?: (id: string) => Promise<void>): Promise<void> {
   const viewport = document.createElement("div"); viewport.className = "court-map-scroll";
   const stage = document.createElement("div"); stage.className = "court-map-stage";
   stage.style.aspectRatio = `${palaceMap.width} / ${palaceMap.height}`;
@@ -107,7 +107,10 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       const point = marker.id === player?.id ? visualPosition ?? marker.point : marker.point;
       if (!point) continue;
       layers.push({ id: marker.id, position: { x: Math.round(point.x), y: Math.round(point.y) }, order: 30,
-        actions: marker.id === player?.id ? [] : [{ id: `talk_${marker.id}`, label: `Talk to ${marker.name}`, type: "talk", target: marker.id, order: 10, legality: "normal" }] });
+        actions: marker.id === player?.id ? [] : [
+          { id: `talk_${marker.id}`, label: `Talk to ${marker.name}`, type: "talk", target: marker.id, order: 10, legality: "normal" },
+          ...(debugCharacter ? [{ id: `debug_${marker.id}`, label: `Debug character: ${marker.name}`, type: "debug" as const, target: marker.id, order: 11, legality: "normal" as const }] : []),
+        ] });
     }
     menu.replaceChildren();
     const title = document.createElement("p"); title.className = "court-menu-title"; title.textContent = "Actions"; menu.append(title);
@@ -116,10 +119,11 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       const button = document.createElement("button"); button.type = "button";
       button.className = `court-menu-action court-action-${action.legality}`;
       button.textContent = action.label + (action.legality === "illegal" ? " · Illegal" : "");
-      button.disabled = !movePlayer || !visualPosition || (moving && !redirect);
+      button.disabled = action.type !== "debug" && (!movePlayer || !visualPosition || (moving && !redirect));
       button.addEventListener("click", async () => {
         closeMenu();
-        if (action.type === "walk") void walkTo(tile);
+        if (action.type === "debug") await debugCharacter?.(action.target);
+        else if (action.type === "walk") void walkTo(tile);
         else if (action.type === "door") {
           const door = doors.find(door => door.id === action.target);
           const spot = door && visualPosition && nearestDoorSpot({ x: Math.round(visualPosition.x), y: Math.round(visualPosition.y) }, door, doors, fixtures);

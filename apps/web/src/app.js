@@ -248,7 +248,10 @@ function renderDay(bindPage = true) {
   }, state.roomAccess, state.fixtures, state.fixtureActions, async actionId => {
     const result = await rpc("interact_fixture", { actionId });
     state = result.state; saves = result.saves; notice = result.message; render();
-  }, async id => { await rpc("pause_npc", { characterId: id }); }).then(() => updateCourtMap(mapRoot, state)).catch(() => {
+  }, async id => { await rpc("pause_npc", { characterId: id }); }, async id => {
+    const character = state.characters.find(item => item.id === id);
+    await openDebug({ type: "debug_character", payload: { characterId: id } }, `${character?.name || id} Debug`);
+  }).then(() => updateCourtMap(mapRoot, state)).catch(() => {
     if (!mapRoot.isConnected) return;
     const message = document.createElement("p"); message.className = "status error";
     message.textContent = "The palace artwork could not load. You can still select a character by name."; mapRoot.append(message);
