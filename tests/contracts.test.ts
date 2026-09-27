@@ -1040,6 +1040,42 @@ test("illegal item taking is handed to the GM only when an NPC is within earshot
   assert.equal(requests.length, 2, "No additional GM request is made without an eligible listener");
 });
 
+test("NPC theft uses the same witnessed-action GM review as player theft", async t => {
+  const requests: ChatCompletionRequest[] = [];
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: ChatCompletionRequest) => {
+    requests.push(request);
+    if (requests.length === 1) return { role: "assistant", content: null, tool_calls: [{
+      id: "npc-witness", type: "function", function: { name: "record_witnessed", arguments: JSON.stringify({
+        characterId: "garran", summary: "I saw Corvin take the royal lockbox key from the king's drawers.", reactionGoal: "Question Corvin about the key.",
+      }) },
+    }] };
+    return modelReply({ reviewed: true });
+  });
+
+  const scenario = furnishedCourt();
+  for (const actor of scenario.world!.actors) actor.position = create(TilePositionSchema, { x: 30, y: 30 });
+  scenario.world!.actors.find(actor => actor.characterId === "corvin")!.position = create(TilePositionSchema, { x: 6, y: 5 });
+  scenario.world!.actors.find(actor => actor.characterId === "garran")!.position = create(TilePositionSchema, { x: 7, y: 5 });
+  const drawers = scenario.world!.fixtures.find(fixture => fixture.id === "palace_corvin_drawers")!;
+  drawers.open = true; drawers.ownerCharacterId = "king";
+  const runtime = new BrowserGameRuntime(scenario, "test"), active = runtime.snapshot();
+  const goal = scenario.characters.find(character => character.id === "corvin")!.currentGoal;
+  active.npcActivities = { corvin: { status: "active", goal, history: [] } };
+  runtime.restore(active);
+
+  const result = runtime.stepNpcAction("corvin", "take_palace_royal_key", goal);
+  assert.equal(result.done, true);
+  assert.equal(result.witnessedAction?.actorId, "corvin");
+  await runtime.reviewWitnessedIllegalAction(result.witnessedAction!);
+
+  const action = requests[0]!.messages.filter(message => message.role === "user").map(message => JSON.parse(message.content!))
+    .find(value => value?.action === "theft");
+  assert.equal(action.actorId, "corvin");
+  const saved = runtime.snapshot(), event = fromJson(ScenarioSchema, saved.scenario).events.find(candidate => candidate.type === "witnessed")!;
+  assert.deepEqual(event.characterIds, ["garran"]);
+  assert.equal(saved.npcActivities?.garran?.goal, "Question Corvin about the key.");
+});
+
 test("trying locked containers needs the correct carried key and preserves concealed loot", () => {
   const scenario = furnishedCourt();
   for (const door of scenario.world!.doors) door.open = true;

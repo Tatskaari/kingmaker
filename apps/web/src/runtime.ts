@@ -39,6 +39,13 @@ export interface NpcActivity {
   reviewPending?: boolean;
 }
 
+export interface WitnessedIllegalAction {
+  actorId: string;
+  action: "theft";
+  item: { id: string; name: string } | null;
+  fixture: { id: string; name: string; ownerCharacterId: string } | null;
+}
+
 export interface RuntimeSnapshot {
   travellerIdentity?: TravellerIdentity;
   npcActivities?: Record<string, NpcActivity>;
@@ -363,7 +370,7 @@ export class BrowserGameRuntime {
     const cancelled = new Map<string, string>();
     const earshotContext: OpenRouterMessage[] = [];
     let eligibleListeners: string[] = [];
-    if (kind === "conversation_review" || kind === "npc_resolution" || kind === "player_action") {
+    if (kind === "conversation_review" || kind === "npc_resolution" || kind === "illegal_action") {
       const characters = scenario.characters.map(character => ({
         id: character.id, name: character.name,
         position: scenario.world?.actors.find(actor => actor.characterId === character.id)?.position,
@@ -374,8 +381,8 @@ export class BrowserGameRuntime {
       const playerHearing = listeners.find(character => character.id === scenario.playerCharacterId);
       earshotContext.push(
         { role: "system", content: "Use message_player for a meaningful observation the player can perceive. In NPC-to-NPC exchanges, playerHearing indicates what they can overhear; null means out of earshot or unknown position, so do not send an overheard message. Clear permits spoken details, Moderate only scattered words and partial meaning, Distant only names and places without details. Phrase uncertainty naturally. For player conversations, the player is a participant; avoid repeating their own transcript. Messages are optional, not required for every exchange." },
-        { role: "system", content: kind === "player_action"
-          ? "The player performed an illegal physical action within the supplied NPCs' earshot range. Earshot eligibility requires both proximity and a walkable path through current doors; closed doors can block detection. Assess which eligible NPCs would notice based on the supplied action and their context. Use record_witnessed for each NPC who notices, recording only the observable action and not private intent. A concrete reactionGoal is optional. Do not use record_overheard for this physical action, and do not notify NPCs outside the supplied list."
+        { role: "system", content: kind === "illegal_action"
+          ? "A character performed an illegal physical action within the supplied characters' earshot range. Earshot eligibility requires both proximity and a walkable path through current doors; closed doors can block detection. Assess which eligible NPCs would notice based on the supplied action and their context. Use record_witnessed for each NPC who notices, recording only the observable action and not private intent. A concrete reactionGoal is optional. If the player could perceive an NPC's action, message_player may describe only what the player can observe at the supplied playerHearing level. Do not use record_overheard for this physical action, and do not notify characters outside the supplied hearing data."
           : "Earshot requires both proximity and a walkable path through the current doors. Closed doors can block hearing. Use only the supplied eligible listeners; noise and alertness are not modelled. Before finalizing, assess each nearby NPC for overhearing. When spoken dialogue concerns internal affairs, secret plans, succession plots, covert bargains, betrayals or accusations, normally use record_overheard to leave interested listeners a hint that something is going on. Clear listeners can hear spoken details; Moderate listeners get fragments and partial meaning; Distant listeners catch names and places only, without inventing the plan. Private intent and unspoken context cannot be overheard. Treat accusations and repeated gossip as claims, not established facts. Choose a concrete reactionGoal when a listener's motives warrant investigating or sharing the fragment with an existing NPC; otherwise use null. Rumours spread through actual later conversations, never by granting everyone knowledge at once. Avoid repetitive gossip loops or tasks to repeat information someone already knows. Do not use message_player to reveal an NPC's private suspicion unless the player perceives an actual reaction." },
         { role: "user", content: JSON.stringify({ earshot: {
           referenceCharacterId: characterId, distanceMetric: "Manhattan tile distance", maximumDistance: EARSHOT_DISTANCE,
@@ -384,7 +391,7 @@ export class BrowserGameRuntime {
           listenerContext: scenario.characters.filter(character => eligibleListeners.includes(character.id)).map(character => ({
             character, knownEvents: scenario.events.filter(event => event.visibility === EventVisibility.PUBLIC || event.characterIds.includes(character.id)).slice(-20),
           })),
-          playerIsParticipant: kind === "conversation_review" || kind === "player_action",
+          playerIsParticipant: kind === "conversation_review" || participants.includes(scenario.playerCharacterId ?? ""),
           playerHearing: playerHearing ? { distance: playerHearing.distance, level: playerHearing.level } : null,
           nearbyNpcs: listeners.filter(character => eligibleListeners.includes(character.id))
             .map(({ id, name, distance, level }) => ({ characterId: id, name, distance, level })),
@@ -549,7 +556,7 @@ export class BrowserGameRuntime {
     }
     const newEvents = next.events.slice(base.events.length);
     current.events.push(...newEvents);
-    for (const event of newEvents.filter(event => event.type === "overheard")) {
+    for (const event of newEvents.filter(event => ["overheard", "witnessed"].includes(event.type))) {
       const id = event.characterIds[0]!;
       const goal = event.details?.reactionGoal;
       const activity = this.#npcActivities[id];
@@ -567,15 +574,16 @@ export class BrowserGameRuntime {
   }
 
   /** Advance at most one tile, validating the current path on every tick. */
-  stepNpcAction(characterId: string, actionId: string, goal: string): { done: boolean; talkTarget?: string } {
+  stepNpcAction(characterId: string, actionId: string, goal: string): { done: boolean; talkTarget?: string; witnessedAction?: WitnessedIllegalAction } {
     const scenario = this.#game.scenario(), activity = this.#npcActivities[characterId];
     if (activity?.status !== "active" || activity.reviewPending || this.#conversations.get(characterId)?.length) throw new Error("NPC paused for conversation.");
     const observation = courtAgentObservation(scenario, characterId);
     const action = observation.actions.find(item => item.id === actionId);
     if (observation.goal !== goal || !action) throw new Error("Action changed; replan.");
     if (action.path.length <= 2 && action.type !== "talk") {
+      const witnessedAction = action.type === "fixture" ? this.#witnessedIllegalAction(scenario, characterId, action.id) : undefined;
       this.executeNpcAction(characterId, actionId, observation.revision, goal);
-      return { done: true };
+      return { done: true, ...(witnessedAction ? { witnessedAction } : {}) };
     }
     const next = action.path[1];
     if (next) {
@@ -800,44 +808,52 @@ export class BrowserGameRuntime {
     return result;
   }
 
-  async interactFixtureWithWitnesses(actionId: string): Promise<string> {
-    const before = this.#game.scenario();
-    const actorId = before.playerCharacterId!;
-    const action = fixtureActions(before, actorId).find(item => item.id === actionId);
-    const item = before.world?.objects.find(candidate => candidate.id === action?.itemId);
-    const fixture = before.world?.fixtures.find(candidate => candidate.id === action?.target);
-    const result = this.interactFixture(actionId);
-    if (action?.verb !== "take" || action.legality !== "illegal") return result;
+  #witnessedIllegalAction(scenario: Scenario, actorId: string, actionId: string): WitnessedIllegalAction | undefined {
+    const action = fixtureActions(scenario, actorId).find(item => item.id === actionId);
+    if (action?.verb !== "take" || action.legality !== "illegal") return undefined;
+    const item = scenario.world?.objects.find(candidate => candidate.id === action.itemId);
+    const fixture = scenario.world?.fixtures.find(candidate => candidate.id === action.target);
+    return { actorId, action: "theft", item: item ? { id: item.id, name: item.name } : null,
+      fixture: fixture ? { id: fixture.id, name: fixture.name, ownerCharacterId: fixture.ownerCharacterId } : null };
+  }
 
-    const scenario = this.#game.scenario();
-    const characters = scenario.characters.map(character => ({ id: character.id, name: character.name,
-      position: scenario.world?.actors.find(actor => actor.characterId === character.id)?.position }));
-    const player = characters.find(character => character.id === actorId);
-    const listeners = player ? courtCharactersWithinEarshot(player, characters.filter(character => character.id !== actorId), scenario.world?.doors, scenario.world?.fixtures) : [];
-    if (!listeners.length) return result;
+  async reviewWitnessedIllegalAction(observation: WitnessedIllegalAction, signal?: AbortSignal): Promise<void> {
+    const before = this.#game.scenario(), actorId = observation.actorId;
+    const characters = before.characters.map(character => ({ id: character.id, name: character.name,
+      position: before.world?.actors.find(actor => actor.characterId === character.id)?.position }));
+    const actor = characters.find(character => character.id === actorId);
+    const listeners = actor ? courtCharactersWithinEarshot(actor, characters.filter(character => character.id !== actorId), before.world?.doors, before.world?.fixtures) : [];
+    if (!listeners.length) return;
 
-    await this.#reconcile("player_action", actorId, scenario, [actorId], {
+    await this.#reconcile("illegal_action", actorId, before, [actorId], {
       ...REASONING_MODEL, max_tokens: 4000,
-      response_format: { type: "json_schema", json_schema: { name: "player_action_review", strict: true, schema: {
+      response_format: { type: "json_schema", json_schema: { name: "illegal_action_review", strict: true, schema: {
         type: "object", additionalProperties: false, required: ["reviewed"], properties: { reviewed: { type: "boolean" } },
       } } },
       messages: [{ role: "system", content: "Review the witnessed illegal action using the supplied GM tools, then return {\"reviewed\":true}." },
-        { role: "user", content: JSON.stringify({ action: "theft", actorId, item: item ? { id: item.id, name: item.name } : null,
-          fixture: fixture ? { id: fixture.id, name: fixture.name, ownerCharacterId: fixture.ownerCharacterId } : null }) }],
-    });
-    const previousEvents = new Set(before.events.map(event => event.id));
-    for (const event of scenario.events.filter(event => event.type === "witnessed" && !previousEvents.has(event.id))) {
+        { role: "user", content: JSON.stringify(observation) }],
+    }, signal);
+    const previousEvents = new Set(this.#game.scenario().events.map(event => event.id));
+    for (const event of before.events.filter(event => event.type === "witnessed" && !previousEvents.has(event.id))) {
       const id = event.characterIds[0]!, goal = event.details?.reactionGoal;
       const activity = this.#npcActivities[id];
       if (typeof goal !== "string" || !goal || activity?.status === "active" || activity?.reviewPending || this.#conversations.get(id)?.length) continue;
-      const character = scenario.characters.find(candidate => candidate.id === id);
+      const character = before.characters.find(candidate => candidate.id === id);
       if (!character) continue;
       character.currentGoal = goal;
-      const actor = scenario.world?.actors.find(candidate => candidate.characterId === id);
-      if (actor) actor.awake = true;
+      const witness = before.world?.actors.find(candidate => candidate.characterId === id);
+      if (witness) witness.awake = true;
       this.#npcActivities[id] = { status: "active", goal, history: [] };
     }
-    this.#game = new MemoryGame(scenario);
+    this.#game = new MemoryGame(before);
+  }
+
+  async interactFixtureWithWitnesses(actionId: string): Promise<string> {
+    const before = this.#game.scenario();
+    const actorId = before.playerCharacterId!;
+    const witnessedAction = this.#witnessedIllegalAction(before, actorId, actionId);
+    const result = this.interactFixture(actionId);
+    if (witnessedAction) await this.reviewWitnessedIllegalAction(witnessedAction);
     return result;
   }
 

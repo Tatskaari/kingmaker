@@ -4,7 +4,7 @@ import { type TravellerIdentity } from "./introduction.js";
 
 import { fromJsonString, type JsonValue } from "@bufbuild/protobuf";
 import { ScenarioSchema, type Scenario } from "../../../packages/contracts/src/index.js";
-import { BrowserGameRuntime, type RuntimeSnapshot } from "./runtime.js";
+import { BrowserGameRuntime, type RuntimeSnapshot, type WitnessedIllegalAction } from "./runtime.js";
 
 interface SaveRecord {
   id: string;
@@ -99,7 +99,7 @@ async function drainBackground() {
           reason = plan.decision.choice; detail = JSON.stringify(plan.decision); break;
         }
         if (!plan.action) throw new Error("Jev returned an unavailable action.");
-        let result: { done: boolean; talkTarget?: string } | undefined;
+        let result: { done: boolean; talkTarget?: string; witnessedAction?: WitnessedIllegalAction } | undefined;
         try {
           while (valid()) {
             result = await commitMutation(game, () => { signal.throwIfAborted(); return game.stepNpcAction(id, plan.action!.id, plan.goal); });
@@ -115,6 +115,13 @@ async function drainBackground() {
           throw error;
         }
         if (!valid()) return;
+        if (result?.witnessedAction) {
+          const before = game.snapshot(), fork = game.forkForNpc();
+          await fork.reviewWitnessedIllegalAction(result.witnessedAction, signal);
+          if (!valid()) return;
+          await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, []); });
+          if (handoffs > 0) for (const listener of game.rumourListenersSince(before)) startBackground(listener, handoffs - 1);
+        }
         if (result?.talkTarget) {
           const target = result.talkTarget;
           if (conversationHolds.has(target)) continue;
