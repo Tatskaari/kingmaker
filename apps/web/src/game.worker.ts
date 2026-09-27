@@ -66,17 +66,20 @@ async function commitMutation<T>(game: BrowserGameRuntime, work: () => T): Promi
 }
 async function reviewBackground(game: BrowserGameRuntime, id: string, signal: AbortSignal, allowNextGoal: boolean) {
   signal.throwIfAborted();
-  const before = game.snapshot(), fork = game.forkForNpc();
+  const fork = reviewFork(game, signal);
   await fork.reviewNpcOutcome(id, allowNextGoal, signal);
-  await publishReview(game, before, fork, signal);
 }
-async function publishReview(game: BrowserGameRuntime, before: RuntimeSnapshot, fork: BrowserGameRuntime, signal?: AbortSignal) {
+function reviewFork(game: BrowserGameRuntime, signal?: AbortSignal) {
   const version = generation;
-  await game.publishReviewedFork(before, fork, (base, candidate, ids, expected) => commitMutation(game, () => {
+  return game.forkForResourceReview(work => commitMutation(game, () => {
     signal?.throwIfAborted();
     if (generation !== version) throw new Error("Game changed.");
-    game.commitCharacterFork(base, candidate, ids, expected);
-  }), signal);
+    return work();
+  }), work => enqueue(async () => {
+    signal?.throwIfAborted();
+    if (runtime !== game || generation !== version) throw new Error("Game changed.");
+    return work();
+  }));
 }
 function startBackground(id: string, handoffs = 3) {
   if (conversationHolds.has(id) || background.has(id) || pendingNpcs.some(item => item.id === id)) return;
@@ -140,10 +143,9 @@ async function runBackground(next: { id: string; handoffs: number }) {
         }
         if (!valid()) return;
         if (result?.witnessedAction) {
-          const before = game.snapshot(), fork = game.forkForNpc();
+          const before = game.snapshot(), fork = reviewFork(game, signal);
           await fork.reviewWitnessedIllegalAction(result.witnessedAction, signal);
           if (!valid()) return;
-          await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, []); });
           if (handoffs > 0) for (const listener of game.rumourListenersSince(before)) startBackground(listener, handoffs - 1);
         }
         if (result?.talkTarget) {
@@ -159,7 +161,7 @@ async function runBackground(next: { id: string; handoffs: number }) {
           let before: RuntimeSnapshot;
           try {
             before = game.snapshot();
-            const fork = game.forkForNpc();
+            const fork = reviewFork(game, signal);
             if (target === (game.view().player as { id?: string } | null)?.id) {
               if (conversationHolds.size) continue;
               await fork.initiatePlayerConversation(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
@@ -172,7 +174,6 @@ async function runBackground(next: { id: string; handoffs: number }) {
               return;
             }
             await fork.executeNpcTalk(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
-            await publishReview(game, before, fork, signal);
           } finally {
             job.participants = [id];
             if (valid() && interrupted) startBackground(target, handoffs);
@@ -384,11 +385,10 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
       const game = requireRuntime(), id = String(payload.characterId || "");
       conversationHolds.add(id); stopBackground(id);
       const version = generation;
-      const { before, fork } = await enqueue(async () => ({ before: game.snapshot(), fork: game.forkForNpc() }));
+      const { before, fork } = await enqueue(async () => ({ before: game.snapshot(), fork: type === "end_conversation" ? reviewFork(game) : game.forkForNpc() }));
       const reply = type === "talk" ? await fork.talkToCharacter(id, String(payload.message || "")) : await fork.endConversation(id);
       if (generation !== version || runtime !== game) throw new Error("Game changed.");
-      if (type === "end_conversation" && before.conversations[id]?.length) await publishReview(game, before, fork);
-      else await commitMutation(game, () => {
+      if (type === "talk") await commitMutation(game, () => {
           if (generation !== version) throw new Error("Game changed.");
           game.commitCharacterFork(before, fork, [id]);
         });

@@ -3,7 +3,7 @@ import { GenerationConflict, GenerationStore, generationIds, type Generations, t
 import { stateResources } from "./state-resources.js";
 import { applyCharacterReview, type CharacterReview, type ReviewKind } from "./character-review.js";
 import { reviewWriteTools } from "./review-tools.js";
-import { resourceState, type ResourceReviewContext } from "./resource-review.js";
+import { resourceState, runResourceReview, type ResourceReviewContext } from "./resource-review.js";
 import { InvalidModelJsonError, parseModelObject } from "../../../packages/providers/src/structured-output.js";
 import { validateIdentity, type TravellerIdentity } from "./introduction.js";
 import { DIALOGUE_MODEL, REASONING_MODEL } from "./model-settings.js";
@@ -207,6 +207,7 @@ function text(value: unknown, field: string): string {
 }
 
 export class BrowserGameRuntime {
+  #liveReview: { host: BrowserGameRuntime; commit: <T>(work: () => T) => Promise<T>; read: <T>(work: () => T) => Promise<T> } | undefined;
   #generations = new GenerationStore();
   #lastReview: CharacterReview | undefined;
   #reviewRequest: ChatCompletionRequest | undefined;
@@ -414,12 +415,13 @@ export class BrowserGameRuntime {
     return utterance;
   }
 
-  async #reconcile(kind: ReviewKind, characterId: string, scenario: Scenario, participants: string[], request: ChatCompletionRequest, signal?: AbortSignal) {
+  async #reconcile(kind: ReviewKind, characterId: string, scenario: Scenario, participants: string[], request: ChatCompletionRequest, signal?: AbortSignal, allowNextGoal = true) {
     const review: CharacterReview = { kind, participants, output: {}, worldChanges: [], eligibleListeners: [], allowNextGoal: true };
     this.#lastReview = review;
     const cancelled = new Map<string, string>();
     const earshotContext: OpenRouterMessage[] = [];
     let eligibleListeners: string[] = [];
+    let playerCanHear = kind === "conversation_review";
     if (kind === "conversation_review" || kind === "npc_resolution" || kind === "illegal_action") {
       const characters = scenario.characters.map(character => ({
         id: character.id, name: character.name,
@@ -429,6 +431,7 @@ export class BrowserGameRuntime {
       const listeners = courtCharactersWithinEarshot(speaker, characters, scenario.world?.doors, scenario.world?.fixtures);
       eligibleListeners = listeners.filter(character => character.id !== scenario.playerCharacterId && !participants.includes(character.id)).map(character => character.id);
       const playerHearing = listeners.find(character => character.id === scenario.playerCharacterId);
+      playerCanHear ||= !!playerHearing;
       earshotContext.push(
         { role: "system", content: "Use message_player for a meaningful observation the player can perceive. In NPC-to-NPC exchanges, playerHearing indicates what they can overhear; null means out of earshot or unknown position, so do not send an overheard message. Clear permits spoken details, Moderate only scattered words and partial meaning, Distant only names and places without details. Phrase uncertainty naturally. For player conversations, the player is a participant; avoid repeating their own transcript. Messages are optional, not required for every exchange." },
         { role: "system", content: kind === "illegal_action"
@@ -447,6 +450,47 @@ export class BrowserGameRuntime {
             .map(({ id, name, distance, level }) => ({ characterId: id, name, distance, level })),
         } }) },
       );
+    }
+    if (this.#liveReview) {
+      const { host, commit, read } = this.#liveReview;
+      const context: ResourceReviewContext = { kind, participants, eligibleListeners, playerCanHear, allowNextGoal };
+      const conversations = this.snapshot().conversations;
+      const evidence: OpenRouterMessage[] = [
+        { role: "system", content: "You are the GM, not a participant. Preserve character agency and private knowledge. Promises are not completed actions. Assign only feasible tasks using walking, doors, containers, inspecting/taking items and talking. No general combat, crafting, trade or item-transfer engine exists. Cancel dead ends by explicitly setting current_goal:null. Use update_inventory for justified missing props, never invented proof or duplicate rewards." },
+        { role: "user", content: JSON.stringify({ event_type: kind, participants, allowNextGoal }) },
+        ...earshotContext,
+        ...(hasDevelopmentPlayer(scenario) && kind === "conversation_review" ? [{ role: "system" as const, content: "This transcript is with the development envoy. Honor direct testing requests by setting current_goal to the requested feasible task. Record it as intended work, not an action already completed." }] : []),
+        ...request.messages.filter(message => message.role === "user"),
+      ];
+      const summary = await runResourceReview(request, evidence, {
+        read: resourceId => read(() => {
+          signal?.throwIfAborted();
+          const states = host.readResources(resourceId ? [resourceId] : undefined);
+          return resourceId ? resourceState(resourceId, states[resourceId]!)
+            : Object.fromEntries(Object.entries(states).map(([key, value]) => [key, resourceState(key, value)]));
+        }),
+        write: (name, args) => commit(() => {
+          signal?.throwIfAborted();
+          try { return host.applyResourceReviewWrite(name, args, context); }
+          catch (error) { return { commit_result: "error", reason: error instanceof Error ? error.message : String(error),
+            instruction: "Nothing was written by this call. Correct the arguments. Earlier successful calls remain saved." }; }
+        }),
+        finish: () => commit(() => {
+          signal?.throwIfAborted();
+          if (kind === "conversation_review") for (const id of participants) {
+            if (JSON.stringify(host.snapshot().conversations[id]) !== JSON.stringify(conversations[id])) throw new Error("Conversation changed; do not clear the newer transcript.");
+            host.#conversations.delete(id);
+            delete host.#conversationReplyOptions[id]; delete host.#conversationEndRequested[id];
+          }
+          if (kind === "outcome_review") for (const id of participants) {
+            const activity = host.#npcActivities[id];
+            if (activity) activity.reviewPending = false;
+          }
+          host.readResources();
+        }),
+        complete: input => this.#complete(kind, characterId, input, signal),
+      }, signal);
+      return { role: "assistant" as const, content: summary };
     }
     const messages: OpenRouterMessage[] = [...request.messages.slice(0, -1),
       { role: "system", content: RECONCILIATION_INSTRUCTIONS },
@@ -510,7 +554,7 @@ export class BrowserGameRuntime {
         { role: "user", content: JSON.stringify(transcript.map(message => ({ speakerId: message.speakerId, text: message.text }))) },
       ],
     });
-    this.#applyReview(scenario);
+    if (!this.#liveReview) this.#applyReview(scenario);
   }
 
   #applyReview(scenario: Scenario) {
@@ -575,6 +619,13 @@ export class BrowserGameRuntime {
   forkForNpc(): BrowserGameRuntime {
     const fork = new BrowserGameRuntime(this.#initialScenario, "", this.snapshot());
     fork.#client = this.#client; fork.#jev = this.#jev; fork.#modelTranscripts = this.#modelTranscripts;
+    return fork;
+  }
+
+  /** Snapshot conversation evidence, but route each review write to the live game. */
+  forkForResourceReview(commit: <T>(work: () => T) => Promise<T>, read = commit): BrowserGameRuntime {
+    const fork = this.forkForNpc();
+    fork.#liveReview = { host: this, commit, read };
     return fork;
   }
 
@@ -890,7 +941,7 @@ export class BrowserGameRuntime {
     valid();
     const proposal = parseModelObject(request.content, "NPC dialogue");
     text(proposal?.request, "request"); text(proposal?.intent, "intent");
-    await this.#reconcile("npc_resolution", characterId, scenario, [characterId, action.target], {
+    const resolution = await this.#reconcile("npc_resolution", characterId, scenario, [characterId, action.target], {
       ...REASONING_MODEL, max_tokens: 12000,
       response_format: { type: "json_schema", json_schema: { name: "npc_resolution", strict: true, schema: {
         type: "object", additionalProperties: false, required: ["summary", "initiator", "recipient"],
@@ -902,7 +953,7 @@ export class BrowserGameRuntime {
           surroundings: courtAgentObservation(scenario, characterId).world }) }],
     }, signal);
     valid();
-    return text(this.#applyReview(scenario), "summary");
+    return text(this.#liveReview ? resolution.content : this.#applyReview(scenario), "summary");
   }
 
   async initiatePlayerConversation(characterId: string, actionId: string, revision: number, goal: string, signal: AbortSignal): Promise<string> {
@@ -964,8 +1015,9 @@ export class BrowserGameRuntime {
       messages: [{ role: "user", content: JSON.stringify({ participantContext: context }) },
         { role: "system", content: "As GM, review this character after their action planner has finished. Review its result, actions performed, and current observations. Save warranted memories, relationship changes, and biography changes. Set goalUpdate to the next concrete task if there is more to do, or null if there is none. Base this on what actually happened, not just the planner's completion judgment. Use GM tools for justified additions or to cancel dead ends; do not restart a failed task without a concrete change that makes progress possible. Return newEvents, goalUpdate, relationships, and lore (null when unchanged)." },
         { role: "user", content: JSON.stringify({ goal: activity.goal, actionsPerformed: activity.history, result: activity.result, observations: courtAgentObservation(scenario, characterId).world }) }],
-    }, signal);
+    }, signal, allowNextGoal);
     signal?.throwIfAborted();
+    if (this.#liveReview) return;
     this.#lastReview!.allowNextGoal = allowNextGoal;
     this.#applyReview(scenario);
   }
@@ -1058,6 +1110,7 @@ export class BrowserGameRuntime {
       messages: [{ role: "system", content: "Review the witnessed illegal action using the supplied GM tools, then return {\"reviewed\":true}." },
         { role: "user", content: JSON.stringify(observation) }],
     }, signal);
+    if (this.#liveReview) return;
     const previousEvents = new Set(this.#game.scenario().events.map(event => event.id));
     for (const event of before.events.filter(event => event.type === "witnessed" && !previousEvents.has(event.id))) {
       const id = event.characterIds[0]!, goal = event.details?.reactionGoal;

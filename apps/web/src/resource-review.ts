@@ -1,4 +1,5 @@
-import type { OpenRouterTool } from "../../../packages/providers/src/openrouter.js";
+import type { OpenRouterTool, OpenRouterMessage, ChatCompletionRequest } from "../../../packages/providers/src/openrouter.js";
+import { parseModelObject } from "../../../packages/providers/src/structured-output.js";
 import type { VersionedState } from "../../../packages/core/src/generations.js";
 import { reconciliationTools } from "./gm-reconciliation.js";
 import type { ReviewKind } from "./character-review.js";
@@ -24,36 +25,89 @@ export const RESOURCE_REVIEW_INSTRUCTIONS = [
 ].join("\n");
 
 const string = { type: "string" };
+const generationId = { type: "string", description: "Copy generation_id from this resource in world_state, read_state.new_state, or the last successful write's new_state. Never invent an ID or reuse one after writing." };
+const writeHelp = " Returns {commit_result:'success',new_state:{resource_id,generation_id,data}}. On {commit_result:'error',reason:'Generation ID out of date',new_state:...}, nothing was written by this call: read the returned data, reconcile, and explicitly re-call with its generation_id. Earlier successful calls remain saved. No other resource IDs are required.";
 function tool(name: string, description: string, properties: Record<string, unknown>): OpenRouterTool {
-  return { type: "function", function: { name, description, parameters: {
+  return { type: "function", function: { name, description: description + ("generation_id" in properties ? writeHelp : ""), parameters: {
     type: "object", additionalProperties: false, required: Object.keys(properties), properties,
   } } };
 }
 
 export function resourceReviewTools(): OpenRouterTool[] {
   const observations = reconciliationTools.filter(t => ["record_overheard", "record_witnessed", "message_player"].includes(t.function.name))
-    .map(t => ({ ...t, function: { ...t.function, description: t.function.description + " Provide the current character resource generation_id (player for message_player). This writes immediately.",
+    .map(t => ({ ...t, function: { ...t.function, description: t.function.description + " Copy generation_id from character:<characterId> (character:player for message_player). Writes immediately. Eligibility/hearing comes from the reviewed event's supplied evidence; do not pass door or position IDs." + writeHelp,
       parameters: { ...t.function.parameters, required: [...t.function.parameters.required as string[], "generation_id"],
-        properties: { ...t.function.parameters.properties as object, generation_id: string } },
+        properties: { ...t.function.parameters.properties as object, generation_id: generationId } },
     } }));
   return [
-    tool("read_state", "Read one current resource, including its generation_id and data.", { resource_id: string }),
-    tool("update_character", "Patch one participant. Omitted fields stay unchanged. append_events adds private memories; relationships upserts the named relationships only. lore replaces the biography only when supplied. current_goal sets a task; null explicitly clears it. Only this character's generation ID is required.", {
-      character_id: string, generation_id: string, changes: {
+    tool("read_state", "Read one current resource. Returns {new_state:{resource_id,generation_id,data}}; nonexistent resources have data:null. Does not write anything. Example: {resource_id:'character:rowan'}.", { resource_id: { ...string, description: "Exact resource key from world_state, e.g. character:rowan or inventory:rowan." } }),
+    tool("update_character", "Patch one participant using the generation_id from character:<character_id>. Omitted fields stay unchanged. append_events adds private memories; relationships upserts the named relationships only. lore replaces the biography only when supplied. current_goal sets a task; null explicitly clears it. Example: {character_id:'rowan',generation_id:'<ID from character:rowan>',changes:{append_events:[{type:'memory',summary:'Oswin declined the invitation.'}],current_goal:'Speak to Elinor.'}}.", {
+      character_id: { ...string, description: "One NPC from the supplied participants list." }, generation_id: generationId, changes: {
         type: "object", additionalProperties: false, minProperties: 1, properties: {
-          append_events: { type: "array", items: { type: "object", additionalProperties: false, required: ["type", "summary"], properties: { type: string, summary: string } } },
-          relationships: { type: "array", items: { type: "object", additionalProperties: false, required: ["character_id", "description"], properties: { character_id: string, description: string } } },
-          lore: string, current_goal: { type: ["string", "null"] },
+          append_events: { type: "array", description: "Append only new private memories from this NPC's perspective. Never replace history. Omit or [] adds nothing.", items: { type: "object", additionalProperties: false, required: ["type", "summary"], properties: { type: string, summary: string } } },
+          relationships: { type: "array", description: "Replace/add only these relationships, keyed by the other character_id. Unlisted relationships remain intact; [] removes nothing.", items: { type: "object", additionalProperties: false, required: ["character_id", "description"], properties: { character_id: string, description: string } } },
+          lore: { ...string, description: "Complete replacement biography when warranted. Omit to preserve it; null is not supported." },
+          current_goal: { type: ["string", "null"], description: "Omit to preserve the goal and ongoing activity. Nonempty string assigns a feasible task; null explicitly clears the goal and makes the NPC idle." },
         },
       },
     }),
-    tool("update_inventory", "Immediately add justified new items to one character or container inventory. Existing items are preserved. Cannot transfer, remove or change existing items. Only this inventory's generation ID is required.", {
-      owner_id: string, generation_id: string, add_items: { type: "array", minItems: 1, maxItems: 10, items: {
+    tool("update_inventory", "Add justified new items to one inventory using generation_id from inventory:<owner_id>. Existing items are preserved. Cannot transfer, remove or change existing items. All additions in this call validate together: duplicate IDs or an invalid item reject the call without adding any. Example: {owner_id:'rowan',generation_id:'<ID from inventory:rowan>',add_items:[{id:'rowan_note',name:'Note',details:'The agreed meeting place.',reason:'Rowan wrote the agreed invitation.'}]}.", {
+      owner_id: { ...string, description: "Existing character ID or container fixture ID; use its inventory resource, not its character/fixture generation." }, generation_id: generationId, add_items: { type: "array", minItems: 1, maxItems: 10, items: {
         type: "object", additionalProperties: false, required: ["id", "name", "details", "reason"],
         properties: { id: string, name: string, details: string, reason: string },
       } },
     }),
     ...observations,
-    tool("finish_review", "Finish after all intended writes succeeded. Each participant must have an update_character result first (except physical witness reviews). Previously saved writes are not repeated or rolled back.", {}),
+    tool("finish_review", "Finish after all intended writes succeeded, or when no changes are warranted. Summarize the reviewed event. Previously saved writes are not repeated or rolled back. Call alone.", { summary: string }),
   ];
+}
+
+export interface ReviewIO {
+  read(resourceId?: string): Promise<unknown>;
+  write(name: string, args: Record<string, unknown>): Promise<unknown>;
+  finish(): Promise<void>;
+  complete(request: ChatCompletionRequest): Promise<OpenRouterMessage>;
+}
+
+/** One model session; each write has its own persistence boundary. */
+export async function runResourceReview(request: ChatCompletionRequest, evidence: OpenRouterMessage[], io: ReviewIO, signal?: AbortSignal) {
+  const { response_format: _format, tools: _tools, messages: _messages, ...settings } = request;
+  const messages: OpenRouterMessage[] = [
+    { role: "system", content: RESOURCE_REVIEW_INSTRUCTIONS },
+    { role: "user", content: JSON.stringify({ world_state: await io.read() }) },
+    ...evidence,
+  ];
+  const tools = resourceReviewTools();
+  for (let round = 0; round < 16; round++) {
+    signal?.throwIfAborted();
+    const reply = await io.complete({ ...settings, messages: [...messages], tools });
+    signal?.throwIfAborted();
+    messages.push(reply);
+    if (!reply.tool_calls?.length) {
+      messages.push({ role: "system", content: "Prose does not write state or finish. Use the small write tools for changes, then finish_review. Earlier successful writes remain saved." });
+      continue;
+    }
+    if (reply.tool_calls.length > 12) throw new Error("Too many review tools in one response; earlier successful writes remain saved.");
+    for (const call of reply.tool_calls) {
+      signal?.throwIfAborted();
+      let args: Record<string, unknown>;
+      try { args = parseModelObject(call.function.arguments, "Review tool"); }
+      catch (error) {
+        messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ commit_result: "error", reason: String(error) }) }); continue;
+      }
+      const name = call.function.name;
+      let result: unknown;
+      if (name === "finish_review" && reply.tool_calls.length === 1 && typeof args.summary === "string" && args.summary.trim()) {
+        await io.finish();
+        return args.summary;
+      } else if (name === "read_state" && typeof args.resource_id === "string" && args.resource_id) {
+        result = { new_state: await io.read(args.resource_id) };
+      } else if (tools.some(tool => tool.function.name === name) && !["read_state", "finish_review"].includes(name)) {
+        // Persistence failures propagate. They are not model argument errors.
+        result = await io.write(name, args);
+      } else result = { commit_result: "error", reason: "Invalid tool or arguments. finish_review requires a summary and must be called alone." };
+      messages.push({ role: "tool", tool_call_id: call.id, name, content: JSON.stringify(result) });
+    }
+  }
+  throw new Error("Review tool limit reached. Earlier successful writes remain saved; retry against current state.");
 }

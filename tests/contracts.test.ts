@@ -1827,10 +1827,9 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     const talking = new Promise<void>(resolve => { talkStarted = resolve; });
     const reviewing = new Promise<void>(resolve => { reviewStarted = resolve; });
     t.mock.method(BrowserGameRuntime.prototype, "executeNpcTalk", async () => {
-      talkStarted(); await new Promise<void>(resolve => { releaseTalk = resolve; }); return "News exchanged.";
-    });
-    t.mock.method(BrowserGameRuntime.prototype, "publishReviewedFork", async () => {
+      talkStarted(); await new Promise<void>(resolve => { releaseTalk = resolve; });
       reviewStarted(); await new Promise<void>(resolve => { releaseReview = resolve; });
+      return "News exchanged.";
     });
     await request("start_npc", { characterId: "mara" });
     await request("start_npc", { characterId: "corvin" });
@@ -1859,16 +1858,17 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     const reviewing = new Promise<void>(resolve => { started = resolve; });
     const waitForReview = new Promise<void>(resolve => { release = resolve; });
     const commitReview = (input: any) => {
-      const context = JSON.parse(input.messages.at(-1).content);
-      const initial = input.messages.map((message: any) => { try { return JSON.parse(message.content); } catch { return {}; } }).findLast((value: any) => value?.proposal);
-      return gmTool("commit_review", { generations: Object.fromEntries(Object.entries(context.resources ?? context.current).map(([key, value]: [string, any]) => [key, value.generationId])),
-        review: initial.proposal.review, worldChanges: initial.proposal.worldChanges });
+      if (input.messages.some((m: any) => m.role === "tool")) return gmTool("finish_review", { summary: "Reviewed." });
+      const initial = input.messages.map((message: any) => { try { return JSON.parse(message.content); } catch { return {}; } });
+      const participant = initial.find((v: any) => v.event_type)?.participants[0];
+      const resource = initial.find((v: any) => v.world_state).world_state["character:" + participant];
+      return gmTool("update_character", { character_id: participant, generation_id: resource.generation_id,
+        changes: { append_events: [{ type: "memory", summary: "The envoy said goodbye." }], current_goal: null } });
     };
     t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => {
-      if (input.tools?.some((tool: any) => tool.function.name === "commit_review")) return commitReview(input);
-      if (input.response_format?.json_schema?.name === "conversation_memory") {
+      if (input.tools?.some((tool: any) => tool.function.name === "finish_review")) {
         started(); await waitForReview;
-        return modelReply({ newEvents: [{ type: "memory", summary: "The envoy said goodbye." }], relationships: [], lore: null, goalUpdate: null });
+        return commitReview(input);
       }
       return modelReply({ utterance: "Hello.", replyOptions: [], endConversation: false });
     });
@@ -1888,8 +1888,7 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     const saved = records.get(result.activeSaveId).snapshot;
     assert.ok(fromJson(ScenarioSchema, saved.scenario).events.some(event => event.summary === "The envoy said goodbye."));
 
-    t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => input.tools?.some((tool: any) => tool.function.name === "commit_review")
-      ? commitReview(input) : modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: null }));
+    t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => commitReview(input));
     failNextWrite = true;
     await assert.rejects(request("end_conversation", { characterId: "mara" }), /Test storage failure/);
     assert.equal((await request("state")).state.conversations.mara.length, 2, "Failed reviews retain their transcript for retry");
