@@ -39,18 +39,20 @@ let requests: Promise<unknown> = Promise.resolve();
 function enqueue<T>(work: () => Promise<T>): Promise<T> {
   const result = requests.then(work); requests = result.catch(() => {}); return result;
 }
-let background: { id: string; controller: AbortController; participants: string[] } | undefined;
+const background = new Map<string, { id: string; controller: AbortController; participants: string[] }>();
 const pendingNpcs: Array<{ id: string; handoffs: number }> = [];
 const conversationHolds = new Set<string>();
 const conversationReviews = new Set<string>();
 
 function publishNpc(status: string, trace?: unknown, initiatedConversation?: string) {
   if (runtime) worker.postMessage({ type: "npc_update", state: runtime.view(), activeSaveId: activeSave?.id,
-    running: background?.id ?? null, status, ...(trace ? { trace } : {}), ...(initiatedConversation ? { initiatedConversation } : {}) });
+    running: [...new Set([...background.values()].flatMap(job => job.participants))], status, ...(trace ? { trace } : {}), ...(initiatedConversation ? { initiatedConversation } : {}) });
 }
 function stopBackground(characterId?: string) {
-  if (!characterId || background?.participants.includes(characterId)) {
-    background?.controller.abort(); background = undefined;
+  for (const [id, job] of background) {
+    if (!characterId || job.participants.includes(characterId)) {
+      job.controller.abort(); background.delete(id);
+    }
   }
   for (let i = pendingNpcs.length - 1; i >= 0; i--) if (!characterId || pendingNpcs[i]!.id === characterId) pendingNpcs.splice(i, 1);
 }
@@ -77,18 +79,26 @@ async function publishReview(game: BrowserGameRuntime, before: RuntimeSnapshot, 
   }), signal);
 }
 function startBackground(id: string, handoffs = 3) {
-  if (conversationHolds.has(id) || background?.id === id || pendingNpcs.some(item => item.id === id)) return;
+  if (conversationHolds.has(id) || background.has(id) || pendingNpcs.some(item => item.id === id)) return;
   pendingNpcs.push({ id, handoffs });
-  if (!background) void drainBackground();
+  drainBackground();
 }
-async function drainBackground() {
-  if (background) return;
-  const next = pendingNpcs.shift(); if (!next || !runtime) return;
+function drainBackground() {
+  if (!runtime) return;
+  for (let index = 0; index < pendingNpcs.length;) {
+    const next = pendingNpcs[index]!;
+    if ([...background.values()].some(job => job.participants.includes(next.id)) || conversationHolds.has(next.id)) { index++; continue; }
+    pendingNpcs.splice(index, 1);
+    void runBackground(next);
+  }
+}
+async function runBackground(next: { id: string; handoffs: number }) {
+  if (!runtime) return;
   const game = runtime, { id, handoffs } = next;
-  const job = { id, controller: new AbortController(), participants: [id] }; background = job;
+  const job = { id, controller: new AbortController(), participants: [id] }; background.set(id, job);
   const signal = job.controller.signal;
   let finalStatus = `${id}: idle.`;
-  const valid = () => !signal.aborted && runtime === game && background === job && !conversationHolds.has(id);
+  const valid = () => !signal.aborted && runtime === game && background.get(id) === job && !conversationHolds.has(id);
   try {
     for (let round = 0; round < 3 && valid(); round++) {
       if (game.snapshot().npcActivities?.[id]?.reviewPending) await reviewBackground(game, id, signal, round < 2);
@@ -104,7 +114,6 @@ async function drainBackground() {
         publishNpc(`${id}: ${plan.action?.description ?? plan.decision.choice}`, plan);
         if (plan.decision.choice === "complete" || plan.decision.choice === "unable") {
           // A changed world invalidates a terminal judgment as well as a physical action.
-          if (game.view().revision !== plan.revision) continue;
           reason = plan.decision.choice; detail = JSON.stringify(plan.decision); finishGenerations = plan.generations; break;
         }
         if (!plan.action) throw new Error("Jev returned an unavailable action.");
@@ -140,22 +149,37 @@ async function drainBackground() {
         if (result?.talkTarget) {
           const target = result.talkTarget;
           if (conversationHolds.has(target)) continue;
+          // A pair owns both participants until its review commits. Interrupt a
+          // solo run, but never steal someone from another conversation.
+          if ([...background.values()].some(other => other !== job && other.participants.includes(target) && other.participants.length > 1)) continue;
+          const interrupted = background.has(target);
+          stopBackground(target);
           job.participants = [id, target];
-          const before = game.snapshot(), fork = game.forkForNpc();
-          if (target === (game.view().player as { id?: string } | null)?.id) {
-            if (conversationHolds.size) continue;
-            await fork.initiatePlayerConversation(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
-            if (conversationHolds.size) continue;
-            try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id], undefined, true); }); }
-            catch (error) { if (!valid()) return; if (/changed/i.test(String(error))) continue; throw error; }
-            conversationHolds.add(id);
-            publishNpc(`${id}: started a conversation with you.`, undefined, id);
-            return;
+          publishNpc(`${id}: talking to ${target}…`);
+          let before: RuntimeSnapshot;
+          try {
+            before = game.snapshot();
+            const fork = game.forkForNpc();
+            if (target === (game.view().player as { id?: string } | null)?.id) {
+              if (conversationHolds.size) continue;
+              await fork.initiatePlayerConversation(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
+              if (!valid()) return;
+              if (conversationHolds.size) continue;
+              try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id], undefined, true); }); }
+              catch (error) { if (!valid()) return; if (/changed/i.test(String(error))) continue; throw error; }
+              conversationHolds.add(id);
+              publishNpc(`${id}: started a conversation with you.`, undefined, id);
+              return;
+            }
+            await fork.executeNpcTalk(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
+            await publishReview(game, before, fork, signal);
+          } finally {
+            job.participants = [id];
+            if (valid() && interrupted) startBackground(target, handoffs);
+            drainBackground();
+            if (valid()) publishNpc(`${id}: conversation finished.`);
           }
-          await fork.executeNpcTalk(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
-          try { await publishReview(game, before, fork, signal); }
-          catch (error) { if (!valid()) return; throw error; }
-          finally { job.participants = [id]; }
+          if (!valid()) return;
           if (handoffs > 0) for (const listener of game.rumourListenersSince(before)) startBackground(listener, handoffs - 1);
           if (handoffs > 0 && game.snapshot().npcActivities?.[target]?.status === "active") startBackground(target, handoffs - 1);
           if (game.snapshot().npcActivities?.[id]?.status !== "active") return;
@@ -178,7 +202,7 @@ async function drainBackground() {
       finalStatus = `${id}: ${error instanceof Error ? error.message : String(error)}`;
     }
   } finally {
-    if (background === job) { background = undefined; publishNpc(finalStatus); void drainBackground(); }
+    if (background.get(id) === job) { background.delete(id); publishNpc(finalStatus); drainBackground(); }
   }
 }
 

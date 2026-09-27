@@ -1727,10 +1727,11 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   let listener: (event: { data: unknown }) => void = () => {};
   let sequence = 0, failNextWrite = false, modelCalls = 0;
   const pending = new Map<number, (message: any) => void>();
+  const npcUpdates: any[] = [];
   const records = new Map<string, any>();
   globals.self = {
     addEventListener: (_type: string, callback: typeof listener) => { listener = callback; },
-    postMessage: (message: any) => pending.get(message.id)?.(message),
+    postMessage: (message: any) => { if (message.type === "npc_update") npcUpdates.push(message); pending.get(message.id)?.(message); },
   };
   // Minimal asynchronous IDB boundary: the real worker dispatch/queue and runtime
   // run unchanged, while persistence and model transport remain deterministic.
@@ -1772,6 +1773,82 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   assert.match(greeting.reply, /Maren/);
   assert.equal(modelCalls, 1);
   assert.equal(greeting.state.phase, "player_creation");
+
+  await t.test("NPC plans overlap, deduplicate, and cancel independently while player commands remain available", async t => {
+    const created = await request("create_development_game");
+    const saved = records.get(created.activeSaveId);
+    saved.snapshot.npcActivities = Object.fromEntries(["corvin", "mara"].map(id => [id, { status: "active", goal: "Wait here.", history: [] }]));
+    await request("load_game", { saveId: created.activeSaveId });
+    const plans: Array<{ id: string; signal: AbortSignal; release: () => void }> = [];
+    t.mock.method(BrowserGameRuntime.prototype, "planNpc", async (id: string, signal: AbortSignal) => {
+      await new Promise<void>(resolve => plans.push({ id, signal, release: resolve }));
+      // Deliberately ignore cancellation until the transport finishes. An old
+      // completion must not remove a replacement run with the same character.
+      signal.throwIfAborted();
+      throw new Error("Unexpected uncancelled plan");
+    });
+    await request("start_npc", { characterId: "corvin" });
+    await request("start_npc", { characterId: "mara" });
+    await request("start_npc", { characterId: "corvin" });
+    assert.deepEqual(plans.map(plan => plan.id), ["corvin", "mara"]);
+    assert.deepEqual(npcUpdates.at(-1).running.sort(), ["corvin", "mara"]);
+    await request("move_player", { x: 15, y: 24, generations: (await request("state")).state.generations });
+    await request("pause_npc", { characterId: "corvin" });
+    assert.equal(plans[0]!.signal.aborted, true);
+    assert.equal(plans[1]!.signal.aborted, false);
+    assert.deepEqual(npcUpdates.at(-1).running, ["mara"]);
+    await request("start_npc", { characterId: "corvin" });
+    plans[0]!.release();
+    await new Promise(resolve => setImmediate(resolve));
+    await request("start_npc", { characterId: "corvin" });
+    assert.equal(plans.length, 3, "Old completion must not clear the replacement run");
+    await request("cancel_npc");
+    assert.ok(plans.every(plan => plan.signal.aborted));
+    assert.deepEqual(npcUpdates.at(-1).running, []);
+    for (const plan of plans) plan.release();
+    await new Promise(resolve => setImmediate(resolve));
+    await request("start_npc", { characterId: "mara" });
+    await request("create_development_game");
+    assert.equal(plans.at(-1)!.signal.aborted, true, "Game replacement cancels every old run");
+    plans.at(-1)!.release();
+    await new Promise(resolve => setImmediate(resolve));
+  });
+
+  await t.test("NPC conversations reserve a pair and restart an interrupted solo run after review", async t => {
+    const created = await request("create_development_game");
+    const saved = records.get(created.activeSaveId);
+    saved.snapshot.npcActivities = Object.fromEntries(["corvin", "mara"].map(id => [id, { status: "active", goal: "Ask for news.", history: [] }]));
+    await request("load_game", { saveId: created.activeSaveId });
+    const plans: Array<{ id: string; signal: AbortSignal; release: (value: any) => void }> = [];
+    t.mock.method(BrowserGameRuntime.prototype, "planNpc", (id: string, signal: AbortSignal) => new Promise<any>(resolve => plans.push({ id, signal, release: resolve })));
+    t.mock.method(BrowserGameRuntime.prototype, "stepNpcAction", () => ({ done: true, talkTarget: "mara", generations: {} }));
+    let releaseTalk!: () => void, releaseReview!: () => void;
+    let talkStarted!: () => void, reviewStarted!: () => void;
+    const talking = new Promise<void>(resolve => { talkStarted = resolve; });
+    const reviewing = new Promise<void>(resolve => { reviewStarted = resolve; });
+    t.mock.method(BrowserGameRuntime.prototype, "executeNpcTalk", async () => {
+      talkStarted(); await new Promise<void>(resolve => { releaseTalk = resolve; }); return "News exchanged.";
+    });
+    t.mock.method(BrowserGameRuntime.prototype, "publishReviewedFork", async () => {
+      reviewStarted(); await new Promise<void>(resolve => { releaseReview = resolve; });
+    });
+    await request("start_npc", { characterId: "mara" });
+    await request("start_npc", { characterId: "corvin" });
+    plans[1]!.release({ decision: { choice: "talk_mara" }, action: { id: "talk_mara", description: "Talk to Mara" }, goal: "Ask for news.", generations: {} });
+    await talking;
+    assert.equal(plans[0]!.signal.aborted, true);
+    await request("start_npc", { characterId: "mara" });
+    assert.equal(plans.length, 2, "A reserved target cannot start another solo run");
+    releaseTalk(); await reviewing;
+    await request("start_npc", { characterId: "mara" });
+    assert.equal(plans.length, 2, "The reservation lasts through GM publication");
+    releaseReview();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(plans.slice(2).map(plan => plan.id).sort(), ["corvin", "mara"]);
+    await request("cancel_npc");
+    for (const plan of plans) plan.release({});
+    await new Promise(resolve => setImmediate(resolve));
+  });
 
   await t.test("conversation review leaves movement and other dialogue available", async () => {
     await request("create_development_game");

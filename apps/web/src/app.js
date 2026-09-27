@@ -10,7 +10,7 @@ let activeCharacter = null;
 let closedConversation = null;
 const conversationReviews = new Map();
 let busy = false;
-let npcRun = null;
+let npcRun = [];
 let notice = "";
 let sheetOpen = false;
 let debugOpen = false;
@@ -81,7 +81,7 @@ function rpc(type, payload = {}) {
 }
 
 function stopNpcGoal() {
-  npcRun = null;
+  npcRun = [];
   void rpc("cancel_npc").catch(() => {});
 }
 function initiatedConversationId() {
@@ -104,11 +104,11 @@ function updateNpcPanel() {
   const panel = document.querySelector("[data-npc-panel]"); if (!panel) return;
   const activities = { ...state.npcActivities };
   for (const id of conversationReviews.keys()) activities[id] ??= {};
-  const active = Object.entries(activities).filter(([id, activity]) => conversationReviews.has(id) || id === npcRun || activity.status === "active" || activity.reviewPending);
-  panel.innerHTML = `<header class="npc-activity-heading"><h3>Active NPCs <span>${active.length}</span></h3>${npcRun ? '<button data-background-stop>Pause activity</button>' : ""}</header>
+  const active = Object.entries(activities).filter(([id, activity]) => conversationReviews.has(id) || npcRun.includes(id) || activity.status === "active" || activity.reviewPending);
+  panel.innerHTML = `<header class="npc-activity-heading"><h3>Active NPCs <span>${active.length}</span></h3>${npcRun.length ? '<button data-background-stop>Pause activity</button>' : ""}</header>
     ${active.length ? `<ul class="npc-goals">${active.map(([id, activity]) => {
       const character = state.characters.find(character => character.id === id);
-      const running = id === npcRun;
+      const running = npcRun.includes(id);
       const review = conversationReviews.get(id);
       if (review) return `<li><div class="npc-goal-content"><div class="npc-goal-heading">${escapeHtml(character?.name || id)}<span class="npc-activity-state">${review.error ? "Review failed" : "Remembering conversation"}</span></div><p>${escapeHtml(review.error || "Their memories and next goal are being reviewed.")}</p></div>${review.error ? `<button data-retry-conversation="${escapeHtml(id)}">Retry review</button>` : ""}</li>`;
       const talking = !!state.conversations?.[id]?.length && closedConversation?.id !== id;
@@ -155,7 +155,7 @@ window.resetCharacters = async function resetCharacters() {
     const result = await rpc("reset_characters");
     state = result.state; saves = result.saves;
     activeCharacter = null; closedConversation = null; debugData = null;
-    npcRun = null;
+    npcRun = [];
     notice = "NPCs reset. Conversations and learned events cleared; your character and palace have been kept.";
     return { reset: true };
   } catch (error) { notice = `Error: ${error.message}`; throw error; }
