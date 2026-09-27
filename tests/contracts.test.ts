@@ -2282,6 +2282,9 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
   const talk = sent.at(-1);
   receive({ data: { type: "dialogue_thinking", requestId: talk.id, characterId: "mara", text: "Mara considers her answer." } });
   assert.equal(runInContext("notice", context), "Mara considers her answer.");
+  assert.match(runInContext("conversationNoticeView().waitingMessage", context), /class="message waiting" role="status"/);
+  assert.match(runInContext("conversationNoticeView().waitingMessage", context), /Mara considers her answer<span class="waiting-dots"/);
+  assert.equal(runInContext("conversationNoticeView().statusMessage", context), "", "waiting copy is omitted from the status beneath the composer");
   receive({ data: { type: "dialogue_thinking", requestId: talk.id, characterId: "corvin", text: "Wrong character." } });
   assert.equal(runInContext("notice", context), "Mara considers her answer.");
   receive({ data: { id: talk.id, ok: true, value: { state: { revision: 3, conversationEndRequested: { mara: true }, conversations: { mara: ["Farewell"] } }, saves: [] } } });
