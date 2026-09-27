@@ -615,6 +615,222 @@
       "visibility": "NOTE_VISIBILITY_PUBLIC"
     },
     {
+      "id": "corvin_recent_journey",
+      "day": 0,
+      "text": "I returned through Caerwyn from a fortnight at the western observatory, travelling with two apprentices and a royal courier. I reached the palace yesterday evening; Caerwyn is my homeland, not a foreign posting, though the court feels less welcoming each year.",
+      "characterIds": [
+        "corvin"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "corvin_roadside_memory",
+      "day": 0,
+      "text": "Our cart lost a wheel outside the capital. Hungry labourers helped lift it from the mud while the courier complained about the delay; I paid them, and noticed they asked for bread rather than coin.",
+      "characterIds": [
+        "corvin"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "garran_recent_journey",
+      "day": 0,
+      "text": "I rode home through Caerwyn from an inspection of the eastern garrisons with four veteran outriders. We met Aldren's household near the capital and accompanied the king through the city gates to the palace.",
+      "characterIds": [
+        "garran"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "garran_roadside_memory",
+      "day": 0,
+      "text": "At a market town on the journey, my outriders broke up a fight over the last sacks of flour without drawing steel. The crowd's anger was aimed at the palace as much as at the merchant.",
+      "characterIds": [
+        "garran"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "aldren_recent_journey",
+      "day": 0,
+      "text": "I returned to my palace in Caerwyn from a riverside hunting lodge with my household, cooks and attendants. Garran and his outriders joined us outside the capital and escorted us through the gates.",
+      "characterIds": [
+        "king"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "aldren_roadside_memory",
+      "day": 0,
+      "text": "Rain slowed the coaches, and petitioners gathered at two posting houses to complain about bread prices. My secretary took their names and promised the complaints would be heard after the assembly.",
+      "characterIds": [
+        "king"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "mara_recent_journey",
+      "day": 0,
+      "text": "I travelled from my homeland of Ironmark to Caerwyn with my uncle Hadrik, Captain Tessa, six guards, two scribes and our wagoners. We reached the palace after twelve hard days on the northern road.",
+      "characterIds": [
+        "mara"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "mara_roadside_memory",
+      "day": 0,
+      "text": "A supply wagon split an axle at Red Ford. Tessa organised the repair and shared our rations with the carters; Hadrik wanted to press on, but agreed to wait when I made the order mine.",
+      "characterIds": [
+        "mara"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "hadrik_recent_journey",
+      "day": 0,
+      "text": "I came out of Ironmark with my niece Mara, Captain Tessa and a small honour guard. I spent the twelve-day ride drilling the guards and studying every bridge and defensible rise on the road to Caerwyn.",
+      "characterIds": [
+        "hadrik"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "hadrik_roadside_memory",
+      "day": 0,
+      "text": "Near Red Ford we passed teamsters from the detained grain convoy walking home beside empty wagons. Their account of guards and disputed charges sounded like humiliation that Ironmark should not quietly accept.",
+      "characterIds": [
+        "hadrik"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "tessa_recent_journey",
+      "day": 0,
+      "text": "I travelled from Ironmark to Caerwyn with Princess Mara, Lord Hadrik, six guards, two scribes and the wagon crews. I checked the watches and supplies while Hadrik inspected the road as if it were a campaign.",
+      "characterIds": [
+        "tessa"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "tessa_roadside_memory",
+      "day": 0,
+      "text": "When a wagon axle failed at Red Ford, the guards admitted some had sent their travel allowance home because their families lacked food. I shared the delegation's rations and recorded their names and missing pay.",
+      "characterIds": [
+        "tessa"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "elinor_recent_journey",
+      "day": 0,
+      "text": "I travelled from Greenweald to Caerwyn with my brother Rowan, Prior Oswin, household riders and the queen's sealed recognition papers. We arrived at the palace after ten days along the forest road.",
+      "characterIds": [
+        "elinor"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "elinor_roadside_memory",
+      "day": 0,
+      "text": "At Briar Cross, villagers queued outside an estate granary after a tenant mill stopped turning. Oswin arranged alms and Rowan helped repair the mill, delaying us half a day; both acts mattered, and neither settled their argument.",
+      "characterIds": [
+        "elinor"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "oswin_recent_journey",
+      "day": 0,
+      "text": "I came from Greenweald with Lady Elinor, Rowan, household riders and two lay brothers carrying medicines. The forest road to Caerwyn took ten days, with nightly shelter at religious houses where one was available.",
+      "characterIds": [
+        "oswin"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "oswin_roadside_memory",
+      "day": 0,
+      "text": "At Briar Cross I opened our travelling stores to families waiting at a granary and asked its steward to release another measure. He complied, but warned that the estate's winter reserve was already strained.",
+      "characterIds": [
+        "oswin"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "rowan_recent_journey",
+      "day": 0,
+      "text": "I travelled out of Greenweald with my sister Elinor, Prior Oswin, household riders and two lay brothers. Ten days on the road to Caerwyn gave me more honest conversation than a month of formal audiences.",
+      "characterIds": [
+        "rowan"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "rowan_roadside_memory",
+      "day": 0,
+      "text": "At Briar Cross I helped a miller replace a cracked drive pin while families waited for flour. Oswin distributed alms, but the granary steward still controlled whether they would eat next week.",
+      "characterIds": [
+        "rowan"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "lucan_recent_journey",
+      "day": 0,
+      "text": "I sailed from Saltmere aboard Rook's cutter with Chancellor Sabine, her clerks and my small household, then took royal coaches for the final road to Caerwyn. The crossing was fast enough to arrive before my creditors' latest letters.",
+      "characterIds": [
+        "lucan"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "lucan_roadside_memory",
+      "day": 0,
+      "text": "Fog held us outside the royal quay for a night. Rook kept the ship clear of shoals, while Sabine used the delay to make me rehearse exactly which trade privileges I may offer at the assembly.",
+      "characterIds": [
+        "lucan"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "sabine_recent_journey",
+      "day": 0,
+      "text": "I travelled from Saltmere with Prince Lucan, Admiral Rook, three commercial clerks and sealed account chests aboard Rook's cutter, continuing by coach from the royal quay to Caerwyn.",
+      "characterIds": [
+        "sabine"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "sabine_roadside_memory",
+      "day": 0,
+      "text": "A night of fog at the quay delayed us and raised the carriers' price. I negotiated it back down in exchange for prompt payment, then discovered Lucan had promised the crew a gratuity from funds not yet secured.",
+      "characterIds": [
+        "sabine"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "rook_recent_journey",
+      "day": 0,
+      "text": "I brought Prince Lucan, Chancellor Sabine, their clerks and households out of Saltmere on my cutter, then handed them to royal coaches at the quay and rode with them to Caerwyn.",
+      "characterIds": [
+        "rook"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "rook_roadside_memory",
+      "day": 0,
+      "text": "Fog closed the royal quay for a night. An old smuggler's lantern signal blinked from the eastern bank; I ignored it in front of Sabine and Lucan, but recognised the sender as one of my former associates.",
+      "characterIds": [
+        "rook"
+      ],
+      "visibility": "NOTE_VISIBILITY_PRIVATE"
+    },
+    {
       "id": "feast_joke_corvin",
       "day": 0,
       "text": "Garran joked that Corvin could summon anything except a dance partner. Elinor laughed, and Corvin left humiliated.",

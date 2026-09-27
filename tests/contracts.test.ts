@@ -73,7 +73,12 @@ test("the expanded authored scenario strictly parses and survives protobuf", () 
   const decoded = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, scenario));
   assert.equal(toJsonString(ScenarioSchema, decoded), toJsonString(ScenarioSchema, scenario));
   assert.deepEqual(scenario.characters.map(character => character.id), ["corvin", "garran", "king", "mara", "hadrik", "tessa", "elinor", "oswin", "rowan", "lucan", "sabine", "rook"]);
-  assert.equal(scenario.notes.length, 8);
+  assert.equal(scenario.notes.length, 32);
+  for (const character of scenario.characters) {
+    const travelNotes = scenario.notes.filter(note => note.characterIds.includes(character.id)
+      && (note.id.endsWith("_recent_journey") || note.id.endsWith("_roadside_memory")));
+    assert.equal(travelNotes.length, 2, `${character.id} should remember their journey and one notable incident`);
+  }
   assert.match(scenario.premise, /emissary from a vassal state of Caerwyn/);
   assert.equal(scenario.world?.phase, GamePhase.PLAYER_CREATION);
   assert.ok(scenario.world?.actors.every(actor => !actor.awake && actor.roomId === actor.homeRoomId));
