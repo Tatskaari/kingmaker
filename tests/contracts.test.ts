@@ -88,7 +88,7 @@ test("the palace map is a complete layered tile grid", () => {
   }
   // Facing rooms need a bottom edge, north cap and masonry face in separate
   // solid rows. A one-row band formerly produced overlapping, broken walls.
-  for (const [x, y] of [[3, 8], [12, 14], [13, 24]] as const) {
+  for (const [x, y] of [[3, 8], [12, 14], [13, 30]] as const) {
     const band = [0, 1, 2].map(dy => decoded.tiles[(y + dy) * decoded.width + x]!.layers.at(-1)!.tileId);
     assert.deepEqual(band, [26, 2, 40]);
     assert.ok([0, 1, 2].every(dy => !passable(x, y + dy)));
@@ -639,7 +639,7 @@ test("main palace movement validates routes and survives saving and restoring", 
   assert.throws(() => restored.movePlayer({ x: 6, y: 4 }), /not reachable/);
   assert.throws(() => restored.movePlayer({ x: NaN, y: 4 }), /not reachable/);
   assert.equal(JSON.stringify(restored.snapshot()), before);
-  restored.movePlayer({ x: 15, y: 29 });
+  restored.movePlayer({ x: 15, y: 35 });
   assert.equal(restored.view().location, "Entrance Hall");
   restored.reset(); assert.deepEqual(fromJson(ScenarioSchema, restored.snapshot().scenario).world!.actors.find(actor => actor.characterId === "player")!.position, create(TilePositionSchema, { x: 16, y: 22 }));
   assert.throws(() => new BrowserGameRuntime(load(), "test").movePlayer({ x: 5, y: 5 }), /Enter the court/);
@@ -1563,4 +1563,22 @@ test("non-JSON OpenRouter errors retain HTTP status and transient dialogue failu
   assert.equal(runtime.snapshot().conversations.mara?.length, 2);
   t.mock.method(globalThis, "fetch", async () => new Response("<html>Forbidden</html>", { status: 403 }));
   await assert.rejects(new OpenRouterClient("test").complete({ model: "test", messages: [] }), /HTTP 403/);
+});
+
+test("expanded hall has unobstructed routes to all delegates and its relocated entrance", () => {
+  const scenario = load(), world = scenario.world!;
+  const hall = palaceMap.rooms.find(room => room.id === "great_hall")!.regions[0]!;
+  assert.equal(hall.width * hall.height, 156);
+  const player = scenario.courtArrivalPlacements.find(item => item.characterId === "player")!.position!;
+  for (const placement of scenario.courtArrivalPlacements) {
+    assert.ok(courtPath(player, placement.position!, world.doors, world.fixtures), `${placement.characterId} can be reached`);
+  }
+  const entrance = world.doors.find(door => door.id === "entrance_door")!;
+  assert.ok(courtPath(player, { x: 15, y: 35 }, world.doors, world.fixtures));
+  entrance.open = false;
+  assert.equal(courtPath({ x: 15, y: 24 }, { x: 15, y: 35 }, world.doors, world.fixtures), undefined);
+  for (const fixture of world.fixtures.filter(item => item.roomId === "entrance_hall")) {
+    assert.equal(courtRoomAt(fixture.position!)?.id, "entrance_hall");
+    if (fixture.interactionSpot) assert.equal(courtRoomAt(fixture.interactionSpot)?.id, "entrance_hall");
+  }
 });

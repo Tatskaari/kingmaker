@@ -35,3 +35,8 @@ Completed tile steps remain saved when activity is paused.
 Planner runs and automatic handoffs are bounded. Reloaded
 active tasks and pending outcome reviews have explicit resume/review controls.
 The debug inspector exposes the current state and recent model transcripts.
+
+The Great Hall’s main floor is 12 × 13 tiles, with the entrance six rows farther
+south than the original layout. New arrivals use the wider-spaced court placements
+authored in the scenario. Use the existing `resetWorld()` development command to
+apply the updated physical layout and placements to an existing save.

@@ -1,8 +1,8 @@
 import type { NavNode } from "./navigation.js";
 
 export const palaceNodes: NavNode[] = [
-  { id: "great_hall", name: "Great Hall", x: 15, y: 21 },
-  { id: "entrance", name: "Entrance Hall", x: 15, y: 29 },
+  { id: "great_hall", name: "Great Hall", x: 15, y: 24 },
+  { id: "entrance", name: "Entrance Hall", x: 15, y: 35 },
   { id: "west_junction", name: "West Corridor", x: 5, y: 12 },
   { id: "north_junction", name: "North Junction", x: 15, y: 12 },
   { id: "east_junction", name: "East Corridor", x: 25, y: 12 },

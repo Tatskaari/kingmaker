@@ -510,7 +510,7 @@
       "roomId": "great_hall",
       "position": {
         "x": 20,
-        "y": 20
+        "y": 19
       }
     },
     {
@@ -518,7 +518,7 @@
       "roomId": "great_hall",
       "position": {
         "x": 16,
-        "y": 22
+        "y": 32
       }
     },
     {
@@ -526,7 +526,7 @@
       "roomId": "great_hall",
       "position": {
         "x": 11,
-        "y": 18
+        "y": 22
       }
     },
     {
@@ -534,46 +534,46 @@
       "roomId": "great_hall",
       "position": {
         "x": 11,
-        "y": 19
+        "y": 25
       }
     },
     {
       "characterId": "tessa",
       "roomId": "great_hall",
       "position": {
-        "x": 13,
-        "y": 18
+        "x": 11,
+        "y": 28
       }
     },
     {
       "characterId": "elinor",
       "roomId": "great_hall",
       "position": {
-        "x": 18,
-        "y": 18
+        "x": 16,
+        "y": 23
       }
     },
     {
       "characterId": "oswin",
       "roomId": "great_hall",
       "position": {
-        "x": 20,
-        "y": 18
+        "x": 16,
+        "y": 26
       }
     },
     {
       "characterId": "rowan",
       "roomId": "great_hall",
       "position": {
-        "x": 21,
-        "y": 18
+        "x": 16,
+        "y": 29
       }
     },
     {
       "characterId": "lucan",
       "roomId": "great_hall",
       "position": {
-        "x": 12,
+        "x": 21,
         "y": 22
       }
     },
@@ -581,16 +581,16 @@
       "characterId": "sabine",
       "roomId": "great_hall",
       "position": {
-        "x": 13,
-        "y": 22
+        "x": 21,
+        "y": 25
       }
     },
     {
       "characterId": "rook",
       "roomId": "great_hall",
       "position": {
-        "x": 20,
-        "y": 23
+        "x": 21,
+        "y": 28
       }
     }
   ],
@@ -722,7 +722,7 @@
         "roomId": "great_hall",
         "position": {
           "x": 11,
-          "y": 18
+          "y": 22
         },
         "homeRoomId": "great_hall",
         "awake": false
@@ -732,7 +732,7 @@
         "roomId": "great_hall",
         "position": {
           "x": 11,
-          "y": 19
+          "y": 25
         },
         "homeRoomId": "great_hall",
         "awake": false
@@ -741,8 +741,8 @@
         "characterId": "tessa",
         "roomId": "great_hall",
         "position": {
-          "x": 13,
-          "y": 18
+          "x": 11,
+          "y": 28
         },
         "homeRoomId": "great_hall",
         "awake": false
@@ -751,8 +751,8 @@
         "characterId": "elinor",
         "roomId": "great_hall",
         "position": {
-          "x": 18,
-          "y": 18
+          "x": 16,
+          "y": 23
         },
         "homeRoomId": "great_hall",
         "awake": false
@@ -761,8 +761,8 @@
         "characterId": "oswin",
         "roomId": "great_hall",
         "position": {
-          "x": 20,
-          "y": 18
+          "x": 16,
+          "y": 26
         },
         "homeRoomId": "great_hall",
         "awake": false
@@ -771,8 +771,8 @@
         "characterId": "rowan",
         "roomId": "great_hall",
         "position": {
-          "x": 21,
-          "y": 18
+          "x": 16,
+          "y": 29
         },
         "homeRoomId": "great_hall",
         "awake": false
@@ -781,7 +781,7 @@
         "characterId": "lucan",
         "roomId": "great_hall",
         "position": {
-          "x": 12,
+          "x": 21,
           "y": 22
         },
         "homeRoomId": "great_hall",
@@ -791,8 +791,8 @@
         "characterId": "sabine",
         "roomId": "great_hall",
         "position": {
-          "x": 13,
-          "y": 22
+          "x": 21,
+          "y": 25
         },
         "homeRoomId": "great_hall",
         "awake": false
@@ -801,8 +801,8 @@
         "characterId": "rook",
         "roomId": "great_hall",
         "position": {
-          "x": 20,
-          "y": 23
+          "x": 21,
+          "y": 28
         },
         "homeRoomId": "great_hall",
         "awake": false
@@ -1122,7 +1122,7 @@
         "roomId": "entrance_hall",
         "position": {
           "x": 12,
-          "y": 28
+          "y": 34
         },
         "sprite": 72,
         "container": false,
@@ -1150,11 +1150,11 @@
         "roomId": "entrance_hall",
         "position": {
           "x": 13,
-          "y": 30
+          "y": 36
         },
         "interactionSpot": {
           "x": 13,
-          "y": 29
+          "y": 35
         },
         "sprite": 90,
         "container": true,
@@ -1186,7 +1186,7 @@
         "roomId": "entrance_hall",
         "position": {
           "x": 18,
-          "y": 28
+          "y": 34
         },
         "sprite": 72,
         "container": false,
@@ -1462,21 +1462,21 @@
         "tiles": [
           {
             "x": 15,
-            "y": 25
+            "y": 31
           },
           {
             "x": 16,
-            "y": 25
+            "y": 31
           }
         ],
         "interactionSpots": [
           {
             "x": 15,
-            "y": 26
+            "y": 32
           },
           {
             "x": 15,
-            "y": 24
+            "y": 30
           }
         ],
         "roomIds": [
