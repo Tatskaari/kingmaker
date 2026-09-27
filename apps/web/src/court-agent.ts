@@ -33,6 +33,10 @@ export function courtAgentObservation(scenario: Scenario, characterId: string) {
       description: `Walk ${path.length - 1} steps to the ${interactionRoom?.name ?? "palace"} side, then ${door.open ? "close" : "open"} ${door.name}, connecting ${door.roomIds.join(" and ")}. You finish on the ${interactionRoom?.name ?? "palace"} side of the door.` });
   }
   for (const action of fixtureActions(scenario, characterId)) {
+    if (action.target === characterId) {
+      actions.push({ id: action.id, target: action.target, type: "fixture", path: [start], legality: "normal", description: action.label });
+      continue;
+    }
     const fixture = world.fixtures.find(item => item.id === action.target)!;
     if (fixture.roomId !== actor.roomId || !fixture.position) continue;
     if (action.verb === "open" && fixture.requiredKeyId && !world.objects.some(item => item.id === fixture.requiredKeyId && item.locationId === characterId)) continue;

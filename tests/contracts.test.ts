@@ -1,3 +1,4 @@
+import { applyFixtureAction, fixtureActions } from "../packages/core/src/fixtures.js";
 import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
 import { courtAgentObservation } from "../apps/web/src/court-agent.js";
 import { doorActionLegality } from "../packages/core/src/access.js";
@@ -947,7 +948,7 @@ test("greeting goal is idle until the LLM explicitly assigns a task", async t =>
   t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], goalUpdate: null, lore: null }));
   await runtime.endConversation("corvin");
   assert.equal(runtime.snapshot().npcActivities?.corvin?.status, "idle");
-  assert.match(fromJson(ScenarioSchema, runtime.snapshot().scenario).characters[0]!.currentGoal, /greet the visiting player/);
+  assert.equal(fromJson(ScenarioSchema, runtime.snapshot().scenario).characters[0]!.currentGoal, "", "The GM clears an obsolete task when returning the NPC to idle");
   await assert.rejects(runtime.planNpc("corvin", new AbortController().signal), /idle/);
 });
 
@@ -1581,4 +1582,118 @@ test("expanded hall has unobstructed routes to all delegates and its relocated e
     assert.equal(courtRoomAt(fixture.position!)?.id, "entrance_hall");
     if (fixture.interactionSpot) assert.equal(courtRoomAt(fixture.interactionSpot)?.id, "entrance_hall");
   }
+});
+
+function gmTool(name: string, args: Record<string, unknown>) {
+  return { role: "assistant" as const, content: null, tool_calls: [{ id: "gm-call", type: "function" as const, function: { name, arguments: JSON.stringify(args) } }] };
+}
+const idleMemory = { newEvents: [], relationships: [], lore: null, goalUpdate: null };
+const missingProp = { id: "envoy_token", name: "Envoy's token", locationId: "corvin", details: "A brass token bearing the embassy's seal.", reason: "A mundane token established in the exchange makes inspection possible." };
+
+test("DM reconciles a conversation with real inventory props and an executable inspection task", async t => {
+  const runtime = new BrowserGameRuntime(furnishedCourt(), "test");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "I will inspect the token." }));
+  await runtime.talkToCharacter("corvin", "Check the embassy token.");
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: any) => {
+    assert.ok(request.tools.some((tool: any) => tool.function.name === "create_item"));
+    assert.match(JSON.stringify(request.messages), /authoritativeWorld/);
+    if (calls++ === 0) return gmTool("create_item", missingProp);
+    assert.match(request.messages.at(-1).content, /envoy_token/);
+    return modelReply({ ...idleMemory, goalUpdate: { goal: "Inspect the envoy token in my inventory.", reason: "The token is now present." } });
+  });
+  await runtime.endConversation("corvin");
+  const saved = runtime.snapshot(), scenario = fromJson(ScenarioSchema, saved.scenario);
+  assert.equal(scenario.world!.objects.find(o => o.id === "envoy_token")?.locationId, "corvin");
+  assert.ok(worldForCharacter(scenario.world!, "corvin").objects.some(o => o.id === "envoy_token"));
+  assert.ok(!worldForCharacter(scenario.world!, "garran").objects.some(o => o.id === "envoy_token"), "Private inventory addition does not leak");
+  const observation = courtAgentObservation(scenario, "corvin");
+  assert.ok(observation.actions.some(a => a.id === "inspect_item_envoy_token"));
+  const result = runtime.executeNpcAction("corvin", "inspect_item_envoy_token", observation.revision, observation.goal);
+  assert.match(result, /brass token/);
+  const restored = new BrowserGameRuntime(furnishedCourt(), "test", runtime.snapshot());
+  assert.ok(fromJson(ScenarioSchema, restored.snapshot().scenario).world!.objects.some(o => o.id === "envoy_token"));
+});
+
+test("DM cancel_task overrides a proposed goal and clobbers dead ends after failed actions", async t => {
+  const { runtime } = talkingCourt();
+  runtime.finishNpcRun("corvin", "unable", "No action can perform the proposed task.");
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => calls++ === 0
+    ? gmTool("cancel_task", { characterId: "corvin", reason: "No supported action can advance this task." })
+    : modelReply({ ...idleMemory, goalUpdate: { goal: "Try the same impossible task again.", reason: "Keep trying." } }));
+  await runtime.reviewNpcOutcome("corvin");
+  assert.equal(runtime.snapshot().npcActivities?.corvin?.status, "idle");
+  assert.equal(runtime.snapshot().npcActivities?.corvin?.goal, "");
+  assert.equal(fromJson(ScenarioSchema, runtime.snapshot().scenario).characters.find(c => c.id === "corvin")!.currentGoal, "");
+  await assert.rejects(runtime.planNpc("corvin", new AbortController().signal), /idle/);
+});
+
+test("DM additions roll back on malformed final memory and bounded tool exhaustion", async t => {
+  const runtime = new BrowserGameRuntime(furnishedCourt(), "test");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Perhaps." }));
+  await runtime.talkToCharacter("corvin", "Inspect a token.");
+  const before = runtime.snapshot();
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => calls++ === 0 ? gmTool("create_item", missingProp) : modelReply({}));
+  await assert.rejects(runtime.endConversation("corvin"), /incomplete/);
+  assert.deepEqual(runtime.snapshot(), before);
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => gmTool("create_item", missingProp));
+  await assert.rejects(runtime.endConversation("corvin"), /tool limit/);
+  assert.deepEqual(runtime.snapshot(), before);
+});
+
+test("GM world additions merge with player movement but reject concurrent inventory changes atomically", async t => {
+  const { runtime } = talkingCourt();
+  runtime.finishNpcRun("corvin", "unable", "A token is missing.");
+  const before = runtime.snapshot(), fork = runtime.forkForNpc();
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => calls++ === 0 ? gmTool("create_item", missingProp) : modelReply(idleMemory));
+  await fork.reviewNpcOutcome("corvin");
+  runtime.movePlayer({ x: 20, y: 21 });
+  runtime.commitCharacterFork(before, fork, ["corvin"]);
+  const merged = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  assert.ok(merged.world!.objects.some(o => o.id === "envoy_token"));
+  assert.deepEqual(merged.world!.actors.find(a => a.characterId === "player")!.position, create(TilePositionSchema, { x: 20, y: 21 }));
+  runtime.restore(before);
+  runtime.movePlayer({ x: 20, y: 21 });
+  runtime.interactFixture("open_palace_hall_cabinet");
+  runtime.interactFixture("take_palace_iron_key");
+  const changed = runtime.snapshot();
+  assert.throws(() => runtime.commitCharacterFork(before, fork, ["corvin"]), /World changed/);
+  assert.deepEqual(runtime.snapshot(), changed);
+});
+
+test("DM tools validate destinations, unique IDs, and participant scope before mutation", async () => {
+  const { applyReconciliationTool } = await import("../apps/web/src/gm-reconciliation.js");
+  const scenario = furnishedCourt(), before = toJson(ScenarioSchema, scenario), cancelled = new Map<string, string>();
+  for (const locationId of ["missing_shelf", "great_hall"]) {
+    assert.throws(() => applyReconciliationTool(scenario, ["corvin"], cancelled, "create_item", { ...missingProp, locationId }), /Location/);
+  }
+  assert.throws(() => applyReconciliationTool(scenario, ["corvin"], cancelled, "create_item", { ...missingProp, id: "palace_royal_key" }), /already exists/);
+  assert.throws(() => applyReconciliationTool(scenario, ["corvin"], cancelled, "cancel_task", { characterId: "king", reason: "Stop" }), /participants/);
+  assert.deepEqual(toJson(ScenarioSchema, scenario), before);
+  assert.equal(cancelled.size, 0);
+  applyReconciliationTool(scenario, ["corvin"], cancelled, "create_item", { ...missingProp, locationId: "palace_treasury_shelf" });
+  assert.ok(!fixtureActions(scenario, "corvin").some(a => a.id === "inspect_item_envoy_token"));
+  applyFixtureAction(scenario, "corvin", "open_palace_treasury_shelf");
+  assert.match(applyFixtureAction(scenario, "corvin", "inspect_item_envoy_token"), /brass token/);
+  applyFixtureAction(scenario, "corvin", "take_envoy_token");
+  assert.match(applyFixtureAction(scenario, "corvin", "inspect_item_envoy_token"), /brass token/);
+});
+
+test("NPC exchanges use the same DM tools and cancellation rules for both participants", async t => {
+  const { runtime, action, observation } = talkingCourt();
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => {
+    if (calls++ === 0) return modelReply({ request: "Could we inspect my token?", intent: "Identify its origin." });
+    if (calls === 2) return gmTool("create_item", missingProp);
+    if (calls === 3) return gmTool("cancel_task", { characterId: action.target, reason: "I have no further task to perform." });
+    return modelReply({ summary: "They discuss the embassy token.", initiator: idleMemory, recipient: { ...idleMemory, goalUpdate: { goal: "Keep searching for nothing.", reason: "Continue" } } });
+  });
+  await runtime.executeNpcTalk("corvin", action.id, observation.revision, observation.goal, new AbortController().signal);
+  const saved = runtime.snapshot(), scenario = fromJson(ScenarioSchema, saved.scenario);
+  assert.ok(scenario.world!.objects.some(o => o.id === "envoy_token"));
+  assert.equal(saved.npcActivities?.[action.target]?.status, "idle");
+  assert.equal(scenario.characters.find(c => c.id === action.target)!.currentGoal, "");
 });

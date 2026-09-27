@@ -25,7 +25,19 @@ are saved in IndexedDB. Change OpenRouter key clears the remembered credential.
 Left-click to walk or change destination mid-walk. Right-click a tile for ordered
 actions. Interactions walk to the appropriate point before taking effect; illegal
 actions are red. Conversations open over the map. NPCs start idle and act when a
-conversation or outcome review assigns a concrete task.
+DM reconciliation assigns a concrete task after a conversation or action run.
+The DM sees the authoritative world and decides whether to keep, replace, or
+cancel a proposed task. Its `create_item` tool can place an inspectable prop in an
+existing container or character inventory; `cancel_task` clears a participant's
+goal and leaves them idle. This is general adjudication, not a document-specific
+workflow. NPCs can inspect item details, and the player's character sheet shows
+the details of carried items.
+
+Reconciliation uses a bounded tool loop and commits world additions and memories
+together only after final validation. Concurrent inventory/container changes
+invalidate the staged additions for retry. Tool requests and results appear in
+the model transcripts. The DM can add props, but cannot invent new mechanics or
+make an unsupported task executable merely by describing it.
 
 The court includes Aldren, Corvin, Garran and three delegates from each vassal
 kingdom. Their rival interests, Edric’s peace settlement and the grain crisis are

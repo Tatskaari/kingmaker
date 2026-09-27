@@ -60,7 +60,7 @@ export function worldForCharacter(world: WorldState, characterId: string): World
     fixture.searchedBy = fixture.searchedBy.filter(id => id === characterId);
   }
 
-  view.objects = view.objects.filter(object => !object.concealed || visibleObjectIds.has(object.id));
+  view.objects = view.objects.filter(object => !object.concealed || object.locationId === characterId || visibleObjectIds.has(object.id));
   return view;
 }
 
