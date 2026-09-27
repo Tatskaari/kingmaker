@@ -1781,7 +1781,14 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     let started!: () => void;
     const reviewing = new Promise<void>(resolve => { started = resolve; });
     const waitForReview = new Promise<void>(resolve => { release = resolve; });
+    const commitReview = (input: any) => {
+      const context = JSON.parse(input.messages.at(-1).content);
+      const initial = input.messages.map((message: any) => { try { return JSON.parse(message.content); } catch { return {}; } }).findLast((value: any) => value?.proposal);
+      return gmTool("commit_review", { generations: Object.fromEntries(Object.entries(context.resources ?? context.current).map(([key, value]: [string, any]) => [key, value.generationId])),
+        review: initial.proposal.review, worldChanges: initial.proposal.worldChanges });
+    };
     t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => {
+      if (input.tools?.some((tool: any) => tool.function.name === "commit_review")) return commitReview(input);
       if (input.response_format?.json_schema?.name === "conversation_memory") {
         started(); await waitForReview;
         return modelReply({ newEvents: [{ type: "memory", summary: "The envoy said goodbye." }], relationships: [], lore: null, goalUpdate: null });
@@ -1804,7 +1811,8 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     const saved = records.get(result.activeSaveId).snapshot;
     assert.ok(fromJson(ScenarioSchema, saved.scenario).events.some(event => event.summary === "The envoy said goodbye."));
 
-    t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: null }));
+    t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => input.tools?.some((tool: any) => tool.function.name === "commit_review")
+      ? commitReview(input) : modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: null }));
     failNextWrite = true;
     await assert.rejects(request("end_conversation", { characterId: "mara" }), /Test storage failure/);
     assert.equal((await request("state")).state.conversations.mara.length, 2, "Failed reviews retain their transcript for retry");

@@ -62,13 +62,18 @@ async function commitMutation<T>(game: BrowserGameRuntime, work: () => T): Promi
   });
 }
 async function reviewBackground(game: BrowserGameRuntime, id: string, signal: AbortSignal, allowNextGoal: boolean) {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    signal.throwIfAborted();
-    const before = game.snapshot(), fork = game.forkForNpc();
-    await fork.reviewNpcOutcome(id, allowNextGoal, signal);
-    try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id]); }); return; }
-    catch (error) { if (attempt === 2 || signal.aborted || runtime !== game) throw error; }
-  }
+  signal.throwIfAborted();
+  const before = game.snapshot(), fork = game.forkForNpc();
+  await fork.reviewNpcOutcome(id, allowNextGoal, signal);
+  await publishReview(game, before, fork, signal);
+}
+async function publishReview(game: BrowserGameRuntime, before: RuntimeSnapshot, fork: BrowserGameRuntime, signal?: AbortSignal) {
+  const version = generation;
+  await game.publishReviewedFork(before, fork, (base, candidate, ids, expected) => commitMutation(game, () => {
+    signal?.throwIfAborted();
+    if (generation !== version) throw new Error("Game changed.");
+    game.commitCharacterFork(base, candidate, ids, expected);
+  }), signal);
 }
 function startBackground(id: string, handoffs = 3) {
   if (conversationHolds.has(id) || background?.id === id || pendingNpcs.some(item => item.id === id)) return;
@@ -138,8 +143,8 @@ async function drainBackground() {
             return;
           }
           await fork.executeNpcTalk(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
-          try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id, target]); }); }
-          catch (error) { if (!valid()) return; if (/changed/i.test(String(error))) continue; throw error; }
+          try { await publishReview(game, before, fork, signal); }
+          catch (error) { if (!valid()) return; throw error; }
           finally { job.participants = [id]; }
           if (handoffs > 0) for (const listener of game.rumourListenersSince(before)) startBackground(listener, handoffs - 1);
           if (handoffs > 0 && game.snapshot().npcActivities?.[target]?.status === "active") startBackground(target, handoffs - 1);
@@ -339,10 +344,12 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
       const version = generation;
       const { before, fork } = await enqueue(async () => ({ before: game.snapshot(), fork: game.forkForNpc() }));
       const reply = type === "talk" ? await fork.talkToCharacter(id, String(payload.message || "")) : await fork.endConversation(id);
-      await commitMutation(game, () => {
-        if (generation !== version) throw new Error("Game changed.");
-        game.commitCharacterFork(before, fork, [id]);
-      });
+      if (generation !== version || runtime !== game) throw new Error("Game changed.");
+      if (type === "end_conversation" && before.conversations[id]?.length) await publishReview(game, before, fork);
+      else await commitMutation(game, () => {
+          if (generation !== version) throw new Error("Game changed.");
+          game.commitCharacterFork(before, fork, [id]);
+        });
       if (type === "end_conversation") {
         conversationHolds.delete(id);
         for (const listener of game.rumourListenersSince(before)) startBackground(listener);
