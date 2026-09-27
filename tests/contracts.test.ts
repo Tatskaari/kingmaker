@@ -553,6 +553,52 @@ test("GM action and knowledge rulings reach dialogue immediately and publish wit
   }
 });
 
+test("consultation flavour is transient, nonblocking, and ignores late or failed generation", async t => {
+  for (const mode of ["ready", "late", "failure"] as const) {
+    const runtime = new BrowserGameRuntime(conversationScenario(), "test");
+    const lines: string[] = [];
+    let releaseGm!: () => void, releaseFlavour!: (value: OpenRouterMessage) => void;
+    let started!: () => void;
+    const gmStarted = new Promise<void>(resolve => { started = resolve; });
+    const gmWait = new Promise<void>(resolve => { releaseGm = resolve; });
+    const flavour = new Promise<OpenRouterMessage>(resolve => { releaseFlavour = resolve; });
+    let flavourSignal: AbortSignal | undefined;
+    t.mock.method(OpenRouterClient.prototype, "complete", async (input: ChatCompletionRequest, signal?: AbortSignal) => {
+      if (input.max_tokens === 100) {
+        flavourSignal = signal;
+        assert.equal(input.reasoning?.effort, "none");
+        assert.equal(input.tools, undefined);
+        if (mode === "failure") throw new Error("Flavour unavailable");
+        return flavour;
+      }
+      if (input.tools?.some(tool => tool.function.name === "finish_review")) {
+        started(); await gmWait;
+        return { role: "assistant", content: null, tool_calls: [{ id: "done", type: "function",
+          function: { name: "finish_review", arguments: JSON.stringify({ summary: "You do not know." }) } }] };
+      }
+      if (input.messages.some(message => message.role === "tool")) return modelReply({ utterance: "I do not know.", replyOptions: [], endConversation: false });
+      return { role: "assistant", content: null, tool_calls: [{ id: "ask", type: "function",
+        function: { name: "ask_the_game_master", arguments: JSON.stringify({ request: "Do I know the secret?" }) } }] };
+    });
+    const talking = runtime.talkToCharacter("corvin", "Do you know?", line => lines.push(line));
+    await gmStarted;
+    assert.equal(lines.length, 1, "Fallback appears while both requests are pending");
+    if (mode === "ready") {
+      releaseFlavour({ role: "assistant", content: "Corvin pauses, weighing his answer." });
+      await new Promise(resolve => setImmediate(resolve));
+      assert.equal(lines.at(-1), "Corvin pauses, weighing his answer.");
+    }
+    releaseGm();
+    assert.equal(await talking, "I do not know.", "Reply does not wait for cosmetic generation");
+    assert.equal(flavourSignal?.aborted, true);
+    const count = lines.length;
+    releaseFlavour({ role: "assistant", content: "Too late." });
+    await new Promise(resolve => setImmediate(resolve));
+    assert.equal(lines.length, count);
+    assert.doesNotMatch(JSON.stringify(runtime.snapshot()), /weighing his answer|pauses to consider|Too late/);
+  }
+});
+
 test("closed doors exclude nearby earshot listeners until opened", () => {
   const world = load().world!;
   const door = world.doors.find(door => door.id === "corvin_door")!;
@@ -2101,8 +2147,14 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
 
   const talking = runInContext("activeCharacter = 'mara'; run(() => talkAndReview('mara', 'Goodbye'))", context);
   const talk = sent.at(-1);
+  receive({ data: { type: "dialogue_thinking", requestId: talk.id, characterId: "mara", text: "Mara considers her answer." } });
+  assert.equal(runInContext("notice", context), "Mara considers her answer.");
+  receive({ data: { type: "dialogue_thinking", requestId: talk.id, characterId: "corvin", text: "Wrong character." } });
+  assert.equal(runInContext("notice", context), "Mara considers her answer.");
   receive({ data: { id: talk.id, ok: true, value: { state: { revision: 3, conversationEndRequested: { mara: true }, conversations: { mara: ["Farewell"] } }, saves: [] } } });
   await talking;
+  receive({ data: { type: "dialogue_thinking", requestId: talk.id, characterId: "mara", text: "Late text." } });
+  assert.equal(runInContext("notice", context), "");
   assert.equal(runInContext("busy", context), false, "NPC farewell does not wait for review");
   assert.equal(runInContext("closedConversation.messages[0]", context), "Farewell");
   const review = sent.at(-1);

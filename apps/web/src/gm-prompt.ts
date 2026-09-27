@@ -15,7 +15,7 @@ Separate GM adjudication from tasks for the physical action planner. The planner
 const gmCalls: Record<ModelCallKind, boolean> = {
   game_master: true, gm_consultation: true, conversation_review: true,
   npc_resolution: true, outcome_review: true, illegal_action: true,
-  dialogue: false, npc_request: false, jev: false,
+  dialogue: false, dialogue_flavour: false, npc_request: false, jev: false,
 };
 
 export function withGmBasePrompt(kind: ModelCallKind, request: ChatCompletionRequest): ChatCompletionRequest {

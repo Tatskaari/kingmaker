@@ -308,7 +308,7 @@ function requireRuntime(): BrowserGameRuntime {
   return runtime;
 }
 
-async function handle(type: string, payload: Record<string, unknown>): Promise<unknown> {
+async function handle(type: string, payload: Record<string, unknown>, requestId: number): Promise<unknown> {
   if (["configure", "create_game", "create_development_game", "load_game", "delete_game", "reset", "reset_world", "reset_characters"].includes(type)) {
     generation++; stopBackground(); conversationHolds.clear();
   }
@@ -402,7 +402,11 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
       conversationHolds.add(id); stopBackground(id);
       const version = generation;
       const { before, fork } = await enqueue(async () => ({ before: game.snapshot(), fork: type === "end_conversation" ? reviewFork(game) : game.forkForNpc() }));
-      const reply = type === "talk" ? await fork.talkToCharacter(id, String(payload.message || "")) : await fork.endConversation(id);
+      const reply = type === "talk" ? await fork.talkToCharacter(id, String(payload.message || ""), text => {
+        if (generation === version && runtime === game) worker.postMessage({
+          type: "dialogue_thinking", requestId, characterId: id, text,
+        });
+      }) : await fork.endConversation(id);
       if (generation !== version || runtime !== game) throw new Error("Game changed.");
       if (type === "talk") await commitMutation(game, () => {
           if (generation !== version) throw new Error("Game changed.");
@@ -433,7 +437,7 @@ worker.addEventListener("message", event => {
   const request = event.data as WorkerRequest;
   const process = async () => {
     try {
-      const value = await handle(request.type, request.payload || {});
+      const value = await handle(request.type, request.payload || {}, request.id);
       worker.postMessage({ id: request.id, ok: true, value });
     } catch (error) {
       if (error instanceof GenerationConflict) publishNpc("State changed. Review the updated palace and choose again.");
