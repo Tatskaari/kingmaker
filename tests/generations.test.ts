@@ -38,6 +38,44 @@ test("conflicts return fresh state and require an explicit reconciled write", ()
   assert.throws(() => store.check(resources, {}, ["character:a"]), GenerationConflict);
 });
 
+test("missing generation errors name every requirement without claiming state changed", () => {
+  const store = new GenerationStore();
+  const resources = { "character:rowan": { goal: "Talk" }, "door:hall": { open: true }, "actor:listener": { x: 1 } };
+  const ids = generationIds(store.read(resources));
+  const required = [...Object.keys(resources), "door:hall"];
+  let response!: GenerationConflict["response"];
+  assert.throws(() => store.check(resources, { "character:rowan": ids["character:rowan"]! }, required), error => {
+    assert.ok(error instanceof GenerationConflict);
+    response = error.response;
+    assert.equal(response.error, "missing_generation_ids");
+    assert.deepEqual(response.requiredResourceIds, Object.keys(resources));
+    assert.deepEqual(response.missingResourceIds, ["door:hall", "actor:listener"]);
+    assert.deepEqual(response.staleResourceIds, []);
+    assert.match(response.instruction, /Missing IDs do not mean those resources changed/);
+    assert.match(error.message, /door:hall/);
+    return true;
+  });
+  assert.deepEqual(generationIds(store.read(resources)), ids);
+  store.check(resources, generationIds(response.current), required);
+});
+
+test("mixed failures distinguish absent IDs from stale dependencies", () => {
+  const store = new GenerationStore();
+  const resources = { "character:rowan": { goal: "Talk" }, "door:hall": { open: true }, "actor:listener": { x: 1 } };
+  const ids = generationIds(store.read(resources));
+  resources["actor:listener"].x = 2;
+  // Caller-supplied dependencies must remain guarded even beyond required IDs.
+  assert.throws(() => store.check(resources, { "actor:listener": ids["actor:listener"]!, "door:hall": "" }, ["character:rowan", "door:hall"]), error => {
+    assert.ok(error instanceof GenerationConflict);
+    assert.equal(error.response.error, "generation_conflict");
+    assert.deepEqual(error.response.missingResourceIds, ["character:rowan", "door:hall"]);
+    assert.deepEqual(error.response.staleResourceIds, ["actor:listener"]);
+    assert.deepEqual(error.response.current["actor:listener"]!.state, { x: 2 });
+    assert.match(error.response.instruction, /reconcile/);
+    return true;
+  });
+});
+
 function runtime() {
   const game = new BrowserGameRuntime(fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")), "test");
   game.createDevelopmentPlayer();
@@ -176,7 +214,8 @@ test("direct court GM writes return conflicts; creation writes need no generatio
         const args: any = { characterId: "corvin", lore: "Reconciled biography.", currentGoal: "" };
         if (calls === 2) {
           const result = JSON.parse(request.messages.at(-1).content);
-          assert.equal(result.error, "generation_conflict");
+          assert.equal(result.error, "missing_generation_ids");
+          assert.ok(result.missingResourceIds.includes("character:corvin"));
           assert.notEqual(result.current["character:corvin"].state.character.lore, args.lore);
           args.generations = generationIds(result.current);
         }

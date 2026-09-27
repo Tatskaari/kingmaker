@@ -13,9 +13,18 @@ export const RECONCILE_CONFLICT = "Nothing was written. Read the returned curren
 
 export class GenerationConflict extends Error {
   readonly response;
-  constructor(current: Record<string, VersionedState>) {
-    super("State changed; reconcile before writing again.");
-    this.response = { ok: false, error: "generation_conflict", instruction: RECONCILE_CONFLICT, current };
+  constructor(current: Record<string, VersionedState>, expected: ExpectedGenerations, required: readonly string[]) {
+    const requiredResourceIds = [...new Set(required)];
+    const missingResourceIds = Object.keys(current).filter(key => !expected[key]);
+    const staleResourceIds = Object.keys(current).filter(key => expected[key] && expected[key] !== current[key]!.generationId);
+    const error = staleResourceIds.length ? "generation_conflict" : "missing_generation_ids";
+    const details = [
+      ...(missingResourceIds.length ? [`Missing generation IDs: ${missingResourceIds.join(", ")}.`] : []),
+      ...(staleResourceIds.length ? [`Stale generation IDs: ${staleResourceIds.join(", ")}.`] : []),
+    ].join(" ");
+    super(staleResourceIds.length ? `State changed. ${details}` : details);
+    this.response = { ok: false, error, requiredResourceIds, missingResourceIds, staleResourceIds,
+      instruction: `${details} Nothing was written. Include every requiredResourceIds entry in generations using the IDs in current. Missing IDs do not mean those resources changed. Read the returned state and decide how to reconcile any staleResourceIds before you call the write tool again. Do not blindly retry stale writes.`, current };
   }
 }
 
@@ -42,7 +51,7 @@ export class GenerationStore {
   check(resources: Record<string, unknown>, expected: ExpectedGenerations, required: readonly string[]): void {
     const keys = [...new Set([...required, ...Object.keys(expected)])];
     const current = this.read(resources, keys);
-    if (keys.some(key => !expected[key] || expected[key] !== current[key]!.generationId)) throw new GenerationConflict(current);
+    if (keys.some(key => !expected[key] || expected[key] !== current[key]!.generationId)) throw new GenerationConflict(current, expected, required);
   }
 
   snapshot(): Generations { return structuredClone(this.#entries); }
