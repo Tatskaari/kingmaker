@@ -14,8 +14,6 @@ import {
 } from "../../contracts/src/index.js";
 import type { GameState, Validation } from "./ports.js";
 
-const NPC_IDS = ["merlin", "lancelot", "king"] as const;
-
 function failure<T>(code: string, message: string): Validation<T> {
   return { ok: false, issues: [{ code, message }] };
 }
@@ -37,14 +35,19 @@ export class MemoryGame implements GameState {
     if (!setup.player) return failure("missing_player", "Player setup has no character.");
     const world = this.#scenario.world;
     if (!world) return failure("missing_world", "Scenario has no world.");
+    const npcIds = this.#scenario.characters.map(character => character.id);
     const owners = new Set(setup.npcRelationships.map(update => update.ownerCharacterId));
-    if (NPC_IDS.some(id => !owners.has(id))) {
+    if (setup.npcRelationships.length !== npcIds.length || npcIds.some(id => !owners.has(id))
+      || setup.npcRelationships.some(update => !update.relationship?.description.trim())) {
       return failure("missing_relationship", "The game master must describe every NPC's relationship to the player.");
     }
 
     const player = clone(CharacterSchema, setup.player);
     player.id = "player";
-    for (const npcId of NPC_IDS) {
+    if (player.relationships.length !== npcIds.length || player.relationships.some(item => !item.description.trim())) {
+      return failure("invalid_player_relationships", "Describe exactly one initial relationship with every court character.");
+    }
+    for (const npcId of npcIds) {
       if (!player.relationships.some(relationship => relationship.characterId === npcId)) {
         return failure("missing_player_relationship", `The player needs a relationship to ${npcId}.`);
       }
@@ -84,7 +87,7 @@ export class MemoryGame implements GameState {
     }
 
     const identity = `${player.name}, ${setup.embassyRole} from ${setup.homeland}`;
-    for (const npcId of NPC_IDS) {
+    for (const npcId of npcIds) {
       this.#scenario.events.push(create(EventSchema, {
         id: `arrival-${npcId}`,
         day: world.day,

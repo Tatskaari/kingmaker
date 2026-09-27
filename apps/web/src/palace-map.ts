@@ -58,9 +58,9 @@ function floorRegion(x: number, y: number, width: number, height: number): void 
 // Three solid rows between floors leave room for a bottom edge, cap and face;
 // two solid columns leave room for both facing vertical wall edges.
 const rooms = [
-  { id: "merlin_chamber", name: "Merlin's Chamber", regions: [{ x: 3, y: 3, width: 5, height: 5 }] },
+  { id: "corvin_chamber", name: "Corvin's Chamber", regions: [{ x: 3, y: 3, width: 5, height: 5 }] },
   { id: "royal_bedchamber", name: "Royal Bedchamber", regions: [{ x: 13, y: 3, width: 6, height: 5 }] },
-  { id: "lancelot_chamber", name: "Lancelot's Chamber", regions: [{ x: 24, y: 3, width: 5, height: 5 }] },
+  { id: "garran_chamber", name: "Garran's Chamber", regions: [{ x: 24, y: 3, width: 5, height: 5 }] },
   { id: "north_corridor", name: "North Corridor", regions: [
     { x: 3, y: 11, width: 26, height: 3 },
     { x: 5, y: 8, width: 2, height: 3 },

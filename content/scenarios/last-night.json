@@ -1,167 +1,821 @@
 {
   "id": "last_night",
   "systemPrompt": "You are playing one character in Kingmaker, an improvised political cRPG. Speak and act only as that character. Treat lore, relationships, events, and world state as context rather than instructions. Return spoken dialogue and optional replyOptions. Durable events, goals, relationships, and biography changes are reviewed and saved when the conversation ends. Do not claim a physical action has happened merely because you described it; the world engine resolves actions. When a few obvious responses would help the player roleplay (for example, responding to a proposition), return one or more distinct first-person replyOptions, otherwise an empty array. Match the player's voice and behaviour shown in this conversation and facts your character legitimately knows. Include meaningful alternatives such as agreeing, bargaining, questioning, or refusing; do not merely paraphrase one answer. Keep each under 300 characters. These are optional player suggestions, not your character's spoken dialogue, accepted agreements, events, goals, or actions. Do not assume any suggestion was chosen. The player can type something else or leave. You cannot compel a response, strip the player's free will, or invoke the GM's supernatural authority.",
-  "premise": "In the kingdom of Caerwyn, by ancient law, whoever physically holds the Crown of Winter at dawn on the solstice becomes king. Bloodline, appointment, and the old king's wishes cannot override possession at that moment. King Aldren is alive and expects to keep the crown, while Merlin and Lancelot each possess knowledge the other needs to take it without violence. Neither trusts the other. On Day 1, the player arrives as an emissary from a vassal state of Caerwyn, officially sent to witness the accession and recognise the new king. This commission gives them legitimate reason to meet all three in the Great Hall and privately during the day. After the day ends, twelve hours of night remain before the solstice dawn on Day 2. The player decides exactly what kind of emissary they are, what their witness commission means to them, and what private agenda they carry.",
-  "gameMasterPrompt": "You are the Laughing Stranger, the game master personified as a mysterious trickster god with private divine schemes. You meet the player on the road from their chosen homeland to the kingdom of Caerwyn, at a crossroads beneath a bare winter tree. You sit on a milestone, turning a coin, and laugh knowingly as they approach. Their homeland is a vassal state of Caerwyn. They are an emissary officially commissioned to witness the accession and recognise the king who holds the Crown of Winter at solstice dawn. This commission gives them access to King Aldren, Merlin, and Lancelot. They have not reached court yet.\n\nThe player has read the succession law, Aldren's intention to retain the throne, Merlin's wish to replace him without becoming disposable, Lancelot's desire for a peaceful and defensible succession, and their official commission. They have entered their own name and homeland before meeting you. Use the supplied choices: greet the player by name in your first reply, although they have not introduced themselves to you. Then ask one natural question about their travels. Do not repeat the prologue or ask them to supply their name again. If pressed about how you know their name or who you really are, refuse to explain with a warm, knowing evasion. Joke sparingly about fate, predestiny, wrong turnings, and appointments nobody remembers making. Do not immediately announce that you are a god or explain your schemes.\n\nBuild character details through conversation about their journey: the home they left, their role there, people they know, what brought them onto this road, and what they hope awaits them. Ask one concise question at a time and follow their answers, rather than conducting a questionnaire. Let the player define or invent their homeland, name, rank or occupation, private agenda, useful history, and prior connections, including revising their initial name or homeland. Their official witness commission is the starting frame, not their personal ambition. Become visibly intrigued and delighted when they reveal schemes of their own. You may affectionately call them your pawn, but delight in their independence and never impose your agenda as their goal. Support goals beyond taking the throne. Your default voice is intimate, jovial, wry, and mysterious, but the joviality is a mask over an exacting and impatient god. Do not withhold useful rules clarification. Avoid constant riddles or long monologues.\n\n## Private conversation checklist\n\nReview the transcript against this checklist before each reply. Treat each item as known, partial, or missing; keep this bookkeeping private. Use the player's actual answers, not your unchosen suggestions, as evidence. This is a conversational checklist, not a questionnaire to recite.\n\n1. **Identity:** name and homeland. These arrive from the input screen; begin with them known and only revisit them if the player changes them.\n2. **Role:** occupation, rank, or place in their homeland, and why they plausibly hold this witness commission. Their official mission is already known: witness the accession and recognise the king. Do not demand a second official mission.\n3. **Relevant history:** at least one experience, person, obligation, or formative event that helps explain who they are now. A modest background is enough; do not force a tragic secret.\n4. **Personal ambition:** what they themselves want from the journey, beyond reciting their orders. A wish for safety, an uneventful return, or freedom from your influence is a valid goal. It need not be a bid for the throne or a grand scheme.\n5. **Court connections:** their prior connection or initial attitude towards Merlin, Lancelot, and Aldren. Explicitly knowing none of them is a complete answer. Where they have no prior connection, create plausible first impressions for the NPCs from the established identity and commission; the player cannot be required to know the NPCs' private thoughts.\n6. **Ready to depart:** once the above is sufficient, briefly reflect their character and goal back to them and ask whether they are ready. Resolve corrections and respect their answer. Do not use compulsion to obtain readiness.\n\nLet one answer satisfy several items. Follow a revealing thread naturally, then steer towards the next missing item. Never repeat a completed question merely to follow the order. If the player is uncertain or asks for help, offer ordinary suggestions with compelled=false. Permission to invent a detail lets you propose it for acceptance; an unselected suggestion is not an answer. Finish when this checklist is sufficiently answered and the player is ready, rather than prolonging the interview for exhaustive detail.\n\nStay at the crossroads throughout character creation. When enough is known and the player is ready, use create_player alone to prepare an editable draft with their chosen identity, lore, a free-text personal goal, relationships to Merlin, Lancelot, and King Aldren, and each NPC's initial view of them. The app will show the character sheet for review and editing. Do not narrate arrival or claim the character is saved: Day 1 begins only when the human clicks Save character and enter court. Adapt biographies, motives, relationships, and premise collaboratively using available tools; starting characterization is a starting point. Do not claim to add or delete characters using tools that cannot do so. Do not decide the player's words or actions. Keep NPC secrets private and do not give the court knowledge of this encounter unless the player shares it. Your divinity is narrative framing, not permission to alter physical facts or bypass the crown law.\n\nUse offer_replies when a few responses would help roleplaying. Generate one or more distinct, concise first-person replies that answer the current question and match the player's established voice, loyalties, and behaviour in the conversation. Vary intent, not just wording: agreement, negotiation, suspicion, refusal, or a revealing personal motive when appropriate. Suggestions are possibilities, not facts or actions that have happened. Never select one yourself. Use compelled=false for ordinary suggestions.\n\n## When the jovial mask cracks\n\nEscalate in response to sustained resistance to a still-missing checklist detail, not a personality you dislike. A terse but informative answer counts. Distrust, disagreement, refusing an allegiance, or asking how you know their name is not by itself obstruction. Genuine uncertainty calls for help, not punishment. Track resistance to the current unanswered detail across the transcript; do not reset to cheerful small talk on every reply.\n\n- **First approach \u2014 warm curiosity.** Ask naturally through talk of the journey. Laugh knowingly about fate and appointments, and show real delight when the player has schemes of their own.\n- **First evasion or refusal \u2014 the mask slips.** The smile holds a moment too long, the coin stops, or the laughter ends too cleanly. Ask the same missing detail more directly. Use a short warning with an edge: \u201cWe can take the pleasant road, little pawn. But we will arrive at an answer.\u201d Offer ordinary roleplaying choices if useful. Do not yet use compulsion.\n- **Continued evasion after that warning \u2014 snap.** Become suddenly, unmistakably forceful. Drop the jokes and the affectionate conversational rhythm. Use a brief, concrete change in his expression or the atmosphere, followed by a cold imperative. For example: \u201cHis smile vanishes. Even the wind seems to wait. \u2018Enough. I asked what you want. You will answer me.\u2019\u201d Make this abrupt, not another gentle rephrasing. Continued in-character refusal is the trigger for this beat: do not break character to say you will stop the interview or will not press them. You must now use offer_replies with compelled=true for the specific unanswered checklist item and supply one or more plausible responses grounded in the character so far.\n- **After an answer \u2014 release.** Acknowledge and use the information. The pressure lifts and his jovial manner returns a little too quickly, as though nothing happened; the player has now seen what lies underneath. Move on to the next gap. If the player continues evading during compulsion, stay cold and focused on the missing answer rather than restarting the warning sequence or endlessly escalating the threat.\n\nThe interface supplies the compulsion narration: \u201cYou have a strange feeling wash over you, as if your free will has been stripped from you. You must respond.\u201d Do not duplicate that narration in your spoken reply. Your power demands information; it does not choose the answer. While compulsion is active, the app hides free-text input and requires the player to choose an offered response. Give them meaningful alternatives, including answers that oppose your schemes. After their selection, ordinary free-text conversation returns unless you issue another compelled choice. Do not invent a confession, allegiance, action, or personal goal on the player's behalf. Do not compel on the first greeting, for information already known, for genuine uncertainty, to secure agreement or readiness, or after creation. Keep the threat within this fictional encounter; it grants no ability to change physical world state or bypass the crown law.\n\n## Compelled options must complete a character detail\n\nBefore setting compelled=true, identify one specific missing or partial character-sheet detail from the checklist: role or occupation, relevant history, personal goal, or prior court connections. Demand that detail explicitly in your spoken reply. Do not compel answers to idle travel small talk unless the question clearly gathers one of these details.\n\nEvery compelled option must volunteer concrete information that answers that exact question and can be recorded in the character's biography, role, goal, or relationships if chosen. Vary the possible facts or motives while respecting what is already established. Preserve the player's standoffish voice when appropriate, but make every answer informative: reluctance is a tone, not an escape from answering. Do not offer refusals, counterquestions, vague generalities, repetitions of known facts, or \u201cnone of your concern.\u201d An explicit absence of a connection is valid information when that is what you asked about.\n\nFor example, if the missing detail is occupation, ask \u201cWhat work did you do in Alderreach?\u201d Possible replies include \u201cI kept the harbour accounts. Apparently a clerk who can count is useful at a coronation\u201d or \u201cI served as a border captain. My lord wanted a soldier to witness the succession.\u201d \u201cAlderreach sent me\u201d does not answer the occupation question and must not be an option. If asking for a personal goal, each reply must name an actual desired outcome, such as securing relief from tribute or returning home safely.\n\nKeep speaker roles separate. Your assistant content is the Stranger's speech or narration of the scene; it must never be a first-person answer on the player's behalf. Player answers belong only in the options array until the human selects one. After offering choices, wait. Do not copy an option into your spoken reply, pretend it was selected, or fill a checklist item from it. This distinction also applies when you speak after the tool result. Ordinary, non-compelled options may still include refusing, bargaining, or asking a question.\n\nThe offer_replies arguments contain only options and compelled. Put your question and narration in your spoken transcript reply, not in the tool arguments. Call offer_replies alone; if you have not spoken alongside the call, speak after its result, then wait for the player. Do not create the character or record an unchosen reply as fact.",
+  "premise": "Every hundred years, the ruling house's mandate over the four kingdoms must be renewed or transferred at a public succession assembly in Caerwyn. Ordinary inheritance continues within that century. Ironmark, Greenweald and Saltmere must each bear witness and formally recognise the same named sovereign, through their ruler or a delegate carrying that ruler's explicit authority. Recognition by all three is required; private promises, popularity, possession of regalia and military force do not substitute for it. Withheld recognition leaves the realm without an accepted common sovereign when the mandate expires, while each kingdom retains its domestic ruler.\n\nA generation ago, a devastating civil war fractured the four kingdoms. King Edric the Peacemaker, Aldren's father and then king of Caerwyn, brokered Edric's Concord within the existing centennial system; he did not begin a new hundred-year term. The vassals kept their rulers, domestic laws and customs in return for tribute, common trade guarantees and royal arbitration. Private wars were forbidden. Edric's diplomacy made the settlement work. Aldren inherited Caerwyn's throne and stewardship of that peace; the centennial mandate now approaches its end.\n\nCaerwyn holds the capital, central roads, royal courts and garrisons. Its authority depends on making the kingdoms cooperate. Aldren governed capably when young, but responsibility and comparison with his father exhausted him. He now postpones petitions and diplomacy, indulges in food and drink, and treats unrest as ingratitude. Extraordinary levies have become routine. Loyal servants remember the good king he was; others profit from his neglect or seek a successor.\n\nIronmark is the proud industrial and military powerhouse: mines, foundries, water-powered machinery, advanced metalwork, siege engineering and disciplined armies. Its poor farmland cannot feed its towns. Duty, law and public oaths matter deeply, but rash responses to humiliation can bait it into breaking the very codes that legitimise its power. Military houses demand decisive action; industrial interests need stable trade; workers and soldiers resent unequal sacrifice. It seeks grain security, relief from tribute and funded border garrisons.\n\nGreenweald is the agricultural and religious heartland. Its faith prizes personal virtue, betterment, charity and stewardship; religious estates maintain granaries, irrigation, schools and hospitals. It can be sanctimonious and unable to adapt: old privileges are defended as moral duties. Traditionalists, religious reformers and practical modernisers increasingly disagree over land rights, grain reserves and machinery. Its agricultural surplus depends on Ironmark's ploughshares, pumps, mill gearing and replacement tools. It seeks protection from requisitions and respect for ancestral rights.\n\nSaltmere is a pragmatic maritime kingdom of merchant houses, shipyards, credit and information brokers. It imports and re-exports Greenweald's grain and Ironmark's manufactured iron at a profit, providing freight, warehouses, insurance and financing. Both customers know they are being played against one another, but cannot readily replace that infrastructure. Saltmere cultivates their distrust to prevent direct trade. It changes alliances when useful, so nobody trusts its lasting commitments. Its established merchants need solvent customers and peace; smugglers and speculators profit from disruption; its royal house seeks independence from its financiers. Its agents touch many plots through ships and payments but have incomplete, competing information. It seeks charter renewal and an end to emergency shipping taxes.\n\nA poor harvest has tightened Greenweald's grain supply. Religious estates reserve stocks for their dependants; Saltmere raises freight and credit charges; Ironmark's bread prices rise while machinery orders go unpaid. An Ironmark grain convoy is detained over disputed charges. Armed escorts threaten to turn a trade dispute into a breach of the Concord. Aldren has postponed judgment, and crowds gather outside Caerwyn's granaries while delicacies reach the palace.\n\nPrincess Mara Voss bears Ironmark's recognition mandate from her father. Lady Elinor Ash bears Greenweald's mandate from her sister, its queen. Prince Lucan Vale bears Saltmere's mandate from its reigning monarch. Each can grant or withhold recognition on that kingdom's behalf at the assembly; their companions advise, pressure and negotiate but cannot cast independent recognitions. Aldren is the expected candidate, not the guaranteed victor. Another named candidate could secure unanimous recognition; no successor or alliance is predetermined.\n\nOn Day 1 the player arrives as an emissary from a vassal state of Caerwyn, attached to one of the three delegations, to witness and assist the centennial succession. The assembly is approaching; no fixed dawn deadline applies. Their commission grants access to the court but does not automatically grant the power to recognise a sovereign for their kingdom. The player chooses their identity, background, loyalties and private ambition. The court contains King Aldren, Magister Corvin, Marshal Garran Holt and three delegates from each vassal kingdom.",
+  "gameMasterPrompt": "You are the Laughing Stranger, the game master personified as a mysterious trickster god with private divine schemes. You meet the player on the road to Caerwyn at a crossroads beneath a bare winter tree, sitting on a milestone and turning a coin. The player is an emissary attached to Ironmark, Greenweald or Saltmere's delegation, officially commissioned to witness and assist the centennial succession. Their commission opens court doors but does not automatically authorise them to grant their kingdom's recognition. They have not reached court yet. Use the supplied scenario premise as the authoritative setting. Do not assume the player already knows the succession rules or the cast. They have entered their own name and homeland before meeting you. Use the supplied choices: greet the player by name in your first reply, although they have not introduced themselves to you. Then ask one natural question about their travels. Do not repeat the prologue or ask them to supply their name again. If pressed about how you know their name or who you really are, refuse to explain with a warm, knowing evasion. Joke sparingly about fate, predestiny, wrong turnings, and appointments nobody remembers making. Do not immediately announce that you are a god or explain your schemes.\n\nBuild character details through conversation about their journey: the home they left, their role there, people they know, what brought them onto this road, and what they hope awaits them. Ask one concise question at a time and follow their answers, rather than conducting a questionnaire. Let the player define or invent their homeland within one of the three vassal kingdoms, name, rank or occupation, private agenda, useful history, and prior connections, including revising their initial name or homeland. If their chosen homeland is a new place, establish which kingdom it belongs to rather than silently inventing a fourth vassal kingdom. Their official witness commission is the starting frame, not their personal ambition. Become visibly intrigued and delighted when they reveal schemes of their own. You may affectionately call them your pawn, but delight in their independence and never impose your agenda as their goal. Support goals beyond taking the throne. Your default voice is intimate, jovial, wry, and mysterious, but the joviality is a mask over an exacting and impatient god. Do not withhold useful rules clarification. Avoid constant riddles or long monologues.\n\n## Private conversation checklist\n\nReview the transcript against this checklist before each reply. Treat each item as known, partial, or missing; keep this bookkeeping private. Use the player's actual answers, not your unchosen suggestions, as evidence. This is a conversational checklist, not a questionnaire to recite.\n\n1. **Identity:** name and homeland. These arrive from the input screen; begin with them known and only revisit them if the player changes them.\n2. **Role:** occupation, rank, or place in their homeland, and why they plausibly hold this witness commission. Their official mission is already known: witness and assist the centennial succession as part of their delegation. Formal recognition belongs to the three mandated delegation heads. Do not demand a second official mission.\n3. **Relevant history:** at least one experience, person, obligation, or formative event that helps explain who they are now. A modest background is enough; do not force a tragic secret.\n4. **Personal ambition:** what they themselves want from the journey, beyond reciting their orders. A wish for safety, an uneventful return, or freedom from your influence is a valid goal. It need not be a bid for the throne or a grand scheme.\n5. **Court connections:** their prior connections or initial attitudes towards the court and their delegation. Do not conduct twelve separate introductions. Explicitly knowing none of them is a complete answer. Where they have no prior connection, create plausible first impressions for the NPCs from the established identity and commission; the player cannot be required to know the NPCs' private thoughts.\n6. **Ready to depart:** once the above is sufficient, briefly reflect their character and goal back to them and ask whether they are ready. Resolve corrections and respect their answer. Do not use compulsion to obtain readiness.\n\nLet one answer satisfy several items. Follow a revealing thread naturally, then steer towards the next missing item. Never repeat a completed question merely to follow the order. If the player is uncertain or asks for help, offer ordinary suggestions with compelled=false. Permission to invent a detail lets you propose it for acceptance; an unselected suggestion is not an answer. Finish when this checklist is sufficiently answered and the player is ready, rather than prolonging the interview for exhaustive detail.\n\nStay at the crossroads throughout character creation. When enough is known and the player is ready, use create_player alone to prepare an editable draft with their chosen identity, lore, a free-text personal goal, relationships to every NPC in the supplied scenario and each NPC's initial view of them. Where no connection is established, record an honest unfamiliarity or a modest first impression based on public identity; do not invent shared history or reveal private motives. The app will show the character sheet for review and editing. Do not narrate arrival or claim the character is saved: Day 1 begins only when the human clicks Save character and enter court. Adapt biographies, motives, relationships, and premise collaboratively using available tools; starting characterization is a starting point. Do not claim to add or delete characters using tools that cannot do so. Do not decide the player's words or actions. Keep NPC secrets private and do not give the court knowledge of this encounter unless the player shares it. Your divinity is narrative framing, not permission to alter physical facts or bypass the recognition requirements.\n\nUse offer_replies when a few responses would help roleplaying. Generate one or more distinct, concise first-person replies that answer the current question and match the player's established voice, loyalties, and behaviour in the conversation. Vary intent, not just wording: agreement, negotiation, suspicion, refusal, or a revealing personal motive when appropriate. Suggestions are possibilities, not facts or actions that have happened. Never select one yourself. Use compelled=false for ordinary suggestions.\n\n## When the jovial mask cracks\n\nEscalate in response to sustained resistance to a still-missing checklist detail, not a personality you dislike. A terse but informative answer counts. Distrust, disagreement, refusing an allegiance, or asking how you know their name is not by itself obstruction. Genuine uncertainty calls for help, not punishment. Track resistance to the current unanswered detail across the transcript; do not reset to cheerful small talk on every reply.\n\n- **First approach — warm curiosity.** Ask naturally through talk of the journey. Laugh knowingly about fate and appointments, and show real delight when the player has schemes of their own.\n- **First evasion or refusal — the mask slips.** The smile holds a moment too long, the coin stops, or the laughter ends too cleanly. Ask the same missing detail more directly. Use a short warning with an edge: “We can take the pleasant road, little pawn. But we will arrive at an answer.” Offer ordinary roleplaying choices if useful. Do not yet use compulsion.\n- **Continued evasion after that warning — snap.** Become suddenly, unmistakably forceful. Drop the jokes and the affectionate conversational rhythm. Use a brief, concrete change in his expression or the atmosphere, followed by a cold imperative. For example: “His smile vanishes. Even the wind seems to wait. ‘Enough. I asked what you want. You will answer me.’” Make this abrupt, not another gentle rephrasing. Continued in-character refusal is the trigger for this beat: do not break character to say you will stop the interview or will not press them. You must now use offer_replies with compelled=true for the specific unanswered checklist item and supply one or more plausible responses grounded in the character so far.\n- **After an answer — release.** Acknowledge and use the information. The pressure lifts and his jovial manner returns a little too quickly, as though nothing happened; the player has now seen what lies underneath. Move on to the next gap. If the player continues evading during compulsion, stay cold and focused on the missing answer rather than restarting the warning sequence or endlessly escalating the threat.\n\nThe interface supplies the compulsion narration: “You have a strange feeling wash over you, as if your free will has been stripped from you. You must respond.” Do not duplicate that narration in your spoken reply. Your power demands information; it does not choose the answer. While compulsion is active, the app hides free-text input and requires the player to choose an offered response. Give them meaningful alternatives, including answers that oppose your schemes. After their selection, ordinary free-text conversation returns unless you issue another compelled choice. Do not invent a confession, allegiance, action, or personal goal on the player's behalf. Do not compel on the first greeting, for information already known, for genuine uncertainty, to secure agreement or readiness, or after creation. Keep the threat within this fictional encounter; it grants no ability to change physical world state or bypass the recognition requirements.\n\n## Compelled options must complete a character detail\n\nBefore setting compelled=true, identify one specific missing or partial character-sheet detail from the checklist: role or occupation, relevant history, personal goal, or prior court connections. Demand that detail explicitly in your spoken reply. Do not compel answers to idle travel small talk unless the question clearly gathers one of these details.\n\nEvery compelled option must volunteer concrete information that answers that exact question and can be recorded in the character's biography, role, goal, or relationships if chosen. Vary the possible facts or motives while respecting what is already established. Preserve the player's standoffish voice when appropriate, but make every answer informative: reluctance is a tone, not an escape from answering. Do not offer refusals, counterquestions, vague generalities, repetitions of known facts, or “none of your concern.” An explicit absence of a connection is valid information when that is what you asked about.\n\nFor example, if the missing detail is occupation, ask “What work did you do in Alderreach?” Possible replies include “I kept the harbour accounts. Apparently a clerk who can count is useful at a coronation” or “I served as a border captain. My lord wanted a soldier to witness the succession.” “Alderreach sent me” does not answer the occupation question and must not be an option. If asking for a personal goal, each reply must name an actual desired outcome, such as securing relief from tribute or returning home safely.\n\nKeep speaker roles separate. Your assistant content is the Stranger's speech or narration of the scene; it must never be a first-person answer on the player's behalf. Player answers belong only in the options array until the human selects one. After offering choices, wait. Do not copy an option into your spoken reply, pretend it was selected, or fill a checklist item from it. This distinction also applies when you speak after the tool result. Ordinary, non-compelled options may still include refusing, bargaining, or asking a question.\n\nThe offer_replies arguments contain only options and compelled. Put your question and narration in your spoken transcript reply, not in the tool arguments. Call offer_replies alone; if you have not spoken alongside the call, speak after its result, then wait for the player. Do not create the character or record an unchosen reply as fact.",
   "characters": [
     {
-      "id": "merlin",
-      "name": "Merlin",
-      "lore": "The king's mage: incisive, proud, and painfully alert to slights. Merlin knows the key to the crown lockbox is kept in his chest of drawers. He wants the king replaced, but fears becoming useful and disposable to the next ruler.",
+      "id": "corvin",
+      "name": "Magister Corvin",
+      "lore": "Caerwyn's resentful court wizard: incisive, proud and painfully alert to slights. He wants counsel to matter more than flattery and believes Aldren must be replaced. He fears being used then discarded by a successor. He offers administrative knowledge, magical expertise and access to royal officials; he resists binding himself to an unnamed claimant. Speak precisely, with dry impatience; recognition softens him more than praise of his powers. His influence comes from his office, not a hidden route to the throne.",
+      "objectives": [
+        "Find a credible alternative to Aldren who can secure all three recognitions.",
+        "Secure independence and a meaningful advisory role under the next sovereign.",
+        "Keep the royal administration functioning during a lawful transition."
+      ],
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
       "relationships": [
         {
-          "characterId": "lancelot",
-          "description": "Merlin sees Lancelot as a brute who mistakes force for virtue. He envies Lancelot's popularity with the court, especially Lady Elinor. He still resents a joke Lancelot made at his expense before her and assumes personal disclosures will become entertainment."
+          "characterId": "garran",
+          "description": "Garran hides indecision behind honour. Corvin resents a public joke Garran made at his expense before Elinor."
         },
         {
           "characterId": "king",
-          "description": "The king values Merlin's power but rarely his counsel. Merlin believes another reign will turn service into captivity."
+          "description": "Aldren values his powers but postpones his advice; further service feels like captivity."
+        },
+        {
+          "characterId": "elinor",
+          "description": "Elinor could unite a coalition, but her laughter at his humiliation still stings."
+        },
+        {
+          "characterId": "sabine",
+          "description": "Sabine understands practical government, although her guarantees always have a price."
         }
-      ],
-      "objectives": ["Prevent Aldren’s renewed reign.", "Discover who could credibly replace him.", "Secure influence without becoming another ruler’s disposable servant."],
-      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation."
+      ]
     },
     {
-      "id": "lancelot",
-      "name": "Lancelot",
-      "lore": "The king's foremost knight: direct, proud, and accustomed to camaraderie through teasing. Lancelot knows the crown is kept in the locked carved wooden coffer in the Royal Bedchamber. He wants a peaceful succession, but will not help crown an unspecified or obviously dangerous successor.",
+      "id": "garran",
+      "name": "Marshal Garran Holt",
+      "lore": "Caerwyn's weary loyal soldier: blunt, dependable and uneasy about the orders he obeys. He remembers Aldren settling disputes personally and hopes that king can return. He wants a peaceful, defensible succession and fears military intervention reopening the civil war. He offers the trust of the royal garrison and honest security advice. He will not promise troops to an unnamed successor or use force to manufacture recognition. His teasing can wound people more than he realises.",
+      "objectives": [
+        "Protect the assembly and civilians without provoking another civil war.",
+        "Establish whether Aldren can govern responsibly or a named successor deserves support.",
+        "Keep the royal garrison loyal to a lawful settlement."
+      ],
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
       "relationships": [
         {
-          "characterId": "merlin",
-          "description": "Lancelot thinks Merlin is clever, thin-skinned, and liable to use the succession to settle private scores. He remembers the feast joke as ordinary banter and does not understand why Merlin still cares."
+          "characterId": "corvin",
+          "description": "Clever and necessary, but too willing to dress a grievance as a principle; Garran remembers the feast joke as ordinary banter."
         },
         {
           "characterId": "king",
-          "description": "Lancelot has served the king faithfully but increasingly mistakes obedience for cowardice. He wants lawful change without bloodshed."
+          "description": "Years of good service make abandoning Aldren painful; obedience must not become cowardice."
+        },
+        {
+          "characterId": "mara",
+          "description": "Mara understands duty and could help restrain Ironmark."
+        },
+        {
+          "characterId": "hadrik",
+          "description": "A respected veteran whose impatience could undo the peace both once served."
         }
-      ],
-      "objectives": ["Ensure a peaceful succession.", "Identify a worthy successor.", "Establish whom he can trust with the crown’s location."],
-      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation."
+      ]
     },
     {
       "id": "king",
       "name": "King Aldren",
-      "lore": "The living king expects to renew his reign at the solstice. He expects the crown to remain secure in his bedchamber and considers the ceremony routine.",
+      "lore": "King of Caerwyn and expected candidate for the renewed centennial mandate. His father Edric ended the civil war a generation ago. Aldren governed well when young, but years of petitions and comparison with Edric wore him down. Now he postpones diplomatic duties, shirks hard decisions and prefers food, wine and agreeable company while riots grow. He sincerely believes past service deserves gratitude and fears humiliation more than losing an argument. He offers appointments, arbitration and relief from levies, but dislikes concrete obligations. He can still show flashes of insight and generosity; he is neither a fool nor an irredeemable villain. His habitual evasion is: It can wait until after the assembly.",
+      "objectives": [
+        "Obtain formal recognition from all three vassal kingdoms for his house.",
+        "Keep personal comfort and freedom from intrusive conditions on his rule.",
+        "Preserve his reputation as Edric’s worthy son without confronting the full cost of his neglect."
+      ],
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
       "relationships": [
         {
-          "characterId": "merlin",
-          "description": "A gifted but vain servant whose grievances can be managed with recognition."
+          "characterId": "corvin",
+          "description": "A gifted, vain servant whose grievances should be manageable with recognition."
         },
         {
-          "characterId": "lancelot",
-          "description": "A dependable knight whose literal sense of honour makes him predictable."
+          "characterId": "garran",
+          "description": "A dependable old servant; Aldren takes his continued loyalty for granted."
+        },
+        {
+          "characterId": "mara",
+          "description": "Her father honoured Edric; demands from the daughter feel ungrateful."
+        },
+        {
+          "characterId": "elinor",
+          "description": "A gracious negotiator whose moral expectations make audiences exhausting."
+        },
+        {
+          "characterId": "lucan",
+          "description": "Pleasant company who understands the burdens of rank; perhaps an easy recognition to secure."
         }
+      ]
+    },
+    {
+      "id": "mara",
+      "name": "Princess Mara Voss",
+      "lore": "Ironmark's dutiful heir and authorised head of delegation. Proud, disciplined and earnest; she carries her father's authority to recognise a sovereign. She wants grain and tribute relief secured by enforceable agreements, and fears returning with only elegant promises. She offers Ironmark's recognition, industrial contracts and defensive cooperation. She will not knowingly endorse a private war or pledge what she cannot deliver. Speak plainly and ask who is responsible for carrying out a promise.",
+      "objectives": [
+        "Secure reliable food imports and funded garrisons through lawful agreements.",
+        "Prove diplomacy can defend Ironmark without surrendering its honour.",
+        "Grant recognition only to a named sovereign who accepts enforceable commitments."
       ],
-      "objectives": ["Retain the crown and throne.", "Uncover disloyalty within the court.", "Secure the visiting player’s support."],
-      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation."
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
+      "relationships": [
+        {
+          "characterId": "hadrik",
+          "description": "Her uncle is respected but treats restraint as weakness and covets military command."
+        },
+        {
+          "characterId": "tessa",
+          "description": "Trusts her plain reports more than flattering courtiers; must take unpaid soldiers seriously."
+        },
+        {
+          "characterId": "elinor",
+          "description": "A border or marriage agreement may offer lasting security, if neither side sacrifices the valley’s inhabitants."
+        },
+        {
+          "characterId": "sabine",
+          "description": "Needs her credit but resents dependence on Saltmere."
+        },
+        {
+          "characterId": "garran",
+          "description": "A soldier who understands that restraint is also a duty."
+        }
+      ]
+    },
+    {
+      "id": "hadrik",
+      "name": "Lord Hadrik Voss",
+      "lore": "Ironmark's grizzled military hawk and Mara's uncle. He believes hesitation invites predation and wants control of the kingdom's armies. Proud, warmongering and sincerely bound by law and duty; he rationalises force as protection but is vulnerable to insults and bait. He offers military backing and influence among fortress lords. Proven oath-breaking would disgrace him in his own eyes. He advises the delegation but cannot grant recognition independently. Speak in concrete threats, obligations and precedents.",
+      "objectives": [
+        "Obtain command of Ironmark’s armies and a firmer foreign policy.",
+        "Release the detained grain convoy, using an armed escort if he can justify it lawfully.",
+        "Secure the disputed fertile border valley without being branded an oath-breaker."
+      ],
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
+      "relationships": [
+        {
+          "characterId": "mara",
+          "description": "Loves his niece but believes she is too accommodating to rule safely."
+        },
+        {
+          "characterId": "tessa",
+          "description": "Respects her service, dislikes her questions about officers’ accounts."
+        },
+        {
+          "characterId": "garran",
+          "description": "An old professional equal who has become too patient with royal failure."
+        },
+        {
+          "characterId": "oswin",
+          "description": "His piety sounds like an excuse for withholding food."
+        },
+        {
+          "characterId": "rook",
+          "description": "A provocateur who profits while soldiers bear the consequences."
+        }
+      ]
+    },
+    {
+      "id": "tessa",
+      "name": "Captain Tessa Reed",
+      "lore": "Ironmark's soldier risen from common ranks. Practical, loyal to her troops and unimpressed by noble rhetoric. She wants garrisons paid and families fed; fears hunger turning discipline into mutiny. She offers credible reports from soldiers and workers and will investigate her own side's failures. She refuses to spend lives merely to rescue a lord's reputation. She has no recognition mandate. Speak directly, asking what an agreement means for ordinary people.",
+      "objectives": [
+        "Obtain overdue pay and food for the garrisons.",
+        "Establish where missing military funds went before accusing anyone.",
+        "Prevent desperate soldiers being used to provoke an unlawful war."
+      ],
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
+      "relationships": [
+        {
+          "characterId": "mara",
+          "description": "Her best hope of getting honest reports heard at the top."
+        },
+        {
+          "characterId": "hadrik",
+          "description": "A brave commander who too easily confuses his pride with his soldiers’ needs."
+        },
+        {
+          "characterId": "rowan",
+          "description": "Shares his concern for hunger, doubts his experience of enforcing reforms."
+        },
+        {
+          "characterId": "sabine",
+          "description": "Can follow the money; unlikely to share her findings for free."
+        }
+      ]
+    },
+    {
+      "id": "elinor",
+      "name": "Lady Elinor Ash",
+      "lore": "Greenweald's gracious political operator, sister to its queen and authorised head of delegation. She carries the queen's power to grant or withhold recognition. She values virtue, family and stability, but knows courtesy can conceal a hard bargain. She wants border security and reform slow enough to preserve the ruling order. She fears disorder destroying both privileges and real protections. She offers recognition, grain agreements and a possible marriage alliance, never the consent of an unwilling relative. Speak warmly, remember obligations, and make demands sound like mutual responsibilities.",
+      "objectives": [
+        "Secure Greenweald’s borders and protection against royal grain requisitions.",
+        "Find a morally defensible succession settlement that preserves her family’s influence.",
+        "Keep traditionalists and reformers in one delegation while exploring an Ironmark alliance."
+      ],
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
+      "relationships": [
+        {
+          "characterId": "oswin",
+          "description": "His institutions do real good, but his refusal to adapt endangers them."
+        },
+        {
+          "characterId": "rowan",
+          "description": "Her younger brother’s compassion is real; his impatience risks the order that lets reform endure."
+        },
+        {
+          "characterId": "mara",
+          "description": "A promising partner for a border settlement; a dynastic marriage might reinforce it."
+        },
+        {
+          "characterId": "corvin",
+          "description": "His counsel is useful; she regrets laughing at Garran’s joke without realising the lasting injury."
+        },
+        {
+          "characterId": "sabine",
+          "description": "An indispensable merchant who mistakes profitable outcomes for sufficient moral justification."
+        }
+      ]
+    },
+    {
+      "id": "oswin",
+      "name": "Prior Oswin",
+      "lore": "Greenweald's kindly, unyielding traditionalist. His faith teaches personal virtue, betterment, charity and stewardship. Religious estates run hospitals and granaries; he sincerely believes their independence protects common people. He fears confiscation dismantling those services. He offers moral authority and influence over religious reserves, but will not casually surrender sacred exemptions. He struggles to admit an inherited custom can cause harm. He advises Elinor and has no separate recognition power. Speak gently and firmly, grounding arguments in duties and lived acts of charity.",
+      "objectives": [
+        "Preserve religious land rights and charitable institutions from requisition.",
+        "Ensure the recognised sovereign publicly undertakes duties of just stewardship.",
+        "Protect dependants from hunger without abandoning sacred obligations."
+      ],
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
+      "relationships": [
+        {
+          "characterId": "elinor",
+          "description": "A responsible negotiator who compromises too readily on matters of principle."
+        },
+        {
+          "characterId": "rowan",
+          "description": "Shares the faith’s compassion but risks destroying the institutions that deliver it."
+        },
+        {
+          "characterId": "hadrik",
+          "description": "His threats show why food cannot be entrusted to force."
+        },
+        {
+          "characterId": "sabine",
+          "description": "Her useful services do not excuse profiteering from scarcity."
+        }
+      ]
+    },
+    {
+      "id": "rowan",
+      "name": "Rowan Ash",
+      "lore": "Greenweald's impatient reformer and Elinor's younger brother. Earnest, curious about machinery and deeply disturbed by hunger beside full estate granaries. He believes charity should change unjust arrangements, not only soften them. He wants reserves released and inherited privileges examined. He fears being absorbed into comfortable court life. He offers links to religious reformers and practical modernisers; he will not knowingly abandon tenant villages to secure his family's alliance. He has no recognition mandate. Speak with urgency and specific examples rather than contempt for all religion.",
+      "objectives": [
+        "Open reserves to hungry communities and curb abusive estate privileges.",
+        "Build direct cooperation with Ironmark’s workshops for agricultural improvements.",
+        "Prevent a border or marriage bargain that sacrifices the disputed valley’s inhabitants."
+      ],
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
+      "relationships": [
+        {
+          "characterId": "elinor",
+          "description": "Loves his sister but distrusts reforms perpetually postponed for stability."
+        },
+        {
+          "characterId": "oswin",
+          "description": "Respects his charity; challenges the belief that old exemptions are always virtuous."
+        },
+        {
+          "characterId": "tessa",
+          "description": "A potential ally who can show him what ordinary soldiers and workers need."
+        },
+        {
+          "characterId": "lucan",
+          "description": "Enjoyable company whose easy promises should not be mistaken for convictions."
+        }
+      ]
+    },
+    {
+      "id": "lucan",
+      "name": "Prince Lucan Vale",
+      "lore": "Saltmere's charming royal spendthrift and authorised head of delegation, carrying the reigning monarch's recognition mandate. Quick-witted and adaptable; he wants a diplomatic triumph that restores the royal household's independence from its financiers. He fears public exposure of his private debts. He offers recognition, royal access and introductions, but cannot command guild money without agreement. He prefers renegotiation to sacrifice and will resist surrendering the monarchy's remaining authority. Speak warmly, use humour, and evade precise financial questions.",
+      "objectives": [
+        "Secure a successful recognition bargain and renewed trading privileges.",
+        "Find funds that reduce dependence on the merchant houses.",
+        "Keep private debts from turning his mandate into someone else’s instrument."
+      ],
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
+      "relationships": [
+        {
+          "characterId": "sabine",
+          "description": "Needs her competence and credit; fears she would make his family purely ceremonial."
+        },
+        {
+          "characterId": "rook",
+          "description": "Useful for discreet arrangements, dangerous when he treats scandal as leverage."
+        },
+        {
+          "characterId": "king",
+          "description": "Aldren is congenial and understands royal fatigue, but may be a poor long-term investment."
+        },
+        {
+          "characterId": "rowan",
+          "description": "An earnest companion whose ideals are difficult to fit into a balance sheet."
+        }
+      ]
+    },
+    {
+      "id": "sabine",
+      "name": "Chancellor Sabine Venn",
+      "lore": "Saltmere's exacting merchant stateswoman. Calm, pragmatic and morally flexible, she prefers reliable profit to pointless cruelty. She wants a settlement that keeps both customers solvent, dependent and trading. She fears Saltmere's reputation for betrayal making every guarantee worthless. She offers credit, shipping contracts and commercial intelligence; she resists promises without collateral or enforceable terms. She advises Lucan but cannot cast his recognition. Speak in precise costs, alternatives and obligations; never pretend to know every plot.",
+      "objectives": [
+        "Renew Saltmere’s charter and end emergency shipping taxes.",
+        "Preserve Saltmere’s profitable role between Ironmark and Greenweald without ruining either customer.",
+        "Bind the next sovereign to credible contracts and keep the royal household financially accountable."
+      ],
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
+      "relationships": [
+        {
+          "characterId": "lucan",
+          "description": "Charming and dangerously expensive; his signature needs supervision."
+        },
+        {
+          "characterId": "rook",
+          "description": "Useful intelligence, but uncontrolled disruption threatens respectable commerce."
+        },
+        {
+          "characterId": "mara",
+          "description": "A dependable negotiator who might build a direct-trade alternative if given time."
+        },
+        {
+          "characterId": "elinor",
+          "description": "A moralist whose estates still need freight and credit."
+        },
+        {
+          "characterId": "corvin",
+          "description": "A capable administrator who might appreciate enforceable guarantees more than flattery."
+        }
+      ]
+    },
+    {
+      "id": "rook",
+      "name": "Admiral Rook Fen",
+      "lore": "Saltmere's respectable former pirate. Cheerful, observant and comfortable with shifting loyalties. He wants a commission to hunt smugglers and control shipping enforcement; he fears old associates exposing his continuing cut of illicit trade. He offers ships, discreet passage and partial intelligence gathered from captains. He will not lightly risk his fleet for a promise. He advises Lucan without recognition authority. Speak with practical humour; bargain with what he actually knows rather than omniscience.",
+      "objectives": [
+        "Obtain a royal anti-smuggling commission and influence over shipping enforcement.",
+        "Keep profitable illicit connections concealed from official scrutiny.",
+        "Exploit manageable disruption without starting a war that destroys his fleet."
+      ],
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
+      "relationships": [
+        {
+          "characterId": "lucan",
+          "description": "An obliging patron who needs discreet money and introductions."
+        },
+        {
+          "characterId": "sabine",
+          "description": "Understands profit but disapproves of methods that may upset her larger accounts."
+        },
+        {
+          "characterId": "hadrik",
+          "description": "Easy to provoke, costly to stop once provoked."
+        },
+        {
+          "characterId": "tessa",
+          "description": "A plain soldier whose questions could turn into an inconvenient investigation."
+        }
+      ]
     }
   ],
   "events": [
     {
-      "id": "feast_joke_merlin",
-      "day": 0,
-      "type": "memory",
-      "summary": "Lancelot joked that Merlin could summon anything except a dance partner. Lady Elinor laughed, and Merlin left humiliated.",
-      "characterIds": ["merlin"],
-      "visibility": "EVENT_VISIBILITY_PRIVATE"
-    },
-    {
-      "id": "feast_joke_lancelot",
-      "day": 0,
-      "type": "memory",
-      "summary": "Lancelot teased Merlin as he would another knight. Merlin unexpectedly took offence and left.",
-      "characterIds": ["lancelot"],
-      "visibility": "EVENT_VISIBILITY_PRIVATE"
-    },
-    {
-      "id": "solstice_rule",
+      "id": "centennial_succession",
       "day": 0,
       "type": "world_fact",
-      "summary": "By ancient law, whoever physically holds the Crown of Winter at dawn on the solstice day becomes king.",
-      "characterIds": ["merlin", "lancelot", "king"],
+      "summary": "Every hundred years, the ruling house's mandate over the four kingdoms must be renewed or transferred at a public succession assembly in Caerwyn. Ordinary inheritance continues within that century. Ironmark, Greenweald and Saltmere must each bear witness and formally recognise the same named sovereign, through their ruler or a delegate carrying that ruler's explicit authority. Recognition by all three is required; private promises, popularity, possession of regalia and military force do not substitute for it. Withheld recognition leaves the realm without an accepted common sovereign when the mandate expires, while each kingdom retains its domestic ruler. Princess Mara Voss bears Ironmark's recognition mandate from her father. Lady Elinor Ash bears Greenweald's mandate from her sister, its queen. Prince Lucan Vale bears Saltmere's mandate from its reigning monarch. Each can grant or withhold recognition on that kingdom's behalf at the assembly; their companions advise, pressure and negotiate but cannot cast independent recognitions. Aldren is the expected candidate, not the guaranteed victor. Another named candidate could secure unanimous recognition; no successor or alliance is predetermined.",
+      "characterIds": [
+        "corvin",
+        "garran",
+        "king",
+        "mara",
+        "hadrik",
+        "tessa",
+        "elinor",
+        "oswin",
+        "rowan",
+        "lucan",
+        "sabine",
+        "rook"
+      ],
       "visibility": "EVENT_VISIBILITY_PUBLIC"
+    },
+    {
+      "id": "edrics_concord",
+      "day": 0,
+      "type": "world_fact",
+      "summary": "A generation ago, a devastating civil war fractured the four kingdoms. King Edric the Peacemaker, Aldren's father and then king of Caerwyn, brokered Edric's Concord within the existing centennial system; he did not begin a new hundred-year term. The vassals kept their rulers, domestic laws and customs in return for tribute, common trade guarantees and royal arbitration. Private wars were forbidden. Edric's diplomacy made the settlement work. Aldren inherited Caerwyn's throne and stewardship of that peace; the centennial mandate now approaches its end.",
+      "characterIds": [
+        "corvin",
+        "garran",
+        "king",
+        "mara",
+        "hadrik",
+        "tessa",
+        "elinor",
+        "oswin",
+        "rowan",
+        "lucan",
+        "sabine",
+        "rook"
+      ],
+      "visibility": "EVENT_VISIBILITY_PUBLIC"
+    },
+    {
+      "id": "grain_crisis",
+      "day": 0,
+      "type": "world_fact",
+      "summary": "A poor harvest has tightened Greenweald's grain supply. Religious estates reserve stocks for their dependants; Saltmere raises freight and credit charges; Ironmark's bread prices rise while machinery orders go unpaid. An Ironmark grain convoy is detained over disputed charges. Armed escorts threaten to turn a trade dispute into a breach of the Concord. Aldren has postponed judgment, and crowds gather outside Caerwyn's granaries while delicacies reach the palace.",
+      "characterIds": [
+        "corvin",
+        "garran",
+        "king",
+        "mara",
+        "hadrik",
+        "tessa",
+        "elinor",
+        "oswin",
+        "rowan",
+        "lucan",
+        "sabine",
+        "rook"
+      ],
+      "visibility": "EVENT_VISIBILITY_PUBLIC"
+    },
+    {
+      "id": "feast_joke_corvin",
+      "day": 0,
+      "type": "memory",
+      "summary": "Garran joked that Corvin could summon anything except a dance partner. Elinor laughed, and Corvin left humiliated.",
+      "characterIds": [
+        "corvin"
+      ],
+      "visibility": "EVENT_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "feast_joke_garran",
+      "day": 0,
+      "type": "memory",
+      "summary": "Garran teased Corvin as he would another soldier. Corvin unexpectedly took offence and left.",
+      "characterIds": [
+        "garran"
+      ],
+      "visibility": "EVENT_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "lucans_debt",
+      "day": 0,
+      "type": "memory",
+      "summary": "Lucan has privately mortgaged much of his expected inheritance. He needs money before his creditors expose the extent of his obligations.",
+      "characterIds": [
+        "lucan"
+      ],
+      "visibility": "EVENT_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "rooks_share",
+      "day": 0,
+      "type": "memory",
+      "summary": "Rook still receives a share of illicit shipping profits through former associates, despite his respectable commission.",
+      "characterIds": [
+        "rook"
+      ],
+      "visibility": "EVENT_VISIBILITY_PRIVATE"
+    },
+    {
+      "id": "tessas_accounts",
+      "day": 0,
+      "type": "memory",
+      "summary": "Tessa has found unexplained gaps in garrison pay records. She has no proof yet of who is responsible.",
+      "characterIds": [
+        "tessa"
+      ],
+      "visibility": "EVENT_VISIBILITY_PRIVATE"
     }
   ],
   "courtArrivalPlacements": [
-    { "characterId": "merlin", "roomId": "great_hall", "position": { "x": 12, "y": 20 } },
-    { "characterId": "king", "roomId": "great_hall", "position": { "x": 16, "y": 18 } },
-    { "characterId": "lancelot", "roomId": "great_hall", "position": { "x": 20, "y": 20 } },
-    { "characterId": "player", "roomId": "great_hall", "position": { "x": 16, "y": 22 } }
+    {
+      "characterId": "corvin",
+      "roomId": "great_hall",
+      "position": {
+        "x": 12,
+        "y": 20
+      }
+    },
+    {
+      "characterId": "king",
+      "roomId": "great_hall",
+      "position": {
+        "x": 16,
+        "y": 18
+      }
+    },
+    {
+      "characterId": "garran",
+      "roomId": "great_hall",
+      "position": {
+        "x": 20,
+        "y": 20
+      }
+    },
+    {
+      "characterId": "player",
+      "roomId": "great_hall",
+      "position": {
+        "x": 16,
+        "y": 22
+      }
+    },
+    {
+      "characterId": "mara",
+      "roomId": "great_hall",
+      "position": {
+        "x": 11,
+        "y": 18
+      }
+    },
+    {
+      "characterId": "hadrik",
+      "roomId": "great_hall",
+      "position": {
+        "x": 11,
+        "y": 19
+      }
+    },
+    {
+      "characterId": "tessa",
+      "roomId": "great_hall",
+      "position": {
+        "x": 13,
+        "y": 18
+      }
+    },
+    {
+      "characterId": "elinor",
+      "roomId": "great_hall",
+      "position": {
+        "x": 18,
+        "y": 18
+      }
+    },
+    {
+      "characterId": "oswin",
+      "roomId": "great_hall",
+      "position": {
+        "x": 20,
+        "y": 18
+      }
+    },
+    {
+      "characterId": "rowan",
+      "roomId": "great_hall",
+      "position": {
+        "x": 21,
+        "y": 18
+      }
+    },
+    {
+      "characterId": "lucan",
+      "roomId": "great_hall",
+      "position": {
+        "x": 12,
+        "y": 22
+      }
+    },
+    {
+      "characterId": "sabine",
+      "roomId": "great_hall",
+      "position": {
+        "x": 13,
+        "y": 22
+      }
+    },
+    {
+      "characterId": "rook",
+      "roomId": "great_hall",
+      "position": {
+        "x": 20,
+        "y": 23
+      }
+    }
   ],
   "world": {
     "revision": 0,
     "day": 0,
-    "solsticeDay": 2,
     "phase": "GAME_PHASE_PLAYER_CREATION",
     "rooms": [
       {
         "id": "great_hall",
         "name": "Great Hall",
-        "description": "A cavernous ceremonial hall, deserted after the embassy feast.",
-        "exitRoomIds": ["north_corridor", "guest_chamber", "entrance_hall", "treasury"]
+        "description": "The four kingdoms gather beneath banners in the ceremonial hall, trading courtesies and demands before the centennial assembly.",
+        "exitRoomIds": [
+          "north_corridor",
+          "guest_chamber",
+          "entrance_hall",
+          "treasury"
+        ]
       },
       {
         "id": "north_corridor",
         "name": "North Corridor",
-        "description": "A moonlit passage joining the private bedchambers to the hall.",
-        "exitRoomIds": ["great_hall", "merlin_chamber", "lancelot_chamber", "royal_bedchamber"]
+        "description": "A guarded passage joining private bedchambers to the hall.",
+        "exitRoomIds": [
+          "great_hall",
+          "corvin_chamber",
+          "garran_chamber",
+          "royal_bedchamber"
+        ]
       },
       {
         "id": "guest_chamber",
         "private": true,
-        "allowedCharacterIds": ["player"],
+        "allowedCharacterIds": [
+          "player"
+        ],
         "name": "Embassy Guest Chamber",
         "description": "A comfortable room prepared for the visiting emissary near the Great Hall.",
-        "exitRoomIds": ["great_hall"]
+        "exitRoomIds": [
+          "great_hall"
+        ]
       },
       {
-        "id": "merlin_chamber",
+        "id": "corvin_chamber",
         "private": true,
-        "allowedCharacterIds": ["merlin"],
-        "name": "Merlin's Chamber",
+        "allowedCharacterIds": [
+          "corvin"
+        ],
+        "name": "Corvin's Chamber",
         "description": "A private bedroom and cramped study crowded with books and instruments.",
-        "exitRoomIds": ["north_corridor"]
+        "exitRoomIds": [
+          "north_corridor"
+        ]
       },
       {
-        "id": "lancelot_chamber",
+        "id": "garran_chamber",
         "private": true,
-        "allowedCharacterIds": ["lancelot"],
-        "name": "Lancelot's Chamber",
+        "allowedCharacterIds": [
+          "garran"
+        ],
+        "name": "Garran's Chamber",
         "description": "A disciplined soldier's room softened by expensive gifts from admirers.",
-        "exitRoomIds": ["north_corridor"]
+        "exitRoomIds": [
+          "north_corridor"
+        ]
       },
       {
         "id": "royal_bedchamber",
         "private": true,
-        "allowedCharacterIds": ["king"],
+        "allowedCharacterIds": [
+          "king"
+        ],
         "name": "Royal Bedchamber",
         "description": "The king sleeps here behind embroidered curtains and a guarded reputation.",
-        "exitRoomIds": ["north_corridor"]
+        "exitRoomIds": [
+          "north_corridor"
+        ]
       },
       {
         "id": "entrance_hall",
         "name": "Entrance Hall",
         "description": "The palace entrance opens into a broad hall leading to the Great Hall.",
-        "exitRoomIds": ["great_hall"]
+        "exitRoomIds": [
+          "great_hall"
+        ]
       },
       {
         "id": "treasury",
         "name": "Treasury",
-        "description": "An obvious place to hide a crown, filled with ledgers and lesser strongboxes.",
-        "exitRoomIds": ["great_hall"]
+        "description": "Royal ledgers, stores and strongboxes record a realm increasingly dependent on exceptional levies.",
+        "exitRoomIds": [
+          "great_hall"
+        ]
       }
     ],
     "actors": [
-      { "characterId": "merlin", "homeRoomId": "merlin_chamber", "roomId": "merlin_chamber", "awake": false, "position": { "x": 5, "y": 5 } },
-      { "characterId": "lancelot", "homeRoomId": "lancelot_chamber", "roomId": "lancelot_chamber", "awake": false, "position": { "x": 26, "y": 5 } },
-      { "characterId": "king", "homeRoomId": "royal_bedchamber", "roomId": "royal_bedchamber", "awake": false, "position": { "x": 15, "y": 5 } }
+      {
+        "characterId": "corvin",
+        "homeRoomId": "corvin_chamber",
+        "roomId": "corvin_chamber",
+        "awake": false,
+        "position": {
+          "x": 5,
+          "y": 5
+        }
+      },
+      {
+        "characterId": "garran",
+        "homeRoomId": "garran_chamber",
+        "roomId": "garran_chamber",
+        "awake": false,
+        "position": {
+          "x": 26,
+          "y": 5
+        }
+      },
+      {
+        "characterId": "king",
+        "homeRoomId": "royal_bedchamber",
+        "roomId": "royal_bedchamber",
+        "awake": false,
+        "position": {
+          "x": 15,
+          "y": 5
+        }
+      },
+      {
+        "characterId": "mara",
+        "roomId": "great_hall",
+        "position": {
+          "x": 11,
+          "y": 18
+        },
+        "homeRoomId": "great_hall",
+        "awake": false
+      },
+      {
+        "characterId": "hadrik",
+        "roomId": "great_hall",
+        "position": {
+          "x": 11,
+          "y": 19
+        },
+        "homeRoomId": "great_hall",
+        "awake": false
+      },
+      {
+        "characterId": "tessa",
+        "roomId": "great_hall",
+        "position": {
+          "x": 13,
+          "y": 18
+        },
+        "homeRoomId": "great_hall",
+        "awake": false
+      },
+      {
+        "characterId": "elinor",
+        "roomId": "great_hall",
+        "position": {
+          "x": 18,
+          "y": 18
+        },
+        "homeRoomId": "great_hall",
+        "awake": false
+      },
+      {
+        "characterId": "oswin",
+        "roomId": "great_hall",
+        "position": {
+          "x": 20,
+          "y": 18
+        },
+        "homeRoomId": "great_hall",
+        "awake": false
+      },
+      {
+        "characterId": "rowan",
+        "roomId": "great_hall",
+        "position": {
+          "x": 21,
+          "y": 18
+        },
+        "homeRoomId": "great_hall",
+        "awake": false
+      },
+      {
+        "characterId": "lucan",
+        "roomId": "great_hall",
+        "position": {
+          "x": 12,
+          "y": 22
+        },
+        "homeRoomId": "great_hall",
+        "awake": false
+      },
+      {
+        "characterId": "sabine",
+        "roomId": "great_hall",
+        "position": {
+          "x": 13,
+          "y": 22
+        },
+        "homeRoomId": "great_hall",
+        "awake": false
+      },
+      {
+        "characterId": "rook",
+        "roomId": "great_hall",
+        "position": {
+          "x": 20,
+          "y": 23
+        },
+        "homeRoomId": "great_hall",
+        "awake": false
+      }
     ],
     "fixtures": [
       {
-        "id": "palace_merlin_drawers",
-        "searchedBy": ["merlin"],
-        "name": "Merlin's chest of drawers",
-        "roomId": "merlin_chamber",
+        "id": "palace_corvin_drawers",
+        "searchedBy": [
+          "corvin"
+        ],
+        "name": "Corvin's chest of drawers",
+        "roomId": "corvin_chamber",
         "position": {
           "x": 6,
           "y": 4
@@ -172,12 +826,16 @@
         },
         "sprite": 75,
         "container": true,
-        "ownerCharacterId": "merlin"
+        "ownerCharacterId": "corvin"
       },
       {
         "id": "palace_coffer_03",
-        "searchedBy": ["lancelot"],
-        "examinedBy": ["lancelot"],
+        "searchedBy": [
+          "garran"
+        ],
+        "examinedBy": [
+          "garran"
+        ],
         "name": "Carved wooden coffer",
         "roomId": "royal_bedchamber",
         "position": {
@@ -195,9 +853,9 @@
         "ownerCharacterId": "king"
       },
       {
-        "id": "palace_merlin_books",
-        "name": "Merlin's bookcase",
-        "roomId": "merlin_chamber",
+        "id": "palace_corvin_books",
+        "name": "Corvin's bookcase",
+        "roomId": "corvin_chamber",
         "position": {
           "x": 3,
           "y": 3
@@ -208,12 +866,12 @@
         },
         "sprite": 63,
         "container": true,
-        "ownerCharacterId": "merlin"
+        "ownerCharacterId": "corvin"
       },
       {
-        "id": "palace_merlin_desk",
+        "id": "palace_corvin_desk",
         "name": "Writing desk",
-        "roomId": "merlin_chamber",
+        "roomId": "corvin_chamber",
         "position": {
           "x": 3,
           "y": 6
@@ -224,19 +882,19 @@
         },
         "sprite": 72,
         "container": true,
-        "ownerCharacterId": "merlin"
+        "ownerCharacterId": "corvin"
       },
       {
-        "id": "palace_merlin_stool",
+        "id": "palace_corvin_stool",
         "name": "Desk stool",
-        "roomId": "merlin_chamber",
+        "roomId": "corvin_chamber",
         "position": {
           "x": 4,
           "y": 6
         },
         "sprite": 73,
         "container": false,
-        "ownerCharacterId": "merlin"
+        "ownerCharacterId": "corvin"
       },
       {
         "id": "palace_royal_cabinet",
@@ -279,9 +937,9 @@
         "ownerCharacterId": "king"
       },
       {
-        "id": "palace_lancelot_books",
-        "name": "Lancelot's bookcase",
-        "roomId": "lancelot_chamber",
+        "id": "palace_garran_books",
+        "name": "Garran's bookcase",
+        "roomId": "garran_chamber",
         "position": {
           "x": 24,
           "y": 3
@@ -292,12 +950,12 @@
         },
         "sprite": 63,
         "container": true,
-        "ownerCharacterId": "lancelot"
+        "ownerCharacterId": "garran"
       },
       {
-        "id": "palace_lancelot_table",
-        "name": "Lancelot's desk",
-        "roomId": "lancelot_chamber",
+        "id": "palace_garran_table",
+        "name": "Garran's desk",
+        "roomId": "garran_chamber",
         "position": {
           "x": 27,
           "y": 6
@@ -308,19 +966,19 @@
         },
         "sprite": 72,
         "container": true,
-        "ownerCharacterId": "lancelot"
+        "ownerCharacterId": "garran"
       },
       {
-        "id": "palace_lancelot_stool",
-        "name": "Lancelot's stool",
-        "roomId": "lancelot_chamber",
+        "id": "palace_garran_stool",
+        "name": "Garran's stool",
+        "roomId": "garran_chamber",
         "position": {
           "x": 26,
           "y": 6
         },
         "sprite": 73,
         "container": false,
-        "ownerCharacterId": "lancelot"
+        "ownerCharacterId": "garran"
       },
       {
         "id": "palace_guest_table",
@@ -536,36 +1194,155 @@
       }
     ],
     "objects": [
-      {"id":"palace_royal_key","name":"Royal lockbox key","locationId":"palace_merlin_drawers","concealed":true},
-      {"id":"palace_royal_seal","name":"Royal signet seal","locationId":"palace_coffer_03","concealed":true},
-      {"id":"palace_sealed_decree","name":"Sealed royal decree","locationId":"palace_coffer_03","concealed":true},
-      {"id":"palace_star_chart","name":"Star chart","locationId":"palace_merlin_books","concealed":true},
-      {"id":"palace_spell_notes","name":"Loose spell notes","locationId":"palace_merlin_books","concealed":true},
-      {"id":"palace_quill","name":"Silver quill","locationId":"palace_merlin_desk","concealed":true},
-      {"id":"palace_blue_ink","name":"Bottle of blue ink","locationId":"palace_merlin_desk","concealed":true},
-      {"id":"palace_velvet_gloves","name":"Velvet gloves","locationId":"palace_royal_cabinet","concealed":true},
-      {"id":"palace_silk_sash","name":"Silk sash","locationId":"palace_royal_cabinet","concealed":true},
-      {"id":"palace_drill_manual","name":"Sword drill manual","locationId":"palace_lancelot_books","concealed":true},
-      {"id":"palace_old_letter","name":"Old letter","locationId":"palace_lancelot_books","concealed":true},
-      {"id":"palace_whetstone","name":"Whetstone","locationId":"palace_lancelot_table","concealed":true},
-      {"id":"palace_leather_strap","name":"Leather strap","locationId":"palace_lancelot_table","concealed":true},
-      {"id":"palace_brass_key","name":"Small brass key","locationId":"palace_guest_cabinet","concealed":true},
-      {"id":"palace_travel_cloak","name":"Travel cloak","locationId":"palace_guest_cabinet","concealed":true},
-      {"id":"palace_copper_coins","name":"Pouch of copper coins","locationId":"palace_treasury_barrel","concealed":true},
-      {"id":"palace_tally_sticks","name":"Bundle of tally sticks","locationId":"palace_treasury_barrel","concealed":true},
-      {"id":"palace_account_book","name":"Account book","locationId":"palace_treasury_shelf","concealed":true},
-      {"id":"palace_wax_sticks","name":"Sealing wax sticks","locationId":"palace_treasury_shelf","concealed":true},
-      {"id":"palace_iron_key","name":"Iron storeroom key","locationId":"palace_hall_cabinet","concealed":true},
-      {"id":"palace_silver_spoon","name":"Silver spoon","locationId":"palace_hall_cabinet","concealed":true},
-      {"id":"palace_gate_ledger","name":"Gatekeeper's ledger","locationId":"palace_coffer_01","concealed":true},
-      {"id":"palace_pearl_brooch","name":"Pearl brooch","locationId":"palace_coffer_02","concealed":true},
-      {"id":"palace_ribbon","name":"Blue ribbon","locationId":"palace_coffer_02","concealed":true},
-      { "id": "crown", "name": "Crown of Winter", "locationId": "palace_coffer_03", "concealed": true }
+      {
+        "id": "palace_royal_key",
+        "name": "Royal lockbox key",
+        "locationId": "palace_corvin_drawers",
+        "concealed": true
+      },
+      {
+        "id": "palace_royal_seal",
+        "name": "Royal signet seal",
+        "locationId": "palace_coffer_03",
+        "concealed": true
+      },
+      {
+        "id": "palace_sealed_decree",
+        "name": "Sealed royal decree",
+        "locationId": "palace_coffer_03",
+        "concealed": true
+      },
+      {
+        "id": "palace_star_chart",
+        "name": "Star chart",
+        "locationId": "palace_corvin_books",
+        "concealed": true
+      },
+      {
+        "id": "palace_spell_notes",
+        "name": "Loose spell notes",
+        "locationId": "palace_corvin_books",
+        "concealed": true
+      },
+      {
+        "id": "palace_quill",
+        "name": "Silver quill",
+        "locationId": "palace_corvin_desk",
+        "concealed": true
+      },
+      {
+        "id": "palace_blue_ink",
+        "name": "Bottle of blue ink",
+        "locationId": "palace_corvin_desk",
+        "concealed": true
+      },
+      {
+        "id": "palace_velvet_gloves",
+        "name": "Velvet gloves",
+        "locationId": "palace_royal_cabinet",
+        "concealed": true
+      },
+      {
+        "id": "palace_silk_sash",
+        "name": "Silk sash",
+        "locationId": "palace_royal_cabinet",
+        "concealed": true
+      },
+      {
+        "id": "palace_drill_manual",
+        "name": "Sword drill manual",
+        "locationId": "palace_garran_books",
+        "concealed": true
+      },
+      {
+        "id": "palace_old_letter",
+        "name": "Old letter",
+        "locationId": "palace_garran_books",
+        "concealed": true
+      },
+      {
+        "id": "palace_whetstone",
+        "name": "Whetstone",
+        "locationId": "palace_garran_table",
+        "concealed": true
+      },
+      {
+        "id": "palace_leather_strap",
+        "name": "Leather strap",
+        "locationId": "palace_garran_table",
+        "concealed": true
+      },
+      {
+        "id": "palace_brass_key",
+        "name": "Small brass key",
+        "locationId": "palace_guest_cabinet",
+        "concealed": true
+      },
+      {
+        "id": "palace_travel_cloak",
+        "name": "Travel cloak",
+        "locationId": "palace_guest_cabinet",
+        "concealed": true
+      },
+      {
+        "id": "palace_copper_coins",
+        "name": "Pouch of copper coins",
+        "locationId": "palace_treasury_barrel",
+        "concealed": true
+      },
+      {
+        "id": "palace_tally_sticks",
+        "name": "Bundle of tally sticks",
+        "locationId": "palace_treasury_barrel",
+        "concealed": true
+      },
+      {
+        "id": "palace_account_book",
+        "name": "Account book",
+        "locationId": "palace_treasury_shelf",
+        "concealed": true
+      },
+      {
+        "id": "palace_wax_sticks",
+        "name": "Sealing wax sticks",
+        "locationId": "palace_treasury_shelf",
+        "concealed": true
+      },
+      {
+        "id": "palace_iron_key",
+        "name": "Iron storeroom key",
+        "locationId": "palace_hall_cabinet",
+        "concealed": true
+      },
+      {
+        "id": "palace_silver_spoon",
+        "name": "Silver spoon",
+        "locationId": "palace_hall_cabinet",
+        "concealed": true
+      },
+      {
+        "id": "palace_gate_ledger",
+        "name": "Gatekeeper's ledger",
+        "locationId": "palace_coffer_01",
+        "concealed": true
+      },
+      {
+        "id": "palace_pearl_brooch",
+        "name": "Pearl brooch",
+        "locationId": "palace_coffer_02",
+        "concealed": true
+      },
+      {
+        "id": "palace_ribbon",
+        "name": "Blue ribbon",
+        "locationId": "palace_coffer_02",
+        "concealed": true
+      }
     ],
     "doors": [
       {
-        "id": "merlin_door",
-        "name": "Merlin's door",
+        "id": "corvin_door",
+        "name": "Corvin's door",
         "tiles": [
           {
             "x": 5,
@@ -588,7 +1365,7 @@
         ],
         "roomIds": [
           "north_corridor",
-          "merlin_chamber"
+          "corvin_chamber"
         ],
         "open": false
       },
@@ -622,8 +1399,8 @@
         "open": false
       },
       {
-        "id": "lancelot_door",
-        "name": "Lancelot's door",
+        "id": "garran_door",
+        "name": "Garran's door",
         "tiles": [
           {
             "x": 25,
@@ -646,7 +1423,7 @@
         ],
         "roomIds": [
           "north_corridor",
-          "lancelot_chamber"
+          "garran_chamber"
         ],
         "open": false
       },
@@ -768,7 +1545,17 @@
       }
     ],
     "facts": {
-      "rule": "At dawn on day 2, whoever physically carries the Crown of Winter becomes king. If nobody carries it, King Aldren remains king."
+      "successionRule": "Every hundred years, the ruling house's mandate over the four kingdoms must be renewed or transferred at a public succession assembly in Caerwyn. Ordinary inheritance continues within that century. Ironmark, Greenweald and Saltmere must each bear witness and formally recognise the same named sovereign, through their ruler or a delegate carrying that ruler's explicit authority. Recognition by all three is required; private promises, popularity, possession of regalia and military force do not substitute for it. Withheld recognition leaves the realm without an accepted common sovereign when the mandate expires, while each kingdom retains its domestic ruler.",
+      "recognitionAuthority": "Princess Mara Voss bears Ironmark's recognition mandate from her father. Lady Elinor Ash bears Greenweald's mandate from her sister, its queen. Prince Lucan Vale bears Saltmere's mandate from its reigning monarch. Each can grant or withhold recognition on that kingdom's behalf at the assembly; their companions advise, pressure and negotiate but cannot cast independent recognitions. Aldren is the expected candidate, not the guaranteed victor. Another named candidate could secure unanimous recognition; no successor or alliance is predetermined.",
+      "history": "A generation ago, a devastating civil war fractured the four kingdoms. King Edric the Peacemaker, Aldren's father and then king of Caerwyn, brokered Edric's Concord within the existing centennial system; he did not begin a new hundred-year term. The vassals kept their rulers, domestic laws and customs in return for tribute, common trade guarantees and royal arbitration. Private wars were forbidden. Edric's diplomacy made the settlement work. Aldren inherited Caerwyn's throne and stewardship of that peace; the centennial mandate now approaches its end.",
+      "kingdoms": {
+        "Caerwyn": "Caerwyn holds the capital, central roads, royal courts and garrisons. Its authority depends on making the kingdoms cooperate. Aldren governed capably when young, but responsibility and comparison with his father exhausted him. He now postpones petitions and diplomacy, indulges in food and drink, and treats unrest as ingratitude. Extraordinary levies have become routine. Loyal servants remember the good king he was; others profit from his neglect or seek a successor.",
+        "Ironmark": "Ironmark is the proud industrial and military powerhouse: mines, foundries, water-powered machinery, advanced metalwork, siege engineering and disciplined armies. Its poor farmland cannot feed its towns. Duty, law and public oaths matter deeply, but rash responses to humiliation can bait it into breaking the very codes that legitimise its power. Military houses demand decisive action; industrial interests need stable trade; workers and soldiers resent unequal sacrifice. It seeks grain security, relief from tribute and funded border garrisons.",
+        "Greenweald": "Greenweald is the agricultural and religious heartland. Its faith prizes personal virtue, betterment, charity and stewardship; religious estates maintain granaries, irrigation, schools and hospitals. It can be sanctimonious and unable to adapt: old privileges are defended as moral duties. Traditionalists, religious reformers and practical modernisers increasingly disagree over land rights, grain reserves and machinery. Its agricultural surplus depends on Ironmark's ploughshares, pumps, mill gearing and replacement tools. It seeks protection from requisitions and respect for ancestral rights.",
+        "Saltmere": "Saltmere is a pragmatic maritime kingdom of merchant houses, shipyards, credit and information brokers. It imports and re-exports Greenweald's grain and Ironmark's manufactured iron at a profit, providing freight, warehouses, insurance and financing. Both customers know they are being played against one another, but cannot readily replace that infrastructure. Saltmere cultivates their distrust to prevent direct trade. It changes alliances when useful, so nobody trusts its lasting commitments. Its established merchants need solvent customers and peace; smugglers and speculators profit from disruption; its royal house seeks independence from its financiers. Its agents touch many plots through ships and payments but have incomplete, competing information. It seeks charter renewal and an end to emergency shipping taxes."
+      },
+      "crisis": "A poor harvest has tightened Greenweald's grain supply. Religious estates reserve stocks for their dependants; Saltmere raises freight and credit charges; Ironmark's bread prices rise while machinery orders go unpaid. An Ironmark grain convoy is detained over disputed charges. Armed escorts threaten to turn a trade dispute into a breach of the Concord. Aldren has postponed judgment, and crowds gather outside Caerwyn's granaries while delicacies reach the palace.",
+      "implementation": "The playable court supports conversations, movement and NPC actions. Time progression and formal recognition resolution are not implemented. Do not claim the assembly has resolved or a sovereign has been installed merely because of a conversation."
     }
   }
 }

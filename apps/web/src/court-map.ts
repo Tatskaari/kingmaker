@@ -13,7 +13,7 @@ export interface CourtMarker extends CourtCharacter { point?: Point; roomName: s
 export function courtMarkers(characters: readonly CourtCharacter[], fixtures: readonly MapFixture[] = []): CourtMarker[] {
   return characters.map(character => {
     const room = palaceMap.rooms.find(room => room.id === character.roomId);
-    const sprite = character.id === "merlin" ? 84 : character.id === "lancelot" ? 96 : character.id === "king" ? 85 : 98;
+    const sprite = character.id === "corvin" ? 84 : character.id === "garran" ? 96 : character.id === "king" ? 85 : 98;
     const point = character.position;
     const valid = point && canWalk(palaceMap, point, courtDoorBlockers([], fixtures)) && courtRoomAt(point)?.id === room?.id;
     return { ...character, roomName: room?.name ?? character.roomId ?? "Location unknown", sprite,

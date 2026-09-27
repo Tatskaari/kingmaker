@@ -40,5 +40,5 @@ walks but does not own game state. Debug transcript summaries are views of actua
 model responses, not evidence that a proposed update was committed.
 
 Current limits: one active NPC runner; no give-item action, autonomous player
-speech, visibility simulation, time progression or automated coronation. The
-solstice remains the narrative premise, not a working scheduler.
+speech, visibility simulation, time progression or formal recognition resolution. The
+centennial assembly remains narrative context, not a working scheduler or vote engine.

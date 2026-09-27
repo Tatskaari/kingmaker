@@ -46,7 +46,9 @@ export interface RuntimeSnapshot {
   conversations: Record<string, JsonValue[]>;
 }
 
-const gmTools: readonly OpenRouterTool[] = [
+function gmTools(scenario: Scenario): readonly OpenRouterTool[] {
+  const npcIds = scenario.characters.filter(character => character.id !== scenario.playerCharacterId && character.id !== "player").map(character => character.id);
+  return [
   {
     type: "function",
     function: {
@@ -79,13 +81,13 @@ const gmTools: readonly OpenRouterTool[] = [
         properties: {
           name: { type: "string" }, homeland: { type: "string" }, embassyRole: { type: "string" },
           lore: { type: "string" }, currentGoal: { type: "string" },
-          relationships: { type: "array", minItems: 3, maxItems: 3, items: {
+          relationships: { type: "array", minItems: npcIds.length, maxItems: npcIds.length, items: {
             type: "object", additionalProperties: false, required: ["characterId", "description"],
-            properties: { characterId: { type: "string", enum: ["merlin", "lancelot", "king"] }, description: { type: "string" } },
+            properties: { characterId: { type: "string", enum: npcIds }, description: { type: "string" } },
           } },
-          npcViews: { type: "array", minItems: 3, maxItems: 3, items: {
+          npcViews: { type: "array", minItems: npcIds.length, maxItems: npcIds.length, items: {
             type: "object", additionalProperties: false, required: ["characterId", "description"],
-            properties: { characterId: { type: "string", enum: ["merlin", "lancelot", "king"] }, description: { type: "string" } },
+            properties: { characterId: { type: "string", enum: npcIds }, description: { type: "string" } },
           } },
         },
       },
@@ -97,7 +99,7 @@ const gmTools: readonly OpenRouterTool[] = [
       name: "update_character",
       description: "Edit a character biography or current goal in this game.",
       parameters: { type: "object", additionalProperties: false, required: ["characterId"], properties: {
-        characterId: { type: "string", enum: ["merlin", "lancelot", "king", "player"] }, lore: { type: "string" }, currentGoal: { type: "string" },
+        characterId: { type: "string", enum: scenario.characters.map(character => character.id) }, lore: { type: "string" }, currentGoal: { type: "string" },
       } },
     },
   },
@@ -120,7 +122,8 @@ const gmTools: readonly OpenRouterTool[] = [
       } },
     },
   },
-];
+  ];
+}
 
 const dialogueFormat = {
   type: "json_schema",
@@ -255,7 +258,7 @@ export class BrowserGameRuntime {
         const request: ChatCompletionRequest = {
           ...REASONING_MODEL,
           messages: [...setup.map(item => ({ role: item.role, content: item.content } satisfies OpenRouterMessage)), ...this.#gmHistory],
-          tools: gmTools, max_tokens: 8000,
+          tools: gmTools(this.#game.scenario()), max_tokens: 8000,
         };
         const trace: GameMasterTrace = { request: structuredClone(request), toolResults: [] };
         this.#gmTrace.push(trace);
@@ -669,11 +672,11 @@ export class BrowserGameRuntime {
     setup.player.name = text(setup.player.name, "Name");
     setup.player.lore = text(setup.player.lore, "Biography");
     setup.player.currentGoal = text(setup.player.currentGoal, "Personal goal");
-    const npcIds = ["merlin", "lancelot", "king"];
+    const npcIds = this.#game.scenario().characters.filter(character => character.id !== "player").map(character => character.id);
     const playerIds = setup.player.relationships.map(item => item.characterId);
     const ownerIds = setup.npcRelationships.map(item => item.ownerCharacterId);
-    if (playerIds.length !== 3 || ownerIds.length !== 3 || npcIds.some(id => !playerIds.includes(id) || !ownerIds.includes(id))) {
-      throw new Error("Describe initial relationships with all three court characters.");
+    if (playerIds.length !== npcIds.length || ownerIds.length !== npcIds.length || npcIds.some(id => !playerIds.includes(id) || !ownerIds.includes(id))) {
+      throw new Error("Describe initial relationships with every court character.");
     }
     for (const item of setup.player.relationships) item.description = text(item.description, "Relationship");
     for (const item of setup.npcRelationships) {
@@ -714,7 +717,7 @@ export class BrowserGameRuntime {
       latestTurnCalls: this.#gmTrace,
       savedTranscript: this.#gmHistory,
       reconstructedContext: new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario })),
-      availableTools: gmTools,
+      availableTools: gmTools(scenario),
     };
   }
 

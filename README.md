@@ -1,8 +1,10 @@
 # Kingmaker
 
 An improvised political cRPG: talk to the court, explore the palace, and let NPCs
-act on the intentions they form. The Crown of Winter determines the succession
-at the solstice; time progression and coronation are not implemented yet.
+act on the intentions they form. Every hundred years, Ironmark, Greenweald and
+Saltmere must formally recognise the sovereign over the four kingdoms. Ordinary
+inheritance continues within the ruling house’s mandate. Time progression and
+formal recognition resolution are not implemented yet.
 
 ## Run
 
@@ -22,9 +24,13 @@ actions. Interactions walk to the appropriate point before taking effect; illega
 actions are red. Conversations open over the map. NPCs start idle and act when a
 conversation or outcome review assigns a concrete task.
 
-The crown is in the locked royal coffer; its key is in Merlin's chest of drawers.
-All items use the live fixture/inventory system. There is no parallel set of
-narrative search spots or prototype containers.
+The court includes Aldren, Corvin, Garran and three delegates from each vassal
+kingdom. Their rival interests, Edric’s peace settlement and the grain crisis are
+described in [the scenario premise](content/lore/premise.md). All physical items
+use the live fixture/inventory system; regalia and documents cannot confer rule.
+
+The introduction is awaiting a separate rewrite and still describes the previous
+setting. The authored scenario and court use the centennial succession.
 
 ## Models and debugging
 
@@ -52,7 +58,8 @@ await resetCharacters();  // Restore authored NPCs and events; clear conversatio
 Both commands save automatically and preserve the player character. `resetWorld`
 keeps character memories and conversations. `resetCharacters` keeps positions,
 doors, containers and inventories. Reload after changing authored scenario data.
-Old saves from the removed search-spot schema are not migrated; start a fresh game.
+Old saves are not migrated to the renamed characters and expanded court; start a
+fresh game for this scenario.
 
 ## Code and validation
 

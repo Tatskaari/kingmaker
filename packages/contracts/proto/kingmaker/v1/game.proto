@@ -173,7 +173,8 @@ message MapFixture {
 message WorldState {
   uint32 revision = 1;
   uint32 day = 2;
-  uint32 solstice_day = 3;
+  reserved 3;
+  reserved "solstice_day";
   repeated Room rooms = 4;
   repeated ActorState actors = 5;
   repeated ObjectState objects = 6;
