@@ -8,7 +8,7 @@ import {
 } from "../../../packages/contracts/src/index.js";
 
 const WIDTH = 32;
-const HEIGHT = 32;
+const HEIGHT = 38;
 const TILE_SIZE = 16;
 const BACKGROUND = 0;
 const FLOOR = 48;
@@ -58,9 +58,9 @@ function floorRegion(x: number, y: number, width: number, height: number): void 
 // Three solid rows between floors leave room for a bottom edge, cap and face;
 // two solid columns leave room for both facing vertical wall edges.
 const rooms = [
-  { id: "merlin_chamber", name: "Merlin's Chamber", regions: [{ x: 3, y: 3, width: 5, height: 5 }] },
+  { id: "corvin_chamber", name: "Corvin's Chamber", regions: [{ x: 3, y: 3, width: 5, height: 5 }] },
   { id: "royal_bedchamber", name: "Royal Bedchamber", regions: [{ x: 13, y: 3, width: 6, height: 5 }] },
-  { id: "lancelot_chamber", name: "Lancelot's Chamber", regions: [{ x: 24, y: 3, width: 5, height: 5 }] },
+  { id: "garran_chamber", name: "Garran's Chamber", regions: [{ x: 24, y: 3, width: 5, height: 5 }] },
   { id: "north_corridor", name: "North Corridor", regions: [
     { x: 3, y: 11, width: 26, height: 3 },
     { x: 5, y: 8, width: 2, height: 3 },
@@ -69,15 +69,15 @@ const rooms = [
     { x: 15, y: 14, width: 2, height: 3 },
   ] },
   { id: "great_hall", name: "Great Hall", regions: [
-    { x: 10, y: 17, width: 12, height: 7 },
+    { x: 10, y: 17, width: 12, height: 13 },
     { x: 8, y: 22, width: 2, height: 2 },
     { x: 22, y: 22, width: 2, height: 2 },
-    { x: 15, y: 24, width: 2, height: 3 },
+    { x: 15, y: 30, width: 2, height: 3 },
   ] },
   { id: "guest_chamber", name: "Embassy Guest Chamber", regions: [{ x: 2, y: 20, width: 6, height: 9 }] },
   { id: "entrance_hall", name: "Entrance Hall", regions: [
-    { x: 12, y: 27, width: 8, height: 4 },
-    { x: 15, y: 31, width: 2, height: 1 },
+    { x: 12, y: 33, width: 8, height: 4 },
+    { x: 15, y: 37, width: 2, height: 1 },
   ] },
   { id: "treasury", name: "Treasury", regions: [{ x: 24, y: 20, width: 6, height: 9 }] },
 ];
@@ -97,7 +97,7 @@ for (let y = 0; y < HEIGHT; y += 1) {
 }
 
 // Decorative paving demonstrates a second bounded layer on a floor tile.
-for (const [x, y] of [[13, 19], [18, 19], [13, 22], [18, 22]] as const) {
+for (const [x, y] of [[13, 19], [18, 19], [13, 22], [18, 22], [13, 25], [18, 25], [13, 28], [18, 28]] as const) {
   at(x, y).layers.push(layer(FLOOR_DETAIL));
 }
 

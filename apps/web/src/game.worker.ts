@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 
+import { type TravellerIdentity } from "./introduction.js";
+
 import { fromJsonString, type JsonValue } from "@bufbuild/protobuf";
 import { ScenarioSchema, type Scenario } from "../../../packages/contracts/src/index.js";
 import { BrowserGameRuntime, type RuntimeSnapshot } from "./runtime.js";
@@ -174,11 +176,13 @@ async function persist(): Promise<void> {
   if (!runtime || !activeSave) return;
   const view = runtime.view();
   const player = view.player as { name?: string } | null;
+  const identity = view.travellerIdentity as TravellerIdentity | null;
+  const characterName = player?.name || identity?.name || activeSave.characterName;
   const now = new Date().toISOString();
   activeSave = {
     ...activeSave,
-    characterName: player?.name || activeSave.characterName,
-    normalizedName: (player?.name || activeSave.characterName).trim().toLocaleLowerCase(),
+    characterName,
+    normalizedName: characterName.trim().toLocaleLowerCase(),
     updatedAt: now,
     snapshot: runtime.snapshot(),
   };
@@ -239,6 +243,20 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     return { saves: await listSaves() };
   }
   if (type === "state") return { state: requireRuntime().view(), activeSaveId: activeSave?.id };
+  if (type === "set_identity") {
+    const game = requireRuntime();
+    // This handler already runs inside the mutation queue. Enqueuing another
+    // mutation here would make the request wait on itself forever.
+    const before = game.snapshot(), saveBefore = activeSave;
+    try {
+      game.setTravellerIdentity(payload.identity as TravellerIdentity);
+      await persist();
+    } catch (error) {
+      game.restore(before); activeSave = saveBefore;
+      throw error;
+    }
+    return { state: game.view(), saves: await listSaves() };
+  }
   if (type === "gm") {
     const reply = await requireRuntime().talkToGameMaster(String(payload.message || ""));
     await persist();

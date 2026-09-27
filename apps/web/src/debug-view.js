@@ -14,7 +14,7 @@ function characterCard(character, name) {
 function worldCards(world, name) {
   if (!world) return card("World", empty("No world state available."));
   const roomName = id => world.rooms?.find(room => room.id === id)?.name || id;
-  return card("World status", facts([["Phase", label(world.phase)], ["Day", world.day], ["Solstice day", world.solsticeDay], ["Revision", world.revision], ["Rooms", world.rooms?.length ?? 0], ["Objects", world.objects?.length ?? 0]]))
+  return card("World status", facts([["Phase", label(world.phase)], ["Day", world.day], ["Revision", world.revision], ["Rooms", world.rooms?.length ?? 0], ["Objects", world.objects?.length ?? 0]]))
     + card("Character locations", list(world.actors, actor => `<strong>${escape(name(actor.characterId))}</strong><p>${escape(roomName(actor.roomId))} · ${actor.awake ? "Awake" : "Asleep"}</p>`, "No locations recorded."))
     + card("Objects", list(world.objects, object => `<strong>${escape(object.name || object.id)}</strong><p>${escape(roomName(object.locationId))} · ${object.concealed ? "Concealed" : "Visible"}</p>`, "No known objects."));
 }

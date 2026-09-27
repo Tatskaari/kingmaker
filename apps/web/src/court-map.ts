@@ -7,13 +7,13 @@ import { CanvasMapRenderer } from "./map-renderer.js";
 import { palaceMap } from "./palace-map.js";
 import { canWalk, findPath, pointKey, type Point } from "./navigation.js";
 
-export interface CourtCharacter { id: string; name: string; roomId?: string; position?: Point }
+export interface CourtCharacter { id: string; name: string; roomId?: string; position?: Point; sprite?: number }
 export interface CourtMarker extends CourtCharacter { point?: Point; roomName: string; sprite: number }
 
 export function courtMarkers(characters: readonly CourtCharacter[], fixtures: readonly MapFixture[] = []): CourtMarker[] {
   return characters.map(character => {
     const room = palaceMap.rooms.find(room => room.id === character.roomId);
-    const sprite = character.id === "merlin" ? 84 : character.id === "lancelot" ? 96 : character.id === "king" ? 85 : 98;
+    const sprite = character.sprite ?? (character.id === "corvin" ? 84 : character.id === "garran" ? 96 : character.id === "king" ? 85 : 98);
     const point = character.position;
     const valid = point && canWalk(palaceMap, point, courtDoorBlockers([], fixtures)) && courtRoomAt(point)?.id === room?.id;
     return { ...character, roomName: room?.name ?? character.roomId ?? "Location unknown", sprite,
@@ -61,9 +61,10 @@ export function redirectCourtPath(path: readonly Point[], progress: number, dest
 
 /** Mount inside the court screen; native buttons retain keyboard and touch access. */
 export async function mountCourtMap(root: HTMLElement, characters: readonly CourtCharacter[], player: CourtCharacter | null,
-  selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<void>, doors: DoorState[] = [], changeDoor?: (id: string, open: boolean) => Promise<DoorState[]>, rooms: readonly RoomAccess[] = [], fixtures: readonly MapFixture[] = [], fixtureChoices: readonly FixtureAction[] = [], interactFixture?: (actionId: string) => Promise<void>, pauseCharacter?: (id: string) => Promise<void>): Promise<void> {
+  selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<void>, doors: DoorState[] = [], changeDoor?: (id: string, open: boolean) => Promise<DoorState[]>, rooms: readonly RoomAccess[] = [], fixtures: readonly MapFixture[] = [], fixtureChoices: readonly FixtureAction[] = [], interactFixture?: (actionId: string) => Promise<void>, pauseCharacter?: (id: string) => Promise<void>, debugCharacter?: (id: string) => Promise<void>): Promise<void> {
   const viewport = document.createElement("div"); viewport.className = "court-map-scroll";
   const stage = document.createElement("div"); stage.className = "court-map-stage";
+  stage.style.aspectRatio = `${palaceMap.width} / ${palaceMap.height}`;
   const canvas = document.createElement("canvas"); canvas.setAttribute("aria-label", "Palace of Caerwyn");
   stage.append(canvas); viewport.append(stage); root.append(viewport);
   const status = document.createElement("p"); status.className = "status"; status.setAttribute("role", "status");
@@ -106,7 +107,10 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       const point = marker.id === player?.id ? visualPosition ?? marker.point : marker.point;
       if (!point) continue;
       layers.push({ id: marker.id, position: { x: Math.round(point.x), y: Math.round(point.y) }, order: 30,
-        actions: marker.id === player?.id ? [] : [{ id: `talk_${marker.id}`, label: `Talk to ${marker.name}`, type: "talk", target: marker.id, order: 10, legality: "normal" }] });
+        actions: marker.id === player?.id ? [] : [
+          { id: `talk_${marker.id}`, label: `Talk to ${marker.name}`, type: "talk", target: marker.id, order: 10, legality: "normal" },
+          ...(debugCharacter ? [{ id: `debug_${marker.id}`, label: `Debug character: ${marker.name}`, type: "debug" as const, target: marker.id, order: 11, legality: "normal" as const }] : []),
+        ] });
     }
     menu.replaceChildren();
     const title = document.createElement("p"); title.className = "court-menu-title"; title.textContent = "Actions"; menu.append(title);
@@ -115,10 +119,11 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       const button = document.createElement("button"); button.type = "button";
       button.className = `court-menu-action court-action-${action.legality}`;
       button.textContent = action.label + (action.legality === "illegal" ? " · Illegal" : "");
-      button.disabled = !movePlayer || !visualPosition || (moving && !redirect);
+      button.disabled = action.type !== "debug" && (!movePlayer || !visualPosition || (moving && !redirect));
       button.addEventListener("click", async () => {
         closeMenu();
-        if (action.type === "walk") void walkTo(tile);
+        if (action.type === "debug") await debugCharacter?.(action.target);
+        else if (action.type === "walk") void walkTo(tile);
         else if (action.type === "door") {
           const door = doors.find(door => door.id === action.target);
           const spot = door && visualPosition && nearestDoorSpot({ x: Math.round(visualPosition.x), y: Math.round(visualPosition.y) }, door, doors, fixtures);

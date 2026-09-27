@@ -9,8 +9,10 @@ movement, inventory and unrelated conversations survive those merges. Resetting
 or switching games cancels background execution and rejects late results.
 Credentials and recent model transcripts are kept outside save snapshots.
 
-The GM interviews the player and proposes an editable character. Saving enters
-the palace with authored actor positions. Walking and object interactions operate
+The introduction saves the player’s delegation, name, gender and sprite before
+the Stranger interview. Once the player is ready, character creation prepares an editable review draft.
+Explicitly saving the reviewed character enters the palace with the confirmed
+identity and authored actor positions. Walking and object interactions operate
 on that same world state; there is no separate demo or night-turn engine.
 
 `FullContextBuilder` combines authored character context, objectives, immediate
@@ -40,5 +42,5 @@ walks but does not own game state. Debug transcript summaries are views of actua
 model responses, not evidence that a proposed update was committed.
 
 Current limits: one active NPC runner; no give-item action, autonomous player
-speech, visibility simulation, time progression or automated coronation. The
-solstice remains the narrative premise, not a working scheduler.
+speech, visibility simulation, time progression or formal recognition resolution. The
+centennial assembly remains narrative context, not a working scheduler or vote engine.

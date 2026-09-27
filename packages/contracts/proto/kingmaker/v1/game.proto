@@ -81,6 +81,9 @@ message Character {
   string current_goal = 5;
   // Long-term ambitions that inform dialogue and immediate intent.
   repeated string objectives = 6;
+  string gender = 7;
+  optional uint32 sprite = 8;
+  string delegation = 9;
 }
 
 enum EventVisibility {
@@ -173,7 +176,8 @@ message MapFixture {
 message WorldState {
   uint32 revision = 1;
   uint32 day = 2;
-  uint32 solstice_day = 3;
+  reserved 3;
+  reserved "solstice_day";
   repeated Room rooms = 4;
   repeated ActorState actors = 5;
   repeated ObjectState objects = 6;

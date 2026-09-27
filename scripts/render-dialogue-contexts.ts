@@ -117,7 +117,7 @@ const gameMasterPayload = {
                           additionalProperties: false,
                           required: ["characterId", "description"],
                           properties: {
-                            characterId: { type: "string", enum: ["merlin", "lancelot", "king"] },
+                            characterId: { type: "string", enum: scenario.characters.map(character => character.id) },
                             description: { type: "string" },
                           },
                         },
@@ -132,7 +132,7 @@ const gameMasterPayload = {
                       additionalProperties: false,
                       required: ["ownerCharacterId", "relationship"],
                       properties: {
-                        ownerCharacterId: { type: "string", enum: ["merlin", "lancelot", "king"] },
+                        ownerCharacterId: { type: "string", enum: scenario.characters.map(character => character.id) },
                         relationship: {
                           type: "object",
                           additionalProperties: false,
