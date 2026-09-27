@@ -6,6 +6,7 @@ import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court
 import { courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath, courtInteractionPoint, nearestDoorSpot } from "../apps/web/src/court-map.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { createContext, runInContext } from "node:vm";
 import test from "node:test";
 import { create, fromBinary, fromJson, fromJsonString, toBinary, toJson, toJsonString } from "@bufbuild/protobuf";
 import {
@@ -1670,6 +1671,97 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   assert.match(greeting.reply, /Maren/);
   assert.equal(modelCalls, 1);
   assert.equal(greeting.state.phase, "player_creation");
+
+  await t.test("conversation review leaves movement and other dialogue available", async () => {
+    await request("create_development_game");
+    t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Farewell.", replyOptions: [], endConversation: true }));
+    await request("talk", { characterId: "corvin", message: "Goodbye." });
+    let release!: () => void;
+    let started!: () => void;
+    const reviewing = new Promise<void>(resolve => { started = resolve; });
+    const waitForReview = new Promise<void>(resolve => { release = resolve; });
+    t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => {
+      if (input.response_format?.json_schema?.name === "conversation_memory") {
+        started(); await waitForReview;
+        return modelReply({ newEvents: [{ type: "memory", summary: "The envoy said goodbye." }], relationships: [], lore: null, goalUpdate: null });
+      }
+      return modelReply({ utterance: "Hello.", replyOptions: [], endConversation: false });
+    });
+    const review = request("end_conversation", { characterId: "corvin" });
+    await reviewing;
+    for (const type of ["talk", "end_conversation", "pause_npc", "start_npc"]) {
+      await assert.rejects(request(type, { characterId: "corvin", message: "Again" }), /still reviewing/);
+    }
+    const destination = { x: 15, y: 24 };
+    await request("move_player", destination);
+    await request("talk", { characterId: "mara", message: "Hello." });
+    release();
+    const result = await review;
+    assert.deepEqual(result.state.player.position, create(TilePositionSchema, destination));
+    assert.equal(result.state.conversations.corvin, undefined);
+    assert.equal(result.state.conversations.mara.length, 2);
+    const saved = records.get(result.activeSaveId).snapshot;
+    assert.ok(fromJson(ScenarioSchema, saved.scenario).events.some(event => event.summary === "The envoy said goodbye."));
+
+    t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: null }));
+    failNextWrite = true;
+    await assert.rejects(request("end_conversation", { characterId: "mara" }), /Test storage failure/);
+    assert.equal((await request("state")).state.conversations.mara.length, 2, "Failed reviews retain their transcript for retry");
+    await request("end_conversation", { characterId: "mara" });
+    assert.equal((await request("state")).state.conversations.mara, undefined);
+  });
+});
+
+test("dialogue UI releases the screen before review and ignores replaced-game results", async () => {
+  const sent: any[] = [];
+  let receive!: (event: any) => void;
+  let endDialogue!: () => void;
+  const context = createContext({
+    URL, window: {}, newTraveller: () => ({}), updateCourtMap() {},
+    document: {
+      querySelector: (selector: string) => selector === "[data-end-conversation]"
+        ? { addEventListener: (_type: string, callback: () => void) => { endDialogue = callback; } } : null,
+      querySelectorAll: () => [], addEventListener() {},
+    },
+    Worker: class {
+      addEventListener(_type: string, callback: typeof receive) { receive = callback; }
+      postMessage(message: any) { sent.push(message); }
+    },
+  });
+  // Execute the actual UI handlers with a deferred worker transport and no DOM rendering.
+  const source = readFileSync(new URL("../apps/web/src/app.js", import.meta.url), "utf8")
+    .replace(/^import .*;\n/gm, "")
+    .replaceAll("import.meta.url", JSON.stringify(import.meta.url))
+    .replace(/if \(apiKey\) run\(\(\) => configure\(apiKey\)\);\s*else render\(\);/, "");
+  runInContext(`${source}\nrender = () => {}; updateNpcPanel = () => {}; state = { revision: 1 }; activeCharacter = 'corvin'; bind();`, context);
+  endDialogue();
+  assert.equal(runInContext("activeCharacter", context), null);
+  assert.equal(runInContext("busy", context), false);
+  assert.equal(sent[0].type, "end_conversation");
+  receive({ data: { id: sent[0].id, ok: false, error: "Storage unavailable" } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(runInContext("conversationReviews.get('corvin').error", context), "Storage unavailable");
+  runInContext("reviewConversation('corvin')", context);
+  receive({ data: { id: sent[1].id, ok: true, value: { state: { revision: 2 }, saves: [] } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(runInContext("conversationReviews.size", context), 0);
+  assert.equal(sent[2].type, "start_npc", "NPC starts only after review succeeds");
+
+  const talking = runInContext("activeCharacter = 'mara'; run(() => talkAndReview('mara', 'Goodbye'))", context);
+  const talk = sent.at(-1);
+  receive({ data: { id: talk.id, ok: true, value: { state: { revision: 3, conversationEndRequested: { mara: true }, conversations: { mara: ["Farewell"] } }, saves: [] } } });
+  await talking;
+  assert.equal(runInContext("busy", context), false, "NPC farewell does not wait for review");
+  assert.equal(runInContext("closedConversation.messages[0]", context), "Farewell");
+  const review = sent.at(-1);
+  assert.equal(review.type, "end_conversation");
+  endDialogue();
+  assert.equal(runInContext("activeCharacter", context), null);
+  runInContext("void rpc('load_game', { saveId: 'other' }); state = { revision: 99 };", context);
+  receive({ data: { id: review.id, ok: true, value: { state: { revision: 4 }, saves: [] } } });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(runInContext("state.revision", context), 99);
+  assert.equal(sent.filter(message => message.type === "start_npc").length, 1);
 });
 
 test("court dialogue accepts fenced JSON without issuing a second model request", async t => {

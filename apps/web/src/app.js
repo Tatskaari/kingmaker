@@ -7,6 +7,7 @@ const app = document.querySelector("#app");
 let state;
 let activeCharacter = null;
 let closedConversation = null;
+const conversationReviews = new Map();
 let busy = false;
 let npcRun = null;
 let notice = "";
@@ -61,7 +62,7 @@ gameWorker.addEventListener("message", event => {
 });
 
 function rpc(type, payload = {}) {
-  if (gameReplacementRequests.has(type)) stopNpcGoal();
+  if (gameReplacementRequests.has(type)) { conversationReviews.clear(); stopNpcGoal(); }
   const id = ++requestSequence;
   gameWorker.postMessage({ id, type, payload });
   return new Promise((resolve, reject) => pendingRequests.set(id, { resolve, reject, type }));
@@ -85,17 +86,23 @@ function updatePlayerFeed() {
 
 function updateNpcPanel() {
   const panel = document.querySelector("[data-npc-panel]"); if (!panel) return;
-  const active = Object.entries(state.npcActivities || {}).filter(([id, activity]) => id === npcRun || activity.status === "active" || activity.reviewPending);
+  const activities = { ...state.npcActivities };
+  for (const id of conversationReviews.keys()) activities[id] ??= {};
+  const active = Object.entries(activities).filter(([id, activity]) => conversationReviews.has(id) || id === npcRun || activity.status === "active" || activity.reviewPending);
   panel.innerHTML = `<header class="npc-activity-heading"><h3>Active NPCs <span>${active.length}</span></h3>${npcRun ? '<button data-background-stop>Pause activity</button>' : ""}</header>
     ${active.length ? `<ul class="npc-goals">${active.map(([id, activity]) => {
       const character = state.characters.find(character => character.id === id);
       const running = id === npcRun;
+      const review = conversationReviews.get(id);
+      if (review) return `<li><div class="npc-goal-content"><div class="npc-goal-heading">${escapeHtml(character?.name || id)}<span class="npc-activity-state">${review.error ? "Review failed" : "Remembering conversation"}</span></div><p>${escapeHtml(review.error || "Their memories and next goal are being reviewed.")}</p></div>${review.error ? `<button data-retry-conversation="${escapeHtml(id)}">Retry review</button>` : ""}</li>`;
       const talking = id === activeCharacter && !closedConversation;
       const status = talking ? "In conversation" : activity.reviewPending ? (running ? "Reviewing outcome" : "Awaiting review") : running ? "Acting" : "Has a goal";
       return `<li><div class="npc-goal-content"><div class="npc-goal-heading"><button class="npc-goal-name" data-npc-debug="${escapeHtml(id)}" aria-label="Debug ${escapeHtml(character?.name || id)}">${escapeHtml(character?.name || id)}</button><span class="npc-activity-state ${running ? "running" : ""}">${status}</span></div><p>${escapeHtml(activity.goal || character?.currentGoal || "No current goal.")}</p></div>${!running && !talking ? `<button class="npc-goal-resume" data-background-resume="${escapeHtml(id)}">${activity.reviewPending ? "Review outcome" : "Continue"}</button>` : ""}</li>`;
     }).join("")}</ul>` : '<p class="npc-goals-empty">No NPCs are pursuing a goal right now.</p>'}`;
   panel.hidden = false;
   panel.onclick = event => {
+    const retry = event.target.closest("[data-retry-conversation]");
+    if (retry) { reviewConversation(retry.dataset.retryConversation); updateNpcPanel(); }
     if (event.target.closest("[data-background-stop]")) stopNpcGoal();
     const resume = event.target.closest("[data-background-resume]");
     if (resume) void runNpcGoal(resume.dataset.backgroundResume).catch(error => { notice = `Error: ${error.message}`; render(); });
@@ -261,7 +268,7 @@ function renderDay(bindPage = true) {
   updateNpcPanel();
   const mapRoot = document.querySelector("[data-court-map]");
   void mountCourtMap(mapRoot, state.characters, state.player, async id => {
-    if (busy || !mapRoot.isConnected) return;
+    if (busy || conversationReviews.has(id) || !mapRoot.isConnected) return;
     activeCharacter = id; closedConversation = null; notice = ""; render();
   }, busy, async point => {
     const result = await rpc("move_player", point);
@@ -273,7 +280,10 @@ function renderDay(bindPage = true) {
   }, state.roomAccess, state.fixtures, state.fixtureActions, async actionId => {
     const result = await rpc("interact_fixture", { actionId });
     state = result.state; saves = result.saves; notice = result.message; render();
-  }, async id => { await rpc("pause_npc", { characterId: id }); }, async id => {
+  }, async id => {
+    if (conversationReviews.has(id)) throw new Error("Conversation review is pending.");
+    await rpc("pause_npc", { characterId: id });
+  }, async id => {
     const character = state.characters.find(item => item.id === id);
     await openDebug({ type: "debug_character", payload: { characterId: id } }, `${character?.name || id} Debug`);
   }).then(() => updateCourtMap(mapRoot, state)).catch(() => {
@@ -297,7 +307,7 @@ function renderConversation() {
   const dialog = document.createElement("dialog");
   dialog.className = "conversation-modal";
   dialog.setAttribute("aria-label", `Conversation with ${character.name}`);
-  dialog.innerHTML = `<section class="panel"><div class="conversation-head"><button class="back" data-end-conversation ${busy ? "disabled" : ""}>${busy ? "Please wait…" : ended ? "Return to palace" : ending ? "Finish conversation review" : "End conversation"}</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.<span class="earshot">${escapeHtml(earshotMessage)}</span></div>`}</div>${ended || ending ? `<p class="scene">${escapeHtml(character.name)} has ended the conversation.${ended ? " Their memories and goal have been reviewed." : " Saving their memories and next goal."}</p>` : `${replyOptions(state.conversationReplyOptions?.[activeCharacter], activeCharacter)}<form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`;
+  dialog.innerHTML = `<section class="panel"><div class="conversation-head"><button class="back" data-end-conversation ${busy ? "disabled" : ""}>${busy ? "Please wait…" : ended ? "Return to palace" : ending ? "Finish conversation review" : "End conversation"}</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.<span class="earshot">${escapeHtml(earshotMessage)}</span></div>`}</div>${ended || ending ? `<p class="scene">${escapeHtml(character.name)} has ended the conversation. You can return to the palace while their memories and next goal are reviewed.</p>` : `${replyOptions(state.conversationReplyOptions?.[activeCharacter], activeCharacter)}<form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`;
   // Keep character debugging within the modal's focus boundary.
   for (const panel of app.querySelectorAll(".debug-scrim, .debug-inspector")) dialog.append(panel);
   app.append(dialog);
@@ -327,11 +337,26 @@ async function talkAndReview(characterId, message) {
   state = response.state; saves = response.saves;
   if (!state.conversationEndRequested?.[characterId]) return;
   const messages = state.conversations?.[characterId] || [];
-  notice = "Remembering the conversation…"; render();
-  const reviewed = await rpc("end_conversation", { characterId });
-  state = reviewed.state; saves = reviewed.saves;
   closedConversation = { id: characterId, messages };
-  void runNpcGoal(characterId);
+  reviewConversation(characterId);
+}
+
+function reviewConversation(characterId) {
+  if (conversationReviews.has(characterId) && !conversationReviews.get(characterId).error) return;
+  const review = {};
+  conversationReviews.set(characterId, review);
+  void rpc("end_conversation", { characterId }).then(result => {
+    if (conversationReviews.get(characterId) !== review) return;
+    state = result.state; saves = result.saves;
+    conversationReviews.delete(characterId);
+    updateCourtMap(document.querySelector("[data-court-map]"), state);
+    updateNpcPanel();
+    void runNpcGoal(characterId).catch(error => { notice = `Error: ${error.message}`; render(); });
+  }).catch(error => {
+    if (conversationReviews.get(characterId) !== review) return;
+    review.error = error.message;
+    updateNpcPanel();
+  });
 }
 
 async function run(action) {
@@ -465,14 +490,12 @@ function bind() {
     run(() => talkAndReview(activeCharacter, message));
   });
   document.querySelector("[data-end-conversation]")?.addEventListener("click", () => {
+    if (busy) return;
     if (closedConversation?.id === activeCharacter) { activeCharacter = null; closedConversation = null; notice = ""; render(); return; }
-    void run(async () => {
-    notice = "Remembering your conversation…"; render();
     const characterId = activeCharacter;
-    const result = await rpc("end_conversation", { characterId });
-    state = result.state; saves = result.saves; activeCharacter = null;
-    void runNpcGoal(characterId);
-    });
+    activeCharacter = null; notice = "";
+    reviewConversation(characterId);
+    render();
   });
   document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { introPage = 0; reviewDraft = null; traveller = newTraveller(); const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
 }
