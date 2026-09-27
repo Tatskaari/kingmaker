@@ -805,10 +805,22 @@
         "id": "guest_chamber",
         "private": true,
         "allowedCharacterIds": [
-          "player"
+          "player",
+          "corvin",
+          "garran",
+          "king",
+          "mara",
+          "hadrik",
+          "tessa",
+          "elinor",
+          "oswin",
+          "rowan",
+          "lucan",
+          "sabine",
+          "rook"
         ],
-        "name": "Embassy Guest Chamber",
-        "description": "A comfortable room prepared for the visiting emissary near the Great Hall.",
+        "name": "Nobles' Parlour",
+        "description": "A comfortable withdrawing room near the Great Hall, reserved for the court's nobles and their companions.",
         "exitRoomIds": [
           "great_hall"
         ]
@@ -1162,7 +1174,7 @@
       },
       {
         "id": "palace_guest_table",
-        "name": "Guest table",
+        "name": "Parlour table",
         "roomId": "guest_chamber",
         "position": {
           "x": 3,
@@ -1174,7 +1186,7 @@
       },
       {
         "id": "palace_guest_stool",
-        "name": "Guest stool",
+        "name": "Parlour stool",
         "roomId": "guest_chamber",
         "position": {
           "x": 4,
@@ -1186,7 +1198,7 @@
       },
       {
         "id": "palace_guest_cabinet",
-        "name": "Guest cabinet",
+        "name": "Parlour cabinet",
         "roomId": "guest_chamber",
         "position": {
           "x": 6,
@@ -1667,7 +1679,7 @@
       },
       {
         "id": "guest_door",
-        "name": "Guest door",
+        "name": "Parlour door",
         "tiles": [
           {
             "x": 8,

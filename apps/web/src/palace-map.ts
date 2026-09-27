@@ -74,7 +74,7 @@ const rooms = [
     { x: 22, y: 22, width: 2, height: 2 },
     { x: 15, y: 30, width: 2, height: 3 },
   ] },
-  { id: "guest_chamber", name: "Embassy Guest Chamber", regions: [{ x: 2, y: 20, width: 6, height: 9 }] },
+  { id: "guest_chamber", name: "Nobles' Parlour", regions: [{ x: 2, y: 20, width: 6, height: 9 }] },
   { id: "entrance_hall", name: "Entrance Hall", regions: [
     { x: 12, y: 33, width: 8, height: 4 },
     { x: 15, y: 37, width: 2, height: 1 },
