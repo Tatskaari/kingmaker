@@ -49,7 +49,7 @@ the coming centennial succession before introducing the three delegations.
 
 ## Models and debugging
 
-GPT-6 Luna handles dialogue with reasoning off. GPT-6 Sol handles the GM, reviews
+GPT-6 Luna handles dialogue with reasoning off. GPT-6 Terra handles the GM, reviews
 and NPC-to-NPC exchanges with medium reasoning. Settings live in
 `apps/web/src/model-settings.ts`. Jev selects from currently reachable actions.
 
