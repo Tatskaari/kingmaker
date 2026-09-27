@@ -527,9 +527,11 @@ test("characters can ask an aide and the GM can materialize the result at conver
   });
 
   const runtime = new BrowserGameRuntime(conversationScenario(), "test");
-  assert.equal(await runtime.talkToCharacter("corvin", "Can your people find the Westmere records?"), "I shall have my aide search the records.");
+  const before = runtime.snapshot(), dialogueFork = runtime.forkForNpc();
+  assert.equal(await dialogueFork.talkToCharacter("corvin", "Can your people find the Westmere records?"), "I shall have my aide search the records.");
   assert.equal(requests[0]!.tools?.[0]?.function.name, "ask_my_aide");
   assert.match(requests[1]!.messages.find(message => message.role === "tool")?.content || "", /GM will adjudicate/);
+  runtime.commitCharacterFork(before, dialogueFork, ["corvin"]);
   assert.deepEqual(runtime.snapshot().conversationAideRequests?.corvin, [{ task }]);
 
   const restored = new BrowserGameRuntime(conversationScenario(), "test", runtime.snapshot());

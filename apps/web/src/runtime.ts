@@ -749,6 +749,8 @@ export class BrowserGameRuntime {
       if (replies) this.#conversationReplyOptions[id] = [...replies]; else delete this.#conversationReplyOptions[id];
       const ended = fork.#conversationEndRequested[id];
       if (ended === undefined) delete this.#conversationEndRequested[id]; else this.#conversationEndRequested[id] = ended;
+      const aideRequests = fork.#conversationAideRequests[id];
+      if (aideRequests) this.#conversationAideRequests[id] = structuredClone(aideRequests); else delete this.#conversationAideRequests[id];
     }
     const newEvents = next.events.slice(base.events.length);
     current.events.push(...newEvents);
