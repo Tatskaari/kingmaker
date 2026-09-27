@@ -30,6 +30,7 @@ import { palaceMap } from "../apps/web/src/palace-map.js";
 
 import { canWalk, findPath, pointKey } from "../apps/web/src/navigation.js";
 import { palaceNodes } from "../apps/web/src/palace-navigation.js";
+import { charactersWithinEarshot, EARSHOT_DISTANCE } from "../apps/web/src/earshot.js";
 
 
 import { JevClient } from "../packages/providers/src/jev.js";
@@ -37,6 +38,31 @@ import { JevClient } from "../packages/providers/src/jev.js";
 
 const fixturePath = new URL("../content/scenarios/last-night.json", import.meta.url);
 const load = (): Scenario => fromJsonString(ScenarioSchema, readFileSync(fixturePath, "utf8"));
+
+test("earshot uses tile distance and excludes the conversation partner", () => {
+  const speaker = { id: "king", name: "The King", position: { x: 10, y: 10 } };
+  assert.deepEqual(charactersWithinEarshot(speaker, [
+    speaker,
+    { id: "far", name: "Far", position: { x: 10 + EARSHOT_DISTANCE, y: 1 } },
+    { id: "edge", name: "Edge", position: { x: 10 + EARSHOT_DISTANCE, y: 10 } },
+    { id: "near", name: "Near", position: { x: 11, y: 11 } },
+    { id: "unknown", name: "Unknown" },
+  ]), [
+    { id: "near", name: "Near", position: { x: 11, y: 11 }, distance: 2, level: "Moderate" },
+    { id: "edge", name: "Edge", position: { x: 16, y: 10 }, distance: EARSHOT_DISTANCE, level: "Distant" },
+  ]);
+});
+
+test("earshot levels cover each distance boundary", () => {
+  const speaker = { id: "speaker", name: "Speaker", position: { x: 0, y: 0 } };
+  const listeners = Array.from({ length: 8 }, (_, distance) => ({
+    id: `listener-${distance}`, name: `Listener ${distance}`, position: { x: distance, y: 0 },
+  }));
+  assert.deepEqual(charactersWithinEarshot(speaker, listeners).map(({ distance, level }) => [distance, level]), [
+    [0, "Clear"], [1, "Clear"], [2, "Moderate"], [3, "Moderate"],
+    [4, "Distant"], [5, "Distant"], [6, "Distant"],
+  ]);
+});
 
 test("the expanded authored scenario strictly parses and survives protobuf", () => {
   const scenario = load();

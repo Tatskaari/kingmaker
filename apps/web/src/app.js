@@ -1,6 +1,7 @@
 import { debugOverview, recentTranscriptsView } from "./debug-view.js";
 import { mountCourtMap, updateCourtMap } from "./court-map.js";
 import { introduction, introductionTitles, introductionHandoff, handoffPrefix, nameSuggestions, delegations, characterSprites, newTraveller, patronName } from "./introduction.js";
+import { charactersWithinEarshot } from "./earshot.js";
 
 const app = document.querySelector("#app");
 let state;
@@ -272,11 +273,15 @@ function renderConversation() {
   const ended = closedConversation?.id === activeCharacter;
   const ending = !!state.conversationEndRequested?.[activeCharacter];
   const messages = ended ? closedConversation.messages : state.conversations?.[activeCharacter] || [];
+  const listeners = charactersWithinEarshot(character, state.characters);
+  const earshotMessage = listeners.length
+    ? `Within earshot:\n${listeners.map(listener => `${listener.name} — ${listener.level}`).join("\n")}`
+    : "No one else is within earshot.";
   renderDay(false);
   const dialog = document.createElement("dialog");
   dialog.className = "conversation-modal";
   dialog.setAttribute("aria-label", `Conversation with ${character.name}`);
-  dialog.innerHTML = `<section class="panel"><div class="conversation-head"><button class="back" data-end-conversation ${busy ? "disabled" : ""}>${busy ? "Please wait…" : ended ? "Return to palace" : ending ? "Finish conversation review" : "End conversation"}</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.</div>`}</div>${ended || ending ? `<p class="scene">${escapeHtml(character.name)} has ended the conversation.${ended ? " Their memories and goal have been reviewed." : " Saving their memories and next goal."}</p>` : `${replyOptions(state.conversationReplyOptions?.[activeCharacter], activeCharacter)}<form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`;
+  dialog.innerHTML = `<section class="panel"><div class="conversation-head"><button class="back" data-end-conversation ${busy ? "disabled" : ""}>${busy ? "Please wait…" : ended ? "Return to palace" : ending ? "Finish conversation review" : "End conversation"}</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.<span class="earshot">${escapeHtml(earshotMessage)}</span></div>`}</div>${ended || ending ? `<p class="scene">${escapeHtml(character.name)} has ended the conversation.${ended ? " Their memories and goal have been reviewed." : " Saving their memories and next goal."}</p>` : `${replyOptions(state.conversationReplyOptions?.[activeCharacter], activeCharacter)}<form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`;
   // Keep character debugging within the modal's focus boundary.
   for (const panel of app.querySelectorAll(".debug-scrim, .debug-inspector")) dialog.append(panel);
   app.append(dialog);

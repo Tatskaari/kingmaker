@@ -30,6 +30,7 @@ h1 { font-size: clamp(2.7rem, 8vw, 5.4rem); letter-spacing: .08em; color: #f3e5b
 .message.assistant, .message.character { border-left: 2px solid var(--gold); background: #c9a6620a; }
 .message.user, .message.player { justify-self: end; text-align: right; color: #fff3d8; background: #ffffff09; border-right: 2px solid #81745f; }
 .speaker { display: block; color: var(--gold); font-family: Cinzel, serif; font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 5px; }
+.earshot { display: block; margin-top: 8px; color: var(--dim); font-size: .95rem; font-style: italic; }
 .composer { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding-top: 17px; border-top: 1px solid var(--line); }
 textarea { resize: none; min-height: 58px; background: #0e0c09; color: #f5ead4; border: 1px solid #514838; padding: 13px; outline: none; }
 textarea:focus { border-color: var(--gold); }
