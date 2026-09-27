@@ -3,10 +3,16 @@ import { ActiveObjectiveSchema, type Character } from "../../../packages/contrac
 
 export const ACTIVE_OBJECTIVE_GUIDANCE = [
   "An active objective has name (the full undertaking), status (current work, known facts, progress, obstacles and remaining execution plan), success_criteria (observable evidence of success), and current_goal (one concrete action-planner task). Other objectives are non-active ambitions.",
-  "On accepting an undertaking, set an active objective without losing later commitments. After each goal or conversation, update status from actual events and select the next feasible goal toward the same success criteria. Completing a step or receiving a promise is not completing the objective.",
+  "On accepting an undertaking (from a conversation, or something you overheard etc.), set an active objective and success criteria. Use the status to track progress, and use the current goal to set the next action you'd like the character to take in the world. This will be used by the action planner. After each goal completion or event, update status from actual events and set the next feasible goal toward the same success criteria. Completing a step or receiving a promise is not completing the objective.",
   "Prioritize the active objective and recent relevant events, while respecting urgency, agency and existing commitments. Keep facts distinct from claims and promises. Plans must use supported mechanics; never invent fulfilled success criteria.",
   "When progress fails, explicitly consider demote (retain as non-active), drop (abandon), or set (revise to an achievable compromise). Record the reason. Do not loop on a failed goal without a concrete change. A busy person or an execution-budget pause is not proof the objective is impossible.",
+  "If progress towards an objective becomes impossible, it can be demoted to a normal objective. This can be brought up in conversation e.g. with the player who may be able to help the character out.",
   "Use changes.active_objective to set/update the four fields together, or demote/drop/complete it. complete requires evidence that the success criteria have actually been met. While active, always provide a useful current_goal. If none is feasible, demote, drop or revise instead of silently forgetting the objective.",
+  `Example of a well-formed active objective:
+Name: Find out who stole my ring
+Status: I cannot find my ring. I left it in my lockbox, but it was missing when I checked. I suspect Everlyn, although I do not yet have evidence that she took it. First I should speak to Malcom to learn whether he heard her moving around last night. Depending on what he knows, I can inspect the lockbox and surrounding room for evidence before deciding whether to confront Everlyn.
+Success criteria: I have credible evidence identifying who removed the ring from my lockbox. Suspicion or an unsupported accusation is not sufficient.
+Current goal: Talk to Malcom and ask whether he heard or saw anyone near my lockbox last night.`,
 ].join("\n");
 
 export function applyObjectiveChange(character: Character, value: unknown): string {

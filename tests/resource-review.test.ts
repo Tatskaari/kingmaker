@@ -5,6 +5,7 @@ import { fromJsonString } from "@bufbuild/protobuf";
 import { ScenarioSchema } from "../packages/contracts/src/index.js";
 import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
 import { resourceReviewTools, type ResourceReviewContext } from "../apps/web/src/resource-review.js";
+import { ACTIVE_OBJECTIVE_GUIDANCE } from "../apps/web/src/objectives.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 
 const context: ResourceReviewContext = { kind: "conversation_review", participants: ["corvin"],
@@ -220,4 +221,13 @@ test("agent-visible write descriptions document ID source, patch semantics, and 
   assert.match(character.function.description, /Omitted fields stay unchanged/);
   assert.match(character.function.description, /null explicitly clears/);
   assert.match(character.function.description, /Example:/);
+});
+
+test("active objective guidance includes a concrete plan and definition-of-done example", () => {
+  const instructions = resourceReviewTools().find(tool => tool.function.name === "update_character")!.function.description
+    + JSON.stringify(resourceReviewTools().find(tool => tool.function.name === "update_character")!.function.parameters);
+  assert.match(instructions, /status must describe current knowledge, progress and the remaining execution plan/);
+  assert.match(ACTIVE_OBJECTIVE_GUIDANCE, /Find out who stole my ring/);
+  assert.match(ACTIVE_OBJECTIVE_GUIDANCE, /credible evidence identifying who removed the ring/);
+  assert.match(ACTIVE_OBJECTIVE_GUIDANCE, /Talk to Malcom/);
 });
