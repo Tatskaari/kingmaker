@@ -41,6 +41,7 @@ function enqueue<T>(work: () => Promise<T>): Promise<T> {
 let background: { id: string; controller: AbortController; participants: string[] } | undefined;
 const pendingNpcs: Array<{ id: string; handoffs: number }> = [];
 const conversationHolds = new Set<string>();
+const conversationReviews = new Set<string>();
 
 function publishNpc(status: string, trace?: unknown) {
   if (runtime) worker.postMessage({ type: "npc_update", state: runtime.view(), activeSaveId: activeSave?.id,
@@ -232,6 +233,10 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
   if (["configure", "create_game", "create_development_game", "load_game", "delete_game", "reset", "reset_world", "reset_characters"].includes(type)) {
     generation++; stopBackground(); conversationHolds.clear();
   }
+  const reviewKey = `${generation}:${String(payload.characterId || "")}`;
+  if (["start_npc", "pause_npc", "talk", "end_conversation"].includes(type) && conversationReviews.has(reviewKey)) {
+    throw new Error("This character is still reviewing the conversation. Try again when the review finishes.");
+  }
   if (type === "start_npc") { const id = String(payload.characterId); conversationHolds.delete(id); startBackground(id); return {}; }
   if (type === "pause_npc") { const id = String(payload.characterId); conversationHolds.add(id); stopBackground(id); publishNpc(`${id}: talking to you.`); void drainBackground(); return {}; }
   if (type === "configure") {
@@ -309,20 +314,23 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     return { state: game.view(), saves: await listSaves() };
   }
   if (type === "talk" || type === "end_conversation") {
-    const game = requireRuntime(), id = String(payload.characterId || "");
-    conversationHolds.add(id); stopBackground(id);
-    const version = generation;
-    const { before, fork } = await enqueue(async () => ({ before: game.snapshot(), fork: game.forkForNpc() }));
-    const reply = type === "talk" ? await fork.talkToCharacter(id, String(payload.message || "")) : await fork.endConversation(id);
-    await commitMutation(game, () => {
-      if (generation !== version) throw new Error("Game changed.");
-      game.commitCharacterFork(before, fork, [id]);
-    });
-    if (type === "end_conversation") {
-      conversationHolds.delete(id);
-      for (const listener of game.rumourListenersSince(before)) startBackground(listener);
-    }
-    return { reply, state: game.view(), saves: await listSaves(), activeSaveId: activeSave?.id };
+    if (type === "end_conversation") conversationReviews.add(reviewKey);
+    try {
+      const game = requireRuntime(), id = String(payload.characterId || "");
+      conversationHolds.add(id); stopBackground(id);
+      const version = generation;
+      const { before, fork } = await enqueue(async () => ({ before: game.snapshot(), fork: game.forkForNpc() }));
+      const reply = type === "talk" ? await fork.talkToCharacter(id, String(payload.message || "")) : await fork.endConversation(id);
+      await commitMutation(game, () => {
+        if (generation !== version) throw new Error("Game changed.");
+        game.commitCharacterFork(before, fork, [id]);
+      });
+      if (type === "end_conversation") {
+        conversationHolds.delete(id);
+        for (const listener of game.rumourListenersSince(before)) startBackground(listener);
+      }
+      return { reply, state: game.view(), saves: await listSaves(), activeSaveId: activeSave?.id };
+    } finally { if (type === "end_conversation") conversationReviews.delete(reviewKey); }
   }
   if (type === "reset") {
     requireRuntime().reset();
