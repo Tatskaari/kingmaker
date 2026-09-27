@@ -130,9 +130,10 @@ function gmTools(scenario: Scenario): readonly OpenRouterTool[] {
     type: "function",
     function: {
       name: "update_character",
-      description: "Edit a character biography or set, revise, demote, drop or complete an NPC active objective. NPCs cannot receive a standalone current goal.",
+      description: "Edit a character biography or dialogue objective, or set, revise, demote, drop or complete an NPC active objective. A dialogue objective is what the NPC hopes to reveal, learn or elicit naturally in conversation; an empty string clears it. NPCs cannot receive a standalone current goal.",
       parameters: { type: "object", additionalProperties: false, required: ["characterId"], properties: {
         characterId: { type: "string", enum: scenario.characters.map(character => character.id) }, lore: { type: "string" },
+        dialogueObjective: { type: "string", description: "Current conversational intent. Keep it grounded in this character's knowledge and motives; use an empty string when no dialogue objective remains." },
         activeObjective: { oneOf: [
           { type: "object", additionalProperties: false, required: ["action", "reason", "name", "status", "successCriteria", "currentGoal"], properties: {
             action: { const: "set" }, reason: { type: "string" }, name: { type: "string" }, status: { type: "string" },
@@ -218,7 +219,7 @@ Examples:
 - "I have authority to pledge my kingdom's recognition" establishes political authority; consult the GM if unestablished.
 If the consultation tool is unavailable for this opening turn, defer consequential new assertions and use established facts, incidental details, proposals or questions instead.`;
 
-const CONVERSATION_OBJECTIVE_REVIEW = "When this conversation opens or advances a scenario thread and the NPC has chosen a concrete action they are willing and able to take, set or update their active objective with that action as the next current goal. This includes investigating a credible lead, pursuing an accepted bargain, responding to a meaningful threat, seeking evidence, warning someone or confronting another character. Do not leave the NPC idle merely because the player did not phrase the action as an explicit command. Ordinary social exchange, an unsupported suggestion, an agreement the NPC did not make, or a next step that only waits for someone else does not warrant an active objective.";
+const CONVERSATION_OBJECTIVE_REVIEW = "When this conversation opens or advances a scenario thread and the NPC has chosen a concrete action they are willing and able to take, set or update their active objective with that action as the next current goal. This includes investigating a credible lead, pursuing an accepted bargain, responding to a meaningful threat, seeking evidence, warning someone or confronting another character. Do not leave the NPC idle merely because the player did not phrase the action as an explicit command. Ordinary social exchange, an unsupported suggestion, an agreement the NPC did not make, or a next step that only waits for someone else does not warrant an active objective. Independently assess the NPC's dialogue_objective. Preserve it while its intended reveal or question remains relevant and unfinished. If the conversation fulfills or invalidates it, use update_character to replace it with the next story-relevant thing this character knows and genuinely wants to reveal, learn or ask of the player, or clear it with an empty string when none remains. A dialogue objective guides future roleplay; it is not an action-planner task, permission to invent knowledge, or a reason to force an unnatural topic.";
 
 const memoryFormat = {
   type: "json_schema",
@@ -984,7 +985,7 @@ export class BrowserGameRuntime {
       if (!context.participants.includes(id)) throw new Error("Only conversation/action-review participants can be updated.");
       const patch = args.changes as Record<string, unknown>;
       if (!patch || typeof patch !== "object" || Array.isArray(patch) || !Object.keys(patch).length
-        || Object.keys(patch).some(key => !["append_notes", "relationships", "lore", "active_objective", "parked_objectives"].includes(key))) throw new Error("Invalid character changes. NPC goals must be updated through active_objective.");
+        || Object.keys(patch).some(key => !["append_notes", "relationships", "lore", "dialogue_objective", "active_objective", "parked_objectives"].includes(key))) throw new Error("Invalid character changes. NPC goals must be updated through active_objective.");
       const character = scenario.characters.find(character => character.id === id)!;
       const objectiveMemory = patch.active_objective === undefined ? undefined : applyObjectiveChange(character, patch.active_objective);
       const parkedMemories = patch.parked_objectives === undefined ? [] : applyParkedObjectiveChanges(character, patch.parked_objectives);
@@ -1003,6 +1004,11 @@ export class BrowserGameRuntime {
       const candidate = new MemoryGame(scenario);
       const committed = candidate.commitConversation(id, memory, false);
       if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
+      if (patch.dialogue_objective !== undefined) {
+        if (typeof patch.dialogue_objective !== "string") throw new Error("dialogue_objective must be a string.");
+        const changed = candidate.updateCharacter(id, undefined, undefined, patch.dialogue_objective.trim());
+        if (!changed.ok) throw new Error("Unknown character.");
+      }
       if (objectiveMemory) {
         const goal = character.currentGoal;
         const changed = candidate.updateCharacter(id, undefined, goal);
@@ -1393,7 +1399,7 @@ export class BrowserGameRuntime {
           description: relationship.description,
         })),
       } : null,
-      characters: scenario.characters.filter(character => character.id !== "player").map(character => ({ id: character.id, name: character.name, activeObjective: character.activeObjective, currentGoal: character.currentGoal, position: world?.actors.find(actor => actor.characterId === character.id)?.position, roomId: world?.actors.find(actor => actor.characterId === character.id)?.roomId })),
+      characters: scenario.characters.filter(character => character.id !== "player").map(character => ({ id: character.id, name: character.name, dialogueObjective: character.dialogueObjective, activeObjective: character.activeObjective, currentGoal: character.currentGoal, position: world?.actors.find(actor => actor.characterId === character.id)?.position, roomId: world?.actors.find(actor => actor.characterId === character.id)?.roomId })),
       gmReplyOptions: this.#gmReplyOptions,
       conversationReplyOptions: this.#conversationReplyOptions,
       conversationEndRequested: this.#conversationEndRequested,
@@ -1563,7 +1569,8 @@ export class BrowserGameRuntime {
     }
     if (name === "update_character") {
       const characterId = text(input.characterId, "characterId");
-      const result = this.#game.updateCharacter(characterId, typeof input.lore === "string" ? input.lore : undefined);
+      const result = this.#game.updateCharacter(characterId, typeof input.lore === "string" ? input.lore : undefined, undefined,
+        typeof input.dialogueObjective === "string" ? input.dialogueObjective.trim() : undefined);
       if (!result.ok) throw new Error(result.issues.map(issue => issue.message).join("; "));
       if (input.activeObjective !== undefined) {
         if (characterId === scenario.playerCharacterId) throw new Error("The player's personal goal is not an NPC active objective.");

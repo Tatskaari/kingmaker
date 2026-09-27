@@ -4,7 +4,7 @@ The assembled context is deliberately simple and complete:
 
 1. System instructions.
 2. The scenario premise and ancient law.
-3. This character's lore, long-term objectives, and immediate goal.
+3. This character's lore, dialogue objective, long-term objectives, and immediate goal.
 4. This character's relationships.
 5. Every public note and private note involving this character.
 6. The character's complete known world state. Unknown container contents and
@@ -46,6 +46,17 @@ immediately, such as to a crime or threat. Processing may interrupt current work
 The character review model then records the perception as a note and may revise,
 park, reactivate, replace or preserve objectives. Events themselves are not durable
 memory and are never treated as instructions.
+
+## Dialogue objectives
+
+Each NPC has a `dialogueObjective` separate from physical/action objectives. It
+describes something the character hopes to reveal, learn, or elicit from the
+player. The dialogue model should pursue it through believable pacing and only
+when the conversation, relationship, and character knowledge support doing so.
+It must not recite the objective, force the topic, invent knowledge, or guarantee
+the player's cooperation. Conversation review preserves an unfinished objective,
+replaces it with the next relevant conversational thread, or clears it once no
+such thread remains. It never sends a dialogue objective to Jev.
 
 
 ## Immediate goals

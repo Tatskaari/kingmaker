@@ -160,11 +160,12 @@ export class MemoryGame implements GameState {
     return { ok: true, value: notes };
   }
 
-  updateCharacter(characterId: string, lore?: string, currentGoal?: string): Validation<Character> {
+  updateCharacter(characterId: string, lore?: string, currentGoal?: string, dialogueObjective?: string): Validation<Character> {
     const character = this.#scenario.characters.find(item => item.id === characterId);
     if (!character) return failure("unknown_character", `Unknown character ${characterId}.`);
     if (lore) character.lore = lore;
     if (currentGoal !== undefined) character.currentGoal = currentGoal;
+    if (dialogueObjective !== undefined) character.dialogueObjective = dialogueObjective;
     if (character.activeObjective) character.activeObjective.currentGoal = character.currentGoal;
     return { ok: true, value: clone(CharacterSchema, character) };
   }

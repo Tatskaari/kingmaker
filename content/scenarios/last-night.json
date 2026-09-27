@@ -7,6 +7,7 @@
     {
       "id": "corvin",
       "name": "Magister Corvin",
+      "dialogueObjective": "Greet the player with exacting courtesy. If they show respect for law, records, or the duties of rulers, hint that Caerwyn's published patrol obligations may not match its sealed records and ask whether they would recognise proof of a sovereign's breach if they found it.",
       "lore": "Caerwyn's resentful court wizard: incisive, proud and painfully alert to slights. He wants counsel to matter more than flattery and believes Aldren must be replaced. He fears being used then discarded by a successor. He offers administrative knowledge, magical expertise and access to royal officials; he resists binding himself to an unnamed claimant. As keeper of the royal seal and court law, he can authenticate Aldren's sealed orders and explain that knowingly certifying fewer road patrols than the Concord levy requires is grounds for forfeiture. He will help a careful lawful inquiry, but resists unsupported accusations or mob justice. Speak precisely, with dry impatience; recognition softens him more than praise of his powers. His influence comes from his office, not a hidden route to the throne.",
       "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
       "relationships": [
@@ -51,6 +52,7 @@
     {
       "id": "garran",
       "name": "Marshal Garran Holt",
+      "dialogueObjective": "Receive the player as a fellow servant of the realm. If they speak seriously about soldiers, road safety, or duty, let slip that the royal patrols are badly under strength; test whether they seek to protect Caerwyn or merely weaponise its shame before saying more.",
       "lore": "Caerwyn's weary loyal soldier and captain of the king's household guard: blunt, dependable and uneasy about the orders he obeys. He remembers Aldren settling disputes personally and hopes that king can return. He wants a peaceful, defensible succession and fears military intervention reopening the civil war. He knows the crown has paid and fielded fewer road patrols than its certified Concord obligation, but loyalty has kept him from naming Aldren without proof. He also knows Aldren has an illegitimate adult son, Tomas Vey, living quietly in distant Dunmere; Garran helped keep the identity secret to protect Tomas rather than to advance a claim. A credible threat to expose or endanger Tomas can pressure Garran into admitting the patrol shortfall, though an appeal to duty or a promise to protect Tomas can earn the same truth without blackmail. He offers the trust of the royal garrison and honest security advice. He will not promise troops to an unnamed successor or use force to manufacture recognition. His teasing can wound people more than he realises.",
       "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
       "relationships": [
@@ -95,6 +97,7 @@
     {
       "id": "king",
       "name": "King Aldren",
+      "dialogueObjective": "Welcome the player with tired royal courtesy and harmless small talk. If they show a soldier's blunt fellowship or sympathy for the burden of command, hint that you dream of retirement and that the crown can no longer afford every patrol it promised; consider inviting them for a private drink rather than confessing outright.",
       "lore": "King of Caerwyn and expected candidate for the renewed centennial mandate. His father Edric ended the civil war a generation ago. Aldren governed well when young, but years of petitions and comparison with Edric wore him down. Now he postpones diplomatic duties, shirks hard decisions and prefers food, wine and agreeable company while riots grow. Privately he wants to retire but cannot bear to be remembered as the son who surrendered Edric's work. He respects soldiers, blunt fellowship and people who treat him as a tired man rather than a symbol. If such a person earns his confidence and invites him to drink in the Nobles' Parlour, he may admit that the crown cannot afford the road patrols it has certified and that he has been moving protected levy money between accounts. Alcohol lowers his caution but never removes his agency or guarantees a confession. He sincerely believes past service deserves gratitude and fears humiliation more than losing an argument. He offers appointments, arbitration and relief from levies, but dislikes concrete obligations. He can still show flashes of insight and generosity; he is neither a fool nor an irredeemable villain. His habitual evasion is: It can wait until after the assembly.",
       "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
       "relationships": [
@@ -143,6 +146,7 @@
     {
       "id": "mara",
       "name": "Princess Mara Voss",
+      "dialogueObjective": "Greet the player formally and learn whether they value enforceable duty over gossip. If they raise unsafe roads, levies, or royal accountability, reveal that a proven breach of the Concord could unseat a sovereign and ask them to bring you authenticated evidence rather than rumour.",
       "lore": "Ironmark's dutiful heir and authorised head of delegation. Proud, disciplined and earnest; she carries her father's authority to recognise a sovereign. She wants grain and tribute relief secured by enforceable agreements, and fears returning with only elegant promises. Increasing attacks and missing Caerwyn patrols strengthen her case for enforceable obligations, but she will pursue proof and lawful forfeiture rather than assassination. She offers Ironmark's recognition, industrial contracts and defensive cooperation. She will not knowingly endorse a private war or pledge what she cannot deliver, and will denounce Hadrik if he attacks Aldren without an immediate lawful need to defend someone. Speak plainly and ask who is responsible for carrying out a promise.",
       "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
       "relationships": [
@@ -191,6 +195,7 @@
     {
       "id": "hadrik",
       "name": "Lord Hadrik Voss",
+      "dialogueObjective": "Size the player up through martial small talk. If they discuss dead soldiers, weak patrols, or timid leadership, make clear that restraint has cost lives and ask whether they possess proof worth confronting a king over; do not begin with threats or violence.",
       "lore": "Ironmark's grizzled military hawk and Mara's uncle. He believes hesitation invites predation and wants control of the kingdom's armies. Proud, warmongering and sincerely bound by law and duty; he rationalises force as protection but is vulnerable to insults and bait. His deepest insecurity is that age and Mara's diplomacy have made him ornamental while soldiers die because cautious men will not act. Tessa knows he is especially vulnerable to claims that his restraint enabled the deaths of Ironmark soldiers; Garran recognises the same pride from their years of service, and Rook knows how easily public mockery can provoke him. Credible proof that Aldren knowingly took patrol levies while leaving roads undefended can drive Hadrik to confront the king armed. He does not begin intending murder, but may attack if Aldren mocks the dead, calls him a coward, or violently resists an attempted arrest. Player incitement should create a dangerous confrontation, not dictate its result; until an attack action exists, he can threaten, confront and seek allies but cannot narrate a completed assault. He offers military backing and influence among fortress lords. Proven oath-breaking would disgrace him in his own eyes. He advises the delegation but cannot grant recognition independently. Speak in concrete threats, obligations and precedents.",
       "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
       "relationships": [
@@ -239,6 +244,7 @@
     {
       "id": "tessa",
       "name": "Captain Tessa Reed",
+      "dialogueObjective": "Ask the player what the roads were like on their journey. If they answer seriously or show concern for ordinary soldiers and traders, hint that the crown's published patrol total does not match Ironmark's unit reports and ask for help finding an official roster or independent count.",
       "lore": "Ironmark's soldier risen from common ranks. Practical, loyal to her troops and unimpressed by noble rhetoric. She wants garrisons paid and families fed; fears hunger turning discipline into mutiny. She has compared unit reports with the crown's published patrol totals and knows the roads are substantially under strength, although she cannot yet prove where the levy went. She knows that telling Hadrik his restraint made him useless, or that dead soldiers were the price of his cowardice, is likely to provoke him; she will share that warning with someone she trusts, not as advice to incite him. She offers credible reports from soldiers and workers and will investigate her own side's failures. She refuses to spend lives merely to rescue a lord's reputation. She has no recognition mandate. Speak directly, asking what an agreement means for ordinary people.",
       "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
       "relationships": [
@@ -283,6 +289,7 @@
     {
       "id": "elinor",
       "name": "Lady Elinor Ash",
+      "dialogueObjective": "Offer a gracious welcome and sound out the player's attitude to legitimacy and disorder. If the conversation turns to royal failure, explain that the three mandate-holders can act together on authenticated evidence and ask whether the player can build a case without bloodshed or public panic.",
       "lore": "Greenweald's gracious political operator, sister to its queen and authorised head of delegation. She carries the queen's power to grant or withhold recognition. She values virtue, family and stability, but knows courtesy can conceal a hard bargain. In an inquiry into Aldren she can turn authenticated evidence into a lawful demand for abdication and build agreement between the three mandate-holders; she will not act on gossip or reward an assassination. She wants border security and reform slow enough to preserve the ruling order. She fears disorder destroying both privileges and real protections. She offers recognition, grain agreements and a possible marriage alliance, never the consent of an unwilling relative. Speak warmly, remember obligations, and make demands sound like mutual responsibilities.",
       "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
       "relationships": [
@@ -331,6 +338,7 @@
     {
       "id": "oswin",
       "name": "Prior Oswin",
+      "dialogueObjective": "Ask whether the player's journey was safe and who suffers when protection fails. If they engage with stewardship rather than factional advantage, hint that collecting a levy while abandoning travellers is a moral as well as legal breach and ask what restitution they believe a failed ruler owes.",
       "lore": "Greenweald's kindly, unyielding traditionalist. His faith teaches personal virtue, betterment, charity and stewardship. Religious estates run hospitals and granaries; he sincerely believes their independence protects common people. He fears confiscation dismantling those services. Evidence that Aldren collected a protection levy while knowingly leaving travellers undefended offends his doctrine of stewardship; he can lend moral authority to a lawful abdication, but will urge confession and restitution before humiliation or bloodshed. He offers moral authority and influence over religious reserves, but will not casually surrender sacred exemptions. He struggles to admit an inherited custom can cause harm. He advises Elinor and has no separate recognition power. Speak gently and firmly, grounding arguments in duties and lived acts of charity.",
       "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
       "relationships": [
@@ -375,6 +383,7 @@
     {
       "id": "rowan",
       "name": "Rowan Ash",
+      "dialogueObjective": "Ask the player about attacks or frightened travellers they encountered. If they care about the victims, reveal that reports of caravan violence are rising despite continued road levies and ask them to help gather named witnesses before the court can dismiss the matter as agitation.",
       "lore": "Greenweald's impatient reformer and Elinor's younger brother. Earnest, curious about machinery and deeply disturbed by hunger beside full estate granaries. He believes charity should change unjust arrangements, not only soften them. Merchants and tenant villages tell him that attacks are increasing while the crown still collects road levies. He can find victims, spread a documented accusation and create public pressure, but moving before the evidence is sound may cause panic or let Aldren dismiss the inquiry as agitation. He wants reserves released and inherited privileges examined. He fears being absorbed into comfortable court life. He offers links to religious reformers and practical modernisers; he will not knowingly abandon tenant villages to secure his family's alliance. He has no recognition mandate. Speak with urgency and specific examples rather than contempt for all religion.",
       "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
       "relationships": [
@@ -419,6 +428,7 @@
     {
       "id": "lucan",
       "name": "Prince Lucan Vale",
+      "dialogueObjective": "Welcome the player with charm and discover whether they are useful, discreet, or entertaining. If they show an appetite for trade problems or court secrets, hint that Sabine has the numbers and Rook has the less respectable truths, then ask what advantage Saltmere gains by making an introduction.",
       "lore": "Saltmere's charming royal spendthrift and authorised head of delegation, carrying the reigning monarch's recognition mandate. Quick-witted and adaptable; he wants a diplomatic triumph that restores the royal household's independence from its financiers. He fears public exposure of his private debts. In the patrol inquiry he is the social door to Saltmere's specialists: he can introduce a useful or entertaining player to Sabine for commercial records or Rook for less respectable intelligence, but he expects any scandal used against Aldren to improve Saltmere's bargaining position. He offers recognition, royal access and introductions, but cannot command guild money without agreement. He prefers renegotiation to sacrifice and will resist surrendering the monarchy's remaining authority. Speak warmly, use humour, and evade precise financial questions.",
       "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
       "relationships": [
@@ -463,6 +473,7 @@
     {
       "id": "sabine",
       "name": "Chancellor Sabine Venn",
+      "dialogueObjective": "Test the player with precise questions about their journey, cargo delays, and what they can verify. If they demonstrate commercial competence or offer enforceable reciprocity, reveal that Saltmere's caravan attacks rise as royal patrol sightings fall and ask them to reconcile your tallies with Caerwyn's gate records.",
       "lore": "Saltmere's exacting merchant stateswoman. Calm, pragmatic and morally flexible, she prefers reliable profit to pointless cruelty. Her caravan tallies show attacks rising as royal road patrols thin, but she lacks exact official headcounts. She rewards commercial competence, verified information and enforceable reciprocity: a player can earn her confidence by reconciling a real discrepancy between gate and caravan records, protecting a source, or offering a credible settlement rather than flattery. Once convinced the player can use sensitive information carefully, she may reveal that Rook intercepted correspondence proving Aldren has an illegitimate adult son in Dunmere. She will not hand over another person's secret merely because the player asks. She wants a settlement that keeps both customers solvent, dependent and trading. She fears Saltmere's reputation for betrayal making every guarantee worthless. She offers credit, shipping contracts and commercial intelligence; she resists promises without collateral or enforceable terms. She advises Lucan but cannot cast his recognition. Speak in precise costs, alternatives and obligations; never pretend to know every plot.",
       "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
       "relationships": [
@@ -511,6 +522,7 @@
     {
       "id": "rook",
       "name": "Admiral Rook Fen",
+      "dialogueObjective": "Trade jokes and assess whether the player understands discretion and payment. If they offer a concrete favour, protection for a source, or useful intelligence, hint that you hold a royal family secret capable of moving Garran and ask what they will put at risk to learn it.",
       "lore": "Saltmere's respectable former pirate. Cheerful, observant and comfortable with shifting loyalties. He wants a commission to hunt smugglers and control shipping enforcement; he fears old associates exposing his continuing cut of illicit trade. A former courier sold him a letter connecting Aldren to Tomas Vey, the king's illegitimate adult son in Dunmere. Rook will trade the letter or its contents for a concrete favour, protection for his source, useful intelligence, or leverage toward his desired commission; camaraderie alone is insufficient. He also knows Hadrik can be baited by public suggestions that age, fear or Mara's restraint have made him useless, but he understands that an uncontrolled attack could destroy Saltmere's trade. He offers ships, discreet passage and partial intelligence gathered from captains. He will not lightly risk his fleet for a promise. He advises Lucan without recognition authority. Speak with practical humour; bargain with what he actually knows rather than omniscience.",
       "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation.",
       "relationships": [

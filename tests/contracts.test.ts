@@ -1098,14 +1098,24 @@ test("the nobles' parlour admits every court character but remains restricted to
 test("NPC dialogue frames the current goal as a concrete planner task while retaining motives", () => {
   const scenario = load();
   assert.ok(scenario.characters.every(character => character.currentGoal.includes("greet the visiting player")));
+  assert.ok(scenario.characters.every(character => character.dialogueObjective.length > 40));
   const messages = new FullContextBuilder().build(create(DialogueRequestSchema, { scenario, characterId: "corvin" }));
   const context = messages.map(message => message.content).join("\n");
+  assert.match(context, /# Dialogue objective/);
+  assert.match(context, /published patrol obligations may not match its sealed records/);
+  assert.match(context, /do not recite it, force the subject/);
   assert.match(context, /Immediate goal for the action planner/);
   assert.match(context, /available actions such as moving, talking/);
   assert.match(context, /concrete next step rather than an open-ended objective/);
   assert.match(context, /Return null if there is no task to perform/);
   assert.match(context, /follow through after ending the conversation/);
   assert.match(context, /believes Aldren must be replaced/);
+
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  runtime.createDevelopmentPlayer();
+  const debug = runtime.debugCharacter("corvin") as any;
+  assert.equal(debug.character.dialogueObjective, scenario.characters.find(character => character.id === "corvin")!.dialogueObjective);
+  assert.match(JSON.stringify(debug.modelMessages), /# Dialogue objective/);
 });
 
 test("NPC leave-taking persists, blocks more speech, and reviews closing words once", async t => {
