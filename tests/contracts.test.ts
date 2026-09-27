@@ -505,42 +505,48 @@ const remembered = {
 };
 const modelReply = (value: unknown): OpenRouterMessage => ({ role: "assistant", content: JSON.stringify(value) });
 
-test("characters can ask an aide and the GM can materialize the result at conversation review", async t => {
-  const requests: ChatCompletionRequest[] = [];
-  const task = "Find my contracts and ledgers concerning the river trade routes around Westmere.";
-  const replies: OpenRouterMessage[] = [
-    { role: "assistant", content: null, tool_calls: [{ id: "aide-1", type: "function", function: {
-      name: "ask_my_aide", arguments: JSON.stringify({ task }),
-    } }] },
-    modelReply({ utterance: "I shall have my aide search the records.", replyOptions: [], endConversation: true }),
-    { role: "assistant", content: null, tool_calls: [{ id: "ledger-1", type: "function", function: {
-      name: "create_item", arguments: JSON.stringify({
-        id: "westmere_trade_ledger", name: "Westmere trade ledger", locationId: "corvin",
-        details: "Contracts and accounts for river trade routes around Westmere.", reason: "Corvin's aide located the requested records.",
-      }),
-    } }] },
-    modelReply({ newEvents: [{ type: "aide_report", summary: "My aide found the Westmere trade ledger." }], goalUpdate: null, relationships: [], lore: null }),
-  ];
-  t.mock.method(OpenRouterClient.prototype, "complete", async (request: ChatCompletionRequest) => {
-    requests.push(request);
-    return replies.shift()!;
-  });
-
-  const runtime = new BrowserGameRuntime(conversationScenario(), "test");
-  const before = runtime.snapshot(), dialogueFork = runtime.forkForNpc();
-  assert.equal(await dialogueFork.talkToCharacter("corvin", "Can your people find the Westmere records?"), "I shall have my aide search the records.");
-  assert.equal(requests[0]!.tools?.[0]?.function.name, "ask_my_aide");
-  assert.match(requests[1]!.messages.find(message => message.role === "tool")?.content || "", /GM will adjudicate/);
-  runtime.commitCharacterFork(before, dialogueFork, ["corvin"]);
-  assert.deepEqual(runtime.snapshot().conversationAideRequests?.corvin, [{ task }]);
-
-  const restored = new BrowserGameRuntime(conversationScenario(), "test", runtime.snapshot());
-  await restored.endConversation("corvin");
-  assert.match(requests[2]!.messages.map(message => message.content).join("\n"), /Westmere/);
-  assert.match(requests[2]!.messages.map(message => message.content).join("\n"), /update_inventory/);
-  const scenario = fromJson(ScenarioSchema, restored.snapshot().scenario);
-  assert.equal(scenario.world!.objects.find(item => item.id === "westmere_trade_ledger")?.locationId, "corvin");
-  assert.equal(restored.snapshot().conversationAideRequests?.corvin, undefined);
+test("aide results reach dialogue immediately and publish with the worker fork", async t => {
+  for (const outcome of ["approve", "reject", "fail"] as const) {
+    const runtime = new BrowserGameRuntime(conversationScenario(), "test");
+    const before = runtime.snapshot(), fork = runtime.forkForNpc();
+    const summary = outcome === "reject" ? "The accounts are inaccessible." : "The accounts reveal an unpaid grain invoice.";
+    const item = { id: "account_extract", name: "Account extract", details: "An unpaid grain invoice.", reason: "The aide investigated the house accounts." };
+    const call = (name: string, args: unknown): OpenRouterMessage => ({
+      role: "assistant", content: null, tool_calls: [{ id: name, type: "function", function: { name, arguments: JSON.stringify(args) } }],
+    });
+    let step = 0;
+    t.mock.method(OpenRouterClient.prototype, "complete", async (request: ChatCompletionRequest) => {
+      step++;
+      if (step === 1) return call("ask_my_aide", { task: "Investigate my house accounts to discover any discrepancies." });
+      if (step === 2) {
+        assert.match(JSON.stringify(request.messages), /house accounts/);
+        if (outcome === "reject") return call("finish_review", { summary });
+        const state = request.messages.map(message => {
+          try { return JSON.parse(message.content || "{}"); } catch { return {}; }
+        }).find(value => value.world_state).world_state;
+        return call("update_inventory", { owner_id: "corvin", generation_id: state["inventory:corvin"].generation_id, add_items: [item] });
+      }
+      if (step === 3 && outcome !== "reject") {
+        if (outcome === "fail") throw new Error("GM unavailable");
+        return call("finish_review", { summary });
+      }
+      const result = JSON.parse(request.messages.find(message => message.role === "tool")!.content!);
+      assert.equal(result.summary, summary);
+      assert.deepEqual(result.addedItems, outcome === "reject" ? [] : [{ id: item.id, name: item.name, details: item.details }]);
+      return modelReply({ utterance: summary, replyOptions: [], endConversation: false });
+    });
+    if (outcome === "fail") {
+      await assert.rejects(fork.talkToCharacter("corvin", "Investigate the accounts."), /GM unavailable/);
+      assert.deepEqual(fork.snapshot(), before, "Failed GM work never escapes its staging snapshot");
+    } else {
+      assert.equal(await fork.talkToCharacter("corvin", "Investigate the accounts."), summary);
+      runtime.commitCharacterFork(before, fork, ["corvin"]);
+      const restored = new BrowserGameRuntime(conversationScenario(), "test", runtime.snapshot());
+      const scenario = fromJson(ScenarioSchema, restored.snapshot().scenario);
+      assert.equal(scenario.world!.objects.some(value => value.id === item.id), outcome === "approve");
+      assert.equal(restored.snapshot().conversations.corvin?.length, 2);
+    }
+  }
 });
 
 test("closed doors exclude nearby earshot listeners until opened", () => {

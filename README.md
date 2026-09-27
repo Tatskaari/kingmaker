@@ -31,9 +31,11 @@ cancel a proposed task. Its `create_item` tool can place an inspectable prop in 
 existing container or character inventory; `cancel_task` clears a participant's
 goal and leaves them idle. This is general adjudication, not a document-specific
 workflow. During dialogue, characters can use `ask_my_aide` to delegate off-screen
-records research or drafting. The request is saved with the conversation and
-adjudicated by the DM when that conversation ends; justified results can be added
-to an inventory, but success is not automatic. NPCs can inspect item details, and
+records research or drafting when their plausible abilities exceed the simulated
+mechanics—for example, investigating house accounts to reveal a fact. The GM
+immediately adjudicates the request, may update the character or add justified
+items, and returns a summary and item descriptions before the character replies.
+The GM can also reject the request. NPCs can inspect item details, and
 the player's character sheet shows the details of carried items.
 
 Reconciliation uses a bounded tool loop and commits world additions and memories
