@@ -49,6 +49,16 @@ export function courtWalkPoint(path: readonly Point[], progress: number): Point 
   const index = Math.floor(offset), from = path[index]!, to = path[Math.min(index + 1, path.length - 1)]!;
   return { x: from.x + (to.x - from.x) * (offset - index), y: from.y + (to.y - from.y) * (offset - index) };
 }
+
+export function courtCameraScroll(point: Point, stageWidth: number, stageHeight: number,
+  viewportWidth: number, viewportHeight: number): Point {
+  const centreX = (point.x + 0.5) / palaceMap.width * stageWidth;
+  const centreY = (point.y + 0.5) / palaceMap.height * stageHeight;
+  return {
+    x: Math.max(0, Math.min(centreX - viewportWidth / 2, stageWidth - viewportWidth)),
+    y: Math.max(0, Math.min(centreY - viewportHeight / 2, stageHeight - viewportHeight)),
+  };
+}
 /** Finish the current partial tile step, then follow the replacement A* route. */
 export function redirectCourtPath(path: readonly Point[], progress: number, destination: Point, doors: readonly DoorState[] = [], fixtures: readonly MapFixture[] = []): Point[] | undefined {
   const offset = Math.max(0, Math.min(progress, path.length - 1));
@@ -65,6 +75,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   const viewport = document.createElement("div"); viewport.className = "court-map-scroll";
   const stage = document.createElement("div"); stage.className = "court-map-stage";
   stage.style.aspectRatio = `${palaceMap.width} / ${palaceMap.height}`;
+  stage.style.width = `${palaceMap.width * 24}px`;
   const canvas = document.createElement("canvas"); canvas.setAttribute("aria-label", "Palace of Caerwyn");
   stage.append(canvas); viewport.append(stage); root.append(viewport);
   const status = document.createElement("p"); status.className = "status"; status.setAttribute("role", "status");
@@ -210,12 +221,18 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   };
   draw();
   visualPosition = position;
+  const centreOnPlayer = (point: Point) => {
+    const scroll = courtCameraScroll(point, stage.offsetWidth, stage.offsetHeight, viewport.clientWidth, viewport.clientHeight);
+    viewport.scrollTo({ left: scroll.x, top: scroll.y });
+  };
   const place = (point: Point) => {
     visualPosition = point;
     if (!playerControl) return;
     playerControl.style.left = `${(point.x + 0.5) / palaceMap.width * 100}%`;
     playerControl.style.top = `${(point.y + 0.5) / palaceMap.height * 100}%`;
+    centreOnPlayer(point);
   };
+  if (position) requestAnimationFrame(() => centreOnPlayer(position!));
   root.addEventListener("court-state", event => {
     const next = (event as CustomEvent<{ characters: CourtCharacter[]; player: CourtCharacter; doors: DoorState[];
       fixtures: MapFixture[]; fixtureActions: FixtureAction[]; roomAccess: RoomAccess[] }>).detail;
