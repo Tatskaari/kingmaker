@@ -1180,7 +1180,8 @@ export class BrowserGameRuntime {
     const player = scenario.characters.find(character => character.id === scenario.playerCharacterId);
     return {
       playerMessages: scenario.events.filter(event => event.type === "player_message" && event.characterIds.includes(scenario.playerCharacterId ?? ""))
-        .map(({ id, day, summary }) => ({ id, day, message: summary })),
+        .map(({ id, day, summary, details }) => ({ id, day, message: summary,
+          ...(typeof details?.createdAt === "string" ? { createdAt: details.createdAt } : {}) })),
       revision: world?.revision ?? 0,
       generations: generationIds(this.readResources(["world:context", `actor:${scenario.playerCharacterId}`, `inventory:${scenario.playerCharacterId}`,
         ...(world?.doors.flatMap(door => [`door:${door.id}`, `doorway:${door.id}`]) ?? []),

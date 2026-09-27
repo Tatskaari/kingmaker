@@ -66,6 +66,7 @@ export function applyReconciliationTool(scenario: Scenario, participants: readon
     const event = create(EventSchema, {
       id: `player-message-${crypto.randomUUID()}`, type: "player_message", summary: message,
       day: scenario.world?.day ?? 0, visibility: EventVisibility.PRIVATE, characterIds: [playerId],
+      details: { createdAt: new Date().toISOString() },
     });
     scenario.events.push(event);
     return { recorded: event.id };
