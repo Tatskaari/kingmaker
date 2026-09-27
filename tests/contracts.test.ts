@@ -626,8 +626,14 @@ test("earshot dice gate event perception before Jev sees it", async t => {
   assert.equal(garran.level, "Moderate");
   assert.doesNotMatch(garran.perception, /succession bargain/);
   assert.ok(decisions.length > 0);
+  const observedTrace = (runtime.debugCharacter("garran").eventFeed as any[]).find(item => item.eventId === event.id)!;
+  assert.deepEqual({ observed: observedTrace.observed, level: observedTrace.level, jevDecision: observedTrace.jevDecision },
+    { observed: true, level: "Moderate", jevDecision: "process" });
   const missed = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, () => 0.99);
   assert.deepEqual((await missed.assessWorldEvent(event, new AbortController().signal)).reactions, []);
+  const missedTrace = (missed.debugCharacter("garran").eventFeed as any[]).find(item => item.eventId === event.id)!;
+  assert.deepEqual({ observed: missedTrace.observed, level: missedTrace.level, jevDecision: missedTrace.jevDecision },
+    { observed: false, level: "Moderate", jevDecision: "not_consulted" });
 });
 
 test("the character model records perceived events and may interrupt its active objective", async t => {

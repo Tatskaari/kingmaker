@@ -52,6 +52,17 @@ export interface PerceivedEvent {
   perception: string;
 }
 
+interface EventPerceptionTrace {
+  eventId: string;
+  day: number;
+  kind: string;
+  summary: string;
+  level: EarshotCharacter["level"];
+  observed: boolean;
+  jevDecision: "not_consulted" | "pending" | "process" | "ignore" | "error";
+  jevError?: string;
+}
+
 export interface RuntimeSnapshot {
   generations?: Generations;
   travellerIdentity?: TravellerIdentity;
@@ -278,6 +289,7 @@ export class BrowserGameRuntime {
   #conversationReplyOptions: Record<string, string[]> = {};
   #conversationEndRequested: Record<string, boolean> = {};
   #conversations = new Map<string, TranscriptMessage[]>();
+  #eventPerceptions: Record<string, EventPerceptionTrace[]> = {};
 
   constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot, transcriptsChanged: () => void = () => {}, onWarning: (message: string) => void = () => {}, random: () => number = Math.random) {
     this.#initialScenario = fromJson(ScenarioSchema, toJson(ScenarioSchema, scenario));
@@ -318,6 +330,7 @@ export class BrowserGameRuntime {
     this.#conversationReplyOptions = {};
     this.#conversationEndRequested = {};
     this.#conversations = new Map();
+    this.#eventPerceptions = {};
   }
 
   restore(snapshot: RuntimeSnapshot): void {
@@ -753,8 +766,16 @@ export class BrowserGameRuntime {
     const characters = scenario.characters.filter(character => !event.participantIds.includes(character.id)).map(character => ({
       id: character.id, name: character.name, position: scenario.world!.actors.find(actor => actor.characterId === character.id)?.position,
     }));
-    const listeners = courtCharactersWithinEarshot(source, characters, scenario.world.doors, scenario.world.fixtures)
-      .filter(listener => perceivesAt(listener.level, this.#random));
+    const inEarshot = courtCharactersWithinEarshot(source, characters, scenario.world.doors, scenario.world.fixtures);
+    const listeners = inEarshot.filter(listener => {
+      const observed = perceivesAt(listener.level, this.#random);
+      const trace: EventPerceptionTrace = { eventId: event.id, day: event.day, kind: event.kind, summary: event.summary,
+        level: listener.level, observed, jevDecision: observed ? "pending" : "not_consulted" };
+      const history = this.#eventPerceptions[listener.id] ??= [];
+      history.push(trace);
+      if (history.length > 50) history.shift();
+      return observed;
+    });
     const perception = (listener: EarshotCharacter) => {
       const names = event.participantIds.map(id => scenario.characters.find(character => character.id === id)?.name ?? id).join(" and ");
       if (listener.level === "Clear") return event.summary;
@@ -777,8 +798,19 @@ export class BrowserGameRuntime {
       };
       const criteria = { process: "Wake or interrupt the character and let their character model process the event.",
         ignore: "Do not interrupt the character; the event has no actionable or character-relevant consequence." };
-      const decision = await this.#modelTranscripts.record("event_decision", listener.id, jevRequest(state, instructions, criteria),
-        () => this.#jev.choose(state, instructions, criteria, signal));
+      const trace = this.#eventPerceptions[listener.id]?.findLast(item => item.eventId === event.id);
+      let decision;
+      try {
+        decision = await this.#modelTranscripts.record("event_decision", listener.id, jevRequest(state, instructions, criteria),
+          () => this.#jev.choose(state, instructions, criteria, signal));
+        if (trace) trace.jevDecision = decision.choice === "process" ? "process" : "ignore";
+      } catch (error) {
+        if (trace) {
+          trace.jevDecision = "error";
+          trace.jevError = error instanceof Error ? error.message : String(error);
+        }
+        throw error;
+      }
       if (decision.choice === "process") reactions.push({ characterId: listener.id, level: listener.level, perception: observed });
     }
     return { reactions, ...(player ? { playerPerception: perception(player) } : {}) };
@@ -1413,6 +1445,7 @@ export class BrowserGameRuntime {
       visibleNotes: scenario.notes.filter(note => note.visibility === NoteVisibility.PUBLIC || note.characterIds.includes(characterId)).map(note => toJson(NoteSchema, note, { alwaysEmitImplicit: true })),
       knownWorld: toJson(WorldStateSchema, worldForCharacter(scenario.world, characterId), { alwaysEmitImplicit: true }),
       conversation: transcript.map(message => toJson(TranscriptMessageSchema, message, { alwaysEmitImplicit: true })),
+      eventFeed: structuredClone([...(this.#eventPerceptions[characterId] ?? [])].reverse()),
       modelMessages: new FullContextBuilder().build(create(DialogueRequestSchema, { characterId, scenario, transcript })),
     };
   }

@@ -6,6 +6,14 @@ const facts = entries => `<dl class="debug-facts">${entries.map(([name, value]) 
 const list = (items, render, fallback) => items?.length ? `<ul class="debug-list">${items.map(item => `<li>${render(item)}</li>`).join("")}</ul>` : empty(fallback);
 const messages = items => list(items, item => `<strong>${escape(item.speakerId || label(item.role))}</strong><p>${escape(item.text ?? item.content ?? "Tool call (see Raw JSON)")}</p>`, "No messages recorded.");
 const notes = items => card("Notes", list(items, note => `<span class="debug-meta">Day ${escape(note.day)} · ${escape(label(note.visibility))}</span><p>${escape(note.text)}</p>`, "No notes recorded."));
+const eventFeed = items => card("Events in earshot", list(items, item => {
+  const decision = item.jevDecision === "process" ? "Wake / process"
+    : item.jevDecision === "ignore" ? "Ignore"
+      : item.jevDecision === "pending" ? "Decision pending"
+        : item.jevDecision === "error" ? `Decision failed: ${item.jevError || "Unknown error"}`
+          : "Not consulted — perception roll failed";
+  return `<span class="debug-meta">Day ${escape(item.day)} · ${escape(item.level)} earshot</span><strong>${escape(item.kind)}</strong><p>${escape(item.summary)}</p>${facts([["Observed", item.observed ? "Yes" : "No"], ["Jev", decision]])}`;
+}, "No world events have happened within this character's earshot during this loaded session."));
 
 function characterCard(character, name) {
   const objective = character.activeObjective;
@@ -34,7 +42,7 @@ export function debugOverview(type, data) {
     const character = data.character || {};
     const name = id => id === character.id ? character.name : id;
     content = characterCard(character, name) + worldCards(data.knownWorld, name)
-      + notes(data.visibleNotes) + card("Conversation", messages(data.conversation))
+      + eventFeed(data.eventFeed) + notes(data.visibleNotes) + card("Conversation", messages(data.conversation))
       + card("Model context", facts([["Assembled messages", data.modelMessages?.length ?? 0]]) + `<p class="debug-meta">Complete prompts and messages are available in Raw JSON.</p>`);
   } else {
     const scenario = data.scenario || {};
