@@ -194,6 +194,12 @@ button.court-character:hover:not(:focus-visible) { border-color: transparent; ba
 .conversation-modal .messages { min-height: 180px; max-height: 45dvh; margin-top: 18px; }
 .conversation-modal .composer { position: sticky; bottom: 0; background: #1f1b15; padding-bottom: 5px; }
 
+.stranger-tutorial { width: min(560px, calc(100vw - 32px)); padding: clamp(26px, 6vw, 42px); color: #ede2ca; background: linear-gradient(145deg, #282117, #15110d 72%); border: 1px solid var(--gold); box-shadow: 0 24px 100px #000d; }
+.stranger-tutorial::backdrop { background: #090705d9; }
+.stranger-tutorial h2 { margin: 10px 0 22px; color: #f4e3bb; font-size: clamp(1.7rem, 5vw, 2.3rem); }
+.stranger-tutorial p { color: #d3c6ae; font-size: 1.12rem; line-height: 1.55; }
+.stranger-tutorial .primary { display: block; margin: 28px 0 0 auto; }
+
 /* Name labels must not intercept interactions with the furniture below them. */
 .court-character:not(.court-off-map) { width: 34px; height: 34px; padding: 0; }
 .court-character:not(.court-off-map) .court-character-name { position: absolute; top: 36px; width: max-content; pointer-events: none; }
