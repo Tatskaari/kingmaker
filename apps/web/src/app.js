@@ -8,8 +8,6 @@ let activeCharacter = null;
 let closedConversation = null;
 let busy = false;
 let npcRun = null;
-let npcStatus = "";
-let npcTrace = [];
 let notice = "";
 let sheetOpen = false;
 let debugOpen = false;
@@ -42,8 +40,7 @@ gameWorker.addEventListener("message", event => {
   if (event.data.type === "npc_update") {
     if (event.data.activeSaveId !== activeSaveId) return;
     if (!state || event.data.state.revision >= (state.revision ?? 0)) state = event.data.state;
-    npcRun = event.data.running; npcStatus = event.data.status;
-    if (event.data.trace) { npcTrace.push(event.data.trace); npcTrace = npcTrace.slice(-50); }
+    npcRun = event.data.running;
     updateCourtMap(document.querySelector("[data-court-map]"), state);
     updateNpcPanel();
     return;
@@ -77,15 +74,26 @@ async function runNpcGoal(characterId) {
 }
 function updateNpcPanel() {
   const panel = document.querySelector("[data-npc-panel]"); if (!panel) return;
-  const expanded = panel.querySelector("details")?.open;
-  panel.innerHTML = `<p role="status">${escapeHtml(npcStatus)}</p>${npcRun ? '<button data-background-stop>Pause NPC activity</button>' : ""}
-    ${Object.entries(state.npcActivities || {}).filter(([id, activity]) => id !== npcRun && (activity.status === "active" || activity.reviewPending)).map(([id, activity]) => `<button data-background-resume="${escapeHtml(id)}">${activity.reviewPending ? "Review outcome" : "Resume goal"} · ${escapeHtml(state.characters.find(character => character.id === id)?.name || id)}</button>`).join("")}
-    <details ${expanded ? "open" : ""}><summary>Jev decisions and world context</summary><pre>${escapeHtml(JSON.stringify(npcTrace, null, 2))}</pre></details>`;
-  panel.hidden = !npcStatus && !Object.values(state.npcActivities || {}).some(a => a.status === "active" || a.reviewPending);
+  const active = Object.entries(state.npcActivities || {}).filter(([id, activity]) => id === npcRun || activity.status === "active" || activity.reviewPending);
+  panel.innerHTML = `<header class="npc-activity-heading"><h3>Active NPCs <span>${active.length}</span></h3>${npcRun ? '<button data-background-stop>Pause activity</button>' : ""}</header>
+    ${active.length ? `<ul class="npc-goals">${active.map(([id, activity]) => {
+      const character = state.characters.find(character => character.id === id);
+      const running = id === npcRun;
+      const talking = id === activeCharacter && !closedConversation;
+      const status = talking ? "In conversation" : activity.reviewPending ? (running ? "Reviewing outcome" : "Awaiting review") : running ? "Acting" : "Has a goal";
+      return `<li><div class="npc-goal-content"><div class="npc-goal-heading"><button class="npc-goal-name" data-npc-debug="${escapeHtml(id)}" aria-label="Debug ${escapeHtml(character?.name || id)}">${escapeHtml(character?.name || id)}</button><span class="npc-activity-state ${running ? "running" : ""}">${status}</span></div><p>${escapeHtml(activity.goal || character?.currentGoal || "No current goal.")}</p></div>${!running && !talking ? `<button class="npc-goal-resume" data-background-resume="${escapeHtml(id)}">${activity.reviewPending ? "Review outcome" : "Continue"}</button>` : ""}</li>`;
+    }).join("")}</ul>` : '<p class="npc-goals-empty">No NPCs are pursuing a goal right now.</p>'}`;
+  panel.hidden = false;
   panel.onclick = event => {
     if (event.target.closest("[data-background-stop]")) stopNpcGoal();
     const resume = event.target.closest("[data-background-resume]");
-    if (resume) void runNpcGoal(resume.dataset.backgroundResume);
+    if (resume) void runNpcGoal(resume.dataset.backgroundResume).catch(error => { notice = `Error: ${error.message}`; render(); });
+    const debug = event.target.closest("[data-npc-debug]");
+    if (debug) {
+      const id = debug.dataset.npcDebug;
+      const character = state.characters.find(item => item.id === id);
+      void openDebug({ type: "debug_character", payload: { characterId: id } }, `${character?.name || id} Debug`);
+    }
   };
 }
 
@@ -113,7 +121,7 @@ window.resetCharacters = async function resetCharacters() {
     const result = await rpc("reset_characters");
     state = result.state; saves = result.saves;
     activeCharacter = null; closedConversation = null; debugData = null;
-    npcTrace = []; npcStatus = "";
+    npcRun = null;
     notice = "NPCs reset. Conversations and learned events cleared; your character and palace have been kept.";
     return { reset: true };
   } catch (error) { notice = `Error: ${error.message}`; throw error; }

@@ -183,7 +183,21 @@ button.court-character:hover:not(:focus-visible) { border-color: transparent; ba
 .court-character:not(.court-off-map) { width: 34px; height: 34px; padding: 0; }
 .court-character:not(.court-off-map) .court-character-name { position: absolute; top: 36px; width: max-content; pointer-events: none; }
 .npc-planner { margin-top: 16px; padding: 12px; border: 1px solid var(--line); }
-.npc-planner pre { max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
+.npc-activity-heading, .npc-goal-heading { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.npc-activity-heading { justify-content: space-between; }
+.npc-activity-heading h3 { margin: 0; }
+.npc-activity-heading h3 span { font-size: .8em; opacity: .65; margin-left: 6px; }
+.npc-goals { list-style: none; margin: 12px 0 0; padding: 0; }
+.npc-goals li { display: flex; align-items: center; gap: 16px; padding: 14px 0; border-top: 1px solid var(--line); }
+.npc-goal-content { flex: 1; min-width: 0; }
+.npc-goal-name { padding: 0; border: 0; background: transparent; color: inherit; font-weight: 700; text-align: left; }
+.npc-goal-name:hover { text-decoration: underline; }
+.npc-goals p { margin: 6px 0 0; line-height: 1.5; overflow-wrap: anywhere; }
+.npc-activity-state { font-size: .75rem; opacity: .7; }
+.npc-activity-state.running { opacity: 1; font-weight: 700; }
+.npc-goal-resume { flex-shrink: 0; }
+.npc-goals-empty { margin-bottom: 0; opacity: .7; }
+@media (max-width: 520px) { .npc-goals li { align-items: flex-start; flex-direction: column; gap: 10px; } }
 .transcript-card + .transcript-card { margin-top: 16px; }
 .transcript-summary p { white-space: pre-wrap; overflow-wrap: anywhere; }
 .transcript-summary h4 { margin: 14px 0 6px; color: var(--gold); }
