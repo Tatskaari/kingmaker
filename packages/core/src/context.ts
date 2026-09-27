@@ -32,7 +32,7 @@ export function characterDecisionContext(scenario: Scenario, characterId: string
   return {
     premise,
     character: {
-      id: character.id, name: character.name, lore: character.lore,
+      id: character.id, name: character.name, gender: character.gender, delegation: character.delegation, lore: character.lore,
       relationships: character.relationships.map(({ characterId, description }) => ({ characterId, description })),
       objectives: [...character.objectives],
       currentGoal: goal,
@@ -72,6 +72,8 @@ export class FullContextBuilder implements DialogueContextBuilder {
     }
 
     const { character, events } = characterContextFor(scenario, request.characterId);
+    const player = scenario.characters.find(item => item.id === scenario.playerCharacterId);
+    const visitor = player ? `\n\n# Visiting player’s public identity\n${JSON.stringify({ name: player.name, gender: player.gender, delegation: player.delegation })}` : "";
     const relationships = character.relationships.length
       ? character.relationships.map(item => `- ${item.characterId}: ${item.description}`).join("\n")
       : "- None recorded.";
@@ -84,9 +86,9 @@ export class FullContextBuilder implements DialogueContextBuilder {
       { role: "system", content: `# Scenario premise\n${scenario.premise}` },
       {
         role: "system",
-        content: `# Character\n${character.name} (${character.id})\n\n${character.lore}\n\n# Long-term objectives\n${character.objectives.map(objective => `- ${objective}`).join("\n") || "None recorded."}\nThese ambitions inform your dialogue and intentions; they are not immediate action-planner tasks.\n\n# Current goal\n${character.currentGoal || "No goal yet."}\n\n${IMMEDIATE_GOAL_GUIDANCE}`,
+        content: `# Character\n${character.name} (${character.id})\n\n${character.lore}\n\n# Identity\nGender: ${character.gender || "Not recorded"}\nDelegation: ${character.delegation || "Not recorded"}\n\n# Long-term objectives\n${character.objectives.map(objective => `- ${objective}`).join("\n") || "None recorded."}\nThese ambitions inform your dialogue and intentions; they are not immediate action-planner tasks.\n\n# Current goal\n${character.currentGoal || "No goal yet."}\n\n${IMMEDIATE_GOAL_GUIDANCE}`,
       },
-      { role: "system", content: `# Relationships\n${relationships}` },
+      { role: "system", content: `# Relationships\n${relationships}${visitor}` },
       { role: "system", content: `# Events visible to this character\n${recent}` },
       {
         role: "system",

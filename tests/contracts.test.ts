@@ -1344,3 +1344,169 @@ test("GM tool schemas follow a scenario's roster, including additional delegates
   });
   await new BrowserGameRuntime(scenario, "test").talkToGameMaster("Greetings.");
 });
+
+// Exercise the new introduction independently of network responses or browser credentials.
+import { introduction, introductionTitles, introductionHandoff, validateIdentity, characterSprites } from "../apps/web/src/introduction.js";
+
+test("history introduces the centennial succession and handoff preserves a delegation's witness role", () => {
+  assert.equal(introduction.length, 4);
+  assert.deepEqual(introductionTitles, ["The civil war", "An uneasy peace", "The slow decline", "The centennial succession"]);
+  assert.doesNotMatch(introduction.flat().join(" "), /Crown of Winter|Merlin|Lancelot|solstice/);
+  const handoff = introductionHandoff({ name: "Seren", delegation: "Saltmere", gender: "Non-binary", sprite: 99 });
+  assert.match(handoff, /Saltmere/);
+  assert.match(handoff, /not the delegation's mandated recognition bearer/);
+  assert.match(handoff, /Non-binary/);
+});
+
+test("identity rejects unsupported delegations, invalid sprites and blank fields without saving partial choices", () => {
+  const runtime = new BrowserGameRuntime(load(), "test");
+  const identity = { name: "  Seren  ", gender: "  Non-binary  ", delegation: "Greenweald", sprite: 87 };
+  assert.deepEqual(validateIdentity(identity), { ...identity, name: "Seren", gender: "Non-binary" });
+  for (const invalid of [{ ...identity, delegation: "Caerwyn" }, { ...identity, sprite: -1 }, { ...identity, sprite: 999 }, { ...identity, gender: " " }, { ...identity, name: " " }]) {
+    assert.throws(() => runtime.setTravellerIdentity(invalid));
+    assert.equal(runtime.snapshot().travellerIdentity, undefined);
+  }
+  runtime.setTravellerIdentity(identity);
+  runtime.reset();
+  assert.equal(runtime.snapshot().travellerIdentity, undefined);
+});
+
+test("each delegation keeps its identity through a persistent editable review before court entry", async t => {
+  const scenario = load(), ids = scenario.characters.map(character => character.id);
+  const generated = {
+    name: "A name the model must not substitute", homeland: "Some other kingdom", embassyRole: "Envoy",
+    lore: "A traveller with a modest history.", currentGoal: "Secure food for my home town.",
+    relationships: ids.map(characterId => ({ characterId, description: "I have not met them before." })),
+    npcViews: ids.map(characterId => ({ characterId, description: "A visiting witness." })),
+  };
+  let requests = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: any) => {
+    requests++;
+    assert.match(JSON.stringify(request.messages), /Chosen identity/);
+    return { role: "assistant", content: null, tool_calls: [{ id: "create", type: "function", function: { name: "create_player", arguments: JSON.stringify(generated) } }] };
+  });
+  for (const [index, delegation] of ["Ironmark", "Greenweald", "Saltmere"].entries()) {
+    const identity = { name: `Envoy ${index}`, delegation, gender: "Non-binary", sprite: characterSprites[index]! };
+    const initial = new BrowserGameRuntime(scenario, "test");
+    initial.setTravellerIdentity(identity);
+    const runtime = new BrowserGameRuntime(scenario, "test", structuredClone(initial.snapshot()));
+    assert.deepEqual(runtime.view().travellerIdentity, identity);
+    await runtime.talkToGameMaster("I am ready to enter court.");
+    assert.equal(runtime.view().phase, "character_review");
+    assert.equal(runtime.view().day, 0);
+    assert.equal(runtime.view().player, null);
+    const review = new BrowserGameRuntime(scenario, "test", structuredClone(runtime.snapshot()));
+    const draft = structuredClone(review.snapshot().playerDraft) as any;
+    assert.equal(draft.player.name, identity.name);
+    assert.equal(draft.player.gender, identity.gender);
+    assert.equal(draft.player.sprite, identity.sprite);
+    assert.equal(draft.player.delegation, identity.delegation);
+    const invalidDraft = structuredClone(draft);
+    invalidDraft.player.gender = " ";
+    assert.throws(() => review.confirmPlayer(invalidDraft), /gender/);
+    assert.equal(review.view().phase, "character_review");
+    if (index === 2) {
+      identity.name = "Corrected Envoy"; identity.gender = "Man"; identity.sprite = 99;
+      draft.player.name = identity.name; draft.player.gender = identity.gender; draft.player.sprite = identity.sprite;
+    }
+    draft.player.lore = "My corrected background.";
+    draft.player.currentGoal = "Return home safely.";
+    review.confirmPlayer(draft);
+    runtime.restore(review.snapshot());
+    assert.equal(runtime.view().phase, "conversations");
+    assert.equal(runtime.snapshot().playerDraft, null);
+    const restored = new BrowserGameRuntime(scenario, "test", structuredClone(runtime.snapshot()));
+    const saved = fromJson(ScenarioSchema, restored.snapshot().scenario);
+    const player = saved.characters.find(character => character.id === "player")!;
+    assert.equal(player.name, identity.name);
+    assert.equal(player.lore, "My corrected background.");
+    assert.equal(player.currentGoal, "Return home safely.");
+    assert.equal(player.gender, identity.gender);
+    assert.equal(player.delegation, delegation);
+    assert.equal(player.sprite, identity.sprite);
+    const marker = courtMarkers([restored.view().player as any], saved.world!.fixtures)[0]!;
+    assert.equal(marker.sprite, identity.sprite);
+    assert.ok(marker.point);
+    assert.equal(saved.world!.actors.length, 13);
+    assert.ok(saved.events.filter(event => event.type === "arrival").every(event => event.summary.includes(`from ${delegation}`)));
+    assert.throws(() => restored.setTravellerIdentity(identity), /already begun/);
+    const prompt = new FullContextBuilder().build(create(DialogueRequestSchema, { scenario: saved, characterId: "mara" })).map(message => message.content).join("\n");
+    assert.match(prompt, /Visiting player’s public identity/);
+    assert.ok(prompt.includes(identity.gender));
+    assert.doesNotMatch(prompt, /My corrected background/, "Private player biography is not shared as public identity");
+    restored.resetWorld(); restored.resetCharacters();
+    assert.equal((restored.view().player as any).sprite, identity.sprite);
+  }
+  assert.equal(requests, 3);
+});
+
+test("failed Stranger calls retain saved identity and can resume after reload", async t => {
+  const scenario = load(), runtime = new BrowserGameRuntime(scenario, "test");
+  const identity = { name: "Maren", gender: "Woman", delegation: "Ironmark", sprite: 99 };
+  runtime.setTravellerIdentity(identity);
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => { throw new Error("Offline"); });
+  await assert.rejects(runtime.talkToGameMaster(introductionHandoff(identity)), /Offline/);
+  const restored = new BrowserGameRuntime(scenario, "test", structuredClone(runtime.snapshot()));
+  assert.equal(restored.view().phase, "player_creation");
+  assert.deepEqual(restored.view().travellerIdentity, identity);
+  assert.equal(restored.snapshot().gameMasterHistory.length, 0);
+  assert.equal(restored.view().player, null);
+});
+
+test("worker saves identity and reaches the Stranger without nesting its mutation queue", { timeout: 4000 }, async t => {
+  const globals = globalThis as any;
+  const originalSelf = Object.getOwnPropertyDescriptor(globalThis, "self");
+  const originalDatabase = Object.getOwnPropertyDescriptor(globalThis, "indexedDB");
+  t.after(() => {
+    if (originalSelf) Object.defineProperty(globalThis, "self", originalSelf); else delete globals.self;
+    if (originalDatabase) Object.defineProperty(globalThis, "indexedDB", originalDatabase); else delete globals.indexedDB;
+  });
+  let listener: (event: { data: unknown }) => void = () => {};
+  let sequence = 0, failNextWrite = false, modelCalls = 0;
+  const pending = new Map<number, (message: any) => void>();
+  const records = new Map<string, any>();
+  globals.self = {
+    addEventListener: (_type: string, callback: typeof listener) => { listener = callback; },
+    postMessage: (message: any) => pending.get(message.id)?.(message),
+  };
+  // Minimal asynchronous IDB boundary: the real worker dispatch/queue and runtime
+  // run unchanged, while persistence and model transport remain deterministic.
+  const db = {
+    close() {},
+    transaction(_store: string, mode: string) {
+      const fail = mode === "readwrite" && failNextWrite;
+      if (fail) failNextWrite = false;
+      const tx: any = { error: new Error("Test storage failure"), objectStore: () => ({
+        getAll: () => ({ result: structuredClone([...records.values()]) }),
+        get: (id: string) => ({ result: structuredClone(records.get(id)) }),
+        put: (record: any) => { if (!fail) records.set(record.id, structuredClone(record)); return { result: record.id }; },
+      }) };
+      setImmediate(() => { if (fail) tx.onabort(); else tx.oncomplete(); });
+      return tx;
+    },
+  };
+  globals.indexedDB = { open: () => { const request: any = { result: db }; setImmediate(() => request.onsuccess()); return request; } };
+  t.mock.method(globalThis, "fetch", async () => new Response(readFileSync(fixturePath, "utf8")));
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => { modelCalls++; return { role: "assistant", content: "Maren, what brings you along this road?" }; });
+  await import("../apps/web/src/game.worker.js");
+  const request = (type: string, payload: Record<string, unknown> = {}): Promise<any> => new Promise((resolve, reject) => {
+    const id = ++sequence;
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`Worker ${type} did not settle`)); }, 1000);
+    pending.set(id, message => { clearTimeout(timer); pending.delete(id); if (message.ok) resolve(message.value); else reject(new Error(message.error)); });
+    listener({ data: { id, type, payload } });
+  });
+  await request("configure", { apiKey: "test" });
+  await request("create_game");
+  const identity = { name: "Maren", gender: "Woman", delegation: "Saltmere", sprite: 99 };
+  failNextWrite = true;
+  await assert.rejects(request("set_identity", { identity }), /Test storage failure/);
+  assert.equal((await request("state")).state.travellerIdentity, null);
+  const selected = await request("set_identity", { identity });
+  assert.deepEqual(selected.state.travellerIdentity, identity);
+  assert.deepEqual([...records.values()][0].snapshot.travellerIdentity, identity);
+  assert.equal(selected.saves[0].characterName, identity.name);
+  const greeting = await request("gm", { message: introductionHandoff(identity) });
+  assert.match(greeting.reply, /Maren/);
+  assert.equal(modelCalls, 1);
+  assert.equal(greeting.state.phase, "player_creation");
+});

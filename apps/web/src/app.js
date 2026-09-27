@@ -1,6 +1,6 @@
 import { debugOverview, recentTranscriptsView } from "./debug-view.js";
 import { mountCourtMap, updateCourtMap } from "./court-map.js";
-import { introduction, introductionHandoff, handoffPrefix, nameSuggestions, homelandSuggestions, patronName } from "./introduction.js";
+import { introduction, introductionTitles, introductionHandoff, handoffPrefix, nameSuggestions, delegations, characterSprites, newTraveller, patronName } from "./introduction.js";
 
 const app = document.querySelector("#app");
 let state;
@@ -26,7 +26,7 @@ catch { /* The app still works when browser storage is unavailable. */ }
 let screen = "key";
 let introPage = 0;
 let reviewDraft = null;
-let traveller = { name: "", homeland: "" };
+let traveller = newTraveller();
 let saves = [];
 let activeSaveId = null;
 let requestSequence = 0;
@@ -151,7 +151,7 @@ function characterSheet() {
   const relationships = player.relationships?.length
     ? player.relationships.map(relationship => `<li><strong>${escapeHtml(relationship.characterName)}</strong><p>${escapeHtml(relationship.description)}</p></li>`).join("")
     : `<li><p>No relationships recorded yet.</p></li>`;
-  return `<div class="sheet-scrim ${sheetOpen ? "open" : ""}" data-sheet-close></div><aside class="character-sheet ${sheetOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Character sheet" aria-hidden="${sheetOpen ? "false" : "true"}"><button class="sheet-close" data-sheet-close aria-label="Close character sheet">×</button><div class="eyebrow">Your character</div><h2>${escapeHtml(player.name)}</h2><div class="sheet-seal">${escapeHtml(initials)}</div><section><h3>Biography</h3><p>${escapeHtml(player.lore)}</p></section><section class="goal"><h3>Current goal</h3><p>${escapeHtml(player.currentGoal || "No goal yet.")}</p></section><section><h3>Inventory</h3><ul>${state.inventory?.length ? state.inventory.map(item => `<li>${escapeHtml(item.name)}</li>`).join("") : "<li>Empty</li>"}</ul></section><section><h3>Relationships</h3><ul class="relationship-list">${relationships}</ul></section></aside>`;
+  return `<div class="sheet-scrim ${sheetOpen ? "open" : ""}" data-sheet-close></div><aside class="character-sheet ${sheetOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Character sheet" aria-hidden="${sheetOpen ? "false" : "true"}"><button class="sheet-close" data-sheet-close aria-label="Close character sheet">×</button><div class="eyebrow">Your character</div><h2>${escapeHtml(player.name)}</h2><div class="sheet-seal">${escapeHtml(initials)}</div><section><p class="character-identity">${escapeHtml(player.gender || "")} · ${escapeHtml(player.delegation || "Visiting emissary")}</p><h3>Biography</h3><p>${escapeHtml(player.lore)}</p></section><section class="goal"><h3>Current goal</h3><p>${escapeHtml(player.currentGoal || "No goal yet.")}</p></section><section><h3>Inventory</h3><ul>${state.inventory?.length ? state.inventory.map(item => `<li>${escapeHtml(item.name)}</li>`).join("") : "<li>Empty</li>"}</ul></section><section><h3>Relationships</h3><ul class="relationship-list">${relationships}</ul></section></aside>`;
 }
 
 function debugInspector() {
@@ -204,11 +204,11 @@ function renderCreation() {
   if (!messages.length) {
     let content;
     if (introPage < introduction.length) {
-      content = `${introduction[introPage].map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join("")}<button class="dialogue-option" data-intro-next>${introPage === introduction.length - 1 ? "Embark..." : "Continue..."}</button>`;
+      content = `<div class="eyebrow">The four kingdoms · ${introPage + 1} / ${introduction.length}</div><h2>${introductionTitles[introPage]}</h2>${introduction[introPage].map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join("")}<div class="intro-navigation">${introPage > 0 ? `<button class="reset" data-intro-back>Back</button>` : ""}<button class="dialogue-option" data-intro-next>${introPage === introduction.length - 1 ? "Choose your delegation →" : "Continue →"}</button></div>`;
     } else if (introPage === introduction.length) {
-      content = `<p>On the road to Caerwyn, every traveller has a name and a place they call home.</p><form data-traveller-form><label for="traveller-name">Your name</label><div class="identity-field"><input id="traveller-name" name="name" value="${escapeHtml(traveller.name)}" maxlength="80" required autocomplete="off"><button type="button" data-roll="name" aria-label="Generate a name">⚄</button></div><label for="traveller-homeland">Where are you from?</label><p class="field-hint" id="homeland-hint">Your homeland is a vassal state of Caerwyn. Invent one, or roll the dice.</p><div class="identity-field"><input id="traveller-homeland" name="homeland" value="${escapeHtml(traveller.homeland)}" maxlength="80" required aria-describedby="homeland-hint" autocomplete="off"><button type="button" data-roll="homeland" aria-label="Generate a homeland">⚄</button></div><button class="dialogue-option">Continue...</button></form>`;
+      content = `<div class="eyebrow">Your place in the realm</div><h2>Choose your delegation</h2><p>Three kingdoms have come to Caerwyn. You travel in the service of one of them. Your own loyalties are yours to decide.</p><form data-delegation-form><fieldset class="delegation-options"><legend class="sr-only">Your delegation</legend>${delegations.map(item => `<label class="delegation-card"><input type="radio" name="delegation" value="${item.id}" ${traveller.delegation === item.id ? "checked" : ""} required><span><strong>${item.id}</strong><em>${item.motto}</em><span>${item.description}</span><small>${item.demand}</small><small class="delegation-companions">Travelling with<br>${item.companions}</small></span></label>`).join("")}</fieldset><div class="intro-navigation"><button type="button" class="reset" data-intro-back>Back</button><button class="dialogue-option">Join the delegation →</button></div></form>`;
     } else {
-      content = `<p>On the road from ${escapeHtml(traveller.homeland)}, you, ${escapeHtml(traveller.name)}, encounter a stranger at a crossroads. He sits on a milestone beneath a bare winter tree, turning a coin between his fingers. He laughs knowingly as you approach.</p><button class="dialogue-option" data-begin ${busy ? "disabled" : ""}>Continue...</button>`;
+      content = `<div class="eyebrow">The ${escapeHtml(traveller.delegation)} delegation</div><h2>Who travels to court?</h2><form data-traveller-form><fieldset class="identity-controls" ${busy ? "disabled" : ""}><label for="traveller-name">Your name</label><div class="identity-field"><input id="traveller-name" name="name" value="${escapeHtml(traveller.name)}" maxlength="80" required autocomplete="off"><button type="button" data-roll="name" aria-label="Generate a name">⚄</button></div><label for="traveller-gender">Your gender</label><div class="identity-field"><input id="traveller-gender" name="gender" list="gender-options" value="${escapeHtml(traveller.gender)}" maxlength="40" required autocomplete="off" placeholder="Choose or describe your gender"></div><datalist id="gender-options"><option value="Woman"><option value="Man"><option value="Non-binary"></datalist><fieldset class="sprite-options"><legend>Your appearance</legend><p class="field-hint">Choose the sprite that will represent you in court.</p><div class="sprite-grid">${characterSprites.map((sprite, index) => `<label class="sprite-choice"><input type="radio" name="sprite" value="${sprite}" ${traveller.sprite === sprite ? "checked" : ""} required><span class="court-sprite" style="background-position:${-(sprite % 12) * 32}px ${-Math.floor(sprite / 12) * 32}px" aria-hidden="true"></span><span>Traveller ${index + 1}</span></label>`).join("")}</div></fieldset><div class="intro-navigation"><button type="button" class="reset" data-intro-back ${busy ? "disabled" : ""}>Back</button><button class="dialogue-option" ${busy ? "disabled" : ""}>${busy ? "On the road…" : "Meet the Stranger →"}</button></div></fieldset></form>`;
     }
     app.innerHTML = shell(`<section class="introduction" aria-label="Your journey" tabindex="-1">${content}<p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
     return bind();
@@ -221,7 +221,11 @@ function renderCreation() {
 function renderCharacterReview() {
   reviewDraft ||= structuredClone(state.playerDraft);
   const field = (label, key, value, multiline = false) => `<label>${label}${multiline ? `<textarea data-review-field="${key}" required ${busy ? "disabled" : ""}>${escapeHtml(value || "")}</textarea>` : `<input data-review-field="${key}" value="${escapeHtml(value || "")}" required ${busy ? "disabled" : ""}>`}</label>`;
-  app.innerHTML = shell(`<section class="panel character-review"><div class="eyebrow">Before you enter Caerwyn</div><h2>Review your character</h2><p>Edit any details before saving your character and entering the court.</p><form data-review-form>${field("Name", "player.name", reviewDraft.player.name)}${field("Homeland", "homeland", reviewDraft.homeland)}${field("Role", "embassyRole", reviewDraft.embassyRole)}${field("Biography", "player.lore", reviewDraft.player.lore, true)}${field("Personal goal", "player.currentGoal", reviewDraft.player.currentGoal, true)}<h3>Relationships</h3>${reviewDraft.player.relationships.map((item, index) => field(`Your view of ${escapeHtml(state.characters.find(character => character.id === item.characterId)?.name || item.characterId)}`, `player.relationships.${index}.description`, item.description, true)).join("")}<h3>Initial impressions of you</h3>${reviewDraft.npcRelationships.map((item, index) => field(escapeHtml(state.characters.find(character => character.id === item.ownerCharacterId)?.name || item.ownerCharacterId), `npcRelationships.${index}.relationship.description`, item.relationship.description, true)).join("")}<button class="primary" ${busy ? "disabled" : ""}>Save character and enter court</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
+  const identityFields = reviewDraft.player.delegation
+    ? `${field("Gender", "player.gender", reviewDraft.player.gender)}<label>Delegation<select data-review-field="player.delegation" ${busy ? "disabled" : ""}>${delegations.map(item => `<option value="${item.id}" ${reviewDraft.player.delegation === item.id ? "selected" : ""}>${item.id}</option>`).join("")}</select></label><label>Character sprite<select data-review-field="player.sprite" ${busy ? "disabled" : ""}>${characterSprites.map((sprite, index) => `<option value="${sprite}" ${reviewDraft.player.sprite === sprite ? "selected" : ""}>Traveller ${index + 1}</option>`).join("")}</select></label><span class="court-sprite review-sprite" aria-label="Selected character sprite" style="background-position:${-(reviewDraft.player.sprite % 12) * 32}px ${-Math.floor(reviewDraft.player.sprite / 12) * 32}px"></span>`
+    : field("Homeland", "homeland", reviewDraft.homeland);
+  const transcript = (state.gmMessages || []).filter(message => !(message.role === "user" && message.text.startsWith(handoffPrefix)));
+  app.innerHTML = shell(`<section class="panel character-review"><div class="eyebrow">Before you enter Caerwyn</div><h2>Review your character</h2><p>Review what you and the Stranger established. Correct any details before saving your character and entering court.</p><details class="review-transcript"><summary>Conversation with the Stranger</summary><div class="messages">${messageList(transcript, patronName)}</div></details><form data-review-form>${field("Name", "player.name", reviewDraft.player.name)}${identityFields}${field("Role", "embassyRole", reviewDraft.embassyRole)}${field("Biography", "player.lore", reviewDraft.player.lore, true)}${field("Personal goal", "player.currentGoal", reviewDraft.player.currentGoal, true)}<h3>Relationships</h3>${reviewDraft.player.relationships.map((item, index) => field(`Your view of ${escapeHtml(state.characters.find(character => character.id === item.characterId)?.name || item.characterId)}`, `player.relationships.${index}.description`, item.description, true)).join("")}<h3>Initial impressions of you</h3>${reviewDraft.npcRelationships.map((item, index) => field(escapeHtml(state.characters.find(character => character.id === item.ownerCharacterId)?.name || item.ownerCharacterId), `npcRelationships.${index}.relationship.description`, item.relationship.description, true)).join("")}<button class="primary" ${busy ? "disabled" : ""}>Save character and enter court</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
   bind();
 }
 
@@ -320,10 +324,10 @@ function bind() {
     sheetOpen = false; debugOpen = false; notice = ""; screen = "key"; render();
   });
   document.querySelector("[data-new-game]")?.addEventListener("click", () => run(async () => {
-    introPage = 0; reviewDraft = null; traveller = { name: "", homeland: "" }; const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    introPage = 0; reviewDraft = null; traveller = newTraveller(); const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game"; if (state.travellerIdentity) { traveller = { ...state.travellerIdentity }; introPage = introduction.length + 1; }
   }));
   document.querySelectorAll("[data-save-load]").forEach(button => button.addEventListener("click", () => run(async () => {
-    introPage = 0; reviewDraft = null; traveller = { name: "", homeland: "" }; const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    introPage = 0; reviewDraft = null; traveller = newTraveller(); const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game"; if (state.travellerIdentity) { traveller = { ...state.travellerIdentity }; introPage = introduction.length + 1; }
   })));
   document.querySelectorAll("[data-save-delete]").forEach(button => button.addEventListener("click", () => run(async () => {
     const result = await rpc("delete_game", { saveId: button.dataset.saveDelete }); saves = result.saves;
@@ -354,30 +358,39 @@ function bind() {
   });
   document.querySelector("[data-debug-refresh]")?.addEventListener("click", () => openDebug());
   document.querySelectorAll("[data-debug-close]").forEach(button => button.addEventListener("click", () => { debugOpen = false; render(); }));
-  document.querySelector("[data-intro-next]")?.addEventListener("click", () => { introPage += 1; render(); document.querySelector(".introduction")?.focus({ preventScroll: true }); window.scrollTo(0, 0); });
-  document.querySelectorAll("[data-roll]").forEach(button => button.addEventListener("click", () => {
-    const field = button.dataset.roll;
-    const input = document.querySelector(`[name="${field}"]`);
-    const suggestions = (field === "name" ? nameSuggestions : homelandSuggestions).filter(value => value !== input.value);
+  const moveIntro = page => { introPage = page; render(); document.querySelector(".introduction")?.focus({ preventScroll: true }); window.scrollTo(0, 0); };
+  document.querySelector("[data-intro-next]")?.addEventListener("click", () => moveIntro(introPage + 1));
+  document.querySelector("[data-intro-back]")?.addEventListener("click", () => { if (!busy) moveIntro(Math.max(0, introPage - 1)); });
+  document.querySelector("[data-delegation-form]")?.addEventListener("change", event => { traveller.delegation = event.target.value; });
+  document.querySelector("[data-delegation-form]")?.addEventListener("submit", event => {
+    event.preventDefault();
+    traveller.delegation = new FormData(event.currentTarget).get("delegation");
+    moveIntro(introduction.length + 1);
+  });
+  document.querySelector("[data-roll]")?.addEventListener("click", () => {
+    const input = document.querySelector("#traveller-name");
+    const suggestions = nameSuggestions.filter(value => value !== input.value);
     input.value = suggestions[Math.floor(Math.random() * suggestions.length)];
-    traveller[field] = input.value;
-    input.focus();
-  }));
-  document.querySelector("[data-traveller-form]")?.addEventListener("input", event => { if (event.target.name) traveller[event.target.name] = event.target.value; });
+    traveller.name = input.value; input.focus();
+  });
+  document.querySelector("[data-traveller-form]")?.addEventListener("input", event => {
+    if (["name", "gender", "sprite"].includes(event.target.name)) traveller[event.target.name] = event.target.name === "sprite" ? Number(event.target.value) : event.target.value;
+  });
   document.querySelector("[data-traveller-form]")?.addEventListener("submit", event => {
     event.preventDefault();
     const form = event.currentTarget;
-    for (const field of ["name", "homeland"]) {
-      const input = form.elements.namedItem(field);
-      input.value = input.value.trim();
+    for (const field of ["name", "gender"]) {
+      const input = form.elements.namedItem(field); input.value = input.value.trim();
       if (!input.reportValidity()) return;
       traveller[field] = input.value;
     }
-    introPage += 1; render(); document.querySelector(".introduction")?.focus({ preventScroll: true }); window.scrollTo(0, 0);
+    traveller.sprite = Number(new FormData(form).get("sprite"));
+    const selectedIdentity = { ...traveller };
+    run(async () => {
+      const identity = await rpc("set_identity", { identity: selectedIdentity }); state = identity.state; saves = identity.saves;
+      const result = await rpc("gm", { message: introductionHandoff(selectedIdentity) }); state = result.state; saves = result.saves;
+    });
   });
-  document.querySelector("[data-begin]")?.addEventListener("click", () => run(async () => {
-    const result = await rpc("gm", { message: introductionHandoff(traveller.name, traveller.homeland) }); state = result.state; saves = result.saves;
-  }));
   document.querySelectorAll("[data-reply-index]").forEach(button => button.addEventListener("click", () => {
     if (busy) return;
     const target = button.dataset.replyTarget;
@@ -394,7 +407,11 @@ function bind() {
     const path = input.dataset.reviewField.split(".");
     let owner = reviewDraft;
     for (const key of path.slice(0, -1)) owner = owner[key];
-    owner[path.at(-1)] = input.value;
+    owner[path.at(-1)] = input.dataset.reviewField === "player.sprite" ? Number(input.value) : input.value;
+    if (input.dataset.reviewField === "player.sprite") {
+      const preview = document.querySelector(".review-sprite");
+      if (preview) preview.style.backgroundPosition = `${-(Number(input.value) % 12) * 32}px ${-Math.floor(Number(input.value) / 12) * 32}px`;
+    }
   }));
   document.querySelector("[data-review-form]")?.addEventListener("submit", event => {
     event.preventDefault();
@@ -422,7 +439,7 @@ function bind() {
     void runNpcGoal(characterId);
     });
   });
-  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { introPage = 0; reviewDraft = null; traveller = { name: "", homeland: "" }; const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
+  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { introPage = 0; reviewDraft = null; traveller = newTraveller(); const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
 }
 
 document.addEventListener("keydown", event => {

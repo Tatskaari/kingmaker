@@ -15,7 +15,10 @@ proto run moon -- run workspace:dev
 ```
 
 Open `http://127.0.0.1:5173`. The main game is the only page. Enter an OpenRouter
-key, complete the GM interview, review your character and enter the palace.
+key, read the four history pages, choose a delegation, name, gender and sprite,
+then meet the Stranger. Review the resulting character and conversation, correct
+any details, and save to enter the palace. Identity choices and review drafts
+persist through saves and reloads.
 The key stays in tab-scoped session storage and is excluded from saves. Games
 are saved in IndexedDB. Change OpenRouter key clears the remembered credential.
 
@@ -29,8 +32,8 @@ kingdom. Their rival interests, Edric’s peace settlement and the grain crisis 
 described in [the scenario premise](content/lore/premise.md). All physical items
 use the live fixture/inventory system; regalia and documents cannot confer rule.
 
-The introduction is awaiting a separate rewrite and still describes the previous
-setting. The authored scenario and court use the centennial succession.
+The introduction covers the civil war, Edric’s uneasy peace, Aldren’s decline and
+the coming centennial succession before introducing the three delegations.
 
 ## Models and debugging
 
