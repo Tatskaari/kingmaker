@@ -9,6 +9,6 @@ export const palaceNodes: NavNode[] = [
   { id: "corvin", name: "Corvin's Chamber", x: 5, y: 5 },
   { id: "royal", name: "Royal Bedchamber", x: 15, y: 5 },
   { id: "garran", name: "Garran's Chamber", x: 26, y: 5 },
-  { id: "guest", name: "Guest Chamber", x: 5, y: 25 },
+  { id: "guest", name: "Nobles' Parlour", x: 5, y: 25 },
   { id: "treasury", name: "Treasury", x: 26, y: 25 },
 ];

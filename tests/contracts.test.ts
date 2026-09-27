@@ -929,6 +929,20 @@ test("bedroom doors are illegal to open except for characters on the room access
   assert.equal(doorActionLegality(restored.doors.find(door => door.id === "royal_door")!, restored.rooms, "player"), "illegal");
 });
 
+test("the nobles' parlour admits every court character but remains restricted to outsiders", () => {
+  const scenario = load();
+  const world = scenario.world!;
+  const parlour = world.rooms.find(room => room.id === "guest_chamber")!;
+  const door = world.doors.find(door => door.id === "guest_door")!;
+  assert.equal(parlour.name, "Nobles' Parlour");
+  assert.ok(parlour.private);
+  for (const character of scenario.characters) {
+    assert.equal(doorActionLegality(door, world.rooms, character.id), "normal", character.name);
+  }
+  assert.equal(doorActionLegality(door, world.rooms, "player"), "normal");
+  assert.equal(doorActionLegality(door, world.rooms, "stranger"), "illegal");
+});
+
 
 test("NPC dialogue frames the current goal as a concrete planner task while retaining motives", () => {
   const scenario = load();
