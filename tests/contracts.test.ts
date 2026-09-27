@@ -526,7 +526,15 @@ test("GM action and knowledge rulings reach dialogue immediately and publish wit
     let step = 0;
     t.mock.method(OpenRouterClient.prototype, "complete", async (request: ChatCompletionRequest) => {
       step++;
-      if (step === 1) return call("ask_the_game_master", { request: question });
+      if (step === 1) {
+        const consultation = request.tools?.find(tool => tool.function.name === "ask_the_game_master")!;
+        assert.match(consultation.function.description, /giving the player an item, or taking an item from them/);
+        assert.match(consultation.function.description, /include the relevant .* conversation transcript/);
+        const requestDescription = (consultation.function.parameters.properties as any).request.description;
+        assert.match(requestDescription, /Make your case/);
+        assert.match(requestDescription, /relevant information from the conversation transcript/);
+        return call("ask_the_game_master", { request: question });
+      }
       if (step === 2) {
         assert.equal(request.messages[0]?.content, GM_BASE_PROMPT);
         assert.ok(JSON.stringify(request.messages).includes(question));
