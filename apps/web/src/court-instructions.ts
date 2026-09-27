@@ -4,7 +4,7 @@ export const COURT_INSTRUCTIONS = {
   evidence: ["characterContext", "goal", "world", "actions", "recentEvents"],
   knowledge: "The world describes what the character knows. Unknown facts are unknown, not false. The offered actions are mechanically available now; their descriptions explain their immediate effects. Actions may change which actions become available next.",
   goalOrder: "Respect the full free-form goal, including ordering and conditions. Recent events describe completed actions, not future plans.",
+  privacy: "Spoken secrets can be overheard within six tiles when a walkable path connects the listener and speaker. For internal affairs, secret plans or a goal requiring privacy, consider moving to a secluded room and closing doors behind you using the offered door actions before talking. Choose the interior side so you remain inside. Ensure your intended conversation partner is inside too; do not shut them out, assume they followed, or claim privacy while other listeners remain in the room. Reassess privacy after movement and door changes. Do not repeatedly open and close doors without progress.",
   completion: "Choose complete only when the current situation and completed events establish that the entire goal has been achieved.",
   stopping: "Choose unable only when no available action can make progress, or when essential clarification is required. Judge progress toward the goal, not whether a single action completes it. Repeating inspections or conversations without new information is not progress. Choose unable for such dead ends so the game master can cancel, revise, or support the task with a world change.",
 };
-

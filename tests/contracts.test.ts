@@ -30,7 +30,7 @@ import { palaceMap } from "../apps/web/src/palace-map.js";
 
 import { canWalk, findPath, pointKey } from "../apps/web/src/navigation.js";
 import { palaceNodes } from "../apps/web/src/palace-navigation.js";
-import { charactersWithinEarshot, EARSHOT_DISTANCE } from "../apps/web/src/earshot.js";
+import { charactersWithinEarshot, courtCharactersWithinEarshot, EARSHOT_DISTANCE } from "../apps/web/src/earshot.js";
 
 
 import { JevClient } from "../packages/providers/src/jev.js";
@@ -501,6 +501,100 @@ const remembered = {
   lore: null,
 };
 const modelReply = (value: unknown): OpenRouterMessage => ({ role: "assistant", content: JSON.stringify(value) });
+
+test("closed doors exclude nearby earshot listeners until opened", () => {
+  const world = load().world!;
+  const door = world.doors.find(door => door.id === "corvin_door")!;
+  const speaker = { id: "corvin", name: "Corvin", position: door.interactionSpots[0]! };
+  const listener = { id: "garran", name: "Garran", position: door.interactionSpots[1]! };
+  door.open = false;
+  assert.equal(charactersWithinEarshot(speaker, [listener]).length, 1);
+  assert.deepEqual(courtCharactersWithinEarshot(speaker, [listener], world.doors, world.fixtures), []);
+  door.open = true;
+  assert.equal(courtCharactersWithinEarshot(speaker, [listener], world.doors, world.fixtures).length, 1);
+});
+
+test("overheard rumours stay private and activate idle listeners on fork commit", async t => {
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => {
+    calls++;
+    if (calls === 1) return modelReply({ utterance: "We shall discuss the succession bargain tonight." });
+    if (calls === 2) return { role: "assistant", content: null, tool_calls: [{ id: "rumour", type: "function", function: {
+      name: "record_overheard", arguments: JSON.stringify({ characterId: "garran", summary: "I caught talk of a succession bargain, but not its details.", reactionGoal: "Ask King Aldren about the succession bargain." }),
+    } }] };
+    return modelReply(remembered);
+  });
+  const scenario = conversationScenario();
+  scenario.world!.actors.find(actor => actor.characterId === "corvin")!.position = create(TilePositionSchema, { x: 12, y: 24 });
+  scenario.world!.actors.find(actor => actor.characterId === "garran")!.position = create(TilePositionSchema, { x: 15, y: 24 });
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  await runtime.talkToCharacter("corvin", "Let us plot in the hall.");
+  const before = runtime.snapshot(), fork = runtime.forkForNpc();
+  await fork.endConversation("corvin");
+  runtime.commitCharacterFork(before, fork, ["corvin"]);
+  const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  const rumour = saved.events.find(event => event.type === "overheard")!;
+  assert.deepEqual(rumour.characterIds, ["garran"]);
+  assert.equal(rumour.visibility, EventVisibility.PRIVATE);
+  assert.deepEqual(runtime.rumourListenersSince(before), ["garran"]);
+  assert.equal(runtime.snapshot().npcActivities?.garran?.status, "active");
+  const { applyReconciliationTool } = await import("../apps/web/src/gm-reconciliation.js");
+  assert.throws(() => applyReconciliationTool(saved, ["corvin"], new Map(), "record_overheard", {
+    characterId: "king", summary: "A secret", reactionGoal: null,
+  }, ["garran"]), /eligible/);
+});
+
+test("GM player messages persist privately and failed reviews publish nothing", async t => {
+  let calls = 0;
+  let fail = false;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => {
+    calls++;
+    if (calls === 1) return modelReply({ utterance: "Meet me tonight." });
+    if (calls === 2) return { role: "assistant", content: null, tool_calls: [{
+      id: "message", type: "function", function: { name: "message_player", arguments: JSON.stringify({ message: "Corvin lowers his voice as he mentions Oswin." }) },
+    }] };
+    return modelReply(fail ? {} : remembered);
+  });
+  const scenario = conversationScenario();
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  await runtime.talkToCharacter("corvin", "Who should I meet?");
+  const before = runtime.snapshot();
+  await runtime.endConversation("corvin");
+  const restored = new BrowserGameRuntime(scenario, "test", runtime.snapshot());
+  assert.equal((restored.view().playerMessages as any[])[0].message, "Corvin lowers his voice as he mentions Oswin.");
+  const event = fromJson(ScenarioSchema, restored.snapshot().scenario).events.find(event => event.type === "player_message")!;
+  assert.deepEqual(event.characterIds, ["player"]);
+  assert.equal(event.visibility, EventVisibility.PRIVATE);
+  calls = 1; fail = true;
+  const failed = new BrowserGameRuntime(scenario, "test", before);
+  await assert.rejects(failed.endConversation("corvin"), /incomplete/);
+  assert.deepEqual(failed.view().playerMessages, []);
+});
+
+test("conversation review receives nearby NPC hearing levels alongside the transcript", async t => {
+  const requests: Array<{ messages: readonly { role: string; content: string | null }[] }> = [];
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: typeof requests[number]) => {
+    requests.push(request);
+    return modelReply(requests.length === 1 ? { utterance: "Meet me tonight." } : remembered);
+  });
+  const scenario = conversationScenario();
+  for (const actor of scenario.world!.actors) actor.position = create(TilePositionSchema, { x: 30, y: 30 });
+  for (const [id, x] of [["corvin", 0], ["garran", 1], ["king", 3], ["mara", 6], ["hadrik", 7]] as const) {
+    scenario.world!.actors.find(actor => actor.characterId === id)!.position = create(TilePositionSchema, { x: x + 12, y: 24 });
+  }
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  await runtime.talkToCharacter("corvin", "Where shall we meet?");
+  await runtime.endConversation("corvin");
+  const review = requests[1]!.messages;
+  const earshot = review.filter(message => message.role === "user")
+    .map(message => JSON.parse(message.content!)).find(value => value.earshot)?.earshot;
+  assert.deepEqual(earshot.nearbyNpcs.map(({ characterId, distance, level }: any) => [characterId, distance, level]), [
+    ["garran", 1, "Clear"], ["king", 3, "Moderate"], ["mara", 6, "Distant"],
+  ]);
+  assert.match(earshot.levels.Moderate, /half the conversation/);
+  assert.match(earshot.levels.Distant, /names and places/);
+  assert.equal(JSON.parse(review.at(-1)!.content!)[0].text, "Where shall we meet?");
+});
 
 test("ending reviews the full transcript, saves private memory, and starts a fresh thread after reload", async t => {
   const requests: Array<{ messages: readonly { role: string; content: string | null }[] }> = [];

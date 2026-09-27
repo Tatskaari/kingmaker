@@ -1,7 +1,24 @@
+import { courtPath } from "./court-map.js";
+import type { DoorState, MapFixture, Scenario } from "../../../packages/contracts/src/index.js";
+
+export function dialogueEarshotPrompt(scenario: Scenario, speakerId: string, participantIds: readonly string[]): string {
+  const characters = scenario.characters.map(character => ({ id: character.id, name: character.name,
+    position: scenario.world?.actors.find(actor => actor.characterId === character.id)?.position }));
+  const speaker = characters.find(character => character.id === speakerId);
+  const listeners = speaker ? courtCharactersWithinEarshot(speaker, characters.filter(character => !participantIds.includes(character.id)), scenario.world?.doors, scenario.world?.fixtures) : [];
+  return `# Current potential listeners\n${JSON.stringify({ positionKnown: !!speaker?.position,
+    listeners: listeners.map(({ id, name, distance, level }) => ({ characterId: id, name, distance, level })), levels: EARSHOT_DESCRIPTIONS })}\nThese are nearby people outside this conversation who have a walkable path to you through the current doors. Consider their identities and your relationships before speaking about internal affairs or secret plans. You may be guarded, use indirect language, withhold details, or suggest a private meeting when your motives warrant it. Do not assume they actually listened or know your intentions. An empty list means no eligible listeners at these positions, not a permanent guarantee of privacy. Speech cannot close a door or move anyone; those require physical actions.`;
+}
+
+export function courtCharactersWithinEarshot(speaker: PositionedCharacter, characters: readonly PositionedCharacter[], doors: readonly DoorState[] = [], fixtures: readonly MapFixture[] = []) {
+  return charactersWithinEarshot(speaker, characters).filter(listener =>
+    !!courtPath(speaker.position!, listener.position!, doors, fixtures));
+}
+
 export interface PositionedCharacter {
   id: string;
   name: string;
-  position?: { x: number; y: number };
+  position?: { x: number; y: number } | undefined;
 }
 
 export interface EarshotCharacter extends PositionedCharacter {

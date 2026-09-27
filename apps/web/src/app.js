@@ -1,7 +1,7 @@
 import { debugOverview, recentTranscriptsView } from "./debug-view.js";
 import { mountCourtMap, updateCourtMap } from "./court-map.js";
 import { introduction, introductionTitles, introductionHandoff, handoffPrefix, nameSuggestions, delegations, characterSprites, newTraveller, patronName } from "./introduction.js";
-import { charactersWithinEarshot } from "./earshot.js";
+import { courtCharactersWithinEarshot } from "./earshot.js";
 
 const app = document.querySelector("#app");
 let state;
@@ -44,6 +44,7 @@ gameWorker.addEventListener("message", event => {
     npcRun = event.data.running;
     updateCourtMap(document.querySelector("[data-court-map]"), state);
     updateNpcPanel();
+    updatePlayerFeed();
     return;
   }
   const pending = pendingRequests.get(event.data.id);
@@ -73,6 +74,15 @@ function stopNpcGoal() {
 async function runNpcGoal(characterId) {
   await rpc("start_npc", { characterId });
 }
+function updatePlayerFeed() {
+  const feed = document.querySelector("[data-player-feed]");
+  if (!feed) return;
+  const messages = state.playerMessages || [];
+  feed.innerHTML = `<h2>What you hear</h2>${messages.length
+    ? `<ol>${[...messages].reverse().map(entry => `<li><span class="eyebrow">Day ${escapeHtml(entry.day)}</span><p>${escapeHtml(entry.message)}</p></li>`).join("")}</ol>`
+    : `<p class="feed-empty">Word from the court will appear here.</p>`}`;
+}
+
 function updateNpcPanel() {
   const panel = document.querySelector("[data-npc-panel]"); if (!panel) return;
   const active = Object.entries(state.npcActivities || {}).filter(([id, activity]) => id === npcRun || activity.status === "active" || activity.reviewPending);
@@ -241,6 +251,12 @@ function renderCharacterReview() {
 function renderDay(bindPage = true) {
   const playerName = state.player?.name || "The Emissary";
   app.innerHTML = shell(`<section class="panel court-panel"><div class="day-heading"><div><div class="eyebrow">Palace of Caerwyn</div><h2>Welcome to court, <span class="player-name">${escapeHtml(playerName)}</span></h2></div></div><p class="scene">Left-click to walk around the palace. Right-click characters and objects to see their actions.</p><div data-court-map></div><section class="npc-planner" data-npc-panel></section><div class="court-day-footer"><span class="map-credit">Tiny Dungeon tiles by Kenney · CC0</span></div><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  const feed = document.createElement("aside");
+  feed.className = "player-event-feed";
+  feed.dataset.playerFeed = "";
+  feed.setAttribute("aria-label", "Messages for you");
+  app.append(feed);
+  updatePlayerFeed();
   if (bindPage) bind();
   updateNpcPanel();
   const mapRoot = document.querySelector("[data-court-map]");
@@ -273,7 +289,7 @@ function renderConversation() {
   const ended = closedConversation?.id === activeCharacter;
   const ending = !!state.conversationEndRequested?.[activeCharacter];
   const messages = ended ? closedConversation.messages : state.conversations?.[activeCharacter] || [];
-  const listeners = charactersWithinEarshot(character, state.characters);
+  const listeners = courtCharactersWithinEarshot(character, state.characters, state.doors, state.fixtures);
   const earshotMessage = listeners.length
     ? `Within earshot:\n${listeners.map(listener => `${listener.name} — ${listener.level}`).join("\n")}`
     : "No one else is within earshot.";
