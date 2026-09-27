@@ -318,8 +318,8 @@ test("NPC reply options are optional speech, never compulsion, and stay with the
     { utterance: "Will you help me?", newEvents: [], goalUpdate: null, replyOptions: ["On one condition.", "You have my word."], compelled: true },
     { utterance: "Name your condition.", newEvents: [], goalUpdate: null, replyOptions: [] },
   ];
-  t.mock.method(OpenRouterClient.prototype, "complete", async (request: { tools?: unknown }) => {
-    assert.equal(request.tools, undefined, "NPCs must not receive GM tools");
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: ChatCompletionRequest) => {
+    assert.deepEqual(request.tools?.map(tool => tool.function.name), ["ask_my_aide"], "NPCs receive only their dedicated aide tool, never GM write tools");
     return { role: "assistant", content: JSON.stringify(replies.shift()) };
   });
   const runtime = new BrowserGameRuntime(scenario, "test");
@@ -504,6 +504,42 @@ const remembered = {
   lore: null,
 };
 const modelReply = (value: unknown): OpenRouterMessage => ({ role: "assistant", content: JSON.stringify(value) });
+
+test("characters can ask an aide and the GM can materialize the result at conversation review", async t => {
+  const requests: ChatCompletionRequest[] = [];
+  const task = "Find my contracts and ledgers concerning the river trade routes around Westmere.";
+  const replies: OpenRouterMessage[] = [
+    { role: "assistant", content: null, tool_calls: [{ id: "aide-1", type: "function", function: {
+      name: "ask_my_aide", arguments: JSON.stringify({ task }),
+    } }] },
+    modelReply({ utterance: "I shall have my aide search the records.", replyOptions: [], endConversation: true }),
+    { role: "assistant", content: null, tool_calls: [{ id: "ledger-1", type: "function", function: {
+      name: "create_item", arguments: JSON.stringify({
+        id: "westmere_trade_ledger", name: "Westmere trade ledger", locationId: "corvin",
+        details: "Contracts and accounts for river trade routes around Westmere.", reason: "Corvin's aide located the requested records.",
+      }),
+    } }] },
+    modelReply({ newEvents: [{ type: "aide_report", summary: "My aide found the Westmere trade ledger." }], goalUpdate: null, relationships: [], lore: null }),
+  ];
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: ChatCompletionRequest) => {
+    requests.push(request);
+    return replies.shift()!;
+  });
+
+  const runtime = new BrowserGameRuntime(conversationScenario(), "test");
+  assert.equal(await runtime.talkToCharacter("corvin", "Can your people find the Westmere records?"), "I shall have my aide search the records.");
+  assert.equal(requests[0]!.tools?.[0]?.function.name, "ask_my_aide");
+  assert.match(requests[1]!.messages.find(message => message.role === "tool")?.content || "", /GM will adjudicate/);
+  assert.deepEqual(runtime.snapshot().conversationAideRequests?.corvin, [{ task }]);
+
+  const restored = new BrowserGameRuntime(conversationScenario(), "test", runtime.snapshot());
+  await restored.endConversation("corvin");
+  assert.match(requests[2]!.messages.map(message => message.content).join("\n"), /Westmere/);
+  assert.match(requests[2]!.messages.map(message => message.content).join("\n"), /update_inventory/);
+  const scenario = fromJson(ScenarioSchema, restored.snapshot().scenario);
+  assert.equal(scenario.world!.objects.find(item => item.id === "westmere_trade_ledger")?.locationId, "corvin");
+  assert.equal(restored.snapshot().conversationAideRequests?.corvin, undefined);
+});
 
 test("closed doors exclude nearby earshot listeners until opened", () => {
   const world = load().world!;
