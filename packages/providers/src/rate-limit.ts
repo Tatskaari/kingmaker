@@ -30,12 +30,14 @@ async function waitUntil(deadline: number, signal?: AbortSignal): Promise<void> 
 export async function recoverRateLimit(
   send: () => Promise<Response>,
   signal?: AbortSignal,
+  onRetry?: (delayMs: number, retry: number) => void,
 ): Promise<Response> {
   for (let attempt = 0; ; attempt++) {
     signal?.throwIfAborted();
     const response = await send();
     if (response.status !== 429 || attempt === 5) return response;
     const delay = retryDelay(response.headers.get("Retry-After"), attempt);
+    onRetry?.(delay, attempt + 1);
     await response.body?.cancel();
     await waitUntil(Date.now() + delay, signal);
   }

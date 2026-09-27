@@ -1,5 +1,6 @@
 import { applyFixtureAction, fixtureActions } from "../packages/core/src/fixtures.js";
 import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
+import { AlertLog } from "../apps/web/src/alerts.js";
 import { courtAgentObservation } from "../apps/web/src/court-agent.js";
 import { doorActionLegality } from "../packages/core/src/access.js";
 import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
@@ -1902,7 +1903,7 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
   let receive!: (event: any) => void;
   let endDialogue!: () => void;
   const context = createContext({
-    URL, window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
+    URL, AlertLog, window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
     document: {
       querySelector: (selector: string) => selector === "[data-end-conversation]"
         ? { addEventListener: (_type: string, callback: () => void) => { endDialogue = callback; } } : null,
@@ -1919,6 +1920,12 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
     .replaceAll("import.meta.url", JSON.stringify(import.meta.url))
     .replace(/if \(apiKey\) run\(\(\) => configure\(apiKey\)\);\s*else render\(\);/, "");
   runInContext(`${source}\nrender = () => {}; updateNpcPanel = () => {}; state = { revision: 1 }; activeCharacter = 'corvin'; bind();`, context);
+  receive({ data: { type: "alert", level: "warning", message: "Retrying <provider>" } });
+  assert.equal(runInContext("alerts.severity", context), "warning");
+  assert.match(runInContext("alertsView()", context), /&lt;provider&gt;/);
+  receive({ data: { type: "alert", level: "error", message: "Review failed" } });
+  assert.equal(runInContext("alerts.severity", context), "error");
+  assert.equal(runInContext("alerts.unread", context), 2);
   runInContext("activeCharacter = null", context);
   receive({ data: { type: "npc_update", activeSaveId: null, running: null, state: {
     revision: 2, conversations: { mara: [{ role: "character", text: "A word, envoy." }] }, conversationEndRequested: {},

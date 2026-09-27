@@ -227,11 +227,11 @@ export class BrowserGameRuntime {
   #conversationEndRequested: Record<string, boolean> = {};
   #conversations = new Map<string, TranscriptMessage[]>();
 
-  constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot, transcriptsChanged: () => void = () => {}) {
+  constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot, transcriptsChanged: () => void = () => {}, onWarning: (message: string) => void = () => {}) {
     this.#initialScenario = fromJson(ScenarioSchema, toJson(ScenarioSchema, scenario));
     this.#game = new MemoryGame(this.#initialScenario);
-    this.#client = new OpenRouterClient(apiKey, 60_000, globalThis.location?.origin || "http://localhost");
-    this.#jev = new JevClient(apiKey);
+    this.#client = new OpenRouterClient(apiKey, 60_000, globalThis.location?.origin || "http://localhost", onWarning);
+    this.#jev = new JevClient(apiKey, undefined, undefined, onWarning);
     this.#modelTranscripts = new ModelTranscripts(apiKey, transcriptsChanged);
     if (snapshot) this.restore(snapshot);
   }

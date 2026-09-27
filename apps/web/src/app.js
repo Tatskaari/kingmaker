@@ -1,4 +1,5 @@
 import { debugOverview, recentTranscriptsView } from "./debug-view.js";
+import { AlertLog } from "./alerts.js";
 import { mountCourtMap, updateCourtMap } from "./court-map.js";
 import { introduction, introductionTitles, introductionHandoff, handoffPrefix, nameSuggestions, delegations, characterSprites, newTraveller, patronName } from "./introduction.js";
 import { courtCharactersWithinEarshot } from "./earshot.js";
@@ -18,6 +19,30 @@ let debugTab = "overview";
 let debugReadSequence = 0;
 let debugData = null;
 let debugError = "";
+const alerts = new AlertLog();
+function alertBell() {
+  return `<button class="alert-bell ${alerts.severity}" data-alert-open aria-label="Warnings and errors: ${alerts.unread} unread" title="Warnings and errors"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a2 2 0 0 1 2 2v.35A7 7 0 0 1 19 11v5l2 3H3l2-3v-5a7 7 0 0 1 5-6.65V4a2 2 0 0 1 2-2Zm-3 19h6a3 3 0 0 1-6 0Z"/></svg> ${alerts.unread || ""}</button>`;
+}
+function alertsView() {
+  return `<p>Recent warnings and errors in this session. Retry times are measured from each entry's timestamp.</p><button data-alert-clear>Clear history</button>${alerts.entries.map(entry => `<article class="alert-entry ${entry.level}"><strong>${entry.level === "error" ? "Error" : "Warning"}</strong> <time>${new Date(entry.time).toLocaleTimeString()}</time><p>${escapeHtml(entry.message)}</p></article>`).join("") || "<p>No warnings or errors.</p>"}`;
+}
+function refreshAlerts() {
+  const bell = document.querySelector("[data-alert-open]");
+  if (bell) { bell.outerHTML = alertBell(); bindAlertBell(); }
+  if (debugOpen && debugTab === "alerts") {
+    document.querySelector("#debug-panel").innerHTML = alertsView();
+    bindAlertClear();
+  }
+}
+function bindAlertClear() {
+  document.querySelector("[data-alert-clear]")?.addEventListener("click", () => { alerts.clear(); refreshAlerts(); });
+}
+function bindAlertBell() {
+  document.querySelector("[data-alert-open]")?.addEventListener("click", () => {
+    debugOpen = true; sheetOpen = false; debugTab = "alerts";
+    alerts.acknowledge(); debugReadSequence++; render();
+  });
+}
 let debugTitle = "Debug Inspector";
 let debugRequest = { type: "debug", payload: {} };
 const apiKeyStorageKey = "kingmaker.openrouter-api-key";
@@ -38,6 +63,11 @@ const gameWorker = new Worker(new URL("./game.worker.ts", import.meta.url), { ty
 const pendingRequests = new Map();
 const gameReplacementRequests = new Set(["reset_world", "reset_characters", "reset", "load_game", "create_game", "create_development_game", "configure", "delete_game"]);
 gameWorker.addEventListener("message", event => {
+  if (event.data.type === "alert") {
+    alerts.add(event.data.level === "warning" ? "warning" : "error", String(event.data.message));
+    refreshAlerts();
+    return;
+  }
   if (event.data.type === "transcripts_changed") {
     if (debugOpen && debugTab === "transcripts") void openDebug();
     return;
@@ -197,16 +227,17 @@ function characterSheet() {
 }
 
 function debugInspector() {
-  const content = debugError
+  const content = debugTab === "alerts" ? alertsView() : debugError
     ? `<p class="debug-error">${escapeHtml(debugError)}</p>`
     : debugData
       ? debugTab === "overview" ? debugOverview(debugRequest.type, debugData) : debugTab === "transcripts" ? recentTranscriptsView(debugData.transcripts) : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
       : `<p class="debug-loading">Reading worker state…</p>`;
-  const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${[["overview", "Overview"], ["json", "Raw JSON"], ["transcripts", "Recent transcripts"]].map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
+  const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${[["overview", "Overview"], ["json", "Raw JSON"], ["transcripts", "Recent transcripts"], ["alerts", "Warnings & errors"]].map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
   return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}"><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">Character state, visible events, known world, conversation, and assembled model context. The global inspector includes the authoritative world. GM debug includes prompts, raw model responses, and tool results—not hidden reasoning. API keys are excluded.</p>${tabs}<div id="debug-panel" class="debug-panel" role="tabpanel" aria-labelledby="debug-tab-${debugTab}" tabindex="0">${content}</div></aside>`;
 }
 
 async function openDebug(request = debugRequest, title = debugTitle) {
+  if (debugOpen && debugTab === "alerts" && request === debugRequest) { alerts.acknowledge(); render(); return; }
   const readSequence = ++debugReadSequence;
   if (!debugOpen || request.type !== debugRequest.type || request.payload.characterId !== debugRequest.payload.characterId) debugTab = "overview";
   debugOpen = true;
@@ -417,6 +448,10 @@ function bind() {
   document.querySelector("[data-sheet-open]")?.addEventListener("click", () => { sheetOpen = true; debugOpen = false; render(); });
   document.querySelectorAll("[data-sheet-close]").forEach(button => button.addEventListener("click", () => { sheetOpen = false; render(); }));
   document.querySelector("[data-debug-open]")?.addEventListener("click", () => openDebug({ type: "debug", payload: {} }, "Debug Inspector"));
+  const debugButton = document.querySelector("[data-debug-open]");
+  if (debugButton) debugButton.insertAdjacentHTML("beforebegin", alertBell());
+  bindAlertBell();
+  bindAlertClear();
   document.querySelector("[data-gm-debug]")?.addEventListener("click", () => openDebug({ type: "debug_gm", payload: {} }, "Laughing Stranger Debug"));
   document.querySelector("[data-stranger-tutorial-close]")?.addEventListener("click", () => { strangerTutorialOpen = false; render(); });
   document.querySelector("[data-character-debug]")?.addEventListener("click", () => {
@@ -433,7 +468,7 @@ function bind() {
     button.addEventListener("keydown", event => {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
       event.preventDefault();
-      const tabs = ["overview", "json", "transcripts"];
+      const tabs = ["overview", "json", "transcripts", "alerts"];
       const index = tabs.indexOf(debugTab);
       select(event.key === "Home" ? tabs[0] : event.key === "End" ? tabs[2] : tabs[(index + (event.key === "ArrowRight" ? 1 : 2)) % 3]);
     });

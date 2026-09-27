@@ -44,6 +44,12 @@ const pendingNpcs: Array<{ id: string; handoffs: number }> = [];
 const conversationHolds = new Set<string>();
 const conversationReviews = new Set<string>();
 
+function alertUser(level: "warning" | "error", message: string) {
+  const safe = (apiKey ? message.split(apiKey).join("[redacted]") : message).replace(/sk-[a-zA-Z0-9_-]+/g, "[redacted]");
+  worker.postMessage({ type: "alert", level, message: safe.slice(0, 2000) });
+}
+const providerWarning = (message: string) => alertUser("warning", message);
+
 function publishNpc(status: string, trace?: unknown, initiatedConversation?: string) {
   if (runtime) worker.postMessage({ type: "npc_update", state: runtime.view(), activeSaveId: activeSave?.id,
     running: [...new Set([...background.values()].flatMap(job => job.participants))], status, ...(trace ? { trace } : {}), ...(initiatedConversation ? { initiatedConversation } : {}) });
@@ -201,6 +207,7 @@ async function runBackground(next: { id: string; handoffs: number }) {
     if (valid()) {
       if (game.snapshot().npcActivities?.[id]?.status === "active") await commitMutation(game, () => { signal.throwIfAborted(); game.finishNpcRun(id, "error", String(error)); }).catch(() => {});
       finalStatus = `${id}: ${error instanceof Error ? error.message : String(error)}`;
+      alertUser("error", finalStatus);
     }
   } finally {
     if (background.get(id) === job) { background.delete(id); publishNpc(finalStatus); drainBackground(); }
@@ -258,7 +265,7 @@ async function createGame(): Promise<Record<string, unknown>> {
   if (!apiKey) throw new Error("Enter an OpenRouter key first");
   const scenario = await scenarioPromise;
   const now = new Date().toISOString();
-  runtime = new BrowserGameRuntime(scenario, apiKey, undefined, () => worker.postMessage({ type: "transcripts_changed" }));
+  runtime = new BrowserGameRuntime(scenario, apiKey, undefined, () => worker.postMessage({ type: "transcripts_changed" }), providerWarning);
   activeSave = {
     id: crypto.randomUUID(),
     characterName: "New emissary",
@@ -282,7 +289,7 @@ async function loadGame(saveId: string): Promise<Record<string, unknown>> {
   if (!apiKey) throw new Error("Enter an OpenRouter key first");
   const saved = await transaction<SaveRecord | undefined>("readonly", store => store.get(saveId));
   if (!saved) throw new Error("That saved game no longer exists");
-  runtime = new BrowserGameRuntime(await scenarioPromise, apiKey, saved.snapshot, () => worker.postMessage({ type: "transcripts_changed" }));
+  runtime = new BrowserGameRuntime(await scenarioPromise, apiKey, saved.snapshot, () => worker.postMessage({ type: "transcripts_changed" }), providerWarning);
   activeSave = saved;
   return { state: runtime.view(), activeSaveId: saved.id, saves: await listSaves() };
 }
@@ -421,6 +428,7 @@ worker.addEventListener("message", event => {
       worker.postMessage({ id: request.id, ok: true, value });
     } catch (error) {
       if (error instanceof GenerationConflict) publishNpc("State changed. Review the updated palace and choose again.");
+      alertUser(error instanceof GenerationConflict ? "warning" : "error", `${request.type}: ${error instanceof Error ? error.message : String(error)}`);
       worker.postMessage({ id: request.id, ok: false, error: error instanceof Error ? error.message : String(error) });
     }
   };

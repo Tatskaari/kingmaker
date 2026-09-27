@@ -3,6 +3,7 @@ import test from "node:test";
 import { recoverRateLimit, retryDelay } from "../packages/providers/src/rate-limit.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 import { JevClient } from "../packages/providers/src/jev.js";
+import { AlertLog } from "../apps/web/src/alerts.js";
 
 test("Retry-After supports seconds, dates, and fallback backoff", () => {
   assert.equal(retryDelay("12", 0), 12_000);
@@ -66,4 +67,55 @@ test("Jev resumes the same decision after 429", async () => {
   const result = await new JevClient("test", http).choose({}, "Decide", { wait: "Wait" }, new AbortController().signal);
   assert.equal(result.choice, "wait");
   assert.equal(calls, 2);
+});
+
+test("cooldown respects the header before retrying and reports the wait", async t => {
+  t.mock.timers.enable({ apis: ["Date", "setTimeout"], now: 0 });
+  let calls = 0;
+  const warnings: number[] = [];
+  const limited = new Response(null, { status: 429, headers: { "Retry-After": "10" } });
+  const result = recoverRateLimit(async () => ++calls === 1 ? limited : new Response(null),
+    undefined, delay => warnings.push(delay));
+  // Let the initial response and body cancellation settle before advancing time.
+  for (let i = 0; i < 5; i++) await Promise.resolve();
+  assert.deepEqual(warnings, [10_000]);
+  t.mock.timers.tick(9999);
+  await Promise.resolve();
+  assert.equal(calls, 1);
+  t.mock.timers.tick(1);
+  assert.equal((await result).status, 200);
+  assert.equal(calls, 2);
+});
+
+test("provider warnings identify automatic recovery without exposing the API key", async t => {
+  const warnings: string[] = [];
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async () => ++calls === 1
+    ? new Response(null, { status: 429, headers: { "Retry-After": "0" } })
+    : Response.json({ choices: [{ message: { role: "assistant", content: "ok" } }] }));
+  await new OpenRouterClient("secret-key", 60_000, "test", message => warnings.push(message))
+    .complete({ model: "test-model", messages: [] });
+  assert.equal(warnings.length, 1);
+  assert.match(warnings[0]!, /test-model.*retry 1\/5 in 0s.*automatically/);
+  assert.ok(!warnings[0]!.includes("secret-key"));
+});
+
+test("alert bell prioritizes unread errors, acknowledges history and bounds memory", () => {
+  const log = new AlertLog();
+  log.add("warning", "Retrying");
+  assert.equal(log.severity, "warning");
+  log.add("error", "Failed");
+  assert.equal(log.severity, "error");
+  assert.equal(log.unread, 2);
+  log.acknowledge();
+  assert.equal(log.unread, 0);
+  assert.equal(log.entries.length, 2);
+  log.add("warning", "Retrying again");
+  assert.equal(log.severity, "warning");
+  for (let i = 0; i < 60; i++) log.add("warning", String(i));
+  assert.equal(log.entries.length, 50);
+  assert.equal(log.entries[0]!.message, "59");
+  log.clear();
+  assert.equal(log.severity, "");
+  assert.equal(log.entries.length, 0);
 });

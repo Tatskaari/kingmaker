@@ -52,6 +52,7 @@ export class OpenRouterClient {
     private readonly apiKey: string,
     private readonly timeoutMs = 60_000,
     private readonly httpReferer = "http://localhost:4317",
+    private readonly onWarning: (message: string) => void = () => {},
   ) {}
 
   async complete(request: ChatCompletionRequest, signal?: AbortSignal): Promise<OpenRouterMessage> {
@@ -71,7 +72,7 @@ export class OpenRouterClient {
       body: JSON.stringify(useResponses ? responsesRequest(request) : request),
       signal: combined,
       });
-    }, signal);
+    }, signal, (delay, retry) => this.onWarning(`OpenRouter rate limit (429), ${request.model}: retry ${retry}/5 in ${Math.ceil(delay / 1000)}s. This request will resume automatically.`));
     let body: ChatCompletionResponse & ResponsesResult;
     try { body = await response.json() as ChatCompletionResponse & ResponsesResult; }
     catch (error) {
