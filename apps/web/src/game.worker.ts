@@ -123,6 +123,7 @@ async function drainBackground() {
           try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id, target]); }); }
           catch (error) { if (!valid()) return; if (/changed/i.test(String(error))) continue; throw error; }
           finally { job.participants = [id]; }
+          if (handoffs > 0) for (const listener of game.rumourListenersSince(before)) startBackground(listener, handoffs - 1);
           if (handoffs > 0 && game.snapshot().npcActivities?.[target]?.status === "active") startBackground(target, handoffs - 1);
           if (game.snapshot().npcActivities?.[id]?.status !== "active") return;
         }
@@ -317,7 +318,10 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
       if (generation !== version) throw new Error("Game changed.");
       game.commitCharacterFork(before, fork, [id]);
     });
-    if (type === "end_conversation") conversationHolds.delete(id);
+    if (type === "end_conversation") {
+      conversationHolds.delete(id);
+      for (const listener of game.rumourListenersSince(before)) startBackground(listener);
+    }
     return { reply, state: game.view(), saves: await listSaves(), activeSaveId: activeSave?.id };
   }
   if (type === "reset") {
