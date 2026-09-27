@@ -86,6 +86,29 @@ test("the expanded authored scenario strictly parses and survives protobuf", () 
   assert.equal(scenario.world?.rooms.length, 25);
 });
 
+test("the initial dethroning plot stays with the GM while each faction receives its own leads", () => {
+  const scenario = load(), world = scenario.world!;
+  const gm = new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario }))
+    .map(message => message.content).join("\n");
+  const context = (id: string) => new FullContextBuilder().build(create(DialogueRequestSchema, { scenario, characterId: id }))
+    .map(message => message.content).join("\n");
+  assert.match(gm, /Private initial plot — The king's missing patrols/);
+  assert.match(gm, /Aldren knowingly moved part of the protected levy/);
+  assert.doesNotMatch(context("mara"), /Private initial plot|Tomas Vey/);
+  assert.match(context("garran"), /Tomas Vey/);
+  assert.match(context("sabine"), /caravan tallies show attacks rising/);
+  assert.match(context("rook"), /former courier sold him a letter/);
+  assert.match(context("tessa"), /published patrol totals/);
+
+  const evidence = new Map(world.objects.map(item => [item.id, item]));
+  for (const id of [
+    "palace_sealed_decree", "palace_patrol_roster", "palace_account_book", "palace_gate_ledger",
+    "corvin_concord_copy", "sabine_caravan_tallies", "rook_tomas_letter", "palace_parlour_wine",
+  ]) assert.ok(evidence.get(id)?.properties?.details, id);
+  assert.ok(worldForCharacter(world, "rook").objects.some(item => item.id === "rook_tomas_letter"));
+  assert.ok(!worldForCharacter(world, "mara").objects.some(item => item.id === "rook_tomas_letter"));
+});
+
 test("the palace map is a complete layered tile grid", () => {
   const decoded = fromBinary(WorldMapSchema, toBinary(WorldMapSchema, palaceMap));
   assert.equal(decoded.tiles.length, decoded.width * decoded.height);
@@ -1102,6 +1125,7 @@ test("NPC leave-taking persists, blocks more speech, and reviews closing words o
     reviews++;
     assert.match(request.messages.at(-1)!.content!, /attend to my duties/);
     assert.match(JSON.stringify(request.messages), /Parked objectives/);
+    assert.match(JSON.stringify(request.messages), /opens or advances a scenario thread/);
     return modelReply(remembered);
   });
   await restored.endConversation("corvin");

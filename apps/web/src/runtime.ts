@@ -218,6 +218,8 @@ Examples:
 - "I have authority to pledge my kingdom's recognition" establishes political authority; consult the GM if unestablished.
 If the consultation tool is unavailable for this opening turn, defer consequential new assertions and use established facts, incidental details, proposals or questions instead.`;
 
+const CONVERSATION_OBJECTIVE_REVIEW = "When this conversation opens or advances a scenario thread and the NPC has chosen a concrete action they are willing and able to take, set or update their active objective with that action as the next current goal. This includes investigating a credible lead, pursuing an accepted bargain, responding to a meaningful threat, seeking evidence, warning someone or confronting another character. Do not leave the NPC idle merely because the player did not phrase the action as an explicit command. Ordinary social exchange, an unsupported suggestion, an agreement the NPC did not make, or a next step that only waits for someone else does not warrant an active objective.";
+
 const memoryFormat = {
   type: "json_schema",
   json_schema: { name: "conversation_memory", strict: true, schema: {
@@ -620,6 +622,7 @@ export class BrowserGameRuntime {
       const conversations = this.snapshot().conversations;
       const evidence: OpenRouterMessage[] = [
         { role: "system", content: "Review this event through the supplied resource write tools. Use update_inventory for justified props and update_character for memories, relationships and objective changes. NPC work belongs to an active objective; demote, drop or complete dead ends explicitly." },
+        ...(kind === "conversation_review" ? [{ role: "system" as const, content: CONVERSATION_OBJECTIVE_REVIEW }] : []),
         ...(kind === "outcome_review" && this.#npcActivities[characterId]?.result?.reason === "wait" ? [{ role: "system" as const, content: "Jev chose wait. This explicitly means the objective is blocked on another character acting and should be non-active now. Demote it unless the supplied evidence shows a different concrete action this character can take immediately. Do not set a current goal that merely waits, watches, checks repeatedly, or asks the same question again. A later conversation or event initiated by the awaited character can reactivate the parked objective." }] : []),
         { role: "user", content: JSON.stringify({ event_type: kind, participants, allowNextGoal }) },
         ...(hasDevelopmentPlayer(scenario) && kind === "conversation_review" ? [{ role: "system" as const, content: "This transcript is with the development envoy. Honor direct testing requests by setting or updating an active objective with a feasible current_goal. Record it as intended work, not an action already completed." }] : []),
@@ -669,6 +672,7 @@ export class BrowserGameRuntime {
     }
     const messages: OpenRouterMessage[] = [...request.messages.slice(0, -1),
       { role: "system", content: RECONCILIATION_INSTRUCTIONS },
+      ...(kind === "conversation_review" ? [{ role: "system" as const, content: CONVERSATION_OBJECTIVE_REVIEW }] : []),
       { role: "user", content: JSON.stringify({ authoritativeWorld: toJson(WorldStateSchema, scenario.world!), participants, recentActivity: this.#npcActivities }) },
       ...request.messages.slice(-1),
     ];
