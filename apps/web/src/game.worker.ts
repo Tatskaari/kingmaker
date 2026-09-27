@@ -5,7 +5,7 @@ import { type TravellerIdentity } from "./introduction.js";
 import { fromJsonString, type JsonValue } from "@bufbuild/protobuf";
 import { ScenarioSchema, type Scenario } from "../../../packages/contracts/src/index.js";
 import { BrowserGameRuntime, type RuntimeSnapshot, type WitnessedIllegalAction } from "./runtime.js";
-import { GenerationConflict, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
+import { GenerationConflict, generationIds, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 
 interface SaveRecord {
   id: string;
@@ -94,6 +94,7 @@ async function drainBackground() {
       if (game.snapshot().npcActivities?.[id]?.reviewPending) await reviewBackground(game, id, signal, round < 2);
       if (game.snapshot().npcActivities?.[id]?.status !== "active") break;
       let reason: "complete" | "unable" | "limit" = "limit", detail = "Reached the 24-action limit.";
+      let finishGenerations: ExpectedGenerations | undefined;
       let conflict: { error: string; instruction: string } | undefined;
       for (let step = 0; step < 24 && valid(); step++) {
         publishNpc(`${id}: choosing an action…`);
@@ -104,7 +105,7 @@ async function drainBackground() {
         if (plan.decision.choice === "complete" || plan.decision.choice === "unable") {
           // A changed world invalidates a terminal judgment as well as a physical action.
           if (game.view().revision !== plan.revision) continue;
-          reason = plan.decision.choice; detail = JSON.stringify(plan.decision); break;
+          reason = plan.decision.choice; detail = JSON.stringify(plan.decision); finishGenerations = plan.generations; break;
         }
         if (!plan.action) throw new Error("Jev returned an unavailable action.");
         let expected = plan.generations;
@@ -161,11 +162,17 @@ async function drainBackground() {
         }
       }
       if (!valid()) return;
-      await commitMutation(game, () => { signal.throwIfAborted(); game.finishNpcRun(id, reason, detail); });
+      const expectedFinish = finishGenerations ?? generationIds(game.readResources([`character:${id}`]));
+      await commitMutation(game, () => { signal.throwIfAborted(); game.finishNpcRun(id, reason, detail, expectedFinish); });
       publishNpc(`${id}: reviewing the result…`);
       await reviewBackground(game, id, signal, round < 2);
     }
   } catch (error) {
+    if (valid() && error instanceof GenerationConflict) {
+      pendingNpcs.push({ id, handoffs });
+      finalStatus = `${id}: state changed; choosing again.`;
+      return;
+    }
     if (valid()) {
       if (game.snapshot().npcActivities?.[id]?.status === "active") await commitMutation(game, () => { signal.throwIfAborted(); game.finishNpcRun(id, "error", String(error)); }).catch(() => {});
       finalStatus = `${id}: ${error instanceof Error ? error.message : String(error)}`;
@@ -389,6 +396,7 @@ worker.addEventListener("message", event => {
       const value = await handle(request.type, request.payload || {});
       worker.postMessage({ id: request.id, ok: true, value });
     } catch (error) {
+      if (error instanceof GenerationConflict) publishNpc("State changed. Review the updated palace and choose again.");
       worker.postMessage({ id: request.id, ok: false, error: error instanceof Error ? error.message : String(error) });
     }
   };

@@ -163,3 +163,84 @@ test("player physical commands reject stale views without disclosing concealed i
   assert.throws(() => game.movePlayer({ x: 15, y: 25 }, view.generations as Record<string, string>), GenerationConflict);
   assert.deepEqual(game.snapshot(), before);
 });
+
+test("direct court GM writes return conflicts; creation writes need no generation IDs", async t => {
+  for (const creation of [true, false]) {
+    const game = creation ? new BrowserGameRuntime(fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")), "test") : runtime();
+    let calls = 0;
+    t.mock.method(OpenRouterClient.prototype, "complete", async (request: any) => {
+      calls++;
+      const tool = request.tools.find((tool: any) => tool.function.name === "update_character");
+      assert.equal(tool.function.parameters.required.includes("generations"), !creation);
+      if (calls === 1 || (!creation && calls === 2)) {
+        const args: any = { characterId: "corvin", lore: "Reconciled biography.", currentGoal: "" };
+        if (calls === 2) {
+          const result = JSON.parse(request.messages.at(-1).content);
+          assert.equal(result.error, "generation_conflict");
+          assert.notEqual(result.current["character:corvin"].state.character.lore, args.lore);
+          args.generations = generationIds(result.current);
+        }
+        return { role: "assistant", content: null, tool_calls: [{ id: "update", type: "function", function: { name: "update_character", arguments: JSON.stringify(args) } }] };
+      }
+      return { role: "assistant", content: "Done." };
+    });
+    await game.talkToGameMaster("Update Corvin.");
+    assert.equal(calls, creation ? 2 : 3);
+    const saved = game.snapshot();
+    assert.equal(fromJson(ScenarioSchema, saved.scenario).characters.find(c => c.id === "corvin")!.lore, "Reconciled biography.");
+    if (!creation) assert.equal(saved.npcActivities!.corvin!.status, "idle");
+  }
+});
+
+test("a conflict at publication keeps item and character updates atomic and reaches the agent", async t => {
+  const game = runtime();
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => reply({ utterance: "Goodbye.", replyOptions: [], endConversation: true }));
+  await game.talkToCharacter("corvin", "Goodbye.");
+  const before = game.snapshot(), fork = game.forkForNpc();
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => reply(memory));
+  await fork.endConversation("corvin");
+  let calls = 0, commits = 0, generations: Record<string, string> = {};
+  const changes = [{ name: "create_item", arguments: { id: "new_note", name: "New note", locationId: "corvin", details: "A note.", reason: "An established prop." } }];
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: any) => {
+    const context = JSON.parse(request.messages.at(-1).content);
+    calls++;
+    if (calls === 1) {
+      generations = generationIds(context.resources);
+      return { role: "assistant", content: null, tool_calls: [{ id: "read", type: "function", function: { name: "read_state", arguments: JSON.stringify({ resourceIds: ["item:new_note", "entity:new_note"] }) } }] };
+    }
+    Object.assign(generations, generationIds(context.current));
+    if (calls === 3) {
+      assert.equal(context.error, "generation_conflict");
+      const scenario = fromJson(ScenarioSchema, game.snapshot().scenario);
+      assert.ok(!scenario.world!.objects.some(item => item.id === "new_note"));
+      assert.notEqual(scenario.characters.find(c => c.id === "corvin")!.lore, "Updated atomically.");
+      assert.ok(context.current["inventory:corvin"].state.some((item: any) => item.id === "other_note"));
+    }
+    return write(generations, { ...memory, lore: "Updated atomically." } as any, changes);
+  });
+  await game.publishReviewedFork(before, fork, async (base, candidate, ids, expected) => {
+    if (commits++ === 0) {
+      const changed = game.snapshot(), scenario = fromJson(ScenarioSchema, changed.scenario);
+      scenario.world!.objects.push(create(ObjectStateSchema, { id: "other_note", name: "Other note", locationId: "corvin" }));
+      changed.scenario = toJson(ScenarioSchema, scenario); game.restore(changed);
+    }
+    game.commitCharacterFork(base, candidate, ids, expected);
+  });
+  assert.equal(calls, 3); assert.equal(commits, 2);
+  const final = fromJson(ScenarioSchema, game.snapshot().scenario);
+  assert.equal(final.world!.objects.filter(item => ["new_note", "other_note"].includes(item.id)).length, 2);
+  assert.equal(final.characters.find(c => c.id === "corvin")!.lore, "Updated atomically.");
+});
+
+test("a two-participant write cannot overwrite either participant when one changed", () => {
+  const game = runtime(), before = game.snapshot(), fork = game.forkForNpc();
+  const proposed = fork.snapshot(), scenario = fromJson(ScenarioSchema, proposed.scenario);
+  for (const id of ["corvin", "mara"]) scenario.characters.find(c => c.id === id)!.lore = "Proposed biography.";
+  proposed.scenario = toJson(ScenarioSchema, scenario); fork.restore(proposed);
+  const concurrent = game.snapshot(), newer = fromJson(ScenarioSchema, concurrent.scenario);
+  newer.characters.find(c => c.id === "mara")!.lore = "Concurrent biography.";
+  concurrent.scenario = toJson(ScenarioSchema, newer); game.restore(concurrent);
+  const unchanged = game.snapshot();
+  assert.throws(() => game.commitCharacterFork(before, fork, ["corvin", "mara"]), GenerationConflict);
+  assert.deepEqual(game.snapshot(), unchanged);
+});
