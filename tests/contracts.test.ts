@@ -560,12 +560,17 @@ test("GM player messages persist privately and failed reviews publish nothing", 
   const runtime = new BrowserGameRuntime(scenario, "test");
   await runtime.talkToCharacter("corvin", "Who should I meet?");
   const before = runtime.snapshot();
+  const earliestCreatedAt = Date.now();
   await runtime.endConversation("corvin");
+  const latestCreatedAt = Date.now();
   const restored = new BrowserGameRuntime(scenario, "test", runtime.snapshot());
   assert.equal((restored.view().playerMessages as any[])[0].message, "Corvin lowers his voice as he mentions Oswin.");
+  const createdAt = Date.parse((restored.view().playerMessages as any[])[0].createdAt);
+  assert.ok(createdAt >= earliestCreatedAt && createdAt <= latestCreatedAt);
   const event = fromJson(ScenarioSchema, restored.snapshot().scenario).events.find(event => event.type === "player_message")!;
   assert.deepEqual(event.characterIds, ["player"]);
   assert.equal(event.visibility, EventVisibility.PRIVATE);
+  assert.equal(event.details?.createdAt, new Date(createdAt).toISOString());
   calls = 1; fail = true;
   const failed = new BrowserGameRuntime(scenario, "test", before);
   await assert.rejects(failed.endConversation("corvin"), /incomplete/);

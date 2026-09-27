@@ -2,6 +2,7 @@ import { debugOverview, recentTranscriptsView } from "./debug-view.js";
 import { mountCourtMap, updateCourtMap } from "./court-map.js";
 import { introduction, introductionTitles, introductionHandoff, handoffPrefix, nameSuggestions, delegations, characterSprites, newTraveller, patronName } from "./introduction.js";
 import { courtCharactersWithinEarshot } from "./earshot.js";
+import { formatElapsedTime } from "./relative-time.js";
 import devOpenRouterApiKey from "virtual:kingmaker-dev-openrouter-key";
 
 const app = document.querySelector("#app");
@@ -33,6 +34,7 @@ let traveller = newTraveller();
 let saves = [];
 let activeSaveId = null;
 let requestSequence = 0;
+const playerMessageReceivedAt = new Map();
 
 const gameWorker = new Worker(new URL("./game.worker.ts", import.meta.url), { type: "module" });
 const pendingRequests = new Map();
@@ -95,10 +97,18 @@ function updatePlayerFeed() {
   const feed = document.querySelector("[data-player-feed]");
   if (!feed) return;
   const messages = state.playerMessages || [];
+  const now = Date.now();
   feed.innerHTML = `<h2>What you hear</h2>${messages.length
-    ? `<ol>${[...messages].reverse().map(entry => `<li><span class="eyebrow">Day ${escapeHtml(entry.day)}</span><p>${escapeHtml(entry.message)}</p></li>`).join("")}</ol>`
+    ? `<ol>${[...messages].reverse().map(entry => {
+      const parsedCreatedAt = Date.parse(entry.createdAt || "");
+      if (!playerMessageReceivedAt.has(entry.id)) playerMessageReceivedAt.set(entry.id, now);
+      const timestamp = Number.isNaN(parsedCreatedAt) ? playerMessageReceivedAt.get(entry.id) : parsedCreatedAt;
+      const exactTime = Number.isNaN(parsedCreatedAt) ? "Received since opening this game" : new Date(parsedCreatedAt).toLocaleString();
+      return `<li><time class="eyebrow" datetime="${escapeHtml(entry.createdAt || "")}" title="${escapeHtml(exactTime)}">${formatElapsedTime(timestamp, now)}</time><p>${escapeHtml(entry.message)}</p></li>`;
+    }).join("")}</ol>`
     : `<p class="feed-empty">Word from the court will appear here.</p>`}`;
 }
+globalThis.setInterval?.(updatePlayerFeed, 1000);
 
 function updateNpcPanel() {
   const panel = document.querySelector("[data-npc-panel]"); if (!panel) return;
