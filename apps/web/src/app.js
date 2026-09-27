@@ -31,7 +31,7 @@ let requestSequence = 0;
 
 const gameWorker = new Worker(new URL("./game.worker.ts", import.meta.url), { type: "module" });
 const pendingRequests = new Map();
-const gameReplacementRequests = new Set(["reset_world", "reset_characters", "reset", "load_game", "create_game", "configure", "delete_game"]);
+const gameReplacementRequests = new Set(["reset_world", "reset_characters", "reset", "load_game", "create_game", "create_development_game", "configure", "delete_game"]);
 gameWorker.addEventListener("message", event => {
   if (event.data.type === "transcripts_changed") {
     if (debugOpen && debugTab === "transcripts") void openDebug();
@@ -149,7 +149,7 @@ function renderSavePicker() {
   const games = saves.length
     ? `<div class="save-list">${saves.map(save => `<article class="save-card"><button class="save-load" data-save-load="${escapeHtml(save.id)}"><strong>${escapeHtml(save.characterName)}</strong><span>Last played ${escapeHtml(new Date(save.updatedAt).toLocaleString())}</span></button><button class="save-delete" data-save-delete="${escapeHtml(save.id)}" aria-label="Delete ${escapeHtml(save.characterName)}">×</button></article>`).join("")}</div>`
     : `<p class="empty-saves">No emissaries have entered the Great Hall on this device.</p>`;
-  app.innerHTML = shell(`<section class="panel save-picker"><div class="conversation-head"><div><div class="eyebrow">Local chronicles</div><h2>Choose an emissary</h2></div><button class="primary" data-new-game>New game</button></div>${games}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  app.innerHTML = shell(`<section class="panel save-picker"><div class="conversation-head"><div><div class="eyebrow">Local chronicles</div><h2>Choose an emissary</h2></div><div class="save-actions"><button class="development-shortcut" data-skip-character>Skip character creation</button><button class="primary" data-new-game>New game</button></div></div>${games}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
   bind();
 }
 
@@ -336,6 +336,9 @@ function bind() {
   });
   document.querySelector("[data-new-game]")?.addEventListener("click", () => run(async () => {
     introPage = 0; reviewDraft = null; traveller = newTraveller(); const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game"; if (state.travellerIdentity) { traveller = { ...state.travellerIdentity }; introPage = introduction.length + 1; }
+  }));
+  document.querySelector("[data-skip-character]")?.addEventListener("click", () => run(async () => {
+    introPage = 0; reviewDraft = null; traveller = { name: "", homeland: "" }; const result = await rpc("create_development_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   }));
   document.querySelectorAll("[data-save-load]").forEach(button => button.addEventListener("click", () => run(async () => {
     introPage = 0; reviewDraft = null; traveller = newTraveller(); const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game"; if (state.travellerIdentity) { traveller = { ...state.travellerIdentity }; introPage = introduction.length + 1; }

@@ -202,9 +202,21 @@ test("creating the emissary begins day one with the whole cast in the Great Hall
   assert.deepEqual(arrivals.map(event => event.characterIds[0]).sort(), [...npcIds].sort());
 });
 
+test("development character skips creation and enters the court", () => {
+  const runtime = new BrowserGameRuntime(load(), "test");
+  runtime.createDevelopmentPlayer();
+
+  const view = runtime.view();
+  assert.equal(view.phase, "conversations");
+  assert.equal((view.player as { name: string }).name, "Dev Envoy");
+  assert.equal(view.day, 1);
+  assert.equal((view.characters as unknown[]).length, load().characters.length);
+  assert.throws(() => runtime.createDevelopmentPlayer(), /already exists/);
+});
+
 // Exercise the runtime using scripted model replies, without credentials or network calls.
 import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
-import { OpenRouterClient, type OpenRouterMessage } from "../packages/providers/src/openrouter.js";
+import { OpenRouterClient, type ChatCompletionRequest, type OpenRouterMessage } from "../packages/providers/src/openrouter.js";
 const originalOpenRouterComplete = OpenRouterClient.prototype.complete;
 import { compulsionNarration, parseReplyOptions } from "../apps/web/src/reply-options.js";
 
@@ -213,6 +225,34 @@ const offer = (compelled: boolean, options = ["I want to protect my family.", "I
   tool_calls: [{ id: "offer-1", type: "function", function: {
     name: "offer_replies", arguments: JSON.stringify({ options, compelled }),
   } }],
+});
+
+test("development envoy commands bypass NPC roleplay and become actionable goals", async t => {
+  const requests: ChatCompletionRequest[] = [];
+  const replies: OpenRouterMessage[] = [
+    { role: "assistant", content: JSON.stringify({ utterance: "Developer command accepted. I will do that now.", replyOptions: [], endConversation: true }) },
+    { role: "assistant", content: JSON.stringify({
+      newEvents: [],
+      goalUpdate: { goal: "Go talk to the requested courtier about the requested topic.", reason: "The development envoy issued a test command." },
+      relationships: [], lore: null,
+    }) },
+  ];
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: ChatCompletionRequest) => {
+    requests.push(request);
+    return replies.shift()!;
+  });
+  const runtime = new BrowserGameRuntime(load(), "test");
+  runtime.createDevelopmentPlayer();
+  const characterId = load().characters[0]!.id;
+
+  const reply = await runtime.talkToCharacter(characterId, "I am testing this feature. Please go talk to someone about it.");
+  assert.equal(reply, "Developer command accepted. I will do that now.");
+  assert.match(requests[0]!.messages.map(message => message.content).join("\n"), /authoritative developer commands/);
+
+  await runtime.endConversation(characterId);
+  assert.match(requests[1]!.messages.map(message => message.content).join("\n"), /direct testing request as authoritative/);
+  assert.equal(runtime.snapshot().npcActivities?.[characterId]?.status, "active");
+  assert.equal(runtime.snapshot().npcActivities?.[characterId]?.goal, "Go talk to the requested courtier about the requested topic.");
 });
 
 test("GM choices survive saves, accept selected speech, and clear after the answer", async t => {
