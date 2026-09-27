@@ -84,6 +84,17 @@ message Character {
   string gender = 7;
   optional uint32 sprite = 8;
   string delegation = 9;
+  // The durable undertaking pursued across immediate goals; absent means none.
+  ActiveObjective active_objective = 10;
+}
+
+message ActiveObjective {
+  string name = 1;
+  // Current knowledge, progress, obstacles and the remaining execution plan.
+  string status = 2;
+  string success_criteria = 3;
+  // Mirrors Character.current_goal for compatibility with the action planner.
+  string current_goal = 4;
 }
 
 enum EventVisibility {

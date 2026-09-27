@@ -35,6 +35,7 @@ export function characterDecisionContext(scenario: Scenario, characterId: string
       id: character.id, name: character.name, gender: character.gender, delegation: character.delegation, lore: character.lore,
       relationships: character.relationships.map(({ characterId, description }) => ({ characterId, description })),
       objectives: [...character.objectives],
+      activeObjective: character.activeObjective,
       currentGoal: goal,
     },
     visibleEvents: events.map(({ id, day, type, summary }) => ({ id, day, type, summary })),
@@ -88,6 +89,7 @@ export class FullContextBuilder implements DialogueContextBuilder {
         role: "system",
         content: `# Character\n${character.name} (${character.id})\n\n${character.lore}\n\n# Identity\nGender: ${character.gender || "Not recorded"}\nDelegation: ${character.delegation || "Not recorded"}\n\n# Long-term objectives\n${character.objectives.map(objective => `- ${objective}`).join("\n") || "None recorded."}\nThese ambitions inform your dialogue and intentions; they are not immediate action-planner tasks.\n\n# Current goal\n${character.currentGoal || "No goal yet."}\n\n${IMMEDIATE_GOAL_GUIDANCE}`,
       },
+      ...(character.activeObjective ? [{ role: "system" as const, content: `# Active objective\n${JSON.stringify(character.activeObjective)}\nThe current goal is one step toward this objective, not the entire undertaking.` }] : []),
       { role: "system", content: `# Relationships\n${relationships}${visitor}` },
       { role: "system", content: `# Events visible to this character\n${recent}` },
       {
@@ -116,6 +118,7 @@ export class FullGameMasterContextBuilder implements GameMasterContextBuilder {
       name: character.name,
       lore: character.lore,
       objectives: character.objectives,
+      activeObjective: character.activeObjective,
       currentGoal: character.currentGoal,
       relationships: character.relationships,
     }));

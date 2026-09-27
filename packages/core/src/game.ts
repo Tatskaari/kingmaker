@@ -24,6 +24,9 @@ export class MemoryGame implements GameState {
 
   constructor(scenario: Scenario) {
     this.#scenario = clone(ScenarioSchema, scenario);
+    for (const character of this.#scenario.characters) {
+      if (character.activeObjective) character.activeObjective.currentGoal = character.currentGoal;
+    }
   }
 
   scenario(): Scenario {
@@ -129,6 +132,7 @@ export class MemoryGame implements GameState {
       visibility: EventVisibility.PRIVATE,
     }));
     if (memory.goalUpdate) character.currentGoal = memory.goalUpdate.goal;
+    if (character.activeObjective) character.activeObjective.currentGoal = character.currentGoal;
     if (memory.lore !== undefined) character.lore = memory.lore;
     for (const relationship of memory.relationships) {
       character.relationships = character.relationships.filter(item => item.characterId !== relationship.characterId);
@@ -144,6 +148,7 @@ export class MemoryGame implements GameState {
     if (!character) return failure("unknown_character", `Unknown character ${characterId}.`);
     if (lore) character.lore = lore;
     if (currentGoal !== undefined) character.currentGoal = currentGoal;
+    if (character.activeObjective) character.activeObjective.currentGoal = character.currentGoal;
     return { ok: true, value: clone(CharacterSchema, character) };
   }
 
