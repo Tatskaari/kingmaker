@@ -59,12 +59,23 @@ let traveller = newTraveller();
 let saves = [];
 let activeSaveId = null;
 let requestSequence = 0;
+let gameViewGeneration = 0;
 const playerMessageReceivedAt = new Map();
 
 const gameWorker = new Worker(new URL("./game.worker.ts", import.meta.url), { type: "module" });
 const pendingRequests = new Map();
 const gameReplacementRequests = new Set(["reset_world", "reset_characters", "reset", "load_game", "create_game", "create_development_game", "configure", "delete_game"]);
 gameWorker.addEventListener("message", event => {
+  if (event.data.type === "dialogue_thinking") {
+    const pending = pendingRequests.get(event.data.requestId);
+    if (pending?.type === "talk" && pending.generation === gameViewGeneration
+      && pending.characterId === event.data.characterId && activeCharacter === event.data.characterId
+      && busy && typeof event.data.text === "string") {
+      notice = event.data.text;
+      render();
+    }
+    return;
+  }
   if (event.data.type === "alert") {
     alerts.add(event.data.level === "warning" ? "warning" : "error", String(event.data.message));
     refreshAlerts();
@@ -106,10 +117,12 @@ gameWorker.addEventListener("message", event => {
 
 function rpc(type, payload = {}) {
   if (["move_player", "set_door", "interact_fixture"].includes(type)) payload = { ...payload, generations: state.generations };
-  if (gameReplacementRequests.has(type)) { conversationReviews.clear(); stopNpcGoal(); }
+  if (gameReplacementRequests.has(type)) { gameViewGeneration++; conversationReviews.clear(); stopNpcGoal(); }
   const id = ++requestSequence;
   gameWorker.postMessage({ id, type, payload });
-  return new Promise((resolve, reject) => pendingRequests.set(id, { resolve, reject, type }));
+  return new Promise((resolve, reject) => pendingRequests.set(id, {
+    resolve, reject, type, generation: gameViewGeneration, characterId: payload.characterId,
+  }));
 }
 
 function stopNpcGoal() {
