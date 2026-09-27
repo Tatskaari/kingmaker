@@ -1,6 +1,7 @@
 import { clone, create } from "@bufbuild/protobuf";
 import {
   ActorStateSchema,
+  ActiveObjectiveSchema,
   CharacterSchema,
   EventSchema,
   EventVisibility,
@@ -24,6 +25,20 @@ export class MemoryGame implements GameState {
 
   constructor(scenario: Scenario) {
     this.#scenario = clone(ScenarioSchema, scenario);
+    for (const character of this.#scenario.characters) {
+      for (const name of character.objectives) character.parkedObjectives.push(create(ActiveObjectiveSchema, {
+        name, status: "This enduring ambition is parked. No current execution plan has been adopted.",
+        successCriteria: name, currentGoal: "",
+      }));
+      character.objectives = [];
+      if (character.activeObjective) character.activeObjective.currentGoal = character.currentGoal;
+      else if (character.id !== this.#scenario.playerCharacterId && character.currentGoal.trim()) character.activeObjective = create(ActiveObjectiveSchema, {
+        name: character.currentGoal.split(".")[0]!,
+        status: "No progress has been recorded yet. Next: " + character.currentGoal,
+        successCriteria: "The task has been completed in the world, not merely promised.",
+        currentGoal: character.currentGoal,
+      });
+    }
   }
 
   scenario(): Scenario {
@@ -128,7 +143,15 @@ export class MemoryGame implements GameState {
       characterIds: includePlayer ? [characterId, "player"] : [characterId],
       visibility: EventVisibility.PRIVATE,
     }));
-    if (memory.goalUpdate) character.currentGoal = memory.goalUpdate.goal;
+    if (memory.goalUpdate) {
+      character.currentGoal = memory.goalUpdate.goal;
+      character.activeObjective = create(ActiveObjectiveSchema, {
+        name: memory.goalUpdate.goal.split(".")[0]!,
+        status: "This objective was created from a reviewed conversation. No progress has been recorded yet. Next: " + memory.goalUpdate.goal,
+        successCriteria: "The task has been completed in the world, not merely promised.",
+        currentGoal: memory.goalUpdate.goal,
+      });
+    }
     if (memory.lore !== undefined) character.lore = memory.lore;
     for (const relationship of memory.relationships) {
       character.relationships = character.relationships.filter(item => item.characterId !== relationship.characterId);
@@ -144,6 +167,7 @@ export class MemoryGame implements GameState {
     if (!character) return failure("unknown_character", `Unknown character ${characterId}.`);
     if (lore) character.lore = lore;
     if (currentGoal !== undefined) character.currentGoal = currentGoal;
+    if (character.activeObjective) character.activeObjective.currentGoal = character.currentGoal;
     return { ok: true, value: clone(CharacterSchema, character) };
   }
 

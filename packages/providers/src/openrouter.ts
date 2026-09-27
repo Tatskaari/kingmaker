@@ -1,3 +1,5 @@
+import { recoverRateLimit } from "./rate-limit.js";
+
 export type OpenRouterRole = "system" | "user" | "assistant" | "tool";
 
 export interface OpenRouterToolCall {
@@ -50,13 +52,16 @@ export class OpenRouterClient {
     private readonly apiKey: string,
     private readonly timeoutMs = 60_000,
     private readonly httpReferer = "http://localhost:4317",
+    private readonly onWarning: (message: string) => void = () => {},
   ) {}
 
   async complete(request: ChatCompletionRequest, signal?: AbortSignal): Promise<OpenRouterMessage> {
-    const timeout = AbortSignal.timeout(this.timeoutMs);
-    const combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+    let combined: AbortSignal;
     const useResponses = request.api === "responses";
-    const response = await fetch(useResponses ? "https://openrouter.ai/api/v1/responses" : "https://openrouter.ai/api/v1/chat/completions", {
+    const response = await recoverRateLimit(() => {
+      const timeout = AbortSignal.timeout(this.timeoutMs);
+      combined = signal ? AbortSignal.any([signal, timeout]) : timeout;
+      return fetch(useResponses ? "https://openrouter.ai/api/v1/responses" : "https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${this.apiKey}`,
@@ -66,11 +71,12 @@ export class OpenRouterClient {
       },
       body: JSON.stringify(useResponses ? responsesRequest(request) : request),
       signal: combined,
-    });
+      });
+    }, signal, (delay, retry) => this.onWarning(`OpenRouter rate limit (429), ${request.model}: retry ${retry}/5 in ${Math.ceil(delay / 1000)}s. This request will resume automatically.`));
     let body: ChatCompletionResponse & ResponsesResult;
     try { body = await response.json() as ChatCompletionResponse & ResponsesResult; }
     catch (error) {
-      if (combined.aborted) throw error;
+      if (combined!.aborted) throw error;
       throw new ProviderResponseError(`OpenRouter returned an unreadable response (HTTP ${response.status}). Please try again.`, response.ok || [502, 503, 504].includes(response.status));
     }
     if (!response.ok) {

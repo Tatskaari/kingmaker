@@ -8,7 +8,9 @@ const messages = items => list(items, item => `<strong>${escape(item.speakerId |
 const events = items => card("Events", list(items, event => `<span class="debug-meta">Day ${escape(event.day)} · ${escape(label(event.visibility))} · ${escape(event.type)}</span><p>${escape(event.summary)}</p>`, "No events recorded."));
 
 function characterCard(character, name) {
-  return card(character.name || character.id, `<p class="debug-meta">${escape(character.id)}</p><h4>Current goal</h4><p>${escape(character.currentGoal || "No goal recorded.")}</p><details><summary>Biography and relationships</summary><p>${escape(character.lore || "No biography recorded.")}</p>${list(character.relationships, relationship => `<strong>${escape(name(relationship.characterId))}</strong><p>${escape(relationship.description)}</p>`, "No relationships recorded.")}</details>`);
+  const objective = character.activeObjective;
+  const active = objective ? `<h4>Active objective</h4><p>${escape(objective.name)}</p><h4>Status and execution plan</h4><p>${escape(objective.status)}</p><h4>Success criteria</h4><p>${escape(objective.successCriteria)}</p>` : "";
+  return card(character.name || character.id, `<p class="debug-meta">${escape(character.id)}</p>${active}<h4>Current goal</h4><p>${escape(character.currentGoal || "No goal recorded.")}</p><details><summary>Biography and relationships</summary><p>${escape(character.lore || "No biography recorded.")}</p>${list(character.relationships, relationship => `<strong>${escape(name(relationship.characterId))}</strong><p>${escape(relationship.description)}</p>`, "No relationships recorded.")}</details>`);
 }
 
 function worldCards(world, name) {

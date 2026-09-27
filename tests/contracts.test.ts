@@ -1,5 +1,6 @@
 import { applyFixtureAction, fixtureActions } from "../packages/core/src/fixtures.js";
 import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
+import { AlertLog } from "../apps/web/src/alerts.js";
 import { courtAgentObservation } from "../apps/web/src/court-agent.js";
 import { doorActionLegality } from "../packages/core/src/access.js";
 import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
@@ -19,6 +20,7 @@ import {
   RelationshipSchema,
   RelationshipUpdateSchema,
   CharacterSchema,
+  ActiveObjectiveSchema,
   ScenarioSchema,
   WorldMapSchema,
   TranscriptRole,
@@ -556,8 +558,9 @@ test("GM player messages persist privately and failed reviews publish nothing", 
     }] };
     return modelReply(fail ? {} : remembered);
   });
-  const scenario = conversationScenario();
-  const runtime = new BrowserGameRuntime(scenario, "test");
+  const authored = conversationScenario();
+  const runtime = new BrowserGameRuntime(authored, "test");
+  const scenario = fromJson(ScenarioSchema, runtime.snapshot().scenario);
   await runtime.talkToCharacter("corvin", "Who should I meet?");
   const before = runtime.snapshot();
   await runtime.endConversation("corvin");
@@ -607,8 +610,9 @@ test("ending reviews the full transcript, saves private memory, and starts a fre
     requests.push(request);
     return modelReply(replies.shift());
   });
-  const scenario = conversationScenario();
-  const runtime = new BrowserGameRuntime(scenario, "test");
+  const authoredScenario = conversationScenario();
+  const runtime = new BrowserGameRuntime(authoredScenario, "test");
+  const scenario = fromJson(ScenarioSchema, runtime.snapshot().scenario);
   await runtime.talkToCharacter("corvin", "What troubles you?");
   await runtime.talkToCharacter("corvin", "I offer my help.");
   assert.deepEqual(fromJson(ScenarioSchema, runtime.snapshot().scenario), scenario, "Speaking does not prematurely commit memory");
@@ -626,6 +630,7 @@ test("ending reviews the full transcript, saves private memory, and starts a fre
   const corvin = updated.characters.find(character => character.id === "corvin")!;
   assert.equal(corvin.currentGoal, remembered.goalUpdate.goal);
   assert.deepEqual(corvin.objectives, scenario.characters[0]!.objectives);
+  assert.deepEqual(corvin.parkedObjectives, scenario.characters[0]!.parkedObjectives);
   assert.equal(corvin.lore, scenario.characters[0]!.lore);
   assert.equal(corvin.relationships.find(item => item.characterId === "player")?.description, remembered.relationships[0]!.description);
   assert.deepEqual(corvin.relationships.filter(item => item.characterId !== "player"), scenario.characters[0]!.relationships);
@@ -949,7 +954,7 @@ test("NPC leave-taking persists, blocks more speech, and reviews closing words o
   t.mock.method(OpenRouterClient.prototype, "complete", async (request: { messages: readonly { content: string | null }[] }) => {
     reviews++;
     assert.match(request.messages.at(-1)!.content!, /attend to my duties/);
-    assert.match(JSON.stringify(request.messages), /Long-term objectives/);
+    assert.match(JSON.stringify(request.messages), /Parked objectives/);
     return modelReply(remembered);
   });
   await restored.endConversation("corvin");
@@ -958,12 +963,12 @@ test("NPC leave-taking persists, blocks more speech, and reviews closing words o
   assert.equal(restored.snapshot().conversationEndRequested?.corvin, undefined);
 });
 
-test("authored objectives remain distinct from immediate greeting goals in model context", () => {
+test("authored parked objectives remain distinct from immediate greeting goals in model context", () => {
   const scenario = load();
   for (const character of scenario.characters) {
-    assert.equal(character.objectives.length, 3);
+    assert.equal(character.parkedObjectives.length, 3);
     const context = new FullContextBuilder().build(create(DialogueRequestSchema, { scenario, characterId: character.id }));
-    for (const objective of character.objectives) assert.ok(context.some(message => message.content.includes(objective)));
+    for (const objective of character.parkedObjectives) assert.ok(context.some(message => message.content.includes(objective.name)));
     assert.match(character.currentGoal, /greet the visiting player/);
   }
 });
@@ -1129,8 +1134,9 @@ test("reviewed immediate goal reaches Jev, which opens doors and moves the NPC i
   t.mock.method(JevClient.prototype, "choose", async (state: any, _instructions: unknown, criteria: Record<string, string>) => {
     assert.equal(state.goal, goal);
     assert.equal(state.characterContext.character.id, "corvin");
-    assert.equal(state.characterContext.character.objectives.length, 3);
+    assert.equal(state.characterContext.character.parkedObjectives.length, 3);
     assert.ok(!JSON.stringify(state.world).includes("Sealed royal decree"));
+    assert.match(criteria.wait!, /depends entirely on another character/);
     const choice = ["open_corvin_door_0", "move_corvin", "complete"][step++]!;
     assert.ok(criteria[choice]);
     if (step === 1) assert.ok(!criteria.move_corvin, "Closed room cannot be selected as a move target");
@@ -1147,6 +1153,23 @@ test("reviewed immediate goal reaches Jev, which opens doors and moves the NPC i
   assert.equal(saved.world!.actors.find(actor => actor.characterId === "corvin")!.roomId, "corvin_chamber");
   assert.deepEqual(saved.world!.actors.find(actor => actor.characterId === "player")!.position, scenario.world!.actors.find(actor => actor.characterId === "player")!.position);
   assert.deepEqual(new BrowserGameRuntime(scenario, "test", runtime.snapshot()).snapshot(), runtime.snapshot());
+});
+
+test("Jev can stop on wait and marks the outcome as blocked on another character", async t => {
+  const runtime = new BrowserGameRuntime(furnishedCourt(), "test");
+  const snapshot = runtime.snapshot();
+  const goal = fromJson(ScenarioSchema, snapshot.scenario).characters.find(character => character.id === "corvin")!.currentGoal;
+  snapshot.npcActivities = { corvin: { status: "active", goal, history: [] } };
+  runtime.restore(snapshot);
+  t.mock.method(JevClient.prototype, "choose", async (_state: unknown, _instructions: unknown, criteria: Record<string, string>) => {
+    assert.match(criteria.wait!, /depends entirely on another character/);
+    return { choice: "wait", probabilities: { wait: 1 } };
+  });
+  const plan = await runtime.planNpc("corvin", new AbortController().signal);
+  assert.equal(plan.decision.choice, "wait");
+  assert.equal(plan.action, undefined);
+  runtime.finishNpcRun("corvin", "wait", "Waiting for Lucan to initiate the promised conversation.");
+  assert.equal(runtime.snapshot().npcActivities!.corvin!.result!.reason, "wait");
 });
 
 test("NPC actions use their own keys and inventory, reject stale plans, and preserve the player's inventory", () => {
@@ -1429,7 +1452,8 @@ test("resetCharacters restores authored NPCs and events, clears dialogue and tas
   const before = fromJson(ScenarioSchema, runtime.snapshot().scenario);
   runtime.resetCharacters();
   const after = runtime.snapshot(), saved = fromJson(ScenarioSchema, after.scenario);
-  assert.deepEqual(saved.characters.find(item => item.id === "corvin"), initial.characters.find(item => item.id === "corvin"));
+  const authored = fromJson(ScenarioSchema, new BrowserGameRuntime(initial, "test").snapshot().scenario);
+  assert.deepEqual(saved.characters.find(item => item.id === "corvin"), authored.characters.find(item => item.id === "corvin"));
   assert.deepEqual(saved.characters.find(item => item.id === "player"), before.characters.find(item => item.id === "player"));
   assert.deepEqual(saved.events, initial.events);
   assert.deepEqual(saved.world, { ...before.world!, revision: before.world!.revision + 1 });
@@ -1849,6 +1873,63 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     await new Promise(resolve => setImmediate(resolve));
   });
 
+  await t.test("active objectives continue beyond three goal reviews and stop on completion", { timeout: 4000 }, async t => {
+    const created = await request("create_development_game"), saved = records.get(created.activeSaveId);
+    const scenario = fromJson(ScenarioSchema, saved.snapshot.scenario);
+    const character = scenario.characters.find(character => character.id === "corvin")!;
+    character.currentGoal = "Step 1";
+    character.activeObjective = create(ActiveObjectiveSchema, { name: "Gather delegates", status: "Four invitations remain.",
+      successCriteria: "All invitations delivered.", currentGoal: "Step 1" });
+    saved.snapshot.scenario = toJson(ScenarioSchema, scenario);
+    saved.snapshot.npcActivities = { corvin: { status: "active", goal: "Step 1", history: [] } };
+    await request("load_game", { saveId: created.activeSaveId });
+    let goals = 0;
+    t.mock.method(BrowserGameRuntime.prototype, "planNpc", async () => {
+      assert.ok(++goals <= 4, "Must stop after the objective is completed");
+      return { decision: { choice: "complete" } };
+    });
+    t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => {
+      const tool = (name: string, args: unknown) => ({ role: "assistant", content: null, tool_calls: [
+        { id: name, type: "function", function: { name, arguments: JSON.stringify(args) } },
+      ] });
+      if (input.messages.at(-1).role === "tool") return tool("finish_review", { summary: "Reviewed progress." });
+      const resource = input.messages.map((message: any) => { try { return JSON.parse(message.content); } catch { return {}; } })
+        .find((value: any) => value.world_state).world_state["character:corvin"];
+      return tool("update_character", { character_id: "corvin", generation_id: resource.generation_id, changes: { active_objective:
+        goals === 4 ? { action: "complete", reason: "All four invitations delivered." }
+          : { action: "set", name: "Gather delegates", status: goals + " invitations delivered; continue to the next delegate.",
+            success_criteria: "All invitations delivered.", current_goal: "Step " + (goals + 1), reason: "More invitations remain." } } });
+    });
+    await request("start_npc", { characterId: "corvin" });
+    while ((await request("debug_character", { characterId: "corvin" })).character.activeObjective
+      || npcUpdates.at(-1)?.running.includes("corvin")) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+    assert.equal(goals, 4);
+    assert.equal((await request("state")).state.npcActivities.corvin.status, "idle");
+    await request("cancel_npc");
+  });
+
+  await t.test("busy conversation targets wait without repeated model decisions", async t => {
+    const created = await request("create_development_game"), saved = records.get(created.activeSaveId);
+    saved.snapshot.npcActivities = { corvin: { status: "active", goal: "Talk to Mara", history: [] } };
+    await request("load_game", { saveId: created.activeSaveId });
+    await request("pause_npc", { characterId: "mara" });
+    let decisions = 0, conversations = 0;
+    t.mock.method(BrowserGameRuntime.prototype, "planNpc", async () => {
+      decisions++; return { decision: { choice: "talk_mara" }, action: { id: "talk_mara", description: "Talk to Mara" }, goal: "Talk to Mara", generations: {} };
+    });
+    t.mock.method(BrowserGameRuntime.prototype, "stepNpcAction", () => ({ done: true, talkTarget: "mara", generations: {} }));
+    t.mock.method(BrowserGameRuntime.prototype, "executeNpcTalk", async () => { conversations++; return ""; });
+    await request("start_npc", { characterId: "corvin" });
+    await new Promise(resolve => setTimeout(resolve, 250));
+    assert.equal(decisions, 1);
+    assert.equal(conversations, 0);
+    await request("cancel_npc");
+    await new Promise(resolve => setTimeout(resolve, 120));
+    assert.equal(conversations, 0);
+  });
+
   await t.test("conversation review leaves movement and other dialogue available", async () => {
     await request("create_development_game");
     t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Farewell.", replyOptions: [], endConversation: true }));
@@ -1863,7 +1944,9 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
       const participant = initial.find((v: any) => v.event_type)?.participants[0];
       const resource = initial.find((v: any) => v.world_state).world_state["character:" + participant];
       return gmTool("update_character", { character_id: participant, generation_id: resource.generation_id,
-        changes: { append_events: [{ type: "memory", summary: "The envoy said goodbye." }], current_goal: null } });
+        changes: { append_events: [{ type: "memory", summary: "The envoy said goodbye." }], active_objective: {
+          action: "complete", reason: "The authored greeting was completed in this conversation.",
+        } } });
     };
     t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => {
       if (input.tools?.some((tool: any) => tool.function.name === "finish_review")) {
@@ -1902,7 +1985,7 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
   let receive!: (event: any) => void;
   let endDialogue!: () => void;
   const context = createContext({
-    URL, window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
+    URL, AlertLog, window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
     document: {
       querySelector: (selector: string) => selector === "[data-end-conversation]"
         ? { addEventListener: (_type: string, callback: () => void) => { endDialogue = callback; } } : null,
@@ -1919,6 +2002,12 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
     .replaceAll("import.meta.url", JSON.stringify(import.meta.url))
     .replace(/if \(apiKey\) run\(\(\) => configure\(apiKey\)\);\s*else render\(\);/, "");
   runInContext(`${source}\nrender = () => {}; updateNpcPanel = () => {}; state = { revision: 1 }; activeCharacter = 'corvin'; bind();`, context);
+  receive({ data: { type: "alert", level: "warning", message: "Retrying <provider>" } });
+  assert.equal(runInContext("alerts.severity", context), "warning");
+  assert.match(runInContext("alertsView()", context), /&lt;provider&gt;/);
+  receive({ data: { type: "alert", level: "error", message: "Review failed" } });
+  assert.equal(runInContext("alerts.severity", context), "error");
+  assert.equal(runInContext("alerts.unread", context), 2);
   runInContext("activeCharacter = null", context);
   receive({ data: { type: "npc_update", activeSaveId: null, running: null, state: {
     revision: 2, conversations: { mara: [{ role: "character", text: "A word, envoy." }] }, conversationEndRequested: {},

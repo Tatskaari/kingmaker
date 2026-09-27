@@ -1,3 +1,5 @@
+import { recoverRateLimit } from "./rate-limit.js";
+
 /** OpenRouter Decisions API; criteria keys are the only permissible results. */
 export interface JevChoice { choice: string; probabilities: Record<string, number>; confidence?: number }
 export type JevInstructions = string | Record<string, unknown>;
@@ -6,17 +8,18 @@ export const jevRequest = (state: unknown, instructions: JevInstructions, criter
 export type Choose = (state: unknown, instructions: JevInstructions, criteria: Record<string, string>, signal: AbortSignal) => Promise<JevChoice>;
 export class JevClient {
   constructor(private readonly apiKey: string, private readonly http: typeof fetch = (input, init) => globalThis.fetch(input, init),
-    private readonly onRequest?: (request: ReturnType<typeof jevRequest>) => void) {}
+    private readonly onRequest?: (request: ReturnType<typeof jevRequest>) => void,
+    private readonly onWarning: (message: string) => void = () => {}) {}
   async choose(state: unknown, instructions: JevInstructions, criteria: Record<string, string>, signal: AbortSignal): Promise<JevChoice> {
     if (!this.apiKey.trim()) throw new Error("Enter your OpenRouter key first.");
     const request = jevRequest(state, instructions, criteria);
     this.onRequest?.(request);
-    const response = await this.http("https://openrouter.ai/api/alpha/decisions", {
+    const response = await recoverRateLimit(() => this.http("https://openrouter.ai/api/alpha/decisions", {
       method: "POST",
       headers: { Authorization: `Bearer ${this.apiKey.trim()}`, "Content-Type": "application/json", "X-Title": "Kingmaker Palace" },
       body: JSON.stringify(request),
       signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
-    });
+    }), signal, (delay, retry) => this.onWarning(`OpenRouter Decisions rate limit (429): retry ${retry}/5 in ${Math.ceil(delay / 1000)}s. This decision will resume automatically.`));
     if (!response.ok) {
       let detail = "";
       try {

@@ -44,6 +44,12 @@ const pendingNpcs: Array<{ id: string; handoffs: number }> = [];
 const conversationHolds = new Set<string>();
 const conversationReviews = new Set<string>();
 
+function alertUser(level: "warning" | "error", message: string) {
+  const safe = (apiKey ? message.split(apiKey).join("[redacted]") : message).replace(/sk-[a-zA-Z0-9_-]+/g, "[redacted]");
+  worker.postMessage({ type: "alert", level, message: safe.slice(0, 2000) });
+}
+const providerWarning = (message: string) => alertUser("warning", message);
+
 function publishNpc(status: string, trace?: unknown, initiatedConversation?: string) {
   if (runtime) worker.postMessage({ type: "npc_update", state: runtime.view(), activeSaveId: activeSave?.id,
     running: [...new Set([...background.values()].flatMap(job => job.participants))], status, ...(trace ? { trace } : {}), ...(initiatedConversation ? { initiatedConversation } : {}) });
@@ -101,12 +107,13 @@ async function runBackground(next: { id: string; handoffs: number }) {
   const job = { id, controller: new AbortController(), participants: [id] }; background.set(id, job);
   const signal = job.controller.signal;
   let finalStatus = `${id}: idle.`;
+  let continueObjective = false;
   const valid = () => !signal.aborted && runtime === game && background.get(id) === job && !conversationHolds.has(id);
   try {
     for (let round = 0; round < 3 && valid(); round++) {
-      if (game.snapshot().npcActivities?.[id]?.reviewPending) await reviewBackground(game, id, signal, round < 2);
+      if (game.snapshot().npcActivities?.[id]?.reviewPending) await reviewBackground(game, id, signal, true);
       if (game.snapshot().npcActivities?.[id]?.status !== "active") break;
-      let reason: "complete" | "unable" | "limit" = "limit", detail = "Reached the 24-action limit.";
+      let reason: "complete" | "unable" | "wait" | "limit" = "limit", detail = "Reached the 24-action limit.";
       let finishGenerations: ExpectedGenerations | undefined;
       let conflict: { error: string; instruction: string } | undefined;
       for (let step = 0; step < 24 && valid(); step++) {
@@ -115,7 +122,7 @@ async function runBackground(next: { id: string; handoffs: number }) {
         conflict = undefined;
         if (!valid()) return;
         publishNpc(`${id}: ${plan.action?.description ?? plan.decision.choice}`, plan);
-        if (plan.decision.choice === "complete" || plan.decision.choice === "unable") {
+        if (plan.decision.choice === "complete" || plan.decision.choice === "unable" || plan.decision.choice === "wait") {
           // A changed world invalidates a terminal judgment as well as a physical action.
           reason = plan.decision.choice; detail = JSON.stringify(plan.decision); finishGenerations = plan.generations; break;
         }
@@ -150,10 +157,13 @@ async function runBackground(next: { id: string; handoffs: number }) {
         }
         if (result?.talkTarget) {
           const target = result.talkTarget;
-          if (conversationHolds.has(target)) continue;
+          const targetBusy = () => conversationHolds.has(target)
+            || [...background.values()].some(other => other !== job && other.participants.includes(target) && other.participants.length > 1);
+          if (targetBusy()) publishNpc(`${id}: waiting for ${target} to finish a conversation…`);
+          while (valid() && targetBusy()) await new Promise(resolve => setTimeout(resolve, 100));
+          if (!valid()) return;
           // A pair owns both participants until its review commits. Interrupt a
           // solo run, but never steal someone from another conversation.
-          if ([...background.values()].some(other => other !== job && other.participants.includes(target) && other.participants.length > 1)) continue;
           const interrupted = background.has(target);
           stopBackground(target);
           job.participants = [id, target];
@@ -190,8 +200,9 @@ async function runBackground(next: { id: string; handoffs: number }) {
       const expectedFinish = finishGenerations ?? generationIds(game.readResources([`character:${id}`]));
       await commitMutation(game, () => { signal.throwIfAborted(); game.finishNpcRun(id, reason, detail, expectedFinish); });
       publishNpc(`${id}: reviewing the result…`);
-      await reviewBackground(game, id, signal, round < 2);
+      await reviewBackground(game, id, signal, true);
     }
+    continueObjective = valid() && game.hasActiveObjective(id);
   } catch (error) {
     if (valid() && error instanceof GenerationConflict) {
       pendingNpcs.push({ id, handoffs });
@@ -201,9 +212,14 @@ async function runBackground(next: { id: string; handoffs: number }) {
     if (valid()) {
       if (game.snapshot().npcActivities?.[id]?.status === "active") await commitMutation(game, () => { signal.throwIfAborted(); game.finishNpcRun(id, "error", String(error)); }).catch(() => {});
       finalStatus = `${id}: ${error instanceof Error ? error.message : String(error)}`;
+      alertUser("error", finalStatus);
     }
   } finally {
-    if (background.get(id) === job) { background.delete(id); publishNpc(finalStatus); drainBackground(); }
+    if (background.get(id) === job) {
+      background.delete(id); publishNpc(finalStatus);
+      if (continueObjective && game.hasActiveObjective(id) && game.snapshot().npcActivities?.[id]?.status === "active") startBackground(id, handoffs);
+      drainBackground();
+    }
   }
 }
 
@@ -258,7 +274,7 @@ async function createGame(): Promise<Record<string, unknown>> {
   if (!apiKey) throw new Error("Enter an OpenRouter key first");
   const scenario = await scenarioPromise;
   const now = new Date().toISOString();
-  runtime = new BrowserGameRuntime(scenario, apiKey, undefined, () => worker.postMessage({ type: "transcripts_changed" }));
+  runtime = new BrowserGameRuntime(scenario, apiKey, undefined, () => worker.postMessage({ type: "transcripts_changed" }), providerWarning);
   activeSave = {
     id: crypto.randomUUID(),
     characterName: "New emissary",
@@ -282,7 +298,7 @@ async function loadGame(saveId: string): Promise<Record<string, unknown>> {
   if (!apiKey) throw new Error("Enter an OpenRouter key first");
   const saved = await transaction<SaveRecord | undefined>("readonly", store => store.get(saveId));
   if (!saved) throw new Error("That saved game no longer exists");
-  runtime = new BrowserGameRuntime(await scenarioPromise, apiKey, saved.snapshot, () => worker.postMessage({ type: "transcripts_changed" }));
+  runtime = new BrowserGameRuntime(await scenarioPromise, apiKey, saved.snapshot, () => worker.postMessage({ type: "transcripts_changed" }), providerWarning);
   activeSave = saved;
   return { state: runtime.view(), activeSaveId: saved.id, saves: await listSaves() };
 }
@@ -421,6 +437,7 @@ worker.addEventListener("message", event => {
       worker.postMessage({ id: request.id, ok: true, value });
     } catch (error) {
       if (error instanceof GenerationConflict) publishNpc("State changed. Review the updated palace and choose again.");
+      alertUser(error instanceof GenerationConflict ? "warning" : "error", `${request.type}: ${error instanceof Error ? error.message : String(error)}`);
       worker.postMessage({ id: request.id, ok: false, error: error instanceof Error ? error.message : String(error) });
     }
   };

@@ -100,6 +100,13 @@ button:disabled { opacity: .48; cursor: wait; }
 .relationship-list strong { display: block; color: #eee0c3; font-family: Cinzel, serif; font-size: .88rem; margin-bottom: 3px; }
 .debug-button { position: fixed; z-index: 20; top: 18px; right: 18px; border: 1px solid #786b56; background: #17130fe8; color: #bdb09a; padding: 8px 11px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: .75rem; letter-spacing: .04em; }
 .debug-button:hover { color: #f1dfb5; border-color: var(--gold); }
+.alert-bell { position: fixed; z-index: 20; top: 18px; right: 125px; display: flex; align-items: center; gap: 5px; min-height: 33px; padding: 6px 9px; background: #17130fe8; color: #bdb09a; border: 1px solid currentColor; }
+.alert-bell.warning, .alert-entry.warning strong { color: #f2c94c; }
+.alert-bell.error, .alert-entry.error strong { color: #ff7777; }
+.alert-entry { border-bottom: 1px solid #786b56; padding: 14px 0; overflow-wrap: anywhere; }
+.alert-entry time { font-size: .8rem; color: #bdb09a; }
+.alert-entry p { white-space: pre-wrap; }
+@media (max-width: 620px) { .alert-bell { right: 65px; } }
 .debug-scrim { position: fixed; z-index: 39; inset: 0; background: #000b; opacity: 0; pointer-events: none; transition: opacity .18s ease; }
 .debug-scrim.open { opacity: 1; pointer-events: auto; }
 .debug-inspector { position: fixed; z-index: 40; inset: 24px; display: flex; flex-direction: column; overflow: hidden; padding: 24px; background: #0d0f0e; border: 1px solid #81745f; box-shadow: 0 20px 80px #000; opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity .18s ease, transform .18s ease; }
@@ -214,6 +221,10 @@ button.court-character:hover:not(:focus-visible) { border-color: transparent; ba
 .npc-goal-name { padding: 0; border: 0; background: transparent; color: inherit; font-weight: 700; text-align: left; }
 .npc-goal-name:hover { text-decoration: underline; }
 .npc-goals p { margin: 6px 0 0; line-height: 1.5; overflow-wrap: anywhere; }
+.npc-objective > strong { display: block; margin-top: 8px; color: #f2dfb7; }
+.npc-objective dl { display: grid; grid-template-columns: max-content 1fr; gap: 5px 12px; margin: 10px 0 0; font-size: .9rem; }
+.npc-objective dt { color: #b9aa90; font-weight: 700; }
+.npc-objective dd { margin: 0; overflow-wrap: anywhere; }
 .npc-activity-state { font-size: .75rem; opacity: .7; }
 .npc-activity-state.running { opacity: 1; font-weight: 700; }
 .npc-goal-resume { flex-shrink: 0; }
