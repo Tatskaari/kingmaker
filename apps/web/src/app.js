@@ -2,6 +2,7 @@ import { debugOverview, recentTranscriptsView } from "./debug-view.js";
 import { mountCourtMap, updateCourtMap } from "./court-map.js";
 import { introduction, introductionTitles, introductionHandoff, handoffPrefix, nameSuggestions, delegations, characterSprites, newTraveller, patronName } from "./introduction.js";
 import { courtCharactersWithinEarshot } from "./earshot.js";
+import devOpenRouterApiKey from "virtual:kingmaker-dev-openrouter-key";
 
 const app = document.querySelector("#app");
 let state;
@@ -19,9 +20,10 @@ let debugError = "";
 let debugTitle = "Debug Inspector";
 let debugRequest = { type: "debug", payload: {} };
 const apiKeyStorageKey = "kingmaker.openrouter-api-key";
-let apiKey = "";
+let apiKey = devOpenRouterApiKey;
 try { apiKey = sessionStorage.getItem(apiKeyStorageKey)?.trim() || ""; }
 catch { /* The app still works when browser storage is unavailable. */ }
+if (!apiKey) apiKey = devOpenRouterApiKey;
 let screen = "key";
 let introPage = 0;
 let reviewDraft = null;
