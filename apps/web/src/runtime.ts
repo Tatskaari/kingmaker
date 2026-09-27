@@ -187,7 +187,7 @@ const dialogueFormat = {
       type: "object", additionalProperties: false, required: ["utterance", "replyOptions", "endConversation"],
       properties: {
         utterance: { type: "string" },
-        endConversation: { type: "boolean", description: "True when this character chooses to end the conversation after this utterance. Give closing words and an empty replyOptions array. False to continue." },
+        endConversation: { type: "boolean", description: "True only when this character has a concrete in-character reason to leave now, such as beginning an immediate chosen task, refusing further discussion, or an urgent interruption. Completing a dialogue objective is not a reason to leave. Never set true while asking the player a question, making an offer, or requesting help. Give closing words and an empty replyOptions array. False to continue." },
         replyOptions: { type: "array", items: { type: "string", maxLength: 300 } },
       },
     },
@@ -516,7 +516,7 @@ export class BrowserGameRuntime {
     if (hasDevelopmentPlayer(scenario)) messages.unshift({ role: "system", content: DEVELOPMENT_DIALOGUE_INSTRUCTIONS });
     messages.unshift({ role: "system", content: askGameMasterTool.function.description });
     messages.unshift({ role: "system", content: dialogueEarshotPrompt(scenario, characterId, [characterId, scenario.playerCharacterId ?? "player"]) });
-    messages.unshift({ role: "system", content: "You may choose to end this conversation. Set endConversation=true when you take your leave, refuse further discussion, or conclude the exchange to pursue your immediate task. Express that decision naturally in utterance and return replyOptions=[]. Do not end merely because you answered one question; use your own intentions, relationships and the exchange. Otherwise set endConversation=false. Ending triggers a separate memory and goal review; speech alone does not move you or complete physical tasks." });
+    messages.unshift({ role: "system", content: "You may choose to end this conversation only for a concrete in-character reason to leave now: beginning an immediate task you have chosen, refusing further discussion, or responding to an urgent interruption. Completing or advancing a dialogue objective is not a reason to leave; continue naturally or move to another relevant conversational thread. Never set endConversation=true in the same response as asking the player a question, making them an offer, or requesting their help, because the player must be able to answer. When you truly take your leave, express that decision naturally and return replyOptions=[]. Otherwise set endConversation=false. Ending triggers a separate memory and goal review; speech alone does not move you or complete physical tasks." });
     messages.unshift({ role: "system", content: "Return only a JSON object matching the supplied response schema, with no Markdown fences or surrounding prose." });
     let parsed: JsonObject | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {

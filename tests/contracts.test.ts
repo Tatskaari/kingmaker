@@ -1120,7 +1120,12 @@ test("NPC dialogue frames the current goal as a concrete planner task while reta
 
 test("NPC leave-taking persists, blocks more speech, and reviews closing words once", async t => {
   const runtime = new BrowserGameRuntime(conversationScenario(), "test");
-  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Excuse me; I must attend to my duties.", endConversation: true, replyOptions: [] }));
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: { messages: readonly { content: string | null }[] }) => {
+    const prompt = JSON.stringify(request.messages);
+    assert.match(prompt, /Completing or advancing a dialogue objective is not a reason to leave/);
+    assert.match(prompt, /asking the player a question, making them an offer, or requesting their help/);
+    return modelReply({ utterance: "Excuse me; I must attend to my duties.", endConversation: true, replyOptions: [] });
+  });
   await runtime.talkToCharacter("corvin", "Good evening.");
   const saved = structuredClone(runtime.snapshot());
   assert.equal(saved.conversationEndRequested?.corvin, true);

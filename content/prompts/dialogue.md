@@ -14,6 +14,11 @@ The assembled context is deliberately simple and complete:
 Each spoken response contains an utterance and optional `replyOptions` (an empty
 array or one or more player replies), plus `endConversation`. An NPC can take
 its leave with closing words, `endConversation: true`, and no reply options.
+It does so only for a concrete reason to leave now, such as beginning an
+immediate chosen task, refusing further discussion, or an urgent interruption.
+Completing a dialogue objective is not a reason to close the scene. An NPC must
+keep the conversation open whenever its response asks the player a question,
+makes an offer, or requests help so the player has a chance to answer.
 The UI retains those words while automatically reviewing the conversation.
 Ending the conversation triggers a separate
 review of the entire transcript and existing character context. The review saves
