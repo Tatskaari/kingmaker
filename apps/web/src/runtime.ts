@@ -14,6 +14,7 @@ import { COURT_INSTRUCTIONS } from "./court-instructions.js";
 import { JevClient, jevRequest } from "../../../packages/providers/src/jev.js";
 import { applyFixtureAction, fixtureActions } from "../../../packages/core/src/fixtures.js";
 import { IMMEDIATE_GOAL_DESCRIPTION } from "../../../packages/core/src/goal-guidance.js";
+import { applyObjectiveChange } from "./objectives.js";
 import { courtPath, courtRoomAt } from "./court-map.js";
 import type { Point } from "./navigation.js";
 import { compulsionNarration, parseReplyOptions, type ReplyOptions } from "./reply-options.js";
@@ -237,6 +238,7 @@ export class BrowserGameRuntime {
   }
 
   recentTranscripts() { return this.#modelTranscripts.recent(); }
+  hasActiveObjective(id: string) { return !!this.#game.scenario().characters.find(character => character.id === id)?.activeObjective; }
 
   #complete(kind: ModelCallKind, characterId: string, request: ChatCompletionRequest, signal?: AbortSignal) {
     return this.#modelTranscripts.record(kind, characterId, request, () => this.#client.complete(request, signal));
@@ -477,6 +479,12 @@ export class BrowserGameRuntime {
         }),
         finish: () => commit(() => {
           signal?.throwIfAborted();
+          if (kind !== "illegal_action") for (const id of participants) {
+            const character = host.#game.scenario().characters.find(character => character.id === id);
+            if (character?.activeObjective && (!character.currentGoal || host.#npcActivities[id]?.status !== "active")) {
+              return { commit_result: "error" as const, reason: "Active objective still needs a next goal. Update its status/plan and current_goal, or explicitly demote, drop or complete it based on evidence." };
+            }
+          }
           if (kind === "conversation_review") for (const id of participants) {
             if (JSON.stringify(host.snapshot().conversations[id]) !== JSON.stringify(conversations[id])) throw new Error("Conversation changed; do not clear the newer transcript.");
             host.#conversations.delete(id);
@@ -720,7 +728,11 @@ export class BrowserGameRuntime {
       if (!context.participants.includes(id) || context.kind === "illegal_action") throw new Error("Only conversation/action-review participants can be updated.");
       const patch = args.changes as Record<string, unknown>;
       if (!patch || typeof patch !== "object" || Array.isArray(patch) || !Object.keys(patch).length
-        || Object.keys(patch).some(key => !["append_events", "relationships", "lore", "current_goal"].includes(key))) throw new Error("Invalid character changes.");
+        || Object.keys(patch).some(key => !["append_events", "relationships", "lore", "current_goal", "active_objective"].includes(key))) throw new Error("Invalid character changes.");
+      const character = scenario.characters.find(character => character.id === id)!;
+      if (patch.active_objective !== undefined && Object.hasOwn(patch, "current_goal")) throw new Error("Use active_objective.current_goal, not both goal fields.");
+      if (character.activeObjective && Object.hasOwn(patch, "current_goal")) throw new Error("Update active_objective with its status/plan and next goal, or explicitly demote/drop/complete it.");
+      const objectiveMemory = patch.active_objective === undefined ? undefined : applyObjectiveChange(character, patch.active_objective);
       if (patch.append_events !== undefined && !Array.isArray(patch.append_events)) throw new Error("append_events must be an array.");
       if (patch.relationships !== undefined && !Array.isArray(patch.relationships)) throw new Error("relationships must be an array.");
       const relationships = (patch.relationships as Record<string, unknown>[] | undefined)?.map(value => {
@@ -731,15 +743,15 @@ export class BrowserGameRuntime {
         if (!value || Object.keys(value).some(key => !["type", "summary"].includes(key))) throw new Error("Invalid event.");
         return { type: text(value.type, "type"), summary: text(value.summary, "summary") };
       }) ?? [];
+      if (objectiveMemory) events.push({ type: "objective", summary: objectiveMemory });
       const memory = fromJson(ConversationMemorySchema, { newEvents: events.filter(event => !scenario.events.some(existing =>
         existing.day === scenario.world?.day && existing.characterIds.includes(id) && existing.type === event.type && existing.summary === event.summary)),
         relationships, ...(patch.lore !== undefined ? { lore: text(patch.lore, "lore") } : {}) });
       const candidate = new MemoryGame(scenario);
       const committed = candidate.commitConversation(id, memory, false);
       if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
-      if (Object.hasOwn(patch, "current_goal")) {
-        const goal = patch.current_goal === null ? "" : text(patch.current_goal, "current_goal");
-        if (goal && !context.allowNextGoal) throw new Error("This run has reached its follow-up limit; set current_goal to null.");
+      if (Object.hasOwn(patch, "current_goal") || objectiveMemory) {
+        const goal = objectiveMemory ? character.currentGoal : patch.current_goal === null ? "" : text(patch.current_goal, "current_goal");
         const changed = candidate.updateCharacter(id, undefined, goal);
         if (!changed.ok) throw new Error("Unknown character.");
         const activity = this.#npcActivities[id];

@@ -107,10 +107,11 @@ async function runBackground(next: { id: string; handoffs: number }) {
   const job = { id, controller: new AbortController(), participants: [id] }; background.set(id, job);
   const signal = job.controller.signal;
   let finalStatus = `${id}: idle.`;
+  let continueObjective = false;
   const valid = () => !signal.aborted && runtime === game && background.get(id) === job && !conversationHolds.has(id);
   try {
     for (let round = 0; round < 3 && valid(); round++) {
-      if (game.snapshot().npcActivities?.[id]?.reviewPending) await reviewBackground(game, id, signal, round < 2);
+      if (game.snapshot().npcActivities?.[id]?.reviewPending) await reviewBackground(game, id, signal, true);
       if (game.snapshot().npcActivities?.[id]?.status !== "active") break;
       let reason: "complete" | "unable" | "limit" = "limit", detail = "Reached the 24-action limit.";
       let finishGenerations: ExpectedGenerations | undefined;
@@ -156,10 +157,13 @@ async function runBackground(next: { id: string; handoffs: number }) {
         }
         if (result?.talkTarget) {
           const target = result.talkTarget;
-          if (conversationHolds.has(target)) continue;
+          const targetBusy = () => conversationHolds.has(target)
+            || [...background.values()].some(other => other !== job && other.participants.includes(target) && other.participants.length > 1);
+          if (targetBusy()) publishNpc(`${id}: waiting for ${target} to finish a conversation…`);
+          while (valid() && targetBusy()) await new Promise(resolve => setTimeout(resolve, 100));
+          if (!valid()) return;
           // A pair owns both participants until its review commits. Interrupt a
           // solo run, but never steal someone from another conversation.
-          if ([...background.values()].some(other => other !== job && other.participants.includes(target) && other.participants.length > 1)) continue;
           const interrupted = background.has(target);
           stopBackground(target);
           job.participants = [id, target];
@@ -196,8 +200,9 @@ async function runBackground(next: { id: string; handoffs: number }) {
       const expectedFinish = finishGenerations ?? generationIds(game.readResources([`character:${id}`]));
       await commitMutation(game, () => { signal.throwIfAborted(); game.finishNpcRun(id, reason, detail, expectedFinish); });
       publishNpc(`${id}: reviewing the result…`);
-      await reviewBackground(game, id, signal, round < 2);
+      await reviewBackground(game, id, signal, true);
     }
+    continueObjective = valid() && game.hasActiveObjective(id);
   } catch (error) {
     if (valid() && error instanceof GenerationConflict) {
       pendingNpcs.push({ id, handoffs });
@@ -210,7 +215,11 @@ async function runBackground(next: { id: string; handoffs: number }) {
       alertUser("error", finalStatus);
     }
   } finally {
-    if (background.get(id) === job) { background.delete(id); publishNpc(finalStatus); drainBackground(); }
+    if (background.get(id) === job) {
+      background.delete(id); publishNpc(finalStatus);
+      if (continueObjective && game.hasActiveObjective(id) && game.snapshot().npcActivities?.[id]?.status === "active") startBackground(id, handoffs);
+      drainBackground();
+    }
   }
 }
 

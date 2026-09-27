@@ -16,6 +16,63 @@ function game() {
 }
 const id = (runtime: BrowserGameRuntime, key: string) => runtime.readResources([key])[key]!.generationId;
 
+const objective = { action: "set", name: "Gather the court", status: "Garran agreed. Invite Lucan, then verify arrivals.",
+  success_criteria: "All delegates are in the Treasury ready to listen.", current_goal: "Talk to Lucan", reason: "Accepted the request" };
+const characterState = (runtime: BrowserGameRuntime) => (runtime.readResources(["character:corvin"])["character:corvin"]!.state as any);
+function objectiveWrite(runtime: BrowserGameRuntime, change: unknown, generation = id(runtime, "character:corvin")) {
+  return runtime.applyResourceReviewWrite("update_character", { character_id: "corvin", generation_id: generation,
+    changes: { active_objective: change } }, context);
+}
+
+test("objective plan and goal commit together, survive saves, and reject stale updates", () => {
+  const runtime = game(), previous = id(runtime, "character:corvin");
+  objectiveWrite(runtime, objective);
+  assert.equal(characterState(runtime).character.activeObjective.currentGoal, "Talk to Lucan");
+  const saved = runtime.snapshot();
+  const restored = game(); restored.restore(saved);
+  assert.equal(characterState(restored).character.activeObjective.status, objective.status);
+  assert.equal((objectiveWrite(runtime, { action: "drop", reason: "Stale decision" }, previous) as any).commit_result, "error");
+  assert.ok(runtime.hasActiveObjective("corvin"));
+  const generation = id(runtime, "character:corvin");
+  assert.throws(() => objectiveWrite(runtime, { ...objective, status: "" }), /status/);
+  assert.equal(id(runtime, "character:corvin"), generation);
+  assert.throws(() => runtime.applyResourceReviewWrite("update_character", {
+    character_id: "corvin", generation_id: generation, changes: { current_goal: null },
+  }, context), /active_objective/);
+  objectiveWrite(runtime, { action: "demote", reason: "No reachable willing delegates; defer." });
+  assert.equal(runtime.hasActiveObjective("corvin"), false);
+  assert.ok(characterState(runtime).character.objectives.includes(objective.name));
+  assert.equal(characterState(runtime).activity.status, "idle");
+});
+
+test("outcome review must continue or resolve an active objective, even after a run budget", async t => {
+  const runtime = game();
+  objectiveWrite(runtime, objective);
+  runtime.finishNpcRun("corvin", "complete", "Lucan agreed to attend; others still need invitations.");
+  const fork = runtime.forkForResourceReview(synchronousCommit);
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => {
+    calls++;
+    if (calls === 1) {
+      assert.ok(input.messages.some((m: any) => m.content?.includes("Completing a step")));
+      return call("finish_review", { summary: "Done with Lucan" });
+    }
+    if (calls === 2) {
+      assert.match(JSON.parse(input.messages.at(-1).content).reason, /next goal/);
+      return call("update_character", { character_id: "corvin", generation_id: world(input)["character:corvin"].generation_id,
+        changes: { active_objective: { ...objective, status: "Lucan agreed, but has not arrived. Invite Mara next; then verify arrivals.",
+          current_goal: "Talk to Mara", reason: "The invitation step succeeded, the gathering is unfinished." } } });
+    }
+    return call("finish_review", { summary: "Continue inviting delegates." });
+  });
+  await fork.reviewNpcOutcome("corvin", false);
+  assert.equal(calls, 3);
+  assert.equal(characterState(runtime).character.currentGoal, "Talk to Mara");
+  assert.equal(characterState(runtime).character.activeObjective.successCriteria, objective.success_criteria);
+  assert.equal(characterState(runtime).activity.status, "active");
+  assert.equal(characterState(runtime).activity.reviewPending, false);
+});
+
 test("resource tools have explicit single generation IDs, not a batch commit", () => {
   const tools = resourceReviewTools();
   assert.ok(!tools.some(t => t.function.name === "commit_review"));
