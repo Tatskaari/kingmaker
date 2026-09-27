@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
+import { create, fromJson, fromJsonString, toJson } from "@bufbuild/protobuf";
+import { ObjectStateSchema, ScenarioSchema } from "../packages/contracts/src/index.js";
+import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
 import { GenerationConflict, GenerationStore, generationIds } from "../packages/core/src/generations.js";
 
 test("generations isolate resources, survive saves, and detect ABA and deletion", () => {
@@ -30,4 +34,44 @@ test("conflicts return fresh state and require an explicit reconciled write", ()
   assert.match(conflict.response.instruction, /call the write tool again/);
   store.check(resources, generationIds(conflict.response.current), ["character:a"]);
   assert.throws(() => store.check(resources, {}, ["character:a"]), GenerationConflict);
+});
+
+function runtime() {
+  const game = new BrowserGameRuntime(fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")), "test");
+  game.createDevelopmentPlayer();
+  return game;
+}
+
+test("runtime inventories merge independently and reject stale writes atomically", () => {
+  const game = runtime();
+  const prepare = (id: string, itemId: string) => {
+    const expected = generationIds(game.readResources(["world:context", `character:${id}`, `actor:${id}`, `inventory:${id}`, `item:${itemId}`, `entity:${itemId}`]));
+    const before = game.snapshot(), fork = game.forkForNpc(), snapshot = fork.snapshot();
+    const scenario = fromJson(ScenarioSchema, snapshot.scenario);
+    scenario.world!.objects.push(create(ObjectStateSchema, { id: itemId, name: itemId, locationId: id }));
+    snapshot.scenario = toJson(ScenarioSchema, scenario); fork.restore(snapshot);
+    return { before, fork, expected };
+  };
+  const first = prepare("corvin", "first_note"), second = prepare("mara", "second_note");
+  game.commitCharacterFork(first.before, first.fork, ["corvin"], first.expected);
+  game.commitCharacterFork(second.before, second.fork, ["mara"], second.expected);
+  const saved = game.snapshot();
+  assert.ok(fromJson(ScenarioSchema, saved.scenario).world!.objects.some(item => item.id === "first_note"));
+  assert.ok(fromJson(ScenarioSchema, saved.scenario).world!.objects.some(item => item.id === "second_note"));
+  assert.throws(() => game.commitCharacterFork(first.before, first.fork, ["corvin"], first.expected), GenerationConflict);
+  assert.deepEqual(game.snapshot(), saved);
+});
+
+test("physical movement and reset advance the appropriate generations", () => {
+  const game = runtime(), initial = game.readResources();
+  const start = (initial["actor:player"]!.state as any).position;
+  game.movePlayer({ x: 15, y: 24 });
+  game.movePlayer(start);
+  const moved = game.readResources();
+  assert.notEqual(moved["actor:player"]!.generationId, initial["actor:player"]!.generationId);
+  assert.equal(moved["character:player"]!.generationId, initial["character:player"]!.generationId);
+  const saved = game.snapshot(); game.restore(saved);
+  assert.deepEqual(game.readResources(), moved);
+  game.resetCharacters();
+  assert.notEqual(game.readResources()["character:corvin"]!.generationId, initial["character:corvin"]!.generationId);
 });

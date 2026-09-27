@@ -131,7 +131,7 @@ async function drainBackground() {
             if (conversationHolds.size) continue;
             await fork.initiatePlayerConversation(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
             if (conversationHolds.size) continue;
-            try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id], true); }); }
+            try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id], undefined, true); }); }
             catch (error) { if (!valid()) return; if (/changed/i.test(String(error))) continue; throw error; }
             conversationHolds.add(id);
             publishNpc(`${id}: started a conversation with you.`, undefined, id);

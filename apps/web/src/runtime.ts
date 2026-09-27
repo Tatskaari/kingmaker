@@ -1,4 +1,6 @@
 import { RECONCILIATION_INSTRUCTIONS, reconciliationTools, applyReconciliationTool } from "./gm-reconciliation.js";
+import { GenerationStore, type Generations, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
+import { stateResources } from "./state-resources.js";
 import { InvalidModelJsonError, parseModelObject } from "../../../packages/providers/src/structured-output.js";
 import { validateIdentity, type TravellerIdentity } from "./introduction.js";
 import { DIALOGUE_MODEL, REASONING_MODEL } from "./model-settings.js";
@@ -47,6 +49,7 @@ export interface WitnessedIllegalAction {
 }
 
 export interface RuntimeSnapshot {
+  generations?: Generations;
   travellerIdentity?: TravellerIdentity;
   npcActivities?: Record<string, NpcActivity>;
   scenario: JsonValue;
@@ -190,6 +193,7 @@ function text(value: unknown, field: string): string {
 }
 
 export class BrowserGameRuntime {
+  #generations = new GenerationStore();
   readonly #initialScenario: Scenario;
   #game: MemoryGame;
   #client: OpenRouterClient;
@@ -226,6 +230,7 @@ export class BrowserGameRuntime {
   }
 
   reset(): void {
+    this.#generations = new GenerationStore();
     this.#travellerIdentity = undefined;
     this.#npcActivities = {};
     this.#game = new MemoryGame(this.#initialScenario);
@@ -239,6 +244,7 @@ export class BrowserGameRuntime {
   }
 
   restore(snapshot: RuntimeSnapshot): void {
+    this.#generations = new GenerationStore(snapshot.generations);
     this.#travellerIdentity = snapshot.travellerIdentity ? validateIdentity(snapshot.travellerIdentity) : undefined;
     this.#npcActivities = structuredClone(snapshot.npcActivities || {});
     this.#game = new MemoryGame(fromJson(ScenarioSchema, snapshot.scenario));
@@ -254,7 +260,9 @@ export class BrowserGameRuntime {
   }
 
   snapshot(): RuntimeSnapshot {
+    this.readResources();
     return {
+      generations: this.#generations.snapshot(),
       ...(this.#travellerIdentity ? { travellerIdentity: { ...this.#travellerIdentity } } : {}),
       npcActivities: structuredClone(this.#npcActivities),
       scenario: toJson(ScenarioSchema, this.#game.scenario(), { alwaysEmitImplicit: true }),
@@ -268,6 +276,21 @@ export class BrowserGameRuntime {
         messages.map(message => toJson(TranscriptMessageSchema, message, { alwaysEmitImplicit: true })),
       ])),
     };
+  }
+
+  #resources() {
+    return stateResources(this.#game.scenario(), this.#npcActivities,
+      Object.fromEntries([...this.#conversations].map(([id, messages]) => [id, {
+        messages, replies: this.#conversationReplyOptions[id], ended: this.#conversationEndRequested[id],
+      }])));
+  }
+
+  readResources(keys?: string[]) { return this.#generations.read(this.#resources(), keys); }
+
+  #setGame(game: MemoryGame) {
+    this.readResources();
+    this.#game = game;
+    this.readResources();
   }
 
   async talkToGameMaster(messageText: string): Promise<string> {
@@ -466,7 +489,7 @@ export class BrowserGameRuntime {
     const staged = new MemoryGame(scenario);
     const committed = staged.commitConversation(characterId, memory);
     if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
-    this.#game = staged;
+    this.#setGame(staged);
     this.#npcActivities[characterId] = { status: memory.goalUpdate ? "active" : "idle", goal: memory.goalUpdate?.goal ?? scenario.characters.find(item => item.id === characterId)!.currentGoal, history: [] };
     this.#conversations.delete(characterId);
     delete this.#conversationReplyOptions[characterId];
@@ -486,7 +509,7 @@ export class BrowserGameRuntime {
     if (!world.rooms.some(existing => existing.id === room.id)) throw new Error("Destination room is missing from the authored world.");
     actor.roomId = room.id; world.revision++;
     actor.position = create(TilePositionSchema, destination);
-    this.#game = new MemoryGame(scenario);
+    this.#setGame(new MemoryGame(scenario));
   }
 
   async planNpc(characterId: string, signal: AbortSignal) {
@@ -524,9 +547,17 @@ export class BrowserGameRuntime {
       .flatMap(event => event.characterIds))].filter(id => this.#npcActivities[id]?.status === "active");
   }
 
-  commitCharacterFork(before: RuntimeSnapshot, fork: BrowserGameRuntime, characterIds: string[], requireUnchangedConversations = false): void {
+  commitCharacterFork(before: RuntimeSnapshot, fork: BrowserGameRuntime, characterIds: string[], expected?: ExpectedGenerations, requireUnchangedConversations = false): void {
     const base = fromJson(ScenarioSchema, before.scenario), current = this.#game.scenario(), next = fork.#game.scenario();
     const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+    const baseResources = stateResources(base, before.npcActivities ?? {}, {});
+    const nextResources = fork.#resources();
+    const changed = [...new Set([...Object.keys(baseResources), ...Object.keys(nextResources)])].filter(key =>
+      !same(baseResources[key], nextResources[key]) && !key.startsWith("character:"));
+    const affected = new Set([...characterIds, ...next.events.slice(base.events.length).flatMap(event =>
+      event.visibility === EventVisibility.PUBLIC ? current.characters.map(c => c.id) : event.characterIds)]);
+    const required = ["world:context", ...[...affected].map(id => `character:${id}`), ...characterIds.map(id => `actor:${id}`), ...changed];
+    if (expected) this.#generations.check(this.#resources(), expected, required);
     if (!current.world || !base.world || !next.world || current.world.phase !== base.world.phase) throw new Error("World changed; retry NPC review.");
     if (requireUnchangedConversations && !same(this.snapshot().conversations, before.conversations)) throw new Error("Conversation changed; retry NPC review.");
     for (const id of characterIds) {
@@ -537,8 +568,12 @@ export class BrowserGameRuntime {
         || !same(this.snapshot().conversations[id], before.conversations[id])) throw new Error("Character changed; retry NPC review.");
     }
     const objectsChanged = !same(base.world.objects, next.world.objects);
-    if (objectsChanged && (!same(current.world.objects, base.world.objects) || !same(current.world.fixtures, base.world.fixtures))) throw new Error("World changed; retry GM reconciliation.");
-    if (objectsChanged) current.world.objects = next.world.objects;
+    if (objectsChanged && !expected && (!same(current.world.objects, base.world.objects) || !same(current.world.fixtures, base.world.fixtures))) throw new Error("World changed; retry GM reconciliation.");
+    if (objectsChanged) {
+      const changedIds = new Set([...base.world.objects, ...next.world.objects].map(item => item.id).filter(id =>
+        !same(base.world!.objects.find(item => item.id === id), next.world!.objects.find(item => item.id === id))));
+      current.world.objects = [...current.world.objects.filter(item => !changedIds.has(item.id)), ...next.world.objects.filter(item => changedIds.has(item.id))];
+    }
     // Never replace an unrelated player's move, inventory, conversation or memory.
     for (const id of characterIds) {
       const character = next.characters.find(c => c.id === id)!;
@@ -570,7 +605,7 @@ export class BrowserGameRuntime {
       this.#npcActivities[id] = { status: "active", goal, history: [] };
     }
     current.world.revision++;
-    this.#game = new MemoryGame(current);
+    this.#setGame(new MemoryGame(current));
   }
 
   /** Advance at most one tile, validating the current path on every tick. */
@@ -589,7 +624,7 @@ export class BrowserGameRuntime {
     if (next) {
       const actor = scenario.world!.actors.find(a => a.characterId === characterId)!;
       actor.position = create(TilePositionSchema, next); actor.roomId = courtRoomAt(next)?.id ?? actor.roomId;
-      scenario.world!.revision++; this.#game = new MemoryGame(scenario);
+      scenario.world!.revision++; this.#setGame(new MemoryGame(scenario));
     }
     return action.type === "talk" && action.path.length <= 2 ? { done: true, talkTarget: action.target } : { done: false };
   }
@@ -612,7 +647,7 @@ export class BrowserGameRuntime {
     let message = action.description;
     if (action.type === "door") world.doors.find(door => door.id === action.target)!.open = action.open!;
     if (action.type === "fixture") message = applyFixtureAction(scenario, characterId, action.id);
-    world.revision++; this.#game = new MemoryGame(scenario);
+    world.revision++; this.#setGame(new MemoryGame(scenario));
     activity.history.push(message);
     return message;
   }
@@ -674,7 +709,7 @@ export class BrowserGameRuntime {
       if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
       updates[id] = { status: memory.goalUpdate ? "active" : "idle", goal: memory.goalUpdate?.goal ?? scenario.characters.find(item => item.id === id)!.currentGoal, history: [summary] };
     }
-    this.#game = staged;
+    this.#setGame(staged);
     Object.assign(this.#npcActivities, updates);
     return summary;
   }
@@ -717,12 +752,14 @@ export class BrowserGameRuntime {
   }
 
   finishNpcRun(characterId: string, reason: NonNullable<NpcActivity["result"]>["reason"], detail: string): void {
+    this.readResources();
     const activity = this.#npcActivities[characterId];
     if (!activity || activity.status !== "active") throw new Error("NPC has no active run to finish.");
     if (!["complete", "unable", "error", "limit", "cancelled"].includes(reason)) throw new Error("Invalid termination reason.");
     activity.status = "idle";
     activity.result = { reason, detail: detail.slice(0, 2000) };
     activity.reviewPending = true;
+    this.readResources();
   }
 
   async reviewNpcOutcome(characterId: string, allowNextGoal = true, signal?: AbortSignal): Promise<void> {
@@ -744,13 +781,14 @@ export class BrowserGameRuntime {
     const staged = new MemoryGame(scenario);
     const committed = staged.commitConversation(characterId, memory, false);
     if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
-    this.#game = staged;
+    this.#setGame(staged);
     activity.reviewPending = false;
     if (!memory.goalUpdate) activity.goal = "";
     if (memory.goalUpdate && allowNextGoal) this.#npcActivities[characterId] = { status: "active", goal: memory.goalUpdate.goal, history: [] };
   }
 
   resetCharacters(): void {
+    this.#generations = new GenerationStore();
     const current = this.#game.scenario();
     if (!current.playerCharacterId || !current.world) throw new Error("Create your character before resetting the NPCs.");
     const initial = fromJson(ScenarioSchema, toJson(ScenarioSchema, this.#initialScenario));
@@ -758,7 +796,7 @@ export class BrowserGameRuntime {
       ? character : initial.characters.find(item => item.id === character.id) ?? character);
     current.events = initial.events;
     current.world.revision++;
-    this.#game = new MemoryGame(current);
+    this.#setGame(new MemoryGame(current));
     this.#npcActivities = {};
     this.#conversations.clear();
     this.#conversationReplyOptions = {};
@@ -766,6 +804,7 @@ export class BrowserGameRuntime {
   }
 
   resetWorld(): void {
+    this.#generations = new GenerationStore();
     const current = this.#game.scenario();
     if (!current.playerCharacterId || !current.world) throw new Error("Create your character before resetting the world.");
     const initial = fromJson(ScenarioSchema, toJson(ScenarioSchema, this.#initialScenario));
@@ -783,7 +822,7 @@ export class BrowserGameRuntime {
     this.#npcActivities = {};
     current.world = world;
     current.courtArrivalPlacements = initial.courtArrivalPlacements;
-    this.#game = new MemoryGame(current);
+    this.#setGame(new MemoryGame(current));
   }
 
   interactFixture(actionId: string): string {
@@ -804,7 +843,7 @@ export class BrowserGameRuntime {
     }
     const result = applyFixtureAction(scenario, actorId, actionId);
     world.revision++;
-    this.#game = new MemoryGame(scenario);
+    this.#setGame(new MemoryGame(scenario));
     return result;
   }
 
@@ -868,7 +907,7 @@ export class BrowserGameRuntime {
     if (!open && world.actors.some(actor => actor.position && door.tiles.some(tile => tile.x === actor.position!.x && tile.y === actor.position!.y))) {
       throw new Error("Someone is standing in the doorway.");
     }
-    door.open = open; world.revision++; this.#game = new MemoryGame(scenario);
+    door.open = open; world.revision++; this.#setGame(new MemoryGame(scenario));
   }
 
   view(): JsonObject {
