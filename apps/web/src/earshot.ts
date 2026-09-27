@@ -26,7 +26,9 @@ export interface EarshotCharacter extends PositionedCharacter {
   level: "Clear" | "Moderate" | "Distant";
 }
 
-export const EARSHOT_DISTANCE = 6;
+export const CLEAR_EARSHOT_DISTANCE = 3;
+export const MODERATE_EARSHOT_DISTANCE = 6;
+export const EARSHOT_DISTANCE = 10;
 // Guidance for the later DM overhearing integration; not player-facing copy.
 export const EARSHOT_DESCRIPTIONS = {
   Clear: "Can hear the conversation clearly.",
@@ -61,7 +63,8 @@ export function charactersWithinEarshot(
     .filter(character => character.distance <= maximumDistance)
     .map((character): EarshotCharacter => ({
       ...character,
-      level: character.distance <= 1 ? "Clear" : character.distance <= 3 ? "Moderate" : "Distant",
+      level: character.distance <= CLEAR_EARSHOT_DISTANCE ? "Clear"
+        : character.distance <= MODERATE_EARSHOT_DISTANCE ? "Moderate" : "Distant",
     }))
     .sort((a, b) => a.distance - b.distance || a.name.localeCompare(b.name));
 }

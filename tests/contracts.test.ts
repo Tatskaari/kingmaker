@@ -52,19 +52,20 @@ test("earshot uses tile distance and excludes the conversation partner", () => {
     { id: "near", name: "Near", position: { x: 11, y: 11 } },
     { id: "unknown", name: "Unknown" },
   ]), [
-    { id: "near", name: "Near", position: { x: 11, y: 11 }, distance: 2, level: "Moderate" },
-    { id: "edge", name: "Edge", position: { x: 16, y: 10 }, distance: EARSHOT_DISTANCE, level: "Distant" },
+    { id: "near", name: "Near", position: { x: 11, y: 11 }, distance: 2, level: "Clear" },
+    { id: "edge", name: "Edge", position: { x: 20, y: 10 }, distance: EARSHOT_DISTANCE, level: "Distant" },
   ]);
 });
 
 test("earshot levels cover each distance boundary", () => {
   const speaker = { id: "speaker", name: "Speaker", position: { x: 0, y: 0 } };
-  const listeners = Array.from({ length: 8 }, (_, distance) => ({
+  const listeners = Array.from({ length: 12 }, (_, distance) => ({
     id: `listener-${distance}`, name: `Listener ${distance}`, position: { x: distance, y: 0 },
   }));
   assert.deepEqual(charactersWithinEarshot(speaker, listeners).map(({ distance, level }) => [distance, level]), [
-    [0, "Clear"], [1, "Clear"], [2, "Moderate"], [3, "Moderate"],
-    [4, "Distant"], [5, "Distant"], [6, "Distant"],
+    [0, "Clear"], [1, "Clear"], [2, "Clear"], [3, "Clear"],
+    [4, "Moderate"], [5, "Moderate"], [6, "Moderate"],
+    [7, "Distant"], [8, "Distant"], [9, "Distant"], [10, "Distant"],
   ]);
 });
 
@@ -623,7 +624,7 @@ test("earshot dice gate event perception before Jev sees it", async t => {
   });
   const scenario = conversationScenario();
   scenario.world!.actors.find(actor => actor.characterId === "corvin")!.position = create(TilePositionSchema, { x: 12, y: 24 });
-  scenario.world!.actors.find(actor => actor.characterId === "garran")!.position = create(TilePositionSchema, { x: 15, y: 24 });
+  scenario.world!.actors.find(actor => actor.characterId === "garran")!.position = create(TilePositionSchema, { x: 17, y: 24 });
   const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, () => 0);
   const event = runtime.worldEvent("having a conversation", "Corvin proposed a secret succession bargain.", ["corvin"]);
   const perceived = await runtime.assessWorldEvent(event, new AbortController().signal);
@@ -635,7 +636,8 @@ test("earshot dice gate event perception before Jev sees it", async t => {
   assert.deepEqual({ observed: observedTrace.observed, level: observedTrace.level, jevDecision: observedTrace.jevDecision },
     { observed: true, level: "Moderate", jevDecision: "process" });
   const missed = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, () => 0.99);
-  assert.deepEqual((await missed.assessWorldEvent(event, new AbortController().signal)).reactions, []);
+  const missedAssessment = await missed.assessWorldEvent(event, new AbortController().signal);
+  assert.equal(missedAssessment.reactions.some(reaction => reaction.characterId === "garran"), false);
   const missedTrace = (missed.debugCharacter("garran").eventFeed as any[]).find(item => item.eventId === event.id)!;
   assert.deepEqual({ observed: missedTrace.observed, level: missedTrace.level, jevDecision: missedTrace.jevDecision },
     { observed: false, level: "Moderate", jevDecision: "not_consulted" });
