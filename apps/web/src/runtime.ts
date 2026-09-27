@@ -1,6 +1,7 @@
 import { RECONCILIATION_INSTRUCTIONS, reconciliationTools, applyReconciliationTool } from "./gm-reconciliation.js";
 import { GenerationStore, type Generations, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 import { stateResources } from "./state-resources.js";
+import { applyCharacterReview, type CharacterReview, type ReviewKind } from "./character-review.js";
 import { InvalidModelJsonError, parseModelObject } from "../../../packages/providers/src/structured-output.js";
 import { validateIdentity, type TravellerIdentity } from "./introduction.js";
 import { DIALOGUE_MODEL, REASONING_MODEL } from "./model-settings.js";
@@ -194,6 +195,8 @@ function text(value: unknown, field: string): string {
 
 export class BrowserGameRuntime {
   #generations = new GenerationStore();
+  #lastReview: CharacterReview | undefined;
+  #reviewRequest: ChatCompletionRequest | undefined;
   readonly #initialScenario: Scenario;
   #game: MemoryGame;
   #client: OpenRouterClient;
@@ -389,7 +392,9 @@ export class BrowserGameRuntime {
     return utterance;
   }
 
-  async #reconcile(kind: ModelCallKind, characterId: string, scenario: Scenario, participants: string[], request: ChatCompletionRequest, signal?: AbortSignal) {
+  async #reconcile(kind: ReviewKind, characterId: string, scenario: Scenario, participants: string[], request: ChatCompletionRequest, signal?: AbortSignal) {
+    const review: CharacterReview = { kind, participants, output: {}, worldChanges: [], eligibleListeners: [], allowNextGoal: true };
+    this.#lastReview = review;
     const cancelled = new Map<string, string>();
     const earshotContext: OpenRouterMessage[] = [];
     let eligibleListeners: string[] = [];
@@ -427,12 +432,13 @@ export class BrowserGameRuntime {
       ...earshotContext,
       ...request.messages.slice(-1),
     ];
+    review.eligibleListeners = eligibleListeners;
+    this.#reviewRequest = { ...request, messages };
     for (let round = 0; round < 5; round++) {
       signal?.throwIfAborted();
       const reply = await this.#complete(kind, characterId, { ...request, messages: [...messages], tools: reconciliationTools }, signal);
       signal?.throwIfAborted();
       if (!reply.tool_calls?.length) {
-        if (!cancelled.size) return reply;
         const output = parseModelObject(reply.content, "GM reconciliation");
         for (const [id, reason] of cancelled) {
           const memory = participants.length === 1 ? output : output[id === participants[0] ? "initiator" : "recipient"];
@@ -440,7 +446,10 @@ export class BrowserGameRuntime {
           memory.goalUpdate = null;
           memory.newEvents.push({ type: "task_cancelled", summary: reason });
         }
-        return { ...reply, content: JSON.stringify(output) };
+        review.output = output;
+        const final = { ...reply, content: JSON.stringify(output) };
+        messages.push(final);
+        return final;
       }
       if (reply.tool_calls.length > 8) throw new Error("Too many GM world changes in one review");
       messages.push(reply);
@@ -452,7 +461,9 @@ export class BrowserGameRuntime {
             const player = { id: scenario.playerCharacterId ?? "", name: "Player", position: scenario.world?.actors.find(actor => actor.characterId === scenario.playerCharacterId)?.position };
             if (!courtCharactersWithinEarshot(speaker, [player], scenario.world?.doors, scenario.world?.fixtures).length) throw new Error("The player is out of earshot; no overheard message may be sent.");
           }
-          result = applyReconciliationTool(scenario, participants, cancelled, call.function.name, parseModelObject(call.function.arguments, "GM tool"), eligibleListeners);
+          const args = parseModelObject(call.function.arguments, "GM tool");
+          result = applyReconciliationTool(scenario, participants, cancelled, call.function.name, args, eligibleListeners);
+          review.worldChanges.push({ name: call.function.name, arguments: args });
         }
         catch (error) { result = { error: error instanceof Error ? error.message : String(error) }; }
         messages.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result) });
@@ -477,23 +488,22 @@ export class BrowserGameRuntime {
         { role: "user", content: JSON.stringify(transcript.map(message => ({ speakerId: message.speakerId, text: message.text }))) },
       ],
     });
-    if (!completion.content) throw new Error("Character returned no conversation memory");
-    // Protobuf parsing rejects malformed output before any memory is committed.
-    const parsed = parseModelObject(completion.content, "Conversation review");
-    if (!parsed || !Array.isArray(parsed.newEvents) || !Array.isArray(parsed.relationships)
-      || !("goalUpdate" in parsed) || !("lore" in parsed)) {
-      throw new Error("Character returned incomplete conversation memory");
+    this.#applyReview(scenario);
+  }
+
+  #applyReview(scenario: Scenario) {
+    const review = this.#lastReview;
+    if (!review) throw new Error("No character review is available.");
+    const result = applyCharacterReview(scenario, review, this.#npcActivities);
+    this.#setGame(result.game);
+    Object.assign(this.#npcActivities, result.updates);
+    if (review.kind === "conversation_review") for (const id of review.participants) {
+      this.#conversations.delete(id);
+      delete this.#conversationReplyOptions[id];
+      delete this.#conversationEndRequested[id];
     }
-    const memory = fromJson(ConversationMemorySchema, parsed as JsonValue);
-    if (!memory.goalUpdate) scenario.characters.find(item => item.id === characterId)!.currentGoal = "";
-    const staged = new MemoryGame(scenario);
-    const committed = staged.commitConversation(characterId, memory);
-    if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
-    this.#setGame(staged);
-    this.#npcActivities[characterId] = { status: memory.goalUpdate ? "active" : "idle", goal: memory.goalUpdate?.goal ?? scenario.characters.find(item => item.id === characterId)!.currentGoal, history: [] };
-    this.#conversations.delete(characterId);
-    delete this.#conversationReplyOptions[characterId];
-    delete this.#conversationEndRequested[characterId];
+    this.readResources();
+    return result.summary;
   }
 
   movePlayer(destination: Point): void {
@@ -694,24 +704,7 @@ export class BrowserGameRuntime {
           surroundings: courtAgentObservation(scenario, characterId).world }) }],
     }, signal);
     valid();
-    const result = parseModelObject(resolution.content, "NPC conversation review");
-    const summary = text(result?.summary, "summary");
-    for (const [id, output] of [[characterId, result.initiator], [action.target, result.recipient]] as const) {
-      if (output && typeof output === "object" && !Array.isArray(output) && output.goalUpdate === null) scenario.characters.find(c => c.id === id)!.currentGoal = "";
-    }
-    const staged = new MemoryGame(scenario);
-    const updates: Record<string, NpcActivity> = {};
-    for (const [id, output] of [[characterId, result.initiator], [action.target, result.recipient]] as const) {
-      if (!output || typeof output !== "object" || Array.isArray(output) || !Array.isArray(output.newEvents) || !Array.isArray(output.relationships) || !("goalUpdate" in output) || !("lore" in output)) throw new Error("Incomplete NPC conversation memory.");
-      const memory = fromJson(ConversationMemorySchema, output);
-      memory.newEvents.push(create(EventSchema, { type: "npc_conversation", summary }));
-      const committed = staged.commitConversation(id, memory, false);
-      if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
-      updates[id] = { status: memory.goalUpdate ? "active" : "idle", goal: memory.goalUpdate?.goal ?? scenario.characters.find(item => item.id === id)!.currentGoal, history: [summary] };
-    }
-    this.#setGame(staged);
-    Object.assign(this.#npcActivities, updates);
-    return summary;
+    return text(this.#applyReview(scenario), "summary");
   }
 
   async initiatePlayerConversation(characterId: string, actionId: string, revision: number, goal: string, signal: AbortSignal): Promise<string> {
@@ -774,17 +767,8 @@ export class BrowserGameRuntime {
         { role: "user", content: JSON.stringify({ goal: activity.goal, actionsPerformed: activity.history, result: activity.result, observations: courtAgentObservation(scenario, characterId).world }) }],
     }, signal);
     signal?.throwIfAborted();
-    const parsed = parseModelObject(completion.content, "NPC outcome review");
-    if (!parsed || !Array.isArray(parsed.newEvents) || !Array.isArray(parsed.relationships) || !("goalUpdate" in parsed) || !("lore" in parsed)) throw new Error("NPC returned incomplete outcome memory.");
-    const memory = fromJson(ConversationMemorySchema, parsed);
-    if (!memory.goalUpdate) scenario.characters.find(item => item.id === characterId)!.currentGoal = "";
-    const staged = new MemoryGame(scenario);
-    const committed = staged.commitConversation(characterId, memory, false);
-    if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
-    this.#setGame(staged);
-    activity.reviewPending = false;
-    if (!memory.goalUpdate) activity.goal = "";
-    if (memory.goalUpdate && allowNextGoal) this.#npcActivities[characterId] = { status: "active", goal: memory.goalUpdate.goal, history: [] };
+    this.#lastReview!.allowNextGoal = allowNextGoal;
+    this.#applyReview(scenario);
   }
 
   resetCharacters(): void {
