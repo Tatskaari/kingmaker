@@ -5,7 +5,7 @@ import { AlertLog } from "../apps/web/src/alerts.js";
 import { courtAgentObservation } from "../apps/web/src/court-agent.js";
 import { doorActionLegality } from "../packages/core/src/access.js";
 import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
-import { courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath, courtInteractionPoint, nearestDoorSpot } from "../apps/web/src/court-map.js";
+import { courtCameraScroll, courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath, courtInteractionPoint, nearestDoorSpot } from "../apps/web/src/court-map.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { createContext, runInContext } from "node:vm";
@@ -925,6 +925,13 @@ test("mid-walk redirection preserves the current visual position and rejects blo
   assert.deepEqual(again.at(-1), { x: 15, y: 21 });
   const stop = redirectCourtPath(original, 3, original[3]!)!;
   assert.equal(stop.length, 1);
+});
+
+test("court camera follows the player while clamping at map edges", () => {
+  assert.deepEqual(courtCameraScroll({ x: 15.5, y: 18.5 }, 768, 912, 400, 500), { x: 184, y: 206 });
+  assert.deepEqual(courtCameraScroll({ x: 0, y: 0 }, 768, 912, 400, 500), { x: 0, y: 0 });
+  assert.deepEqual(courtCameraScroll({ x: 31, y: 37 }, 768, 912, 400, 500), { x: 368, y: 412 });
+  assert.deepEqual(courtCameraScroll({ x: 15, y: 18 }, 320, 380, 400, 500), { x: 0, y: 0 });
 });
 
 
