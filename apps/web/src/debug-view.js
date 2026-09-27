@@ -12,7 +12,7 @@ const eventFeed = items => card("Events in earshot", list(items, item => {
       : item.jevDecision === "pending" ? "Decision pending"
         : item.jevDecision === "error" ? `Decision failed: ${item.jevError || "Unknown error"}`
           : "Not consulted — perception roll failed";
-  return `<span class="debug-meta">Day ${escape(item.day)} · ${escape(item.level)} earshot</span><strong>${escape(item.kind)}</strong><p>${escape(item.summary)}</p>${facts([["Observed", item.observed ? "Yes" : "No"], ["Jev", decision]])}`;
+  return `<span class="debug-meta">Day ${escape(item.day)} · ${escape(item.level)} earshot</span><strong>${escape(item.kind)}</strong><p>${escape(item.summary)}</p>${item.perception && item.perception !== item.summary ? `<h4>Jev perceived</h4><p>${escape(item.perception)}</p>` : ""}${facts([["Observed", item.observed ? "Yes" : "No"], ["Legality", item.legality || "Not specified"], ["Owner", item.ownerName || "Not specified"], ["Jev", decision]])}`;
 }, "No world events have happened within this character's earshot during this loaded session."));
 
 function characterCard(character, name) {

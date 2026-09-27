@@ -643,6 +643,28 @@ test("earshot dice gate event perception before Jev sees it", async t => {
     { observed: false, level: "Moderate", jevDecision: "not_consulted" });
 });
 
+test("clear event decisions include ownership, legality, relationship and background", async t => {
+  const decisions: any[] = [];
+  t.mock.method(JevClient.prototype, "choose", async (state: unknown) => {
+    decisions.push(state); return { choice: "ignore", probabilities: { process: 0.1, ignore: 0.9 } };
+  });
+  const scenario = conversationScenario();
+  scenario.world!.actors.find(actor => actor.characterId === "corvin")!.position = create(TilePositionSchema, { x: 12, y: 24 });
+  scenario.world!.actors.find(actor => actor.characterId === "garran")!.position = create(TilePositionSchema, { x: 13, y: 24 });
+  const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, () => 0);
+  const event = runtime.worldEvent("taking an item", "Corvin stole the king's silver spoon.", ["corvin"], {
+    legality: "illegal", ownerCharacterId: "king", ownerName: "King Aldren", itemName: "Silver spoon",
+  });
+  await runtime.assessWorldEvent(event, new AbortController().signal);
+  const state = decisions.find(decision => decision.characterContext.character.id === "garran");
+  assert.equal(state.perceivedEvent.relevantContext.actionLegality, "illegal");
+  assert.deepEqual(state.perceivedEvent.relevantContext.owner, { characterId: "king", name: "King Aldren" });
+  assert.equal(state.perceivedEvent.relevantContext.relationshipToOwner,
+    scenario.characters.find(character => character.id === "garran")!.relationships.find(relationship => relationship.characterId === "king")!.description);
+  assert.equal(state.perceivedEvent.relevantContext.characterBackground,
+    scenario.characters.find(character => character.id === "garran")!.lore);
+});
+
 test("the character model records perceived events and may interrupt its active objective", async t => {
   const runtime = new BrowserGameRuntime(conversationScenario(), "test");
   t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newNotes: ["I saw the envoy take Corvin's key."], relationships: [], lore: null,
@@ -1097,6 +1119,10 @@ test("player fixture interactions emit transient world events instead of durable
   assert.equal(result.event.kind, "interacting with an object");
   assert.deepEqual(result.event.participantIds, ["player"]);
   assert.deepEqual(result.event.position, create(TilePositionSchema, { x: 6, y: 5 }));
+  assert.equal(result.event.details?.legality, "illegal");
+  assert.equal(result.event.details?.ownerCharacterId, "corvin");
+  assert.equal(result.event.details?.ownerName, "Magister Corvin");
+  assert.match(result.event.summary, /stole Royal lockbox key from Magister Corvin/);
   assert.equal(fromJson(ScenarioSchema, runtime.snapshot().scenario).notes.length, fromJson(ScenarioSchema, before).notes.length);
 });
 
@@ -1117,6 +1143,8 @@ test("NPC interactions emit the same transient world event shape", () => {
   assert.equal(result.worldEvent?.participantIds[0], "corvin");
   assert.equal(result.worldEvent?.kind, "fixture");
   assert.match(result.worldEvent?.summary ?? "", /Royal lockbox key/);
+  assert.equal(result.worldEvent?.details?.legality, "illegal");
+  assert.equal(result.worldEvent?.details?.ownerCharacterId, "king");
 });
 
 test("trying locked containers needs the correct carried key and preserves concealed loot", () => {

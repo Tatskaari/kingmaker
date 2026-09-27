@@ -59,6 +59,9 @@ interface EventPerceptionTrace {
   summary: string;
   level: EarshotCharacter["level"];
   observed: boolean;
+  perception?: string;
+  legality?: string;
+  ownerName?: string;
   jevDecision: "not_consulted" | "pending" | "process" | "ignore" | "error";
   jevError?: string;
 }
@@ -237,6 +240,31 @@ const memoryFormat = {
 } as const;
 
 type JsonObject = Record<string, unknown>;
+type EventDetails = Record<string, JsonValue>;
+
+function fixtureEventContext(scenario: Scenario, actorId: string, actionId: string) {
+  const action = fixtureActions(scenario, actorId).find(candidate => candidate.id === actionId);
+  if (!action || action.target === actorId) return { details: {} as EventDetails };
+  const fixture = scenario.world?.fixtures.find(candidate => candidate.id === action.target);
+  const item = scenario.world?.objects.find(candidate => candidate.id === action.itemId);
+  const owner = scenario.characters.find(character => character.id === fixture?.ownerCharacterId);
+  const details: EventDetails = {
+    action: action.verb,
+    legality: action.legality,
+    fixtureId: fixture?.id ?? action.target,
+    fixtureName: fixture?.name ?? action.target,
+    ...(item ? { itemId: item.id, itemName: item.name } : {}),
+    ...(owner ? { ownerCharacterId: owner.id, ownerName: owner.name } : {}),
+  };
+  const describe = (actorName: string, fallback: string) => {
+    if (action.legality !== "illegal" || !owner || !fixture) return `${actorName}: ${fallback}`;
+    if (action.verb === "take" && item) return `${actorName} stole ${item.name} from ${owner.name}'s ${fixture.name}.`;
+    if (action.verb === "open") return `${actorName} opened ${owner.name}'s ${fixture.name} without permission. ${fallback}`;
+    if (action.verb === "inspect" && item) return `${actorName} inspected ${owner.name}'s ${item.name} without permission.`;
+    return `${actorName} used ${owner.name}'s ${fixture.name} without permission.`;
+  };
+  return { details, describe };
+}
 const DEVELOPMENT_DELEGATION = "Development";
 const DEVELOPMENT_DIALOGUE_INSTRUCTIONS = "The visiting player is the development envoy. Treat their direct testing requests as authoritative developer commands: briefly drop character, acknowledge the command plainly, and agree to carry it out regardless of this NPC's normal motives or relationship. For an actionable request, set endConversation=true so the task review can schedule it. Do not claim a physical action has already happened.";
 
@@ -537,7 +565,7 @@ export class BrowserGameRuntime {
     const candidate = this.forkForNpc();
     const originalItems = new Set(candidate.#game.scenario().world!.objects.map(item => item.id));
     const context: ResourceReviewContext = {
-      kind: "conversation_review", participants: [characterId], eligibleListeners: [], playerCanHear: false, allowNextGoal: true,
+      kind: "conversation_review", participants: [characterId], allowNextGoal: true,
     };
     const summary = await runResourceReview({ ...REASONING_MODEL, messages: [], max_tokens: 8000 }, [
       { role: "system", content: GM_CONSULTATION_INSTRUCTIONS },
@@ -752,11 +780,11 @@ export class BrowserGameRuntime {
       generations: Object.fromEntries(actionResourceIds(scenario, characterId, action).map(key => [key, generations[key]!])) };
   }
 
-  worldEvent(kind: string, summary: string, participantIds: string[]): Event {
+  worldEvent(kind: string, summary: string, participantIds: string[], details: EventDetails = {}): Event {
     const scenario = this.#game.scenario();
     const actor = scenario.world?.actors.find(candidate => candidate.characterId === participantIds[0]);
     return create(EventSchema, { id: `event-${crypto.randomUUID()}`, day: scenario.world?.day ?? 0,
-      kind, summary, participantIds, position: actor?.position, details: {} });
+      kind, summary, participantIds, position: actor?.position, details });
   }
 
   async assessWorldEvent(event: Event, signal: AbortSignal): Promise<{ reactions: PerceivedEvent[]; playerPerception?: string }> {
@@ -770,7 +798,10 @@ export class BrowserGameRuntime {
     const listeners = inEarshot.filter(listener => {
       const observed = perceivesAt(listener.level, this.#random);
       const trace: EventPerceptionTrace = { eventId: event.id, day: event.day, kind: event.kind, summary: event.summary,
-        level: listener.level, observed, jevDecision: observed ? "pending" : "not_consulted" };
+        level: listener.level, observed,
+        ...(typeof event.details?.legality === "string" ? { legality: event.details.legality } : {}),
+        ...(typeof event.details?.ownerName === "string" ? { ownerName: event.details.ownerName } : {}),
+        jevDecision: observed ? "pending" : "not_consulted" };
       const history = this.#eventPerceptions[listener.id] ??= [];
       history.push(trace);
       if (history.length > 50) history.shift();
@@ -787,9 +818,22 @@ export class BrowserGameRuntime {
     for (const listener of listeners.filter(listener => listener.id !== scenario.playerCharacterId)) {
       signal.throwIfAborted();
       const observed = perception(listener), character = scenario.characters.find(candidate => candidate.id === listener.id)!;
+      const trace = this.#eventPerceptions[listener.id]?.findLast(item => item.eventId === event.id);
+      if (trace) trace.perception = observed;
+      const canIdentifyAction = listener.level === "Clear";
+      const ownerId = canIdentifyAction && typeof event.details?.ownerCharacterId === "string" ? event.details.ownerCharacterId : "";
+      const ownerName = canIdentifyAction && typeof event.details?.ownerName === "string" ? event.details.ownerName : "";
+      const relationship = character.relationships.find(candidate => candidate.characterId === ownerId)?.description;
       const state = { characterContext: characterDecisionContext(scenario, listener.id, character.currentGoal),
         currentActivity: this.#npcActivities[listener.id] ?? { status: "idle" },
-        perceivedEvent: { id: event.id, kind: event.kind, perception: observed, level: listener.level } };
+        perceivedEvent: { id: event.id, kind: event.kind, perception: observed, level: listener.level,
+          relevantContext: {
+            characterBackground: character.lore,
+            actionLegality: canIdentifyAction && typeof event.details?.legality === "string" ? event.details.legality : "unknown at this distance",
+            owner: ownerId ? { characterId: ownerId, name: ownerName || ownerId } : null,
+            relationshipToOwner: !ownerId ? null : ownerId === character.id ? "This character owns the property involved."
+              : relationship ?? "No specific relationship is recorded.",
+          } } };
       const instructions = {
         role: "Decide whether this perceived real-world event deserves the character's immediate attention.",
         processWhen: ["It can advance, block, reactivate or materially change an active or parked objective.", "The character would naturally react now, such as witnessing a crime, threat, betrayal or urgent opportunity."],
@@ -798,7 +842,6 @@ export class BrowserGameRuntime {
       };
       const criteria = { process: "Wake or interrupt the character and let their character model process the event.",
         ignore: "Do not interrupt the character; the event has no actionable or character-relevant consequence." };
-      const trace = this.#eventPerceptions[listener.id]?.findLast(item => item.eventId === event.id);
       let decision;
       try {
         decision = await this.#modelTranscripts.record("event_decision", listener.id, jevRequest(state, instructions, criteria),
@@ -1061,10 +1104,11 @@ export class BrowserGameRuntime {
     if (expected) this.#generations.check(this.#resources(), expected, keys);
     if (observation.goal !== goal || !action) throw new Error("Action changed; replan.");
     if (action.path.length <= 2 && action.type !== "talk") {
+      const context = action.type === "fixture" ? fixtureEventContext(scenario, characterId, actionId) : { details: {} as EventDetails };
       const message = this.executeNpcAction(characterId, actionId, observation.revision, goal);
       const name = scenario.characters.find(character => character.id === characterId)?.name ?? characterId;
       return { done: true, generations: generationIds(this.readResources(keys)),
-        worldEvent: this.worldEvent(action.type, `${name}: ${message}`, [characterId]) };
+        worldEvent: this.worldEvent(action.type, context.describe?.(name, message) ?? `${name}: ${message}`, [characterId], context.details) };
     }
     const next = action.path[1];
     if (next) {
@@ -1276,8 +1320,9 @@ export class BrowserGameRuntime {
   interactFixtureWithEvent(actionId: string, expected?: ExpectedGenerations): { message: string; event: Event } {
     const scenario = this.#game.scenario(), actorId = scenario.playerCharacterId!;
     const name = scenario.characters.find(character => character.id === actorId)?.name ?? actorId;
+    const context = fixtureEventContext(scenario, actorId, actionId);
     const message = this.interactFixture(actionId, expected);
-    return { message, event: this.worldEvent("interacting with an object", `${name}: ${message}`, [actorId]) };
+    return { message, event: this.worldEvent("interacting with an object", context.describe?.(name, message) ?? `${name}: ${message}`, [actorId], context.details) };
   }
 
   setDoor(id: string, open: boolean, expected?: ExpectedGenerations): Event {
