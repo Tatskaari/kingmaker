@@ -24,7 +24,9 @@ apply effects.
 NPCs use reachable named waypoints plus combined door, container, take and talk
 actions. Talking to another NPC walks to an adjacent point, generates the
 initiator's request, then asks the GM to resolve both participants' memories and
-goals atomically. This does not simulate the player or transfer items by narration.
+goals atomically. NPCs can also approach the player and open an interactive
+conversation with their own first line and optional player replies. This does not
+simulate the player or transfer items by narration.
 
 One NPC runner executes in the Web Worker independently of player controls. Model
 requests and outcome reviews do not block player movement or interactions. The map

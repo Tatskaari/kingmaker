@@ -46,7 +46,7 @@ export function courtAgentObservation(scenario: Scenario, characterId: string) {
       description: `Walk ${path.length - 1} steps to the interaction spot, then ${action.label}.` });
   }
   for (const other of world.actors) {
-    if (other.characterId === characterId || other.characterId === scenario.playerCharacterId || !other.awake || !other.position) continue;
+    if (other.characterId === characterId || !other.awake || !other.position) continue;
     const target = scenario.characters.find(item => item.id === other.characterId);
     if (!target) continue;
     const position = other.position;
@@ -56,7 +56,7 @@ export function courtAgentObservation(scenario: Scenario, characterId: string) {
       .map(pathTo).filter((path): path is Point[] => !!path).sort((a, b) => a.length - b.length);
     const path = paths[0];
     if (path) actions.push({ id: `talk_${other.characterId}`, type: "talk", target: other.characterId, path,
-      description: `Walk ${path.length - 1} steps to ${target.name} and talk about your immediate goal. They may agree, refuse, or propose conditions; talking cannot transfer items or move them.` });
+      description: `Walk ${path.length - 1} steps to ${target.name} and initiate a conversation about your immediate goal. They may agree, refuse, or propose conditions; talking cannot transfer items or move them.` });
   }
   const known = worldForCharacter(world, characterId);
   return {

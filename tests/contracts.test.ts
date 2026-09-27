@@ -1251,14 +1251,15 @@ function talkingCourt() {
   snapshot.npcActivities = { corvin: { status: "active", goal: scenario.characters.find(item => item.id === "corvin")!.currentGoal, history: [] } };
   runtime.restore(snapshot);
   const observation = courtAgentObservation(scenario, "corvin");
-  const action = observation.actions.find(item => item.type === "talk")!;
+  const action = observation.actions.find(item => item.type === "talk" && item.target !== scenario.playerCharacterId)!;
   assert.ok(action);
   return { scenario, runtime, observation, action };
 }
 
 test("Jev receives reachable NPC talk actions, then both participants save private memories and goals", async t => {
   const { scenario, runtime, observation, action } = talkingCourt();
-  assert.ok(!observation.actions.some(item => item.id === "talk_player" || item.id === "talk_corvin"));
+  assert.ok(observation.actions.some(item => item.id === "talk_player"));
+  assert.ok(!observation.actions.some(item => item.id === "talk_corvin"));
   assert.throws(() => runtime.executeNpcAction("corvin", action.id, observation.revision, observation.goal), /resolution/);
   let calls = 0;
   t.mock.method(OpenRouterClient.prototype, "complete", async () => {
@@ -1278,6 +1279,31 @@ test("Jev receives reachable NPC talk actions, then both participants save priva
   assert.equal(events.length, 2);
   assert.ok(events.every(item => item.characterIds.length === 1 && !item.characterIds.includes("player")));
   assert.deepEqual(runtime.recentTranscripts().map(item => item.kind), ["npc_resolution", "npc_request"]);
+});
+
+test("NPCs can open a player conversation with their own dialogue and suggested replies", async t => {
+  const { scenario, runtime } = talkingCourt();
+  let observation = courtAgentObservation(fromJson(ScenarioSchema, runtime.snapshot().scenario), "corvin");
+  let playerAction = observation.actions.find(item => item.id === `talk_${scenario.playerCharacterId}`)!;
+  assert.ok(playerAction, "the player is offered as a reachable talk target");
+  while (playerAction.path.length > 2) {
+    runtime.stepNpcAction("corvin", playerAction.id, observation.goal);
+    observation = courtAgentObservation(fromJson(ScenarioSchema, runtime.snapshot().scenario), "corvin");
+    playerAction = observation.actions.find(item => item.id === `talk_${scenario.playerCharacterId}`)!;
+  }
+  t.mock.method(OpenRouterClient.prototype, "complete", async (_request: unknown) => modelReply({
+    utterance: "Envoy, a private word about the succession.",
+    replyOptions: ["Speak plainly.", "Not now."],
+    endConversation: false,
+  }));
+
+  const utterance = await runtime.initiatePlayerConversation("corvin", playerAction.id, observation.revision,
+    scenario.characters.find(item => item.id === "corvin")!.currentGoal, new AbortController().signal);
+
+  assert.equal(utterance, "Envoy, a private word about the succession.");
+  assert.deepEqual(runtime.view().conversations, { corvin: [{ role: "character", text: utterance }] });
+  assert.deepEqual(runtime.view().conversationReplyOptions, { corvin: ["Speak plainly.", "Not now."] });
+  assert.equal(runtime.snapshot().npcActivities?.corvin?.status, "active", "the NPC's task pauses until the conversation is reviewed");
 });
 
 test("NPC conversation validation and cancellation cannot partially update either character", async t => {
@@ -1717,7 +1743,7 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
   let receive!: (event: any) => void;
   let endDialogue!: () => void;
   const context = createContext({
-    URL, window: {}, newTraveller: () => ({}), updateCourtMap() {},
+    URL, window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
     document: {
       querySelector: (selector: string) => selector === "[data-end-conversation]"
         ? { addEventListener: (_type: string, callback: () => void) => { endDialogue = callback; } } : null,
@@ -1734,6 +1760,12 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
     .replaceAll("import.meta.url", JSON.stringify(import.meta.url))
     .replace(/if \(apiKey\) run\(\(\) => configure\(apiKey\)\);\s*else render\(\);/, "");
   runInContext(`${source}\nrender = () => {}; updateNpcPanel = () => {}; state = { revision: 1 }; activeCharacter = 'corvin'; bind();`, context);
+  runInContext("activeCharacter = null", context);
+  receive({ data: { type: "npc_update", activeSaveId: null, running: null, state: {
+    revision: 2, conversations: { mara: [{ role: "character", text: "A word, envoy." }] }, conversationEndRequested: {},
+  } } });
+  assert.equal(runInContext("activeCharacter", context), "mara", "a persisted NPC opening line opens even if the transient handoff event was missed");
+  runInContext("activeCharacter = 'corvin'; state = { revision: 2 }", context);
   endDialogue();
   assert.equal(runInContext("activeCharacter", context), null);
   assert.equal(runInContext("busy", context), false);
