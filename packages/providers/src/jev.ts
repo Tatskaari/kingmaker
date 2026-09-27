@@ -1,3 +1,5 @@
+import { recoverRateLimit } from "./rate-limit.js";
+
 /** OpenRouter Decisions API; criteria keys are the only permissible results. */
 export interface JevChoice { choice: string; probabilities: Record<string, number>; confidence?: number }
 export type JevInstructions = string | Record<string, unknown>;
@@ -11,12 +13,12 @@ export class JevClient {
     if (!this.apiKey.trim()) throw new Error("Enter your OpenRouter key first.");
     const request = jevRequest(state, instructions, criteria);
     this.onRequest?.(request);
-    const response = await this.http("https://openrouter.ai/api/alpha/decisions", {
+    const response = await recoverRateLimit(() => this.http("https://openrouter.ai/api/alpha/decisions", {
       method: "POST",
       headers: { Authorization: `Bearer ${this.apiKey.trim()}`, "Content-Type": "application/json", "X-Title": "Kingmaker Palace" },
       body: JSON.stringify(request),
       signal: AbortSignal.any([signal, AbortSignal.timeout(30_000)]),
-    });
+    }), signal);
     if (!response.ok) {
       let detail = "";
       try {
