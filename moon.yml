@@ -21,8 +21,13 @@ tasks:
     command: npx --no-install vite build
     inputs: ['apps/web/**/*', 'packages/**/*', 'content/**/*', 'vite.config.ts', 'package.json', 'package-lock.json']
     outputs: ['dist/web']
+  editorBuild:
+    deps: [contracts:generate]
+    command: npx --no-install vite build --config vite.editor.config.ts
+    inputs: ['apps/editor/**/*', 'apps/web/public/**/*', 'packages/**/*', 'vite.editor.config.ts', 'package.json', 'package-lock.json']
+    outputs: ['dist/editor']
   build:
-    deps: [compile, webBuild]
+    deps: [compile, webBuild, editorBuild]
   check:
     deps: [contracts:lint, typecheck, test]
   renderContexts:

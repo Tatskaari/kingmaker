@@ -473,3 +473,12 @@ comfort, or willingness; lack of prior agreement alone is insufficient.
 authored controls using the same captured character context. The first asks for
 advice Holt's lore says he offers (no roll); the second asks him to publicly name
 Aldren despite his established reluctance out of loyalty (persuasion).
+## Content editor
+
+The standalone WYSIWYG editor is built with `npm run build:editor` into
+`dist/editor`. Open the built app from any static host in Chrome or Edge, then
+choose `content/scenarios/last-night.json`. It edits that file directly through the
+browser File System Access API; no editor backend is required. Dirty documents
+save when a field or the window loses focus. The editor polls connected files
+while visible and reloads external changes automatically, unless that file also
+has unsaved editor changes, in which case it presents an explicit reload choice.

@@ -10,6 +10,7 @@
     "check": "proto run moon -- run workspace:check",
     "build": "proto run moon -- run workspace:build",
     "build:web": "vite build",
+    "build:editor": "vite build --config vite.editor.config.ts",
     "test": "proto run moon -- run workspace:test",
     "eval:unit": "tsx scripts/run-unit-eval.ts",
     "eval:jev": "tsx scripts/run-jev-world-eval.ts",

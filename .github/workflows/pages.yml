@@ -26,6 +26,8 @@ jobs:
       - run: npm ci
       - uses: actions/configure-pages@v5
       - run: npm run build:web
+      - run: npm run build:editor
+      - run: cp -R dist/editor dist/web/editor
       - uses: actions/upload-pages-artifact@v4
         with:
           path: dist/web
