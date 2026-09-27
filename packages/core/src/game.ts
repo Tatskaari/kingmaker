@@ -143,7 +143,7 @@ export class MemoryGame implements GameState {
     const character = this.#scenario.characters.find(item => item.id === characterId);
     if (!character) return failure("unknown_character", `Unknown character ${characterId}.`);
     if (lore) character.lore = lore;
-    if (currentGoal) character.currentGoal = currentGoal;
+    if (currentGoal !== undefined) character.currentGoal = currentGoal;
     return { ok: true, value: clone(CharacterSchema, character) };
   }
 

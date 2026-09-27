@@ -1,9 +1,14 @@
 import { RECONCILIATION_INSTRUCTIONS, reconciliationTools, applyReconciliationTool } from "./gm-reconciliation.js";
+import { GenerationConflict, GenerationStore, generationIds, type Generations, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
+import { stateResources } from "./state-resources.js";
+import { applyCharacterReview, type CharacterReview, type ReviewKind } from "./character-review.js";
+import { reviewWriteTools } from "./review-tools.js";
+import { resourceState, runResourceReview, type ResourceReviewContext } from "./resource-review.js";
 import { InvalidModelJsonError, parseModelObject } from "../../../packages/providers/src/structured-output.js";
 import { validateIdentity, type TravellerIdentity } from "./introduction.js";
 import { DIALOGUE_MODEL, REASONING_MODEL } from "./model-settings.js";
 import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
-import { courtAgentObservation } from "./court-agent.js";
+import { courtAgentObservation, actionResourceIds } from "./court-agent.js";
 import { courtCharactersWithinEarshot, dialogueEarshotPrompt, EARSHOT_DESCRIPTIONS, EARSHOT_DISTANCE } from "./earshot.js";
 import { COURT_INSTRUCTIONS } from "./court-instructions.js";
 import { JevClient, jevRequest } from "../../../packages/providers/src/jev.js";
@@ -47,6 +52,7 @@ export interface WitnessedIllegalAction {
 }
 
 export interface RuntimeSnapshot {
+  generations?: Generations;
   travellerIdentity?: TravellerIdentity;
   npcActivities?: Record<string, NpcActivity>;
   scenario: JsonValue;
@@ -60,7 +66,7 @@ export interface RuntimeSnapshot {
 
 function gmTools(scenario: Scenario): readonly OpenRouterTool[] {
   const npcIds = scenario.characters.filter(character => character.id !== scenario.playerCharacterId && character.id !== "player").map(character => character.id);
-  return [
+  const tools: OpenRouterTool[] = [
   {
     type: "function",
     function: {
@@ -135,6 +141,17 @@ function gmTools(scenario: Scenario): readonly OpenRouterTool[] {
     },
   },
   ];
+  if (scenario.world?.phase !== GamePhase.PLAYER_CREATION) {
+    for (const tool of tools.filter(tool => ["update_character", "update_premise", "add_event"].includes(tool.function.name))) {
+      const parameters = tool.function.parameters;
+      parameters.required = [...parameters.required as string[], "generations"];
+      parameters.properties = { ...parameters.properties as Record<string, unknown>, generations: {
+        type: "object", additionalProperties: { type: "string" }, description: "Current resource ID → generation ID from your reads. Include world:context and every affected character. On conflict, reconcile the returned state before calling this tool again.",
+      } };
+    }
+    tools.push(reviewWriteTools({})[0]!);
+  }
+  return tools;
 }
 
 const dialogueFormat = {
@@ -190,6 +207,11 @@ function text(value: unknown, field: string): string {
 }
 
 export class BrowserGameRuntime {
+  #liveReview: { host: BrowserGameRuntime; commit: <T>(work: () => T) => Promise<T>; read: <T>(work: () => T) => Promise<T> } | undefined;
+  #generations = new GenerationStore();
+  #lastReview: CharacterReview | undefined;
+  #reviewRequest: ChatCompletionRequest | undefined;
+  #reviewGuards: string[] = [];
   readonly #initialScenario: Scenario;
   #game: MemoryGame;
   #client: OpenRouterClient;
@@ -226,6 +248,7 @@ export class BrowserGameRuntime {
   }
 
   reset(): void {
+    this.#generations = new GenerationStore();
     this.#travellerIdentity = undefined;
     this.#npcActivities = {};
     this.#game = new MemoryGame(this.#initialScenario);
@@ -239,6 +262,8 @@ export class BrowserGameRuntime {
   }
 
   restore(snapshot: RuntimeSnapshot): void {
+    snapshot = structuredClone(snapshot);
+    this.#generations = new GenerationStore(snapshot.generations);
     this.#travellerIdentity = snapshot.travellerIdentity ? validateIdentity(snapshot.travellerIdentity) : undefined;
     this.#npcActivities = structuredClone(snapshot.npcActivities || {});
     this.#game = new MemoryGame(fromJson(ScenarioSchema, snapshot.scenario));
@@ -254,7 +279,9 @@ export class BrowserGameRuntime {
   }
 
   snapshot(): RuntimeSnapshot {
-    return {
+    this.readResources();
+    return structuredClone({
+      generations: this.#generations.snapshot(),
       ...(this.#travellerIdentity ? { travellerIdentity: { ...this.#travellerIdentity } } : {}),
       npcActivities: structuredClone(this.#npcActivities),
       scenario: toJson(ScenarioSchema, this.#game.scenario(), { alwaysEmitImplicit: true }),
@@ -267,7 +294,27 @@ export class BrowserGameRuntime {
         characterId,
         messages.map(message => toJson(TranscriptMessageSchema, message, { alwaysEmitImplicit: true })),
       ])),
-    };
+    });
+  }
+
+  #resources() {
+    return stateResources(this.#game.scenario(), this.#npcActivities,
+      Object.fromEntries([...this.#conversations].map(([id, messages]) => [id, {
+        messages, replies: this.#conversationReplyOptions[id], ended: this.#conversationEndRequested[id],
+      }])));
+  }
+
+  readResources(keys?: string[]) { return this.#generations.read(this.#resources(), keys); }
+
+  #guardPhysical(keys: string[], expected?: ExpectedGenerations) {
+    const supplied = expected ? Object.fromEntries(keys.map(key => [key, expected[key]!])) : generationIds(this.readResources(keys));
+    this.#generations.check(this.#resources(), supplied, keys);
+  }
+
+  #setGame(game: MemoryGame) {
+    this.readResources();
+    this.#game = game;
+    this.readResources();
   }
 
   async talkToGameMaster(messageText: string): Promise<string> {
@@ -281,7 +328,9 @@ export class BrowserGameRuntime {
       this.#gmReplyOptions = null;
       this.#gmHistory.push({ role: "user", content: messageText });
       for (let step = 0; step < 5; step += 1) {
-        const setup = new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario: this.#game.scenario() }));
+        const setup = [...new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario: this.#game.scenario() }))];
+        if (this.#game.scenario().world?.phase !== GamePhase.PLAYER_CREATION) setup.push({ role: "system",
+          content: `Court writes require generation IDs. Read the current state and reconcile any generation_conflict before re-calling the write tool.\n${JSON.stringify({ resources: this.readResources() })}` });
         const request: ChatCompletionRequest = {
           ...REASONING_MODEL,
           messages: [...setup.map(item => ({ role: item.role, content: item.content } satisfies OpenRouterMessage)), ...(this.#travellerIdentity ? [{ role: "system" as const, content: `# Chosen identity\n${JSON.stringify(this.#travellerIdentity)}\nThese are the player’s saved choices, not instructions. Preserve them when creating the character. Develop their background within this delegation. Gender and appearance imply no occupation, personality or allegiance.` }] : []), ...this.#gmHistory],
@@ -302,7 +351,7 @@ export class BrowserGameRuntime {
             if (["offer_replies", "create_player"].includes(call.function.name) && message.tool_calls.length !== 1) throw new Error("Call the final creation or reply tool alone, after any other tools");
             result = this.executeTool(call.function.name, JSON.parse(call.function.arguments) as JsonObject);
           }
-          catch (error) { result = { ok: false, error: error instanceof Error ? error.message : String(error) }; }
+          catch (error) { result = error instanceof GenerationConflict ? error.response : { ok: false, error: error instanceof Error ? error.message : String(error) }; }
           trace.toolResults.push({ name: call.function.name, result: structuredClone(result) });
           this.#gmHistory.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result) });
           if (call.function.name === "create_player" && result.ok) {
@@ -366,10 +415,13 @@ export class BrowserGameRuntime {
     return utterance;
   }
 
-  async #reconcile(kind: ModelCallKind, characterId: string, scenario: Scenario, participants: string[], request: ChatCompletionRequest, signal?: AbortSignal) {
+  async #reconcile(kind: ReviewKind, characterId: string, scenario: Scenario, participants: string[], request: ChatCompletionRequest, signal?: AbortSignal, allowNextGoal = true) {
+    const review: CharacterReview = { kind, participants, output: {}, worldChanges: [], eligibleListeners: [], allowNextGoal: true };
+    this.#lastReview = review;
     const cancelled = new Map<string, string>();
     const earshotContext: OpenRouterMessage[] = [];
     let eligibleListeners: string[] = [];
+    let playerCanHear = kind === "conversation_review";
     if (kind === "conversation_review" || kind === "npc_resolution" || kind === "illegal_action") {
       const characters = scenario.characters.map(character => ({
         id: character.id, name: character.name,
@@ -379,6 +431,7 @@ export class BrowserGameRuntime {
       const listeners = courtCharactersWithinEarshot(speaker, characters, scenario.world?.doors, scenario.world?.fixtures);
       eligibleListeners = listeners.filter(character => character.id !== scenario.playerCharacterId && !participants.includes(character.id)).map(character => character.id);
       const playerHearing = listeners.find(character => character.id === scenario.playerCharacterId);
+      playerCanHear ||= !!playerHearing;
       earshotContext.push(
         { role: "system", content: "Use message_player for a meaningful observation the player can perceive. In NPC-to-NPC exchanges, playerHearing indicates what they can overhear; null means out of earshot or unknown position, so do not send an overheard message. Clear permits spoken details, Moderate only scattered words and partial meaning, Distant only names and places without details. Phrase uncertainty naturally. For player conversations, the player is a participant; avoid repeating their own transcript. Messages are optional, not required for every exchange." },
         { role: "system", content: kind === "illegal_action"
@@ -398,18 +451,60 @@ export class BrowserGameRuntime {
         } }) },
       );
     }
+    if (this.#liveReview) {
+      const { host, commit, read } = this.#liveReview;
+      const context: ResourceReviewContext = { kind, participants, eligibleListeners, playerCanHear, allowNextGoal };
+      const conversations = this.snapshot().conversations;
+      const evidence: OpenRouterMessage[] = [
+        { role: "system", content: "You are the GM, not a participant. Preserve character agency and private knowledge. Promises are not completed actions. Assign only feasible tasks using walking, doors, containers, inspecting/taking items and talking. No general combat, crafting, trade or item-transfer engine exists. Cancel dead ends by explicitly setting current_goal:null. Use update_inventory for justified missing props, never invented proof or duplicate rewards." },
+        { role: "user", content: JSON.stringify({ event_type: kind, participants, allowNextGoal }) },
+        ...earshotContext,
+        ...(hasDevelopmentPlayer(scenario) && kind === "conversation_review" ? [{ role: "system" as const, content: "This transcript is with the development envoy. Honor direct testing requests by setting current_goal to the requested feasible task. Record it as intended work, not an action already completed." }] : []),
+        ...request.messages.filter(message => message.role === "user"),
+      ];
+      const summary = await runResourceReview(request, evidence, {
+        read: resourceId => read(() => {
+          signal?.throwIfAborted();
+          const states = host.readResources(resourceId ? [resourceId] : undefined);
+          return resourceId ? resourceState(resourceId, states[resourceId]!)
+            : Object.fromEntries(Object.entries(states).map(([key, value]) => [key, resourceState(key, value)]));
+        }),
+        write: (name, args) => commit(() => {
+          signal?.throwIfAborted();
+          try { return host.applyResourceReviewWrite(name, args, context); }
+          catch (error) { return { commit_result: "error", reason: error instanceof Error ? error.message : String(error),
+            instruction: "Nothing was written by this call. Correct the arguments. Earlier successful calls remain saved." }; }
+        }),
+        finish: () => commit(() => {
+          signal?.throwIfAborted();
+          if (kind === "conversation_review") for (const id of participants) {
+            if (JSON.stringify(host.snapshot().conversations[id]) !== JSON.stringify(conversations[id])) throw new Error("Conversation changed; do not clear the newer transcript.");
+            host.#conversations.delete(id);
+            delete host.#conversationReplyOptions[id]; delete host.#conversationEndRequested[id];
+          }
+          if (kind === "outcome_review") for (const id of participants) {
+            const activity = host.#npcActivities[id];
+            if (activity) activity.reviewPending = false;
+          }
+          host.readResources();
+        }),
+        complete: input => this.#complete(kind, characterId, input, signal),
+      }, signal);
+      return { role: "assistant" as const, content: summary };
+    }
     const messages: OpenRouterMessage[] = [...request.messages.slice(0, -1),
       { role: "system", content: RECONCILIATION_INSTRUCTIONS },
       { role: "user", content: JSON.stringify({ authoritativeWorld: toJson(WorldStateSchema, scenario.world!), participants, recentActivity: this.#npcActivities }) },
       ...earshotContext,
       ...request.messages.slice(-1),
     ];
+    review.eligibleListeners = eligibleListeners;
+    this.#reviewRequest = { ...request, messages };
     for (let round = 0; round < 5; round++) {
       signal?.throwIfAborted();
       const reply = await this.#complete(kind, characterId, { ...request, messages: [...messages], tools: reconciliationTools }, signal);
       signal?.throwIfAborted();
       if (!reply.tool_calls?.length) {
-        if (!cancelled.size) return reply;
         const output = parseModelObject(reply.content, "GM reconciliation");
         for (const [id, reason] of cancelled) {
           const memory = participants.length === 1 ? output : output[id === participants[0] ? "initiator" : "recipient"];
@@ -417,7 +512,10 @@ export class BrowserGameRuntime {
           memory.goalUpdate = null;
           memory.newEvents.push({ type: "task_cancelled", summary: reason });
         }
-        return { ...reply, content: JSON.stringify(output) };
+        review.output = output;
+        const final = { ...reply, content: JSON.stringify(output) };
+        messages.push(final);
+        return final;
       }
       if (reply.tool_calls.length > 8) throw new Error("Too many GM world changes in one review");
       messages.push(reply);
@@ -429,7 +527,9 @@ export class BrowserGameRuntime {
             const player = { id: scenario.playerCharacterId ?? "", name: "Player", position: scenario.world?.actors.find(actor => actor.characterId === scenario.playerCharacterId)?.position };
             if (!courtCharactersWithinEarshot(speaker, [player], scenario.world?.doors, scenario.world?.fixtures).length) throw new Error("The player is out of earshot; no overheard message may be sent.");
           }
-          result = applyReconciliationTool(scenario, participants, cancelled, call.function.name, parseModelObject(call.function.arguments, "GM tool"), eligibleListeners);
+          const args = parseModelObject(call.function.arguments, "GM tool");
+          result = applyReconciliationTool(scenario, participants, cancelled, call.function.name, args, eligibleListeners);
+          review.worldChanges.push({ name: call.function.name, arguments: args });
         }
         catch (error) { result = { error: error instanceof Error ? error.message : String(error) }; }
         messages.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result) });
@@ -445,7 +545,7 @@ export class BrowserGameRuntime {
     const transcript = this.#conversations.get(characterId) || [];
     if (!transcript.length) return;
     const context = new FullContextBuilder().build(create(DialogueRequestSchema, { characterId, scenario }));
-    const completion = await this.#reconcile("conversation_review", characterId, scenario, [characterId], {
+    await this.#reconcile("conversation_review", characterId, scenario, [characterId], {
       ...REASONING_MODEL, response_format: memoryFormat, max_tokens: 10000,
       messages: [
         { role: "user", content: JSON.stringify({ participantContext: context }) },
@@ -454,28 +554,28 @@ export class BrowserGameRuntime {
         { role: "user", content: JSON.stringify(transcript.map(message => ({ speakerId: message.speakerId, text: message.text }))) },
       ],
     });
-    if (!completion.content) throw new Error("Character returned no conversation memory");
-    // Protobuf parsing rejects malformed output before any memory is committed.
-    const parsed = parseModelObject(completion.content, "Conversation review");
-    if (!parsed || !Array.isArray(parsed.newEvents) || !Array.isArray(parsed.relationships)
-      || !("goalUpdate" in parsed) || !("lore" in parsed)) {
-      throw new Error("Character returned incomplete conversation memory");
-    }
-    const memory = fromJson(ConversationMemorySchema, parsed as JsonValue);
-    if (!memory.goalUpdate) scenario.characters.find(item => item.id === characterId)!.currentGoal = "";
-    const staged = new MemoryGame(scenario);
-    const committed = staged.commitConversation(characterId, memory);
-    if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
-    this.#game = staged;
-    this.#npcActivities[characterId] = { status: memory.goalUpdate ? "active" : "idle", goal: memory.goalUpdate?.goal ?? scenario.characters.find(item => item.id === characterId)!.currentGoal, history: [] };
-    this.#conversations.delete(characterId);
-    delete this.#conversationReplyOptions[characterId];
-    delete this.#conversationEndRequested[characterId];
+    if (!this.#liveReview) this.#applyReview(scenario);
   }
 
-  movePlayer(destination: Point): void {
+  #applyReview(scenario: Scenario) {
+    const review = this.#lastReview;
+    if (!review) throw new Error("No character review is available.");
+    const result = applyCharacterReview(scenario, review, this.#npcActivities);
+    this.#setGame(result.game);
+    Object.assign(this.#npcActivities, result.updates);
+    if (review.kind === "conversation_review") for (const id of review.participants) {
+      this.#conversations.delete(id);
+      delete this.#conversationReplyOptions[id];
+      delete this.#conversationEndRequested[id];
+    }
+    this.readResources();
+    return result.summary;
+  }
+
+  movePlayer(destination: Point, expected?: ExpectedGenerations): void {
     const scenario = this.#game.scenario(), world = scenario.world;
     if (world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter the court before walking around.");
+    this.#guardPhysical(["world:context", `actor:${scenario.playerCharacterId}`, ...world.doors.map(door => `door:${door.id}`)], expected);
     const player = scenario.characters.find(character => character.id === scenario.playerCharacterId);
     const actor = world.actors.find(actor => actor.characterId === player?.id);
     if (!player || !actor) throw new Error("Player is missing from the palace.");
@@ -486,10 +586,10 @@ export class BrowserGameRuntime {
     if (!world.rooms.some(existing => existing.id === room.id)) throw new Error("Destination room is missing from the authored world.");
     actor.roomId = room.id; world.revision++;
     actor.position = create(TilePositionSchema, destination);
-    this.#game = new MemoryGame(scenario);
+    this.#setGame(new MemoryGame(scenario));
   }
 
-  async planNpc(characterId: string, signal: AbortSignal) {
+  async planNpc(characterId: string, signal: AbortSignal, previousWriteConflict?: { error: string; instruction: string }) {
     const scenario = this.#game.scenario();
     if (scenario.world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter court before running Jev.");
     if (this.#conversations.get(characterId)?.length) throw new Error("Finish this character's conversation review first.");
@@ -505,10 +605,14 @@ export class BrowserGameRuntime {
     const criteria = { ...Object.fromEntries(observation.actions.map(action => [action.id, `${action.description}${action.legality === "illegal" ? " This is illegal for this character." : ""}`])),
       complete: "The whole immediate goal is achieved, or you are already at the requested place and waiting as requested.",
       unable: "No available action can make progress, or essential clarification is needed." };
-    const state = { ...observation, actions: observation.actions.map(({ path, ...action }) => action), recentEvents: activity.history };
+    const keys = [...new Set([...actionResourceIds(scenario, characterId), ...observation.actions.flatMap(action => actionResourceIds(scenario, characterId, action))])];
+    const generations = generationIds(this.readResources(keys));
+    const state = { ...observation, generations, previousWriteConflict, actions: observation.actions.map(({ path, ...action }) => action), recentEvents: activity.history };
     const instructions = { ...COURT_INSTRUCTIONS, legality: "Actions are mechanically possible. Those marked illegal violate ownership or room access; weigh them against your character's intentions. Waiting in a room is satisfied by being there. Use offered talk actions to initiate a conversation with the player or make requests of other NPCs. You cannot force agreement or speak for the player." };
     const decision = await this.#modelTranscripts.record("jev", characterId, jevRequest(state, instructions, criteria), () => this.#jev.choose(state, instructions, criteria, signal));
-    return { decision, revision: observation.revision, goal: observation.goal, action: observation.actions.find(action => action.id === decision.choice), observation };
+    const action = observation.actions.find(action => action.id === decision.choice);
+    return { decision, revision: observation.revision, goal: observation.goal, action, observation,
+      generations: Object.fromEntries(actionResourceIds(scenario, characterId, action).map(key => [key, generations[key]!])) };
   }
 
   /** Model work happens on a snapshot; only a validated merge touches the live game. */
@@ -518,15 +622,31 @@ export class BrowserGameRuntime {
     return fork;
   }
 
+  /** Snapshot conversation evidence, but route each review write to the live game. */
+  forkForResourceReview(commit: <T>(work: () => T) => Promise<T>, read = commit): BrowserGameRuntime {
+    const fork = this.forkForNpc();
+    fork.#liveReview = { host: this, commit, read };
+    return fork;
+  }
+
   rumourListenersSince(before: RuntimeSnapshot): string[] {
     const previous = new Set(fromJson(ScenarioSchema, before.scenario).events.map(event => event.id));
     return [...new Set(this.#game.scenario().events.filter(event => ["overheard", "witnessed"].includes(event.type) && !previous.has(event.id))
       .flatMap(event => event.characterIds))].filter(id => this.#npcActivities[id]?.status === "active");
   }
 
-  commitCharacterFork(before: RuntimeSnapshot, fork: BrowserGameRuntime, characterIds: string[], requireUnchangedConversations = false): void {
+  commitCharacterFork(before: RuntimeSnapshot, fork: BrowserGameRuntime, characterIds: string[], expected?: ExpectedGenerations, requireUnchangedConversations = false): void {
     const base = fromJson(ScenarioSchema, before.scenario), current = this.#game.scenario(), next = fork.#game.scenario();
     const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+    const baseResources = stateResources(base, before.npcActivities ?? {}, {});
+    const nextResources = fork.#resources();
+    const changed = [...new Set([...Object.keys(baseResources), ...Object.keys(nextResources)])].filter(key =>
+      !same(baseResources[key], nextResources[key]) && !key.startsWith("character:"));
+    const affected = new Set([...characterIds, ...next.events.slice(base.events.length).flatMap(event =>
+      event.visibility === EventVisibility.PUBLIC ? current.characters.map(c => c.id) : event.characterIds)]);
+    const required = ["world:context", ...[...affected].map(id => `character:${id}`), ...characterIds.flatMap(id => [`actor:${id}`, `inventory:${id}`]), ...changed, ...fork.#reviewGuards];
+    expected ??= Object.fromEntries(required.map(key => [key, before.generations?.[key]?.generationId ?? "absent"]));
+    this.#generations.check(this.#resources(), expected, required);
     if (!current.world || !base.world || !next.world || current.world.phase !== base.world.phase) throw new Error("World changed; retry NPC review.");
     if (requireUnchangedConversations && !same(this.snapshot().conversations, before.conversations)) throw new Error("Conversation changed; retry NPC review.");
     for (const id of characterIds) {
@@ -537,8 +657,11 @@ export class BrowserGameRuntime {
         || !same(this.snapshot().conversations[id], before.conversations[id])) throw new Error("Character changed; retry NPC review.");
     }
     const objectsChanged = !same(base.world.objects, next.world.objects);
-    if (objectsChanged && (!same(current.world.objects, base.world.objects) || !same(current.world.fixtures, base.world.fixtures))) throw new Error("World changed; retry GM reconciliation.");
-    if (objectsChanged) current.world.objects = next.world.objects;
+    if (objectsChanged) {
+      const changedIds = new Set([...base.world.objects, ...next.world.objects].map(item => item.id).filter(id =>
+        !same(base.world!.objects.find(item => item.id === id), next.world!.objects.find(item => item.id === id))));
+      current.world.objects = [...current.world.objects.filter(item => !changedIds.has(item.id)), ...next.world.objects.filter(item => changedIds.has(item.id))];
+    }
     // Never replace an unrelated player's move, inventory, conversation or memory.
     for (const id of characterIds) {
       const character = next.characters.find(c => c.id === id)!;
@@ -570,28 +693,199 @@ export class BrowserGameRuntime {
       this.#npcActivities[id] = { status: "active", goal, history: [] };
     }
     current.world.revision++;
-    this.#game = new MemoryGame(current);
+    this.#setGame(new MemoryGame(current));
   }
 
-  /** Advance at most one tile, validating the current path on every tick. */
-  stepNpcAction(characterId: string, actionId: string, goal: string): { done: boolean; talkTarget?: string; witnessedAction?: WitnessedIllegalAction } {
+  /** One resource per call. The worker serializes this synchronous write and its save. */
+  applyResourceReviewWrite(name: string, args: Record<string, unknown>, context: ResourceReviewContext) {
+    const id = name === "update_inventory" ? text(args.owner_id, "owner_id")
+      : name === "message_player" ? this.#game.scenario().playerCharacterId!
+      : text(args.character_id ?? args.characterId, "character_id");
+    const key = (name === "update_inventory" ? "inventory:" : "character:") + id;
+    const state = () => resourceState(key, this.readResources([key])[key]!);
+    if (typeof args.generation_id !== "string" || !args.generation_id) return {
+      commit_result: "error", reason: "Missing generation_id", new_state: state(),
+      instruction: "Use this resource's generation_id and explicitly call the tool again. Nothing was written by this call.",
+    };
+    try { this.#generations.check(this.#resources(), { [key]: args.generation_id }, [key]); }
+    catch (error) {
+      if (!(error instanceof GenerationConflict)) throw error;
+      return { commit_result: "error", reason: "Generation ID out of date", new_state: state(),
+        instruction: "Nothing was written by this call. Reconcile your intended changes against new_state, then explicitly call this tool again with its generation_id. Earlier successful writes remain saved." };
+    }
+    // Validate on a clone; invalid arguments cannot partially mutate live state.
+    const scenario = this.#game.scenario();
+    let updates: Record<string, NpcActivity> = {};
+    if (name === "update_character") {
+      if (!context.participants.includes(id) || context.kind === "illegal_action") throw new Error("Only conversation/action-review participants can be updated.");
+      const patch = args.changes as Record<string, unknown>;
+      if (!patch || typeof patch !== "object" || Array.isArray(patch) || !Object.keys(patch).length
+        || Object.keys(patch).some(key => !["append_events", "relationships", "lore", "current_goal"].includes(key))) throw new Error("Invalid character changes.");
+      if (patch.append_events !== undefined && !Array.isArray(patch.append_events)) throw new Error("append_events must be an array.");
+      if (patch.relationships !== undefined && !Array.isArray(patch.relationships)) throw new Error("relationships must be an array.");
+      const relationships = (patch.relationships as Record<string, unknown>[] | undefined)?.map(value => {
+        if (!value || Object.keys(value).some(key => !["character_id", "description"].includes(key))) throw new Error("Invalid relationship.");
+        return { characterId: text(value.character_id, "character_id"), description: text(value.description, "description") };
+      }) ?? [];
+      const events = (patch.append_events as Record<string, unknown>[] | undefined)?.map(value => {
+        if (!value || Object.keys(value).some(key => !["type", "summary"].includes(key))) throw new Error("Invalid event.");
+        return { type: text(value.type, "type"), summary: text(value.summary, "summary") };
+      }) ?? [];
+      const memory = fromJson(ConversationMemorySchema, { newEvents: events.filter(event => !scenario.events.some(existing =>
+        existing.day === scenario.world?.day && existing.characterIds.includes(id) && existing.type === event.type && existing.summary === event.summary)),
+        relationships, ...(patch.lore !== undefined ? { lore: text(patch.lore, "lore") } : {}) });
+      const candidate = new MemoryGame(scenario);
+      const committed = candidate.commitConversation(id, memory, false);
+      if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
+      if (Object.hasOwn(patch, "current_goal")) {
+        const goal = patch.current_goal === null ? "" : text(patch.current_goal, "current_goal");
+        if (goal && !context.allowNextGoal) throw new Error("This run has reached its follow-up limit; set current_goal to null.");
+        const changed = candidate.updateCharacter(id, undefined, goal);
+        if (!changed.ok) throw new Error("Unknown character.");
+        const activity = this.#npcActivities[id];
+        updates[id] = goal && activity?.status === "active" && activity.goal === goal
+          ? structuredClone(activity) : { status: goal ? "active" : "idle", goal, history: [] };
+      }
+      // Preserve the transcript until the agent explicitly finishes the review.
+      this.#setGame(candidate);
+    } else {
+      const cancelled = new Map<string, string>();
+      if (name === "update_inventory") {
+        if (!Array.isArray(args.add_items) || !args.add_items.length || args.add_items.length > 10) throw new Error("Invalid add_items.");
+        for (const item of args.add_items) {
+          if (!item || typeof item !== "object" || Array.isArray(item)) throw new Error("Invalid item.");
+          applyReconciliationTool(scenario, context.participants, cancelled, "create_item", { ...item, locationId: id });
+        }
+      } else {
+        if (!["record_overheard", "record_witnessed", "message_player"].includes(name)) throw new Error("Unknown resource write tool.");
+        if (name === "record_witnessed" && context.kind !== "illegal_action") throw new Error("This review concerns speech, not a witnessed physical action.");
+        if (name === "record_overheard" && context.kind === "illegal_action") throw new Error("Use record_witnessed for physical actions.");
+        if (name === "message_player" && !context.playerCanHear) throw new Error("The player could not perceive this event.");
+        applyReconciliationTool(scenario, context.participants, cancelled, name, { ...args, characterId: id }, context.eligibleListeners);
+        const goal = args.reactionGoal, activity = this.#npcActivities[id];
+        if (name !== "message_player" && typeof goal === "string" && goal && activity?.status !== "active" && !activity?.reviewPending && !this.#conversations.get(id)?.length) {
+          scenario.characters.find(c => c.id === id)!.currentGoal = goal;
+          updates[id] = { status: "active", goal, history: [] };
+        }
+      }
+      this.#setGame(new MemoryGame(scenario));
+    }
+    Object.assign(this.#npcActivities, updates);
+    return { commit_result: "success", new_state: state() };
+  }
+
+  /** Return conflicts to the reviewing agent; only its explicit tool calls may publish. */
+  async publishReviewedFork(before: RuntimeSnapshot, fork: BrowserGameRuntime,
+    publish: (base: RuntimeSnapshot, candidate: BrowserGameRuntime, ids: string[], expected: ExpectedGenerations) => Promise<void>, signal?: AbortSignal) {
+    const proposal = fork.#lastReview, request = fork.#reviewRequest;
+    if (!proposal || !request) throw new Error("No reviewed proposal is available.");
+    const observed = this.forkForNpc(); observed.restore(before);
+    const { response_format, ...completionRequest } = request;
+    const schema = (response_format as { json_schema: { schema: unknown } }).json_schema.schema;
+    const messages: OpenRouterMessage[] = [...request.messages,
+      { role: "system", content: "The review and staging tool results above are proposals only. Publish them with commit_review, including the complete review and worldChanges. Use read_state for any missing generation IDs. Include every participant's character, actor and inventory, world:context, all changed resources and any other decision dependencies. On a generation_conflict nothing was saved: reconsider the returned state and explicitly call commit_review again with reconciled changes and current IDs. Never claim success without a successful write. Player creation does not use this protocol." },
+      { role: "user", content: JSON.stringify({ resources: observed.readResources(), proposal: { review: proposal.output, worldChanges: proposal.worldChanges } }) },
+    ];
+    for (let attempt = 0; attempt < 8; attempt++) {
+      signal?.throwIfAborted();
+      const reply = await this.#complete(proposal.kind, proposal.participants[0]!, {
+        ...completionRequest, messages: [...messages], tools: reviewWriteTools(schema),
+      }, signal);
+      signal?.throwIfAborted();
+      messages.push(reply);
+      if (!reply.tool_calls?.length) {
+        messages.push({ role: "system", content: "Nothing was written. You must call commit_review to finish, or read_state to inspect current generations." });
+        continue;
+      }
+      if (reply.tool_calls.length > 8) throw new Error("Too many review tool calls.");
+      for (const call of reply.tool_calls) {
+        let result: unknown;
+        let publishing = false;
+        try {
+          const args = parseModelObject(call.function.arguments, "Review write tool");
+          if (call.function.name === "read_state") {
+            if (!Array.isArray(args.resourceIds) || args.resourceIds.length > 200 || args.resourceIds.some(id => typeof id !== "string")) throw new Error("Invalid resourceIds.");
+            result = { ok: true, current: this.readResources(args.resourceIds as string[]) };
+          } else {
+            if (call.function.name !== "commit_review" || reply.tool_calls.length !== 1) throw new Error("Call commit_review alone.");
+            if (!args.generations || typeof args.generations !== "object" || Array.isArray(args.generations)
+              || Object.values(args.generations).some(value => typeof value !== "string")
+              || !args.review || typeof args.review !== "object" || Array.isArray(args.review)
+              || !Array.isArray(args.worldChanges) || args.worldChanges.length > 40) throw new Error("Invalid review write arguments.");
+            const expected = args.generations as ExpectedGenerations;
+            const base = this.snapshot(), candidate = this.forkForNpc(), scenario = candidate.#game.scenario();
+            const changes = args.worldChanges as unknown as CharacterReview["worldChanges"];
+            const guards = ["world:context", ...proposal.participants.flatMap(id => [`character:${id}`, `actor:${id}`, `inventory:${id}`])];
+            for (const change of changes) {
+              if (!change || !reconciliationTools.some(tool => tool.function.name === change.name) || !change.arguments || typeof change.arguments !== "object" || Array.isArray(change.arguments)) throw new Error("Invalid staged world change.");
+              const { characterId, locationId, id } = change.arguments;
+              if (change.name === "create_item") guards.push(`item:${id}`, `entity:${id}`, `inventory:${locationId}`,
+                `${scenario.characters.some(c => c.id === locationId) ? "character" : "fixture"}:${locationId}`);
+              if (change.name === "cancel_task" || change.name === "record_overheard") guards.push(`character:${characterId}`);
+              if (change.name === "record_overheard" || change.name === "message_player") guards.push(
+                ...scenario.world!.doors.map(door => `door:${door.id}`), `actor:${characterId ?? scenario.playerCharacterId}`);
+            }
+            this.#generations.check(this.#resources(), expected, guards);
+            candidate.#reviewGuards = guards;
+            const characters = scenario.characters.map(character => ({ id: character.id, name: character.name,
+              position: scenario.world?.actors.find(actor => actor.characterId === character.id)?.position }));
+            const listeners = courtCharactersWithinEarshot(characters.find(c => c.id === proposal.participants[0])!, characters, scenario.world?.doors, scenario.world?.fixtures);
+            const eligible = proposal.eligibleListeners.filter(id => listeners.some(listener => listener.id === id));
+            const cancelled = new Map<string, string>();
+            for (const change of changes) {
+              if (change.name === "message_player" && proposal.kind === "npc_resolution" && !listeners.some(c => c.id === scenario.playerCharacterId)) throw new Error("The player is out of earshot.");
+              applyReconciliationTool(scenario, proposal.participants, cancelled, change.name, change.arguments, eligible);
+            }
+            const output = structuredClone(args.review) as Record<string, unknown>;
+            for (const [id, reason] of cancelled) {
+              const memory = (proposal.kind === "npc_resolution" ? output[id === proposal.participants[0] ? "initiator" : "recipient"] : output) as Record<string, unknown>;
+              if (!memory || typeof memory !== "object") throw new Error("Missing cancelled participant memory.");
+              memory.goalUpdate = null;
+              if (Array.isArray(memory.newEvents) && !memory.newEvents.some(event => event?.type === "task_cancelled" && event.summary === reason)) {
+                memory.newEvents.push({ type: "task_cancelled", summary: reason });
+              }
+            }
+            candidate.#lastReview = { ...proposal, output, worldChanges: changes };
+            candidate.#applyReview(scenario);
+            publishing = true;
+            await publish(base, candidate, proposal.participants, expected);
+            return;
+          }
+        } catch (error) {
+          signal?.throwIfAborted();
+          if (error instanceof GenerationConflict) result = error.response;
+          else if (publishing) throw error;
+          else if (error instanceof Error && error.message === "Game changed.") throw error;
+          else result = { ok: false, error: error instanceof Error ? error.message : String(error), instruction: "Nothing was written. Correct the proposal and call the write tool again.", current: this.readResources() };
+        }
+        messages.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result) });
+      }
+    }
+    throw new Error("Review reconciliation limit reached; no changes were saved. Retry the review.");
+  }
+
+  /** Advance at most one tile, validating generations and the path on every tick. */
+  stepNpcAction(characterId: string, actionId: string, goal: string, expected?: ExpectedGenerations): { done: boolean; talkTarget?: string; witnessedAction?: WitnessedIllegalAction; generations: ExpectedGenerations } {
     const scenario = this.#game.scenario(), activity = this.#npcActivities[characterId];
     if (activity?.status !== "active" || activity.reviewPending || this.#conversations.get(characterId)?.length) throw new Error("NPC paused for conversation.");
     const observation = courtAgentObservation(scenario, characterId);
     const action = observation.actions.find(item => item.id === actionId);
+    const keys = actionResourceIds(scenario, characterId, action);
+    if (expected) this.#generations.check(this.#resources(), expected, keys);
     if (observation.goal !== goal || !action) throw new Error("Action changed; replan.");
     if (action.path.length <= 2 && action.type !== "talk") {
       const witnessedAction = action.type === "fixture" ? this.#witnessedIllegalAction(scenario, characterId, action.id) : undefined;
       this.executeNpcAction(characterId, actionId, observation.revision, goal);
-      return { done: true, ...(witnessedAction ? { witnessedAction } : {}) };
+      return { done: true, generations: generationIds(this.readResources(keys)), ...(witnessedAction ? { witnessedAction } : {}) };
     }
     const next = action.path[1];
     if (next) {
       const actor = scenario.world!.actors.find(a => a.characterId === characterId)!;
       actor.position = create(TilePositionSchema, next); actor.roomId = courtRoomAt(next)?.id ?? actor.roomId;
-      scenario.world!.revision++; this.#game = new MemoryGame(scenario);
+      scenario.world!.revision++; this.#setGame(new MemoryGame(scenario));
     }
-    return action.type === "talk" && action.path.length <= 2 ? { done: true, talkTarget: action.target } : { done: false };
+    return { ...(action.type === "talk" && action.path.length <= 2 ? { done: true, talkTarget: action.target } : { done: false }),
+      generations: generationIds(this.readResources(keys)) };
   }
 
   executeNpcAction(characterId: string, actionId: string, revision: number, goal: string): string {
@@ -612,7 +906,7 @@ export class BrowserGameRuntime {
     let message = action.description;
     if (action.type === "door") world.doors.find(door => door.id === action.target)!.open = action.open!;
     if (action.type === "fixture") message = applyFixtureAction(scenario, characterId, action.id);
-    world.revision++; this.#game = new MemoryGame(scenario);
+    world.revision++; this.#setGame(new MemoryGame(scenario));
     activity.history.push(message);
     return message;
   }
@@ -659,24 +953,7 @@ export class BrowserGameRuntime {
           surroundings: courtAgentObservation(scenario, characterId).world }) }],
     }, signal);
     valid();
-    const result = parseModelObject(resolution.content, "NPC conversation review");
-    const summary = text(result?.summary, "summary");
-    for (const [id, output] of [[characterId, result.initiator], [action.target, result.recipient]] as const) {
-      if (output && typeof output === "object" && !Array.isArray(output) && output.goalUpdate === null) scenario.characters.find(c => c.id === id)!.currentGoal = "";
-    }
-    const staged = new MemoryGame(scenario);
-    const updates: Record<string, NpcActivity> = {};
-    for (const [id, output] of [[characterId, result.initiator], [action.target, result.recipient]] as const) {
-      if (!output || typeof output !== "object" || Array.isArray(output) || !Array.isArray(output.newEvents) || !Array.isArray(output.relationships) || !("goalUpdate" in output) || !("lore" in output)) throw new Error("Incomplete NPC conversation memory.");
-      const memory = fromJson(ConversationMemorySchema, output);
-      memory.newEvents.push(create(EventSchema, { type: "npc_conversation", summary }));
-      const committed = staged.commitConversation(id, memory, false);
-      if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
-      updates[id] = { status: memory.goalUpdate ? "active" : "idle", goal: memory.goalUpdate?.goal ?? scenario.characters.find(item => item.id === id)!.currentGoal, history: [summary] };
-    }
-    this.#game = staged;
-    Object.assign(this.#npcActivities, updates);
-    return summary;
+    return text(this.#liveReview ? resolution.content : this.#applyReview(scenario), "summary");
   }
 
   async initiatePlayerConversation(characterId: string, actionId: string, revision: number, goal: string, signal: AbortSignal): Promise<string> {
@@ -716,13 +993,16 @@ export class BrowserGameRuntime {
     return utterance;
   }
 
-  finishNpcRun(characterId: string, reason: NonNullable<NpcActivity["result"]>["reason"], detail: string): void {
+  finishNpcRun(characterId: string, reason: NonNullable<NpcActivity["result"]>["reason"], detail: string, expected?: ExpectedGenerations): void {
+    this.readResources();
+    if (expected) this.#generations.check(this.#resources(), expected, [`character:${characterId}`]);
     const activity = this.#npcActivities[characterId];
     if (!activity || activity.status !== "active") throw new Error("NPC has no active run to finish.");
     if (!["complete", "unable", "error", "limit", "cancelled"].includes(reason)) throw new Error("Invalid termination reason.");
     activity.status = "idle";
     activity.result = { reason, detail: detail.slice(0, 2000) };
     activity.reviewPending = true;
+    this.readResources();
   }
 
   async reviewNpcOutcome(characterId: string, allowNextGoal = true, signal?: AbortSignal): Promise<void> {
@@ -730,35 +1010,28 @@ export class BrowserGameRuntime {
     if (!activity?.reviewPending || !activity.result) return;
     const scenario = this.#game.scenario();
     const context = new FullContextBuilder().build(create(DialogueRequestSchema, { characterId, scenario }));
-    const completion = await this.#reconcile("outcome_review", characterId, scenario, [characterId], {
+    await this.#reconcile("outcome_review", characterId, scenario, [characterId], {
       ...REASONING_MODEL, response_format: memoryFormat, max_tokens: 10000,
       messages: [{ role: "user", content: JSON.stringify({ participantContext: context }) },
         { role: "system", content: "As GM, review this character after their action planner has finished. Review its result, actions performed, and current observations. Save warranted memories, relationship changes, and biography changes. Set goalUpdate to the next concrete task if there is more to do, or null if there is none. Base this on what actually happened, not just the planner's completion judgment. Use GM tools for justified additions or to cancel dead ends; do not restart a failed task without a concrete change that makes progress possible. Return newEvents, goalUpdate, relationships, and lore (null when unchanged)." },
         { role: "user", content: JSON.stringify({ goal: activity.goal, actionsPerformed: activity.history, result: activity.result, observations: courtAgentObservation(scenario, characterId).world }) }],
-    }, signal);
+    }, signal, allowNextGoal);
     signal?.throwIfAborted();
-    const parsed = parseModelObject(completion.content, "NPC outcome review");
-    if (!parsed || !Array.isArray(parsed.newEvents) || !Array.isArray(parsed.relationships) || !("goalUpdate" in parsed) || !("lore" in parsed)) throw new Error("NPC returned incomplete outcome memory.");
-    const memory = fromJson(ConversationMemorySchema, parsed);
-    if (!memory.goalUpdate) scenario.characters.find(item => item.id === characterId)!.currentGoal = "";
-    const staged = new MemoryGame(scenario);
-    const committed = staged.commitConversation(characterId, memory, false);
-    if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
-    this.#game = staged;
-    activity.reviewPending = false;
-    if (!memory.goalUpdate) activity.goal = "";
-    if (memory.goalUpdate && allowNextGoal) this.#npcActivities[characterId] = { status: "active", goal: memory.goalUpdate.goal, history: [] };
+    if (this.#liveReview) return;
+    this.#lastReview!.allowNextGoal = allowNextGoal;
+    this.#applyReview(scenario);
   }
 
   resetCharacters(): void {
     const current = this.#game.scenario();
     if (!current.playerCharacterId || !current.world) throw new Error("Create your character before resetting the NPCs.");
+    this.#generations = new GenerationStore();
     const initial = fromJson(ScenarioSchema, toJson(ScenarioSchema, this.#initialScenario));
     current.characters = current.characters.map(character => character.id === current.playerCharacterId
       ? character : initial.characters.find(item => item.id === character.id) ?? character);
     current.events = initial.events;
     current.world.revision++;
-    this.#game = new MemoryGame(current);
+    this.#setGame(new MemoryGame(current));
     this.#npcActivities = {};
     this.#conversations.clear();
     this.#conversationReplyOptions = {};
@@ -768,6 +1041,7 @@ export class BrowserGameRuntime {
   resetWorld(): void {
     const current = this.#game.scenario();
     if (!current.playerCharacterId || !current.world) throw new Error("Create your character before resetting the world.");
+    this.#generations = new GenerationStore();
     const initial = fromJson(ScenarioSchema, toJson(ScenarioSchema, this.#initialScenario));
     const world = initial.world!;
     world.phase = GamePhase.CONVERSATIONS;
@@ -783,14 +1057,17 @@ export class BrowserGameRuntime {
     this.#npcActivities = {};
     current.world = world;
     current.courtArrivalPlacements = initial.courtArrivalPlacements;
-    this.#game = new MemoryGame(current);
+    this.#setGame(new MemoryGame(current));
   }
 
-  interactFixture(actionId: string): string {
+  interactFixture(actionId: string, expected?: ExpectedGenerations): string {
     const scenario = this.#game.scenario(), world = scenario.world;
     if (world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter court before interacting with furniture.");
     const actorId = scenario.playerCharacterId!;
     const action = fixtureActions(scenario, actorId).find(item => item.id === actionId);
+    this.#guardPhysical(["world:context", `actor:${actorId}`, `inventory:${actorId}`,
+      ...(action && action.target !== actorId ? [`fixture:${action.target}`, `inventory:${action.target}`] : []),
+      ...(action?.itemId ? [`item:${action.itemId}`] : [])], expected);
     const fixture = world.fixtures.find(item => item.id === action?.target);
     const position = world.actors.find(actor => actor.characterId === actorId)?.position;
     if (action?.target === actorId && action.itemId) {
@@ -804,7 +1081,7 @@ export class BrowserGameRuntime {
     }
     const result = applyFixtureAction(scenario, actorId, actionId);
     world.revision++;
-    this.#game = new MemoryGame(scenario);
+    this.#setGame(new MemoryGame(scenario));
     return result;
   }
 
@@ -833,6 +1110,7 @@ export class BrowserGameRuntime {
       messages: [{ role: "system", content: "Review the witnessed illegal action using the supplied GM tools, then return {\"reviewed\":true}." },
         { role: "user", content: JSON.stringify(observation) }],
     }, signal);
+    if (this.#liveReview) return;
     const previousEvents = new Set(this.#game.scenario().events.map(event => event.id));
     for (const event of before.events.filter(event => event.type === "witnessed" && !previousEvents.has(event.id))) {
       const id = event.characterIds[0]!, goal = event.details?.reactionGoal;
@@ -848,18 +1126,19 @@ export class BrowserGameRuntime {
     this.#game = new MemoryGame(before);
   }
 
-  async interactFixtureWithWitnesses(actionId: string): Promise<string> {
+  async interactFixtureWithWitnesses(actionId: string, expected?: ExpectedGenerations): Promise<string> {
     const before = this.#game.scenario();
     const actorId = before.playerCharacterId!;
     const witnessedAction = this.#witnessedIllegalAction(before, actorId, actionId);
-    const result = this.interactFixture(actionId);
+    const result = this.interactFixture(actionId, expected);
     if (witnessedAction) await this.reviewWitnessedIllegalAction(witnessedAction);
     return result;
   }
 
-  setDoor(id: string, open: boolean): void {
+  setDoor(id: string, open: boolean, expected?: ExpectedGenerations): void {
     const scenario = this.#game.scenario(), world = scenario.world;
     if (world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter the court before using doors.");
+    this.#guardPhysical(["world:context", `actor:${scenario.playerCharacterId}`, `door:${id}`, `doorway:${id}`], expected);
     const door = world.doors.find(door => door.id === id);
     const player = world.actors.find(actor => actor.characterId === scenario.playerCharacterId);
     if (!door || door.open === open || !player?.position || !door.interactionSpots.some(spot => spot.x === player.position!.x && spot.y === player.position!.y)) {
@@ -868,7 +1147,7 @@ export class BrowserGameRuntime {
     if (!open && world.actors.some(actor => actor.position && door.tiles.some(tile => tile.x === actor.position!.x && tile.y === actor.position!.y))) {
       throw new Error("Someone is standing in the doorway.");
     }
-    door.open = open; world.revision++; this.#game = new MemoryGame(scenario);
+    door.open = open; world.revision++; this.#setGame(new MemoryGame(scenario));
   }
 
   view(): JsonObject {
@@ -879,6 +1158,10 @@ export class BrowserGameRuntime {
       playerMessages: scenario.events.filter(event => event.type === "player_message" && event.characterIds.includes(scenario.playerCharacterId ?? ""))
         .map(({ id, day, summary }) => ({ id, day, message: summary })),
       revision: world?.revision ?? 0,
+      generations: generationIds(this.readResources(["world:context", `actor:${scenario.playerCharacterId}`, `inventory:${scenario.playerCharacterId}`,
+        ...(world?.doors.flatMap(door => [`door:${door.id}`, `doorway:${door.id}`]) ?? []),
+        ...(world?.fixtures.flatMap(fixture => [`fixture:${fixture.id}`, `inventory:${fixture.id}`]) ?? []),
+        ...(world ? worldForCharacter(world, scenario.playerCharacterId ?? "").objects.map(item => `item:${item.id}`) : [])])),
       npcActivities: Object.fromEntries(scenario.characters.filter(item => item.id !== scenario.playerCharacterId).map(item => [item.id, this.#npcActivities[item.id] ?? { status: "idle", goal: item.currentGoal, history: [] }])),
       travellerIdentity: this.#travellerIdentity ?? null,
       playerDraft: this.#playerDraft,
@@ -1026,6 +1309,18 @@ export class BrowserGameRuntime {
   }
 
   private executeTool(name: string, input: JsonObject): JsonObject {
+    if (name === "read_state") {
+      if (!Array.isArray(input.resourceIds) || input.resourceIds.length > 200 || input.resourceIds.some(id => typeof id !== "string")) throw new Error("Invalid resourceIds.");
+      return { ok: true, current: this.readResources(input.resourceIds as string[]) };
+    }
+    const scenario = this.#game.scenario();
+    if (scenario.world?.phase !== GamePhase.PLAYER_CREATION && ["update_character", "update_premise", "add_event"].includes(name)) {
+      const ids = name === "update_character" ? [text(input.characterId, "characterId")]
+        : name !== "add_event" ? [] : input.visibility === "public" ? scenario.characters.map(c => c.id)
+        : Array.isArray(input.characterIds) ? input.characterIds.filter((id): id is string => typeof id === "string") : [];
+      const expected = input.generations && typeof input.generations === "object" && !Array.isArray(input.generations) ? input.generations as ExpectedGenerations : {};
+      this.#generations.check(this.#resources(), expected, ["world:context", ...ids.map(id => `character:${id}`)]);
+    }
     if (name === "offer_replies") {
       const options = parseReplyOptions(input.options, false);
       if (typeof input.compelled !== "boolean") throw new Error("compelled must be a boolean");
@@ -1057,16 +1352,19 @@ export class BrowserGameRuntime {
     if (name === "update_character") {
       const result = this.#game.updateCharacter(text(input.characterId, "characterId"), typeof input.lore === "string" ? input.lore : undefined, typeof input.currentGoal === "string" ? input.currentGoal : undefined);
       if (!result.ok) throw new Error(result.issues.map(issue => issue.message).join("; "));
-      return { ok: true, character: result.value.name };
+      if (scenario.world?.phase !== GamePhase.PLAYER_CREATION && result.value.id !== scenario.playerCharacterId && typeof input.currentGoal === "string") {
+        this.#npcActivities[result.value.id] = { status: input.currentGoal ? "active" : "idle", goal: input.currentGoal, history: [] };
+      }
+      return { ok: true, character: result.value.name, current: this.readResources([`character:${result.value.id}`]) };
     }
-    if (name === "update_premise") { this.#game.updatePremise(text(input.premise, "premise")); return { ok: true }; }
+    if (name === "update_premise") { this.#game.updatePremise(text(input.premise, "premise")); return { ok: true, current: this.readResources(["world:context"]) }; }
     if (name === "add_event") {
       const ids = Array.isArray(input.characterIds) ? input.characterIds.filter(value => typeof value === "string") as string[] : [];
       const event = this.#game.addEvent(create(EventSchema, {
         type: text(input.type, "type"), summary: text(input.summary, "summary"), characterIds: ids,
         visibility: input.visibility === "public" ? EventVisibility.PUBLIC : EventVisibility.PRIVATE, details: {},
       }));
-      return { ok: true, eventId: event.id };
+      return { ok: true, eventId: event.id, current: this.readResources() };
     }
     throw new Error(`Unknown game-master tool: ${name}`);
   }

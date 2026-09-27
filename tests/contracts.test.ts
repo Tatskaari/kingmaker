@@ -1532,7 +1532,7 @@ test("background character updates reject stale goals and do not overwrite newer
   await fork.talkToCharacter("corvin", "First request");
   await runtime.talkToCharacter("corvin", "Newer request");
   const latest = runtime.snapshot();
-  assert.throws(() => runtime.commitCharacterFork(before, fork, ["corvin"]), /Character changed/);
+  assert.throws(() => runtime.commitCharacterFork(before, fork, ["corvin"]), /changed/);
   assert.deepEqual(runtime.snapshot(), latest);
 });
 
@@ -1727,10 +1727,11 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   let listener: (event: { data: unknown }) => void = () => {};
   let sequence = 0, failNextWrite = false, modelCalls = 0;
   const pending = new Map<number, (message: any) => void>();
+  const npcUpdates: any[] = [];
   const records = new Map<string, any>();
   globals.self = {
     addEventListener: (_type: string, callback: typeof listener) => { listener = callback; },
-    postMessage: (message: any) => pending.get(message.id)?.(message),
+    postMessage: (message: any) => { if (message.type === "npc_update") npcUpdates.push(message); pending.get(message.id)?.(message); },
   };
   // Minimal asynchronous IDB boundary: the real worker dispatch/queue and runtime
   // run unchanged, while persistence and model transport remain deterministic.
@@ -1773,6 +1774,81 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   assert.equal(modelCalls, 1);
   assert.equal(greeting.state.phase, "player_creation");
 
+  await t.test("NPC plans overlap, deduplicate, and cancel independently while player commands remain available", async t => {
+    const created = await request("create_development_game");
+    const saved = records.get(created.activeSaveId);
+    saved.snapshot.npcActivities = Object.fromEntries(["corvin", "mara"].map(id => [id, { status: "active", goal: "Wait here.", history: [] }]));
+    await request("load_game", { saveId: created.activeSaveId });
+    const plans: Array<{ id: string; signal: AbortSignal; release: () => void }> = [];
+    t.mock.method(BrowserGameRuntime.prototype, "planNpc", async (id: string, signal: AbortSignal) => {
+      await new Promise<void>(resolve => plans.push({ id, signal, release: resolve }));
+      // Deliberately ignore cancellation until the transport finishes. An old
+      // completion must not remove a replacement run with the same character.
+      signal.throwIfAborted();
+      throw new Error("Unexpected uncancelled plan");
+    });
+    await request("start_npc", { characterId: "corvin" });
+    await request("start_npc", { characterId: "mara" });
+    await request("start_npc", { characterId: "corvin" });
+    assert.deepEqual(plans.map(plan => plan.id), ["corvin", "mara"]);
+    assert.deepEqual(npcUpdates.at(-1).running.sort(), ["corvin", "mara"]);
+    await request("move_player", { x: 15, y: 24, generations: (await request("state")).state.generations });
+    await request("pause_npc", { characterId: "corvin" });
+    assert.equal(plans[0]!.signal.aborted, true);
+    assert.equal(plans[1]!.signal.aborted, false);
+    assert.deepEqual(npcUpdates.at(-1).running, ["mara"]);
+    await request("start_npc", { characterId: "corvin" });
+    plans[0]!.release();
+    await new Promise(resolve => setImmediate(resolve));
+    await request("start_npc", { characterId: "corvin" });
+    assert.equal(plans.length, 3, "Old completion must not clear the replacement run");
+    await request("cancel_npc");
+    assert.ok(plans.every(plan => plan.signal.aborted));
+    assert.deepEqual(npcUpdates.at(-1).running, []);
+    for (const plan of plans) plan.release();
+    await new Promise(resolve => setImmediate(resolve));
+    await request("start_npc", { characterId: "mara" });
+    await request("create_development_game");
+    assert.equal(plans.at(-1)!.signal.aborted, true, "Game replacement cancels every old run");
+    plans.at(-1)!.release();
+    await new Promise(resolve => setImmediate(resolve));
+  });
+
+  await t.test("NPC conversations reserve a pair and restart an interrupted solo run after review", async t => {
+    const created = await request("create_development_game");
+    const saved = records.get(created.activeSaveId);
+    saved.snapshot.npcActivities = Object.fromEntries(["corvin", "mara"].map(id => [id, { status: "active", goal: "Ask for news.", history: [] }]));
+    await request("load_game", { saveId: created.activeSaveId });
+    const plans: Array<{ id: string; signal: AbortSignal; release: (value: any) => void }> = [];
+    t.mock.method(BrowserGameRuntime.prototype, "planNpc", (id: string, signal: AbortSignal) => new Promise<any>(resolve => plans.push({ id, signal, release: resolve })));
+    t.mock.method(BrowserGameRuntime.prototype, "stepNpcAction", () => ({ done: true, talkTarget: "mara", generations: {} }));
+    let releaseTalk!: () => void, releaseReview!: () => void;
+    let talkStarted!: () => void, reviewStarted!: () => void;
+    const talking = new Promise<void>(resolve => { talkStarted = resolve; });
+    const reviewing = new Promise<void>(resolve => { reviewStarted = resolve; });
+    t.mock.method(BrowserGameRuntime.prototype, "executeNpcTalk", async () => {
+      talkStarted(); await new Promise<void>(resolve => { releaseTalk = resolve; });
+      reviewStarted(); await new Promise<void>(resolve => { releaseReview = resolve; });
+      return "News exchanged.";
+    });
+    await request("start_npc", { characterId: "mara" });
+    await request("start_npc", { characterId: "corvin" });
+    plans[1]!.release({ decision: { choice: "talk_mara" }, action: { id: "talk_mara", description: "Talk to Mara" }, goal: "Ask for news.", generations: {} });
+    await talking;
+    assert.equal(plans[0]!.signal.aborted, true);
+    await request("start_npc", { characterId: "mara" });
+    assert.equal(plans.length, 2, "A reserved target cannot start another solo run");
+    releaseTalk(); await reviewing;
+    await request("start_npc", { characterId: "mara" });
+    assert.equal(plans.length, 2, "The reservation lasts through GM publication");
+    releaseReview();
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(plans.slice(2).map(plan => plan.id).sort(), ["corvin", "mara"]);
+    await request("cancel_npc");
+    for (const plan of plans) plan.release({});
+    await new Promise(resolve => setImmediate(resolve));
+  });
+
   await t.test("conversation review leaves movement and other dialogue available", async () => {
     await request("create_development_game");
     t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Farewell.", replyOptions: [], endConversation: true }));
@@ -1781,10 +1857,18 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     let started!: () => void;
     const reviewing = new Promise<void>(resolve => { started = resolve; });
     const waitForReview = new Promise<void>(resolve => { release = resolve; });
+    const commitReview = (input: any) => {
+      if (input.messages.some((m: any) => m.role === "tool")) return gmTool("finish_review", { summary: "Reviewed." });
+      const initial = input.messages.map((message: any) => { try { return JSON.parse(message.content); } catch { return {}; } });
+      const participant = initial.find((v: any) => v.event_type)?.participants[0];
+      const resource = initial.find((v: any) => v.world_state).world_state["character:" + participant];
+      return gmTool("update_character", { character_id: participant, generation_id: resource.generation_id,
+        changes: { append_events: [{ type: "memory", summary: "The envoy said goodbye." }], current_goal: null } });
+    };
     t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => {
-      if (input.response_format?.json_schema?.name === "conversation_memory") {
+      if (input.tools?.some((tool: any) => tool.function.name === "finish_review")) {
         started(); await waitForReview;
-        return modelReply({ newEvents: [{ type: "memory", summary: "The envoy said goodbye." }], relationships: [], lore: null, goalUpdate: null });
+        return commitReview(input);
       }
       return modelReply({ utterance: "Hello.", replyOptions: [], endConversation: false });
     });
@@ -1794,7 +1878,7 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
       await assert.rejects(request(type, { characterId: "corvin", message: "Again" }), /still reviewing/);
     }
     const destination = { x: 15, y: 24 };
-    await request("move_player", destination);
+    await request("move_player", { ...destination, generations: (await request("state")).state.generations });
     await request("talk", { characterId: "mara", message: "Hello." });
     release();
     const result = await review;
@@ -1804,7 +1888,7 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     const saved = records.get(result.activeSaveId).snapshot;
     assert.ok(fromJson(ScenarioSchema, saved.scenario).events.some(event => event.summary === "The envoy said goodbye."));
 
-    t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: null }));
+    t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => commitReview(input));
     failNextWrite = true;
     await assert.rejects(request("end_conversation", { characterId: "mara" }), /Test storage failure/);
     assert.equal((await request("state")).state.conversations.mara.length, 2, "Failed reviews retain their transcript for retry");
@@ -2002,7 +2086,7 @@ test("DM additions roll back on malformed final memory and bounded tool exhausti
   assert.deepEqual(runtime.snapshot(), before);
 });
 
-test("GM world additions merge with player movement but reject concurrent inventory changes atomically", async t => {
+test("GM world additions preserve unrelated player movement and inventory changes", async t => {
   const { runtime } = talkingCourt();
   runtime.finishNpcRun("corvin", "unable", "A token is missing.");
   const before = runtime.snapshot(), fork = runtime.forkForNpc();
@@ -2018,9 +2102,10 @@ test("GM world additions merge with player movement but reject concurrent invent
   runtime.movePlayer({ x: 20, y: 21 });
   runtime.interactFixture("open_palace_hall_cabinet");
   runtime.interactFixture("take_palace_iron_key");
-  const changed = runtime.snapshot();
-  assert.throws(() => runtime.commitCharacterFork(before, fork, ["corvin"]), /World changed/);
-  assert.deepEqual(runtime.snapshot(), changed);
+  runtime.commitCharacterFork(before, fork, ["corvin"]);
+  const changed = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  assert.equal(changed.world!.objects.find(item => item.id === "palace_iron_key")?.locationId, "player");
+  assert.equal(changed.world!.objects.find(item => item.id === "envoy_token")?.locationId, "corvin");
 });
 
 test("DM tools validate destinations, unique IDs, and participant scope before mutation", async () => {

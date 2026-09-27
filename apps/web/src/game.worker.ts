@@ -5,6 +5,7 @@ import { type TravellerIdentity } from "./introduction.js";
 import { fromJsonString, type JsonValue } from "@bufbuild/protobuf";
 import { ScenarioSchema, type Scenario } from "../../../packages/contracts/src/index.js";
 import { BrowserGameRuntime, type RuntimeSnapshot, type WitnessedIllegalAction } from "./runtime.js";
+import { GenerationConflict, generationIds, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 
 interface SaveRecord {
   id: string;
@@ -38,18 +39,20 @@ let requests: Promise<unknown> = Promise.resolve();
 function enqueue<T>(work: () => Promise<T>): Promise<T> {
   const result = requests.then(work); requests = result.catch(() => {}); return result;
 }
-let background: { id: string; controller: AbortController; participants: string[] } | undefined;
+const background = new Map<string, { id: string; controller: AbortController; participants: string[] }>();
 const pendingNpcs: Array<{ id: string; handoffs: number }> = [];
 const conversationHolds = new Set<string>();
 const conversationReviews = new Set<string>();
 
 function publishNpc(status: string, trace?: unknown, initiatedConversation?: string) {
   if (runtime) worker.postMessage({ type: "npc_update", state: runtime.view(), activeSaveId: activeSave?.id,
-    running: background?.id ?? null, status, ...(trace ? { trace } : {}), ...(initiatedConversation ? { initiatedConversation } : {}) });
+    running: [...new Set([...background.values()].flatMap(job => job.participants))], status, ...(trace ? { trace } : {}), ...(initiatedConversation ? { initiatedConversation } : {}) });
 }
 function stopBackground(characterId?: string) {
-  if (!characterId || background?.participants.includes(characterId)) {
-    background?.controller.abort(); background = undefined;
+  for (const [id, job] of background) {
+    if (!characterId || job.participants.includes(characterId)) {
+      job.controller.abort(); background.delete(id);
+    }
   }
   for (let i = pendingNpcs.length - 1; i >= 0; i--) if (!characterId || pendingNpcs[i]!.id === characterId) pendingNpcs.splice(i, 1);
 }
@@ -62,47 +65,67 @@ async function commitMutation<T>(game: BrowserGameRuntime, work: () => T): Promi
   });
 }
 async function reviewBackground(game: BrowserGameRuntime, id: string, signal: AbortSignal, allowNextGoal: boolean) {
-  for (let attempt = 0; attempt < 3; attempt++) {
-    signal.throwIfAborted();
-    const before = game.snapshot(), fork = game.forkForNpc();
-    await fork.reviewNpcOutcome(id, allowNextGoal, signal);
-    try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id]); }); return; }
-    catch (error) { if (attempt === 2 || signal.aborted || runtime !== game) throw error; }
-  }
+  signal.throwIfAborted();
+  const fork = reviewFork(game, signal);
+  await fork.reviewNpcOutcome(id, allowNextGoal, signal);
+}
+function reviewFork(game: BrowserGameRuntime, signal?: AbortSignal) {
+  const version = generation;
+  return game.forkForResourceReview(work => commitMutation(game, () => {
+    signal?.throwIfAborted();
+    if (generation !== version) throw new Error("Game changed.");
+    return work();
+  }), work => enqueue(async () => {
+    signal?.throwIfAborted();
+    if (runtime !== game || generation !== version) throw new Error("Game changed.");
+    return work();
+  }));
 }
 function startBackground(id: string, handoffs = 3) {
-  if (conversationHolds.has(id) || background?.id === id || pendingNpcs.some(item => item.id === id)) return;
+  if (conversationHolds.has(id) || background.has(id) || pendingNpcs.some(item => item.id === id)) return;
   pendingNpcs.push({ id, handoffs });
-  if (!background) void drainBackground();
+  drainBackground();
 }
-async function drainBackground() {
-  if (background) return;
-  const next = pendingNpcs.shift(); if (!next || !runtime) return;
+function drainBackground() {
+  if (!runtime) return;
+  for (let index = 0; index < pendingNpcs.length;) {
+    const next = pendingNpcs[index]!;
+    if ([...background.values()].some(job => job.participants.includes(next.id)) || conversationHolds.has(next.id)) { index++; continue; }
+    pendingNpcs.splice(index, 1);
+    void runBackground(next);
+  }
+}
+async function runBackground(next: { id: string; handoffs: number }) {
+  if (!runtime) return;
   const game = runtime, { id, handoffs } = next;
-  const job = { id, controller: new AbortController(), participants: [id] }; background = job;
+  const job = { id, controller: new AbortController(), participants: [id] }; background.set(id, job);
   const signal = job.controller.signal;
   let finalStatus = `${id}: idle.`;
-  const valid = () => !signal.aborted && runtime === game && background === job && !conversationHolds.has(id);
+  const valid = () => !signal.aborted && runtime === game && background.get(id) === job && !conversationHolds.has(id);
   try {
     for (let round = 0; round < 3 && valid(); round++) {
       if (game.snapshot().npcActivities?.[id]?.reviewPending) await reviewBackground(game, id, signal, round < 2);
       if (game.snapshot().npcActivities?.[id]?.status !== "active") break;
       let reason: "complete" | "unable" | "limit" = "limit", detail = "Reached the 24-action limit.";
+      let finishGenerations: ExpectedGenerations | undefined;
+      let conflict: { error: string; instruction: string } | undefined;
       for (let step = 0; step < 24 && valid(); step++) {
         publishNpc(`${id}: choosing an action…`);
-        const plan = await game.planNpc(id, signal);
+        const plan = await game.planNpc(id, signal, conflict);
+        conflict = undefined;
         if (!valid()) return;
         publishNpc(`${id}: ${plan.action?.description ?? plan.decision.choice}`, plan);
         if (plan.decision.choice === "complete" || plan.decision.choice === "unable") {
           // A changed world invalidates a terminal judgment as well as a physical action.
-          if (game.view().revision !== plan.revision) continue;
-          reason = plan.decision.choice; detail = JSON.stringify(plan.decision); break;
+          reason = plan.decision.choice; detail = JSON.stringify(plan.decision); finishGenerations = plan.generations; break;
         }
         if (!plan.action) throw new Error("Jev returned an unavailable action.");
-        let result: { done: boolean; talkTarget?: string; witnessedAction?: WitnessedIllegalAction } | undefined;
+        let expected = plan.generations;
+        let result: { done: boolean; talkTarget?: string; witnessedAction?: WitnessedIllegalAction; generations: ExpectedGenerations } | undefined;
         try {
           while (valid()) {
-            result = await commitMutation(game, () => { signal.throwIfAborted(); return game.stepNpcAction(id, plan.action!.id, plan.goal); });
+            result = await commitMutation(game, () => { signal.throwIfAborted(); return game.stepNpcAction(id, plan.action!.id, plan.goal, expected); });
+            expected = result.generations;
             if (!valid()) return;
             publishNpc(`${id}: ${plan.action.description}`);
             if (result.done) break;
@@ -110,54 +133,77 @@ async function drainBackground() {
           }
         } catch (error) {
           if (!valid()) return;
+          if (error instanceof GenerationConflict) {
+            conflict = { error: error.response.error, instruction: "The previous action was not applied because its generation IDs changed. Inspect this fresh observation, reconcile your intention, and choose an action again." };
+            continue;
+          }
           // Doors, targets or goals may have changed while the player acted. Replan.
           if (/replan|changed|doorway/i.test(String(error))) continue;
           throw error;
         }
         if (!valid()) return;
         if (result?.witnessedAction) {
-          const before = game.snapshot(), fork = game.forkForNpc();
+          const before = game.snapshot(), fork = reviewFork(game, signal);
           await fork.reviewWitnessedIllegalAction(result.witnessedAction, signal);
           if (!valid()) return;
-          await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, []); });
           if (handoffs > 0) for (const listener of game.rumourListenersSince(before)) startBackground(listener, handoffs - 1);
         }
         if (result?.talkTarget) {
           const target = result.talkTarget;
           if (conversationHolds.has(target)) continue;
+          // A pair owns both participants until its review commits. Interrupt a
+          // solo run, but never steal someone from another conversation.
+          if ([...background.values()].some(other => other !== job && other.participants.includes(target) && other.participants.length > 1)) continue;
+          const interrupted = background.has(target);
+          stopBackground(target);
           job.participants = [id, target];
-          const before = game.snapshot(), fork = game.forkForNpc();
-          if (target === (game.view().player as { id?: string } | null)?.id) {
-            if (conversationHolds.size) continue;
-            await fork.initiatePlayerConversation(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
-            if (conversationHolds.size) continue;
-            try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id], true); }); }
-            catch (error) { if (!valid()) return; if (/changed/i.test(String(error))) continue; throw error; }
-            conversationHolds.add(id);
-            publishNpc(`${id}: started a conversation with you.`, undefined, id);
-            return;
+          publishNpc(`${id}: talking to ${target}…`);
+          let before: RuntimeSnapshot;
+          try {
+            before = game.snapshot();
+            const fork = reviewFork(game, signal);
+            if (target === (game.view().player as { id?: string } | null)?.id) {
+              if (conversationHolds.size) continue;
+              await fork.initiatePlayerConversation(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
+              if (!valid()) return;
+              if (conversationHolds.size) continue;
+              try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id], undefined, true); }); }
+              catch (error) { if (!valid()) return; if (/changed/i.test(String(error))) continue; throw error; }
+              conversationHolds.add(id);
+              publishNpc(`${id}: started a conversation with you.`, undefined, id);
+              return;
+            }
+            await fork.executeNpcTalk(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
+          } finally {
+            job.participants = [id];
+            if (valid() && interrupted) startBackground(target, handoffs);
+            drainBackground();
+            if (valid()) publishNpc(`${id}: conversation finished.`);
           }
-          await fork.executeNpcTalk(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
-          try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id, target]); }); }
-          catch (error) { if (!valid()) return; if (/changed/i.test(String(error))) continue; throw error; }
-          finally { job.participants = [id]; }
+          if (!valid()) return;
           if (handoffs > 0) for (const listener of game.rumourListenersSince(before)) startBackground(listener, handoffs - 1);
           if (handoffs > 0 && game.snapshot().npcActivities?.[target]?.status === "active") startBackground(target, handoffs - 1);
           if (game.snapshot().npcActivities?.[id]?.status !== "active") return;
         }
       }
       if (!valid()) return;
-      await commitMutation(game, () => { signal.throwIfAborted(); game.finishNpcRun(id, reason, detail); });
+      const expectedFinish = finishGenerations ?? generationIds(game.readResources([`character:${id}`]));
+      await commitMutation(game, () => { signal.throwIfAborted(); game.finishNpcRun(id, reason, detail, expectedFinish); });
       publishNpc(`${id}: reviewing the result…`);
       await reviewBackground(game, id, signal, round < 2);
     }
   } catch (error) {
+    if (valid() && error instanceof GenerationConflict) {
+      pendingNpcs.push({ id, handoffs });
+      finalStatus = `${id}: state changed; choosing again.`;
+      return;
+    }
     if (valid()) {
       if (game.snapshot().npcActivities?.[id]?.status === "active") await commitMutation(game, () => { signal.throwIfAborted(); game.finishNpcRun(id, "error", String(error)); }).catch(() => {});
       finalStatus = `${id}: ${error instanceof Error ? error.message : String(error)}`;
     }
   } finally {
-    if (background === job) { background = undefined; publishNpc(finalStatus); void drainBackground(); }
+    if (background.get(id) === job) { background.delete(id); publishNpc(finalStatus); drainBackground(); }
   }
 }
 
@@ -251,6 +297,8 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     generation++; stopBackground(); conversationHolds.clear();
   }
   const reviewKey = `${generation}:${String(payload.characterId || "")}`;
+  if (["move_player", "set_door", "interact_fixture"].includes(type)
+    && (!payload.generations || typeof payload.generations !== "object" || Array.isArray(payload.generations))) throw new Error("Expected generation IDs are required for physical updates.");
   if (["start_npc", "pause_npc", "talk", "end_conversation"].includes(type) && conversationReviews.has(reviewKey)) {
     throw new Error("This character is still reviewing the conversation. Try again when the review finishes.");
   }
@@ -312,7 +360,7 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     try {
       if (type === "reset_world") game.resetWorld();
       else if (type === "reset_characters") game.resetCharacters();
-      else message = await game.interactFixtureWithWitnesses(String(payload.actionId || ""));
+      else message = await game.interactFixtureWithWitnesses(String(payload.actionId || ""), payload.generations as ExpectedGenerations | undefined);
       await persist();
     } catch (error) { game.restore(before); activeSave = savedBefore; throw error; }
     if (type === "interact_fixture") for (const listener of game.rumourListenersSince(before)) startBackground(listener);
@@ -321,13 +369,13 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
   if (type === "set_door") {
     if (typeof payload.open !== "boolean") throw new Error("Door state must be open or closed.");
     const game = requireRuntime(), before = structuredClone(game.snapshot());
-    try { game.setDoor(String(payload.id), payload.open); await persist(); }
+    try { game.setDoor(String(payload.id), payload.open, payload.generations as ExpectedGenerations | undefined); await persist(); }
     catch (error) { game.restore(before); throw error; }
     return { state: game.view(), saves: await listSaves() };
   }
   if (type === "move_player") {
     const game = requireRuntime(), before = structuredClone(game.snapshot());
-    try { game.movePlayer({ x: Number(payload.x), y: Number(payload.y) }); await persist(); }
+    try { game.movePlayer({ x: Number(payload.x), y: Number(payload.y) }, payload.generations as ExpectedGenerations | undefined); await persist(); }
     catch (error) { game.restore(before); throw error; }
     return { state: game.view(), saves: await listSaves() };
   }
@@ -337,12 +385,13 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
       const game = requireRuntime(), id = String(payload.characterId || "");
       conversationHolds.add(id); stopBackground(id);
       const version = generation;
-      const { before, fork } = await enqueue(async () => ({ before: game.snapshot(), fork: game.forkForNpc() }));
+      const { before, fork } = await enqueue(async () => ({ before: game.snapshot(), fork: type === "end_conversation" ? reviewFork(game) : game.forkForNpc() }));
       const reply = type === "talk" ? await fork.talkToCharacter(id, String(payload.message || "")) : await fork.endConversation(id);
-      await commitMutation(game, () => {
-        if (generation !== version) throw new Error("Game changed.");
-        game.commitCharacterFork(before, fork, [id]);
-      });
+      if (generation !== version || runtime !== game) throw new Error("Game changed.");
+      if (type === "talk") await commitMutation(game, () => {
+          if (generation !== version) throw new Error("Game changed.");
+          game.commitCharacterFork(before, fork, [id]);
+        });
       if (type === "end_conversation") {
         conversationHolds.delete(id);
         for (const listener of game.rumourListenersSince(before)) startBackground(listener);
@@ -371,6 +420,7 @@ worker.addEventListener("message", event => {
       const value = await handle(request.type, request.payload || {});
       worker.postMessage({ id: request.id, ok: true, value });
     } catch (error) {
+      if (error instanceof GenerationConflict) publishNpc("State changed. Review the updated palace and choose again.");
       worker.postMessage({ id: request.id, ok: false, error: error instanceof Error ? error.message : String(error) });
     }
   };

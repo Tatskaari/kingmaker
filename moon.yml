@@ -6,7 +6,7 @@ tasks:
     deps: [contracts:generate]
     inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
   test:
-    command: npx --no-install tsx --test tests/contracts.test.ts
+    command: npx --no-install tsx --test tests/*.test.ts
     deps: [contracts:generate]
     inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'content/**/*', 'package.json', 'package-lock.json']
   compile:
