@@ -49,9 +49,11 @@ the coming centennial succession before introducing the three delegations.
 
 ## Models and debugging
 
-GPT-6 Luna handles dialogue with reasoning off. GPT-6 Terra handles the GM, reviews
+GPT-6 Luna handles dialogue with reasoning off. GPT-5.6 Terra handles the GM, reviews
 and NPC-to-NPC exchanges with medium reasoning. Settings live in
-`apps/web/src/model-settings.ts`. Jev selects from currently reachable actions.
+`apps/web/src/model-settings.ts`. Terra supplies the middle reasoning tier between
+Luna and Sol; its OpenRouter ID is `openai/gpt-5.6-terra`.
+Jev selects from currently reachable actions.
 
 The debug inspector shows world state, character context and recent transcripts:
 requests, responses, summaries, duration and errors for the latest 50 calls.
