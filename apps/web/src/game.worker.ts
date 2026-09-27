@@ -400,6 +400,9 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     try {
       const game = requireRuntime(), id = String(payload.characterId || "");
       conversationHolds.add(id); stopBackground(id);
+      if (type === "end_conversation" && typeof payload.message === "string") {
+        await commitMutation(game, () => game.endConversationAsPlayer(id, payload.message as string));
+      }
       const version = generation;
       const { before, fork } = await enqueue(async () => ({ before: game.snapshot(), fork: type === "end_conversation" ? reviewFork(game) : game.forkForNpc() }));
       const reply = type === "talk" ? await fork.talkToCharacter(id, String(payload.message || ""), text => {

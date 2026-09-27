@@ -384,7 +384,7 @@ function renderConversation() {
   const dialog = document.createElement("dialog");
   dialog.className = "conversation-modal";
   dialog.setAttribute("aria-label", `Conversation with ${character.name}`);
-  dialog.innerHTML = `<section class="panel"><div class="conversation-head"><button class="back" data-end-conversation ${busy ? "disabled" : ""}>${busy ? "Please wait…" : ended ? "Return to palace" : ending ? "Finish conversation review" : "End conversation"}</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.<span class="earshot">${escapeHtml(earshotMessage)}</span></div>`}</div>${ended || ending ? `<p class="scene">${escapeHtml(character.name)} has ended the conversation. You can return to the palace while their memories and next goal are reviewed.</p>` : `${replyOptions(state.conversationReplyOptions?.[activeCharacter], activeCharacter)}<form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`;
+  dialog.innerHTML = `<section class="panel"><div class="conversation-head"><button class="back" data-end-conversation ${busy ? "disabled" : ""}>${busy ? "Please wait…" : ended ? "Return to palace" : ending ? "Finish conversation review" : "End conversation"}</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.<span class="earshot">${escapeHtml(earshotMessage)}</span></div>`}</div>${ended || ending ? `<p class="scene">${escapeHtml(character.name)} has ended the conversation. You can return to the palace while their memories and next goal are reviewed.</p>` : `${replyOptions(state.conversationReplyOptions?.[activeCharacter], activeCharacter)}<form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><div class="composer-actions"><button class="primary" ${busy ? "disabled" : ""}>Speak</button><button type="submit" data-respond-and-close ${busy ? "disabled" : ""}>Speak &amp; leave</button></div></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`;
   // Keep character debugging within the modal's focus boundary.
   for (const panel of app.querySelectorAll(".debug-scrim, .debug-inspector")) dialog.append(panel);
   app.append(dialog);
@@ -419,11 +419,11 @@ async function talkAndReview(characterId, message) {
   reviewConversation(characterId);
 }
 
-function reviewConversation(characterId) {
+function reviewConversation(characterId, message) {
   if (conversationReviews.has(characterId) && !conversationReviews.get(characterId).error) return;
   const review = {};
   conversationReviews.set(characterId, review);
-  void rpc("end_conversation", { characterId }).then(result => {
+  void rpc("end_conversation", { characterId, ...(message === undefined ? {} : { message }) }).then(result => {
     if (conversationReviews.get(characterId) !== review) return;
     state = result.state; saves = result.saves;
     conversationReviews.delete(characterId);
@@ -435,6 +435,12 @@ function reviewConversation(characterId) {
     review.error = error.message;
     updateNpcPanel();
   });
+}
+
+function submitComposerOnEnter(form, event) {
+  if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+  event.preventDefault();
+  if (!busy) form.requestSubmit();
 }
 
 async function run(action) {
@@ -565,12 +571,23 @@ function bind() {
       state = result.state; saves = result.saves; reviewDraft = null;
     });
   });
-  document.querySelector("[data-gm-form]")?.addEventListener("submit", event => {
+  const gmForm = document.querySelector("[data-gm-form]");
+  gmForm?.querySelector("textarea")?.addEventListener("keydown", event => submitComposerOnEnter(gmForm, event));
+  gmForm?.addEventListener("submit", event => {
     event.preventDefault(); const message = new FormData(event.currentTarget).get("message");
     run(async () => { const result = await rpc("gm", { message }); state = result.state; saves = result.saves; });
   });
-  document.querySelector("[data-talk-form]")?.addEventListener("submit", event => {
+  const talkForm = document.querySelector("[data-talk-form]");
+  talkForm?.querySelector("textarea")?.addEventListener("keydown", event => submitComposerOnEnter(talkForm, event));
+  talkForm?.addEventListener("submit", event => {
     event.preventDefault(); const message = new FormData(event.currentTarget).get("message");
+    if (event.submitter?.hasAttribute("data-respond-and-close")) {
+      const characterId = activeCharacter;
+      activeCharacter = null; notice = "";
+      reviewConversation(characterId, message);
+      render();
+      return;
+    }
     run(() => talkAndReview(activeCharacter, message));
   });
   document.querySelector("[data-end-conversation]")?.addEventListener("click", () => {
