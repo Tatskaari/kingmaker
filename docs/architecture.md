@@ -16,9 +16,9 @@ identity and authored actor positions. Walking and object interactions operate
 on that same world state; there is no separate demo or night-turn engine.
 
 `FullContextBuilder` combines authored character context, objectives, immediate
-intent, visible events, known fixture contents and dialogue history. Spoken turns
+intent, available notes, known fixture contents and dialogue history. Spoken turns
 return dialogue, reply suggestions and an optional conversation-ending flag.
-A separate review commits durable memories, relationships, biography and a goal.
+A separate review commits durable free-form notes, relationships, biography and a goal.
 A non-null goal activates Jev; null leaves the NPC idle.
 
 `courtAgentObservation` enumerates physically reachable movement and interaction
@@ -32,6 +32,13 @@ Planner termination triggers an outcome review, which can assign another concret
 task. NPC-to-NPC conversations use an initiating request and a GM resolution,
 with both participants' private updates committed atomically. Physical changes
 still require engine actions.
+
+Completed conversations, door use and object interactions emit transient world
+events. Eligible listeners make independent Clear/Moderate/Distant perception
+rolls. Jev then decides whether a perceived event is objective-relevant or demands
+an immediate character reaction. A positive decision interrupts that character's
+runner and invokes a character review, which must append a note and may revise both
+active and parked objectives before background execution resumes.
 
 GPT-6 Luna handles spoken dialogue without reasoning. GPT-6 Sol uses medium
 reasoning for the GM, reviews and NPC conversation resolution. The OpenRouter

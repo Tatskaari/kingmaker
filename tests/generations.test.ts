@@ -116,7 +116,7 @@ test("physical movement and reset advance the appropriate generations", () => {
   assert.notEqual(game.readResources()["character:corvin"]!.generationId, initial["character:corvin"]!.generationId);
 });
 
-const memory = { newEvents: [], relationships: [], lore: null, goalUpdate: null };
+const memory = { newNotes: [], relationships: [], lore: null, goalUpdate: null };
 const reply = (value: unknown) => ({ role: "assistant" as const, content: JSON.stringify(value) });
 const write = (generations: Record<string, string>, review = memory, worldChanges: unknown[] = []) => ({
   role: "assistant" as const, content: null, tool_calls: [{ id: "write", type: "function" as const,

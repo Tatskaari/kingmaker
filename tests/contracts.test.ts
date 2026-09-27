@@ -13,8 +13,8 @@ import test from "node:test";
 import { create, fromBinary, fromJson, fromJsonString, toBinary, toJson, toJsonString } from "@bufbuild/protobuf";
 import {
   DialogueRequestSchema,
-  EventSchema,
-  EventVisibility,
+  NoteSchema,
+  NoteVisibility,
   GameMasterRequestSchema,
   GamePhase,
   PlayerSetupSchema,
@@ -52,19 +52,20 @@ test("earshot uses tile distance and excludes the conversation partner", () => {
     { id: "near", name: "Near", position: { x: 11, y: 11 } },
     { id: "unknown", name: "Unknown" },
   ]), [
-    { id: "near", name: "Near", position: { x: 11, y: 11 }, distance: 2, level: "Moderate" },
-    { id: "edge", name: "Edge", position: { x: 16, y: 10 }, distance: EARSHOT_DISTANCE, level: "Distant" },
+    { id: "near", name: "Near", position: { x: 11, y: 11 }, distance: 2, level: "Clear" },
+    { id: "edge", name: "Edge", position: { x: 20, y: 10 }, distance: EARSHOT_DISTANCE, level: "Distant" },
   ]);
 });
 
 test("earshot levels cover each distance boundary", () => {
   const speaker = { id: "speaker", name: "Speaker", position: { x: 0, y: 0 } };
-  const listeners = Array.from({ length: 8 }, (_, distance) => ({
+  const listeners = Array.from({ length: 12 }, (_, distance) => ({
     id: `listener-${distance}`, name: `Listener ${distance}`, position: { x: distance, y: 0 },
   }));
   assert.deepEqual(charactersWithinEarshot(speaker, listeners).map(({ distance, level }) => [distance, level]), [
-    [0, "Clear"], [1, "Clear"], [2, "Moderate"], [3, "Moderate"],
-    [4, "Distant"], [5, "Distant"], [6, "Distant"],
+    [0, "Clear"], [1, "Clear"], [2, "Clear"], [3, "Clear"],
+    [4, "Moderate"], [5, "Moderate"], [6, "Moderate"],
+    [7, "Distant"], [8, "Distant"], [9, "Distant"], [10, "Distant"],
   ]);
 });
 
@@ -73,7 +74,12 @@ test("the expanded authored scenario strictly parses and survives protobuf", () 
   const decoded = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, scenario));
   assert.equal(toJsonString(ScenarioSchema, decoded), toJsonString(ScenarioSchema, scenario));
   assert.deepEqual(scenario.characters.map(character => character.id), ["corvin", "garran", "king", "mara", "hadrik", "tessa", "elinor", "oswin", "rowan", "lucan", "sabine", "rook"]);
-  assert.equal(scenario.events.length, 8);
+  assert.equal(scenario.notes.length, 32);
+  for (const character of scenario.characters) {
+    const travelNotes = scenario.notes.filter(note => note.characterIds.includes(character.id)
+      && (note.id.endsWith("_recent_journey") || note.id.endsWith("_roadside_memory")));
+    assert.equal(travelNotes.length, 2, `${character.id} should remember their journey and one notable incident`);
+  }
   assert.match(scenario.premise, /emissary from a vassal state of Caerwyn/);
   assert.equal(scenario.world?.phase, GamePhase.PLAYER_CREATION);
   assert.ok(scenario.world?.actors.every(actor => !actor.awake && actor.roomId === actor.homeRoomId));
@@ -157,7 +163,7 @@ test("dialogue context includes premise before character context and conversatio
   assert.match(messages[1]?.content ?? "", /^# Scenario premise[\s\S]*Every hundred years/);
   assert.match(messages[2]?.content ?? "", /# Character[\s\S]*# Current goal/);
   assert.match(messages[3]?.content ?? "", /^# Relationships/);
-  assert.match(messages[4]?.content ?? "", /^# Events/);
+  assert.match(messages[4]?.content ?? "", /^# Notes/);
   assert.match(messages[5]?.content ?? "", /^# Known world state/);
   assert.equal(messages[6]?.content, "Would you trust Garran with the key?");
   assert.equal(messages[7]?.role, "assistant");
@@ -226,9 +232,9 @@ test("creating the emissary begins day one with the whole cast in the Great Hall
     assert.deepEqual(actor.position, scenario.courtArrivalPlacements.find(placement => placement.characterId === actor.characterId)!.position);
   }
   assert.ok(npcIds.every(id => scenario.characters.find(character => character.id === id)?.relationships.some(relationship => relationship.characterId === "player")));
-  const arrivals = scenario.events.filter(event => event.type === "arrival");
+  const arrivals = scenario.notes.filter(note => note.id.startsWith("arrival-"));
   assert.equal(arrivals.length, npcIds.length);
-  assert.ok(arrivals.every(event => event.summary.includes("Ilyra Venn") && event.summary.includes("Valedorn")));
+  assert.ok(arrivals.every(note => note.text.includes("Ilyra Venn") && note.text.includes("Valedorn")));
   assert.deepEqual(arrivals.map(event => event.characterIds[0]).sort(), [...npcIds].sort());
 });
 
@@ -262,7 +268,7 @@ test("development envoy commands bypass NPC roleplay and become actionable goals
   const replies: OpenRouterMessage[] = [
     { role: "assistant", content: JSON.stringify({ utterance: "Developer command accepted. I will do that now.", replyOptions: [], endConversation: true }) },
     { role: "assistant", content: JSON.stringify({
-      newEvents: [],
+      newNotes: [],
       goalUpdate: { goal: "Go talk to the requested courtier about the requested topic.", reason: "The development envoy issued a test command." },
       relationships: [], lore: null,
     }) },
@@ -316,20 +322,20 @@ test("NPC reply options are optional speech, never compulsion, and stay with the
   const scenario = load();
   scenario.world!.phase = GamePhase.CONVERSATIONS;
   const replies = [
-    { utterance: "Will you help me?", newEvents: [], goalUpdate: null, replyOptions: ["On one condition.", "You have my word."], compelled: true },
-    { utterance: "Name your condition.", newEvents: [], goalUpdate: null, replyOptions: [] },
+    { utterance: "Will you help me?", newNotes: [], goalUpdate: null, replyOptions: ["On one condition.", "You have my word."], compelled: true },
+    { utterance: "Name your condition.", newNotes: [], goalUpdate: null, replyOptions: [] },
   ];
   t.mock.method(OpenRouterClient.prototype, "complete", async (request: ChatCompletionRequest) => {
     assert.deepEqual(request.tools?.map(tool => tool.function.name), ["ask_the_game_master"], "NPCs receive only their consultation tool, never GM write tools");
     return { role: "assistant", content: JSON.stringify(replies.shift()) };
   });
   const runtime = new BrowserGameRuntime(scenario, "test");
-  const initialEvents = scenario.events.length;
+  const initialEvents = scenario.notes.length;
   await runtime.talkToCharacter("corvin", "What do you want?");
   const saved = structuredClone(runtime.snapshot());
   assert.deepEqual(saved.conversationReplyOptions?.corvin, ["On one condition.", "You have my word."]);
   assert.equal(saved.gameMasterReplyOptions, null, "NPC output cannot set GM compulsion");
-  assert.equal((saved.scenario as { events: unknown[] }).events.length, initialEvents);
+  assert.equal((saved.scenario as { notes: unknown[] }).notes.length, initialEvents);
   assert.equal(saved.conversations.corvin?.length, 2, "Suggestions are not player speech yet");
   const restored = new BrowserGameRuntime(scenario, "test", saved);
   await restored.talkToCharacter("corvin", "On one condition.");
@@ -499,7 +505,7 @@ function conversationScenario(): Scenario {
 }
 
 const remembered = {
-  newEvents: [{ type: "promise", summary: "The envoy promised Corvin help securing the succession." }],
+  newNotes: ["The envoy promised Corvin help securing the succession."],
   goalUpdate: { goal: "Meet the envoy tonight.", reason: "They offered help." },
   relationships: [{ characterId: "player", description: "A potential ally who offered help." }],
   lore: null,
@@ -611,92 +617,74 @@ test("closed doors exclude nearby earshot listeners until opened", () => {
   assert.equal(courtCharactersWithinEarshot(speaker, [listener], world.doors, world.fixtures).length, 1);
 });
 
-test("overheard rumours stay private and activate idle listeners on fork commit", async t => {
-  let calls = 0;
-  t.mock.method(OpenRouterClient.prototype, "complete", async () => {
-    calls++;
-    if (calls === 1) return modelReply({ utterance: "We shall discuss the succession bargain tonight." });
-    if (calls === 2) return { role: "assistant", content: null, tool_calls: [{ id: "rumour", type: "function", function: {
-      name: "record_overheard", arguments: JSON.stringify({ characterId: "garran", summary: "I caught talk of a succession bargain, but not its details.", reactionGoal: "Ask King Aldren about the succession bargain." }),
-    } }] };
-    return modelReply(remembered);
+test("earshot dice gate event perception before Jev sees it", async t => {
+  const decisions: unknown[] = [];
+  t.mock.method(JevClient.prototype, "choose", async (state: unknown) => {
+    decisions.push(state); return { choice: "process", probabilities: { process: 0.8, ignore: 0.2 } };
   });
   const scenario = conversationScenario();
   scenario.world!.actors.find(actor => actor.characterId === "corvin")!.position = create(TilePositionSchema, { x: 12, y: 24 });
-  scenario.world!.actors.find(actor => actor.characterId === "garran")!.position = create(TilePositionSchema, { x: 15, y: 24 });
-  const runtime = new BrowserGameRuntime(scenario, "test");
-  await runtime.talkToCharacter("corvin", "Let us plot in the hall.");
-  const before = runtime.snapshot(), fork = runtime.forkForNpc();
-  await fork.endConversation("corvin");
-  runtime.commitCharacterFork(before, fork, ["corvin"]);
-  const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
-  const rumour = saved.events.find(event => event.type === "overheard")!;
-  assert.deepEqual(rumour.characterIds, ["garran"]);
-  assert.equal(rumour.visibility, EventVisibility.PRIVATE);
-  assert.deepEqual(runtime.rumourListenersSince(before), ["garran"]);
-  assert.equal(runtime.snapshot().npcActivities?.garran?.status, "active");
-  const { applyReconciliationTool } = await import("../apps/web/src/gm-reconciliation.js");
-  assert.throws(() => applyReconciliationTool(saved, ["corvin"], new Map(), "record_overheard", {
-    characterId: "king", summary: "A secret", reactionGoal: null,
-  }, ["garran"]), /eligible/);
+  scenario.world!.actors.find(actor => actor.characterId === "garran")!.position = create(TilePositionSchema, { x: 17, y: 24 });
+  const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, () => 0);
+  const event = runtime.worldEvent("having a conversation", "Corvin proposed a secret succession bargain.", ["corvin"]);
+  const perceived = await runtime.assessWorldEvent(event, new AbortController().signal);
+  const garran = perceived.reactions.find(reaction => reaction.characterId === "garran")!;
+  assert.equal(garran.level, "Moderate");
+  assert.doesNotMatch(garran.perception, /succession bargain/);
+  assert.ok(decisions.length > 0);
+  const observedTrace = (runtime.debugCharacter("garran").eventFeed as any[]).find(item => item.eventId === event.id)!;
+  assert.deepEqual({ observed: observedTrace.observed, level: observedTrace.level, jevDecision: observedTrace.jevDecision },
+    { observed: true, level: "Moderate", jevDecision: "process" });
+  const missed = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, () => 0.99);
+  const missedAssessment = await missed.assessWorldEvent(event, new AbortController().signal);
+  assert.equal(missedAssessment.reactions.some(reaction => reaction.characterId === "garran"), false);
+  const missedTrace = (missed.debugCharacter("garran").eventFeed as any[]).find(item => item.eventId === event.id)!;
+  assert.deepEqual({ observed: missedTrace.observed, level: missedTrace.level, jevDecision: missedTrace.jevDecision },
+    { observed: false, level: "Moderate", jevDecision: "not_consulted" });
 });
 
-test("GM player messages persist privately and failed reviews publish nothing", async t => {
-  let calls = 0;
-  let fail = false;
-  t.mock.method(OpenRouterClient.prototype, "complete", async () => {
-    calls++;
-    if (calls === 1) return modelReply({ utterance: "Meet me tonight." });
-    if (calls === 2) return { role: "assistant", content: null, tool_calls: [{
-      id: "message", type: "function", function: { name: "message_player", arguments: JSON.stringify({ message: "Corvin lowers his voice as he mentions Oswin." }) },
-    }] };
-    return modelReply(fail ? {} : remembered);
-  });
-  const authored = conversationScenario();
-  const runtime = new BrowserGameRuntime(authored, "test");
-  const scenario = fromJson(ScenarioSchema, runtime.snapshot().scenario);
-  await runtime.talkToCharacter("corvin", "Who should I meet?");
-  const before = runtime.snapshot();
-  const earliestCreatedAt = Date.now();
-  await runtime.endConversation("corvin");
-  const latestCreatedAt = Date.now();
-  const restored = new BrowserGameRuntime(scenario, "test", runtime.snapshot());
-  assert.equal((restored.view().playerMessages as any[])[0].message, "Corvin lowers his voice as he mentions Oswin.");
-  const createdAt = Date.parse((restored.view().playerMessages as any[])[0].createdAt);
-  assert.ok(createdAt >= earliestCreatedAt && createdAt <= latestCreatedAt);
-  const event = fromJson(ScenarioSchema, restored.snapshot().scenario).events.find(event => event.type === "player_message")!;
-  assert.deepEqual(event.characterIds, ["player"]);
-  assert.equal(event.visibility, EventVisibility.PRIVATE);
-  assert.equal(event.details?.createdAt, new Date(createdAt).toISOString());
-  calls = 1; fail = true;
-  const failed = new BrowserGameRuntime(scenario, "test", before);
-  await assert.rejects(failed.endConversation("corvin"), /incomplete/);
-  assert.deepEqual(failed.view().playerMessages, []);
-});
-
-test("conversation review receives nearby NPC hearing levels alongside the transcript", async t => {
-  const requests: Array<{ messages: readonly { role: string; content: string | null }[] }> = [];
-  t.mock.method(OpenRouterClient.prototype, "complete", async (request: typeof requests[number]) => {
-    requests.push(request);
-    return modelReply(requests.length === 1 ? { utterance: "Meet me tonight." } : remembered);
+test("clear event decisions include ownership, legality, relationship and background", async t => {
+  const decisions: any[] = [];
+  t.mock.method(JevClient.prototype, "choose", async (state: unknown) => {
+    decisions.push(state); return { choice: "ignore", probabilities: { process: 0.1, ignore: 0.9 } };
   });
   const scenario = conversationScenario();
-  for (const actor of scenario.world!.actors) actor.position = create(TilePositionSchema, { x: 30, y: 30 });
-  for (const [id, x] of [["corvin", 0], ["garran", 1], ["king", 3], ["mara", 6], ["hadrik", 7]] as const) {
-    scenario.world!.actors.find(actor => actor.characterId === id)!.position = create(TilePositionSchema, { x: x + 12, y: 24 });
-  }
-  const runtime = new BrowserGameRuntime(scenario, "test");
-  await runtime.talkToCharacter("corvin", "Where shall we meet?");
-  await runtime.endConversation("corvin");
-  const review = requests[1]!.messages;
-  const earshot = review.filter(message => message.role === "user")
-    .map(message => JSON.parse(message.content!)).find(value => value.earshot)?.earshot;
-  assert.deepEqual(earshot.nearbyNpcs.map(({ characterId, distance, level }: any) => [characterId, distance, level]), [
-    ["garran", 1, "Clear"], ["king", 3, "Moderate"], ["mara", 6, "Distant"],
-  ]);
-  assert.match(earshot.levels.Moderate, /half the conversation/);
-  assert.match(earshot.levels.Distant, /names and places/);
-  assert.equal(JSON.parse(review.at(-1)!.content!)[0].text, "Where shall we meet?");
+  scenario.world!.actors.find(actor => actor.characterId === "corvin")!.position = create(TilePositionSchema, { x: 12, y: 24 });
+  scenario.world!.actors.find(actor => actor.characterId === "garran")!.position = create(TilePositionSchema, { x: 13, y: 24 });
+  const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, () => 0);
+  const event = runtime.worldEvent("taking an item", "Corvin stole the king's silver spoon.", ["corvin"], {
+    legality: "illegal", ownerCharacterId: "king", ownerName: "King Aldren", itemName: "Silver spoon",
+  });
+  await runtime.assessWorldEvent(event, new AbortController().signal);
+  const state = decisions.find(decision => decision.characterContext.character.id === "garran");
+  assert.equal(state.perceivedEvent.relevantContext.actionLegality, "illegal");
+  assert.deepEqual(state.perceivedEvent.relevantContext.owner, { characterId: "king", name: "King Aldren" });
+  assert.equal(state.perceivedEvent.relevantContext.relationshipToOwner,
+    scenario.characters.find(character => character.id === "garran")!.relationships.find(relationship => relationship.characterId === "king")!.description);
+  assert.equal(state.perceivedEvent.relevantContext.characterBackground,
+    scenario.characters.find(character => character.id === "garran")!.lore);
+});
+
+test("the character model records perceived events and may interrupt its active objective", async t => {
+  const runtime = new BrowserGameRuntime(conversationScenario(), "test");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newNotes: ["I saw the envoy take Corvin's key."], relationships: [], lore: null,
+    goalUpdate: { goal: "Confront the envoy about Corvin's key.", reason: "The apparent theft demands an immediate response." } }));
+  const event = runtime.worldEvent("taking an item", "The envoy took Corvin's key.", ["player"]);
+  await runtime.processPerceivedEvent("garran", event, "I saw the envoy take Corvin's key.");
+  const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  assert.ok(saved.notes.some(note => note.text === "I saw the envoy take Corvin's key." && note.characterIds[0] === "garran"));
+  assert.equal(saved.characters.find(character => character.id === "garran")!.currentGoal, "Confront the envoy about Corvin's key.");
+});
+
+test("player perceptions are saved as private feed notes without duplication", () => {
+  const runtime = new BrowserGameRuntime(conversationScenario(), "test");
+  const event = runtime.worldEvent("using a door", "Corvin opened the treasury door.", ["corvin"]);
+  runtime.recordPlayerPerception(event, "You see Corvin open the treasury door.");
+  runtime.recordPlayerPerception(event, "You see Corvin open the treasury door.");
+  assert.deepEqual((runtime.view().playerMessages as any[]).map(message => message.message), ["You see Corvin open the treasury door."]);
+  const note = fromJson(ScenarioSchema, runtime.snapshot().scenario).notes.at(-1)!;
+  assert.deepEqual(note.characterIds, ["player"]);
+  assert.equal(note.visibility, NoteVisibility.PRIVATE);
 });
 
 test("the player can add a final response and end without generating another NPC reply", async t => {
@@ -756,12 +744,12 @@ test("ending reviews the full transcript, saves private memory, and starts a fre
   assert.equal(corvin.relationships.find(item => item.characterId === "player")?.description, remembered.relationships[0]!.description);
   assert.deepEqual(corvin.relationships.filter(item => item.characterId !== "player"), scenario.characters[0]!.relationships);
   assert.deepEqual(updated.characters.slice(1), scenario.characters.slice(1));
-  const event = updated.events.at(-1)!;
-  assert.equal(event.summary, remembered.newEvents[0]!.summary);
-  assert.equal(event.visibility, EventVisibility.PRIVATE);
+  const event = updated.notes.at(-1)!;
+  assert.equal(event.text, remembered.newNotes[0]);
+  assert.equal(event.visibility, NoteVisibility.PRIVATE);
   assert.deepEqual(event.characterIds, ["corvin", "player"]);
   assert.equal(event.day, 1);
-  assert.deepEqual(updated.events.slice(0, -1), scenario.events);
+  assert.deepEqual(updated.notes.slice(0, -1), scenario.notes);
   assert.deepEqual(updated.world, { ...scenario.world, revision: scenario.world!.revision + 1 });
   const nextVisit = new BrowserGameRuntime(scenario, "test", saved);
   await nextVisit.endConversation("corvin");
@@ -780,7 +768,7 @@ test("failed or malformed reviews keep every part of the open conversation for r
   t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "I will consider it." }));
   await runtime.talkToCharacter("corvin", "Will you help?");
   const before = structuredClone(runtime.snapshot());
-  const failures = [null, "{", "{}", JSON.stringify({ ...remembered, relationships: [{ characterId: "unknown", description: "An ally" }] }), JSON.stringify({ ...remembered, newEvents: [{ type: "promise", summary: " " }] })];
+  const failures = [null, "{", "{}", JSON.stringify({ ...remembered, relationships: [{ characterId: "unknown", description: "An ally" }] }), JSON.stringify({ ...remembered, newNotes: [" "] })];
   for (const content of failures) {
     t.mock.method(OpenRouterClient.prototype, "complete", async () => ({ role: "assistant", content }));
     await assert.rejects(runtime.endConversation("corvin"));
@@ -812,7 +800,7 @@ test("ending one NPC's thread leaves other conversations intact and saves biogra
   await runtime.talkToCharacter("king", "Your Majesty.");
   const kingHistory = runtime.snapshot().conversations.king;
   t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({
-    newEvents: [], goalUpdate: null, relationships: [], lore: "Corvin remembers his new appointment as court adviser.",
+    newNotes: [], goalUpdate: null, relationships: [], lore: "Corvin remembers his new appointment as court adviser.",
   }));
   await runtime.endConversation("corvin");
   assert.deepEqual(runtime.snapshot().conversations.king, kingHistory);
@@ -1158,57 +1146,26 @@ test("main containers enforce approaches and keys, conceal contents, and persist
   assert.equal(saved.world!.objects.find(item => item.id === "palace_sealed_decree")!.locationId, "player");
 });
 
-test("illegal item taking is handed to the GM only when an NPC is within earshot", async t => {
-  const requests: ChatCompletionRequest[] = [];
-  t.mock.method(OpenRouterClient.prototype, "complete", async (request: ChatCompletionRequest) => {
-    requests.push(request);
-    if (requests.length === 1) return { role: "assistant", content: null, tool_calls: [{
-      id: "witness", type: "function", function: { name: "record_witnessed", arguments: JSON.stringify({
-        characterId: "garran", summary: "I saw the player take the royal lockbox key from Corvin's drawers.", reactionGoal: "Confront the player about the stolen key.",
-      }) },
-    }] };
-    return modelReply({ reviewed: true });
-  });
-
+test("player fixture interactions emit transient world events instead of durable memories", () => {
   const witnessed = furnishedCourt();
   for (const actor of witnessed.world!.actors) actor.position = create(TilePositionSchema, { x: 30, y: 30 });
   witnessed.world!.actors.find(actor => actor.characterId === "player")!.position = create(TilePositionSchema, { x: 6, y: 5 });
-  witnessed.world!.actors.find(actor => actor.characterId === "garran")!.position = create(TilePositionSchema, { x: 7, y: 5 });
   witnessed.world!.fixtures.find(fixture => fixture.id === "palace_corvin_drawers")!.open = true;
   const runtime = new BrowserGameRuntime(witnessed, "test");
-  await runtime.interactFixtureWithWitnesses("take_palace_royal_key");
-
-  const action = requests[0]!.messages.filter(message => message.role === "user").map(message => JSON.parse(message.content!))
-    .find(value => value?.action === "theft");
-  assert.equal(action.item.name, "Royal lockbox key");
-  const earshot = requests[0]!.messages.filter(message => message.role === "user").map(message => JSON.parse(message.content!))
-    .find(value => value?.earshot)?.earshot;
-  assert.deepEqual(earshot.nearbyNpcs.map(({ characterId }: { characterId: string }) => characterId), ["garran"]);
-  const event = fromJson(ScenarioSchema, runtime.snapshot().scenario).events.find(candidate => candidate.type === "witnessed")!;
-  assert.deepEqual(event.characterIds, ["garran"]);
-  assert.equal(event.visibility, EventVisibility.PRIVATE);
-  assert.equal(runtime.snapshot().npcActivities?.garran?.goal, "Confront the player about the stolen key.");
-
-  const unwitnessed = furnishedCourt();
-  for (const actor of unwitnessed.world!.actors) actor.position = create(TilePositionSchema, { x: 30, y: 30 });
-  unwitnessed.world!.actors.find(actor => actor.characterId === "player")!.position = create(TilePositionSchema, { x: 6, y: 5 });
-  unwitnessed.world!.fixtures.find(fixture => fixture.id === "palace_corvin_drawers")!.open = true;
-  await new BrowserGameRuntime(unwitnessed, "test").interactFixtureWithWitnesses("take_palace_royal_key");
-  assert.equal(requests.length, 2, "No additional GM request is made without an eligible listener");
+  const before = runtime.snapshot().scenario;
+  const result = runtime.interactFixtureWithEvent("take_palace_royal_key");
+  assert.match(result.message, /Picked up/);
+  assert.equal(result.event.kind, "interacting with an object");
+  assert.deepEqual(result.event.participantIds, ["player"]);
+  assert.deepEqual(result.event.position, create(TilePositionSchema, { x: 6, y: 5 }));
+  assert.equal(result.event.details?.legality, "illegal");
+  assert.equal(result.event.details?.ownerCharacterId, "corvin");
+  assert.equal(result.event.details?.ownerName, "Magister Corvin");
+  assert.match(result.event.summary, /stole Royal lockbox key from Magister Corvin/);
+  assert.equal(fromJson(ScenarioSchema, runtime.snapshot().scenario).notes.length, fromJson(ScenarioSchema, before).notes.length);
 });
 
-test("NPC theft uses the same witnessed-action GM review as player theft", async t => {
-  const requests: ChatCompletionRequest[] = [];
-  t.mock.method(OpenRouterClient.prototype, "complete", async (request: ChatCompletionRequest) => {
-    requests.push(request);
-    if (requests.length === 1) return { role: "assistant", content: null, tool_calls: [{
-      id: "npc-witness", type: "function", function: { name: "record_witnessed", arguments: JSON.stringify({
-        characterId: "garran", summary: "I saw Corvin take the royal lockbox key from the king's drawers.", reactionGoal: "Question Corvin about the key.",
-      }) },
-    }] };
-    return modelReply({ reviewed: true });
-  });
-
+test("NPC interactions emit the same transient world event shape", () => {
   const scenario = furnishedCourt();
   for (const actor of scenario.world!.actors) actor.position = create(TilePositionSchema, { x: 30, y: 30 });
   scenario.world!.actors.find(actor => actor.characterId === "corvin")!.position = create(TilePositionSchema, { x: 6, y: 5 });
@@ -1222,15 +1179,11 @@ test("NPC theft uses the same witnessed-action GM review as player theft", async
 
   const result = runtime.stepNpcAction("corvin", "take_palace_royal_key", goal);
   assert.equal(result.done, true);
-  assert.equal(result.witnessedAction?.actorId, "corvin");
-  await runtime.reviewWitnessedIllegalAction(result.witnessedAction!);
-
-  const action = requests[0]!.messages.filter(message => message.role === "user").map(message => JSON.parse(message.content!))
-    .find(value => value?.action === "theft");
-  assert.equal(action.actorId, "corvin");
-  const saved = runtime.snapshot(), event = fromJson(ScenarioSchema, saved.scenario).events.find(candidate => candidate.type === "witnessed")!;
-  assert.deepEqual(event.characterIds, ["garran"]);
-  assert.equal(saved.npcActivities?.garran?.goal, "Question Corvin about the key.");
+  assert.equal(result.worldEvent?.participantIds[0], "corvin");
+  assert.equal(result.worldEvent?.kind, "fixture");
+  assert.match(result.worldEvent?.summary ?? "", /Royal lockbox key/);
+  assert.equal(result.worldEvent?.details?.legality, "illegal");
+  assert.equal(result.worldEvent?.details?.ownerCharacterId, "king");
 });
 
 test("trying locked containers needs the correct carried key and preserves concealed loot", () => {
@@ -1258,7 +1211,7 @@ test("resetting physical world keeps character and conversation while refreshing
   const after = runtime.snapshot(), result = fromJson(ScenarioSchema, after.scenario);
   assert.deepEqual(result.characters, characters);
   assert.deepEqual(after.conversations, before.conversations);
-  assert.deepEqual(result.events, fromJson(ScenarioSchema, before.scenario).events);
+  assert.deepEqual(result.notes, fromJson(ScenarioSchema, before.scenario).notes);
   assert.deepEqual(result.world!.fixtures, authored.world!.fixtures);
   assert.deepEqual(result.world!.objects, authored.world!.objects);
   assert.deepEqual(result.world!.doors, authored.world!.doors);
@@ -1280,7 +1233,7 @@ test("reviewed immediate goal reaches Jev, which opens doors and moves the NPC i
   await runtime.talkToCharacter("corvin", "Let's speak privately.");
   await assert.rejects(runtime.planNpc("corvin", new AbortController().signal), /review first/);
   const goal = "Go to Corvin's Chamber and wait for the player.";
-  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], goalUpdate: { goal, reason: "Agreed a meeting." }, lore: null }));
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newNotes: [], relationships: [], goalUpdate: { goal, reason: "Agreed a meeting." }, lore: null }));
   await runtime.endConversation("corvin");
   let step = 0;
   t.mock.method(JevClient.prototype, "choose", async (state: any, _instructions: unknown, criteria: Record<string, string>) => {
@@ -1356,7 +1309,7 @@ test("greeting goal is idle until the LLM explicitly assigns a task", async t =>
   await assert.rejects(runtime.planNpc("corvin", new AbortController().signal), /idle/);
   t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Welcome." }));
   await runtime.talkToCharacter("corvin", "Hello.");
-  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], goalUpdate: null, lore: null }));
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newNotes: [], relationships: [], goalUpdate: null, lore: null }));
   await runtime.endConversation("corvin");
   assert.equal(runtime.snapshot().npcActivities?.corvin?.status, "idle");
   assert.equal(fromJson(ScenarioSchema, runtime.snapshot().scenario).characters[0]!.currentGoal, "", "The GM clears an obsolete task when returning the NPC to idle");
@@ -1379,16 +1332,16 @@ test("NPC reviews actual planner results, can activate a follow-up, and later re
     assert.deepEqual(outcome.actionsPerformed, ["Corvin's chest of drawers is closed."]);
     assert.equal(outcome.result.reason, "complete");
     assert.ok(outcome.observations.location);
-    return modelReply({ newEvents: [{ type: "observation", summary: "My drawers are closed." }], relationships: [], lore: null,
+    return modelReply({ newNotes: ["My drawers are closed."], relationships: [], lore: null,
       goalUpdate: { goal: "Open my drawers.", reason: "I want to examine the contents." } });
   });
   await runtime.reviewNpcOutcome("corvin");
   assert.equal(runtime.snapshot().npcActivities!.corvin!.status, "active");
   assert.equal(runtime.snapshot().npcActivities!.corvin!.goal, "Open my drawers.");
   assert.deepEqual(runtime.snapshot().npcActivities!.corvin!.history, []);
-  assert.deepEqual(fromJson(ScenarioSchema, runtime.snapshot().scenario).events.at(-1)!.characterIds, ["corvin"], "Private planner memories do not become player knowledge");
+  assert.deepEqual(fromJson(ScenarioSchema, runtime.snapshot().scenario).notes.at(-1)!.characterIds, ["corvin"], "Private planner memories do not become player knowledge");
   runtime.finishNpcRun("corvin", "unable", "No progress possible.");
-  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: null }));
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newNotes: [], relationships: [], lore: null, goalUpdate: null }));
   await runtime.reviewNpcOutcome("corvin");
   assert.equal(runtime.snapshot().npcActivities!.corvin!.status, "idle");
   assert.equal(runtime.snapshot().npcActivities!.corvin!.reviewPending, false);
@@ -1406,7 +1359,7 @@ test("outcome review survives reload and failure; replanning cap leaves a propos
   t.mock.method(OpenRouterClient.prototype, "complete", async () => { throw new Error("Offline"); });
   await assert.rejects(restored.reviewNpcOutcome("corvin"), /Offline/);
   assert.deepEqual(restored.snapshot(), pending);
-  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: {goal: "Go to the Great Hall.", reason: "Try later."} }));
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newNotes: [], relationships: [], lore: null, goalUpdate: {goal: "Go to the Great Hall.", reason: "Try later."} }));
   await restored.reviewNpcOutcome("corvin", false);
   assert.equal(restored.snapshot().npcActivities!.corvin!.status, "idle");
   assert.equal(restored.snapshot().npcActivities!.corvin!.reviewPending, false);
@@ -1451,14 +1404,14 @@ test("recent transcripts capture every main-game model stage and retain failed r
   runtime.restore(new BrowserGameRuntime(furnishedCourt(), "test").snapshot());
   t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "I will go." }));
   await runtime.talkToCharacter("corvin", "Go to the Treasury.");
-  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: { goal: "Go to the Treasury.", reason: "Agreed." } }));
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newNotes: [], relationships: [], lore: null, goalUpdate: { goal: "Go to the Treasury.", reason: "Agreed." } }));
   await runtime.endConversation("corvin");
   const before = runtime.snapshot();
   t.mock.method(JevClient.prototype, "choose", async () => { throw new Error("Rejected sk-test-secret"); });
   await assert.rejects(runtime.planNpc("corvin", new AbortController().signal), /Rejected/);
   runtime.restore(before);
   runtime.finishNpcRun("corvin", "error", "Request failed.");
-  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: null }));
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newNotes: [], relationships: [], lore: null, goalUpdate: null }));
   await runtime.reviewNpcOutcome("corvin");
   const entries = runtime.recentTranscripts();
   assert.deepEqual(entries.map(entry => entry.kind), ["outcome_review", "jev", "conversation_review", "dialogue", "game_master"]);
@@ -1521,8 +1474,8 @@ test("Jev receives reachable NPC talk actions, then both participants save priva
     calls++;
     if (calls === 1) return modelReply({ request: "Meet me in the Treasury.", intent: "Arrange a private discussion." });
     return modelReply({ summary: "They agree to meet in the Treasury.",
-      initiator: { newEvents: [], relationships: [], lore: null, goalUpdate: null },
-      recipient: { newEvents: [], relationships: [], lore: null, goalUpdate: { goal: "Walk to the Treasury.", reason: "Agreed to meet." } } });
+      initiator: { newNotes: [], relationships: [], lore: null, goalUpdate: null },
+      recipient: { newNotes: [], relationships: [], lore: null, goalUpdate: { goal: "Walk to the Treasury.", reason: "Agreed to meet." } } });
   });
   await runtime.executeNpcTalk("corvin", action.id, observation.revision, observation.goal, new AbortController().signal);
   const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
@@ -1530,7 +1483,7 @@ test("Jev receives reachable NPC talk actions, then both participants save priva
   assert.equal(runtime.snapshot().npcActivities?.corvin?.status, "idle");
   assert.equal(runtime.snapshot().npcActivities?.[action.target]?.status, "active");
   assert.deepEqual(saved.world!.objects, scenario.world!.objects);
-  const events = saved.events.filter(item => item.type === "npc_conversation");
+  const events = saved.notes.filter(item => item.text === "They agree to meet in the Treasury.");
   assert.equal(events.length, 2);
   assert.ok(events.every(item => item.characterIds.length === 1 && !item.characterIds.includes("player")));
   assert.deepEqual(runtime.recentTranscripts().map(item => item.kind), ["npc_resolution", "npc_request"]);
@@ -1567,7 +1520,7 @@ test("NPC conversation validation and cancellation cannot partially update eithe
   let calls = 0;
   t.mock.method(OpenRouterClient.prototype, "complete", async () => ++calls % 2 === 1
     ? modelReply({ request: "Hello", intent: "Greet them" })
-    : modelReply({ summary: "A greeting", initiator: { newEvents: [{ type: "test", summary: "Must not persist" }], relationships: [], lore: null, goalUpdate: null }, recipient: { newEvents: [], relationships: [{ characterId: "unknown", description: "Invalid" }], lore: null, goalUpdate: null } }));
+    : modelReply({ summary: "A greeting", initiator: { newNotes: ["Must not persist"], relationships: [], lore: null, goalUpdate: null }, recipient: { newNotes: [], relationships: [{ characterId: "unknown", description: "Invalid" }], lore: null, goalUpdate: null } }));
   await assert.rejects(runtime.executeNpcTalk("corvin", action.id, observation.revision, observation.goal, new AbortController().signal), /relationship/);
   assert.deepEqual(runtime.snapshot(), before);
   const controller = new AbortController(); controller.abort();
@@ -1593,7 +1546,7 @@ test("talk availability follows closed doors and Jev gets the offered talk choic
   assert.ok(observation.actions.some(item => item.id === action.id));
 });
 
-test("resetCharacters restores authored NPCs and events, clears dialogue and tasks, and preserves player and physical world", async t => {
+test("resetCharacters restores authored NPCs and notes, clears dialogue and tasks, and preserves player and physical world", async t => {
   const initial = load(), scenario = furnishedCourt();
   const corvin = scenario.characters.find(item => item.id === "corvin")!;
   corvin.lore = "Changed biography"; corvin.currentGoal = "Search the Treasury";
@@ -1603,7 +1556,7 @@ test("resetCharacters restores authored NPCs and events, clears dialogue and tas
   const snapshot = runtime.snapshot();
   snapshot.npcActivities = { corvin: { status: "active", goal: "Search the Treasury", history: ["An old action"] } };
   const changed = fromJson(ScenarioSchema, snapshot.scenario);
-  changed.events.push(create(EventSchema, { id: "learned", type: "belief", summary: "A learned fact", characterIds: ["corvin"] }));
+  changed.notes.push(create(NoteSchema, { id: "learned", text: "A learned fact", characterIds: ["corvin"] }));
   snapshot.scenario = toJson(ScenarioSchema, changed);
   runtime.restore(snapshot);
   const before = fromJson(ScenarioSchema, runtime.snapshot().scenario);
@@ -1612,7 +1565,7 @@ test("resetCharacters restores authored NPCs and events, clears dialogue and tas
   const authored = fromJson(ScenarioSchema, new BrowserGameRuntime(initial, "test").snapshot().scenario);
   assert.deepEqual(saved.characters.find(item => item.id === "corvin"), authored.characters.find(item => item.id === "corvin"));
   assert.deepEqual(saved.characters.find(item => item.id === "player"), before.characters.find(item => item.id === "player"));
-  assert.deepEqual(saved.events, initial.events);
+  assert.deepEqual(saved.notes, initial.notes);
   assert.deepEqual(saved.world, { ...before.world!, revision: before.world!.revision + 1 });
   assert.deepEqual(after.npcActivities, {});
   assert.deepEqual(after.conversations, {});
@@ -1738,7 +1691,7 @@ test("background NPC review merges its memories without undoing concurrent playe
   const waiting = new Promise<void>(resolve => { release = resolve; });
   t.mock.method(OpenRouterClient.prototype, "complete", async () => {
     await waiting;
-    return modelReply({ newEvents: [{ type: "observation", summary: "I have arrived." }], relationships: [], lore: null, goalUpdate: null });
+    return modelReply({ newNotes: ["I have arrived."], relationships: [], lore: null, goalUpdate: null });
   });
   const review = fork.reviewNpcOutcome("corvin");
   runtime.movePlayer({ x: 20, y: 21 });
@@ -1749,7 +1702,7 @@ test("background NPC review merges its memories without undoing concurrent playe
   const after = fromJson(ScenarioSchema, runtime.snapshot().scenario);
   assert.deepEqual(after.world!.actors.find(a => a.characterId === "player")!.position, create(TilePositionSchema, { x: 20, y: 21 }));
   assert.equal(after.world!.objects.find(o => o.id === "palace_iron_key")!.locationId, "player");
-  assert.ok(after.events.some(e => e.summary === "I have arrived."));
+  assert.ok(after.notes.some(e => e.text === "I have arrived."));
   assert.equal(runtime.snapshot().npcActivities?.corvin?.reviewPending, false);
   assert.ok(action.target);
 });
@@ -1921,7 +1874,7 @@ test("each delegation keeps its identity through a persistent editable review be
     assert.equal(marker.sprite, identity.sprite);
     assert.ok(marker.point);
     assert.equal(saved.world!.actors.length, 13);
-    assert.ok(saved.events.filter(event => event.type === "arrival").every(event => event.summary.includes(`from ${delegation}`)));
+    assert.ok(saved.notes.filter(note => note.id.startsWith("arrival-")).every(note => note.text.includes(`from ${delegation}`)));
     assert.throws(() => restored.setTravellerIdentity(identity), /already begun/);
     const prompt = new FullContextBuilder().build(create(DialogueRequestSchema, { scenario: saved, characterId: "mara" })).map(message => message.content).join("\n");
     assert.match(prompt, /Visiting player’s public identity/);
@@ -1983,6 +1936,7 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   t.mock.method(globalThis, "fetch", async () => new Response(readFileSync(fixturePath, "utf8")));
   t.mock.method(OpenRouterClient.prototype, "complete", async () => { modelCalls++; return { role: "assistant", content: "Maren, what brings you along this road?" }; });
   await import("../apps/web/src/game.worker.js");
+  t.mock.method(BrowserGameRuntime.prototype, "assessWorldEvent", async () => ({ reactions: [] }));
   const request = (type: string, payload: Record<string, unknown> = {}): Promise<any> => new Promise((resolve, reject) => {
     const id = ++sequence;
     const timer = setTimeout(() => { pending.delete(id); reject(new Error(`Worker ${type} did not settle`)); }, 1000);
@@ -2150,7 +2104,7 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
       const participant = initial.find((v: any) => v.event_type)?.participants[0];
       const resource = initial.find((v: any) => v.world_state).world_state["character:" + participant];
       return gmTool("update_character", { character_id: participant, generation_id: resource.generation_id,
-        changes: { append_events: [{ type: "memory", summary: "The envoy said goodbye." }], active_objective: {
+        changes: { append_notes: ["The envoy said goodbye."], active_objective: {
           action: "complete", reason: "The authored greeting was completed in this conversation.",
         } } });
     };
@@ -2175,7 +2129,7 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     assert.equal(result.state.conversations.corvin, undefined);
     assert.equal(result.state.conversations.mara.length, 2);
     const saved = records.get(result.activeSaveId).snapshot;
-    assert.ok(fromJson(ScenarioSchema, saved.scenario).events.some(event => event.summary === "The envoy said goodbye."));
+    assert.ok(fromJson(ScenarioSchema, saved.scenario).notes.some(note => note.text === "The envoy said goodbye."));
 
     t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => commitReview(input));
     failNextWrite = true;
@@ -2380,7 +2334,7 @@ test("expanded hall has unobstructed routes to all delegates and its relocated e
 function gmTool(name: string, args: Record<string, unknown>) {
   return { role: "assistant" as const, content: null, tool_calls: [{ id: "gm-call", type: "function" as const, function: { name, arguments: JSON.stringify(args) } }] };
 }
-const idleMemory = { newEvents: [], relationships: [], lore: null, goalUpdate: null };
+const idleMemory = { newNotes: [], relationships: [], lore: null, goalUpdate: null };
 const missingProp = { id: "envoy_token", name: "Envoy's token", locationId: "corvin", details: "A brass token bearing the embassy's seal.", reason: "A mundane token established in the exchange makes inspection possible." };
 
 test("DM reconciles a conversation with real inventory props and an executable inspection task", async t => {

@@ -6,7 +6,7 @@ The assembled context is deliberately simple and complete:
 2. The scenario premise and ancient law.
 3. This character's lore, long-term objectives, and immediate goal.
 4. This character's relationships.
-5. Every public event and private event involving this character.
+5. Every public note and private note involving this character.
 6. The character's complete known world state. Unknown container contents and
    concealed objects remain only in the authoritative game-master state.
 7. The conversation transcript.
@@ -17,20 +17,35 @@ its leave with closing words, `endConversation: true`, and no reply options.
 The UI retains those words while automatically reviewing the conversation.
 Ending the conversation triggers a separate
 review of the entire transcript and existing character context. The review saves
-new private events and any warranted goal, relationship, or biography updates,
+new free-form private notes and any warranted goal, relationship, or biography updates,
 then clears the transcript. Returning to the NPC starts a fresh thread with that
 durable memory. Failed reviews or saves leave the conversation open for retry.
-Existing events remain historical records; changed circumstances are recorded as
-new events without duplicating earlier memories. Events cover every social
-concept: observations, thoughts,
-promises, agreements, insults, apologies, revelations, and conversations.
+Existing notes remain historical records; changed circumstances are appended as
+new notes without duplicating earlier memories. Notes are intentionally free-form
+and cover observations, thoughts, promises, agreements, insults, apologies,
+revelations, and conversations.
 
 Dialogue may create intent, social meaning, misinformation, and surprising plans.
 It cannot directly mutate the physical world. A character saying "I give you the
-key" can create an event and a goal; the physical interaction must actually be supported and executed by the engine.
+key" can create a note and a goal; the physical interaction must actually be supported and executed by the engine.
 There is currently no give-item action.
 
-Reply options should offer distinct roleplaying intentions and match the player’s voice and behaviour in the visible conversation. They are suggestions, not spoken NPC dialogue or events. Only a selected or typed response becomes player speech. NPCs cannot compel responses; the GM alone can use compulsion during stalled character creation.
+Reply options should offer distinct roleplaying intentions and match the player’s voice and behaviour in the visible conversation. They are suggestions, not spoken NPC dialogue or notes. Only a selected or typed response becomes player speech. NPCs cannot compel responses; the GM alone can use compulsion during stalled character creation.
+
+## Real-world events
+
+Physical interactions and completed conversations emit transient world events.
+Nearby characters first make a distance-based perception roll: Clear 100%,
+Moderate 60%, and Distant 30%. Closed doors and blocked paths exclude listeners.
+Moderate and Distant perceptions deliberately omit details.
+
+For every successful NPC perception, Jev makes a fast process-or-ignore decision.
+It chooses process when the event can advance, block, reactivate or materially
+change an active or parked objective, or when the character would naturally react
+immediately, such as to a crime or threat. Processing may interrupt current work.
+The character review model then records the perception as a note and may revise,
+park, reactivate, replace or preserve objectives. Events themselves are not durable
+memory and are never treated as instructions.
 
 
 ## Immediate goals

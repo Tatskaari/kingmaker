@@ -26,7 +26,7 @@ the conversation/action evidence. Each resource is represented as
 `{ resource_id, generation_id, data }`. The agent writes through small tools:
 
 - `update_character`: provide `character_id`, its `generation_id`, and `changes`.
-  `append_events` appends memories; `relationships` upserts only named characters;
+  `append_notes` appends free-form private notes; `relationships` upserts only named characters;
   `lore` replaces the biography; `current_goal` sets a goal or clears it with `null`.
   Omitted fields remain unchanged. Empty arrays do not clear existing entries.
   For an undertaking, use `changes.active_objective` with `action: "set"`,
@@ -40,13 +40,14 @@ the conversation/action evidence. Each resource is represented as
   Use `{action: "demote" | "drop" | "complete", reason: "..."}` to stop pursuing
   it: demote keeps its name in non-active objectives; drop abandons it; complete
   records evidence of fulfillment. Each clears the immediate goal and records a
-  private objective event. Historical memories are not erased by dropping a task.
+  private objective note. Historical notes are not erased by dropping a task.
   Old saves need no migration; they initially have no active objective.
 - `update_inventory`: provide `owner_id`, the **inventory's** `generation_id`, and
   `add_items`. These justified additions are validated together; existing items
   remain unchanged. This tool does not transfer, remove, or modify existing items.
-- `record_overheard`, `record_witnessed`, and `message_player`: provide the affected
-  character's generation. Hearing and participant eligibility still apply.
+- Perceived world events are processed through `update_character` using the
+  affected character's generation. The review must append a note and may revise
+  active or parked objectives.
 - `read_state`: refresh one resource by `resource_id` when needed.
 - `finish_review`: finish alone after the intended writes, without repeating them.
 

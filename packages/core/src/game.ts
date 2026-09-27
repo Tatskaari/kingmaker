@@ -3,13 +3,13 @@ import {
   ActorStateSchema,
   ActiveObjectiveSchema,
   CharacterSchema,
-  EventSchema,
-  EventVisibility,
+  NoteSchema,
+  NoteVisibility,
   GamePhase,
   ScenarioSchema,
   type Character,
   type ConversationMemory,
-  type Event,
+  type Note,
   type PlayerSetup,
   type Scenario,
 } from "../../contracts/src/index.js";
@@ -21,7 +21,7 @@ function failure<T>(code: string, message: string): Validation<T> {
 
 export class MemoryGame implements GameState {
   readonly #scenario: Scenario;
-  #eventSequence = 0;
+  #noteSequence = 0;
 
   constructor(scenario: Scenario) {
     this.#scenario = clone(ScenarioSchema, scenario);
@@ -103,20 +103,19 @@ export class MemoryGame implements GameState {
 
     const identity = `${player.name}, ${setup.embassyRole} from ${setup.homeland}`;
     for (const npcId of npcIds) {
-      this.#scenario.events.push(create(EventSchema, {
+      this.#scenario.notes.push(create(NoteSchema, {
         id: `arrival-${npcId}`,
         day: world.day,
-        type: "arrival",
-        summary: `${identity}, has arrived with the diplomatic delegation and is greeting ${npcId} in the Great Hall.`,
+        text: `${identity}, has arrived with the diplomatic delegation and is greeting ${npcId} in the Great Hall.`,
         characterIds: [npcId, player.id],
-        visibility: EventVisibility.PRIVATE,
+        visibility: NoteVisibility.PRIVATE,
         details: { homeland: setup.homeland, embassyRole: setup.embassyRole },
       }));
     }
     return { ok: true, value: clone(CharacterSchema, player) };
   }
 
-  commitConversation(characterId: string, memory: ConversationMemory, includePlayer = true): Validation<readonly Event[]> {
+  commitConversation(characterId: string, memory: ConversationMemory, includePlayer = true): Validation<readonly Note[]> {
     const character = this.#scenario.characters.find(item => item.id === characterId);
     if (!character || characterId === "player") return failure("unknown_character", "Unknown NPC.");
     if (!this.#scenario.world) return failure("missing_world", "Scenario has no world.");
@@ -130,18 +129,17 @@ export class MemoryGame implements GameState {
       targets.add(relationship.characterId);
     }
     // Validate everything before applying any part of the review.
-    if (memory.newEvents.some(event => !event.type.trim() || !event.summary.trim())
+    if (memory.newNotes.some(note => !note.trim())
       || (memory.goalUpdate && !memory.goalUpdate.goal.trim())
       || (memory.lore !== undefined && !memory.lore.trim())) {
       return failure("invalid_memory", "Memory updates must not be empty.");
     }
-    const events = memory.newEvents.map(event => create(EventSchema, {
-      id: `conversation-${crypto.randomUUID()}`,
+    const notes = memory.newNotes.map(text => create(NoteSchema, {
+      id: `note-${crypto.randomUUID()}`,
       day: this.#scenario.world!.day,
-      type: event.type,
-      summary: event.summary,
+      text,
       characterIds: includePlayer ? [characterId, "player"] : [characterId],
-      visibility: EventVisibility.PRIVATE,
+      visibility: NoteVisibility.PRIVATE,
     }));
     if (memory.goalUpdate) {
       character.currentGoal = memory.goalUpdate.goal;
@@ -157,9 +155,9 @@ export class MemoryGame implements GameState {
       character.relationships = character.relationships.filter(item => item.characterId !== relationship.characterId);
       character.relationships.push({ ...relationship });
     }
-    this.#scenario.events.push(...events);
+    this.#scenario.notes.push(...notes);
     this.#scenario.world.revision += 1;
-    return { ok: true, value: events };
+    return { ok: true, value: notes };
   }
 
   updateCharacter(characterId: string, lore?: string, currentGoal?: string): Validation<Character> {
@@ -175,14 +173,14 @@ export class MemoryGame implements GameState {
     this.#scenario.premise = premise;
   }
 
-  addEvent(event: Event): Event {
+  addNote(note: Note): Note {
     const world = this.#scenario.world;
-    const normalized = create(EventSchema, {
-      ...event,
-      id: event.id || `gm-${++this.#eventSequence}`,
+    const normalized = create(NoteSchema, {
+      ...note,
+      id: note.id || `gm-note-${++this.#noteSequence}`,
       day: world?.day ?? 0,
     });
-    this.#scenario.events.push(normalized);
+    this.#scenario.notes.push(normalized);
     return normalized;
   }
 }

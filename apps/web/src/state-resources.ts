@@ -1,4 +1,4 @@
-import { EventVisibility, type Scenario } from "../../../packages/contracts/src/index.js";
+import { NoteVisibility, type Scenario } from "../../../packages/contracts/src/index.js";
 
 /** Character intent/memory, physical actors, and inventories advance independently. */
 export function stateResources(scenario: Scenario, activities: Record<string, unknown>, conversations: Record<string, unknown>) {
@@ -9,7 +9,7 @@ export function stateResources(scenario: Scenario, activities: Record<string, un
   for (const character of scenario.characters) {
     resources[`character:${character.id}`] = { character, activity: activities[character.id] ?? null,
       conversation: conversations[character.id] ?? null,
-      memories: scenario.events.filter(event => event.visibility === EventVisibility.PUBLIC || event.characterIds.includes(character.id)) };
+      notes: scenario.notes.filter(note => note.visibility === NoteVisibility.PUBLIC || note.characterIds.includes(character.id)) };
     resources[`inventory:${character.id}`] = world?.objects.filter(item => item.locationId === character.id) ?? [];
     resources[`entity:${character.id}`] = "character";
   }

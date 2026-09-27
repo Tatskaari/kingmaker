@@ -26,13 +26,26 @@ export interface EarshotCharacter extends PositionedCharacter {
   level: "Clear" | "Moderate" | "Distant";
 }
 
-export const EARSHOT_DISTANCE = 6;
+export const CLEAR_EARSHOT_DISTANCE = 3;
+export const MODERATE_EARSHOT_DISTANCE = 6;
+export const EARSHOT_DISTANCE = 10;
 // Guidance for the later DM overhearing integration; not player-facing copy.
 export const EARSHOT_DESCRIPTIONS = {
   Clear: "Can hear the conversation clearly.",
   Moderate: "Can hear a few words here and there, catching about half the conversation.",
   Distant: "Can catch names and places, but not the details.",
 };
+
+export const PERCEPTION_CHANCES: Record<EarshotCharacter["level"], number> = {
+  Clear: 1,
+  Moderate: 0.6,
+  Distant: 0.3,
+};
+
+/** A single independent perception roll for a real-world event. */
+export function perceivesAt(level: EarshotCharacter["level"], random: () => number = Math.random): boolean {
+  return random() < PERCEPTION_CHANCES[level];
+}
 
 export function charactersWithinEarshot(
   speaker: PositionedCharacter,
@@ -50,7 +63,8 @@ export function charactersWithinEarshot(
     .filter(character => character.distance <= maximumDistance)
     .map((character): EarshotCharacter => ({
       ...character,
-      level: character.distance <= 1 ? "Clear" : character.distance <= 3 ? "Moderate" : "Distant",
+      level: character.distance <= CLEAR_EARSHOT_DISTANCE ? "Clear"
+        : character.distance <= MODERATE_EARSHOT_DISTANCE ? "Moderate" : "Distant",
     }))
     .sort((a, b) => a.distance - b.distance || a.name.localeCompare(b.name));
 }

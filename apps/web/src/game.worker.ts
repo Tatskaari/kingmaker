@@ -3,8 +3,8 @@
 import { type TravellerIdentity } from "./introduction.js";
 
 import { fromJsonString, type JsonValue } from "@bufbuild/protobuf";
-import { ScenarioSchema, type Scenario } from "../../../packages/contracts/src/index.js";
-import { BrowserGameRuntime, type RuntimeSnapshot, type WitnessedIllegalAction } from "./runtime.js";
+import { ScenarioSchema, type Event, type Scenario } from "../../../packages/contracts/src/index.js";
+import { BrowserGameRuntime, type RuntimeSnapshot } from "./runtime.js";
 import { GenerationConflict, generationIds, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 
 interface SaveRecord {
@@ -101,6 +101,17 @@ function drainBackground() {
     void runBackground(next);
   }
 }
+async function handleWorldEvent(game: BrowserGameRuntime, event: Event, signal: AbortSignal, handoffs = 3) {
+  const assessed = await game.assessWorldEvent(event, signal);
+  if (assessed.playerPerception) await commitMutation(game, () => game.recordPlayerPerception(event, assessed.playerPerception!));
+  for (const reaction of assessed.reactions) {
+    signal.throwIfAborted();
+    stopBackground(reaction.characterId);
+    publishNpc(`${reaction.characterId}: processing a perceived event…`);
+    await reviewFork(game, signal).processPerceivedEvent(reaction.characterId, event, reaction.perception, signal);
+    if (handoffs > 0 && game.snapshot().npcActivities?.[reaction.characterId]?.status === "active") startBackground(reaction.characterId, handoffs - 1);
+  }
+}
 async function runBackground(next: { id: string; handoffs: number }) {
   if (!runtime) return;
   const game = runtime, { id, handoffs } = next;
@@ -128,7 +139,7 @@ async function runBackground(next: { id: string; handoffs: number }) {
         }
         if (!plan.action) throw new Error("Jev returned an unavailable action.");
         let expected = plan.generations;
-        let result: { done: boolean; talkTarget?: string; witnessedAction?: WitnessedIllegalAction; generations: ExpectedGenerations } | undefined;
+        let result: { done: boolean; talkTarget?: string; worldEvent?: Event; generations: ExpectedGenerations } | undefined;
         try {
           while (valid()) {
             result = await commitMutation(game, () => { signal.throwIfAborted(); return game.stepNpcAction(id, plan.action!.id, plan.goal, expected); });
@@ -149,12 +160,7 @@ async function runBackground(next: { id: string; handoffs: number }) {
           throw error;
         }
         if (!valid()) return;
-        if (result?.witnessedAction) {
-          const before = game.snapshot(), fork = reviewFork(game, signal);
-          await fork.reviewWitnessedIllegalAction(result.witnessedAction, signal);
-          if (!valid()) return;
-          if (handoffs > 0) for (const listener of game.rumourListenersSince(before)) startBackground(listener, handoffs - 1);
-        }
+        if (result?.worldEvent) await handleWorldEvent(game, result.worldEvent, signal, handoffs);
         if (result?.talkTarget) {
           const target = result.talkTarget;
           const targetBusy = () => conversationHolds.has(target)
@@ -183,7 +189,8 @@ async function runBackground(next: { id: string; handoffs: number }) {
               publishNpc(`${id}: started a conversation with you.`, undefined, id);
               return;
             }
-            await fork.executeNpcTalk(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
+            const summary = await fork.executeNpcTalk(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
+            await handleWorldEvent(game, game.worldEvent("having a conversation", summary, [id, target]), signal, handoffs);
           } finally {
             job.participants = [id];
             if (valid() && interrupted) startBackground(target, handoffs);
@@ -191,7 +198,6 @@ async function runBackground(next: { id: string; handoffs: number }) {
             if (valid()) publishNpc(`${id}: conversation finished.`);
           }
           if (!valid()) return;
-          if (handoffs > 0) for (const listener of game.rumourListenersSince(before)) startBackground(listener, handoffs - 1);
           if (handoffs > 0 && game.snapshot().npcActivities?.[target]?.status === "active") startBackground(target, handoffs - 1);
           if (game.snapshot().npcActivities?.[id]?.status !== "active") return;
         }
@@ -370,23 +376,28 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     return { state: game.view(), saves: await listSaves() };
   }
   if (type === "cancel_npc") { stopBackground(); publishNpc("NPC activity paused."); return {}; }
-  if (type === "reset_world" || type === "reset_characters" || type === "interact_fixture") {
+  if (type === "reset_world" || type === "reset_characters") {
     const game = requireRuntime(), before = structuredClone(game.snapshot()), savedBefore = activeSave;
-    let message: string | undefined;
     try {
       if (type === "reset_world") game.resetWorld();
-      else if (type === "reset_characters") game.resetCharacters();
-      else message = await game.interactFixtureWithWitnesses(String(payload.actionId || ""), payload.generations as ExpectedGenerations | undefined);
+      else game.resetCharacters();
       await persist();
     } catch (error) { game.restore(before); activeSave = savedBefore; throw error; }
-    if (type === "interact_fixture") for (const listener of game.rumourListenersSince(before)) startBackground(listener);
+    return { state: game.view(), saves: await listSaves() };
+  }
+  if (type === "interact_fixture") {
+    const game = requireRuntime();
+    const { message, event } = await commitMutation(game, () => game.interactFixtureWithEvent(
+      String(payload.actionId || ""), payload.generations as ExpectedGenerations | undefined));
+    await handleWorldEvent(game, event, new AbortController().signal);
     return { state: game.view(), saves: await listSaves(), message };
   }
   if (type === "set_door") {
     if (typeof payload.open !== "boolean") throw new Error("Door state must be open or closed.");
-    const game = requireRuntime(), before = structuredClone(game.snapshot());
-    try { game.setDoor(String(payload.id), payload.open, payload.generations as ExpectedGenerations | undefined); await persist(); }
-    catch (error) { game.restore(before); throw error; }
+    const game = requireRuntime();
+    const open = payload.open;
+    const event = await commitMutation(game, () => game.setDoor(String(payload.id), open, payload.generations as ExpectedGenerations | undefined));
+    await handleWorldEvent(game, event, new AbortController().signal);
     return { state: game.view(), saves: await listSaves() };
   }
   if (type === "move_player") {
@@ -417,9 +428,9 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
         });
       if (type === "end_conversation") {
         conversationHolds.delete(id);
-        for (const listener of game.rumourListenersSince(before)) startBackground(listener);
+        if (reply) await handleWorldEvent(game, reply as Event, new AbortController().signal);
       }
-      return { reply, state: game.view(), saves: await listSaves(), activeSaveId: activeSave?.id };
+      return { reply: type === "talk" ? reply : undefined, state: game.view(), saves: await listSaves(), activeSaveId: activeSave?.id };
     } finally { if (type === "end_conversation") conversationReviews.delete(reviewKey); }
   }
   if (type === "reset") {
@@ -450,6 +461,6 @@ worker.addEventListener("message", event => {
   };
   // Background work and dialogue wait outside the mutation queue. Their results
   // rejoin it only to validate, merge and save, keeping player commands responsive.
-  if (request.type === "cancel_npc" || request.type === "debug_transcripts" || request.type === "start_npc" || request.type === "pause_npc" || request.type === "talk" || request.type === "end_conversation") void process();
+  if (request.type === "cancel_npc" || request.type === "debug_transcripts" || request.type === "start_npc" || request.type === "pause_npc" || request.type === "talk" || request.type === "end_conversation" || request.type === "interact_fixture" || request.type === "set_door") void process();
   else void enqueue(process);
 });
