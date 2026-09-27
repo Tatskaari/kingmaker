@@ -144,3 +144,47 @@ button:focus-visible, .identity-field input:focus-visible { outline: 2px solid #
 .debug-card summary { cursor: pointer; color: #d4c6aa; }
 .debug-card .debug-error { padding: 0; }
 @media (max-width: 620px) { .debug-inspector header { align-items: start; gap: 8px; } .debug-inspector h2 { font-size: 1.3rem; } .debug-actions { gap: 4px; } }
+.court-panel { padding: 22px; }
+.court-map-scroll { overflow: auto; border: 1px solid var(--line); background: #100e0b; }
+.court-map-stage { position: relative; min-width: 640px; aspect-ratio: 1; }
+.court-map-stage canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.court-character { position: absolute; transform: translate(-50%, -22px); display: grid; justify-items: center; gap: 3px; padding: 3px 6px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: #fff1ce; z-index: 1; }
+button.court-character:focus-visible { border-color: #ffe2a0; background: #241b12c9; outline: 2px solid #ffe2a0; outline-offset: 2px; z-index: 2; }
+.court-character:disabled { opacity: .5; cursor: wait; }
+.court-character-name { padding: 2px 5px; border-radius: 3px; background: #171009e8; font-size: .85rem; line-height: 1.2; max-width: 110px; text-align: center; }
+.court-sprite { width: 32px; height: 32px; background-image: url('./assets/kenney-tiny-dungeon.png'); background-size: 384px 352px; image-rendering: pixelated; }
+.court-player { pointer-events: none; }
+.court-player .court-character-name { color: #afe1cf; }
+.court-off-map { position: static; transform: none; display: inline-grid; margin: 12px; }
+.court-day-footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 18px; }
+.map-credit { color: var(--dim); font-size: .8rem; }
+@media (max-width: 680px) { .court-panel { padding: 14px; } .court-day-footer { flex-wrap: wrap; } }
+
+.court-interaction-menu { position: fixed; inset: auto; margin: 0; padding: 7px; min-width: 200px; max-width: min(340px, calc(100vw - 16px)); background: #181715; border: 1px solid #77716a; border-radius: 5px; color: #ddd; box-shadow: 0 8px 25px #000b; }
+.court-menu-title { margin: 2px 8px 7px; color: #aaa; font-size: .85rem; }
+.court-menu-action { display: block; width: 100%; border: 0; padding: 9px 11px; text-align: left; background: transparent; border-radius: 3px; }
+.court-menu-action.court-action-normal { color: #c4c4c4; }
+.court-menu-action.court-action-illegal { color: #ff7777; }
+.court-menu-action:hover, .court-menu-action:focus-visible { background: #ffffff12; outline: 1px solid currentColor; }
+.court-menu-action:disabled { opacity: .45; cursor: default; }
+
+button.court-character:hover:not(:focus-visible) { border-color: transparent; background: transparent; outline: none; }
+
+.court-interaction-menu { z-index: 1000; }
+.court-interaction-menu[hidden] { display: none; }
+
+.conversation-modal { width: min(780px, calc(100vw - 28px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid var(--line); color: #ede2ca; background: #1f1b15; box-shadow: 0 24px 100px #000b; overflow: auto; }
+.conversation-modal::backdrop { background: #090705b8; }
+.conversation-modal > .panel { border: 0; box-shadow: none; }
+.conversation-modal .messages { min-height: 180px; max-height: 45dvh; margin-top: 18px; }
+.conversation-modal .composer { position: sticky; bottom: 0; background: #1f1b15; padding-bottom: 5px; }
+
+/* Name labels must not intercept interactions with the furniture below them. */
+.court-character:not(.court-off-map) { width: 34px; height: 34px; padding: 0; }
+.court-character:not(.court-off-map) .court-character-name { position: absolute; top: 36px; width: max-content; pointer-events: none; }
+.npc-planner { margin-top: 16px; padding: 12px; border: 1px solid var(--line); }
+.npc-planner pre { max-height: 320px; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: .8rem; }
+.transcript-card + .transcript-card { margin-top: 16px; }
+.transcript-summary p { white-space: pre-wrap; overflow-wrap: anywhere; }
+.transcript-summary h4 { margin: 14px 0 6px; color: var(--gold); }
+.transcript-card > details { margin-top: 16px; }

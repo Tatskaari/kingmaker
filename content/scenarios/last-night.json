@@ -7,7 +7,7 @@
     {
       "id": "merlin",
       "name": "Merlin",
-      "lore": "The king's mage: incisive, proud, and painfully alert to slights. Merlin knows the spare key to the crown lockbox is hidden in his study drawer. He wants the king replaced, but fears becoming useful and disposable to the next ruler.",
+      "lore": "The king's mage: incisive, proud, and painfully alert to slights. Merlin knows the key to the crown lockbox is kept in his chest of drawers. He wants the king replaced, but fears becoming useful and disposable to the next ruler.",
       "relationships": [
         {
           "characterId": "lancelot",
@@ -18,12 +18,13 @@
           "description": "The king values Merlin's power but rarely his counsel. Merlin believes another reign will turn service into captivity."
         }
       ],
-      "currentGoal": "Prevent the king from renewing his reign without placing myself at Lancelot's mercy."
+      "objectives": ["Prevent Aldren’s renewed reign.", "Discover who could credibly replace him.", "Secure influence without becoming another ruler’s disposable servant."],
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation."
     },
     {
       "id": "lancelot",
       "name": "Lancelot",
-      "lore": "The king's foremost knight: direct, proud, and accustomed to camaraderie through teasing. Lancelot knows the crown lockbox is concealed beneath a loose stone at the old chapel altar. He wants a peaceful succession, but will not help crown an unspecified or obviously dangerous successor.",
+      "lore": "The king's foremost knight: direct, proud, and accustomed to camaraderie through teasing. Lancelot knows the crown is kept in the locked carved wooden coffer in the Royal Bedchamber. He wants a peaceful succession, but will not help crown an unspecified or obviously dangerous successor.",
       "relationships": [
         {
           "characterId": "merlin",
@@ -34,12 +35,13 @@
           "description": "Lancelot has served the king faithfully but increasingly mistakes obedience for cowardice. He wants lawful change without bloodshed."
         }
       ],
-      "currentGoal": "Ensure the crown reaches a named, defensible successor without bloodshed."
+      "objectives": ["Ensure a peaceful succession.", "Identify a worthy successor.", "Establish whom he can trust with the crown’s location."],
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation."
     },
     {
       "id": "king",
       "name": "King Aldren",
-      "lore": "The living king expects to renew his reign at the solstice. He carries the royal signet that opens the crown lockbox and considers the ceremony routine.",
+      "lore": "The living king expects to renew his reign at the solstice. He expects the crown to remain secure in his bedchamber and considers the ceremony routine.",
       "relationships": [
         {
           "characterId": "merlin",
@@ -50,7 +52,8 @@
           "description": "A dependable knight whose literal sense of honour makes him predictable."
         }
       ],
-      "currentGoal": "Retrieve the crown and be wearing it when the solstice arrives."
+      "objectives": ["Retain the crown and throne.", "Uncover disloyalty within the court.", "Secure the visiting player’s support."],
+      "currentGoal": "Remain in the Great Hall and greet the visiting player. Be available for conversation."
     }
   ],
   "events": [
@@ -79,6 +82,12 @@
       "visibility": "EVENT_VISIBILITY_PUBLIC"
     }
   ],
+  "courtArrivalPlacements": [
+    { "characterId": "merlin", "roomId": "great_hall", "position": { "x": 12, "y": 20 } },
+    { "characterId": "king", "roomId": "great_hall", "position": { "x": 16, "y": 18 } },
+    { "characterId": "lancelot", "roomId": "great_hall", "position": { "x": 20, "y": 20 } },
+    { "characterId": "player", "roomId": "great_hall", "position": { "x": 16, "y": 22 } }
+  ],
   "world": {
     "revision": 0,
     "day": 0,
@@ -89,12 +98,7 @@
         "id": "great_hall",
         "name": "Great Hall",
         "description": "A cavernous ceremonial hall, deserted after the embassy feast.",
-        "exitRoomIds": ["north_corridor", "guest_chamber", "old_chapel", "treasury"],
-        "searchSpots": [
-          { "id": "hall_dais", "actionLabel": "Look beneath the royal dais", "description": "The raised platform beneath the throne." },
-          { "id": "hall_tapestries", "actionLabel": "Search behind the battle tapestries", "description": "Heavy hangings cover much of the stonework." },
-          { "id": "hall_hearth", "actionLabel": "Rake through the cold hearth", "description": "A broad fireplace with yesterday's ashes." }
-        ]
+        "exitRoomIds": ["north_corridor", "guest_chamber", "entrance_hall", "treasury"]
       },
       {
         "id": "north_corridor",
@@ -104,86 +108,664 @@
       },
       {
         "id": "guest_chamber",
+        "private": true,
+        "allowedCharacterIds": ["player"],
         "name": "Embassy Guest Chamber",
         "description": "A comfortable room prepared for the visiting emissary near the Great Hall.",
-        "exitRoomIds": ["great_hall"],
-        "searchSpots": [
-          { "id": "guest_writing_desk", "actionLabel": "Open the guest writing desk", "description": "Fresh paper and sealing wax await diplomatic correspondence." },
-          { "id": "guest_luggage", "actionLabel": "Search the embassy luggage", "description": "The player's travelling cases have been delivered here." },
-          { "id": "guest_bed", "actionLabel": "Search beneath the guest bed", "description": "A newly made bed stands against the inner wall." }
-        ]
+        "exitRoomIds": ["great_hall"]
       },
       {
         "id": "merlin_chamber",
+        "private": true,
+        "allowedCharacterIds": ["merlin"],
         "name": "Merlin's Chamber",
         "description": "A private bedroom and cramped study crowded with books and instruments.",
-        "exitRoomIds": ["north_corridor"],
-        "searchSpots": [
-          { "id": "merlin_desk", "actionLabel": "Open the writing desk", "description": "A walnut desk with several shallow drawers.", "contentObjectIds": ["brass_key"], "knownByCharacterIds": ["merlin"] },
-          { "id": "merlin_bed", "actionLabel": "Search beneath the bed", "description": "A narrow bed with trunks pushed underneath." },
-          { "id": "merlin_bookcase", "actionLabel": "Inspect the crowded bookcase", "description": "Books are stacked two rows deep." },
-          { "id": "merlin_hearth", "actionLabel": "Examine the chamber hearth", "description": "Charred scraps lie among the ashes." }
-        ]
+        "exitRoomIds": ["north_corridor"]
       },
       {
         "id": "lancelot_chamber",
+        "private": true,
+        "allowedCharacterIds": ["lancelot"],
         "name": "Lancelot's Chamber",
         "description": "A disciplined soldier's room softened by expensive gifts from admirers.",
-        "exitRoomIds": ["north_corridor"],
-        "searchSpots": [
-          { "id": "lancelot_weapon_chest", "actionLabel": "Open the weapon chest", "description": "An iron-bound chest at the foot of the bed." },
-          { "id": "lancelot_bed", "actionLabel": "Search beneath the bed", "description": "The floor beneath the bed is kept suspiciously clean." },
-          { "id": "lancelot_armour", "actionLabel": "Inspect the armour stand", "description": "Polished armour hangs ready for use." },
-          { "id": "lancelot_window", "actionLabel": "Search the window seat", "description": "A cushioned seat overlooks the courtyard." }
-        ]
+        "exitRoomIds": ["north_corridor"]
       },
       {
         "id": "royal_bedchamber",
+        "private": true,
+        "allowedCharacterIds": ["king"],
         "name": "Royal Bedchamber",
         "description": "The king sleeps here behind embroidered curtains and a guarded reputation.",
-        "exitRoomIds": ["north_corridor"],
-        "searchSpots": [
-          { "id": "royal_bed", "actionLabel": "Search beneath the royal bed", "description": "A vast carved bed dominates the chamber." },
-          { "id": "royal_wardrobe", "actionLabel": "Open the royal wardrobe", "description": "Formal robes fill a cedar wardrobe." },
-          { "id": "royal_bedside_chest", "actionLabel": "Open the bedside chest", "description": "A small locked chest stands within arm's reach." },
-          { "id": "royal_fireplace", "actionLabel": "Inspect the fireplace", "description": "The dying fire gives the room a ruddy glow." }
-        ]
+        "exitRoomIds": ["north_corridor"]
       },
       {
-        "id": "old_chapel",
-        "name": "Old Chapel",
-        "description": "An unused royal chapel whose saints have watched generations of coronations.",
-        "exitRoomIds": ["great_hall"],
-        "searchSpots": [
-          { "id": "chapel_altar", "actionLabel": "Test the stones beneath the altar", "description": "The old altar rests on uneven flagstones.", "contentObjectIds": ["crown_box"], "knownByCharacterIds": ["lancelot"] },
-          { "id": "chapel_pews", "actionLabel": "Search beneath the pews", "description": "Dust and old prayer books gather below the pews." },
-          { "id": "chapel_statue", "actionLabel": "Inspect the hollow saint", "description": "A cracked wooden statue sounds hollow when touched." },
-          { "id": "chapel_font", "actionLabel": "Examine the dry font", "description": "The stone font has been dry for years." }
-        ]
+        "id": "entrance_hall",
+        "name": "Entrance Hall",
+        "description": "The palace entrance opens into a broad hall leading to the Great Hall.",
+        "exitRoomIds": ["great_hall"]
       },
       {
         "id": "treasury",
         "name": "Treasury",
         "description": "An obvious place to hide a crown, filled with ledgers and lesser strongboxes.",
-        "exitRoomIds": ["great_hall"],
-        "searchSpots": [
-          { "id": "treasury_strongboxes", "actionLabel": "Inspect the lesser strongboxes", "description": "Several locked boxes bear royal seals." },
-          { "id": "treasury_ledgers", "actionLabel": "Search the ledger shelves", "description": "Decades of accounts fill the shelves." },
-          { "id": "treasury_tapestry", "actionLabel": "Look behind the treasury tapestry", "description": "A faded tapestry depicts the first king." },
-          { "id": "treasury_desk", "actionLabel": "Open the clerk's desk", "description": "The treasury clerk's desk has many labelled drawers." }
-        ]
+        "exitRoomIds": ["great_hall"]
       }
     ],
     "actors": [
-      { "characterId": "merlin", "homeRoomId": "merlin_chamber", "roomId": "merlin_chamber", "awake": false },
-      { "characterId": "lancelot", "homeRoomId": "lancelot_chamber", "roomId": "lancelot_chamber", "awake": false },
-      { "characterId": "king", "homeRoomId": "royal_bedchamber", "roomId": "royal_bedchamber", "awake": false }
+      { "characterId": "merlin", "homeRoomId": "merlin_chamber", "roomId": "merlin_chamber", "awake": false, "position": { "x": 5, "y": 5 } },
+      { "characterId": "lancelot", "homeRoomId": "lancelot_chamber", "roomId": "lancelot_chamber", "awake": false, "position": { "x": 26, "y": 5 } },
+      { "characterId": "king", "homeRoomId": "royal_bedchamber", "roomId": "royal_bedchamber", "awake": false, "position": { "x": 15, "y": 5 } }
+    ],
+    "fixtures": [
+      {
+        "id": "palace_merlin_drawers",
+        "searchedBy": ["merlin"],
+        "name": "Merlin's chest of drawers",
+        "roomId": "merlin_chamber",
+        "position": {
+          "x": 6,
+          "y": 4
+        },
+        "interactionSpot": {
+          "x": 6,
+          "y": 5
+        },
+        "sprite": 75,
+        "container": true,
+        "ownerCharacterId": "merlin"
+      },
+      {
+        "id": "palace_coffer_03",
+        "searchedBy": ["lancelot"],
+        "examinedBy": ["lancelot"],
+        "name": "Carved wooden coffer",
+        "roomId": "royal_bedchamber",
+        "position": {
+          "x": 17,
+          "y": 4
+        },
+        "interactionSpot": {
+          "x": 17,
+          "y": 5
+        },
+        "sprite": 90,
+        "container": true,
+        "requiredKeyId": "palace_royal_key",
+        "revealedName": "King's lockbox",
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_merlin_books",
+        "name": "Merlin's bookcase",
+        "roomId": "merlin_chamber",
+        "position": {
+          "x": 3,
+          "y": 3
+        },
+        "interactionSpot": {
+          "x": 4,
+          "y": 3
+        },
+        "sprite": 63,
+        "container": true,
+        "ownerCharacterId": "merlin"
+      },
+      {
+        "id": "palace_merlin_desk",
+        "name": "Writing desk",
+        "roomId": "merlin_chamber",
+        "position": {
+          "x": 3,
+          "y": 6
+        },
+        "interactionSpot": {
+          "x": 3,
+          "y": 5
+        },
+        "sprite": 72,
+        "container": true,
+        "ownerCharacterId": "merlin"
+      },
+      {
+        "id": "palace_merlin_stool",
+        "name": "Desk stool",
+        "roomId": "merlin_chamber",
+        "position": {
+          "x": 4,
+          "y": 6
+        },
+        "sprite": 73,
+        "container": false,
+        "ownerCharacterId": "merlin"
+      },
+      {
+        "id": "palace_royal_cabinet",
+        "name": "Wardrobe",
+        "roomId": "royal_bedchamber",
+        "position": {
+          "x": 18,
+          "y": 3
+        },
+        "interactionSpot": {
+          "x": 18,
+          "y": 4
+        },
+        "sprite": 75,
+        "container": true,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_royal_table",
+        "name": "Royal table",
+        "roomId": "royal_bedchamber",
+        "position": {
+          "x": 13,
+          "y": 6
+        },
+        "sprite": 72,
+        "container": false,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_royal_stool",
+        "name": "Royal stool",
+        "roomId": "royal_bedchamber",
+        "position": {
+          "x": 14,
+          "y": 6
+        },
+        "sprite": 73,
+        "container": false,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_lancelot_books",
+        "name": "Lancelot's bookcase",
+        "roomId": "lancelot_chamber",
+        "position": {
+          "x": 24,
+          "y": 3
+        },
+        "interactionSpot": {
+          "x": 25,
+          "y": 3
+        },
+        "sprite": 63,
+        "container": true,
+        "ownerCharacterId": "lancelot"
+      },
+      {
+        "id": "palace_lancelot_table",
+        "name": "Lancelot's desk",
+        "roomId": "lancelot_chamber",
+        "position": {
+          "x": 27,
+          "y": 6
+        },
+        "interactionSpot": {
+          "x": 27,
+          "y": 5
+        },
+        "sprite": 72,
+        "container": true,
+        "ownerCharacterId": "lancelot"
+      },
+      {
+        "id": "palace_lancelot_stool",
+        "name": "Lancelot's stool",
+        "roomId": "lancelot_chamber",
+        "position": {
+          "x": 26,
+          "y": 6
+        },
+        "sprite": 73,
+        "container": false,
+        "ownerCharacterId": "lancelot"
+      },
+      {
+        "id": "palace_guest_table",
+        "name": "Guest table",
+        "roomId": "guest_chamber",
+        "position": {
+          "x": 3,
+          "y": 21
+        },
+        "sprite": 72,
+        "container": false,
+        "ownerCharacterId": "player"
+      },
+      {
+        "id": "palace_guest_stool",
+        "name": "Guest stool",
+        "roomId": "guest_chamber",
+        "position": {
+          "x": 4,
+          "y": 21
+        },
+        "sprite": 73,
+        "container": false,
+        "ownerCharacterId": "player"
+      },
+      {
+        "id": "palace_guest_cabinet",
+        "name": "Guest cabinet",
+        "roomId": "guest_chamber",
+        "position": {
+          "x": 6,
+          "y": 27
+        },
+        "interactionSpot": {
+          "x": 5,
+          "y": 27
+        },
+        "sprite": 75,
+        "container": true,
+        "ownerCharacterId": "player"
+      },
+      {
+        "id": "palace_treasury_barrel",
+        "name": "West storage barrel",
+        "roomId": "treasury",
+        "position": {
+          "x": 25,
+          "y": 21
+        },
+        "interactionSpot": {
+          "x": 26,
+          "y": 21
+        },
+        "sprite": 82,
+        "container": true,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_treasury_barrel_2",
+        "name": "East storage barrel",
+        "roomId": "treasury",
+        "position": {
+          "x": 28,
+          "y": 27
+        },
+        "interactionSpot": {
+          "x": 27,
+          "y": 27
+        },
+        "sprite": 82,
+        "container": true,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_treasury_shelf",
+        "name": "Treasury shelves",
+        "roomId": "treasury",
+        "position": {
+          "x": 29,
+          "y": 22
+        },
+        "interactionSpot": {
+          "x": 28,
+          "y": 22
+        },
+        "sprite": 63,
+        "container": true,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_hall_table_west",
+        "name": "Hall table",
+        "roomId": "great_hall",
+        "position": {
+          "x": 12,
+          "y": 18
+        },
+        "sprite": 72,
+        "container": false,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_hall_stool_west",
+        "name": "Hall stool",
+        "roomId": "great_hall",
+        "position": {
+          "x": 12,
+          "y": 19
+        },
+        "sprite": 73,
+        "container": false,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_hall_table_east",
+        "name": "Hall table",
+        "roomId": "great_hall",
+        "position": {
+          "x": 19,
+          "y": 18
+        },
+        "sprite": 72,
+        "container": false,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_hall_stool_east",
+        "name": "Hall stool",
+        "roomId": "great_hall",
+        "position": {
+          "x": 19,
+          "y": 19
+        },
+        "sprite": 73,
+        "container": false,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_entrance_table",
+        "name": "Entrance table",
+        "roomId": "entrance_hall",
+        "position": {
+          "x": 12,
+          "y": 28
+        },
+        "sprite": 72,
+        "container": false,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_hall_cabinet",
+        "name": "Hall sideboard",
+        "roomId": "great_hall",
+        "position": {
+          "x": 20,
+          "y": 22
+        },
+        "interactionSpot": {
+          "x": 20,
+          "y": 21
+        },
+        "sprite": 75,
+        "container": true,
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_coffer_01",
+        "name": "Iron-banded coffer",
+        "roomId": "entrance_hall",
+        "position": {
+          "x": 13,
+          "y": 30
+        },
+        "interactionSpot": {
+          "x": 13,
+          "y": 29
+        },
+        "sprite": 90,
+        "container": true,
+        "requiredKeyId": "palace_iron_key",
+        "revealedName": "Gatekeeper's strongbox",
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_coffer_02",
+        "name": "Polished wooden coffer",
+        "roomId": "royal_bedchamber",
+        "position": {
+          "x": 14,
+          "y": 3
+        },
+        "interactionSpot": {
+          "x": 14,
+          "y": 4
+        },
+        "sprite": 90,
+        "container": true,
+        "requiredKeyId": "palace_brass_key",
+        "revealedName": "Jewellery box",
+        "ownerCharacterId": "king"
+      },
+      {
+        "id": "palace_entrance_table_2",
+        "name": "Entrance table",
+        "roomId": "entrance_hall",
+        "position": {
+          "x": 18,
+          "y": 28
+        },
+        "sprite": 72,
+        "container": false,
+        "ownerCharacterId": "king"
+      }
     ],
     "objects": [
-      { "id": "brass_key", "name": "Spare brass key", "locationId": "merlin_desk", "concealed": true, "properties": { "opens": "crown_box" } },
-      { "id": "royal_signet", "name": "Royal signet key", "locationId": "king", "properties": { "opens": "crown_box" } },
-      { "id": "crown_box", "name": "Crown lockbox", "locationId": "chapel_altar", "concealed": true, "properties": { "locked": true } },
-      { "id": "crown", "name": "Crown of Winter", "locationId": "crown_box", "concealed": true }
+      {"id":"palace_royal_key","name":"Royal lockbox key","locationId":"palace_merlin_drawers","concealed":true},
+      {"id":"palace_royal_seal","name":"Royal signet seal","locationId":"palace_coffer_03","concealed":true},
+      {"id":"palace_sealed_decree","name":"Sealed royal decree","locationId":"palace_coffer_03","concealed":true},
+      {"id":"palace_star_chart","name":"Star chart","locationId":"palace_merlin_books","concealed":true},
+      {"id":"palace_spell_notes","name":"Loose spell notes","locationId":"palace_merlin_books","concealed":true},
+      {"id":"palace_quill","name":"Silver quill","locationId":"palace_merlin_desk","concealed":true},
+      {"id":"palace_blue_ink","name":"Bottle of blue ink","locationId":"palace_merlin_desk","concealed":true},
+      {"id":"palace_velvet_gloves","name":"Velvet gloves","locationId":"palace_royal_cabinet","concealed":true},
+      {"id":"palace_silk_sash","name":"Silk sash","locationId":"palace_royal_cabinet","concealed":true},
+      {"id":"palace_drill_manual","name":"Sword drill manual","locationId":"palace_lancelot_books","concealed":true},
+      {"id":"palace_old_letter","name":"Old letter","locationId":"palace_lancelot_books","concealed":true},
+      {"id":"palace_whetstone","name":"Whetstone","locationId":"palace_lancelot_table","concealed":true},
+      {"id":"palace_leather_strap","name":"Leather strap","locationId":"palace_lancelot_table","concealed":true},
+      {"id":"palace_brass_key","name":"Small brass key","locationId":"palace_guest_cabinet","concealed":true},
+      {"id":"palace_travel_cloak","name":"Travel cloak","locationId":"palace_guest_cabinet","concealed":true},
+      {"id":"palace_copper_coins","name":"Pouch of copper coins","locationId":"palace_treasury_barrel","concealed":true},
+      {"id":"palace_tally_sticks","name":"Bundle of tally sticks","locationId":"palace_treasury_barrel","concealed":true},
+      {"id":"palace_account_book","name":"Account book","locationId":"palace_treasury_shelf","concealed":true},
+      {"id":"palace_wax_sticks","name":"Sealing wax sticks","locationId":"palace_treasury_shelf","concealed":true},
+      {"id":"palace_iron_key","name":"Iron storeroom key","locationId":"palace_hall_cabinet","concealed":true},
+      {"id":"palace_silver_spoon","name":"Silver spoon","locationId":"palace_hall_cabinet","concealed":true},
+      {"id":"palace_gate_ledger","name":"Gatekeeper's ledger","locationId":"palace_coffer_01","concealed":true},
+      {"id":"palace_pearl_brooch","name":"Pearl brooch","locationId":"palace_coffer_02","concealed":true},
+      {"id":"palace_ribbon","name":"Blue ribbon","locationId":"palace_coffer_02","concealed":true},
+      { "id": "crown", "name": "Crown of Winter", "locationId": "palace_coffer_03", "concealed": true }
+    ],
+    "doors": [
+      {
+        "id": "merlin_door",
+        "name": "Merlin's door",
+        "tiles": [
+          {
+            "x": 5,
+            "y": 9
+          },
+          {
+            "x": 6,
+            "y": 9
+          }
+        ],
+        "interactionSpots": [
+          {
+            "x": 5,
+            "y": 10
+          },
+          {
+            "x": 5,
+            "y": 8
+          }
+        ],
+        "roomIds": [
+          "north_corridor",
+          "merlin_chamber"
+        ],
+        "open": false
+      },
+      {
+        "id": "royal_door",
+        "name": "Royal door",
+        "tiles": [
+          {
+            "x": 15,
+            "y": 9
+          },
+          {
+            "x": 16,
+            "y": 9
+          }
+        ],
+        "interactionSpots": [
+          {
+            "x": 15,
+            "y": 10
+          },
+          {
+            "x": 15,
+            "y": 8
+          }
+        ],
+        "roomIds": [
+          "north_corridor",
+          "royal_bedchamber"
+        ],
+        "open": false
+      },
+      {
+        "id": "lancelot_door",
+        "name": "Lancelot's door",
+        "tiles": [
+          {
+            "x": 25,
+            "y": 9
+          },
+          {
+            "x": 26,
+            "y": 9
+          }
+        ],
+        "interactionSpots": [
+          {
+            "x": 25,
+            "y": 10
+          },
+          {
+            "x": 25,
+            "y": 8
+          }
+        ],
+        "roomIds": [
+          "north_corridor",
+          "lancelot_chamber"
+        ],
+        "open": false
+      },
+      {
+        "id": "hall_door",
+        "name": "Great Hall door",
+        "tiles": [
+          {
+            "x": 15,
+            "y": 15
+          },
+          {
+            "x": 16,
+            "y": 15
+          }
+        ],
+        "interactionSpots": [
+          {
+            "x": 15,
+            "y": 16
+          },
+          {
+            "x": 15,
+            "y": 14
+          }
+        ],
+        "roomIds": [
+          "great_hall",
+          "north_corridor"
+        ],
+        "open": true
+      },
+      {
+        "id": "entrance_door",
+        "name": "Entrance Hall door",
+        "tiles": [
+          {
+            "x": 15,
+            "y": 25
+          },
+          {
+            "x": 16,
+            "y": 25
+          }
+        ],
+        "interactionSpots": [
+          {
+            "x": 15,
+            "y": 26
+          },
+          {
+            "x": 15,
+            "y": 24
+          }
+        ],
+        "roomIds": [
+          "entrance_hall",
+          "great_hall"
+        ],
+        "open": true
+      },
+      {
+        "id": "guest_door",
+        "name": "Guest door",
+        "tiles": [
+          {
+            "x": 8,
+            "y": 22
+          },
+          {
+            "x": 8,
+            "y": 23
+          }
+        ],
+        "interactionSpots": [
+          {
+            "x": 7,
+            "y": 22
+          },
+          {
+            "x": 9,
+            "y": 22
+          }
+        ],
+        "roomIds": [
+          "guest_chamber",
+          "great_hall"
+        ],
+        "open": false
+      },
+      {
+        "id": "treasury_door",
+        "name": "Treasury door",
+        "tiles": [
+          {
+            "x": 23,
+            "y": 22
+          },
+          {
+            "x": 23,
+            "y": 23
+          }
+        ],
+        "interactionSpots": [
+          {
+            "x": 22,
+            "y": 22
+          },
+          {
+            "x": 24,
+            "y": 22
+          }
+        ],
+        "roomIds": [
+          "great_hall",
+          "treasury"
+        ],
+        "open": false
+      }
     ],
     "facts": {
       "rule": "At dawn on day 2, whoever physically carries the Crown of Winter becomes king. If nobody carries it, King Aldren remains king."

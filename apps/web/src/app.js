@@ -1,10 +1,15 @@
-import { debugOverview } from "./debug-view.js";
+import { debugOverview, recentTranscriptsView } from "./debug-view.js";
+import { mountCourtMap, updateCourtMap } from "./court-map.js";
 import { introduction, introductionHandoff, handoffPrefix, nameSuggestions, homelandSuggestions, patronName } from "./introduction.js";
 
 const app = document.querySelector("#app");
 let state;
 let activeCharacter = null;
+let closedConversation = null;
 let busy = false;
+let npcRun = null;
+let npcStatus = "";
+let npcTrace = [];
 let notice = "";
 let sheetOpen = false;
 let debugOpen = false;
@@ -28,19 +33,92 @@ let requestSequence = 0;
 
 const gameWorker = new Worker(new URL("./game.worker.ts", import.meta.url), { type: "module" });
 const pendingRequests = new Map();
+const gameReplacementRequests = new Set(["reset_world", "reset_characters", "reset", "load_game", "create_game", "configure", "delete_game"]);
 gameWorker.addEventListener("message", event => {
+  if (event.data.type === "transcripts_changed") {
+    if (debugOpen && debugTab === "transcripts") void openDebug();
+    return;
+  }
+  if (event.data.type === "npc_update") {
+    if (event.data.activeSaveId !== activeSaveId) return;
+    if (!state || event.data.state.revision >= (state.revision ?? 0)) state = event.data.state;
+    npcRun = event.data.running; npcStatus = event.data.status;
+    if (event.data.trace) { npcTrace.push(event.data.trace); npcTrace = npcTrace.slice(-50); }
+    updateCourtMap(document.querySelector("[data-court-map]"), state);
+    updateNpcPanel();
+    return;
+  }
   const pending = pendingRequests.get(event.data.id);
   if (!pending) return;
   pendingRequests.delete(event.data.id);
-  if (event.data.ok) pending.resolve(event.data.value);
+  if (event.data.ok) {
+    const value = event.data.value;
+    // A background commit can arrive while a dialogue response is listing saves.
+    if (value?.state && state && !gameReplacementRequests.has(pending.type)
+      && value.state.revision < state.revision) value.state = state;
+    pending.resolve(value);
+  }
   else pending.reject(new Error(event.data.error));
 });
 
 function rpc(type, payload = {}) {
+  if (gameReplacementRequests.has(type)) stopNpcGoal();
   const id = ++requestSequence;
   gameWorker.postMessage({ id, type, payload });
-  return new Promise((resolve, reject) => pendingRequests.set(id, { resolve, reject }));
+  return new Promise((resolve, reject) => pendingRequests.set(id, { resolve, reject, type }));
 }
+
+function stopNpcGoal() {
+  npcRun = null;
+  void rpc("cancel_npc").catch(() => {});
+}
+async function runNpcGoal(characterId) {
+  await rpc("start_npc", { characterId });
+}
+function updateNpcPanel() {
+  const panel = document.querySelector("[data-npc-panel]"); if (!panel) return;
+  const expanded = panel.querySelector("details")?.open;
+  panel.innerHTML = `<p role="status">${escapeHtml(npcStatus)}</p>${npcRun ? '<button data-background-stop>Pause NPC activity</button>' : ""}
+    ${Object.entries(state.npcActivities || {}).filter(([id, activity]) => id !== npcRun && (activity.status === "active" || activity.reviewPending)).map(([id, activity]) => `<button data-background-resume="${escapeHtml(id)}">${activity.reviewPending ? "Review outcome" : "Resume goal"} · ${escapeHtml(state.characters.find(character => character.id === id)?.name || id)}</button>`).join("")}
+    <details ${expanded ? "open" : ""}><summary>Jev decisions and world context</summary><pre>${escapeHtml(JSON.stringify(npcTrace, null, 2))}</pre></details>`;
+  panel.hidden = !npcStatus && !Object.values(state.npcActivities || {}).some(a => a.status === "active" || a.reviewPending);
+  panel.onclick = event => {
+    if (event.target.closest("[data-background-stop]")) stopNpcGoal();
+    const resume = event.target.closest("[data-background-resume]");
+    if (resume) void runNpcGoal(resume.dataset.backgroundResume);
+  };
+}
+
+// Development convenience: refresh the physical world without recreating an emissary.
+window.resetWorld = async function resetWorld() {
+  if (busy) throw new Error("Wait for the current request to finish before resetting the world.");
+  if (!state?.player) throw new Error("Load a game with a created character first.");
+  busy = true; notice = "Resetting the palace…"; render();
+  try {
+    const result = await rpc("reset_world");
+    state = result.state; saves = result.saves;
+    activeCharacter = null; closedConversation = null; debugData = null;
+    notice = "Palace reset. Your character and conversations have been kept.";
+    return { reset: true };
+  } catch (error) { notice = `Error: ${error.message}`; throw error; }
+  finally { busy = false; render(); }
+};
+
+// Restore authored NPC personalities and clear learned events without resetting the palace.
+window.resetCharacters = async function resetCharacters() {
+  if (busy) throw new Error("Wait for the current request to finish before resetting the characters.");
+  if (!state?.player) throw new Error("Load a game with a created character first.");
+  busy = true; notice = "Resetting characters…"; render();
+  try {
+    const result = await rpc("reset_characters");
+    state = result.state; saves = result.saves;
+    activeCharacter = null; closedConversation = null; debugData = null;
+    npcTrace = []; npcStatus = "";
+    notice = "NPCs reset. Conversations and learned events cleared; your character and palace have been kept.";
+    return { reset: true };
+  } catch (error) { notice = `Error: ${error.message}`; throw error; }
+  finally { busy = false; render(); }
+};
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
@@ -73,16 +151,16 @@ function characterSheet() {
   const relationships = player.relationships?.length
     ? player.relationships.map(relationship => `<li><strong>${escapeHtml(relationship.characterName)}</strong><p>${escapeHtml(relationship.description)}</p></li>`).join("")
     : `<li><p>No relationships recorded yet.</p></li>`;
-  return `<div class="sheet-scrim ${sheetOpen ? "open" : ""}" data-sheet-close></div><aside class="character-sheet ${sheetOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Character sheet" aria-hidden="${sheetOpen ? "false" : "true"}"><button class="sheet-close" data-sheet-close aria-label="Close character sheet">×</button><div class="eyebrow">Your character</div><h2>${escapeHtml(player.name)}</h2><div class="sheet-seal">${escapeHtml(initials)}</div><section><h3>Biography</h3><p>${escapeHtml(player.lore)}</p></section><section class="goal"><h3>Current goal</h3><p>${escapeHtml(player.currentGoal || "No goal yet.")}</p></section><section><h3>Relationships</h3><ul class="relationship-list">${relationships}</ul></section></aside>`;
+  return `<div class="sheet-scrim ${sheetOpen ? "open" : ""}" data-sheet-close></div><aside class="character-sheet ${sheetOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Character sheet" aria-hidden="${sheetOpen ? "false" : "true"}"><button class="sheet-close" data-sheet-close aria-label="Close character sheet">×</button><div class="eyebrow">Your character</div><h2>${escapeHtml(player.name)}</h2><div class="sheet-seal">${escapeHtml(initials)}</div><section><h3>Biography</h3><p>${escapeHtml(player.lore)}</p></section><section class="goal"><h3>Current goal</h3><p>${escapeHtml(player.currentGoal || "No goal yet.")}</p></section><section><h3>Inventory</h3><ul>${state.inventory?.length ? state.inventory.map(item => `<li>${escapeHtml(item.name)}</li>`).join("") : "<li>Empty</li>"}</ul></section><section><h3>Relationships</h3><ul class="relationship-list">${relationships}</ul></section></aside>`;
 }
 
 function debugInspector() {
   const content = debugError
     ? `<p class="debug-error">${escapeHtml(debugError)}</p>`
     : debugData
-      ? debugTab === "overview" ? debugOverview(debugRequest.type, debugData) : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
+      ? debugTab === "overview" ? debugOverview(debugRequest.type, debugData) : debugTab === "transcripts" ? recentTranscriptsView(debugData.transcripts) : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
       : `<p class="debug-loading">Reading worker state…</p>`;
-  const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${[["overview", "Overview"], ["json", "Raw JSON"]].map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
+  const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${[["overview", "Overview"], ["json", "Raw JSON"], ["transcripts", "Recent transcripts"]].map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
   return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}"><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">Character state, visible events, known world, conversation, and assembled model context. The global inspector includes the authoritative world. GM debug includes prompts, raw model responses, and tool results—not hidden reasoning. API keys are excluded.</p>${tabs}<div id="debug-panel" class="debug-panel" role="tabpanel" aria-labelledby="debug-tab-${debugTab}" tabindex="0">${content}</div></aside>`;
 }
 
@@ -97,7 +175,7 @@ async function openDebug(request = debugRequest, title = debugTitle) {
   debugError = "";
   render();
   try {
-    const data = await rpc(request.type, request.payload);
+    const data = await rpc(debugTab === "transcripts" ? "debug_transcripts" : request.type, request.payload);
     if (readSequence !== debugReadSequence) return;
     debugData = data;
   }
@@ -147,19 +225,55 @@ function renderCharacterReview() {
   bind();
 }
 
-function renderDay() {
+function renderDay(bindPage = true) {
   const playerName = state.player?.name || "The Emissary";
-  app.innerHTML = shell(`<section class="panel"><div class="day-heading"><div><div class="eyebrow">Day ${state.day} · ${escapeHtml(state.location)}</div><h2>All eyes turn to <span class="player-name">${escapeHtml(playerName)}</span></h2></div></div><p class="scene">The embassy’s formal greeting is complete. King Aldren holds court beneath winter banners; Merlin watches from the edge of the dais; Lancelot stands beside the throne. You have enough standing to request a private word with any of them.</p><div class="choices">${state.characters.map(character => `<button class="choice" data-character="${escapeHtml(character.id)}">Talk to ${escapeHtml(character.name)}<span>Private audience →</span></button>`).join("")}<button class="choice end" data-end-day>End the day<span>Night awaits →</span></button></div><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
-  bind();
+  app.innerHTML = shell(`<section class="panel court-panel"><div class="day-heading"><div><div class="eyebrow">Palace of Caerwyn</div><h2>Welcome to court, <span class="player-name">${escapeHtml(playerName)}</span></h2></div></div><p class="scene">Left-click to walk around the palace. Right-click characters and objects to see their actions.</p><div data-court-map></div><section class="npc-planner" data-npc-panel></section><div class="court-day-footer"><span class="map-credit">Tiny Dungeon tiles by Kenney · CC0</span></div><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  if (bindPage) bind();
+  updateNpcPanel();
+  const mapRoot = document.querySelector("[data-court-map]");
+  void mountCourtMap(mapRoot, state.characters, state.player, async id => {
+    if (busy || !mapRoot.isConnected) return;
+    activeCharacter = id; closedConversation = null; notice = ""; render();
+  }, busy, async point => {
+    const result = await rpc("move_player", point);
+    state = result.state; saves = result.saves;
+  }, state.doors, async (id, open) => {
+    const result = await rpc("set_door", { id, open });
+    state = result.state; saves = result.saves;
+    return state.doors;
+  }, state.roomAccess, state.fixtures, state.fixtureActions, async actionId => {
+    const result = await rpc("interact_fixture", { actionId });
+    state = result.state; saves = result.saves; notice = result.message; render();
+  }, async id => { await rpc("pause_npc", { characterId: id }); }).then(() => updateCourtMap(mapRoot, state)).catch(() => {
+    if (!mapRoot.isConnected) return;
+    const message = document.createElement("p"); message.className = "status error";
+    message.textContent = "The palace artwork could not load. You can still select a character by name."; mapRoot.append(message);
+  });
 }
 
 function renderConversation() {
   const character = state.characters.find(item => item.id === activeCharacter);
   if (!character) { activeCharacter = null; return renderDay(); }
-  const messages = state.conversations?.[activeCharacter] || [];
-  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><button class="back" data-end-conversation ${busy ? "disabled" : ""}>${busy ? "Please wait…" : "End conversation"}</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.</div>`}</div>${replyOptions(state.conversationReplyOptions?.[activeCharacter], activeCharacter)}<form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  const ended = closedConversation?.id === activeCharacter;
+  const ending = !!state.conversationEndRequested?.[activeCharacter];
+  const messages = ended ? closedConversation.messages : state.conversations?.[activeCharacter] || [];
+  renderDay(false);
+  const dialog = document.createElement("dialog");
+  dialog.className = "conversation-modal";
+  dialog.setAttribute("aria-label", `Conversation with ${character.name}`);
+  dialog.innerHTML = `<section class="panel"><div class="conversation-head"><button class="back" data-end-conversation ${busy ? "disabled" : ""}>${busy ? "Please wait…" : ended ? "Return to palace" : ending ? "Finish conversation review" : "End conversation"}</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.</div>`}</div>${ended || ending ? `<p class="scene">${escapeHtml(character.name)} has ended the conversation.${ended ? " Their memories and goal have been reviewed." : " Saving their memories and next goal."}</p>` : `${replyOptions(state.conversationReplyOptions?.[activeCharacter], activeCharacter)}<form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Speak</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`;
+  // Keep character debugging within the modal's focus boundary.
+  for (const panel of app.querySelectorAll(".debug-scrim, .debug-inspector")) dialog.append(panel);
+  app.append(dialog);
+  dialog.addEventListener("cancel", event => {
+    event.preventDefault();
+    if (debugOpen) { debugOpen = false; render(); return; }
+    if (!busy) dialog.querySelector("[data-end-conversation]")?.click();
+  });
+  dialog.showModal();
   bind();
-  document.querySelector(".messages")?.scrollTo(0, 999999);
+  dialog.querySelector(".messages")?.scrollTo(0, 999999);
+  if (!busy && !debugOpen) dialog.querySelector("textarea")?.focus();
 }
 
 function render() {
@@ -170,6 +284,18 @@ function render() {
   if (state.phase === "player_creation") return renderCreation();
   if (activeCharacter) return renderConversation();
   renderDay();
+}
+
+async function talkAndReview(characterId, message) {
+  const response = await rpc("talk", { characterId, message });
+  state = response.state; saves = response.saves;
+  if (!state.conversationEndRequested?.[characterId]) return;
+  const messages = state.conversations?.[characterId] || [];
+  notice = "Remembering the conversation…"; render();
+  const reviewed = await rpc("end_conversation", { characterId });
+  state = reviewed.state; saves = reviewed.saves;
+  closedConversation = { id: characterId, messages };
+  void runNpcGoal(characterId);
 }
 
 async function run(action) {
@@ -212,16 +338,18 @@ function bind() {
     openDebug({ type: "debug_character", payload: { characterId: activeCharacter } }, `${character?.name || activeCharacter} Debug`);
   });
   document.querySelectorAll("[data-debug-tab]").forEach(button => {
-    const select = tab => {
+    const select = async tab => {
       debugTab = tab;
-      render();
+      await openDebug();
       document.querySelector(`[data-debug-tab="${tab}"]`)?.focus();
     };
     button.addEventListener("click", () => select(button.dataset.debugTab));
     button.addEventListener("keydown", event => {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
       event.preventDefault();
-      select(event.key === "Home" ? "overview" : event.key === "End" ? "json" : debugTab === "overview" ? "json" : "overview");
+      const tabs = ["overview", "json", "transcripts"];
+      const index = tabs.indexOf(debugTab);
+      select(event.key === "Home" ? tabs[0] : event.key === "End" ? tabs[2] : tabs[(index + (event.key === "ArrowRight" ? 1 : 2)) % 3]);
     });
   });
   document.querySelector("[data-debug-refresh]")?.addEventListener("click", () => openDebug());
@@ -257,7 +385,8 @@ function bind() {
     const message = options?.[Number(button.dataset.replyIndex)];
     if (!message) return;
     run(async () => {
-      const result = await rpc(target === "gm" ? "gm" : "talk", { message, characterId: target });
+      if (target !== "gm") { await talkAndReview(target, message); return; }
+      const result = await rpc("gm", { message });
       state = result.state; saves = result.saves;
     });
   }));
@@ -279,17 +408,20 @@ function bind() {
     event.preventDefault(); const message = new FormData(event.currentTarget).get("message");
     run(async () => { const result = await rpc("gm", { message }); state = result.state; saves = result.saves; });
   });
-  document.querySelectorAll("[data-character]").forEach(button => button.addEventListener("click", () => { activeCharacter = button.dataset.character; notice = ""; render(); }));
   document.querySelector("[data-talk-form]")?.addEventListener("submit", event => {
     event.preventDefault(); const message = new FormData(event.currentTarget).get("message");
-    run(async () => { const result = await rpc("talk", { characterId: activeCharacter, message }); state = result.state; saves = result.saves; });
+    run(() => talkAndReview(activeCharacter, message));
   });
-  document.querySelector("[data-end-conversation]")?.addEventListener("click", () => run(async () => {
+  document.querySelector("[data-end-conversation]")?.addEventListener("click", () => {
+    if (closedConversation?.id === activeCharacter) { activeCharacter = null; closedConversation = null; notice = ""; render(); return; }
+    void run(async () => {
     notice = "Remembering your conversation…"; render();
-    const result = await rpc("end_conversation", { characterId: activeCharacter });
+    const characterId = activeCharacter;
+    const result = await rpc("end_conversation", { characterId });
     state = result.state; saves = result.saves; activeCharacter = null;
-  }));
-  document.querySelector("[data-end-day]")?.addEventListener("click", () => { notice = "The twelve-hour night phase is the next milestone. For now, the day remains yours."; render(); });
+    void runNpcGoal(characterId);
+    });
+  });
   document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { introPage = 0; reviewDraft = null; traveller = { name: "", homeland: "" }; const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
 }
 

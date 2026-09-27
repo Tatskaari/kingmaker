@@ -1,11 +1,15 @@
+import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
+import { courtAgentObservation } from "../apps/web/src/court-agent.js";
+import { doorActionLegality } from "../packages/core/src/access.js";
+import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
+import { courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath, courtInteractionPoint, nearestDoorSpot } from "../apps/web/src/court-map.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { create, fromBinary, fromJson, fromJsonString, toBinary, toJsonString } from "@bufbuild/protobuf";
+import { create, fromBinary, fromJson, fromJsonString, toBinary, toJson, toJsonString } from "@bufbuild/protobuf";
 import {
-  AvailableActionSchema,
-  DecisionRequestSchema,
   DialogueRequestSchema,
+  EventSchema,
   EventVisibility,
   GameMasterRequestSchema,
   GamePhase,
@@ -14,11 +18,21 @@ import {
   RelationshipUpdateSchema,
   CharacterSchema,
   ScenarioSchema,
+  WorldMapSchema,
   TranscriptRole,
+  TilePositionSchema,
   type Scenario,
 } from "../packages/contracts/src/index.js";
 import { FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter } from "../packages/core/src/context.js";
 import { MemoryGame } from "../packages/core/src/game.js";
+import { palaceMap } from "../apps/web/src/palace-map.js";
+
+import { canWalk, findPath, pointKey } from "../apps/web/src/navigation.js";
+import { palaceNodes } from "../apps/web/src/palace-navigation.js";
+
+
+import { JevClient } from "../packages/providers/src/jev.js";
+
 
 const fixturePath = new URL("../content/scenarios/last-night.json", import.meta.url);
 const load = (): Scenario => fromJsonString(ScenarioSchema, readFileSync(fixturePath, "utf8"));
@@ -33,7 +47,55 @@ test("the small authored scenario strictly parses and survives protobuf", () => 
   assert.equal(scenario.world?.phase, GamePhase.PLAYER_CREATION);
   assert.ok(scenario.world?.actors.every(actor => !actor.awake && actor.roomId === actor.homeRoomId));
   assert.equal(scenario.world?.rooms.length, 8);
-  assert.ok(scenario.world?.rooms.every(room => room.searchSpots.length === 0 || room.searchSpots.length >= 3));
+});
+
+test("the palace map is a complete layered tile grid", () => {
+  const decoded = fromBinary(WorldMapSchema, toBinary(WorldMapSchema, palaceMap));
+  assert.equal(decoded.tiles.length, decoded.width * decoded.height);
+  assert.equal(decoded.rooms.length, 8);
+  assert.ok(decoded.tiles.some(tile => tile.layers.length > 1));
+  assert.ok(decoded.tiles.flatMap(tile => tile.layers).some(layer => layer.solid && layer.bounds));
+
+  const solidTileIds = new Set(decoded.tiles.flatMap(tile => tile.layers)
+    .filter(layer => layer.solid)
+    .map(layer => layer.tileId));
+  assert.ok([2, 26].every(tileId => solidTileIds.has(tileId)), "horizontal wall sprites are used");
+  assert.ok([13, 15].every(tileId => solidTileIds.has(tileId)), "vertical wall sprites are used");
+
+  const passable = (x: number, y: number): boolean => {
+    if (x < 0 || y < 0 || x >= decoded.width || y >= decoded.height) return false;
+    const tile = decoded.tiles[y * decoded.width + x];
+    return Boolean(tile?.layers.length && tile.layers.every(layer => !layer.solid));
+  };
+  const start = decoded.rooms.find(room => room.id === "great_hall")!.regions[0]!;
+  const pending = [[start.x, start.y] as const];
+  const reached = new Set<string>();
+  while (pending.length) {
+    const [x, y] = pending.shift()!;
+    const key = `${x},${y}`;
+    if (reached.has(key) || !passable(x, y)) continue;
+    reached.add(key);
+    pending.push([x - 1, y], [x + 1, y], [x, y - 1], [x, y + 1]);
+  }
+  for (const room of decoded.rooms) {
+    for (const region of room.regions) {
+      for (let y = region.y; y < region.y + region.height; y += 1) {
+        for (let x = region.x; x < region.x + region.width; x += 1) {
+          assert.ok(reached.has(`${x},${y}`), `${room.name} floor at ${x},${y} is reachable`);
+        }
+      }
+    }
+  }
+  // Facing rooms need a bottom edge, north cap and masonry face in separate
+  // solid rows. A one-row band formerly produced overlapping, broken walls.
+  for (const [x, y] of [[3, 8], [12, 14], [13, 24]] as const) {
+    const band = [0, 1, 2].map(dy => decoded.tiles[(y + dy) * decoded.width + x]!.layers.at(-1)!.tileId);
+    assert.deepEqual(band, [26, 2, 40]);
+    assert.ok([0, 1, 2].every(dy => !passable(x, y + dy)));
+  }
+  const doorwayEdge = [0, 1, 2].map(dy => decoded.tiles[(8 + dy) * decoded.width + 4]!.layers.at(-1)!.tileId);
+  assert.deepEqual(doorwayEdge, [5, 17, 59], "doorway uses inner corners and a wall end");
+  assert.ok(reached.has(`15,${decoded.height - 1}`), "exterior entrance stays open");
 });
 
 test("game master context frames an emissary interview without defining the player", () => {
@@ -70,60 +132,17 @@ test("dialogue context includes premise before character context and conversatio
   assert.equal(messages[7]?.role, "assistant");
 });
 
-test("Merlin sees his known key location but not Lancelot's hidden lockbox", () => {
+test("character knowledge refers to live fixtures and conceals other characters' secrets", () => {
   const scenario = load();
-  assert.ok(scenario.world);
-  const request = create(DialogueRequestSchema, { characterId: "merlin", scenario });
-  const prompt = new FullContextBuilder().build(request).map(message => message.content).join("\n");
-  const world = worldForCharacter(scenario.world, "merlin");
-  assert.match(prompt, /brass_key/);
-  assert.match(prompt, /merlin_desk/);
-  assert.match(prompt, /left humiliated/);
-  assert.ok(!world.objects.some(object => object.id === "crown_box"));
-  assert.ok(!world.rooms.flatMap(room => room.searchSpots).some(spot => spot.id === "chapel_altar"));
-  assert.doesNotMatch(prompt, /ordinary banter|unexpectedly took offence/);
-});
-
-test("Lancelot sees the crown box while an uninformed king sees neither hiding place", () => {
-  const scenario = load();
-  assert.ok(scenario.world);
-  const lancelot = worldForCharacter(scenario.world, "lancelot");
-  const king = worldForCharacter(scenario.world, "king");
-  assert.ok(lancelot.rooms.flatMap(room => room.searchSpots).some(spot => spot.id === "chapel_altar"));
-  assert.ok(lancelot.objects.some(object => object.id === "crown_box"));
-  assert.ok(!lancelot.objects.some(object => object.id === "brass_key"));
-  assert.ok(!lancelot.rooms.flatMap(room => room.searchSpots).some(spot => spot.id === "merlin_desk"));
-  assert.ok(!king.objects.some(object => object.id === "brass_key" || object.id === "crown_box"));
-  assert.ok(!king.rooms.flatMap(room => room.searchSpots).some(spot =>
-    spot.id === "merlin_desk" || spot.id === "chapel_altar",
-  ));
-});
-
-test("Jev request carries free goal, events, world and grounded actions", () => {
-  const scenario = load();
-  const merlin = scenario.characters.find(character => character.id === "merlin");
-  assert.ok(merlin && scenario.world);
-  const actions = [
-    create(AvailableActionSchema, {
-      id: "wake:merlin",
-      type: "wake",
-      description: "Wake up in Merlin's chamber.",
-      parameters: {},
-    }),
-  ];
-  const request = create(DecisionRequestSchema, {
-    character: merlin,
-    world: worldForCharacter(scenario.world, "merlin"),
-    recentEvents: scenario.events.filter(event =>
-      event.characterIds.includes("merlin") || event.visibility === EventVisibility.PUBLIC,
-    ),
-    availableActions: actions,
-  });
-  assert.match(request.character?.currentGoal ?? "", /Prevent the king/);
-  assert.deepEqual(request.availableActions.map(action => action.id), ["wake:merlin"]);
-  assert.equal(request.world?.revision, 0);
-  assert.equal(request.world?.day, 0);
-  assert.equal(request.world?.solsticeDay, 2);
+  const merlin = worldForCharacter(scenario.world!, "merlin");
+  const lancelot = worldForCharacter(scenario.world!, "lancelot");
+  const player = worldForCharacter(scenario.world!, "player");
+  assert.ok(merlin.objects.some(item => item.id === "palace_royal_key"));
+  assert.ok(!merlin.objects.some(item => item.id === "crown"));
+  assert.ok(lancelot.objects.some(item => item.id === "crown" && item.locationId === "palace_coffer_03"));
+  assert.ok(!lancelot.objects.some(item => item.id === "palace_royal_key"));
+  assert.ok(!player.objects.some(item => ["crown", "palace_royal_key"].includes(item.id)));
+  assert.equal(player.fixtures.find(item => item.id === "palace_coffer_03")!.revealedName, "");
 });
 
 test("unknown fixture fields remain schema errors", () => {
@@ -163,6 +182,9 @@ test("creating the emissary begins day one with the whole cast in the Great Hall
   assert.equal(scenario.world?.phase, GamePhase.CONVERSATIONS);
   assert.deepEqual(scenario.world?.actors.map(actor => actor.characterId).sort(), ["king", "lancelot", "merlin", "player"]);
   assert.ok(scenario.world?.actors.every(actor => actor.roomId === "great_hall" && actor.awake));
+  for (const actor of scenario.world!.actors) {
+    assert.deepEqual(actor.position, scenario.courtArrivalPlacements.find(placement => placement.characterId === actor.characterId)!.position);
+  }
   assert.ok(npcIds.every(id => scenario.characters.find(character => character.id === id)?.relationships.some(relationship => relationship.characterId === "player")));
   const arrivals = scenario.events.filter(event => event.type === "arrival");
   assert.equal(arrivals.length, 3);
@@ -173,6 +195,7 @@ test("creating the emissary begins day one with the whole cast in the Great Hall
 // Exercise the runtime using scripted model replies, without credentials or network calls.
 import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
 import { OpenRouterClient, type OpenRouterMessage } from "../packages/providers/src/openrouter.js";
+const originalOpenRouterComplete = OpenRouterClient.prototype.complete;
 import { compulsionNarration, parseReplyOptions } from "../apps/web/src/reply-options.js";
 
 const offer = (compelled: boolean, options = ["I want to protect my family.", "I intend to earn a place at court."]): OpenRouterMessage => ({
@@ -431,6 +454,7 @@ test("ending reviews the full transcript, saves private memory, and starts a fre
   const updated = fromJson(ScenarioSchema, saved.scenario);
   const merlin = updated.characters.find(character => character.id === "merlin")!;
   assert.equal(merlin.currentGoal, remembered.goalUpdate.goal);
+  assert.deepEqual(merlin.objectives, scenario.characters[0]!.objectives);
   assert.equal(merlin.lore, scenario.characters[0]!.lore);
   assert.equal(merlin.relationships.find(item => item.characterId === "player")?.description, remembered.relationships[0]!.description);
   assert.deepEqual(merlin.relationships.filter(item => item.characterId !== "player"), scenario.characters[0]!.relationships);
@@ -496,4 +520,765 @@ test("ending one NPC's thread leaves other conversations intact and saves biogra
   await runtime.endConversation("merlin");
   assert.deepEqual(runtime.snapshot().conversations.king, kingHistory);
   assert.equal(fromJson(ScenarioSchema, runtime.snapshot().scenario).characters[0]!.lore, "Merlin remembers his new appointment as court adviser.");
+});
+
+// Navigation tests exercise actual palace geometry, dynamic obstruction and A* optimality.
+
+test("A* detours around blockers and matches a breadth-first shortest path", () => {
+  const start = palaceNodes[0]!;
+  const goal = palaceNodes.find(node => node.id === "merlin")!;
+  const blocked = new Set(["15,20", "14,20", "16,20"]);
+  const path = findPath(palaceMap, start, goal, blocked)!;
+  assert.ok(path);
+  assert.ok(path.every(point => !blocked.has(pointKey(point))));
+  const queue = [{ x: start.x, y: start.y, distance: 0 }];
+  const seen = new Set([pointKey(start)]);
+  for (let i = 0; i < queue.length; i++) {
+    const current = queue[i]!;
+    if (pointKey(current) === pointKey(goal)) { assert.equal(path.length - 1, current.distance); return; }
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+      const next = { x: current.x + dx, y: current.y + dy, distance: current.distance + 1 };
+      if (!seen.has(pointKey(next)) && canWalk(palaceMap, next, blocked)) {
+        seen.add(pointKey(next)); queue.push(next);
+      }
+    }
+  }
+  assert.fail("Goal should be reachable");
+});
+
+test("Jev transport sends typed choices and rejects invalid responses and HTTP failures", async () => {
+  let sent: Record<string, any> = {};
+  const client = new JevClient("test-key", async (url, init) => {
+    assert.equal(url, "https://openrouter.ai/api/alpha/decisions");
+    sent = JSON.parse(String(init?.body));
+    assert.equal((init?.headers as Record<string, string>).Authorization, "Bearer test-key");
+    return new Response(JSON.stringify({ answers: { next: { type: "choice", choice: "walk", probabilities: { walk: 1, stop: 0 }, confidence: 1 } } }));
+  });
+  const criteria = { walk: "Walk to Merlin", stop: "Stop" };
+  assert.equal((await client.choose({ goal: "Merlin" }, "Choose", criteria, new AbortController().signal)).choice, "walk");
+  assert.equal(sent.model, "typesafe/jev-1.13");
+  assert.deepEqual(sent.questions.next.criteria, criteria);
+  assert.ok(!JSON.stringify(sent).includes("test-key"));
+  for (const answer of [
+    { type: "choice", choice: "invented", probabilities: { walk: 1, stop: 0 } },
+    { type: "choice", choice: "walk", probabilities: { walk: 2, stop: 0 } },
+    { type: "choice", choice: "walk", probabilities: {} },
+    { type: "noul", choice: "walk", probabilities: { walk: 1, stop: 0 } },
+  ]) {
+    const bad = new JevClient("key", async () => new Response(JSON.stringify({ answers: { next: answer } })));
+    await assert.rejects(() => bad.choose({}, "", criteria, new AbortController().signal), /invalid/);
+  }
+  const failed = new JevClient("key", async () => new Response("unauthorized", { status: 401 }));
+  await assert.rejects(() => failed.choose({}, "", criteria, new AbortController().signal), /HTTP 401/);
+});
+
+test("Jev default transport preserves the browser fetch receiver", async () => {
+  const original = globalThis.fetch;
+  try {
+    globalThis.fetch = async function (this: unknown) {
+      assert.equal(this, globalThis, "native browser fetch requires its Window receiver");
+      return new Response(JSON.stringify({ answers: { next: { type: "choice", choice: "walk", probabilities: { walk: 1 } } } }));
+    };
+    const result = await new JevClient("test-key").choose({}, "Choose", { walk: "Walk" }, new AbortController().signal);
+    assert.equal(result.choice, "walk");
+  } finally { globalThis.fetch = original; }
+});
+
+test("401 diagnostics distinguish invalid keys from Decisions access and redact secrets", async () => {
+  for (const valid of [false, true]) {
+    const urls: string[] = [];
+    const client = new JevClient("sk-or-secret", async url => {
+      urls.push(String(url));
+      if (String(url).endsWith("/key")) return new Response("{}", { status: valid ? 200 : 401 });
+      return new Response(JSON.stringify({ error: { message: "Rejected sk-or-secret" } }), { status: 401 });
+    });
+    await assert.rejects(() => client.choose({}, "", { walk: "Walk" }, new AbortController().signal), error => {
+      assert.ok(error instanceof Error);
+      assert.match(error.message, valid ? /key authenticates/ : /also rejected this key/);
+      assert.ok(!error.message.includes("sk-or-secret"));
+      return true;
+    });
+    assert.equal(urls.length, 2);
+  }
+});
+
+test("main palace markers use saved rooms and separate characters on walkable tiles", () => {
+  const markers = courtMarkers(load().courtArrivalPlacements.map(item => ({ id: item.characterId, name: item.characterId, roomId: item.roomId, position: item.position! })));
+  assert.equal(new Set(markers.map(marker => pointKey(marker.point!))).size, 4);
+  assert.ok(markers.every(marker => courtRoomAt(marker.point!)?.id === "great_hall"));
+  assert.ok(markers.every(marker => courtPath(markers[0]!.point!, marker.point!)));
+  const merlin = courtMarkers([{ id: "merlin", name: "Merlin", roomId: "merlin_chamber", position: { x: 5, y: 5 } }])[0]!;
+  assert.equal(courtRoomAt(merlin.point!)?.id, "merlin_chamber");
+  assert.equal(courtMarkers([{ id: "king", name: "King", roomId: "nonexistent_room" }])[0]!.point, undefined);
+});
+
+test("main palace movement validates routes and survives saving and restoring", () => {
+  const scenario = load(); scenario.characters.push(create(CharacterSchema, { id: "player", name: "Envoy" })); scenario.playerCharacterId = "player";
+  scenario.world!.phase = GamePhase.CONVERSATIONS;
+  for (const actor of scenario.world!.actors) actor.roomId = "great_hall";
+  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 16, y: 22 }) });
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  runtime.movePlayer({ x: 5, y: 10 });
+  runtime.setDoor("merlin_door", true);
+  runtime.movePlayer({ x: 5, y: 5 });
+  assert.deepEqual(fromJson(ScenarioSchema, runtime.snapshot().scenario).world!.actors.find(actor => actor.characterId === "player")!.position, create(TilePositionSchema, { x: 5, y: 5 }));
+  assert.equal(runtime.view().location, "Merlin's Chamber");
+  const restored = new BrowserGameRuntime(scenario, "test", structuredClone(runtime.snapshot()));
+  assert.deepEqual(restored.view().player && (restored.view().player as { position: unknown }).position, create(TilePositionSchema, { x: 5, y: 5 }));
+  const before = JSON.stringify(restored.snapshot());
+  assert.throws(() => restored.movePlayer({ x: 0, y: 0 }), /not reachable/);
+  assert.throws(() => restored.movePlayer({ x: 6, y: 4 }), /not reachable/);
+  assert.throws(() => restored.movePlayer({ x: NaN, y: 4 }), /not reachable/);
+  assert.equal(JSON.stringify(restored.snapshot()), before);
+  restored.movePlayer({ x: 15, y: 29 });
+  assert.equal(restored.view().location, "Entrance Hall");
+  restored.reset(); assert.deepEqual(fromJson(ScenarioSchema, restored.snapshot().scenario).world!.actors.find(actor => actor.characterId === "player")!.position, create(TilePositionSchema, { x: 16, y: 22 }));
+  assert.throws(() => new BrowserGameRuntime(load(), "test").movePlayer({ x: 5, y: 5 }), /Enter the court/);
+});
+
+
+test("mid-walk redirection preserves the current visual position and rejects blocked destinations", () => {
+  const original = courtPath({ x: 15, y: 21 }, { x: 5, y: 5 })!;
+  const visual = courtWalkPoint(original, 2.4);
+  const changed = redirectCourtPath(original, 2.4, { x: 26, y: 25 })!;
+  assert.deepEqual(changed[0], visual);
+  assert.deepEqual(changed[1], original[3]);
+  assert.deepEqual(changed.at(-1), { x: 26, y: 25 });
+  assert.equal(redirectCourtPath(original, 2.4, { x: 0, y: 0 }), undefined);
+  const again = redirectCourtPath(changed, 0.2, { x: 15, y: 21 })!;
+  assert.deepEqual(again[0], courtWalkPoint(changed, 0.2));
+  assert.deepEqual(again.at(-1), { x: 15, y: 21 });
+  const stop = redirectCourtPath(original, 3, original[3]!)!;
+  assert.equal(stop.length, 1);
+});
+
+
+test("authored actor coordinates round-trip and rendering never invents positions", () => {
+  const scenario = load();
+  const restored = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, scenario));
+  for (const actor of restored.world!.actors) {
+    assert.ok(actor.position);
+    assert.equal(courtRoomAt(actor.position)?.id, actor.roomId);
+    const marker = courtMarkers([{ id: actor.characterId, name: actor.characterId, roomId: actor.roomId, position: actor.position }])[0]!;
+    assert.deepEqual(marker.point, actor.position);
+  }
+  assert.equal(courtMarkers([{ id: "merlin", name: "Merlin", roomId: "great_hall" }])[0]!.point, undefined);
+  const customized = { x: 14, y: 21 };
+  assert.deepEqual(courtMarkers([{ id: "merlin", name: "Merlin", roomId: "great_hall", position: customized }])[0]!.point, customized);
+  assert.equal(courtMarkers([{ id: "merlin", name: "Merlin", roomId: "great_hall", position: { x: 5, y: 5 } }])[0]!.point, undefined);
+});
+
+
+test("tile menus gather every layer with stable action and layer order and preserve legality", () => {
+  const layers: CourtInteractionLayer[] = [
+    { id: "merlin", position: { x: 5, y: 5 }, order: 30, actions: [{ id: "talk", label: "Talk to Merlin", type: "talk", target: "merlin", order: 10, legality: "normal" }] },
+    { id: "drawer", position: { x: 5, y: 5 }, order: 20, actions: [{ id: "inspect", label: "Inspect drawer", type: "inspect", target: "drawer", order: 20, legality: "illegal" }] },
+    { id: "floor", position: { x: 5, y: 5 }, order: 0, actions: [{ id: "walk", label: "Walk here", type: "walk", target: "floor", order: 100, legality: "normal" }] },
+    { id: "other", position: { x: 6, y: 5 }, order: 0, actions: [{ id: "wrong", label: "Elsewhere", type: "walk", target: "other", order: 0, legality: "normal" }] },
+  ];
+  const actions = actionsAtTile({ x: 5, y: 5 }, layers);
+  assert.deepEqual(actions.map(action => action.id), ["talk", "inspect", "walk"]);
+  assert.equal(actions[1]!.legality, "illegal");
+  assert.deepEqual(actionsAtTile({ x: 5, y: 5 }, [...layers].reverse()), actions);
+  const tied = layers.slice(0, 3).map(layer => ({ ...layer, actions: layer.actions.map(action => ({ ...action, order: 1 })) }));
+  assert.deepEqual(actionsAtTile({ x: 5, y: 5 }, tied).map(action => action.id), ["walk", "inspect", "talk"]);
+  assert.deepEqual(actionsAtTile({ x: 0, y: 0 }, layers), []);
+});
+
+
+test("interaction spots approach characters and honor authored furniture points", () => {
+  const target = { x: 12, y: 20 }, start = { x: 16, y: 22 };
+  const spot = courtInteractionPoint(start, target)!;
+  assert.equal(Math.abs(spot.x - target.x) + Math.abs(spot.y - target.y), 1);
+  assert.ok(courtPath(start, spot));
+  assert.deepEqual(courtInteractionPoint(spot, target), spot);
+  const authored = { x: 6, y: 5 };
+  assert.deepEqual(courtInteractionPoint(start, { x: 6, y: 4 }, authored), authored);
+  assert.equal(courtInteractionPoint(start, target, { x: 0, y: 0 }), undefined);
+});
+
+
+test("main doors choose the closest reachable side and block paths until opened", () => {
+  const doors = load().world!.doors;
+  const merlin = doors.find(door => door.id === "merlin_door")!;
+  assert.equal(courtPath({ x: 15, y: 21 }, { x: 5, y: 5 }, doors), undefined);
+  assert.deepEqual(nearestDoorSpot({ x: 15, y: 21 }, merlin, doors), merlin.interactionSpots[0]);
+  merlin.open = true;
+  assert.ok(courtPath({ x: 15, y: 21 }, { x: 5, y: 5 }, doors));
+  assert.deepEqual(nearestDoorSpot({ x: 5, y: 5 }, merlin, doors), merlin.interactionSpots[1]);
+  assert.deepEqual(nearestDoorSpot({ x: 5, y: 12 }, merlin, doors), merlin.interactionSpots[0]);
+});
+
+test("door operations validate approach and occupancy, and persist through saves", () => {
+  const scenario = load(); scenario.characters.push(create(CharacterSchema, { id: "player", name: "Envoy" })); scenario.playerCharacterId = "player";
+  scenario.world!.phase = GamePhase.CONVERSATIONS;
+  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true,
+    position: create(TilePositionSchema, { x: 16, y: 22 }) });
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  assert.throws(() => runtime.setDoor("merlin_door", true), /interaction spot/);
+  assert.throws(() => runtime.movePlayer({ x: 5, y: 5 }), /not reachable/);
+  runtime.movePlayer({ x: 5, y: 10 }); runtime.setDoor("merlin_door", true);
+  runtime.movePlayer({ x: 5, y: 8 }); runtime.setDoor("merlin_door", false);
+  const restored = new BrowserGameRuntime(scenario, "test", structuredClone(runtime.snapshot()));
+  assert.equal(fromJson(ScenarioSchema, restored.snapshot().scenario).world!.doors.find(door => door.id === "merlin_door")!.open, false);
+  assert.throws(() => restored.movePlayer({ x: 5, y: 12 }), /not reachable/);
+  restored.setDoor("merlin_door", true);
+  const occupied = fromJson(ScenarioSchema, restored.snapshot().scenario);
+  occupied.world!.actors.find(actor => actor.characterId === "merlin")!.position = create(TilePositionSchema, { x: 5, y: 9 });
+  const blocked = new BrowserGameRuntime(occupied, "test");
+  assert.throws(() => blocked.setDoor("merlin_door", false), /standing in the doorway/);
+});
+
+
+test("bedroom doors are illegal to open except for characters on the room access list", () => {
+  const world = load().world!;
+  for (const [id, resident] of [["merlin_door", "merlin"], ["lancelot_door", "lancelot"], ["royal_door", "king"], ["guest_door", "player"]]) {
+    const door = world.doors.find(door => door.id === id)!;
+    assert.equal(doorActionLegality(door, world.rooms, resident!), "normal");
+    assert.equal(doorActionLegality(door, world.rooms, "stranger"), "illegal");
+    assert.equal(doorActionLegality({ ...door, open: true }, world.rooms, "stranger"), "normal");
+  }
+  const merlin = world.doors.find(door => door.id === "merlin_door")!;
+  assert.equal(doorActionLegality(merlin, world.rooms, "player"), "illegal");
+  world.rooms.find(room => room.id === "merlin_chamber")!.allowedCharacterIds.push("player");
+  assert.equal(doorActionLegality(merlin, world.rooms, "player"), "normal");
+  const hall = world.doors.find(door => door.id === "hall_door")!;
+  assert.equal(doorActionLegality({ ...hall, open: false }, world.rooms, "stranger"), "normal");
+  const restored = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, load())).world!;
+  assert.equal(doorActionLegality(restored.doors.find(door => door.id === "royal_door")!, restored.rooms, "player"), "illegal");
+});
+
+
+test("NPC dialogue frames the current goal as a concrete planner task while retaining motives", () => {
+  const scenario = load();
+  assert.ok(scenario.characters.every(character => character.currentGoal.includes("greet the visiting player")));
+  const messages = new FullContextBuilder().build(create(DialogueRequestSchema, { scenario, characterId: "merlin" }));
+  const context = messages.map(message => message.content).join("\n");
+  assert.match(context, /Immediate goal for the action planner/);
+  assert.match(context, /available actions such as moving, talking/);
+  assert.match(context, /concrete next step rather than an open-ended objective/);
+  assert.match(context, /Return null if there is no task to perform/);
+  assert.match(context, /follow through after ending the conversation/);
+  assert.match(context, /He wants the king replaced/);
+});
+
+test("NPC leave-taking persists, blocks more speech, and reviews closing words once", async t => {
+  const runtime = new BrowserGameRuntime(conversationScenario(), "test");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Excuse me; I must attend to my duties.", endConversation: true, replyOptions: [] }));
+  await runtime.talkToCharacter("merlin", "Good evening.");
+  const saved = structuredClone(runtime.snapshot());
+  assert.equal(saved.conversationEndRequested?.merlin, true);
+  assert.deepEqual(saved.conversationReplyOptions?.merlin, []);
+  const restored = new BrowserGameRuntime(conversationScenario(), "test", saved);
+  await assert.rejects(restored.talkToCharacter("merlin", "Wait!"), /ended the conversation/);
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => { throw new Error("Offline"); });
+  await assert.rejects(restored.endConversation("merlin"), /Offline/);
+  assert.deepEqual(restored.snapshot(), saved);
+  let reviews = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: { messages: readonly { content: string | null }[] }) => {
+    reviews++;
+    assert.match(request.messages.at(-1)!.content!, /attend to my duties/);
+    assert.match(JSON.stringify(request.messages), /Long-term objectives/);
+    return modelReply(remembered);
+  });
+  await restored.endConversation("merlin");
+  await restored.endConversation("merlin");
+  assert.equal(reviews, 1);
+  assert.equal(restored.snapshot().conversationEndRequested?.merlin, undefined);
+});
+
+test("authored objectives remain distinct from immediate greeting goals in model context", () => {
+  const scenario = load();
+  for (const character of scenario.characters) {
+    assert.equal(character.objectives.length, 3);
+    const context = new FullContextBuilder().build(create(DialogueRequestSchema, { scenario, characterId: character.id }));
+    for (const objective of character.objectives) assert.ok(context.some(message => message.content.includes(objective)));
+    assert.match(character.currentGoal, /greet the visiting player/);
+  }
+});
+
+function furnishedCourt(): Scenario {
+  const scenario = conversationScenario();
+  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 16, y: 22 }) });
+  return scenario;
+}
+
+test("main containers enforce approaches and keys, conceal contents, and persist item transfers", () => {
+  const scenario = furnishedCourt(), runtime = new BrowserGameRuntime(scenario, "test");
+  const known = worldForCharacter(scenario.world!, "player");
+  assert.ok(!known.objects.some(item => item.id === "palace_royal_key"));
+  assert.equal(known.fixtures.find(item => item.id === "palace_coffer_03")!.requiredKeyId, "");
+  assert.throws(() => runtime.interactFixture("open_palace_merlin_drawers"), /interaction spot/);
+  runtime.movePlayer({ x: 5, y: 10 }); runtime.setDoor("merlin_door", true);
+  runtime.movePlayer({ x: 6, y: 5 });
+  assert.match(runtime.interactFixture("open_palace_merlin_drawers"), /Royal lockbox key/);
+  let saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  assert.ok(worldForCharacter(saved.world!, "player").objects.some(item => item.id === "palace_royal_key"));
+  assert.match(runtime.interactFixture("take_palace_royal_key"), /Picked up/);
+  assert.throws(() => runtime.interactFixture("take_palace_royal_key"), /Unknown/);
+  runtime.interactFixture("close_palace_merlin_drawers");
+  runtime.movePlayer({ x: 15, y: 10 }); runtime.setDoor("royal_door", true);
+  runtime.movePlayer({ x: 17, y: 5 });
+  runtime.interactFixture("open_palace_coffer_03");
+  runtime.interactFixture("take_palace_royal_seal");
+  runtime.interactFixture("take_crown");
+  const restored = new BrowserGameRuntime(scenario, "test", structuredClone(runtime.snapshot()));
+  saved = fromJson(ScenarioSchema, restored.snapshot().scenario);
+  assert.equal(saved.world!.objects.find(item => item.id === "palace_royal_seal")!.locationId, "player");
+  assert.equal(saved.world!.objects.find(item => item.id === "palace_royal_key")!.locationId, "player", "Key is not consumed");
+  assert.equal(saved.world!.fixtures.find(item => item.id === "palace_coffer_03")!.open, true);
+  assert.equal(saved.world!.objects.find(item => item.id === "crown")!.locationId, "player");
+});
+
+test("trying locked containers needs the correct carried key and preserves concealed loot", () => {
+  const scenario = furnishedCourt();
+  for (const door of scenario.world!.doors) door.open = true;
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  runtime.movePlayer({ x: 17, y: 5 });
+  assert.match(runtime.interactFixture("open_palace_coffer_03"), /locked/);
+  const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  assert.equal(saved.world!.fixtures.find(item => item.id === "palace_coffer_03")!.open, false);
+  assert.ok(!worldForCharacter(saved.world!, "player").objects.some(item => item.id === "palace_royal_seal"));
+  assert.throws(() => runtime.interactFixture("take_palace_royal_seal"), /Unknown/);
+});
+
+test("resetting physical world keeps character and conversation while refreshing containers and placements", async t => {
+  const authored = load(), scenario = furnishedCourt();
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Welcome, envoy." }));
+  const runtime = new BrowserGameRuntime(authored, "test", new BrowserGameRuntime(scenario, "test").snapshot());
+  await runtime.talkToCharacter("merlin", "Hello.");
+  runtime.movePlayer({ x: 20, y: 21 });
+  runtime.interactFixture("open_palace_hall_cabinet");
+  runtime.interactFixture("take_palace_iron_key");
+  const before = runtime.snapshot(), characters = fromJson(ScenarioSchema, before.scenario).characters;
+  runtime.resetWorld();
+  const after = runtime.snapshot(), result = fromJson(ScenarioSchema, after.scenario);
+  assert.deepEqual(result.characters, characters);
+  assert.deepEqual(after.conversations, before.conversations);
+  assert.deepEqual(result.events, fromJson(ScenarioSchema, before.scenario).events);
+  assert.deepEqual(result.world!.fixtures, authored.world!.fixtures);
+  assert.deepEqual(result.world!.objects, authored.world!.objects);
+  assert.deepEqual(result.world!.doors, authored.world!.doors);
+  for (const actor of result.world!.actors) assert.deepEqual(actor.position, authored.courtArrivalPlacements.find(item => item.characterId === actor.characterId)!.position);
+  assert.equal(result.world!.phase, GamePhase.CONVERSATIONS);
+  assert.equal(result.world!.actors.filter(actor => actor.characterId === "player").length, 1);
+  assert.deepEqual(new BrowserGameRuntime(authored, "test", after).snapshot(), after);
+  assert.throws(() => new BrowserGameRuntime(authored, "test").resetWorld(), /Create your character/);
+});
+
+test("reviewed immediate goal reaches Jev, which opens doors and moves the NPC in saved world state", async t => {
+  const scenario = furnishedCourt();
+  for (const actor of scenario.world!.actors) {
+    const placement = scenario.courtArrivalPlacements.find(item => item.characterId === actor.characterId)!;
+    actor.position = placement.position; actor.roomId = placement.roomId;
+  }
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Meet me in my chamber." }));
+  await runtime.talkToCharacter("merlin", "Let's speak privately.");
+  await assert.rejects(runtime.planNpc("merlin", new AbortController().signal), /review first/);
+  const goal = "Go to Merlin's Chamber and wait for the player.";
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], goalUpdate: { goal, reason: "Agreed a meeting." }, lore: null }));
+  await runtime.endConversation("merlin");
+  let step = 0;
+  t.mock.method(JevClient.prototype, "choose", async (state: any, _instructions: unknown, criteria: Record<string, string>) => {
+    assert.equal(state.goal, goal);
+    assert.equal(state.characterContext.character.id, "merlin");
+    assert.equal(state.characterContext.character.objectives.length, 3);
+    assert.ok(!JSON.stringify(state.world).includes("Sealed royal decree"));
+    const choice = ["open_merlin_door_0", "move_merlin", "complete"][step++]!;
+    assert.ok(criteria[choice]);
+    if (step === 1) assert.ok(!criteria.move_merlin, "Closed room cannot be selected as a move target");
+    return { choice, probabilities: { [choice]: 1 } };
+  });
+  for (let i = 0; i < 2; i++) {
+    const plan = await runtime.planNpc("merlin", new AbortController().signal);
+    assert.ok(plan.action);
+    runtime.executeNpcAction("merlin", plan.action.id, plan.revision, plan.goal);
+  }
+  const finished = await runtime.planNpc("merlin", new AbortController().signal);
+  assert.equal(finished.decision.choice, "complete");
+  const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  assert.equal(saved.world!.actors.find(actor => actor.characterId === "merlin")!.roomId, "merlin_chamber");
+  assert.deepEqual(saved.world!.actors.find(actor => actor.characterId === "player")!.position, scenario.world!.actors.find(actor => actor.characterId === "player")!.position);
+  assert.deepEqual(new BrowserGameRuntime(scenario, "test", runtime.snapshot()).snapshot(), runtime.snapshot());
+});
+
+test("NPC actions use their own keys and inventory, reject stale plans, and preserve the player's inventory", () => {
+  const scenario = furnishedCourt();
+  for (const door of scenario.world!.doors) door.open = true;
+  const merlin = scenario.world!.actors.find(actor => actor.characterId === "merlin")!;
+  merlin.roomId = "merlin_chamber"; merlin.position = create(TilePositionSchema, { x: 5, y: 5 });
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  const activeSnapshot = runtime.snapshot();
+  activeSnapshot.npcActivities = { merlin: { status: "active", goal: scenario.characters.find(item => item.id === "merlin")!.currentGoal, history: [] } };
+  runtime.restore(activeSnapshot);
+  function execute(id: string) {
+    const s = fromJson(ScenarioSchema, runtime.snapshot().scenario), observation = courtAgentObservation(s, "merlin");
+    assert.ok(observation.actions.some(action => action.id === id));
+    return runtime.executeNpcAction("merlin", id, observation.revision, observation.goal);
+  }
+  execute("open_palace_merlin_drawers"); execute("take_palace_royal_key"); execute("move_royal"); execute("open_palace_coffer_03"); execute("take_palace_royal_seal"); execute("take_crown");
+  const snapshot = runtime.snapshot(), saved = fromJson(ScenarioSchema, snapshot.scenario);
+  assert.equal(saved.world!.objects.find(item => item.id === "palace_royal_key")!.locationId, "merlin");
+  assert.equal(saved.world!.objects.find(item => item.id === "palace_royal_seal")!.locationId, "merlin");
+  assert.equal(saved.world!.objects.find(item => item.id === "crown")!.locationId, "merlin");
+  assert.deepEqual(runtime.view().inventory, []);
+  const observation = courtAgentObservation(saved, "merlin");
+  runtime.resetWorld();
+  assert.throws(() => runtime.executeNpcAction("merlin", observation.actions[0]!.id, observation.revision, observation.goal), /World changed|not accepting actions/);
+  assert.throws(() => courtAgentObservation(saved, "player"), /NPC/);
+});
+
+test("greeting goal is idle until the LLM explicitly assigns a task", async t => {
+  const runtime = new BrowserGameRuntime(furnishedCourt(), "test");
+  assert.ok(Object.values(runtime.view().npcActivities as Record<string, {status: string}>).every(activity => activity.status === "idle"));
+  await assert.rejects(runtime.planNpc("merlin", new AbortController().signal), /idle/);
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Welcome." }));
+  await runtime.talkToCharacter("merlin", "Hello.");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], goalUpdate: null, lore: null }));
+  await runtime.endConversation("merlin");
+  assert.equal(runtime.snapshot().npcActivities?.merlin?.status, "idle");
+  assert.match(fromJson(ScenarioSchema, runtime.snapshot().scenario).characters[0]!.currentGoal, /greet the visiting player/);
+  await assert.rejects(runtime.planNpc("merlin", new AbortController().signal), /idle/);
+});
+
+test("NPC reviews actual planner results, can activate a follow-up, and later returns idle", async t => {
+  const runtime = new BrowserGameRuntime(furnishedCourt(), "test");
+  const active = runtime.snapshot();
+  active.npcActivities = { merlin: { status: "active", goal: "Inspect my drawers.", history: ["Merlin's chest of drawers is closed."] } };
+  runtime.restore(active);
+  runtime.finishNpcRun("merlin", "complete", "Jev chose complete with confidence 0.8.");
+  const ended = runtime.snapshot();
+  assert.equal(ended.npcActivities!.merlin!.status, "idle");
+  assert.equal(ended.npcActivities!.merlin!.reviewPending, true);
+  await assert.rejects(runtime.planNpc("merlin", new AbortController().signal), /idle/);
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: { messages: {content: string}[] }) => {
+    const outcome = JSON.parse(request.messages.at(-1)!.content);
+    assert.equal(outcome.goal, "Inspect my drawers.");
+    assert.deepEqual(outcome.actionsPerformed, ["Merlin's chest of drawers is closed."]);
+    assert.equal(outcome.result.reason, "complete");
+    assert.ok(outcome.observations.location);
+    return modelReply({ newEvents: [{ type: "observation", summary: "My drawers are closed." }], relationships: [], lore: null,
+      goalUpdate: { goal: "Open my drawers.", reason: "I want to examine the contents." } });
+  });
+  await runtime.reviewNpcOutcome("merlin");
+  assert.equal(runtime.snapshot().npcActivities!.merlin!.status, "active");
+  assert.equal(runtime.snapshot().npcActivities!.merlin!.goal, "Open my drawers.");
+  assert.deepEqual(runtime.snapshot().npcActivities!.merlin!.history, []);
+  assert.deepEqual(fromJson(ScenarioSchema, runtime.snapshot().scenario).events.at(-1)!.characterIds, ["merlin"], "Private planner memories do not become player knowledge");
+  runtime.finishNpcRun("merlin", "unable", "No progress possible.");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: null }));
+  await runtime.reviewNpcOutcome("merlin");
+  assert.equal(runtime.snapshot().npcActivities!.merlin!.status, "idle");
+  assert.equal(runtime.snapshot().npcActivities!.merlin!.reviewPending, false);
+  const done = runtime.snapshot();
+  await runtime.reviewNpcOutcome("merlin");
+  assert.deepEqual(runtime.snapshot(), done, "Repeated review is a no-op");
+});
+
+test("outcome review survives reload and failure; replanning cap leaves a proposed goal idle", async t => {
+  const scenario = furnishedCourt(), runtime = new BrowserGameRuntime(scenario, "test");
+  const active = runtime.snapshot(); active.npcActivities = { merlin: { status: "active", goal: "Find a way through.", history: [] } }; runtime.restore(active);
+  runtime.finishNpcRun("merlin", "limit", "24 actions exhausted.");
+  const pending = runtime.snapshot();
+  const restored = new BrowserGameRuntime(scenario, "test", pending);
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => { throw new Error("Offline"); });
+  await assert.rejects(restored.reviewNpcOutcome("merlin"), /Offline/);
+  assert.deepEqual(restored.snapshot(), pending);
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: {goal: "Go to the Great Hall.", reason: "Try later."} }));
+  await restored.reviewNpcOutcome("merlin", false);
+  assert.equal(restored.snapshot().npcActivities!.merlin!.status, "idle");
+  assert.equal(restored.snapshot().npcActivities!.merlin!.reviewPending, false);
+  assert.equal(fromJson(ScenarioSchema, restored.snapshot().scenario).characters[0]!.currentGoal, "Go to the Great Hall.");
+  await assert.rejects(restored.planNpc("merlin", new AbortController().signal), /idle/);
+});
+
+test("treasury can be opened from the hall and closed from inside, with sides explicit to Jev", () => {
+  const scenario = furnishedCourt(), actor = scenario.world!.actors.find(item => item.characterId === "merlin")!;
+  actor.position = create(TilePositionSchema, { x: 22, y: 22 }); actor.roomId = "great_hall";
+  scenario.characters.find(item => item.id === "merlin")!.currentGoal = "Go into the Treasury, close the door from inside, and wait there.";
+  const runtime = new BrowserGameRuntime(scenario, "test"), snapshot = runtime.snapshot();
+  snapshot.npcActivities = { merlin: { status: "active", goal: scenario.characters[0]!.currentGoal, history: [] } }; runtime.restore(snapshot);
+  const observe = () => courtAgentObservation(fromJson(ScenarioSchema, runtime.snapshot().scenario), "merlin");
+  let observation = observe();
+  const open = observation.actions.find(action => action.id === "open_treasury_door_0")!;
+  assert.ok(open); assert.equal(open.legality, "normal"); assert.equal(open.path.length, 1);
+  assert.equal(open.interactionRoomId, "great_hall");
+  assert.ok(!observation.actions.some(action => action.id === "move_treasury"));
+  runtime.executeNpcAction("merlin", open.id, observation.revision, observation.goal);
+  observation = observe();
+  assert.ok(observation.actions.some(action => action.id === "move_treasury"));
+  const outside = observation.actions.find(action => action.id === "close_treasury_door_0")!;
+  const inside = observation.actions.find(action => action.id === "close_treasury_door_1")!;
+  assert.equal(outside.interactionRoomId, "great_hall");
+  assert.equal(inside.interactionRoomId, "treasury");
+  assert.match(inside.description, /Treasury side/);
+  assert.notEqual(inside.description, outside.description);
+  runtime.executeNpcAction("merlin", inside.id, observation.revision, observation.goal);
+  const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  assert.equal(saved.world!.doors.find(door => door.id === "treasury_door")!.open, false);
+  assert.equal(saved.world!.actors.find(item => item.characterId === "merlin")!.roomId, "treasury");
+  observation = observe();
+  assert.ok(observation.actions.some(action => action.id === "open_treasury_door_1"));
+  assert.ok(!observation.actions.some(action => action.id === "open_treasury_door_0"));
+});
+
+test("recent transcripts capture every main-game model stage and retain failed requests across rollback", async t => {
+  const runtime = new BrowserGameRuntime(load(), "sk-test-secret");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => ({ role: "assistant", content: "Welcome, traveller." }));
+  await runtime.talkToGameMaster("Hello.");
+  runtime.restore(new BrowserGameRuntime(furnishedCourt(), "test").snapshot());
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "I will go." }));
+  await runtime.talkToCharacter("merlin", "Go to the Treasury.");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: { goal: "Go to the Treasury.", reason: "Agreed." } }));
+  await runtime.endConversation("merlin");
+  const before = runtime.snapshot();
+  t.mock.method(JevClient.prototype, "choose", async () => { throw new Error("Rejected sk-test-secret"); });
+  await assert.rejects(runtime.planNpc("merlin", new AbortController().signal), /Rejected/);
+  runtime.restore(before);
+  runtime.finishNpcRun("merlin", "error", "Request failed.");
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newEvents: [], relationships: [], lore: null, goalUpdate: null }));
+  await runtime.reviewNpcOutcome("merlin");
+  const entries = runtime.recentTranscripts();
+  assert.deepEqual(entries.map(entry => entry.kind), ["outcome_review", "jev", "conversation_review", "dialogue", "game_master"]);
+  assert.equal(entries[1]!.status, "error");
+  assert.match(entries[1]!.error!, /redacted/);
+  assert.equal((entries[1]!.request as any).model, "typesafe/jev-1.13");
+  assert.ok((entries[1]!.request as any).questions.next.criteria);
+  assert.ok((entries[2]!.request as any).messages.length);
+  assert.ok(entries.every(entry => typeof entry.durationMs === "number"));
+  assert.doesNotMatch(JSON.stringify(entries), /sk-test-secret/);
+  assert.deepEqual(new BrowserGameRuntime(load(), "test", runtime.snapshot()).recentTranscripts(), [], "A fresh loaded session starts a new log");
+});
+
+test("transcript recorder shows pending calls, bounds history, and isolates mutable and secret data", async () => {
+  const log = new ModelTranscripts("private-key");
+  let finish!: (value: unknown) => void;
+  const input = { prompt: "private-key" };
+  const pending = log.record("dialogue", "merlin", input, () => new Promise(resolve => { finish = resolve; }));
+  input.prompt = "changed after dispatch";
+  assert.equal(log.recent()[0]!.status, "pending");
+  assert.deepEqual(log.recent()[0]!.request, { prompt: "[redacted]" });
+  finish({ text: "sk-another-secret" }); await pending;
+  const copy = log.recent(); copy[0]!.status = "error";
+  assert.equal(log.recent()[0]!.status, "success");
+  assert.deepEqual(log.recent()[0]!.response, { text: "[redacted]" });
+  for (let i = 0; i < 55; i++) await log.record("jev", "merlin", { i }, async () => ({ choice: "complete" }));
+  assert.equal(log.recent().length, 50);
+  assert.equal(log.recent()[0]!.id, 56);
+});
+
+function talkingCourt() {
+  const scenario = furnishedCourt();
+  for (const actor of scenario.world!.actors) {
+    const placement = scenario.courtArrivalPlacements.find(item => item.characterId === actor.characterId);
+    if (placement) { actor.position = placement.position; actor.roomId = placement.roomId; }
+    actor.awake = true;
+  }
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  const snapshot = runtime.snapshot();
+  snapshot.npcActivities = { merlin: { status: "active", goal: scenario.characters.find(item => item.id === "merlin")!.currentGoal, history: [] } };
+  runtime.restore(snapshot);
+  const observation = courtAgentObservation(scenario, "merlin");
+  const action = observation.actions.find(item => item.type === "talk")!;
+  assert.ok(action);
+  return { scenario, runtime, observation, action };
+}
+
+test("Jev receives reachable NPC talk actions, then both participants save private memories and goals", async t => {
+  const { scenario, runtime, observation, action } = talkingCourt();
+  assert.ok(!observation.actions.some(item => item.id === "talk_player" || item.id === "talk_merlin"));
+  assert.throws(() => runtime.executeNpcAction("merlin", action.id, observation.revision, observation.goal), /resolution/);
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => {
+    calls++;
+    if (calls === 1) return modelReply({ request: "Meet me in the Treasury.", intent: "Arrange a private discussion." });
+    return modelReply({ summary: "They agree to meet in the Treasury.",
+      initiator: { newEvents: [], relationships: [], lore: null, goalUpdate: null },
+      recipient: { newEvents: [], relationships: [], lore: null, goalUpdate: { goal: "Walk to the Treasury.", reason: "Agreed to meet." } } });
+  });
+  await runtime.executeNpcTalk("merlin", action.id, observation.revision, observation.goal, new AbortController().signal);
+  const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  assert.equal(calls, 2);
+  assert.equal(runtime.snapshot().npcActivities?.merlin?.status, "idle");
+  assert.equal(runtime.snapshot().npcActivities?.[action.target]?.status, "active");
+  assert.deepEqual(saved.world!.objects, scenario.world!.objects);
+  const events = saved.events.filter(item => item.type === "npc_conversation");
+  assert.equal(events.length, 2);
+  assert.ok(events.every(item => item.characterIds.length === 1 && !item.characterIds.includes("player")));
+  assert.deepEqual(runtime.recentTranscripts().map(item => item.kind), ["npc_resolution", "npc_request"]);
+});
+
+test("NPC conversation validation and cancellation cannot partially update either character", async t => {
+  const { runtime, observation, action } = talkingCourt();
+  const before = runtime.snapshot();
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => ++calls % 2 === 1
+    ? modelReply({ request: "Hello", intent: "Greet them" })
+    : modelReply({ summary: "A greeting", initiator: { newEvents: [{ type: "test", summary: "Must not persist" }], relationships: [], lore: null, goalUpdate: null }, recipient: { newEvents: [], relationships: [{ characterId: "unknown", description: "Invalid" }], lore: null, goalUpdate: null } }));
+  await assert.rejects(runtime.executeNpcTalk("merlin", action.id, observation.revision, observation.goal, new AbortController().signal), /relationship/);
+  assert.deepEqual(runtime.snapshot(), before);
+  const controller = new AbortController(); controller.abort();
+  await assert.rejects(runtime.executeNpcTalk("merlin", action.id, observation.revision, observation.goal, controller.signal), /abort/i);
+  assert.deepEqual(runtime.snapshot(), before);
+});
+
+test("talk availability follows closed doors and Jev gets the offered talk choice", async t => {
+  const { scenario, runtime, observation, action } = talkingCourt();
+  t.mock.method(JevClient.prototype, "choose", async (_state: unknown, instructions: unknown, criteria: Record<string, string>) => {
+    assert.ok(action.id in criteria);
+    assert.match(JSON.stringify(instructions), /offered talk actions/);
+    return { choice: action.id, probabilities: { [action.id]: 1 } };
+  });
+  const plan = await runtime.planNpc("merlin", new AbortController().signal);
+  assert.equal(plan.action?.type, "talk");
+  const recipient = scenario.world!.actors.find(item => item.characterId === action.target)!;
+  recipient.position = create(TilePositionSchema, { x: 5, y: 5 }); recipient.roomId = "merlin_chamber";
+  for (const door of scenario.world!.doors) door.open = false;
+  assert.ok(!courtAgentObservation(scenario, "merlin").actions.some(item => item.id === action.id));
+  for (const door of scenario.world!.doors) door.open = true;
+  assert.ok(courtAgentObservation(scenario, "merlin").actions.some(item => item.id === action.id));
+  assert.ok(observation.actions.some(item => item.id === action.id));
+});
+
+test("resetCharacters restores authored NPCs and events, clears dialogue and tasks, and preserves player and physical world", async t => {
+  const initial = load(), scenario = furnishedCourt();
+  const merlin = scenario.characters.find(item => item.id === "merlin")!;
+  merlin.lore = "Changed biography"; merlin.currentGoal = "Search the Treasury";
+  const runtime = new BrowserGameRuntime(initial, "test", new BrowserGameRuntime(scenario, "test").snapshot());
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Goodbye", endConversation: true, replyOptions: [] }));
+  await runtime.talkToCharacter("merlin", "Hello");
+  const snapshot = runtime.snapshot();
+  snapshot.npcActivities = { merlin: { status: "active", goal: "Search the Treasury", history: ["An old action"] } };
+  const changed = fromJson(ScenarioSchema, snapshot.scenario);
+  changed.events.push(create(EventSchema, { id: "learned", type: "belief", summary: "A learned fact", characterIds: ["merlin"] }));
+  snapshot.scenario = toJson(ScenarioSchema, changed);
+  runtime.restore(snapshot);
+  const before = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  runtime.resetCharacters();
+  const after = runtime.snapshot(), saved = fromJson(ScenarioSchema, after.scenario);
+  assert.deepEqual(saved.characters.find(item => item.id === "merlin"), initial.characters.find(item => item.id === "merlin"));
+  assert.deepEqual(saved.characters.find(item => item.id === "player"), before.characters.find(item => item.id === "player"));
+  assert.deepEqual(saved.events, initial.events);
+  assert.deepEqual(saved.world, { ...before.world!, revision: before.world!.revision + 1 });
+  assert.deepEqual(after.npcActivities, {});
+  assert.deepEqual(after.conversations, {});
+  assert.deepEqual(after.conversationEndRequested, {});
+  assert.deepEqual(new BrowserGameRuntime(initial, "test", after).snapshot(), after);
+  assert.throws(() => new BrowserGameRuntime(initial, "test").resetCharacters(), /Create your character/);
+});
+
+test("authored world rooms and connections match the palace map", () => {
+  const scenario = load(), rooms = scenario.world!.rooms;
+  const ids = new Set(rooms.map(room => room.id));
+  assert.deepEqual([...ids].sort(), palaceMap.rooms.map(room => room.id).sort());
+  for (const room of rooms) for (const exit of room.exitRoomIds) assert.ok(ids.has(exit), `${room.id} exits to missing room ${exit}`);
+  for (const fixture of scenario.world!.fixtures) assert.ok(ids.has(fixture.roomId), `${fixture.id} belongs to missing room ${fixture.roomId}`);
+  const world = scenario.world!;
+  const locations = new Set([...ids, ...world.fixtures.map(item => item.id), ...scenario.characters.map(item => item.id)]);
+  const objects = new Set(world.objects.map(item => item.id));
+  assert.equal(objects.size, world.objects.length, "Object IDs must be unique");
+  for (const item of world.objects) assert.ok(locations.has(item.locationId), `${item.id} is in a nonexistent container or location ${item.locationId}`);
+  for (const fixture of world.fixtures) if (fixture.requiredKeyId) assert.ok(objects.has(fixture.requiredKeyId), `${fixture.id} needs a missing key`);
+  assert.doesNotMatch(JSON.stringify(scenario), /chapel/i);
+});
+
+test("GPT-6 Responses adapter preserves tool history and encrypted reasoning across DM turns", async t => {
+  const output = [
+    { type: "reasoning", id: "rs_test", summary: [], encrypted_content: "opaque" },
+    { type: "function_call", id: "fc_test", call_id: "call_test", name: "offer_replies", arguments: '{"options":["Hello"],"compelled":false}' },
+  ];
+  let count = 0;
+  t.mock.method(globalThis, "fetch", async (url: string, init: RequestInit) => {
+    assert.equal(url, "https://openrouter.ai/api/v1/responses");
+    const body = JSON.parse(String(init.body));
+    assert.equal(body.store, false);
+    assert.deepEqual(body.reasoning, { effort: "medium" });
+    assert.equal(body.max_output_tokens, 8000);
+    assert.ok(!("temperature" in body));
+    assert.deepEqual(body.tools[0], { type: "function", name: "offer_replies", description: "Offer choices", parameters: { type: "object" }, strict: false });
+    if (++count === 2) {
+      assert.deepEqual(body.input.slice(1, 3), output);
+      assert.deepEqual(body.input[3], { type: "function_call_output", call_id: "call_test", output: '{"ok":true}' });
+    }
+    return new Response(JSON.stringify({ status: "completed", output: count === 1 ? output : [{ type: "message", content: [{ type: "output_text", text: "Welcome" }] }] }), { status: 200 });
+  });
+  const client = Object.assign(new OpenRouterClient("test"), { complete: originalOpenRouterComplete });
+  const settings = { model: "openai/gpt-6-sol", api: "responses" as const, reasoning: { effort: "medium" as const }, max_tokens: 8000,
+    tools: [{ type: "function" as const, function: { name: "offer_replies", description: "Offer choices", parameters: { type: "object" } } }] };
+  const user = { role: "user" as const, content: "Hello" };
+  const first = await client.complete({ ...settings, messages: [user] });
+  assert.equal(first.tool_calls?.[0]?.id, "call_test");
+  const second = await client.complete({ ...settings, messages: [user, first, { role: "tool", tool_call_id: "call_test", content: '{"ok":true}' }] });
+  assert.equal(second.content, "Welcome");
+});
+
+test("GPT-6 Responses adapter maps structured output and rejects truncated results", async t => {
+  let truncated = false;
+  t.mock.method(globalThis, "fetch", async (_url: string, init: RequestInit) => {
+    const body = JSON.parse(String(init.body));
+    assert.deepEqual(body.text.format, { type: "json_schema", name: "test", strict: true, schema: { type: "object" } });
+    assert.deepEqual(body.reasoning, { effort: "none" });
+    return new Response(JSON.stringify(truncated ? { status: "incomplete", incomplete_details: { reason: "max_output_tokens" }, output: [] }
+      : { status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: '{"utterance":"Hello"}' }] }] }), { status: 200 });
+  });
+  const request = { model: "openai/gpt-6-luna", api: "responses" as const, reasoning: { effort: "none" as const }, messages: [{ role: "user" as const, content: "Hello" }],
+    response_format: { type: "json_schema", json_schema: { name: "test", strict: true, schema: { type: "object" } } } };
+  assert.equal((await Object.assign(new OpenRouterClient("test"), { complete: originalOpenRouterComplete }).complete(request)).content, '{"utterance":"Hello"}');
+  truncated = true;
+  await assert.rejects(Object.assign(new OpenRouterClient("test"), { complete: originalOpenRouterComplete }).complete(request), /incomplete: max_output_tokens/);
+});
+
+test("background NPC review merges its memories without undoing concurrent player movement or items", async t => {
+  const { runtime, action } = talkingCourt();
+  runtime.finishNpcRun("merlin", "complete", "Arrived.");
+  const before = runtime.snapshot(), fork = runtime.forkForNpc();
+  let release!: () => void;
+  const waiting = new Promise<void>(resolve => { release = resolve; });
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => {
+    await waiting;
+    return modelReply({ newEvents: [{ type: "observation", summary: "I have arrived." }], relationships: [], lore: null, goalUpdate: null });
+  });
+  const review = fork.reviewNpcOutcome("merlin");
+  runtime.movePlayer({ x: 20, y: 21 });
+  runtime.interactFixture("open_palace_hall_cabinet");
+  runtime.interactFixture("take_palace_iron_key");
+  release(); await review;
+  runtime.commitCharacterFork(before, fork, ["merlin"]);
+  const after = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  assert.deepEqual(after.world!.actors.find(a => a.characterId === "player")!.position, create(TilePositionSchema, { x: 20, y: 21 }));
+  assert.equal(after.world!.objects.find(o => o.id === "palace_iron_key")!.locationId, "player");
+  assert.ok(after.events.some(e => e.summary === "I have arrived."));
+  assert.equal(runtime.snapshot().npcActivities?.merlin?.reviewPending, false);
+  assert.ok(action.target);
+});
+
+test("background character updates reject stale goals and do not overwrite newer conversations", async t => {
+  const { runtime } = talkingCourt();
+  const before = runtime.snapshot(), fork = runtime.forkForNpc();
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Hello", replyOptions: [], endConversation: false }));
+  await fork.talkToCharacter("merlin", "First request");
+  await runtime.talkToCharacter("merlin", "Newer request");
+  const latest = runtime.snapshot();
+  assert.throws(() => runtime.commitCharacterFork(before, fork, ["merlin"]), /Character changed/);
+  assert.deepEqual(runtime.snapshot(), latest);
+});
+
+test("NPC movement commits one tile at a time and replans when a door closes", () => {
+  const { runtime } = talkingCourt();
+  const initial = runtime.snapshot();
+  const scenario = fromJson(ScenarioSchema, initial.scenario);
+  const actor = scenario.world!.actors.find(a => a.characterId === "merlin")!;
+  actor.position = create(TilePositionSchema, { x: 15, y: 17 }); actor.roomId = "great_hall";
+  initial.scenario = toJson(ScenarioSchema, scenario); runtime.restore(initial);
+  const goal = scenario.characters.find(c => c.id === "merlin")!.currentGoal;
+  const result = runtime.stepNpcAction("merlin", "move_north_junction", goal);
+  assert.equal(result.done, false);
+  const moved = fromJson(ScenarioSchema, runtime.snapshot().scenario).world!.actors.find(a => a.characterId === "merlin")!.position!;
+  assert.equal(Math.abs(moved.x - 15) + Math.abs(moved.y - 17), 1);
+  const closed = runtime.snapshot(), changed = fromJson(ScenarioSchema, closed.scenario);
+  changed.world!.doors.find(d => d.id === "hall_door")!.open = false;
+  closed.scenario = toJson(ScenarioSchema, changed); runtime.restore(closed);
+  assert.throws(() => runtime.stepNpcAction("merlin", "move_north_junction", goal), /replan/);
+  assert.deepEqual(fromJson(ScenarioSchema, runtime.snapshot().scenario).world!.actors.find(a => a.characterId === "merlin")!.position, moved);
 });

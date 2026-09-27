@@ -11,7 +11,267 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file kingmaker/v1/game.proto.
  */
 export const file_kingmaker_v1_game: GenFile = /*@__PURE__*/
-  fileDesc("ChdraW5nbWFrZXIvdjEvZ2FtZS5wcm90bxIMa2luZ21ha2VyLnYxIjkKDFJlbGF0aW9uc2hpcBIUCgxjaGFyYWN0ZXJfaWQYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkifAoJQ2hhcmFjdGVyEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSDAoEbG9yZRgDIAEoCRIxCg1yZWxhdGlvbnNoaXBzGAQgAygLMhoua2luZ21ha2VyLnYxLlJlbGF0aW9uc2hpcBIUCgxjdXJyZW50X2dvYWwYBSABKAkiswEKBUV2ZW50EgoKAmlkGAEgASgJEgsKA2RheRgCIAEoDRIMCgR0eXBlGAMgASgJEg8KB3N1bW1hcnkYBCABKAkSFQoNY2hhcmFjdGVyX2lkcxgFIAMoCRIxCgp2aXNpYmlsaXR5GAYgASgOMh0ua2luZ21ha2VyLnYxLkV2ZW50VmlzaWJpbGl0eRIoCgdkZXRhaWxzGAcgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCLHAQoKU2VhcmNoU3BvdBIKCgJpZBgBIAEoCRIUCgxhY3Rpb25fbGFiZWwYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSGgoSY29udGVudF9vYmplY3RfaWRzGAQgAygJEh4KFmtub3duX2J5X2NoYXJhY3Rlcl9pZHMYBSADKAkSIwobZGlzY292ZXJlZF9ieV9jaGFyYWN0ZXJfaWRzGAYgAygJEiEKGXNlYXJjaGVkX2J5X2NoYXJhY3Rlcl9pZHMYByADKAkifAoEUm9vbRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhUKDWV4aXRfcm9vbV9pZHMYBCADKAkSLgoMc2VhcmNoX3Nwb3RzGAUgAygLMhgua2luZ21ha2VyLnYxLlNlYXJjaFNwb3QiWAoKQWN0b3JTdGF0ZRIUCgxjaGFyYWN0ZXJfaWQYASABKAkSFAoMaG9tZV9yb29tX2lkGAIgASgJEg8KB3Jvb21faWQYAyABKAkSDQoFYXdha2UYBCABKAgifAoLT2JqZWN0U3RhdGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRITCgtsb2NhdGlvbl9pZBgDIAEoCRIRCgljb25jZWFsZWQYBCABKAgSKwoKcHJvcGVydGllcxgFIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QiigIKCldvcmxkU3RhdGUSEAoIcmV2aXNpb24YASABKA0SCwoDZGF5GAIgASgNEhQKDHNvbHN0aWNlX2RheRgDIAEoDRIhCgVyb29tcxgEIAMoCzISLmtpbmdtYWtlci52MS5Sb29tEigKBmFjdG9ycxgFIAMoCzIYLmtpbmdtYWtlci52MS5BY3RvclN0YXRlEioKB29iamVjdHMYBiADKAsyGS5raW5nbWFrZXIudjEuT2JqZWN0U3RhdGUSJgoFZmFjdHMYByABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EiYKBXBoYXNlGAggASgOMhcua2luZ21ha2VyLnYxLkdhbWVQaGFzZSKPAgoIU2NlbmFyaW8SCgoCaWQYASABKAkSFQoNc3lzdGVtX3Byb21wdBgCIAEoCRIPCgdwcmVtaXNlGAMgASgJEhoKEmdhbWVfbWFzdGVyX3Byb21wdBgEIAEoCRIrCgpjaGFyYWN0ZXJzGAUgAygLMhcua2luZ21ha2VyLnYxLkNoYXJhY3RlchIjCgZldmVudHMYBiADKAsyEy5raW5nbWFrZXIudjEuRXZlbnQSJwoFd29ybGQYByABKAsyGC5raW5nbWFrZXIudjEuV29ybGRTdGF0ZRIgChNwbGF5ZXJfY2hhcmFjdGVyX2lkGAggASgJSACIAQFCFgoUX3BsYXllcl9jaGFyYWN0ZXJfaWQiYQoRVHJhbnNjcmlwdE1lc3NhZ2USKgoEcm9sZRgBIAEoDjIcLmtpbmdtYWtlci52MS5UcmFuc2NyaXB0Um9sZRISCgpzcGVha2VyX2lkGAIgASgJEgwKBHRleHQYAyABKAkihgEKD0RpYWxvZ3VlUmVxdWVzdBIUCgxjaGFyYWN0ZXJfaWQYASABKAkSKAoIc2NlbmFyaW8YAiABKAsyFi5raW5nbWFrZXIudjEuU2NlbmFyaW8SMwoKdHJhbnNjcmlwdBgDIAMoCzIfLmtpbmdtYWtlci52MS5UcmFuc2NyaXB0TWVzc2FnZSIqCgpHb2FsVXBkYXRlEgwKBGdvYWwYASABKAkSDgoGcmVhc29uGAIgASgJIqkBChBEaWFsb2d1ZVJlc3BvbnNlEhEKCXV0dGVyYW5jZRgBIAEoCRInCgpuZXdfZXZlbnRzGAIgAygLMhMua2luZ21ha2VyLnYxLkV2ZW50EjIKC2dvYWxfdXBkYXRlGAMgASgLMhgua2luZ21ha2VyLnYxLkdvYWxVcGRhdGVIAIgBARIVCg1yZXBseV9vcHRpb25zGAQgAygJQg4KDF9nb2FsX3VwZGF0ZSLQAQoSQ29udmVyc2F0aW9uTWVtb3J5EicKCm5ld19ldmVudHMYASADKAsyEy5raW5nbWFrZXIudjEuRXZlbnQSMgoLZ29hbF91cGRhdGUYAiABKAsyGC5raW5nbWFrZXIudjEuR29hbFVwZGF0ZUgAiAEBEjEKDXJlbGF0aW9uc2hpcHMYAyADKAsyGi5raW5nbWFrZXIudjEuUmVsYXRpb25zaGlwEhEKBGxvcmUYBCABKAlIAYgBAUIOCgxfZ29hbF91cGRhdGVCBwoFX2xvcmUiYgoSUmVsYXRpb25zaGlwVXBkYXRlEhoKEm93bmVyX2NoYXJhY3Rlcl9pZBgBIAEoCRIwCgxyZWxhdGlvbnNoaXAYAiABKAsyGi5raW5nbWFrZXIudjEuUmVsYXRpb25zaGlwIpsBCgtQbGF5ZXJTZXR1cBInCgZwbGF5ZXIYASABKAsyFy5raW5nbWFrZXIudjEuQ2hhcmFjdGVyEjsKEW5wY19yZWxhdGlvbnNoaXBzGAIgAygLMiAua2luZ21ha2VyLnYxLlJlbGF0aW9uc2hpcFVwZGF0ZRIQCghob21lbGFuZBgDIAEoCRIUCgxlbWJhc3N5X3JvbGUYBCABKAkicgoRR2FtZU1hc3RlclJlcXVlc3QSKAoIc2NlbmFyaW8YASABKAsyFi5raW5nbWFrZXIudjEuU2NlbmFyaW8SMwoKdHJhbnNjcmlwdBgCIAMoCzIfLmtpbmdtYWtlci52MS5UcmFuc2NyaXB0TWVzc2FnZSKXAQoSR2FtZU1hc3RlclJlc3BvbnNlEhEKCXV0dGVyYW5jZRgBIAEoCRI0CgxwbGF5ZXJfc2V0dXAYAiABKAsyGS5raW5nbWFrZXIudjEuUGxheWVyU2V0dXBIAIgBARInCgpuZXdfZXZlbnRzGAMgAygLMhMua2luZ21ha2VyLnYxLkV2ZW50Qg8KDV9wbGF5ZXJfc2V0dXAibQoPQXZhaWxhYmxlQWN0aW9uEgoKAmlkGAEgASgJEgwKBHR5cGUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSKwoKcGFyYW1ldGVycxgEIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QizAEKD0RlY2lzaW9uUmVxdWVzdBIqCgljaGFyYWN0ZXIYASABKAsyFy5raW5nbWFrZXIudjEuQ2hhcmFjdGVyEicKBXdvcmxkGAIgASgLMhgua2luZ21ha2VyLnYxLldvcmxkU3RhdGUSKgoNcmVjZW50X2V2ZW50cxgDIAMoCzITLmtpbmdtYWtlci52MS5FdmVudBI4ChFhdmFpbGFibGVfYWN0aW9ucxgEIAMoCzIdLmtpbmdtYWtlci52MS5BdmFpbGFibGVBY3Rpb24igQIKEERlY2lzaW9uUmVzcG9uc2USGAoQY2hvc2VuX2FjdGlvbl9pZBgBIAEoCRJICg1wcm9iYWJpbGl0aWVzGAIgAygLMjEua2luZ21ha2VyLnYxLkRlY2lzaW9uUmVzcG9uc2UuUHJvYmFiaWxpdGllc0VudHJ5EhcKCmNvbmZpZGVuY2UYAyABKAFIAIgBARIQCghtb2RlbF9pZBgEIAEoCRIZChFiYXNlZF9vbl9yZXZpc2lvbhgFIAEoDRo0ChJQcm9iYWJpbGl0aWVzRW50cnkSCwoDa2V5GAEgASgJEg0KBXZhbHVlGAIgASgBOgI4AUINCgtfY29uZmlkZW5jZSJhCgxBY3Rpb25SZXN1bHQSEQoJYWN0aW9uX2lkGAEgASgJEhkKEWJhc2VkX29uX3JldmlzaW9uGAIgASgNEiMKBmV2ZW50cxgDIAMoCzITLmtpbmdtYWtlci52MS5FdmVudCpuCg9FdmVudFZpc2liaWxpdHkSIAocRVZFTlRfVklTSUJJTElUWV9VTlNQRUNJRklFRBAAEhsKF0VWRU5UX1ZJU0lCSUxJVFlfUFVCTElDEAESHAoYRVZFTlRfVklTSUJJTElUWV9QUklWQVRFEAIqtQEKCUdhbWVQaGFzZRIaChZHQU1FX1BIQVNFX1VOU1BFQ0lGSUVEEAASHgoaR0FNRV9QSEFTRV9QTEFZRVJfQ1JFQVRJT04QARIcChhHQU1FX1BIQVNFX0NPTlZFUlNBVElPTlMQAhIcChhHQU1FX1BIQVNFX05JR0hUX0FDVElPTlMQAxIXChNHQU1FX1BIQVNFX1NPTFNUSUNFEAQSFwoTR0FNRV9QSEFTRV9SRVNPTFZFRBAFKrIBCg5UcmFuc2NyaXB0Um9sZRIfChtUUkFOU0NSSVBUX1JPTEVfVU5TUEVDSUZJRUQQABIaChZUUkFOU0NSSVBUX1JPTEVfUExBWUVSEAESHQoZVFJBTlNDUklQVF9ST0xFX0NIQVJBQ1RFUhACEiMKH1RSQU5TQ1JJUFRfUk9MRV9PVEhFUl9DSEFSQUNURVIQAxIfChtUUkFOU0NSSVBUX1JPTEVfR0FNRV9NQVNURVIQBGIGcHJvdG8z", [file_google_protobuf_struct]);
+  fileDesc("ChdraW5nbWFrZXIvdjEvZ2FtZS5wcm90bxIMa2luZ21ha2VyLnYxIkIKC1BpeGVsQm91bmRzEgkKAXgYASABKBESCQoBeRgCIAEoERINCgV3aWR0aBgDIAEoDRIOCgZoZWlnaHQYBCABKA0iQQoKVGlsZUJvdW5kcxIJCgF4GAEgASgNEgkKAXkYAiABKA0SDQoFd2lkdGgYAyABKA0SDgoGaGVpZ2h0GAQgASgNIncKB1RpbGVzZXQSCgoCaWQYASABKAkSEgoKaW1hZ2VfcGF0aBgCIAEoCRISCgp0aWxlX3dpZHRoGAMgASgNEhMKC3RpbGVfaGVpZ2h0GAQgASgNEg8KB2NvbHVtbnMYBSABKA0SEgoKdGlsZV9jb3VudBgGIAEoDSKtAQoJVGlsZUxheWVyEhIKCnRpbGVzZXRfaWQYASABKAkSDwoHdGlsZV9pZBgCIAEoDRIpCgZib3VuZHMYAyABKAsyGS5raW5nbWFrZXIudjEuUGl4ZWxCb3VuZHMSDQoFc29saWQYBCABKAgSFAoMaW50ZXJhY3RhYmxlGAUgASgIEisKCnByb3BlcnRpZXMYBiABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0Ii8KBFRpbGUSJwoGbGF5ZXJzGAEgAygLMhcua2luZ21ha2VyLnYxLlRpbGVMYXllciJOCgdNYXBSb29tEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSKQoHcmVnaW9ucxgDIAMoCzIYLmtpbmdtYWtlci52MS5UaWxlQm91bmRzIt4BCghXb3JsZE1hcBIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEg0KBXdpZHRoGAMgASgNEg4KBmhlaWdodBgEIAEoDRISCgp0aWxlX3dpZHRoGAUgASgNEhMKC3RpbGVfaGVpZ2h0GAYgASgNEicKCHRpbGVzZXRzGAcgAygLMhUua2luZ21ha2VyLnYxLlRpbGVzZXQSIQoFdGlsZXMYCCADKAsyEi5raW5nbWFrZXIudjEuVGlsZRIkCgVyb29tcxgJIAMoCzIVLmtpbmdtYWtlci52MS5NYXBSb29tIjkKDFJlbGF0aW9uc2hpcBIUCgxjaGFyYWN0ZXJfaWQYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkikAEKCUNoYXJhY3RlchIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEgwKBGxvcmUYAyABKAkSMQoNcmVsYXRpb25zaGlwcxgEIAMoCzIaLmtpbmdtYWtlci52MS5SZWxhdGlvbnNoaXASFAoMY3VycmVudF9nb2FsGAUgASgJEhIKCm9iamVjdGl2ZXMYBiADKAkiswEKBUV2ZW50EgoKAmlkGAEgASgJEgsKA2RheRgCIAEoDRIMCgR0eXBlGAMgASgJEg8KB3N1bW1hcnkYBCABKAkSFQoNY2hhcmFjdGVyX2lkcxgFIAMoCRIxCgp2aXNpYmlsaXR5GAYgASgOMh0ua2luZ21ha2VyLnYxLkV2ZW50VmlzaWJpbGl0eRIoCgdkZXRhaWxzGAcgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdCKQAQoEUm9vbRIKCgJpZBgBIAEoCRIMCgRuYW1lGAIgASgJEhMKC2Rlc2NyaXB0aW9uGAMgASgJEhUKDWV4aXRfcm9vbV9pZHMYBCADKAkSDwoHcHJpdmF0ZRgGIAEoCBIdChVhbGxvd2VkX2NoYXJhY3Rlcl9pZHMYByADKAlKBAgFEAZSDHNlYXJjaF9zcG90cyIkCgxUaWxlUG9zaXRpb24SCQoBeBgBIAEoDRIJCgF5GAIgASgNImUKDkFjdG9yUGxhY2VtZW50EhQKDGNoYXJhY3Rlcl9pZBgBIAEoCRIPCgdyb29tX2lkGAIgASgJEiwKCHBvc2l0aW9uGAMgASgLMhoua2luZ21ha2VyLnYxLlRpbGVQb3NpdGlvbiKGAQoKQWN0b3JTdGF0ZRIUCgxjaGFyYWN0ZXJfaWQYASABKAkSFAoMaG9tZV9yb29tX2lkGAIgASgJEg8KB3Jvb21faWQYAyABKAkSDQoFYXdha2UYBCABKAgSLAoIcG9zaXRpb24YBSABKAsyGi5raW5nbWFrZXIudjEuVGlsZVBvc2l0aW9uInwKC09iamVjdFN0YXRlEgoKAmlkGAEgASgJEgwKBG5hbWUYAiABKAkSEwoLbG9jYXRpb25faWQYAyABKAkSEQoJY29uY2VhbGVkGAQgASgIEisKCnByb3BlcnRpZXMYBSABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0IqcBCglEb29yU3RhdGUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIpCgV0aWxlcxgDIAMoCzIaLmtpbmdtYWtlci52MS5UaWxlUG9zaXRpb24SNQoRaW50ZXJhY3Rpb25fc3BvdHMYBCADKAsyGi5raW5nbWFrZXIudjEuVGlsZVBvc2l0aW9uEhAKCHJvb21faWRzGAUgAygJEgwKBG9wZW4YBiABKAgiwgIKCk1hcEZpeHR1cmUSCgoCaWQYASABKAkSDAoEbmFtZRgCIAEoCRIPCgdyb29tX2lkGAMgASgJEiwKCHBvc2l0aW9uGAQgASgLMhoua2luZ21ha2VyLnYxLlRpbGVQb3NpdGlvbhI0ChBpbnRlcmFjdGlvbl9zcG90GAUgASgLMhoua2luZ21ha2VyLnYxLlRpbGVQb3NpdGlvbhIOCgZzcHJpdGUYBiABKA0SEQoJY29udGFpbmVyGAcgASgIEgwKBG9wZW4YCCABKAgSFwoPcmVxdWlyZWRfa2V5X2lkGAkgASgJEhUKDXJldmVhbGVkX25hbWUYCiABKAkSEwoLZXhhbWluZWRfYnkYCyADKAkSEwoLc2VhcmNoZWRfYnkYDCADKAkSGgoSb3duZXJfY2hhcmFjdGVyX2lkGA0gASgJIt4CCgpXb3JsZFN0YXRlEhAKCHJldmlzaW9uGAEgASgNEgsKA2RheRgCIAEoDRIUCgxzb2xzdGljZV9kYXkYAyABKA0SIQoFcm9vbXMYBCADKAsyEi5raW5nbWFrZXIudjEuUm9vbRIoCgZhY3RvcnMYBSADKAsyGC5raW5nbWFrZXIudjEuQWN0b3JTdGF0ZRIqCgdvYmplY3RzGAYgAygLMhkua2luZ21ha2VyLnYxLk9iamVjdFN0YXRlEiYKBWZhY3RzGAcgASgLMhcuZ29vZ2xlLnByb3RvYnVmLlN0cnVjdBImCgVwaGFzZRgIIAEoDjIXLmtpbmdtYWtlci52MS5HYW1lUGhhc2USJgoFZG9vcnMYCSADKAsyFy5raW5nbWFrZXIudjEuRG9vclN0YXRlEioKCGZpeHR1cmVzGAogAygLMhgua2luZ21ha2VyLnYxLk1hcEZpeHR1cmUizwIKCFNjZW5hcmlvEgoKAmlkGAEgASgJEhUKDXN5c3RlbV9wcm9tcHQYAiABKAkSDwoHcHJlbWlzZRgDIAEoCRIaChJnYW1lX21hc3Rlcl9wcm9tcHQYBCABKAkSKwoKY2hhcmFjdGVycxgFIAMoCzIXLmtpbmdtYWtlci52MS5DaGFyYWN0ZXISIwoGZXZlbnRzGAYgAygLMhMua2luZ21ha2VyLnYxLkV2ZW50EicKBXdvcmxkGAcgASgLMhgua2luZ21ha2VyLnYxLldvcmxkU3RhdGUSIAoTcGxheWVyX2NoYXJhY3Rlcl9pZBgIIAEoCUgAiAEBEj4KGGNvdXJ0X2Fycml2YWxfcGxhY2VtZW50cxgJIAMoCzIcLmtpbmdtYWtlci52MS5BY3RvclBsYWNlbWVudEIWChRfcGxheWVyX2NoYXJhY3Rlcl9pZCJhChFUcmFuc2NyaXB0TWVzc2FnZRIqCgRyb2xlGAEgASgOMhwua2luZ21ha2VyLnYxLlRyYW5zY3JpcHRSb2xlEhIKCnNwZWFrZXJfaWQYAiABKAkSDAoEdGV4dBgDIAEoCSKGAQoPRGlhbG9ndWVSZXF1ZXN0EhQKDGNoYXJhY3Rlcl9pZBgBIAEoCRIoCghzY2VuYXJpbxgCIAEoCzIWLmtpbmdtYWtlci52MS5TY2VuYXJpbxIzCgp0cmFuc2NyaXB0GAMgAygLMh8ua2luZ21ha2VyLnYxLlRyYW5zY3JpcHRNZXNzYWdlIioKCkdvYWxVcGRhdGUSDAoEZ29hbBgBIAEoCRIOCgZyZWFzb24YAiABKAki0AEKEkNvbnZlcnNhdGlvbk1lbW9yeRInCgpuZXdfZXZlbnRzGAEgAygLMhMua2luZ21ha2VyLnYxLkV2ZW50EjIKC2dvYWxfdXBkYXRlGAIgASgLMhgua2luZ21ha2VyLnYxLkdvYWxVcGRhdGVIAIgBARIxCg1yZWxhdGlvbnNoaXBzGAMgAygLMhoua2luZ21ha2VyLnYxLlJlbGF0aW9uc2hpcBIRCgRsb3JlGAQgASgJSAGIAQFCDgoMX2dvYWxfdXBkYXRlQgcKBV9sb3JlImIKElJlbGF0aW9uc2hpcFVwZGF0ZRIaChJvd25lcl9jaGFyYWN0ZXJfaWQYASABKAkSMAoMcmVsYXRpb25zaGlwGAIgASgLMhoua2luZ21ha2VyLnYxLlJlbGF0aW9uc2hpcCKbAQoLUGxheWVyU2V0dXASJwoGcGxheWVyGAEgASgLMhcua2luZ21ha2VyLnYxLkNoYXJhY3RlchI7ChFucGNfcmVsYXRpb25zaGlwcxgCIAMoCzIgLmtpbmdtYWtlci52MS5SZWxhdGlvbnNoaXBVcGRhdGUSEAoIaG9tZWxhbmQYAyABKAkSFAoMZW1iYXNzeV9yb2xlGAQgASgJInIKEUdhbWVNYXN0ZXJSZXF1ZXN0EigKCHNjZW5hcmlvGAEgASgLMhYua2luZ21ha2VyLnYxLlNjZW5hcmlvEjMKCnRyYW5zY3JpcHQYAiADKAsyHy5raW5nbWFrZXIudjEuVHJhbnNjcmlwdE1lc3NhZ2UqbgoPRXZlbnRWaXNpYmlsaXR5EiAKHEVWRU5UX1ZJU0lCSUxJVFlfVU5TUEVDSUZJRUQQABIbChdFVkVOVF9WSVNJQklMSVRZX1BVQkxJQxABEhwKGEVWRU5UX1ZJU0lCSUxJVFlfUFJJVkFURRACKrsBCglHYW1lUGhhc2USGgoWR0FNRV9QSEFTRV9VTlNQRUNJRklFRBAAEh4KGkdBTUVfUEhBU0VfUExBWUVSX0NSRUFUSU9OEAESHAoYR0FNRV9QSEFTRV9DT05WRVJTQVRJT05TEAIiBAgDEAMiBAgEEAQiBAgFEAUqGEdBTUVfUEhBU0VfTklHSFRfQUNUSU9OUyoTR0FNRV9QSEFTRV9TT0xTVElDRSoTR0FNRV9QSEFTRV9SRVNPTFZFRCqyAQoOVHJhbnNjcmlwdFJvbGUSHwobVFJBTlNDUklQVF9ST0xFX1VOU1BFQ0lGSUVEEAASGgoWVFJBTlNDUklQVF9ST0xFX1BMQVlFUhABEh0KGVRSQU5TQ1JJUFRfUk9MRV9DSEFSQUNURVIQAhIjCh9UUkFOU0NSSVBUX1JPTEVfT1RIRVJfQ0hBUkFDVEVSEAMSHwobVFJBTlNDUklQVF9ST0xFX0dBTUVfTUFTVEVSEARiBnByb3RvMw", [file_google_protobuf_struct]);
+
+/**
+ * Pixel coordinates are relative to the top-left corner of a map tile.
+ *
+ * @generated from message kingmaker.v1.PixelBounds
+ */
+export type PixelBounds = Message<"kingmaker.v1.PixelBounds"> & {
+  /**
+   * @generated from field: sint32 x = 1;
+   */
+  x: number;
+
+  /**
+   * @generated from field: sint32 y = 2;
+   */
+  y: number;
+
+  /**
+   * @generated from field: uint32 width = 3;
+   */
+  width: number;
+
+  /**
+   * @generated from field: uint32 height = 4;
+   */
+  height: number;
+};
+
+/**
+ * Describes the message kingmaker.v1.PixelBounds.
+ * Use `create(PixelBoundsSchema)` to create a new message.
+ */
+export const PixelBoundsSchema: GenMessage<PixelBounds> = /*@__PURE__*/
+  messageDesc(file_kingmaker_v1_game, 0);
+
+/**
+ * @generated from message kingmaker.v1.TileBounds
+ */
+export type TileBounds = Message<"kingmaker.v1.TileBounds"> & {
+  /**
+   * @generated from field: uint32 x = 1;
+   */
+  x: number;
+
+  /**
+   * @generated from field: uint32 y = 2;
+   */
+  y: number;
+
+  /**
+   * @generated from field: uint32 width = 3;
+   */
+  width: number;
+
+  /**
+   * @generated from field: uint32 height = 4;
+   */
+  height: number;
+};
+
+/**
+ * Describes the message kingmaker.v1.TileBounds.
+ * Use `create(TileBoundsSchema)` to create a new message.
+ */
+export const TileBoundsSchema: GenMessage<TileBounds> = /*@__PURE__*/
+  messageDesc(file_kingmaker_v1_game, 1);
+
+/**
+ * @generated from message kingmaker.v1.Tileset
+ */
+export type Tileset = Message<"kingmaker.v1.Tileset"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string image_path = 2;
+   */
+  imagePath: string;
+
+  /**
+   * @generated from field: uint32 tile_width = 3;
+   */
+  tileWidth: number;
+
+  /**
+   * @generated from field: uint32 tile_height = 4;
+   */
+  tileHeight: number;
+
+  /**
+   * @generated from field: uint32 columns = 5;
+   */
+  columns: number;
+
+  /**
+   * @generated from field: uint32 tile_count = 6;
+   */
+  tileCount: number;
+};
+
+/**
+ * Describes the message kingmaker.v1.Tileset.
+ * Use `create(TilesetSchema)` to create a new message.
+ */
+export const TilesetSchema: GenMessage<Tileset> = /*@__PURE__*/
+  messageDesc(file_kingmaker_v1_game, 2);
+
+/**
+ * A tile owns an ordered stack of layers. Each layer draws one tileset sprite
+ * into its bounds and carries the physical properties of that rendered part.
+ *
+ * @generated from message kingmaker.v1.TileLayer
+ */
+export type TileLayer = Message<"kingmaker.v1.TileLayer"> & {
+  /**
+   * @generated from field: string tileset_id = 1;
+   */
+  tilesetId: string;
+
+  /**
+   * Zero-based sprite index within the tileset.
+   *
+   * @generated from field: uint32 tile_id = 2;
+   */
+  tileId: number;
+
+  /**
+   * @generated from field: kingmaker.v1.PixelBounds bounds = 3;
+   */
+  bounds?: PixelBounds | undefined;
+
+  /**
+   * @generated from field: bool solid = 4;
+   */
+  solid: boolean;
+
+  /**
+   * @generated from field: bool interactable = 5;
+   */
+  interactable: boolean;
+
+  /**
+   * @generated from field: google.protobuf.Struct properties = 6;
+   */
+  properties?: JsonObject | undefined;
+};
+
+/**
+ * Describes the message kingmaker.v1.TileLayer.
+ * Use `create(TileLayerSchema)` to create a new message.
+ */
+export const TileLayerSchema: GenMessage<TileLayer> = /*@__PURE__*/
+  messageDesc(file_kingmaker_v1_game, 3);
+
+/**
+ * @generated from message kingmaker.v1.Tile
+ */
+export type Tile = Message<"kingmaker.v1.Tile"> & {
+  /**
+   * Drawn in order, with the last layer on top.
+   *
+   * @generated from field: repeated kingmaker.v1.TileLayer layers = 1;
+   */
+  layers: TileLayer[];
+};
+
+/**
+ * Describes the message kingmaker.v1.Tile.
+ * Use `create(TileSchema)` to create a new message.
+ */
+export const TileSchema: GenMessage<Tile> = /*@__PURE__*/
+  messageDesc(file_kingmaker_v1_game, 4);
+
+/**
+ * @generated from message kingmaker.v1.MapRoom
+ */
+export type MapRoom = Message<"kingmaker.v1.MapRoom"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: repeated kingmaker.v1.TileBounds regions = 3;
+   */
+  regions: TileBounds[];
+};
+
+/**
+ * Describes the message kingmaker.v1.MapRoom.
+ * Use `create(MapRoomSchema)` to create a new message.
+ */
+export const MapRoomSchema: GenMessage<MapRoom> = /*@__PURE__*/
+  messageDesc(file_kingmaker_v1_game, 5);
+
+/**
+ * @generated from message kingmaker.v1.WorldMap
+ */
+export type WorldMap = Message<"kingmaker.v1.WorldMap"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: uint32 width = 3;
+   */
+  width: number;
+
+  /**
+   * @generated from field: uint32 height = 4;
+   */
+  height: number;
+
+  /**
+   * @generated from field: uint32 tile_width = 5;
+   */
+  tileWidth: number;
+
+  /**
+   * @generated from field: uint32 tile_height = 6;
+   */
+  tileHeight: number;
+
+  /**
+   * @generated from field: repeated kingmaker.v1.Tileset tilesets = 7;
+   */
+  tilesets: Tileset[];
+
+  /**
+   * Row-major and exactly width * height entries long.
+   *
+   * @generated from field: repeated kingmaker.v1.Tile tiles = 8;
+   */
+  tiles: Tile[];
+
+  /**
+   * @generated from field: repeated kingmaker.v1.MapRoom rooms = 9;
+   */
+  rooms: MapRoom[];
+};
+
+/**
+ * Describes the message kingmaker.v1.WorldMap.
+ * Use `create(WorldMapSchema)` to create a new message.
+ */
+export const WorldMapSchema: GenMessage<WorldMap> = /*@__PURE__*/
+  messageDesc(file_kingmaker_v1_game, 6);
 
 /**
  * Authored prose from this character's point of view. It may be unfair,
@@ -36,7 +296,7 @@ export type Relationship = Message<"kingmaker.v1.Relationship"> & {
  * Use `create(RelationshipSchema)` to create a new message.
  */
 export const RelationshipSchema: GenMessage<Relationship> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 0);
+  messageDesc(file_kingmaker_v1_game, 7);
 
 /**
  * The dialogue model may replace current_goal. Jev receives it verbatim when
@@ -69,6 +329,13 @@ export type Character = Message<"kingmaker.v1.Character"> & {
    * @generated from field: string current_goal = 5;
    */
   currentGoal: string;
+
+  /**
+   * Long-term ambitions that inform dialogue and immediate intent.
+   *
+   * @generated from field: repeated string objectives = 6;
+   */
+  objectives: string[];
 };
 
 /**
@@ -76,7 +343,7 @@ export type Character = Message<"kingmaker.v1.Character"> & {
  * Use `create(CharacterSchema)` to create a new message.
  */
 export const CharacterSchema: GenMessage<Character> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 1);
+  messageDesc(file_kingmaker_v1_game, 8);
 
 /**
  * Conversations, promises, insults, observations, actions and thoughts all use
@@ -126,54 +393,7 @@ export type Event = Message<"kingmaker.v1.Event"> & {
  * Use `create(EventSchema)` to create a new message.
  */
 export const EventSchema: GenMessage<Event> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 2);
-
-/**
- * @generated from message kingmaker.v1.SearchSpot
- */
-export type SearchSpot = Message<"kingmaker.v1.SearchSpot"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * @generated from field: string action_label = 2;
-   */
-  actionLabel: string;
-
-  /**
-   * @generated from field: string description = 3;
-   */
-  description: string;
-
-  /**
-   * @generated from field: repeated string content_object_ids = 4;
-   */
-  contentObjectIds: string[];
-
-  /**
-   * @generated from field: repeated string known_by_character_ids = 5;
-   */
-  knownByCharacterIds: string[];
-
-  /**
-   * @generated from field: repeated string discovered_by_character_ids = 6;
-   */
-  discoveredByCharacterIds: string[];
-
-  /**
-   * @generated from field: repeated string searched_by_character_ids = 7;
-   */
-  searchedByCharacterIds: string[];
-};
-
-/**
- * Describes the message kingmaker.v1.SearchSpot.
- * Use `create(SearchSpotSchema)` to create a new message.
- */
-export const SearchSpotSchema: GenMessage<SearchSpot> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 3);
+  messageDesc(file_kingmaker_v1_game, 9);
 
 /**
  * @generated from message kingmaker.v1.Room
@@ -200,9 +420,14 @@ export type Room = Message<"kingmaker.v1.Room"> & {
   exitRoomIds: string[];
 
   /**
-   * @generated from field: repeated kingmaker.v1.SearchSpot search_spots = 5;
+   * @generated from field: bool private = 6;
    */
-  searchSpots: SearchSpot[];
+  private: boolean;
+
+  /**
+   * @generated from field: repeated string allowed_character_ids = 7;
+   */
+  allowedCharacterIds: string[];
 };
 
 /**
@@ -210,7 +435,60 @@ export type Room = Message<"kingmaker.v1.Room"> & {
  * Use `create(RoomSchema)` to create a new message.
  */
 export const RoomSchema: GenMessage<Room> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 4);
+  messageDesc(file_kingmaker_v1_game, 10);
+
+/**
+ * Integer tile coordinates on the palace map.
+ *
+ * @generated from message kingmaker.v1.TilePosition
+ */
+export type TilePosition = Message<"kingmaker.v1.TilePosition"> & {
+  /**
+   * @generated from field: uint32 x = 1;
+   */
+  x: number;
+
+  /**
+   * @generated from field: uint32 y = 2;
+   */
+  y: number;
+};
+
+/**
+ * Describes the message kingmaker.v1.TilePosition.
+ * Use `create(TilePositionSchema)` to create a new message.
+ */
+export const TilePositionSchema: GenMessage<TilePosition> = /*@__PURE__*/
+  messageDesc(file_kingmaker_v1_game, 11);
+
+/**
+ * Authored placement for a scenario transition, such as entering court.
+ *
+ * @generated from message kingmaker.v1.ActorPlacement
+ */
+export type ActorPlacement = Message<"kingmaker.v1.ActorPlacement"> & {
+  /**
+   * @generated from field: string character_id = 1;
+   */
+  characterId: string;
+
+  /**
+   * @generated from field: string room_id = 2;
+   */
+  roomId: string;
+
+  /**
+   * @generated from field: kingmaker.v1.TilePosition position = 3;
+   */
+  position?: TilePosition | undefined;
+};
+
+/**
+ * Describes the message kingmaker.v1.ActorPlacement.
+ * Use `create(ActorPlacementSchema)` to create a new message.
+ */
+export const ActorPlacementSchema: GenMessage<ActorPlacement> = /*@__PURE__*/
+  messageDesc(file_kingmaker_v1_game, 12);
 
 /**
  * @generated from message kingmaker.v1.ActorState
@@ -235,6 +513,11 @@ export type ActorState = Message<"kingmaker.v1.ActorState"> & {
    * @generated from field: bool awake = 4;
    */
   awake: boolean;
+
+  /**
+   * @generated from field: kingmaker.v1.TilePosition position = 5;
+   */
+  position?: TilePosition | undefined;
 };
 
 /**
@@ -242,7 +525,7 @@ export type ActorState = Message<"kingmaker.v1.ActorState"> & {
  * Use `create(ActorStateSchema)` to create a new message.
  */
 export const ActorStateSchema: GenMessage<ActorState> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 5);
+  messageDesc(file_kingmaker_v1_game, 13);
 
 /**
  * @generated from message kingmaker.v1.ObjectState
@@ -279,13 +562,134 @@ export type ObjectState = Message<"kingmaker.v1.ObjectState"> & {
  * Use `create(ObjectStateSchema)` to create a new message.
  */
 export const ObjectStateSchema: GenMessage<ObjectState> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 6);
+  messageDesc(file_kingmaker_v1_game, 14);
 
 /**
- * The authoritative state contains every room, spot and object. Before model
- * calls, concealed objects and undiscovered spots are removed unless known by
+ * The authoritative state contains every room, fixture and object. Before model
+ * calls, concealed contents and undiscovered fixture details are removed unless known by
  * that character. Facts remain flexible for incidental scenario state.
  *
+ * @generated from message kingmaker.v1.DoorState
+ */
+export type DoorState = Message<"kingmaker.v1.DoorState"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: repeated kingmaker.v1.TilePosition tiles = 3;
+   */
+  tiles: TilePosition[];
+
+  /**
+   * @generated from field: repeated kingmaker.v1.TilePosition interaction_spots = 4;
+   */
+  interactionSpots: TilePosition[];
+
+  /**
+   * @generated from field: repeated string room_ids = 5;
+   */
+  roomIds: string[];
+
+  /**
+   * @generated from field: bool open = 6;
+   */
+  open: boolean;
+};
+
+/**
+ * Describes the message kingmaker.v1.DoorState.
+ * Use `create(DoorStateSchema)` to create a new message.
+ */
+export const DoorStateSchema: GenMessage<DoorState> = /*@__PURE__*/
+  messageDesc(file_kingmaker_v1_game, 15);
+
+/**
+ * Physical map furniture; contained items use ObjectState.location_id.
+ *
+ * @generated from message kingmaker.v1.MapFixture
+ */
+export type MapFixture = Message<"kingmaker.v1.MapFixture"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string name = 2;
+   */
+  name: string;
+
+  /**
+   * @generated from field: string room_id = 3;
+   */
+  roomId: string;
+
+  /**
+   * @generated from field: kingmaker.v1.TilePosition position = 4;
+   */
+  position?: TilePosition | undefined;
+
+  /**
+   * @generated from field: kingmaker.v1.TilePosition interaction_spot = 5;
+   */
+  interactionSpot?: TilePosition | undefined;
+
+  /**
+   * @generated from field: uint32 sprite = 6;
+   */
+  sprite: number;
+
+  /**
+   * @generated from field: bool container = 7;
+   */
+  container: boolean;
+
+  /**
+   * @generated from field: bool open = 8;
+   */
+  open: boolean;
+
+  /**
+   * @generated from field: string required_key_id = 9;
+   */
+  requiredKeyId: string;
+
+  /**
+   * @generated from field: string revealed_name = 10;
+   */
+  revealedName: string;
+
+  /**
+   * @generated from field: repeated string examined_by = 11;
+   */
+  examinedBy: string[];
+
+  /**
+   * @generated from field: repeated string searched_by = 12;
+   */
+  searchedBy: string[];
+
+  /**
+   * @generated from field: string owner_character_id = 13;
+   */
+  ownerCharacterId: string;
+};
+
+/**
+ * Describes the message kingmaker.v1.MapFixture.
+ * Use `create(MapFixtureSchema)` to create a new message.
+ */
+export const MapFixtureSchema: GenMessage<MapFixture> = /*@__PURE__*/
+  messageDesc(file_kingmaker_v1_game, 16);
+
+/**
  * @generated from message kingmaker.v1.WorldState
  */
 export type WorldState = Message<"kingmaker.v1.WorldState"> & {
@@ -328,6 +732,16 @@ export type WorldState = Message<"kingmaker.v1.WorldState"> & {
    * @generated from field: kingmaker.v1.GamePhase phase = 8;
    */
   phase: GamePhase;
+
+  /**
+   * @generated from field: repeated kingmaker.v1.DoorState doors = 9;
+   */
+  doors: DoorState[];
+
+  /**
+   * @generated from field: repeated kingmaker.v1.MapFixture fixtures = 10;
+   */
+  fixtures: MapFixture[];
 };
 
 /**
@@ -335,7 +749,7 @@ export type WorldState = Message<"kingmaker.v1.WorldState"> & {
  * Use `create(WorldStateSchema)` to create a new message.
  */
 export const WorldStateSchema: GenMessage<WorldState> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 7);
+  messageDesc(file_kingmaker_v1_game, 17);
 
 /**
  * @generated from message kingmaker.v1.Scenario
@@ -380,6 +794,11 @@ export type Scenario = Message<"kingmaker.v1.Scenario"> & {
    * @generated from field: optional string player_character_id = 8;
    */
   playerCharacterId?: string | undefined;
+
+  /**
+   * @generated from field: repeated kingmaker.v1.ActorPlacement court_arrival_placements = 9;
+   */
+  courtArrivalPlacements: ActorPlacement[];
 };
 
 /**
@@ -387,7 +806,7 @@ export type Scenario = Message<"kingmaker.v1.Scenario"> & {
  * Use `create(ScenarioSchema)` to create a new message.
  */
 export const ScenarioSchema: GenMessage<Scenario> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 8);
+  messageDesc(file_kingmaker_v1_game, 18);
 
 /**
  * @generated from message kingmaker.v1.TranscriptMessage
@@ -414,7 +833,7 @@ export type TranscriptMessage = Message<"kingmaker.v1.TranscriptMessage"> & {
  * Use `create(TranscriptMessageSchema)` to create a new message.
  */
 export const TranscriptMessageSchema: GenMessage<TranscriptMessage> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 9);
+  messageDesc(file_kingmaker_v1_game, 19);
 
 /**
  * @generated from message kingmaker.v1.DialogueRequest
@@ -441,7 +860,7 @@ export type DialogueRequest = Message<"kingmaker.v1.DialogueRequest"> & {
  * Use `create(DialogueRequestSchema)` to create a new message.
  */
 export const DialogueRequestSchema: GenMessage<DialogueRequest> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 10);
+  messageDesc(file_kingmaker_v1_game, 20);
 
 /**
  * @generated from message kingmaker.v1.GoalUpdate
@@ -463,41 +882,7 @@ export type GoalUpdate = Message<"kingmaker.v1.GoalUpdate"> & {
  * Use `create(GoalUpdateSchema)` to create a new message.
  */
 export const GoalUpdateSchema: GenMessage<GoalUpdate> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 11);
-
-/**
- * @generated from message kingmaker.v1.DialogueResponse
- */
-export type DialogueResponse = Message<"kingmaker.v1.DialogueResponse"> & {
-  /**
-   * @generated from field: string utterance = 1;
-   */
-  utterance: string;
-
-  /**
-   * @generated from field: repeated kingmaker.v1.Event new_events = 2;
-   */
-  newEvents: Event[];
-
-  /**
-   * @generated from field: optional kingmaker.v1.GoalUpdate goal_update = 3;
-   */
-  goalUpdate?: GoalUpdate | undefined;
-
-  /**
-   * Optional player suggestions, never actions or compelled responses.
-   *
-   * @generated from field: repeated string reply_options = 4;
-   */
-  replyOptions: string[];
-};
-
-/**
- * Describes the message kingmaker.v1.DialogueResponse.
- * Use `create(DialogueResponseSchema)` to create a new message.
- */
-export const DialogueResponseSchema: GenMessage<DialogueResponse> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 12);
+  messageDesc(file_kingmaker_v1_game, 21);
 
 /**
  * Durable NPC memory extracted once from a completed conversation.
@@ -531,7 +916,7 @@ export type ConversationMemory = Message<"kingmaker.v1.ConversationMemory"> & {
  * Use `create(ConversationMemorySchema)` to create a new message.
  */
 export const ConversationMemorySchema: GenMessage<ConversationMemory> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 13);
+  messageDesc(file_kingmaker_v1_game, 22);
 
 /**
  * @generated from message kingmaker.v1.RelationshipUpdate
@@ -553,7 +938,7 @@ export type RelationshipUpdate = Message<"kingmaker.v1.RelationshipUpdate"> & {
  * Use `create(RelationshipUpdateSchema)` to create a new message.
  */
 export const RelationshipUpdateSchema: GenMessage<RelationshipUpdate> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 14);
+  messageDesc(file_kingmaker_v1_game, 23);
 
 /**
  * Once the interview has enough material, the game master creates the player
@@ -588,7 +973,7 @@ export type PlayerSetup = Message<"kingmaker.v1.PlayerSetup"> & {
  * Use `create(PlayerSetupSchema)` to create a new message.
  */
 export const PlayerSetupSchema: GenMessage<PlayerSetup> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 15);
+  messageDesc(file_kingmaker_v1_game, 24);
 
 /**
  * @generated from message kingmaker.v1.GameMasterRequest
@@ -610,167 +995,7 @@ export type GameMasterRequest = Message<"kingmaker.v1.GameMasterRequest"> & {
  * Use `create(GameMasterRequestSchema)` to create a new message.
  */
 export const GameMasterRequestSchema: GenMessage<GameMasterRequest> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 16);
-
-/**
- * @generated from message kingmaker.v1.GameMasterResponse
- */
-export type GameMasterResponse = Message<"kingmaker.v1.GameMasterResponse"> & {
-  /**
-   * @generated from field: string utterance = 1;
-   */
-  utterance: string;
-
-  /**
-   * @generated from field: optional kingmaker.v1.PlayerSetup player_setup = 2;
-   */
-  playerSetup?: PlayerSetup | undefined;
-
-  /**
-   * @generated from field: repeated kingmaker.v1.Event new_events = 3;
-   */
-  newEvents: Event[];
-};
-
-/**
- * Describes the message kingmaker.v1.GameMasterResponse.
- * Use `create(GameMasterResponseSchema)` to create a new message.
- */
-export const GameMasterResponseSchema: GenMessage<GameMasterResponse> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 17);
-
-/**
- * The engine creates bound, currently legal candidates. Jev chooses an ID and
- * cannot invent a type or parameters.
- *
- * @generated from message kingmaker.v1.AvailableAction
- */
-export type AvailableAction = Message<"kingmaker.v1.AvailableAction"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * @generated from field: string type = 2;
-   */
-  type: string;
-
-  /**
-   * @generated from field: string description = 3;
-   */
-  description: string;
-
-  /**
-   * @generated from field: google.protobuf.Struct parameters = 4;
-   */
-  parameters?: JsonObject | undefined;
-};
-
-/**
- * Describes the message kingmaker.v1.AvailableAction.
- * Use `create(AvailableActionSchema)` to create a new message.
- */
-export const AvailableActionSchema: GenMessage<AvailableAction> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 18);
-
-/**
- * @generated from message kingmaker.v1.DecisionRequest
- */
-export type DecisionRequest = Message<"kingmaker.v1.DecisionRequest"> & {
-  /**
-   * @generated from field: kingmaker.v1.Character character = 1;
-   */
-  character?: Character | undefined;
-
-  /**
-   * A knowledge-filtered projection, never the authoritative secret state.
-   *
-   * @generated from field: kingmaker.v1.WorldState world = 2;
-   */
-  world?: WorldState | undefined;
-
-  /**
-   * @generated from field: repeated kingmaker.v1.Event recent_events = 3;
-   */
-  recentEvents: Event[];
-
-  /**
-   * @generated from field: repeated kingmaker.v1.AvailableAction available_actions = 4;
-   */
-  availableActions: AvailableAction[];
-};
-
-/**
- * Describes the message kingmaker.v1.DecisionRequest.
- * Use `create(DecisionRequestSchema)` to create a new message.
- */
-export const DecisionRequestSchema: GenMessage<DecisionRequest> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 19);
-
-/**
- * @generated from message kingmaker.v1.DecisionResponse
- */
-export type DecisionResponse = Message<"kingmaker.v1.DecisionResponse"> & {
-  /**
-   * @generated from field: string chosen_action_id = 1;
-   */
-  chosenActionId: string;
-
-  /**
-   * @generated from field: map<string, double> probabilities = 2;
-   */
-  probabilities: { [key: string]: number };
-
-  /**
-   * @generated from field: optional double confidence = 3;
-   */
-  confidence?: number | undefined;
-
-  /**
-   * @generated from field: string model_id = 4;
-   */
-  modelId: string;
-
-  /**
-   * @generated from field: uint32 based_on_revision = 5;
-   */
-  basedOnRevision: number;
-};
-
-/**
- * Describes the message kingmaker.v1.DecisionResponse.
- * Use `create(DecisionResponseSchema)` to create a new message.
- */
-export const DecisionResponseSchema: GenMessage<DecisionResponse> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 20);
-
-/**
- * @generated from message kingmaker.v1.ActionResult
- */
-export type ActionResult = Message<"kingmaker.v1.ActionResult"> & {
-  /**
-   * @generated from field: string action_id = 1;
-   */
-  actionId: string;
-
-  /**
-   * @generated from field: uint32 based_on_revision = 2;
-   */
-  basedOnRevision: number;
-
-  /**
-   * @generated from field: repeated kingmaker.v1.Event events = 3;
-   */
-  events: Event[];
-};
-
-/**
- * Describes the message kingmaker.v1.ActionResult.
- * Use `create(ActionResultSchema)` to create a new message.
- */
-export const ActionResultSchema: GenMessage<ActionResult> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v1_game, 21);
+  messageDesc(file_kingmaker_v1_game, 25);
 
 /**
  * @generated from enum kingmaker.v1.EventVisibility
@@ -816,21 +1041,6 @@ export enum GamePhase {
    * @generated from enum value: GAME_PHASE_CONVERSATIONS = 2;
    */
   CONVERSATIONS = 2,
-
-  /**
-   * @generated from enum value: GAME_PHASE_NIGHT_ACTIONS = 3;
-   */
-  NIGHT_ACTIONS = 3,
-
-  /**
-   * @generated from enum value: GAME_PHASE_SOLSTICE = 4;
-   */
-  SOLSTICE = 4,
-
-  /**
-   * @generated from enum value: GAME_PHASE_RESOLVED = 5;
-   */
-  RESOLVED = 5,
 }
 
 /**

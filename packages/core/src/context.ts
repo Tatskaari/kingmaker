@@ -1,9 +1,11 @@
+import { IMMEDIATE_GOAL_GUIDANCE } from "./goal-guidance.js";
 import { clone, toJson } from "@bufbuild/protobuf";
 import {
   EventVisibility,
   GamePhase,
   TranscriptRole,
   WorldStateSchema,
+  type Scenario,
   type DialogueRequest,
   type Event,
   type GameMasterRequest,
@@ -17,41 +19,47 @@ function visibleEvents(events: readonly Event[], characterId: string): readonly 
   );
 }
 
-/** Removes undiscovered search spots and concealed objects. The game master sees
+/** Shared authored character context for dialogue and physical decisions. */
+export function characterContextFor(scenario: Scenario, characterId: string) {
+  const character = scenario.characters.find(item => item.id === characterId);
+  if (!character) throw new Error(`Cannot build context for unknown character ${characterId}`);
+  return { character, premise: scenario.premise, events: visibleEvents(scenario.events, characterId) };
+}
+
+/** Plain data for a decision model; the task overrides current intent, not biography. */
+export function characterDecisionContext(scenario: Scenario, characterId: string, goal: string) {
+  const { character, premise, events } = characterContextFor(scenario, characterId);
+  return {
+    premise,
+    character: {
+      id: character.id, name: character.name, lore: character.lore,
+      relationships: character.relationships.map(({ characterId, description }) => ({ characterId, description })),
+      objectives: [...character.objectives],
+      currentGoal: goal,
+    },
+    visibleEvents: events.map(({ id, day, type, summary }) => ({ id, day, type, summary })),
+  };
+}
+
+/** Removes concealed container contents and undiscovered fixture details. The game master sees
  * the authoritative world; character models see only this projection. */
 export function worldForCharacter(world: WorldState, characterId: string): WorldState {
   const view = clone(WorldStateSchema, world);
   const visibleObjectIds = new Set<string>();
 
-  for (const room of view.rooms) {
-    room.searchSpots = room.searchSpots.filter(spot => {
-      const known = spot.knownByCharacterIds.includes(characterId);
-      const discovered = spot.discoveredByCharacterIds.includes(characterId);
-      const searched = spot.searchedByCharacterIds.includes(characterId);
-      if (!known && !discovered && !searched) return false;
-      if (known || searched) {
-        for (const objectId of spot.contentObjectIds) visibleObjectIds.add(objectId);
-      } else {
-        spot.contentObjectIds = [];
-      }
-      spot.knownByCharacterIds = known ? [characterId] : [];
-      spot.discoveredByCharacterIds = discovered ? [characterId] : [];
-      spot.searchedByCharacterIds = searched ? [characterId] : [];
-      return true;
-    });
+  for (const fixture of view.fixtures) {
+    const known = fixture.open || fixture.searchedBy.includes(characterId);
+    if (known) for (const item of view.objects) {
+      if (item.locationId === fixture.id) visibleObjectIds.add(item.id);
+    }
+    if (!fixture.examinedBy.includes(characterId)) {
+      fixture.requiredKeyId = "";
+      fixture.revealedName = "";
+    }
+    fixture.examinedBy = fixture.examinedBy.filter(id => id === characterId);
+    fixture.searchedBy = fixture.searchedBy.filter(id => id === characterId);
   }
 
-  // Objects inside a known object are also known, such as the crown in its box.
-  let changed = true;
-  while (changed) {
-    changed = false;
-    for (const object of view.objects) {
-      if (object.concealed && visibleObjectIds.has(object.locationId) && !visibleObjectIds.has(object.id)) {
-        visibleObjectIds.add(object.id);
-        changed = true;
-      }
-    }
-  }
   view.objects = view.objects.filter(object => !object.concealed || visibleObjectIds.has(object.id));
   return view;
 }
@@ -59,15 +67,14 @@ export function worldForCharacter(world: WorldState, characterId: string): World
 export class FullContextBuilder implements DialogueContextBuilder {
   build(request: DialogueRequest): readonly PromptMessage[] {
     const scenario = request.scenario;
-    const character = scenario?.characters.find(item => item.id === request.characterId);
-    if (!scenario || !character || !scenario.world) {
+    if (!scenario || !scenario.world) {
       throw new Error(`Cannot build context for unknown character ${request.characterId}`);
     }
 
+    const { character, events } = characterContextFor(scenario, request.characterId);
     const relationships = character.relationships.length
       ? character.relationships.map(item => `- ${item.characterId}: ${item.description}`).join("\n")
       : "- None recorded.";
-    const events = visibleEvents(scenario.events, character.id);
     const recent = events.length
       ? events.map(event => `- [day ${event.day}] ${event.type}: ${event.summary}`).join("\n")
       : "- Nothing has happened yet.";
@@ -77,7 +84,7 @@ export class FullContextBuilder implements DialogueContextBuilder {
       { role: "system", content: `# Scenario premise\n${scenario.premise}` },
       {
         role: "system",
-        content: `# Character\n${character.name} (${character.id})\n\n${character.lore}\n\n# Current goal\n${character.currentGoal || "No goal yet."}`,
+        content: `# Character\n${character.name} (${character.id})\n\n${character.lore}\n\n# Long-term objectives\n${character.objectives.map(objective => `- ${objective}`).join("\n") || "None recorded."}\nThese ambitions inform your dialogue and intentions; they are not immediate action-planner tasks.\n\n# Current goal\n${character.currentGoal || "No goal yet."}\n\n${IMMEDIATE_GOAL_GUIDANCE}`,
       },
       { role: "system", content: `# Relationships\n${relationships}` },
       { role: "system", content: `# Events visible to this character\n${recent}` },
@@ -106,6 +113,7 @@ export class FullGameMasterContextBuilder implements GameMasterContextBuilder {
       id: character.id,
       name: character.name,
       lore: character.lore,
+      objectives: character.objectives,
       currentGoal: character.currentGoal,
       relationships: character.relationships,
     }));

@@ -8,9 +8,7 @@ import {
   ScenarioSchema,
   type Character,
   type ConversationMemory,
-  type DialogueResponse,
   type Event,
-  type GameMasterResponse,
   type PlayerSetup,
   type Scenario,
 } from "../../contracts/src/index.js";
@@ -78,6 +76,13 @@ export class MemoryGame implements GameState {
       awake: true,
     }));
 
+    for (const actor of world.actors) {
+      const placement = this.#scenario.courtArrivalPlacements.find(item => item.characterId === actor.characterId);
+      // Crossing into the court invalidates the old bedroom tile.
+      actor.position = placement?.position ? { ...placement.position } : undefined;
+      if (placement) actor.roomId = placement.roomId;
+    }
+
     const identity = `${player.name}, ${setup.embassyRole} from ${setup.homeland}`;
     for (const npcId of NPC_IDS) {
       this.#scenario.events.push(create(EventSchema, {
@@ -93,32 +98,7 @@ export class MemoryGame implements GameState {
     return { ok: true, value: clone(CharacterSchema, player) };
   }
 
-  replaceGoal(characterId: string, goal: string): Validation<Character> {
-    const character = this.#scenario.characters.find(item => item.id === characterId);
-    if (!character) return failure("unknown_character", `Unknown character ${characterId}.`);
-    character.currentGoal = goal;
-    return { ok: true, value: clone(CharacterSchema, character) };
-  }
-
-  commitDialogue(characterId: string, response: DialogueResponse): Validation<readonly Event[]> {
-    const character = this.#scenario.characters.find(item => item.id === characterId);
-    if (!character) return failure("unknown_character", `Unknown character ${characterId}.`);
-    const world = this.#scenario.world;
-    if (!world) return failure("missing_world", "Scenario has no world.");
-    if (response.goalUpdate?.goal) character.currentGoal = response.goalUpdate.goal;
-    const events = response.newEvents.map(event => create(EventSchema, {
-      ...event,
-      id: event.id || `dialogue-${characterId}-${++this.#eventSequence}`,
-      day: world.day,
-      characterIds: [...new Set([characterId, "player", ...event.characterIds])],
-      visibility: event.visibility || EventVisibility.PRIVATE,
-    }));
-    this.#scenario.events.push(...events);
-    world.revision += 1;
-    return { ok: true, value: events };
-  }
-
-  commitConversation(characterId: string, memory: ConversationMemory): Validation<readonly Event[]> {
+  commitConversation(characterId: string, memory: ConversationMemory, includePlayer = true): Validation<readonly Event[]> {
     const character = this.#scenario.characters.find(item => item.id === characterId);
     if (!character || characterId === "player") return failure("unknown_character", "Unknown NPC.");
     if (!this.#scenario.world) return failure("missing_world", "Scenario has no world.");
@@ -142,7 +122,7 @@ export class MemoryGame implements GameState {
       day: this.#scenario.world!.day,
       type: event.type,
       summary: event.summary,
-      characterIds: [characterId, "player"],
+      characterIds: includePlayer ? [characterId, "player"] : [characterId],
       visibility: EventVisibility.PRIVATE,
     }));
     if (memory.goalUpdate) character.currentGoal = memory.goalUpdate.goal;
@@ -153,22 +133,6 @@ export class MemoryGame implements GameState {
     }
     this.#scenario.events.push(...events);
     this.#scenario.world.revision += 1;
-    return { ok: true, value: events };
-  }
-
-  commitGameMaster(response: GameMasterResponse): Validation<readonly Event[]> {
-    if (response.playerSetup) {
-      const created = this.createPlayer(response.playerSetup);
-      if (!created.ok) return created;
-    }
-    const world = this.#scenario.world;
-    if (!world) return failure("missing_world", "Scenario has no world.");
-    const events = response.newEvents.map(event => create(EventSchema, {
-      ...event,
-      id: event.id || `gm-${++this.#eventSequence}`,
-      day: world.day,
-    }));
-    this.#scenario.events.push(...events);
     return { ok: true, value: events };
   }
 

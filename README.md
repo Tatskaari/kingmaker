@@ -1,102 +1,73 @@
 # Kingmaker
 
-A deliberately small experiment in an improvised political cRPG.
+An improvised political cRPG: talk to the court, explore the palace, and let NPCs
+act on the intentions they form. The Crown of Winter determines the succession
+at the solstice; time progression and coronation are not implemented yet.
 
-On the last night before the solstice, Merlin knows where the key is, Lancelot
-knows where the crown is, and the living king expects to keep it. The player
-can talk privately with all three. Conversation may change what each person wants;
-Jev chooses what they physically do next.
-
-The scenario owns its premise: by ancient law, whoever physically holds the Crown
-of Winter at dawn on the solstice day becomes king.
-
-The player arrives with an embassy from a neighbouring allied kingdom. The game
-master interviews them to determine exactly what kind of emissary they are, their
-homeland and mission, and any private agenda. Their diplomatic position gives them
-credible private access to Merlin, Lancelot, and Aldren.
-
-## MVP hypothesis
-
-Less symbolic social machinery gives the agents more room to surprise us. A
-character consists of:
-
-- lore;
-- prose relationships;
-- one free-text current goal;
-- visible events;
-- the shared world state.
-
-Promises, agreements, insults, thoughts and conversations are all events. There
-are no quests, trust scores, belief graphs, formal commitments, or symbolic plans.
-
-The dialogue LLM may create a new goal in prose. On an autonomous turn, the engine
-enumerates concrete actions that are legal now and Jev chooses one using the whole
-character, their visible events, their goal, and their known world state.
-
-Day 1 begins with the player and all three NPCs awake in the Great Hall. When the
-player ends the day, every NPC retires to their own room. At night they can wake,
-sneak through adjacent rooms, search a room to reveal plausible hiding places,
-and investigate those places. The spare key is in Merlin's desk; the crown box is
-beneath the old chapel altar. Only characters who already know those locations see
-them before searching. Other rooms contain enough empty possibilities to make the
-useful choice unobvious.
-
-```text
-player conversation -> dialogue LLM -> speech + events + optional new goal
-                                                    |
-world -> enumerate legal actions -> Jev Choice <----+
-                                -> apply action -> event
-```
-
-Before that loop, the game master interviews the visiting emissary and adds the
-resulting player to the cast and to each NPC's relationships. The MVP phases are
-player creation, private conversations, night actions, and solstice resolution.
-
-This is reactive goal-oriented action selection. It does not currently search a
-graph for a shortest plan. If the experiment reveals short-sighted behaviour, we
-can add planning with evidence about the failure we are solving.
-
-## Key files
-
-- `packages/contracts/proto/kingmaker/v1/game.proto` — the entire data contract.
-- `packages/core/src/ports.ts` — the few engine and model boundaries.
-- `packages/core/src/context.ts` — builds the full dialogue context.
-- `content/scenarios/last-night.json` — all initial characters, events and world data.
-- `content/prompts/dialogue.md` — dialogue context and output contract.
-- `content/prompts/decisions.md` — Jev action-selection contract.
-- `content/prompts/game-master.md` — player creation and narration contract.
-
-## Tooling
-
-moonrepo **proto** manages the toolchain; **Protocol Buffers** defines game data.
-They are unrelated. `.prototools` pins proto, moon, Node and npm. Buf generates
-TypeScript from the protobuf contract.
+## Run
 
 ```sh
 proto install
 proto run npm -- ci
-proto run moon -- run workspace:check
-proto run moon -- run workspace:build
+proto run moon -- run workspace:dev
 ```
 
-Start the prototype with `proto run npm -- run dev`, then open
-`http://127.0.0.1:5173`. Enter an OpenRouter key in the browser; it remains in
-tab-scoped session storage across reloads and is excluded from saves and debug
-output. Reloading reconnects the worker and opens the save picker. Use **Change
-OpenRouter key** to clear the remembered key.
-The first paid request occurs when the player clicks **Begin**. Vite hot-reloads
-the UI and game worker during development.
+Open `http://127.0.0.1:5173`. The main game is the only page. Enter an OpenRouter
+key, complete the GM interview, review your character and enter the palace.
+The key stays in tab-scoped session storage and is excluded from saves. Games
+are saved in IndexedDB. Change OpenRouter key clears the remembered credential.
 
-The browser worker owns the authoritative game state and stores each game in
-IndexedDB. The save picker names a game after its player character once the GM
-creates them. Stable internal IDs allow two saved characters to share a name,
-and the last-played time distinguishes them.
-The top-right debug inspector reads the complete in-memory protobuf scenario and
-model histories from the worker; credentials are deliberately omitted.
+Left-click to walk or change destination mid-walk. Right-click a tile for ordered
+actions. Interactions walk to the appropriate point before taking effect; illegal
+actions are red. Conversations open over the map. NPCs start idle and act when a
+conversation or outcome review assigns a concrete task.
 
-## GitHub Pages
+The crown is in the locked royal coffer; its key is in Merlin's chest of drawers.
+All items use the live fixture/inventory system. There is no parallel set of
+narrative search spots or prototype containers.
 
-The production build is a self-contained static site in `dist/web`. Merges to
-`main` run `.github/workflows/pages.yml`, which builds that directory and deploys
-it to GitHub Pages. The Vite build uses relative URLs so it also works beneath a
-repository path such as `/kingmaker/`.
+## Models and debugging
+
+GPT-6 Luna handles dialogue with reasoning off. GPT-6 Sol handles the GM, reviews
+and NPC-to-NPC exchanges with medium reasoning. Settings live in
+`apps/web/src/model-settings.ts`. Jev selects from currently reachable actions.
+
+The debug inspector shows world state, character context and recent transcripts:
+requests, responses, summaries, duration and errors for the latest 50 calls.
+These logs survive rollback but are not saved across reloads. NPC conversations
+record the initiating request and the GM resolution separately.
+
+NPC execution is serial and bounded. Stop Jev cancels pending planning or walking;
+active goals and pending reviews can be resumed after loading a save.
+
+## Reset while developing
+
+With a loaded character, use the browser console:
+
+```js
+await resetWorld();       // Reset physical state and positions; NPCs become idle.
+await resetCharacters();  // Restore authored NPCs and events; clear conversations/tasks.
+```
+
+Both commands save automatically and preserve the player character. `resetWorld`
+keeps character memories and conversations. `resetCharacters` keeps positions,
+doors, containers and inventories. Reload after changing authored scenario data.
+Old saves from the removed search-spot schema are not migrated; start a fresh game.
+
+## Code and validation
+
+- `content/scenarios/last-night.json`: characters, events and physical world data.
+- `apps/web/src/runtime.ts`: authoritative interactions and model workflows.
+- `apps/web/src/court-agent.ts`: grounded actions and planner observations.
+- `apps/web/src/court-map.ts`: map rendering, walking and interaction menus.
+- `packages/core/src/context.ts`: character knowledge and dialogue context.
+- `packages/contracts/proto/kingmaker/v1/game.proto`: persisted data contracts.
+- [Architecture](docs/architecture.md), [navigation](docs/navigation.md),
+  [autotiling](docs/autotiling.md), [cleanup audit](docs/cleanup-audit.md).
+
+```sh
+proto run moon -- run workspace:check workspace:build
+```
+
+The production site is built into `dist/web`. Merges to main deploy through
+`.github/workflows/pages.yml`. Relative asset URLs support GitHub Pages paths.

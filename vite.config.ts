@@ -10,6 +10,11 @@ export default defineConfig({
   build: {
     outDir: `${repositoryRoot}/dist/web`,
     emptyOutDir: true,
+    rollupOptions: {
+      input: {
+        game: `${repositoryRoot}/apps/web/index.html`,
+      },
+    },
   },
   server: {
     host: "127.0.0.1",
