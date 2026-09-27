@@ -202,7 +202,7 @@ window.resetWorld = async function resetWorld() {
   finally { busy = false; render(); }
 };
 
-// Restore authored NPC personalities and clear learned events without resetting the palace.
+// Restore authored NPC personalities and clear learned notes without resetting the palace.
 window.resetCharacters = async function resetCharacters() {
   if (busy) throw new Error("Wait for the current request to finish before resetting the characters.");
   if (!state?.player) throw new Error("Load a game with a created character first.");
@@ -212,7 +212,7 @@ window.resetCharacters = async function resetCharacters() {
     state = result.state; saves = result.saves;
     activeCharacter = null; closedConversation = null; debugData = null;
     npcRun = [];
-    notice = "NPCs reset. Conversations and learned events cleared; your character and palace have been kept.";
+    notice = "NPCs reset. Conversations and learned notes cleared; your character and palace have been kept.";
     return { reset: true };
   } catch (error) { notice = `Error: ${error.message}`; throw error; }
   finally { busy = false; render(); }
@@ -259,7 +259,7 @@ function debugInspector() {
       ? debugTab === "overview" ? debugOverview(debugRequest.type, debugData) : debugTab === "transcripts" ? recentTranscriptsView(debugData.transcripts) : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
       : `<p class="debug-loading">Reading worker state…</p>`;
   const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${[["overview", "Overview"], ["json", "Raw JSON"], ["transcripts", "Recent transcripts"], ["alerts", "Warnings & errors"]].map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
-  return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}"><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">Character state, visible events, known world, conversation, and assembled model context. The global inspector includes the authoritative world. GM debug includes prompts, raw model responses, and tool results—not hidden reasoning. API keys are excluded.</p>${tabs}<div id="debug-panel" class="debug-panel" role="tabpanel" aria-labelledby="debug-tab-${debugTab}" tabindex="0">${content}</div></aside>`;
+  return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}"><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">Character state, available notes, known world, conversation, and assembled model context. The global inspector includes the authoritative world. GM debug includes prompts, raw model responses, and tool results—not hidden reasoning. API keys are excluded.</p>${tabs}<div id="debug-panel" class="debug-panel" role="tabpanel" aria-labelledby="debug-tab-${debugTab}" tabindex="0">${content}</div></aside>`;
 }
 
 async function openDebug(request = debugRequest, title = debugTitle) {

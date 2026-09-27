@@ -1,4 +1,4 @@
-import type { Character, ConversationMemory, DialogueRequest, Event, GameMasterRequest, PlayerSetup, Scenario } from "../../contracts/src/index.js";
+import type { Character, ConversationMemory, DialogueRequest, GameMasterRequest, Note, PlayerSetup, Scenario } from "../../contracts/src/index.js";
 
 export type Validation<T> =
   | { ok: true; value: T }
@@ -13,5 +13,5 @@ export interface GameMasterContextBuilder { build(request: GameMasterRequest): r
 export interface GameState {
   scenario(): Scenario;
   createPlayer(setup: PlayerSetup): Validation<Character>;
-  commitConversation(characterId: string, memory: ConversationMemory, includePlayer?: boolean): Validation<readonly Event[]>;
+  commitConversation(characterId: string, memory: ConversationMemory, includePlayer?: boolean): Validation<readonly Note[]>;
 }

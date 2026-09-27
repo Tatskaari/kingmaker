@@ -8,9 +8,8 @@ import { resourceReviewTools, type ResourceReviewContext } from "../apps/web/src
 import { ACTIVE_OBJECTIVE_GUIDANCE } from "../apps/web/src/objectives.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 
-const context: ResourceReviewContext = { kind: "conversation_review", participants: ["corvin"],
-  eligibleListeners: ["mara"], playerCanHear: true, allowNextGoal: true };
-const changes = { append_events: [], relationships: [] };
+const context: ResourceReviewContext = { kind: "conversation_review", participants: ["corvin"], allowNextGoal: true };
+const changes = { append_notes: [], relationships: [] };
 function game() {
   const runtime = new BrowserGameRuntime(fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")), "test");
   runtime.createDevelopmentPlayer(); return runtime;
@@ -112,14 +111,15 @@ test("inventory additions require only their inventory ID and validate atomicall
   assert.equal((result.new_state.data as unknown[]).length, 1);
 });
 
-test("overhearing writes only the listener, without door dependencies", () => {
-  const runtime = game(), doors = id(runtime, "door:hall_door");
-  const result = runtime.applyResourceReviewWrite("record_overheard", { characterId: "mara", generation_id: id(runtime, "character:mara"),
-    summary: "Heard a mention of the treasury.", reactionGoal: null }, context);
+test("character reviews can revise passive objectives without activating them", () => {
+  const runtime = game();
+  const result = runtime.applyResourceReviewWrite("update_character", { character_id: "corvin", generation_id: id(runtime, "character:corvin"), changes: {
+    parked_objectives: [{ action: "set", reason: "A perceived event made this relevant later.", name: "Watch the treasury",
+      status: "The treasury door was opened; investigate after the current duty.", success_criteria: "The reason for the opening is known.", current_goal: "Inspect the treasury." }],
+  } }, context);
   assert.equal(result.commit_result, "success");
-  assert.equal(id(runtime, "door:hall_door"), doors);
-  assert.throws(() => runtime.applyResourceReviewWrite("record_overheard", { characterId: "oswin", generation_id: id(runtime, "character:oswin"),
-    summary: "Impossible hearing.", reactionGoal: null }, context), /eligible/);
+  assert.ok((result.new_state.data as any).character.parkedObjectives.some((objective: any) => objective.name === "Watch the treasury"));
+  assert.notEqual((result.new_state.data as any).character.activeObjective.name, "Watch the treasury");
 });
 
 test("omitted fields preserve objectives and relationships; an objective transition makes the NPC idle", () => {
@@ -127,7 +127,7 @@ test("omitted fields preserve objectives and relationships; an objective transit
   const initial = runtime.readResources(["character:corvin"])["character:corvin"]!.state as any;
   const original = initial.character;
   const patched = runtime.applyResourceReviewWrite("update_character", { character_id: "corvin", generation_id: id(runtime, "character:corvin"),
-    changes: { append_events: [{ type: "memory", summary: "A new fact." }], relationships: [{ character_id: "mara", description: "New understanding." }] } }, context);
+    changes: { append_notes: ["A new fact."], relationships: [{ character_id: "mara", description: "New understanding." }] } }, context);
   const state = patched.new_state.data as any;
   assert.equal(state.character.currentGoal, original.currentGoal);
   assert.equal(state.character.lore, original.lore);
@@ -138,7 +138,7 @@ test("omitted fields preserve objectives and relationships; an objective transit
     changes: { active_objective: { action: "drop", reason: "The greeting is no longer relevant." } } }, context);
   assert.equal((cleared.new_state.data as any).character.currentGoal, "");
   assert.equal((cleared.new_state.data as any).activity.status, "idle");
-  assert.ok((cleared.new_state.data as any).memories.some((e: any) => e.summary === "A new fact."));
+  assert.ok((cleared.new_state.data as any).notes.some((note: any) => note.text === "A new fact."));
 });
 
 const call = (name: string, args: unknown) => ({ role: "assistant" as const, content: null, tool_calls: [
@@ -168,17 +168,17 @@ test("live review gets versions initially and explicitly reconciles a stale char
       assert.ok(initial.generation_id);
       assert.ok(world(input)["inventory:corvin"].generation_id);
       runtime.applyResourceReviewWrite("update_character", { character_id: "corvin", generation_id: initial.generation_id, changes: { lore: "Concurrent biography." } }, context);
-      return call("update_character", { character_id: "corvin", generation_id: initial.generation_id, changes: { append_events: [{ type: "memory", summary: "Reviewed goodbye." }] } });
+      return call("update_character", { character_id: "corvin", generation_id: initial.generation_id, changes: { append_notes: ["Reviewed goodbye."] } });
     }
     const result = JSON.parse(input.messages.at(-1).content);
     if (calls === 2) {
       assert.equal(result.commit_result, "error");
       assert.equal(result.reason, "Generation ID out of date");
       assert.equal(result.new_state.data.character.lore, "Concurrent biography.");
-      assert.ok(!result.new_state.data.memories.some((e: any) => e.summary === "Reviewed goodbye."));
+      assert.ok(!result.new_state.data.notes.some((note: any) => note.text === "Reviewed goodbye."));
       const active = result.new_state.data.character.activeObjective;
       return call("update_character", { character_id: "corvin", generation_id: result.new_state.generation_id, changes: {
-        append_events: [{ type: "memory", summary: "Reviewed goodbye." }], active_objective: {
+        append_notes: ["Reviewed goodbye."], active_objective: {
           action: "set", reason: "The greeting remains unfinished after saying goodbye.", name: active.name,
           status: active.status, success_criteria: active.successCriteria, current_goal: active.currentGoal,
         },
@@ -192,7 +192,7 @@ test("live review gets versions initially and explicitly reconciles a stale char
   const state = runtime.readResources(["character:corvin"])["character:corvin"]!.state as any;
   assert.equal(state.character.lore, "Concurrent biography.");
   assert.equal(state.character.currentGoal, original.character.currentGoal);
-  assert.equal(state.memories.filter((e: any) => e.summary === "Reviewed goodbye.").length, 1);
+  assert.equal(state.notes.filter((note: any) => note.text === "Reviewed goodbye.").length, 1);
   assert.equal(runtime.snapshot().conversations.corvin, undefined);
 });
 

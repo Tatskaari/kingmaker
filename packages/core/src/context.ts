@@ -1,21 +1,21 @@
 import { IMMEDIATE_GOAL_GUIDANCE } from "./goal-guidance.js";
 import { clone, toJson } from "@bufbuild/protobuf";
 import {
-  EventVisibility,
+  NoteVisibility,
   GamePhase,
   TranscriptRole,
   WorldStateSchema,
   type Scenario,
   type DialogueRequest,
-  type Event,
+  type Note,
   type GameMasterRequest,
   type WorldState,
 } from "../../contracts/src/index.js";
 import type { DialogueContextBuilder, GameMasterContextBuilder, PromptMessage } from "./ports.js";
 
-function visibleEvents(events: readonly Event[], characterId: string): readonly Event[] {
-  return events.filter(event =>
-    event.visibility === EventVisibility.PUBLIC || event.characterIds.includes(characterId),
+function visibleNotes(notes: readonly Note[], characterId: string): readonly Note[] {
+  return notes.filter(note =>
+    note.visibility === NoteVisibility.PUBLIC || note.characterIds.includes(characterId),
   );
 }
 
@@ -23,12 +23,12 @@ function visibleEvents(events: readonly Event[], characterId: string): readonly 
 export function characterContextFor(scenario: Scenario, characterId: string) {
   const character = scenario.characters.find(item => item.id === characterId);
   if (!character) throw new Error(`Cannot build context for unknown character ${characterId}`);
-  return { character, premise: scenario.premise, events: visibleEvents(scenario.events, characterId) };
+  return { character, premise: scenario.premise, notes: visibleNotes(scenario.notes, characterId) };
 }
 
 /** Plain data for a decision model; the task overrides current intent, not biography. */
 export function characterDecisionContext(scenario: Scenario, characterId: string, goal: string) {
-  const { character, premise, events } = characterContextFor(scenario, characterId);
+  const { character, premise, notes } = characterContextFor(scenario, characterId);
   return {
     premise,
     character: {
@@ -38,7 +38,7 @@ export function characterDecisionContext(scenario: Scenario, characterId: string
       activeObjective: character.activeObjective,
       currentGoal: goal,
     },
-    visibleEvents: events.map(({ id, day, type, summary }) => ({ id, day, type, summary })),
+    notes: notes.map(({ id, day, text }) => ({ id, day, text })),
   };
 }
 
@@ -72,14 +72,14 @@ export class FullContextBuilder implements DialogueContextBuilder {
       throw new Error(`Cannot build context for unknown character ${request.characterId}`);
     }
 
-    const { character, events } = characterContextFor(scenario, request.characterId);
+    const { character, notes } = characterContextFor(scenario, request.characterId);
     const player = scenario.characters.find(item => item.id === scenario.playerCharacterId);
     const visitor = player ? `\n\n# Visiting player’s public identity\n${JSON.stringify({ name: player.name, gender: player.gender, delegation: player.delegation })}` : "";
     const relationships = character.relationships.length
       ? character.relationships.map(item => `- ${item.characterId}: ${item.description}`).join("\n")
       : "- None recorded.";
-    const recent = events.length
-      ? events.map(event => `- [day ${event.day}] ${event.type}: ${event.summary}`).join("\n")
+    const recent = notes.length
+      ? notes.map(note => `- [day ${note.day}] ${note.text}`).join("\n")
       : "- Nothing has happened yet.";
 
     const setup: PromptMessage[] = [
@@ -91,7 +91,7 @@ export class FullContextBuilder implements DialogueContextBuilder {
       },
       ...(character.activeObjective ? [{ role: "system" as const, content: `# Active objective\n${JSON.stringify(character.activeObjective)}\nThe current goal is one step toward this objective, not the entire undertaking.` }] : []),
       { role: "system", content: `# Relationships\n${relationships}${visitor}` },
-      { role: "system", content: `# Events visible to this character\n${recent}` },
+      { role: "system", content: `# Notes available to this character\n${recent}` },
       {
         role: "system",
         content: `# Known world state\n${JSON.stringify(toJson(WorldStateSchema, worldForCharacter(scenario.world, character.id), { alwaysEmitImplicit: true }), null, 2)}`,

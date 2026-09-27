@@ -100,21 +100,31 @@ message ActiveObjective {
   string current_goal = 4;
 }
 
-enum EventVisibility {
-  EVENT_VISIBILITY_UNSPECIFIED = 0;
-  EVENT_VISIBILITY_PUBLIC = 1;
-  EVENT_VISIBILITY_PRIVATE = 2;
+enum NoteVisibility {
+  NOTE_VISIBILITY_UNSPECIFIED = 0;
+  NOTE_VISIBILITY_PUBLIC = 1;
+  NOTE_VISIBILITY_PRIVATE = 2;
 }
 
-// Conversations, promises, insults, observations, actions and thoughts all use
-// the same append-only shape. Details are optional structure for engine facts.
+// Free-form durable memory from one or more characters' points of view.
+message Note {
+  string id = 1;
+  uint32 day = 2;
+  string text = 3;
+  repeated string character_ids = 5;
+  NoteVisibility visibility = 6;
+  google.protobuf.Struct details = 7;
+}
+
+// A transient occurrence in the physical world. Events are perceived and
+// processed into character notes/objective changes rather than stored as memory.
 message Event {
   string id = 1;
   uint32 day = 2;
-  string type = 3;
+  string kind = 3;
   string summary = 4;
-  repeated string character_ids = 5;
-  EventVisibility visibility = 6;
+  repeated string participant_ids = 5;
+  TilePosition position = 6;
   google.protobuf.Struct details = 7;
 }
 
@@ -215,7 +225,7 @@ message Scenario {
   string premise = 3;
   string game_master_prompt = 4;
   repeated Character characters = 5;
-  repeated Event events = 6;
+  repeated Note notes = 6;
   WorldState world = 7;
   optional string player_character_id = 8;
   repeated ActorPlacement court_arrival_placements = 9;
@@ -246,9 +256,9 @@ message GoalUpdate {
   string reason = 2;
 }
 
-// Durable NPC memory extracted once from a completed conversation.
+// Durable NPC memory extracted once from a completed conversation or perceived event.
 message ConversationMemory {
-  repeated Event new_events = 1;
+  repeated string new_notes = 1;
   optional GoalUpdate goal_update = 2;
   repeated Relationship relationships = 3;
   optional string lore = 4;

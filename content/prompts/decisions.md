@@ -1,7 +1,7 @@
 # Jev action policy
 
 `courtAgentObservation` supplies the character's lore, relationships, objectives,
-immediate goal, visible events, current surroundings and reachable actions.
+immediate goal, available notes, current surroundings and reachable actions.
 `court-instructions.ts` contains the actual shared planner instructions.
 
 Each Decisions API criterion is an action ID and description. Move actions target

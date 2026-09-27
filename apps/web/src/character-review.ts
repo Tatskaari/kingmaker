@@ -1,16 +1,15 @@
-import { create, fromJson, type JsonValue } from "@bufbuild/protobuf";
-import { ConversationMemorySchema, EventSchema, type Scenario } from "../../../packages/contracts/src/index.js";
+import { fromJson, type JsonValue } from "@bufbuild/protobuf";
+import { ConversationMemorySchema, type Scenario } from "../../../packages/contracts/src/index.js";
 import { MemoryGame } from "../../../packages/core/src/game.js";
 import type { NpcActivity } from "./runtime.js";
 
-export type ReviewKind = "conversation_review" | "npc_resolution" | "outcome_review" | "illegal_action";
+export type ReviewKind = "conversation_review" | "npc_resolution" | "outcome_review" | "world_event";
 export interface WorldChange { name: string; arguments: Record<string, unknown> }
 export interface CharacterReview {
   kind: ReviewKind;
   participants: string[];
   output: Record<string, unknown>;
   worldChanges: WorldChange[];
-  eligibleListeners: string[];
   allowNextGoal: boolean;
 }
 
@@ -21,11 +20,11 @@ export function applyCharacterReview(scenario: Scenario, review: CharacterReview
   if (kind === "npc_resolution" && (typeof summary !== "string" || !summary.trim())) throw new Error("Invalid conversation summary.");
   const memories = participants.map((id, index) => {
     const value = kind === "npc_resolution" ? output[index === 0 ? "initiator" : "recipient"] : output;
-    if (!value || typeof value !== "object" || Array.isArray(value) || !("newEvents" in value) || !("relationships" in value)
-      || !Array.isArray(value.newEvents) || !Array.isArray(value.relationships) || !("goalUpdate" in value) || !("lore" in value)) throw new Error("Character returned incomplete conversation memory.");
+    if (!value || typeof value !== "object" || Array.isArray(value) || !("newNotes" in value) || !("relationships" in value)
+      || !Array.isArray(value.newNotes) || !Array.isArray(value.relationships) || !("goalUpdate" in value) || !("lore" in value)) throw new Error("Character returned incomplete conversation memory.");
     const memory = fromJson(ConversationMemorySchema, value as JsonValue);
     if (!memory.goalUpdate) scenario.characters.find(character => character.id === id)!.currentGoal = "";
-    if (typeof summary === "string") memory.newEvents.push(create(EventSchema, { type: "npc_conversation", summary }));
+    if (typeof summary === "string") memory.newNotes.push(summary);
     return { id, memory };
   });
   const game = new MemoryGame(scenario), updates: Record<string, NpcActivity> = {};

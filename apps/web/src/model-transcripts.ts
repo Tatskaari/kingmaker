@@ -1,4 +1,4 @@
-export type ModelCallKind = "npc_request" | "npc_resolution" | "game_master" | "dialogue" | "dialogue_flavour" | "gm_consultation" | "conversation_review" | "illegal_action" | "jev" | "outcome_review";
+export type ModelCallKind = "npc_request" | "npc_resolution" | "game_master" | "dialogue" | "dialogue_flavour" | "gm_consultation" | "conversation_review" | "world_event" | "event_decision" | "jev" | "outcome_review";
 export interface ModelTranscript {
   id: number;
   kind: ModelCallKind;

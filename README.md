@@ -75,7 +75,7 @@ With a loaded character, use the browser console:
 
 ```js
 await resetWorld();       // Reset physical state and positions; NPCs become idle.
-await resetCharacters();  // Restore authored NPCs and events; clear conversations/tasks.
+await resetCharacters();  // Restore authored NPCs and notes; clear conversations/tasks.
 ```
 
 Both commands save automatically and preserve the player character. `resetWorld`
@@ -86,7 +86,7 @@ fresh game for this scenario.
 
 ## Code and validation
 
-- `content/scenarios/last-night.json`: characters, events and physical world data.
+- `content/scenarios/last-night.json`: characters, notes and physical world data.
 - `apps/web/src/runtime.ts`: authoritative interactions and model workflows.
 - `apps/web/src/court-agent.ts`: grounded actions and planner observations.
 - `apps/web/src/court-map.ts`: map rendering, walking and interaction menus.

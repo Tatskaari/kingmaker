@@ -34,6 +34,17 @@ export const EARSHOT_DESCRIPTIONS = {
   Distant: "Can catch names and places, but not the details.",
 };
 
+export const PERCEPTION_CHANCES: Record<EarshotCharacter["level"], number> = {
+  Clear: 1,
+  Moderate: 0.6,
+  Distant: 0.3,
+};
+
+/** A single independent perception roll for a real-world event. */
+export function perceivesAt(level: EarshotCharacter["level"], random: () => number = Math.random): boolean {
+  return random() < PERCEPTION_CHANCES[level];
+}
+
 export function charactersWithinEarshot(
   speaker: PositionedCharacter,
   characters: readonly PositionedCharacter[],

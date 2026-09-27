@@ -28,21 +28,10 @@ export function ensureNpcActiveObjectives(scenario: Scenario): void {
   }
 }
 
-export function activateReactionObjective(character: Character, evidence: string, goal: string): void {
-  character.activeObjective = create(ActiveObjectiveSchema, {
-    name: goal.split(".")[0]!,
-    status: "I learned or observed: " + evidence + " I have not acted on it yet. My next step is: " + goal,
-    successCriteria: "I have completed the concrete response described by the current goal, or learned enough to revise, demote or drop this objective.",
-    currentGoal: goal,
-  });
-  character.parkedObjectives = character.parkedObjectives.filter(item => item.name !== character.activeObjective!.name);
-  character.currentGoal = goal;
-}
-
 export const ACTIVE_OBJECTIVE_GUIDANCE = [
   "An active objective has name (the full undertaking), status (current work, known facts, progress, obstacles and remaining execution plan), success_criteria (observable evidence of success), and current_goal (one concrete action-planner task). Parked objectives retain the same fields but are non-active; their current_goal records the last planned step and is not executed while parked.",
-  "On accepting an undertaking (from a conversation, or something you overheard etc.), set an active objective and success criteria. Use the status to track progress, and use the current goal to set the next action you'd like the character to take in the world. This will be used by the action planner. After each goal completion or event, update status from actual events and set the next feasible goal toward the same success criteria. Completing a step or receiving a promise is not completing the objective.",
-  "Prioritize the active objective and recent relevant events, while respecting urgency, agency and existing commitments. Keep facts distinct from claims and promises. Plans must use supported mechanics; never invent fulfilled success criteria.",
+  "On accepting an undertaking (from a conversation, or something you overheard etc.), set an active objective and success criteria. Use the status to track progress, and use the current goal to set the next action you'd like the character to take in the world. This will be used by the action planner. After each goal completion or event, update status from actual outcomes and set the next feasible goal toward the same success criteria. Completing a step or receiving a promise is not completing the objective.",
+  "Prioritize the active objective and recent relevant notes, while respecting urgency, agency and existing commitments. Keep facts distinct from claims and promises. Plans must use supported mechanics; never invent fulfilled success criteria.",
   "When progress fails, explicitly consider demote (retain as non-active), drop (abandon), or set (revise to an achievable compromise). Record the reason. Do not loop on a failed goal without a concrete change. A busy person or an execution-budget pause is not proof the objective is impossible.",
   "Waiting for another character to act is not an executable current goal. If the next progress depends entirely on another character initiating a conversation, arriving, deciding, or completing their own work, demote this objective while blocked. The waiting character should become idle and available for other work. When the awaited character later initiates the relevant conversation or event, use that new evidence to set the objective active again with a concrete next action.",
   "If progress towards an objective becomes impossible, it can be demoted to a normal objective. This can be brought up in conversation e.g. with the player who may be able to help the character out.",
@@ -84,4 +73,30 @@ export function applyObjectiveChange(character: Character, value: unknown): stri
   const subject = character.activeObjective ?? previous!;
   return "Objective " + action + " (" + subject.name + "): " + reason
     + (action === "demote" ? " Deferred plan: " + subject.status + " Success criteria: " + subject.successCriteria : "");
+}
+
+/** Explicitly revise or remove passive (parked) objectives without activating them. */
+export function applyParkedObjectiveChanges(character: Character, value: unknown): string[] {
+  if (!Array.isArray(value)) throw new Error("parked_objectives must be an array.");
+  return value.map(item => {
+    if (!item || typeof item !== "object" || Array.isArray(item)) throw new Error("Invalid parked objective transition.");
+    const change = item as Record<string, unknown>;
+    const field = (name: string) => {
+      const result = change[name];
+      if (typeof result !== "string" || !result.trim()) throw new Error(`Parked objective ${name} must be nonempty.`);
+      return result.trim();
+    };
+    const action = field("action"), name = field("name"), reason = field("reason");
+    if (character.activeObjective?.name === name) throw new Error("The active objective must be changed through active_objective.");
+    if (action === "drop") {
+      if (Object.keys(change).some(key => !["action", "name", "reason"].includes(key))) throw new Error("Unknown parked objective transition fields.");
+      character.parkedObjectives = character.parkedObjectives.filter(objective => objective.name !== name);
+    } else if (action === "set") {
+      if (Object.keys(change).some(key => !["action", "name", "reason", "status", "success_criteria", "current_goal"].includes(key))) throw new Error("Unknown parked objective transition fields.");
+      const objective = create(ActiveObjectiveSchema, { name, status: field("status"), successCriteria: field("success_criteria"),
+        currentGoal: typeof change.current_goal === "string" ? change.current_goal.trim() : "" });
+      character.parkedObjectives = [...character.parkedObjectives.filter(existing => existing.name !== name), objective];
+    } else throw new Error("Unknown parked objective action.");
+    return `Parked objective ${action} (${name}): ${reason}`;
+  });
 }
