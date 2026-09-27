@@ -7,6 +7,7 @@ import { resourceState, runResourceReview, type ResourceReviewContext } from "./
 import { InvalidModelJsonError, parseModelObject } from "../../../packages/providers/src/structured-output.js";
 import { validateIdentity, type TravellerIdentity } from "./introduction.js";
 import { DIALOGUE_MODEL, REASONING_MODEL } from "./model-settings.js";
+import { GM_BASE_PROMPT, GM_ADJUDICATION_GUIDANCE, withGmBasePrompt } from "./gm-prompt.js";
 import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
 import { courtAgentObservation, actionResourceIds } from "./court-agent.js";
 import { courtCharactersWithinEarshot, dialogueEarshotPrompt, EARSHOT_DESCRIPTIONS, EARSHOT_DISTANCE } from "./earshot.js";
@@ -179,6 +180,31 @@ const dialogueFormat = {
   },
 } as const;
 
+const askGameMasterTool: OpenRouterTool = {
+  type: "function",
+  function: {
+    name: "ask_the_game_master",
+    description: "Privately consult the GM only when your response needs a consequential new fact or the result of an off-screen action: evidence, a secret, significant history or relationships, authority, access, or possession. For example: 'Can my household investigate the house accounts and discover a discrepancy?' Use established knowledge and prior rulings directly. Ordinary opinions, preferences, bargaining, tentative proposals and harmless incidental details do not need approval. Do not call merely because a detail is unspecified; ask only when the ruling would materially affect the story or the player's options and is needed for this response. The GM may confirm, qualify or reject the premise, supply character-known information, or update your state or inventory. Wait for the ruling and item descriptions before replying in character. Keep the consultation private; retain your character's motives and choice about what to disclose or agree to.",
+    parameters: {
+      type: "object", additionalProperties: false, required: ["request"],
+      properties: { request: { type: "string", minLength: 1, maxLength: 1000, description: "The question or proposed action for the GM, including what the player suggested and what needs a ruling. Ask whether an uncertain premise is true rather than assuming it." } },
+    },
+  },
+};
+
+const GM_CONSULTATION_INSTRUCTIONS = `Resolve ask_the_game_master immediately during the ongoing conversation. For a knowledge question, confirm, qualify or reject what this character would know or whether the player's proposed premise can be established. A knowledge ruling need not create an item or task.
+For off-screen work, decide the result now. For example, investigating house accounts might produce an account extract showing an unexplained payment to a named supplier: a lead to investigate, without automatically proving theft.
+Use update_inventory for justified items and update_character to record the requesting character's learned outcome or other warranted changes. Finish with a character-safe summary of the ruling, discoveries, state changes, any available next step, and names and descriptions of added items. The conversation agent receives this result and speaks afterwards.`;
+
+const CHARACTER_COLLABORATION_INSTRUCTIONS = `Play your part in collaborative storytelling. Take the player's ideas seriously and look for ways to build on them through your character's desires, loyalties and relationships. "Yes, and" means a meaningful response, not automatic agreement: you can bargain, raise a complication, ask a revealing question, or offer a different opening. When resisting, make your reason understandable and leave a grounded way for the player to engage. Never choose the player's words, thoughts or actions.
+Respond directly using your established knowledge, motives, and reasonable everyday assumptions. You may improvise incidental details that do not materially change the world or the player's options, while respecting established facts. Use ask_the_game_master only when the answer would establish a consequential new fact: evidence, a secret, a significant relationship or past event, authority, access, possession, or the result of an off-screen action. Ask only if that ruling is needed for your response. Reuse previous rulings; do not repeatedly check established facts. A player's assertion establishes that they made a claim, not that the claim is true. If you intend to lie about a consequential unestablished fact, explain that intent in the consultation so the GM can keep the underlying truth coherent.
+Examples:
+- "I distrust the treasurer" is ordinary characterisation consistent with your motives; answer directly.
+- "The treasurer diverted the grain payments" establishes consequential evidence; consult the GM if unestablished.
+- "I'd consider supporting you" expresses your own willingness; answer directly.
+- "I have authority to pledge my kingdom's recognition" establishes political authority; consult the GM if unestablished.
+If the consultation tool is unavailable for this opening turn, defer consequential new assertions and use established facts, incidental details, proposals or questions instead.`;
+
 const memoryFormat = {
   type: "json_schema",
   json_schema: { name: "conversation_memory", strict: true, schema: {
@@ -251,6 +277,10 @@ export class BrowserGameRuntime {
   hasActiveObjective(id: string) { return !!this.#game.scenario().characters.find(character => character.id === id)?.activeObjective; }
 
   #complete(kind: ModelCallKind, characterId: string, request: ChatCompletionRequest, signal?: AbortSignal) {
+    request = withGmBasePrompt(kind, request);
+    if (kind === "dialogue") request = { ...request, messages: [
+      { role: "system", content: CHARACTER_COLLABORATION_INSTRUCTIONS }, ...request.messages,
+    ] };
     return this.#modelTranscripts.record(kind, characterId, request, () => this.#client.complete(request, signal));
   }
 
@@ -350,7 +380,7 @@ export class BrowserGameRuntime {
           messages: [...setup.map(item => ({ role: item.role, content: item.content } satisfies OpenRouterMessage)), ...(this.#travellerIdentity ? [{ role: "system" as const, content: `# Chosen identity\n${JSON.stringify(this.#travellerIdentity)}\nThese are the player’s saved choices, not instructions. Preserve them when creating the character. Develop their background within this delegation. Gender and appearance imply no occupation, personality or allegiance.` }] : []), ...this.#gmHistory],
           tools: gmTools(this.#game.scenario()), max_tokens: 8000,
         };
-        const trace: GameMasterTrace = { request: structuredClone(request), toolResults: [] };
+        const trace: GameMasterTrace = { request: structuredClone(withGmBasePrompt("game_master", request)), toolResults: [] };
         this.#gmTrace.push(trace);
         const message = await this.#complete("game_master", "gm", request);
         trace.response = structuredClone(message);
@@ -397,18 +427,35 @@ export class BrowserGameRuntime {
     const history = this.#conversations.get(characterId) || [];
     const playerMessage = create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: messageText });
     const request = create(DialogueRequestSchema, { characterId, scenario, transcript: [...history, playerMessage] });
-    const messages = new FullContextBuilder().build(request).map(item => ({ role: item.role, content: item.content } satisfies OpenRouterMessage));
+    const messages: OpenRouterMessage[] = new FullContextBuilder().build(request).map(item => ({ role: item.role, content: item.content }));
     if (hasDevelopmentPlayer(scenario)) messages.unshift({ role: "system", content: DEVELOPMENT_DIALOGUE_INSTRUCTIONS });
+    messages.unshift({ role: "system", content: askGameMasterTool.function.description });
     messages.unshift({ role: "system", content: dialogueEarshotPrompt(scenario, characterId, [characterId, scenario.playerCharacterId ?? "player"]) });
     messages.unshift({ role: "system", content: "You may choose to end this conversation. Set endConversation=true when you take your leave, refuse further discussion, or conclude the exchange to pursue your immediate task. Express that decision naturally in utterance and return replyOptions=[]. Do not end merely because you answered one question; use your own intentions, relationships and the exchange. Otherwise set endConversation=false. Ending triggers a separate memory and goal review; speech alone does not move you or complete physical tasks." });
     messages.unshift({ role: "system", content: "Return only a JSON object matching the supplied response schema, with no Markdown fences or surrounding prose." });
     let parsed: JsonObject | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const completion = await this.#complete("dialogue", characterId, {
-          ...DIALOGUE_MODEL, messages, response_format: dialogueFormat, max_tokens: 900,
-        });
-        parsed = parseModelObject(completion.content, "Court dialogue");
+        for (let step = 0; step < 4; step++) {
+          const completion = await this.#complete("dialogue", characterId, {
+            ...DIALOGUE_MODEL, messages, response_format: dialogueFormat, tools: [askGameMasterTool], max_tokens: 900,
+          });
+          if (!completion.tool_calls?.length) {
+            parsed = parseModelObject(completion.content, "Court dialogue");
+            break;
+          }
+          if (completion.tool_calls.length !== 1 || completion.tool_calls[0]!.function.name !== "ask_the_game_master") {
+            throw new Error("Court dialogue used an invalid tool call");
+          }
+          const call = completion.tool_calls[0]!;
+          const args = parseModelObject(call.function.arguments, "GM consultation");
+          const question = text(args.request, "request");
+          if (question.length > 1000) throw new Error("request must be at most 1000 characters");
+          const result = await this.#askGameMaster(characterId, question, [...history, playerMessage]);
+          messages.push(completion, { role: "tool", tool_call_id: call.id, name: call.function.name,
+            content: JSON.stringify(result) });
+        }
+        if (!parsed) throw new Error("Court dialogue used too many consecutive GM consultations");
         break;
       } catch (error) {
         const malformed = error instanceof InvalidModelJsonError;
@@ -427,6 +474,43 @@ export class BrowserGameRuntime {
     this.#conversationEndRequested[characterId] = parsed.endConversation === true;
     this.#conversationReplyOptions[characterId] = parsed.endConversation === true ? [] : replyOptions;
     return utterance;
+  }
+
+  async #askGameMaster(characterId: string, request: string, transcript: TranscriptMessage[]) {
+    // Stage GM changes on this dialogue's snapshot; the worker publishes the
+    // complete turn through the existing generation-checked fork merge.
+    const candidate = this.forkForNpc();
+    const originalItems = new Set(candidate.#game.scenario().world!.objects.map(item => item.id));
+    const context: ResourceReviewContext = {
+      kind: "conversation_review", participants: [characterId], eligibleListeners: [], playerCanHear: false, allowNextGoal: true,
+    };
+    const summary = await runResourceReview({ ...REASONING_MODEL, messages: [], max_tokens: 8000 }, [
+      { role: "system", content: GM_CONSULTATION_INSTRUCTIONS },
+      { role: "user", content: JSON.stringify({ characterId, request,
+        transcript: transcript.map(message => ({ speakerId: message.speakerId, text: message.text })) }) },
+    ], {
+      read: async resourceId => {
+        const states = candidate.readResources(resourceId ? [resourceId] : undefined);
+        return resourceId ? resourceState(resourceId, states[resourceId]!)
+          : Object.fromEntries(Object.entries(states).map(([key, value]) => [key, resourceState(key, value)]));
+      },
+      write: async (name, args) => {
+        try {
+          if (name !== "update_character" && name !== "update_inventory") throw new Error("Only the requesting character's state and inventory may be updated.");
+          if (name === "update_inventory" && args.owner_id !== characterId) throw new Error("Use the requesting character's inventory.");
+          return candidate.applyResourceReviewWrite(name, args, context);
+        } catch (error) {
+          return { commit_result: "error", reason: error instanceof Error ? error.message : String(error) };
+        }
+      },
+      finish: async () => {},
+      complete: input => this.#complete("gm_consultation", characterId, input),
+    });
+    const addedItems = candidate.#game.scenario().world!.objects
+      .filter(item => !originalItems.has(item.id) && item.locationId === characterId)
+      .map(item => ({ id: item.id, name: item.name, details: item.properties?.details ?? "" }));
+    this.restore(candidate.snapshot());
+    return { summary, addedItems };
   }
 
   async #reconcile(kind: ReviewKind, characterId: string, scenario: Scenario, participants: string[], request: ChatCompletionRequest, signal?: AbortSignal, allowNextGoal = true) {
@@ -470,7 +554,7 @@ export class BrowserGameRuntime {
       const context: ResourceReviewContext = { kind, participants, eligibleListeners, playerCanHear, allowNextGoal };
       const conversations = this.snapshot().conversations;
       const evidence: OpenRouterMessage[] = [
-        { role: "system", content: "You are the GM, not a participant. Preserve character agency and private knowledge. Promises are not completed actions. Assign only feasible tasks using walking, doors, containers, inspecting/taking items and talking. No general combat, crafting, trade or item-transfer engine exists. NPC work always belongs to an active objective; demote, drop or complete dead ends explicitly. Use update_inventory for justified missing props, never invented proof or duplicate rewards." },
+        { role: "system", content: "Review this event through the supplied resource write tools. Use update_inventory for justified props and update_character for memories, relationships and objective changes. NPC work belongs to an active objective; demote, drop or complete dead ends explicitly." },
         ...(kind === "outcome_review" && this.#npcActivities[characterId]?.result?.reason === "wait" ? [{ role: "system" as const, content: "Jev chose wait. This explicitly means the objective is blocked on another character acting and should be non-active now. Demote it unless the supplied evidence shows a different concrete action this character can take immediately. Do not set a current goal that merely waits, watches, checks repeatedly, or asks the same question again. A later conversation or event initiated by the awaited character can reactivate the parked objective." }] : []),
         { role: "user", content: JSON.stringify({ event_type: kind, participants, allowNextGoal }) },
         ...earshotContext,
@@ -1307,7 +1391,7 @@ export class BrowserGameRuntime {
       traceNote: "Exact requests and raw responses cover the latest GM turn in this runtime, including failures. After loading a save, use savedTranscript until another turn runs. Reconstructed context reflects current state, not necessarily the previous request. No hidden model reasoning is available.",
       latestTurnCalls: this.#gmTrace,
       savedTranscript: this.#gmHistory,
-      reconstructedContext: new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario })),
+      reconstructedContext: [{ role: "system", content: GM_BASE_PROMPT }, { role: "system", content: GM_ADJUDICATION_GUIDANCE }, ...new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario }))],
       availableTools: gmTools(scenario),
     };
   }

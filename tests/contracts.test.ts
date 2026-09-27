@@ -1,5 +1,6 @@
 import { applyFixtureAction, fixtureActions } from "../packages/core/src/fixtures.js";
 import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
+import { GM_BASE_PROMPT } from "../apps/web/src/gm-prompt.js";
 import { AlertLog } from "../apps/web/src/alerts.js";
 import { courtAgentObservation } from "../apps/web/src/court-agent.js";
 import { doorActionLegality } from "../packages/core/src/access.js";
@@ -318,8 +319,8 @@ test("NPC reply options are optional speech, never compulsion, and stay with the
     { utterance: "Will you help me?", newEvents: [], goalUpdate: null, replyOptions: ["On one condition.", "You have my word."], compelled: true },
     { utterance: "Name your condition.", newEvents: [], goalUpdate: null, replyOptions: [] },
   ];
-  t.mock.method(OpenRouterClient.prototype, "complete", async (request: { tools?: unknown }) => {
-    assert.equal(request.tools, undefined, "NPCs must not receive GM tools");
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: ChatCompletionRequest) => {
+    assert.deepEqual(request.tools?.map(tool => tool.function.name), ["ask_the_game_master"], "NPCs receive only their consultation tool, never GM write tools");
     return { role: "assistant", content: JSON.stringify(replies.shift()) };
   });
   const runtime = new BrowserGameRuntime(scenario, "test");
@@ -504,6 +505,53 @@ const remembered = {
   lore: null,
 };
 const modelReply = (value: unknown): OpenRouterMessage => ({ role: "assistant", content: JSON.stringify(value) });
+
+test("GM action and knowledge rulings reach dialogue immediately and publish with the worker fork", async t => {
+  for (const outcome of ["approve", "reject", "knowledge", "fail"] as const) {
+    const runtime = new BrowserGameRuntime(conversationScenario(), "test");
+    const before = runtime.snapshot(), fork = runtime.forkForNpc();
+    const summary = outcome === "knowledge" ? "You know Corvin keeps the royal accounts from your household duties."
+      : outcome === "reject" ? "The accounts are inaccessible." : "The accounts reveal an unpaid grain invoice.";
+    const question = outcome === "knowledge" ? "Would I know who keeps the royal accounts?" : "Investigate my house accounts to discover any discrepancies.";
+    const item = { id: "account_extract", name: "Account extract", details: "An unpaid grain invoice.", reason: "The aide investigated the house accounts." };
+    const call = (name: string, args: unknown): OpenRouterMessage => ({
+      role: "assistant", content: null, tool_calls: [{ id: name, type: "function", function: { name, arguments: JSON.stringify(args) } }],
+    });
+    let step = 0;
+    t.mock.method(OpenRouterClient.prototype, "complete", async (request: ChatCompletionRequest) => {
+      step++;
+      if (step === 1) return call("ask_the_game_master", { request: question });
+      if (step === 2) {
+        assert.equal(request.messages[0]?.content, GM_BASE_PROMPT);
+        assert.ok(JSON.stringify(request.messages).includes(question));
+        if (outcome === "reject" || outcome === "knowledge") return call("finish_review", { summary });
+        const state = request.messages.map(message => {
+          try { return JSON.parse(message.content || "{}"); } catch { return {}; }
+        }).find(value => value.world_state).world_state;
+        return call("update_inventory", { owner_id: "corvin", generation_id: state["inventory:corvin"].generation_id, add_items: [item] });
+      }
+      if (step === 3 && (outcome === "approve" || outcome === "fail")) {
+        if (outcome === "fail") throw new Error("GM unavailable");
+        return call("finish_review", { summary });
+      }
+      const result = JSON.parse(request.messages.find(message => message.role === "tool")!.content!);
+      assert.equal(result.summary, summary);
+      assert.deepEqual(result.addedItems, outcome === "approve" ? [{ id: item.id, name: item.name, details: item.details }] : []);
+      return modelReply({ utterance: summary, replyOptions: [], endConversation: false });
+    });
+    if (outcome === "fail") {
+      await assert.rejects(fork.talkToCharacter("corvin", "Investigate the accounts."), /GM unavailable/);
+      assert.deepEqual(fork.snapshot(), before, "Failed GM work never escapes its staging snapshot");
+    } else {
+      assert.equal(await fork.talkToCharacter("corvin", question), summary);
+      runtime.commitCharacterFork(before, fork, ["corvin"]);
+      const restored = new BrowserGameRuntime(conversationScenario(), "test", runtime.snapshot());
+      const scenario = fromJson(ScenarioSchema, restored.snapshot().scenario);
+      assert.equal(scenario.world!.objects.some(value => value.id === item.id), outcome === "approve");
+      assert.equal(restored.snapshot().conversations.corvin?.length, 2);
+    }
+  }
+});
 
 test("closed doors exclude nearby earshot listeners until opened", () => {
   const world = load().world!;
@@ -1329,6 +1377,11 @@ test("recent transcripts capture every main-game model stage and retain failed r
   await runtime.reviewNpcOutcome("corvin");
   const entries = runtime.recentTranscripts();
   assert.deepEqual(entries.map(entry => entry.kind), ["outcome_review", "jev", "conversation_review", "dialogue", "game_master"]);
+  for (const entry of entries.filter(entry => entry.kind !== "jev")) {
+    const messages = (entry.request as ChatCompletionRequest).messages;
+    assert.equal(messages.filter(message => message.content === GM_BASE_PROMPT).length, entry.kind === "dialogue" ? 0 : 1);
+    if (entry.kind !== "dialogue") assert.equal(messages[0]?.content, GM_BASE_PROMPT);
+  }
   assert.equal(entries[1]!.status, "error");
   assert.match(entries[1]!.error!, /redacted/);
   assert.equal((entries[1]!.request as any).model, "typesafe/jev-1.13");

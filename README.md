@@ -30,8 +30,14 @@ The DM sees the authoritative world and decides whether to keep, replace, or
 cancel a proposed task. Its `create_item` tool can place an inspectable prop in an
 existing container or character inventory; `cancel_task` clears a participant's
 goal and leaves them idle. This is general adjudication, not a document-specific
-workflow. NPCs can inspect item details, and the player's character sheet shows
-the details of carried items.
+workflow. During dialogue, characters can privately use `ask_the_game_master`
+to check what they know, whether a player's proposed premise fits the world,
+or whether they can accomplish work beyond the simulated mechanics—for example,
+investigating house accounts to reveal a fact. The GM immediately rules on the
+request, may update the character or add justified items, and returns a summary
+and item descriptions before the character replies. The GM can confirm, qualify,
+or reject a premise; a knowledge answer needs no inventory addition. NPCs can inspect item details, and
+the player's character sheet shows the details of carried items.
 
 Reconciliation uses a bounded tool loop and commits world additions and memories
 together only after final validation. Concurrent inventory/container changes
