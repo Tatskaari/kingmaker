@@ -34,9 +34,8 @@ export class GenerationStore {
   read(resources: Record<string, unknown>, keys = Object.keys(resources)): Record<string, VersionedState> {
     this.observe(resources);
     return Object.fromEntries(keys.map(key => {
-      // Remember absence too, so delete/recreate cannot reuse an old generation.
-      this.#entries[key] ??= { generationId: crypto.randomUUID(), fingerprint: "null" };
-      return [key, { generationId: this.#entries[key]!.generationId, state: structuredClone(resources[key] ?? null) }];
+      // Never-seen IDs share an absence token; observed deletions retain a fresh tombstone.
+      return [key, { generationId: this.#entries[key]?.generationId ?? "absent", state: structuredClone(resources[key] ?? null) }];
     }));
   }
 

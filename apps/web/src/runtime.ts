@@ -1,5 +1,5 @@
 import { RECONCILIATION_INSTRUCTIONS, reconciliationTools, applyReconciliationTool } from "./gm-reconciliation.js";
-import { GenerationConflict, GenerationStore, type Generations, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
+import { GenerationConflict, GenerationStore, generationIds, type Generations, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 import { stateResources } from "./state-resources.js";
 import { applyCharacterReview, type CharacterReview, type ReviewKind } from "./character-review.js";
 import { reviewWriteTools } from "./review-tools.js";
@@ -7,7 +7,7 @@ import { InvalidModelJsonError, parseModelObject } from "../../../packages/provi
 import { validateIdentity, type TravellerIdentity } from "./introduction.js";
 import { DIALOGUE_MODEL, REASONING_MODEL } from "./model-settings.js";
 import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
-import { courtAgentObservation } from "./court-agent.js";
+import { courtAgentObservation, actionResourceIds } from "./court-agent.js";
 import { courtCharactersWithinEarshot, dialogueEarshotPrompt, EARSHOT_DESCRIPTIONS, EARSHOT_DISTANCE } from "./earshot.js";
 import { COURT_INSTRUCTIONS } from "./court-instructions.js";
 import { JevClient, jevRequest } from "../../../packages/providers/src/jev.js";
@@ -293,6 +293,11 @@ export class BrowserGameRuntime {
 
   readResources(keys?: string[]) { return this.#generations.read(this.#resources(), keys); }
 
+  #guardPhysical(keys: string[], expected?: ExpectedGenerations) {
+    const supplied = expected ? Object.fromEntries(keys.map(key => [key, expected[key]!])) : generationIds(this.readResources(keys));
+    this.#generations.check(this.#resources(), supplied, keys);
+  }
+
   #setGame(game: MemoryGame) {
     this.readResources();
     this.#game = game;
@@ -509,9 +514,10 @@ export class BrowserGameRuntime {
     return result.summary;
   }
 
-  movePlayer(destination: Point): void {
+  movePlayer(destination: Point, expected?: ExpectedGenerations): void {
     const scenario = this.#game.scenario(), world = scenario.world;
     if (world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter the court before walking around.");
+    this.#guardPhysical(["world:context", `actor:${scenario.playerCharacterId}`, ...world.doors.map(door => `door:${door.id}`)], expected);
     const player = scenario.characters.find(character => character.id === scenario.playerCharacterId);
     const actor = world.actors.find(actor => actor.characterId === player?.id);
     if (!player || !actor) throw new Error("Player is missing from the palace.");
@@ -525,7 +531,7 @@ export class BrowserGameRuntime {
     this.#setGame(new MemoryGame(scenario));
   }
 
-  async planNpc(characterId: string, signal: AbortSignal) {
+  async planNpc(characterId: string, signal: AbortSignal, previousWriteConflict?: { error: string; instruction: string }) {
     const scenario = this.#game.scenario();
     if (scenario.world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter court before running Jev.");
     if (this.#conversations.get(characterId)?.length) throw new Error("Finish this character's conversation review first.");
@@ -541,10 +547,14 @@ export class BrowserGameRuntime {
     const criteria = { ...Object.fromEntries(observation.actions.map(action => [action.id, `${action.description}${action.legality === "illegal" ? " This is illegal for this character." : ""}`])),
       complete: "The whole immediate goal is achieved, or you are already at the requested place and waiting as requested.",
       unable: "No available action can make progress, or essential clarification is needed." };
-    const state = { ...observation, actions: observation.actions.map(({ path, ...action }) => action), recentEvents: activity.history };
+    const keys = [...new Set([...actionResourceIds(scenario, characterId), ...observation.actions.flatMap(action => actionResourceIds(scenario, characterId, action))])];
+    const generations = generationIds(this.readResources(keys));
+    const state = { ...observation, generations, previousWriteConflict, actions: observation.actions.map(({ path, ...action }) => action), recentEvents: activity.history };
     const instructions = { ...COURT_INSTRUCTIONS, legality: "Actions are mechanically possible. Those marked illegal violate ownership or room access; weigh them against your character's intentions. Waiting in a room is satisfied by being there. Use offered talk actions to initiate a conversation with the player or make requests of other NPCs. You cannot force agreement or speak for the player." };
     const decision = await this.#modelTranscripts.record("jev", characterId, jevRequest(state, instructions, criteria), () => this.#jev.choose(state, instructions, criteria, signal));
-    return { decision, revision: observation.revision, goal: observation.goal, action: observation.actions.find(action => action.id === decision.choice), observation };
+    const action = observation.actions.find(action => action.id === decision.choice);
+    return { decision, revision: observation.revision, goal: observation.goal, action, observation,
+      generations: Object.fromEntries(actionResourceIds(scenario, characterId, action).map(key => [key, generations[key]!])) };
   }
 
   /** Model work happens on a snapshot; only a validated merge touches the live game. */
@@ -570,7 +580,8 @@ export class BrowserGameRuntime {
     const affected = new Set([...characterIds, ...next.events.slice(base.events.length).flatMap(event =>
       event.visibility === EventVisibility.PUBLIC ? current.characters.map(c => c.id) : event.characterIds)]);
     const required = ["world:context", ...[...affected].map(id => `character:${id}`), ...characterIds.flatMap(id => [`actor:${id}`, `inventory:${id}`]), ...changed, ...fork.#reviewGuards];
-    if (expected) this.#generations.check(this.#resources(), expected, required);
+    expected ??= Object.fromEntries(required.map(key => [key, before.generations?.[key]?.generationId ?? "absent"]));
+    this.#generations.check(this.#resources(), expected, required);
     if (!current.world || !base.world || !next.world || current.world.phase !== base.world.phase) throw new Error("World changed; retry NPC review.");
     if (requireUnchangedConversations && !same(this.snapshot().conversations, before.conversations)) throw new Error("Conversation changed; retry NPC review.");
     for (const id of characterIds) {
@@ -581,7 +592,6 @@ export class BrowserGameRuntime {
         || !same(this.snapshot().conversations[id], before.conversations[id])) throw new Error("Character changed; retry NPC review.");
     }
     const objectsChanged = !same(base.world.objects, next.world.objects);
-    if (objectsChanged && !expected && (!same(current.world.objects, base.world.objects) || !same(current.world.fixtures, base.world.fixtures))) throw new Error("World changed; retry GM reconciliation.");
     if (objectsChanged) {
       const changedIds = new Set([...base.world.objects, ...next.world.objects].map(item => item.id).filter(id =>
         !same(base.world!.objects.find(item => item.id === id), next.world!.objects.find(item => item.id === id))));
@@ -708,16 +718,18 @@ export class BrowserGameRuntime {
     throw new Error("Review reconciliation limit reached; no changes were saved. Retry the review.");
   }
 
-  stepNpcAction(characterId: string, actionId: string, goal: string): { done: boolean; talkTarget?: string; witnessedAction?: WitnessedIllegalAction } {
+  stepNpcAction(characterId: string, actionId: string, goal: string, expected?: ExpectedGenerations): { done: boolean; talkTarget?: string; witnessedAction?: WitnessedIllegalAction; generations: ExpectedGenerations } {
     const scenario = this.#game.scenario(), activity = this.#npcActivities[characterId];
     if (activity?.status !== "active" || activity.reviewPending || this.#conversations.get(characterId)?.length) throw new Error("NPC paused for conversation.");
     const observation = courtAgentObservation(scenario, characterId);
     const action = observation.actions.find(item => item.id === actionId);
+    const keys = actionResourceIds(scenario, characterId, action);
+    if (expected) this.#generations.check(this.#resources(), expected, keys);
     if (observation.goal !== goal || !action) throw new Error("Action changed; replan.");
     if (action.path.length <= 2 && action.type !== "talk") {
       const witnessedAction = action.type === "fixture" ? this.#witnessedIllegalAction(scenario, characterId, action.id) : undefined;
       this.executeNpcAction(characterId, actionId, observation.revision, goal);
-      return { done: true, ...(witnessedAction ? { witnessedAction } : {}) };
+      return { done: true, generations: generationIds(this.readResources(keys)), ...(witnessedAction ? { witnessedAction } : {}) };
     }
     const next = action.path[1];
     if (next) {
@@ -725,7 +737,8 @@ export class BrowserGameRuntime {
       actor.position = create(TilePositionSchema, next); actor.roomId = courtRoomAt(next)?.id ?? actor.roomId;
       scenario.world!.revision++; this.#setGame(new MemoryGame(scenario));
     }
-    return action.type === "talk" && action.path.length <= 2 ? { done: true, talkTarget: action.target } : { done: false };
+    return { ...(action.type === "talk" && action.path.length <= 2 ? { done: true, talkTarget: action.target } : { done: false }),
+      generations: generationIds(this.readResources(keys)) };
   }
 
   executeNpcAction(characterId: string, actionId: string, revision: number, goal: string): string {
@@ -898,11 +911,14 @@ export class BrowserGameRuntime {
     this.#setGame(new MemoryGame(current));
   }
 
-  interactFixture(actionId: string): string {
+  interactFixture(actionId: string, expected?: ExpectedGenerations): string {
     const scenario = this.#game.scenario(), world = scenario.world;
     if (world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter court before interacting with furniture.");
     const actorId = scenario.playerCharacterId!;
     const action = fixtureActions(scenario, actorId).find(item => item.id === actionId);
+    this.#guardPhysical(["world:context", `actor:${actorId}`, `inventory:${actorId}`,
+      ...(action && action.target !== actorId ? [`fixture:${action.target}`, `inventory:${action.target}`] : []),
+      ...(action?.itemId ? [`item:${action.itemId}`] : [])], expected);
     const fixture = world.fixtures.find(item => item.id === action?.target);
     const position = world.actors.find(actor => actor.characterId === actorId)?.position;
     if (action?.target === actorId && action.itemId) {
@@ -960,18 +976,19 @@ export class BrowserGameRuntime {
     this.#game = new MemoryGame(before);
   }
 
-  async interactFixtureWithWitnesses(actionId: string): Promise<string> {
+  async interactFixtureWithWitnesses(actionId: string, expected?: ExpectedGenerations): Promise<string> {
     const before = this.#game.scenario();
     const actorId = before.playerCharacterId!;
     const witnessedAction = this.#witnessedIllegalAction(before, actorId, actionId);
-    const result = this.interactFixture(actionId);
+    const result = this.interactFixture(actionId, expected);
     if (witnessedAction) await this.reviewWitnessedIllegalAction(witnessedAction);
     return result;
   }
 
-  setDoor(id: string, open: boolean): void {
+  setDoor(id: string, open: boolean, expected?: ExpectedGenerations): void {
     const scenario = this.#game.scenario(), world = scenario.world;
     if (world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter the court before using doors.");
+    this.#guardPhysical(["world:context", `actor:${scenario.playerCharacterId}`, `door:${id}`, `doorway:${id}`], expected);
     const door = world.doors.find(door => door.id === id);
     const player = world.actors.find(actor => actor.characterId === scenario.playerCharacterId);
     if (!door || door.open === open || !player?.position || !door.interactionSpots.some(spot => spot.x === player.position!.x && spot.y === player.position!.y)) {
@@ -991,6 +1008,10 @@ export class BrowserGameRuntime {
       playerMessages: scenario.events.filter(event => event.type === "player_message" && event.characterIds.includes(scenario.playerCharacterId ?? ""))
         .map(({ id, day, summary }) => ({ id, day, message: summary })),
       revision: world?.revision ?? 0,
+      generations: generationIds(this.readResources(["world:context", `actor:${scenario.playerCharacterId}`, `inventory:${scenario.playerCharacterId}`,
+        ...(world?.doors.flatMap(door => [`door:${door.id}`, `doorway:${door.id}`]) ?? []),
+        ...(world?.fixtures.flatMap(fixture => [`fixture:${fixture.id}`, `inventory:${fixture.id}`]) ?? []),
+        ...(world ? worldForCharacter(world, scenario.playerCharacterId ?? "").objects.map(item => `item:${item.id}`) : [])])),
       npcActivities: Object.fromEntries(scenario.characters.filter(item => item.id !== scenario.playerCharacterId).map(item => [item.id, this.#npcActivities[item.id] ?? { status: "idle", goal: item.currentGoal, history: [] }])),
       travellerIdentity: this.#travellerIdentity ?? null,
       playerDraft: this.#playerDraft,

@@ -1532,7 +1532,7 @@ test("background character updates reject stale goals and do not overwrite newer
   await fork.talkToCharacter("corvin", "First request");
   await runtime.talkToCharacter("corvin", "Newer request");
   const latest = runtime.snapshot();
-  assert.throws(() => runtime.commitCharacterFork(before, fork, ["corvin"]), /Character changed/);
+  assert.throws(() => runtime.commitCharacterFork(before, fork, ["corvin"]), /changed/);
   assert.deepEqual(runtime.snapshot(), latest);
 });
 
@@ -1801,7 +1801,7 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
       await assert.rejects(request(type, { characterId: "corvin", message: "Again" }), /still reviewing/);
     }
     const destination = { x: 15, y: 24 };
-    await request("move_player", destination);
+    await request("move_player", { ...destination, generations: (await request("state")).state.generations });
     await request("talk", { characterId: "mara", message: "Hello." });
     release();
     const result = await review;
@@ -2010,7 +2010,7 @@ test("DM additions roll back on malformed final memory and bounded tool exhausti
   assert.deepEqual(runtime.snapshot(), before);
 });
 
-test("GM world additions merge with player movement but reject concurrent inventory changes atomically", async t => {
+test("GM world additions preserve unrelated player movement and inventory changes", async t => {
   const { runtime } = talkingCourt();
   runtime.finishNpcRun("corvin", "unable", "A token is missing.");
   const before = runtime.snapshot(), fork = runtime.forkForNpc();
@@ -2026,9 +2026,10 @@ test("GM world additions merge with player movement but reject concurrent invent
   runtime.movePlayer({ x: 20, y: 21 });
   runtime.interactFixture("open_palace_hall_cabinet");
   runtime.interactFixture("take_palace_iron_key");
-  const changed = runtime.snapshot();
-  assert.throws(() => runtime.commitCharacterFork(before, fork, ["corvin"]), /World changed/);
-  assert.deepEqual(runtime.snapshot(), changed);
+  runtime.commitCharacterFork(before, fork, ["corvin"]);
+  const changed = fromJson(ScenarioSchema, runtime.snapshot().scenario);
+  assert.equal(changed.world!.objects.find(item => item.id === "palace_iron_key")?.locationId, "player");
+  assert.equal(changed.world!.objects.find(item => item.id === "envoy_token")?.locationId, "corvin");
 });
 
 test("DM tools validate destinations, unique IDs, and participant scope before mutation", async () => {

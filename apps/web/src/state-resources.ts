@@ -23,7 +23,10 @@ export function stateResources(scenario: Scenario, activities: Record<string, un
     resources[`item:${item.id}`] = item;
     resources[`entity:${item.id}`] = "item";
   }
-  for (const door of world?.doors ?? []) resources[`door:${door.id}`] = door;
+  for (const door of world?.doors ?? []) {
+    resources[`door:${door.id}`] = door;
+    resources[`doorway:${door.id}`] = world!.actors.filter(actor => actor.position && door.tiles.some(tile => tile.x === actor.position!.x && tile.y === actor.position!.y));
+  }
   for (const room of world?.rooms ?? []) resources[`entity:${room.id}`] = "room";
   return resources;
 }

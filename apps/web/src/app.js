@@ -73,6 +73,7 @@ gameWorker.addEventListener("message", event => {
 });
 
 function rpc(type, payload = {}) {
+  if (["move_player", "set_door", "interact_fixture"].includes(type)) payload = { ...payload, generations: state.generations };
   if (gameReplacementRequests.has(type)) { conversationReviews.clear(); stopNpcGoal(); }
   const id = ++requestSequence;
   gameWorker.postMessage({ id, type, payload });

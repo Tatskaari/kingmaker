@@ -11,6 +11,19 @@ export interface CourtAgentAction {
   description: string; path: Point[]; interactionRoomId?: string; open?: boolean; legality?: "normal" | "illegal";
 }
 
+export function actionResourceIds(scenario: Scenario, characterId: string, action?: CourtAgentAction): string[] {
+  const keys = ["world:context", `character:${characterId}`, `actor:${characterId}`, `inventory:${characterId}`,
+    ...(scenario.world?.doors.map(door => `door:${door.id}`) ?? [])];
+  if (action?.type === "talk") keys.push(`character:${action.target}`, `actor:${action.target}`);
+  if (action?.type === "door") keys.push(`doorway:${action.target}`);
+  if (action?.type === "fixture") {
+    const fixtureAction = fixtureActions(scenario, characterId).find(item => item.id === action.id);
+    if (action.target !== characterId) keys.push(`fixture:${action.target}`, `inventory:${action.target}`);
+    if (fixtureAction?.itemId) keys.push(`item:${fixtureAction.itemId}`);
+  }
+  return [...new Set(keys)];
+}
+
 export function courtAgentObservation(scenario: Scenario, characterId: string) {
   const character = scenario.characters.find(item => item.id === characterId);
   const world = scenario.world, actor = world?.actors.find(item => item.characterId === characterId);

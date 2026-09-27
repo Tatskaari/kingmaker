@@ -5,6 +5,7 @@ import { type TravellerIdentity } from "./introduction.js";
 import { fromJsonString, type JsonValue } from "@bufbuild/protobuf";
 import { ScenarioSchema, type Scenario } from "../../../packages/contracts/src/index.js";
 import { BrowserGameRuntime, type RuntimeSnapshot, type WitnessedIllegalAction } from "./runtime.js";
+import { GenerationConflict, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 
 interface SaveRecord {
   id: string;
@@ -93,9 +94,11 @@ async function drainBackground() {
       if (game.snapshot().npcActivities?.[id]?.reviewPending) await reviewBackground(game, id, signal, round < 2);
       if (game.snapshot().npcActivities?.[id]?.status !== "active") break;
       let reason: "complete" | "unable" | "limit" = "limit", detail = "Reached the 24-action limit.";
+      let conflict: { error: string; instruction: string } | undefined;
       for (let step = 0; step < 24 && valid(); step++) {
         publishNpc(`${id}: choosing an action…`);
-        const plan = await game.planNpc(id, signal);
+        const plan = await game.planNpc(id, signal, conflict);
+        conflict = undefined;
         if (!valid()) return;
         publishNpc(`${id}: ${plan.action?.description ?? plan.decision.choice}`, plan);
         if (plan.decision.choice === "complete" || plan.decision.choice === "unable") {
@@ -104,10 +107,12 @@ async function drainBackground() {
           reason = plan.decision.choice; detail = JSON.stringify(plan.decision); break;
         }
         if (!plan.action) throw new Error("Jev returned an unavailable action.");
-        let result: { done: boolean; talkTarget?: string; witnessedAction?: WitnessedIllegalAction } | undefined;
+        let expected = plan.generations;
+        let result: { done: boolean; talkTarget?: string; witnessedAction?: WitnessedIllegalAction; generations: ExpectedGenerations } | undefined;
         try {
           while (valid()) {
-            result = await commitMutation(game, () => { signal.throwIfAborted(); return game.stepNpcAction(id, plan.action!.id, plan.goal); });
+            result = await commitMutation(game, () => { signal.throwIfAborted(); return game.stepNpcAction(id, plan.action!.id, plan.goal, expected); });
+            expected = result.generations;
             if (!valid()) return;
             publishNpc(`${id}: ${plan.action.description}`);
             if (result.done) break;
@@ -115,6 +120,10 @@ async function drainBackground() {
           }
         } catch (error) {
           if (!valid()) return;
+          if (error instanceof GenerationConflict) {
+            conflict = { error: error.response.error, instruction: "The previous action was not applied because its generation IDs changed. Inspect this fresh observation, reconcile your intention, and choose an action again." };
+            continue;
+          }
           // Doors, targets or goals may have changed while the player acted. Replan.
           if (/replan|changed|doorway/i.test(String(error))) continue;
           throw error;
@@ -256,6 +265,8 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     generation++; stopBackground(); conversationHolds.clear();
   }
   const reviewKey = `${generation}:${String(payload.characterId || "")}`;
+  if (["move_player", "set_door", "interact_fixture"].includes(type)
+    && (!payload.generations || typeof payload.generations !== "object" || Array.isArray(payload.generations))) throw new Error("Expected generation IDs are required for physical updates.");
   if (["start_npc", "pause_npc", "talk", "end_conversation"].includes(type) && conversationReviews.has(reviewKey)) {
     throw new Error("This character is still reviewing the conversation. Try again when the review finishes.");
   }
@@ -317,7 +328,7 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     try {
       if (type === "reset_world") game.resetWorld();
       else if (type === "reset_characters") game.resetCharacters();
-      else message = await game.interactFixtureWithWitnesses(String(payload.actionId || ""));
+      else message = await game.interactFixtureWithWitnesses(String(payload.actionId || ""), payload.generations as ExpectedGenerations | undefined);
       await persist();
     } catch (error) { game.restore(before); activeSave = savedBefore; throw error; }
     if (type === "interact_fixture") for (const listener of game.rumourListenersSince(before)) startBackground(listener);
@@ -326,13 +337,13 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
   if (type === "set_door") {
     if (typeof payload.open !== "boolean") throw new Error("Door state must be open or closed.");
     const game = requireRuntime(), before = structuredClone(game.snapshot());
-    try { game.setDoor(String(payload.id), payload.open); await persist(); }
+    try { game.setDoor(String(payload.id), payload.open, payload.generations as ExpectedGenerations | undefined); await persist(); }
     catch (error) { game.restore(before); throw error; }
     return { state: game.view(), saves: await listSaves() };
   }
   if (type === "move_player") {
     const game = requireRuntime(), before = structuredClone(game.snapshot());
-    try { game.movePlayer({ x: Number(payload.x), y: Number(payload.y) }); await persist(); }
+    try { game.movePlayer({ x: Number(payload.x), y: Number(payload.y) }, payload.generations as ExpectedGenerations | undefined); await persist(); }
     catch (error) { game.restore(before); throw error; }
     return { state: game.view(), saves: await listSaves() };
   }

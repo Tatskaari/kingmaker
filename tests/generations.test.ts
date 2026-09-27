@@ -5,6 +5,7 @@ import { create, fromJson, fromJsonString, toJson } from "@bufbuild/protobuf";
 import { ObjectStateSchema, ScenarioSchema } from "../packages/contracts/src/index.js";
 import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
+import { actionResourceIds, courtAgentObservation } from "../apps/web/src/court-agent.js";
 import { GenerationConflict, GenerationStore, generationIds } from "../packages/core/src/generations.js";
 
 test("generations isolate resources, survive saves, and detect ABA and deletion", () => {
@@ -127,5 +128,38 @@ test("plain final JSON cannot bypass the generation-aware write tool", async t =
   t.mock.method(OpenRouterClient.prototype, "complete", async () => reply(memory));
   await fork.endConversation("corvin");
   await assert.rejects(game.publishReviewedFork(before, fork, async () => { assert.fail("Must not commit plain JSON"); }), /reconciliation limit/);
+  assert.deepEqual(game.snapshot(), before);
+});
+
+test("stale physical actions reject inventory ABA before movement or item use", () => {
+  const game = runtime(), setup = game.snapshot();
+  setup.npcActivities = { corvin: { status: "active", goal: "Inspect my note.", history: [] } };
+  const scenario = fromJson(ScenarioSchema, setup.scenario);
+  scenario.characters.find(c => c.id === "corvin")!.currentGoal = "Inspect my note.";
+  scenario.world!.objects.push(create(ObjectStateSchema, { id: "note", name: "Note", locationId: "corvin" }));
+  setup.scenario = toJson(ScenarioSchema, scenario); game.restore(setup);
+  const action = courtAgentObservation(scenario, "corvin").actions.find(item => item.id === "inspect_item_note")!;
+  const expected = generationIds(game.readResources(actionResourceIds(scenario, "corvin", action)));
+  const intervening = game.snapshot(), moved = fromJson(ScenarioSchema, intervening.scenario);
+  moved.world!.objects.find(item => item.id === "note")!.locationId = "mara";
+  intervening.scenario = toJson(ScenarioSchema, moved); game.restore(intervening);
+  const returned = game.snapshot(); // Preserve the generation of the intervening move.
+  returned.scenario = setup.scenario; game.restore(returned);
+  const before = game.snapshot();
+  assert.throws(() => game.stepNpcAction("corvin", action.id, "Inspect my note.", expected), GenerationConflict);
+  assert.deepEqual(game.snapshot(), before);
+  const fresh = generationIds(game.readResources(actionResourceIds(scenario, "corvin", action)));
+  assert.equal(game.stepNpcAction("corvin", action.id, "Inspect my note.", fresh).done, true);
+});
+
+test("player physical commands reject stale views without disclosing concealed item IDs", () => {
+  const game = runtime(), view = game.view();
+  const original = game.snapshot(), scenario = fromJson(ScenarioSchema, original.scenario);
+  const hidden = scenario.world!.objects.find(item => item.concealed && !scenario.world!.fixtures.find(f => f.id === item.locationId)?.open)!;
+  assert.ok(hidden);
+  assert.equal(Object.hasOwn(view.generations as object, `item:${hidden.id}`), false);
+  game.movePlayer({ x: 15, y: 24 });
+  const before = game.snapshot();
+  assert.throws(() => game.movePlayer({ x: 15, y: 25 }, view.generations as Record<string, string>), GenerationConflict);
   assert.deepEqual(game.snapshot(), before);
 });
