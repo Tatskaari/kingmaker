@@ -2,6 +2,8 @@
 
 Use the official GitHub Stacks CLI extension for related pull requests. Keep each layer independently reviewable and make every branch target the branch directly below it.
 
+Treat requests to implement, change, or fix repository code as requests to complete the delivery workflow: make the change, commit it, push it, and open or update the pull request unless the user explicitly asks for local-only work or no PR. Use one layer for a small cohesive change. For sizeable work, split the review into the smallest coherent stack layers practical, aiming for roughly 100–200 changed lines per PR while preserving buildable, independently reviewable layers.
+
 ## Worktrees
 
 Perform implementation work in a dedicated Git worktree for the task, not in the shared primary checkout. Create or use the task's worktree before editing files or switching implementation branches. Run stack commands, commits, and checks from that worktree. Leave unrelated worktrees and their changes untouched.
