@@ -1,5 +1,6 @@
 import { applyFixtureAction, fixtureActions } from "../packages/core/src/fixtures.js";
 import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
+import { GM_BASE_PROMPT } from "../apps/web/src/gm-prompt.js";
 import { AlertLog } from "../apps/web/src/alerts.js";
 import { courtAgentObservation } from "../apps/web/src/court-agent.js";
 import { doorActionLegality } from "../packages/core/src/access.js";
@@ -521,6 +522,7 @@ test("GM action and knowledge rulings reach dialogue immediately and publish wit
       step++;
       if (step === 1) return call("ask_the_game_master", { request: question });
       if (step === 2) {
+        assert.equal(request.messages[0]?.content, GM_BASE_PROMPT);
         assert.ok(JSON.stringify(request.messages).includes(question));
         if (outcome === "reject" || outcome === "knowledge") return call("finish_review", { summary });
         const state = request.messages.map(message => {
@@ -1361,6 +1363,11 @@ test("recent transcripts capture every main-game model stage and retain failed r
   await runtime.reviewNpcOutcome("corvin");
   const entries = runtime.recentTranscripts();
   assert.deepEqual(entries.map(entry => entry.kind), ["outcome_review", "jev", "conversation_review", "dialogue", "game_master"]);
+  for (const entry of entries.filter(entry => entry.kind !== "jev")) {
+    const messages = (entry.request as ChatCompletionRequest).messages;
+    assert.equal(messages.filter(message => message.content === GM_BASE_PROMPT).length, entry.kind === "dialogue" ? 0 : 1);
+    if (entry.kind !== "dialogue") assert.equal(messages[0]?.content, GM_BASE_PROMPT);
+  }
   assert.equal(entries[1]!.status, "error");
   assert.match(entries[1]!.error!, /redacted/);
   assert.equal((entries[1]!.request as any).model, "typesafe/jev-1.13");
