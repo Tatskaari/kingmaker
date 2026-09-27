@@ -113,7 +113,7 @@ async function runBackground(next: { id: string; handoffs: number }) {
     for (let round = 0; round < 3 && valid(); round++) {
       if (game.snapshot().npcActivities?.[id]?.reviewPending) await reviewBackground(game, id, signal, true);
       if (game.snapshot().npcActivities?.[id]?.status !== "active") break;
-      let reason: "complete" | "unable" | "limit" = "limit", detail = "Reached the 24-action limit.";
+      let reason: "complete" | "unable" | "wait" | "limit" = "limit", detail = "Reached the 24-action limit.";
       let finishGenerations: ExpectedGenerations | undefined;
       let conflict: { error: string; instruction: string } | undefined;
       for (let step = 0; step < 24 && valid(); step++) {
@@ -122,7 +122,7 @@ async function runBackground(next: { id: string; handoffs: number }) {
         conflict = undefined;
         if (!valid()) return;
         publishNpc(`${id}: ${plan.action?.description ?? plan.decision.choice}`, plan);
-        if (plan.decision.choice === "complete" || plan.decision.choice === "unable") {
+        if (plan.decision.choice === "complete" || plan.decision.choice === "unable" || plan.decision.choice === "wait") {
           // A changed world invalidates a terminal judgment as well as a physical action.
           reason = plan.decision.choice; detail = JSON.stringify(plan.decision); finishGenerations = plan.generations; break;
         }

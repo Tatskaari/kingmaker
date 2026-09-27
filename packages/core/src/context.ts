@@ -34,7 +34,7 @@ export function characterDecisionContext(scenario: Scenario, characterId: string
     character: {
       id: character.id, name: character.name, gender: character.gender, delegation: character.delegation, lore: character.lore,
       relationships: character.relationships.map(({ characterId, description }) => ({ characterId, description })),
-      objectives: [...character.objectives],
+      parkedObjectives: character.parkedObjectives,
       activeObjective: character.activeObjective,
       currentGoal: goal,
     },
@@ -87,7 +87,7 @@ export class FullContextBuilder implements DialogueContextBuilder {
       { role: "system", content: `# Scenario premise\n${scenario.premise}` },
       {
         role: "system",
-        content: `# Character\n${character.name} (${character.id})\n\n${character.lore}\n\n# Identity\nGender: ${character.gender || "Not recorded"}\nDelegation: ${character.delegation || "Not recorded"}\n\n# Long-term objectives\n${character.objectives.map(objective => `- ${objective}`).join("\n") || "None recorded."}\nThese ambitions inform your dialogue and intentions; they are not immediate action-planner tasks.\n\n# Current goal\n${character.currentGoal || "No goal yet."}\n\n${IMMEDIATE_GOAL_GUIDANCE}`,
+        content: `# Character\n${character.name} (${character.id})\n\n${character.lore}\n\n# Identity\nGender: ${character.gender || "Not recorded"}\nDelegation: ${character.delegation || "Not recorded"}\n\n# Parked objectives\n${character.parkedObjectives.map(objective => `- ${objective.name}: ${objective.status} Success criteria: ${objective.successCriteria}`).join("\n") || "None recorded."}\nThese retained undertakings inform dialogue and intentions, but their goals are not action-planner tasks unless reactivated.\n\n# Current goal\n${character.currentGoal || "No goal yet."}\n\n${IMMEDIATE_GOAL_GUIDANCE}`,
       },
       ...(character.activeObjective ? [{ role: "system" as const, content: `# Active objective\n${JSON.stringify(character.activeObjective)}\nThe current goal is one step toward this objective, not the entire undertaking.` }] : []),
       { role: "system", content: `# Relationships\n${relationships}${visitor}` },
@@ -117,7 +117,7 @@ export class FullGameMasterContextBuilder implements GameMasterContextBuilder {
       id: character.id,
       name: character.name,
       lore: character.lore,
-      objectives: character.objectives,
+      parkedObjectives: character.parkedObjectives,
       activeObjective: character.activeObjective,
       currentGoal: character.currentGoal,
       relationships: character.relationships,

@@ -79,13 +79,16 @@ message Character {
   string lore = 3;
   repeated Relationship relationships = 4;
   string current_goal = 5;
-  // Long-term ambitions that inform dialogue and immediate intent.
+  // Legacy long-term ambition names. Loaded saves migrate these into
+  // parked_objectives; new state leaves this empty.
   repeated string objectives = 6;
   string gender = 7;
   optional uint32 sprite = 8;
   string delegation = 9;
   // The durable undertaking pursued across immediate goals; absent means none.
   ActiveObjective active_objective = 10;
+  // Inactive undertakings retain their last known plan and definition of done.
+  repeated ActiveObjective parked_objectives = 11;
 }
 
 message ActiveObjective {

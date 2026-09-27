@@ -1,11 +1,50 @@
 import { create } from "@bufbuild/protobuf";
-import { ActiveObjectiveSchema, type Character } from "../../../packages/contracts/src/index.js";
+import { ActiveObjectiveSchema, type Character, type Scenario } from "../../../packages/contracts/src/index.js";
+
+const INITIAL_GREETING = "Remain in the Great Hall and greet the visiting player. Be available for conversation.";
+
+/** Upgrade authored/old-save NPC goals so the planner never runs detached work. */
+export function ensureNpcActiveObjectives(scenario: Scenario): void {
+  for (const character of scenario.characters) {
+    for (const name of character.objectives) character.parkedObjectives.push(create(ActiveObjectiveSchema, {
+      name,
+      status: "This enduring ambition is parked. No current execution plan has been adopted.",
+      successCriteria: name,
+      currentGoal: "",
+    }));
+    character.objectives = [];
+    if (character.id === scenario.playerCharacterId || character.activeObjective || !character.currentGoal.trim()) continue;
+    const greeting = character.currentGoal === INITIAL_GREETING;
+    character.activeObjective = create(ActiveObjectiveSchema, {
+      name: greeting ? "Welcome the visiting player" : character.currentGoal.split(".")[0]!,
+      status: greeting
+        ? "The visiting player is expected in the Great Hall. I should remain there, greet them when they arrive, and stay available for conversation."
+        : "No progress has been recorded yet. I should begin with: " + character.currentGoal,
+      successCriteria: greeting
+        ? "I have greeted the visiting player and remain available if they want to speak."
+        : "The task described by this objective has been completed in the world, not merely promised.",
+      currentGoal: character.currentGoal,
+    });
+  }
+}
+
+export function activateReactionObjective(character: Character, evidence: string, goal: string): void {
+  character.activeObjective = create(ActiveObjectiveSchema, {
+    name: goal.split(".")[0]!,
+    status: "I learned or observed: " + evidence + " I have not acted on it yet. My next step is: " + goal,
+    successCriteria: "I have completed the concrete response described by the current goal, or learned enough to revise, demote or drop this objective.",
+    currentGoal: goal,
+  });
+  character.parkedObjectives = character.parkedObjectives.filter(item => item.name !== character.activeObjective!.name);
+  character.currentGoal = goal;
+}
 
 export const ACTIVE_OBJECTIVE_GUIDANCE = [
-  "An active objective has name (the full undertaking), status (current work, known facts, progress, obstacles and remaining execution plan), success_criteria (observable evidence of success), and current_goal (one concrete action-planner task). Other objectives are non-active ambitions.",
+  "An active objective has name (the full undertaking), status (current work, known facts, progress, obstacles and remaining execution plan), success_criteria (observable evidence of success), and current_goal (one concrete action-planner task). Parked objectives retain the same fields but are non-active; their current_goal records the last planned step and is not executed while parked.",
   "On accepting an undertaking (from a conversation, or something you overheard etc.), set an active objective and success criteria. Use the status to track progress, and use the current goal to set the next action you'd like the character to take in the world. This will be used by the action planner. After each goal completion or event, update status from actual events and set the next feasible goal toward the same success criteria. Completing a step or receiving a promise is not completing the objective.",
   "Prioritize the active objective and recent relevant events, while respecting urgency, agency and existing commitments. Keep facts distinct from claims and promises. Plans must use supported mechanics; never invent fulfilled success criteria.",
   "When progress fails, explicitly consider demote (retain as non-active), drop (abandon), or set (revise to an achievable compromise). Record the reason. Do not loop on a failed goal without a concrete change. A busy person or an execution-budget pause is not proof the objective is impossible.",
+  "Waiting for another character to act is not an executable current goal. If the next progress depends entirely on another character initiating a conversation, arriving, deciding, or completing their own work, demote this objective while blocked. The waiting character should become idle and available for other work. When the awaited character later initiates the relevant conversation or event, use that new evidence to set the objective active again with a concrete next action.",
   "If progress towards an objective becomes impossible, it can be demoted to a normal objective. This can be brought up in conversation e.g. with the player who may be able to help the character out.",
   "Use changes.active_objective to set/update the four fields together, or demote/drop/complete it. complete requires evidence that the success criteria have actually been met. While active, always provide a useful current_goal. If none is feasible, demote, drop or revise instead of silently forgetting the objective.",
   `Example of a well-formed active objective:
@@ -32,13 +71,13 @@ export function applyObjectiveChange(character: Character, value: unknown): stri
       successCriteria: text("success_criteria"), currentGoal: text("current_goal") });
     character.activeObjective = objective;
     character.currentGoal = objective.currentGoal;
-    character.objectives = character.objectives.filter(item => item !== objective.name);
+    character.parkedObjectives = character.parkedObjectives.filter(item => item.name !== objective.name);
   } else {
     if (!["demote", "drop", "complete"].includes(action)) throw new Error("Unknown objective action.");
     if (!character.activeObjective) throw new Error("There is no active objective to transition.");
     const previous = character.activeObjective;
-    character.objectives = character.objectives.filter(item => item !== previous.name);
-    if (action === "demote") character.objectives.push(previous.name);
+    character.parkedObjectives = character.parkedObjectives.filter(item => item.name !== previous.name);
+    if (action === "demote") character.parkedObjectives.push(create(ActiveObjectiveSchema, previous));
     delete character.activeObjective;
     character.currentGoal = "";
   }

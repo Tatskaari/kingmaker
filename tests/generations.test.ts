@@ -211,7 +211,9 @@ test("direct court GM writes return conflicts; creation writes need no generatio
       const tool = request.tools.find((tool: any) => tool.function.name === "update_character");
       assert.equal(tool.function.parameters.required.includes("generations"), !creation);
       if (calls === 1 || (!creation && calls === 2)) {
-        const args: any = { characterId: "corvin", lore: "Reconciled biography.", currentGoal: "" };
+        const args: any = { characterId: "corvin", lore: "Reconciled biography.", activeObjective: {
+          action: "drop", reason: "The GM explicitly cancelled the greeting objective.",
+        } };
         if (calls === 2) {
           const result = JSON.parse(request.messages.at(-1).content);
           assert.equal(result.error, "missing_generation_ids");

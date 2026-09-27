@@ -142,8 +142,11 @@ function updateNpcPanel() {
       const review = conversationReviews.get(id);
       if (review) return `<li><div class="npc-goal-content"><div class="npc-goal-heading">${escapeHtml(character?.name || id)}<span class="npc-activity-state">${review.error ? "Review failed" : "Remembering conversation"}</span></div><p>${escapeHtml(review.error || "Their memories and next goal are being reviewed.")}</p></div>${review.error ? `<button data-retry-conversation="${escapeHtml(id)}">Retry review</button>` : ""}</li>`;
       const talking = !!state.conversations?.[id]?.length && closedConversation?.id !== id;
-      const status = talking ? "In conversation" : activity.reviewPending ? (running ? "Reviewing outcome" : "Awaiting review") : running ? "Acting" : "Has a goal";
-      return `<li><div class="npc-goal-content"><div class="npc-goal-heading"><button class="npc-goal-name" data-npc-debug="${escapeHtml(id)}" aria-label="Debug ${escapeHtml(character?.name || id)}">${escapeHtml(character?.name || id)}</button><span class="npc-activity-state ${running ? "running" : ""}">${status}</span></div><p>${escapeHtml(activity.goal || character?.currentGoal || "No current goal.")}</p></div>${!running && !talking ? `<button class="npc-goal-resume" data-background-resume="${escapeHtml(id)}">${activity.reviewPending ? "Review outcome" : "Continue"}</button>` : ""}</li>`;
+      const status = talking ? "In conversation" : activity.reviewPending ? (running ? "Reviewing outcome" : "Awaiting review") : running ? "Acting" : "Active objective";
+      const objective = character?.activeObjective;
+      const work = objective ? `<div class="npc-objective"><strong>${escapeHtml(objective.name)}</strong><p>${escapeHtml(objective.status)}</p><dl><dt>Success</dt><dd>${escapeHtml(objective.successCriteria)}</dd><dt>Current goal</dt><dd>${escapeHtml(objective.currentGoal)}</dd></dl></div>`
+        : `<p>${escapeHtml(activity.goal || character?.currentGoal || "No active objective.")}</p>`;
+      return `<li><div class="npc-goal-content"><div class="npc-goal-heading"><button class="npc-goal-name" data-npc-debug="${escapeHtml(id)}" aria-label="Debug ${escapeHtml(character?.name || id)}">${escapeHtml(character?.name || id)}</button><span class="npc-activity-state ${running ? "running" : ""}">${status}</span></div>${work}</div>${!running && !talking ? `<button class="npc-goal-resume" data-background-resume="${escapeHtml(id)}">${activity.reviewPending ? "Review outcome" : "Continue"}</button>` : ""}</li>`;
     }).join("")}</ul>` : '<p class="npc-goals-empty">No NPCs are pursuing a goal right now.</p>'}`;
   panel.hidden = false;
   panel.onclick = event => {

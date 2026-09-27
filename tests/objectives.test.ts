@@ -1,31 +1,34 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
-import { CharacterSchema } from "../packages/contracts/src/index.js";
+import { ActiveObjectiveSchema, CharacterSchema } from "../packages/contracts/src/index.js";
 import { applyObjectiveChange } from "../apps/web/src/objectives.js";
 
 const plan = { action: "set", name: "Gather the court", status: "Garran agreed to help. Invite Lucan next, then verify arrivals.",
   success_criteria: "Everyone is in the Treasury ready to listen.", current_goal: "Talk to Lucan", reason: "Accepted the request" };
 
 test("active objective stores its plan and success criteria across protobuf round trips", () => {
-  const character = create(CharacterSchema, { objectives: ["Preserve peace"] });
+  const parked = create(ActiveObjectiveSchema, { name: "Preserve peace", status: "No action planned.", successCriteria: "Peace is preserved.", currentGoal: "" });
+  const character = create(CharacterSchema, { parkedObjectives: [parked] });
   applyObjectiveChange(character, plan);
   const restored = fromBinary(CharacterSchema, toBinary(CharacterSchema, character));
   assert.equal(restored.activeObjective?.status, plan.status);
   assert.equal(restored.activeObjective?.successCriteria, plan.success_criteria);
   assert.equal(restored.activeObjective?.currentGoal, restored.currentGoal);
-  assert.deepEqual(restored.objectives, ["Preserve peace"]);
+  assert.deepEqual(restored.parkedObjectives, [parked]);
   assert.equal(create(CharacterSchema).activeObjective, undefined);
 });
 
 test("demote retains an objective; drop and complete remove it; revision keeps the new plan", () => {
   for (const action of ["demote", "drop", "complete"]) {
-    const character = create(CharacterSchema, { objectives: ["Preserve peace"] });
+    const parked = create(ActiveObjectiveSchema, { name: "Preserve peace", status: "No action planned.", successCriteria: "Peace is preserved.", currentGoal: "" });
+    const character = create(CharacterSchema, { parkedObjectives: [parked] });
     applyObjectiveChange(character, plan);
     applyObjectiveChange(character, { action, reason: "The evidence warrants this transition" });
     assert.equal(character.activeObjective, undefined);
     assert.equal(character.currentGoal, "");
-    assert.deepEqual(character.objectives, action === "demote" ? ["Preserve peace", plan.name] : ["Preserve peace"]);
+    assert.deepEqual(character.parkedObjectives.map(item => item.name), action === "demote" ? ["Preserve peace", plan.name] : ["Preserve peace"]);
+    if (action === "demote") assert.equal(character.parkedObjectives.at(-1)?.status, plan.status);
   }
   const character = create(CharacterSchema);
   applyObjectiveChange(character, plan);

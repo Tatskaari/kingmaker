@@ -221,6 +221,10 @@ button.court-character:hover:not(:focus-visible) { border-color: transparent; ba
 .npc-goal-name { padding: 0; border: 0; background: transparent; color: inherit; font-weight: 700; text-align: left; }
 .npc-goal-name:hover { text-decoration: underline; }
 .npc-goals p { margin: 6px 0 0; line-height: 1.5; overflow-wrap: anywhere; }
+.npc-objective > strong { display: block; margin-top: 8px; color: #f2dfb7; }
+.npc-objective dl { display: grid; grid-template-columns: max-content 1fr; gap: 5px 12px; margin: 10px 0 0; font-size: .9rem; }
+.npc-objective dt { color: #b9aa90; font-weight: 700; }
+.npc-objective dd { margin: 0; overflow-wrap: anywhere; }
 .npc-activity-state { font-size: .75rem; opacity: .7; }
 .npc-activity-state.running { opacity: 1; font-weight: 700; }
 .npc-goal-resume { flex-shrink: 0; }

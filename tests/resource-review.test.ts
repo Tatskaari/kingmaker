@@ -42,7 +42,7 @@ test("objective plan and goal commit together, survive saves, and reject stale u
   }, context), /active_objective/);
   objectiveWrite(runtime, { action: "demote", reason: "No reachable willing delegates; defer." });
   assert.equal(runtime.hasActiveObjective("corvin"), false);
-  assert.ok(characterState(runtime).character.objectives.includes(objective.name));
+  assert.ok(characterState(runtime).character.parkedObjectives.some((item: any) => item.name === objective.name));
   assert.equal(characterState(runtime).activity.status, "idle");
 });
 
@@ -122,7 +122,7 @@ test("overhearing writes only the listener, without door dependencies", () => {
     summary: "Impossible hearing.", reactionGoal: null }, context), /eligible/);
 });
 
-test("omitted fields preserve goals and relationships; null explicitly makes the NPC idle", () => {
+test("omitted fields preserve objectives and relationships; an objective transition makes the NPC idle", () => {
   const runtime = game();
   const initial = runtime.readResources(["character:corvin"])["character:corvin"]!.state as any;
   const original = initial.character;
@@ -135,7 +135,7 @@ test("omitted fields preserve goals and relationships; null explicitly makes the
     assert.deepEqual(state.character.relationships.find((r: any) => r.characterId === relationship.characterId), relationship);
   }
   const cleared = runtime.applyResourceReviewWrite("update_character", { character_id: "corvin", generation_id: patched.new_state.generation_id,
-    changes: { current_goal: null } }, context);
+    changes: { active_objective: { action: "drop", reason: "The greeting is no longer relevant." } } }, context);
   assert.equal((cleared.new_state.data as any).character.currentGoal, "");
   assert.equal((cleared.new_state.data as any).activity.status, "idle");
   assert.ok((cleared.new_state.data as any).memories.some((e: any) => e.summary === "A new fact."));
@@ -176,7 +176,13 @@ test("live review gets versions initially and explicitly reconciles a stale char
       assert.equal(result.reason, "Generation ID out of date");
       assert.equal(result.new_state.data.character.lore, "Concurrent biography.");
       assert.ok(!result.new_state.data.memories.some((e: any) => e.summary === "Reviewed goodbye."));
-      return call("update_character", { character_id: "corvin", generation_id: result.new_state.generation_id, changes: { append_events: [{ type: "memory", summary: "Reviewed goodbye." }] } });
+      const active = result.new_state.data.character.activeObjective;
+      return call("update_character", { character_id: "corvin", generation_id: result.new_state.generation_id, changes: {
+        append_events: [{ type: "memory", summary: "Reviewed goodbye." }], active_objective: {
+          action: "set", reason: "The greeting remains unfinished after saying goodbye.", name: active.name,
+          status: active.status, success_criteria: active.successCriteria, current_goal: active.currentGoal,
+        },
+      } });
     }
     assert.equal(result.commit_result, "success");
     return call("finish_review", { summary: "Goodbye remembered." });
@@ -201,8 +207,12 @@ test("successful resource writes survive a later failed review and retry reads s
   await assert.rejects(runtime.forkForResourceReview(synchronousCommit).endConversation("corvin"), /Network unavailable/);
   assert.ok(runtime.snapshot().conversations.corvin?.length);
   assert.equal((runtime.readResources(["inventory:corvin"])["inventory:corvin"]!.state as any[]).length, 1);
+  let retryCalls = 0;
   t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => {
     assert.equal(world(input)["inventory:corvin"].data[0].id, "saved_note");
+    if (retryCalls++ === 0) return call("update_character", { character_id: "corvin",
+      generation_id: world(input)["character:corvin"].generation_id,
+      changes: { active_objective: { action: "complete", reason: "The greeting conversation has ended." } } });
     return call("finish_review", { summary: "No further changes." });
   });
   await runtime.forkForResourceReview(synchronousCommit).endConversation("corvin");
@@ -219,7 +229,7 @@ test("agent-visible write descriptions document ID source, patch semantics, and 
   }
   const character = tools.find(t => t.function.name === "update_character")!;
   assert.match(character.function.description, /Omitted fields stay unchanged/);
-  assert.match(character.function.description, /null explicitly clears/);
+  assert.match(character.function.description, /no standalone goal field exists/);
   assert.match(character.function.description, /Example:/);
 });
 
@@ -227,6 +237,9 @@ test("active objective guidance includes a concrete plan and definition-of-done 
   const instructions = resourceReviewTools().find(tool => tool.function.name === "update_character")!.function.description
     + JSON.stringify(resourceReviewTools().find(tool => tool.function.name === "update_character")!.function.parameters);
   assert.match(instructions, /status must describe current knowledge, progress and the remaining execution plan/);
+  assert.match(instructions, /requires waiting for another character to initiate a conversation/);
+  assert.match(ACTIVE_OBJECTIVE_GUIDANCE, /Waiting for another character to act is not an executable current goal/);
+  assert.match(ACTIVE_OBJECTIVE_GUIDANCE, /set the objective active again/);
   assert.match(ACTIVE_OBJECTIVE_GUIDANCE, /Find out who stole my ring/);
   assert.match(ACTIVE_OBJECTIVE_GUIDANCE, /credible evidence identifying who removed the ring/);
   assert.match(ACTIVE_OBJECTIVE_GUIDANCE, /Talk to Malcom/);

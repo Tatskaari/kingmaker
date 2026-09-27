@@ -14,7 +14,7 @@ import { COURT_INSTRUCTIONS } from "./court-instructions.js";
 import { JevClient, jevRequest } from "../../../packages/providers/src/jev.js";
 import { applyFixtureAction, fixtureActions } from "../../../packages/core/src/fixtures.js";
 import { IMMEDIATE_GOAL_DESCRIPTION } from "../../../packages/core/src/goal-guidance.js";
-import { applyObjectiveChange } from "./objectives.js";
+import { activateReactionObjective, applyObjectiveChange, ensureNpcActiveObjectives } from "./objectives.js";
 import { courtPath, courtRoomAt } from "./court-map.js";
 import type { Point } from "./navigation.js";
 import { compulsionNarration, parseReplyOptions, type ReplyOptions } from "./reply-options.js";
@@ -41,7 +41,7 @@ export interface NpcActivity {
   status: "idle" | "active";
   goal: string;
   history: string[];
-  result?: { reason: "complete" | "unable" | "error" | "limit" | "cancelled"; detail: string };
+  result?: { reason: "complete" | "unable" | "wait" | "error" | "limit" | "cancelled"; detail: string };
   reviewPending?: boolean;
 }
 
@@ -116,9 +116,18 @@ function gmTools(scenario: Scenario): readonly OpenRouterTool[] {
     type: "function",
     function: {
       name: "update_character",
-      description: "Edit a character biography or current goal in this game.",
+      description: "Edit a character biography or set, revise, demote, drop or complete an NPC active objective. NPCs cannot receive a standalone current goal.",
       parameters: { type: "object", additionalProperties: false, required: ["characterId"], properties: {
-        characterId: { type: "string", enum: scenario.characters.map(character => character.id) }, lore: { type: "string" }, currentGoal: { type: "string" },
+        characterId: { type: "string", enum: scenario.characters.map(character => character.id) }, lore: { type: "string" },
+        activeObjective: { oneOf: [
+          { type: "object", additionalProperties: false, required: ["action", "reason", "name", "status", "successCriteria", "currentGoal"], properties: {
+            action: { const: "set" }, reason: { type: "string" }, name: { type: "string" }, status: { type: "string" },
+            successCriteria: { type: "string" }, currentGoal: { type: "string" },
+          } },
+          { type: "object", additionalProperties: false, required: ["action", "reason"], properties: {
+            action: { enum: ["demote", "drop", "complete"] }, reason: { type: "string" },
+          } },
+        ] },
       } },
     },
   },
@@ -230,6 +239,7 @@ export class BrowserGameRuntime {
 
   constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot, transcriptsChanged: () => void = () => {}, onWarning: (message: string) => void = () => {}) {
     this.#initialScenario = fromJson(ScenarioSchema, toJson(ScenarioSchema, scenario));
+    ensureNpcActiveObjectives(this.#initialScenario);
     this.#game = new MemoryGame(this.#initialScenario);
     this.#client = new OpenRouterClient(apiKey, 60_000, globalThis.location?.origin || "http://localhost", onWarning);
     this.#jev = new JevClient(apiKey, undefined, undefined, onWarning);
@@ -268,7 +278,9 @@ export class BrowserGameRuntime {
     this.#generations = new GenerationStore(snapshot.generations);
     this.#travellerIdentity = snapshot.travellerIdentity ? validateIdentity(snapshot.travellerIdentity) : undefined;
     this.#npcActivities = structuredClone(snapshot.npcActivities || {});
-    this.#game = new MemoryGame(fromJson(ScenarioSchema, snapshot.scenario));
+    const restoredScenario = fromJson(ScenarioSchema, snapshot.scenario);
+    ensureNpcActiveObjectives(restoredScenario);
+    this.#game = new MemoryGame(restoredScenario);
     this.#gmHistory = snapshot.gameMasterHistory || [];
     this.#playerDraft = snapshot.playerDraft || null;
     this.#gmReplyOptions = snapshot.gameMasterReplyOptions || null;
@@ -458,10 +470,11 @@ export class BrowserGameRuntime {
       const context: ResourceReviewContext = { kind, participants, eligibleListeners, playerCanHear, allowNextGoal };
       const conversations = this.snapshot().conversations;
       const evidence: OpenRouterMessage[] = [
-        { role: "system", content: "You are the GM, not a participant. Preserve character agency and private knowledge. Promises are not completed actions. Assign only feasible tasks using walking, doors, containers, inspecting/taking items and talking. No general combat, crafting, trade or item-transfer engine exists. Cancel dead ends by explicitly setting current_goal:null. Use update_inventory for justified missing props, never invented proof or duplicate rewards." },
+        { role: "system", content: "You are the GM, not a participant. Preserve character agency and private knowledge. Promises are not completed actions. Assign only feasible tasks using walking, doors, containers, inspecting/taking items and talking. No general combat, crafting, trade or item-transfer engine exists. NPC work always belongs to an active objective; demote, drop or complete dead ends explicitly. Use update_inventory for justified missing props, never invented proof or duplicate rewards." },
+        ...(kind === "outcome_review" && this.#npcActivities[characterId]?.result?.reason === "wait" ? [{ role: "system" as const, content: "Jev chose wait. This explicitly means the objective is blocked on another character acting and should be non-active now. Demote it unless the supplied evidence shows a different concrete action this character can take immediately. Do not set a current goal that merely waits, watches, checks repeatedly, or asks the same question again. A later conversation or event initiated by the awaited character can reactivate the parked objective." }] : []),
         { role: "user", content: JSON.stringify({ event_type: kind, participants, allowNextGoal }) },
         ...earshotContext,
-        ...(hasDevelopmentPlayer(scenario) && kind === "conversation_review" ? [{ role: "system" as const, content: "This transcript is with the development envoy. Honor direct testing requests by setting current_goal to the requested feasible task. Record it as intended work, not an action already completed." }] : []),
+        ...(hasDevelopmentPlayer(scenario) && kind === "conversation_review" ? [{ role: "system" as const, content: "This transcript is with the development envoy. Honor direct testing requests by setting or updating an active objective with a feasible current_goal. Record it as intended work, not an action already completed." }] : []),
         ...request.messages.filter(message => message.role === "user"),
       ];
       const summary = await runResourceReview(request, evidence, {
@@ -611,12 +624,13 @@ export class BrowserGameRuntime {
       && (action.target !== scenario.playerCharacterId || this.#conversations.size === 0)
     ));
     const criteria = { ...Object.fromEntries(observation.actions.map(action => [action.id, `${action.description}${action.legality === "illegal" ? " This is illegal for this character." : ""}`])),
-      complete: "The whole immediate goal is achieved, or you are already at the requested place and waiting as requested.",
+      complete: "The whole immediate goal is achieved. Do not choose this merely because the character reached a place and must now wait for another character; choose wait instead.",
+      wait: "Progress now depends entirely on another character initiating a conversation, arriving, deciding, or completing their own work. Choose this instead of inventing a waiting action or repeatedly checking.",
       unable: "No available action can make progress, or essential clarification is needed." };
     const keys = [...new Set([...actionResourceIds(scenario, characterId), ...observation.actions.flatMap(action => actionResourceIds(scenario, characterId, action))])];
     const generations = generationIds(this.readResources(keys));
     const state = { ...observation, generations, previousWriteConflict, actions: observation.actions.map(({ path, ...action }) => action), recentEvents: activity.history };
-    const instructions = { ...COURT_INSTRUCTIONS, legality: "Actions are mechanically possible. Those marked illegal violate ownership or room access; weigh them against your character's intentions. Waiting in a room is satisfied by being there. Use offered talk actions to initiate a conversation with the player or make requests of other NPCs. You cannot force agreement or speak for the player." };
+    const instructions = { ...COURT_INSTRUCTIONS, legality: "Actions are mechanically possible. Those marked illegal violate ownership or room access; weigh them against your character's intentions. Reaching a requested room completes the travel, but waiting there for another character to act requires the wait choice. Use offered talk actions to initiate a conversation with the player or make requests of other NPCs. You cannot force agreement or speak for the player." };
     const decision = await this.#modelTranscripts.record("jev", characterId, jevRequest(state, instructions, criteria), () => this.#jev.choose(state, instructions, criteria, signal));
     const action = observation.actions.find(action => action.id === decision.choice);
     return { decision, revision: observation.revision, goal: observation.goal, action, observation,
@@ -695,7 +709,7 @@ export class BrowserGameRuntime {
       if (typeof goal !== "string" || !goal || activity?.status === "active" || activity?.reviewPending || this.#conversations.get(id)?.length) continue;
       const character = current.characters.find(character => character.id === id);
       if (!character) continue;
-      character.currentGoal = goal;
+      activateReactionObjective(character, event.summary, goal);
       const actor = current.world.actors.find(actor => actor.characterId === id);
       if (actor) actor.awake = true;
       this.#npcActivities[id] = { status: "active", goal, history: [] };
@@ -728,10 +742,8 @@ export class BrowserGameRuntime {
       if (!context.participants.includes(id) || context.kind === "illegal_action") throw new Error("Only conversation/action-review participants can be updated.");
       const patch = args.changes as Record<string, unknown>;
       if (!patch || typeof patch !== "object" || Array.isArray(patch) || !Object.keys(patch).length
-        || Object.keys(patch).some(key => !["append_events", "relationships", "lore", "current_goal", "active_objective"].includes(key))) throw new Error("Invalid character changes.");
+        || Object.keys(patch).some(key => !["append_events", "relationships", "lore", "active_objective"].includes(key))) throw new Error("Invalid character changes. NPC goals must be updated through active_objective.");
       const character = scenario.characters.find(character => character.id === id)!;
-      if (patch.active_objective !== undefined && Object.hasOwn(patch, "current_goal")) throw new Error("Use active_objective.current_goal, not both goal fields.");
-      if (character.activeObjective && Object.hasOwn(patch, "current_goal")) throw new Error("Update active_objective with its status/plan and next goal, or explicitly demote/drop/complete it.");
       const objectiveMemory = patch.active_objective === undefined ? undefined : applyObjectiveChange(character, patch.active_objective);
       if (patch.append_events !== undefined && !Array.isArray(patch.append_events)) throw new Error("append_events must be an array.");
       if (patch.relationships !== undefined && !Array.isArray(patch.relationships)) throw new Error("relationships must be an array.");
@@ -750,8 +762,8 @@ export class BrowserGameRuntime {
       const candidate = new MemoryGame(scenario);
       const committed = candidate.commitConversation(id, memory, false);
       if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
-      if (Object.hasOwn(patch, "current_goal") || objectiveMemory) {
-        const goal = objectiveMemory ? character.currentGoal : patch.current_goal === null ? "" : text(patch.current_goal, "current_goal");
+      if (objectiveMemory) {
+        const goal = character.currentGoal;
         const changed = candidate.updateCharacter(id, undefined, goal);
         if (!changed.ok) throw new Error("Unknown character.");
         const activity = this.#npcActivities[id];
@@ -776,7 +788,7 @@ export class BrowserGameRuntime {
         applyReconciliationTool(scenario, context.participants, cancelled, name, { ...args, characterId: id }, context.eligibleListeners);
         const goal = args.reactionGoal, activity = this.#npcActivities[id];
         if (name !== "message_player" && typeof goal === "string" && goal && activity?.status !== "active" && !activity?.reviewPending && !this.#conversations.get(id)?.length) {
-          scenario.characters.find(c => c.id === id)!.currentGoal = goal;
+          activateReactionObjective(scenario.characters.find(c => c.id === id)!, String(args.summary), goal);
           updates[id] = { status: "active", goal, history: [] };
         }
       }
@@ -1010,7 +1022,7 @@ export class BrowserGameRuntime {
     if (expected) this.#generations.check(this.#resources(), expected, [`character:${characterId}`]);
     const activity = this.#npcActivities[characterId];
     if (!activity || activity.status !== "active") throw new Error("NPC has no active run to finish.");
-    if (!["complete", "unable", "error", "limit", "cancelled"].includes(reason)) throw new Error("Invalid termination reason.");
+    if (!["complete", "unable", "wait", "error", "limit", "cancelled"].includes(reason)) throw new Error("Invalid termination reason.");
     activity.status = "idle";
     activity.result = { reason, detail: detail.slice(0, 2000) };
     activity.reviewPending = true;
@@ -1025,7 +1037,7 @@ export class BrowserGameRuntime {
     await this.#reconcile("outcome_review", characterId, scenario, [characterId], {
       ...REASONING_MODEL, response_format: memoryFormat, max_tokens: 10000,
       messages: [{ role: "user", content: JSON.stringify({ participantContext: context }) },
-        { role: "system", content: "As GM, review this character after their action planner has finished. Review its result, actions performed, and current observations. Save warranted memories, relationship changes, and biography changes. Set goalUpdate to the next concrete task if there is more to do, or null if there is none. Base this on what actually happened, not just the planner's completion judgment. Use GM tools for justified additions or to cancel dead ends; do not restart a failed task without a concrete change that makes progress possible. Return newEvents, goalUpdate, relationships, and lore (null when unchanged)." },
+        { role: "system", content: "As GM, review this character after their action planner has finished. Review its result, actions performed, and current observations. Save warranted memories, relationship changes, and biography changes. Set goalUpdate to the next concrete task if there is more to do, or null if there is none. Base this on what actually happened, not just the planner's completion judgment. Use GM tools for justified additions or to cancel dead ends; do not restart a failed task without a concrete change that makes progress possible. A result reason of wait is Jev's explicit judgment that progress depends on another character acting; treat it as a strong instruction to make the objective non-active until that character initiates the relevant conversation or event. Return newEvents, goalUpdate, relationships, and lore (null when unchanged)." },
         { role: "user", content: JSON.stringify({ goal: activity.goal, actionsPerformed: activity.history, result: activity.result, observations: courtAgentObservation(scenario, characterId).world }) }],
     }, signal, allowNextGoal);
     signal?.throwIfAborted();
@@ -1130,7 +1142,7 @@ export class BrowserGameRuntime {
       if (typeof goal !== "string" || !goal || activity?.status === "active" || activity?.reviewPending || this.#conversations.get(id)?.length) continue;
       const character = before.characters.find(candidate => candidate.id === id);
       if (!character) continue;
-      character.currentGoal = goal;
+      activateReactionObjective(character, event.summary, goal);
       const witness = before.world?.actors.find(candidate => candidate.characterId === id);
       if (witness) witness.awake = true;
       this.#npcActivities[id] = { status: "active", goal, history: [] };
@@ -1194,7 +1206,7 @@ export class BrowserGameRuntime {
           description: relationship.description,
         })),
       } : null,
-      characters: scenario.characters.filter(character => character.id !== "player").map(character => ({ id: character.id, name: character.name, position: world?.actors.find(actor => actor.characterId === character.id)?.position, roomId: world?.actors.find(actor => actor.characterId === character.id)?.roomId })),
+      characters: scenario.characters.filter(character => character.id !== "player").map(character => ({ id: character.id, name: character.name, activeObjective: character.activeObjective, currentGoal: character.currentGoal, position: world?.actors.find(actor => actor.characterId === character.id)?.position, roomId: world?.actors.find(actor => actor.characterId === character.id)?.roomId })),
       gmReplyOptions: this.#gmReplyOptions,
       conversationReplyOptions: this.#conversationReplyOptions,
       conversationEndRequested: this.#conversationEndRequested,
@@ -1362,10 +1374,20 @@ export class BrowserGameRuntime {
       return { ok: true, phase: "character_review", instruction: "Wait for the player to review and explicitly save their character. Do not narrate arrival yet." };
     }
     if (name === "update_character") {
-      const result = this.#game.updateCharacter(text(input.characterId, "characterId"), typeof input.lore === "string" ? input.lore : undefined, typeof input.currentGoal === "string" ? input.currentGoal : undefined);
+      const characterId = text(input.characterId, "characterId");
+      const result = this.#game.updateCharacter(characterId, typeof input.lore === "string" ? input.lore : undefined);
       if (!result.ok) throw new Error(result.issues.map(issue => issue.message).join("; "));
-      if (scenario.world?.phase !== GamePhase.PLAYER_CREATION && result.value.id !== scenario.playerCharacterId && typeof input.currentGoal === "string") {
-        this.#npcActivities[result.value.id] = { status: input.currentGoal ? "active" : "idle", goal: input.currentGoal, history: [] };
+      if (input.activeObjective !== undefined) {
+        if (characterId === scenario.playerCharacterId) throw new Error("The player's personal goal is not an NPC active objective.");
+        const next = this.#game.scenario(), character = next.characters.find(character => character.id === characterId)!;
+        const source = input.activeObjective as Record<string, unknown>;
+        const { successCriteria, currentGoal, ...transition } = source;
+        applyObjectiveChange(character, { ...transition,
+          ...(successCriteria === undefined ? {} : { success_criteria: successCriteria }),
+          ...(currentGoal === undefined ? {} : { current_goal: currentGoal }),
+        });
+        this.#setGame(new MemoryGame(next));
+        this.#npcActivities[characterId] = { status: character.currentGoal ? "active" : "idle", goal: character.currentGoal, history: [] };
       }
       return { ok: true, character: result.value.name, current: this.readResources([`character:${result.value.id}`]) };
     }
