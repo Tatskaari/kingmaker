@@ -305,9 +305,10 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
     try {
       if (type === "reset_world") game.resetWorld();
       else if (type === "reset_characters") game.resetCharacters();
-      else message = game.interactFixture(String(payload.actionId || ""));
+      else message = await game.interactFixtureWithWitnesses(String(payload.actionId || ""));
       await persist();
     } catch (error) { game.restore(before); activeSave = savedBefore; throw error; }
+    if (type === "interact_fixture") for (const listener of game.rumourListenersSince(before)) startBackground(listener);
     return { state: game.view(), saves: await listSaves(), message };
   }
   if (type === "set_door") {

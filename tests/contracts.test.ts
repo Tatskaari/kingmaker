@@ -1001,6 +1001,45 @@ test("main containers enforce approaches and keys, conceal contents, and persist
   assert.equal(saved.world!.objects.find(item => item.id === "palace_sealed_decree")!.locationId, "player");
 });
 
+test("illegal item taking is handed to the GM only when an NPC is within earshot", async t => {
+  const requests: ChatCompletionRequest[] = [];
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: ChatCompletionRequest) => {
+    requests.push(request);
+    if (requests.length === 1) return { role: "assistant", content: null, tool_calls: [{
+      id: "witness", type: "function", function: { name: "record_witnessed", arguments: JSON.stringify({
+        characterId: "garran", summary: "I saw the player take the royal lockbox key from Corvin's drawers.", reactionGoal: "Confront the player about the stolen key.",
+      }) },
+    }] };
+    return modelReply({ reviewed: true });
+  });
+
+  const witnessed = furnishedCourt();
+  for (const actor of witnessed.world!.actors) actor.position = create(TilePositionSchema, { x: 30, y: 30 });
+  witnessed.world!.actors.find(actor => actor.characterId === "player")!.position = create(TilePositionSchema, { x: 6, y: 5 });
+  witnessed.world!.actors.find(actor => actor.characterId === "garran")!.position = create(TilePositionSchema, { x: 7, y: 5 });
+  witnessed.world!.fixtures.find(fixture => fixture.id === "palace_corvin_drawers")!.open = true;
+  const runtime = new BrowserGameRuntime(witnessed, "test");
+  await runtime.interactFixtureWithWitnesses("take_palace_royal_key");
+
+  const action = requests[0]!.messages.filter(message => message.role === "user").map(message => JSON.parse(message.content!))
+    .find(value => value?.action === "theft");
+  assert.equal(action.item.name, "Royal lockbox key");
+  const earshot = requests[0]!.messages.filter(message => message.role === "user").map(message => JSON.parse(message.content!))
+    .find(value => value?.earshot)?.earshot;
+  assert.deepEqual(earshot.nearbyNpcs.map(({ characterId }: { characterId: string }) => characterId), ["garran"]);
+  const event = fromJson(ScenarioSchema, runtime.snapshot().scenario).events.find(candidate => candidate.type === "witnessed")!;
+  assert.deepEqual(event.characterIds, ["garran"]);
+  assert.equal(event.visibility, EventVisibility.PRIVATE);
+  assert.equal(runtime.snapshot().npcActivities?.garran?.goal, "Confront the player about the stolen key.");
+
+  const unwitnessed = furnishedCourt();
+  for (const actor of unwitnessed.world!.actors) actor.position = create(TilePositionSchema, { x: 30, y: 30 });
+  unwitnessed.world!.actors.find(actor => actor.characterId === "player")!.position = create(TilePositionSchema, { x: 6, y: 5 });
+  unwitnessed.world!.fixtures.find(fixture => fixture.id === "palace_corvin_drawers")!.open = true;
+  await new BrowserGameRuntime(unwitnessed, "test").interactFixtureWithWitnesses("take_palace_royal_key");
+  assert.equal(requests.length, 2, "No additional GM request is made without an eligible listener");
+});
+
 test("trying locked containers needs the correct carried key and preserves concealed loot", () => {
   const scenario = furnishedCourt();
   for (const door of scenario.world!.doors) door.open = true;
