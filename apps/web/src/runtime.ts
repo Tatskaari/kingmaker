@@ -7,7 +7,7 @@ import { resourceState, runResourceReview, type ResourceReviewContext } from "./
 import { InvalidModelJsonError, parseModelObject } from "../../../packages/providers/src/structured-output.js";
 import { validateIdentity, type TravellerIdentity } from "./introduction.js";
 import { DIALOGUE_MODEL, REASONING_MODEL } from "./model-settings.js";
-import { GM_BASE_PROMPT, withGmBasePrompt } from "./gm-prompt.js";
+import { GM_BASE_PROMPT, GM_ADJUDICATION_GUIDANCE, withGmBasePrompt } from "./gm-prompt.js";
 import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
 import { courtAgentObservation, actionResourceIds } from "./court-agent.js";
 import { courtCharactersWithinEarshot, dialogueEarshotPrompt, EARSHOT_DESCRIPTIONS, EARSHOT_DISTANCE } from "./earshot.js";
@@ -192,13 +192,12 @@ const askGameMasterTool: OpenRouterTool = {
   },
 };
 
-const GM_CONSULTATION_INSTRUCTIONS = `You are the GM resolving ask_the_game_master immediately during an ongoing conversation. Rule on the character's question or proposed action using the authoritative state and conversation. For knowledge questions, decide whether the character would know the answer or whether a premise the player suggested can plausibly be established. Confirm, qualify or reject it explicitly and return only what this character may know. A player's claim is not automatically true, and your omniscient context is not character knowledge. Preserve the character's motives and agency: knowing a fact does not force disclosure or agreement with the player.
+const GM_CONSULTATION_INSTRUCTIONS = `Resolve ask_the_game_master immediately during the ongoing conversation. For a knowledge question, confirm, qualify or reject what this character would know or whether the player's proposed premise can be established. A knowledge ruling need not create an item or task.
+For off-screen work, decide the result now. For example, investigating house accounts might produce an account extract showing an unexplained payment to a named supplier: a lead to investigate, without automatically proving theft.
+Use update_inventory for justified items and update_character to record the requesting character's learned outcome or other warranted changes. Finish with a character-safe summary of the ruling, discoveries, state changes, any available next step, and names and descriptions of added items. The conversation agent receives this result and speaks afterwards.`;
 
-For actions beyond the simulated mechanics, judge what the character can plausibly accomplish. Example: investigating their house accounts may reveal a plausible discrepancy and produce an account extract in their inventory. You decide what is discovered; a requested conclusion is not evidence. Respect existing facts, access, scarcity, secrets and agency. A knowledge ruling need not create an item or a task.
-
-Lean towards progressing the story: give the player a thread they can pull. Prefer a concrete, useful discovery, partial answer, complication, or lead over "nothing useful was found." Even when the requested evidence is unavailable or the task must be refused, look for a plausible next step: a named person to question, a specific record to seek, a discrepancy to investigate, or an obstacle with a way forward. For example, house accounts might not prove theft, but an unexplained payment to a named supplier gives the player someone to investigate. Make the lead relevant to the request and actionable through the game's available interactions. Do not fabricate proof of the player's preferred conclusion, contradict established facts, bypass access restrictions, or reveal secrets the aide could not learn. If no discovery is justified, explain the concrete limitation and suggest a grounded avenue to pursue. Avoid empty non-answers, vague promises, and circular errands.
-
-Use update_inventory for justified items and update_character for warranted private memories or state changes. Do not require a simulated crafting or research action for work you approve here. Record the outcome in the character's private memories so later conversation review knows what actually happened. Finish with a concise summary safe for this character to know, including the decision, discoveries, state changes, the available lead or next step, and names and descriptions of any items added. Do not reveal unrelated GM secrets. The conversation agent will receive this summary and speak afterwards.`;
+const CHARACTER_COLLABORATION_INSTRUCTIONS = `Play your part in collaborative storytelling. Take the player's ideas seriously and look for ways to build on them through your character's desires, loyalties and relationships. "Yes, and" means a meaningful response, not automatic agreement: you can bargain, raise a complication, ask a revealing question, or offer a different opening. When resisting, make your reason understandable and leave a grounded way for the player to engage. Never choose the player's words, thoughts or actions.
+Before asserting a concrete fact that is not established in your supplied knowledge, remembered events, or a GM ruling, call ask_the_game_master. This includes new shared history, who knows a secret, a document's contents, evidence of wrongdoing, or accepting an unverified premise suggested by the player. Ask whether it is true and whether you know it; wait for the ruling before speaking as though it is settled. A player's assertion establishes that they made a claim, not that the claim is true. You may express your own preferences, proposals and clearly framed uncertainty without consulting the GM. If your character intends to lie about an unestablished fact, explain that intent in the consultation so the GM can keep the underlying truth coherent. Use established facts directly without repeatedly checking them. If the consultation tool is unavailable for this opening turn, stay with established facts, proposals or questions and defer any new factual assertion.`;
 
 const memoryFormat = {
   type: "json_schema",
@@ -273,6 +272,9 @@ export class BrowserGameRuntime {
 
   #complete(kind: ModelCallKind, characterId: string, request: ChatCompletionRequest, signal?: AbortSignal) {
     request = withGmBasePrompt(kind, request);
+    if (kind === "dialogue") request = { ...request, messages: [
+      { role: "system", content: CHARACTER_COLLABORATION_INSTRUCTIONS }, ...request.messages,
+    ] };
     return this.#modelTranscripts.record(kind, characterId, request, () => this.#client.complete(request, signal));
   }
 
@@ -546,7 +548,7 @@ export class BrowserGameRuntime {
       const context: ResourceReviewContext = { kind, participants, eligibleListeners, playerCanHear, allowNextGoal };
       const conversations = this.snapshot().conversations;
       const evidence: OpenRouterMessage[] = [
-        { role: "system", content: "You are the GM, not a participant. Preserve character agency and private knowledge. Promises are not completed actions. Assign only feasible tasks using walking, doors, containers, inspecting/taking items and talking. No general combat, crafting, trade or item-transfer engine exists. NPC work always belongs to an active objective; demote, drop or complete dead ends explicitly. Use update_inventory for justified missing props, never invented proof or duplicate rewards." },
+        { role: "system", content: "Review this event through the supplied resource write tools. Use update_inventory for justified props and update_character for memories, relationships and objective changes. NPC work belongs to an active objective; demote, drop or complete dead ends explicitly." },
         ...(kind === "outcome_review" && this.#npcActivities[characterId]?.result?.reason === "wait" ? [{ role: "system" as const, content: "Jev chose wait. This explicitly means the objective is blocked on another character acting and should be non-active now. Demote it unless the supplied evidence shows a different concrete action this character can take immediately. Do not set a current goal that merely waits, watches, checks repeatedly, or asks the same question again. A later conversation or event initiated by the awaited character can reactivate the parked objective." }] : []),
         { role: "user", content: JSON.stringify({ event_type: kind, participants, allowNextGoal }) },
         ...earshotContext,
@@ -1383,7 +1385,7 @@ export class BrowserGameRuntime {
       traceNote: "Exact requests and raw responses cover the latest GM turn in this runtime, including failures. After loading a save, use savedTranscript until another turn runs. Reconstructed context reflects current state, not necessarily the previous request. No hidden model reasoning is available.",
       latestTurnCalls: this.#gmTrace,
       savedTranscript: this.#gmHistory,
-      reconstructedContext: [{ role: "system", content: GM_BASE_PROMPT }, ...new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario }))],
+      reconstructedContext: [{ role: "system", content: GM_BASE_PROMPT }, { role: "system", content: GM_ADJUDICATION_GUIDANCE }, ...new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario }))],
       availableTools: gmTools(scenario),
     };
   }
