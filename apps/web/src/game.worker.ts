@@ -206,6 +206,13 @@ async function createGame(): Promise<Record<string, unknown>> {
   return { state: runtime.view(), activeSaveId: activeSave.id, saves: await listSaves() };
 }
 
+async function createDevelopmentGame(): Promise<Record<string, unknown>> {
+  await createGame();
+  runtime!.createDevelopmentPlayer();
+  await persist();
+  return { state: runtime!.view(), activeSaveId: activeSave!.id, saves: await listSaves() };
+}
+
 async function loadGame(saveId: string): Promise<Record<string, unknown>> {
   if (!apiKey) throw new Error("Enter an OpenRouter key first");
   const saved = await transaction<SaveRecord | undefined>("readonly", store => store.get(saveId));
@@ -221,7 +228,7 @@ function requireRuntime(): BrowserGameRuntime {
 }
 
 async function handle(type: string, payload: Record<string, unknown>): Promise<unknown> {
-  if (["configure", "create_game", "load_game", "delete_game", "reset", "reset_world", "reset_characters"].includes(type)) {
+  if (["configure", "create_game", "create_development_game", "load_game", "delete_game", "reset", "reset_world", "reset_characters"].includes(type)) {
     generation++; stopBackground(); conversationHolds.clear();
   }
   if (type === "start_npc") { const id = String(payload.characterId); conversationHolds.delete(id); startBackground(id); return {}; }
@@ -235,6 +242,7 @@ async function handle(type: string, payload: Record<string, unknown>): Promise<u
   }
   if (type === "list_saves") return { saves: await listSaves() };
   if (type === "create_game") return createGame();
+  if (type === "create_development_game") return createDevelopmentGame();
   if (type === "load_game") return loadGame(String(payload.saveId || ""));
   if (type === "delete_game") {
     const saveId = String(payload.saveId || "");
