@@ -43,6 +43,7 @@ body:has(.player-event-feed) .shell { width: min(920px, calc(100% - 360px)); mar
   body:has(.player-event-feed) .shell { width: min(920px, calc(100% - 32px)); margin: 0 auto; }
 }
 .composer { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding-top: 17px; border-top: 1px solid var(--line); }
+.composer-actions { display: flex; align-items: stretch; gap: 10px; }
 textarea { resize: none; min-height: 58px; background: #0e0c09; color: #f5ead4; border: 1px solid #514838; padding: 13px; outline: none; }
 textarea:focus { border-color: var(--gold); }
 .key-entry { display: grid; place-items: center; min-height: 300px; text-align: center; }

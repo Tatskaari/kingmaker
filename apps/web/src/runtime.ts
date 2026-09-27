@@ -501,6 +501,20 @@ export class BrowserGameRuntime {
     return utterance;
   }
 
+  endConversationAsPlayer(characterId: string, messageText: string): void {
+    const scenario = this.#game.scenario();
+    if (scenario.world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Character conversations have not begun");
+    if (!scenario.characters.some(character => character.id === characterId && character.id !== "player")) throw new Error("Unknown character");
+    if (this.#conversationEndRequested[characterId]) throw new Error("This conversation has already ended. Finish the conversation review before speaking again.");
+    if (!messageText.trim()) throw new Error("Say something before ending the conversation.");
+    const history = this.#conversations.get(characterId) || [];
+    this.#conversations.set(characterId, [...history, create(TranscriptMessageSchema, {
+      role: TranscriptRole.PLAYER, speakerId: "player", text: messageText,
+    })]);
+    this.#conversationEndRequested[characterId] = true;
+    this.#conversationReplyOptions[characterId] = [];
+  }
+
   async #askGameMaster(characterId: string, request: string, transcript: TranscriptMessage[]) {
     // Stage GM changes on this dialogue's snapshot; the worker publishes the
     // complete turn through the existing generation-checked fork merge.

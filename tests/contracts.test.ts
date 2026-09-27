@@ -699,6 +699,28 @@ test("conversation review receives nearby NPC hearing levels alongside the trans
   assert.equal(JSON.parse(review.at(-1)!.content!)[0].text, "Where shall we meet?");
 });
 
+test("the player can add a final response and end without generating another NPC reply", async t => {
+  const requests: Array<{ messages: readonly { role: string; content: string | null }[] }> = [];
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: typeof requests[number]) => {
+    requests.push(request);
+    return modelReply(remembered);
+  });
+  const runtime = new BrowserGameRuntime(conversationScenario(), "test");
+  runtime.endConversationAsPlayer("corvin", "Until tomorrow.");
+  const view = runtime.view() as any;
+  assert.deepEqual(view.conversations.corvin, [
+    { role: "player", text: "Until tomorrow." },
+  ]);
+  assert.equal(view.conversationEndRequested.corvin, true);
+  await assert.rejects(runtime.talkToCharacter("corvin", "One more thing."), /ended the conversation/);
+  await runtime.endConversation("corvin");
+  assert.equal(requests.length, 1, "ending with a response does not request another dialogue turn");
+  assert.deepEqual(JSON.parse(requests[0]!.messages.at(-1)!.content!), [
+    { speakerId: "player", text: "Until tomorrow." },
+  ]);
+  assert.equal(runtime.snapshot().conversations.corvin, undefined);
+});
+
 test("ending reviews the full transcript, saves private memory, and starts a fresh thread after reload", async t => {
   const requests: Array<{ messages: readonly { role: string; content: string | null }[] }> = [];
   const replies = [
@@ -2166,6 +2188,55 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(runInContext("state.revision", context), 99);
   assert.equal(sent.filter(message => message.type === "start_npc").length, 1);
+});
+
+test("dialogue composer sends on Enter and submits a final response with the leave action", () => {
+  let submit!: (event: any) => void;
+  let keydown!: (event: any) => void;
+  let submitted = 0;
+  const textarea = { addEventListener: (type: string, callback: (event: any) => void) => {
+    if (type === "keydown") keydown = callback;
+  } };
+  const form = {
+    addEventListener: (type: string, callback: (event: any) => void) => { if (type === "submit") submit = callback; },
+    querySelector: (selector: string) => selector === "textarea" ? textarea : null,
+    requestSubmit: () => { submitted++; },
+  };
+  const sent: any[] = [];
+  const context = createContext({
+    URL, AlertLog, window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
+    FormData: class { get() { return "Farewell."; } },
+    document: {
+      querySelector: (selector: string) => selector === "[data-talk-form]" ? form : null,
+      querySelectorAll: () => [], addEventListener() {},
+    },
+    Worker: class {
+      addEventListener() {}
+      postMessage(message: any) { sent.push(message); }
+    },
+  });
+  const source = readFileSync(new URL("../apps/web/src/app.js", import.meta.url), "utf8")
+    .replace(/^import .*;\n/gm, "")
+    .replaceAll("import.meta.url", JSON.stringify(import.meta.url))
+    .replace(/if \(apiKey\) run\(\(\) => configure\(apiKey\)\);\s*else render\(\);/, "");
+  runInContext(`${source}\nrender = () => {}; updateNpcPanel = () => {}; state = { revision: 1 }; activeCharacter = 'corvin'; bind();`, context);
+
+  let prevented = 0;
+  keydown({ key: "Enter", shiftKey: false, isComposing: false, preventDefault: () => { prevented++; } });
+  assert.equal(submitted, 1);
+  assert.equal(prevented, 1);
+  keydown({ key: "Enter", shiftKey: true, isComposing: false, preventDefault: () => { prevented++; } });
+  assert.equal(submitted, 1, "Shift+Enter keeps a newline");
+
+  submit({
+    currentTarget: form,
+    submitter: { hasAttribute: (name: string) => name === "data-respond-and-close" },
+    preventDefault() {},
+  });
+  assert.equal(runInContext("activeCharacter", context), null);
+  assert.equal(sent[0].type, "end_conversation");
+  assert.equal(sent[0].payload.characterId, "corvin");
+  assert.equal(sent[0].payload.message, "Farewell.");
 });
 
 test("court dialogue accepts fenced JSON without issuing a second model request", async t => {
