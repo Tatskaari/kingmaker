@@ -77,13 +77,13 @@ test("the expanded authored scenario strictly parses and survives protobuf", () 
   assert.match(scenario.premise, /emissary from a vassal state of Caerwyn/);
   assert.equal(scenario.world?.phase, GamePhase.PLAYER_CREATION);
   assert.ok(scenario.world?.actors.every(actor => !actor.awake && actor.roomId === actor.homeRoomId));
-  assert.equal(scenario.world?.rooms.length, 24);
+  assert.equal(scenario.world?.rooms.length, 25);
 });
 
 test("the palace map is a complete layered tile grid", () => {
   const decoded = fromBinary(WorldMapSchema, toBinary(WorldMapSchema, palaceMap));
   assert.equal(decoded.tiles.length, decoded.width * decoded.height);
-  assert.equal(decoded.rooms.length, 24);
+  assert.equal(decoded.rooms.length, 25);
   assert.ok(decoded.tiles.some(tile => tile.layers.length > 1));
   assert.ok(decoded.tiles.flatMap(tile => tile.layers).some(layer => layer.solid && layer.bounds));
 
@@ -893,6 +893,7 @@ test("main palace movement validates routes and survives saving and restoring", 
   for (const actor of scenario.world!.actors) actor.roomId = "great_hall";
   scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 16, y: 22 }) });
   const runtime = new BrowserGameRuntime(scenario, "test");
+  runtime.movePlayer({ x: 5, y: 16 }); runtime.setDoor("hall_door", true);
   runtime.movePlayer({ x: 5, y: 10 });
   runtime.setDoor("corvin_door", true);
   runtime.movePlayer({ x: 5, y: 5 });
@@ -985,6 +986,7 @@ test("interaction spots approach characters and honor authored furniture points"
 
 test("main doors choose the closest reachable side and block paths until opened", () => {
   const doors = load().world!.doors;
+  doors.find(door => door.id === "hall_door")!.open = true;
   const corvin = doors.find(door => door.id === "corvin_door")!;
   assert.equal(courtPath({ x: 15, y: 21 }, { x: 5, y: 5 }, doors), undefined);
   assert.deepEqual(nearestDoorSpot({ x: 15, y: 21 }, corvin, doors), corvin.interactionSpots[0]);
@@ -1002,6 +1004,7 @@ test("door operations validate approach and occupancy, and persist through saves
   const runtime = new BrowserGameRuntime(scenario, "test");
   assert.throws(() => runtime.setDoor("corvin_door", true), /interaction spot/);
   assert.throws(() => runtime.movePlayer({ x: 5, y: 5 }), /not reachable/);
+  runtime.movePlayer({ x: 5, y: 16 }); runtime.setDoor("hall_door", true);
   runtime.movePlayer({ x: 5, y: 10 }); runtime.setDoor("corvin_door", true);
   runtime.movePlayer({ x: 5, y: 8 }); runtime.setDoor("corvin_door", false);
   const restored = new BrowserGameRuntime(scenario, "test", structuredClone(runtime.snapshot()));
@@ -1026,9 +1029,12 @@ test("bedroom doors are illegal to open except for characters on the room access
   const corvin = world.doors.find(door => door.id === "corvin_door")!;
   assert.equal(doorActionLegality(corvin, world.rooms, "player"), "illegal");
   world.rooms.find(room => room.id === "corvin_chamber")!.allowedCharacterIds.push("player");
+  assert.equal(doorActionLegality(corvin, world.rooms, "player"), "illegal");
+  world.rooms.find(room => room.id === "north_corridor")!.allowedCharacterIds.push("player");
   assert.equal(doorActionLegality(corvin, world.rooms, "player"), "normal");
   const hall = world.doors.find(door => door.id === "hall_door")!;
-  assert.equal(doorActionLegality({ ...hall, open: false }, world.rooms, "stranger"), "normal");
+  assert.equal(doorActionLegality(hall, world.rooms, "stranger"), "illegal");
+  assert.equal(doorActionLegality(hall, world.rooms, "king"), "normal");
   const restored = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, load())).world!;
   assert.equal(doorActionLegality(restored.doors.find(door => door.id === "royal_door")!, restored.rooms, "player"), "illegal");
 });
@@ -1108,6 +1114,7 @@ test("main containers enforce approaches and keys, conceal contents, and persist
   assert.ok(!known.objects.some(item => item.id === "palace_royal_key"));
   assert.equal(known.fixtures.find(item => item.id === "palace_coffer_03")!.requiredKeyId, "");
   assert.throws(() => runtime.interactFixture("open_palace_corvin_drawers"), /interaction spot/);
+  runtime.movePlayer({ x: 5, y: 16 }); runtime.setDoor("hall_door", true);
   runtime.movePlayer({ x: 5, y: 10 }); runtime.setDoor("corvin_door", true);
   runtime.movePlayer({ x: 6, y: 5 });
   assert.match(runtime.interactFixture("open_palace_corvin_drawers"), /Royal lockbox key/);
@@ -1260,12 +1267,12 @@ test("reviewed immediate goal reaches Jev, which opens doors and moves the NPC i
     assert.equal(state.characterContext.character.parkedObjectives.length, 3);
     assert.ok(!JSON.stringify(state.world).includes("Sealed royal decree"));
     assert.match(criteria.wait!, /depends entirely on another character/);
-    const choice = ["open_corvin_door_0", "move_corvin", "complete"][step++]!;
+    const choice = ["open_hall_door_0", "open_corvin_door_0", "move_corvin", "complete"][step++]!;
     assert.ok(criteria[choice]);
-    if (step === 1) assert.ok(!criteria.move_corvin, "Closed room cannot be selected as a move target");
+    if (step <= 2) assert.ok(!criteria.move_corvin, "Closed room cannot be selected as a move target");
     return { choice, probabilities: { [choice]: 1 } };
   });
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 3; i++) {
     const plan = await runtime.planNpc("corvin", new AbortController().signal);
     assert.ok(plan.action);
     runtime.executeNpcAction("corvin", plan.action.id, plan.revision, plan.goal);
@@ -1635,6 +1642,26 @@ test("each visiting delegation has a public room, private back hall and individu
   for (const placement of scenario.courtArrivalPlacements) assert.equal(placement.roomId, "great_hall");
 });
 
+test("the royal household has a public council chamber, private back hall and meeting-room doors", () => {
+  const scenario = load(), world = scenario.world!;
+  const council = world.rooms.find(room => room.id === "royal_council_chamber")!;
+  const backHall = world.rooms.find(room => room.id === "north_corridor")!;
+  assert.equal(council.name, "Royal Council Chamber");
+  assert.equal(backHall.name, "Royal Back Hall");
+  assert.equal(backHall.private, true);
+  assert.deepEqual([...backHall.allowedCharacterIds].sort(), ["corvin", "garran", "king"]);
+  const meetingDoors = ["royal_council_door", "ironmark_salon_door", "greenweald_solar_door", "saltmere_drawing_room_door"];
+  for (const id of meetingDoors) {
+    const door = world.doors.find(door => door.id === id)!;
+    assert.ok(door, `${id} exists`);
+    assert.equal(door.open, true, `${id} starts open`);
+  }
+  assert.ok(courtPath({ x: 15, y: 24 }, { x: 5, y: 17 }, world.doors, world.fixtures));
+  assert.equal(courtPath({ x: 15, y: 24 }, { x: 15, y: 12 }, world.doors, world.fixtures), undefined);
+  const openDoors = world.doors.map(door => door.id === "hall_door" ? { ...door, open: true } : door);
+  assert.ok(courtPath({ x: 15, y: 24 }, { x: 15, y: 12 }, openDoors, world.fixtures));
+});
+
 test("GPT-6 Responses adapter preserves tool history and encrypted reasoning across DM turns", async t => {
   const output = [
     { type: "reasoning", id: "rs_test", summary: [], encrypted_content: "opaque" },
@@ -1722,6 +1749,7 @@ test("NPC movement commits one tile at a time and replans when a door closes", (
   const scenario = fromJson(ScenarioSchema, initial.scenario);
   const actor = scenario.world!.actors.find(a => a.characterId === "corvin")!;
   actor.position = create(TilePositionSchema, { x: 15, y: 17 }); actor.roomId = "great_hall";
+  scenario.world!.doors.find(d => d.id === "hall_door")!.open = true;
   initial.scenario = toJson(ScenarioSchema, scenario); runtime.restore(initial);
   const goal = scenario.characters.find(c => c.id === "corvin")!.currentGoal;
   const result = runtime.stepNpcAction("corvin", "move_north_junction", goal);

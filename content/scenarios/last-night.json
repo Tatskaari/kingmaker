@@ -784,7 +784,8 @@
         "name": "Great Hall",
         "description": "The four kingdoms gather beneath banners in the ceremonial hall, trading courtesies and demands before the centennial assembly.",
         "exitRoomIds": [
-          "north_corridor",
+          "royal_council_chamber",
+          "palace_back_hall",
           "guest_chamber",
           "entrance_hall",
           "treasury"
@@ -792,14 +793,28 @@
       },
       {
         "id": "north_corridor",
-        "name": "North Corridor",
-        "description": "A guarded passage joining private bedchambers to the hall.",
+        "private": true,
+        "allowedCharacterIds": [
+          "corvin",
+          "king",
+          "garran"
+        ],
+        "name": "Royal Back Hall",
+        "description": "A private gallery joins the king's chamber to the rooms of his closest royal officers.",
         "exitRoomIds": [
-          "great_hall",
+          "royal_council_chamber",
           "corvin_chamber",
           "garran_chamber",
-          "royal_bedchamber",
-          "palace_back_hall"
+          "royal_bedchamber"
+        ]
+      },
+      {
+        "id": "royal_council_chamber",
+        "name": "Royal Council Chamber",
+        "description": "A public meeting chamber outside the royal apartments receives petitioners before they pass into the Great Hall.",
+        "exitRoomIds": [
+          "great_hall",
+          "north_corridor"
         ]
       },
       {
@@ -883,7 +898,7 @@
         "name": "Palace Back Hall",
         "description": "A long servants' passage links the state rooms to the three visiting delegations' apartments.",
         "exitRoomIds": [
-          "north_corridor",
+          "great_hall",
           "ironmark_salon",
           "greenweald_solar",
           "saltmere_drawing_room"
@@ -1340,7 +1355,7 @@
         "roomId": "guest_chamber",
         "position": {
           "x": 3,
-          "y": 21
+          "y": 25
         },
         "sprite": 72,
         "container": false,
@@ -1352,7 +1367,7 @@
         "roomId": "guest_chamber",
         "position": {
           "x": 4,
-          "y": 21
+          "y": 25
         },
         "sprite": 73,
         "container": false,
@@ -1364,11 +1379,11 @@
         "roomId": "guest_chamber",
         "position": {
           "x": 6,
-          "y": 27
+          "y": 31
         },
         "interactionSpot": {
           "x": 5,
-          "y": 27
+          "y": 31
         },
         "sprite": 75,
         "container": true,
@@ -1783,30 +1798,47 @@
       },
       {
         "id": "hall_door",
-        "name": "Great Hall door",
+        "name": "Royal quarters door",
         "tiles": [
           {
-            "x": 15,
+            "x": 5,
             "y": 15
           },
           {
-            "x": 16,
+            "x": 6,
             "y": 15
           }
         ],
         "interactionSpots": [
           {
-            "x": 15,
+            "x": 5,
             "y": 16
           },
           {
-            "x": 15,
+            "x": 5,
             "y": 14
           }
         ],
         "roomIds": [
-          "great_hall",
+          "royal_council_chamber",
           "north_corridor"
+        ],
+        "open": false
+      },
+      {
+        "id": "royal_council_door",
+        "name": "Royal Council Chamber door",
+        "tiles": [
+          { "x": 8, "y": 18 },
+          { "x": 8, "y": 19 }
+        ],
+        "interactionSpots": [
+          { "x": 7, "y": 18 },
+          { "x": 9, "y": 18 }
+        ],
+        "roomIds": [
+          "royal_council_chamber",
+          "great_hall"
         ],
         "open": true
       },
@@ -1845,21 +1877,21 @@
         "tiles": [
           {
             "x": 8,
-            "y": 22
+            "y": 25
           },
           {
             "x": 8,
-            "y": 23
+            "y": 26
           }
         ],
         "interactionSpots": [
           {
             "x": 7,
-            "y": 22
+            "y": 25
           },
           {
             "x": 9,
-            "y": 22
+            "y": 25
           }
         ],
         "roomIds": [
@@ -1898,98 +1930,122 @@
         "open": false
       },
       {
+        "id": "ironmark_salon_door",
+        "name": "Ironmark Salon door",
+        "tiles": [{ "x": 35, "y": 13 }, { "x": 35, "y": 14 }],
+        "interactionSpots": [{ "x": 34, "y": 13 }, { "x": 36, "y": 13 }],
+        "roomIds": ["palace_back_hall", "ironmark_salon"],
+        "open": true
+      },
+      {
         "id": "ironmark_quarters_door",
         "name": "Ironmark quarters door",
-        "tiles": [{ "x": 46, "y": 12 }, { "x": 46, "y": 13 }],
-        "interactionSpots": [{ "x": 45, "y": 12 }, { "x": 47, "y": 12 }],
+        "tiles": [{ "x": 46, "y": 13 }, { "x": 46, "y": 14 }],
+        "interactionSpots": [{ "x": 45, "y": 13 }, { "x": 47, "y": 13 }],
         "roomIds": ["ironmark_salon", "ironmark_back_hall"],
         "open": false
       },
       {
         "id": "mara_door",
         "name": "Mara's door",
-        "tiles": [{ "x": 52, "y": 10 }, { "x": 53, "y": 10 }],
-        "interactionSpots": [{ "x": 52, "y": 9 }, { "x": 52, "y": 11 }],
+        "tiles": [{ "x": 52, "y": 11 }, { "x": 53, "y": 11 }],
+        "interactionSpots": [{ "x": 52, "y": 10 }, { "x": 52, "y": 12 }],
         "roomIds": ["mara_chamber", "ironmark_back_hall"],
         "open": false
       },
       {
         "id": "hadrik_door",
         "name": "Hadrik's door",
-        "tiles": [{ "x": 62, "y": 10 }, { "x": 63, "y": 10 }],
-        "interactionSpots": [{ "x": 62, "y": 9 }, { "x": 62, "y": 11 }],
+        "tiles": [{ "x": 62, "y": 11 }, { "x": 63, "y": 11 }],
+        "interactionSpots": [{ "x": 62, "y": 10 }, { "x": 62, "y": 12 }],
         "roomIds": ["hadrik_chamber", "ironmark_back_hall"],
         "open": false
       },
       {
         "id": "tessa_door",
         "name": "Tessa's door",
-        "tiles": [{ "x": 72, "y": 10 }, { "x": 73, "y": 10 }],
-        "interactionSpots": [{ "x": 72, "y": 9 }, { "x": 72, "y": 11 }],
+        "tiles": [{ "x": 72, "y": 11 }, { "x": 73, "y": 11 }],
+        "interactionSpots": [{ "x": 72, "y": 10 }, { "x": 72, "y": 12 }],
         "roomIds": ["tessa_chamber", "ironmark_back_hall"],
         "open": false
       },
       {
+        "id": "greenweald_solar_door",
+        "name": "Greenweald Solar door",
+        "tiles": [{ "x": 35, "y": 28 }, { "x": 35, "y": 29 }],
+        "interactionSpots": [{ "x": 34, "y": 28 }, { "x": 36, "y": 28 }],
+        "roomIds": ["palace_back_hall", "greenweald_solar"],
+        "open": true
+      },
+      {
         "id": "greenweald_quarters_door",
         "name": "Greenweald quarters door",
-        "tiles": [{ "x": 46, "y": 27 }, { "x": 46, "y": 28 }],
-        "interactionSpots": [{ "x": 45, "y": 27 }, { "x": 47, "y": 27 }],
+        "tiles": [{ "x": 46, "y": 28 }, { "x": 46, "y": 29 }],
+        "interactionSpots": [{ "x": 45, "y": 28 }, { "x": 47, "y": 28 }],
         "roomIds": ["greenweald_solar", "greenweald_back_hall"],
         "open": false
       },
       {
         "id": "elinor_door",
         "name": "Elinor's door",
-        "tiles": [{ "x": 52, "y": 25 }, { "x": 53, "y": 25 }],
-        "interactionSpots": [{ "x": 52, "y": 24 }, { "x": 52, "y": 26 }],
+        "tiles": [{ "x": 52, "y": 26 }, { "x": 53, "y": 26 }],
+        "interactionSpots": [{ "x": 52, "y": 25 }, { "x": 52, "y": 27 }],
         "roomIds": ["elinor_chamber", "greenweald_back_hall"],
         "open": false
       },
       {
         "id": "oswin_door",
         "name": "Oswin's door",
-        "tiles": [{ "x": 62, "y": 25 }, { "x": 63, "y": 25 }],
-        "interactionSpots": [{ "x": 62, "y": 24 }, { "x": 62, "y": 26 }],
+        "tiles": [{ "x": 62, "y": 26 }, { "x": 63, "y": 26 }],
+        "interactionSpots": [{ "x": 62, "y": 25 }, { "x": 62, "y": 27 }],
         "roomIds": ["oswin_chamber", "greenweald_back_hall"],
         "open": false
       },
       {
         "id": "rowan_door",
         "name": "Rowan's door",
-        "tiles": [{ "x": 72, "y": 25 }, { "x": 73, "y": 25 }],
-        "interactionSpots": [{ "x": 72, "y": 24 }, { "x": 72, "y": 26 }],
+        "tiles": [{ "x": 72, "y": 26 }, { "x": 73, "y": 26 }],
+        "interactionSpots": [{ "x": 72, "y": 25 }, { "x": 72, "y": 27 }],
         "roomIds": ["rowan_chamber", "greenweald_back_hall"],
         "open": false
       },
       {
+        "id": "saltmere_drawing_room_door",
+        "name": "Saltmere Drawing Room door",
+        "tiles": [{ "x": 35, "y": 43 }, { "x": 35, "y": 44 }],
+        "interactionSpots": [{ "x": 34, "y": 43 }, { "x": 36, "y": 43 }],
+        "roomIds": ["palace_back_hall", "saltmere_drawing_room"],
+        "open": true
+      },
+      {
         "id": "saltmere_quarters_door",
         "name": "Saltmere quarters door",
-        "tiles": [{ "x": 46, "y": 42 }, { "x": 46, "y": 43 }],
-        "interactionSpots": [{ "x": 45, "y": 42 }, { "x": 47, "y": 42 }],
+        "tiles": [{ "x": 46, "y": 43 }, { "x": 46, "y": 44 }],
+        "interactionSpots": [{ "x": 45, "y": 43 }, { "x": 47, "y": 43 }],
         "roomIds": ["saltmere_drawing_room", "saltmere_back_hall"],
         "open": false
       },
       {
         "id": "lucan_door",
         "name": "Lucan's door",
-        "tiles": [{ "x": 52, "y": 40 }, { "x": 53, "y": 40 }],
-        "interactionSpots": [{ "x": 52, "y": 39 }, { "x": 52, "y": 41 }],
+        "tiles": [{ "x": 52, "y": 41 }, { "x": 53, "y": 41 }],
+        "interactionSpots": [{ "x": 52, "y": 40 }, { "x": 52, "y": 42 }],
         "roomIds": ["lucan_chamber", "saltmere_back_hall"],
         "open": false
       },
       {
         "id": "sabine_door",
         "name": "Sabine's door",
-        "tiles": [{ "x": 62, "y": 40 }, { "x": 63, "y": 40 }],
-        "interactionSpots": [{ "x": 62, "y": 39 }, { "x": 62, "y": 41 }],
+        "tiles": [{ "x": 62, "y": 41 }, { "x": 63, "y": 41 }],
+        "interactionSpots": [{ "x": 62, "y": 40 }, { "x": 62, "y": 42 }],
         "roomIds": ["sabine_chamber", "saltmere_back_hall"],
         "open": false
       },
       {
         "id": "rook_door",
         "name": "Rook's door",
-        "tiles": [{ "x": 72, "y": 40 }, { "x": 73, "y": 40 }],
-        "interactionSpots": [{ "x": 72, "y": 39 }, { "x": 72, "y": 41 }],
+        "tiles": [{ "x": 72, "y": 41 }, { "x": 73, "y": 41 }],
+        "interactionSpots": [{ "x": 72, "y": 40 }, { "x": 72, "y": 42 }],
         "roomIds": ["rook_chamber", "saltmere_back_hall"],
         "open": false
       }
