@@ -1510,3 +1510,57 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   assert.equal(modelCalls, 1);
   assert.equal(greeting.state.phase, "player_creation");
 });
+
+test("court dialogue accepts fenced JSON without issuing a second model request", async t => {
+  const runtime = new BrowserGameRuntime(conversationScenario(), "test");
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => {
+    calls++;
+    return { role: "assistant", content: '```json\n{"utterance":"Welcome, envoy.","replyOptions":[],"endConversation":false}\n```' };
+  });
+  assert.equal(await runtime.talkToCharacter("mara", "Hello."), "Welcome, envoy.");
+  assert.equal(calls, 1);
+  assert.equal(runtime.snapshot().conversations.mara?.length, 2);
+});
+
+test("malformed dialogue retries once and commits only one exchange", async t => {
+  const runtime = new BrowserGameRuntime(conversationScenario(), "test");
+  const requests: any[] = [];
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: any) => {
+    requests.push(structuredClone(request));
+    return requests.length === 1 ? { role: "assistant", content: "Welcome to the hall." }
+      : modelReply({ utterance: "Welcome to the hall.", replyOptions: [], endConversation: false });
+  });
+  await runtime.talkToCharacter("mara", "Hello.");
+  assert.equal(requests.length, 2);
+  assert.equal(requests[1].messages.filter((message: any) => message.role === "user" && message.content === "Hello.").length, 1);
+  assert.match(requests[1].messages.at(-1).content, /valid JSON/);
+  assert.equal(runtime.snapshot().conversations.mara?.length, 2);
+});
+
+test("repeated malformed dialogue preserves existing conversation and reply options", async t => {
+  const runtime = new BrowserGameRuntime(conversationScenario(), "test");
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => ++calls === 1
+    ? modelReply({ utterance: "Welcome.", replyOptions: ["Thank you."], endConversation: false })
+    : { role: "assistant", content: "Not a JSON response" });
+  await runtime.talkToCharacter("mara", "Hello.");
+  const before = structuredClone(runtime.snapshot());
+  await assert.rejects(runtime.talkToCharacter("mara", "What is your demand?"), /Court dialogue returned an unreadable response/);
+  assert.equal(calls, 3);
+  assert.deepEqual(runtime.snapshot(), before);
+});
+
+test("non-JSON OpenRouter errors retain HTTP status and transient dialogue failures recover", async t => {
+  let calls = 0;
+  t.mock.method(globalThis, "fetch", async () => ++calls === 1
+    ? new Response("<html>Upstream unavailable</html>", { status: 502 })
+    : new Response(JSON.stringify({ status: "completed", output: [{ type: "message", content: [{ type: "output_text", text: JSON.stringify({ utterance: "Welcome.", replyOptions: [], endConversation: false }) }] }] })));
+  t.mock.method(OpenRouterClient.prototype, "complete", originalOpenRouterComplete);
+  const runtime = new BrowserGameRuntime(conversationScenario(), "test");
+  assert.equal(await runtime.talkToCharacter("mara", "Hello."), "Welcome.");
+  assert.equal(calls, 2);
+  assert.equal(runtime.snapshot().conversations.mara?.length, 2);
+  t.mock.method(globalThis, "fetch", async () => new Response("<html>Forbidden</html>", { status: 403 }));
+  await assert.rejects(new OpenRouterClient("test").complete({ model: "test", messages: [] }), /HTTP 403/);
+});

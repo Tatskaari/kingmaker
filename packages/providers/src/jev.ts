@@ -41,7 +41,10 @@ export class JevClient {
       }
       throw new Error(`Jev returned HTTP ${response.status}. ${help}${detail ? ` Provider: ${detail}` : ""}`);
     }
-    const body = await response.json() as { answers?: { next?: Partial<JevChoice> & { type?: string } } };
+    let body: { answers?: { next?: Partial<JevChoice> & { type?: string } } };
+    try { body = await response.json() as typeof body; }
+    catch { throw new Error(`Jev returned an unreadable response (HTTP ${response.status}). No action was taken. Please try again.`); }
+    if (!body || typeof body !== "object") throw new Error("Jev returned an invalid response. No action was taken.");
     const answer = body.answers?.next;
     if (answer?.type !== "choice" || typeof answer.choice !== "string" || !Object.hasOwn(criteria, answer.choice)
       || !answer.probabilities || typeof answer.probabilities !== "object"

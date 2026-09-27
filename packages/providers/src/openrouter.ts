@@ -41,6 +41,10 @@ interface ChatCompletionResponse {
   error?: { message?: string };
 }
 
+export class ProviderResponseError extends Error {
+  constructor(message: string, readonly retryable: boolean) { super(message); }
+}
+
 export class OpenRouterClient {
   constructor(
     private readonly apiKey: string,
@@ -63,10 +67,17 @@ export class OpenRouterClient {
       body: JSON.stringify(useResponses ? responsesRequest(request) : request),
       signal: combined,
     });
-    const body = await response.json() as ChatCompletionResponse & ResponsesResult;
-    if (!response.ok) {
-      throw new Error(body.error?.message || `OpenRouter returned HTTP ${response.status}`);
+    let body: ChatCompletionResponse & ResponsesResult;
+    try { body = await response.json() as ChatCompletionResponse & ResponsesResult; }
+    catch (error) {
+      if (combined.aborted) throw error;
+      throw new ProviderResponseError(`OpenRouter returned an unreadable response (HTTP ${response.status}). Please try again.`, response.ok || [502, 503, 504].includes(response.status));
     }
+    if (!response.ok) {
+      const detail = typeof body?.error?.message === "string" ? body.error.message : "The request failed.";
+      throw new ProviderResponseError(`OpenRouter returned HTTP ${response.status}: ${detail}`, [502, 503, 504].includes(response.status));
+    }
+    if (!body || typeof body !== "object" || Array.isArray(body)) throw new ProviderResponseError("OpenRouter returned an invalid response. Please try again.", true);
     if (useResponses) return responsesMessage(body);
     const message = body.choices?.[0]?.message;
     if (!message) throw new Error("OpenRouter returned no assistant message");

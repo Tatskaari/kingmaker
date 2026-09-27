@@ -1,3 +1,4 @@
+import { InvalidModelJsonError, parseModelObject } from "../../../packages/providers/src/structured-output.js";
 import { validateIdentity, type TravellerIdentity } from "./introduction.js";
 import { DIALOGUE_MODEL, REASONING_MODEL } from "./model-settings.js";
 import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
@@ -19,7 +20,7 @@ import {
 } from "../../../packages/contracts/src/index.js";
 import { FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter } from "../../../packages/core/src/context.js";
 import { MemoryGame } from "../../../packages/core/src/game.js";
-import { OpenRouterClient, type OpenRouterMessage, type OpenRouterTool, type ChatCompletionRequest } from "../../../packages/providers/src/openrouter.js";
+import { OpenRouterClient, ProviderResponseError, type OpenRouterMessage, type OpenRouterTool, type ChatCompletionRequest } from "../../../packages/providers/src/openrouter.js";
 
 interface GameMasterTrace {
   request: ChatCompletionRequest;
@@ -320,9 +321,23 @@ export class BrowserGameRuntime {
     const request = create(DialogueRequestSchema, { characterId, scenario, transcript: [...history, playerMessage] });
     const messages = new FullContextBuilder().build(request).map(item => ({ role: item.role, content: item.content } satisfies OpenRouterMessage));
     messages.unshift({ role: "system", content: "You may choose to end this conversation. Set endConversation=true when you take your leave, refuse further discussion, or conclude the exchange to pursue your immediate task. Express that decision naturally in utterance and return replyOptions=[]. Do not end merely because you answered one question; use your own intentions, relationships and the exchange. Otherwise set endConversation=false. Ending triggers a separate memory and goal review; speech alone does not move you or complete physical tasks." });
-    const completion = await this.#complete("dialogue", characterId, { ...DIALOGUE_MODEL, messages, response_format: dialogueFormat, max_tokens: 900 });
-    if (!completion.content) throw new Error("Character returned no dialogue");
-    const parsed = JSON.parse(completion.content) as { replyOptions?: unknown; utterance?: unknown; endConversation?: unknown };
+    messages.unshift({ role: "system", content: "Return only a JSON object matching the supplied response schema, with no Markdown fences or surrounding prose." });
+    let parsed: JsonObject | undefined;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const completion = await this.#complete("dialogue", characterId, {
+          ...DIALOGUE_MODEL, messages, response_format: dialogueFormat, max_tokens: 900,
+        });
+        parsed = parseModelObject(completion.content, "Court dialogue");
+        break;
+      } catch (error) {
+        const malformed = error instanceof InvalidModelJsonError;
+        const retryable = malformed || (error instanceof ProviderResponseError && error.retryable);
+        if (!retryable || attempt === 1) throw error;
+        if (malformed) messages.push({ role: "system", content: "The previous response could not be read as the required JSON object. Answer the same player message using valid JSON that matches the supplied schema. Do not add commentary outside that object." });
+      }
+    }
+    if (!parsed) throw new Error("Court dialogue returned no reply. Please try again.");
     const utterance = text(parsed.utterance, "utterance");
     if (parsed.endConversation !== undefined && typeof parsed.endConversation !== "boolean") throw new Error("endConversation must be a boolean");
     const replyOptions = parseReplyOptions(parsed.replyOptions);
@@ -351,7 +366,7 @@ export class BrowserGameRuntime {
     });
     if (!completion.content) throw new Error("Character returned no conversation memory");
     // Protobuf parsing rejects malformed output before any memory is committed.
-    const parsed = JSON.parse(completion.content) as JsonObject | null;
+    const parsed = parseModelObject(completion.content, "Conversation review");
     if (!parsed || !Array.isArray(parsed.newEvents) || !Array.isArray(parsed.relationships)
       || !("goalUpdate" in parsed) || !("lore" in parsed)) {
       throw new Error("Character returned incomplete conversation memory");
@@ -508,7 +523,7 @@ export class BrowserGameRuntime {
         { role: "user", content: JSON.stringify({ target: action.target, goal, surroundings: courtAgentObservation(scenario, characterId).world }) }],
     }, signal);
     valid();
-    const proposal = JSON.parse(request.content || "null");
+    const proposal = parseModelObject(request.content, "NPC dialogue");
     text(proposal?.request, "request"); text(proposal?.intent, "intent");
     const resolution = await this.#complete("npc_resolution", characterId, {
       ...REASONING_MODEL, max_tokens: 12000,
@@ -522,12 +537,12 @@ export class BrowserGameRuntime {
           surroundings: courtAgentObservation(scenario, characterId).world }) }],
     }, signal);
     valid();
-    const result = JSON.parse(resolution.content || "null");
+    const result = parseModelObject(resolution.content, "NPC conversation review");
     const summary = text(result?.summary, "summary");
     const staged = new MemoryGame(scenario);
     const updates: Record<string, NpcActivity> = {};
     for (const [id, output] of [[characterId, result.initiator], [action.target, result.recipient]] as const) {
-      if (!output || !Array.isArray(output.newEvents) || !Array.isArray(output.relationships) || !("goalUpdate" in output) || !("lore" in output)) throw new Error("Incomplete NPC conversation memory.");
+      if (!output || typeof output !== "object" || Array.isArray(output) || !Array.isArray(output.newEvents) || !Array.isArray(output.relationships) || !("goalUpdate" in output) || !("lore" in output)) throw new Error("Incomplete NPC conversation memory.");
       const memory = fromJson(ConversationMemorySchema, output);
       memory.newEvents.push(create(EventSchema, { type: "npc_conversation", summary }));
       const committed = staged.commitConversation(id, memory, false);
@@ -560,7 +575,7 @@ export class BrowserGameRuntime {
         { role: "user", content: JSON.stringify({ goal: activity.goal, actionsPerformed: activity.history, result: activity.result, observations: courtAgentObservation(scenario, characterId).world }) }],
     }, signal);
     signal?.throwIfAborted();
-    const parsed = JSON.parse(completion.content || "null");
+    const parsed = parseModelObject(completion.content, "NPC outcome review");
     if (!parsed || !Array.isArray(parsed.newEvents) || !Array.isArray(parsed.relationships) || !("goalUpdate" in parsed) || !("lore" in parsed)) throw new Error("NPC returned incomplete outcome memory.");
     const memory = fromJson(ConversationMemorySchema, parsed);
     const committed = this.#game.commitConversation(characterId, memory, false);
