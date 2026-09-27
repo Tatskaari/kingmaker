@@ -21,21 +21,38 @@ are also checked as decision dependencies. A changed resource gets a new ID even
 when a subsequent mutation restores its previous value. Deleted resources keep
 tombstones; a never-seen ID reads as `{ generationId: "absent", state: null }`.
 
-GM reconciliation tools and final memory JSON prepare a private proposal.
-The same reviewing agent then receives `read_state` and `commit_review` tools.
-`commit_review` atomically publishes the complete character review and world changes.
-The worker's mutation queue rechecks generations and saves before acknowledging success.
-A conflict returns `generation_conflict`, fresh state and IDs, and an instruction to
-reconcile and explicitly re-call the write tool. The engine never retries a stale
-write by substituting newer IDs. Exhaustion or failed persistence leaves the review
-available for retry; no part of its proposed update is saved.
+Live conversation and NPC outcome reviews receive the current `world_state` before
+the conversation/action evidence. Each resource is represented as
+`{ resource_id, generation_id, data }`. The agent writes through small tools:
 
-Direct court GM writes use the same conflict response. Jev actions carry generations
+- `update_character`: provide `character_id`, its `generation_id`, and `changes`.
+  `append_events` appends memories; `relationships` upserts only named characters;
+  `lore` replaces the biography; `current_goal` sets a goal or clears it with `null`.
+  Omitted fields remain unchanged. Empty arrays do not clear existing entries.
+- `update_inventory`: provide `owner_id`, the **inventory's** `generation_id`, and
+  `add_items`. These justified additions are validated together; existing items
+  remain unchanged. This tool does not transfer, remove, or modify existing items.
+- `record_overheard`, `record_witnessed`, and `message_player`: provide the affected
+  character's generation. Hearing and participant eligibility still apply.
+- `read_state`: refresh one resource by `resource_id` when needed.
+- `finish_review`: finish alone after the intended writes, without repeating them.
+
+The agent-facing tool descriptions include examples, field semantics, generation
+sources, and recovery instructions. Each successful write is saved immediately by
+the worker's mutation queue and returns `commit_result: "success"` and `new_state`.
+A stale write returns `commit_result: "error"`, `reason: "Generation ID out of date"`,
+and `new_state` containing the resource's current `generation_id` and `data`.
+The agent must reconcile its intended change and explicitly re-call the write tool.
+The engine never retries by substituting a newer ID. A failed call writes nothing,
+but earlier successful calls remain saved, including if the review later fails.
+Retries therefore read current state and must not replay already completed writes.
+
+Other guarded court writes return structured generation conflicts. Jev actions carry generations
 from their observation, and conflicts cause a new decision with refreshed, knowledge-filtered
 state. Player commands carry generations from the visible world; conflict refreshes
 the view so the player can choose again. NPC model contexts and player views do not
 receive concealed state through generation errors.
 
-This establishes guarded publication; it does not replace the existing single-NPC
-background scheduler with concurrent NPC runners. New mutation paths must observe
-generations at their mutation boundaries and use the queue for live publication.
+Independent NPC jobs run concurrently; conversations reserve their participants
+until review finishes. New mutation paths must observe generations at their mutation
+boundaries and use the queue for live publication.
