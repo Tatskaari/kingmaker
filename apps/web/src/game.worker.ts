@@ -439,8 +439,8 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     await persist();
     return { state: requireRuntime().view(), saves: await listSaves(), activeSaveId: activeSave?.id };
   }
-  if (type === "debug_transcripts") return { transcripts: requireRuntime().recentTranscripts(), agentRuns: requireRuntime().transcriptRuns() };
-  if (type === "issue_report") return { worldState: requireRuntime().snapshot(), transcripts: requireRuntime().recentTranscripts(), agentRuns: requireRuntime().transcriptRuns() };
+  if (type === "debug_transcripts") return { requests: requireRuntime().recentTranscripts(), agentRuns: requireRuntime().transcriptRuns() };
+  if (type === "issue_report") return { worldState: requireRuntime().snapshot(), requests: requireRuntime().recentTranscripts(), agentRuns: requireRuntime().transcriptRuns() };
   if (type === "debug_gm") return requireRuntime().debugGameMaster();
   if (type === "debug") return requireRuntime().debug();
   if (type === "debug_character") return requireRuntime().debugCharacter(String(payload.characterId || ""));

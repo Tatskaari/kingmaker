@@ -18,11 +18,13 @@ test("issue page is prefilled and asks for the downloaded report", () => {
 test("report ZIP contains readable diagnostics and optional screenshot", () => {
   const zip = buildIssueReport({
     description: "A courtier vanished", generatedAt: "2026-09-28T12:34:56.000Z",
-    worldState: { revision: 3 }, transcripts: [{ id: 1 }], agentRuns: { "character/Corvin/run": { calls: [] } }, alerts: [], environment: { language: "en" },
+    worldState: { revision: 3 }, requests: [{ id: 1 }], agentRuns: { "character/Corvin/run": { calls: [] } }, alerts: [], environment: { language: "en" },
     screenshot: new Uint8Array([1, 2, 3]),
   });
   const files = unzipSync(zip);
   assert.deepEqual(JSON.parse(strFromU8(files["world-state.json"]!)), { revision: 3 });
+  assert.deepEqual(JSON.parse(strFromU8(files["recent-requests.json"]!)), [{ id: 1 }]);
+  assert.equal(files["recent-transcripts.json"], undefined);
   assert.deepEqual(Object.keys(JSON.parse(strFromU8(files["agent-runs.json"]!))), ["character/Corvin/run"]);
   assert.deepEqual(files["world.png"], new Uint8Array([1, 2, 3]));
   assert.equal(issueReportFilename("2026-09-28T12:34:56.000Z"), "kingmaker-issue-report-2026-09-28T12-34-56-000Z.zip");
