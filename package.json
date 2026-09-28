@@ -11,6 +11,7 @@
     "build": "proto run moon -- run workspace:build",
     "build:web": "vite build",
     "test": "proto run moon -- run workspace:test",
+    "eval:unit": "tsx scripts/run-unit-eval.ts",
     "generate": "proto run moon -- run contracts:generate",
     "dev": "proto run moon -- run workspace:dev"
   },

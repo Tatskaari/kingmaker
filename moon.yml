@@ -4,7 +4,7 @@ tasks:
   typecheck:
     command: npx --no-install tsc --noEmit
     deps: [contracts:generate]
-    inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
+    inputs: ['packages/**/*', 'apps/**/*', 'scripts/**/*', 'tests/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
   test:
     command: npx --no-install tsx --test tests/*.test.ts
     deps: [contracts:generate]
@@ -12,7 +12,7 @@ tasks:
   compile:
     command: npx --no-install tsc --outDir dist
     deps: [contracts:generate]
-    inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
+    inputs: ['packages/**/*', 'apps/**/*', 'scripts/**/*', 'tests/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
     outputs: [dist]
   webBuild:
     deps: [contracts:generate]

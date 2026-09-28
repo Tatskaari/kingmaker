@@ -99,5 +99,16 @@ fresh game for this scenario.
 proto run moon -- run workspace:check workspace:build
 ```
 
+Unit eval scenarios live in `evals/`. Each scenario names a generation model,
+a transcript fixture, repeated-run settings and a weighted rubric. The runner
+sends the transcript to the named model, captures its response, then asks Jev to
+score each criterion independently. Run the default witnessed-theft scenario:
+
+```sh
+OPENROUTER_API_KEY=... npm run eval:unit
+```
+
+Pass a scenario path after `--` to run a different fixture.
+
 The production site is built into `dist/web`. Merges to main deploy through
 `.github/workflows/pages.yml`. Relative asset URLs support GitHub Pages paths.
