@@ -16,7 +16,6 @@ test("the unit eval loads its model and transcript", () => {
   assert.match(prompt, /King of Caerwyn and expected candidate/);
   assert.doesNotMatch(prompt, /under relentless pressure/);
   assert.match(prompt, /# Known world state/);
-  assert.match(prompt, /"roomId":"great_hall"/);
   assert.match(prompt, /"characterId":"elinor"/);
   assert.doesNotMatch(prompt, /Tomas Vey/);
   assert.equal(transcript.messages.at(-1)?.role, "user");
@@ -32,10 +31,12 @@ test("dialogue evals can generate without resource-review tools", () => {
   assert.equal(scenario.rubric.reduce((sum, item) => sum + item.weight, 0), 15);
 });
 
-test("the informed accusation eval adds one plot-consistent private fact", () => {
-  const informedPath = new URL("../evals/king-accusation-informed-response.json", import.meta.url).pathname;
-  const { scenario, transcript } = loadEvalScenario(informedPath);
+test("a character context patch creates a patched comparison", () => {
+  const { scenario, comparison } = loadEvalScenario(scenarioPath);
   assert.equal(scenario.rubric.length, 5);
+  assert.ok(comparison);
+  assert.equal(comparison.name, "patched");
+  const transcript = comparison.transcript;
   assert.equal(transcript.messages.length, 8);
   const prompt = transcript.messages.map(message => message.content).join("\n");
   assert.match(prompt, /Tomas Vey/);

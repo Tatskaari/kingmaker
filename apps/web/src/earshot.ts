@@ -7,14 +7,14 @@ export function dialogueEarshotPrompt(
   scenario: Scenario,
   speakerId: string,
   participantIds: readonly string[],
-  explicit?: { roomId: string; withinEarshot: readonly string[] },
+  explicit?: { withinEarshot: readonly string[] },
 ): string {
   const world = scenario.world;
   const characters = scenario.characters.map(character => ({ id: character.id, name: character.name,
     position: world?.actors.find(actor => actor.characterId === character.id)?.position }));
   const speaker = characters.find(character => character.id === speakerId);
   const speakerActor = world?.actors.find(actor => actor.characterId === speakerId);
-  const currentRoom = world?.rooms.find(room => room.id === (explicit?.roomId ?? speakerActor?.roomId));
+  const currentRoom = world?.rooms.find(room => room.id === speakerActor?.roomId);
   const participantActors = participantIds.map(characterId => world?.actors.find(actor => actor.characterId === characterId));
   const meetingPoints = !explicit && world && participantActors.every(actor => actor?.position) ? palaceNodes.flatMap(node => {
     const mapRoom = courtRoomAt(node);

@@ -102,8 +102,8 @@ proto run moon -- run workspace:check workspace:build
 Unit eval scenarios live in `evals/`. Each scenario names a generation model,
 a transcript fixture, optional toolset, repeated-run settings and a weighted rubric. The runner
 sends the transcript to the named model, captures its response, then asks Jev to
-score every criterion in one judgment. By default, the runner executes both the
-baseline and informed king-accusation scenarios:
+score every criterion in one judgment. By default, the runner executes the
+king-accusation eval:
 
 Transcript fixtures are declarative. A `character_conversation_sys_prompt` step
 loads an editable character fixture and expands it with the production
@@ -118,12 +118,18 @@ loads an editable character fixture and expands it with the production
 }
 ```
 
-The character fixture selects the source scenario and character, names the room,
-and supplies `within_earshot` directly so evals do not need artificial actor
-coordinates. A shallow `character_overrides` object can replace editable
-character fields such as `lore` or `dialogueObjectives` for the eval without
-changing the source scenario. Optional private `notes` model facts the character
-has learned.
+The character fixture selects the source scenario and character. Its
+`within_earshot` array is currently the only synthetic world-state override, so
+evals can control conversation privacy without artificial actor coordinates.
+This fixture is the extension point for other character-local world state when
+an eval eventually needs it.
+
+The same character fixture can optionally contain `patch`, an RFC 6902 JSON
+Patch applied to a context document containing the scenario's selected
+`character` and `notes`. This lets one patch change character fields and add or
+remove private facts. When the patch contains an operation, the runner evaluates
+the untouched scenario context as the baseline and then the patched context,
+reporting score deltas. Without it, the eval runs once.
 
 ```sh
 OPENROUTER_API_KEY=... npm run eval:unit
@@ -133,7 +139,7 @@ The equivalent Moon task is `proto run moon -- run workspace:unitEval`. Pass one
 or more scenario paths after `--` to run only those fixtures, for example:
 
 ```sh
-proto run moon -- run workspace:unitEval -- evals/king-accusation-informed-response.json
+proto run moon -- run workspace:unitEval -- evals/king-accusation-response.json
 ```
 
 The production site is built into `dist/web`. Merges to main deploy through

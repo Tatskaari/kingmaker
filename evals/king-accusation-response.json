@@ -1,6 +1,6 @@
 {
-  "name": "king_reacts_to_boy_accusation_without_private_fact",
-  "description": "Baseline: when the envoy claims to know about 'the boy' and threatens an easy or hard way, Aldren should respond from his existing public characterization without treating the unsupported accusation as proven. He should reject the attempted coercion and preserve uncertainty about what the envoy actually knows.",
+  "name": "king_boy_accusation_context_comparison",
+  "description": "Compare Aldren's original context with the fixed scenario context when the envoy claims to know about 'the boy' and threatens an easy or hard way. He should visibly register the threat without confirming a private fact, reject coercion, and preserve uncertainty about what the envoy knows.",
   "model": "openai/gpt-6-luna",
   "transcript": "transcripts/king-accusation-response.json",
   "toolset": "none",

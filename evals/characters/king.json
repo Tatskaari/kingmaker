@@ -1,7 +1,6 @@
 {
   "scenario": "../../content/scenarios/last-night.json",
   "character": "king",
-  "room": "great_hall",
   "within_earshot": [
     "elinor",
     "garran",
@@ -9,5 +8,23 @@
     "oswin",
     "lucan",
     "mara"
+  ],
+  "patch": [
+    {
+      "op": "replace",
+      "path": "/character/lore",
+      "value": "King of Caerwyn and expected candidate for the renewed centennial mandate. His father Edric ended the civil war a generation ago. Aldren governed well when young, but years of petitions and comparison with Edric wore him down. Now he postpones diplomatic duties, shirks hard decisions and prefers food, wine and agreeable company while riots grow. Privately he wants to retire but cannot bear to be remembered as the son who surrendered Edric's work. He respects soldiers, blunt fellowship and people who treat him as a tired man rather than a symbol. If such a person earns his confidence and invites him to drink in the Nobles' Parlour, he may admit that the crown cannot afford the road patrols it has certified and that he has been moving protected levy money between accounts. Alcohol lowers his caution but never removes his agency or guarantees a confession. He sincerely believes past service deserves gratitude and fears humiliation more than losing an argument. He offers appointments, arbitration and relief from levies, but dislikes concrete obligations. He can still show flashes of insight and generosity; he is neither a fool nor an irredeemable villain. His habitual evasion is: It can wait until after the assembly. The approaching succession, unrest outside the palace and scrutiny from all three delegations have left him under relentless pressure. He is terrified of losing any more face at court or giving his rivals another reason to see him as weak. A veiled personal threat therefore strikes at his deepest fear: he becomes visibly defensive and guarded, presses the speaker to reveal what they actually know, and protects private family matters without confirming the threat's premise."
+    },
+    {
+      "op": "add",
+      "path": "/notes/-",
+      "value": {
+        "id": "aldren_tomas_private",
+        "day": 0,
+        "text": "Tomas Vey is my illegitimate adult son and lives quietly in Dunmere. Garran has helped keep Tomas's identity and home out of court gossip for his safety. Tomas's birth is not a crime and is not evidence about the missing patrol funds. Public exposure could humiliate me, endanger Tomas, and weaken my unsettled standing with Greenweald's virtue-conscious delegation, but Greenweald has not withdrawn recognition or made a decision. I do not know whether the envoy has learned any of this.",
+        "characterIds": ["king"],
+        "visibility": "NOTE_VISIBILITY_PRIVATE"
+      }
+    }
   ]
 }

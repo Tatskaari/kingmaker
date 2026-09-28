@@ -4,6 +4,7 @@ import { create, fromJson, fromJsonString, toJson, type JsonValue } from "@bufbu
 import { CharacterSchema, DialogueRequestSchema, NoteSchema, ScenarioSchema } from "../../contracts/src/index.js";
 import { FullContextBuilder } from "../../core/src/context.js";
 import { dialogueEarshotPrompt } from "../../../apps/web/src/earshot.js";
+import jsonPatch, { type Operation } from "fast-json-patch";
 import type { OpenRouterMessage, OpenRouterTool } from "../../providers/src/openrouter.js";
 import type { JevChoice } from "../../providers/src/jev.js";
 
@@ -29,6 +30,11 @@ export interface EvalTranscript {
   messages: OpenRouterMessage[];
 }
 
+export interface EvalComparison {
+  name: string;
+  transcript: EvalTranscript;
+}
+
 interface CharacterConversationPromptStep {
   type: "character_conversation_sys_prompt";
   character: string;
@@ -44,10 +50,13 @@ type EvalTranscriptStep = CharacterConversationPromptStep | TranscriptMessageSte
 interface CharacterPromptFixture {
   scenario: string;
   character: string;
-  room: string;
   within_earshot: string[];
-  character_overrides?: Record<string, JsonValue>;
-  notes?: JsonValue[];
+  patch?: Operation[];
+}
+
+interface CharacterPromptContext {
+  character: JsonValue;
+  notes: JsonValue[];
 }
 
 export interface CriterionResult extends EvalCriterion {
@@ -100,37 +109,52 @@ function validateCharacterFixture(value: unknown): CharacterPromptFixture {
   const fixture = value as Partial<CharacterPromptFixture>;
   requireText(fixture.scenario, "character scenario");
   requireText(fixture.character, "character id");
-  requireText(fixture.room, "conversation room");
   if (!Array.isArray(fixture.within_earshot) || !fixture.within_earshot.every(item => typeof item === "string" && item.trim())) {
     throw new Error("within_earshot must be an array of character ids.");
   }
-  if (fixture.character_overrides !== undefined
-    && (!fixture.character_overrides || typeof fixture.character_overrides !== "object" || Array.isArray(fixture.character_overrides))) {
-    throw new Error("character_overrides must be an object.");
+  if (fixture.patch !== undefined && !Array.isArray(fixture.patch)) {
+    throw new Error("patch must be a JSON Patch array.");
   }
-  if (fixture.character_overrides?.id !== undefined) throw new Error("character_overrides cannot change the character id.");
-  if (fixture.notes !== undefined && !Array.isArray(fixture.notes)) throw new Error("character notes must be an array.");
+  for (const operation of fixture.patch ?? []) {
+    if (!operation || typeof operation !== "object" || !["add", "remove", "replace", "move", "copy", "test"].includes(operation.op)) {
+      throw new Error("patch contains an invalid JSON Patch operation.");
+    }
+  }
   return fixture as CharacterPromptFixture;
 }
 
-function renderCharacterPrompt(file: string): OpenRouterMessage[] {
+function loadCharacterFixture(file: string): CharacterPromptFixture {
   const fixturePath = resolve(file);
-  const fixture = validateCharacterFixture(JSON.parse(readFileSync(fixturePath, "utf8")));
+  return validateCharacterFixture(JSON.parse(readFileSync(fixturePath, "utf8")));
+}
+
+function renderCharacterPrompt(file: string, applyContextPatch: boolean): OpenRouterMessage[] {
+  const fixturePath = resolve(file);
+  const fixture = loadCharacterFixture(fixturePath);
   const scenarioPath = resolve(fixturePath, "..", fixture.scenario);
   const scenario = fromJsonString(ScenarioSchema, readFileSync(scenarioPath, "utf8"));
   const characterIndex = scenario.characters.findIndex(character => character.id === fixture.character);
   if (characterIndex < 0) {
     throw new Error(`Cannot render unknown character ${fixture.character}.`);
   }
-  if (!scenario.world?.rooms.some(room => room.id === fixture.room)) throw new Error(`Cannot render unknown room ${fixture.room}.`);
-  if (fixture.character_overrides) {
+  if (applyContextPatch) {
     const character = scenario.characters[characterIndex]!;
-    scenario.characters[characterIndex] = fromJson(CharacterSchema, {
-      ...toJson(CharacterSchema, character) as Record<string, JsonValue>,
-      ...fixture.character_overrides,
-    });
+    const context: CharacterPromptContext = {
+      character: toJson(CharacterSchema, character),
+      notes: scenario.notes.map(note => toJson(NoteSchema, note)),
+    };
+    const patched = jsonPatch.applyPatch(
+      context as unknown as Record<string, JsonValue>,
+      fixture.patch ?? [],
+      true,
+      false,
+    ).newDocument as unknown as CharacterPromptContext;
+    if (!patched.character || !Array.isArray(patched.notes)) throw new Error("patch must preserve character and notes.");
+    const patchedCharacter = fromJson(CharacterSchema, patched.character);
+    if (patchedCharacter.id !== fixture.character) throw new Error("patch cannot change the character id.");
+    scenario.characters[characterIndex] = patchedCharacter;
+    scenario.notes = patched.notes.map(note => fromJson(NoteSchema, note));
   }
-  scenario.notes.push(...(fixture.notes ?? []).map(note => fromJson(NoteSchema, note)));
   const request = create(DialogueRequestSchema, { characterId: fixture.character, scenario, transcript: [] });
   return [
     {
@@ -139,14 +163,14 @@ function renderCharacterPrompt(file: string): OpenRouterMessage[] {
         scenario,
         fixture.character,
         [fixture.character, scenario.playerCharacterId ?? "player"],
-        { roomId: fixture.room, withinEarshot: fixture.within_earshot },
+        { withinEarshot: fixture.within_earshot },
       ),
     },
     ...new FullContextBuilder().build(request),
   ];
 }
 
-export function validateTranscript(value: unknown, transcriptPath: string): EvalTranscript {
+export function validateTranscript(value: unknown, transcriptPath: string, applyContextPatch = false): EvalTranscript {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Transcript must be an object.");
   const transcript = value as { transcript?: unknown };
   if (!Array.isArray(transcript.transcript) || !transcript.transcript.length) throw new Error("Transcript must contain transcript steps.");
@@ -156,7 +180,7 @@ export function validateTranscript(value: unknown, transcriptPath: string): Eval
     const step = rawStep as Partial<EvalTranscriptStep>;
     if (step.type === "character_conversation_sys_prompt") {
       requireText(step.character, "character fixture");
-      messages.push(...renderCharacterPrompt(resolve(transcriptPath, "..", step.character)));
+      messages.push(...renderCharacterPrompt(resolve(transcriptPath, "..", step.character), applyContextPatch));
     } else if (step.type === "user_message" || step.type === "assistant_message") {
       requireText(step.value, `${step.type} value`);
       messages.push({ role: step.type === "user_message" ? "user" : "assistant", content: step.value });
@@ -167,11 +191,34 @@ export function validateTranscript(value: unknown, transcriptPath: string): Eval
   return { messages };
 }
 
-export function loadEvalScenario(file: string): { scenario: UnitEvalScenario; transcript: EvalTranscript } {
+function transcriptHasContextPatch(value: unknown, transcriptPath: string): boolean {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const steps = (value as { transcript?: unknown }).transcript;
+  if (!Array.isArray(steps)) return false;
+  return steps.some(rawStep => {
+    if (!rawStep || typeof rawStep !== "object" || Array.isArray(rawStep)) return false;
+    const step = rawStep as Partial<CharacterConversationPromptStep>;
+    if (step.type !== "character_conversation_sys_prompt" || typeof step.character !== "string") return false;
+    const fixture = loadCharacterFixture(resolve(transcriptPath, "..", step.character));
+    return !!fixture.patch?.length;
+  });
+}
+
+export function loadEvalScenario(file: string): { scenario: UnitEvalScenario; transcript: EvalTranscript; comparison?: EvalComparison } {
   const scenarioPath = resolve(file);
   const scenario = validateScenario(JSON.parse(readFileSync(scenarioPath, "utf8")));
   const transcriptPath = resolve(scenarioPath, "..", scenario.transcript);
-  return { scenario, transcript: validateTranscript(JSON.parse(readFileSync(transcriptPath, "utf8")), transcriptPath) };
+  const transcriptSource = JSON.parse(readFileSync(transcriptPath, "utf8")) as unknown;
+  const transcript = validateTranscript(transcriptSource, transcriptPath);
+  if (!transcriptHasContextPatch(transcriptSource, transcriptPath)) return { scenario, transcript };
+  return {
+    scenario,
+    transcript,
+    comparison: {
+      name: "patched",
+      transcript: validateTranscript(transcriptSource, transcriptPath, true),
+    },
+  };
 }
 
 export function weightedScore(results: readonly CriterionResult[]): number {
