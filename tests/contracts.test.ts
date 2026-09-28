@@ -911,6 +911,25 @@ test("Jev transport sends typed choices and rejects invalid responses and HTTP f
   await assert.rejects(() => failed.choose({}, "", criteria, new AbortController().signal), /HTTP 401/);
 });
 
+test("Jev evaluates multiple rubric criteria in one request", async () => {
+  let sent: any;
+  const client = new JevClient("test-key", async (_url, init) => {
+    sent = JSON.parse(String(init?.body));
+    return new Response(JSON.stringify({ answers: {
+      grounded: { type: "choice", choice: "meets", probabilities: { meets: 0.9, does_not_meet: 0.1 } },
+      urgent: { type: "choice", choice: "does_not_meet", probabilities: { meets: 0.2, does_not_meet: 0.8 } },
+    } }));
+  });
+  const criteria = { meets: "Criterion is met.", does_not_meet: "Criterion is not met." };
+  const answers = await client.evaluate({ response: "A guarded reply." }, {
+    grounded: { type: "choice", instructions: "Is it grounded?", criteria },
+    urgent: { type: "choice", instructions: "Is it urgent?", criteria },
+  }, new AbortController().signal);
+  assert.deepEqual(Object.keys(sent.questions), ["grounded", "urgent"]);
+  assert.equal(answers.grounded?.probabilities.meets, 0.9);
+  assert.equal(answers.urgent?.choice, "does_not_meet");
+});
+
 test("Jev default transport preserves the browser fetch receiver", async () => {
   const original = globalThis.fetch;
   try {

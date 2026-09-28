@@ -1,37 +1,89 @@
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 import { JevClient } from "../packages/providers/src/jev.js";
 import { resourceReviewTools } from "../apps/web/src/resource-review.js";
-import { loadEvalScenario, runUnitEval } from "../packages/evals/src/unit-eval.js";
+import { loadEvalScenario, runUnitEvalBatch } from "../packages/evals/src/unit-eval.js";
+import Table from "cli-table3";
 
-const scenarioPath = process.argv[2] ?? "evals/witnessed-player-theft.json";
+const scenarioPaths = process.argv.slice(2);
+if (scenarioPaths.length === 0) {
+  scenarioPaths.push(
+    "evals/king-accusation-response.json",
+    "evals/king-accusation-informed-response.json",
+  );
+}
 const apiKey = process.env.OPENROUTER_API_KEY?.trim();
 if (!apiKey) throw new Error("Set OPENROUTER_API_KEY to run live unit evals.");
 
-const { scenario, transcript } = loadEvalScenario(scenarioPath);
 const generator = new OpenRouterClient(apiKey);
 const jev = new JevClient(apiKey);
 const signal = new AbortController().signal;
-let passed = 0;
-
-for (let index = 0; index < scenario.repeats; index++) {
-  const result = await runUnitEval(scenario, transcript, resourceReviewTools(), {
+const evals = scenarioPaths.map(loadEvalScenario);
+const completed = await Promise.all(evals.map(async ({ scenario, transcript }) => ({
+  scenario,
+  results: await runUnitEvalBatch(scenario, transcript,
+    scenario.toolset === "none" ? [] : resourceReviewTools(), {
     generate: (model, messages, tools) => generator.complete({
       model, api: "responses", reasoning: { effort: "medium" }, messages, tools,
     }, signal),
-    judge: (state, criterion) => jev.choose(state,
-      `Evaluate only this scoring criterion: ${criterion.criterion}`,
-      {
+    judge: (state, criteria) => jev.evaluate(state, Object.fromEntries(criteria.map(criterion => [criterion.id, {
+      type: "choice" as const,
+      instructions: `Evaluate only this scoring criterion: ${criterion.criterion}`,
+      criteria: {
         meets: "The captured model response clearly meets the criterion in light of the supplied transcript.",
         does_not_meet: "The captured model response fails, contradicts, or lacks evidence for the criterion.",
-      }, signal),
-  });
-  if (result.passed) passed++;
-  console.log(`Run ${index + 1}/${scenario.repeats}: ${(result.score * 100).toFixed(1)}% ${result.passed ? "PASS" : "FAIL"}`);
-  console.log(JSON.stringify(result.response, null, 2));
-  for (const criterion of result.criteria) {
-    console.log(`  ${(criterion.probability * 100).toFixed(1)}% [${criterion.choice}] ${criterion.criterion}`);
-  }
+      },
+    }])), signal),
+  }),
+})));
+
+function responseText(result: (typeof completed)[number]["results"][number]): string {
+  const content = result.response.content ?? "";
+  try {
+    const parsed = JSON.parse(content) as { utterance?: unknown };
+    if (typeof parsed.utterance === "string") return parsed.utterance;
+  } catch { /* Show non-JSON responses as-is. */ }
+  return content || result.response.tool_calls?.map(call => `${call.function.name}(${call.function.arguments})`).join(", ") || "(empty response)";
 }
 
-console.log(`${scenario.name}: ${passed}/${scenario.repeats} runs passed at a ${(scenario.threshold * 100).toFixed(0)}% threshold.`);
-if (passed !== scenario.repeats) process.exitCode = 1;
+const terminalWidth = Math.max(process.stdout.columns ?? 120, 80);
+let failed = false;
+for (const { scenario, results } of completed) {
+  const passed = results.filter(result => result.passed).length;
+  const responseTable = new Table({
+    head: ["Run", "Response", "Score", "Result"],
+    colWidths: [6, terminalWidth - 29, 9, 8],
+    wordWrap: true,
+  });
+  for (const [index, result] of results.entries()) {
+    responseTable.push([
+      String(index + 1),
+      responseText(result).replace(/\s+/g, " ").trim(),
+      `${(result.score * 100).toFixed(1)}%`,
+      result.passed ? "PASS" : "FAIL",
+    ]);
+  }
+
+  const scoreColumnWidth = Math.max(5, Math.min(8, Math.floor((terminalWidth - 25) / (results.length + 1))));
+  const scoreTable = new Table({
+    head: ["Criterion", ...results.map((_, index) => `R${index + 1}`), "Mean"],
+    colWidths: [terminalWidth - scoreColumnWidth * (results.length + 1), ...results.map(() => scoreColumnWidth), scoreColumnWidth],
+    wordWrap: true,
+  });
+  for (const criterion of scenario.rubric) {
+    const values = results.map(result => result.criteria.find(item => item.id === criterion.id)!.probability);
+    const mean = values.reduce((sum, value) => sum + value, 0) / values.length;
+    scoreTable.push([
+      criterion.id,
+      ...values.map(value => `${Math.round(value * 100)}%`),
+      `${Math.round(mean * 100)}%`,
+    ]);
+  }
+
+  console.log(`\n${scenario.name}\n`);
+  console.log(responseTable.toString());
+  console.log(scoreTable.toString());
+  console.log(`${passed}/${scenario.repeats} runs passed at a ${(scenario.threshold * 100).toFixed(0)}% threshold.`);
+  console.log(`Mean weighted score: ${(results.reduce((sum, result) => sum + result.score, 0) / results.length * 100).toFixed(1)}%`);
+  if (passed !== scenario.repeats) failed = true;
+}
+if (failed) process.exitCode = 1;

@@ -29,6 +29,12 @@ tasks:
     inputs: ['scripts/**/*', 'content/**/*', 'packages/core/**/*', 'packages/contracts/**/*']
     options:
       cache: false
+  unitEval:
+    command: npx --no-install tsx scripts/run-unit-eval.ts
+    deps: [contracts:generate]
+    inputs: ['evals/**/*', 'scripts/run-unit-eval.ts', 'packages/evals/**/*', 'packages/providers/**/*', 'apps/web/src/resource-review.ts', 'apps/web/src/objectives.ts']
+    options:
+      cache: false
   dev:
     command: npx --no-install vite
     deps: [contracts:generate]

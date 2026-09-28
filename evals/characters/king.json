@@ -1,0 +1,13 @@
+{
+  "scenario": "../../content/scenarios/last-night.json",
+  "character": "king",
+  "room": "great_hall",
+  "within_earshot": [
+    "elinor",
+    "garran",
+    "corvin",
+    "oswin",
+    "lucan",
+    "mara"
+  ]
+}

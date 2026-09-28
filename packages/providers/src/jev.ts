@@ -3,16 +3,25 @@ import { recoverRateLimit } from "./rate-limit.js";
 /** OpenRouter Decisions API; criteria keys are the only permissible results. */
 export interface JevChoice { choice: string; probabilities: Record<string, number>; confidence?: number }
 export type JevInstructions = string | Record<string, unknown>;
+export interface JevChoiceQuestion { type: "choice"; instructions: JevInstructions; criteria: Record<string, string> }
+export type JevQuestions = Record<string, JevChoiceQuestion>;
+export const jevEvaluationRequest = (state: unknown, questions: JevQuestions) =>
+  ({ model: "typesafe/jev-1.13", state, questions });
 export const jevRequest = (state: unknown, instructions: JevInstructions, criteria: Record<string, string>) =>
-  ({ model: "typesafe/jev-1.13", state, questions: { next: { type: "choice", instructions, criteria } } });
+  jevEvaluationRequest(state, { next: { type: "choice", instructions, criteria } });
 export type Choose = (state: unknown, instructions: JevInstructions, criteria: Record<string, string>, signal: AbortSignal) => Promise<JevChoice>;
 export class JevClient {
   constructor(private readonly apiKey: string, private readonly http: typeof fetch = (input, init) => globalThis.fetch(input, init),
-    private readonly onRequest?: (request: ReturnType<typeof jevRequest>) => void,
+    private readonly onRequest?: (request: ReturnType<typeof jevEvaluationRequest>) => void,
     private readonly onWarning: (message: string) => void = () => {}) {}
   async choose(state: unknown, instructions: JevInstructions, criteria: Record<string, string>, signal: AbortSignal): Promise<JevChoice> {
+    const answers = await this.evaluate(state, { next: { type: "choice", instructions, criteria } }, signal);
+    return answers.next!;
+  }
+  async evaluate(state: unknown, questions: JevQuestions, signal: AbortSignal): Promise<Record<string, JevChoice>> {
     if (!this.apiKey.trim()) throw new Error("Enter your OpenRouter key first.");
-    const request = jevRequest(state, instructions, criteria);
+    if (!Object.keys(questions).length) throw new Error("Jev requires at least one question.");
+    const request = jevEvaluationRequest(state, questions);
     this.onRequest?.(request);
     const response = await recoverRateLimit(() => this.http("https://openrouter.ai/api/alpha/decisions", {
       method: "POST",
@@ -44,19 +53,23 @@ export class JevClient {
       }
       throw new Error(`Jev returned HTTP ${response.status}. ${help}${detail ? ` Provider: ${detail}` : ""}`);
     }
-    let body: { answers?: { next?: Partial<JevChoice> & { type?: string } } };
+    let body: { answers?: Record<string, Partial<JevChoice> & { type?: string }> };
     try { body = await response.json() as typeof body; }
     catch { throw new Error(`Jev returned an unreadable response (HTTP ${response.status}). No action was taken. Please try again.`); }
     if (!body || typeof body !== "object") throw new Error("Jev returned an invalid response. No action was taken.");
-    const answer = body.answers?.next;
-    if (answer?.type !== "choice" || typeof answer.choice !== "string" || !Object.hasOwn(criteria, answer.choice)
-      || !answer.probabilities || typeof answer.probabilities !== "object"
-      || Object.keys(criteria).some(id => typeof answer.probabilities?.[id] !== "number"
-        || !Number.isFinite(answer.probabilities[id]) || answer.probabilities[id]! < 0 || answer.probabilities[id]! > 1)
-      || (answer.confidence !== undefined && (!Number.isFinite(answer.confidence) || answer.confidence < 0 || answer.confidence > 1))) {
-      throw new Error("Jev returned an invalid or unavailable choice. No action was taken.");
+    const answers: Record<string, JevChoice> = {};
+    for (const [questionId, question] of Object.entries(questions)) {
+      const answer = body.answers?.[questionId];
+      if (answer?.type !== "choice" || typeof answer.choice !== "string" || !Object.hasOwn(question.criteria, answer.choice)
+        || !answer.probabilities || typeof answer.probabilities !== "object"
+        || Object.keys(question.criteria).some(id => typeof answer.probabilities?.[id] !== "number"
+          || !Number.isFinite(answer.probabilities[id]) || answer.probabilities[id]! < 0 || answer.probabilities[id]! > 1)
+        || (answer.confidence !== undefined && (!Number.isFinite(answer.confidence) || answer.confidence < 0 || answer.confidence > 1))) {
+        throw new Error("Jev returned an invalid or unavailable choice. No action was taken.");
+      }
+      answers[questionId] = { choice: answer.choice, probabilities: answer.probabilities,
+        ...(answer.confidence === undefined ? {} : { confidence: answer.confidence }) };
     }
-    return { choice: answer.choice, probabilities: answer.probabilities,
-      ...(answer.confidence === undefined ? {} : { confidence: answer.confidence }) };
+    return answers;
   }
 }
