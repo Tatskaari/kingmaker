@@ -1111,6 +1111,18 @@ test("NPC dialogue frames the current goal as a concrete planner task while reta
   assert.match(context, /follow through after ending the conversation/);
   assert.match(context, /believes Aldren must be replaced/);
 
+  const rookContext = new FullContextBuilder().build(create(DialogueRequestSchema, { scenario, characterId: "rook" }))
+    .map(message => message.content).join("\n");
+  assert.match(rookContext, /recruit them into a ruse requiring only court access/);
+  assert.match(rookContext, /fictitious Grey Gull caravan/);
+  assert.match(rookContext, /help you, warn Sabine and join her counter-ruse, tell Lucan, or exploit both sides/);
+  assert.match(rookContext, /Keep the conversation open for their answer/);
+
+  const sabineContext = new FullContextBuilder().build(create(DialogueRequestSchema, { scenario, characterId: "sabine" }))
+    .map(message => message.content).join("\n");
+  assert.match(sabineContext, /understated Saltmere's full caravan losses to prevent an insurance and credit panic/);
+  assert.match(sabineContext, /offer a counter-ruse/);
+
   const runtime = new BrowserGameRuntime(scenario, "test");
   runtime.createDevelopmentPlayer();
   const debug = runtime.debugCharacter("corvin") as any;
