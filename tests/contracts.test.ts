@@ -97,7 +97,7 @@ test("the expanded authored scenario strictly parses and survives protobuf", () 
   const decoded = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, scenario));
   assert.equal(toJsonString(ScenarioSchema, decoded), toJsonString(ScenarioSchema, scenario));
   assert.deepEqual(scenario.characters.map(character => character.id), ["corvin", "garran", "king", "mara", "hadrik", "tessa", "elinor", "oswin", "rowan", "lucan", "sabine", "rook"]);
-  assert.equal(scenario.notes.length, 32);
+  assert.equal(scenario.notes.length, 33);
   for (const character of scenario.characters) {
     const travelNotes = scenario.notes.filter(note => note.characterIds.includes(character.id)
       && (note.id.endsWith("_recent_journey") || note.id.endsWith("_roadside_memory")));
@@ -119,6 +119,8 @@ test("the initial dethroning plot stays with the GM while each faction receives 
   assert.match(gm, /Aldren knowingly moved part of the protected levy/);
   assert.doesNotMatch(context("mara"), /Private initial plot|Tomas Vey/);
   assert.match(context("garran"), /Tomas Vey/);
+  assert.match(context("king"), /Tomas Vey/);
+  assert.match(context("king"), /terrified of losing any more face at court/);
   assert.match(context("sabine"), /caravan tallies show attacks rising/);
   assert.match(context("rook"), /former courier sold him a letter/);
   assert.match(context("tessa"), /published patrol totals/);

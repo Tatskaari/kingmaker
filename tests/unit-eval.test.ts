@@ -4,8 +4,8 @@ import { loadEvalScenario, runUnitEval, runUnitEvalBatch } from "../packages/eva
 
 const scenarioPath = new URL("../evals/king-accusation-response.json", import.meta.url).pathname;
 
-test("the unit eval loads its model and transcript", () => {
-  const { scenario, transcript } = loadEvalScenario(scenarioPath);
+test("the unit eval loads its model and production transcript", () => {
+  const { scenario, transcript, comparison } = loadEvalScenario(scenarioPath);
   assert.equal(scenario.model, "openai/gpt-6-luna");
   assert.equal(scenario.transcript, "transcripts/king-accusation-response.json");
   assert.equal(scenario.repeats, 10);
@@ -14,10 +14,11 @@ test("the unit eval loads its model and transcript", () => {
   const prompt = transcript.messages.map(message => message.content).join("\n");
   assert.match(prompt, /# Dialogue objectives/);
   assert.match(prompt, /King of Caerwyn and expected candidate/);
-  assert.doesNotMatch(prompt, /under relentless pressure/);
+  assert.match(prompt, /under relentless pressure/);
   assert.match(prompt, /# Known world state/);
   assert.match(prompt, /"characterId":"elinor"/);
-  assert.doesNotMatch(prompt, /Tomas Vey/);
+  assert.match(prompt, /Tomas Vey/);
+  assert.equal(comparison, undefined);
   assert.equal(transcript.messages.at(-1)?.role, "user");
   assert.equal(transcript.messages.at(-1)?.content,
     "I know about the boy. Would you like to do this the easy way or the hard way?");
@@ -31,12 +32,10 @@ test("dialogue evals can generate without resource-review tools", () => {
   assert.equal(scenario.rubric.reduce((sum, item) => sum + item.weight, 0), 15);
 });
 
-test("a character context patch creates a patched comparison", () => {
-  const { scenario, comparison } = loadEvalScenario(scenarioPath);
+test("the promoted character context runs without a comparison patch", () => {
+  const { scenario, transcript, comparison } = loadEvalScenario(scenarioPath);
   assert.equal(scenario.rubric.length, 5);
-  assert.ok(comparison);
-  assert.equal(comparison.name, "patched");
-  const transcript = comparison.transcript;
+  assert.equal(comparison, undefined);
   assert.equal(transcript.messages.length, 8);
   const prompt = transcript.messages.map(message => message.content).join("\n");
   assert.match(prompt, /Tomas Vey/);
