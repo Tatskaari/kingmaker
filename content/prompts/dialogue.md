@@ -4,7 +4,7 @@ The assembled context is deliberately simple and complete:
 
 1. System instructions.
 2. The scenario premise and ancient law.
-3. This character's lore, long-term objectives, and immediate goal.
+3. This character's lore, dialogue objective, long-term objectives, and immediate goal.
 4. This character's relationships.
 5. Every public note and private note involving this character.
 6. The character's complete known world state. Unknown container contents and
@@ -14,6 +14,11 @@ The assembled context is deliberately simple and complete:
 Each spoken response contains an utterance and optional `replyOptions` (an empty
 array or one or more player replies), plus `endConversation`. An NPC can take
 its leave with closing words, `endConversation: true`, and no reply options.
+It does so only for a concrete reason to leave now, such as beginning an
+immediate chosen task, refusing further discussion, or an urgent interruption.
+Completing a dialogue objective is not a reason to close the scene. An NPC must
+keep the conversation open whenever its response asks the player a question,
+makes an offer, or requests help so the player has a chance to answer.
 The UI retains those words while automatically reviewing the conversation.
 Ending the conversation triggers a separate
 review of the entire transcript and existing character context. The review saves
@@ -46,6 +51,18 @@ immediately, such as to a crime or threat. Processing may interrupt current work
 The character review model then records the perception as a note and may revise,
 park, reactivate, replace or preserve objectives. Events themselves are not durable
 memory and are never treated as instructions.
+
+## Dialogue objectives
+
+Each NPC has a priority-ordered `dialogueObjectives` list separate from
+physical/action objectives. Each entry describes something the character hopes
+to reveal, learn, or elicit from the player. The dialogue model should pursue
+only the objectives that fit, through believable pacing and only
+when the conversation, relationship, and character knowledge support doing so.
+It must not recite or exhaust the list, force a topic, invent knowledge, or
+guarantee the player's cooperation. Conversation review preserves unfinished
+entries, removes fulfilled or obsolete entries, and adds newly relevant threads
+known to that character. It never sends dialogue objectives to Jev.
 
 
 ## Immediate goals

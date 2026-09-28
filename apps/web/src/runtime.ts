@@ -79,6 +79,17 @@ export interface RuntimeSnapshot {
   conversations: Record<string, JsonValue[]>;
 }
 
+function migrateDialogueObjectives(value: JsonValue): JsonValue {
+  const scenario = structuredClone(value) as { characters?: Array<Record<string, unknown>> };
+  for (const character of scenario.characters ?? []) {
+    if (character.dialogueObjectives === undefined && typeof character.dialogueObjective === "string") {
+      character.dialogueObjectives = character.dialogueObjective.trim() ? [character.dialogueObjective] : [];
+    }
+    delete character.dialogueObjective;
+  }
+  return scenario as JsonValue;
+}
+
 function gmTools(scenario: Scenario): readonly OpenRouterTool[] {
   const npcIds = scenario.characters.filter(character => character.id !== scenario.playerCharacterId && character.id !== "player").map(character => character.id);
   const tools: OpenRouterTool[] = [
@@ -130,9 +141,10 @@ function gmTools(scenario: Scenario): readonly OpenRouterTool[] {
     type: "function",
     function: {
       name: "update_character",
-      description: "Edit a character biography or set, revise, demote, drop or complete an NPC active objective. NPCs cannot receive a standalone current goal.",
+      description: "Edit a character biography or priority-ordered dialogue objectives, or set, revise, demote, drop or complete an NPC active objective. Dialogue objectives are what the NPC hopes to reveal, learn or elicit naturally in conversation; an empty array clears them. NPCs cannot receive a standalone current goal.",
       parameters: { type: "object", additionalProperties: false, required: ["characterId"], properties: {
         characterId: { type: "string", enum: scenario.characters.map(character => character.id) }, lore: { type: "string" },
+        dialogueObjectives: { type: "array", items: { type: "string", minLength: 1 }, description: "Complete priority-ordered list of conversational intentions. Keep each grounded in this character's knowledge and motives; use an empty array when none remain." },
         activeObjective: { oneOf: [
           { type: "object", additionalProperties: false, required: ["action", "reason", "name", "status", "successCriteria", "currentGoal"], properties: {
             action: { const: "set" }, reason: { type: "string" }, name: { type: "string" }, status: { type: "string" },
@@ -186,7 +198,7 @@ const dialogueFormat = {
       type: "object", additionalProperties: false, required: ["utterance", "replyOptions", "endConversation"],
       properties: {
         utterance: { type: "string" },
-        endConversation: { type: "boolean", description: "True when this character chooses to end the conversation after this utterance. Give closing words and an empty replyOptions array. False to continue." },
+        endConversation: { type: "boolean", description: "True only when this character has a concrete in-character reason to leave now, such as beginning an immediate chosen task, refusing further discussion, or an urgent interruption. Completing a dialogue objective is not a reason to leave. Never set true while asking the player a question, making an offer, or requesting help. Give closing words and an empty replyOptions array. False to continue." },
         replyOptions: { type: "array", items: { type: "string", maxLength: 300 } },
       },
     },
@@ -217,6 +229,8 @@ Examples:
 - "I'd consider supporting you" expresses your own willingness; answer directly.
 - "I have authority to pledge my kingdom's recognition" establishes political authority; consult the GM if unestablished.
 If the consultation tool is unavailable for this opening turn, defer consequential new assertions and use established facts, incidental details, proposals or questions instead.`;
+
+const CONVERSATION_OBJECTIVE_REVIEW = "When this conversation opens or advances a scenario thread and the NPC has chosen a concrete action they are willing and able to take, set or update their active objective with that action as the next current goal. This includes investigating a credible lead, pursuing an accepted bargain, responding to a meaningful threat, seeking evidence, warning someone or confronting another character. Do not leave the NPC idle merely because the player did not phrase the action as an explicit command. Ordinary social exchange, an unsupported suggestion, an agreement the NPC did not make, or a next step that only waits for someone else does not warrant an active objective. Independently assess the NPC's dialogue_objectives list. Preserve relevant unfinished entries, remove fulfilled or invalidated entries, and add or reprioritize story-relevant things this character now knows and genuinely wants to reveal, learn or ask of the player. When a change is warranted, use update_character with the complete replacement list; use an empty list when none remain. Never add knowledge merely because the private plot says it is true: the character must have learned it through authored knowledge or events. Dialogue objectives guide future roleplay; they are not action-planner tasks, permission to invent knowledge, reasons to force an unnatural topic, or reasons to end a conversation when one is completed.";
 
 const memoryFormat = {
   type: "json_schema",
@@ -366,7 +380,7 @@ export class BrowserGameRuntime {
     this.#generations = new GenerationStore(snapshot.generations);
     this.#travellerIdentity = snapshot.travellerIdentity ? validateIdentity(snapshot.travellerIdentity) : undefined;
     this.#npcActivities = structuredClone(snapshot.npcActivities || {});
-    const restoredScenario = fromJson(ScenarioSchema, migrateScenarioNotes(snapshot.scenario));
+    const restoredScenario = fromJson(ScenarioSchema, migrateDialogueObjectives(migrateScenarioNotes(snapshot.scenario)));
     ensureNpcActiveObjectives(restoredScenario);
     this.#game = new MemoryGame(restoredScenario);
     this.#gmHistory = snapshot.gameMasterHistory || [];
@@ -513,7 +527,7 @@ export class BrowserGameRuntime {
     if (hasDevelopmentPlayer(scenario)) messages.unshift({ role: "system", content: DEVELOPMENT_DIALOGUE_INSTRUCTIONS });
     messages.unshift({ role: "system", content: askGameMasterTool.function.description });
     messages.unshift({ role: "system", content: dialogueEarshotPrompt(scenario, characterId, [characterId, scenario.playerCharacterId ?? "player"]) });
-    messages.unshift({ role: "system", content: "You may choose to end this conversation. Set endConversation=true when you take your leave, refuse further discussion, or conclude the exchange to pursue your immediate task. Express that decision naturally in utterance and return replyOptions=[]. Do not end merely because you answered one question; use your own intentions, relationships and the exchange. Otherwise set endConversation=false. Ending triggers a separate memory and goal review; speech alone does not move you or complete physical tasks." });
+    messages.unshift({ role: "system", content: "You may choose to end this conversation only for a concrete in-character reason to leave now: beginning an immediate task you have chosen, refusing further discussion, or responding to an urgent interruption. Completing or advancing a dialogue objective is not a reason to leave; continue naturally or move to another relevant conversational thread. Never set endConversation=true in the same response as asking the player a question, making them an offer, or requesting their help, because the player must be able to answer. When you truly take your leave, express that decision naturally and return replyOptions=[]. Otherwise set endConversation=false. Ending triggers a separate memory and goal review; speech alone does not move you or complete physical tasks." });
     messages.unshift({ role: "system", content: "Return only a JSON object matching the supplied response schema, with no Markdown fences or surrounding prose." });
     let parsed: JsonObject | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -620,6 +634,7 @@ export class BrowserGameRuntime {
       const conversations = this.snapshot().conversations;
       const evidence: OpenRouterMessage[] = [
         { role: "system", content: "Review this event through the supplied resource write tools. Use update_inventory for justified props and update_character for memories, relationships and objective changes. NPC work belongs to an active objective; demote, drop or complete dead ends explicitly." },
+        ...(kind === "conversation_review" ? [{ role: "system" as const, content: CONVERSATION_OBJECTIVE_REVIEW }] : []),
         ...(kind === "outcome_review" && this.#npcActivities[characterId]?.result?.reason === "wait" ? [{ role: "system" as const, content: "Jev chose wait. This explicitly means the objective is blocked on another character acting and should be non-active now. Demote it unless the supplied evidence shows a different concrete action this character can take immediately. Do not set a current goal that merely waits, watches, checks repeatedly, or asks the same question again. A later conversation or event initiated by the awaited character can reactivate the parked objective." }] : []),
         { role: "user", content: JSON.stringify({ event_type: kind, participants, allowNextGoal }) },
         ...(hasDevelopmentPlayer(scenario) && kind === "conversation_review" ? [{ role: "system" as const, content: "This transcript is with the development envoy. Honor direct testing requests by setting or updating an active objective with a feasible current_goal. Record it as intended work, not an action already completed." }] : []),
@@ -669,6 +684,7 @@ export class BrowserGameRuntime {
     }
     const messages: OpenRouterMessage[] = [...request.messages.slice(0, -1),
       { role: "system", content: RECONCILIATION_INSTRUCTIONS },
+      ...(kind === "conversation_review" ? [{ role: "system" as const, content: CONVERSATION_OBJECTIVE_REVIEW }] : []),
       { role: "user", content: JSON.stringify({ authoritativeWorld: toJson(WorldStateSchema, scenario.world!), participants, recentActivity: this.#npcActivities }) },
       ...request.messages.slice(-1),
     ];
@@ -980,7 +996,7 @@ export class BrowserGameRuntime {
       if (!context.participants.includes(id)) throw new Error("Only conversation/action-review participants can be updated.");
       const patch = args.changes as Record<string, unknown>;
       if (!patch || typeof patch !== "object" || Array.isArray(patch) || !Object.keys(patch).length
-        || Object.keys(patch).some(key => !["append_notes", "relationships", "lore", "active_objective", "parked_objectives"].includes(key))) throw new Error("Invalid character changes. NPC goals must be updated through active_objective.");
+        || Object.keys(patch).some(key => !["append_notes", "relationships", "lore", "dialogue_objectives", "active_objective", "parked_objectives"].includes(key))) throw new Error("Invalid character changes. NPC goals must be updated through active_objective.");
       const character = scenario.characters.find(character => character.id === id)!;
       const objectiveMemory = patch.active_objective === undefined ? undefined : applyObjectiveChange(character, patch.active_objective);
       const parkedMemories = patch.parked_objectives === undefined ? [] : applyParkedObjectiveChanges(character, patch.parked_objectives);
@@ -999,6 +1015,11 @@ export class BrowserGameRuntime {
       const candidate = new MemoryGame(scenario);
       const committed = candidate.commitConversation(id, memory, false);
       if (!committed.ok) throw new Error(committed.issues.map(issue => issue.message).join("; "));
+      if (patch.dialogue_objectives !== undefined) {
+        if (!Array.isArray(patch.dialogue_objectives) || patch.dialogue_objectives.some(value => typeof value !== "string" || !value.trim())) throw new Error("dialogue_objectives must be an array of nonempty strings.");
+        const changed = candidate.updateCharacter(id, undefined, undefined, patch.dialogue_objectives.map(value => (value as string).trim()));
+        if (!changed.ok) throw new Error("Unknown character.");
+      }
       if (objectiveMemory) {
         const goal = character.currentGoal;
         const changed = candidate.updateCharacter(id, undefined, goal);
@@ -1389,7 +1410,7 @@ export class BrowserGameRuntime {
           description: relationship.description,
         })),
       } : null,
-      characters: scenario.characters.filter(character => character.id !== "player").map(character => ({ id: character.id, name: character.name, activeObjective: character.activeObjective, currentGoal: character.currentGoal, position: world?.actors.find(actor => actor.characterId === character.id)?.position, roomId: world?.actors.find(actor => actor.characterId === character.id)?.roomId })),
+      characters: scenario.characters.filter(character => character.id !== "player").map(character => ({ id: character.id, name: character.name, dialogueObjectives: character.dialogueObjectives, activeObjective: character.activeObjective, currentGoal: character.currentGoal, position: world?.actors.find(actor => actor.characterId === character.id)?.position, roomId: world?.actors.find(actor => actor.characterId === character.id)?.roomId })),
       gmReplyOptions: this.#gmReplyOptions,
       conversationReplyOptions: this.#conversationReplyOptions,
       conversationEndRequested: this.#conversationEndRequested,
@@ -1559,7 +1580,11 @@ export class BrowserGameRuntime {
     }
     if (name === "update_character") {
       const characterId = text(input.characterId, "characterId");
-      const result = this.#game.updateCharacter(characterId, typeof input.lore === "string" ? input.lore : undefined);
+      const dialogueObjectives = input.dialogueObjectives;
+      if (dialogueObjectives !== undefined && (!Array.isArray(dialogueObjectives)
+        || dialogueObjectives.some(value => typeof value !== "string" || !value.trim()))) throw new Error("dialogueObjectives must be an array of nonempty strings.");
+      const result = this.#game.updateCharacter(characterId, typeof input.lore === "string" ? input.lore : undefined, undefined,
+        dialogueObjectives === undefined ? undefined : dialogueObjectives.map(value => (value as string).trim()));
       if (!result.ok) throw new Error(result.issues.map(issue => issue.message).join("; "));
       if (input.activeObjective !== undefined) {
         if (characterId === scenario.playerCharacterId) throw new Error("The player's personal goal is not an NPC active objective.");

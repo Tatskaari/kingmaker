@@ -87,7 +87,7 @@ export class FullContextBuilder implements DialogueContextBuilder {
       { role: "system", content: `# Scenario premise\n${scenario.premise}` },
       {
         role: "system",
-        content: `# Character\n${character.name} (${character.id})\n\n${character.lore}\n\n# Identity\nGender: ${character.gender || "Not recorded"}\nDelegation: ${character.delegation || "Not recorded"}\n\n# Parked objectives\n${character.parkedObjectives.map(objective => `- ${objective.name}: ${objective.status} Success criteria: ${objective.successCriteria}`).join("\n") || "None recorded."}\nThese retained undertakings inform dialogue and intentions, but their goals are not action-planner tasks unless reactivated.\n\n# Current goal\n${character.currentGoal || "No goal yet."}\n\n${IMMEDIATE_GOAL_GUIDANCE}`,
+        content: `# Dialogue objectives\n${character.dialogueObjectives.map((objective, index) => `${index + 1}. ${objective}`).join("\n") || "No particular conversational objectives."}\nThese are outcomes the character hopes to reach through natural conversation, in priority order. Pursue only what fits the current exchange; do not recite or exhaust the list, force a subject, reveal facts the character does not know, or override their motives.\n\n# Character\n${character.name} (${character.id})\n\n${character.lore}\n\n# Identity\nGender: ${character.gender || "Not recorded"}\nDelegation: ${character.delegation || "Not recorded"}\n\n# Parked objectives\n${character.parkedObjectives.map(objective => `- ${objective.name}: ${objective.status} Success criteria: ${objective.successCriteria}`).join("\n") || "None recorded."}\nThese retained undertakings inform dialogue and intentions, but their goals are not action-planner tasks unless reactivated.\n\n# Current goal\n${character.currentGoal || "No goal yet."}\n\n${IMMEDIATE_GOAL_GUIDANCE}`,
       },
       ...(character.activeObjective ? [{ role: "system" as const, content: `# Active objective\n${JSON.stringify(character.activeObjective)}\nThe current goal is one step toward this objective, not the entire undertaking.` }] : []),
       { role: "system", content: `# Relationships\n${relationships}${visitor}` },
@@ -120,6 +120,7 @@ export class FullGameMasterContextBuilder implements GameMasterContextBuilder {
       parkedObjectives: character.parkedObjectives,
       activeObjective: character.activeObjective,
       currentGoal: character.currentGoal,
+      dialogueObjectives: character.dialogueObjectives,
       relationships: character.relationships,
     }));
     const setup: PromptMessage[] = [

@@ -45,6 +45,28 @@ test("objective plan and goal commit together, survive saves, and reject stale u
   assert.equal(characterState(runtime).activity.status, "idle");
 });
 
+test("conversation review can revise and clear dialogue objectives without creating planner work", () => {
+  const runtime = game();
+  const originalGoal = characterState(runtime).character.currentGoal;
+  const revised = "Ask the player what they learned from the sealed patrol records.";
+  const first = runtime.applyResourceReviewWrite("update_character", {
+    character_id: "corvin", generation_id: id(runtime, "character:corvin"),
+    changes: { dialogue_objectives: [revised, "Warn the player that Corvin will require authenticated evidence."] },
+  }, context) as any;
+  assert.equal(first.commit_result, "success");
+  assert.deepEqual(characterState(runtime).character.dialogueObjectives, [revised, "Warn the player that Corvin will require authenticated evidence."]);
+  assert.equal(characterState(runtime).character.currentGoal, originalGoal);
+
+  const cleared = runtime.applyResourceReviewWrite("update_character", {
+    character_id: "corvin", generation_id: first.new_state.generation_id,
+    changes: { dialogue_objectives: [] },
+  }, context) as any;
+  assert.equal(cleared.commit_result, "success");
+  assert.deepEqual(characterState(runtime).character.dialogueObjectives, []);
+  assert.equal(characterState(runtime).character.currentGoal, originalGoal);
+  assert.equal(characterState(runtime).activity, null);
+});
+
 test("outcome review must continue or resolve an active objective, even after a run budget", async t => {
   const runtime = game();
   objectiveWrite(runtime, objective);
@@ -229,6 +251,7 @@ test("agent-visible write descriptions document ID source, patch semantics, and 
   }
   const character = tools.find(t => t.function.name === "update_character")!;
   assert.match(character.function.description, /Omitted fields stay unchanged/);
+  assert.match(character.function.description, /dialogue_objectives/);
   assert.match(character.function.description, /no standalone goal field exists/);
   assert.match(character.function.description, /Example:/);
 });
