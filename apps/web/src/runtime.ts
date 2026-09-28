@@ -79,6 +79,17 @@ export interface RuntimeSnapshot {
   conversations: Record<string, JsonValue[]>;
 }
 
+function migrateDialogueObjectives(value: JsonValue): JsonValue {
+  const scenario = structuredClone(value) as { characters?: Array<Record<string, unknown>> };
+  for (const character of scenario.characters ?? []) {
+    if (character.dialogueObjectives === undefined && typeof character.dialogueObjective === "string") {
+      character.dialogueObjectives = character.dialogueObjective.trim() ? [character.dialogueObjective] : [];
+    }
+    delete character.dialogueObjective;
+  }
+  return scenario as JsonValue;
+}
+
 function gmTools(scenario: Scenario): readonly OpenRouterTool[] {
   const npcIds = scenario.characters.filter(character => character.id !== scenario.playerCharacterId && character.id !== "player").map(character => character.id);
   const tools: OpenRouterTool[] = [
@@ -369,7 +380,7 @@ export class BrowserGameRuntime {
     this.#generations = new GenerationStore(snapshot.generations);
     this.#travellerIdentity = snapshot.travellerIdentity ? validateIdentity(snapshot.travellerIdentity) : undefined;
     this.#npcActivities = structuredClone(snapshot.npcActivities || {});
-    const restoredScenario = fromJson(ScenarioSchema, migrateScenarioNotes(snapshot.scenario));
+    const restoredScenario = fromJson(ScenarioSchema, migrateDialogueObjectives(migrateScenarioNotes(snapshot.scenario)));
     ensureNpcActiveObjectives(restoredScenario);
     this.#game = new MemoryGame(restoredScenario);
     this.#gmHistory = snapshot.gameMasterHistory || [];

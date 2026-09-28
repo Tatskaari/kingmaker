@@ -1129,6 +1129,14 @@ test("NPC dialogue frames the current goal as a concrete planner task while reta
   const debug = runtime.debugCharacter("corvin") as any;
   assert.deepEqual(debug.character.dialogueObjectives, scenario.characters.find(character => character.id === "corvin")!.dialogueObjectives);
   assert.match(JSON.stringify(debug.modelMessages), /# Dialogue objectives/);
+
+  const oldSnapshot = runtime.snapshot() as any;
+  const oldCorvin = oldSnapshot.scenario.characters.find((character: any) => character.id === "corvin");
+  oldCorvin.dialogueObjective = oldCorvin.dialogueObjectives[0];
+  delete oldCorvin.dialogueObjectives;
+  const restored = new BrowserGameRuntime(load(), "test");
+  restored.restore(oldSnapshot);
+  assert.deepEqual((restored.debugCharacter("corvin") as any).character.dialogueObjectives, [oldCorvin.dialogueObjective]);
 });
 
 test("NPC leave-taking persists, blocks more speech, and reviews closing words once", async t => {
