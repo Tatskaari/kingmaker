@@ -439,7 +439,8 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     await persist();
     return { state: requireRuntime().view(), saves: await listSaves(), activeSaveId: activeSave?.id };
   }
-  if (type === "debug_transcripts") return { transcripts: requireRuntime().recentTranscripts() };
+  if (type === "debug_transcripts") return { requests: requireRuntime().recentTranscripts(), agentRuns: requireRuntime().transcriptRuns() };
+  if (type === "issue_report") return { worldState: requireRuntime().snapshot(), requests: requireRuntime().recentTranscripts(), agentRuns: requireRuntime().transcriptRuns() };
   if (type === "debug_gm") return requireRuntime().debugGameMaster();
   if (type === "debug") return requireRuntime().debug();
   if (type === "debug_character") return requireRuntime().debugCharacter(String(payload.characterId || ""));
@@ -461,6 +462,6 @@ worker.addEventListener("message", event => {
   };
   // Background work and dialogue wait outside the mutation queue. Their results
   // rejoin it only to validate, merge and save, keeping player commands responsive.
-  if (request.type === "cancel_npc" || request.type === "debug_transcripts" || request.type === "start_npc" || request.type === "pause_npc" || request.type === "talk" || request.type === "end_conversation" || request.type === "interact_fixture" || request.type === "set_door") void process();
+  if (request.type === "cancel_npc" || request.type === "debug_transcripts" || request.type === "issue_report" || request.type === "start_npc" || request.type === "pause_npc" || request.type === "talk" || request.type === "end_conversation" || request.type === "interact_fixture" || request.type === "set_door") void process();
   else void enqueue(process);
 });
