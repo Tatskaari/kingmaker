@@ -90,8 +90,9 @@ message Character {
   // Inactive undertakings retain their last known plan and definition of done.
   repeated ActiveObjective parked_objectives = 11;
   // What this character currently hopes to reveal, learn, or elicit through
-  // conversation. This guides roleplay and is not sent to the action planner.
-  string dialogue_objective = 12;
+  // conversation, in priority order. These guide roleplay and are not sent to
+  // the action planner.
+  repeated string dialogue_objectives = 12;
 }
 
 message ActiveObjective {

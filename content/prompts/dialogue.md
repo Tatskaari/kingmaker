@@ -54,14 +54,15 @@ memory and are never treated as instructions.
 
 ## Dialogue objectives
 
-Each NPC has a `dialogueObjective` separate from physical/action objectives. It
-describes something the character hopes to reveal, learn, or elicit from the
-player. The dialogue model should pursue it through believable pacing and only
+Each NPC has a priority-ordered `dialogueObjectives` list separate from
+physical/action objectives. Each entry describes something the character hopes
+to reveal, learn, or elicit from the player. The dialogue model should pursue
+only the objectives that fit, through believable pacing and only
 when the conversation, relationship, and character knowledge support doing so.
-It must not recite the objective, force the topic, invent knowledge, or guarantee
-the player's cooperation. Conversation review preserves an unfinished objective,
-replaces it with the next relevant conversational thread, or clears it once no
-such thread remains. It never sends a dialogue objective to Jev.
+It must not recite or exhaust the list, force a topic, invent knowledge, or
+guarantee the player's cooperation. Conversation review preserves unfinished
+entries, removes fulfilled or obsolete entries, and adds newly relevant threads
+known to that character. It never sends dialogue objectives to Jev.
 
 
 ## Immediate goals
