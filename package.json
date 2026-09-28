@@ -11,6 +11,7 @@
     "build": "proto run moon -- run workspace:build",
     "build:web": "vite build",
     "test": "proto run moon -- run workspace:test",
+    "eval:unit": "tsx scripts/run-unit-eval.ts",
     "generate": "proto run moon -- run contracts:generate",
     "dev": "proto run moon -- run workspace:dev"
   },
@@ -22,6 +23,8 @@
     "@bufbuild/buf": "1.73.0",
     "@bufbuild/protoc-gen-es": "2.15.0",
     "@types/node": "26.6.3",
+    "cli-table3": "^0.6.5",
+    "fast-json-patch": "^3.1.1",
     "tsx": "4.23.15",
     "typescript": "7.0.2",
     "vite": "^8.3.1"
