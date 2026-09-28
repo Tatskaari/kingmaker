@@ -135,6 +135,7 @@ button:disabled { opacity: .48; cursor: wait; }
 .debug-inspector pre { flex: 1; overflow: auto; margin: 0; padding: 18px; background: #080a09; border: 1px solid #292c29; color: #bcd6bd; font: .78rem/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; white-space: pre-wrap; tab-size: 2; }
 .debug-loading, .debug-error { padding: 20px; color: #bcd6bd; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .debug-error { color: #ef9a85; }
+.debug-section-title { margin: 28px 0 12px; color: #eee1c7; }
 @media (max-width: 620px) { .choices, .key-entry form { grid-template-columns: 1fr; } .composer { grid-template-columns: 1fr; } .save-picker .conversation-head { align-items: flex-start; flex-direction: column; } .save-actions { width: 100%; justify-content: flex-start; } .message { max-width: 95%; } .sheet-tab { top: auto; bottom: 18px; writing-mode: horizontal-tb; display: flex; align-items: center; } .character-sheet { padding: 40px 25px 50px; } .debug-button span { display: none; } .debug-inspector { inset: 8px; padding: 16px; } .debug-note { font-size: .9rem; } }
 
 /* Plain prose and dialogue choices keep the opening focused on the story. */

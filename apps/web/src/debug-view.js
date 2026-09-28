@@ -96,8 +96,13 @@ function transcriptSummary(entry) {
     + (array(response.tool_calls).length ? `<h4>Tools requested</h4>${list(response.tool_calls, call => `<strong>${escape(call?.function?.name)}</strong><pre>${escape(call?.function?.arguments)}</pre>`, "No tools.")}` : "");
 }
 
-export function recentTranscriptsView(entries = []) {
+export function recentTranscriptsView(entries = [], runs = {}) {
   const kinds = { npc_request: "NPC request", npc_resolution: "NPC conversation resolution", game_master: "Game master", gm_consultation: "GM consultation", dialogue: "Dialogue", dialogue_flavour: "Dialogue flavour", conversation_review: "Conversation review", world_event: "World event review", event_decision: "Event attention decision", jev: "Jev action decision", outcome_review: "Outcome review" };
-  return `<p class="debug-note">Latest 50 model calls for this loaded game session, newest first. Reloading or loading a game starts a fresh log. No hidden reasoning or authentication headers are captured.</p>`
+  const archived = Object.entries(runs).reverse();
+  const runCards = archived.length ? archived.map(([key, run]) => {
+    const conversation = array(run.context?.messages);
+    return `<article class="debug-card transcript-card"><h3>${escape(key)}</h3><p class="debug-meta">${escape(run.status)} · ${escape(run.startedAt)}${run.completedAt ? ` → ${escape(run.completedAt)}` : ""} · ${run.calls?.length ?? 0} model call${run.calls?.length === 1 ? "" : "s"}</p>${run.error ? `<p class="debug-error">${escape(run.error)}</p>` : ""}${conversation.length ? `<h4>Conversation</h4>${messages(conversation)}` : ""}<details><summary>Calls and run context</summary><pre>${escape(JSON.stringify(run, null, 2))}</pre></details></article>`;
+  }).join("") : empty("No agent runs recorded yet in this session.");
+  return `<p class="debug-note">Logical agent runs are grouped by type, character and UUID. The latest 50 completed runs are kept in memory; active runs are included. Reloading or loading a game starts a fresh archive.</p>${runCards}<h3 class="debug-section-title">Raw recent model calls</h3><p class="debug-note">Latest 50 calls, newest first. No hidden reasoning or authentication headers are captured.</p>`
     + (entries.length ? entries.map(entry => `<article class="debug-card transcript-card"><h3>${escape(kinds[entry.kind] || entry.kind)} · ${escape(entry.characterId)}</h3><p class="debug-meta">${escape(entry.status === "success" ? "Response received" : entry.status)} · ${escape(entry.startedAt)}${entry.durationMs === undefined ? "" : ` · ${(entry.durationMs / 1000).toFixed(2)}s`}</p><div class="transcript-summary">${transcriptSummary(entry)}</div><details><summary>Full request and response</summary><h4>Request</h4><pre>${escape(JSON.stringify(entry.request, null, 2))}</pre>${entry.response === undefined ? "" : `<h4>Response</h4><pre>${escape(JSON.stringify(entry.response, null, 2))}</pre>`}${entry.error ? `<h4>Error</h4><pre class="debug-error">${escape(entry.error)}</pre>` : ""}</details></article>`).join("") : empty("No model calls recorded yet in this session."));
 }

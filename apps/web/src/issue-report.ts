@@ -7,6 +7,7 @@ export interface IssueReportData {
   generatedAt: string;
   worldState: unknown;
   transcripts: unknown;
+  agentRuns: unknown;
   alerts: unknown;
   environment: Record<string, unknown>;
   screenshot?: Uint8Array;
@@ -21,7 +22,7 @@ export function issueTitle(description: string): string {
 export function issuePageUrl(description: string): string {
   const url = new URL(ISSUE_URL);
   url.searchParams.set("title", issueTitle(description));
-  url.searchParams.set("body", `${description.trim()}\n\n## Diagnostics\n\nA diagnostic ZIP was downloaded when this report was created. Please drag it into this issue before submitting. It contains the world state, recent model transcripts, warnings and errors, environment details, and a screenshot of the world.`);
+  url.searchParams.set("body", `${description.trim()}\n\n## Diagnostics\n\nA diagnostic ZIP was downloaded when this report was created. Please drag it into this issue before submitting. It contains the world state, grouped agent runs, recent model calls, warnings and errors, environment details, and a screenshot of the world.`);
   return url.toString();
 }
 
@@ -35,6 +36,7 @@ export function buildIssueReport(data: IssueReportData): Uint8Array {
     "report.md": strToU8(`# ${issueTitle(data.description)}\n\n${data.description.trim()}\n\nGenerated: ${data.generatedAt}\n`),
     "world-state.json": json(data.worldState),
     "recent-transcripts.json": json(data.transcripts),
+    "agent-runs.json": json(data.agentRuns),
     "alerts.json": json(data.alerts),
     "environment.json": json(data.environment),
   };

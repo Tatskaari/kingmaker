@@ -1518,6 +1518,16 @@ test("recent transcripts capture every main-game model stage and retain failed r
   assert.ok((entries[2]!.request as any).messages.length);
   assert.ok(entries.every(entry => typeof entry.durationMs === "number"));
   assert.doesNotMatch(JSON.stringify(entries), /sk-test-secret/);
+  const runs = runtime.transcriptRuns();
+  const keys = Object.keys(runs);
+  assert.ok(keys.some(key => key.startsWith("game_master/gm/")));
+  assert.ok(keys.some(key => key.startsWith("character/Magister%20Corvin/")));
+  assert.ok(keys.some(key => key.startsWith("conversation_review/Magister%20Corvin/")));
+  assert.ok(keys.some(key => key.startsWith("outcome_review/Magister%20Corvin/")));
+  const conversation = Object.entries(runs).find(([key]) => key.startsWith("character/Magister%20Corvin/"))![1];
+  assert.equal(conversation.status, "success");
+  assert.equal((conversation.context as { messages: unknown[] }).messages.length, 2);
+  assert.equal(conversation.calls[0]?.kind, "dialogue");
   assert.deepEqual(new BrowserGameRuntime(load(), "test", runtime.snapshot()).recentTranscripts(), [], "A fresh loaded session starts a new log");
 });
 
@@ -1536,6 +1546,21 @@ test("transcript recorder shows pending calls, bounds history, and isolates muta
   for (let i = 0; i < 55; i++) await log.record("jev", "corvin", { i }, async () => ({ choice: "complete" }));
   assert.equal(log.recent().length, 50);
   assert.equal(log.recent()[0]!.id, 56);
+  assert.equal(Object.keys(log.runs()).length, 50);
+});
+
+test("transcript recorder groups an agent loop under one stable dictionary key", async () => {
+  const log = new ModelTranscripts("test");
+  await log.group("conversation_review", "Magister Corvin", "corvin", async key => {
+    await log.record("conversation_review", "corvin", { round: 1 }, async () => ({ tool_calls: [{}] }), key);
+    await log.record("conversation_review", "corvin", { round: 2 }, async () => ({ content: "done" }), key);
+  }, { participants: ["corvin"] });
+  const entries = Object.entries(log.runs());
+  assert.equal(entries.length, 1);
+  assert.match(entries[0]![0], /^conversation_review\/Magister%20Corvin\/[0-9a-f-]+$/);
+  assert.equal(entries[0]![1].status, "success");
+  assert.equal(entries[0]![1].calls.length, 2);
+  assert.deepEqual(entries[0]![1].context, { participants: ["corvin"] });
 });
 
 function talkingCourt() {

@@ -243,7 +243,7 @@ function openIssueReporter() {
   const dialog = document.createElement("dialog");
   dialog.className = "issue-reporter";
   dialog.setAttribute("aria-labelledby", "issue-reporter-title");
-  dialog.innerHTML = `<form method="dialog" data-issue-form><div class="eyebrow">Help improve Kingmaker</div><h2 id="issue-reporter-title">Report an issue</h2><p>Describe what went wrong. The first line becomes the GitHub issue title.</p><textarea name="description" required autofocus placeholder="A short summary\n\nWhat happened, and what did you expect instead?"></textarea><p class="report-privacy">Your downloaded report includes the current world state, recent model transcripts, warnings and errors, environment details, and a screenshot. The GitHub repository is public, so review the ZIP before attaching it.</p><p class="status" data-report-status role="status"></p><div class="report-actions"><button type="button" class="reset" data-report-cancel>Cancel</button><button class="primary" value="submit">Download report &amp; open GitHub</button></div></form>`;
+  dialog.innerHTML = `<form method="dialog" data-issue-form><div class="eyebrow">Help improve Kingmaker</div><h2 id="issue-reporter-title">Report an issue</h2><p>Describe what went wrong. The first line becomes the GitHub issue title.</p><textarea name="description" required autofocus placeholder="A short summary\n\nWhat happened, and what did you expect instead?"></textarea><p class="report-privacy">Your downloaded report includes the current world state, grouped agent runs, recent model calls, warnings and errors, environment details, and a screenshot. The GitHub repository is public, so review the ZIP before attaching it.</p><p class="status" data-report-status role="status"></p><div class="report-actions"><button type="button" class="reset" data-report-cancel>Cancel</button><button class="primary" value="submit">Download report &amp; open GitHub</button></div></form>`;
   app.append(dialog);
   const form = dialog.querySelector("[data-issue-form]");
   const close = () => { dialog.close(); dialog.remove(); };
@@ -267,6 +267,7 @@ function openIssueReporter() {
         description, generatedAt,
         worldState: diagnostics.worldState,
         transcripts: diagnostics.transcripts,
+        agentRuns: diagnostics.agentRuns,
         alerts: alerts.entries,
         environment: { url: location.href, userAgent: navigator.userAgent, language: navigator.language, viewport: { width: innerWidth, height: innerHeight } },
         ...(screenshot ? { screenshot: new Uint8Array(await screenshot.arrayBuffer()) } : {}),
@@ -311,7 +312,7 @@ function debugInspector() {
   const content = debugTab === "alerts" ? alertsView() : debugError
     ? `<p class="debug-error">${escapeHtml(debugError)}</p>`
     : debugData
-      ? debugTab === "overview" ? debugOverview(debugRequest.type, debugData) : debugTab === "transcripts" ? recentTranscriptsView(debugData.transcripts) : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
+      ? debugTab === "overview" ? debugOverview(debugRequest.type, debugData) : debugTab === "transcripts" ? recentTranscriptsView(debugData.transcripts, debugData.agentRuns) : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
       : `<p class="debug-loading">Reading worker state…</p>`;
   const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${[["overview", "Overview"], ["json", "Raw JSON"], ["transcripts", "Recent transcripts"], ["alerts", "Warnings & errors"]].map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
   return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}"><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">Character state, available notes, known world, conversation, and assembled model context. The global inspector includes the authoritative world. GM debug includes prompts, raw model responses, and tool results—not hidden reasoning. API keys are excluded.</p>${tabs}<div id="debug-panel" class="debug-panel" role="tabpanel" aria-labelledby="debug-tab-${debugTab}" tabindex="0">${content}</div></aside>`;
