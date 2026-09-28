@@ -12,6 +12,7 @@ import { createContext, runInContext } from "node:vm";
 import test from "node:test";
 import { create, fromBinary, fromJson, fromJsonString, toBinary, toJson, toJsonString } from "@bufbuild/protobuf";
 import {
+  ActorStateSchema,
   DialogueRequestSchema,
   NoteSchema,
   NoteVisibility,
@@ -34,7 +35,7 @@ import { palaceMap } from "../apps/web/src/palace-map.js";
 
 import { canWalk, findPath, pointKey } from "../apps/web/src/navigation.js";
 import { palaceNodes } from "../apps/web/src/palace-navigation.js";
-import { charactersWithinEarshot, courtCharactersWithinEarshot, EARSHOT_DISTANCE } from "../apps/web/src/earshot.js";
+import { charactersWithinEarshot, courtCharactersWithinEarshot, dialogueEarshotPrompt, EARSHOT_DISTANCE } from "../apps/web/src/earshot.js";
 
 
 import { JevClient } from "../packages/providers/src/jev.js";
@@ -67,6 +68,28 @@ test("earshot levels cover each distance boundary", () => {
     [4, "Moderate"], [5, "Moderate"], [6, "Moderate"],
     [7, "Distant"], [8, "Distant"], [9, "Distant"], [10, "Distant"],
   ]);
+});
+
+test("NPC dialogue receives meeting points that both participants may enter and reach", () => {
+  const scenario = conversationScenario();
+  const playerId = scenario.playerCharacterId!;
+  const speaker = scenario.world!.actors.find(actor => actor.characterId === "corvin")!;
+  const listener = scenario.world!.actors.find(actor => actor.characterId === "garran")!;
+  speaker.roomId = "great_hall";
+  speaker.position = create(TilePositionSchema, { x: 15, y: 24 });
+  scenario.world!.actors.push(create(ActorStateSchema, { characterId: playerId, roomId: "great_hall", awake: true,
+    position: create(TilePositionSchema, { x: 16, y: 24 }) }));
+  listener.roomId = "great_hall";
+  listener.position = create(TilePositionSchema, { x: 14, y: 24 });
+
+  const prompt = dialogueEarshotPrompt(scenario, "corvin", ["corvin", playerId]);
+
+  assert.match(prompt, /"name":"Great Hall","private":false/);
+  assert.match(prompt, /"characterId":"garran"/);
+  assert.match(prompt, /"name":"Nobles' Parlour","roomId":"guest_chamber","private":true/);
+  assert.doesNotMatch(prompt, /"name":"Corvin's Chamber"/);
+  assert.match(prompt, /meetingPoints contains only named destinations that every participant is permitted to enter and can reach by legal movement/);
+  assert.match(prompt, /ask the other participant to move to a named private meeting point/);
 });
 
 test("the expanded authored scenario strictly parses and survives protobuf", () => {
