@@ -89,6 +89,14 @@ button:disabled { opacity: .48; cursor: wait; }
 .status { min-height: 24px; color: #d6b56e; font-style: italic; margin: 10px 0 0; }
 .error { color: #ef9a85; }
 .footer { text-align: center; margin-top: 18px; }
+.issue-reporter { width: min(640px, calc(100vw - 32px)); padding: 0; color: #ede2ca; background: linear-gradient(145deg, #282117, #15110d 72%); border: 1px solid var(--gold); box-shadow: 0 24px 100px #000d; }
+.issue-reporter::backdrop { background: #090705d9; }
+.issue-reporter form { display: grid; gap: 16px; padding: clamp(24px, 6vw, 40px); }
+.issue-reporter h2 { color: #f4e3bb; }
+.issue-reporter p { margin: 0; color: #d3c6ae; line-height: 1.45; }
+.issue-reporter textarea { min-height: 170px; resize: vertical; }
+.issue-reporter .report-privacy { color: var(--dim); font-size: .92rem; }
+.report-actions { display: flex; justify-content: flex-end; align-items: center; gap: 20px; }
 .sheet-tab { position: fixed; z-index: 20; right: 0; top: 34%; display: grid; gap: 5px; justify-items: center; padding: 14px 9px; border: 1px solid var(--gold); border-right: 0; background: #2d2418ed; color: #f0ddb4; font-family: Cinzel, serif; font-size: .68rem; letter-spacing: .08em; text-transform: uppercase; writing-mode: vertical-rl; box-shadow: 0 8px 30px #0009; }
 .sheet-tab:hover { background: #4a3820; }
 .sheet-tab-icon { font-size: 1.35rem; writing-mode: horizontal-tb; }

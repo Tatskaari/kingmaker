@@ -10,6 +10,53 @@ import { canWalk, findPath, pointKey, type Point } from "./navigation.js";
 export interface CourtCharacter { id: string; name: string; roomId?: string; position?: Point; sprite?: number }
 export interface CourtMarker extends CourtCharacter { point?: Point; roomName: string; sprite: number }
 
+function canvasBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error("Could not encode the world screenshot.")), "image/png"));
+}
+
+/** Capture the complete palace map, including DOM-rendered characters and their labels. */
+export async function captureCourtMap(root: HTMLElement | null): Promise<Blob | undefined> {
+  const stage = root?.querySelector<HTMLElement>(".court-map-stage");
+  const source = stage?.querySelector<HTMLCanvasElement>("canvas");
+  if (!stage || !source || !source.width || !source.height) return undefined;
+  const output = document.createElement("canvas");
+  output.width = source.width; output.height = source.height;
+  const context = output.getContext("2d");
+  if (!context) throw new Error("Canvas 2D rendering is unavailable");
+  context.drawImage(source, 0, 0);
+
+  const stageRect = stage.getBoundingClientRect();
+  const scaleX = output.width / stageRect.width, scaleY = output.height / stageRect.height;
+  const sample = stage.querySelector<HTMLElement>(".court-sprite");
+  const imageUrl = sample && getComputedStyle(sample).backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1];
+  if (imageUrl) {
+    const sprites = new Image(); sprites.src = imageUrl;
+    await sprites.decode();
+    context.imageSmoothingEnabled = false;
+    for (const character of stage.querySelectorAll<HTMLElement>("[data-character-sprite]")) {
+      const spriteId = Number(character.dataset.characterSprite);
+      const sprite = character.querySelector<HTMLElement>(".court-sprite");
+      const label = character.querySelector<HTMLElement>(".court-character-name");
+      if (!sprite || !Number.isInteger(spriteId)) continue;
+      const bounds = sprite.getBoundingClientRect();
+      const x = (bounds.left - stageRect.left) * scaleX, y = (bounds.top - stageRect.top) * scaleY;
+      const width = bounds.width * scaleX, height = bounds.height * scaleY;
+      context.drawImage(sprites, spriteId % 12 * 32, Math.floor(spriteId / 12) * 32, 32, 32, x, y, width, height);
+      if (!label?.textContent) continue;
+      const text = label.textContent;
+      context.font = `${Math.max(9, Math.round(13 * scaleY))}px Georgia, serif`;
+      context.textAlign = "center"; context.textBaseline = "top";
+      const centre = x + width / 2, labelY = y + height + 2 * scaleY;
+      const textWidth = context.measureText(text).width;
+      context.fillStyle = "rgba(23, 16, 9, .92)";
+      context.fillRect(centre - textWidth / 2 - 3, labelY - 1, textWidth + 6, Math.max(11, 15 * scaleY));
+      context.fillStyle = character.classList.contains("court-player") ? "#afe1cf" : "#fff1ce";
+      context.fillText(text, centre, labelY);
+    }
+  }
+  return canvasBlob(output);
+}
+
 export function courtMarkers(characters: readonly CourtCharacter[], fixtures: readonly MapFixture[] = []): CourtMarker[] {
   return characters.map(character => {
     const room = palaceMap.rooms.find(room => room.id === character.roomId);
@@ -172,6 +219,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     const isPlayer = marker.id === player?.id;
     const control = document.createElement(isPlayer ? "div" : "button");
     control.dataset.characterId = marker.id;
+    control.dataset.characterSprite = String(marker.sprite);
     control.className = `court-character${isPlayer ? " court-player" : ""}`;
     if (control instanceof HTMLButtonElement) {
       control.type = "button"; control.disabled = disabled;

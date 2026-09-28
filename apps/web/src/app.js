@@ -1,6 +1,7 @@
 import { debugOverview, recentTranscriptsView } from "./debug-view.js";
 import { AlertLog } from "./alerts.js";
-import { mountCourtMap, updateCourtMap } from "./court-map.js";
+import { captureCourtMap, mountCourtMap, updateCourtMap } from "./court-map.js";
+import { buildIssueReport, issuePageUrl, issueReportFilename } from "./issue-report.js";
 import { introduction, introductionTitles, introductionHandoff, handoffPrefix, nameSuggestions, delegations, characterSprites, newTraveller, patronName } from "./introduction.js";
 import { courtCharactersWithinEarshot } from "./earshot.js";
 import { formatElapsedTime } from "./relative-time.js";
@@ -226,8 +227,62 @@ function shell(content) {
   const sheetButton = state?.player ? `<button class="sheet-tab" data-sheet-open aria-label="Open character sheet"><span class="sheet-tab-icon">♙</span><span>Character</span></button>` : "";
   const sheet = state?.player ? characterSheet() : "";
   const keyControl = apiKey ? `<button class="reset" data-key-change>Change OpenRouter key</button>` : "";
-  const gameControls = state ? `<button class="reset" data-games>Saved games</button><button class="reset" data-reset>Start over</button>` : "";
+  const reportControl = state?.player ? `<button class="reset" data-report-issue>Report an issue</button>` : "";
+  const gameControls = state ? `<button class="reset" data-games>Saved games</button><button class="reset" data-reset>Start over</button>${reportControl}` : "";
   return `${state ? `<button class="debug-button" data-debug-open aria-label="Open debug inspector">⌘ <span>Debug</span></button>` : ""}${sheetButton}<div class="shell"><header class="masthead"><div class="eyebrow">An improvised political cRPG</div><h1>Kingmaker</h1><div class="rule"></div><p class="subtitle">Four kingdoms. A century’s mandate. A peace coming undone.</p></header>${content}<div class="footer">${gameControls}${keyControl}</div></div>${sheet}${debugInspector()}`;
+}
+
+function downloadFile(contents, filename) {
+  const url = URL.createObjectURL(new Blob([contents], { type: "application/zip" }));
+  const link = document.createElement("a");
+  link.href = url; link.download = filename; link.click();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1_000);
+}
+
+function openIssueReporter() {
+  const dialog = document.createElement("dialog");
+  dialog.className = "issue-reporter";
+  dialog.setAttribute("aria-labelledby", "issue-reporter-title");
+  dialog.innerHTML = `<form method="dialog" data-issue-form><div class="eyebrow">Help improve Kingmaker</div><h2 id="issue-reporter-title">Report an issue</h2><p>Describe what went wrong. The first line becomes the GitHub issue title.</p><textarea name="description" required autofocus placeholder="A short summary\n\nWhat happened, and what did you expect instead?"></textarea><p class="report-privacy">Your downloaded report includes the current world state, recent model transcripts, warnings and errors, environment details, and a screenshot. The GitHub repository is public, so review the ZIP before attaching it.</p><p class="status" data-report-status role="status"></p><div class="report-actions"><button type="button" class="reset" data-report-cancel>Cancel</button><button class="primary" value="submit">Download report &amp; open GitHub</button></div></form>`;
+  app.append(dialog);
+  const form = dialog.querySelector("[data-issue-form]");
+  const close = () => { dialog.close(); dialog.remove(); };
+  dialog.querySelector("[data-report-cancel]").addEventListener("click", close);
+  dialog.addEventListener("cancel", event => { event.preventDefault(); close(); });
+  form.addEventListener("submit", async event => {
+    event.preventDefault();
+    const description = String(new FormData(form).get("description") || "").trim();
+    if (!description) return;
+    const submit = form.querySelector("button[value=submit]");
+    const status = form.querySelector("[data-report-status]");
+    submit.disabled = true; status.textContent = "Gathering diagnostics…";
+    const issueTab = window.open("about:blank", "_blank");
+    try {
+      const generatedAt = new Date().toISOString();
+      const [diagnostics, screenshot] = await Promise.all([
+        rpc("issue_report"),
+        captureCourtMap(document.querySelector("[data-court-map]")),
+      ]);
+      const report = buildIssueReport({
+        description, generatedAt,
+        worldState: diagnostics.worldState,
+        transcripts: diagnostics.transcripts,
+        alerts: alerts.entries,
+        environment: { url: location.href, userAgent: navigator.userAgent, language: navigator.language, viewport: { width: innerWidth, height: innerHeight } },
+        ...(screenshot ? { screenshot: new Uint8Array(await screenshot.arrayBuffer()) } : {}),
+      });
+      downloadFile(report, issueReportFilename(generatedAt));
+      const target = issuePageUrl(description);
+      if (issueTab) issueTab.location.href = target;
+      else location.href = target;
+      close();
+    } catch (error) {
+      issueTab?.close();
+      status.textContent = `Could not create the report: ${error.message}`;
+      status.classList.add("error"); submit.disabled = false;
+    }
+  });
+  dialog.showModal();
 }
 
 function renderKeyEntry() {
@@ -486,6 +541,7 @@ function bind() {
     const result = await rpc("delete_game", { saveId: button.dataset.saveDelete }); saves = result.saves;
   })));
   document.querySelector("[data-games]")?.addEventListener("click", () => { state = null; activeSaveId = null; activeCharacter = null; screen = "saves"; render(); });
+  document.querySelector("[data-report-issue]")?.addEventListener("click", openIssueReporter);
   document.querySelector("[data-sheet-open]")?.addEventListener("click", () => { sheetOpen = true; debugOpen = false; render(); });
   document.querySelectorAll("[data-sheet-close]").forEach(button => button.addEventListener("click", () => { sheetOpen = false; render(); }));
   document.querySelector("[data-debug-open]")?.addEventListener("click", () => openDebug({ type: "debug", payload: {} }, "Debug Inspector"));
