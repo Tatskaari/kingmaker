@@ -1294,7 +1294,7 @@ export class BrowserGameRuntime {
     valid();
     const parsed = parseModelObject(completion.content, "Court dialogue");
     const utterance = text(parsed?.utterance, "utterance");
-    if (parsed?.endConversation !== false) throw new Error("An initiated conversation must remain open for the player.");
+    // An NPC opening always yields control to the player, even if the model requests a premature ending.
     const replyOptions = parseReplyOptions(parsed.replyOptions);
     this.#conversations.set(characterId, [create(TranscriptMessageSchema, {
       role: TranscriptRole.CHARACTER, speakerId: characterId, text: utterance,

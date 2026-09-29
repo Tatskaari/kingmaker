@@ -1626,7 +1626,7 @@ test("Jev receives reachable NPC talk actions, then both participants save priva
   assert.deepEqual(runtime.recentTranscripts().map(item => item.kind), ["npc_resolution", "npc_request"]);
 });
 
-test("NPCs can open a player conversation with their own dialogue and suggested replies", async t => {
+test("NPC-initiated player conversations remain open despite a premature model ending", async t => {
   const { scenario, runtime } = talkingCourt();
   let observation = courtAgentObservation(fromJson(ScenarioSchema, runtime.snapshot().scenario), "corvin");
   let playerAction = observation.actions.find(item => item.id === `talk_${scenario.playerCharacterId}`)!;
@@ -1639,7 +1639,7 @@ test("NPCs can open a player conversation with their own dialogue and suggested 
   t.mock.method(OpenRouterClient.prototype, "complete", async (_request: unknown) => modelReply({
     utterance: "Envoy, a private word about the succession.",
     replyOptions: ["Speak plainly.", "Not now."],
-    endConversation: false,
+    endConversation: true,
   }));
 
   const utterance = await runtime.initiatePlayerConversation("corvin", playerAction.id, observation.revision,
@@ -1648,6 +1648,7 @@ test("NPCs can open a player conversation with their own dialogue and suggested 
   assert.equal(utterance, "Envoy, a private word about the succession.");
   assert.deepEqual(runtime.view().conversations, { corvin: [{ role: "character", text: utterance }] });
   assert.deepEqual(runtime.view().conversationReplyOptions, { corvin: ["Speak plainly.", "Not now."] });
+  assert.deepEqual(runtime.snapshot().conversationEndRequested, { corvin: false });
   assert.equal(runtime.snapshot().npcActivities?.corvin?.status, "active", "the NPC's task pauses until the conversation is reviewed");
 });
 
