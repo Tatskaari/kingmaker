@@ -82,23 +82,22 @@ function runtime() {
   return game;
 }
 
-test("runtime inventories merge independently and reject stale writes atomically", () => {
+test("runtime inventories merge independently and reject changed target values atomically", () => {
   const game = runtime();
   const prepare = (id: string, itemId: string) => {
-    const expected = generationIds(game.readResources(["world:context", `character:${id}`, `actor:${id}`, `inventory:${id}`, `item:${itemId}`, `entity:${itemId}`]));
     const before = game.snapshot(), fork = game.forkForNpc(), snapshot = fork.snapshot();
     const scenario = fromJson(ScenarioSchema, snapshot.scenario);
     scenario.world!.objects.push(create(ObjectStateSchema, { id: itemId, name: itemId, locationId: id }));
     snapshot.scenario = toJson(ScenarioSchema, scenario); fork.restore(snapshot);
-    return { before, fork, expected };
+    return { before, fork };
   };
   const first = prepare("corvin", "first_note"), second = prepare("mara", "second_note");
-  game.commitCharacterFork(first.before, first.fork, ["corvin"], first.expected);
-  game.commitCharacterFork(second.before, second.fork, ["mara"], second.expected);
+  game.commitCharacterFork(first.before, first.fork, ["corvin"]);
+  game.commitCharacterFork(second.before, second.fork, ["mara"]);
   const saved = game.snapshot();
   assert.ok(fromJson(ScenarioSchema, saved.scenario).world!.objects.some(item => item.id === "first_note"));
   assert.ok(fromJson(ScenarioSchema, saved.scenario).world!.objects.some(item => item.id === "second_note"));
-  assert.throws(() => game.commitCharacterFork(first.before, first.fork, ["corvin"], first.expected), GenerationConflict);
+  assert.throws(() => game.commitCharacterFork(first.before, first.fork, ["corvin"]), /State changed/);
   assert.deepEqual(game.snapshot(), saved);
 });
 
@@ -118,9 +117,9 @@ test("physical movement and reset advance the appropriate generations", () => {
 
 const memory = { newNotes: [], relationships: [], lore: null, goalUpdate: null };
 const reply = (value: unknown) => ({ role: "assistant" as const, content: JSON.stringify(value) });
-const write = (generations: Record<string, string>, review = memory, worldChanges: unknown[] = []) => ({
+const write = (review = memory, worldChanges: unknown[] = []) => ({
   role: "assistant" as const, content: null, tool_calls: [{ id: "write", type: "function" as const,
-    function: { name: "commit_review", arguments: JSON.stringify({ generations, review, worldChanges }) } }],
+    function: { name: "commit_review", arguments: JSON.stringify({ review, worldChanges }) } }],
 });
 
 test("the GM receives a conflict and must explicitly re-call the write tool", async t => {
@@ -140,25 +139,25 @@ test("the GM receives a conflict and must explicitly re-call the write tool", as
     assert.ok(request.tools.some((tool: any) => tool.function.name === "commit_review"));
     if (calls === 1) {
       const initial = JSON.parse(request.messages.at(-1).content).resources;
-      return write(generationIds(initial));
+      return write();
     }
     const conflict = JSON.parse(request.messages.at(-1).content);
-    assert.equal(conflict.error, "generation_conflict");
-    assert.match(conflict.current["character:corvin"].state.character.lore, /new fact/);
-    assert.match(conflict.instruction, /call the write tool again/);
+    assert.equal(conflict.error, "state_conflict");
+    assert.match(conflict.current["character:corvin"].character.lore, /new fact/);
+    assert.match(conflict.instruction, /call commit_review again/);
     assert.equal(commits, 0);
     assert.deepEqual(game.snapshot(), liveBefore);
-    return write(generationIds(conflict.current));
+    return write();
   });
-  await game.publishReviewedFork(before, fork, async (base, candidate, ids, expected) => {
-    game.commitCharacterFork(base, candidate, ids, expected); commits++;
+  await game.publishReviewedFork(before, fork, async (base, candidate, ids) => {
+    game.commitCharacterFork(base, candidate, ids); commits++;
   });
   assert.equal(calls, 2); assert.equal(commits, 1);
   assert.equal(game.snapshot().conversations.corvin, undefined);
   assert.match(fromJson(ScenarioSchema, game.snapshot().scenario).characters.find(c => c.id === "corvin")!.lore, /new fact/);
 });
 
-test("plain final JSON cannot bypass the generation-aware write tool", async t => {
+test("plain final JSON cannot bypass the explicit write tool", async t => {
   const game = runtime();
   t.mock.method(OpenRouterClient.prototype, "complete", async () => reply({ utterance: "Goodbye.", replyOptions: [], endConversation: true }));
   await game.talkToCharacter("corvin", "Goodbye.");
@@ -202,31 +201,27 @@ test("player physical commands reject stale views without disclosing concealed i
   assert.deepEqual(game.snapshot(), before);
 });
 
-test("direct court GM writes return conflicts; creation writes need no generation IDs", async t => {
+test("direct GM tools never expose generation IDs", async t => {
   for (const creation of [true, false]) {
     const game = creation ? new BrowserGameRuntime(fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")), "test") : runtime();
     let calls = 0;
     t.mock.method(OpenRouterClient.prototype, "complete", async (request: any) => {
       calls++;
       const tool = request.tools.find((tool: any) => tool.function.name === "update_character");
-      assert.equal(tool.function.parameters.required.includes("generations"), !creation);
-      if (calls === 1 || (!creation && calls === 2)) {
+      assert.equal(tool.function.parameters.required.includes("generations"), false);
+      if (calls === 1) {
         const args: any = { characterId: "corvin", lore: "Reconciled biography.", activeObjective: {
           action: "drop", reason: "The GM explicitly cancelled the greeting objective.",
         } };
-        if (calls === 2) {
-          const result = JSON.parse(request.messages.at(-1).content);
-          assert.equal(result.error, "missing_generation_ids");
-          assert.ok(result.missingResourceIds.includes("character:corvin"));
-          assert.notEqual(result.current["character:corvin"].state.character.lore, args.lore);
-          args.generations = generationIds(result.current);
-        }
         return { role: "assistant", content: null, tool_calls: [{ id: "update", type: "function", function: { name: "update_character", arguments: JSON.stringify(args) } }] };
       }
+      const result = JSON.parse(request.messages.at(-1).content);
+      assert.equal(JSON.stringify(result).includes("generationId"), false);
+      assert.equal(JSON.stringify(result).includes("generation_id"), false);
       return { role: "assistant", content: "Done." };
     });
     await game.talkToGameMaster("Update Corvin.");
-    assert.equal(calls, creation ? 2 : 3);
+    assert.equal(calls, 2);
     const saved = game.snapshot();
     assert.equal(fromJson(ScenarioSchema, saved.scenario).characters.find(c => c.id === "corvin")!.lore, "Reconciled biography.");
     if (!creation) assert.equal(saved.npcActivities!.corvin!.status, "idle");
@@ -240,32 +235,30 @@ test("a conflict at publication keeps item and character updates atomic and reac
   const before = game.snapshot(), fork = game.forkForNpc();
   t.mock.method(OpenRouterClient.prototype, "complete", async () => reply(memory));
   await fork.endConversation("corvin");
-  let calls = 0, commits = 0, generations: Record<string, string> = {};
+  let calls = 0, commits = 0;
   const changes = [{ name: "create_item", arguments: { id: "new_note", name: "New note", locationId: "corvin", details: "A note.", reason: "An established prop." } }];
   t.mock.method(OpenRouterClient.prototype, "complete", async (request: any) => {
     const context = JSON.parse(request.messages.at(-1).content);
     calls++;
     if (calls === 1) {
-      generations = generationIds(context.resources);
       return { role: "assistant", content: null, tool_calls: [{ id: "read", type: "function", function: { name: "read_state", arguments: JSON.stringify({ resourceIds: ["item:new_note", "entity:new_note"] }) } }] };
     }
-    Object.assign(generations, generationIds(context.current));
     if (calls === 3) {
-      assert.equal(context.error, "generation_conflict");
+      assert.equal(context.error, "state_conflict");
       const scenario = fromJson(ScenarioSchema, game.snapshot().scenario);
       assert.ok(!scenario.world!.objects.some(item => item.id === "new_note"));
       assert.notEqual(scenario.characters.find(c => c.id === "corvin")!.lore, "Updated atomically.");
-      assert.ok(context.current["inventory:corvin"].state.some((item: any) => item.id === "other_note"));
+      assert.ok(context.current["inventory:corvin"].some((item: any) => item.id === "other_note"));
     }
-    return write(generations, { ...memory, lore: "Updated atomically." } as any, changes);
+    return write({ ...memory, lore: "Updated atomically." } as any, changes);
   });
-  await game.publishReviewedFork(before, fork, async (base, candidate, ids, expected) => {
+  await game.publishReviewedFork(before, fork, async (base, candidate, ids) => {
     if (commits++ === 0) {
       const changed = game.snapshot(), scenario = fromJson(ScenarioSchema, changed.scenario);
       scenario.world!.objects.push(create(ObjectStateSchema, { id: "other_note", name: "Other note", locationId: "corvin" }));
       changed.scenario = toJson(ScenarioSchema, scenario); game.restore(changed);
     }
-    game.commitCharacterFork(base, candidate, ids, expected);
+    game.commitCharacterFork(base, candidate, ids);
   });
   assert.equal(calls, 3); assert.equal(commits, 2);
   const final = fromJson(ScenarioSchema, game.snapshot().scenario);
@@ -282,6 +275,6 @@ test("a two-participant write cannot overwrite either participant when one chang
   newer.characters.find(c => c.id === "mara")!.lore = "Concurrent biography.";
   concurrent.scenario = toJson(ScenarioSchema, newer); game.restore(concurrent);
   const unchanged = game.snapshot();
-  assert.throws(() => game.commitCharacterFork(before, fork, ["corvin", "mara"]), GenerationConflict);
+  assert.throws(() => game.commitCharacterFork(before, fork, ["corvin", "mara"]), /State changed/);
   assert.deepEqual(game.snapshot(), unchanged);
 });

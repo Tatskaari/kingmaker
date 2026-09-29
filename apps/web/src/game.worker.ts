@@ -152,7 +152,7 @@ async function runBackground(next: { id: string; handoffs: number }) {
         } catch (error) {
           if (!valid()) return;
           if (error instanceof GenerationConflict) {
-            conflict = { error: error.response.error, instruction: "The previous action was not applied because its generation IDs changed. Inspect this fresh observation, reconcile your intention, and choose an action again." };
+            conflict = { error: "state_conflict", instruction: "The previous action was not applied because the relevant world state changed. Inspect this fresh observation, reconcile your intention, and choose an action again." };
             continue;
           }
           // Doors, targets or goals may have changed while the player acted. Replan.
@@ -183,7 +183,7 @@ async function runBackground(next: { id: string; handoffs: number }) {
               await fork.initiatePlayerConversation(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
               if (!valid()) return;
               if (conversationHolds.size) continue;
-              try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id], undefined, true); }); }
+              try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id], true); }); }
               catch (error) { if (!valid()) return; if (/changed/i.test(String(error))) continue; throw error; }
               conversationHolds.add(id);
               publishNpc(`${id}: started a conversation with you.`, undefined, id);
@@ -455,8 +455,9 @@ worker.addEventListener("message", event => {
       worker.postMessage({ id: request.id, ok: true, value });
     } catch (error) {
       if (error instanceof GenerationConflict) publishNpc("State changed. Review the updated palace and choose again.");
-      alertUser(error instanceof GenerationConflict ? "warning" : "error", `${request.type}: ${error instanceof Error ? error.message : String(error)}`);
-      worker.postMessage({ id: request.id, ok: false, error: error instanceof Error ? error.message : String(error) });
+      const message = error instanceof GenerationConflict ? "State changed. Please try again." : error instanceof Error ? error.message : String(error);
+      alertUser(error instanceof GenerationConflict ? "warning" : "error", `${request.type}: ${message}`);
+      worker.postMessage({ id: request.id, ok: false, error: message });
     }
   };
   // Background work and dialogue wait outside the mutation queue. Their results

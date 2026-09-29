@@ -1,12 +1,14 @@
 import { create } from "@bufbuild/protobuf";
 import { ObjectStateSchema, type Scenario } from "../../../packages/contracts/src/index.js";
 import type { OpenRouterTool } from "../../../packages/providers/src/openrouter.js";
+import { applyWorldPatch, patchWorldStateTool, type WorldPatchSession } from "./world-patch.js";
 
 export const RECONCILIATION_INSTRUCTIONS = `Adjudicate the completed exchange or action run. Keep a feasible next task, replace it with a useful concrete step, or use cancel_task for a dead end. An inability/limit/error is evidence to reassess, not a reason to restart the same task under new wording.
-Use create_item for a justified missing prop in an existing container or character inventory; inspection reveals its details. Cancel or narrow a task when adding a prop would not make progress possible.
+Use patch_world_state for justified physical or durable world changes. Cancel or narrow a task when a world change would not make progress possible.
 This review stages its changes. Account for successful staging tools in the requested final memory JSON; publication follows validation. Return that JSON after tool results. A null goalUpdate means idle; clear obsolete tasks.`;
 
 export const reconciliationTools: readonly OpenRouterTool[] = [
+  patchWorldStateTool,
   { type: "function", function: { name: "create_item", description: "Make a justified missing physical item real in an existing container or character inventory. Use meaningful unique IDs. Its details become available through inspection. Does not move or duplicate an existing item.", parameters: {
     type: "object", additionalProperties: false, required: ["id", "name", "locationId", "details", "reason"], properties: {
       id: { type: "string" }, name: { type: "string" }, locationId: { type: "string", description: "Exact existing character ID or container fixture ID." }, details: { type: "string", description: "Concrete inspectable description, including text if this is a written item." }, reason: { type: "string" },
@@ -24,7 +26,11 @@ function field(input: Record<string, unknown>, key: string, max = 8000): string 
 }
 
 /** Only mutates the caller's staged world. Publication happens after the final review validates. */
-export function applyReconciliationTool(scenario: Scenario, participants: readonly string[], cancelled: Map<string, string>, name: string, input: Record<string, unknown>) {
+export function applyReconciliationTool(scenario: Scenario, participants: readonly string[], cancelled: Map<string, string>, name: string, input: Record<string, unknown>, patchSession?: WorldPatchSession) {
+  if (name === "patch_world_state") {
+    if (!patchSession) throw new Error("World patch session is unavailable.");
+    return applyWorldPatch(scenario, patchSession, input);
+  }
   const reason = field(input, "reason", 1000);
   if (name === "cancel_task") {
     const id = field(input, "characterId", 100);

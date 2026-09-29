@@ -585,10 +585,8 @@ test("GM action and knowledge rulings reach dialogue immediately and publish wit
         assert.equal(request.messages[0]?.content, GM_BASE_PROMPT);
         assert.ok(JSON.stringify(request.messages).includes(question));
         if (outcome === "reject" || outcome === "knowledge") return call("finish_review", { summary });
-        const state = request.messages.map(message => {
-          try { return JSON.parse(message.content || "{}"); } catch { return {}; }
-        }).find(value => value.world_state).world_state;
-        return call("update_inventory", { owner_id: "corvin", generation_id: state["inventory:corvin"].generation_id, add_items: [item] });
+        return call("patch_world_state", { reason: item.reason, patch: [{ op: "add", path: "/world/objectsById/account_extract",
+          value: { id: item.id, name: item.name, locationId: "corvin", concealed: true, properties: { details: item.details } } }] });
       }
       if (step === 3 && (outcome === "approve" || outcome === "fail")) {
         if (outcome === "fail") throw new Error("GM unavailable");
@@ -2437,9 +2435,10 @@ test("DM reconciles a conversation with real inventory props and an executable i
   await runtime.talkToCharacter("corvin", "Check the embassy token.");
   let calls = 0;
   t.mock.method(OpenRouterClient.prototype, "complete", async (request: any) => {
-    assert.ok(request.tools.some((tool: any) => tool.function.name === "create_item"));
-    assert.match(JSON.stringify(request.messages), /authoritativeWorld/);
-    if (calls++ === 0) return gmTool("create_item", missingProp);
+    assert.ok(request.tools.some((tool: any) => tool.function.name === "patch_world_state"));
+    assert.match(JSON.stringify(request.messages), /world_state/);
+    if (calls++ === 0) return gmTool("patch_world_state", { reason: missingProp.reason, patch: [{ op: "add", path: "/world/objectsById/envoy_token",
+      value: { id: missingProp.id, name: missingProp.name, locationId: "corvin", concealed: true, properties: { details: missingProp.details } } }] });
     assert.match(request.messages.at(-1).content, /envoy_token/);
     return modelReply({ ...idleMemory, goalUpdate: { goal: "Inspect the envoy token in my inventory.", reason: "The token is now present." } });
   });
