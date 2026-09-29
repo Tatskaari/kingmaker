@@ -27,6 +27,7 @@ import {
   WorldMapSchema,
   TranscriptRole,
   TilePositionSchema,
+  type Event,
   type Scenario,
 } from "../packages/contracts/src/index.js";
 import { FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter } from "../packages/core/src/context.js";
@@ -697,6 +698,27 @@ test("earshot dice gate event perception before Jev sees it", async t => {
   const missedTrace = (missed.debugCharacter("garran").eventFeed as any[]).find(item => item.eventId === event.id)!;
   assert.deepEqual({ observed: missedTrace.observed, level: missedTrace.level, jevDecision: missedTrace.jevDecision },
     { observed: false, level: "Moderate", jevDecision: "not_consulted" });
+});
+
+test("earshot decisions run concurrently for independent listeners", async t => {
+  let active = 0, mostActive = 0, release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  t.mock.method(JevClient.prototype, "choose", async () => {
+    active++; mostActive = Math.max(mostActive, active);
+    await pending; active--;
+    return { choice: "ignore", probabilities: { process: 0.1, ignore: 0.9 } };
+  });
+  const scenario = conversationScenario();
+  for (const [id, x] of [["corvin", 12], ["garran", 13], ["mara", 14]] as const) {
+    scenario.world!.actors.find(actor => actor.characterId === id)!.position = create(TilePositionSchema, { x, y: 24 });
+  }
+  const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, () => 0);
+  const assessment = runtime.assessWorldEvent(runtime.worldEvent("using an object", "Corvin used an object.", ["corvin"]), new AbortController().signal);
+  try {
+    await new Promise(resolve => setImmediate(resolve));
+    assert.ok(mostActive >= 2, "At least two listener decisions should be in flight together");
+  } finally { release(); }
+  await assessment;
 });
 
 test("clear event decisions include ownership, legality, relationship and background", async t => {
@@ -2074,7 +2096,8 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   t.mock.method(globalThis, "fetch", async () => new Response(readFileSync(fixturePath, "utf8")));
   t.mock.method(OpenRouterClient.prototype, "complete", async () => { modelCalls++; return { role: "assistant", content: "Maren, what brings you along this road?" }; });
   await import("../apps/web/src/game.worker.js");
-  t.mock.method(BrowserGameRuntime.prototype, "assessWorldEvent", async () => ({ reactions: [] }));
+  let assessWorldEvent = async (_event: Event, _signal: AbortSignal) => ({ reactions: [] });
+  t.mock.method(BrowserGameRuntime.prototype, "assessWorldEvent", (event: Event, signal: AbortSignal) => assessWorldEvent(event, signal));
   const request = (type: string, payload: Record<string, unknown> = {}): Promise<any> => new Promise((resolve, reject) => {
     const id = ++sequence;
     const timer = setTimeout(() => { pending.delete(id); reject(new Error(`Worker ${type} did not settle`)); }, 1000);
@@ -2095,6 +2118,26 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   assert.match(greeting.reply, /Maren/);
   assert.equal(modelCalls, 1);
   assert.equal(greeting.state.phase, "player_creation");
+
+  await t.test("physical interactions respond before background earshot assessment finishes", async t => {
+    const created = await request("create_development_game");
+    let assessmentStarted!: () => void, releaseAssessment!: () => void;
+    const started = new Promise<void>(resolve => { assessmentStarted = resolve; });
+    const blocked = new Promise<void>(resolve => { releaseAssessment = resolve; });
+    assessWorldEvent = async () => { assessmentStarted(); await blocked; return { reactions: [] }; };
+    t.mock.method(BrowserGameRuntime.prototype, "setDoor", function (this: BrowserGameRuntime) {
+      return this.worldEvent("using a door", "The envoy opened a door.", ["player"]);
+    });
+    try {
+      const response = await request("set_door", { id: "test-door", open: true, generations: created.state.generations });
+      assert.ok(response.state, "The physical response should arrive while assessment is still blocked");
+      await started;
+    } finally {
+      releaseAssessment();
+      assessWorldEvent = async () => ({ reactions: [] });
+    }
+    await new Promise(resolve => setImmediate(resolve));
+  });
 
   await t.test("NPC plans overlap, deduplicate, and cancel independently while player commands remain available", async t => {
     const created = await request("create_development_game");

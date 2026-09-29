@@ -886,8 +886,7 @@ export class BrowserGameRuntime {
       return `You faintly notice ${names} ${event.kind}, but cannot make out any details.`;
     };
     const player = listeners.find(listener => listener.id === scenario.playerCharacterId);
-    const reactions: PerceivedEvent[] = [];
-    for (const listener of listeners.filter(listener => listener.id !== scenario.playerCharacterId)) {
+    const decisions = await Promise.all(listeners.filter(listener => listener.id !== scenario.playerCharacterId).map(async listener => {
       signal.throwIfAborted();
       const observed = perception(listener), character = scenario.characters.find(candidate => candidate.id === listener.id)!;
       const trace = this.#eventPerceptions[listener.id]?.findLast(item => item.eventId === event.id);
@@ -926,8 +925,9 @@ export class BrowserGameRuntime {
         }
         throw error;
       }
-      if (decision.choice === "process") reactions.push({ characterId: listener.id, level: listener.level, perception: observed });
-    }
+      return decision.choice === "process" ? { characterId: listener.id, level: listener.level, perception: observed } : undefined;
+    }));
+    const reactions = decisions.filter((reaction): reaction is PerceivedEvent => !!reaction);
     return { reactions, ...(player ? { playerPerception: perception(player) } : {}) };
   }
 
