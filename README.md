@@ -56,7 +56,7 @@ the coming centennial succession before introducing the three delegations.
 ## Models and debugging
 
 GPT-6 Luna handles dialogue with reasoning off and the GM, reviews and NPC-to-NPC
-exchanges with medium reasoning. Settings live in
+exchanges with low reasoning. Settings live in
 `apps/web/src/model-settings.ts`; every game-model request uses the OpenRouter ID
 `openai/gpt-6-luna`.
 Jev selects from currently reachable actions.

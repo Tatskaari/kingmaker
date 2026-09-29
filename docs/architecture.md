@@ -40,8 +40,8 @@ an immediate character reaction. A positive decision interrupts that character's
 runner and invokes a character review, which must append a note and may revise both
 active and parked objectives before background execution resumes.
 
-GPT-6 Luna handles spoken dialogue without reasoning. GPT-6 Sol uses medium
-reasoning for the GM, reviews and NPC conversation resolution. The OpenRouter
+GPT-6 Luna handles spoken dialogue without reasoning and uses low reasoning for
+the GM, reviews and NPC conversation resolution. The OpenRouter
 Responses adapter preserves tool-call continuity. Jev uses its Decisions API.
 
 The palace renderer consumes map geometry and saved fixtures/actors. It animates
