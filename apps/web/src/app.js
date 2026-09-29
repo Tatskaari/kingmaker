@@ -334,7 +334,7 @@ function renderCharacterReview() {
 
 function renderDay(bindPage = true) {
   const playerName = state.player?.name || "The Emissary";
-  app.innerHTML = shell(`<section class="panel court-panel"><div class="day-heading"><div><div class="eyebrow">Palace of Caerwyn</div><h2>Welcome to court, <span class="player-name">${escapeHtml(playerName)}</span></h2></div></div><p class="scene">Left-click to walk around the palace. Right-click characters and objects to see their actions.</p><div data-court-map></div><section class="npc-planner" data-npc-panel></section><div class="court-day-footer"><span class="map-credit">Tiny Dungeon tiles by Kenney · CC0</span></div><p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  app.innerHTML = shell(`<section class="panel court-panel"><div class="day-heading"><div><div class="eyebrow">Palace of Caerwyn</div><h2>Welcome to court, <span class="player-name">${escapeHtml(playerName)}</span></h2></div></div><p class="scene">Left-click to walk around the palace. Right-click characters and objects to see their actions.</p><div data-court-map></div><section class="npc-planner" data-npc-panel></section><div class="court-day-footer"><span class="map-credit">Tiny Dungeon tiles by Kenney · CC0</span></div><p class="status ${notice.startsWith("Error") ? "error" : ""}" data-court-notice>${escapeHtml(notice)}</p></section>`);
   const feed = document.createElement("aside");
   feed.className = "player-event-feed";
   feed.dataset.playerFeed = "";
@@ -353,10 +353,14 @@ function renderDay(bindPage = true) {
   }, state.doors, async (id, open) => {
     const result = await rpc("set_door", { id, open });
     state = result.state; saves = result.saves;
+    updateCourtMap(mapRoot, state);
     return state.doors;
   }, state.roomAccess, state.fixtures, state.fixtureActions, async actionId => {
     const result = await rpc("interact_fixture", { actionId });
-    state = result.state; saves = result.saves; notice = result.message; render();
+    state = result.state; saves = result.saves; notice = result.message;
+    updateCourtMap(mapRoot, state); updateNpcPanel(); updatePlayerFeed();
+    const status = document.querySelector("[data-court-notice]");
+    if (status) { status.textContent = notice; status.classList.toggle("error", notice.startsWith("Error")); }
   }, async id => {
     if (conversationReviews.has(id)) throw new Error("Conversation review is pending.");
     await rpc("pause_npc", { characterId: id });

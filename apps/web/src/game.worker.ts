@@ -40,6 +40,7 @@ function enqueue<T>(work: () => Promise<T>): Promise<T> {
   const result = requests.then(work); requests = result.catch(() => {}); return result;
 }
 const background = new Map<string, { id: string; controller: AbortController; participants: string[] }>();
+const worldEvents = new Set<AbortController>();
 const pendingNpcs: Array<{ id: string; handoffs: number }> = [];
 const conversationHolds = new Set<string>();
 const conversationReviews = new Set<string>();
@@ -61,6 +62,10 @@ function stopBackground(characterId?: string) {
     }
   }
   for (let i = pendingNpcs.length - 1; i >= 0; i--) if (!characterId || pendingNpcs[i]!.id === characterId) pendingNpcs.splice(i, 1);
+}
+function stopWorldEvents() {
+  for (const controller of worldEvents) controller.abort();
+  worldEvents.clear();
 }
 async function commitMutation<T>(game: BrowserGameRuntime, work: () => T): Promise<T> {
   return enqueue(async () => {
@@ -103,14 +108,30 @@ function drainBackground() {
 }
 async function handleWorldEvent(game: BrowserGameRuntime, event: Event, signal: AbortSignal, handoffs = 3) {
   const assessed = await game.assessWorldEvent(event, signal);
-  if (assessed.playerPerception) await commitMutation(game, () => game.recordPlayerPerception(event, assessed.playerPerception!));
-  for (const reaction of assessed.reactions) {
+  if (assessed.playerPerception) {
+    await commitMutation(game, () => game.recordPlayerPerception(event, assessed.playerPerception!));
+    publishNpc("You perceived a world event.");
+  }
+  await Promise.all(assessed.reactions.map(async reaction => {
     signal.throwIfAborted();
     stopBackground(reaction.characterId);
     publishNpc(`${reaction.characterId}: processing a perceived event…`);
     await reviewFork(game, signal).processPerceivedEvent(reaction.characterId, event, reaction.perception, signal);
+    publishNpc(`${reaction.characterId}: processed a perceived event.`);
     if (handoffs > 0 && game.snapshot().npcActivities?.[reaction.characterId]?.status === "active") startBackground(reaction.characterId, handoffs - 1);
-  }
+  }));
+}
+function scheduleWorldEvent(game: BrowserGameRuntime, event: Event, handoffs = 3) {
+  const controller = new AbortController(), version = generation;
+  worldEvents.add(controller);
+  setTimeout(() => {
+    if (controller.signal.aborted || runtime !== game || generation !== version) {
+      worldEvents.delete(controller); return;
+    }
+    void handleWorldEvent(game, event, controller.signal, handoffs).catch(error => {
+      if (!controller.signal.aborted) alertUser("error", `world event: ${error instanceof Error ? error.message : String(error)}`);
+    }).finally(() => worldEvents.delete(controller));
+  }, 0);
 }
 async function runBackground(next: { id: string; handoffs: number }) {
   if (!runtime) return;
@@ -160,7 +181,7 @@ async function runBackground(next: { id: string; handoffs: number }) {
           throw error;
         }
         if (!valid()) return;
-        if (result?.worldEvent) await handleWorldEvent(game, result.worldEvent, signal, handoffs);
+        if (result?.worldEvent) scheduleWorldEvent(game, result.worldEvent, handoffs);
         if (result?.talkTarget) {
           const target = result.talkTarget;
           const targetBusy = () => conversationHolds.has(target)
@@ -190,7 +211,7 @@ async function runBackground(next: { id: string; handoffs: number }) {
               return;
             }
             const summary = await fork.executeNpcTalk(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
-            await handleWorldEvent(game, game.worldEvent("having a conversation", summary, [id, target]), signal, handoffs);
+            scheduleWorldEvent(game, game.worldEvent("having a conversation", summary, [id, target]), handoffs);
           } finally {
             job.participants = [id];
             if (valid() && interrupted) startBackground(target, handoffs);
@@ -316,7 +337,7 @@ function requireRuntime(): BrowserGameRuntime {
 
 async function handle(type: string, payload: Record<string, unknown>, requestId: number): Promise<unknown> {
   if (["configure", "create_game", "create_development_game", "load_game", "delete_game", "reset", "reset_world", "reset_characters"].includes(type)) {
-    generation++; stopBackground(); conversationHolds.clear();
+    generation++; stopBackground(); stopWorldEvents(); conversationHolds.clear();
   }
   const reviewKey = `${generation}:${String(payload.characterId || "")}`;
   if (["move_player", "set_door", "interact_fixture"].includes(type)
@@ -389,7 +410,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     const game = requireRuntime();
     const { message, event } = await commitMutation(game, () => game.interactFixtureWithEvent(
       String(payload.actionId || ""), payload.generations as ExpectedGenerations | undefined));
-    await handleWorldEvent(game, event, new AbortController().signal);
+    scheduleWorldEvent(game, event);
     return { state: game.view(), saves: await listSaves(), message };
   }
   if (type === "set_door") {
@@ -397,7 +418,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     const game = requireRuntime();
     const open = payload.open;
     const event = await commitMutation(game, () => game.setDoor(String(payload.id), open, payload.generations as ExpectedGenerations | undefined));
-    await handleWorldEvent(game, event, new AbortController().signal);
+    scheduleWorldEvent(game, event);
     return { state: game.view(), saves: await listSaves() };
   }
   if (type === "move_player") {
@@ -428,7 +449,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
         });
       if (type === "end_conversation") {
         conversationHolds.delete(id);
-        if (reply) await handleWorldEvent(game, reply as Event, new AbortController().signal);
+        if (reply) scheduleWorldEvent(game, reply as Event);
       }
       return { reply: type === "talk" ? reply : undefined, state: game.view(), saves: await listSaves(), activeSaveId: activeSave?.id };
     } finally { if (type === "end_conversation") conversationReviews.delete(reviewKey); }
