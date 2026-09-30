@@ -107,6 +107,24 @@ record the initiating request and the GM resolution separately.
 NPC execution is serial and bounded. Stop Jev cancels pending planning or walking;
 active goals and pending reviews can be resumed after loading a save.
 
+### Jev world-state evals
+
+The headless Jev eval runner creates a fresh runtime for every run, assigns one
+physical goal, applies production movement and interactions, and evaluates the
+resulting typed scenario. Eval definitions are TypeScript in `evals/jev/`, so
+setup and success criteria can use normal domain helpers instead of a JSON
+assertion language. Run the default scenarios with:
+
+```sh
+OPENROUTER_API_KEY=... npm run eval:jev
+```
+
+Each scenario runs ten times by default. The CLI reports success rate and the
+average number of Jev decisions for successful and failed runs. Every run is
+written immediately to `eval-output/jev/` with the invocation date, scenario
+name and run number. These gitignored JSON artifacts contain the Jev request and
+response transcripts, action trace, outcome and final runtime snapshot.
+
 ## Reset while developing
 
 With a loaded character, use the browser console:
