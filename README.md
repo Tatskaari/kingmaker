@@ -91,6 +91,14 @@ Pass `false` as the seventh argument for the legacy baseline. Configuration foll
 runtime forks and is not saved as game state. The debug inspector displays the
 same text `state` supplied to the action planner.
 
+Render all three tiers through the production action-planning path without an
+API key or model call:
+`proto run node -- node_modules/tsx/dist/cli.mjs scripts/render-jev-contexts.ts /tmp/kingmaker-jev-contexts king`.
+This writes court-arrival and authored-initial examples. Each `*-state.txt` is the
+exact text sent in `state`; `*-request.txt` also includes every execution
+instruction and selectable choice. Recent action results are disabled in these
+samples, and the output README records the activation/placement assumptions.
+
 The debug inspector shows world state, character context and recent transcripts:
 requests, responses, summaries, duration and errors for the latest 50 calls.
 These logs survive rollback but are not saved across reloads. NPC conversations
