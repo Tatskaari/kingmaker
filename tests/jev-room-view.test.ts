@@ -6,6 +6,8 @@ import { ScenarioSchema } from "../packages/contracts/src/index.js";
 import { JevClient } from "../packages/providers/src/jev.js";
 import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
 import { ROOM_SCOPED_JEV } from "../apps/web/src/feature-flags.js";
+import { courtAgentObservation } from "../apps/web/src/court-agent.js";
+import { renderJevActionState } from "../apps/web/src/jev-room-view.js";
 import { GenerationConflict } from "../packages/core/src/generations.js";
 
 function game(roomScoped?: boolean) {
@@ -36,28 +38,23 @@ test("the boolean defaults off; enabling it changes only Jev's view and choices"
   assert.ok(baseline!.criteria.move_saltmere_drawing_room);
   assert.ok(baseline!.state.generations && baseline!.state.actions);
   assert.ok(baseline!.instructions.privacy);
-  assert.equal(experimental!.state.worldView, "room");
-  assert.equal(experimental!.state.generations, undefined);
-  assert.equal(experimental!.state.actions, undefined);
-  assert.equal(experimental!.instructions.privacy, undefined);
-  assert.deepEqual(experimental!.state.characterContext, baseline!.state.characterContext);
+  const state = experimental!.state;
+  assert.equal(typeof state, "string");
+  const scenario = fromJson(ScenarioSchema, local.snapshot().scenario);
+  assert.equal(state, renderJevActionState(scenario, courtAgentObservation(scenario, "corvin", true)));
+  assert.equal(typeof experimental!.instructions, "string");
   assert.deepEqual(local.snapshot(), legacy.snapshot());
   assert.ok(!experimental!.criteria.move_saltmere_drawing_room);
   assert.ok(experimental!.criteria.enter_royal_council_chamber);
   assert.ok(!experimental!.criteria.enter_treasury, "Closed exit is not selectable");
-  const world = experimental!.state.world;
-  assert.equal(world.rooms.length, 25);
-  assert.ok(world.rooms.find((room: any) => room.id === "great_hall").exits.includes("treasury"));
-  const sideboard = world.currentRoom.furniture.find((item: any) => item.id === "palace_hall_cabinet");
-  assert.equal(sideboard.contents, "Unknown until opened");
-  assert.ok(sideboard.actions.find((action: any) => action.id === "open_palace_hall_cabinet").illegal);
-  assert.ok(!JSON.stringify(world).includes("palace_iron_key"), "Concealed contents stay hidden");
-  assert.ok(!JSON.stringify(world).includes("palace_coffer_03"), "Remote furniture stays out of the scene");
-  assert.ok(!JSON.stringify(world).includes('"position"'));
-  const offered: string[] = [];
-  for (const entries of [world.currentRoom.characters, world.currentRoom.furniture, world.currentRoom.doors, world.currentRoom.exits, world.inventory]) {
-    for (const entity of entries) for (const action of entity.actions) offered.push(action.id);
-  }
+  assert.match(state, /Great Hall \(current room\)/);
+  assert.match(state, /Room connections[\s\S]*Great Hall → Royal Council Chamber/);
+  assert.match(state, /Hall sideboard[\s\S]*Contents: Unknown until opened[\s\S]*Open \(illegal\) \[open_palace_hall_cabinet\]/);
+  assert.ok(!state.includes("palace_iron_key"), "Concealed contents stay hidden");
+  assert.ok(!state.includes("palace_coffer_03"), "Remote furniture stays out of the scene");
+  assert.ok(!state.includes('"position"'));
+  assert.ok(!state.includes("Biography:") && !state.includes("Notes known to this character:"));
+  const offered = [...state.matchAll(/^    - .*\[([^\]]+)\]$/gm)].map(match => match[1]);
   assert.deepEqual(offered.sort(), Object.keys(experimental!.criteria).filter(id => !["complete", "wait", "unable"].includes(id)).sort());
   assert.equal(local.forkForNpc().roomScopedJev, true);
   assert.equal(local.forkForResourceReview(async work => work()).roomScopedJev, true);

@@ -13,7 +13,7 @@ import { courtAgentObservation, actionResourceIds } from "./court-agent.js";
 import { courtCharactersWithinEarshot, dialogueEarshotPrompt, perceivesAt, type EarshotCharacter } from "./earshot.js";
 import { COURT_INSTRUCTIONS, ROOM_COURT_INSTRUCTIONS } from "./court-instructions.js";
 import { ROOM_SCOPED_JEV } from "./feature-flags.js";
-import { jevRoomWorld } from "./jev-room-view.js";
+import { renderJevActionState, type JevActionContextOptions } from "./jev-room-view.js";
 import { JevClient, jevRequest } from "../../../packages/providers/src/jev.js";
 import { applyFixtureAction, fixtureActions } from "../../../packages/core/src/fixtures.js";
 import { IMMEDIATE_GOAL_DESCRIPTION } from "../../../packages/core/src/goal-guidance.js";
@@ -336,7 +336,7 @@ export class BrowserGameRuntime {
   #conversationRuns = new Map<string, string>();
   #eventPerceptions: Record<string, EventPerceptionTrace[]> = {};
 
-  constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot, transcriptsChanged: () => void = () => {}, onWarning: (message: string) => void = () => {}, random: () => number = Math.random, readonly roomScopedJev: boolean = ROOM_SCOPED_JEV) {
+  constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot, transcriptsChanged: () => void = () => {}, onWarning: (message: string) => void = () => {}, random: () => number = Math.random, readonly roomScopedJev: boolean = ROOM_SCOPED_JEV, readonly jevActionContext: JevActionContextOptions = {}) {
     this.#initialScenario = fromJson(ScenarioSchema, toJson(ScenarioSchema, scenario));
     ensureNpcActiveObjectives(this.#initialScenario);
     this.#game = new MemoryGame(this.#initialScenario);
@@ -847,10 +847,9 @@ export class BrowserGameRuntime {
     const keys = [...new Set([...actionResourceIds(scenario, characterId), ...observation.actions.flatMap(action => actionResourceIds(scenario, characterId, action))])];
     const generations = generationIds(this.readResources(keys));
     const state = this.roomScopedJev
-      ? { worldView: "room", goal: observation.goal, characterContext: observation.characterContext,
-        world: jevRoomWorld(scenario, observation), previousWriteConflict, recentActions: activity.history }
+      ? renderJevActionState(scenario, observation, activity.history, this.jevActionContext)
       : { ...observation, generations, previousWriteConflict, actions: observation.actions.map(({ path, ...action }) => action), recentActions: activity.history };
-    const instructions = { ...(this.roomScopedJev ? ROOM_COURT_INSTRUCTIONS : COURT_INSTRUCTIONS), legality: "Actions are mechanically possible. Those marked illegal violate ownership or room access; weigh them against your character's intentions. Reaching a requested room completes the travel, but waiting there for another character to act requires the wait choice. Use offered talk actions to initiate a conversation with the player or make requests of other NPCs. You cannot force agreement or speak for the player." };
+    const instructions = this.roomScopedJev ? ROOM_COURT_INSTRUCTIONS : { ...COURT_INSTRUCTIONS, legality: "Actions are mechanically possible. Those marked illegal violate ownership or room access; weigh them against your character's intentions. Reaching a requested room completes the travel, but waiting there for another character to act requires the wait choice. Use offered talk actions to initiate a conversation with the player or make requests of other NPCs. You cannot force agreement or speak for the player." };
     const decision = await this.#modelTranscripts.record("jev", characterId, jevRequest(state, instructions, criteria), () => this.#jev.choose(state, instructions, criteria, signal), undefined, this.#characterName(characterId));
     const action = observation.actions.find(action => action.id === decision.choice);
     return { decision, revision: observation.revision, goal: observation.goal, action, observation,
@@ -961,7 +960,7 @@ export class BrowserGameRuntime {
 
   /** Model work happens on a snapshot; only a validated merge touches the live game. */
   forkForNpc(): BrowserGameRuntime {
-    const fork = new BrowserGameRuntime(this.#initialScenario, "", this.snapshot(), undefined, undefined, this.#random, this.roomScopedJev);
+    const fork = new BrowserGameRuntime(this.#initialScenario, "", this.snapshot(), undefined, undefined, this.#random, this.roomScopedJev, this.jevActionContext);
     fork.#client = this.#client; fork.#jev = this.#jev; fork.#modelTranscripts = this.#modelTranscripts;
     fork.#conversationRuns = this.#conversationRuns;
     return fork;

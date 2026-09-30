@@ -61,17 +61,29 @@ exchanges with low reasoning. Settings live in
 `openai/gpt-6-luna`.
 Jev selects from currently reachable actions.
 
-To evaluate the experimental room view, set `ROOM_SCOPED_JEV = true` in
-`apps/web/src/feature-flags.ts`. It defaults to `false`. The experiment gives Jev
-the room connection graph, actions to enter adjacent rooms, and interactions
-grouped under entities in the current room. Closed exits require opening their
-doors first. Dialogue and its audience/earshot context are unchanged.
+The action-execution Jev experiment is configured in `apps/web/src/feature-flags.ts`:
 
-An eval can override the flag per runtime without editing the default:
-`new BrowserGameRuntime(scenario, key, snapshot, undefined, undefined, Math.random, true)`.
-Pass `false` for the baseline. The flag is runtime configuration, not saved game
-state, and follows runtime forks. Experimental Jev transcripts identify the view
-with `state.worldView: "room"`; paths and generation guards remain in the engine.
+- `ROOM_SCOPED_JEV = true` sends the readable room/action text as Jev's actual
+  `state`. It defaults to `false` to retain the legacy baseline.
+- `JEV_ACTION_CONTEXT_LEVEL = 1`: world text and the full active objective
+  (name, status, success criteria, current task).
+- Level `2` adds biography and full parked objectives.
+- Level `3` also adds relationships and character-visible notes.
+- `JEV_ACTION_INCLUDE_RECENT_RESULTS = true` optionally adds recent completed
+  action results to any tier. It defaults to `false`.
+
+The text includes room connections, actions to enter adjacent rooms, local
+interactions with action IDs and walking distances, known contents, inventory,
+blocked exits, and illegal-action labels. Paths and generation guards remain in
+the engine. No scenario premise or hidden character context is appended. The API
+still receives the short execution instructions and selectable choice criteria.
+Event-reaction Jev, dialogue, and GM context are unaffected by these settings.
+
+Evals can override both settings per runtime:
+`new BrowserGameRuntime(scenario, key, snapshot, undefined, undefined, Math.random, true, { level: 1, includeRecentResults: false })`.
+Pass `false` as the seventh argument for the legacy baseline. Configuration follows
+runtime forks and is not saved as game state. The debug inspector displays the
+same text `state` supplied to the action planner.
 
 The debug inspector shows world state, character context and recent transcripts:
 requests, responses, summaries, duration and errors for the latest 50 calls.
