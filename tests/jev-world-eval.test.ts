@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { JevClient } from "../packages/providers/src/jev.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
-import { guestIds, inviteGuests } from "../evals/jev/scenarios.js";
+import { guestIds, inviteGuests, silkScarf } from "../evals/jev/scenarios.js";
 import {
   artifactFileName,
   runJevEvalOnce,
@@ -49,6 +49,23 @@ test("repeating one guest cannot satisfy coverage", async t => {
   assert.equal(result.terminalChoice, "limit");
   assert.equal(result.talkCalls.length, 2);
   assert.match(result.reason!, /Guests not contacted: hadrik/);
+});
+test("scarf eval stops and scores the talk target without running conversation", async t => {
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => { throw new Error("Conversation must not run"); });
+  for (const target of ["rowan", "mara"]) {
+    let decisions = 0;
+    const mock = t.mock.method(JevClient.prototype, "choose", async () => {
+      assert.equal(++decisions, 1, "Stop immediately at the talk call");
+      return { choice: `talk_${target}`, probabilities: {} };
+    });
+    const result = await runJevEvalOnce(silkScarf, "test");
+    assert.equal(result.error, undefined);
+    assert.equal(result.success, target === "rowan");
+    assert.equal(result.turns, 1);
+    assert.equal(result.terminalChoice, "requires_conversation");
+    assert.deepEqual(result.talkCalls.map(call => call.targetId), [target]);
+    mock.mock.restore();
+  }
 });
 test("Jev eval artifacts include the invocation date, scenario and run", () => {
   assert.equal(artifactFileName(new Date("2026-10-01T14:05:00.000Z"), "Enter the Treasury and close the door", 3),

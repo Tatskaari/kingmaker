@@ -45,7 +45,7 @@ export const inviteGuests: JevWorldEvalScenario = {
   },
 };
 
-const silkScarf: JevWorldEvalScenario = {
+export const silkScarf: JevWorldEvalScenario = {
   name: "Fetch the silk scarf and give it to Rowan Ash", characterId: "king",
   goal: "Go to the Royal Bedchamber, fetch the silk scarf from the wardrobe, and give it to Rowan Ash.",
   createRuntime(apiKey) {
@@ -54,9 +54,9 @@ const silkScarf: JevWorldEvalScenario = {
     scenario.world!.objects.find(item => item.id === "palace_silk_sash")!.name = "Silk scarf";
     return new BrowserGameRuntime(scenario, apiKey);
   },
-  evaluate({ scenario }) {
-    const location = scenario.world!.objects.find(item => item.id === "palace_silk_sash")?.locationId;
-    return location === "rowan" ? { success: true } : { success: false, reason: `Scarf is at ${location}, not in Rowan's inventory.` };
+  evaluate({ talkCalls }) {
+    return talkCalls.some(call => call.characterId === "king" && call.targetId === "rowan")
+      ? { success: true } : { success: false, reason: "The king did not talk to Rowan." };
   },
 };
 export const jevWorldEvalScenarios = [treasury, inviteGuests, silkScarf];

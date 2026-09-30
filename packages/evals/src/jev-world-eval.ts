@@ -60,11 +60,11 @@ export async function runJevEvalOnce(definition: JevWorldEvalScenario, apiKey: s
         const step = runtime.stepNpcAction(definition.characterId, plan.action.id, plan.goal, expected);
         expected = step.generations;
         if (step.talkTarget) {
-          if (!definition.mockTalk) { terminalChoice = "requires_conversation"; break; }
           const call = { characterId: definition.characterId, targetId: step.talkTarget,
             actionId: plan.action.id, goal: plan.goal, turn };
-          const response = definition.mockTalk(call);
           talkCalls.push(call);
+          if (!definition.mockTalk) { terminalChoice = "requires_conversation"; break; }
+          const response = definition.mockTalk(call);
           // Give the planner feedback without invoking dialogue or moving the recipient.
           const snapshot = runtime.snapshot();
           snapshot.npcActivities![definition.characterId]!.history.push(response);
