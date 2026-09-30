@@ -701,11 +701,9 @@ export class BrowserGameRuntime {
               return { commit_result: "error" as const, reason: "A perceived event must be recorded with append_notes before finishing." };
             }
           }
-          for (const id of participants) {
-            const character = host.#game.scenario().characters.find(character => character.id === id);
-            if (character?.activeObjective && (!character.currentGoal || host.#npcActivities[id]?.status !== "active")) {
-              return { commit_result: "error" as const, reason: "Active objective still needs a next goal. Update its status/plan and current_goal, or explicitly demote, drop or complete it based on evidence." };
-            }
+          const character = host.#game.scenario().characters.find(character => character.id === characterId);
+          if (character?.activeObjective && (!character.currentGoal || host.#npcActivities[characterId]?.status !== "active")) {
+            return { commit_result: "error" as const, reason: `${character.name} (${characterId}) has an active objective but no active planner run. Set a concrete next goal, or explicitly demote, drop or complete it based on evidence.` };
           }
           if (kind === "conversation_review") for (const id of participants) {
             if (JSON.stringify(host.snapshot().conversations[id]) !== JSON.stringify(conversations[id])) throw new Error("Conversation changed; do not clear the newer transcript.");
