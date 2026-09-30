@@ -219,7 +219,7 @@ const askGameMasterTool: OpenRouterTool = {
 
 const GM_CONSULTATION_INSTRUCTIONS = `Resolve ask_the_game_master immediately during the ongoing conversation. For a knowledge question, confirm, qualify or reject what this character would know or whether the player's proposed premise can be established. A knowledge ruling need not create an item or task. For a requested world-state change, including giving the player an item or taking an item from them, assess the NPC's stated case against the complete supplied transcript and established world state; do not treat the requested outcome as already true.
 For off-screen work, decide the result now. For example, investigating house accounts might produce an account extract showing an unexplained payment to a named supplier: a lead to investigate, without automatically proving theft.
-Use update_inventory for justified items and update_character to record the requesting character's learned outcome or other warranted changes. Finish with a character-safe summary of the ruling, discoveries, state changes, any available next step, and names and descriptions of added items. The conversation agent receives this result and speaks afterwards.`;
+Use update_inventory for justified items that remain with the requesting character, give_item to transfer one of their existing items to the player, write_item to create and hand the player a written document, and update_character to record learned outcomes or other warranted changes. Finish with a character-safe summary of the ruling, discoveries, state changes, any available next step, and names and descriptions of affected items. The conversation agent receives this result and speaks afterwards.`;
 
 const CHARACTER_COLLABORATION_INSTRUCTIONS = `Play your part in collaborative storytelling. Take the player's ideas seriously and look for ways to build on them through your character's desires, loyalties and relationships. "Yes, and" means a meaningful response, not automatic agreement: you can bargain, raise a complication, ask a revealing question, or offer a different opening. When resisting, make your reason understandable and leave a grounded way for the player to engage. Never choose the player's words, thoughts or actions.
 Respond directly using your established knowledge, motives, and reasonable everyday assumptions. You may improvise incidental details that do not materially change the world or the player's options, while respecting established facts. Use ask_the_game_master only when the answer would establish a consequential new fact: evidence, a secret, a significant relationship or past event, authority, access, possession, or the result of an off-screen action. Ask only if that ruling is needed for your response. Reuse previous rulings; do not repeatedly check established facts. A player's assertion establishes that they made a claim, not that the claim is true. If you intend to lie about a consequential unestablished fact, explain that intent in the consultation so the GM can keep the underlying truth coherent.
@@ -607,8 +607,9 @@ export class BrowserGameRuntime {
       },
       write: async (name, args) => {
         try {
-          if (name !== "update_character" && name !== "update_inventory") throw new Error("Only the requesting character's state and inventory may be updated.");
+          if (!["update_character", "update_inventory", "give_item", "write_item"].includes(name)) throw new Error("Only the requesting character's state and supported inventory actions may be updated.");
           if (name === "update_inventory" && args.owner_id !== characterId) throw new Error("Use the requesting character's inventory.");
+          if (["give_item", "write_item"].includes(name) && args.character_id !== characterId) throw new Error("Use the requesting character as the actor.");
           return candidate.applyResourceReviewWrite(name, args, context);
         } catch (error) {
           return { commit_result: "error", reason: error instanceof Error ? error.message : String(error) };
@@ -618,7 +619,7 @@ export class BrowserGameRuntime {
       complete: input => this.#complete("gm_consultation", characterId, input),
     });
     const addedItems = candidate.#game.scenario().world!.objects
-      .filter(item => !originalItems.has(item.id) && item.locationId === characterId)
+      .filter(item => !originalItems.has(item.id) && [characterId, candidate.#game.scenario().playerCharacterId].includes(item.locationId))
       .map(item => ({ id: item.id, name: item.name, details: item.properties?.details ?? "" }));
     this.restore(candidate.snapshot());
     return { summary, addedItems };
@@ -633,7 +634,7 @@ export class BrowserGameRuntime {
       const context: ResourceReviewContext = { kind, participants, allowNextGoal };
       const conversations = this.snapshot().conversations;
       const evidence: OpenRouterMessage[] = [
-        { role: "system", content: "Review this event through the supplied resource write tools. Use update_inventory for justified props and update_character for memories, relationships and objective changes. NPC work belongs to an active objective; demote, drop or complete dead ends explicitly." },
+        { role: "system", content: "Review this event through the supplied resource write tools. Use update_inventory for justified props that stay with their owner, give_item for an existing NPC item handed to the player, write_item for a newly written document handed to the player, and update_character for memories, relationships and objective changes. NPC work belongs to an active objective; demote, drop or complete dead ends explicitly." },
         ...(kind === "conversation_review" ? [{ role: "system" as const, content: CONVERSATION_OBJECTIVE_REVIEW }] : []),
         ...(kind === "outcome_review" && this.#npcActivities[characterId]?.result?.reason === "wait" ? [{ role: "system" as const, content: "Jev chose wait. This explicitly means the objective is blocked on another character acting and should be non-active now. Demote it unless the supplied evidence shows a different concrete action this character can take immediately. Do not set a current goal that merely waits, watches, checks repeatedly, or asks the same question again. A later conversation or event initiated by the awaited character can reactivate the parked objective." }] : []),
         { role: "user", content: JSON.stringify({ event_type: kind, participants, allowNextGoal }) },
@@ -977,7 +978,11 @@ export class BrowserGameRuntime {
   /** One resource per call. The worker serializes this synchronous write and its save. */
   applyResourceReviewWrite(name: string, args: Record<string, unknown>, context: ResourceReviewContext) {
     const id = name === "update_inventory" ? text(args.owner_id, "owner_id") : text(args.character_id, "character_id");
-    const key = (name === "update_inventory" ? "inventory:" : "character:") + id;
+    const scenario = this.#game.scenario(), playerId = scenario.playerCharacterId;
+    if (!playerId) throw new Error("The player does not exist.");
+    const key = name === "update_inventory" ? `inventory:${id}`
+      : name === "give_item" ? `item:${text(args.item_id, "item_id")}`
+      : name === "write_item" ? `inventory:${playerId}` : `character:${id}`;
     const state = () => resourceState(key, this.readResources([key])[key]!);
     if (typeof args.generation_id !== "string" || !args.generation_id) return {
       commit_result: "error", reason: "Missing generation_id", new_state: state(),
@@ -990,7 +995,6 @@ export class BrowserGameRuntime {
         instruction: "Nothing was written by this call. Reconcile your intended changes against new_state, then explicitly call this tool again with its generation_id. Earlier successful writes remain saved." };
     }
     // Validate on a clone; invalid arguments cannot partially mutate live state.
-    const scenario = this.#game.scenario();
     let updates: Record<string, NpcActivity> = {};
     if (name === "update_character") {
       if (!context.participants.includes(id)) throw new Error("Only conversation/action-review participants can be updated.");
@@ -1038,6 +1042,19 @@ export class BrowserGameRuntime {
           if (!item || typeof item !== "object" || Array.isArray(item)) throw new Error("Invalid item.");
           applyReconciliationTool(scenario, context.participants, cancelled, "create_item", { ...item, locationId: id });
         }
+      } else if (name === "give_item") {
+        if (!context.participants.includes(id) || id === playerId) throw new Error("Only a participating NPC may give an item.");
+        text(args.reason, "reason");
+        const item = scenario.world?.objects.find(candidate => candidate.id === text(args.item_id, "item_id"));
+        if (!item || item.locationId !== id) throw new Error("The item must be in the giving character's inventory.");
+        item.locationId = playerId;
+        item.concealed = false;
+        scenario.world!.revision++;
+      } else if (name === "write_item") {
+        if (!context.participants.includes(id) || id === playerId) throw new Error("Only a participating NPC may write an item.");
+        const item = args.item;
+        if (!item || typeof item !== "object" || Array.isArray(item)) throw new Error("Invalid item.");
+        applyReconciliationTool(scenario, context.participants, cancelled, "create_item", { ...item, locationId: playerId });
       } else throw new Error("Unknown resource write tool.");
       this.#setGame(new MemoryGame(scenario));
     }
