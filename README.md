@@ -61,6 +61,18 @@ exchanges with low reasoning. Settings live in
 `openai/gpt-6-luna`.
 Jev selects from currently reachable actions.
 
+To evaluate the experimental room view, set `ROOM_SCOPED_JEV = true` in
+`apps/web/src/feature-flags.ts`. It defaults to `false`. The experiment gives Jev
+the room connection graph, actions to enter adjacent rooms, and interactions
+grouped under entities in the current room. Closed exits require opening their
+doors first. Dialogue and its audience/earshot context are unchanged.
+
+An eval can override the flag per runtime without editing the default:
+`new BrowserGameRuntime(scenario, key, snapshot, undefined, undefined, Math.random, true)`.
+Pass `false` for the baseline. The flag is runtime configuration, not saved game
+state, and follows runtime forks. Experimental Jev transcripts identify the view
+with `state.worldView: "room"`; paths and generation guards remain in the engine.
+
 The debug inspector shows world state, character context and recent transcripts:
 requests, responses, summaries, duration and errors for the latest 50 calls.
 These logs survive rollback but are not saved across reloads. NPC conversations

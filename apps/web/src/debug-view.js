@@ -70,7 +70,7 @@ function transcriptSummary(entry) {
   if (entry.kind === "jev") {
     const state = entry.request?.state;
     const action = array(state?.actions).find(item => item?.id === response.choice);
-    const choice = response.choice === "complete" ? "Planner reports complete" : response.choice === "unable" ? "Planner reports unable to progress" : action?.description || response.choice;
+    const choice = response.choice === "complete" ? "Planner reports complete" : response.choice === "unable" ? "Planner reports unable to progress" : action?.description || entry.request?.questions?.next?.criteria?.[response.choice] || response.choice;
     const probability = object(response.probabilities)?.[response.choice];
     return `<h4>Goal</h4><p>${escape(state?.goal || "Not recorded")}</p><h4>Decision</h4><p>${escape(choice)}</p>`
       + facts([["Choice", response.choice], ...(typeof probability === "number" ? [["Choice probability", `${Math.round(probability * 100)}%`]] : []), ...(typeof response.confidence === "number" ? [["Confidence", `${Math.round(response.confidence * 100)}%`]] : [])])
