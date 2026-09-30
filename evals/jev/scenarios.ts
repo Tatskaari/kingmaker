@@ -32,4 +32,31 @@ const treasury: JevWorldEvalScenario = {
     return { success: true };
   },
 };
-export const jevWorldEvalScenarios = [treasury];
+export const guestIds = ["mara", "hadrik", "tessa", "elinor", "oswin", "rowan", "lucan", "sabine", "rook"];
+export const inviteGuests: JevWorldEvalScenario = {
+  name: "Ask every guest to head to the Treasury", characterId: "king",
+  goal: "Ask each visiting guest to head to the Treasury: Mara, Hadrik, Tessa, Elinor, Oswin, Rowan, Lucan, Sabine, and Rook. Finish once you have asked all nine.",
+  createRuntime: apiKey => new BrowserGameRuntime(courtAtDayOne(), apiKey),
+  mockTalk: ({ targetId }) => `Asked ${targetId} to head to the Treasury. The request has been delivered.`,
+  evaluate({ talkCalls }) {
+    const contacted = new Set(talkCalls.filter(call => call.characterId === "king").map(call => call.targetId));
+    const missing = guestIds.filter(id => !contacted.has(id));
+    return missing.length ? { success: false, reason: `Guests not contacted: ${missing.join(", ")}.` } : { success: true };
+  },
+};
+
+const silkScarf: JevWorldEvalScenario = {
+  name: "Fetch the silk scarf and give it to Rowan Ash", characterId: "king",
+  goal: "Go to the Royal Bedchamber, fetch the silk scarf from the wardrobe, and give it to Rowan Ash.",
+  createRuntime(apiKey) {
+    const scenario = courtAtDayOne();
+    // Reuse the authored wardrobe item, with the name used by this scenario.
+    scenario.world!.objects.find(item => item.id === "palace_silk_sash")!.name = "Silk scarf";
+    return new BrowserGameRuntime(scenario, apiKey);
+  },
+  evaluate({ scenario }) {
+    const location = scenario.world!.objects.find(item => item.id === "palace_silk_sash")?.locationId;
+    return location === "rowan" ? { success: true } : { success: false, reason: `Scarf is at ${location}, not in Rowan's inventory.` };
+  },
+};
+export const jevWorldEvalScenarios = [treasury, inviteGuests, silkScarf];

@@ -125,6 +125,14 @@ written immediately to `eval-output/jev/` with the invocation date, scenario
 name and run number. These gitignored JSON artifacts contain the Jev request and
 response transcripts, action trace, outcome and final runtime snapshot.
 
+The guest-invitation eval supplies `mockTalk`: after the king approaches a
+guest, the harness records the talk target and feeds the mock response back to
+Jev's action history. Success requires calls to all nine visiting delegates;
+recipients remain in place and no dialogue model runs. Artifacts include these
+`talkCalls`. The scarf delivery eval checks Rowan's actual inventory; it currently
+exposes the runtime's missing give action. Run either by name, for example
+`npm run eval:jev -- guest` or `npm run eval:jev -- scarf`.
+
 ## Reset while developing
 
 With a loaded character, use the browser console:

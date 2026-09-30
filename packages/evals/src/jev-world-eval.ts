@@ -6,15 +6,17 @@ import type { ModelTranscript } from "../../../apps/web/src/model-transcripts.js
 import { BrowserGameRuntime, type RuntimeSnapshot } from "../../../apps/web/src/runtime.js";
 
 export interface JevEvalAssessment { success: boolean; reason?: string }
+export interface JevTalkCall { characterId: string; targetId: string; actionId: string; goal: string; turn: number }
 export interface JevWorldEvalScenario {
   name: string; characterId: string; goal: string; repeats?: number; maxTurns?: number;
   createRuntime(apiKey: string): BrowserGameRuntime;
-  evaluate(result: { scenario: Scenario; terminalChoice: string }): JevEvalAssessment;
+  mockTalk?: (call: JevTalkCall) => string;
+  evaluate(result: { scenario: Scenario; terminalChoice: string; talkCalls: JevTalkCall[] }): JevEvalAssessment;
 }
 export interface JevEvalTraceEntry { turn: number; choice: string; action?: string; confidence?: number }
 export interface JevEvalRun extends JevEvalAssessment {
   turns: number; terminalChoice: string; trace: JevEvalTraceEntry[]; transcripts: ModelTranscript[];
-  finalSnapshot: RuntimeSnapshot; error?: string;
+  finalSnapshot: RuntimeSnapshot; talkCalls: JevTalkCall[]; error?: string;
 }
 export interface JevEvalSummary {
   name: string; runs: JevEvalRun[]; successes: number; failures: number; successRate: number;
@@ -26,8 +28,7 @@ function activateGoal(runtime: BrowserGameRuntime, characterId: string, goal: st
   const character = scenario.characters.find(candidate => candidate.id === characterId);
   if (!character) throw new Error(`Unknown eval character: ${characterId}`);
   character.currentGoal = goal;
-  if (character.activeObjective) character.activeObjective.currentGoal = goal;
-  else character.activeObjective = create(ActiveObjectiveSchema, {
+  character.activeObjective = create(ActiveObjectiveSchema, {
     name: goal.split(".")[0]!, status: `Eval task. Next: ${goal}`,
     successCriteria: "The requested physical state exists in the world.", currentGoal: goal,
   });
@@ -38,6 +39,7 @@ function activateGoal(runtime: BrowserGameRuntime, characterId: string, goal: st
 
 export async function runJevEvalOnce(definition: JevWorldEvalScenario, apiKey: string): Promise<JevEvalRun> {
   const runtime = definition.createRuntime(apiKey), trace: JevEvalTraceEntry[] = [];
+  const talkCalls: JevTalkCall[] = [];
   let terminalChoice = "limit", error: string | undefined;
   try {
     activateGoal(runtime, definition.characterId, definition.goal);
@@ -57,7 +59,18 @@ export async function runJevEvalOnce(definition: JevWorldEvalScenario, apiKey: s
       while (true) {
         const step = runtime.stepNpcAction(definition.characterId, plan.action.id, plan.goal, expected);
         expected = step.generations;
-        if (step.talkTarget) { terminalChoice = "requires_conversation"; break; }
+        if (step.talkTarget) {
+          if (!definition.mockTalk) { terminalChoice = "requires_conversation"; break; }
+          const call = { characterId: definition.characterId, targetId: step.talkTarget,
+            actionId: plan.action.id, goal: plan.goal, turn };
+          const response = definition.mockTalk(call);
+          talkCalls.push(call);
+          // Give the planner feedback without invoking dialogue or moving the recipient.
+          const snapshot = runtime.snapshot();
+          snapshot.npcActivities![definition.characterId]!.history.push(response);
+          runtime.restore(snapshot);
+          break;
+        }
         if (step.done) break;
       }
       if (terminalChoice === "requires_conversation") break;
@@ -69,11 +82,11 @@ export async function runJevEvalOnce(definition: JevWorldEvalScenario, apiKey: s
   const finalSnapshot = runtime.snapshot(), scenario = fromJson(ScenarioSchema, finalSnapshot.scenario);
   let assessment: JevEvalAssessment;
   try {
-    assessment = error ? { success: false, reason: error } : definition.evaluate({ scenario, terminalChoice });
+    assessment = error ? { success: false, reason: error } : definition.evaluate({ scenario, terminalChoice, talkCalls });
   } catch (cause) {
     assessment = { success: false, reason: cause instanceof Error ? cause.message : String(cause) };
   }
-  return { ...assessment, turns: trace.length, terminalChoice, trace,
+  return { ...assessment, turns: trace.length, terminalChoice, trace, talkCalls,
     transcripts: runtime.recentTranscripts().filter(entry => entry.kind === "jev").reverse(), finalSnapshot,
     ...(error === undefined ? {} : { error }) };
 }
@@ -108,6 +121,6 @@ export function writeJevEvalArtifact(outputDirectory: string, startedAt: Date, d
   writeFileSync(path, JSON.stringify({ recordedAt: new Date().toISOString(),
     scenario: { name: definition.name, characterId: definition.characterId, goal: definition.goal }, run: runNumber,
     success: run.success, turns: run.turns, terminalChoice: run.terminalChoice, reason: run.reason, error: run.error,
-    trace: run.trace, transcripts: run.transcripts, finalSnapshot: run.finalSnapshot }, null, 2) + "\n");
+    trace: run.trace, talkCalls: run.talkCalls, transcripts: run.transcripts, finalSnapshot: run.finalSnapshot }, null, 2) + "\n");
   return path;
 }
