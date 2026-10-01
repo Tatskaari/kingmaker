@@ -8,7 +8,7 @@ const preview = process.argv.includes("--preview");
 const files = process.argv.slice(2).filter(value => value !== "--preview");
 if (!files.length) files.push("evals/jev/king-threat.json", "evals/jev/king-greeting.json",
   "evals/jev/rook-claimed-voyage.json", "evals/jev/rook-claimed-favor.json", "evals/jev/rook-greeting.json",
-  "evals/jev/rook-established-voyage.json");
+  "evals/jev/rook-established-voyage.json", "evals/jev/holt-private-invitation.json");
 const cases = files.map(loadConversationCheckEval);
 const apiKey = process.env.OPENROUTER_API_KEY?.trim();
 if (!preview && !apiKey) throw new Error("Set OPENROUTER_API_KEY to run conversation-check evals, or use --preview.");

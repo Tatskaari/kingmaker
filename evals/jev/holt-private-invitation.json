@@ -1,0 +1,15 @@
+{
+  "name": "holt-private-invitation",
+  "capturedInput": "../transcripts/holt-private-invitation-input.json",
+  "expected": [
+    "persuasion"
+  ],
+  "rationale": "The player asks Holt to continue their courtship somewhere private. His prior friendliness and the king's recommendation do not establish agreement to this invitation; he has emphasized that he will decide for himself. This is an attempt to obtain a meaningful social commitment, not merely an information question. Judge the attempt before his later acceptance.",
+  "source": {
+    "report": "kingmaker-issue-report-2026-10-01T23-21-56-853Z.zip",
+    "requestId": 50,
+    "startedAt": "2026-10-01T23:21:33.725Z",
+    "characterId": "garran",
+    "recordedChecks": []
+  }
+}
