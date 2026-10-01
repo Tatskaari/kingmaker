@@ -337,3 +337,13 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 .transcript-detail { margin-top: 24px; }
 .transcript-detail .debug-facts { margin-top: 18px; }
 .transcript-detail pre { overflow-wrap: anywhere; }
+/* The Stranger's expression changes independently of the conversation controls. */
+.shell:has(.stranger-panel) { width: min(1140px, calc(100% - 32px)); }
+.stranger-scene { display: grid; grid-template-columns: minmax(220px, .65fr) minmax(0, 1fr); gap: 28px; align-items: start; }
+.stranger-portrait { display: block; width: 100%; height: auto; aspect-ratio: 1; object-fit: cover; border: 1px solid var(--line); box-shadow: 0 12px 32px #0006; }
+.stranger-conversation { min-width: 0; }
+.stranger-conversation .message { max-width: 100%; }
+@media (max-width: 760px) {
+  .stranger-scene { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .stranger-portrait { max-width: 230px; justify-self: center; }
+}

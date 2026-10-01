@@ -2203,6 +2203,21 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   assert.deepEqual(resumed.state.gmMessages, introduction.state.gmMessages);
   assert.deepEqual((await request("start_introduction")).state.gmMessages, introduction.state.gmMessages);
 
+  await t.test("Stranger expression classification never holds the mutation queue", async t => {
+    let started!: () => void, finish!: () => void;
+    const entered = new Promise<void>(resolve => { started = resolve; });
+    const blocked = new Promise<void>(resolve => { finish = resolve; });
+    t.mock.method(BrowserGameRuntime.prototype, "classifyStrangerExpression", async () => {
+      started(); await blocked; return "amused";
+    });
+    const classification = request("stranger_expression");
+    try {
+      await entered;
+      assert.equal((await request("state")).state.phase, "player_creation");
+    } finally { finish(); }
+    assert.equal((await classification).expression, "amused");
+  });
+
   await t.test("physical interactions respond before background earshot assessment finishes", async t => {
     const created = await request("create_development_game");
     let assessmentStarted!: () => void, releaseAssessment!: () => void;

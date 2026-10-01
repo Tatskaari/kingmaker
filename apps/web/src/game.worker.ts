@@ -379,6 +379,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     return { saves: await listSaves() };
   }
   if (type === "state") return { state: requireRuntime().view(), activeSaveId: activeSave?.id };
+  if (type === "stranger_expression") return { expression: await requireRuntime().classifyStrangerExpression(payload.recentPortraits) };
   if (type === "set_identity" || type === "start_introduction") {
     const game = requireRuntime();
     // This handler already runs inside the mutation queue. Enqueuing another
@@ -528,6 +529,6 @@ worker.addEventListener("message", event => {
   };
   // Background work and dialogue wait outside the mutation queue. Their results
   // rejoin it only to validate, merge and save, keeping player commands responsive.
-  if (request.type === "cancel_npc" || request.type === "debug_transcripts" || request.type === "issue_report" || request.type === "start_npc" || request.type === "pause_npc" || request.type === "talk" || request.type === "end_conversation" || request.type === "interact_fixture" || request.type === "set_door") void process();
+  if (request.type === "stranger_expression" || request.type === "cancel_npc" || request.type === "debug_transcripts" || request.type === "issue_report" || request.type === "start_npc" || request.type === "pause_npc" || request.type === "talk" || request.type === "end_conversation" || request.type === "interact_fixture" || request.type === "set_door") void process();
   else void enqueue(process);
 });
