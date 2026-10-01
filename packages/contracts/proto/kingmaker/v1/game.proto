@@ -93,6 +93,122 @@ message Character {
   // conversation, in priority order. These guide roleplay and are not sent to
   // the action planner.
   repeated string dialogue_objectives = 12;
+  DndCharacter dnd = 14;
+}
+
+// Persistent build inputs and resources, not calculated sheet totals.
+// Rules IDs identify entries in a versioned content pack; Kingmaker IDs stay local.
+message DndCharacter {
+  string ruleset_id = 1;
+  string species_id = 2;
+  string background_id = 3;
+  AbilityScores ability_scores = 4;
+  repeated ClassLevel classes = 5;
+  repeated string feat_ids = 6;
+  repeated Proficiency proficiencies = 7;
+  repeated CharacterChoice choices = 8;
+  HitPoints hit_points = 9;
+  uint32 experience = 10;
+  uint32 exhaustion = 11;
+  bool heroic_inspiration = 12;
+  repeated CharacterResource resources = 13;
+  SpellcastingState spellcasting = 14;
+  repeated AppliedCondition conditions = 15;
+  DeathSaves death_saves = 16;
+  repeated string weapon_mastery_ids = 17;
+}
+
+message AbilityScores {
+  uint32 strength = 1;
+  uint32 dexterity = 2;
+  uint32 constitution = 3;
+  uint32 intelligence = 4;
+  uint32 wisdom = 5;
+  uint32 charisma = 6;
+}
+
+message ClassLevel {
+  string class_id = 1;
+  string subclass_id = 2;
+  uint32 level = 3;
+  uint32 hit_dice_remaining = 4;
+}
+
+enum ProficiencyKind {
+  PROFICIENCY_KIND_UNSPECIFIED = 0;
+  PROFICIENCY_KIND_SKILL = 1;
+  PROFICIENCY_KIND_SAVING_THROW = 2;
+  PROFICIENCY_KIND_TOOL = 3;
+  PROFICIENCY_KIND_WEAPON = 4;
+  PROFICIENCY_KIND_ARMOR = 5;
+  PROFICIENCY_KIND_LANGUAGE = 6;
+}
+
+enum ProficiencyRank {
+  PROFICIENCY_RANK_UNSPECIFIED = 0;
+  PROFICIENCY_RANK_PROFICIENT = 1;
+  PROFICIENCY_RANK_EXPERTISE = 2;
+}
+
+// Explicit selections/grants only. Automatic rules grants are derived, not copied.
+message Proficiency {
+  ProficiencyKind kind = 1;
+  string target_id = 2;
+  ProficiencyRank rank = 3;
+  string source_id = 4;
+}
+
+// Retains build choices (including ability increases), without an event log.
+// An adapter resolves these stable option IDs against the chosen rules content.
+message CharacterChoice {
+  string source_id = 1;
+  string choice_id = 2;
+  repeated string selected_option_ids = 3;
+}
+
+message HitPoints {
+  sint32 current = 1;
+  uint32 maximum = 2;
+  uint32 temporary = 3;
+  sint32 maximum_bonus = 4;
+}
+
+message DeathSaves {
+  uint32 successes = 1;
+  uint32 failures = 2;
+  bool stable = 3;
+}
+
+enum ResourceRecharge {
+  RESOURCE_RECHARGE_UNSPECIFIED = 0;
+  RESOURCE_RECHARGE_SHORT_REST = 1;
+  RESOURCE_RECHARGE_LONG_REST = 2;
+  RESOURCE_RECHARGE_DAWN = 3;
+}
+
+message CharacterResource {
+  string resource_id = 1;
+  uint32 current = 2;
+  uint32 maximum = 3;
+  ResourceRecharge recharge = 4;
+}
+
+message SpellcastingState {
+  repeated string known_spell_ids = 1;
+  repeated string prepared_spell_ids = 2;
+  map<uint32, uint32> slots_used = 3;
+  uint32 pact_slots_used = 4;
+  repeated string used_free_cast_spell_ids = 5;
+  string concentration_effect_id = 6;
+}
+
+message AppliedCondition {
+  string id = 1;
+  string condition_id = 2;
+  string source_character_id = 3;
+  string source_effect_id = 4;
+  optional uint32 level = 5;
+  optional uint32 expires_on_round = 6;
 }
 
 message ActiveObjective {
