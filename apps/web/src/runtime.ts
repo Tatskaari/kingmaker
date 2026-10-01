@@ -1,3 +1,4 @@
+import { adjudicateConversationChecks, type PresentRoll } from "./conversation-rolls.js";
 import { buildInterviewCharacter, playerBuildParameter, validatePlayerStats } from "./player-build.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
 import { inventoryOwners, locatedItems, itemsFor, findItem, transferItem } from "../../../packages/core/src/inventory.js";
@@ -569,7 +570,27 @@ export class BrowserGameRuntime {
     } catch { /* The transcript logger records failures; diagnostics must not interrupt play. */ }
   }
 
-  async talkToCharacter(characterId: string, messageText: string, onThinking?: (text: string) => void): Promise<string> {
+  /** Player-facing turn: classify, roll, receive a binding DM direction, then speak. */
+  async checkedTalkToCharacter(characterId: string, messageText: string, onThinking?: (text: string) => void,
+    present: PresentRoll = async () => {}): Promise<string> {
+    const scenario = this.#game.scenario();
+    if (scenario.world?.phase !== GamePhase.CONVERSATIONS || !scenario.characters.some(item => item.id === characterId && item.id !== scenario.playerCharacterId)) throw new Error("Unknown or unavailable conversation.");
+    if (this.#conversationEndRequested[characterId]) throw new Error("This character has ended the conversation.");
+    if (!messageText.trim()) throw new Error("Say something first.");
+    const messages = this.#dialogueMessages(characterId, messageText);
+    const input = { playerTurn: messageText, messages: withGmBasePrompt("dialogue", { ...DIALOGUE_MODEL, messages }).messages };
+    onThinking?.("Considering your attempt…");
+    const classification = await this.#modelTranscripts.record("conversation_check", characterId, input,
+      () => classifyConversationTurn(this.#jev, input, AbortSignal.timeout(30_000)),
+      this.#conversationRun(characterId), this.#characterName(characterId));
+    const ruling = await adjudicateConversationChecks({ skills: classification.checks, messages,
+      build: scenario.characters.find(item => item.id === scenario.playerCharacterId)?.dnd, present,
+      complete: request => this.#complete("gm_consultation", characterId, request, undefined, this.#conversationRun(characterId)),
+    });
+    return this.talkToCharacter(characterId, messageText, onThinking, ruling);
+  }
+
+  async talkToCharacter(characterId: string, messageText: string, onThinking?: (text: string) => void, ruling?: string): Promise<string> {
     const controller = new AbortController();
     const runKey = this.#conversationRun(characterId);
     let started = false;
@@ -590,11 +611,11 @@ export class BrowserGameRuntime {
           const line = reply.content?.trim();
           if (!controller.signal.aborted && line && line.length <= 240) onThinking(line);
         }).catch(() => { /* The fallback stays visible; flavour failures do not affect dialogue. */ });
-      }, runKey);
+      }, runKey, ruling);
     } finally { controller.abort(); }
   }
 
-  async #talkToCharacter(characterId: string, messageText: string, onConsultation: () => void, runKey: string): Promise<string> {
+  async #talkToCharacter(characterId: string, messageText: string, onConsultation: () => void, runKey: string, ruling?: string): Promise<string> {
     const scenario = this.#game.scenario();
     if (scenario.world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Character conversations have not begun");
     if (!scenario.characters.some(character => character.id === characterId && character.id !== "player")) throw new Error("Unknown character");
@@ -602,6 +623,8 @@ export class BrowserGameRuntime {
     const history = this.#conversations.get(characterId) || [];
     const playerMessage = create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: messageText });
     const messages = this.#dialogueMessages(characterId, messageText);
+    const dmMessages = ruling ? [create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, speakerId: "DM", text: ruling })] : [];
+    if (ruling) messages.push({ role: "system", content: ruling });
     let parsed: JsonObject | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
@@ -621,7 +644,7 @@ export class BrowserGameRuntime {
           const question = text(args.request, "request");
           if (question.length > 1000) throw new Error("request must be at most 1000 characters");
           onConsultation();
-          const result = await this.#askGameMaster(characterId, question, [...history, playerMessage]);
+          const result = await this.#askGameMaster(characterId, question, [...history, playerMessage, ...dmMessages]);
           this.#modelTranscripts.toolResult(call, result);
           messages.push(completion, { role: "tool", tool_call_id: call.id, name: call.function.name,
             content: JSON.stringify(result) });
@@ -639,7 +662,7 @@ export class BrowserGameRuntime {
     const utterance = text(parsed.utterance, "utterance");
     if (parsed.endConversation !== undefined && typeof parsed.endConversation !== "boolean") throw new Error("endConversation must be a boolean");
     const replyOptions = parseReplyOptions(parsed.replyOptions);
-    this.#conversations.set(characterId, [...history, playerMessage, create(TranscriptMessageSchema, {
+    this.#conversations.set(characterId, [...history, playerMessage, ...dmMessages, create(TranscriptMessageSchema, {
       role: TranscriptRole.CHARACTER, speakerId: characterId, text: utterance,
     })]);
     this.#conversationEndRequested[characterId] = parsed.endConversation === true;
@@ -1567,7 +1590,7 @@ export class BrowserGameRuntime {
       conversationReplyOptions: this.#conversationReplyOptions,
       conversationEndRequested: this.#conversationEndRequested,
       gmMessages: this.#gmHistory.filter(message => (message.role === "user" || message.role === "assistant") && !message.tool_calls?.length && message.content).map(message => ({ role: message.role, text: message.content })),
-      conversations: Object.fromEntries([...this.#conversations].map(([id, transcript]) => [id, transcript.map(message => ({
+      conversations: Object.fromEntries([...this.#conversations].map(([id, transcript]) => [id, transcript.filter(message => message.role !== TranscriptRole.GAME_MASTER).map(message => ({
         role: message.role === TranscriptRole.CHARACTER ? "character" : "player", text: message.text,
       }))])),
     };

@@ -72,7 +72,7 @@ export class HeadlessGame {
 
   async talk(characterId: string, message: string) {
     this.act(`talk_${characterId}`);
-    return this.runtime.talkToCharacter(characterId, message);
+    return this.runtime.checkedTalkToCharacter(characterId, message);
   }
 
   async endConversation(characterId: string, message?: string) {

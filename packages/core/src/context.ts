@@ -108,7 +108,7 @@ export class FullContextBuilder implements DialogueContextBuilder {
     ];
 
     const transcript: PromptMessage[] = request.transcript.map(message => ({
-      role: message.role === TranscriptRole.CHARACTER ? "assistant" : "user",
+      role: message.role === TranscriptRole.GAME_MASTER ? "system" : message.role === TranscriptRole.CHARACTER ? "assistant" : "user",
       content: message.role === TranscriptRole.OTHER_CHARACTER
         ? `${message.speakerId}: ${message.text}`
         : message.text,
