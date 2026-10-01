@@ -1,0 +1,29 @@
+.dice-dialog { border: 1px solid #d4ae635c; padding: 0; width: min(480px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; color: #f4e8cf; background: radial-gradient(ellipse at 50% 42%, #24372e, #101b19 55%, #0d1312); box-shadow: 0 35px 120px #000c, inset 0 0 80px #0004; }
+.dice-dialog::backdrop { background: #060a0bcc; backdrop-filter: blur(7px); }
+.dice-card { position: relative; text-align: center; padding: 36px 24px 28px; }
+.dice-card::before { content: ""; position: absolute; inset: 9px; border: 1px solid #d4ae6326; pointer-events: none; }
+.dice-eyebrow { color: #cbb17d; text-transform: uppercase; letter-spacing: .24em; font: 10px Cinzel, Georgia, serif; margin-bottom: 13px; }
+.dice-card h2 { font-size: clamp(24px, 5vw, 32px); color: #f4e8cf; }
+.dice-target { margin: 14px 0 0; color: #d2c4a5; font: 14px Georgia, serif; white-space: pre-wrap; }
+.dice-dialog[data-outcome="success"] .dice-result strong { color: #b6e3be; }
+.dice-dialog[data-outcome="failure"] .dice-result strong { color: #e0a591; }
+.dice-close { position: absolute; right: 14px; top: 12px; background: none; border: 0; color: #cbb17d; font-size: 24px; padding: 0 8px; }
+.dice-stage { position: relative; width: min(100%, 360px); margin: -4px auto -12px; aspect-ratio: 9 / 8; }
+.dice-trigger { display: block; position: relative; width: 100%; height: 100%; padding: 0; border: 0; background: none; cursor: pointer; border-radius: 50%; transition: filter .2s; }
+.dice-trigger:not(:disabled):hover { filter: brightness(1.25) drop-shadow(0 0 12px #d6a85144); }
+.dice-trigger:disabled { cursor: default; opacity: 1; }
+.dice-stage canvas { position: relative; width: 100%; height: 100%; }
+.dice-orbit { position: absolute; inset: 13% 10%; border: 1px solid #cbb17d25; border-radius: 50%; box-shadow: 0 0 0 14px #cbb17d06, 0 0 0 15px #cbb17d12; }
+.dice-orbit::after { content: "✦"; position: absolute; top: -10px; left: calc(50% - 7px); color: #d8bb7e; font-size: 18px; }
+.dice-caption { display: block; font-style: italic; color: #b8b9a3; font-size: 17px; }
+.dice-result strong { display: block; margin-top: 5px; color: #f2d494; font: 500 34px Cinzel, Georgia, serif; letter-spacing: .06em; }
+.dice-note { color: #a8aa97; font-size: 14px; margin: 14px 0 22px; }
+.dice-continue { position: relative; min-width: 180px; padding: 12px 24px; border: 1px solid #cbaa6977; background: #cbaa6912; color: #eddbb3; font: 12px Cinzel, Georgia, serif; letter-spacing: .13em; text-transform: uppercase; cursor: pointer; }
+.dice-continue:hover { background: #cbaa692a; border-color: #cbaa69; }
+.dice-dialog button:focus-visible { outline: 2px solid #f2d494; outline-offset: 4px; }
+.dice-dialog[open] { animation: dice-entrance .25s ease-out; }
+.is-settled .dice-result { animation: dice-entrance .35s ease-out; }
+.is-settled .dice-orbit { animation: dice-impact .7s ease-out; }
+@keyframes dice-entrance { from { opacity: 0; translate: 0 8px; } to { opacity: 1; translate: 0 0; } }
+@keyframes dice-impact { from { box-shadow: 0 0 0 0 #eccc8460, 0 0 50px #eccc8433; } to { box-shadow: 0 0 0 40px #eccc8400, 0 0 80px #eccc8400; } }
+@media (prefers-reduced-motion: reduce) { .dice-dialog[open], .is-settled .dice-result, .is-settled .dice-orbit { animation: none; } }

@@ -2375,7 +2375,7 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
   let receive!: (event: any) => void;
   let endDialogue!: () => void;
   const context = createContext({
-    URL, AlertLog, window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
+    URL, AlertLog, installDicePreview() {}, window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
     document: {
       querySelector: (selector: string) => selector === "[data-end-conversation]"
         ? { addEventListener: (_type: string, callback: () => void) => { endDialogue = callback; } } : null,
@@ -2457,7 +2457,7 @@ test("dialogue composer sends on Enter and submits a final response with the lea
   };
   const sent: any[] = [];
   const context = createContext({
-    URL, AlertLog, window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
+    URL, AlertLog, installDicePreview() {}, window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
     FormData: class { get() { return "Farewell."; } },
     document: {
       querySelector: (selector: string) => selector === "[data-talk-form]" ? form : null,
