@@ -56,7 +56,7 @@ export async function runJevEvalOnce(definition: JevWorldEvalScenario, apiKey: s
   if (minimal) {
     const snapshot = runtime.snapshot();
     runtime = new BrowserGameRuntime(fromJson(ScenarioSchema, snapshot.scenario), apiKey, snapshot,
-      undefined, undefined, undefined, true, { level: 1, includeRecentResults: true });
+      undefined, undefined, undefined, { level: 1, includeRecentResults: true });
   }
   const trace: JevEvalTraceEntry[] = [];
   const talkCalls: JevTalkCall[] = [];
@@ -88,6 +88,7 @@ export async function runJevEvalOnce(definition: JevWorldEvalScenario, apiKey: s
           // Give the planner feedback without invoking dialogue or moving the recipient.
           const snapshot = runtime.snapshot();
           snapshot.npcActivities![definition.characterId]!.history.push(response);
+          (snapshot.npcActivities![definition.characterId]!.actionIds ??= []).push(call.actionId);
           runtime.restore(snapshot);
           break;
         }

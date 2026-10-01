@@ -8,7 +8,7 @@ import { JevClient } from "../packages/providers/src/jev.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 import type { JevActionContextOptions } from "../apps/web/src/jev-room-view.js";
 
-function game(options: JevActionContextOptions = {}, roomScoped = true) {
+function game(options: JevActionContextOptions = {}) {
   const scenario = fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8"));
   const king = scenario.characters.find(item => item.id === "king")!;
   scenario.premise = "PREMISE_SENTINEL";
@@ -20,7 +20,7 @@ function game(options: JevActionContextOptions = {}, roomScoped = true) {
   king.relationships[0]!.description = "RELATIONSHIP_SENTINEL";
   scenario.notes.push(create(NoteSchema, { id: "visible", text: "VISIBLE_NOTE_SENTINEL", characterIds: ["king"], visibility: NoteVisibility.PRIVATE }),
     create(NoteSchema, { id: "hidden", text: "HIDDEN_NOTE_SENTINEL", characterIds: ["corvin"], visibility: NoteVisibility.PRIVATE }));
-  const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, () => 0, roomScoped, options);
+  const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, () => 0, options);
   runtime.createDevelopmentPlayer();
   const snapshot = runtime.snapshot();
   snapshot.npcActivities = { king: { status: "active", goal: king.currentGoal, history: ["RECENT_RESULT_SENTINEL"], actionIds: ["open_test_door", "close_test_door"] } };
@@ -58,7 +58,7 @@ test("action context tiers send exactly their selected facts as text", async t =
 });
 
 test("action flags leave event-reaction Jev and dialogue inputs unchanged", async t => {
-  const baseline = game({}, false), experimental = game({ level: 1, includeRecentResults: true });
+  const baseline = game({ level: 3 }), experimental = game({ level: 1, includeRecentResults: true });
   experimental.restore(baseline.snapshot());
   let decisions: unknown[] = [];
   t.mock.method(JevClient.prototype, "choose", async (state: unknown, instructions: unknown, criteria: Record<string, string>) => {

@@ -1362,7 +1362,7 @@ test("reviewed immediate goal reaches Jev, which opens doors and moves the NPC i
     const placement = scenario.courtArrivalPlacements.find(item => item.characterId === actor.characterId)!;
     actor.position = placement.position; actor.roomId = placement.roomId;
   }
-  const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, undefined, false);
+  const runtime = new BrowserGameRuntime(scenario, "test");
   t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Meet me in my chamber." }));
   await runtime.talkToCharacter("corvin", "Let's speak privately.");
   await assert.rejects(runtime.planNpc("corvin", new AbortController().signal), /review first/);
@@ -1371,17 +1371,16 @@ test("reviewed immediate goal reaches Jev, which opens doors and moves the NPC i
   await runtime.endConversation("corvin");
   let step = 0;
   t.mock.method(JevClient.prototype, "choose", async (state: any, _instructions: unknown, criteria: Record<string, string>) => {
-    assert.equal(state.goal, goal);
-    assert.equal(state.characterContext.character.id, "corvin");
-    assert.equal(state.characterContext.character.parkedObjectives.length, 3);
-    assert.ok(!JSON.stringify(state.world).includes("Sealed royal decree"));
+    assert.ok(state.includes(goal));
+    assert.match(state, /\[corvin\]/);
+    assert.ok(!state.includes("Sealed royal decree"));
     assert.match(criteria.wait!, /depends entirely on another character/);
-    const choice = ["open_hall_door_0", "open_corvin_door_0", "move_corvin", "complete"][step++]!;
+    const choice = ["enter_royal_council_chamber", "open_hall_door_0", "open_corvin_door_0", "enter_corvin_chamber", "complete"][step++]!;
     assert.ok(criteria[choice]);
-    if (step <= 2) assert.ok(!criteria.move_corvin, "Closed room cannot be selected as a move target");
+    if (step <= 3) assert.ok(!criteria.enter_corvin_chamber, "Closed room cannot be selected as a move target");
     return { choice, probabilities: { [choice]: 1 } };
   });
-  for (let i = 0; i < 3; i++) {
+  for (let i = 0; i < 4; i++) {
     const plan = await runtime.planNpc("corvin", new AbortController().signal);
     assert.ok(plan.action);
     runtime.executeNpcAction("corvin", plan.action.id, plan.revision, plan.goal);
@@ -1416,7 +1415,7 @@ test("NPC actions use their own keys and inventory, reject stale plans, and pres
   for (const door of scenario.world!.doors) door.open = true;
   const corvin = scenario.world!.actors.find(actor => actor.characterId === "corvin")!;
   corvin.roomId = "corvin_chamber"; corvin.position = create(TilePositionSchema, { x: 5, y: 5 });
-  const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, undefined, false);
+  const runtime = new BrowserGameRuntime(scenario, "test");
   const activeSnapshot = runtime.snapshot();
   activeSnapshot.npcActivities = { corvin: { status: "active", goal: scenario.characters.find(item => item.id === "corvin")!.currentGoal, history: [] } };
   runtime.restore(activeSnapshot);
@@ -1425,7 +1424,7 @@ test("NPC actions use their own keys and inventory, reject stale plans, and pres
     assert.ok(observation.actions.some(action => action.id === id));
     return runtime.executeNpcAction("corvin", id, observation.revision, observation.goal);
   }
-  execute("open_palace_corvin_drawers"); execute("take_palace_royal_key"); execute("move_royal"); execute("open_palace_coffer_03"); execute("take_palace_royal_seal"); execute("take_palace_sealed_decree");
+  execute("open_palace_corvin_drawers"); execute("take_palace_royal_key"); execute("enter_north_corridor"); execute("enter_royal_bedchamber"); execute("open_palace_coffer_03"); execute("take_palace_royal_seal"); execute("take_palace_sealed_decree");
   const snapshot = runtime.snapshot(), saved = fromJson(ScenarioSchema, snapshot.scenario);
   assert.equal(saved.world!.objects.find(item => item.id === "palace_royal_key")!.locationId, "corvin");
   assert.equal(saved.world!.objects.find(item => item.id === "palace_royal_seal")!.locationId, "corvin");
@@ -1505,23 +1504,24 @@ test("treasury can be opened from the hall and closed from inside, with sides ex
   const scenario = furnishedCourt(), actor = scenario.world!.actors.find(item => item.characterId === "corvin")!;
   actor.position = create(TilePositionSchema, { x: 22, y: 22 }); actor.roomId = "great_hall";
   scenario.characters.find(item => item.id === "corvin")!.currentGoal = "Go into the Treasury, close the door from inside, and wait there.";
-  const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, undefined, false), snapshot = runtime.snapshot();
+  const runtime = new BrowserGameRuntime(scenario, "test"), snapshot = runtime.snapshot();
   snapshot.npcActivities = { corvin: { status: "active", goal: scenario.characters[0]!.currentGoal, history: [] } }; runtime.restore(snapshot);
   const observe = () => courtAgentObservation(fromJson(ScenarioSchema, runtime.snapshot().scenario), "corvin");
   let observation = observe();
   const open = observation.actions.find(action => action.id === "open_treasury_door_0")!;
   assert.ok(open); assert.equal(open.legality, "normal"); assert.equal(open.path.length, 1);
   assert.equal(open.interactionRoomId, "great_hall");
-  assert.ok(!observation.actions.some(action => action.id === "move_treasury"));
+  assert.ok(!observation.actions.some(action => action.id === "enter_treasury"));
   runtime.executeNpcAction("corvin", open.id, observation.revision, observation.goal);
   observation = observe();
-  assert.ok(observation.actions.some(action => action.id === "move_treasury"));
+  assert.ok(observation.actions.some(action => action.id === "enter_treasury"));
   const outside = observation.actions.find(action => action.id === "close_treasury_door_0")!;
+  assert.ok(!observation.actions.some(action => action.id === "close_treasury_door_1"));
+  runtime.executeNpcAction("corvin", "enter_treasury", observation.revision, observation.goal);
+  observation = observe();
   const inside = observation.actions.find(action => action.id === "close_treasury_door_1")!;
   assert.equal(outside.interactionRoomId, "great_hall");
   assert.equal(inside.interactionRoomId, "treasury");
-  assert.match(inside.description, /Treasury side/);
-  assert.notEqual(inside.description, outside.description);
   runtime.executeNpcAction("corvin", inside.id, observation.revision, observation.goal);
   const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
   assert.equal(saved.world!.doors.find(door => door.id === "treasury_door")!.open, false);
@@ -1606,14 +1606,14 @@ test("transcript recorder groups an agent loop under one stable dictionary key",
   assert.deepEqual(entries[0]![1].context, { participants: ["corvin"] });
 });
 
-function talkingCourt(roomScoped?: boolean) {
+function talkingCourt() {
   const scenario = furnishedCourt();
   for (const actor of scenario.world!.actors) {
     const placement = scenario.courtArrivalPlacements.find(item => item.characterId === actor.characterId);
     if (placement) { actor.position = placement.position; actor.roomId = placement.roomId; }
     actor.awake = true;
   }
-  const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, undefined, roomScoped);
+  const runtime = new BrowserGameRuntime(scenario, "test");
   const snapshot = runtime.snapshot();
   snapshot.npcActivities = { corvin: { status: "active", goal: scenario.characters.find(item => item.id === "corvin")!.currentGoal, history: [] } };
   runtime.restore(snapshot);
@@ -1691,10 +1691,10 @@ test("NPC conversation validation and cancellation cannot partially update eithe
 });
 
 test("talk availability follows closed doors and Jev gets the offered talk choice", async t => {
-  const { scenario, runtime, observation, action } = talkingCourt(false);
+  const { scenario, runtime, observation, action } = talkingCourt();
   t.mock.method(JevClient.prototype, "choose", async (_state: unknown, instructions: unknown, criteria: Record<string, string>) => {
     assert.ok(action.id in criteria);
-    assert.match(JSON.stringify(instructions), /offered talk actions/);
+    assert.match(JSON.stringify(instructions), /Choose one offered action ID/);
     return { choice: action.id, probabilities: { [action.id]: 1 } };
   });
   const plan = await runtime.planNpc("corvin", new AbortController().signal);
@@ -1704,7 +1704,7 @@ test("talk availability follows closed doors and Jev gets the offered talk choic
   for (const door of scenario.world!.doors) door.open = false;
   assert.ok(!courtAgentObservation(scenario, "corvin").actions.some(item => item.id === action.id));
   for (const door of scenario.world!.doors) door.open = true;
-  assert.ok(courtAgentObservation(scenario, "corvin").actions.some(item => item.id === action.id));
+  assert.ok(!courtAgentObservation(scenario, "corvin").actions.some(item => item.id === action.id), "Remote characters require entering their room first");
   assert.ok(observation.actions.some(item => item.id === action.id));
 });
 
@@ -1881,22 +1881,22 @@ test("background character updates reject stale goals and do not overwrite newer
 });
 
 test("NPC movement commits one tile at a time and replans when a door closes", () => {
-  const { runtime } = talkingCourt(false);
+  const { runtime } = talkingCourt();
   const initial = runtime.snapshot();
   const scenario = fromJson(ScenarioSchema, initial.scenario);
   const actor = scenario.world!.actors.find(a => a.characterId === "corvin")!;
-  actor.position = create(TilePositionSchema, { x: 15, y: 17 }); actor.roomId = "great_hall";
+  actor.position = create(TilePositionSchema, { x: 5, y: 17 }); actor.roomId = "royal_council_chamber";
   scenario.world!.doors.find(d => d.id === "hall_door")!.open = true;
   initial.scenario = toJson(ScenarioSchema, scenario); runtime.restore(initial);
   const goal = scenario.characters.find(c => c.id === "corvin")!.currentGoal;
-  const result = runtime.stepNpcAction("corvin", "move_north_junction", goal);
+  const result = runtime.stepNpcAction("corvin", "enter_north_corridor", goal);
   assert.equal(result.done, false);
   const moved = fromJson(ScenarioSchema, runtime.snapshot().scenario).world!.actors.find(a => a.characterId === "corvin")!.position!;
-  assert.equal(Math.abs(moved.x - 15) + Math.abs(moved.y - 17), 1);
+  assert.equal(Math.abs(moved.x - 5) + Math.abs(moved.y - 17), 1);
   const closed = runtime.snapshot(), changed = fromJson(ScenarioSchema, closed.scenario);
   changed.world!.doors.find(d => d.id === "hall_door")!.open = false;
   closed.scenario = toJson(ScenarioSchema, changed); runtime.restore(closed);
-  assert.throws(() => runtime.stepNpcAction("corvin", "move_north_junction", goal), /replan/);
+  assert.throws(() => runtime.stepNpcAction("corvin", "enter_north_corridor", goal), /replan/);
   assert.deepEqual(fromJson(ScenarioSchema, runtime.snapshot().scenario).world!.actors.find(a => a.characterId === "corvin")!.position, moved);
 });
 
