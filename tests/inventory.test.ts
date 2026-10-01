@@ -54,3 +54,28 @@ test("duplicate ownership and equipment outside the holder's inventory are rejec
   inventoryFor(scenario, "guard").equipment!.armorItemId = "letter";
   assert.throws(() => validateInventories(scenario), /not carried/);
 });
+
+test("authored court builds have bounded stats, valid health, and uniquely carried equipment", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { fromJsonString } = await import("@bufbuild/protobuf");
+  const scenario = fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8"));
+  validateInventories(scenario);
+  for (const character of scenario.characters) {
+    const dnd = character.dnd!;
+    assert.ok(dnd?.abilityScores, character.id);
+    const { strength, dexterity, constitution, intelligence, wisdom, charisma } = dnd.abilityScores;
+    for (const score of [strength, dexterity, constitution, intelligence, wisdom, charisma]) assert.ok(score >= 8 && score <= 16);
+    assert.ok(dnd.classes.length > 0);
+    assert.ok(dnd.classes.every(entry => entry.level >= 1 && entry.level <= 3));
+    assert.ok(dnd.hitPoints!.maximum > 0);
+    assert.equal(dnd.hitPoints!.current, dnd.hitPoints!.maximum);
+    assert.ok(character.inventory!.equipment!.mainHandItemId);
+    assert.ok(character.inventory!.items.every(item => (item.quantity ?? 1) > 0));
+  }
+  const corvin = scenario.characters.find(character => character.id === "corvin")!;
+  assert.equal(corvin.dnd!.classes[0]!.classId, "wizard");
+  assert.ok(corvin.dnd!.spellcasting!.preparedSpellIds.includes("detect-magic"));
+  assert.ok(itemsFor(scenario, "rook").some(item => item.id === "rook_tomas_letter"), "Plot evidence is retained");
+  const saved = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, scenario));
+  assert.deepEqual(saved.characters.map(character => character.dnd), scenario.characters.map(character => character.dnd));
+});
