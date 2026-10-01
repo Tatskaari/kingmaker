@@ -24,6 +24,7 @@ export class FurnitureBuilder {
       if (fixture.position) this.#blocked.add(key(fixture.position));
       if (fixture.interactionSpot) this.#reserved.add(key(fixture.interactionSpot));
     }
+    for (const door of scenario.world!.doors) for (const point of door.tiles) this.#blocked.add(key(point));
     for (const point of [
       ...scenario.world!.doors.flatMap(door => [...door.tiles, ...door.interactionSpots]),
       ...scenario.world!.actors.flatMap(actor => actor.position ? [actor.position] : []),

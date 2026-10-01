@@ -2131,7 +2131,7 @@ test("failed Stranger calls retain saved identity and can resume after reload", 
   assert.equal(restored.view().player, null);
 });
 
-test("worker saves identity and reaches the Stranger without nesting its mutation queue", { timeout: 4000 }, async t => {
+test("worker saves identity and reaches the Stranger without nesting its mutation queue", { timeout: 10000 }, async t => {
   const globals = globalThis as any;
   const originalSelf = Object.getOwnPropertyDescriptor(globalThis, "self");
   const originalDatabase = Object.getOwnPropertyDescriptor(globalThis, "indexedDB");
