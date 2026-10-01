@@ -1649,6 +1649,36 @@ test("Jev receives reachable NPC talk actions, then both participants save priva
   assert.deepEqual(runtime.recentTranscripts().map(item => item.kind), ["npc_resolution", "npc_request"]);
 });
 
+test("NPC talk review ignores an unscheduled recipient objective", async t => {
+  const { runtime, observation, action } = talkingCourt();
+  assert.ok(runtime.hasActiveObjective(action.target));
+  assert.equal(runtime.snapshot().npcActivities?.[action.target], undefined);
+  const fork = runtime.forkForResourceReview(async work => work());
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async (input: ChatCompletionRequest) => {
+    calls++;
+    if (calls === 1) return modelReply({ request: "What news?", intent: "Complete my greeting." });
+    const tool = (name: string, args: unknown): OpenRouterMessage => ({
+      role: "assistant", content: null, tool_calls: [{ id: name, type: "function", function: { name, arguments: JSON.stringify(args) } }],
+    });
+    if (calls === 2) {
+      const worldState = input.messages.map(message => {
+        try { return JSON.parse(message.content || ""); } catch { return {}; }
+      }).find(value => value.world_state).world_state;
+      return tool("update_character", { character_id: "corvin", generation_id: worldState["character:corvin"].generation_id,
+        changes: { active_objective: { action: "complete", reason: "Corvin greeted another courtier." } } });
+    }
+    if (calls === 3) return tool("finish_review", { summary: "Corvin exchanged greetings with another courtier." });
+    throw new Error("Review should finish without changing the recipient's objective.");
+  });
+
+  await fork.executeNpcTalk("corvin", action.id, observation.revision, observation.goal, new AbortController().signal);
+
+  assert.equal(calls, 3);
+  assert.ok(runtime.hasActiveObjective(action.target));
+  assert.equal(runtime.snapshot().npcActivities?.[action.target], undefined);
+});
+
 test("NPC-initiated player conversations remain open despite a premature model ending", async t => {
   const { scenario, runtime } = talkingCourt();
   let observation = courtAgentObservation(fromJson(ScenarioSchema, runtime.snapshot().scenario), "corvin");
