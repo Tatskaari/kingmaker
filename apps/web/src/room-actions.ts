@@ -1,3 +1,4 @@
+import { itemsFor } from "../../../packages/core/src/inventory.js";
 import type { Scenario } from "../../../packages/contracts/src/index.js";
 import { doorActionLegality } from "../../../packages/core/src/access.js";
 import { fixtureActions } from "../../../packages/core/src/fixtures.js";
@@ -56,7 +57,7 @@ export function roomAgentActions(scenario: Scenario, characterId: string, contin
     const fixture = world.fixtures.find(item => item.id === action.target);
     if (action.target !== characterId && (!fixture?.position || fixture.roomId !== room.id)) continue;
     if (action.verb === "open" && fixture?.requiredKeyId
-      && !world.objects.some(item => item.id === fixture.requiredKeyId && item.locationId === characterId)) continue;
+      && !itemsFor(scenario, characterId).some(item => item.id === fixture.requiredKeyId)) continue;
     const path = action.target === characterId ? [start] : shortest(
       (fixture!.interactionSpot ? [fixture!.interactionSpot] : neighbours(fixture!.position!)).map(point => route(point)));
     if (path) actions.push({ id: action.id, type: "fixture", target: action.target, path, legality: action.legality,

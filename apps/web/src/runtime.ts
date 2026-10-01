@@ -1,4 +1,5 @@
 import { gameLogger } from "../../../packages/observability/src/logging.js";
+import { inventoryOwners, locatedItems, itemsFor, findItem, transferItem } from "../../../packages/core/src/inventory.js";
 import { RECONCILIATION_INSTRUCTIONS, reconciliationTools, applyReconciliationTool } from "./gm-reconciliation.js";
 import { GenerationConflict, GenerationStore, generationIds, type Generations, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 import { stateResources } from "./state-resources.js";
@@ -30,7 +31,7 @@ import {
   TranscriptMessageSchema, TranscriptRole, WorldStateSchema, TilePositionSchema,
   type Event, type Scenario, type TranscriptMessage,
 } from "../../../packages/contracts/src/index.js";
-import { characterDecisionContext, FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter } from "../../../packages/core/src/context.js";
+import { characterDecisionContext, FullContextBuilder, FullGameMasterContextBuilder, worldViewJson, worldForCharacter } from "../../../packages/core/src/context.js";
 import { MemoryGame } from "../../../packages/core/src/game.js";
 import { OpenRouterClient, ProviderResponseError, type OpenRouterMessage, type OpenRouterTool, type ChatCompletionRequest } from "../../../packages/providers/src/openrouter.js";
 
@@ -270,7 +271,7 @@ function fixtureEventContext(scenario: Scenario, actorId: string, actionId: stri
   const action = fixtureActions(scenario, actorId).find(candidate => candidate.id === actionId);
   if (!action || action.target === actorId) return { details: {} as EventDetails };
   const fixture = scenario.world?.fixtures.find(candidate => candidate.id === action.target);
-  const item = scenario.world?.objects.find(candidate => candidate.id === action.itemId);
+  const item = findItem(scenario, action.itemId ?? "");
   const owner = scenario.characters.find(character => character.id === fixture?.ownerCharacterId);
   const details: EventDetails = {
     action: action.verb,
@@ -668,7 +669,7 @@ export class BrowserGameRuntime {
     // Stage GM changes on this dialogue's snapshot; the worker publishes the
     // complete turn through the existing generation-checked fork merge.
     const candidate = this.forkForNpc();
-    const originalItems = new Set(candidate.#game.scenario().world!.objects.map(item => item.id));
+    const originalItems = new Set(locatedItems(candidate.#game.scenario()).map(item => item.id));
     const context: ResourceReviewContext = {
       kind: "conversation_review", participants: [characterId], allowNextGoal: true,
     };
@@ -696,9 +697,9 @@ export class BrowserGameRuntime {
       toolResult: (call, result) => this.#modelTranscripts.toolResult(call, result),
       complete: input => this.#complete("gm_consultation", characterId, input, undefined, runKey),
     });
-    const addedItems = candidate.#game.scenario().world!.objects
+    const addedItems = locatedItems(candidate.#game.scenario())
       .filter(item => !originalItems.has(item.id) && [characterId, candidate.#game.scenario().playerCharacterId].includes(item.locationId))
-      .map(item => ({ id: item.id, name: item.name, details: item.properties?.details ?? "" }));
+      .map(item => ({ id: item.id, name: item.name, details: item.details }));
     this.restore(candidate.snapshot());
     return { summary, addedItems };
   }
@@ -1057,21 +1058,23 @@ export class BrowserGameRuntime {
     if (requireUnchangedConversations && !same(this.snapshot().conversations, before.conversations)) throw new Error("Conversation changed; retry NPC review.");
     for (const id of characterIds) {
       if (!same(current.notes.filter(e => e.characterIds.includes(id)), base.notes.filter(e => e.characterIds.includes(id)))
-        || !same(current.characters.find(c => c.id === id), base.characters.find(c => c.id === id))
+        || !same({ ...current.characters.find(c => c.id === id), inventory: undefined }, { ...base.characters.find(c => c.id === id), inventory: undefined })
         || !same(current.world.actors.find(a => a.characterId === id), base.world.actors.find(a => a.characterId === id))
         || !same(this.#npcActivities[id], before.npcActivities?.[id])
         || !same(this.snapshot().conversations[id], before.conversations[id])) throw new Error("Character changed; retry NPC review.");
     }
-    const objectsChanged = !same(base.world.objects, next.world.objects);
-    if (objectsChanged) {
-      const changedIds = new Set([...base.world.objects, ...next.world.objects].map(item => item.id).filter(id =>
-        !same(base.world!.objects.find(item => item.id === id), next.world!.objects.find(item => item.id === id))));
-      current.world.objects = [...current.world.objects.filter(item => !changedIds.has(item.id)), ...next.world.objects.filter(item => changedIds.has(item.id))];
+    // Ownership is nested; publish only inventories whose generation was checked.
+    for (const owner of inventoryOwners(next)) {
+      const previous = inventoryOwners(base).find(value => value.id === owner.id);
+      if (!same(previous?.inventory, owner.inventory)) {
+        const target = inventoryOwners(current).find(value => value.id === owner.id);
+        if (target) target.inventory = owner.inventory;
+      }
     }
     // Never replace an unrelated player's move, inventory, conversation or memory.
     for (const id of characterIds) {
       const character = next.characters.find(c => c.id === id)!;
-      current.characters = current.characters.map(c => c.id === id ? character : c);
+      current.characters = current.characters.map(c => c.id === id ? { ...character, inventory: c.inventory } : c);
       const actor = next.world.actors.find(a => a.characterId === id)!;
       current.world.actors = current.world.actors.map(a => a.characterId === id ? actor : a);
       const activity = fork.#npcActivities[id];
@@ -1159,9 +1162,9 @@ export class BrowserGameRuntime {
       } else if (name === "give_item") {
         if (!context.participants.includes(id) || id === playerId) throw new Error("Only a participating NPC may give an item.");
         text(args.reason, "reason");
-        const item = scenario.world?.objects.find(candidate => candidate.id === text(args.item_id, "item_id"));
-        if (!item || item.locationId !== id) throw new Error("The item must be in the giving character's inventory.");
-        item.locationId = playerId;
+        const item = itemsFor(scenario, id).find(candidate => candidate.id === text(args.item_id, "item_id"));
+        if (!item) throw new Error("The item must be in the giving character's inventory.");
+        transferItem(scenario, item.id, playerId);
         item.concealed = false;
         scenario.world!.revision++;
       } else if (name === "write_item") {
@@ -1437,7 +1440,7 @@ export class BrowserGameRuntime {
     this.#generations = new GenerationStore();
     const initial = fromJson(ScenarioSchema, toJson(ScenarioSchema, this.#initialScenario));
     current.characters = current.characters.map(character => character.id === current.playerCharacterId
-      ? character : initial.characters.find(item => item.id === character.id) ?? character);
+      ? character : { ...(initial.characters.find(item => item.id === character.id) ?? character), inventory: character.inventory });
     current.notes = initial.notes;
     current.world.revision++;
     this.#setGame(new MemoryGame(current));
@@ -1465,6 +1468,9 @@ export class BrowserGameRuntime {
       actor.awake = true;
     }
     this.#npcActivities = {};
+    for (const character of current.characters) {
+      character.inventory = initial.characters.find(item => item.id === character.id)?.inventory;
+    }
     current.world = world;
     current.courtArrivalPlacements = initial.courtArrivalPlacements;
     this.#setGame(new MemoryGame(current));
@@ -1532,16 +1538,16 @@ export class BrowserGameRuntime {
       generations: generationIds(this.readResources(["world:context", `actor:${scenario.playerCharacterId}`, `inventory:${scenario.playerCharacterId}`,
         ...(world?.doors.flatMap(door => [`door:${door.id}`, `doorway:${door.id}`]) ?? []),
         ...(world?.fixtures.flatMap(fixture => [`fixture:${fixture.id}`, `inventory:${fixture.id}`]) ?? []),
-        ...(world ? worldForCharacter(world, scenario.playerCharacterId ?? "").objects.map(item => `item:${item.id}`) : [])])),
+        ...(world ? worldForCharacter(scenario, scenario.playerCharacterId ?? "").objects.map(item => `item:${item.id}`) : [])])),
       npcActivities: Object.fromEntries(scenario.characters.filter(item => item.id !== scenario.playerCharacterId).map(item => [item.id, this.#npcActivities[item.id] ?? { status: "idle", goal: item.currentGoal, history: [] }])),
       travellerIdentity: this.#travellerIdentity ?? null,
       playerDraft: this.#playerDraft,
       phase: this.#playerDraft ? "character_review" : world?.phase === GamePhase.PLAYER_CREATION ? "player_creation" : world?.phase === GamePhase.CONVERSATIONS ? "conversations" : "other",
       day: world?.day || 0,
       doors: world?.doors ?? [],
-      fixtures: world ? worldForCharacter(world, scenario.playerCharacterId ?? "").fixtures : [],
+      fixtures: world ? worldForCharacter(scenario, scenario.playerCharacterId ?? "").fixtures : [],
       fixtureActions: fixtureActions(scenario, scenario.playerCharacterId ?? ""),
-      inventory: world?.objects.filter(item => item.locationId === scenario.playerCharacterId).map(({ id, name, properties }) => ({ id, name, details: typeof properties?.details === "string" ? properties.details : "" })) ?? [],
+      inventory: itemsFor(scenario, scenario.playerCharacterId ?? "").map(({ id, name, details }) => ({ id, name, details })),
       roomAccess: world?.rooms.map(({ id, private: restricted, allowedCharacterIds }) => ({ id, private: restricted, allowedCharacterIds })) ?? [],
       location: world?.rooms.find(room => room.id === world.actors.find(actor => actor.characterId === player?.id)?.roomId)?.name || "Great Hall",
       premise: scenario.premise,
@@ -1679,7 +1685,7 @@ export class BrowserGameRuntime {
     return {
       character: toJson(CharacterSchema, character, { alwaysEmitImplicit: true }),
       visibleNotes: scenario.notes.filter(note => note.visibility === NoteVisibility.PUBLIC || note.characterIds.includes(characterId)).map(note => toJson(NoteSchema, note, { alwaysEmitImplicit: true })),
-      knownWorld: toJson(WorldStateSchema, worldForCharacter(scenario.world, characterId), { alwaysEmitImplicit: true }),
+      knownWorld: worldViewJson(worldForCharacter(scenario, characterId)),
       conversation: transcript.map(message => toJson(TranscriptMessageSchema, message, { alwaysEmitImplicit: true })),
       eventFeed: structuredClone([...(this.#eventPerceptions[characterId] ?? [])].reverse()),
       modelMessages: new FullContextBuilder().build(create(DialogueRequestSchema, { characterId, scenario, transcript })),

@@ -1,3 +1,4 @@
+import { locatedItems, findItem } from "../../packages/core/src/inventory.js";
 import { readFileSync } from "node:fs";
 import { create, fromJsonString } from "@bufbuild/protobuf";
 import { GamePhase, ScenarioSchema, TilePositionSchema, type Scenario } from "../../packages/contracts/src/index.js";
@@ -52,7 +53,7 @@ export const silkScarf: JevWorldEvalScenario = {
   createRuntime(apiKey) {
     const scenario = courtAtDayOne();
     // Reuse the authored wardrobe item, with the name used by this scenario.
-    scenario.world!.objects.find(item => item.id === "palace_silk_sash")!.name = "Silk scarf";
+    findItem(scenario, "palace_silk_sash")!.name = "Silk scarf";
     return new BrowserGameRuntime(scenario, apiKey);
   },
   evaluate({ talkCalls }) {
@@ -73,7 +74,7 @@ export const royalSeal: JevWorldEvalScenario = {
   evaluate({ scenario, talkCalls, completedActionIds = [] }) {
     const world = scenario.world!;
     const did = (id: string) => completedActionIds.includes(id);
-    const hasSeal = world.objects.some(item => item.id === "palace_royal_seal" && item.locationId === "king");
+    const hasSeal = locatedItems(scenario).some(item => item.id === "palace_royal_seal" && item.locationId === "king");
     const openedLockbox = did("open_palace_coffer_03");
     const outside = (roomId: string) => world.actors.find(actor => actor.characterId === "king")?.roomId !== roomId;
     const closedDoor = (id: string, roomId: string) => completedActionIds.some(action => action.startsWith(`open_${id}_`))
@@ -91,7 +92,7 @@ export const royalSeal: JevWorldEvalScenario = {
     ];
     const failures: string[] = [];
     if (!talkCalls.some(call => call.characterId === "king" && call.targetId === "rowan")) failures.push("The king did not talk to Rowan");
-    if (world.objects.find(item => item.id === "palace_royal_seal")?.locationId !== "king") failures.push("The king is not carrying the royal seal");
+    if (locatedItems(scenario).find(item => item.id === "palace_royal_seal")?.locationId !== "king") failures.push("The king is not carrying the royal seal");
     if (world.fixtures.find(fixture => fixture.id === "palace_coffer_03")?.open !== false) failures.push("The royal lockbox is not closed");
     for (const id of ["corvin_door", "royal_door"]) {
       if (world.doors.find(door => door.id === id)?.open !== false) failures.push(`${id} is not closed`);

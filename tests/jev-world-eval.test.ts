@@ -1,3 +1,4 @@
+import { transferItem } from "../packages/core/src/inventory.js";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -39,7 +40,7 @@ test("royal seal milestones award progress without credit for untouched closures
   const opened = assess(["take_palace_royal_key", "open_palace_coffer_03"]);
   assert.equal(opened.score, 4);
   assert.equal(opened.maxScore, 11);
-  scenario.world!.objects.find(item => item.id === "palace_royal_seal")!.locationId = "king";
+  transferItem(scenario, "palace_royal_seal", "king");
   assert.equal(assess(["take_palace_royal_key", "open_palace_coffer_03"]).score, 7);
   const summary = summarizeJevEval("Progress", [{ ...run(false, 12), ...opened }, { ...run(false, 24), ...assess([]) }]);
   assert.equal(summary.score, 6);

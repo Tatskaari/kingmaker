@@ -1,5 +1,6 @@
+import { inventoryFor, locatedItems } from "../../../packages/core/src/inventory.js";
 import { create } from "@bufbuild/protobuf";
-import { ObjectStateSchema, type Scenario } from "../../../packages/contracts/src/index.js";
+import { ItemInstanceSchema, type Scenario } from "../../../packages/contracts/src/index.js";
 import type { OpenRouterTool } from "../../../packages/providers/src/openrouter.js";
 
 export const RECONCILIATION_INSTRUCTIONS = `Adjudicate the completed exchange or action run. Keep a feasible next task, replace it with a useful concrete step, or use cancel_task for a dead end. An inability/limit/error is evidence to reassess, not a reason to restart the same task under new wording.
@@ -36,10 +37,10 @@ export function applyReconciliationTool(scenario: Scenario, participants: readon
   const world = scenario.world!;
   const id = field(input, "id", 100), name_ = field(input, "name", 200), locationId = field(input, "locationId", 100), details = field(input, "details");
   if (!/^[a-z][a-z0-9_]*$/.test(id)) throw new Error("Use a lowercase snake_case item ID.");
-  if ([...world.objects, ...world.fixtures, ...world.rooms, ...scenario.characters].some(item => item.id === id)) throw new Error("That ID already exists. Use the existing item instead.");
+  if ([...locatedItems(scenario), ...world.fixtures, ...world.rooms, ...scenario.characters].some(item => item.id === id)) throw new Error("That ID already exists. Use the existing item instead.");
   const fixture = world.fixtures.find(item => item.id === locationId && item.container);
   if (!fixture && !scenario.characters.some(item => item.id === locationId)) throw new Error("Location must be an existing container or character inventory.");
-  world.objects.push(create(ObjectStateSchema, { id, name: name_, locationId, concealed: true, properties: { details } }));
+  inventoryFor(scenario, locationId).items.push(create(ItemInstanceSchema, { id, name: name_, quantity: 1, concealed: true, details }));
   world.revision++;
   return { created: id, name: name_, locationId, details };
 }

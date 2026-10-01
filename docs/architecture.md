@@ -51,3 +51,22 @@ model responses, not evidence that a proposed update was committed.
 Current limits: one active NPC runner; no give-item action, autonomous player
 speech, visibility simulation, time progression or formal recognition resolution. The
 centennial assembly remains narrative context, not a working scheduler or vote engine.
+
+## Character mechanics and inventories
+
+`Character.dnd` holds optional typed build inputs (abilities, class levels, feats,
+explicit proficiencies and choices) and mechanical resources. Derived sheet
+bonuses are not persisted. The external D&D engine is not integrated yet;
+its content IDs are references for a future adapter, not executable rules.
+
+Characters, fixtures and rooms own `Inventory.items`. An item has no persisted
+location field and occurs in exactly one inventory. Equipment and attunement
+reference carried item IDs; transfers clear those references at the source.
+`locatedItems` provides a computed location only for observations and generation
+guards. Character memory and inventory retain separate generation IDs, so
+background reviews preserve unrelated inventory edits. Room inventories support
+ground storage; new ground-item interaction UI remains future work.
+
+The flat `WorldState.objects` format is removed. Start a fresh game after this
+change; old saves are deliberately not migrated. World reset restores authored
+inventories, while character reset preserves the current physical inventory.

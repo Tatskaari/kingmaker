@@ -93,6 +93,7 @@ message Character {
   // conversation, in priority order. These guide roleplay and are not sent to
   // the action planner.
   repeated string dialogue_objectives = 12;
+  Inventory inventory = 13;
   DndCharacter dnd = 14;
 }
 
@@ -211,6 +212,35 @@ message AppliedCondition {
   optional uint32 expires_on_round = 6;
 }
 
+// Each item occurs in exactly one inventory; equipment refers to those same IDs.
+message Inventory {
+  repeated ItemInstance items = 1;
+  Equipment equipment = 2;
+}
+
+message Equipment {
+  string main_hand_item_id = 1;
+  string off_hand_item_id = 2;
+  string armor_item_id = 3;
+  string shield_item_id = 4;
+  repeated string attuned_item_ids = 5;
+}
+
+message ItemInstance {
+  string id = 1;
+  string name = 2;
+  string details = 3;
+  bool concealed = 4;
+  // Absent for narrative props without a mechanical rules definition.
+  string definition_id = 5;
+  optional uint32 quantity = 6;
+  optional uint32 charges_remaining = 7;
+  optional uint32 maximum_charges = 8;
+  repeated string identified_by_character_ids = 9;
+  // Additional authored non-mechanical metadata.
+  google.protobuf.Struct properties = 10;
+}
+
 message ActiveObjective {
   string name = 1;
   // Current knowledge, progress, obstacles and the remaining execution plan.
@@ -255,6 +285,7 @@ message Room {
   repeated string exit_room_ids = 4;
   reserved 5;
   reserved "search_spots";
+  Inventory inventory = 8;
   bool private = 6;
   repeated string allowed_character_ids = 7;
 }
@@ -280,14 +311,6 @@ message ActorState {
   TilePosition position = 5;
 }
 
-message ObjectState {
-  string id = 1;
-  string name = 2;
-  string location_id = 3;
-  bool concealed = 4;
-  google.protobuf.Struct properties = 5;
-}
-
 // The authoritative state contains every room, fixture and object. Before model
 // calls, concealed contents and undiscovered fixture details are removed unless known by
 // that character. Facts remain flexible for incidental scenario state.
@@ -300,7 +323,7 @@ message DoorState {
   bool open = 6;
 }
 
-// Physical map furniture; contained items use ObjectState.location_id.
+// Physical map furniture; contents live in its inventory.
 message MapFixture {
   string id = 1;
   string name = 2;
@@ -315,6 +338,7 @@ message MapFixture {
   repeated string examined_by = 11;
   repeated string searched_by = 12;
   string owner_character_id = 13;
+  Inventory inventory = 14;
 }
 
 message WorldState {
@@ -324,7 +348,8 @@ message WorldState {
   reserved "solstice_day";
   repeated Room rooms = 4;
   repeated ActorState actors = 5;
-  repeated ObjectState objects = 6;
+  reserved 6;
+  reserved "objects";
   google.protobuf.Struct facts = 7;
   GamePhase phase = 8;
   repeated DoorState doors = 9;

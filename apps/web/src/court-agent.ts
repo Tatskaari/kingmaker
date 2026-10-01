@@ -34,7 +34,7 @@ export function characterCourtObservation(scenario: Scenario, characterId: strin
   if (!character || !world || !actor?.position) throw new Error("Character is not placed in the palace.");
   const start = actor.position;
   const actions = roomAgentActions(scenario, characterId, continuingActionId);
-  const known = worldForCharacter(world, characterId);
+  const known = worldForCharacter(scenario, characterId);
   return {
     revision: world.revision, goal: character.currentGoal, characterContext: characterDecisionContext(scenario, characterId, character.currentGoal),
     world: {

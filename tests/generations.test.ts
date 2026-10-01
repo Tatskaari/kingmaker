@@ -1,8 +1,9 @@
+import { locatedItems, inventoryFor, transferItem } from "../packages/core/src/inventory.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { create, fromJson, fromJsonString, toJson } from "@bufbuild/protobuf";
-import { ObjectStateSchema, ScenarioSchema } from "../packages/contracts/src/index.js";
+import { ItemInstanceSchema, ScenarioSchema } from "../packages/contracts/src/index.js";
 import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 import { actionResourceIds, courtAgentObservation } from "../apps/web/src/court-agent.js";
@@ -88,7 +89,7 @@ test("runtime inventories merge independently and reject stale writes atomically
     const expected = generationIds(game.readResources(["world:context", `character:${id}`, `actor:${id}`, `inventory:${id}`, `item:${itemId}`, `entity:${itemId}`]));
     const before = game.snapshot(), fork = game.forkForNpc(), snapshot = fork.snapshot();
     const scenario = fromJson(ScenarioSchema, snapshot.scenario);
-    scenario.world!.objects.push(create(ObjectStateSchema, { id: itemId, name: itemId, locationId: id }));
+    inventoryFor(scenario, id).items.push(create(ItemInstanceSchema, { id: itemId, name: itemId }));
     snapshot.scenario = toJson(ScenarioSchema, scenario); fork.restore(snapshot);
     return { before, fork, expected };
   };
@@ -96,8 +97,8 @@ test("runtime inventories merge independently and reject stale writes atomically
   game.commitCharacterFork(first.before, first.fork, ["corvin"], first.expected);
   game.commitCharacterFork(second.before, second.fork, ["mara"], second.expected);
   const saved = game.snapshot();
-  assert.ok(fromJson(ScenarioSchema, saved.scenario).world!.objects.some(item => item.id === "first_note"));
-  assert.ok(fromJson(ScenarioSchema, saved.scenario).world!.objects.some(item => item.id === "second_note"));
+  assert.ok(locatedItems(fromJson(ScenarioSchema, saved.scenario)).some(item => item.id === "first_note"));
+  assert.ok(locatedItems(fromJson(ScenarioSchema, saved.scenario)).some(item => item.id === "second_note"));
   assert.throws(() => game.commitCharacterFork(first.before, first.fork, ["corvin"], first.expected), GenerationConflict);
   assert.deepEqual(game.snapshot(), saved);
 });
@@ -174,12 +175,12 @@ test("stale physical actions reject inventory ABA before movement or item use", 
   setup.npcActivities = { corvin: { status: "active", goal: "Inspect my note.", history: [] } };
   const scenario = fromJson(ScenarioSchema, setup.scenario);
   scenario.characters.find(c => c.id === "corvin")!.currentGoal = "Inspect my note.";
-  scenario.world!.objects.push(create(ObjectStateSchema, { id: "note", name: "Note", locationId: "corvin" }));
+  inventoryFor(scenario, "corvin").items.push(create(ItemInstanceSchema, { id: "note", name: "Note" }));
   setup.scenario = toJson(ScenarioSchema, scenario); game.restore(setup);
   const action = courtAgentObservation(scenario, "corvin").actions.find(item => item.id === "inspect_item_note")!;
   const expected = generationIds(game.readResources(actionResourceIds(scenario, "corvin", action)));
   const intervening = game.snapshot(), moved = fromJson(ScenarioSchema, intervening.scenario);
-  moved.world!.objects.find(item => item.id === "note")!.locationId = "mara";
+  transferItem(moved, "note", "mara");
   intervening.scenario = toJson(ScenarioSchema, moved); game.restore(intervening);
   const returned = game.snapshot(); // Preserve the generation of the intervening move.
   returned.scenario = setup.scenario; game.restore(returned);
@@ -193,7 +194,7 @@ test("stale physical actions reject inventory ABA before movement or item use", 
 test("player physical commands reject stale views without disclosing concealed item IDs", () => {
   const game = runtime(), view = game.view();
   const original = game.snapshot(), scenario = fromJson(ScenarioSchema, original.scenario);
-  const hidden = scenario.world!.objects.find(item => item.concealed && !scenario.world!.fixtures.find(f => f.id === item.locationId)?.open)!;
+  const hidden = locatedItems(scenario).find(item => item.concealed && !scenario.world!.fixtures.find(f => f.id === item.locationId)?.open)!;
   assert.ok(hidden);
   assert.equal(Object.hasOwn(view.generations as object, `item:${hidden.id}`), false);
   game.movePlayer({ x: 15, y: 24 });
@@ -253,23 +254,23 @@ test("a conflict at publication keeps item and character updates atomic and reac
     if (calls === 3) {
       assert.equal(context.error, "generation_conflict");
       const scenario = fromJson(ScenarioSchema, game.snapshot().scenario);
-      assert.ok(!scenario.world!.objects.some(item => item.id === "new_note"));
+      assert.ok(!locatedItems(scenario).some(item => item.id === "new_note"));
       assert.notEqual(scenario.characters.find(c => c.id === "corvin")!.lore, "Updated atomically.");
-      assert.ok(context.current["inventory:corvin"].state.some((item: any) => item.id === "other_note"));
+      assert.ok(context.current["inventory:corvin"].state.items.some((item: any) => item.id === "other_note"));
     }
     return write(generations, { ...memory, lore: "Updated atomically." } as any, changes);
   });
   await game.publishReviewedFork(before, fork, async (base, candidate, ids, expected) => {
     if (commits++ === 0) {
       const changed = game.snapshot(), scenario = fromJson(ScenarioSchema, changed.scenario);
-      scenario.world!.objects.push(create(ObjectStateSchema, { id: "other_note", name: "Other note", locationId: "corvin" }));
+      inventoryFor(scenario, "corvin").items.push(create(ItemInstanceSchema, { id: "other_note", name: "Other note" }));
       changed.scenario = toJson(ScenarioSchema, scenario); game.restore(changed);
     }
     game.commitCharacterFork(base, candidate, ids, expected);
   });
   assert.equal(calls, 3); assert.equal(commits, 2);
   const final = fromJson(ScenarioSchema, game.snapshot().scenario);
-  assert.equal(final.world!.objects.filter(item => ["new_note", "other_note"].includes(item.id)).length, 2);
+  assert.equal(locatedItems(final).filter(item => ["new_note", "other_note"].includes(item.id)).length, 2);
   assert.equal(final.characters.find(c => c.id === "corvin")!.lore, "Updated atomically.");
 });
 
