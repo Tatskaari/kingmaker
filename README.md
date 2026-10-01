@@ -61,10 +61,10 @@ exchanges with low reasoning. Settings live in
 `openai/gpt-6-luna`.
 Jev selects from currently reachable actions.
 
-The action-execution Jev experiment is configured in `apps/web/src/feature-flags.ts`:
+Action-execution Jev context is configured in `apps/web/src/feature-flags.ts`:
 
-- `ROOM_SCOPED_JEV = true` sends the readable room/action text as Jev's actual
-  `state`. It defaults to `true`; set it to `false` for the legacy baseline.
+- Jev always receives the readable room/action text as its actual `state`, with
+  room-scoped actions. The legacy palace-wide planner has been removed.
 - `JEV_ACTION_CONTEXT_LEVEL = 1`: world text and the full active objective
   (name, status, success criteria, current task).
 - Level `2` adds biography and full parked objectives.
@@ -76,7 +76,7 @@ The input is ordered: who you are (including selected character context), curren
 objective, world state, action log. The log is chronological and starts with
 `None yet.`. It records completed actions, not rejected plans or walking ticks,
 and is scoped to the current activity. Older saves without action IDs start an
-empty log; existing prose history remains available to the legacy planner.
+empty log; existing prose history is retained in saved activity state.
 
 The text includes room connections, actions to enter adjacent rooms, local
 interactions with action IDs and walking distances, known contents, inventory,
@@ -86,8 +86,8 @@ still receives the short execution instructions and selectable choice criteria.
 Event-reaction Jev, dialogue, and GM context are unaffected by these settings.
 
 Evals can override both settings per runtime:
-`new BrowserGameRuntime(scenario, key, snapshot, undefined, undefined, Math.random, true, { level: 1, includeRecentResults: true })`.
-Pass `false` as the seventh argument for the legacy baseline. Configuration follows
+`new BrowserGameRuntime(scenario, key, snapshot, undefined, undefined, Math.random, { level: 1, includeRecentResults: true })`.
+Configuration follows
 runtime forks and is not saved as game state. The debug inspector displays the
 same text `state` supplied to the action planner.
 
@@ -139,7 +139,7 @@ both bedroom doors, then talk to Rowan. At that conversation boundary the eval
 checks the king carries the seal and all three closures are complete. It uses
 the same authored world, production prompts, and 24-decision budget.
 
-Add `--minimal` to opt each run into the room-scoped text interface with context
+Add `--minimal` to pin each run's room-scoped text interface to context
 level 1 (scene plus active objective) and the completed action log enabled:
 `npm run eval:jev -- "royal seal" --minimal`. Artifacts record `minimal: true`.
 This uses per-runtime overrides and does not change the game's default flags.
@@ -154,6 +154,11 @@ closing the royal door behind you. Completed-action IDs establish retrieval and
 opening; final state establishes retained items and closures. Untouched closed
 doors earn no points. Guest invitations earn one point per distinct guest.
 Scenarios without milestones retain a one-point completion score.
+
+The separate unknown-location variant keeps the same world and scoring but tells
+the king only that the spare key is somewhere in Corvin's room:
+`npm run eval:jev -- "unknown key location" --minimal`.
+The original royal-seal scenario still specifies the chest of drawers.
 
 ## Reset while developing
 

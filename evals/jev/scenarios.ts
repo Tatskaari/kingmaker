@@ -99,4 +99,13 @@ export const royalSeal: JevWorldEvalScenario = {
     return { success: !failures.length, milestones, ...(failures.length ? { reason: failures.join("; ") + "." } : {}) };
   },
 };
-export const jevWorldEvalScenarios = [treasury, inviteGuests, silkScarf, royalSeal];
+export const royalSealKeySearch: JevWorldEvalScenario = {
+  ...royalSeal,
+  name: "Fetch the royal seal with an unknown key location",
+  goal: "Slip into Corvin's chamber without asking him and find and take the spare royal lockbox key. Close his bedroom door behind me when I leave. Use the spare to open my lockbox in the Royal Bedchamber and collect my royal seal, then close the lockbox and my bedroom door before finding Rowan Ash to give him the seal.",
+  objective: {
+    ...royalSeal.objective!,
+    status: "I promised Rowan Ash my royal seal, but I have misplaced my lockbox key. Corvin keeps the spare somewhere in his bedroom, but I do not know where in the room he has put it. He is here in the Great Hall, away from his room. If I ask him for it, he will discover my carelessness and never let me forget it. I have decided to slip into his room without permission and take the spare while he is occupied. I have not retrieved it yet. I want the bedroom doors and my lockbox closed when I am done, so I do not leave them visibly open.",
+  },
+};
+export const jevWorldEvalScenarios = [treasury, inviteGuests, silkScarf, royalSeal, royalSealKeySearch];

@@ -1,6 +1,3 @@
-/** Use Jev's local action tree and room connection map by default. */
-export const ROOM_SCOPED_JEV = true;
-
 export type JevActionContextLevel = 1 | 2 | 3;
 /** Action execution only: 1 = scene + objective; 2 adds biography and parked
  * objectives; 3 also adds relationships and character-visible notes. */

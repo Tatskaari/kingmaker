@@ -5,7 +5,6 @@ import { join } from "node:path";
 import test from "node:test";
 import { fromJson } from "@bufbuild/protobuf";
 import { ScenarioSchema } from "../packages/contracts/src/index.js";
-import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
 import { JevClient } from "../packages/providers/src/jev.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 import { guestIds, inviteGuests, silkScarf, royalSeal } from "../evals/jev/scenarios.js";
@@ -84,16 +83,13 @@ test("the authored royal-seal objective reaches minimal Jev without a generated 
 
 test("mocked talks cover every guest, feed planner history, and leave recipients in place on fresh runs", async t => {
   t.mock.method(OpenRouterClient.prototype, "complete", async () => { throw new Error("Dialogue must be mocked"); });
-  t.mock.method(JevClient.prototype, "choose", async (state: { recentActions: string[] }) => {
-    const target = guestIds[state.recentActions.length];
+  t.mock.method(JevClient.prototype, "choose", async (state: string) => {
+    const completed = state.split("Action log (completed actions, oldest first):\n")[1]!;
+    const target = guestIds.filter(id => !completed.split("\n").includes(`talk_${id}`))[0];
     return { choice: target ? `talk_${target}` : "complete", probabilities: {} };
   });
   for (let repeat = 0; repeat < 2; repeat++) {
-    const result = await runJevEvalOnce({ ...inviteGuests, createRuntime(apiKey) {
-      const snapshot = inviteGuests.createRuntime(apiKey).snapshot();
-      return new BrowserGameRuntime(fromJson(ScenarioSchema, snapshot.scenario), apiKey, snapshot,
-        undefined, undefined, undefined, false);
-    } }, "test");
+    const result = await runJevEvalOnce(inviteGuests, "test");
     assert.equal(result.error, undefined);
     assert.equal(result.success, true);
     assert.equal(result.turns, 10);

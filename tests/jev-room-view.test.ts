@@ -5,14 +5,13 @@ import { fromJson, fromJsonString } from "@bufbuild/protobuf";
 import { ScenarioSchema } from "../packages/contracts/src/index.js";
 import { JevClient } from "../packages/providers/src/jev.js";
 import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
-import { ROOM_SCOPED_JEV } from "../apps/web/src/feature-flags.js";
 import { courtAgentObservation } from "../apps/web/src/court-agent.js";
 import { renderJevActionState } from "../apps/web/src/jev-room-view.js";
 import { GenerationConflict } from "../packages/core/src/generations.js";
 
-function game(roomScoped?: boolean) {
+function game() {
   const scenario = fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8"));
-  const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, Math.random, roomScoped);
+  const runtime = new BrowserGameRuntime(scenario, "test");
   runtime.createDevelopmentPlayer();
   const snapshot = runtime.snapshot();
   const goal = fromJson(ScenarioSchema, snapshot.scenario).characters.find(item => item.id === "corvin")!.currentGoal;
@@ -24,29 +23,23 @@ const signal = () => new AbortController().signal;
 const decision = (choice: string, criteria: Record<string, string>) => ({ choice,
   probabilities: Object.fromEntries(Object.keys(criteria).map(id => [id, id === choice ? 1 : 0])) });
 
-test("room-scoped Jev defaults on; legacy mode changes only Jev's view and choices", async t => {
-  assert.equal(ROOM_SCOPED_JEV, true);
-  const legacy = game(false), local = game();
-  local.restore(legacy.snapshot());
+test("Jev always receives the room-scoped text interface and local choices", async t => {
+  const local = game(), before = local.snapshot();
   const requests: Array<{ state: any; instructions: any; criteria: Record<string, string> }> = [];
   t.mock.method(JevClient.prototype, "choose", async (state: unknown, instructions: unknown, criteria: Record<string, string>) => {
     requests.push({ state, instructions, criteria }); return decision("wait", criteria);
   });
-  await legacy.planNpc("corvin", signal());
   await local.planNpc("corvin", signal());
-  const [baseline, experimental] = requests;
-  assert.ok(baseline!.criteria.move_saltmere_drawing_room);
-  assert.ok(baseline!.state.generations && baseline!.state.actions);
-  assert.ok(baseline!.instructions.privacy);
+  const [experimental] = requests;
   const state = experimental!.state;
   assert.equal(typeof state, "string");
   const headings = ["Who you are:", "Current objective:", "World state:", "Action log ("];
   assert.deepEqual(headings.map(heading => state.indexOf(heading)), headings.map(heading => state.indexOf(heading)).sort((a, b) => a - b));
   assert.ok(state.endsWith("None yet."));
   const scenario = fromJson(ScenarioSchema, local.snapshot().scenario);
-  assert.equal(state, renderJevActionState(scenario, courtAgentObservation(scenario, "corvin", true)));
+  assert.equal(state, renderJevActionState(scenario, courtAgentObservation(scenario, "corvin")));
   assert.equal(typeof experimental!.instructions, "string");
-  assert.deepEqual(local.snapshot(), legacy.snapshot());
+  assert.deepEqual(local.snapshot(), before);
   assert.ok(!experimental!.criteria.move_saltmere_drawing_room);
   assert.ok(experimental!.criteria.enter_royal_council_chamber);
   assert.ok(!experimental!.criteria.enter_treasury, "Closed exit is not selectable");
@@ -59,12 +52,14 @@ test("room-scoped Jev defaults on; legacy mode changes only Jev's view and choic
   assert.ok(!state.includes("Biography:") && !state.includes("Notes known to this character:"));
   const offered = [...state.matchAll(/^    - .*\[([^\]]+)\]$/gm)].map(match => match[1]);
   assert.deepEqual(offered.sort(), Object.keys(experimental!.criteria).filter(id => !["complete", "wait", "unable"].includes(id)).sort());
-  assert.equal(local.forkForNpc().roomScopedJev, true);
-  assert.equal(local.forkForResourceReview(async work => work()).roomScopedJev, true);
+  for (const fork of [local.forkForNpc(), local.forkForResourceReview(async work => work())]) {
+    await fork.planNpc("corvin", signal());
+    assert.equal(requests.at(-1)!.state, state);
+  }
 });
 
 test("local plans open, enter, and close a room through real runtime tile steps", async t => {
-  const runtime = game(true);
+  const runtime = game();
   const completed: string[] = [];
   for (const id of ["open_treasury_door_0", "enter_treasury", "close_treasury_door_1"]) {
     t.mock.method(JevClient.prototype, "choose", async (state: string, _instructions: unknown, criteria: Record<string, string>) => {
@@ -86,12 +81,12 @@ test("local plans open, enter, and close a room through real runtime tile steps"
   assert.equal(world.doors.find(door => door.id === "treasury_door")!.open, false);
   assert.equal(saved.npcActivities!.corvin!.history.length, 3);
   assert.deepEqual(saved.npcActivities!.corvin!.actionIds, completed);
-  const restored = game(true); restored.restore(saved);
+  const restored = game(); restored.restore(saved);
   assert.deepEqual(restored.snapshot(), saved);
 });
 
 test("concurrent door changes invalidate local travel before the next step", async t => {
-  const runtime = game(true);
+  const runtime = game();
   t.mock.method(JevClient.prototype, "choose", async (_state: unknown, _instructions: unknown, criteria: Record<string, string>) => decision("enter_royal_council_chamber", criteria));
   const plan = await runtime.planNpc("corvin", signal());
   const snapshot: any = runtime.snapshot();

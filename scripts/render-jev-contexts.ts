@@ -18,7 +18,7 @@ JevClient.prototype.choose = async (state, instructions, criteria) => {
 try {
   mkdirSync(output, { recursive: true });
   for (const placement of ["court-arrival", "authored-initial"]) for (const level of [1, 2, 3] as const) {
-    const runtime = new BrowserGameRuntime(scenario, "", undefined, undefined, undefined, Math.random, true, { level, includeRecentResults: true });
+    const runtime = new BrowserGameRuntime(scenario, "", undefined, undefined, undefined, Math.random, { level, includeRecentResults: true });
     if (placement === "court-arrival") runtime.createDevelopmentPlayer();
     const snapshot = runtime.snapshot(), active = fromJson(ScenarioSchema, snapshot.scenario);
     const character = active.characters.find(item => item.id === characterId);
