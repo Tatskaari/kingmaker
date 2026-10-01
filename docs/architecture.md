@@ -107,3 +107,23 @@ remain future work). Review shows the assigned build and allows prototype edits 
 ability scores (including above 20), and current/maximum HP. Saved stats also
 appear in the right-hand character sheet with ability modifiers. Conversation context includes the player's
 build, but automatic skill-roll adjudication remains separate work.
+
+
+Conversation checks now gate player dialogue (including a final reply before
+leaving). Jev selects skills; the GM sets each DC and intended outcome before
+rolling. `resolveDiceCheck(roll, dc, modifier)` in core returns a `CheckDegree`
+enum, total, margin and success. Natural 1/20 override the margin; otherwise
+<= -4 is major failure, -3..-1 minor failure, 0 barely passes, +1..+3 minor
+success, and >= +4 major success. Modifiers use the character's ability and
+explicit skill proficiency/expertise with proficiency bonus from total level.
+Full class features such as Jack of All Trades are not yet derived.
+
+The worker generates dice; the UI only acknowledges presentation, never submits
+an outcome. Each roll waits outside the mutation queue. Cancellation or game
+replacement rejects that turn. Headless `game.talk` uses the same checked flow
+without a visual pause; `runtime.talkToCharacter` is the low-level API for turns
+already adjudicated. The GM interprets the resolved degrees, and its direction
+is appended after the player message as a system message to the character. The
+DM ruling is saved in the transcript and retained for memory review, but hidden
+from the ordinary speech display. Success must deliver the intended outcome,
+even when absurd; the model is instructed to honour it rather than rejudge it.
