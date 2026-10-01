@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { conversationCheckEvalCases } from "../evals/jev/conversation-checks.js";
-import { scoreConversationChecks } from "../packages/evals/src/conversation-check-eval.js";
-import { conversationCheckClassifiers } from "../packages/providers/src/conversation-checks.js";
+import { loadConversationCheckEval, scoreConversationChecks } from "../packages/evals/src/conversation-check-eval.js";
+import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 
 test("classification scoring distinguishes roll detection from skill accuracy", () => {
   assert.deepEqual(scoreConversationChecks(["deception", "sleight_of_hand"], ["deception", "intimidation"]), {
@@ -15,15 +16,37 @@ test("classification scoring distinguishes roll detection from skill accuracy", 
   assert.equal(scoreConversationChecks(["deception", "insight"], ["insight", "deception"]).exact, true);
 });
 
-test("fixtures cover every skill, multi-check turns, and no-check conversations", () => {
-  assert.equal(new Set(conversationCheckEvalCases.map(item => item.name)).size, conversationCheckEvalCases.length);
-  const covered = new Set(conversationCheckEvalCases.flatMap(item => item.expected));
-  assert.deepEqual([...covered].sort(), Object.keys(conversationCheckClassifiers).sort());
-  assert.ok(conversationCheckEvalCases.some(item => item.expected.length > 1));
-  assert.ok(conversationCheckEvalCases.some(item => !item.expected.length && item.input.history?.length));
-  assert.ok(conversationCheckEvalCases.some(item => !item.expected.length && item.input.messages?.length));
-  for (const item of conversationCheckEvalCases) {
-    assert.ok(item.input.playerTurn.trim());
-    assert.equal(new Set(item.expected).size, item.expected.length);
-  }
+test("scenario-backed input includes the king's real context and leaves labels for review", () => {
+  const fixture = loadConversationCheckEval("evals/jev/king-threat.json");
+  assert.equal(fixture.expected, undefined);
+  assert.equal(fixture.input.playerTurn, fixture.input.messages!.at(-1)!.content);
+  const prompt = fixture.input.messages!.map(message => message.content).join("\n");
+  assert.match(prompt, /Tomas Vey/);
+  assert.match(prompt, /# Dialogue objectives/);
+  assert.match(prompt, /# Known world state/);
+  assert.match(prompt, /"characterId":"elinor"/);
+});
+
+test("labels distinguish pending review from no roll and reject invalid skills", () => {
+  const dir = mkdtempSync(join(tmpdir(), "check-eval-")), file = join(dir, "case.json");
+  const source = { name: "test", transcript: [
+    { type: "character_conversation_sys_prompt", character: resolve("evals/characters/king.json") },
+    { type: "user_message", value: "May I speak?" },
+    { type: "assistant_message", value: "Go on." },
+    { type: "user_message", value: "Good evening." },
+  ] };
+  try {
+    for (const expected of [[], ["intimidation"]]) {
+      writeFileSync(file, JSON.stringify({ ...source, expected }));
+      const loaded = loadConversationCheckEval(file);
+      assert.deepEqual(loaded.expected, expected);
+      assert.equal(loaded.input.playerTurn, "Good evening.");
+      assert.deepEqual(loaded.input.messages!.slice(-3).map(message => message.content), ["May I speak?", "Go on.", "Good evening."]);
+      assert.equal(Object.hasOwn(loaded.input, "expected"), false);
+    }
+    writeFileSync(file, JSON.stringify({ ...source, expected: ["invented"] }));
+    assert.throws(() => loadConversationCheckEval(file), /supported skills/);
+    writeFileSync(file, JSON.stringify({ ...source, transcript: source.transcript.slice(0, 1) }));
+    assert.throws(() => loadConversationCheckEval(file), /current player turn/);
+  } finally { rmSync(dir, { recursive: true }); }
 });
