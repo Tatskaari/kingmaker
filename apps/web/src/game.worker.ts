@@ -379,7 +379,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     return { saves: await listSaves() };
   }
   if (type === "state") return { state: requireRuntime().view(), activeSaveId: activeSave?.id };
-  if (type === "stranger_expression") return { expression: await requireRuntime().classifyStrangerExpression() };
+  if (type === "stranger_expression") return { expression: await requireRuntime().classifyStrangerExpression(payload.recentPortraits) };
   if (type === "set_identity" || type === "start_introduction") {
     const game = requireRuntime();
     // This handler already runs inside the mutation queue. Enqueuing another

@@ -39,11 +39,12 @@ test("the classifier sees Stranger speech and the player, excluding setup and to
       { speakerId: "gm", text: "What do you want?" },
       { speakerId: "player", text: "I want to make them laugh." },
       { speakerId: "gm", text: "He laughs. A splendid joke!" },
-    ] });
+    ], recentPortraits: ["serious", "neutral", "amused", "amused", "amused"] });
     return { choice: "amused", probabilities: { amused: 1 } };
   });
   const before = runtime.snapshot();
-  assert.equal(await runtime.classifyStrangerExpression(), "amused");
+  assert.equal(await runtime.classifyStrangerExpression(["angry", "serious", "neutral", "amused", "amused", "amused"]), "amused");
+  await assert.rejects(runtime.classifyStrangerExpression(["invented"]), /Invalid portrait history/);
   assert.deepEqual(runtime.snapshot(), before);
   assert.equal(runtime.recentTranscripts()[0]!.kind, "conversation_expression");
   t.mock.method(JevClient.prototype, "choose", async () => { throw new Error("Offline"); });
@@ -66,6 +67,11 @@ test("portrait updates ignore old replies and replaced games without re-renderin
     .replace(/^import .*;\n/gm, "").replaceAll("import.meta.url", JSON.stringify(import.meta.url))
     .replace(/if \(apiKey\) run\(\(\) => configure\(apiKey\)\);\s*else render\(\);/, "");
   runInContext(`${source}\nstate = {phase:'player_creation'}; strangerPortraitState.generation = 0; render = () => { throw Error('Do not clear the composer'); };`, context);
+  const assertPortrait = (expression: PortraitExpression) => {
+    const { src, alt } = strangerPortrait(expression);
+    assert.deepEqual(image, { src, alt });
+  };
+  const history = () => JSON.parse(runInContext("JSON.stringify(strangerPortraitState.history)", context));
   const refresh = (text: string) => runInContext(`refreshStrangerPortrait([{role:'user',text:'Hello'}, {role:'assistant',text:${JSON.stringify(text)}}]);`, context);
   const reply = async (index: number, expression: string) => {
     receive({ data: { id: requests[index].id, ok: true, value: { expression } } });
@@ -73,19 +79,26 @@ test("portrait updates ignore old replies and replaced games without re-renderin
   };
   refresh("First reply"); refresh("First reply");
   assert.equal(requests.length, 1, "Re-renders must not duplicate classification");
+  assert.deepEqual(Array.from(requests[0].payload.recentPortraits), ["amused"]);
   refresh("Second reply");
   await reply(1, "serious");
   await reply(0, "angry");
-  assert.deepEqual(image, strangerPortrait("serious"));
+  assertPortrait("serious");
+  assert.deepEqual(history(), ["amused", "serious"], "Ignore stale results in displayed history");
   refresh("Third reply");
   runInContext("gameViewGeneration++", context);
   await reply(2, "angry");
-  assert.deepEqual(image, strangerPortrait("serious"));
-  runInContext("strangerPortraitState = {generation: gameViewGeneration, key:'', expression:'amused'}", context);
+  assertPortrait("serious");
+  runInContext("strangerPortraitState = {generation: gameViewGeneration, key:'', expression:'amused', history:['amused']}", context);
   refresh("A threat"); await reply(3, "scared");
-  assert.deepEqual(image, strangerPortrait("amused"));
+  assertPortrait("amused");
+  assert.deepEqual(history(), ["amused", "amused"], "Remember the displayed fallback, not scared");
   refresh("Another reply");
   receive({ data: { id: requests[4].id, ok: false, error: "Offline" } });
   await new Promise(resolve => setImmediate(resolve));
-  assert.deepEqual(image, strangerPortrait("amused"));
+  assertPortrait("amused");
+  assert.deepEqual(history(), ["amused", "amused"], "Failures do not extend displayed history");
+  for (let i = 0; i < 6; i++) { refresh(`Repeated reply ${i}`); await reply(5 + i, "amused"); }
+  assert.deepEqual(history(), Array(5).fill("amused"));
+  assert.deepEqual(Array.from(requests.at(-1).payload.recentPortraits), Array(5).fill("amused"));
 });

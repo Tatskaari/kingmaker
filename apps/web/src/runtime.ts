@@ -1,5 +1,5 @@
 import { adjudicateConversationChecks, type PresentRoll } from "./conversation-rolls.js";
-import { classifyConversationExpression, type PortraitExpression } from "../../../packages/providers/src/conversation-expression.js";
+import { classifyConversationExpression, portraitExpressions, type PortraitExpression } from "../../../packages/providers/src/conversation-expression.js";
 import { buildInterviewCharacter, playerBuildParameter, validatePlayerStats } from "./player-build.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
 import { inventoryOwners, locatedItems, itemsFor, findItem, transferItem } from "../../../packages/core/src/inventory.js";
@@ -587,14 +587,17 @@ export class BrowserGameRuntime {
   }
 
   /** Presentation only; classify a snapshot of the Stranger's visible conversation. */
-  async classifyStrangerExpression(): Promise<PortraitExpression | undefined> {
+  async classifyStrangerExpression(recentPortraits: unknown = []): Promise<PortraitExpression | undefined> {
+    if (!Array.isArray(recentPortraits) || recentPortraits.some(value => typeof value !== "string" || !Object.hasOwn(portraitExpressions, value))) {
+      throw new Error("Invalid portrait history.");
+    }
     if (this.#game.scenario().world?.phase !== GamePhase.PLAYER_CREATION || this.#playerDraft) return;
     const history = this.#gmHistory.filter(turn => (turn.role === "user" || turn.role === "assistant")
       && !turn.tool_calls?.length && turn.content?.trim()
       && !(turn.role === "user" && turn.content.startsWith(handoffPrefix)))
       .map(turn => ({ speakerId: turn.role === "assistant" ? "gm" : "player", text: turn.content! }));
     if (history.at(-1)?.speakerId !== "gm") return;
-    const input = { characterId: "gm", history };
+    const input = { characterId: "gm", history, ...(recentPortraits.length ? { recentPortraits: recentPortraits.slice(-5) as PortraitExpression[] } : {}) };
     try {
       const result = await this.#modelTranscripts.record("conversation_expression", "gm", input,
         () => classifyConversationExpression(this.#jev, input, AbortSignal.timeout(30_000)), undefined, patronName);

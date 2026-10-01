@@ -67,7 +67,7 @@ let saves = [];
 let activeSaveId = null;
 let requestSequence = 0;
 let gameViewGeneration = 0;
-let strangerPortraitState = { generation: -1, key: "", expression: "amused" };
+let strangerPortraitState = { generation: -1, key: "", expression: "amused", history: ["amused"] };
 const playerMessageReceivedAt = new Map();
 
 const gameWorker = new Worker(new URL("./game.worker.ts", import.meta.url), { type: "module" });
@@ -448,12 +448,15 @@ function refreshStrangerPortrait(messages) {
   const key = JSON.stringify(messages);
   if (busy || messages.length < 2 || portrait.key === key) return;
   portrait.key = key;
-  void rpc("stranger_expression").then(({ expression }) => {
+  void rpc("stranger_expression", { recentPortraits: [...portrait.history] }).then(({ expression }) => {
     if (!expression || portrait !== strangerPortraitState || portrait.generation !== gameViewGeneration
       || portrait.key !== key || state?.phase !== "player_creation") return;
-    portrait.expression = expression;
     const image = document.querySelector("[data-stranger-portrait]");
-    if (image) Object.assign(image, strangerPortrait(expression));
+    if (!image) return;
+    const displayed = strangerPortrait(expression);
+    portrait.expression = displayed.expression;
+    portrait.history = [...portrait.history, displayed.expression].slice(-5);
+    Object.assign(image, { src: displayed.src, alt: displayed.alt });
   }).catch(() => {});
 }
 
@@ -464,7 +467,7 @@ function renderCreation() {
     bind(); return;
   }
   if (strangerPortraitState.generation !== gameViewGeneration) {
-    strangerPortraitState = { generation: gameViewGeneration, key: "", expression: "amused" };
+    strangerPortraitState = { generation: gameViewGeneration, key: "", expression: "amused", history: ["amused"] };
   }
   const portrait = strangerPortrait(strangerPortraitState.expression);
   app.innerHTML = shell(`<section class="panel stranger-panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div><button class="character-debug" data-gm-debug>Debug Stranger</button></div><div class="stranger-scene"><img class="stranger-portrait" data-stranger-portrait src="${portrait.src}" alt="${portrait.alt}" width="1254" height="1254"><div class="stranger-conversation"><div class="messages">${messageList(messages, patronName)}</div>${replyOptions(state.gmReplyOptions?.options, "gm", state.gmReplyOptions?.compelled)}${state.gmReplyOptions?.compelled ? `<p class="compelled-hint">A powerful force compels you to respond accordingly</p>` : `<form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Invent your story, answer him, or ask for ideas…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></div></div></section>`);
