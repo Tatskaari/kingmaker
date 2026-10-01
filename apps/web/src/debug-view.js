@@ -15,10 +15,21 @@ const eventFeed = items => card("Events in earshot", list(items, item => {
   return `<span class="debug-meta">Day ${escape(item.day)} · ${escape(item.level)} earshot</span><strong>${escape(item.kind)}</strong><p>${escape(item.summary)}</p>${item.perception && item.perception !== item.summary ? `<h4>Jev perceived</h4><p>${escape(item.perception)}</p>` : ""}${facts([["Observed", item.observed ? "Yes" : "No"], ["Legality", item.legality || "Not specified"], ["Owner", item.ownerName || "Not specified"], ["Jev", decision]])}`;
 }, "No world events have happened within this character's earshot during this loaded session."));
 
-function characterCard(character, name) {
+function objectiveEditor(character) {
+  const objective = character.activeObjective || {};
+  const fields = [["name", "Objective name", objective.name], ["status", "Status and execution plan", objective.status],
+    ["success_criteria", "Success criteria", objective.successCriteria], ["current_goal", "Current goal", character.currentGoal]];
+  return `<details><summary>Override active objective</summary><form data-objective-override="${escape(character.id)}" class="objective-editor">
+    <p>Replace this character's active objective and stop their current run. Use Continue in the NPC activity panel to execute the new plan.</p>
+    ${fields.map(([key, title, value]) => `<label>${title}<textarea name="${key}" rows="${key === "status" ? 4 : 2}" required>${escape(value || "")}</textarea></label>`).join("")}
+    <button type="submit">Save objective override</button><p data-objective-status role="status"></p>
+  </form></details>`;
+}
+
+function characterCard(character, name, editable = true) {
   const objective = character.activeObjective;
   const active = objective ? `<h4>Active objective</h4><p>${escape(objective.name)}</p><h4>Status and execution plan</h4><p>${escape(objective.status)}</p><h4>Success criteria</h4><p>${escape(objective.successCriteria)}</p>` : "";
-  return card(character.name || character.id, `<p class="debug-meta">${escape(character.id)}</p><h4>Dialogue objectives</h4>${list(character.dialogueObjectives, objective => escape(objective), "No dialogue objectives recorded.")}${active}<h4>Current goal</h4><p>${escape(character.currentGoal || "No goal recorded.")}</p><details><summary>Biography and relationships</summary><p>${escape(character.lore || "No biography recorded.")}</p>${list(character.relationships, relationship => `<strong>${escape(name(relationship.characterId))}</strong><p>${escape(relationship.description)}</p>`, "No relationships recorded.")}</details>`);
+  return card(character.name || character.id, `<p class="debug-meta">${escape(character.id)}</p><h4>Dialogue objectives</h4>${list(character.dialogueObjectives, objective => escape(objective), "No dialogue objectives recorded.")}${active}${editable ? objectiveEditor(character) : ""}<h4>Current goal</h4><p>${escape(character.currentGoal || "No goal recorded.")}</p><details><summary>Biography and relationships</summary><p>${escape(character.lore || "No biography recorded.")}</p>${list(character.relationships, relationship => `<strong>${escape(name(relationship.characterId))}</strong><p>${escape(relationship.description)}</p>`, "No relationships recorded.")}</details>`);
 }
 
 function worldCards(world, name) {
@@ -49,7 +60,7 @@ export function debugOverview(type, data) {
     const name = id => scenario.characters?.find(character => character.id === id)?.name || id;
     content = card("Scenario", facts([["ID", scenario.id], ["Characters", scenario.characters?.length ?? 0], ["Notes", scenario.notes?.length ?? 0], ["GM messages", data.gameMasterHistory?.length ?? 0]]) + `<details><summary>Premise</summary><p>${escape(scenario.premise)}</p></details>`)
       + worldCards(scenario.world, name)
-      + (scenario.characters || []).map(character => characterCard(character, name)).join("")
+      + (scenario.characters || []).map(character => characterCard(character, name, character.id !== scenario.playerCharacterId)).join("")
       + notes(scenario.notes)
       + card("Conversations", list(Object.entries(data.conversations || {}), ([id, transcript]) => `<strong>${escape(name(id))}</strong><p>${transcript.length} messages</p>`, "No conversations recorded."));
   }

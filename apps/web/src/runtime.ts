@@ -1561,6 +1561,18 @@ export class BrowserGameRuntime {
     };
   }
 
+  overrideActiveObjective(characterId: string, objective: unknown): void {
+    const scenario = this.#game.scenario();
+    const character = scenario.characters.find(item => item.id === characterId);
+    if (!character || characterId === scenario.playerCharacterId) throw new Error(`Unknown NPC: ${characterId}`);
+    if (!objective || typeof objective !== "object" || Array.isArray(objective)) throw new Error("Objective fields are required.");
+    applyObjectiveChange(character, { ...objective, action: "set", reason: "Manual debug override" });
+    if (scenario.world) scenario.world.revision++;
+    this.#setGame(new MemoryGame(scenario));
+    this.#npcActivities[characterId] = { status: "active", goal: character.currentGoal, history: [] };
+    this.readResources();
+  }
+
   debugCharacter(characterId: string): JsonObject {
     const scenario = this.#game.scenario();
     const character = scenario.characters.find(item => item.id === characterId);

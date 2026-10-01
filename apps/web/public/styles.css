@@ -279,3 +279,7 @@ button.court-character:hover:not(:focus-visible) { border-color: transparent; ba
 .review-sprite { display: block; margin: 20px 8px; transform: scale(1.5); }
 .review-transcript { margin: 24px 0; }
 .review-transcript summary { cursor: pointer; color: var(--gold); }
+
+.objective-editor { display: grid; gap: 12px; margin-top: 12px; }
+.objective-editor label { display: grid; gap: 6px; }
+.objective-editor textarea { width: 100%; box-sizing: border-box; resize: vertical; }

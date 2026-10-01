@@ -575,6 +575,24 @@ function bind() {
       select(event.key === "Home" ? tabs[0] : event.key === "End" ? tabs[2] : tabs[(index + (event.key === "ArrowRight" ? 1 : 2)) % 3]);
     });
   });
+  document.querySelectorAll("[data-objective-override]").forEach(form => form.addEventListener("submit", async event => {
+    event.preventDefault();
+    const button = form.querySelector("button"), status = form.querySelector("[data-objective-status]");
+    if (button.disabled) return;
+    button.disabled = true;
+    status.textContent = "Saving…";
+    const sequence = debugReadSequence, generation = gameViewGeneration;
+    try {
+      const result = await rpc("debug_override_objective", {
+        characterId: form.dataset.objectiveOverride, objective: Object.fromEntries(new FormData(form)),
+      });
+      if (generation !== gameViewGeneration) return;
+      state = result.state; saves = result.saves;
+      if (debugOpen && sequence === debugReadSequence) await openDebug();
+    } catch (error) {
+      status.textContent = error.message;
+    } finally { button.disabled = false; }
+  }));
   document.querySelector("[data-debug-refresh]")?.addEventListener("click", () => openDebug());
   document.querySelectorAll("[data-debug-close]").forEach(button => button.addEventListener("click", () => { debugOpen = false; render(); }));
   const moveIntro = page => { introPage = page; render(); document.querySelector(".introduction")?.focus({ preventScroll: true }); window.scrollTo(0, 0); };
