@@ -1,4 +1,4 @@
-import { buildInterviewCharacter, playerBuildParameter } from "./player-build.js";
+import { buildInterviewCharacter, playerBuildParameter, validatePlayerStats } from "./player-build.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
 import { inventoryOwners, locatedItems, itemsFor, findItem, transferItem } from "../../../packages/core/src/inventory.js";
 import { RECONCILIATION_INSTRUCTIONS, reconciliationTools, applyReconciliationTool } from "./gm-reconciliation.js";
@@ -1554,6 +1554,7 @@ export class BrowserGameRuntime {
       location: world?.rooms.find(room => room.id === world.actors.find(actor => actor.characterId === player?.id)?.roomId)?.name || "Great Hall",
       premise: scenario.premise,
       player: player ? {
+        dnd: player.dnd ? toJson(DndCharacterSchema, player.dnd, { alwaysEmitImplicit: true }) : null,
         id: player.id, name: player.name, gender: player.gender, delegation: player.delegation, sprite: player.sprite, position: world?.actors.find(actor => actor.characterId === player.id)?.position, roomId: world?.actors.find(actor => actor.characterId === player.id)?.roomId, lore: player.lore, currentGoal: player.currentGoal,
         relationships: player.relationships.map(relationship => ({
           characterId: relationship.characterId,
@@ -1615,10 +1616,10 @@ export class BrowserGameRuntime {
     if (!this.#playerDraft) throw new Error("No character is awaiting review.");
     const setup = fromJson(PlayerSetupSchema, draft);
     if (!setup.player) throw new Error("A character is required.");
-    // Review edits biography and identity; keep the validated interview build.
+    // Preserve the assigned gear while allowing prototype stat customisation.
     const assigned = fromJson(PlayerSetupSchema, this.#playerDraft).player;
     if (!assigned?.dnd) throw new Error("The Stranger must assign a build before saving.");
-    setup.player.dnd = assigned.dnd;
+    validatePlayerStats(setup.player.dnd);
     setup.player.inventory = assigned.inventory;
     setup.homeland = text(setup.homeland, "Homeland");
     setup.embassyRole = text(setup.embassyRole, "Role");

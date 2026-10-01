@@ -103,6 +103,7 @@ with the final standard array (15/14/13/12/10/8), average HP, class saving throw
 and basic clothes and a dagger. Bard/rogue builds grant expertise to the first
 two skills. `kingmaker-traveller` is a prototype background package; these are
 not complete rules-legal class sheets (feats, spells and other class features
-remain future work). Review shows the assigned build and preserves it while
-editing identity and biography. Conversation context includes the player's
+remain future work). Review shows the assigned build and allows prototype edits to level, all six
+ability scores (including above 20), and current/maximum HP. Saved stats also
+appear in the right-hand character sheet with ability modifiers. Conversation context includes the player's
 build, but automatic skill-roll adjudication remains separate work.

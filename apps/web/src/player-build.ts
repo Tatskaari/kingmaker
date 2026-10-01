@@ -1,5 +1,5 @@
 import { create } from "@bufbuild/protobuf";
-import { DndCharacterSchema, InventorySchema, ProficiencyKind, ProficiencyRank } from "../../../packages/contracts/src/index.js";
+import { DndCharacterSchema, InventorySchema, ProficiencyKind, ProficiencyRank, type DndCharacter } from "../../../packages/contracts/src/index.js";
 
 const abilities = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"] as const;
 const skills = ["acrobatics", "animal_handling", "arcana", "athletics", "deception", "history", "insight", "intimidation", "investigation", "medicine", "nature", "perception", "performance", "persuasion", "religion", "sleight_of_hand", "stealth", "survival"];
@@ -63,4 +63,18 @@ export function buildInterviewCharacter(input: unknown) {
       { id: "player_dagger", definitionId: "dagger", name: "Dagger", quantity: 1 },
     ] }),
   };
+}
+
+
+export function validatePlayerStats(build: DndCharacter | undefined): void {
+  if (!build?.abilityScores || !build.hitPoints || !build.classes.length) throw new Error("A class, ability scores and HP are required.");
+  const positive = (value: number, label: string) => {
+    if (!Number.isInteger(value) || value < 1 || value > 4294967295) throw new Error(`${label} must be a positive whole number.`);
+  };
+  for (const ability of abilities) positive(build.abilityScores[ability], ability);
+  for (const item of build.classes) positive(item.level, "Level");
+  positive(build.hitPoints.maximum, "Maximum HP");
+  if (!Number.isInteger(build.hitPoints.current) || build.hitPoints.current < 0 || build.hitPoints.current > build.hitPoints.maximum) {
+    throw new Error("Current HP must be between zero and maximum HP.");
+  }
 }

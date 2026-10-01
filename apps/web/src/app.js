@@ -304,13 +304,33 @@ function renderSavePicker() {
   bind();
 }
 
+const abilityNames = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"];
+const statName = value => escapeHtml(value.replaceAll("_", " ").replaceAll("-", " "));
+function playerStats(build, editable = false) {
+  if (!build) return `<section><h3>Stats</h3><p>No stats assigned yet.</p></section>`;
+  const numeric = (label, path, value, min = 1) => `<label>${label}<input type="number" min="${min}" max="4294967295" step="1" required data-review-field="player.dnd.${path}" value="${value ?? min}" ${busy ? "disabled" : ""}></label>`;
+  const classes = (build.classes || []).map((item, index) => editable
+    ? `<p>${statName(item.classId)} · ${statName(item.subclassId || "")}</p>${numeric("Level", `classes.${index}.level`, item.level)}`
+    : `<p>Level ${item.level} ${statName(item.classId)} · ${statName(item.subclassId || "")}</p>`).join("");
+  const scores = abilityNames.map(ability => {
+    const score = build.abilityScores?.[ability] ?? 0;
+    const modifier = Math.floor((score - 10) / 2);
+    return editable ? numeric(statName(ability), `abilityScores.${ability}`, score)
+      : `<div><dt>${statName(ability)}</dt><dd>${score} <small>(${modifier >= 0 ? "+" : ""}${modifier})</small></dd></div>`;
+  }).join("");
+  const hp = editable ? `<div class="ability-grid">${numeric("Current HP", "hitPoints.current", build.hitPoints?.current, 0)}${numeric("Maximum HP", "hitPoints.maximum", build.hitPoints?.maximum)}</div>`
+    : `<p>HP ${build.hitPoints?.current ?? 0} / ${build.hitPoints?.maximum ?? 0}</p>`;
+  const skills = (build.proficiencies || []).filter(item => item.kind === "PROFICIENCY_KIND_SKILL").map(item => `<li>${statName(item.targetId)}${item.rank === "PROFICIENCY_RANK_EXPERTISE" ? " (expertise)" : ""}</li>`).join("");
+  return `<section class="player-stats"><h3>${editable ? "Your starting build" : "Stats"}</h3>${editable ? "<p>Adjust your level, abilities and HP freely for this prototype. Scores above 20 are welcome.</p>" : ""}${classes}${hp}<${editable ? "div" : "dl"} class="ability-grid">${scores}</${editable ? "div" : "dl"}><h4>Skills</h4><ul>${skills || "<li>None recorded</li>"}</ul></section>`;
+}
+
 function characterSheet() {
   const player = state.player;
   const initials = player.name.split(/\s+/).map(part => part[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
   const relationships = player.relationships?.length
     ? player.relationships.map(relationship => `<li><strong>${escapeHtml(relationship.characterName)}</strong><p>${escapeHtml(relationship.description)}</p></li>`).join("")
     : `<li><p>No relationships recorded yet.</p></li>`;
-  return `<div class="sheet-scrim ${sheetOpen ? "open" : ""}" data-sheet-close></div><aside class="character-sheet ${sheetOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Character sheet" aria-hidden="${sheetOpen ? "false" : "true"}"><button class="sheet-close" data-sheet-close aria-label="Close character sheet">×</button><div class="eyebrow">Your character</div><h2>${escapeHtml(player.name)}</h2><div class="sheet-seal">${escapeHtml(initials)}</div><section><p class="character-identity">${escapeHtml(player.gender || "")} · ${escapeHtml(player.delegation || "Visiting emissary")}</p><h3>Biography</h3><p>${escapeHtml(player.lore)}</p></section><section class="goal"><h3>Current goal</h3><p>${escapeHtml(player.currentGoal || "No goal yet.")}</p></section><section><h3>Inventory</h3><ul>${state.inventory?.length ? state.inventory.map(item => `<li>${escapeHtml(item.name)}${item.details ? `<p>${escapeHtml(item.details)}</p>` : ""}</li>`).join("") : "<li>Empty</li>"}</ul></section><section><h3>Relationships</h3><ul class="relationship-list">${relationships}</ul></section></aside>`;
+  return `<div class="sheet-scrim ${sheetOpen ? "open" : ""}" data-sheet-close></div><aside class="character-sheet ${sheetOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Character sheet" aria-hidden="${sheetOpen ? "false" : "true"}"><button class="sheet-close" data-sheet-close aria-label="Close character sheet">×</button><div class="eyebrow">Your character</div><h2>${escapeHtml(player.name)}</h2><div class="sheet-seal">${escapeHtml(initials)}</div><section><p class="character-identity">${escapeHtml(player.gender || "")} · ${escapeHtml(player.delegation || "Visiting emissary")}</p><h3>Biography</h3><p>${escapeHtml(player.lore)}</p></section>${playerStats(player.dnd)}<section class="goal"><h3>Current goal</h3><p>${escapeHtml(player.currentGoal || "No goal yet.")}</p></section><section><h3>Inventory</h3><ul>${state.inventory?.length ? state.inventory.map(item => `<li>${escapeHtml(item.name)}${item.details ? `<p>${escapeHtml(item.details)}</p>` : ""}</li>`).join("") : "<li>Empty</li>"}</ul></section><section><h3>Relationships</h3><ul class="relationship-list">${relationships}</ul></section></aside>`;
 }
 
 function debugInspector() {
@@ -388,8 +408,7 @@ function renderCharacterReview() {
   const identityFields = reviewDraft.player.delegation
     ? `${field("Gender", "player.gender", reviewDraft.player.gender)}<label>Delegation<select data-review-field="player.delegation" ${busy ? "disabled" : ""}>${delegations.map(item => `<option value="${item.id}" ${reviewDraft.player.delegation === item.id ? "selected" : ""}>${item.id}</option>`).join("")}</select></label><label>Character sprite<select data-review-field="player.sprite" ${busy ? "disabled" : ""}>${characterSprites.map((sprite, index) => `<option value="${sprite}" ${reviewDraft.player.sprite === sprite ? "selected" : ""}>Traveller ${index + 1}</option>`).join("")}</select></label><span class="court-sprite review-sprite" aria-label="Selected character sprite" style="background-position:${-(reviewDraft.player.sprite % 12) * 32}px ${-Math.floor(reviewDraft.player.sprite / 12) * 32}px"></span>`
     : field("Homeland", "homeland", reviewDraft.homeland);
-  const build = reviewDraft.player.dnd;
-  const buildSummary = build ? `<h3>Your starting build</h3><p>Level 3 ${escapeHtml(build.classes[0].classId)} · ${escapeHtml(build.classes[0].subclassId)} · ${build.hitPoints.maximum} HP</p><p>${Object.entries(build.abilityScores).map(([ability, score]) => `${escapeHtml(ability)}: ${score}`).join(" · ")}</p><p>Skills: ${build.proficiencies.filter(item => item.kind === "PROFICIENCY_KIND_SKILL").map(item => `${escapeHtml(item.targetId.replaceAll("_", " "))}${item.rank === "PROFICIENCY_RANK_EXPERTISE" ? " (expertise)" : ""}`).join(", ")}</p>` : "";
+  const buildSummary = playerStats(reviewDraft.player.dnd, true);
   const transcript = (state.gmMessages || []).filter(message => !(message.role === "user" && message.text.startsWith(handoffPrefix)));
   app.innerHTML = shell(`<section class="panel character-review"><div class="eyebrow">Before you enter Caerwyn</div><h2>Review your character</h2><p>Review what you and the Stranger established. Correct any details before saving your character and entering court.</p><details class="review-transcript"><summary>Conversation with the Stranger</summary><div class="messages">${messageList(transcript, patronName)}</div></details><form data-review-form>${field("Name", "player.name", reviewDraft.player.name)}${identityFields}${field("Role", "embassyRole", reviewDraft.embassyRole)}${field("Biography", "player.lore", reviewDraft.player.lore, true)}${field("Personal goal", "player.currentGoal", reviewDraft.player.currentGoal, true)}${buildSummary}<h3>Relationships</h3>${reviewDraft.player.relationships.map((item, index) => field(`Your view of ${escapeHtml(state.characters.find(character => character.id === item.characterId)?.name || item.characterId)}`, `player.relationships.${index}.description`, item.description, true)).join("")}<h3>Initial impressions of you</h3>${reviewDraft.npcRelationships.map((item, index) => field(escapeHtml(state.characters.find(character => character.id === item.ownerCharacterId)?.name || item.ownerCharacterId), `npcRelationships.${index}.relationship.description`, item.relationship.description, true)).join("")}<button class="primary" ${busy ? "disabled" : ""}>Save character and enter court</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
   bind();
@@ -652,7 +671,7 @@ function bind() {
     const path = input.dataset.reviewField.split(".");
     let owner = reviewDraft;
     for (const key of path.slice(0, -1)) owner = owner[key];
-    owner[path.at(-1)] = input.dataset.reviewField === "player.sprite" ? Number(input.value) : input.value;
+    owner[path.at(-1)] = input.type === "number" || input.dataset.reviewField === "player.sprite" ? (input.value === "" ? null : Number(input.value)) : input.value;
     if (input.dataset.reviewField === "player.sprite") {
       const preview = document.querySelector(".review-sprite");
       if (preview) preview.style.backgroundPosition = `${-(Number(input.value) % 12) * 32}px ${-Math.floor(Number(input.value) / 12) * 32}px`;
