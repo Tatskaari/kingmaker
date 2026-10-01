@@ -11,7 +11,7 @@ test("overall debug exposes drill-downs instead of every character's private det
   const overview = debugOverview("debug", data);
   assert.match(overview, /data-debug-section="activity"/);
   assert.match(overview, /data-debug-section="characters"/);
-  assert.doesNotMatch(overview, /Secret goal/);
+  assert.doesNotMatch(overview, /Secret goal|Laughing Stranger|data-gm-debug/);
   const characters = debugOverview("debug", data, "characters");
   assert.match(characters, /data-debug-character="corvin"/);
   assert.match(characters, /&lt;Corvin&gt;/);

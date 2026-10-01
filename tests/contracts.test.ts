@@ -3,6 +3,7 @@ import { locatedItems } from "../packages/core/src/inventory.js";
 import { applyFixtureAction, fixtureActions } from "../packages/core/src/fixtures.js";
 import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
 import { GM_BASE_PROMPT } from "../apps/web/src/gm-prompt.js";
+import { coalescedRefresh } from "../apps/web/src/debug-live.js";
 import { AlertLog } from "../apps/web/src/alerts.js";
 import { courtAgentObservation } from "../apps/web/src/court-agent.js";
 import { doorActionLegality } from "../packages/core/src/access.js";
@@ -2426,7 +2427,7 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
   let endDialogue!: () => void;
   let finishDice!: (completed: boolean) => void;
   const context = createContext({
-    URL, AlertLog, installDicePreview() {}, showDiceRoll: () => new Promise<boolean>(resolve => { finishDice = resolve; }), window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
+    URL, AlertLog, coalescedRefresh, installDicePreview() {}, showDiceRoll: () => new Promise<boolean>(resolve => { finishDice = resolve; }), window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
     document: {
       querySelector: (selector: string) => selector === "[data-end-conversation]"
         ? { addEventListener: (_type: string, callback: () => void) => { endDialogue = callback; } } : null,
@@ -2513,7 +2514,7 @@ test("dialogue composer sends on Enter and submits a final response with the lea
   };
   const sent: any[] = [];
   const context = createContext({
-    URL, AlertLog, installDicePreview() {}, window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
+    URL, AlertLog, coalescedRefresh, installDicePreview() {}, window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
     FormData: class { get() { return "Farewell."; } },
     document: {
       querySelector: (selector: string) => selector === "[data-talk-form]" ? form : null,
