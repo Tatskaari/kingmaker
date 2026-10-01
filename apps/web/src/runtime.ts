@@ -1312,7 +1312,7 @@ export class BrowserGameRuntime {
     })]);
     this.#conversationEndRequested[characterId] = false;
     this.#conversationReplyOptions[characterId] = replyOptions;
-    (activity!.actionIds ??= []).push(action.id);
+    (activity!.actionIds ??= []).push(actionId);
     return utterance;
   }
 
