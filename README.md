@@ -61,6 +61,44 @@ exchanges with low reasoning. Settings live in
 `openai/gpt-6-luna`.
 Jev selects from currently reachable actions.
 
+The action-execution Jev experiment is configured in `apps/web/src/feature-flags.ts`:
+
+- `ROOM_SCOPED_JEV = true` sends the readable room/action text as Jev's actual
+  `state`. It defaults to `false` to retain the legacy baseline.
+- `JEV_ACTION_CONTEXT_LEVEL = 1`: world text and the full active objective
+  (name, status, success criteria, current task).
+- Level `2` adds biography and full parked objectives.
+- Level `3` also adds relationships and character-visible notes.
+- `JEV_ACTION_INCLUDE_RECENT_RESULTS = true` includes the exact completed action
+  IDs, one per line, in every tier. It defaults to `true`; disable it for ablation evals.
+
+The input is ordered: who you are (including selected character context), current
+objective, world state, action log. The log is chronological and starts with
+`None yet.`. It records completed actions, not rejected plans or walking ticks,
+and is scoped to the current activity. Older saves without action IDs start an
+empty log; existing prose history remains available to the legacy planner.
+
+The text includes room connections, actions to enter adjacent rooms, local
+interactions with action IDs and walking distances, known contents, inventory,
+blocked exits, and illegal-action labels. Paths and generation guards remain in
+the engine. No scenario premise or hidden character context is appended. The API
+still receives the short execution instructions and selectable choice criteria.
+Event-reaction Jev, dialogue, and GM context are unaffected by these settings.
+
+Evals can override both settings per runtime:
+`new BrowserGameRuntime(scenario, key, snapshot, undefined, undefined, Math.random, true, { level: 1, includeRecentResults: true })`.
+Pass `false` as the seventh argument for the legacy baseline. Configuration follows
+runtime forks and is not saved as game state. The debug inspector displays the
+same text `state` supplied to the action planner.
+
+Render all three tiers through the production action-planning path without an
+API key or model call:
+`proto run node -- node_modules/tsx/dist/cli.mjs scripts/render-jev-contexts.ts /tmp/kingmaker-jev-contexts king`.
+This writes court-arrival and authored-initial examples. Each `*-state.txt` is the
+exact text sent in `state`; `*-request.txt` also includes every execution
+instruction and selectable choice. Action logs are enabled and initially empty in these
+samples, and the output README records the activation/placement assumptions.
+
 The debug inspector shows world state, character context and recent transcripts:
 requests, responses, summaries, duration and errors for the latest 50 calls.
 These logs survive rollback but are not saved across reloads. NPC conversations

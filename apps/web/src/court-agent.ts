@@ -5,6 +5,7 @@ import { doorActionLegality } from "../../../packages/core/src/access.js";
 import { courtPath, courtRoomAt, courtInteractionPoint } from "./court-map.js";
 import { palaceNodes } from "./palace-navigation.js";
 import type { Point } from "./navigation.js";
+import { roomAgentActions } from "./room-actions.js";
 
 export interface CourtAgentAction {
   id: string; type: "move" | "door" | "fixture" | "talk"; target: string;
@@ -24,7 +25,7 @@ export function actionResourceIds(scenario: Scenario, characterId: string, actio
   return [...new Set(keys)];
 }
 
-export function courtAgentObservation(scenario: Scenario, characterId: string) {
+function palaceAgentActions(scenario: Scenario, characterId: string): CourtAgentAction[] {
   const character = scenario.characters.find(item => item.id === characterId);
   const world = scenario.world, actor = world?.actors.find(item => item.characterId === characterId);
   if (!character || !world || !actor?.position || characterId === scenario.playerCharacterId) throw new Error("NPC is not placed in the palace.");
@@ -71,6 +72,15 @@ export function courtAgentObservation(scenario: Scenario, characterId: string) {
     if (path) actions.push({ id: `talk_${other.characterId}`, type: "talk", target: other.characterId, path,
       description: `Walk ${path.length - 1} steps to ${target.name} and initiate a conversation about your immediate goal. They may agree, refuse, or propose conditions; talking cannot transfer items or move them.` });
   }
+  return actions;
+}
+
+export function courtAgentObservation(scenario: Scenario, characterId: string, roomScoped = false, continuingActionId?: string) {
+  const character = scenario.characters.find(item => item.id === characterId);
+  const world = scenario.world, actor = world?.actors.find(item => item.characterId === characterId);
+  if (!character || !world || !actor?.position || characterId === scenario.playerCharacterId) throw new Error("NPC is not placed in the palace.");
+  const start = actor.position;
+  const actions = roomScoped ? roomAgentActions(scenario, characterId, continuingActionId) : palaceAgentActions(scenario, characterId);
   const known = worldForCharacter(world, characterId);
   return {
     revision: world.revision, goal: character.currentGoal, characterContext: characterDecisionContext(scenario, characterId, character.currentGoal),

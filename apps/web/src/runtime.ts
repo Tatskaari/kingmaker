@@ -11,7 +11,9 @@ import { GM_BASE_PROMPT, GM_ADJUDICATION_GUIDANCE, withGmBasePrompt } from "./gm
 import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
 import { courtAgentObservation, actionResourceIds } from "./court-agent.js";
 import { courtCharactersWithinEarshot, dialogueEarshotPrompt, perceivesAt, type EarshotCharacter } from "./earshot.js";
-import { COURT_INSTRUCTIONS } from "./court-instructions.js";
+import { COURT_INSTRUCTIONS, ROOM_COURT_INSTRUCTIONS } from "./court-instructions.js";
+import { ROOM_SCOPED_JEV } from "./feature-flags.js";
+import { renderJevActionState, type JevActionContextOptions } from "./jev-room-view.js";
 import { JevClient, jevRequest } from "../../../packages/providers/src/jev.js";
 import { applyFixtureAction, fixtureActions } from "../../../packages/core/src/fixtures.js";
 import { IMMEDIATE_GOAL_DESCRIPTION } from "../../../packages/core/src/goal-guidance.js";
@@ -42,6 +44,8 @@ export interface NpcActivity {
   status: "idle" | "active";
   goal: string;
   history: string[];
+  /** Exact completed action IDs for the text planner; older saves may omit these. */
+  actionIds?: string[];
   result?: { reason: "complete" | "unable" | "wait" | "error" | "limit" | "cancelled"; detail: string };
   reviewPending?: boolean;
 }
@@ -334,7 +338,7 @@ export class BrowserGameRuntime {
   #conversationRuns = new Map<string, string>();
   #eventPerceptions: Record<string, EventPerceptionTrace[]> = {};
 
-  constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot, transcriptsChanged: () => void = () => {}, onWarning: (message: string) => void = () => {}, random: () => number = Math.random) {
+  constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot, transcriptsChanged: () => void = () => {}, onWarning: (message: string) => void = () => {}, random: () => number = Math.random, readonly roomScopedJev: boolean = ROOM_SCOPED_JEV, readonly jevActionContext: JevActionContextOptions = {}) {
     this.#initialScenario = fromJson(ScenarioSchema, toJson(ScenarioSchema, scenario));
     ensureNpcActiveObjectives(this.#initialScenario);
     this.#game = new MemoryGame(this.#initialScenario);
@@ -832,7 +836,7 @@ export class BrowserGameRuntime {
     const activity = this.#npcActivities[characterId];
     if (activity?.status !== "active" || activity.reviewPending) throw new Error("This NPC is idle; the LLM must assign a task first.");
     if (activity.history.length >= 24) throw new Error("NPC action limit reached.");
-    const observation = courtAgentObservation(scenario, characterId);
+    const observation = courtAgentObservation(scenario, characterId, this.roomScopedJev);
     observation.actions = observation.actions.filter(action => action.type !== "talk" || (
       !this.#conversations.get(action.target)?.length
       && !this.#npcActivities[action.target]?.reviewPending
@@ -844,8 +848,10 @@ export class BrowserGameRuntime {
       unable: "No available action can make progress, or essential clarification is needed." };
     const keys = [...new Set([...actionResourceIds(scenario, characterId), ...observation.actions.flatMap(action => actionResourceIds(scenario, characterId, action))])];
     const generations = generationIds(this.readResources(keys));
-    const state = { ...observation, generations, previousWriteConflict, actions: observation.actions.map(({ path, ...action }) => action), recentActions: activity.history };
-    const instructions = { ...COURT_INSTRUCTIONS, legality: "Actions are mechanically possible. Those marked illegal violate ownership or room access; weigh them against your character's intentions. Reaching a requested room completes the travel, but waiting there for another character to act requires the wait choice. Use offered talk actions to initiate a conversation with the player or make requests of other NPCs. You cannot force agreement or speak for the player." };
+    const state = this.roomScopedJev
+      ? renderJevActionState(scenario, observation, activity.actionIds ?? [], this.jevActionContext)
+      : { ...observation, generations, previousWriteConflict, actions: observation.actions.map(({ path, ...action }) => action), recentActions: activity.history };
+    const instructions = this.roomScopedJev ? ROOM_COURT_INSTRUCTIONS : { ...COURT_INSTRUCTIONS, legality: "Actions are mechanically possible. Those marked illegal violate ownership or room access; weigh them against your character's intentions. Reaching a requested room completes the travel, but waiting there for another character to act requires the wait choice. Use offered talk actions to initiate a conversation with the player or make requests of other NPCs. You cannot force agreement or speak for the player." };
     const decision = await this.#modelTranscripts.record("jev", characterId, jevRequest(state, instructions, criteria), () => this.#jev.choose(state, instructions, criteria, signal), undefined, this.#characterName(characterId));
     const action = observation.actions.find(action => action.id === decision.choice);
     return { decision, revision: observation.revision, goal: observation.goal, action, observation,
@@ -956,7 +962,7 @@ export class BrowserGameRuntime {
 
   /** Model work happens on a snapshot; only a validated merge touches the live game. */
   forkForNpc(): BrowserGameRuntime {
-    const fork = new BrowserGameRuntime(this.#initialScenario, "", this.snapshot(), undefined, undefined, this.#random);
+    const fork = new BrowserGameRuntime(this.#initialScenario, "", this.snapshot(), undefined, undefined, this.#random, this.roomScopedJev, this.jevActionContext);
     fork.#client = this.#client; fork.#jev = this.#jev; fork.#modelTranscripts = this.#modelTranscripts;
     fork.#conversationRuns = this.#conversationRuns;
     return fork;
@@ -1176,7 +1182,7 @@ export class BrowserGameRuntime {
   stepNpcAction(characterId: string, actionId: string, goal: string, expected?: ExpectedGenerations): { done: boolean; talkTarget?: string; worldEvent?: Event; generations: ExpectedGenerations } {
     const scenario = this.#game.scenario(), activity = this.#npcActivities[characterId];
     if (activity?.status !== "active" || activity.reviewPending || this.#conversations.get(characterId)?.length) throw new Error("NPC paused for conversation.");
-    const observation = courtAgentObservation(scenario, characterId);
+    const observation = courtAgentObservation(scenario, characterId, this.roomScopedJev, actionId);
     const action = observation.actions.find(item => item.id === actionId);
     const keys = actionResourceIds(scenario, characterId, action);
     if (expected) this.#generations.check(this.#resources(), expected, keys);
@@ -1203,7 +1209,7 @@ export class BrowserGameRuntime {
     const activity = this.#npcActivities[characterId];
     if (activity?.status !== "active" || activity.reviewPending || activity.history.length >= 24) throw new Error("NPC is not accepting actions.");
     if (world.phase !== GamePhase.CONVERSATIONS || world.revision !== revision || this.#conversations.get(characterId)?.length) throw new Error("World changed; replan before acting.");
-    const observation = courtAgentObservation(scenario, characterId);
+    const observation = courtAgentObservation(scenario, characterId, this.roomScopedJev, actionId);
     if (observation.goal !== goal) throw new Error("Goal changed; replan before acting.");
     const action = observation.actions.find(item => item.id === actionId);
     if (!action) throw new Error("That NPC action is no longer available.");
@@ -1218,13 +1224,14 @@ export class BrowserGameRuntime {
     if (action.type === "fixture") message = applyFixtureAction(scenario, characterId, action.id);
     world.revision++; this.#setGame(new MemoryGame(scenario));
     activity.history.push(message);
+    (activity.actionIds ??= []).push(action.id);
     return message;
   }
 
   async executeNpcTalk(characterId: string, actionId: string, revision: number, goal: string, signal: AbortSignal): Promise<string> {
     const scenario = this.#game.scenario(), world = scenario.world!;
     const activity = this.#npcActivities[characterId];
-    const action = courtAgentObservation(scenario, characterId).actions.find(item => item.id === actionId && item.type === "talk");
+    const action = courtAgentObservation(scenario, characterId, this.roomScopedJev).actions.find(item => item.id === actionId && item.type === "talk");
     const valid = () => {
       signal.throwIfAborted();
       if (!action || this.#game.scenario().world?.revision !== revision || world.phase !== GamePhase.CONVERSATIONS
@@ -1263,13 +1270,17 @@ export class BrowserGameRuntime {
           surroundings: courtAgentObservation(scenario, characterId).world }) }],
     }, signal);
     valid();
-    return text(this.#liveReview ? resolution.content : this.#applyReview(scenario), "summary");
+    const summary = text(this.#liveReview ? resolution.content : this.#applyReview(scenario), "summary");
+    const recordAction = (host: BrowserGameRuntime) => { (host.#npcActivities[characterId]!.actionIds ??= []).push(action.id); };
+    if (this.#liveReview) await this.#liveReview.commit(() => recordAction(this.#liveReview!.host));
+    else recordAction(this);
+    return summary;
   }
 
   async initiatePlayerConversation(characterId: string, actionId: string, revision: number, goal: string, signal: AbortSignal): Promise<string> {
     const scenario = this.#game.scenario(), world = scenario.world!;
     const activity = this.#npcActivities[characterId];
-    const action = courtAgentObservation(scenario, characterId).actions.find(item => item.id === actionId && item.type === "talk");
+    const action = courtAgentObservation(scenario, characterId, this.roomScopedJev).actions.find(item => item.id === actionId && item.type === "talk");
     const valid = () => {
       signal.throwIfAborted();
       if (!action || action.target !== scenario.playerCharacterId || action.path.length > 2 || this.#game.scenario().world?.revision !== revision
@@ -1301,6 +1312,7 @@ export class BrowserGameRuntime {
     })]);
     this.#conversationEndRequested[characterId] = false;
     this.#conversationReplyOptions[characterId] = replyOptions;
+    (activity!.actionIds ??= []).push(actionId);
     return utterance;
   }
 
