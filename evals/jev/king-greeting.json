@@ -1,0 +1,13 @@
+{
+  "name": "king-greeting",
+  "transcript": [
+    {
+      "type": "character_conversation_sys_prompt",
+      "character": "../characters/king.json"
+    },
+    {
+      "type": "user_message",
+      "value": "Good evening, Your Majesty."
+    }
+  ]
+}

@@ -399,3 +399,27 @@ This is trusted local code execution, not a sandbox. The socket is user-only
 (mode 0600); do not expose it to untrusted clients. Only explicit requests advance
 the game: browser background NPC scheduling and automatic event reactions are
 not started by this console.
+
+### Conversation dice-check evals
+
+`npm run eval:checks -- --preview` renders scenario-backed character inputs to
+`eval-output/jev-conversation-checks` without an API key or model calls. The
+starter cases use Aldren from `last-night.json` via `evals/characters/king.json`,
+including his actual lore, notes, objectives, world context, and nearby listeners.
+They reuse the dialogue eval's `character_conversation_sys_prompt` builder.
+
+To create a case, copy `evals/jev/king-threat.json`, select a character fixture
+(`scenario`, `character`, `within_earshot`), and author conversation steps using
+`user_message` and `assistant_message`. The final user message is the current
+attempt; preceding turns are history. Character facts come from the scenario.
+The starter cases have no expected labels: review them before deciding which
+checks belong. Set `"expected": []` for no roll, or e.g.
+`"expected": ["intimidation"]` for an agreed skill set. Omitted labels remain
+REVIEW results and never count as passing or failing accuracy measurements.
+
+`OPENROUTER_API_KEY=... npm run eval:checks` runs the two starter cases. Pass JSON
+paths to run other cases. Runs repeat three times; override with
+`JEV_EVAL_REPEATS`. Artifacts retain rendered inputs, requests, decisions, labels,
+and errors after every run; set `JEV_EVAL_OUTPUT_DIR` to change their location.
+Labeled cases report exact skills, roll/no-roll accuracy, precision, and recall.
+Any mismatch or provider error exits nonzero. Labels are never sent to Jev.
