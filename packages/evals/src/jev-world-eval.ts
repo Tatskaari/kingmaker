@@ -5,23 +5,35 @@ import { ActiveObjectiveSchema, ScenarioSchema, type Scenario } from "../../cont
 import type { ModelTranscript } from "../../../apps/web/src/model-transcripts.js";
 import { BrowserGameRuntime, type RuntimeSnapshot } from "../../../apps/web/src/runtime.js";
 
-export interface JevEvalAssessment { success: boolean; reason?: string }
+export interface JevEvalMilestone { name: string; points: number; achieved: boolean }
+export interface JevEvalAssessment { success: boolean; reason?: string; milestones?: JevEvalMilestone[] }
+export function scoreJevAssessment(assessment: JevEvalAssessment) {
+  const milestones = assessment.milestones ?? [{ name: "Complete scenario", points: 1, achieved: assessment.success }];
+  if (!milestones.length || milestones.some(item => !Number.isFinite(item.points) || item.points <= 0)) {
+    throw new Error("Eval milestones require positive finite points.");
+  }
+  const maxScore = milestones.reduce((sum, item) => sum + item.points, 0);
+  const score = milestones.reduce((sum, item) => sum + (item.achieved ? item.points : 0), 0);
+  return { milestones, score, maxScore, scoreRate: score / maxScore };
+}
 export interface JevTalkCall { characterId: string; targetId: string; actionId: string; goal: string; turn: number }
 export interface JevWorldEvalScenario {
   name: string; characterId: string; goal: string; repeats?: number; maxTurns?: number;
   objective?: { name: string; status: string; successCriteria: string };
   createRuntime(apiKey: string): BrowserGameRuntime;
   mockTalk?: (call: JevTalkCall) => string;
-  evaluate(result: { scenario: Scenario; terminalChoice: string; talkCalls: JevTalkCall[] }): JevEvalAssessment;
+  evaluate(result: { scenario: Scenario; terminalChoice: string; talkCalls: JevTalkCall[]; completedActionIds?: string[] }): JevEvalAssessment;
 }
 export interface JevEvalTraceEntry { turn: number; choice: string; action?: string; confidence?: number }
 export interface JevEvalRun extends JevEvalAssessment {
+  score: number; maxScore: number; scoreRate: number;
   turns: number; terminalChoice: string; trace: JevEvalTraceEntry[]; transcripts: ModelTranscript[];
   finalSnapshot: RuntimeSnapshot; talkCalls: JevTalkCall[]; minimal?: boolean; error?: string;
 }
 export interface JevEvalSummary {
   name: string; runs: JevEvalRun[]; successes: number; failures: number; successRate: number;
   averageSuccessTurns?: number; averageFailureTurns?: number;
+  score: number; maxScore: number; scoreRate: number;
 }
 
 function activateGoal(runtime: BrowserGameRuntime, definition: JevWorldEvalScenario): void {
@@ -90,11 +102,13 @@ export async function runJevEvalOnce(definition: JevWorldEvalScenario, apiKey: s
   const finalSnapshot = runtime.snapshot(), scenario = fromJson(ScenarioSchema, finalSnapshot.scenario);
   let assessment: JevEvalAssessment;
   try {
-    assessment = error ? { success: false, reason: error } : definition.evaluate({ scenario, terminalChoice, talkCalls });
+    assessment = definition.evaluate({ scenario, terminalChoice, talkCalls,
+      completedActionIds: finalSnapshot.npcActivities?.[definition.characterId]?.actionIds ?? [] });
+    if (error) assessment = { ...assessment, success: false, reason: error };
   } catch (cause) {
     assessment = { success: false, reason: cause instanceof Error ? cause.message : String(cause) };
   }
-  return { ...assessment, turns: trace.length, terminalChoice, trace, talkCalls, minimal,
+  return { ...assessment, ...scoreJevAssessment(assessment), turns: trace.length, terminalChoice, trace, talkCalls, minimal,
     transcripts: runtime.recentTranscripts().filter(entry => entry.kind === "jev").reverse(), finalSnapshot,
     ...(error === undefined ? {} : { error }) };
 }
@@ -104,7 +118,9 @@ function mean(values: number[]): number | undefined {
 }
 export function summarizeJevEval(name: string, runs: JevEvalRun[]): JevEvalSummary {
   const successful = runs.filter(run => run.success), failed = runs.filter(run => !run.success);
+  const score = runs.reduce((sum, run) => sum + run.score, 0), maxScore = runs.reduce((sum, run) => sum + run.maxScore, 0);
   return { name, runs, successes: successful.length, failures: failed.length,
+    score, maxScore, scoreRate: maxScore ? score / maxScore : 0,
     successRate: runs.length ? successful.length / runs.length : 0,
     ...(successful.length ? { averageSuccessTurns: mean(successful.map(run => run.turns))! } : {}),
     ...(failed.length ? { averageFailureTurns: mean(failed.map(run => run.turns))! } : {}) };
@@ -129,6 +145,7 @@ export function writeJevEvalArtifact(outputDirectory: string, startedAt: Date, d
   writeFileSync(path, JSON.stringify({ recordedAt: new Date().toISOString(),
     scenario: { name: definition.name, characterId: definition.characterId, goal: definition.goal }, run: runNumber,
     minimal: run.minimal ?? false,
+    score: run.score, maxScore: run.maxScore, scoreRate: run.scoreRate, milestones: run.milestones,
     success: run.success, turns: run.turns, terminalChoice: run.terminalChoice, reason: run.reason, error: run.error,
     trace: run.trace, talkCalls: run.talkCalls, transcripts: run.transcripts, finalSnapshot: run.finalSnapshot }, null, 2) + "\n");
   return path;

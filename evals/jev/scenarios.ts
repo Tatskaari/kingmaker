@@ -41,7 +41,8 @@ export const inviteGuests: JevWorldEvalScenario = {
   evaluate({ talkCalls }) {
     const contacted = new Set(talkCalls.filter(call => call.characterId === "king").map(call => call.targetId));
     const missing = guestIds.filter(id => !contacted.has(id));
-    return missing.length ? { success: false, reason: `Guests not contacted: ${missing.join(", ")}.` } : { success: true };
+    return { success: !missing.length, ...(missing.length ? { reason: `Guests not contacted: ${missing.join(", ")}.` } : {}),
+      milestones: guestIds.map(id => ({ name: `Ask ${id}`, points: 1, achieved: contacted.has(id) })) };
   },
 };
 
@@ -69,8 +70,25 @@ export const royalSeal: JevWorldEvalScenario = {
   },
   repeats: 10, maxTurns: 24,
   createRuntime: apiKey => new BrowserGameRuntime(courtAtDayOne(), apiKey),
-  evaluate({ scenario, talkCalls }) {
+  evaluate({ scenario, talkCalls, completedActionIds = [] }) {
     const world = scenario.world!;
+    const did = (id: string) => completedActionIds.includes(id);
+    const hasSeal = world.objects.some(item => item.id === "palace_royal_seal" && item.locationId === "king");
+    const openedLockbox = did("open_palace_coffer_03");
+    const outside = (roomId: string) => world.actors.find(actor => actor.characterId === "king")?.roomId !== roomId;
+    const closedDoor = (id: string, roomId: string) => completedActionIds.some(action => action.startsWith(`open_${id}_`))
+      && world.doors.some(door => door.id === id && !door.open) && outside(roomId);
+    const milestones = [
+      { name: "Get the spare key", points: 2, achieved: did("take_palace_royal_key") },
+      { name: "Use the key to open the lockbox", points: 2, achieved: openedLockbox },
+      { name: "Collect the royal seal", points: 2, achieved: hasSeal },
+      { name: "Close Corvin's door behind you", points: 1, achieved: closedDoor("corvin_door", "corvin_chamber") },
+      { name: "Close the lockbox after collecting the seal", points: 1,
+        achieved: openedLockbox && hasSeal && world.fixtures.some(fixture => fixture.id === "palace_coffer_03" && !fixture.open) },
+      { name: "Close the royal door behind you", points: 1, achieved: closedDoor("royal_door", "royal_bedchamber") },
+      { name: "Reach Rowan with the seal", points: 2,
+        achieved: hasSeal && talkCalls.some(call => call.characterId === "king" && call.targetId === "rowan") },
+    ];
     const failures: string[] = [];
     if (!talkCalls.some(call => call.characterId === "king" && call.targetId === "rowan")) failures.push("The king did not talk to Rowan");
     if (world.objects.find(item => item.id === "palace_royal_seal")?.locationId !== "king") failures.push("The king is not carrying the royal seal");
@@ -78,7 +96,7 @@ export const royalSeal: JevWorldEvalScenario = {
     for (const id of ["corvin_door", "royal_door"]) {
       if (world.doors.find(door => door.id === id)?.open !== false) failures.push(`${id} is not closed`);
     }
-    return failures.length ? { success: false, reason: failures.join("; ") + "." } : { success: true };
+    return { success: !failures.length, milestones, ...(failures.length ? { reason: failures.join("; ") + "." } : {}) };
   },
 };
 export const jevWorldEvalScenarios = [treasury, inviteGuests, silkScarf, royalSeal];

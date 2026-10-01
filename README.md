@@ -144,6 +144,17 @@ level 1 (scene plus active objective) and the completed action log enabled:
 `npm run eval:jev -- "royal seal" --minimal`. Artifacts record `minimal: true`.
 This uses per-runtime overrides and does not change the game's default flags.
 
+Runs also report earned/possible points, a percentage, and a milestone breakdown,
+saved with each transcript. The repeated-run score is total earned points divided
+by total possible points; full-success rate and turn averages remain separate.
+The royal-seal rubric is 11 points: 2 each for retrieving the key, opening the
+lockbox, collecting the seal, and reaching Rowan with it; 1 each for closing
+Corvin's door behind you, closing the lockbox after collecting the seal, and
+closing the royal door behind you. Completed-action IDs establish retrieval and
+opening; final state establishes retained items and closures. Untouched closed
+doors earn no points. Guest invitations earn one point per distinct guest.
+Scenarios without milestones retain a one-point completion score.
+
 ## Reset while developing
 
 With a loaded character, use the browser console:

@@ -3,6 +3,8 @@ import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
+import { fromJson } from "@bufbuild/protobuf";
+import { ScenarioSchema } from "../packages/contracts/src/index.js";
 import { JevClient } from "../packages/providers/src/jev.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 import { guestIds, inviteGuests, silkScarf, royalSeal } from "../evals/jev/scenarios.js";
@@ -10,12 +12,14 @@ import {
   artifactFileName,
   runJevEvalOnce,
   summarizeJevEval,
+  scoreJevAssessment,
   writeJevEvalArtifact,
   type JevEvalRun,
   type JevWorldEvalScenario,
 } from "../packages/evals/src/jev-world-eval.js";
 
 const run = (success: boolean, turns: number): JevEvalRun => ({ success, turns,
+  ...scoreJevAssessment({ success }),
   terminalChoice: success ? "complete" : "unable", trace: [], transcripts: [], talkCalls: [],
   finalSnapshot: { scenario: {}, gameMasterHistory: [], conversations: {} },
   ...(success ? {} : { reason: "The requested world state was not reached." }) });
@@ -23,6 +27,25 @@ test("Jev eval summaries separate successful and failed turn counts", () => {
   const summary = summarizeJevEval("Treasury", [run(true, 4), run(false, 12), run(true, 6), run(false, 16)]);
   assert.equal(summary.successes, 2); assert.equal(summary.failures, 2); assert.equal(summary.successRate, 0.5);
   assert.equal(summary.averageSuccessTurns, 5); assert.equal(summary.averageFailureTurns, 14);
+});
+
+test("royal seal milestones award progress without credit for untouched closures", () => {
+  const scenario = fromJson(ScenarioSchema, royalSeal.createRuntime("test").snapshot().scenario);
+  const assess = (completedActionIds: string[]) => scoreJevAssessment(royalSeal.evaluate({
+    scenario, completedActionIds, terminalChoice: "limit", talkCalls: [],
+  }));
+  assert.equal(assess([]).score, 0);
+  assert.equal(assess(["take_palace_royal_key"]).score, 2);
+  const opened = assess(["take_palace_royal_key", "open_palace_coffer_03"]);
+  assert.equal(opened.score, 4);
+  assert.equal(opened.maxScore, 11);
+  scenario.world!.objects.find(item => item.id === "palace_royal_seal")!.locationId = "king";
+  assert.equal(assess(["take_palace_royal_key", "open_palace_coffer_03"]).score, 7);
+  const summary = summarizeJevEval("Progress", [{ ...run(false, 12), ...opened }, { ...run(false, 24), ...assess([]) }]);
+  assert.equal(summary.score, 6);
+  assert.equal(summary.maxScore, 22);
+  assert.equal(summary.scoreRate, 6 / 22);
+  assert.equal(summary.successes, 0);
 });
 
 test("minimal eval includes the action log without character background", async t => {
