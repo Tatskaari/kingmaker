@@ -9,6 +9,7 @@ export interface JevEvalAssessment { success: boolean; reason?: string }
 export interface JevTalkCall { characterId: string; targetId: string; actionId: string; goal: string; turn: number }
 export interface JevWorldEvalScenario {
   name: string; characterId: string; goal: string; repeats?: number; maxTurns?: number;
+  objective?: { name: string; status: string; successCriteria: string };
   createRuntime(apiKey: string): BrowserGameRuntime;
   mockTalk?: (call: JevTalkCall) => string;
   evaluate(result: { scenario: Scenario; terminalChoice: string; talkCalls: JevTalkCall[] }): JevEvalAssessment;
@@ -23,14 +24,15 @@ export interface JevEvalSummary {
   averageSuccessTurns?: number; averageFailureTurns?: number;
 }
 
-function activateGoal(runtime: BrowserGameRuntime, characterId: string, goal: string): void {
+function activateGoal(runtime: BrowserGameRuntime, definition: JevWorldEvalScenario): void {
+  const { characterId, goal, objective } = definition;
   const snapshot = runtime.snapshot(), scenario = fromJson(ScenarioSchema, snapshot.scenario);
   const character = scenario.characters.find(candidate => candidate.id === characterId);
   if (!character) throw new Error(`Unknown eval character: ${characterId}`);
   character.currentGoal = goal;
   character.activeObjective = create(ActiveObjectiveSchema, {
-    name: goal.split(".")[0]!, status: `Eval task. Next: ${goal}`,
-    successCriteria: "The requested physical state exists in the world.", currentGoal: goal,
+    name: objective?.name ?? goal.split(".")[0]!, status: objective?.status ?? `Eval task. Next: ${goal}`,
+    successCriteria: objective?.successCriteria ?? "The requested physical state exists in the world.", currentGoal: goal,
   });
   snapshot.scenario = toJson(ScenarioSchema, scenario, { alwaysEmitImplicit: true });
   snapshot.npcActivities = { ...snapshot.npcActivities, [characterId]: { status: "active", goal, history: [] } };
@@ -48,7 +50,7 @@ export async function runJevEvalOnce(definition: JevWorldEvalScenario, apiKey: s
   const talkCalls: JevTalkCall[] = [];
   let terminalChoice = "limit", error: string | undefined;
   try {
-    activateGoal(runtime, definition.characterId, definition.goal);
+    activateGoal(runtime, definition);
     const signal = new AbortController().signal;
     for (let turn = 1; turn <= (definition.maxTurns ?? 24); turn++) {
       const plan = await runtime.planNpc(definition.characterId, signal);

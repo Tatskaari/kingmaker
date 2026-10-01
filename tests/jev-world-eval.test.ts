@@ -5,7 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { JevClient } from "../packages/providers/src/jev.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
-import { guestIds, inviteGuests, silkScarf } from "../evals/jev/scenarios.js";
+import { guestIds, inviteGuests, silkScarf, royalSeal } from "../evals/jev/scenarios.js";
 import {
   artifactFileName,
   runJevEvalOnce,
@@ -38,6 +38,21 @@ test("minimal eval sends the text interface without character background or rece
   assert.match(observed as string, /Great Hall/);
   assert.match(observed as string, /fetch the silk scarf/);
   assert.doesNotMatch(observed as string, /Biography|Relationships|Recent results|Parked objectives/);
+});
+
+test("the authored royal-seal objective reaches minimal Jev without a generated status", async t => {
+  let observed: unknown;
+  t.mock.method(JevClient.prototype, "choose", async (state: unknown) => {
+    observed = state;
+    return { choice: "unable", probabilities: {} };
+  });
+  const result = await runJevEvalOnce(royalSeal, "test", true);
+  assert.equal(result.error, undefined);
+  assert.equal(typeof observed, "string");
+  for (const text of [royalSeal.goal, ...Object.values(royalSeal.objective!)]) {
+    assert.ok((observed as string).includes(text));
+  }
+  assert.doesNotMatch(observed as string, /Eval task\. Next:/);
 });
 
 test("mocked talks cover every guest, feed planner history, and leave recipients in place on fresh runs", async t => {
