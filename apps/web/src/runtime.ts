@@ -942,11 +942,22 @@ export class BrowserGameRuntime {
     return { request: jevRequest(state, instructions, criteria), observation, generations };
   }
 
-  async planNpc(characterId: string, signal: AbortSignal, previousWriteConflict?: { error: string; instruction: string }) {
+  startPlanningSession(characterId: string): string {
+    const character = this.#game.scenario().characters.find(item => item.id === characterId);
+    return this.#modelTranscripts.start("npc_goal", this.#characterName(characterId), characterId,
+      { goal: character?.currentGoal, objective: character?.activeObjective?.name });
+  }
+  endPlanningSession(key: string, stopped: boolean, error?: unknown): void {
+    if (stopped) this.#modelTranscripts.stop(key);
+    else if (error !== undefined) this.#modelTranscripts.fail(key, error);
+    else this.#modelTranscripts.finish(key);
+  }
+
+  async planNpc(characterId: string, signal: AbortSignal, previousWriteConflict?: { error: string; instruction: string }, runKey?: string) {
     const { request, observation, generations } = this.npcDecisionContext(characterId);
     const scenario = this.#game.scenario();
     const { instructions, criteria } = request.questions.next!;
-    const decision = await this.#modelTranscripts.record("jev", characterId, request, () => this.#jev.choose(request.state, instructions, criteria, signal, modelCallLabels.jev), undefined, this.#characterName(characterId));
+    const decision = await this.#modelTranscripts.record("jev", characterId, request, () => this.#jev.choose(request.state, instructions, criteria, signal, modelCallLabels.jev), runKey, this.#characterName(characterId));
     npcLog.info("NPC plan selected", { characterId, goal: observation.goal, revision: observation.revision, ...decision });
     const action = observation.actions.find(action => action.id === decision.choice);
     return { decision, revision: observation.revision, goal: observation.goal, action, observation,

@@ -148,89 +148,98 @@ async function runBackground(next: { id: string; handoffs: number }) {
     for (let round = 0; round < 3 && valid(); round++) {
       if (game.snapshot().npcActivities?.[id]?.reviewPending) await reviewBackground(game, id, signal, true);
       if (game.snapshot().npcActivities?.[id]?.status !== "active") break;
-      let reason: "complete" | "unable" | "wait" | "limit" = "limit", detail = "Reached the 24-action limit.";
-      let finishGenerations: ExpectedGenerations | undefined;
-      let conflict: { error: string; instruction: string } | undefined;
-      for (let step = 0; step < 24 && valid(); step++) {
-        publishNpc(`${id}: choosing an action…`);
-        const plan = await game.planNpc(id, signal, conflict);
-        conflict = undefined;
-        if (!valid()) return;
-        publishNpc(`${id}: ${plan.action?.description ?? plan.decision.choice}`, plan);
-        if (plan.decision.choice === "complete" || plan.decision.choice === "unable" || plan.decision.choice === "wait") {
-          // A changed world invalidates a terminal judgment as well as a physical action.
-          reason = plan.decision.choice; detail = JSON.stringify(plan.decision); finishGenerations = plan.generations; break;
-        }
-        if (!plan.action) throw new Error("Jev returned an unavailable action.");
-        let expected = plan.generations;
-        let result: { done: boolean; talkTarget?: string; worldEvent?: Event; generations: ExpectedGenerations } | undefined;
-        try {
-          while (valid()) {
-            result = await commitMutation(game, () => { signal.throwIfAborted(); return game.stepNpcAction(id, plan.action!.id, plan.goal, expected); });
-            expected = result.generations;
-            if (!valid()) return;
-            publishNpc(`${id}: ${plan.action.description}`);
-            if (result.done) break;
-            await new Promise(resolve => setTimeout(resolve, 100));
-          }
-        } catch (error) {
+      const planningSession = game.startPlanningSession(id);
+      let planningError: unknown;
+      try {
+        let reason: "complete" | "unable" | "wait" | "limit" = "limit", detail = "Reached the 24-action limit.";
+        let finishGenerations: ExpectedGenerations | undefined;
+        let conflict: { error: string; instruction: string } | undefined;
+        for (let step = 0; step < 24 && valid(); step++) {
+          publishNpc(`${id}: choosing an action…`);
+          const plan = await game.planNpc(id, signal, conflict, planningSession);
+          conflict = undefined;
           if (!valid()) return;
-          if (error instanceof GenerationConflict) {
-            conflict = { error: error.response.error, instruction: "The previous action was not applied because its generation IDs changed. Inspect this fresh observation, reconcile your intention, and choose an action again." };
-            continue;
+          publishNpc(`${id}: ${plan.action?.description ?? plan.decision.choice}`, plan);
+          if (plan.decision.choice === "complete" || plan.decision.choice === "unable" || plan.decision.choice === "wait") {
+            // A changed world invalidates a terminal judgment as well as a physical action.
+            reason = plan.decision.choice; detail = JSON.stringify(plan.decision); finishGenerations = plan.generations; break;
           }
-          // Doors, targets or goals may have changed while the player acted. Replan.
-          if (/replan|changed|doorway/i.test(String(error))) continue;
-          throw error;
-        }
-        if (!valid()) return;
-        if (result?.worldEvent) scheduleWorldEvent(game, result.worldEvent, handoffs);
-        if (result?.talkTarget) {
-          const target = result.talkTarget;
-          const targetBusy = () => conversationHolds.has(target)
-            || [...background.values()].some(other => other !== job && other.participants.includes(target) && other.participants.length > 1);
-          if (targetBusy()) publishNpc(`${id}: waiting for ${target} to finish a conversation…`);
-          while (valid() && targetBusy()) await new Promise(resolve => setTimeout(resolve, 100));
-          if (!valid()) return;
-          // A pair owns both participants until its review commits. Interrupt a
-          // solo run, but never steal someone from another conversation.
-          const interrupted = background.has(target);
-          stopBackground(target);
-          job.participants = [id, target];
-          publishNpc(`${id}: talking to ${target}…`);
-          let before: RuntimeSnapshot;
+          if (!plan.action) throw new Error("Jev returned an unavailable action.");
+          let expected = plan.generations;
+          let result: { done: boolean; talkTarget?: string; worldEvent?: Event; generations: ExpectedGenerations } | undefined;
           try {
-            before = game.snapshot();
-            const fork = reviewFork(game, signal);
-            if (target === (game.view().player as { id?: string } | null)?.id) {
-              if (conversationHolds.size) continue;
-              await fork.initiatePlayerConversation(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
+            while (valid()) {
+              result = await commitMutation(game, () => { signal.throwIfAborted(); return game.stepNpcAction(id, plan.action!.id, plan.goal, expected); });
+              expected = result.generations;
               if (!valid()) return;
-              if (conversationHolds.size) continue;
-              try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id], undefined, true); }); }
-              catch (error) { if (!valid()) return; if (/changed/i.test(String(error))) continue; throw error; }
-              conversationHolds.add(id);
-              publishNpc(`${id}: started a conversation with you.`, undefined, id);
-              return;
+              publishNpc(`${id}: ${plan.action.description}`);
+              if (result.done) break;
+              await new Promise(resolve => setTimeout(resolve, 100));
             }
-            const summary = await fork.executeNpcTalk(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
-            scheduleWorldEvent(game, game.worldEvent("having a conversation", summary, [id, target]), handoffs);
-          } finally {
-            job.participants = [id];
-            if (valid() && interrupted) startBackground(target, handoffs);
-            drainBackground();
-            if (valid()) publishNpc(`${id}: conversation finished.`);
+          } catch (error) {
+            if (!valid()) return;
+            if (error instanceof GenerationConflict) {
+              conflict = { error: error.response.error, instruction: "The previous action was not applied because its generation IDs changed. Inspect this fresh observation, reconcile your intention, and choose an action again." };
+              continue;
+            }
+            // Doors, targets or goals may have changed while the player acted. Replan.
+            if (/replan|changed|doorway/i.test(String(error))) continue;
+            throw error;
           }
           if (!valid()) return;
-          if (handoffs > 0 && game.snapshot().npcActivities?.[target]?.status === "active") startBackground(target, handoffs - 1);
-          if (game.snapshot().npcActivities?.[id]?.status !== "active") return;
+          if (result?.worldEvent) scheduleWorldEvent(game, result.worldEvent, handoffs);
+          if (result?.talkTarget) {
+            const target = result.talkTarget;
+            const targetBusy = () => conversationHolds.has(target)
+              || [...background.values()].some(other => other !== job && other.participants.includes(target) && other.participants.length > 1);
+            if (targetBusy()) publishNpc(`${id}: waiting for ${target} to finish a conversation…`);
+            while (valid() && targetBusy()) await new Promise(resolve => setTimeout(resolve, 100));
+            if (!valid()) return;
+            // A pair owns both participants until its review commits. Interrupt a
+            // solo run, but never steal someone from another conversation.
+            const interrupted = background.has(target);
+            stopBackground(target);
+            job.participants = [id, target];
+            publishNpc(`${id}: talking to ${target}…`);
+            let before: RuntimeSnapshot;
+            try {
+              before = game.snapshot();
+              const fork = reviewFork(game, signal);
+              if (target === (game.view().player as { id?: string } | null)?.id) {
+                if (conversationHolds.size) continue;
+                await fork.initiatePlayerConversation(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
+                if (!valid()) return;
+                if (conversationHolds.size) continue;
+                try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id], undefined, true); }); }
+                catch (error) { if (!valid()) return; if (/changed/i.test(String(error))) continue; throw error; }
+                conversationHolds.add(id);
+                publishNpc(`${id}: started a conversation with you.`, undefined, id);
+                return;
+              }
+              const summary = await fork.executeNpcTalk(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
+              scheduleWorldEvent(game, game.worldEvent("having a conversation", summary, [id, target]), handoffs);
+            } finally {
+              job.participants = [id];
+              if (valid() && interrupted) startBackground(target, handoffs);
+              drainBackground();
+              if (valid()) publishNpc(`${id}: conversation finished.`);
+            }
+            if (!valid()) return;
+            if (handoffs > 0 && game.snapshot().npcActivities?.[target]?.status === "active") startBackground(target, handoffs - 1);
+            if (game.snapshot().npcActivities?.[id]?.status !== "active") return;
+          }
         }
+        if (!valid()) return;
+        const expectedFinish = finishGenerations ?? generationIds(game.readResources([`character:${id}`]));
+        await commitMutation(game, () => { signal.throwIfAborted(); game.finishNpcRun(id, reason, detail, expectedFinish); });
+        publishNpc(`${id}: reviewing the result…`);
+        await reviewBackground(game, id, signal, true);
+      } catch (error) {
+        planningError = error;
+        throw error;
+      } finally {
+        game.endPlanningSession(planningSession, !valid(), planningError);
       }
-      if (!valid()) return;
-      const expectedFinish = finishGenerations ?? generationIds(game.readResources([`character:${id}`]));
-      await commitMutation(game, () => { signal.throwIfAborted(); game.finishNpcRun(id, reason, detail, expectedFinish); });
-      publishNpc(`${id}: reviewing the result…`);
-      await reviewBackground(game, id, signal, true);
     }
     continueObjective = valid() && game.hasActiveObjective(id);
   } catch (error) {
