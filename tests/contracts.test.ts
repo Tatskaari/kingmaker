@@ -2350,7 +2350,7 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     await request("create_development_game");
     let resumed = false;
     t.mock.method(BrowserGameRuntime.prototype, "checkedTalkToCharacter", async (_id: string, _message: string, _thinking: unknown, present: import("../apps/web/src/conversation-rolls.js").PresentRoll) => {
-      await present!({ skill: "persuasion", intent: "Win help", dc: 15, modifier: 3, roll: 12, total: 15, margin: 0, degree: "barely_passes" as any, success: true });
+      await present!({ skill: "persuasion", dc: 15, modifier: 3, roll: 12, total: 15, margin: 0, degree: "barely_passes" as any, success: true });
       resumed = true; return "Agreed.";
     });
     const talking = request("talk", { characterId: "corvin", message: "Help me." });

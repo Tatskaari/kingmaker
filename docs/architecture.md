@@ -110,8 +110,9 @@ build, but automatic skill-roll adjudication remains separate work.
 
 
 Conversation checks now gate player dialogue (including a final reply before
-leaving). Jev selects skills; the GM sets each DC and intended outcome before
-rolling. `resolveDiceCheck(roll, dc, modifier)` in core returns a `CheckDegree`
+leaving). Jev selects skills; the GM returns one numeric DC per selected skill before rolling. DC requests
+include recent speech, the target’s lore, goal, relationship to the player,
+known notes and room, rather than the full dialogue prompt and world state. `resolveDiceCheck(roll, dc, modifier)` in core returns a `CheckDegree`
 enum, total, margin and success. Natural 1/20 override the margin; otherwise
 <= -4 is major failure, -3..-1 minor failure, 0 barely passes, +1..+3 minor
 success, and >= +4 major success. Modifiers use the character's ability and
