@@ -1,0 +1,12 @@
+{
+  "name": "rook-greeting",
+  "capturedInput": "../transcripts/rook-greeting-input.json",
+  "expected": [],
+  "rationale": "The recorded opening greeting makes no factual claim of a past event, promise or debt and requires no roll.",
+  "source": {
+    "report": "kingmaker-issue-report-2026-10-01T23-06-33-127Z.zip",
+    "requestId": 1,
+    "characterId": "rook",
+    "recordedChecks": []
+  }
+}

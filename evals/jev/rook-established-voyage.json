@@ -1,0 +1,10 @@
+{
+  "name": "rook-established-voyage",
+  "expected": [],
+  "rationale": "Rook's scenario note establishes that he transported Lucan and Sabine on his cutter. Repeating that fact without a request requires no deception check.",
+  "capturedInput": "../transcripts/rook-established-voyage-input.json",
+  "source": {
+    "basedOn": "rook-greeting-input.json",
+    "variation": "Replace only the current player turn with a claim supported by the captured Rook lore; this turn was not recorded gameplay."
+  }
+}
