@@ -17,3 +17,12 @@ and hovering shows the room name and allowed residents. Red door tiles are close
 gold door tiles are open. White dots mark interaction spots, with expected and
 actual room ownership in their hover text. Synchronization rejects mismatched
 approach ownership and disconnected room floors when all doors are closed.
+
+Furniture additions are authored in `apps/web/src/palace-furniture.ts` using
+`FurnitureBuilder.add(roomId, localX, localY, furnishing)`. Private bedrooms
+inherit their resident as owner. Contents have stable IDs and inspection text.
+The builder protects door tiles, approaches, arrival positions and navigation
+waypoints; the furniture tests check connectivity with every door closed.
+`sync-palace.ts` regenerates the `furn_` additions while retaining the original
+fixtures and evidence. The ownership preview also renders furniture sprites;
+hovering a fixture reveals its authored contents for inspection.

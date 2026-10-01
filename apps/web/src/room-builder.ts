@@ -1,3 +1,7 @@
+export interface PreviewFixture {
+  name: string; sprite: number; position?: { x: number; y: number };
+  inventory?: { items: { name: string }[] };
+}
 export interface PreviewDoor {
   id: string; name: string; open: boolean; roomIds: string[];
   tiles: { x: number; y: number }[]; interactionSpots: { x: number; y: number }[];
@@ -76,18 +80,23 @@ export class RoomBuilder {
   }
 
   /** A room-coloured, labelled ownership view, usable in any browser. */
-  svg(doors: readonly PreviewDoor[] = []): string {
+  svg(doors: readonly PreviewDoor[] = [], fixtures: readonly PreviewFixture[] = [], atlas = ""): string {
     const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
     const shapes = this.rooms.map((room, index) => {
       const colour = `hsl(${index * 137.5 % 360} 45% 65%)`;
       return room.regions.map(r => `<rect x="${r.x * 16}" y="${r.y * 16}" width="${r.width * 16}" height="${r.height * 16}" fill="${colour}"><title>${escape(room.name)} — ${escape(room.residents?.join(', ') || 'Public')}</title></rect>`).join('')
         + `<text x="${room.regions[0]!.x * 16 + 3}" y="${room.regions[0]!.y * 16 + 12}" font-size="9">${escape(room.name)}</text>`;
     }).join('');
+    const furniture = fixtures.map(f => {
+      if (!f.position) return "";
+      const title = `${escape(f.name)}${f.inventory?.items.length ? ": " + f.inventory.items.map(item => escape(item.name)).join(", ") : ""}`;
+      return `<g><title>${title}</title><svg x="${f.position.x * 16}" y="${f.position.y * 16}" width="16" height="16" viewBox="${f.sprite % 12 * 16} ${Math.floor(f.sprite / 12) * 16} 16 16"><use href="#furniture-atlas"/></svg></g>`;
+    }).join("");
     const overlays = doors.map(door => {
       const colour = door.open ? "#ffcc33" : "#ef4444";
       return door.tiles.map(p => `<rect x="${p.x * 16 + 1}" y="${p.y * 16 + 1}" width="14" height="14" fill="${colour}" fill-opacity=".55" stroke="#111" stroke-width="2"><title>${escape(door.name)} (${door.open ? "open" : "closed"}) — ${p.x},${p.y}</title></rect>`).join("")
         + door.interactionSpots.map((p, side) => `<circle cx="${p.x * 16 + 8}" cy="${p.y * 16 + 8}" r="3" fill="white" stroke="#111"><title>${escape(door.name)} approach: ${escape(door.roomIds[side] ?? "")} — owned by ${escape(this.owners.get(`${p.x},${p.y}`) ?? "none")}</title></circle>`).join("");
     }).join("");
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.width * 16} ${this.height * 16}"><rect width="100%" height="100%" fill="#161b22"/>${shapes}${overlays}<text x="16" y="${this.height * 16 - 16}" fill="white" font-size="12">Door tiles: red = closed; gold = open. White dots = interaction spots. Colours = room ownership.</text></svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.width * 16} ${this.height * 16}"><defs><image id="furniture-atlas" href="${atlas}" width="192" height="176"/></defs><rect width="100%" height="100%" fill="#161b22"/>${shapes}${furniture}${overlays}<text x="16" y="${this.height * 16 - 16}" fill="white" font-size="12">Door tiles: red = closed; gold = open. White dots = interaction spots. Colours = room ownership.</text></svg>`;
   }
 }
