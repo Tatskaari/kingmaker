@@ -25,7 +25,7 @@ import type { Point } from "./navigation.js";
 import { compulsionNarration, parseReplyOptions, type ReplyOptions } from "./reply-options.js";
 import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import {
-  ActorStateSchema, CharacterSchema, ConversationMemorySchema, DialogueRequestSchema, EventSchema, NoteSchema,
+  ActorStateSchema, CharacterSchema, DndCharacterSchema, ProficiencyKind, ProficiencyRank, ConversationMemorySchema, DialogueRequestSchema, EventSchema, NoteSchema,
   NoteVisibility, GameMasterRequestSchema, GamePhase,
   PlayerSetupSchema, RelationshipSchema, RelationshipUpdateSchema, ScenarioSchema,
   TranscriptMessageSchema, TranscriptRole, WorldStateSchema, TilePositionSchema,
@@ -1578,6 +1578,15 @@ export class BrowserGameRuntime {
       player: create(CharacterSchema, {
         id: "player",
         name: "Dev Envoy",
+        dnd: create(DndCharacterSchema, {
+          rulesetId: "srd-5.2.1", speciesId: "human", backgroundId: "kingmaker-dev-envoy",
+          abilityScores: { strength: 20, dexterity: 20, constitution: 20, intelligence: 20, wisdom: 20, charisma: 20 },
+          classes: [{ classId: "bard", subclassId: "college-of-lore", level: 20, hitDiceRemaining: 20 }],
+          hitPoints: { current: 203, maximum: 203 },
+          proficiencies: ["persuasion", "deception", "intimidation", "insight"].map(targetId => ({
+            kind: ProficiencyKind.SKILL, targetId, rank: ProficiencyRank.EXPERTISE, sourceId: "kingmaker-dev-envoy",
+          })),
+        }),
         delegation: DEVELOPMENT_DELEGATION,
         lore: "A visiting envoy created to explore and test the court.",
         currentGoal: "Explore the palace and speak with its residents.",

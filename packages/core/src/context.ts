@@ -83,7 +83,7 @@ export class FullContextBuilder implements DialogueContextBuilder {
 
     const { character, notes } = characterContextFor(scenario, request.characterId);
     const player = scenario.characters.find(item => item.id === scenario.playerCharacterId);
-    const visitor = player ? `\n\n# Visiting player’s public identity\n${JSON.stringify({ name: player.name, gender: player.gender, delegation: player.delegation })}` : "";
+    const visitor = player ? `\n\n# Visiting player’s public identity\n${JSON.stringify({ name: player.name, gender: player.gender, delegation: player.delegation, dnd: player.dnd })}` : "";
     const relationships = character.relationships.length
       ? character.relationships.map(item => `- ${item.characterId}: ${item.description}`).join("\n")
       : "- None recorded.";
