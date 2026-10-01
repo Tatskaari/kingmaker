@@ -12,7 +12,7 @@ import { InvalidModelJsonError, parseModelObject } from "../../../packages/provi
 import { validateIdentity, type TravellerIdentity } from "./introduction.js";
 import { DIALOGUE_MODEL, FLAVOUR_MODEL, REASONING_MODEL } from "./model-settings.js";
 import { GM_BASE_PROMPT, GM_ADJUDICATION_GUIDANCE, withGmBasePrompt } from "./gm-prompt.js";
-import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
+import { ModelTranscripts, modelCallLabels, type ModelCallKind } from "./model-transcripts.js";
 import { courtAgentObservation, actionResourceIds } from "./court-agent.js";
 import { courtCharactersWithinEarshot, dialogueEarshotPrompt, perceivesAt, PERCEPTION_CHANCES, type EarshotCharacter } from "./earshot.js";
 import { ROOM_COURT_INSTRUCTIONS } from "./court-instructions.js";
@@ -392,7 +392,7 @@ export class BrowserGameRuntime {
   }
   #complete(kind: ModelCallKind, characterId: string, request: ChatCompletionRequest, signal?: AbortSignal, runKey?: string) {
     request = this.#prepareModelRequest(kind, request);
-    return this.#modelTranscripts.record(kind, characterId, request, () => this.#client.complete(request, signal), runKey, this.#characterName(characterId));
+    return this.#modelTranscripts.record(kind, characterId, request, () => this.#client.complete(request, signal, modelCallLabels[kind]), runKey, this.#characterName(characterId));
   }
 
   setTravellerIdentity(identity: TravellerIdentity): void {
@@ -933,7 +933,7 @@ export class BrowserGameRuntime {
     const { request, observation, generations } = this.npcDecisionContext(characterId);
     const scenario = this.#game.scenario();
     const { instructions, criteria } = request.questions.next!;
-    const decision = await this.#modelTranscripts.record("jev", characterId, request, () => this.#jev.choose(request.state, instructions, criteria, signal), undefined, this.#characterName(characterId));
+    const decision = await this.#modelTranscripts.record("jev", characterId, request, () => this.#jev.choose(request.state, instructions, criteria, signal, modelCallLabels.jev), undefined, this.#characterName(characterId));
     npcLog.info("NPC plan selected", { characterId, goal: observation.goal, revision: observation.revision, ...decision });
     const action = observation.actions.find(action => action.id === decision.choice);
     return { decision, revision: observation.revision, goal: observation.goal, action, observation,
@@ -1016,7 +1016,7 @@ export class BrowserGameRuntime {
       let decision;
       try {
         decision = await this.#modelTranscripts.record("event_decision", listener.id, jevRequest(state, instructions, criteria),
-          () => this.#jev.choose(state, instructions, criteria, signal), undefined, this.#characterName(listener.id));
+          () => this.#jev.choose(state, instructions, criteria, signal, modelCallLabels.event_decision), undefined, this.#characterName(listener.id));
         if (trace) trace.jevDecision = decision.choice === "process" ? "process" : "ignore";
         eventLog.info("Event decision received", { eventId: event.id, characterId: listener.id, ...decision });
       } catch (error) {

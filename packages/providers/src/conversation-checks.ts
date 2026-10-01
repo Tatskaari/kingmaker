@@ -70,7 +70,7 @@ function validateInput(input: ConversationCheckInput, signal: AbortSignal): void
 export const conversationCheckClassifiers: Readonly<Record<ConversationCheckSkill, CheckClassifier>> = Object.freeze(
   Object.fromEntries(skillNames.map(skill => [skill, async (client: JevClient, input: ConversationCheckInput, signal: AbortSignal) => {
     validateInput(input, signal);
-    const answers = await client.evaluate(input, { [skill]: questionFor(skill) }, signal);
+    const answers = await client.evaluate(input, { [skill]: questionFor(skill) }, signal, `conversation classification (${skill})`);
     const decision = answers[skill]!;
     return { skill, needsCheck: decision.choice === "needed", decision };
   }])) as Record<ConversationCheckSkill, CheckClassifier>,
@@ -82,7 +82,7 @@ export async function classifyConversationTurn(
 ): Promise<ConversationCheckClassification> {
   validateInput(input, signal);
   const questions = Object.fromEntries(skillNames.map(skill => [skill, questionFor(skill)]));
-  const decisions = await client.evaluate(input, questions, signal) as Record<ConversationCheckSkill, JevChoice>;
+  const decisions = await client.evaluate(input, questions, signal, "conversation classification") as Record<ConversationCheckSkill, JevChoice>;
   const checks = skillNames.filter(skill => decisions[skill].choice === "needed");
   return { needsCheck: checks.length > 0, checks, decisions };
 }
