@@ -11,7 +11,7 @@ He moves aside, making room on the milestone.
 
 He unfolds a blank sheet of paper.
 
-“We’ll need a story to get you inside. But first—what would you like to get out of it?”`;
+“We’ll need a story to get you inside. But first—what shall I call you?”`;
 export const introductionTitles = ["The civil war", "An uneasy peace", "The slow decline", "The centennial succession"];
 export const introduction = [
   [
