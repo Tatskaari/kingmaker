@@ -13,6 +13,7 @@
     "test": "proto run moon -- run workspace:test",
     "eval:unit": "tsx scripts/run-unit-eval.ts",
     "eval:jev": "tsx scripts/run-jev-world-eval.ts",
+    "headless": "tsx scripts/headless.ts",
     "generate": "proto run moon -- run contracts:generate",
     "dev": "proto run moon -- run workspace:dev"
   },
