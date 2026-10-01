@@ -15,6 +15,7 @@ import { courtCharactersWithinEarshot, dialogueEarshotPrompt, perceivesAt, PERCE
 import { ROOM_COURT_INSTRUCTIONS } from "./court-instructions.js";
 import { renderJevActionState, type JevActionContextOptions } from "./jev-room-view.js";
 import { JevClient, jevRequest } from "../../../packages/providers/src/jev.js";
+import { classifyConversationTurn } from "../../../packages/providers/src/conversation-checks.js";
 import { applyFixtureAction, fixtureActions } from "../../../packages/core/src/fixtures.js";
 import { IMMEDIATE_GOAL_DESCRIPTION } from "../../../packages/core/src/goal-guidance.js";
 import { applyObjectiveChange, applyParkedObjectiveChanges, ensureNpcActiveObjectives } from "./objectives.js";
@@ -527,6 +528,25 @@ export class BrowserGameRuntime {
       this.restore(before);
       throw error;
     }
+  }
+
+  /** Diagnostic only: callers can run this alongside dialogue without awaiting it. */
+  async logConversationChecks(characterId: string, playerTurn: string): Promise<void> {
+    const scenario = this.#game.scenario();
+    const listener = scenario.characters.find(character => character.id === characterId && character.id !== scenario.playerCharacterId);
+    if (scenario.world?.phase !== GamePhase.CONVERSATIONS || !listener || !playerTurn.trim() || this.#conversationEndRequested[characterId]) return;
+    const input = {
+      playerTurn,
+      history: (this.#conversations.get(characterId) || []).map(message => ({ speaker: message.speakerId, text: message.text })),
+      context: JSON.stringify({ premise: scenario.premise,
+        player: scenario.characters.find(character => character.id === scenario.playerCharacterId),
+        listener, surroundings: courtAgentObservation(scenario, characterId).world }),
+    };
+    try {
+      await this.#modelTranscripts.record("conversation_check", characterId, input,
+        () => classifyConversationTurn(this.#jev, input, AbortSignal.timeout(30_000)),
+        this.#conversationRun(characterId), this.#characterName(characterId));
+    } catch { /* The transcript logger records failures; diagnostics must not interrupt play. */ }
   }
 
   async talkToCharacter(characterId: string, messageText: string, onThinking?: (text: string) => void): Promise<string> {
