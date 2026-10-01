@@ -109,4 +109,30 @@ export const royalSealKeySearch: JevWorldEvalScenario = {
     status: "I promised Rowan Ash my royal seal, but I have misplaced my lockbox key. Corvin keeps the spare somewhere in his bedroom, but I do not know where in the room he has put it. He is here in the Great Hall, away from his room. If I ask him for it, he will discover my carelessness and never let me forget it. I have decided to slip into his room without permission and take the spare while he is occupied. I have not retrieved it yet. I want the bedroom doors and my lockbox closed when I am done, so I do not leave them visibly open.",
   },
 };
-export const jevWorldEvalScenarios = [treasury, inviteGuests, silkScarf, royalSeal, royalSealKeySearch];
+/** These use the same authored furniture and room-scoped actions as the browser. */
+export const diningSupplies: JevWorldEvalScenario = {
+  name: "Fetch bread from the furnished dining hall", characterId: "corvin", repeats: 3, maxTurns: 24,
+  goal: "Go to the Long Dining Hall in the east wing. Take the round loaf from the bread and cheese serving table, close the table's storage, then return to the Great Hall carrying the loaf.",
+  createRuntime: apiKey => new BrowserGameRuntime(courtAtDayOne(), apiKey),
+  evaluate({ scenario, terminalChoice }) {
+    const success = locatedItems(scenario).some(item => item.id === "furn_bread" && item.locationId === "corvin")
+      && scenario.world!.actors.some(actor => actor.characterId === "corvin" && actor.roomId === "great_hall")
+      && scenario.world!.fixtures.some(f => f.id === "furn_dining_bread" && !f.open)
+      && ["complete", "wait"].includes(terminalChoice);
+    return { success, ...(!success ? { reason: "Corvin must return with the loaf and leave the serving storage closed." } : {}) };
+  },
+};
+export const privateBelongings: JevWorldEvalScenario = {
+  name: "Retrieve Mara's belongings and leave her bedroom", characterId: "mara", repeats: 3, maxTurns: 32,
+  goal: "Go to my chamber in the west wing and take my draft assembly address from my writing table. Close the table and my bedroom door after leaving, then wait in the Ironmark Salon carrying the draft.",
+  createRuntime: apiKey => new BrowserGameRuntime(courtAtDayOne(), apiKey),
+  evaluate({ scenario, terminalChoice }) {
+    const success = locatedItems(scenario).some(item => item.id === "furn_mara_personal" && item.locationId === "mara")
+      && scenario.world!.actors.some(actor => actor.characterId === "mara" && actor.roomId === "ironmark_salon")
+      && scenario.world!.fixtures.some(f => f.id === "furn_mara_desk" && !f.open)
+      && scenario.world!.doors.some(d => d.id === "mara_door" && !d.open)
+      && ["complete", "wait"].includes(terminalChoice);
+    return { success, ...(!success ? { reason: "Mara must reach her salon with the draft and leave her desk and bedroom door closed." } : {}) };
+  },
+};
+export const jevWorldEvalScenarios = [treasury, inviteGuests, silkScarf, royalSeal, royalSealKeySearch, diningSupplies, privateBelongings];
