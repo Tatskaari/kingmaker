@@ -15,10 +15,23 @@ import { AlertLog } from "../apps/web/src/alerts.js";
 test("every classified expression has a portrait and fear displays amusement", () => {
   for (const expression of Object.keys(portraitExpressions) as PortraitExpression[]) {
     const portrait = strangerPortrait(expression);
-    assert.ok(existsSync(new URL(`../apps/web/public${portrait.src}`, import.meta.url)));
+    const publicRoot = new URL("../apps/web/public/", import.meta.url);
+    assert.ok(existsSync(new URL(portrait.src, publicRoot)));
     assert.match(portrait.alt, new RegExp(expression === "scared" ? "amused" : expression));
   }
   assert.deepEqual(strangerPortrait("scared"), strangerPortrait("amused"));
+});
+
+test("portrait URLs stay inside the deployed site at root and GitHub Pages paths", () => {
+  for (const sitePath of ["/", "/kingmaker/"]) {
+    for (const expression of Object.keys(portraitExpressions) as PortraitExpression[]) {
+      const portrait = strangerPortrait(expression);
+      for (const documentPath of [sitePath, `${sitePath}index.html`]) {
+        const url = new URL(portrait.src, `https://example.github.io${documentPath}`);
+        assert.equal(url.pathname, `${sitePath}assets/laughing-stranger/${portrait.expression}.png`);
+      }
+    }
+  }
 });
 
 test("the classifier sees Stranger speech and the player, excluding setup and tools", async t => {
