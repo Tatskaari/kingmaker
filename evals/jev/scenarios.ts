@@ -59,4 +59,21 @@ export const silkScarf: JevWorldEvalScenario = {
       ? { success: true } : { success: false, reason: "The king did not talk to Rowan." };
   },
 };
-export const jevWorldEvalScenarios = [treasury, inviteGuests, silkScarf];
+export const royalSeal: JevWorldEvalScenario = {
+  name: "Fetch the royal seal and close up before giving it to Rowan", characterId: "king",
+  goal: "Go to Corvin's chamber and fetch the royal lockbox key from his drawers. Use it to open the lockbox in the Royal Bedchamber and take the royal seal. Close the lockbox and both bedroom doors behind you, then find Rowan Ash and give him the seal.",
+  repeats: 10, maxTurns: 24,
+  createRuntime: apiKey => new BrowserGameRuntime(courtAtDayOne(), apiKey),
+  evaluate({ scenario, talkCalls }) {
+    const world = scenario.world!;
+    const failures: string[] = [];
+    if (!talkCalls.some(call => call.characterId === "king" && call.targetId === "rowan")) failures.push("The king did not talk to Rowan");
+    if (world.objects.find(item => item.id === "palace_royal_seal")?.locationId !== "king") failures.push("The king is not carrying the royal seal");
+    if (world.fixtures.find(fixture => fixture.id === "palace_coffer_03")?.open !== false) failures.push("The royal lockbox is not closed");
+    for (const id of ["corvin_door", "royal_door"]) {
+      if (world.doors.find(door => door.id === id)?.open !== false) failures.push(`${id} is not closed`);
+    }
+    return failures.length ? { success: false, reason: failures.join("; ") + "." } : { success: true };
+  },
+};
+export const jevWorldEvalScenarios = [treasury, inviteGuests, silkScarf, royalSeal];

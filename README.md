@@ -133,6 +133,12 @@ recipients remain in place and no dialogue model runs. Artifacts include these
 succeeds when the king calls the talk action targeting Rowan. Run either by name, for example
 `npm run eval:jev -- guest` or `npm run eval:jev -- scarf`.
 
+`npm run eval:jev -- "royal seal"` runs the longer dependency-and-cleanup task:
+fetch Corvin's key, open the royal lockbox, take the seal, close the lockbox and
+both bedroom doors, then talk to Rowan. At that conversation boundary the eval
+checks the king carries the seal and all three closures are complete. It uses
+the same authored world, production prompts, and 24-decision budget.
+
 ## Reset while developing
 
 With a loaded character, use the browser console:
