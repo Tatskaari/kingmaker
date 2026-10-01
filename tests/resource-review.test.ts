@@ -146,8 +146,8 @@ test("give_item transfers an existing participant-owned item to the player exact
   }, context);
   assert.equal(result.commit_result, "success");
   assert.equal((runtime.readResources(["item:corvin_signet"])["item:corvin_signet"]!.state as any).locationId, "player");
-  assert.equal((runtime.readResources(["inventory:corvin"])["inventory:corvin"]!.state as any[]).length, 0);
-  assert.equal((runtime.readResources(["inventory:player"])["inventory:player"]!.state as any[])[0].id, "corvin_signet");
+  assert.equal((runtime.readResources(["inventory:corvin"])["inventory:corvin"]!.state as any).items.some((item: any) => item.id === "corvin_signet"), false);
+  assert.equal((runtime.readResources(["inventory:player"])["inventory:player"]!.state as any).items[0].id, "corvin_signet");
   assert.equal(runtime.applyResourceReviewWrite("give_item", {
     character_id: "corvin", item_id: "corvin_signet", generation_id, reason: "Repeat the handoff.",
   }, context).reason, "Generation ID out of date");
@@ -164,9 +164,9 @@ test("write_item creates an inspectable document directly in the player's invent
     character_id: "corvin", generation_id, item,
   }, context);
   assert.equal(result.commit_result, "success");
-  const written = (result.new_state.data as any[]).find(candidate => candidate.id === item.id);
-  assert.equal(written.locationId, "player");
-  assert.equal(written.properties.details, item.details);
+  const written = (result.new_state.data as any).items.find((candidate: any) => candidate.id === item.id);
+  assert.ok(!("locationId" in written));
+  assert.equal(written.details, item.details);
   assert.equal(runtime.applyResourceReviewWrite("write_item", {
     character_id: "corvin", generation_id, item: { ...item, id: "stale_agreement" },
   }, context).reason, "Generation ID out of date");
