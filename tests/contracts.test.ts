@@ -296,6 +296,13 @@ test("development character skips creation and enters the court", () => {
   const view = runtime.view();
   assert.equal(view.phase, "conversations");
   assert.equal((view.player as { name: string }).name, "Dev Envoy");
+  const player = fromJson(ScenarioSchema, runtime.snapshot().scenario).characters.find(character => character.id === "player")!;
+  assert.deepEqual(Object.values(player.dnd!.abilityScores!).filter(value => typeof value === "number"), [20, 20, 20, 20, 20, 20]);
+  assert.equal(player.dnd!.classes[0]!.classId, "bard");
+  assert.equal(player.dnd!.classes[0]!.level, 20);
+  assert.equal(player.dnd!.proficiencies.length, 4);
+  const restored = new BrowserGameRuntime(load(), "test", structuredClone(runtime.snapshot()));
+  assert.deepEqual(fromJson(ScenarioSchema, restored.snapshot().scenario).characters.find(character => character.id === "player")!.dnd, player.dnd);
   assert.equal(view.day, 1);
   assert.equal((view.characters as unknown[]).length, load().characters.length);
   assert.throws(() => runtime.createDevelopmentPlayer(), /already exists/);
