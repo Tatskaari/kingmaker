@@ -2195,6 +2195,17 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   assert.equal(modelCalls, 1);
   assert.equal(greeting.state.phase, "player_creation");
 
+  const fresh = await request("create_game");
+  failNextWrite = true;
+  await assert.rejects(request("start_introduction"), /Test storage failure/);
+  assert.deepEqual((await request("state")).state.gmMessages, []);
+  const introduction = await request("start_introduction");
+  assert.equal(modelCalls, 1, "The authored opening does not use a model call");
+  assert.equal(introduction.state.travellerIdentity, null);
+  const resumed = await request("load_game", { saveId: fresh.activeSaveId });
+  assert.deepEqual(resumed.state.gmMessages, introduction.state.gmMessages);
+  assert.deepEqual((await request("start_introduction")).state.gmMessages, introduction.state.gmMessages);
+
   await t.test("physical interactions respond before background earshot assessment finishes", async t => {
     const created = await request("create_development_game");
     let assessmentStarted!: () => void, releaseAssessment!: () => void;

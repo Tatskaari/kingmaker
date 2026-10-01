@@ -1,4 +1,17 @@
 export const patronName = "The Laughing Stranger";
+export const strangerOpening = `A man sits beneath a bare tree, turning a coin between his fingers. His face is unfamiliar. His laugh is not.
+
+You have heard it in dreams, and occasionally in answer to a prayer.
+
+“There you are.”
+
+He moves aside, making room on the milestone.
+
+“I’m sending you to court. A palace full of powerful people, all expecting to get their own way. I thought you might enjoy yourself.”
+
+He unfolds a blank sheet of paper.
+
+“We’ll need a story to get you inside. But first—what would you like to get out of it?”`;
 export const introductionTitles = ["The civil war", "An uneasy peace", "The slow decline", "The centennial succession"];
 export const introduction = [
   [
