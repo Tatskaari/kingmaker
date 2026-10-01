@@ -239,12 +239,26 @@ function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character]);
 }
 
-function shell(content) {
+function shell(content, inCourt = false) {
+  document.body.classList.toggle("in-court", inCourt);
   const sheetButton = state?.player ? `<button class="sheet-tab" data-sheet-open aria-label="Open character sheet"><span class="sheet-tab-icon">♙</span><span>Character</span></button>` : "";
   const sheet = state?.player ? characterSheet() : "";
   const keyControl = apiKey ? `<button class="reset" data-key-change>Change OpenRouter key</button>` : "";
   const reportControl = state?.player ? `<button class="reset" data-report-issue>Report an issue</button>` : "";
   const gameControls = state ? `<button class="reset" data-games>Saved games</button><button class="reset" data-reset>Start over</button>${reportControl}` : "";
+  if (inCourt) {
+    const popover = (id, title, body) => `<aside id="${id}" class="court-popover" popover aria-label="${title}"><button class="popover-close" popovertarget="${id}" popovertargetaction="hide" aria-label="Close ${title}">×</button>${body}</aside>`;
+    return `<div class="court-shell">${content}<nav class="court-toolbar" aria-label="Game controls">
+      <button popovertarget="court-menu">☰ <span>Menu</span></button>
+      <button popovertarget="court-activity">Activity</button>
+      <button popovertarget="court-messages">Messages</button>
+      ${sheetButton}<button class="debug-button" data-debug-open aria-label="Open debug inspector">⌘ <span>Debug</span></button>
+    </nav></div>
+    ${popover("court-menu", "Game menu", `<div class="eyebrow">Palace of Caerwyn</div><h2>Kingmaker</h2><p>Welcome to court, ${escapeHtml(state.player?.name || "Emissary")}.</p><p>Left-click to walk. Right-click characters and objects for actions.</p><div class="court-menu-controls">${gameControls}${keyControl}</div><p class="map-credit">Tiny Dungeon tiles by Kenney · CC0</p>`)}
+    ${popover("court-activity", "Court activity", '<section class="npc-planner" data-npc-panel></section>')}
+    ${popover("court-messages", "Messages", '<div class="player-event-feed" data-player-feed></div>')}
+    ${sheet}${debugInspector()}`;
+  }
   return `${state ? `<button class="debug-button" data-debug-open aria-label="Open debug inspector">⌘ <span>Debug</span></button>` : ""}${sheetButton}<div class="shell"><header class="masthead"><div class="eyebrow">An improvised political cRPG</div><h1>Kingmaker</h1><div class="rule"></div><p class="subtitle">Four kingdoms. A century’s mandate. A peace coming undone.</p></header>${content}<div class="footer">${gameControls}${keyControl}</div></div>${sheet}${debugInspector()}`;
 }
 
@@ -341,7 +355,7 @@ function characterSheet() {
   const relationships = player.relationships?.length
     ? player.relationships.map(relationship => `<li><strong>${escapeHtml(relationship.characterName)}</strong><p>${escapeHtml(relationship.description)}</p></li>`).join("")
     : `<li><p>No relationships recorded yet.</p></li>`;
-  return `<div class="sheet-scrim ${sheetOpen ? "open" : ""}" data-sheet-close></div><aside class="character-sheet ${sheetOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Character sheet" aria-hidden="${sheetOpen ? "false" : "true"}"><button class="sheet-close" data-sheet-close aria-label="Close character sheet">×</button><div class="eyebrow">Your character</div><h2>${escapeHtml(player.name)}</h2><div class="sheet-seal">${escapeHtml(initials)}</div><section><p class="character-identity">${escapeHtml(player.gender || "")} · ${escapeHtml(player.delegation || "Visiting emissary")}</p><h3>Biography</h3><p>${escapeHtml(player.lore)}</p></section>${playerStats(player.dnd)}<section class="goal"><h3>Current goal</h3><p>${escapeHtml(player.currentGoal || "No goal yet.")}</p></section><section><h3>Inventory</h3><ul>${state.inventory?.length ? state.inventory.map(item => `<li>${escapeHtml(item.name)}${item.details ? `<p>${escapeHtml(item.details)}</p>` : ""}</li>`).join("") : "<li>Empty</li>"}</ul></section><section><h3>Relationships</h3><ul class="relationship-list">${relationships}</ul></section></aside>`;
+  return `<div class="sheet-scrim ${sheetOpen ? "open" : ""}" data-sheet-close></div><aside class="character-sheet ${sheetOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Character sheet" aria-hidden="${sheetOpen ? "false" : "true"}" ${sheetOpen ? "" : "inert"}><button class="sheet-close" data-sheet-close aria-label="Close character sheet">×</button><div class="eyebrow">Your character</div><h2>${escapeHtml(player.name)}</h2><div class="sheet-seal">${escapeHtml(initials)}</div><section><p class="character-identity">${escapeHtml(player.gender || "")} · ${escapeHtml(player.delegation || "Visiting emissary")}</p><h3>Biography</h3><p>${escapeHtml(player.lore)}</p></section>${playerStats(player.dnd)}<section class="goal"><h3>Current goal</h3><p>${escapeHtml(player.currentGoal || "No goal yet.")}</p></section><section><h3>Inventory</h3><ul>${state.inventory?.length ? state.inventory.map(item => `<li>${escapeHtml(item.name)}${item.details ? `<p>${escapeHtml(item.details)}</p>` : ""}</li>`).join("") : "<li>Empty</li>"}</ul></section><section><h3>Relationships</h3><ul class="relationship-list">${relationships}</ul></section></aside>`;
 }
 
 function debugInspector() {
@@ -351,7 +365,7 @@ function debugInspector() {
       ? debugTab === "overview" ? debugOverview(debugRequest.type, debugData) : debugTab === "transcripts" ? recentTranscriptsView(debugData.requests, debugData.agentRuns) : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
       : `<p class="debug-loading">Reading worker state…</p>`;
   const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${[["overview", "Overview"], ["json", "Raw JSON"], ["transcripts", "Agent runs & requests"], ["alerts", "Warnings & errors"]].map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
-  return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}"><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">Character state, available notes, known world, conversation, and assembled model context. The global inspector includes the authoritative world. GM debug includes prompts, raw model responses, and tool results—not hidden reasoning. API keys are excluded.</p>${tabs}<div id="debug-panel" class="debug-panel" role="tabpanel" aria-labelledby="debug-tab-${debugTab}" tabindex="0">${content}</div></aside>`;
+  return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}" ${debugOpen ? "" : "inert"}><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">Character state, available notes, known world, conversation, and assembled model context. The global inspector includes the authoritative world. GM debug includes prompts, raw model responses, and tool results—not hidden reasoning. API keys are excluded.</p>${tabs}<div id="debug-panel" class="debug-panel" role="tabpanel" aria-labelledby="debug-tab-${debugTab}" tabindex="0">${content}</div></aside>`;
 }
 
 async function openDebug(request = debugRequest, title = debugTitle) {
@@ -426,13 +440,9 @@ function renderCharacterReview() {
 }
 
 function renderDay(bindPage = true) {
-  const playerName = state.player?.name || "The Emissary";
-  app.innerHTML = shell(`<section class="panel court-panel"><div class="day-heading"><div><div class="eyebrow">Palace of Caerwyn</div><h2>Welcome to court, <span class="player-name">${escapeHtml(playerName)}</span></h2></div></div><p class="scene">Left-click to walk around the palace. Right-click characters and objects to see their actions.</p><div data-court-map></div><section class="npc-planner" data-npc-panel></section><div class="court-day-footer"><span class="map-credit">Tiny Dungeon tiles by Kenney · CC0</span></div><p class="status ${notice.startsWith("Error") ? "error" : ""}" data-court-notice>${escapeHtml(notice)}</p></section>`);
-  const feed = document.createElement("aside");
-  feed.className = "player-event-feed";
-  feed.dataset.playerFeed = "";
-  feed.setAttribute("aria-label", "Messages for you");
-  app.append(feed);
+  const openPopover = app.querySelector(".court-popover:popover-open")?.id;
+  app.innerHTML = shell(`<section class="court-panel" aria-label="Palace of Caerwyn"><div data-court-map></div><p class="status ${notice.startsWith("Error") ? "error" : ""}" data-court-notice role="status">${escapeHtml(notice)}</p></section>`, true);
+  if (openPopover && !activeCharacter && !sheetOpen && !debugOpen) document.getElementById(openPopover)?.showPopover();
   updatePlayerFeed();
   if (bindPage) bind();
   updateNpcPanel();

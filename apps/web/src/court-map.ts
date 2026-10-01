@@ -141,8 +141,11 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     if (event.button === 0 && !menu.contains(event.target as Node)) closeMenu();
   }, { signal: listeners.signal });
   document.addEventListener("keydown", event => { if (event.key === "Escape") closeMenu(); }, { signal: listeners.signal });
+  const resizeObserver = new ResizeObserver(() => {
+    if (visualPosition) centreOnPlayer(visualPosition);
+  });
   const cleanup = new MutationObserver(() => {
-    if (!root.isConnected) { listeners.abort(); cleanup.disconnect(); }
+    if (!root.isConnected) { listeners.abort(); resizeObserver.disconnect(); cleanup.disconnect(); }
   });
   cleanup.observe(document.body, { childList: true, subtree: true });
   let pendingInteraction: (() => void | Promise<void>) | undefined;
@@ -280,6 +283,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     playerControl.style.top = `${(point.y + 0.5) / palaceMap.height * 100}%`;
     centreOnPlayer(point);
   };
+  resizeObserver.observe(viewport);
   if (position) requestAnimationFrame(() => centreOnPlayer(position!));
   root.addEventListener("court-state", event => {
     const next = (event as CustomEvent<{ characters: CourtCharacter[]; player: CourtCharacter; doors: DoorState[];
