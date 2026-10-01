@@ -24,6 +24,11 @@ export function actionResourceIds(scenario: Scenario, characterId: string, actio
 
 /** Shared room observation for a placed player or NPC. */
 export function courtAgentObservation(scenario: Scenario, characterId: string, continuingActionId?: string) {
+  if (characterId === scenario.playerCharacterId) throw new Error("NPC observation requires an NPC.");
+  return characterCourtObservation(scenario, characterId, continuingActionId);
+}
+
+export function characterCourtObservation(scenario: Scenario, characterId: string, continuingActionId?: string) {
   const character = scenario.characters.find(item => item.id === characterId);
   const world = scenario.world, actor = world?.actors.find(item => item.characterId === characterId);
   if (!character || !world || !actor?.position) throw new Error("Character is not placed in the palace.");
