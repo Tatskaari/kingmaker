@@ -15,6 +15,5 @@ scenario.world.rooms = palaceLayout.worldRooms().map(room => ({
 scenario.world.fixtures = scenario.world.fixtures.filter((fixture: { id: string }) => !fixture.id.startsWith("furn_"));
 const additions = palaceFurniture(fromJson(ScenarioSchema, scenario));
 scenario.world.fixtures.push(...additions.map(fixture => toJson(MapFixtureSchema, fixture)));
-scenario.world.facts = { ...scenario.world.facts, palaceFurnishingsVersion: 1 };
 writeFileSync(path, JSON.stringify(scenario, null, 2) + "\n");
 console.log("Synchronized palace room ownership, access and exits.");

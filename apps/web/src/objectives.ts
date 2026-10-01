@@ -3,8 +3,8 @@ import { ActiveObjectiveSchema, type Character, type Scenario } from "../../../p
 
 const INITIAL_GREETING = "Remain in the Great Hall and greet the visiting player. Be available for conversation.";
 
-/** Upgrade authored/old-save NPC goals so the planner never runs detached work. */
-export function ensureNpcActiveObjectives(scenario: Scenario): void {
+/** Initialize active and parked objectives from the authored scenario goals. */
+export function initializeNpcObjectives(scenario: Scenario): void {
   for (const character of scenario.characters) {
     for (const name of character.objectives) character.parkedObjectives.push(create(ActiveObjectiveSchema, {
       name,

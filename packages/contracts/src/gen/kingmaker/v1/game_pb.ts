@@ -331,8 +331,8 @@ export type Character = Message<"kingmaker.v1.Character"> & {
   currentGoal: string;
 
   /**
-   * Legacy long-term ambition names. Loaded saves migrate these into
-   * parked_objectives; new state leaves this empty.
+   * Authored long-term ambition names, used to initialize parked_objectives
+   * for a new game; runtime state leaves this empty.
    *
    * @generated from field: repeated string objectives = 6;
    */

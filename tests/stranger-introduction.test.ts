@@ -10,18 +10,15 @@ import { strangerOpening } from "../apps/web/src/introduction.js";
 const load = () => fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8"));
 const build = { classId: "rogue", abilityPriority: ["dexterity", "charisma", "constitution", "intelligence", "wisdom", "strength"], skills: ["persuasion", "deception", "insight", "stealth"] };
 
-test("resuming a sandbox interview updates its checklist while preserving the conversation", () => {
+test("resuming a sandbox interview preserves its prompt and conversation", () => {
   const scenario = load(), runtime = new BrowserGameRuntime(scenario, "test");
   runtime.startIntroduction();
   const saved = runtime.snapshot();
   (saved.scenario as any).gameMasterPrompt = "Keep asking about motivation.";
   saved.gameMasterHistory.push({ role: "user", content: "I already said I like spreading rumours." });
   const resumed = new BrowserGameRuntime(scenario, "test", saved).snapshot();
-  assert.equal((resumed.scenario as any).gameMasterPrompt, scenario.gameMasterPrompt);
+  assert.equal((resumed.scenario as any).gameMasterPrompt, (saved.scenario as any).gameMasterPrompt);
   assert.deepEqual(resumed.gameMasterHistory, saved.gameMasterHistory);
-  saved.strangerIntroduced = false;
-  const legacy = new BrowserGameRuntime(scenario, "test", saved).snapshot();
-  assert.equal((legacy.scenario as any).gameMasterPrompt, "Keep asking about motivation.");
 });
 
 test("the authored opening needs no identity or model call and survives reload without repeating", t => {

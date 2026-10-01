@@ -10,6 +10,10 @@ Perform implementation work in a dedicated Git worktree for the task, not in the
 
 When moving an existing task into a worktree, preserve its uncommitted changes with a stash and commit them on its feature branch before handoff. An unfinished checkpoint commit is allowed for this transfer; record any outstanding validation and continue it after the move.
 
+## Saved-game compatibility
+
+Do not add or maintain migrations or backward-compatibility code for existing saved games. When save schemas or authored world content change incompatibly, require a fresh game instead of upgrading old saves. Keep ordinary save/load support for the current format.
+
 ## Development credentials
 
 The local OpenRouter development key is stored as a plain key in `~/secrets/kingmaker-dev-openrouter.txt`. Never copy or commit it to the repository. To pre-populate the key in the browser while running the local dev server, use `KINGMAKER_USE_DEV_OPENROUTER_KEY=1 npm run dev`. The flag is intentionally ignored by production builds.

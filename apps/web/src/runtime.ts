@@ -2,8 +2,6 @@ import { initialModelResourceIds, modelResourceOverview } from "./model-resource
 import { renderWorldPrompt } from "../../../packages/core/src/world-prompt.js";
 import { adjudicateConversationChecks, type PresentRoll } from "./conversation-rolls.js";
 import { classifyConversationExpression, portraitExpressions, type PortraitExpression } from "../../../packages/providers/src/conversation-expression.js";
-import { migratePalaceFurniture } from "./furniture-migration.js";
-import { migratePalaceWings, reconcileDoorApproachRooms } from "./palace-migration.js";
 import { buildInterviewCharacter, playerBuildParameter, validatePlayerStats } from "./player-build.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
 import { inventoryOwners, locatedItems, itemsFor, findItem, transferItem } from "../../../packages/core/src/inventory.js";
@@ -26,7 +24,7 @@ import { JevClient, jevRequest } from "../../../packages/providers/src/jev.js";
 import { classifyConversationTurn } from "../../../packages/providers/src/conversation-checks.js";
 import { applyFixtureAction, fixtureActions } from "../../../packages/core/src/fixtures.js";
 import { IMMEDIATE_GOAL_DESCRIPTION } from "../../../packages/core/src/goal-guidance.js";
-import { applyObjectiveChange, applyParkedObjectiveChanges, ensureNpcActiveObjectives } from "./objectives.js";
+import { applyObjectiveChange, applyParkedObjectiveChanges, initializeNpcObjectives } from "./objectives.js";
 import { courtPath, courtRoomAt } from "./court-map.js";
 import type { Point } from "./navigation.js";
 import { compulsionNarration, parseReplyOptions, type ReplyOptions } from "./reply-options.js";
@@ -96,17 +94,6 @@ export interface RuntimeSnapshot {
   conversationEndRequested?: Record<string, boolean>;
   gameMasterHistory: OpenRouterMessage[];
   conversations: Record<string, JsonValue[]>;
-}
-
-function migrateDialogueObjectives(value: JsonValue): JsonValue {
-  const scenario = structuredClone(value) as { characters?: Array<Record<string, unknown>> };
-  for (const character of scenario.characters ?? []) {
-    if (character.dialogueObjectives === undefined && typeof character.dialogueObjective === "string") {
-      character.dialogueObjectives = character.dialogueObjective.trim() ? [character.dialogueObjective] : [];
-    }
-    delete character.dialogueObjective;
-  }
-  return scenario as JsonValue;
 }
 
 function gmTools(scenario: Scenario, conversationalIdentity = false): readonly OpenRouterTool[] {
@@ -313,25 +300,6 @@ function text(value: unknown, field: string): string {
   return value.trim();
 }
 
-/** Preserve saves written before durable memories were renamed from events to notes. */
-function migrateScenarioNotes(value: JsonValue): JsonValue {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return value;
-  const scenario = structuredClone(value) as Record<string, JsonValue>;
-  if (!Array.isArray(scenario.notes) && Array.isArray(scenario.events)) {
-    scenario.notes = scenario.events.map(item => {
-      if (!item || typeof item !== "object" || Array.isArray(item)) return item;
-      const event = item as Record<string, JsonValue>;
-      return { ...(event.id === undefined ? {} : { id: event.id }), ...(event.day === undefined ? {} : { day: event.day }),
-        text: typeof event.summary === "string" ? event.summary : "",
-        ...(event.characterIds === undefined ? {} : { characterIds: event.characterIds }),
-        ...(event.visibility === undefined ? {} : { visibility: typeof event.visibility === "string" ? event.visibility.replace("EVENT_", "NOTE_") : event.visibility }),
-        ...(event.details === undefined ? {} : { details: event.details }) };
-    });
-    delete scenario.events;
-  }
-  return scenario;
-}
-
 export class BrowserGameRuntime {
   #liveReview: { host: BrowserGameRuntime; commit: <T>(work: () => T) => Promise<T>; read: <T>(work: () => T) => Promise<T> } | undefined;
   #generations = new GenerationStore();
@@ -359,7 +327,7 @@ export class BrowserGameRuntime {
 
   constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot, transcriptsChanged: () => void = () => {}, onWarning: (message: string) => void = () => {}, random: () => number = Math.random, readonly jevActionContext: JevActionContextOptions = {}) {
     this.#initialScenario = fromJson(ScenarioSchema, toJson(ScenarioSchema, scenario));
-    ensureNpcActiveObjectives(this.#initialScenario);
+    initializeNpcObjectives(this.#initialScenario);
     this.#game = new MemoryGame(this.#initialScenario);
     this.#client = new OpenRouterClient(apiKey, 60_000, globalThis.location?.origin || "http://localhost", onWarning);
     this.#jev = new JevClient(apiKey, undefined, undefined, onWarning);
@@ -443,15 +411,7 @@ export class BrowserGameRuntime {
     this.#travellerIdentity = snapshot.travellerIdentity ? validateIdentity(snapshot.travellerIdentity) : undefined;
     this.#strangerIntroduced = snapshot.strangerIntroduced ?? false;
     this.#npcActivities = structuredClone(snapshot.npcActivities || {});
-    const restoredScenario = fromJson(ScenarioSchema, migrateDialogueObjectives(migrateScenarioNotes(snapshot.scenario)));
-    // In-progress sandbox interviews should pick up improvements to the creation checklist.
-    if (this.#strangerIntroduced && restoredScenario.world?.phase === GamePhase.PLAYER_CREATION) {
-      restoredScenario.gameMasterPrompt = this.#initialScenario.gameMasterPrompt;
-    }
-    migratePalaceWings(restoredScenario, this.#initialScenario);
-    reconcileDoorApproachRooms(restoredScenario, this.#initialScenario);
-    migratePalaceFurniture(restoredScenario, this.#initialScenario);
-    ensureNpcActiveObjectives(restoredScenario);
+    const restoredScenario = fromJson(ScenarioSchema, snapshot.scenario);
     this.#game = new MemoryGame(restoredScenario);
     this.#gmHistory = snapshot.gameMasterHistory || [];
     this.#playerDraft = snapshot.playerDraft || null;

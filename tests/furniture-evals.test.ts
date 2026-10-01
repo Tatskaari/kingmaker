@@ -1,40 +1,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { create, fromJson, fromJsonString, toJson } from "@bufbuild/protobuf";
-import { ScenarioSchema, TilePositionSchema } from "../packages/contracts/src/index.js";
-import { transferItem, locatedItems, validateInventories } from "../packages/core/src/inventory.js";
-import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
+import { fromJson, fromJsonString } from "@bufbuild/protobuf";
+import { ScenarioSchema } from "../packages/contracts/src/index.js";
+import { transferItem } from "../packages/core/src/inventory.js";
 import { diningSupplies, privateBelongings } from "../evals/jev/scenarios.js";
 
 const load = () => fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8"));
-test("old saves gain furnishings without refilling existing containers or duplicating carried items", () => {
-  const authored = load(), saved = load(), world = saved.world!;
-  transferItem(saved, "furn_bread", "corvin");
-  world.fixtures = world.fixtures.filter(f => !f.id.startsWith("furn_"));
-  delete world.facts!.palaceFurnishingsVersion;
-  const drawer = world.fixtures.find(f => f.id === "palace_corvin_drawers")!;
-  drawer.open = true;
-  transferItem(saved, "palace_royal_key", "corvin");
-  const actor = world.actors.find(a => a.characterId === "mara")!;
-  actor.position = create(TilePositionSchema, { x: 21, y: 5 }); // Newly furnished bed.
-  const runtime = new BrowserGameRuntime(authored, "test");
-  const snapshot = runtime.snapshot(); snapshot.scenario = toJson(ScenarioSchema, saved);
-  runtime.restore(snapshot);
-  const upgraded = runtime.snapshot(), result = fromJson(ScenarioSchema, upgraded.scenario);
-  assert.equal(result.world!.fixtures.length, authored.world!.fixtures.length);
-  assert.equal(result.world!.fixtures.find(f => f.id === drawer.id)!.open, true);
-  for (const id of ["furn_bread", "palace_royal_key"]) {
-    assert.equal(locatedItems(result).filter(item => item.id === id).length, 1);
-    assert.equal(locatedItems(result).find(item => item.id === id)!.locationId, "corvin");
-  }
-  const moved = result.world!.actors.find(a => a.characterId === "mara")!;
-  assert.equal(moved.roomId, "mara_chamber");
-  assert.ok(!result.world!.fixtures.some(f => f.position?.x === moved.position!.x && f.position.y === moved.position!.y));
-  validateInventories(result);
-  runtime.restore(upgraded); assert.deepEqual(runtime.snapshot(), upgraded);
-});
-
 test("new Jev evals use authored furnishings and require real inventory and closure outcomes", () => {
   for (const [definition, item, room, fixture, door] of [
     [diningSupplies, "furn_bread", "great_hall", "furn_dining_bread", undefined],
