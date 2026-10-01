@@ -1,4 +1,5 @@
 import { adjudicateConversationChecks, type PresentRoll } from "./conversation-rolls.js";
+import { classifyConversationExpression } from "../../../packages/providers/src/conversation-expression.js";
 import { buildInterviewCharacter, playerBuildParameter, validatePlayerStats } from "./player-build.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
 import { inventoryOwners, locatedItems, itemsFor, findItem, transferItem } from "../../../packages/core/src/inventory.js";
@@ -550,6 +551,18 @@ export class BrowserGameRuntime {
     messages.unshift({ role: "system", content: "You may choose to end this conversation only for a concrete in-character reason to leave now: beginning an immediate task you have chosen, refusing further discussion, or responding to an urgent interruption. Completing or advancing a dialogue objective is not a reason to leave; continue naturally or move to another relevant conversational thread. Never set endConversation=true in the same response as asking the player a question, making them an offer, or requesting their help, because the player must be able to answer. When you truly take your leave, express that decision naturally and return replyOptions=[]. Otherwise set endConversation=false. Ending triggers a separate memory and goal review; speech alone does not move you or complete physical tasks." });
     messages.unshift({ role: "system", content: "Return only a JSON object matching the supplied response schema, with no Markdown fences or surrounding prose." });
     return messages;
+  }
+
+  /** Diagnostic only: no gameplay or portrait state is changed. */
+  async logConversationExpression(characterId: string): Promise<void> {
+    const transcript = this.#conversations.get(characterId);
+    if (!transcript?.some(turn => turn.speakerId === characterId)) return;
+    const input = { characterId, history: transcript.map(({ speakerId, text }) => ({ speakerId, text })) };
+    try {
+      await this.#modelTranscripts.record("conversation_expression", characterId, input,
+        () => classifyConversationExpression(this.#jev, input, AbortSignal.timeout(30_000)),
+        this.#conversationRun(characterId), this.#characterName(characterId));
+    } catch { /* The transcript logger records failures; diagnostics must not interrupt play. */ }
   }
 
   /** Diagnostic only: callers can run this alongside dialogue without awaiting it. */

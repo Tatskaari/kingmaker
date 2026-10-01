@@ -79,6 +79,11 @@ function transcriptSummary(entry) {
   if (entry.error) return `<p class="debug-error">${escape(entry.error)}</p>`;
   const response = object(entry.response);
   if (!response) return empty("No response recorded.");
+  if (entry.kind === "conversation_expression") {
+    return facts([["Expression", response.expression]])
+      + list(Object.entries(object(response.decision?.probabilities) || {}), ([expression, probability]) =>
+        `${escape(expression)}: ${Math.round(probability * 100)}%`, "No probabilities.");
+  }
   if (entry.kind === "conversation_check") {
     return `<h4>Player turn</h4><p>${escape(entry.request?.playerTurn)}</p><h4>Suggested checks</h4>`
       + (response.needsCheck ? list(array(response.checks), skill => escape(skill), "None.") : empty("No check needed."))
@@ -117,7 +122,7 @@ function transcriptSummary(entry) {
 }
 
 export function recentTranscriptsView(entries = [], runs = {}) {
-  const kinds = { npc_request: "NPC request", npc_resolution: "NPC conversation resolution", game_master: "Game master", gm_consultation: "GM consultation", dialogue: "Dialogue", dialogue_flavour: "Dialogue flavour", conversation_review: "Conversation review", conversation_check: "Jev conversation checks", world_event: "World event review", event_decision: "Event attention decision", jev: "Jev action decision", outcome_review: "Outcome review" };
+  const kinds = { npc_request: "NPC request", npc_resolution: "NPC conversation resolution", game_master: "Game master", gm_consultation: "GM consultation", dialogue: "Dialogue", dialogue_flavour: "Dialogue flavour", conversation_review: "Conversation review", conversation_check: "Jev conversation checks", conversation_expression: "Jev portrait expression", world_event: "World event review", event_decision: "Event attention decision", jev: "Jev action decision", outcome_review: "Outcome review" };
   const archived = Object.entries(runs).reverse();
   const runCards = archived.length ? archived.map(([key, run]) => {
     const conversation = array(run.context?.messages);

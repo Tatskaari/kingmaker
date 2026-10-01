@@ -2,7 +2,7 @@ import { gameLogger } from "../../../packages/observability/src/logging.js";
 
 const log = gameLogger("models");
 
-export type ModelCallKind = "npc_request" | "npc_resolution" | "game_master" | "dialogue" | "dialogue_flavour" | "gm_consultation" | "conversation_review" | "conversation_check" | "world_event" | "event_decision" | "jev" | "outcome_review";
+export type ModelCallKind = "conversation_expression" | "npc_request" | "npc_resolution" | "game_master" | "dialogue" | "dialogue_flavour" | "gm_consultation" | "conversation_review" | "conversation_check" | "world_event" | "event_decision" | "jev" | "outcome_review";
 export const modelCallLabels: Record<ModelCallKind, string> = {
   npc_request: "NPC request interpretation",
   npc_resolution: "character review (NPC action)",
@@ -12,6 +12,7 @@ export const modelCallLabels: Record<ModelCallKind, string> = {
   gm_consultation: "GM consultation",
   conversation_review: "character review (conversation)",
   conversation_check: "conversation classification",
+  conversation_expression: "conversation expression classification",
   world_event: "character review (world event)",
   event_decision: "event relevance check",
   jev: "NPC action selection",
