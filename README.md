@@ -431,4 +431,7 @@ that moment, without rebuilding it from the later saved world state or including
 subsequent GM rulings. The Rook voyage/favor cases replay requests 4 and 7 from
 the October 1, 23:06 dump. Both are labeled deception: claiming shared history
 absent from established lore is a lie under the intended game rule. Their
-recorded no-check results are failures; the classifier instructions are unchanged.
+recorded no-check results are failures. The classifier now uses established lore,
+recorded events, and explicit GM rulings to assess truth; repeated claims and
+polite NPC acknowledgments do not establish history. The recorded Rook greeting
+and a supported voyage statement provide no-check controls.
