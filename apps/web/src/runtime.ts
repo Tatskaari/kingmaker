@@ -142,7 +142,7 @@ function gmTools(scenario: Scenario, conversationalIdentity = false): readonly O
           build: playerBuildParameter,
           name: { type: "string" }, gender: { type: "string", description: "The player's stated gender; ask rather than infer from their name or role." },
           homeland: { type: "string", ...(conversationalIdentity ? { enum: delegations.map(item => item.id), description: "The delegation agreed with the player as their way into court." } : {}) }, embassyRole: { type: "string" },
-          lore: { type: "string" }, currentGoal: { type: "string" },
+          lore: { type: "string" }, currentGoal: { type: "string", description: "Use the player's expressed purpose, or 'Explore the court and decide where to meddle.' if none was chosen. Do not ask extra motivation questions to fill this field." },
           relationships: { type: "array", minItems: npcIds.length, maxItems: npcIds.length, items: {
             type: "object", additionalProperties: false, required: ["characterId", "description"],
             properties: { characterId: { type: "string", enum: npcIds }, description: { type: "string" } },
@@ -440,6 +440,10 @@ export class BrowserGameRuntime {
     this.#strangerIntroduced = snapshot.strangerIntroduced ?? false;
     this.#npcActivities = structuredClone(snapshot.npcActivities || {});
     const restoredScenario = fromJson(ScenarioSchema, migrateDialogueObjectives(migrateScenarioNotes(snapshot.scenario)));
+    // In-progress sandbox interviews should pick up improvements to the creation checklist.
+    if (this.#strangerIntroduced && restoredScenario.world?.phase === GamePhase.PLAYER_CREATION) {
+      restoredScenario.gameMasterPrompt = this.#initialScenario.gameMasterPrompt;
+    }
     ensureNpcActiveObjectives(restoredScenario);
     this.#game = new MemoryGame(restoredScenario);
     this.#gmHistory = snapshot.gameMasterHistory || [];

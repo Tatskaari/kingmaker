@@ -16,8 +16,9 @@ proto run moon -- run workspace:dev
 
 Open `http://127.0.0.1:5173`. The main game is the only page. Enter an OpenRouter
 key, read the sandbox welcome, then meet the Stranger. His authored opening leads
-into a conversation about your ambitions, talents, name, gender and cover within
-one of the delegations. Review the resulting character, choose an appearance,
+into a short checklist: name, archetype and talents, backstory and delegation,
+then relationships with the court. Motivation is optional; the Stranger infers
+your starting build from your approach and history. Review the resulting character, choose an appearance,
 correct any details, and save to enter the palace. The opening, conversation and
 review draft persist through saves and reloads.
 The key stays in tab-scoped session storage and is excluded from saves. Games
