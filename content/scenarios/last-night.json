@@ -2005,7 +2005,7 @@
       "characterId": "corvin",
       "roomId": "great_hall",
       "position": {
-        "x": 12,
+        "x": 58,
         "y": 20
       }
     },
@@ -2013,7 +2013,7 @@
       "characterId": "king",
       "roomId": "great_hall",
       "position": {
-        "x": 16,
+        "x": 62,
         "y": 18
       }
     },
@@ -2021,7 +2021,7 @@
       "characterId": "garran",
       "roomId": "great_hall",
       "position": {
-        "x": 20,
+        "x": 66,
         "y": 19
       }
     },
@@ -2029,7 +2029,7 @@
       "characterId": "player",
       "roomId": "great_hall",
       "position": {
-        "x": 16,
+        "x": 62,
         "y": 32
       }
     },
@@ -2037,7 +2037,7 @@
       "characterId": "mara",
       "roomId": "great_hall",
       "position": {
-        "x": 11,
+        "x": 57,
         "y": 22
       }
     },
@@ -2045,7 +2045,7 @@
       "characterId": "hadrik",
       "roomId": "great_hall",
       "position": {
-        "x": 11,
+        "x": 57,
         "y": 25
       }
     },
@@ -2053,7 +2053,7 @@
       "characterId": "tessa",
       "roomId": "great_hall",
       "position": {
-        "x": 11,
+        "x": 57,
         "y": 28
       }
     },
@@ -2061,7 +2061,7 @@
       "characterId": "elinor",
       "roomId": "great_hall",
       "position": {
-        "x": 16,
+        "x": 62,
         "y": 23
       }
     },
@@ -2069,7 +2069,7 @@
       "characterId": "oswin",
       "roomId": "great_hall",
       "position": {
-        "x": 16,
+        "x": 62,
         "y": 26
       }
     },
@@ -2077,7 +2077,7 @@
       "characterId": "rowan",
       "roomId": "great_hall",
       "position": {
-        "x": 16,
+        "x": 62,
         "y": 29
       }
     },
@@ -2085,7 +2085,7 @@
       "characterId": "lucan",
       "roomId": "great_hall",
       "position": {
-        "x": 21,
+        "x": 67,
         "y": 22
       }
     },
@@ -2093,7 +2093,7 @@
       "characterId": "sabine",
       "roomId": "great_hall",
       "position": {
-        "x": 21,
+        "x": 67,
         "y": 25
       }
     },
@@ -2101,7 +2101,7 @@
       "characterId": "rook",
       "roomId": "great_hall",
       "position": {
-        "x": 21,
+        "x": 67,
         "y": 28
       }
     }
@@ -2112,15 +2112,39 @@
     "phase": "GAME_PHASE_PLAYER_CREATION",
     "rooms": [
       {
-        "id": "great_hall",
-        "name": "Great Hall",
-        "description": "The four kingdoms gather beneath banners in the ceremonial hall, trading courtesies and demands before the centennial assembly.",
+        "id": "corvin_chamber",
+        "private": true,
+        "allowedCharacterIds": [
+          "corvin"
+        ],
+        "name": "Corvin's Chamber",
+        "description": "A private bedroom and cramped study crowded with books and instruments.",
         "exitRoomIds": [
-          "royal_council_chamber",
-          "palace_back_hall",
-          "guest_chamber",
-          "entrance_hall",
-          "treasury"
+          "north_corridor"
+        ]
+      },
+      {
+        "id": "royal_bedchamber",
+        "private": true,
+        "allowedCharacterIds": [
+          "king"
+        ],
+        "name": "Royal Bedchamber",
+        "description": "The king sleeps here behind embroidered curtains and a guarded reputation.",
+        "exitRoomIds": [
+          "north_corridor"
+        ]
+      },
+      {
+        "id": "garran_chamber",
+        "private": true,
+        "allowedCharacterIds": [
+          "garran"
+        ],
+        "name": "Garran's Chamber",
+        "description": "A disciplined soldier's room softened by expensive gifts from admirers.",
+        "exitRoomIds": [
+          "north_corridor"
         ]
       },
       {
@@ -2134,10 +2158,10 @@
         "name": "Royal Back Hall",
         "description": "A private gallery joins the king's chamber to the rooms of his closest royal officers.",
         "exitRoomIds": [
-          "royal_council_chamber",
           "corvin_chamber",
           "garran_chamber",
-          "royal_bedchamber"
+          "royal_bedchamber",
+          "royal_council_chamber"
         ]
       },
       {
@@ -2147,7 +2171,23 @@
         "exitRoomIds": [
           "great_hall",
           "north_corridor"
-        ]
+        ],
+        "private": false,
+        "allowedCharacterIds": []
+      },
+      {
+        "id": "great_hall",
+        "name": "Great Hall",
+        "description": "The four kingdoms gather beneath banners in the ceremonial hall, trading courtesies and demands before the centennial assembly.",
+        "exitRoomIds": [
+          "entrance_hall",
+          "guest_chamber",
+          "palace_back_hall",
+          "royal_council_chamber",
+          "treasury"
+        ],
+        "private": false,
+        "allowedCharacterIds": []
       },
       {
         "id": "guest_chamber",
@@ -2174,48 +2214,15 @@
         ]
       },
       {
-        "id": "corvin_chamber",
-        "private": true,
-        "allowedCharacterIds": [
-          "corvin"
-        ],
-        "name": "Corvin's Chamber",
-        "description": "A private bedroom and cramped study crowded with books and instruments.",
-        "exitRoomIds": [
-          "north_corridor"
-        ]
-      },
-      {
-        "id": "garran_chamber",
-        "private": true,
-        "allowedCharacterIds": [
-          "garran"
-        ],
-        "name": "Garran's Chamber",
-        "description": "A disciplined soldier's room softened by expensive gifts from admirers.",
-        "exitRoomIds": [
-          "north_corridor"
-        ]
-      },
-      {
-        "id": "royal_bedchamber",
-        "private": true,
-        "allowedCharacterIds": [
-          "king"
-        ],
-        "name": "Royal Bedchamber",
-        "description": "The king sleeps here behind embroidered curtains and a guarded reputation.",
-        "exitRoomIds": [
-          "north_corridor"
-        ]
-      },
-      {
         "id": "entrance_hall",
         "name": "Entrance Hall",
         "description": "The palace entrance opens into a broad hall leading to the Great Hall.",
         "exitRoomIds": [
-          "great_hall"
-        ]
+          "great_hall",
+          "west_wing"
+        ],
+        "private": false,
+        "allowedCharacterIds": []
       },
       {
         "id": "treasury",
@@ -2223,17 +2230,32 @@
         "description": "Royal ledgers, stores and strongboxes record a realm increasingly dependent on exceptional levies.",
         "exitRoomIds": [
           "great_hall"
-        ]
+        ],
+        "private": false,
+        "allowedCharacterIds": []
       },
       {
         "id": "palace_back_hall",
-        "name": "Palace Back Hall",
-        "description": "A long servants' passage links the state rooms to the three visiting delegations' apartments.",
+        "name": "East Wing",
+        "description": "The east wing links the Great Hall to Saltmere’s apartments and the long dining hall.",
         "exitRoomIds": [
+          "dining_hall",
           "great_hall",
-          "ironmark_salon",
-          "greenweald_solar",
           "saltmere_drawing_room"
+        ],
+        "private": false,
+        "allowedCharacterIds": []
+      },
+      {
+        "id": "west_wing",
+        "description": "The west wing leads from the entrance hall to Ironmark and Greenweald’s apartments.",
+        "name": "West Wing",
+        "private": false,
+        "allowedCharacterIds": [],
+        "exitRoomIds": [
+          "entrance_hall",
+          "greenweald_solar",
+          "ironmark_salon"
         ]
       },
       {
@@ -2241,9 +2263,11 @@
         "name": "Ironmark Salon",
         "description": "Iron fittings, campaign maps and a plain stone hearth furnish Ironmark's public receiving room.",
         "exitRoomIds": [
-          "palace_back_hall",
-          "ironmark_back_hall"
-        ]
+          "ironmark_back_hall",
+          "west_wing"
+        ],
+        "private": false,
+        "allowedCharacterIds": []
       },
       {
         "id": "ironmark_back_hall",
@@ -2256,9 +2280,9 @@
         "name": "Ironmark Back Hall",
         "description": "A private passage runs behind Ironmark's salon to the delegation's bedrooms.",
         "exitRoomIds": [
+          "hadrik_chamber",
           "ironmark_salon",
           "mara_chamber",
-          "hadrik_chamber",
           "tessa_chamber"
         ]
       },
@@ -2303,9 +2327,11 @@
         "name": "Greenweald Solar",
         "description": "Carved oak, woven hangings and bowls of fresh herbs mark Greenweald's shared receiving room.",
         "exitRoomIds": [
-          "palace_back_hall",
-          "greenweald_back_hall"
-        ]
+          "greenweald_back_hall",
+          "west_wing"
+        ],
+        "private": false,
+        "allowedCharacterIds": []
       },
       {
         "id": "greenweald_back_hall",
@@ -2318,8 +2344,8 @@
         "name": "Greenweald Back Hall",
         "description": "A quiet private gallery separates Greenweald's solar from its sleeping chambers.",
         "exitRoomIds": [
-          "greenweald_solar",
           "elinor_chamber",
+          "greenweald_solar",
           "oswin_chamber",
           "rowan_chamber"
         ]
@@ -2367,7 +2393,9 @@
         "exitRoomIds": [
           "palace_back_hall",
           "saltmere_back_hall"
-        ]
+        ],
+        "private": false,
+        "allowedCharacterIds": []
       },
       {
         "id": "saltmere_back_hall",
@@ -2380,10 +2408,10 @@
         "name": "Saltmere Back Hall",
         "description": "A discreet private corridor connects Saltmere's drawing room to its individual quarters.",
         "exitRoomIds": [
-          "saltmere_drawing_room",
           "lucan_chamber",
+          "rook_chamber",
           "sabine_chamber",
-          "rook_chamber"
+          "saltmere_drawing_room"
         ]
       },
       {
@@ -2421,6 +2449,16 @@
         "exitRoomIds": [
           "saltmere_back_hall"
         ]
+      },
+      {
+        "id": "dining_hall",
+        "description": "A long banqueting hall fills the east wing, with space for the visiting delegations to dine together.",
+        "name": "Long Dining Hall",
+        "private": false,
+        "allowedCharacterIds": [],
+        "exitRoomIds": [
+          "palace_back_hall"
+        ]
       }
     ],
     "actors": [
@@ -2430,7 +2468,7 @@
         "roomId": "corvin_chamber",
         "awake": false,
         "position": {
-          "x": 5,
+          "x": 51,
           "y": 5
         }
       },
@@ -2440,7 +2478,7 @@
         "roomId": "garran_chamber",
         "awake": false,
         "position": {
-          "x": 26,
+          "x": 72,
           "y": 5
         }
       },
@@ -2450,7 +2488,7 @@
         "roomId": "royal_bedchamber",
         "awake": false,
         "position": {
-          "x": 15,
+          "x": 61,
           "y": 5
         }
       },
@@ -2458,7 +2496,7 @@
         "characterId": "mara",
         "roomId": "mara_chamber",
         "position": {
-          "x": 53,
+          "x": 24,
           "y": 7
         },
         "homeRoomId": "mara_chamber",
@@ -2468,7 +2506,7 @@
         "characterId": "hadrik",
         "roomId": "hadrik_chamber",
         "position": {
-          "x": 63,
+          "x": 14,
           "y": 7
         },
         "homeRoomId": "hadrik_chamber",
@@ -2478,7 +2516,7 @@
         "characterId": "tessa",
         "roomId": "tessa_chamber",
         "position": {
-          "x": 73,
+          "x": 4,
           "y": 7
         },
         "homeRoomId": "tessa_chamber",
@@ -2488,7 +2526,7 @@
         "characterId": "elinor",
         "roomId": "elinor_chamber",
         "position": {
-          "x": 53,
+          "x": 24,
           "y": 22
         },
         "homeRoomId": "elinor_chamber",
@@ -2498,7 +2536,7 @@
         "characterId": "oswin",
         "roomId": "oswin_chamber",
         "position": {
-          "x": 63,
+          "x": 14,
           "y": 22
         },
         "homeRoomId": "oswin_chamber",
@@ -2508,7 +2546,7 @@
         "characterId": "rowan",
         "roomId": "rowan_chamber",
         "position": {
-          "x": 73,
+          "x": 4,
           "y": 22
         },
         "homeRoomId": "rowan_chamber",
@@ -2518,8 +2556,8 @@
         "characterId": "lucan",
         "roomId": "lucan_chamber",
         "position": {
-          "x": 53,
-          "y": 37
+          "x": 99,
+          "y": 7
         },
         "homeRoomId": "lucan_chamber",
         "awake": false
@@ -2528,8 +2566,8 @@
         "characterId": "sabine",
         "roomId": "sabine_chamber",
         "position": {
-          "x": 63,
-          "y": 37
+          "x": 109,
+          "y": 7
         },
         "homeRoomId": "sabine_chamber",
         "awake": false
@@ -2538,8 +2576,8 @@
         "characterId": "rook",
         "roomId": "rook_chamber",
         "position": {
-          "x": 73,
-          "y": 37
+          "x": 119,
+          "y": 7
         },
         "homeRoomId": "rook_chamber",
         "awake": false
@@ -2554,11 +2592,11 @@
         "name": "Corvin's chest of drawers",
         "roomId": "corvin_chamber",
         "position": {
-          "x": 6,
+          "x": 52,
           "y": 4
         },
         "interactionSpot": {
-          "x": 6,
+          "x": 52,
           "y": 5
         },
         "sprite": 75,
@@ -2586,11 +2624,11 @@
         "name": "Carved wooden coffer",
         "roomId": "royal_bedchamber",
         "position": {
-          "x": 17,
+          "x": 63,
           "y": 4
         },
         "interactionSpot": {
-          "x": 17,
+          "x": 63,
           "y": 5
         },
         "sprite": 90,
@@ -2622,11 +2660,11 @@
         "name": "Corvin's bookcase",
         "roomId": "corvin_chamber",
         "position": {
-          "x": 3,
+          "x": 49,
           "y": 3
         },
         "interactionSpot": {
-          "x": 4,
+          "x": 50,
           "y": 3
         },
         "sprite": 63,
@@ -2661,11 +2699,11 @@
         "name": "Writing desk",
         "roomId": "corvin_chamber",
         "position": {
-          "x": 3,
+          "x": 49,
           "y": 6
         },
         "interactionSpot": {
-          "x": 3,
+          "x": 49,
           "y": 5
         },
         "sprite": 72,
@@ -2693,7 +2731,7 @@
         "name": "Desk stool",
         "roomId": "corvin_chamber",
         "position": {
-          "x": 4,
+          "x": 50,
           "y": 6
         },
         "sprite": 73,
@@ -2705,11 +2743,11 @@
         "name": "Wardrobe",
         "roomId": "royal_bedchamber",
         "position": {
-          "x": 18,
+          "x": 64,
           "y": 3
         },
         "interactionSpot": {
-          "x": 18,
+          "x": 64,
           "y": 4
         },
         "sprite": 75,
@@ -2737,7 +2775,7 @@
         "name": "Royal table",
         "roomId": "royal_bedchamber",
         "position": {
-          "x": 13,
+          "x": 59,
           "y": 6
         },
         "sprite": 72,
@@ -2749,7 +2787,7 @@
         "name": "Royal stool",
         "roomId": "royal_bedchamber",
         "position": {
-          "x": 14,
+          "x": 60,
           "y": 6
         },
         "sprite": 73,
@@ -2761,11 +2799,11 @@
         "name": "Garran's bookcase",
         "roomId": "garran_chamber",
         "position": {
-          "x": 24,
+          "x": 70,
           "y": 3
         },
         "interactionSpot": {
-          "x": 25,
+          "x": 71,
           "y": 3
         },
         "sprite": 63,
@@ -2794,11 +2832,11 @@
         "name": "Garran's desk",
         "roomId": "garran_chamber",
         "position": {
-          "x": 27,
+          "x": 73,
           "y": 6
         },
         "interactionSpot": {
-          "x": 27,
+          "x": 73,
           "y": 5
         },
         "sprite": 72,
@@ -2833,7 +2871,7 @@
         "name": "Garran's stool",
         "roomId": "garran_chamber",
         "position": {
-          "x": 26,
+          "x": 72,
           "y": 6
         },
         "sprite": 73,
@@ -2845,7 +2883,7 @@
         "name": "Parlour table",
         "roomId": "guest_chamber",
         "position": {
-          "x": 3,
+          "x": 49,
           "y": 25
         },
         "sprite": 72,
@@ -2857,7 +2895,7 @@
         "name": "Parlour stool",
         "roomId": "guest_chamber",
         "position": {
-          "x": 4,
+          "x": 50,
           "y": 25
         },
         "sprite": 73,
@@ -2869,11 +2907,11 @@
         "name": "Parlour cabinet",
         "roomId": "guest_chamber",
         "position": {
-          "x": 6,
+          "x": 52,
           "y": 31
         },
         "interactionSpot": {
-          "x": 5,
+          "x": 51,
           "y": 31
         },
         "sprite": 75,
@@ -2908,11 +2946,11 @@
         "name": "West storage barrel",
         "roomId": "treasury",
         "position": {
-          "x": 25,
+          "x": 71,
           "y": 21
         },
         "interactionSpot": {
-          "x": 26,
+          "x": 72,
           "y": 21
         },
         "sprite": 82,
@@ -2940,11 +2978,11 @@
         "name": "East storage barrel",
         "roomId": "treasury",
         "position": {
-          "x": 28,
+          "x": 74,
           "y": 27
         },
         "interactionSpot": {
-          "x": 27,
+          "x": 73,
           "y": 27
         },
         "sprite": 82,
@@ -2956,11 +2994,11 @@
         "name": "Treasury shelves",
         "roomId": "treasury",
         "position": {
-          "x": 29,
+          "x": 75,
           "y": 22
         },
         "interactionSpot": {
-          "x": 28,
+          "x": 74,
           "y": 22
         },
         "sprite": 63,
@@ -2989,7 +3027,7 @@
         "name": "Hall table",
         "roomId": "great_hall",
         "position": {
-          "x": 12,
+          "x": 58,
           "y": 18
         },
         "sprite": 72,
@@ -3001,7 +3039,7 @@
         "name": "Hall stool",
         "roomId": "great_hall",
         "position": {
-          "x": 12,
+          "x": 58,
           "y": 19
         },
         "sprite": 73,
@@ -3013,7 +3051,7 @@
         "name": "Hall table",
         "roomId": "great_hall",
         "position": {
-          "x": 19,
+          "x": 65,
           "y": 18
         },
         "sprite": 72,
@@ -3025,7 +3063,7 @@
         "name": "Hall stool",
         "roomId": "great_hall",
         "position": {
-          "x": 19,
+          "x": 65,
           "y": 19
         },
         "sprite": 73,
@@ -3037,7 +3075,7 @@
         "name": "Entrance table",
         "roomId": "entrance_hall",
         "position": {
-          "x": 12,
+          "x": 58,
           "y": 34
         },
         "sprite": 72,
@@ -3049,11 +3087,11 @@
         "name": "Hall sideboard",
         "roomId": "great_hall",
         "position": {
-          "x": 20,
+          "x": 66,
           "y": 22
         },
         "interactionSpot": {
-          "x": 20,
+          "x": 66,
           "y": 21
         },
         "sprite": 75,
@@ -3081,11 +3119,11 @@
         "name": "Iron-banded coffer",
         "roomId": "entrance_hall",
         "position": {
-          "x": 13,
+          "x": 59,
           "y": 36
         },
         "interactionSpot": {
-          "x": 13,
+          "x": 59,
           "y": 35
         },
         "sprite": 90,
@@ -3110,11 +3148,11 @@
         "name": "Polished wooden coffer",
         "roomId": "royal_bedchamber",
         "position": {
-          "x": 14,
+          "x": 60,
           "y": 3
         },
         "interactionSpot": {
-          "x": 14,
+          "x": 60,
           "y": 4
         },
         "sprite": 90,
@@ -3144,7 +3182,7 @@
         "name": "Entrance table",
         "roomId": "entrance_hall",
         "position": {
-          "x": 18,
+          "x": 64,
           "y": 34
         },
         "sprite": 72,
@@ -3158,21 +3196,21 @@
         "name": "Corvin's door",
         "tiles": [
           {
-            "x": 5,
+            "x": 51,
             "y": 9
           },
           {
-            "x": 6,
+            "x": 52,
             "y": 9
           }
         ],
         "interactionSpots": [
           {
-            "x": 5,
+            "x": 51,
             "y": 10
           },
           {
-            "x": 5,
+            "x": 51,
             "y": 8
           }
         ],
@@ -3187,21 +3225,21 @@
         "name": "Royal door",
         "tiles": [
           {
-            "x": 15,
+            "x": 61,
             "y": 9
           },
           {
-            "x": 16,
+            "x": 62,
             "y": 9
           }
         ],
         "interactionSpots": [
           {
-            "x": 15,
+            "x": 61,
             "y": 10
           },
           {
-            "x": 15,
+            "x": 61,
             "y": 8
           }
         ],
@@ -3216,21 +3254,21 @@
         "name": "Garran's door",
         "tiles": [
           {
-            "x": 25,
+            "x": 71,
             "y": 9
           },
           {
-            "x": 26,
+            "x": 72,
             "y": 9
           }
         ],
         "interactionSpots": [
           {
-            "x": 25,
+            "x": 71,
             "y": 10
           },
           {
-            "x": 25,
+            "x": 71,
             "y": 8
           }
         ],
@@ -3245,21 +3283,21 @@
         "name": "Royal quarters door",
         "tiles": [
           {
-            "x": 5,
+            "x": 51,
             "y": 15
           },
           {
-            "x": 6,
+            "x": 52,
             "y": 15
           }
         ],
         "interactionSpots": [
           {
-            "x": 5,
+            "x": 51,
             "y": 16
           },
           {
-            "x": 5,
+            "x": 51,
             "y": 14
           }
         ],
@@ -3274,21 +3312,21 @@
         "name": "Royal Council Chamber door",
         "tiles": [
           {
-            "x": 8,
+            "x": 54,
             "y": 18
           },
           {
-            "x": 8,
+            "x": 54,
             "y": 19
           }
         ],
         "interactionSpots": [
           {
-            "x": 7,
+            "x": 53,
             "y": 18
           },
           {
-            "x": 9,
+            "x": 55,
             "y": 18
           }
         ],
@@ -3303,21 +3341,21 @@
         "name": "Entrance Hall door",
         "tiles": [
           {
-            "x": 15,
+            "x": 61,
             "y": 31
           },
           {
-            "x": 16,
+            "x": 62,
             "y": 31
           }
         ],
         "interactionSpots": [
           {
-            "x": 15,
+            "x": 61,
             "y": 32
           },
           {
-            "x": 15,
+            "x": 61,
             "y": 30
           }
         ],
@@ -3332,21 +3370,21 @@
         "name": "Parlour door",
         "tiles": [
           {
-            "x": 8,
+            "x": 54,
             "y": 25
           },
           {
-            "x": 8,
+            "x": 54,
             "y": 26
           }
         ],
         "interactionSpots": [
           {
-            "x": 7,
+            "x": 53,
             "y": 25
           },
           {
-            "x": 9,
+            "x": 55,
             "y": 25
           }
         ],
@@ -3361,21 +3399,21 @@
         "name": "Treasury door",
         "tiles": [
           {
-            "x": 23,
+            "x": 69,
             "y": 22
           },
           {
-            "x": 23,
+            "x": 69,
             "y": 23
           }
         ],
         "interactionSpots": [
           {
-            "x": 22,
+            "x": 68,
             "y": 22
           },
           {
-            "x": 24,
+            "x": 70,
             "y": 22
           }
         ],
@@ -3390,26 +3428,26 @@
         "name": "Ironmark Salon door",
         "tiles": [
           {
-            "x": 35,
+            "x": 42,
             "y": 13
           },
           {
-            "x": 35,
+            "x": 42,
             "y": 14
           }
         ],
         "interactionSpots": [
           {
-            "x": 34,
+            "x": 43,
             "y": 13
           },
           {
-            "x": 36,
+            "x": 41,
             "y": 13
           }
         ],
         "roomIds": [
-          "palace_back_hall",
+          "west_wing",
           "ironmark_salon"
         ],
         "open": true
@@ -3419,21 +3457,21 @@
         "name": "Ironmark quarters door",
         "tiles": [
           {
-            "x": 46,
+            "x": 31,
             "y": 13
           },
           {
-            "x": 46,
+            "x": 31,
             "y": 14
           }
         ],
         "interactionSpots": [
           {
-            "x": 45,
+            "x": 32,
             "y": 13
           },
           {
-            "x": 47,
+            "x": 30,
             "y": 13
           }
         ],
@@ -3448,21 +3486,21 @@
         "name": "Mara's door",
         "tiles": [
           {
-            "x": 52,
+            "x": 25,
             "y": 11
           },
           {
-            "x": 53,
+            "x": 24,
             "y": 11
           }
         ],
         "interactionSpots": [
           {
-            "x": 52,
+            "x": 25,
             "y": 10
           },
           {
-            "x": 52,
+            "x": 25,
             "y": 12
           }
         ],
@@ -3477,21 +3515,21 @@
         "name": "Hadrik's door",
         "tiles": [
           {
-            "x": 62,
+            "x": 15,
             "y": 11
           },
           {
-            "x": 63,
+            "x": 14,
             "y": 11
           }
         ],
         "interactionSpots": [
           {
-            "x": 62,
+            "x": 15,
             "y": 10
           },
           {
-            "x": 62,
+            "x": 15,
             "y": 12
           }
         ],
@@ -3506,21 +3544,21 @@
         "name": "Tessa's door",
         "tiles": [
           {
-            "x": 72,
+            "x": 5,
             "y": 11
           },
           {
-            "x": 73,
+            "x": 4,
             "y": 11
           }
         ],
         "interactionSpots": [
           {
-            "x": 72,
+            "x": 5,
             "y": 10
           },
           {
-            "x": 72,
+            "x": 5,
             "y": 12
           }
         ],
@@ -3535,26 +3573,26 @@
         "name": "Greenweald Solar door",
         "tiles": [
           {
-            "x": 35,
+            "x": 42,
             "y": 28
           },
           {
-            "x": 35,
+            "x": 42,
             "y": 29
           }
         ],
         "interactionSpots": [
           {
-            "x": 34,
+            "x": 43,
             "y": 28
           },
           {
-            "x": 36,
+            "x": 41,
             "y": 28
           }
         ],
         "roomIds": [
-          "palace_back_hall",
+          "west_wing",
           "greenweald_solar"
         ],
         "open": true
@@ -3564,21 +3602,21 @@
         "name": "Greenweald quarters door",
         "tiles": [
           {
-            "x": 46,
+            "x": 31,
             "y": 28
           },
           {
-            "x": 46,
+            "x": 31,
             "y": 29
           }
         ],
         "interactionSpots": [
           {
-            "x": 45,
+            "x": 32,
             "y": 28
           },
           {
-            "x": 47,
+            "x": 30,
             "y": 28
           }
         ],
@@ -3593,21 +3631,21 @@
         "name": "Elinor's door",
         "tiles": [
           {
-            "x": 52,
+            "x": 25,
             "y": 26
           },
           {
-            "x": 53,
+            "x": 24,
             "y": 26
           }
         ],
         "interactionSpots": [
           {
-            "x": 52,
+            "x": 25,
             "y": 25
           },
           {
-            "x": 52,
+            "x": 25,
             "y": 27
           }
         ],
@@ -3622,21 +3660,21 @@
         "name": "Oswin's door",
         "tiles": [
           {
-            "x": 62,
+            "x": 15,
             "y": 26
           },
           {
-            "x": 63,
+            "x": 14,
             "y": 26
           }
         ],
         "interactionSpots": [
           {
-            "x": 62,
+            "x": 15,
             "y": 25
           },
           {
-            "x": 62,
+            "x": 15,
             "y": 27
           }
         ],
@@ -3651,21 +3689,21 @@
         "name": "Rowan's door",
         "tiles": [
           {
-            "x": 72,
+            "x": 5,
             "y": 26
           },
           {
-            "x": 73,
+            "x": 4,
             "y": 26
           }
         ],
         "interactionSpots": [
           {
-            "x": 72,
+            "x": 5,
             "y": 25
           },
           {
-            "x": 72,
+            "x": 5,
             "y": 27
           }
         ],
@@ -3680,22 +3718,22 @@
         "name": "Saltmere Drawing Room door",
         "tiles": [
           {
-            "x": 35,
-            "y": 43
+            "x": 81,
+            "y": 13
           },
           {
-            "x": 35,
-            "y": 44
+            "x": 81,
+            "y": 14
           }
         ],
         "interactionSpots": [
           {
-            "x": 34,
-            "y": 43
+            "x": 80,
+            "y": 13
           },
           {
-            "x": 36,
-            "y": 43
+            "x": 82,
+            "y": 13
           }
         ],
         "roomIds": [
@@ -3709,22 +3747,22 @@
         "name": "Saltmere quarters door",
         "tiles": [
           {
-            "x": 46,
-            "y": 43
+            "x": 92,
+            "y": 13
           },
           {
-            "x": 46,
-            "y": 44
+            "x": 92,
+            "y": 14
           }
         ],
         "interactionSpots": [
           {
-            "x": 45,
-            "y": 43
+            "x": 91,
+            "y": 13
           },
           {
-            "x": 47,
-            "y": 43
+            "x": 93,
+            "y": 13
           }
         ],
         "roomIds": [
@@ -3738,22 +3776,22 @@
         "name": "Lucan's door",
         "tiles": [
           {
-            "x": 52,
-            "y": 41
+            "x": 98,
+            "y": 11
           },
           {
-            "x": 53,
-            "y": 41
+            "x": 99,
+            "y": 11
           }
         ],
         "interactionSpots": [
           {
-            "x": 52,
-            "y": 40
+            "x": 98,
+            "y": 10
           },
           {
-            "x": 52,
-            "y": 42
+            "x": 98,
+            "y": 12
           }
         ],
         "roomIds": [
@@ -3767,22 +3805,22 @@
         "name": "Sabine's door",
         "tiles": [
           {
-            "x": 62,
-            "y": 41
+            "x": 108,
+            "y": 11
           },
           {
-            "x": 63,
-            "y": 41
+            "x": 109,
+            "y": 11
           }
         ],
         "interactionSpots": [
           {
-            "x": 62,
-            "y": 40
+            "x": 108,
+            "y": 10
           },
           {
-            "x": 62,
-            "y": 42
+            "x": 108,
+            "y": 12
           }
         ],
         "roomIds": [
@@ -3796,22 +3834,22 @@
         "name": "Rook's door",
         "tiles": [
           {
-            "x": 72,
-            "y": 41
+            "x": 118,
+            "y": 11
           },
           {
-            "x": 73,
-            "y": 41
+            "x": 119,
+            "y": 11
           }
         ],
         "interactionSpots": [
           {
-            "x": 72,
-            "y": 40
+            "x": 118,
+            "y": 10
           },
           {
-            "x": 72,
-            "y": 42
+            "x": 118,
+            "y": 12
           }
         ],
         "roomIds": [

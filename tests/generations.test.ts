@@ -106,7 +106,7 @@ test("runtime inventories merge independently and reject stale writes atomically
 test("physical movement and reset advance the appropriate generations", () => {
   const game = runtime(), initial = game.readResources();
   const start = (initial["actor:player"]!.state as any).position;
-  game.movePlayer({ x: 15, y: 24 });
+  game.movePlayer({ x: 61, y: 24 });
   game.movePlayer(start);
   const moved = game.readResources();
   assert.notEqual(moved["actor:player"]!.generationId, initial["actor:player"]!.generationId);
@@ -197,9 +197,9 @@ test("player physical commands reject stale views without disclosing concealed i
   const hidden = locatedItems(scenario).find(item => item.concealed && !scenario.world!.fixtures.find(f => f.id === item.locationId)?.open)!;
   assert.ok(hidden);
   assert.equal(Object.hasOwn(view.generations as object, `item:${hidden.id}`), false);
-  game.movePlayer({ x: 15, y: 24 });
+  game.movePlayer({ x: 61, y: 24 });
   const before = game.snapshot();
-  assert.throws(() => game.movePlayer({ x: 15, y: 25 }, view.generations as Record<string, string>), GenerationConflict);
+  assert.throws(() => game.movePlayer({ x: 61, y: 25 }, view.generations as Record<string, string>), GenerationConflict);
   assert.deepEqual(game.snapshot(), before);
 });
 

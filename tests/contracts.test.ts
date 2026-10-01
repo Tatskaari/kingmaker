@@ -80,11 +80,11 @@ test("NPC dialogue receives meeting points that both participants may enter and 
   const speaker = scenario.world!.actors.find(actor => actor.characterId === "corvin")!;
   const listener = scenario.world!.actors.find(actor => actor.characterId === "garran")!;
   speaker.roomId = "great_hall";
-  speaker.position = create(TilePositionSchema, { x: 15, y: 24 });
+  speaker.position = create(TilePositionSchema, { x: 61, y: 24 });
   scenario.world!.actors.push(create(ActorStateSchema, { characterId: playerId, roomId: "great_hall", awake: true,
-    position: create(TilePositionSchema, { x: 16, y: 24 }) }));
+    position: create(TilePositionSchema, { x: 62, y: 24 }) }));
   listener.roomId = "great_hall";
-  listener.position = create(TilePositionSchema, { x: 14, y: 24 });
+  listener.position = create(TilePositionSchema, { x: 60, y: 24 });
 
   const prompt = dialogueEarshotPrompt(scenario, "corvin", ["corvin", playerId]);
 
@@ -110,7 +110,7 @@ test("the expanded authored scenario strictly parses and survives protobuf", () 
   assert.match(scenario.premise, /emissary from a vassal state of Caerwyn/);
   assert.equal(scenario.world?.phase, GamePhase.PLAYER_CREATION);
   assert.ok(scenario.world?.actors.every(actor => !actor.awake && actor.roomId === actor.homeRoomId));
-  assert.equal(scenario.world?.rooms.length, 25);
+  assert.equal(scenario.world?.rooms.length, 27);
 });
 
 test("the initial dethroning plot stays with the GM while each faction receives its own leads", () => {
@@ -141,7 +141,7 @@ test("the initial dethroning plot stays with the GM while each faction receives 
 test("the palace map is a complete layered tile grid", () => {
   const decoded = fromBinary(WorldMapSchema, toBinary(WorldMapSchema, palaceMap));
   assert.equal(decoded.tiles.length, decoded.width * decoded.height);
-  assert.equal(decoded.rooms.length, 25);
+  assert.equal(decoded.rooms.length, 27);
   assert.ok(decoded.tiles.some(tile => tile.layers.length > 1));
   assert.ok(decoded.tiles.flatMap(tile => tile.layers).some(layer => layer.solid && layer.bounds));
 
@@ -177,14 +177,14 @@ test("the palace map is a complete layered tile grid", () => {
   }
   // Facing rooms need a bottom edge, north cap and masonry face in separate
   // solid rows. A one-row band formerly produced overlapping, broken walls.
-  for (const [x, y] of [[3, 8], [12, 14], [13, 30]] as const) {
+  for (const [x, y] of [[49, 8], [58, 14], [59, 30]] as const) {
     const band = [0, 1, 2].map(dy => decoded.tiles[(y + dy) * decoded.width + x]!.layers.at(-1)!.tileId);
     assert.deepEqual(band, [26, 2, 40]);
     assert.ok([0, 1, 2].every(dy => !passable(x, y + dy)));
   }
-  const doorwayEdge = [0, 1, 2].map(dy => decoded.tiles[(8 + dy) * decoded.width + 4]!.layers.at(-1)!.tileId);
+  const doorwayEdge = [0, 1, 2].map(dy => decoded.tiles[(8 + dy) * decoded.width + 50]!.layers.at(-1)!.tileId);
   assert.deepEqual(doorwayEdge, [5, 17, 59], "doorway uses inner corners and a wall end");
-  assert.ok(reached.has(`15,${decoded.height - 1}`), "exterior entrance stays open");
+  assert.ok(reached.has(`61,${decoded.height - 1}`), "exterior entrance stays open");
 });
 
 test("game master context frames an emissary interview without defining the player", () => {
@@ -706,8 +706,8 @@ test("earshot dice gate event perception before Jev sees it", async t => {
     decisions.push(state); return { choice: "process", probabilities: { process: 0.8, ignore: 0.2 } };
   });
   const scenario = conversationScenario();
-  scenario.world!.actors.find(actor => actor.characterId === "corvin")!.position = create(TilePositionSchema, { x: 12, y: 24 });
-  scenario.world!.actors.find(actor => actor.characterId === "garran")!.position = create(TilePositionSchema, { x: 17, y: 24 });
+  scenario.world!.actors.find(actor => actor.characterId === "corvin")!.position = create(TilePositionSchema, { x: 58, y: 24 });
+  scenario.world!.actors.find(actor => actor.characterId === "garran")!.position = create(TilePositionSchema, { x: 63, y: 24 });
   const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, () => 0);
   const event = runtime.worldEvent("having a conversation", "Corvin proposed a secret succession bargain.", ["corvin"]);
   const perceived = await runtime.assessWorldEvent(event, new AbortController().signal);
@@ -769,8 +769,8 @@ test("clear event decisions include ownership, legality, relationship and backgr
     decisions.push(state); return { choice: "ignore", probabilities: { process: 0.1, ignore: 0.9 } };
   });
   const scenario = conversationScenario();
-  scenario.world!.actors.find(actor => actor.characterId === "corvin")!.position = create(TilePositionSchema, { x: 12, y: 24 });
-  scenario.world!.actors.find(actor => actor.characterId === "garran")!.position = create(TilePositionSchema, { x: 13, y: 24 });
+  scenario.world!.actors.find(actor => actor.characterId === "corvin")!.position = create(TilePositionSchema, { x: 58, y: 24 });
+  scenario.world!.actors.find(actor => actor.characterId === "garran")!.position = create(TilePositionSchema, { x: 59, y: 24 });
   const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, () => 0);
   const event = runtime.worldEvent("taking an item", "Corvin stole the king's silver spoon.", ["corvin"], {
     legality: "illegal", ownerCharacterId: "king", ownerName: "King Aldren", itemName: "Silver spoon",
@@ -932,7 +932,7 @@ test("ending one NPC's thread leaves other conversations intact and saves biogra
 test("A* detours around blockers and matches a breadth-first shortest path", () => {
   const start = palaceNodes[0]!;
   const goal = palaceNodes.find(node => node.id === "corvin")!;
-  const blocked = new Set(["15,20", "14,20", "16,20"]);
+  const blocked = new Set(["61,20", "60,20", "62,20"]);
   const path = findPath(palaceMap, start, goal, blocked)!;
   assert.ok(path);
   assert.ok(path.every(point => !blocked.has(pointKey(point))));
@@ -1031,7 +1031,7 @@ test("main palace markers use saved rooms and separate characters on walkable ti
   assert.equal(new Set(markers.map(marker => pointKey(marker.point!))).size, load().courtArrivalPlacements.length);
   assert.ok(markers.every(marker => courtRoomAt(marker.point!)?.id === "great_hall"));
   assert.ok(markers.every(marker => courtPath(markers[0]!.point!, marker.point!)));
-  const corvin = courtMarkers([{ id: "corvin", name: "Corvin", roomId: "corvin_chamber", position: { x: 5, y: 5 } }])[0]!;
+  const corvin = courtMarkers([{ id: "corvin", name: "Corvin", roomId: "corvin_chamber", position: { x: 51, y: 5 } }])[0]!;
   assert.equal(courtRoomAt(corvin.point!)?.id, "corvin_chamber");
   assert.equal(courtMarkers([{ id: "king", name: "King", roomId: "nonexistent_room" }])[0]!.point, undefined);
 });
@@ -1040,39 +1040,39 @@ test("main palace movement validates routes and survives saving and restoring", 
   const scenario = load(); scenario.characters.push(create(CharacterSchema, { id: "player", name: "Envoy" })); scenario.playerCharacterId = "player";
   scenario.world!.phase = GamePhase.CONVERSATIONS;
   for (const actor of scenario.world!.actors) actor.roomId = "great_hall";
-  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 16, y: 22 }) });
+  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 62, y: 22 }) });
   const runtime = new BrowserGameRuntime(scenario, "test");
-  runtime.movePlayer({ x: 5, y: 16 }); runtime.setDoor("hall_door", true);
-  runtime.movePlayer({ x: 5, y: 10 });
+  runtime.movePlayer({ x: 51, y: 16 }); runtime.setDoor("hall_door", true);
+  runtime.movePlayer({ x: 51, y: 10 });
   runtime.setDoor("corvin_door", true);
-  runtime.movePlayer({ x: 5, y: 5 });
-  assert.deepEqual(fromJson(ScenarioSchema, runtime.snapshot().scenario).world!.actors.find(actor => actor.characterId === "player")!.position, create(TilePositionSchema, { x: 5, y: 5 }));
+  runtime.movePlayer({ x: 51, y: 5 });
+  assert.deepEqual(fromJson(ScenarioSchema, runtime.snapshot().scenario).world!.actors.find(actor => actor.characterId === "player")!.position, create(TilePositionSchema, { x: 51, y: 5 }));
   assert.equal(runtime.view().location, "Corvin's Chamber");
   const restored = new BrowserGameRuntime(scenario, "test", structuredClone(runtime.snapshot()));
-  assert.deepEqual(restored.view().player && (restored.view().player as { position: unknown }).position, create(TilePositionSchema, { x: 5, y: 5 }));
+  assert.deepEqual(restored.view().player && (restored.view().player as { position: unknown }).position, create(TilePositionSchema, { x: 51, y: 5 }));
   const before = JSON.stringify(restored.snapshot());
   assert.throws(() => restored.movePlayer({ x: 0, y: 0 }), /not reachable/);
-  assert.throws(() => restored.movePlayer({ x: 6, y: 4 }), /not reachable/);
+  assert.throws(() => restored.movePlayer({ x: 52, y: 4 }), /not reachable/);
   assert.throws(() => restored.movePlayer({ x: NaN, y: 4 }), /not reachable/);
   assert.equal(JSON.stringify(restored.snapshot()), before);
-  restored.movePlayer({ x: 15, y: 35 });
+  restored.movePlayer({ x: 61, y: 35 });
   assert.equal(restored.view().location, "Entrance Hall");
-  restored.reset(); assert.deepEqual(fromJson(ScenarioSchema, restored.snapshot().scenario).world!.actors.find(actor => actor.characterId === "player")!.position, create(TilePositionSchema, { x: 16, y: 22 }));
-  assert.throws(() => new BrowserGameRuntime(load(), "test").movePlayer({ x: 5, y: 5 }), /Enter the court/);
+  restored.reset(); assert.deepEqual(fromJson(ScenarioSchema, restored.snapshot().scenario).world!.actors.find(actor => actor.characterId === "player")!.position, create(TilePositionSchema, { x: 62, y: 22 }));
+  assert.throws(() => new BrowserGameRuntime(load(), "test").movePlayer({ x: 51, y: 5 }), /Enter the court/);
 });
 
 
 test("mid-walk redirection preserves the current visual position and rejects blocked destinations", () => {
-  const original = courtPath({ x: 15, y: 21 }, { x: 5, y: 5 })!;
+  const original = courtPath({ x: 61, y: 21 }, { x: 51, y: 5 })!;
   const visual = courtWalkPoint(original, 2.4);
-  const changed = redirectCourtPath(original, 2.4, { x: 26, y: 25 })!;
+  const changed = redirectCourtPath(original, 2.4, { x: 72, y: 25 })!;
   assert.deepEqual(changed[0], visual);
   assert.deepEqual(changed[1], original[3]);
-  assert.deepEqual(changed.at(-1), { x: 26, y: 25 });
+  assert.deepEqual(changed.at(-1), { x: 72, y: 25 });
   assert.equal(redirectCourtPath(original, 2.4, { x: 0, y: 0 }), undefined);
-  const again = redirectCourtPath(changed, 0.2, { x: 15, y: 21 })!;
+  const again = redirectCourtPath(changed, 0.2, { x: 61, y: 21 })!;
   assert.deepEqual(again[0], courtWalkPoint(changed, 0.2));
-  assert.deepEqual(again.at(-1), { x: 15, y: 21 });
+  assert.deepEqual(again.at(-1), { x: 61, y: 21 });
   const stop = redirectCourtPath(original, 3, original[3]!)!;
   assert.equal(stop.length, 1);
 });
@@ -1098,9 +1098,9 @@ test("authored actor coordinates round-trip and rendering never invents position
     assert.deepEqual(marker.point, actor.position);
   }
   assert.equal(courtMarkers([{ id: "corvin", name: "Corvin", roomId: "great_hall" }])[0]!.point, undefined);
-  const customized = { x: 14, y: 21 };
+  const customized = { x: 60, y: 21 };
   assert.deepEqual(courtMarkers([{ id: "corvin", name: "Corvin", roomId: "great_hall", position: customized }])[0]!.point, customized);
-  assert.equal(courtMarkers([{ id: "corvin", name: "Corvin", roomId: "great_hall", position: { x: 5, y: 5 } }])[0]!.point, undefined);
+  assert.equal(courtMarkers([{ id: "corvin", name: "Corvin", roomId: "great_hall", position: { x: 51, y: 5 } }])[0]!.point, undefined);
 });
 
 
@@ -1122,13 +1122,13 @@ test("tile menus gather every layer with stable action and layer order and prese
 
 
 test("interaction spots approach characters and honor authored furniture points", () => {
-  const target = { x: 12, y: 20 }, start = { x: 16, y: 22 };
+  const target = { x: 58, y: 20 }, start = { x: 62, y: 22 };
   const spot = courtInteractionPoint(start, target)!;
   assert.equal(Math.abs(spot.x - target.x) + Math.abs(spot.y - target.y), 1);
   assert.ok(courtPath(start, spot));
   assert.deepEqual(courtInteractionPoint(spot, target), spot);
-  const authored = { x: 6, y: 5 };
-  assert.deepEqual(courtInteractionPoint(start, { x: 6, y: 4 }, authored), authored);
+  const authored = { x: 52, y: 5 };
+  assert.deepEqual(courtInteractionPoint(start, { x: 52, y: 4 }, authored), authored);
   assert.equal(courtInteractionPoint(start, target, { x: 0, y: 0 }), undefined);
 });
 
@@ -1137,31 +1137,31 @@ test("main doors choose the closest reachable side and block paths until opened"
   const doors = load().world!.doors;
   doors.find(door => door.id === "hall_door")!.open = true;
   const corvin = doors.find(door => door.id === "corvin_door")!;
-  assert.equal(courtPath({ x: 15, y: 21 }, { x: 5, y: 5 }, doors), undefined);
-  assert.deepEqual(nearestDoorSpot({ x: 15, y: 21 }, corvin, doors), corvin.interactionSpots[0]);
+  assert.equal(courtPath({ x: 61, y: 21 }, { x: 51, y: 5 }, doors), undefined);
+  assert.deepEqual(nearestDoorSpot({ x: 61, y: 21 }, corvin, doors), corvin.interactionSpots[0]);
   corvin.open = true;
-  assert.ok(courtPath({ x: 15, y: 21 }, { x: 5, y: 5 }, doors));
-  assert.deepEqual(nearestDoorSpot({ x: 5, y: 5 }, corvin, doors), corvin.interactionSpots[1]);
-  assert.deepEqual(nearestDoorSpot({ x: 5, y: 12 }, corvin, doors), corvin.interactionSpots[0]);
+  assert.ok(courtPath({ x: 61, y: 21 }, { x: 51, y: 5 }, doors));
+  assert.deepEqual(nearestDoorSpot({ x: 51, y: 5 }, corvin, doors), corvin.interactionSpots[1]);
+  assert.deepEqual(nearestDoorSpot({ x: 51, y: 12 }, corvin, doors), corvin.interactionSpots[0]);
 });
 
 test("door operations validate approach and occupancy, and persist through saves", () => {
   const scenario = load(); scenario.characters.push(create(CharacterSchema, { id: "player", name: "Envoy" })); scenario.playerCharacterId = "player";
   scenario.world!.phase = GamePhase.CONVERSATIONS;
   scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true,
-    position: create(TilePositionSchema, { x: 16, y: 22 }) });
+    position: create(TilePositionSchema, { x: 62, y: 22 }) });
   const runtime = new BrowserGameRuntime(scenario, "test");
   assert.throws(() => runtime.setDoor("corvin_door", true), /interaction spot/);
-  assert.throws(() => runtime.movePlayer({ x: 5, y: 5 }), /not reachable/);
-  runtime.movePlayer({ x: 5, y: 16 }); runtime.setDoor("hall_door", true);
-  runtime.movePlayer({ x: 5, y: 10 }); runtime.setDoor("corvin_door", true);
-  runtime.movePlayer({ x: 5, y: 8 }); runtime.setDoor("corvin_door", false);
+  assert.throws(() => runtime.movePlayer({ x: 51, y: 5 }), /not reachable/);
+  runtime.movePlayer({ x: 51, y: 16 }); runtime.setDoor("hall_door", true);
+  runtime.movePlayer({ x: 51, y: 10 }); runtime.setDoor("corvin_door", true);
+  runtime.movePlayer({ x: 51, y: 8 }); runtime.setDoor("corvin_door", false);
   const restored = new BrowserGameRuntime(scenario, "test", structuredClone(runtime.snapshot()));
   assert.equal(fromJson(ScenarioSchema, restored.snapshot().scenario).world!.doors.find(door => door.id === "corvin_door")!.open, false);
-  assert.throws(() => restored.movePlayer({ x: 5, y: 12 }), /not reachable/);
+  assert.throws(() => restored.movePlayer({ x: 51, y: 12 }), /not reachable/);
   restored.setDoor("corvin_door", true);
   const occupied = fromJson(ScenarioSchema, restored.snapshot().scenario);
-  occupied.world!.actors.find(actor => actor.characterId === "corvin")!.position = create(TilePositionSchema, { x: 5, y: 9 });
+  occupied.world!.actors.find(actor => actor.characterId === "corvin")!.position = create(TilePositionSchema, { x: 51, y: 9 });
   const blocked = new BrowserGameRuntime(occupied, "test");
   assert.throws(() => blocked.setDoor("corvin_door", false), /standing in the doorway/);
 });
@@ -1290,7 +1290,7 @@ test("authored parked objectives remain distinct from immediate greeting goals i
 
 function furnishedCourt(): Scenario {
   const scenario = conversationScenario();
-  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 16, y: 22 }) });
+  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 62, y: 22 }) });
   return scenario;
 }
 
@@ -1300,17 +1300,17 @@ test("main containers enforce approaches and keys, conceal contents, and persist
   assert.ok(!known.objects.some(item => item.id === "palace_royal_key"));
   assert.equal(known.fixtures.find(item => item.id === "palace_coffer_03")!.requiredKeyId, "");
   assert.throws(() => runtime.interactFixture("open_palace_corvin_drawers"), /interaction spot/);
-  runtime.movePlayer({ x: 5, y: 16 }); runtime.setDoor("hall_door", true);
-  runtime.movePlayer({ x: 5, y: 10 }); runtime.setDoor("corvin_door", true);
-  runtime.movePlayer({ x: 6, y: 5 });
+  runtime.movePlayer({ x: 51, y: 16 }); runtime.setDoor("hall_door", true);
+  runtime.movePlayer({ x: 51, y: 10 }); runtime.setDoor("corvin_door", true);
+  runtime.movePlayer({ x: 52, y: 5 });
   assert.match(runtime.interactFixture("open_palace_corvin_drawers"), /Royal lockbox key/);
   let saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
   assert.ok(worldForCharacter(saved, "player").objects.some(item => item.id === "palace_royal_key"));
   assert.match(runtime.interactFixture("take_palace_royal_key"), /Picked up/);
   assert.throws(() => runtime.interactFixture("take_palace_royal_key"), /Unknown/);
   runtime.interactFixture("close_palace_corvin_drawers");
-  runtime.movePlayer({ x: 15, y: 10 }); runtime.setDoor("royal_door", true);
-  runtime.movePlayer({ x: 17, y: 5 });
+  runtime.movePlayer({ x: 61, y: 10 }); runtime.setDoor("royal_door", true);
+  runtime.movePlayer({ x: 63, y: 5 });
   runtime.interactFixture("open_palace_coffer_03");
   runtime.interactFixture("take_palace_royal_seal");
   runtime.interactFixture("take_palace_sealed_decree");
@@ -1324,8 +1324,8 @@ test("main containers enforce approaches and keys, conceal contents, and persist
 
 test("player fixture interactions emit transient world events instead of durable memories", () => {
   const witnessed = furnishedCourt();
-  for (const actor of witnessed.world!.actors) actor.position = create(TilePositionSchema, { x: 30, y: 30 });
-  witnessed.world!.actors.find(actor => actor.characterId === "player")!.position = create(TilePositionSchema, { x: 6, y: 5 });
+  for (const actor of witnessed.world!.actors) actor.position = create(TilePositionSchema, { x: 76, y: 30 });
+  witnessed.world!.actors.find(actor => actor.characterId === "player")!.position = create(TilePositionSchema, { x: 52, y: 5 });
   witnessed.world!.fixtures.find(fixture => fixture.id === "palace_corvin_drawers")!.open = true;
   const runtime = new BrowserGameRuntime(witnessed, "test");
   const before = runtime.snapshot().scenario;
@@ -1333,7 +1333,7 @@ test("player fixture interactions emit transient world events instead of durable
   assert.match(result.message, /Picked up/);
   assert.equal(result.event.kind, "interacting with an object");
   assert.deepEqual(result.event.participantIds, ["player"]);
-  assert.deepEqual(result.event.position, create(TilePositionSchema, { x: 6, y: 5 }));
+  assert.deepEqual(result.event.position, create(TilePositionSchema, { x: 52, y: 5 }));
   assert.equal(result.event.details?.legality, "illegal");
   assert.equal(result.event.details?.ownerCharacterId, "corvin");
   assert.equal(result.event.details?.ownerName, "Magister Corvin");
@@ -1343,9 +1343,9 @@ test("player fixture interactions emit transient world events instead of durable
 
 test("NPC interactions emit the same transient world event shape", () => {
   const scenario = furnishedCourt();
-  for (const actor of scenario.world!.actors) actor.position = create(TilePositionSchema, { x: 30, y: 30 });
-  scenario.world!.actors.find(actor => actor.characterId === "corvin")!.position = create(TilePositionSchema, { x: 6, y: 5 });
-  scenario.world!.actors.find(actor => actor.characterId === "garran")!.position = create(TilePositionSchema, { x: 7, y: 5 });
+  for (const actor of scenario.world!.actors) actor.position = create(TilePositionSchema, { x: 76, y: 30 });
+  scenario.world!.actors.find(actor => actor.characterId === "corvin")!.position = create(TilePositionSchema, { x: 52, y: 5 });
+  scenario.world!.actors.find(actor => actor.characterId === "garran")!.position = create(TilePositionSchema, { x: 53, y: 5 });
   const drawers = scenario.world!.fixtures.find(fixture => fixture.id === "palace_corvin_drawers")!;
   drawers.open = true; drawers.ownerCharacterId = "king";
   const runtime = new BrowserGameRuntime(scenario, "test"), active = runtime.snapshot();
@@ -1366,7 +1366,7 @@ test("trying locked containers needs the correct carried key and preserves conce
   const scenario = furnishedCourt();
   for (const door of scenario.world!.doors) door.open = true;
   const runtime = new BrowserGameRuntime(scenario, "test");
-  runtime.movePlayer({ x: 17, y: 5 });
+  runtime.movePlayer({ x: 63, y: 5 });
   assert.match(runtime.interactFixture("open_palace_coffer_03"), /locked/);
   const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
   assert.equal(saved.world!.fixtures.find(item => item.id === "palace_coffer_03")!.open, false);
@@ -1379,7 +1379,7 @@ test("resetting physical world keeps character and conversation while refreshing
   t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Welcome, envoy." }));
   const runtime = new BrowserGameRuntime(authored, "test", new BrowserGameRuntime(scenario, "test").snapshot());
   await runtime.talkToCharacter("corvin", "Hello.");
-  runtime.movePlayer({ x: 20, y: 21 });
+  runtime.movePlayer({ x: 66, y: 21 });
   runtime.interactFixture("open_palace_hall_cabinet");
   runtime.interactFixture("take_palace_iron_key");
   const before = runtime.snapshot(), characters = fromJson(ScenarioSchema, before.scenario).characters;
@@ -1456,7 +1456,7 @@ test("NPC actions use their own keys and inventory, reject stale plans, and pres
   const scenario = furnishedCourt();
   for (const door of scenario.world!.doors) door.open = true;
   const corvin = scenario.world!.actors.find(actor => actor.characterId === "corvin")!;
-  corvin.roomId = "corvin_chamber"; corvin.position = create(TilePositionSchema, { x: 5, y: 5 });
+  corvin.roomId = "corvin_chamber"; corvin.position = create(TilePositionSchema, { x: 51, y: 5 });
   const runtime = new BrowserGameRuntime(scenario, "test");
   const activeSnapshot = runtime.snapshot();
   activeSnapshot.npcActivities = { corvin: { status: "active", goal: scenario.characters.find(item => item.id === "corvin")!.currentGoal, history: [] } };
@@ -1544,7 +1544,7 @@ test("outcome review survives reload and failure; replanning cap leaves a propos
 
 test("treasury can be opened from the hall and closed from inside, with sides explicit to Jev", () => {
   const scenario = furnishedCourt(), actor = scenario.world!.actors.find(item => item.characterId === "corvin")!;
-  actor.position = create(TilePositionSchema, { x: 22, y: 22 }); actor.roomId = "great_hall";
+  actor.position = create(TilePositionSchema, { x: 68, y: 22 }); actor.roomId = "great_hall";
   scenario.characters.find(item => item.id === "corvin")!.currentGoal = "Go into the Treasury, close the door from inside, and wait there.";
   const runtime = new BrowserGameRuntime(scenario, "test"), snapshot = runtime.snapshot();
   snapshot.npcActivities = { corvin: { status: "active", goal: scenario.characters[0]!.currentGoal, history: [] } }; runtime.restore(snapshot);
@@ -1772,7 +1772,7 @@ test("talk availability follows closed doors and Jev gets the offered talk choic
   const plan = await runtime.planNpc("corvin", new AbortController().signal);
   assert.equal(plan.action?.type, "talk");
   const recipient = scenario.world!.actors.find(item => item.characterId === action.target)!;
-  recipient.position = create(TilePositionSchema, { x: 5, y: 5 }); recipient.roomId = "corvin_chamber";
+  recipient.position = create(TilePositionSchema, { x: 51, y: 5 }); recipient.roomId = "corvin_chamber";
   for (const door of scenario.world!.doors) door.open = false;
   assert.ok(!courtAgentObservation(scenario, "corvin").actions.some(item => item.id === action.id));
   for (const door of scenario.world!.doors) door.open = true;
@@ -1826,17 +1826,17 @@ test("authored world rooms and connections match the palace map", () => {
 test("each visiting delegation has a public room, private back hall and individual quarters", () => {
   const scenario = load(), world = scenario.world!;
   const delegations = [
-    { publicRoom: "ironmark_salon", publicPoint: { x: 41, y: 11 }, backHall: "ironmark_back_hall",
+    { publicRoom: "ironmark_salon", publicPoint: { x: 36, y: 11 }, backHall: "ironmark_back_hall",
       members: ["mara", "hadrik", "tessa"] },
-    { publicRoom: "greenweald_solar", publicPoint: { x: 41, y: 26 }, backHall: "greenweald_back_hall",
+    { publicRoom: "greenweald_solar", publicPoint: { x: 36, y: 26 }, backHall: "greenweald_back_hall",
       members: ["elinor", "oswin", "rowan"] },
-    { publicRoom: "saltmere_drawing_room", publicPoint: { x: 41, y: 41 }, backHall: "saltmere_back_hall",
+    { publicRoom: "saltmere_drawing_room", publicPoint: { x: 87, y: 11 }, backHall: "saltmere_back_hall",
       members: ["lucan", "sabine", "rook"] },
   ];
   const openDoors = world.doors.map(door => ({ ...door, open: true }));
   for (const delegation of delegations) {
     assert.equal(courtRoomAt(delegation.publicPoint)?.id, delegation.publicRoom);
-    assert.ok(courtPath({ x: 15, y: 24 }, delegation.publicPoint, world.doors, world.fixtures));
+    assert.ok(courtPath({ x: 61, y: 24 }, delegation.publicPoint, world.doors, world.fixtures));
     const backHall = world.rooms.find(room => room.id === delegation.backHall)!;
     assert.equal(backHall.private, true);
     assert.deepEqual([...backHall.allowedCharacterIds].sort(), [...delegation.members].sort());
@@ -1845,7 +1845,7 @@ test("each visiting delegation has a public room, private back hall and individu
       assert.equal(actor.homeRoomId, `${member}_chamber`);
       assert.equal(actor.roomId, actor.homeRoomId);
       assert.equal(courtRoomAt(actor.position!)?.id, actor.homeRoomId);
-      assert.ok(courtPath({ x: 15, y: 24 }, actor.position!, openDoors, world.fixtures), `${member}'s room is reachable`);
+      assert.ok(courtPath({ x: 61, y: 24 }, actor.position!, openDoors, world.fixtures), `${member}'s room is reachable`);
     }
   }
   for (const placement of scenario.courtArrivalPlacements) assert.equal(placement.roomId, "great_hall");
@@ -1865,10 +1865,10 @@ test("the royal household has a public council chamber, private back hall and me
     assert.ok(door, `${id} exists`);
     assert.equal(door.open, true, `${id} starts open`);
   }
-  assert.ok(courtPath({ x: 15, y: 24 }, { x: 5, y: 17 }, world.doors, world.fixtures));
-  assert.equal(courtPath({ x: 15, y: 24 }, { x: 15, y: 12 }, world.doors, world.fixtures), undefined);
+  assert.ok(courtPath({ x: 61, y: 24 }, { x: 51, y: 17 }, world.doors, world.fixtures));
+  assert.equal(courtPath({ x: 61, y: 24 }, { x: 61, y: 12 }, world.doors, world.fixtures), undefined);
   const openDoors = world.doors.map(door => door.id === "hall_door" ? { ...door, open: true } : door);
-  assert.ok(courtPath({ x: 15, y: 24 }, { x: 15, y: 12 }, openDoors, world.fixtures));
+  assert.ok(courtPath({ x: 61, y: 24 }, { x: 61, y: 12 }, openDoors, world.fixtures));
 });
 
 test("GPT-6 Responses adapter preserves tool history and encrypted reasoning across DM turns", async t => {
@@ -1928,13 +1928,13 @@ test("background NPC review merges its memories without undoing concurrent playe
     return modelReply({ newNotes: ["I have arrived."], relationships: [], lore: null, goalUpdate: null });
   });
   const review = fork.reviewNpcOutcome("corvin");
-  runtime.movePlayer({ x: 20, y: 21 });
+  runtime.movePlayer({ x: 66, y: 21 });
   runtime.interactFixture("open_palace_hall_cabinet");
   runtime.interactFixture("take_palace_iron_key");
   release(); await review;
   runtime.commitCharacterFork(before, fork, ["corvin"]);
   const after = fromJson(ScenarioSchema, runtime.snapshot().scenario);
-  assert.deepEqual(after.world!.actors.find(a => a.characterId === "player")!.position, create(TilePositionSchema, { x: 20, y: 21 }));
+  assert.deepEqual(after.world!.actors.find(a => a.characterId === "player")!.position, create(TilePositionSchema, { x: 66, y: 21 }));
   assert.equal(locatedItems(after).find(o => o.id === "palace_iron_key")!.locationId, "player");
   assert.ok(after.notes.some(e => e.text === "I have arrived."));
   assert.equal(runtime.snapshot().npcActivities?.corvin?.reviewPending, false);
@@ -1957,14 +1957,14 @@ test("NPC movement commits one tile at a time and replans when a door closes", (
   const initial = runtime.snapshot();
   const scenario = fromJson(ScenarioSchema, initial.scenario);
   const actor = scenario.world!.actors.find(a => a.characterId === "corvin")!;
-  actor.position = create(TilePositionSchema, { x: 5, y: 17 }); actor.roomId = "royal_council_chamber";
+  actor.position = create(TilePositionSchema, { x: 51, y: 17 }); actor.roomId = "royal_council_chamber";
   scenario.world!.doors.find(d => d.id === "hall_door")!.open = true;
   initial.scenario = toJson(ScenarioSchema, scenario); runtime.restore(initial);
   const goal = scenario.characters.find(c => c.id === "corvin")!.currentGoal;
   const result = runtime.stepNpcAction("corvin", "enter_north_corridor", goal);
   assert.equal(result.done, false);
   const moved = fromJson(ScenarioSchema, runtime.snapshot().scenario).world!.actors.find(a => a.characterId === "corvin")!.position!;
-  assert.equal(Math.abs(moved.x - 5) + Math.abs(moved.y - 17), 1);
+  assert.equal(Math.abs(moved.x - 51) + Math.abs(moved.y - 17), 1);
   const closed = runtime.snapshot(), changed = fromJson(ScenarioSchema, closed.scenario);
   changed.world!.doors.find(d => d.id === "hall_door")!.open = false;
   closed.scenario = toJson(ScenarioSchema, changed); runtime.restore(closed);
@@ -2256,7 +2256,7 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     await request("start_npc", { characterId: "corvin" });
     assert.deepEqual(plans.map(plan => plan.id), ["corvin", "mara"]);
     assert.deepEqual(npcUpdates.at(-1).running.sort(), ["corvin", "mara"]);
-    await request("move_player", { x: 15, y: 24, generations: (await request("state")).state.generations });
+    await request("move_player", { x: 61, y: 24, generations: (await request("state")).state.generations });
     await request("pause_npc", { characterId: "corvin" });
     assert.equal(plans[0]!.signal.aborted, true);
     assert.equal(plans[1]!.signal.aborted, false);
@@ -2424,7 +2424,7 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     for (const type of ["talk", "end_conversation", "pause_npc", "start_npc"]) {
       await assert.rejects(request(type, { characterId: "corvin", message: "Again" }), /still reviewing/);
     }
-    const destination = { x: 15, y: 24 };
+    const destination = { x: 61, y: 24 };
     await request("move_player", { ...destination, generations: (await request("state")).state.generations });
     await request("talk", { characterId: "mara", message: "Hello." });
     release();
@@ -2635,9 +2635,9 @@ test("expanded hall has unobstructed routes to all delegates and its relocated e
     assert.ok(courtPath(player, placement.position!, world.doors, world.fixtures), `${placement.characterId} can be reached`);
   }
   const entrance = world.doors.find(door => door.id === "entrance_door")!;
-  assert.ok(courtPath(player, { x: 15, y: 35 }, world.doors, world.fixtures));
+  assert.ok(courtPath(player, { x: 61, y: 35 }, world.doors, world.fixtures));
   entrance.open = false;
-  assert.equal(courtPath({ x: 15, y: 24 }, { x: 15, y: 35 }, world.doors, world.fixtures), undefined);
+  assert.equal(courtPath({ x: 61, y: 24 }, { x: 61, y: 35 }, world.doors, world.fixtures), undefined);
   for (const fixture of world.fixtures.filter(item => item.roomId === "entrance_hall")) {
     assert.equal(courtRoomAt(fixture.position!)?.id, "entrance_hall");
     if (fixture.interactionSpot) assert.equal(courtRoomAt(fixture.interactionSpot)?.id, "entrance_hall");
@@ -2710,13 +2710,13 @@ test("GM world additions preserve unrelated player movement and inventory change
   let calls = 0;
   t.mock.method(OpenRouterClient.prototype, "complete", async () => calls++ === 0 ? gmTool("create_item", missingProp) : modelReply(idleMemory));
   await fork.reviewNpcOutcome("corvin");
-  runtime.movePlayer({ x: 20, y: 21 });
+  runtime.movePlayer({ x: 66, y: 21 });
   runtime.commitCharacterFork(before, fork, ["corvin"]);
   const merged = fromJson(ScenarioSchema, runtime.snapshot().scenario);
   assert.ok(locatedItems(merged).some(o => o.id === "envoy_token"));
-  assert.deepEqual(merged.world!.actors.find(a => a.characterId === "player")!.position, create(TilePositionSchema, { x: 20, y: 21 }));
+  assert.deepEqual(merged.world!.actors.find(a => a.characterId === "player")!.position, create(TilePositionSchema, { x: 66, y: 21 }));
   runtime.restore(before);
-  runtime.movePlayer({ x: 20, y: 21 });
+  runtime.movePlayer({ x: 66, y: 21 });
   runtime.interactFixture("open_palace_hall_cabinet");
   runtime.interactFixture("take_palace_iron_key");
   runtime.commitCharacterFork(before, fork, ["corvin"]);
