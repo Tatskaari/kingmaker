@@ -107,6 +107,54 @@ record the initiating request and the GM resolution separately.
 NPC execution is serial and bounded. Stop Jev cancels pending planning or walking;
 active goals and pending reviews can be resumed after loading a save.
 
+### Jev world-state evals
+
+The headless Jev eval runner creates a fresh runtime for every run, assigns one
+physical goal, applies production movement and interactions, and evaluates the
+resulting typed scenario. Eval definitions are TypeScript in `evals/jev/`, so
+setup and success criteria can use normal domain helpers instead of a JSON
+assertion language. Run the default scenarios with:
+
+```sh
+OPENROUTER_API_KEY=... npm run eval:jev
+```
+
+Each scenario runs ten times by default. The CLI reports success rate and the
+average number of Jev decisions for successful and failed runs. Every run is
+written immediately to `eval-output/jev/` with the invocation date, scenario
+name and run number. These gitignored JSON artifacts contain the Jev request and
+response transcripts, action trace, outcome and final runtime snapshot.
+
+The guest-invitation eval supplies `mockTalk`: after the king approaches a
+guest, the harness records the talk target and feeds the mock response back to
+Jev's action history. Success requires calls to all nine visiting delegates;
+recipients remain in place and no dialogue model runs. Artifacts include these
+`talkCalls`. The scarf delivery eval stops at the conversation boundary and
+succeeds when the king calls the talk action targeting Rowan. Run either by name, for example
+`npm run eval:jev -- guest` or `npm run eval:jev -- scarf`.
+
+`npm run eval:jev -- "royal seal"` runs the longer dependency-and-cleanup task:
+fetch Corvin's key, open the royal lockbox, take the seal, close the lockbox and
+both bedroom doors, then talk to Rowan. At that conversation boundary the eval
+checks the king carries the seal and all three closures are complete. It uses
+the same authored world, production prompts, and 24-decision budget.
+
+Add `--minimal` to opt each run into the room-scoped text interface with context
+level 1 (scene plus active objective) and the completed action log enabled:
+`npm run eval:jev -- "royal seal" --minimal`. Artifacts record `minimal: true`.
+This uses per-runtime overrides and does not change the game's default flags.
+
+Runs also report earned/possible points, a percentage, and a milestone breakdown,
+saved with each transcript. The repeated-run score is total earned points divided
+by total possible points; full-success rate and turn averages remain separate.
+The royal-seal rubric is 11 points: 2 each for retrieving the key, opening the
+lockbox, collecting the seal, and reaching Rowan with it; 1 each for closing
+Corvin's door behind you, closing the lockbox after collecting the seal, and
+closing the royal door behind you. Completed-action IDs establish retrieval and
+opening; final state establishes retained items and closures. Untouched closed
+doors earn no points. Guest invitations earn one point per distinct guest.
+Scenarios without milestones retain a one-point completion score.
+
 ## Reset while developing
 
 With a loaded character, use the browser console:
