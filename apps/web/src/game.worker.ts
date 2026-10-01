@@ -458,6 +458,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
           if (generation !== version) throw new Error("Game changed.");
           game.commitCharacterFork(before, fork, [id]);
         });
+      if (type === "talk") void game.logConversationExpression(id).catch(() => {});
       if (finalMessage) reply = await reviewFork(game).endConversation(id);
       if (type === "end_conversation") {
         conversationHolds.delete(id);
