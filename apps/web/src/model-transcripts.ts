@@ -35,7 +35,7 @@ export interface ModelTranscriptRun {
   characterId: string;
   startedAt: string;
   completedAt?: string;
-  status: "pending" | "success" | "error";
+  status: "pending" | "success" | "error" | "stopped";
   calls: ModelTranscript[];
   context?: unknown;
   error?: string;
@@ -69,6 +69,12 @@ export class ModelTranscripts {
     if (!run) return;
     run.status = "success"; run.completedAt = new Date().toISOString();
     if (context !== undefined) run.context = this.#clean(context);
+    this.#trimRuns(); this.changed();
+  }
+  stop(key: string): void {
+    const run = this.#runs[key];
+    if (!run) return;
+    run.status = "stopped"; run.completedAt = new Date().toISOString();
     this.#trimRuns(); this.changed();
   }
   fail(key: string, error: unknown, context?: unknown): void {
