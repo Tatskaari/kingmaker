@@ -103,12 +103,12 @@ export class MemoryGame implements GameState {
       if (placement) actor.roomId = placement.roomId;
     }
 
-    const identity = `${player.name}, ${setup.embassyRole} from ${setup.homeland}`;
+    const identity = `${player.name}, ${setup.embassyRole}${setup.homeland === "Independent" ? "" : ` from ${setup.homeland}`}`;
     for (const npcId of npcIds) {
       this.#scenario.notes.push(create(NoteSchema, {
         id: `arrival-${npcId}`,
         day: world.day,
-        text: `${identity}, has arrived with the diplomatic delegation and is greeting ${npcId} in the Great Hall.`,
+        text: `${identity}, has arrived${setup.homeland === "Independent" ? " independently" : " with the diplomatic delegation"} and is greeting ${npcId} in the Great Hall.`,
         characterIds: [npcId, player.id],
         visibility: NoteVisibility.PRIVATE,
         details: { homeland: setup.homeland, embassyRole: setup.embassyRole },

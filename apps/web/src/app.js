@@ -8,7 +8,7 @@ import { coalescedRefresh, updateTranscriptPanel } from "./debug-live.js";
 import { AlertLog } from "./alerts.js";
 import { captureCourtMap, mountCourtMap, updateCourtMap } from "./court-map.js";
 import { buildIssueReport, issuePageUrl, issueReportFilename } from "./issue-report.js";
-import { sandboxIntroduction, handoffPrefix, delegations, characterSprites, patronName } from "./introduction.js";
+import { sandboxIntroduction, handoffPrefix, courtAffiliations, characterSprites, patronName } from "./introduction.js";
 import { courtCharactersWithinEarshot } from "./earshot.js";
 import { formatElapsedTime } from "./relative-time.js";
 import devOpenRouterApiKey from "virtual:kingmaker-dev-openrouter-key";
@@ -456,7 +456,7 @@ function renderCharacterReview() {
   reviewDraft ||= structuredClone(state.playerDraft);
   const field = (label, key, value, multiline = false) => `<label>${label}${multiline ? `<textarea data-review-field="${key}" required ${busy ? "disabled" : ""}>${escapeHtml(value || "")}</textarea>` : `<input data-review-field="${key}" value="${escapeHtml(value || "")}" required ${busy ? "disabled" : ""}>`}</label>`;
   const identityFields = reviewDraft.player.delegation
-    ? `${field("Gender", "player.gender", reviewDraft.player.gender)}<label>Delegation<select data-review-field="player.delegation" ${busy ? "disabled" : ""}>${delegations.map(item => `<option value="${item.id}" ${reviewDraft.player.delegation === item.id ? "selected" : ""}>${item.id}</option>`).join("")}</select></label>`
+    ? `${field("Gender", "player.gender", reviewDraft.player.gender)}<label>Court affiliation<select data-review-field="player.delegation" ${busy ? "disabled" : ""}>${courtAffiliations.map(id => `<option value="${id}" ${reviewDraft.player.delegation === id ? "selected" : ""}>${id}</option>`).join("")}</select></label>`
     : field("Homeland", "homeland", reviewDraft.homeland);
   const appearanceChoices = reviewDraft.player.delegation ? `<fieldset class="sprite-options" ${busy ? "disabled" : ""}><legend>Your appearance</legend><p class="field-hint">Choose how you appear in court.</p><div class="sprite-grid">${characterSprites.map((sprite, index) => `<label class="sprite-choice"><input type="radio" name="appearance" data-review-field="player.sprite" value="${sprite}" ${reviewDraft.player.sprite === sprite ? "checked" : ""}><span class="court-sprite" style="background-position:${-(sprite % 12) * 32}px ${-Math.floor(sprite / 12) * 32}px" aria-hidden="true"></span><span>Traveller ${index + 1}</span></label>`).join("")}</div></fieldset>` : "";
   const buildSummary = playerStats(reviewDraft.player.dnd, true);
