@@ -107,6 +107,29 @@ record the initiating request and the GM resolution separately.
 NPC execution is serial and bounded. Stop Jev cancels pending planning or walking;
 active goals and pending reviews can be resumed after loading a save.
 
+### Conversation check classifiers
+
+`packages/providers/src/conversation-checks.ts` exports an independent Jev
+classifier for each of the 18 skills, including persuasion, deception,
+intimidation, and insight:
+
+```ts
+const result = await conversationCheckClassifiers.persuasion(client, {
+  playerTurn: "Please let us in; we can help protect the council.",
+  history: [{ speaker: "guard", text: "Entry is forbidden." }],
+  context: "The guard is reluctant to admit visitors without authorization.",
+}, signal);
+// result: { skill, needsCheck, decision }
+```
+
+Each classifier sends only its own binary question. `classifyConversationTurn`
+optionally batches all the same questions in one request and returns
+`{ needsCheck, checks, decisions }`. Provide established facts and obstacles as
+context; unknown facts are not assumed to warrant a check. These APIs classify
+attempts only and are not yet wired into dialogue or dice resolution. Decision
+probabilities are model evidence, not roll success odds. Errors propagate rather
+than silently becoming a no-check result.
+
 ### Jev world-state evals
 
 The headless Jev eval runner creates a fresh runtime for every run, assigns one
