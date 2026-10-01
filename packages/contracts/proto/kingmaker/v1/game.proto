@@ -79,8 +79,8 @@ message Character {
   string lore = 3;
   repeated Relationship relationships = 4;
   string current_goal = 5;
-  // Legacy long-term ambition names. Loaded saves migrate these into
-  // parked_objectives; new state leaves this empty.
+  // Authored long-term ambition names, used to initialize parked_objectives
+  // for a new game; runtime state leaves this empty.
   repeated string objectives = 6;
   string gender = 7;
   optional uint32 sprite = 8;

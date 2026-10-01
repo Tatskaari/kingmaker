@@ -6112,8 +6112,7 @@
         "Saltmere": "Saltmere is a pragmatic maritime kingdom of merchant houses, shipyards, credit and information brokers. It imports and re-exports Greenweald's grain and Ironmark's manufactured iron at a profit, providing freight, warehouses, insurance and financing. Both customers know they are being played against one another, but cannot readily replace that infrastructure. Saltmere cultivates their distrust to prevent direct trade. It changes alliances when useful, so nobody trusts its lasting commitments. Its established merchants need solvent customers and peace; smugglers and speculators profit from disruption; its royal house seeks independence from its financiers. Its agents touch many plots through ships and payments but have incomplete, competing information. It seeks charter renewal and an end to emergency shipping taxes."
       },
       "crisis": "A poor harvest has tightened Greenweald's grain supply. Religious estates reserve stocks for their dependants; Saltmere raises freight and credit charges; Ironmark's bread prices rise while machinery orders go unpaid. An Ironmark grain convoy is detained over disputed charges. Armed escorts threaten to turn a trade dispute into a breach of the Concord. Aldren has postponed judgment, and crowds gather outside Caerwyn's granaries while delicacies reach the palace.",
-      "implementation": "The playable court supports conversations, movement and NPC actions. Time progression and formal recognition resolution are not implemented. Do not claim the assembly has resolved or a sovereign has been installed merely because of a conversation.",
-      "palaceFurnishingsVersion": 1
+      "implementation": "The playable court supports conversations, movement and NPC actions. Time progression and formal recognition resolution are not implemented. Do not claim the assembly has resolved or a sovereign has been installed merely because of a conversation."
     }
   }
 }
