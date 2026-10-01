@@ -235,3 +235,25 @@ proto run moon -- run workspace:unitEval -- evals/king-accusation-response.json
 
 The production site is built into `dist/web`. Merges to main deploy through
 `.github/workflows/pages.yml`. Relative asset URLs support GitHub Pages paths.
+
+## Game logs
+
+[LogTape](https://logtape.org/) sends structured game logs to the browser console
+(including the game worker). Enable **Verbose** in DevTools to see debug records;
+filter by `kingmaker` or an event/character ID. Log properties are expandable objects.
+
+`npm test` and `npm run check` write JSON-lines files under `test-output/logs/`.
+Each test process gets its own timestamp/PID file, with its test filename in the
+first record. Tests run without Moon caching so each invocation produces fresh logs.
+Set `KINGMAKER_LOG_DIR` to override the directory. Files accumulate across runs;
+remove `test-output/logs/` when no longer needed. Logs are ignored by Git.
+For a focused test or eval with file logging:
+
+```sh
+node --import tsx --import ./scripts/test-logging.ts --test tests/contracts.test.ts
+node --import tsx --import ./scripts/test-logging.ts scripts/run-jev-world-eval.ts
+```
+
+Shared code uses `gameLogger(component)`; entry points choose the sink with
+`configureGameLogging`. The default threshold is `debug`; callers may select a
+higher level or `disabled`. The Node file sink is never imported by browser code.

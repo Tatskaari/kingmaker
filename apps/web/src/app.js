@@ -1,3 +1,4 @@
+import "./logging.js";
 import { debugOverview, recentTranscriptsView } from "./debug-view.js";
 import { AlertLog } from "./alerts.js";
 import { captureCourtMap, mountCourtMap, updateCourtMap } from "./court-map.js";
