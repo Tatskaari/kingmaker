@@ -46,6 +46,7 @@ const worldEvents = new Set<AbortController>();
 const pendingNpcs: Array<{ id: string; handoffs: number }> = [];
 const conversationHolds = new Set<string>();
 const conversationReviews = new Set<string>();
+const pendingDice = new Map<string, { requestId: number; resolve: () => void; reject: (error: Error) => void }>();
 
 function alertUser(level: "warning" | "error", message: string) {
   const safe = (apiKey ? message.split(apiKey).join("[redacted]") : message).replace(/sk-[a-zA-Z0-9_-]+/g, "[redacted]");
@@ -339,6 +340,8 @@ function requireRuntime(): BrowserGameRuntime {
 
 async function handle(type: string, payload: Record<string, unknown>, requestId: number): Promise<unknown> {
   if (["configure", "create_game", "create_development_game", "load_game", "delete_game", "reset", "reset_world", "reset_characters"].includes(type)) {
+    for (const pending of pendingDice.values()) pending.reject(new Error("Game changed during a dice roll."));
+    pendingDice.clear();
     generation++; stopBackground(); stopWorldEvents(); conversationHolds.clear();
   }
   const reviewKey = `${generation}:${String(payload.characterId || "")}`;
@@ -434,23 +437,28 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     try {
       const game = requireRuntime(), id = String(payload.characterId || "");
       conversationHolds.add(id); stopBackground(id);
-      if (type === "end_conversation" && typeof payload.message === "string") {
-        void game.logConversationChecks(id, payload.message).catch(() => {});
-        await commitMutation(game, () => game.endConversationAsPlayer(id, payload.message as string));
-      }
+      const finalMessage = type === "end_conversation" && typeof payload.message === "string";
       const version = generation;
-      const { before, fork } = await enqueue(async () => ({ before: game.snapshot(), fork: type === "end_conversation" ? reviewFork(game) : game.forkForNpc() }));
-      if (type === "talk") void fork.logConversationChecks(id, String(payload.message || "")).catch(() => {});
-      const reply = type === "talk" ? await fork.talkToCharacter(id, String(payload.message || ""), text => {
+      const { before, fork } = await enqueue(async () => ({ before: game.snapshot(), fork: type === "end_conversation" && !finalMessage ? reviewFork(game) : game.forkForNpc() }));
+      let reply = type === "talk" || finalMessage ? await fork.checkedTalkToCharacter(id, String(payload.message || ""), text => {
         if (generation === version && runtime === game) worker.postMessage({
           type: "dialogue_thinking", requestId, characterId: id, text,
         });
+      }, async result => {
+        if (generation !== version || runtime !== game) throw new Error("Game changed.");
+        const rollId = crypto.randomUUID();
+        await new Promise<void>((resolve, reject) => {
+          pendingDice.set(rollId, { requestId, resolve, reject });
+          worker.postMessage({ type: "conversation_roll", requestId, characterId: id, rollId, result });
+        });
+        if (generation !== version || runtime !== game) throw new Error("Game changed.");
       }) : await fork.endConversation(id);
       if (generation !== version || runtime !== game) throw new Error("Game changed.");
-      if (type === "talk") await commitMutation(game, () => {
+      if (type === "talk" || finalMessage) await commitMutation(game, () => {
           if (generation !== version) throw new Error("Game changed.");
           game.commitCharacterFork(before, fork, [id]);
         });
+      if (finalMessage) reply = await reviewFork(game).endConversation(id);
       if (type === "end_conversation") {
         conversationHolds.delete(id);
         if (reply) scheduleWorldEvent(game, reply as Event);
@@ -489,6 +497,14 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
 // Keep state changes and their saves in order, including while a model is running.
 worker.addEventListener("message", event => {
   const request = event.data as WorkerRequest;
+  if (request.type === "acknowledge_roll") {
+    const rollId = String(request.payload?.rollId), pending = pendingDice.get(rollId);
+    if (!pending || pending.requestId !== request.payload?.requestId) return;
+    pendingDice.delete(rollId);
+    if (request.payload?.completed === true) pending.resolve();
+    else pending.reject(new Error("Dice roll cancelled. No conversation turn was saved."));
+    return;
+  }
   const process = async () => {
     try {
       const value = await handle(request.type, request.payload || {}, request.id);

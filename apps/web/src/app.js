@@ -1,6 +1,6 @@
 import "./logging.js";
 import "./dice-roll.css";
-import { installDicePreview } from "./dice-roll.js";
+import { installDicePreview, showDiceRoll } from "./dice-roll.js";
 
 installDicePreview();
 import { debugOverview, recentTranscriptsView } from "./debug-view.js";
@@ -72,6 +72,17 @@ const gameWorker = new Worker(new URL("./game.worker.ts", import.meta.url), { ty
 const pendingRequests = new Map();
 const gameReplacementRequests = new Set(["reset_world", "reset_characters", "reset", "load_game", "create_game", "create_development_game", "configure", "delete_game"]);
 gameWorker.addEventListener("message", event => {
+  if (event.data.type === "conversation_roll") {
+    const { requestId, rollId, characterId, result } = event.data;
+    const pending = pendingRequests.get(requestId);
+    const acknowledge = completed => gameWorker.postMessage({ type: "acknowledge_roll", payload: { requestId, rollId, completed } });
+    if (!["talk", "end_conversation"].includes(pending?.type) || pending.generation !== gameViewGeneration || pending.characterId !== characterId) {
+      acknowledge(false); return;
+    }
+    void showDiceRoll({ ...result, label: result.skill.replaceAll("_", " ") })
+      .then(acknowledge, () => acknowledge(false));
+    return;
+  }
   if (event.data.type === "dialogue_thinking") {
     const pending = pendingRequests.get(event.data.requestId);
     if (pending?.type === "talk" && pending.generation === gameViewGeneration
@@ -123,7 +134,7 @@ gameWorker.addEventListener("message", event => {
 
 function rpc(type, payload = {}) {
   if (["move_player", "set_door", "interact_fixture"].includes(type)) payload = { ...payload, generations: state.generations };
-  if (gameReplacementRequests.has(type)) { gameViewGeneration++; conversationReviews.clear(); stopNpcGoal(); }
+  if (gameReplacementRequests.has(type)) { gameViewGeneration++; document.querySelector(".dice-dialog")?.close(); conversationReviews.clear(); stopNpcGoal(); }
   const id = ++requestSequence;
   gameWorker.postMessage({ id, type, payload });
   return new Promise((resolve, reject) => pendingRequests.set(id, {

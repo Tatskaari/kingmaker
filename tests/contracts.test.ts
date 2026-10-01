@@ -2145,10 +2145,11 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   let sequence = 0, failNextWrite = false, modelCalls = 0;
   const pending = new Map<number, (message: any) => void>();
   const npcUpdates: any[] = [];
+  const diceMessages: any[] = [];
   const records = new Map<string, any>();
   globals.self = {
     addEventListener: (_type: string, callback: typeof listener) => { listener = callback; },
-    postMessage: (message: any) => { if (message.type === "npc_update") npcUpdates.push(message); pending.get(message.id)?.(message); },
+    postMessage: (message: any) => { if (message.type === "npc_update") npcUpdates.push(message); if (message.type === "conversation_roll") diceMessages.push(message); pending.get(message.id)?.(message); },
   };
   // Minimal asynchronous IDB boundary: the real worker dispatch/queue and runtime
   // run unchanged, while persistence and model transport remain deterministic.
@@ -2345,7 +2346,31 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     assert.equal(conversations, 0);
   });
 
+  await t.test("dice acknowledgement gates the turn, ignores unrelated acknowledgements and cancels on game replacement", async t => {
+    await request("create_development_game");
+    let resumed = false;
+    t.mock.method(BrowserGameRuntime.prototype, "checkedTalkToCharacter", async (_id: string, _message: string, _thinking: unknown, present: import("../apps/web/src/conversation-rolls.js").PresentRoll) => {
+      await present!({ skill: "persuasion", dc: 15, modifier: 3, roll: 12, total: 15, margin: 0, degree: "barely_passes" as any, success: true });
+      resumed = true; return "Agreed.";
+    });
+    const talking = request("talk", { characterId: "corvin", message: "Help me." });
+    while (!diceMessages.length) await new Promise(resolve => setImmediate(resolve));
+    const roll = diceMessages.at(-1);
+    assert.equal(resumed, false);
+    listener({ data: { type: "acknowledge_roll", payload: { rollId: roll.rollId, requestId: -1, completed: true } } });
+    await request("state"); assert.equal(resumed, false);
+    listener({ data: { type: "acknowledge_roll", payload: { rollId: roll.rollId, requestId: roll.requestId, completed: true } } });
+    await talking; assert.equal(resumed, true);
+    resumed = false;
+    const interrupted = request("talk", { characterId: "corvin", message: "Again." });
+    const rejected = assert.rejects(interrupted, /Game changed/);
+    while (diceMessages.length < 2) await new Promise(resolve => setImmediate(resolve));
+    await request("create_development_game");
+    await rejected; assert.equal(resumed, false);
+  });
+
   await t.test("conversation review leaves movement and other dialogue available", async () => {
+    t.mock.method(JevClient.prototype, "evaluate", async (_input: unknown, questions: Record<string, unknown>) => Object.fromEntries(Object.keys(questions).map(skill => [skill, { choice: "not_needed", probabilities: { needed: 0, not_needed: 1 } }])));
     await request("create_development_game");
     t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Farewell.", replyOptions: [], endConversation: true }));
     await request("talk", { characterId: "corvin", message: "Goodbye." });
@@ -2399,8 +2424,9 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
   const sent: any[] = [];
   let receive!: (event: any) => void;
   let endDialogue!: () => void;
+  let finishDice!: (completed: boolean) => void;
   const context = createContext({
-    URL, AlertLog, installDicePreview() {}, window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
+    URL, AlertLog, installDicePreview() {}, showDiceRoll: () => new Promise<boolean>(resolve => { finishDice = resolve; }), window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
     document: {
       querySelector: (selector: string) => selector === "[data-end-conversation]"
         ? { addEventListener: (_type: string, callback: () => void) => { endDialogue = callback; } } : null,
@@ -2444,6 +2470,11 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
 
   const talking = runInContext("activeCharacter = 'mara'; run(() => talkAndReview('mara', 'Goodbye'))", context);
   const talk = sent.at(-1);
+  receive({ data: { type: "conversation_roll", requestId: talk.id, characterId: "mara", rollId: "roll-1", result: { skill: "persuasion", intent: "Win help" } } });
+  assert.equal(sent.at(-1), talk, "No acknowledgement before the dice UI finishes");
+  finishDice(true); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(sent.at(-1).type, "acknowledge_roll");
+  assert.equal(sent.at(-1).payload.completed, true);
   receive({ data: { type: "dialogue_thinking", requestId: talk.id, characterId: "mara", text: "Mara considers her answer." } });
   assert.equal(runInContext("notice", context), "Mara considers her answer.");
   assert.match(runInContext("conversationNoticeView().waitingMessage", context), /class="message waiting" role="status"/);

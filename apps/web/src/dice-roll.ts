@@ -23,7 +23,9 @@ export { resolveDiceCheck } from "../../../packages/core/src/ability-checks.js";
 /** Cosmetic presentation only: callers supply the resolved natural d20 result. */
 export function showDiceRoll({ roll, dc, modifier, label = "Ability check", preview = false }: { roll: number; dc: number; modifier: number; label?: string; preview?: boolean }) {
   const result = resolveDiceCheck(roll, dc, modifier);
-  if (document.querySelector(".dice-dialog")) return;
+  if (document.querySelector(".dice-dialog")) return Promise.resolve(false);
+  let finish!: (completed: boolean) => void;
+  const completed = new Promise<boolean>(resolve => { finish = resolve; });
   const previousFocus = document.activeElement;
   const dialog = document.createElement("dialog");
   dialog.className = "dice-dialog";
@@ -46,7 +48,7 @@ export function showDiceRoll({ roll, dc, modifier, label = "Ability check", prev
   const close = () => dialog.close();
   dialog.querySelector(".dice-close")!.addEventListener("click", close);
   dialog.addEventListener("close", () => {
-    cancelAnimationFrame(frame); dialog.remove();
+    cancelAnimationFrame(frame); dialog.remove(); finish(settled);
     if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
   }, { once: true });
   dialog.addEventListener("keydown", event => event.stopPropagation());
@@ -108,6 +110,7 @@ export function showDiceRoll({ roll, dc, modifier, label = "Ability check", prev
   die.addEventListener("click", startRoll);
   button.addEventListener("click", () => settled ? close() : rolling ? reveal() : startRoll());
   draw(1); dialog.showModal(); die.focus();
+  return completed;
 }
 
 export function installDicePreview() {
