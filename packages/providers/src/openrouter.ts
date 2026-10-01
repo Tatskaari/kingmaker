@@ -97,6 +97,10 @@ export class OpenRouterClient {
   }
 }
 
+export class OutputTokenLimitError extends Error {
+  constructor() { super("OpenRouter response incomplete: max_output_tokens"); }
+}
+
 interface ResponsesResult {
   status?: string;
   incomplete_details?: { reason?: string };
@@ -128,6 +132,7 @@ function responsesRequest(request: ChatCompletionRequest) {
 }
 
 function responsesMessage(body: ResponsesResult): OpenRouterMessage {
+  if (body.status === "incomplete" && body.incomplete_details?.reason === "max_output_tokens") throw new OutputTokenLimitError();
   if (body.status !== "completed") throw new Error(`OpenRouter response ${body.status ?? "missing status"}: ${body.incomplete_details?.reason ?? "did not complete"}`);
   const output = body.output ?? [];
   const text: string[] = [], calls: OpenRouterToolCall[] = [];
