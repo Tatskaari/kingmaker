@@ -18,7 +18,7 @@ JevClient.prototype.choose = async (state, instructions, criteria) => {
 try {
   mkdirSync(output, { recursive: true });
   for (const placement of ["court-arrival", "authored-initial"]) for (const level of [1, 2, 3] as const) {
-    const runtime = new BrowserGameRuntime(scenario, "", undefined, undefined, undefined, Math.random, true, { level, includeRecentResults: false });
+    const runtime = new BrowserGameRuntime(scenario, "", undefined, undefined, undefined, Math.random, true, { level, includeRecentResults: true });
     if (placement === "court-arrival") runtime.createDevelopmentPlayer();
     const snapshot = runtime.snapshot(), active = fromJson(ScenarioSchema, snapshot.scenario);
     const character = active.characters.find(item => item.id === characterId);
@@ -47,7 +47,7 @@ try {
     "These files capture production planNpc inputs offline. No key was read and no model request was sent.",
     "*-state.txt is exactly the string sent in Jev's state field. *-request.txt also includes all decision instructions and choice criteria.",
     "Levels: 1 = scene + full current objective; 2 adds biography and parked objectives; 3 adds relationships and character-visible notes.",
-    "Recent action results are disabled in all three samples.",
+    "Action logs are enabled in all three samples; initial requests have no completed actions.",
     "court-arrival uses the authored court arrival placements and the Development Envoy as the player.",
     "authored-initial preserves original placements, sets the phase to conversations, wakes the selected character, and activates their authored goal.",
     "Transport metadata: model typesafe/jev-1.13; question next; type choice.",

@@ -23,7 +23,7 @@ function game(options: JevActionContextOptions = {}, roomScoped = true) {
   const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, () => 0, roomScoped, options);
   runtime.createDevelopmentPlayer();
   const snapshot = runtime.snapshot();
-  snapshot.npcActivities = { king: { status: "active", goal: king.currentGoal, history: ["RECENT_RESULT_SENTINEL"] } };
+  snapshot.npcActivities = { king: { status: "active", goal: king.currentGoal, history: ["RECENT_RESULT_SENTINEL"], actionIds: ["open_test_door", "close_test_door"] } };
   runtime.restore(snapshot);
   return runtime;
 }
@@ -43,11 +43,17 @@ test("action context tiers send exactly their selected facts as text", async t =
     for (const fact of ["BIOGRAPHY_SENTINEL", "PARKED_SENTINEL", "PARKED_STATUS_SENTINEL", "PARKED_SUCCESS_SENTINEL", "PARKED_TASK_SENTINEL"]) assert.equal(captured.includes(fact), level >= 2, fact);
     for (const fact of ["RELATIONSHIP_SENTINEL", "VISIBLE_NOTE_SENTINEL"]) assert.equal(captured.includes(fact), level >= 3, fact);
     for (const fact of ["PREMISE_SENTINEL", "HIDDEN_NOTE_SENTINEL", "RECENT_RESULT_SENTINEL"]) assert.ok(!captured.includes(fact), fact);
+    assert.ok(state.endsWith("Action log (completed actions, oldest first):\nopen_test_door\nclose_test_door"));
+    const headings = ["Who you are:", "Current objective:", "World state:", "Action log ("];
+    const positions = headings.map(heading => state.indexOf(heading));
+    assert.ok(positions.every(position => position >= 0));
+    assert.deepEqual(positions, [...positions].sort((a, b) => a - b));
+    if (level >= 2) assert.ok(state.indexOf("Biography:") < state.indexOf("Current objective:"));
     assert.deepEqual(runtime.forkForNpc().jevActionContext, { level });
     assert.deepEqual(runtime.forkForResourceReview(async work => work()).jevActionContext, { level });
   }
-  await game({ level: 1, includeRecentResults: true }).planNpc("king", signal());
-  assert.match(state, /Recent action results[\s\S]*RECENT_RESULT_SENTINEL/);
+  await game({ level: 1, includeRecentResults: false }).planNpc("king", signal());
+  assert.ok(!state.includes("Action log (") && !state.includes("open_test_door"));
   assert.ok(!state.includes("BIOGRAPHY_SENTINEL"));
 });
 

@@ -96,7 +96,7 @@ API key or model call:
 `proto run node -- node_modules/tsx/dist/cli.mjs scripts/render-jev-contexts.ts /tmp/kingmaker-jev-contexts king`.
 This writes court-arrival and authored-initial examples. Each `*-state.txt` is the
 exact text sent in `state`; `*-request.txt` also includes every execution
-instruction and selectable choice. Recent action results are disabled in these
+instruction and selectable choice. Action logs are enabled and initially empty in these
 samples, and the output README records the activation/placement assumptions.
 
 The debug inspector shows world state, character context and recent transcripts:
