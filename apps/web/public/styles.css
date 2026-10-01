@@ -315,3 +315,16 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
   .court-toolbar .debug-button span { display: none; }
   .court-popover { padding: 24px 18px; top: 108px; max-height: calc(100dvh - 132px); }
 }
+
+.debug-breadcrumbs { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 18px; color: var(--dim); }
+.debug-breadcrumbs button, .debug-character-link { border: 0; padding: 4px 0; background: transparent; color: var(--gold); text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.debug-breadcrumbs [aria-current="page"] { color: #eee1c7; text-decoration: none; }
+.debug-drilldown { display: grid; gap: 10px; padding: 22px; border: 1px solid #625846; color: #eee1c7; background: #151813; text-align: left; }
+.debug-drilldown:hover { border-color: var(--gold); background: #211c15; }
+.debug-drilldown strong { color: var(--gold); font-size: 1.15rem; }
+.debug-drilldown span { color: var(--dim); }
+.debug-panel .npc-planner { margin: 0; }
+.debug-tabs { flex-shrink: 0; overflow-x: auto; }
+.debug-tabs button { white-space: nowrap; }
+
+.debug-grid > :only-child { grid-column: 1 / -1; }
