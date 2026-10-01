@@ -24,9 +24,9 @@ const signal = () => new AbortController().signal;
 const decision = (choice: string, criteria: Record<string, string>) => ({ choice,
   probabilities: Object.fromEntries(Object.keys(criteria).map(id => [id, id === choice ? 1 : 0])) });
 
-test("the boolean defaults off; enabling it changes only Jev's view and choices", async t => {
-  assert.equal(ROOM_SCOPED_JEV, false);
-  const legacy = game(), local = game(true);
+test("room-scoped Jev defaults on; legacy mode changes only Jev's view and choices", async t => {
+  assert.equal(ROOM_SCOPED_JEV, true);
+  const legacy = game(false), local = game();
   local.restore(legacy.snapshot());
   const requests: Array<{ state: any; instructions: any; criteria: Record<string, string> }> = [];
   t.mock.method(JevClient.prototype, "choose", async (state: unknown, instructions: unknown, criteria: Record<string, string>) => {

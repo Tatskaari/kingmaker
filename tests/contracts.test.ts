@@ -1362,7 +1362,7 @@ test("reviewed immediate goal reaches Jev, which opens doors and moves the NPC i
     const placement = scenario.courtArrivalPlacements.find(item => item.characterId === actor.characterId)!;
     actor.position = placement.position; actor.roomId = placement.roomId;
   }
-  const runtime = new BrowserGameRuntime(scenario, "test");
+  const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, undefined, false);
   t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Meet me in my chamber." }));
   await runtime.talkToCharacter("corvin", "Let's speak privately.");
   await assert.rejects(runtime.planNpc("corvin", new AbortController().signal), /review first/);
@@ -1416,7 +1416,7 @@ test("NPC actions use their own keys and inventory, reject stale plans, and pres
   for (const door of scenario.world!.doors) door.open = true;
   const corvin = scenario.world!.actors.find(actor => actor.characterId === "corvin")!;
   corvin.roomId = "corvin_chamber"; corvin.position = create(TilePositionSchema, { x: 5, y: 5 });
-  const runtime = new BrowserGameRuntime(scenario, "test");
+  const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, undefined, false);
   const activeSnapshot = runtime.snapshot();
   activeSnapshot.npcActivities = { corvin: { status: "active", goal: scenario.characters.find(item => item.id === "corvin")!.currentGoal, history: [] } };
   runtime.restore(activeSnapshot);
@@ -1505,7 +1505,7 @@ test("treasury can be opened from the hall and closed from inside, with sides ex
   const scenario = furnishedCourt(), actor = scenario.world!.actors.find(item => item.characterId === "corvin")!;
   actor.position = create(TilePositionSchema, { x: 22, y: 22 }); actor.roomId = "great_hall";
   scenario.characters.find(item => item.id === "corvin")!.currentGoal = "Go into the Treasury, close the door from inside, and wait there.";
-  const runtime = new BrowserGameRuntime(scenario, "test"), snapshot = runtime.snapshot();
+  const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, undefined, false), snapshot = runtime.snapshot();
   snapshot.npcActivities = { corvin: { status: "active", goal: scenario.characters[0]!.currentGoal, history: [] } }; runtime.restore(snapshot);
   const observe = () => courtAgentObservation(fromJson(ScenarioSchema, runtime.snapshot().scenario), "corvin");
   let observation = observe();
@@ -1606,14 +1606,14 @@ test("transcript recorder groups an agent loop under one stable dictionary key",
   assert.deepEqual(entries[0]![1].context, { participants: ["corvin"] });
 });
 
-function talkingCourt() {
+function talkingCourt(roomScoped?: boolean) {
   const scenario = furnishedCourt();
   for (const actor of scenario.world!.actors) {
     const placement = scenario.courtArrivalPlacements.find(item => item.characterId === actor.characterId);
     if (placement) { actor.position = placement.position; actor.roomId = placement.roomId; }
     actor.awake = true;
   }
-  const runtime = new BrowserGameRuntime(scenario, "test");
+  const runtime = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, undefined, roomScoped);
   const snapshot = runtime.snapshot();
   snapshot.npcActivities = { corvin: { status: "active", goal: scenario.characters.find(item => item.id === "corvin")!.currentGoal, history: [] } };
   runtime.restore(snapshot);
@@ -1691,7 +1691,7 @@ test("NPC conversation validation and cancellation cannot partially update eithe
 });
 
 test("talk availability follows closed doors and Jev gets the offered talk choice", async t => {
-  const { scenario, runtime, observation, action } = talkingCourt();
+  const { scenario, runtime, observation, action } = talkingCourt(false);
   t.mock.method(JevClient.prototype, "choose", async (_state: unknown, instructions: unknown, criteria: Record<string, string>) => {
     assert.ok(action.id in criteria);
     assert.match(JSON.stringify(instructions), /offered talk actions/);
@@ -1881,7 +1881,7 @@ test("background character updates reject stale goals and do not overwrite newer
 });
 
 test("NPC movement commits one tile at a time and replans when a door closes", () => {
-  const { runtime } = talkingCourt();
+  const { runtime } = talkingCourt(false);
   const initial = runtime.snapshot();
   const scenario = fromJson(ScenarioSchema, initial.scenario);
   const actor = scenario.world!.actors.find(a => a.characterId === "corvin")!;
