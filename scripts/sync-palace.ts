@@ -5,6 +5,7 @@ import { palaceLayout } from "../apps/web/src/palace-layout.js";
 // and exits from the same room functions that build the playable map.
 const path = new URL("../content/scenarios/last-night.json", import.meta.url);
 const scenario = JSON.parse(readFileSync(path, "utf8"));
+palaceLayout.validateDoorBoundaries(scenario.world.doors);
 scenario.world.rooms = palaceLayout.worldRooms().map(room => ({
   ...scenario.world.rooms.find((existing: { id: string }) => existing.id === room.id), ...room,
 }));

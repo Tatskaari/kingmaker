@@ -47,3 +47,19 @@ test("two delegations occupy the west wing and Saltmere shares the east with a l
     assert.ok(courtPath(start, palaceNodes.find(node => node.id === id)!, world.doors, world.fixtures), id);
   }
 });
+
+
+test("closed doors never strand a room's floor on the other side", () => {
+  palaceLayout.validateDoorBoundaries(world.doors);
+});
+
+
+test("every door approach can return to its own room with all doors closed", () => {
+  const closed = world.doors.map(door => ({ ...door, open: false }));
+  for (const door of closed) for (const [side, point] of door.interactionSpots.entries()) {
+    const roomId = door.roomIds[side];
+    assert.equal(courtRoomAt(point)?.id, roomId, door.id);
+    const destinations = palaceNodes.filter(node => courtRoomAt(node)?.id === roomId);
+    assert.ok(destinations.some(node => courtPath(point, node, closed, world.fixtures)), `${door.id} side ${side} is stranded`);
+  }
+});
