@@ -54,6 +54,9 @@ use the live fixture/inventory system; regalia and documents cannot confer rule.
 
 The Stranger introduces the court and delegations as they become relevant to
 your character. No setting knowledge or identity choices are required upfront.
+The Stranger starts with an amused portrait. After each reply, Jev classifies his
+visible expression in the background; scared is displayed as amused. Portrait
+updates do not delay dialogue or replace text in the reply composer.
 
 ## Models and debugging
 

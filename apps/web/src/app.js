@@ -9,6 +9,7 @@ import { AlertLog } from "./alerts.js";
 import { captureCourtMap, mountCourtMap, updateCourtMap } from "./court-map.js";
 import { buildIssueReport, issuePageUrl, issueReportFilename } from "./issue-report.js";
 import { sandboxIntroduction, handoffPrefix, courtAffiliations, characterSprites, patronName } from "./introduction.js";
+import { strangerPortrait } from "./stranger-portrait.js";
 import { courtCharactersWithinEarshot } from "./earshot.js";
 import { formatElapsedTime } from "./relative-time.js";
 import devOpenRouterApiKey from "virtual:kingmaker-dev-openrouter-key";
@@ -66,6 +67,7 @@ let saves = [];
 let activeSaveId = null;
 let requestSequence = 0;
 let gameViewGeneration = 0;
+let strangerPortraitState = { generation: -1, key: "", expression: "amused" };
 const playerMessageReceivedAt = new Map();
 
 const gameWorker = new Worker(new URL("./game.worker.ts", import.meta.url), { type: "module" });
@@ -441,15 +443,34 @@ function replyOptions(options, target, compelled = false) {
   return `<div class="reply-options" role="group" aria-label="${compelled ? "You must respond" : "Suggested replies"}">${options.map((option, index) => `<button class="reply-option" data-reply-target="${escapeHtml(target)}" data-reply-index="${index}" ${busy ? "disabled" : ""}>${escapeHtml(option)}</button>`).join("")}</div>`;
 }
 
+function refreshStrangerPortrait(messages) {
+  const portrait = strangerPortraitState;
+  const key = JSON.stringify(messages);
+  if (busy || messages.length < 2 || portrait.key === key) return;
+  portrait.key = key;
+  void rpc("stranger_expression").then(({ expression }) => {
+    if (!expression || portrait !== strangerPortraitState || portrait.generation !== gameViewGeneration
+      || portrait.key !== key || state?.phase !== "player_creation") return;
+    portrait.expression = expression;
+    const image = document.querySelector("[data-stranger-portrait]");
+    if (image) Object.assign(image, strangerPortrait(expression));
+  }).catch(() => {});
+}
+
 function renderCreation() {
   const messages = (state.gmMessages || []).filter(message => !(message.role === "user" && message.text.startsWith(handoffPrefix)));
   if (!messages.length) {
     app.innerHTML = shell(`<section class="introduction" aria-label="Welcome to Kingmaker"><div class="eyebrow">A roleplaying sandbox · Tech demo</div><h2>Welcome to Kingmaker</h2>${sandboxIntroduction.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join("")}<button class="dialogue-option" data-meet-stranger ${busy ? "disabled" : ""}>Meet the Stranger →</button><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
     bind(); return;
   }
-  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div><button class="character-debug" data-gm-debug>Debug Stranger</button></div><div class="messages">${messageList(messages, patronName)}</div>${replyOptions(state.gmReplyOptions?.options, "gm", state.gmReplyOptions?.compelled)}${state.gmReplyOptions?.compelled ? `<p class="compelled-hint">A powerful force compels you to respond accordingly</p>` : `<form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Invent your story, answer him, or ask for ideas…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  if (strangerPortraitState.generation !== gameViewGeneration) {
+    strangerPortraitState = { generation: gameViewGeneration, key: "", expression: "amused" };
+  }
+  const portrait = strangerPortrait(strangerPortraitState.expression);
+  app.innerHTML = shell(`<section class="panel stranger-panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div><button class="character-debug" data-gm-debug>Debug Stranger</button></div><div class="stranger-scene"><img class="stranger-portrait" data-stranger-portrait src="${portrait.src}" alt="${portrait.alt}" width="1254" height="1254"><div class="stranger-conversation"><div class="messages">${messageList(messages, patronName)}</div>${replyOptions(state.gmReplyOptions?.options, "gm", state.gmReplyOptions?.compelled)}${state.gmReplyOptions?.compelled ? `<p class="compelled-hint">A powerful force compels you to respond accordingly</p>` : `<form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Invent your story, answer him, or ask for ideas…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></div></div></section>`);
   bind();
   document.querySelector(".messages")?.scrollTo(0, messages.length === 1 ? 0 : 999999);
+  refreshStrangerPortrait(messages);
 }
 
 function renderCharacterReview() {
