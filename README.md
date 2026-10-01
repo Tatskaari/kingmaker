@@ -257,3 +257,14 @@ node --import tsx --import ./scripts/test-logging.ts scripts/run-jev-world-eval.
 Shared code uses `gameLogger(component)`; entry points choose the sink with
 `configureGameLogging`. The default threshold is `debug`; callers may select a
 higher level or `disabled`. The Node file sink is never imported by browser code.
+
+The `events` category records event creation, earshot candidates/exclusions,
+each perception roll (a uniform 0–1 value, compared with its chance), perceived
+text, and Jev's process/ignore choice, probabilities, and confidence when supplied.
+Use `properties.eventId` and `properties.characterId` to follow an event.
+`npc` records selected plans, executed actions, and activity stops. `models` records
+requests, responses, failures, duration, and run/call IDs; `providers` records HTTP
+failures and rate-limit retries. Model payloads use the existing transcript key
+redaction. Debug logs contain story spoilers and conversation text, so inspect them
+before sharing. A completed review on a runtime snapshot can still be rejected
+when it is published to the live game.

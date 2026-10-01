@@ -1,3 +1,7 @@
+import { gameLogger } from "../../observability/src/logging.js";
+
+const log = gameLogger("providers");
+
 /** Retry-After is either seconds or an HTTP date. Never shorten a server delay. */
 export function retryDelay(value: string | null, attempt: number, now = Date.now()): number {
   if (value?.trim()) {
@@ -35,8 +39,12 @@ export async function recoverRateLimit(
   for (let attempt = 0; ; attempt++) {
     signal?.throwIfAborted();
     const response = await send();
-    if (response.status !== 429 || attempt === 5) return response;
+    if (response.status !== 429 || attempt === 5) {
+      if (!response.ok) log.warning("Provider request rejected", { status: response.status, retries: attempt });
+      return response;
+    }
     const delay = retryDelay(response.headers.get("Retry-After"), attempt);
+    log.warning("Provider rate limited", { delayMs: delay, retry: attempt + 1 });
     onRetry?.(delay, attempt + 1);
     await response.body?.cancel();
     await waitUntil(Date.now() + delay, signal);

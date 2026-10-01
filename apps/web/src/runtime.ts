@@ -1,3 +1,4 @@
+import { gameLogger } from "../../../packages/observability/src/logging.js";
 import { RECONCILIATION_INSTRUCTIONS, reconciliationTools, applyReconciliationTool } from "./gm-reconciliation.js";
 import { GenerationConflict, GenerationStore, generationIds, type Generations, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 import { stateResources } from "./state-resources.js";
@@ -10,7 +11,7 @@ import { DIALOGUE_MODEL, FLAVOUR_MODEL, REASONING_MODEL } from "./model-settings
 import { GM_BASE_PROMPT, GM_ADJUDICATION_GUIDANCE, withGmBasePrompt } from "./gm-prompt.js";
 import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
 import { courtAgentObservation, actionResourceIds } from "./court-agent.js";
-import { courtCharactersWithinEarshot, dialogueEarshotPrompt, perceivesAt, type EarshotCharacter } from "./earshot.js";
+import { courtCharactersWithinEarshot, dialogueEarshotPrompt, perceivesAt, PERCEPTION_CHANCES, type EarshotCharacter } from "./earshot.js";
 import { ROOM_COURT_INSTRUCTIONS } from "./court-instructions.js";
 import { renderJevActionState, type JevActionContextOptions } from "./jev-room-view.js";
 import { JevClient, jevRequest } from "../../../packages/providers/src/jev.js";
@@ -55,6 +56,9 @@ export interface PerceivedEvent {
   perception: string;
 }
 
+const eventLog = gameLogger("events");
+const npcLog = gameLogger("npc");
+
 interface EventPerceptionTrace {
   eventId: string;
   day: number;
@@ -62,6 +66,8 @@ interface EventPerceptionTrace {
   summary: string;
   level: EarshotCharacter["level"];
   observed: boolean;
+  roll: number;
+  chance: number;
   perception?: string;
   legality?: string;
   ownerName?: string;
@@ -850,6 +856,7 @@ export class BrowserGameRuntime {
     const state = renderJevActionState(scenario, observation, activity.actionIds ?? [], this.jevActionContext);
     const instructions = ROOM_COURT_INSTRUCTIONS;
     const decision = await this.#modelTranscripts.record("jev", characterId, jevRequest(state, instructions, criteria), () => this.#jev.choose(state, instructions, criteria, signal), undefined, this.#characterName(characterId));
+    npcLog.info("NPC plan selected", { characterId, goal: observation.goal, revision: observation.revision, ...decision });
     const action = observation.actions.find(action => action.id === decision.choice);
     return { decision, revision: observation.revision, goal: observation.goal, action, observation,
       generations: Object.fromEntries(actionResourceIds(scenario, characterId, action).map(key => [key, generations[key]!])) };
@@ -858,22 +865,33 @@ export class BrowserGameRuntime {
   worldEvent(kind: string, summary: string, participantIds: string[], details: EventDetails = {}): Event {
     const scenario = this.#game.scenario();
     const actor = scenario.world?.actors.find(candidate => candidate.characterId === participantIds[0]);
-    return create(EventSchema, { id: `event-${crypto.randomUUID()}`, day: scenario.world?.day ?? 0,
+    const event = create(EventSchema, { id: `event-${crypto.randomUUID()}`, day: scenario.world?.day ?? 0,
       kind, summary, participantIds, position: actor?.position, details });
+    eventLog.info("World event created", { eventId: event.id, day: event.day, kind, summary, participantIds, position: event.position, details });
+    return event;
   }
 
   async assessWorldEvent(event: Event, signal: AbortSignal): Promise<{ reactions: PerceivedEvent[]; playerPerception?: string }> {
     const scenario = this.#game.scenario();
-    if (!event.position || !scenario.world) return { reactions: [] };
+    if (!event.position || !scenario.world) {
+      eventLog.debug("World event skipped", { eventId: event.id, reason: "missing_position_or_world" });
+      return { reactions: [] };
+    }
     const source = { id: event.participantIds[0] ?? event.id, name: event.kind, position: event.position };
     const characters = scenario.characters.filter(character => !event.participantIds.includes(character.id)).map(character => ({
       id: character.id, name: character.name, position: scenario.world!.actors.find(actor => actor.characterId === character.id)?.position,
     }));
     const inEarshot = courtCharactersWithinEarshot(source, characters, scenario.world.doors, scenario.world.fixtures);
+    eventLog.debug("Event earshot assessed", { eventId: event.id, participantIds: event.participantIds,
+      inEarshot: inEarshot.map(({ id, name, distance, level }) => ({ characterId: id, name, distance, level })),
+      excludedCharacterIds: characters.filter(character => !inEarshot.some(listener => listener.id === character.id)).map(character => character.id) });
     const listeners = inEarshot.filter(listener => {
-      const observed = perceivesAt(listener.level, this.#random);
+      const roll = this.#random(), chance = PERCEPTION_CHANCES[listener.level];
+      const observed = perceivesAt(listener.level, () => roll);
+      eventLog.debug("Event perception rolled", { eventId: event.id, characterId: listener.id,
+        distance: listener.distance, level: listener.level, roll, chance, observed });
       const trace: EventPerceptionTrace = { eventId: event.id, day: event.day, kind: event.kind, summary: event.summary,
-        level: listener.level, observed,
+        level: listener.level, observed, roll, chance,
         ...(typeof event.details?.legality === "string" ? { legality: event.details.legality } : {}),
         ...(typeof event.details?.ownerName === "string" ? { ownerName: event.details.ownerName } : {}),
         jevDecision: observed ? "pending" : "not_consulted" };
@@ -894,6 +912,7 @@ export class BrowserGameRuntime {
       const observed = perception(listener), character = scenario.characters.find(candidate => candidate.id === listener.id)!;
       const trace = this.#eventPerceptions[listener.id]?.findLast(item => item.eventId === event.id);
       if (trace) trace.perception = observed;
+      eventLog.debug("Event decision requested", { eventId: event.id, characterId: listener.id, perception: observed, level: listener.level });
       const canIdentifyAction = listener.level === "Clear";
       const ownerId = canIdentifyAction && typeof event.details?.ownerCharacterId === "string" ? event.details.ownerCharacterId : "";
       const ownerName = canIdentifyAction && typeof event.details?.ownerName === "string" ? event.details.ownerName : "";
@@ -921,7 +940,9 @@ export class BrowserGameRuntime {
         decision = await this.#modelTranscripts.record("event_decision", listener.id, jevRequest(state, instructions, criteria),
           () => this.#jev.choose(state, instructions, criteria, signal), undefined, this.#characterName(listener.id));
         if (trace) trace.jevDecision = decision.choice === "process" ? "process" : "ignore";
+        eventLog.info("Event decision received", { eventId: event.id, characterId: listener.id, ...decision });
       } catch (error) {
+        eventLog.error("Event decision failed", { eventId: event.id, characterId: listener.id, aborted: signal.aborted });
         if (trace) {
           trace.jevDecision = "error";
           trace.jevError = error instanceof Error ? error.message : String(error);
@@ -931,6 +952,8 @@ export class BrowserGameRuntime {
       return decision.choice === "process" ? { characterId: listener.id, level: listener.level, perception: observed } : undefined;
     }));
     const reactions = decisions.filter((reaction): reaction is PerceivedEvent => !!reaction);
+    eventLog.info("Event assessment completed", { eventId: event.id, reactingCharacterIds: reactions.map(reaction => reaction.characterId),
+      playerPerception: player ? perception(player) : null });
     return { reactions, ...(player ? { playerPerception: perception(player) } : {}) };
   }
 
@@ -955,6 +978,9 @@ export class BrowserGameRuntime {
       ],
     }, signal, true);
     if (!this.#liveReview) this.#applyReview(scenario);
+    eventLog.info("Perceived event review completed", { eventId: event.id, characterId,
+      currentGoal: scenario.characters.find(character => character.id === characterId)?.currentGoal,
+      publication: this.#liveReview ? "live_review" : "runtime_snapshot" });
   }
 
   /** Model work happens on a snapshot; only a validated merge touches the live game. */
@@ -1222,6 +1248,7 @@ export class BrowserGameRuntime {
     world.revision++; this.#setGame(new MemoryGame(scenario));
     activity.history.push(message);
     (activity.actionIds ??= []).push(action.id);
+    npcLog.info("NPC action executed", { characterId, actionId, goal, message, revision: world.revision });
     return message;
   }
 
@@ -1321,6 +1348,7 @@ export class BrowserGameRuntime {
     if (!["complete", "unable", "wait", "error", "limit", "cancelled"].includes(reason)) throw new Error("Invalid termination reason.");
     activity.status = "idle";
     activity.result = { reason, detail: detail.slice(0, 2000) };
+    npcLog.info("NPC activity stopped", { characterId, reason });
     activity.reviewPending = true;
     this.readResources();
   }
