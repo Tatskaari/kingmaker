@@ -1,3 +1,4 @@
+import { locatedItems } from "./inventory.js";
 import { IMMEDIATE_GOAL_GUIDANCE } from "./goal-guidance.js";
 import { clone, toJson } from "@bufbuild/protobuf";
 import {
@@ -5,11 +6,11 @@ import {
   GamePhase,
   TranscriptRole,
   WorldStateSchema,
+  ItemInstanceSchema,
   type Scenario,
   type DialogueRequest,
   type Note,
   type GameMasterRequest,
-  type WorldState,
 } from "../../contracts/src/index.js";
 import type { DialogueContextBuilder, GameMasterContextBuilder, PromptMessage } from "./ports.js";
 
@@ -44,8 +45,8 @@ export function characterDecisionContext(scenario: Scenario, characterId: string
 
 /** Removes concealed container contents and undiscovered fixture details. The game master sees
  * the authoritative world; character models see only this projection. */
-export function worldForCharacter(world: WorldState, characterId: string): WorldState {
-  const view = clone(WorldStateSchema, world);
+export function worldForCharacter(scenario: Scenario, characterId: string) {
+  const view = Object.assign(clone(WorldStateSchema, scenario.world!), { objects: locatedItems(scenario) });
   const visibleObjectIds = new Set<string>();
 
   for (const fixture of view.fixtures) {
@@ -53,6 +54,7 @@ export function worldForCharacter(world: WorldState, characterId: string): World
     if (known) for (const item of view.objects) {
       if (item.locationId === fixture.id) visibleObjectIds.add(item.id);
     }
+    if (fixture.inventory) fixture.inventory.items = fixture.inventory.items.filter(item => known || !item.concealed);
     if (!fixture.examinedBy.includes(characterId)) {
       fixture.requiredKeyId = "";
       fixture.revealedName = "";
@@ -62,7 +64,14 @@ export function worldForCharacter(world: WorldState, characterId: string): World
   }
 
   view.objects = view.objects.filter(object => !object.concealed || object.locationId === characterId || visibleObjectIds.has(object.id));
+  for (const room of view.rooms) if (room.inventory) room.inventory.items = room.inventory.items.filter(item => !item.concealed);
   return view;
+}
+
+/** Flattened prompt/debug projection only; never persisted as authoritative ownership. */
+export function worldViewJson(view: ReturnType<typeof worldForCharacter>) {
+  return { ...toJson(WorldStateSchema, view, { alwaysEmitImplicit: true }) as object,
+    objects: view.objects.map(item => ({ ...toJson(ItemInstanceSchema, item) as object, locationId: item.locationId })) };
 }
 
 export class FullContextBuilder implements DialogueContextBuilder {
@@ -94,7 +103,7 @@ export class FullContextBuilder implements DialogueContextBuilder {
       { role: "system", content: `# Notes available to this character\n${recent}` },
       {
         role: "system",
-        content: `# Known world state\n${JSON.stringify(toJson(WorldStateSchema, worldForCharacter(scenario.world, character.id), { alwaysEmitImplicit: true }), null, 2)}`,
+        content: `# Known world state\n${JSON.stringify(worldViewJson(worldForCharacter(scenario, character.id)), null, 2)}`,
       },
     ];
 
@@ -117,6 +126,8 @@ export class FullGameMasterContextBuilder implements GameMasterContextBuilder {
       id: character.id,
       name: character.name,
       lore: character.lore,
+      inventory: character.inventory,
+      dnd: character.dnd,
       parkedObjectives: character.parkedObjectives,
       activeObjective: character.activeObjective,
       currentGoal: character.currentGoal,

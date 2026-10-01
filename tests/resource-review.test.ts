@@ -130,7 +130,7 @@ test("inventory additions require only their inventory ID and validate atomicall
   const result = runtime.applyResourceReviewWrite("update_inventory", { owner_id: "corvin", generation_id, add_items: [item] }, context);
   assert.equal(result.commit_result, "success");
   assert.equal(runtime.applyResourceReviewWrite("update_inventory", { owner_id: "corvin", generation_id, add_items: [{ ...item, id: "another_note" }] }, context).reason, "Generation ID out of date");
-  assert.equal((result.new_state.data as unknown[]).length, 1);
+  assert.equal((result.new_state.data as { items: unknown[] }).items.length, 1);
 });
 
 test("give_item transfers an existing participant-owned item to the player exactly once", () => {
@@ -273,10 +273,10 @@ test("successful resource writes survive a later failed review and retry reads s
   });
   await assert.rejects(runtime.forkForResourceReview(synchronousCommit).endConversation("corvin"), /Network unavailable/);
   assert.ok(runtime.snapshot().conversations.corvin?.length);
-  assert.equal((runtime.readResources(["inventory:corvin"])["inventory:corvin"]!.state as any[]).length, 1);
+  assert.equal((runtime.readResources(["inventory:corvin"])["inventory:corvin"]!.state as any).items.length, 1);
   let retryCalls = 0;
   t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => {
-    assert.equal(world(input)["inventory:corvin"].data[0].id, "saved_note");
+    assert.equal(world(input)["inventory:corvin"].data.items[0].id, "saved_note");
     if (retryCalls++ === 0) return call("update_character", { character_id: "corvin",
       generation_id: world(input)["character:corvin"].generation_id,
       changes: { active_objective: { action: "complete", reason: "The greeting conversation has ended." } } });
@@ -284,7 +284,7 @@ test("successful resource writes survive a later failed review and retry reads s
   });
   await runtime.forkForResourceReview(synchronousCommit).endConversation("corvin");
   assert.equal(runtime.snapshot().conversations.corvin, undefined);
-  assert.equal((runtime.readResources(["inventory:corvin"])["inventory:corvin"]!.state as any[]).length, 1);
+  assert.equal((runtime.readResources(["inventory:corvin"])["inventory:corvin"]!.state as any).items.length, 1);
 });
 
 test("agent-visible write descriptions document ID source, patch semantics, and error recovery", () => {

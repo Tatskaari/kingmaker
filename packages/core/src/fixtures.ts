@@ -1,3 +1,4 @@
+import { findItem, itemsFor, transferItem } from "./inventory.js";
 import type { MapFixture, Scenario } from "../../contracts/src/index.js";
 
 export type FixtureVerb = "inspect" | "open" | "close" | "take";
@@ -19,7 +20,7 @@ export function fixtureActions(scenario: Scenario, actorId: string): FixtureActi
     if (!fixture.container) return actions;
     if (fixture.open) {
       actions.push({ id: `close_${fixture.id}`, target: fixture.id, verb: "close", label: `Close ${name}`, order: 30, legality: "normal" });
-      for (const item of world.objects.filter(item => item.locationId === fixture.id)) {
+      for (const item of itemsFor(scenario, fixture.id)) {
         actions.push({ id: `inspect_item_${item.id}`, target: fixture.id, verb: "inspect", itemId: item.id, label: `Inspect ${item.name}`, order: 35, legality: illegal ? "illegal" : "normal" });
         actions.push({
           id: `take_${item.id}`, target: fixture.id, verb: "take", itemId: item.id, label: `${illegal ? "Steal" : "Take"} ${item.name}`, order: 40, legality: illegal ? "illegal" : "normal",
@@ -31,7 +32,7 @@ export function fixtureActions(scenario: Scenario, actorId: string): FixtureActi
     }
     return actions;
   });
-  for (const item of world.objects.filter(item => item.locationId === actorId)) actions.push({
+  for (const item of itemsFor(scenario, actorId)) actions.push({
     id: `inspect_item_${item.id}`, target: actorId, verb: "inspect", itemId: item.id, label: `Inspect ${item.name}`, order: 35, legality: "normal",
   });
   return actions;
@@ -43,8 +44,8 @@ export function applyFixtureAction(scenario: Scenario, actorId: string, actionId
   const action = fixtureActions(scenario, actorId).find(candidate => candidate.id === actionId);
   if (!action) throw new Error("That container action is no longer available.");
   if (action.verb === "inspect" && action.itemId) {
-    const item = world.objects.find(item => item.id === action.itemId)!;
-    return `${item.name}: ${typeof item.properties?.details === "string" ? item.properties.details : "No further details are recorded."}`;
+    const item = findItem(scenario, action.itemId!)!;
+    return `${item.name}: ${item.details || "No further details are recorded."}`;
   }
   const fixture = world.fixtures.find(item => item.id === action.target)!;
   const remember = () => { if (!fixture.examinedBy.includes(actorId)) fixture.examinedBy.push(actorId); };
@@ -54,16 +55,16 @@ export function applyFixtureAction(scenario: Scenario, actorId: string, actionId
   }
   if (action.verb === "open") {
     remember();
-    if (fixture.requiredKeyId && !world.objects.some(item => item.id === fixture.requiredKeyId && item.locationId === actorId)) {
+    if (fixture.requiredKeyId && !itemsFor(scenario, actorId).some(item => item.id === fixture.requiredKeyId)) {
       return `${fixtureName(fixture, actorId)} is locked. You need the matching key.`;
     }
     fixture.open = true;
     if (!fixture.searchedBy.includes(actorId)) fixture.searchedBy.push(actorId);
-    const contents = world.objects.filter(item => item.locationId === fixture.id);
+    const contents = itemsFor(scenario, fixture.id);
     return `${fixtureName(fixture, actorId)} opened. ${contents.length ? contents.map(item => item.name).join(", ") : "It is empty."}`;
   }
   if (action.verb === "close") { fixture.open = false; return `${fixtureName(fixture, actorId)} closed.`; }
-  const item = world.objects.find(item => item.id === action.itemId)!;
-  item.locationId = actorId; item.concealed = false;
+  const item = findItem(scenario, action.itemId!)!;
+  transferItem(scenario, item.id, actorId); item.concealed = false;
   return `Picked up ${item.name}.`;
 }

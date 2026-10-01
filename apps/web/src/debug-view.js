@@ -32,12 +32,13 @@ function characterCard(character, name, editable = true) {
   return card(character.name || character.id, `<p class="debug-meta">${escape(character.id)}</p><h4>Dialogue objectives</h4>${list(character.dialogueObjectives, objective => escape(objective), "No dialogue objectives recorded.")}${active}${editable ? objectiveEditor(character) : ""}<h4>Current goal</h4><p>${escape(character.currentGoal || "No goal recorded.")}</p><details><summary>Biography and relationships</summary><p>${escape(character.lore || "No biography recorded.")}</p>${list(character.relationships, relationship => `<strong>${escape(name(relationship.characterId))}</strong><p>${escape(relationship.description)}</p>`, "No relationships recorded.")}</details>`);
 }
 
-function worldCards(world, name) {
+function worldCards(world, name, characters = []) {
   if (!world) return card("World", empty("No world state available."));
+  const objects = world.objects ?? [...characters, ...(world.fixtures ?? []), ...(world.rooms ?? [])].flatMap(owner => (owner.inventory?.items ?? []).map(item => ({ ...item, locationId: owner.id })));
   const roomName = id => world.rooms?.find(room => room.id === id)?.name || id;
-  return card("World status", facts([["Phase", label(world.phase)], ["Day", world.day], ["Revision", world.revision], ["Rooms", world.rooms?.length ?? 0], ["Objects", world.objects?.length ?? 0]]))
+  return card("World status", facts([["Phase", label(world.phase)], ["Day", world.day], ["Revision", world.revision], ["Rooms", world.rooms?.length ?? 0], ["Objects", objects.length]]))
     + card("Character locations", list(world.actors, actor => `<strong>${escape(name(actor.characterId))}</strong><p>${escape(roomName(actor.roomId))} · ${actor.awake ? "Awake" : "Asleep"}</p>`, "No locations recorded."))
-    + card("Objects", list(world.objects, object => `<strong>${escape(object.name || object.id)}</strong><p>${escape(roomName(object.locationId))} · ${object.concealed ? "Concealed" : "Visible"}</p>`, "No known objects."));
+    + card("Objects", list(objects, object => `<strong>${escape(object.name || object.id)}</strong><p>${escape(roomName(object.locationId))} · ${object.concealed ? "Concealed" : "Visible"}</p>`, "No known objects."));
 }
 
 export function debugOverview(type, data) {
@@ -59,7 +60,7 @@ export function debugOverview(type, data) {
     const scenario = data.scenario || {};
     const name = id => scenario.characters?.find(character => character.id === id)?.name || id;
     content = card("Scenario", facts([["ID", scenario.id], ["Characters", scenario.characters?.length ?? 0], ["Notes", scenario.notes?.length ?? 0], ["GM messages", data.gameMasterHistory?.length ?? 0]]) + `<details><summary>Premise</summary><p>${escape(scenario.premise)}</p></details>`)
-      + worldCards(scenario.world, name)
+      + worldCards(scenario.world, name, scenario.characters)
       + (scenario.characters || []).map(character => characterCard(character, name, character.id !== scenario.playerCharacterId)).join("")
       + notes(scenario.notes)
       + card("Conversations", list(Object.entries(data.conversations || {}), ([id, transcript]) => `<strong>${escape(name(id))}</strong><p>${transcript.length} messages</p>`, "No conversations recorded."));
