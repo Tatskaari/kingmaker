@@ -1,3 +1,4 @@
+import { renderWorldPrompt } from "../../../packages/core/src/world-prompt.js";
 import { adjudicateConversationChecks, type PresentRoll } from "./conversation-rolls.js";
 import { classifyConversationExpression, portraitExpressions, type PortraitExpression } from "../../../packages/providers/src/conversation-expression.js";
 import { migratePalaceFurniture } from "./furniture-migration.js";
@@ -861,7 +862,7 @@ export class BrowserGameRuntime {
     const messages: OpenRouterMessage[] = [...request.messages.slice(0, -1),
       { role: "system", content: RECONCILIATION_INSTRUCTIONS },
       ...(kind === "conversation_review" ? [{ role: "system" as const, content: CONVERSATION_OBJECTIVE_REVIEW }] : []),
-      { role: "user", content: JSON.stringify({ authoritativeWorld: toJson(WorldStateSchema, scenario.world!), participants, recentActivity: this.#npcActivities }) },
+      { role: "user", content: JSON.stringify({ authoritativeWorld: renderWorldPrompt(scenario, { ...scenario.world!, objects: locatedItems(scenario) }), participants, recentActivity: this.#npcActivities }) },
       ...request.messages.slice(-1),
     ];
     this.#reviewRequest = { ...request, messages };
@@ -1444,7 +1445,7 @@ export class BrowserGameRuntime {
         properties: { request: { type: "string" }, intent: { type: "string" } },
       } } },
       messages: [...context, { role: "system", content: dialogueEarshotPrompt(scenario, characterId, [characterId, action.target]) }, { role: "system", content: "You are initiating a brief conversation with the named NPC to advance your immediate goal. Return the words you say as request and your private purpose as intent. Do not invent their response, knowledge, consent, or physical actions." },
-        { role: "user", content: JSON.stringify({ target: action.target, goal, surroundings: courtAgentObservation(scenario, characterId).world }) }],
+        { role: "user", content: JSON.stringify({ target: action.target, goal }) }],
     }, signal);
     valid();
     const proposal = parseModelObject(request.content, "NPC dialogue");
@@ -1457,8 +1458,7 @@ export class BrowserGameRuntime {
       } } },
       messages: [{ role: "system", content: `Resolve a single NPC-to-NPC exchange as the GM, without a full dialogue. Respect each participant's motives and agency: requests can be refused, negotiated, or met with deception. Intent is private, not spoken. Return a summary of what was actually exchanged and separate memory updates for initiator and recipient. Private facts must not leak into the other participant's memories unless actually disclosed. Never invent player speech. Use GM tools for justified world additions; physical actions still require available mechanics. Reconcile both proposed tasks before finalizing them. ${IMMEDIATE_GOAL_DESCRIPTION} Return goalUpdate null if there is no task to perform. Each participant's newNotes are private to them. Do not claim actions happened merely because someone promised them.` },
         { role: "user", content: JSON.stringify({ premise: scenario.premise, initiator: characterId, recipient: action.target, proposal,
-          participants: [characterId, action.target].map(id => ({ character: scenario.characters.find(item => item.id === id), context: new FullContextBuilder().build(create(DialogueRequestSchema, { characterId: id, scenario })) })),
-          surroundings: courtAgentObservation(scenario, characterId).world }) }],
+          participants: [characterId, action.target].map(id => ({ character: scenario.characters.find(item => item.id === id), context: new FullContextBuilder().build(create(DialogueRequestSchema, { characterId: id, scenario })) })) }) }],
     }, signal);
     valid();
     const summary = text(this.#liveReview ? resolution.content : this.#applyReview(scenario), "summary");
@@ -1490,7 +1490,7 @@ export class BrowserGameRuntime {
         { role: "system", content: "You have approached the player to initiate a conversation that advances your immediate goal. Speak the opening line yourself; do not invent the player's reply, agreement, knowledge, or actions. Set endConversation=false. Offer optional first-person replies the player might choose, or an empty replyOptions array." },
         ...context,
         { role: "system", content: dialogueEarshotPrompt(scenario, characterId, [characterId, scenario.playerCharacterId ?? "player"]) },
-        { role: "user", content: JSON.stringify({ goal, surroundings: courtAgentObservation(scenario, characterId).world }) },
+        { role: "user", content: JSON.stringify({ goal }) },
       ],
     }, signal, runKey);
     valid();
@@ -1529,7 +1529,7 @@ export class BrowserGameRuntime {
       ...REASONING_MODEL, response_format: memoryFormat, max_tokens: 10000,
       messages: [{ role: "user", content: JSON.stringify({ participantContext: context }) },
         { role: "system", content: "As GM, review this character after their action planner has finished. Review its result, actions performed, and current observations. Save warranted memories, relationship changes, and biography changes. Set goalUpdate to the next concrete task if there is more to do, or null if there is none. Base this on what actually happened, not just the planner's completion judgment. Use GM tools for justified additions or to cancel dead ends; do not restart a failed task without a concrete change that makes progress possible. A result reason of wait is Jev's explicit judgment that progress depends on another character acting; treat it as a strong instruction to make the objective non-active until that character initiates the relevant conversation or event. Return newNotes, goalUpdate, relationships, and lore (null when unchanged)." },
-        { role: "user", content: JSON.stringify({ goal: activity.goal, actionsPerformed: activity.history, result: activity.result, observations: courtAgentObservation(scenario, characterId).world }) }],
+        { role: "user", content: JSON.stringify({ goal: activity.goal, actionsPerformed: activity.history, result: activity.result, observations: { location: courtAgentObservation(scenario, characterId).world.location } }) }],
     }, signal, allowNextGoal);
     signal?.throwIfAborted();
     if (this.#liveReview) return;
