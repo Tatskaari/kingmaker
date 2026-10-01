@@ -1,5 +1,6 @@
 import { adjudicateConversationChecks, type PresentRoll } from "./conversation-rolls.js";
 import { classifyConversationExpression, portraitExpressions, type PortraitExpression } from "../../../packages/providers/src/conversation-expression.js";
+import { migratePalaceWings } from "./palace-migration.js";
 import { buildInterviewCharacter, playerBuildParameter, validatePlayerStats } from "./player-build.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
 import { inventoryOwners, locatedItems, itemsFor, findItem, transferItem } from "../../../packages/core/src/inventory.js";
@@ -444,6 +445,7 @@ export class BrowserGameRuntime {
     if (this.#strangerIntroduced && restoredScenario.world?.phase === GamePhase.PLAYER_CREATION) {
       restoredScenario.gameMasterPrompt = this.#initialScenario.gameMasterPrompt;
     }
+    migratePalaceWings(restoredScenario, this.#initialScenario);
     ensureNpcActiveObjectives(restoredScenario);
     this.#game = new MemoryGame(restoredScenario);
     this.#gmHistory = snapshot.gameMasterHistory || [];
