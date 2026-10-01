@@ -1,5 +1,6 @@
 import { adjudicateConversationChecks, type PresentRoll } from "./conversation-rolls.js";
 import { classifyConversationExpression, portraitExpressions, type PortraitExpression } from "../../../packages/providers/src/conversation-expression.js";
+import { migratePalaceFurniture } from "./furniture-migration.js";
 import { migratePalaceWings, reconcileDoorApproachRooms } from "./palace-migration.js";
 import { buildInterviewCharacter, playerBuildParameter, validatePlayerStats } from "./player-build.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
@@ -447,6 +448,7 @@ export class BrowserGameRuntime {
     }
     migratePalaceWings(restoredScenario, this.#initialScenario);
     reconcileDoorApproachRooms(restoredScenario, this.#initialScenario);
+    migratePalaceFurniture(restoredScenario, this.#initialScenario);
     ensureNpcActiveObjectives(restoredScenario);
     this.#game = new MemoryGame(restoredScenario);
     this.#gmHistory = snapshot.gameMasterHistory || [];
