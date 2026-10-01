@@ -417,7 +417,7 @@ checks belong. Set `"expected": []` for no roll, or e.g.
 `"expected": ["intimidation"]` for an agreed skill set. Omitted labels remain
 REVIEW results and never count as passing or failing accuracy measurements.
 
-`OPENROUTER_API_KEY=... npm run eval:checks` runs the starter and recorded Rook cases. Pass JSON
+`OPENROUTER_API_KEY=... npm run eval:checks` runs the starter, Rook, and Holt cases. Pass JSON
 paths to run other cases. Runs repeat three times; override with
 `JEV_EVAL_REPEATS`. Artifacts retain rendered inputs, requests, decisions, labels,
 and errors after every run; set `JEV_EVAL_OUTPUT_DIR` to change their location.
@@ -435,3 +435,9 @@ recorded no-check results are failures. The classifier now uses established lore
 recorded events, and explicit GM rulings to assess truth; repeated claims and
 polite NPC acknowledgments do not establish history. The recorded Rook greeting
 and a supported voyage statement provide no-check controls.
+
+`npm run eval:checks -- evals/jev/holt-private-invitation.json` replays Holt's
+private-conversation invitation from request 50 in the October 1, 23:21 dump.
+It expects persuasion: prior friendliness does not establish acceptance of a
+new courtship invitation. The input is captured before his reply and subsequent
+GM ruling; neither the expected label nor that later acceptance reaches Jev.
