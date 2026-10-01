@@ -94,3 +94,15 @@ customizations; automatic class/background grants must not be copied and counted
 again. An adapter must validate choices and resolve those content references
 before using these builds with `dnd-srd-engine`. This change does not install that
 engine or assign a build to the player during the Stranger interview.
+
+
+Player starting builds: the Stranger's `create_player` tool selects a class,
+orders the six abilities, and selects four skills using interview evidence.
+`player-build.ts` validates those choices and creates a level 3 human traveller
+with the final standard array (15/14/13/12/10/8), average HP, class saving throws,
+and basic clothes and a dagger. Bard/rogue builds grant expertise to the first
+two skills. `kingmaker-traveller` is a prototype background package; these are
+not complete rules-legal class sheets (feats, spells and other class features
+remain future work). Review shows the assigned build and preserves it while
+editing identity and biography. Conversation context includes the player's
+build, but automatic skill-roll adjudication remains separate work.

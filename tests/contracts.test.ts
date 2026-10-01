@@ -515,11 +515,13 @@ test("compulsion requires an offered choice, then releases free-text input", asy
   assert.equal(calls, 3);
 });
 
+const interviewBuild = { classId: "rogue", abilityPriority: ["dexterity", "charisma", "constitution", "intelligence", "wisdom", "strength"], skills: ["persuasion", "deception", "insight", "stealth"] };
+
 test("generated character waits for editable review and only enters court on explicit save", async t => {
   const ids = load().characters.map(character => character.id);
   t.mock.method(OpenRouterClient.prototype, "complete", async () => ({
     role: "assistant", content: null, tool_calls: [{ id: "draft", type: "function", function: {
-      name: "create_player", arguments: JSON.stringify({ name: "Maren", homeland: "Alderreach", embassyRole: "Clerk", lore: "A clerk of the harbour.", currentGoal: "Win relief from tribute.", relationships: ids.map(characterId => ({ characterId, description: "I have not met them." })), npcViews: ids.map(characterId => ({ characterId, description: "An unknown witness." })) }),
+      name: "create_player", arguments: JSON.stringify({ build: interviewBuild, name: "Maren", homeland: "Alderreach", embassyRole: "Clerk", lore: "A clerk of the harbour.", currentGoal: "Win relief from tribute.", relationships: ids.map(characterId => ({ characterId, description: "I have not met them." })), npcViews: ids.map(characterId => ({ characterId, description: "An unknown witness." })) }),
     } }],
   }));
   const runtime = new BrowserGameRuntime(load(), "test");
@@ -530,6 +532,10 @@ test("generated character waits for editable review and only enters court on exp
   const restored = new BrowserGameRuntime(load(), "test", structuredClone(runtime.snapshot()));
   assert.equal(restored.view().phase, "character_review");
   const draft = structuredClone(restored.snapshot().playerDraft) as any;
+  assert.equal(draft.player.dnd.classes[0].level, 3);
+  assert.equal(draft.player.dnd.abilityScores.dexterity, 15);
+  assert.equal(draft.player.dnd.abilityScores.charisma, 14);
+  assert.equal(draft.player.dnd.hitPoints.maximum, 21);
   draft.player.name = "Maren Reed";
   draft.homeland = "Westmere";
   draft.embassyRole = "Envoy";
@@ -540,7 +546,12 @@ test("generated character waits for editable review and only enters court on exp
   invalid.player.name = " ";
   assert.throws(() => restored.confirmPlayer(invalid), /Name must/);
   assert.equal(restored.view().phase, "character_review");
+  draft.player.dnd.classes[0].level = 20;
   restored.confirmPlayer(draft);
+  const savedPlayer = fromJson(ScenarioSchema, restored.snapshot().scenario).characters.find(character => character.id === "player")!;
+  assert.equal(savedPlayer.dnd!.classes[0]!.level, 3);
+  assert.equal(savedPlayer.dnd!.abilityScores!.dexterity, 15);
+  assert.equal(savedPlayer.inventory!.items.length, 2);
   assert.equal(restored.view().phase, "conversations");
   assert.equal(restored.view().day, 1);
   assert.equal((restored.view().player as any).name, "Maren Reed");
@@ -2037,6 +2048,7 @@ test("identity rejects unsupported delegations, invalid sprites and blank fields
 test("each delegation keeps its identity through a persistent editable review before court entry", async t => {
   const scenario = load(), ids = scenario.characters.map(character => character.id);
   const generated = {
+    build: interviewBuild,
     name: "A name the model must not substitute", homeland: "Some other kingdom", embassyRole: "Envoy",
     lore: "A traveller with a modest history.", currentGoal: "Secure food for my home town.",
     relationships: ids.map(characterId => ({ characterId, description: "I have not met them before." })),

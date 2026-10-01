@@ -1,3 +1,4 @@
+import { buildInterviewCharacter, playerBuildParameter } from "./player-build.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
 import { inventoryOwners, locatedItems, itemsFor, findItem, transferItem } from "../../../packages/core/src/inventory.js";
 import { RECONCILIATION_INSTRUCTIONS, reconciliationTools, applyReconciliationTool } from "./gm-reconciliation.js";
@@ -132,8 +133,9 @@ function gmTools(scenario: Scenario): readonly OpenRouterTool[] {
       description: "Finish the interview after the player says they are ready. Prepare an editable character draft using their saved identity choices and the conversation. Call alone. The player must review and explicitly save before entering court; never invent readiness.",
       parameters: {
         type: "object", additionalProperties: false,
-        required: ["name", "homeland", "embassyRole", "lore", "currentGoal", "relationships", "npcViews"],
+        required: ["name", "homeland", "embassyRole", "lore", "currentGoal", "relationships", "npcViews", "build"],
         properties: {
+          build: playerBuildParameter,
           name: { type: "string" }, homeland: { type: "string" }, embassyRole: { type: "string" },
           lore: { type: "string" }, currentGoal: { type: "string" },
           relationships: { type: "array", minItems: npcIds.length, maxItems: npcIds.length, items: {
@@ -1613,6 +1615,11 @@ export class BrowserGameRuntime {
     if (!this.#playerDraft) throw new Error("No character is awaiting review.");
     const setup = fromJson(PlayerSetupSchema, draft);
     if (!setup.player) throw new Error("A character is required.");
+    // Review edits biography and identity; keep the validated interview build.
+    const assigned = fromJson(PlayerSetupSchema, this.#playerDraft).player;
+    if (!assigned?.dnd) throw new Error("The Stranger must assign a build before saving.");
+    setup.player.dnd = assigned.dnd;
+    setup.player.inventory = assigned.inventory;
     setup.homeland = text(setup.homeland, "Homeland");
     setup.embassyRole = text(setup.embassyRole, "Role");
     setup.player.name = text(setup.player.name, "Name");
@@ -1734,6 +1741,7 @@ export class BrowserGameRuntime {
       const setup = create(PlayerSetupSchema, {
         homeland: this.#travellerIdentity?.delegation ?? text(input.homeland, "homeland"), embassyRole: text(input.embassyRole, "embassyRole"),
         player: create(CharacterSchema, {
+          ...buildInterviewCharacter(input.build),
           id: "player", name: this.#travellerIdentity?.name ?? text(input.name, "name"),
           ...(this.#travellerIdentity ? { gender: this.#travellerIdentity.gender, sprite: this.#travellerIdentity.sprite, delegation: this.#travellerIdentity.delegation } : {}), lore: text(input.lore, "lore"), currentGoal: text(input.currentGoal, "currentGoal"),
           relationships: relationships.map(item => create(RelationshipSchema, { characterId: text(item.characterId, "characterId"), description: text(item.description, "description") })),
