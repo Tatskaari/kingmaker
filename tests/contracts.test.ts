@@ -16,6 +16,7 @@ import {
   DialogueRequestSchema,
   NoteSchema,
   NoteVisibility,
+  ObjectStateSchema,
   GameMasterRequestSchema,
   GamePhase,
   PlayerSetupSchema,
@@ -375,7 +376,7 @@ test("NPC reply options are optional speech, never compulsion, and stay with the
     { utterance: "Name your condition.", newNotes: [], goalUpdate: null, replyOptions: [] },
   ];
   t.mock.method(OpenRouterClient.prototype, "complete", async (request: ChatCompletionRequest) => {
-    assert.deepEqual(request.tools?.map(tool => tool.function.name), ["ask_the_game_master"], "NPCs receive only their consultation tool, never GM write tools");
+    assert.deepEqual(request.tools?.map(tool => tool.function.name), ["ask_the_game_master", "give"], "NPCs receive only character tools, never GM write tools");
     return { role: "assistant", content: JSON.stringify(replies.shift()) };
   });
   const runtime = new BrowserGameRuntime(scenario, "test");
@@ -577,7 +578,8 @@ test("GM action and knowledge rulings reach dialogue immediately and publish wit
       step++;
       if (step === 1) {
         const consultation = request.tools?.find(tool => tool.function.name === "ask_the_game_master")!;
-        assert.match(consultation.function.description, /giving the player an item, or taking an item from them/);
+        assert.match(consultation.function.description, /taking an item from the player/);
+        assert.ok(request.tools?.some(tool => tool.function.name === "give"));
         assert.match(consultation.function.description, /include the relevant .* conversation transcript/);
         const requestDescription = (consultation.function.parameters.properties as any).request.description;
         assert.match(requestDescription, /Make your case/);
@@ -613,6 +615,81 @@ test("GM action and knowledge rulings reach dialogue immediately and publish wit
       assert.equal(scenario.world!.objects.some(value => value.id === item.id), outcome === "approve");
       assert.equal(restored.snapshot().conversations.corvin?.length, 2);
     }
+  }
+});
+
+test("give lets Jev approve a plausible in-character item before it reaches the player", async t => {
+  const scenario = furnishedCourt(), world = scenario.world!;
+  const corvin = world.actors.find(actor => actor.characterId === "corvin")!;
+  const player = world.actors.find(actor => actor.characterId === "player")!;
+  corvin.roomId = player.roomId = "great_hall";
+  corvin.position = create(TilePositionSchema, { x: 16, y: 22 });
+  player.position = create(TilePositionSchema, { x: 16, y: 23 });
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  let judged = false, dialogueStep = 0;
+  t.mock.method(JevClient.prototype, "choose", async (state: any, instructions: unknown, criteria: Record<string, string>) => {
+    judged = true;
+    assert.equal(state.physicalContext.proposedGift.name, "Household safe-conduct");
+    assert.match(state.physicalContext.proposedGift.reason, /protect the envoy/);
+    assert.equal(state.conversation.at(-1).text, "Can you help me leave safely?");
+    assert.match(JSON.stringify(instructions), /duties, motives, relationships/);
+    assert.match(criteria.allow!, /willingly make now in character/);
+    return { choice: "allow", probabilities: { allow: 0.9, reject: 0.1 } };
+  });
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: ChatCompletionRequest) => {
+    if (request.max_tokens === 100) return { role: "assistant", content: "Corvin reaches for his seal." };
+    dialogueStep++;
+    if (dialogueStep === 1) {
+      const tool = request.tools?.find(candidate => candidate.function.name === "give");
+      assert.match(tool?.function.description ?? "", /Jev will allow/);
+      return { role: "assistant", content: null, tool_calls: [{ id: "gift", type: "function", function: { name: "give", arguments: JSON.stringify({
+        item_name: "Household safe-conduct", item_description: "A sealed pass ordering Corvin's retainers to protect the bearer.",
+        reason: "Corvin wants to protect the envoy after agreeing to help them leave safely.",
+      }) } }] };
+    }
+    const result = JSON.parse(request.messages.findLast(message => message.role === "tool" && message.name === "give")!.content!);
+    assert.equal(result.accepted, true);
+    assert.equal(fromJson(ScenarioSchema, runtime.snapshot().scenario).world!.objects.some(item => item.name === "Household safe-conduct"), false,
+      "An accepted proposal remains staged until the character returns a valid reply");
+    return modelReply({ utterance: "Take this pass. My people will see you safely out.", replyOptions: [], endConversation: false });
+  });
+
+  assert.match(await runtime.talkToCharacter("corvin", "Can you help me leave safely?"), /Take this pass/);
+  assert.equal(judged, true);
+  const gift = fromJson(ScenarioSchema, runtime.snapshot().scenario).world!.objects.find(item => item.name === "Household safe-conduct")!;
+  assert.equal(gift.locationId, "player");
+  assert.equal(gift.concealed, false);
+  assert.match(String(gift.properties?.details), /sealed pass/);
+});
+
+test("give obeys Jev rejection and transfers an existing owned item without copying it", async t => {
+  let allowed = false, step = 0;
+  t.mock.method(JevClient.prototype, "choose", async () => ({ choice: allowed ? "allow" : "reject", probabilities: allowed ? { allow: 1 } : { reject: 1 } }));
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: ChatCompletionRequest) => {
+    if (request.max_tokens === 100) return { role: "assistant", content: "Corvin considers the request." };
+    if (!step++) return { role: "assistant", content: null, tool_calls: [{ id: "gift", type: "function", function: { name: "give", arguments: JSON.stringify({
+      item_id: "corvin_signet", item_name: "Corvin's signet", item_description: "The magister's silver seal.", reason: "A deliberate pledge.",
+    }) } }] };
+    const result = JSON.parse(request.messages.findLast(message => message.role === "tool" && message.name === "give")!.content!);
+    assert.equal(result.accepted, allowed);
+    return modelReply({ utterance: allowed ? "Guard it well." : "No. That seal is my office.", replyOptions: [], endConversation: false });
+  });
+  for (const outcome of [false, true]) {
+    allowed = outcome; step = 0;
+    const scenario = furnishedCourt(), world = scenario.world!;
+    const corvin = world.actors.find(actor => actor.characterId === "corvin")!;
+    const player = world.actors.find(actor => actor.characterId === "player")!;
+    corvin.roomId = player.roomId = "great_hall";
+    corvin.position = create(TilePositionSchema, { x: 16, y: 22 });
+    player.position = create(TilePositionSchema, { x: 16, y: 23 });
+    world.objects.push(create(ObjectStateSchema, { id: "corvin_signet", name: "Corvin's signet", locationId: "corvin", concealed: true,
+      properties: { details: "The magister's silver seal." } }));
+    const runtime = new BrowserGameRuntime(scenario, "test");
+    await runtime.talkToCharacter("corvin", "Will you give me your signet?");
+    const items = fromJson(ScenarioSchema, runtime.snapshot().scenario).world!.objects.filter(item => item.id === "corvin_signet");
+    assert.equal(items.length, 1);
+    assert.equal(items[0]!.locationId, outcome ? "player" : "corvin");
+    assert.equal(items[0]!.concealed, outcome ? false : true);
   }
 });
 

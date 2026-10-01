@@ -60,6 +60,9 @@ exchanges with low reasoning. Settings live in
 `apps/web/src/model-settings.ts`; every game-model request uses the OpenRouter ID
 `openai/gpt-6-luna`.
 Jev selects from currently reachable actions.
+During dialogue, characters also have a `give` command for existing or plausible
+personal items. Jev separately approves only handoffs the character could and
+would make; accepted gifts are saved directly in the player's inventory.
 
 Action-execution Jev context is configured in `apps/web/src/feature-flags.ts`:
 

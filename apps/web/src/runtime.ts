@@ -24,7 +24,7 @@ import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import {
   ActorStateSchema, CharacterSchema, ConversationMemorySchema, DialogueRequestSchema, EventSchema, NoteSchema,
   NoteVisibility, GameMasterRequestSchema, GamePhase,
-  PlayerSetupSchema, RelationshipSchema, RelationshipUpdateSchema, ScenarioSchema,
+  ObjectStateSchema, PlayerSetupSchema, RelationshipSchema, RelationshipUpdateSchema, ScenarioSchema,
   TranscriptMessageSchema, TranscriptRole, WorldStateSchema, TilePositionSchema,
   type Event, type Scenario, type TranscriptMessage,
 } from "../../../packages/contracts/src/index.js";
@@ -212,7 +212,7 @@ const askGameMasterTool: OpenRouterTool = {
   type: "function",
   function: {
     name: "ask_the_game_master",
-    description: "Privately consult the GM only when your response needs a consequential new fact, the result of an off-screen action, or an immediate change to world state: evidence, a secret, significant history or relationships, authority, access, possession, giving the player an item, or taking an item from them. For example: 'Can my household investigate the house accounts and discover a discrepancy?' or 'I want to give the player my signet because they agreed to carry my message.' Make the case for the requested change: explain why your character wants it and include the relevant offers, claims, actions, or other evidence from the conversation transcript. Use established knowledge and prior rulings directly. Ordinary opinions, preferences, bargaining, tentative proposals and harmless incidental details do not need approval. Do not call merely because a detail is unspecified; ask only when the ruling would materially affect the story or the player's options and is needed for this response. The GM may confirm, qualify or reject the premise, supply character-known information, or update world state or inventories. Wait for the ruling and item descriptions before replying in character. Keep the consultation private; retain your character's motives and choice about what to disclose or agree to.",
+    description: "Privately consult the GM only when your response needs a consequential new fact, the result of an off-screen action, or another immediate change to world state: evidence, a secret, significant history or relationships, authority, access, possession, or taking an item from the player. Use give separately to hand the player an item. Make the case for the requested change: explain why your character wants it and include the relevant offers, claims, actions, or other evidence from the conversation transcript. Use established knowledge and prior rulings directly. Ordinary opinions, preferences, bargaining, tentative proposals and harmless incidental details do not need approval. Do not call merely because a detail is unspecified; ask only when the ruling would materially affect the story or the player's options and is needed for this response. The GM may confirm, qualify or reject the premise, supply character-known information, or update world state or inventories. Wait for the ruling before replying in character. Keep the consultation private; retain your character's motives and choice about what to disclose or agree to.",
     parameters: {
       type: "object", additionalProperties: false, required: ["request"],
       properties: { request: { type: "string", minLength: 1, maxLength: 1000, description: "The question, proposed action, or requested world-state change for the GM. Make your case, including what you want changed, why, and the relevant information from the conversation transcript. Ask whether an uncertain premise is true rather than assuming it." } },
@@ -220,12 +220,35 @@ const askGameMasterTool: OpenRouterTool = {
   },
 };
 
-const GM_CONSULTATION_INSTRUCTIONS = `Resolve ask_the_game_master immediately during the ongoing conversation. For a knowledge question, confirm, qualify or reject what this character would know or whether the player's proposed premise can be established. A knowledge ruling need not create an item or task. For a requested world-state change, including giving the player an item or taking an item from them, assess the NPC's stated case against the complete supplied transcript and established world state; do not treat the requested outcome as already true.
+const giveTool: OpenRouterTool = {
+  type: "function",
+  function: {
+    name: "give",
+    description: "Give one physical item to the player now. Jev will allow the handoff only when you could plausibly possess or control the exact item and would willingly part with it in character, given your duties, motives, relationships and this conversation. You may give an existing carried item by supplying its item_id, or a newly established ordinary item without one. Do not use this for promises, services, information, abstract authority, people, land, large or remote property, or an item you should not surrender. Wait for the result before claiming the handoff occurred.",
+    parameters: {
+      type: "object", additionalProperties: false, required: ["item_name", "item_description", "reason"], properties: {
+        item_id: { type: "string", description: "Optional exact ID of an existing item in your inventory. Omit for a plausible previously untracked item you already possess or control here." },
+        item_name: { type: "string", minLength: 1, maxLength: 200, description: "Concrete name shown in the player's inventory." },
+        item_description: { type: "string", minLength: 1, maxLength: 2000, description: "Concrete inspectable details, including a document's exact relevant text." },
+        reason: { type: "string", minLength: 1, maxLength: 1000, description: "Why you can possess this item and why you choose to give it to the player now." },
+      },
+    },
+  },
+};
+
+const GIVE_JUDGMENT_INSTRUCTIONS = {
+  role: "Judge a proposed in-character handoff during a live conversation.",
+  allowWhen: "The character can physically possess or control this exact item here, has the authority to give it away, and would willingly do so now based on their established identity, duties, motives, relationships, knowledge, promises and the conversation.",
+  rejectWhen: "Reject if the item is implausible, unavailable, remote, unique without support, outside the character's control, prohibited by their duties or motives, inconsistent with established facts, or something they would not willingly surrender now. A player's request or the character model's proposal is not proof.",
+  scope: "Judge only this immediate physical transfer. Do not invent conditions, substitute a different item, or treat a promise as a completed handoff.",
+};
+
+const GM_CONSULTATION_INSTRUCTIONS = `Resolve ask_the_game_master immediately during the ongoing conversation. For a knowledge question, confirm, qualify or reject what this character would know or whether the player's proposed premise can be established. A knowledge ruling need not create an item or task. For a requested world-state change, including taking an item from the player, assess the NPC's stated case against the complete supplied transcript and established world state; do not treat the requested outcome as already true. Characters use their separate give tool for immediate handoffs to the player.
 For off-screen work, decide the result now. For example, investigating house accounts might produce an account extract showing an unexplained payment to a named supplier: a lead to investigate, without automatically proving theft.
 Use update_inventory for justified items and update_character to record the requesting character's learned outcome or other warranted changes. Finish with a character-safe summary of the ruling, discoveries, state changes, any available next step, and names and descriptions of added items. The conversation agent receives this result and speaks afterwards.`;
 
 const CHARACTER_COLLABORATION_INSTRUCTIONS = `Play your part in collaborative storytelling. Take the player's ideas seriously and look for ways to build on them through your character's desires, loyalties and relationships. "Yes, and" means a meaningful response, not automatic agreement: you can bargain, raise a complication, ask a revealing question, or offer a different opening. When resisting, make your reason understandable and leave a grounded way for the player to engage. Never choose the player's words, thoughts or actions.
-Respond directly using your established knowledge, motives, and reasonable everyday assumptions. You may improvise incidental details that do not materially change the world or the player's options, while respecting established facts. Use ask_the_game_master only when the answer would establish a consequential new fact: evidence, a secret, a significant relationship or past event, authority, access, possession, or the result of an off-screen action. Ask only if that ruling is needed for your response. Reuse previous rulings; do not repeatedly check established facts. A player's assertion establishes that they made a claim, not that the claim is true. If you intend to lie about a consequential unestablished fact, explain that intent in the consultation so the GM can keep the underlying truth coherent.
+Respond directly using your established knowledge, motives, and reasonable everyday assumptions. You may improvise incidental details that do not materially change the world or the player's options, while respecting established facts. Use give when you deliberately hand the player a physical item now; never claim the transfer unless the tool accepts it. Use ask_the_game_master only when the answer would establish another consequential new fact: evidence, a secret, a significant relationship or past event, authority, access, possession, or the result of an off-screen action. Ask only if that ruling is needed for your response. Reuse previous rulings; do not repeatedly check established facts. A player's assertion establishes that they made a claim, not that the claim is true. If you intend to lie about a consequential unestablished fact, explain that intent in the consultation so the GM can keep the underlying truth coherent.
 Examples:
 - "I distrust the treasurer" is ordinary characterisation consistent with your motives; answer directly.
 - "The treasurer diverted the grain payments" establishes consequential evidence; consult the GM if unestablished.
@@ -561,26 +584,32 @@ export class BrowserGameRuntime {
     messages.unshift({ role: "system", content: dialogueEarshotPrompt(scenario, characterId, [characterId, scenario.playerCharacterId ?? "player"]) });
     messages.unshift({ role: "system", content: "You may choose to end this conversation only for a concrete in-character reason to leave now: beginning an immediate task you have chosen, refusing further discussion, or responding to an urgent interruption. Completing or advancing a dialogue objective is not a reason to leave; continue naturally or move to another relevant conversational thread. Never set endConversation=true in the same response as asking the player a question, making them an offer, or requesting their help, because the player must be able to answer. When you truly take your leave, express that decision naturally and return replyOptions=[]. Otherwise set endConversation=false. Ending triggers a separate memory and goal review; speech alone does not move you or complete physical tasks." });
     messages.unshift({ role: "system", content: "Return only a JSON object matching the supplied response schema, with no Markdown fences or surrounding prose." });
+    const pendingGifts: { id: string; name: string; details: string; existing: boolean }[] = [];
     let parsed: JsonObject | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         for (let step = 0; step < 4; step++) {
           const completion = await this.#complete("dialogue", characterId, {
-            ...DIALOGUE_MODEL, messages, response_format: dialogueFormat, tools: [askGameMasterTool], max_tokens: 900,
+            ...DIALOGUE_MODEL, messages, response_format: dialogueFormat, tools: [askGameMasterTool, giveTool], max_tokens: 900,
           }, undefined, runKey);
           if (!completion.tool_calls?.length) {
             parsed = parseModelObject(completion.content, "Court dialogue");
             break;
           }
-          if (completion.tool_calls.length !== 1 || completion.tool_calls[0]!.function.name !== "ask_the_game_master") {
+          if (completion.tool_calls.length !== 1 || !["ask_the_game_master", "give"].includes(completion.tool_calls[0]!.function.name)) {
             throw new Error("Court dialogue used an invalid tool call");
           }
           const call = completion.tool_calls[0]!;
-          const args = parseModelObject(call.function.arguments, "GM consultation");
-          const question = text(args.request, "request");
-          if (question.length > 1000) throw new Error("request must be at most 1000 characters");
-          onConsultation();
-          const result = await this.#askGameMaster(characterId, question, [...history, playerMessage]);
+          const args = parseModelObject(call.function.arguments, call.function.name === "give" ? "Give action" : "GM consultation");
+          let result: unknown;
+          if (call.function.name === "give") {
+            result = await this.#judgeGive(characterId, args, [...history, playerMessage], pendingGifts);
+          } else {
+            const question = text(args.request, "request");
+            if (question.length > 1000) throw new Error("request must be at most 1000 characters");
+            onConsultation();
+            result = await this.#askGameMaster(characterId, question, [...history, playerMessage]);
+          }
           messages.push(completion, { role: "tool", tool_call_id: call.id, name: call.function.name,
             content: JSON.stringify(result) });
         }
@@ -597,12 +626,68 @@ export class BrowserGameRuntime {
     const utterance = text(parsed.utterance, "utterance");
     if (parsed.endConversation !== undefined && typeof parsed.endConversation !== "boolean") throw new Error("endConversation must be a boolean");
     const replyOptions = parseReplyOptions(parsed.replyOptions);
+    if (pendingGifts.length) {
+      const playerId = scenario.playerCharacterId;
+      if (!playerId || !scenario.world) throw new Error("The player cannot receive an item.");
+      for (const gift of pendingGifts) {
+        if (gift.existing) {
+          const item = scenario.world.objects.find(item => item.id === gift.id && item.locationId === characterId);
+          if (!item) throw new Error("An accepted gift is no longer available.");
+          item.locationId = playerId; item.concealed = false;
+        } else {
+          if ([...scenario.world.objects, ...scenario.world.fixtures, ...scenario.world.rooms, ...scenario.characters].some(item => item.id === gift.id)) throw new Error("An accepted gift ID is no longer available.");
+          scenario.world.objects.push(create(ObjectStateSchema, { id: gift.id, name: gift.name, locationId: playerId,
+            concealed: false, properties: { details: gift.details } }));
+        }
+      }
+      scenario.world.revision++;
+      this.#setGame(new MemoryGame(scenario));
+    }
     this.#conversations.set(characterId, [...history, playerMessage, create(TranscriptMessageSchema, {
       role: TranscriptRole.CHARACTER, speakerId: characterId, text: utterance,
     })]);
     this.#conversationEndRequested[characterId] = parsed.endConversation === true;
     this.#conversationReplyOptions[characterId] = parsed.endConversation === true ? [] : replyOptions;
     return utterance;
+  }
+
+  async #judgeGive(characterId: string, args: JsonObject, transcript: TranscriptMessage[], pending: { id: string; name: string; details: string; existing: boolean }[]) {
+    const scenario = this.#game.scenario(), world = scenario.world;
+    const playerId = scenario.playerCharacterId;
+    if (!world || !playerId) return { accepted: false, reason: "The player cannot receive an item now. Do not claim the handoff occurred." };
+    const name = text(args.item_name, "item_name"), details = text(args.item_description, "item_description"), reason = text(args.reason, "reason");
+    if (name.length > 200 || details.length > 2000 || reason.length > 1000) throw new Error("Give action text is too long.");
+    const suppliedId = args.item_id === undefined ? "" : text(args.item_id, "item_id");
+    const existing = suppliedId ? world.objects.find(item => item.id === suppliedId && item.locationId === characterId) : undefined;
+    if (suppliedId && !existing) return { accepted: false, reason: "That exact item is not in this character's inventory. Do not claim the handoff occurred." };
+    if (existing && pending.some(item => item.id === existing.id)) return { accepted: false, reason: "That item is already pending transfer in this reply." };
+    const actor = world.actors.find(item => item.characterId === characterId), player = world.actors.find(item => item.characterId === playerId);
+    if (!actor?.position || !player?.position || actor.roomId !== player.roomId) return {
+      accepted: false, reason: "The character and player are not physically together. Do not claim the handoff occurred.",
+    };
+    const authoritative = existing ? { id: existing.id, name: existing.name, details: typeof existing.properties?.details === "string" ? existing.properties.details : details }
+      : { name, details };
+    const state = {
+      characterContext: characterDecisionContext(scenario, characterId, scenario.characters.find(item => item.id === characterId)?.currentGoal ?? ""),
+      conversation: transcript.map(message => ({ speakerId: message.speakerId, text: message.text })),
+      physicalContext: { room: world.rooms.find(room => room.id === actor.roomId)?.name ?? actor.roomId,
+        carriedItems: worldForCharacter(world, characterId).objects.filter(item => item.locationId === characterId)
+          .map(item => ({ id: item.id, name: item.name, details: item.properties?.details ?? "" })),
+        proposedGift: { ...authoritative, reason } },
+    };
+    const criteria = {
+      allow: "The exact proposed handoff is physically plausible, within this character's control and authority, and a choice they would willingly make now in character.",
+      reject: "The item or handoff is physically implausible, unsupported, outside this character's control or authority, or contrary to what they would willingly give now.",
+    };
+    const signal = AbortSignal.timeout(30_000);
+    const decision = await this.#modelTranscripts.record("jev", characterId, jevRequest(state, GIVE_JUDGMENT_INSTRUCTIONS, criteria),
+      () => this.#jev.choose(state, GIVE_JUDGMENT_INSTRUCTIONS, criteria, signal), undefined, this.#characterName(characterId));
+    if (decision.choice !== "allow") return { accepted: false, reason: "Jev rejected this handoff as physically or character-inappropriate. Do not claim it occurred." };
+    const id = existing?.id ?? `gift_${characterId}_${name.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40) || "item"}_${crypto.randomUUID().slice(0, 8)}`;
+    const gift = { id, name: existing?.name ?? name, details: authoritative.details, existing: !!existing };
+    pending.push(gift);
+    return { accepted: true, item: { id: gift.id, name: gift.name, details: gift.details },
+      instruction: "The item will enter the player's inventory with this reply. Describe the handoff naturally and do not alter the accepted item." };
   }
 
   endConversationAsPlayer(characterId: string, messageText: string): void {

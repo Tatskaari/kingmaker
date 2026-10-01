@@ -18,6 +18,9 @@ on that same world state; there is no separate demo or night-turn engine.
 `FullContextBuilder` combines authored character context, objectives, immediate
 intent, available notes, known fixture contents and dialogue history. Spoken turns
 return dialogue, reply suggestions and an optional conversation-ending flag.
+A character may call `give` with an existing carried item or a plausible personal
+item; Jev checks physical and in-character plausibility before the reply atomically
+places an accepted gift in the player's inventory.
 A separate review commits durable free-form notes, relationships, biography and a goal.
 A non-null goal activates Jev; null leaves the NPC idle.
 
@@ -48,6 +51,6 @@ The palace renderer consumes map geometry and saved fixtures/actors. It animates
 walks but does not own game state. Debug transcript summaries are views of actual
 model responses, not evidence that a proposed update was committed.
 
-Current limits: one active NPC runner; no give-item action, autonomous player
+Current limits: one active NPC runner; no planner give-item action, autonomous player
 speech, visibility simulation, time progression or formal recognition resolution. The
 centennial assembly remains narrative context, not a working scheduler or vote engine.

@@ -31,9 +31,11 @@ and cover observations, thoughts, promises, agreements, insults, apologies,
 revelations, and conversations.
 
 Dialogue may create intent, social meaning, misinformation, and surprising plans.
-It cannot directly mutate the physical world. A character saying "I give you the
-key" can create a note and a goal; the physical interaction must actually be supported and executed by the engine.
-There is currently no give-item action.
+Speech alone cannot mutate the physical world: merely saying "I give you the key"
+does not transfer it. During live player dialogue, an NPC can call `give` for an immediate physical
+handoff. Jev accepts it only when the exact item is physically and personally
+plausible for that character to surrender. The background action planner still
+has no give-item action.
 
 Reply options should offer distinct roleplaying intentions and match the player’s voice and behaviour in the visible conversation. They are suggestions, not spoken NPC dialogue or notes. Only a selected or typed response becomes player speech. NPCs cannot compel responses; the GM alone can use compulsion during stalled character creation.
 
