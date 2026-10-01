@@ -142,7 +142,7 @@ function gmTools(scenario: Scenario, conversationalIdentity = false): readonly O
           build: playerBuildParameter,
           name: { type: "string" }, gender: { type: "string", description: "The player's stated gender; ask rather than infer from their name or role." },
           homeland: { type: "string", ...(conversationalIdentity ? { enum: delegations.map(item => item.id), description: "The delegation agreed with the player as their way into court." } : {}) }, embassyRole: { type: "string" },
-          lore: { type: "string" }, currentGoal: { type: "string", description: "Use the player's expressed purpose, or 'Explore the court and decide where to meddle.' if none was chosen. Do not ask extra motivation questions to fill this field." },
+          lore: { type: "string" }, currentGoal: { type: "string", description: "Use the player's expressed purpose; 'Cause chaos' is a complete goal and needs no specific outcome. If none was chosen, use 'Cause chaos at court and see what happens.' Do not ask extra motivation questions to fill this field." },
           relationships: { type: "array", minItems: npcIds.length, maxItems: npcIds.length, items: {
             type: "object", additionalProperties: false, required: ["characterId", "description"],
             properties: { characterId: { type: "string", enum: npcIds }, description: { type: "string" } },
