@@ -161,13 +161,46 @@ function transcriptSummary(entry) {
     + (array(response.tool_calls).length ? `<h4>Tools requested</h4>${list(response.tool_calls, call => `<strong>${escape(call?.function?.name)}</strong><pre>${escape(call?.function?.arguments)}</pre>`, "No tools.")}` : "");
 }
 
-export function recentTranscriptsView(entries = [], runs = {}) {
-  const kinds = { npc_request: "NPC request", npc_resolution: "NPC conversation resolution", game_master: "Game master", gm_consultation: "GM consultation", dialogue: "Dialogue", dialogue_flavour: "Dialogue flavour", conversation_review: "Conversation review", conversation_check: "Jev conversation checks", conversation_expression: "Jev portrait expression", world_event: "World event review", event_decision: "Event attention decision", jev: "Jev action decision", outcome_review: "Outcome review" };
-  const archived = Object.entries(runs).reverse();
-  const runCards = archived.length ? archived.map(([key, run]) => {
-    const conversation = array(run.context?.messages);
-    return `<article class="debug-card transcript-card" data-transcript-key="run:${escape(key)}"><h3>${escape(key)}</h3><p class="debug-meta">${escape(run.status)} · ${escape(run.startedAt)}${run.completedAt ? ` → ${escape(run.completedAt)}` : ""} · ${run.calls?.length ?? 0} model call${run.calls?.length === 1 ? "" : "s"}</p>${run.error ? `<p class="debug-error">${escape(run.error)}</p>` : ""}${conversation.length ? `<h4>Conversation</h4>${messages(conversation)}` : ""}<details><summary>Calls and run context</summary><pre>${escape(JSON.stringify(run, null, 2))}</pre></details></article>`;
-  }).join("") : empty("No agent runs recorded yet in this session.");
-  return `<p class="debug-note">Logical agent runs are grouped by type, character and UUID. The latest 50 completed runs are kept in memory; active runs are included. Reloading or loading a game starts a fresh archive.</p>${runCards}<h3 class="debug-section-title">Recent API requests and responses</h3><p class="debug-note">Latest 50 requests, newest first. No hidden reasoning or authentication headers are captured.</p>`
-    + (entries.length ? entries.map(entry => `<article class="debug-card transcript-card" data-transcript-key="request:${escape(entry.id)}"><h3>${escape(kinds[entry.kind] || entry.kind)} · ${escape(entry.characterId)}</h3><p class="debug-meta">${escape(entry.status === "success" ? "Response received" : entry.status)} · ${escape(entry.startedAt)}${entry.durationMs === undefined ? "" : ` · ${(entry.durationMs / 1000).toFixed(2)}s`}</p><div class="transcript-summary">${transcriptSummary(entry)}</div><details><summary>Full request and response</summary><h4>Request</h4><pre>${escape(JSON.stringify(entry.request, null, 2))}</pre>${entry.response === undefined ? "" : `<h4>Response</h4><pre>${escape(JSON.stringify(entry.response, null, 2))}</pre>`}${entry.error ? `<h4>Error</h4><pre class="debug-error">${escape(entry.error)}</pre>` : ""}</details></article>`).join("") : empty("No model calls recorded yet in this session."));
+const transcriptKinds = { npc_goal: "Goal execution", character: "Conversation", npc_request: "NPC request", npc_resolution: "NPC conversation resolution", game_master: "Game master", gm_consultation: "GM consultation", dialogue: "Dialogue", dialogue_flavour: "Dialogue flavour", conversation_review: "Conversation review", conversation_check: "Jev conversation checks", conversation_expression: "Jev portrait expression", world_event: "World event review", event_decision: "Event attention decision", jev: "Jev action decision", outcome_review: "Outcome review" };
+const transcriptStatus = status => ({ pending: "Active", success: "Completed", stopped: "Stopped", error: "Failed" })[status] || status;
+const transcriptTime = value => value && !Number.isNaN(Date.parse(value)) ? new Date(value).toLocaleTimeString() : "—";
+const transcriptType = kind => transcriptKinds[kind] || kind;
+export function transcriptSessions(entries = [], runs = {}) {
+  const included = new Set(Object.values(runs).flatMap(run => (run.calls || []).map(call => call.id)));
+  return [...Object.entries(runs).map(([key, run]) => ({ ...run, key: `run:${key}` })),
+    ...entries.filter(entry => !included.has(entry.id)).map(entry => ({
+      key: `request:${entry.id}`, kind: entry.kind, characterId: entry.characterId,
+      status: entry.status, startedAt: entry.startedAt, calls: [entry],
+    }))].sort((a, b) => (Date.parse(b.startedAt) || 0) - (Date.parse(a.startedAt) || 0));
+}
+const transcriptTable = (headers, rows) => `<table class="transcript-table" data-transcript-key="table"><thead><tr>${headers.map(title => `<th scope="col">${title}</th>`).join("")}</tr></thead>${rows}</table>`;
+const transcriptRow = (key, cells) => `<tbody data-transcript-key="${escape(key)}"><tr>${cells.map(cell => `<td>${cell}</td>`).join("")}</tr></tbody>`;
+const sessionButton = (key, text) => `<button data-transcript-session="${escape(key)}">${escape(text)}</button>`;
+const statusBadge = status => `<span class="transcript-status ${escape(status)}">${escape(transcriptStatus(status))}</span>`;
+
+export function recentTranscriptsView(entries = [], runs = {}, route = {}) {
+  const sessions = transcriptSessions(entries, runs);
+  const name = id => route.names?.[id] || id;
+  const session = sessions.find(item => item.key === route.session);
+  const call = session?.calls?.find(item => String(item.id) === route.call);
+  const crumbs = `<nav class="debug-breadcrumbs" aria-label="Transcript navigation">${sessionButton("", "All sessions")}${session ? `<span>/</span>${sessionButton(session.key, `${name(session.characterId)} · ${transcriptType(session.kind)}`)}` : ""}${call ? `<span>/</span><span aria-current="page">Call ${escape(call.id)}</span>` : ""}</nav>`;
+  if (route.session && !session) return crumbs + empty("This session is no longer in the retained history. Return to All sessions.");
+  if (route.call && !call) return crumbs + empty("This call is no longer available.");
+  if (call) return crumbs + `<section class="transcript-detail" data-transcript-key="call:${escape(call.id)}"><h3>${escape(transcriptType(call.kind))}</h3>${facts([["Character", name(call.characterId)], ["Status", transcriptStatus(call.status)], ["Started", transcriptTime(call.startedAt)], ["Duration", call.durationMs === undefined ? "In progress" : `${(call.durationMs / 1000).toFixed(2)}s`]])}<div class="transcript-summary">${transcriptSummary(call)}</div><details><summary>Full request and response</summary><h4>Request</h4><pre>${escape(JSON.stringify(call.request, null, 2))}</pre><h4>Response</h4><pre>${escape(JSON.stringify(call.response ?? null, null, 2))}</pre></details></section>`;
+  if (session) {
+    const calls = session.calls || [];
+    return crumbs + `<p class="debug-note">${escape(session.context?.objective || session.context?.goal || transcriptType(session.kind))} · ${calls.length} calls · ${escape(transcriptStatus(session.status))}. Session completion does not imply goal success.</p>${session.error ? `<p class="debug-error">${escape(session.error)}</p>` : ""}`
+      + (calls.length ? transcriptTable(["Call", "Character", "Transcript type", "Status", "Started", "Duration"], calls.map(item => transcriptRow(`call:${item.id}`, [
+        `<button data-transcript-call="${escape(item.id)}">Call ${escape(item.id)} →</button>`, escape(name(item.characterId)),
+        escape(transcriptType(item.kind)), statusBadge(item.status), escape(transcriptTime(item.startedAt)),
+        item.durationMs === undefined ? "—" : `${(item.durationMs / 1000).toFixed(2)}s`,
+      ])).join("")) : empty("No calls recorded yet."))
+      + `<details data-transcript-key="context"><summary>Session context</summary>${session.context?.messages ? messages(session.context.messages) : ""}<pre>${escape(JSON.stringify({ id: session.key, ...session.context }, null, 2))}</pre></details>`;
+  }
+  return `<p class="debug-note">One row per execution session or conversation. Select a session, then a call to inspect it. Latest 50 completed sessions plus active sessions; recent ungrouped calls appear separately. Reloading or loading a game clears this history.</p>`
+    + (sessions.length ? transcriptTable(["Character", "Transcript type", "Purpose", "Calls", "Status", "Started"], sessions.map(item => transcriptRow(item.key, [
+      sessionButton(item.key, `${name(item.characterId)} →`), escape(transcriptType(item.kind)),
+      escape(item.context?.objective || item.context?.goal || (item.kind === "character" ? "Conversation with the player" : transcriptType(item.kind))),
+      String(item.calls?.length ?? 0), statusBadge(item.status), escape(transcriptTime(item.startedAt)),
+    ])).join("")) : empty("No model calls recorded yet in this session."));
 }

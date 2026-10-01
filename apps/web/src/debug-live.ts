@@ -1,12 +1,13 @@
 /** Reconcile transcript cards without remounting the inspector or unchanged cards. */
 export function updateTranscriptPanel(panel: HTMLElement, html: string): void {
   const template = document.createElement("template");
-  template.innerHTML = html;
+  template.innerHTML = panel.matches("table") ? `<table>${html}</table>` : html;
+  const incoming = panel.matches("table") ? template.content.querySelector("table")! : template.content;
   const key = (node: Element, index: number) => node.getAttribute("data-transcript-key") || `${node.tagName}:${index}`;
   const children = [...panel.children];
   const existing = new Map(children.map((node, index) => [key(node, index), node]));
   const top = panel.getBoundingClientRect().top;
-  const anchor = children.find(node => node.hasAttribute("data-transcript-key") && node.getBoundingClientRect().bottom > top);
+  const anchor = [...panel.querySelectorAll("[data-transcript-key]")].find(node => !node.matches("table") && node.hasAttribute("data-transcript-key") && node.getBoundingClientRect().bottom > top);
   const anchorKey = anchor?.getAttribute("data-transcript-key");
   const anchorOffset = anchor ? anchor.getBoundingClientRect().top - top : 0;
   const scrollTop = panel.scrollTop;
@@ -16,13 +17,16 @@ export function updateTranscriptPanel(panel: HTMLElement, html: string): void {
     return clone.outerHTML;
   };
   let cursor = panel.firstElementChild;
-  for (const [index, next] of [...template.content.children].entries()) {
+  for (const [index, next] of [...incoming.children].entries()) {
     const id = key(next, index);
     const previous = existing.get(id);
     let node = next;
     if (previous) {
       existing.delete(id);
-      if (normalized(previous) === normalized(next)) node = previous;
+      if (previous.matches("table") && next.matches("table")) {
+        updateTranscriptPanel(previous as HTMLElement, next.innerHTML);
+        node = previous;
+      } else if (normalized(previous) === normalized(next)) node = previous;
       else {
         const details = [...previous.querySelectorAll("details")];
         const focused = details.findIndex(detail => detail.querySelector("summary") === document.activeElement);
@@ -38,7 +42,7 @@ export function updateTranscriptPanel(panel: HTMLElement, html: string): void {
   }
   existing.forEach(node => node.remove());
   if (scrollTop > 0 && anchorKey) {
-    const retained = [...panel.children].find(node => node.getAttribute("data-transcript-key") === anchorKey);
+    const retained = [...panel.querySelectorAll("[data-transcript-key]")].find(node => node.getAttribute("data-transcript-key") === anchorKey);
     panel.scrollTop = retained ? panel.scrollTop + retained.getBoundingClientRect().top - top - anchorOffset : scrollTop;
   } else panel.scrollTop = scrollTop;
 }

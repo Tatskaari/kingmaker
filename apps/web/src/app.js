@@ -25,6 +25,7 @@ let sheetOpen = false;
 let debugOpen = false;
 let debugTab = "overview";
 let debugSection = "";
+let transcriptRoute = {};
 let debugReadSequence = 0;
 let debugData = null;
 let debugError = "";
@@ -362,13 +363,19 @@ function debugInspector() {
   const content = debugTab === "alerts" ? alertsView() : debugError
     ? `<p class="debug-error">${escapeHtml(debugError)}</p>`
     : debugData
-      ? debugTab === "overview" ? debugOverview(debugRequest.type, debugData, debugSection) : debugTab === "transcripts" ? recentTranscriptsView(debugData.requests, debugData.agentRuns) : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
+      ? debugTab === "overview" ? debugOverview(debugRequest.type, debugData, debugSection) : debugTab === "transcripts" ? transcriptView() : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
       : `<p class="debug-loading">Reading worker state…</p>`;
   const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${[["overview", "Browse"], ["json", "Raw JSON"], ["transcripts", "Agent runs & requests"], ["alerts", "Session warnings & errors"]].map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
   const isCharacter = debugRequest.type === "debug_character";
   const sectionTitle = debugSections[debugRequest.type]?.[debugSection];
   const breadcrumbs = `<nav class="debug-breadcrumbs" aria-label="Debug navigation"><button data-debug-home ${debugRequest.type === "debug" && !debugSection ? 'aria-current="page"' : ""}>Overall debug</button>${isCharacter ? '<span>/</span><button data-debug-characters>Characters</button>' : ""}${debugRequest.type !== "debug" ? `<span>/</span><button data-debug-section="" ${!sectionTitle ? 'aria-current="page"' : ""}>${escapeHtml(debugTitle)}</button>` : ""}${sectionTitle ? `<span>/</span><span aria-current="page">${escapeHtml(sectionTitle)}</span>` : ""}</nav>`;
   return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}" ${debugOpen ? "" : "inert"}><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header>${breadcrumbs}<p class="debug-note">${isCharacter ? "Character knowledge and visible notes. Agent runs are filtered to this character." : "Authoritative world state and live activity. Select a section to explore."} API keys are excluded.</p>${tabs}<div id="debug-panel" class="debug-panel" role="tabpanel" aria-labelledby="debug-tab-${debugTab}" tabindex="0">${content}</div></aside>`;
+}
+
+function transcriptView() {
+  return recentTranscriptsView(debugData?.requests, debugData?.agentRuns, {
+    ...transcriptRoute, names: Object.fromEntries((state?.characters || []).map(character => [character.id, character.name])),
+  });
 }
 
 const refreshDebugTranscripts = coalescedRefresh(async () => {
@@ -384,7 +391,7 @@ const refreshDebugTranscripts = coalescedRefresh(async () => {
     debugData = request.type === "debug_character" ? characterTranscripts(data, request.payload.characterId) : data;
     debugError = "";
     const panel = document.querySelector("#debug-panel");
-    if (panel) updateTranscriptPanel(panel, recentTranscriptsView(debugData.requests, debugData.agentRuns));
+    if (panel) updateTranscriptPanel(panel, transcriptView());
   } catch (error) {
     if (!isCurrent()) return;
     const panel = document.querySelector("#debug-panel");
@@ -404,7 +411,7 @@ const refreshDebugTranscripts = coalescedRefresh(async () => {
 async function openDebug(request = debugRequest, title = debugTitle) {
   if (debugOpen && debugTab === "alerts" && request === debugRequest) { alerts.acknowledge(); render(); return; }
   const readSequence = ++debugReadSequence;
-  if (!debugOpen || request.type !== debugRequest.type || request.payload.characterId !== debugRequest.payload.characterId) { debugTab = "overview"; debugSection = ""; }
+  if (!debugOpen || request.type !== debugRequest.type || request.payload.characterId !== debugRequest.payload.characterId) { debugTab = "overview"; debugSection = ""; transcriptRoute = {}; }
   debugOpen = true;
   sheetOpen = false;
   debugRequest = request;
@@ -660,6 +667,16 @@ function bind() {
     await openDebug({ type: "debug_character", payload: { characterId: id } }, state.characters.find(item => item.id === id)?.name || id);
     document.querySelector("#debug-panel")?.focus();
   }));
+  document.querySelector("#debug-panel")?.addEventListener("click", event => {
+    const session = event.target.closest("[data-transcript-session]");
+    const call = event.target.closest("[data-transcript-call]");
+    if (!session && !call) return;
+    transcriptRoute = session ? { session: session.dataset.transcriptSession } : { ...transcriptRoute, call: call.dataset.transcriptCall };
+    const panel = document.querySelector("#debug-panel");
+    panel.innerHTML = transcriptView();
+    panel.scrollTop = 0;
+    panel.focus();
+  });
   document.querySelectorAll("[data-debug-tab]").forEach(button => {
     const select = async tab => {
       debugTab = tab;
