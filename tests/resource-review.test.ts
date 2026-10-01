@@ -133,6 +133,51 @@ test("inventory additions require only their inventory ID and validate atomicall
   assert.equal((result.new_state.data as unknown[]).length, 1);
 });
 
+test("give_item transfers an existing participant-owned item to the player exactly once", () => {
+  const runtime = game();
+  const item = { id: "corvin_signet", name: "Corvin's signet", details: "A silver signet.", reason: "Established possession." };
+  runtime.applyResourceReviewWrite("update_inventory", {
+    owner_id: "corvin", generation_id: id(runtime, "inventory:corvin"), add_items: [item],
+  }, context);
+  const generation_id = id(runtime, "item:corvin_signet");
+  const result = runtime.applyResourceReviewWrite("give_item", {
+    character_id: "corvin", item_id: "corvin_signet", generation_id,
+    reason: "Corvin handed his signet to the player.",
+  }, context);
+  assert.equal(result.commit_result, "success");
+  assert.equal((runtime.readResources(["item:corvin_signet"])["item:corvin_signet"]!.state as any).locationId, "player");
+  assert.equal((runtime.readResources(["inventory:corvin"])["inventory:corvin"]!.state as any[]).length, 0);
+  assert.equal((runtime.readResources(["inventory:player"])["inventory:player"]!.state as any[])[0].id, "corvin_signet");
+  assert.equal(runtime.applyResourceReviewWrite("give_item", {
+    character_id: "corvin", item_id: "corvin_signet", generation_id, reason: "Repeat the handoff.",
+  }, context).reason, "Generation ID out of date");
+  assert.throws(() => runtime.applyResourceReviewWrite("give_item", {
+    character_id: "mara", item_id: "corvin_signet", generation_id: id(runtime, "item:corvin_signet"), reason: "Mara hands it over.",
+  }, context), /participating NPC/);
+});
+
+test("write_item creates an inspectable document directly in the player's inventory", () => {
+  const runtime = game(), generation_id = id(runtime, "inventory:player");
+  const item = { id: "corvin_agreement", name: "Formal agreement",
+    details: "Corvin agrees to provide twenty guards at dawn.", reason: "Corvin wrote and handed over the agreed terms." };
+  const result = runtime.applyResourceReviewWrite("write_item", {
+    character_id: "corvin", generation_id, item,
+  }, context);
+  assert.equal(result.commit_result, "success");
+  const written = (result.new_state.data as any[]).find(candidate => candidate.id === item.id);
+  assert.equal(written.locationId, "player");
+  assert.equal(written.properties.details, item.details);
+  assert.equal(runtime.applyResourceReviewWrite("write_item", {
+    character_id: "corvin", generation_id, item: { ...item, id: "stale_agreement" },
+  }, context).reason, "Generation ID out of date");
+  assert.throws(() => runtime.applyResourceReviewWrite("write_item", {
+    character_id: "corvin", generation_id: id(runtime, "inventory:player"), item,
+  }, context), /already exists/);
+  assert.throws(() => runtime.applyResourceReviewWrite("write_item", {
+    character_id: "mara", generation_id: id(runtime, "inventory:player"), item: { ...item, id: "mara_agreement" },
+  }, context), /participating NPC/);
+});
+
 test("character reviews can revise passive objectives without activating them", () => {
   const runtime = game();
   const result = runtime.applyResourceReviewWrite("update_character", { character_id: "corvin", generation_id: id(runtime, "character:corvin"), changes: {
