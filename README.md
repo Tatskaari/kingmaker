@@ -399,3 +399,20 @@ This is trusted local code execution, not a sandbox. The socket is user-only
 (mode 0600); do not expose it to untrusted clients. Only explicit requests advance
 the game: browser background NPC scheduling and automatic event reactions are
 not started by this console.
+
+### Conversation dice-check evals
+
+`OPENROUTER_API_KEY=... npm run eval:checks` evaluates the production Jev
+conversation classifier against 30 human-labeled turns: all 18 skills,
+multiple simultaneous checks, and no-roll cases (ordinary chat, willing help,
+future/quoted/other-person actions, stale history, and embedded dialogue prompts).
+It scores exact skill sets and roll/no-roll accuracy, plus skill precision and
+recall to expose unnecessary rolls and missed checks. This does not roll dice
+or judge DCs/outcomes. Labels stay outside the model input.
+
+Runs repeat three times by default; set `JEV_EVAL_REPEATS=1` for a smoke run or
+filter by name with `npm run eval:checks -- "past threat"`. JSON artifacts in
+`eval-output/jev-conversation-checks` retain inputs, expected labels, full Jev
+requests, decisions/probabilities, and errors after every run. Override the
+location with `JEV_EVAL_OUTPUT_DIR`. Any mismatch or provider error exits nonzero;
+precision/recall exclude provider errors, which are reported separately.

@@ -15,7 +15,8 @@
     "eval:jev": "tsx scripts/run-jev-world-eval.ts",
     "headless": "tsx scripts/headless.ts",
     "generate": "proto run moon -- run contracts:generate",
-    "dev": "proto run moon -- run workspace:dev"
+    "dev": "proto run moon -- run workspace:dev",
+    "eval:checks": "tsx scripts/run-conversation-check-eval.ts"
   },
   "dependencies": {
     "@bufbuild/protobuf": "2.15.0",
