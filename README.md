@@ -155,6 +155,11 @@ opening; final state establishes retained items and closures. Untouched closed
 doors earn no points. Guest invitations earn one point per distinct guest.
 Scenarios without milestones retain a one-point completion score.
 
+The separate unknown-location variant keeps the same world and scoring but tells
+the king only that the spare key is somewhere in Corvin's room:
+`npm run eval:jev -- "unknown key location" --minimal`.
+The original royal-seal scenario still specifies the chest of drawers.
+
 ## Reset while developing
 
 With a loaded character, use the browser console:
