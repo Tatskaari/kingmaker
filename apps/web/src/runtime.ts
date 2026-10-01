@@ -112,19 +112,19 @@ function gmTools(scenario: Scenario, conversationalIdentity = false): readonly O
     type: "function",
     function: {
       name: "offer_replies",
-      description: "Attach one or more suggested replies to your spoken response. Put all narration and questions in assistant content, never in tool arguments. Call alone. If calling without content, deliver the spoken response after the tool result without calling this tool again. Only the GM may set compelled=true, and only to obtain a missing creation detail after the player resists a natural question and then a firmer warning; never for genuine uncertainty or readiness. Never choose an answer for the player.",
+      description: conversationalIdentity ? "Offer optional first-person player replies to your spoken question, with compelled=false. Call alone. Put speech and narration in assistant content; if omitted, speak after the tool result, then wait. Never choose an answer or record an unselected suggestion." : "Attach one or more suggested replies to your spoken response. Put all narration and questions in assistant content, never in tool arguments. Call alone. If calling without content, deliver the spoken response after the tool result without calling this tool again. Only the GM may set compelled=true, and only to obtain a missing creation detail after the player resists a natural question and then a firmer warning; never for genuine uncertainty or readiness. Never choose an answer for the player.",
       parameters: {
         type: "object", additionalProperties: false, required: ["options", "compelled"],
         properties: {
           options: {
             type: "array", minItems: 1,
-            description: "Possible first-person PLAYER answers, never the Stranger's speech. When compelled=true, every option must supply a concrete answer to the same missing character-sheet detail requested in your spoken question (occupation, history, personal goal, or court connection). No evasion, counterquestions, or restating already-known information. Match the player's tone without allowing the option to dodge the detail. Do not speak or record any answer until the human selects it. Non-compelled suggestions may include refusal or counterquestions.",
+            description: conversationalIdentity ? "Distinct first-person player suggestions matching the current question and the player's voice. Refusal and questions are allowed. Only the human can select an answer." : "Possible first-person PLAYER answers, never the Stranger's speech. When compelled=true, every option must supply a concrete answer to the same missing character-sheet detail requested in your spoken question (occupation, history, personal goal, or court connection). No evasion, counterquestions, or restating already-known information. Match the player's tone without allowing the option to dodge the detail. Do not speak or record any answer until the human selects it. Non-compelled suggestions may include refusal or counterquestions.",
             items: { type: "string", maxLength: 300 },
           },
           compelled: {
             type: "boolean",
             ...(conversationalIdentity ? { const: false } : {}),
-            description: "Set false for ordinary optional roleplaying suggestions. Set true when the player has evaded or refused a still-missing creation detail after both your natural question and a firmer warning: this is the moment your jovial mask cracks and you use divine power to demand an answer. Continued in-character refusal is the cue to use this flag, not to abandon the interview. True makes the app display the loss-of-free-will narration and mark these options as compelled. Speak the sudden cold demand in your transcript reply. The app hides free-text input and the player must choose one of the offered options; never choose for them. GM only, during character creation. Do not use for an answered detail, genuine uncertainty, an allegiance, or readiness to depart.",
+            description: conversationalIdentity ? "Always false. The player is free to invent their story and type their own answers." : "Set false for ordinary optional roleplaying suggestions. Set true when the player has evaded or refused a still-missing creation detail after both your natural question and a firmer warning: this is the moment your jovial mask cracks and you use divine power to demand an answer. Continued in-character refusal is the cue to use this flag, not to abandon the interview. True makes the app display the loss-of-free-will narration and mark these options as compelled. Speak the sudden cold demand in your transcript reply. The app hides free-text input and the player must choose one of the offered options; never choose for them. GM only, during character creation. Do not use for an answered detail, genuine uncertainty, an allegiance, or readiness to depart.",
           },
         },
       },
@@ -408,6 +408,9 @@ export class BrowserGameRuntime {
   startIntroduction(): void {
     if (this.#game.scenario().world?.phase !== GamePhase.PLAYER_CREATION || this.#playerDraft) throw new Error("Character creation is already complete.");
     if (this.#gmHistory.length) return;
+    const scenario = this.#game.scenario();
+    scenario.gameMasterPrompt = this.#initialScenario.gameMasterPrompt;
+    this.#setGame(new MemoryGame(scenario));
     this.#strangerIntroduced = true;
     this.#gmHistory.push({ role: "assistant", content: strangerOpening });
   }
