@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package kingmaker.headless.v1;
+
+import "google/protobuf/struct.proto";
+
+// JSON-RPC adapter exposes Execute as game.execute over a local Unix socket.
+service GameConsoleService {
+  rpc Execute(ExecuteRequest) returns (ExecuteResponse);
+}
+
+message ExecuteRequest {
+  // An async TypeScript function body. Use return to produce a JSON value.
+  string code = 1;
+}
+
+message ExecuteResponse {
+  // Undefined is returned as null. Other results must be JSON serializable.
+  google.protobuf.Value value = 1;
+  repeated string logs = 2;
+}
+
+// Included in JSON-RPC error.data when snippet execution fails.
+message ExecutionError {
+  repeated string logs = 1;
+  string stack = 2;
+}
