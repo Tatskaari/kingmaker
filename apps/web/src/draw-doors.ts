@@ -2,9 +2,11 @@ import type { Point } from "./navigation.js";
 
 export function drawDoors(context: CanvasRenderingContext2D, doors: readonly { tiles: readonly Point[]; open: boolean }[]): void {
   for (const door of doors) {
-    const first = door.tiles[0]!, vertical = door.tiles[1]!.y !== first.y;
+    const [first, second] = [door.tiles[0]!, door.tiles[1]!];
+    const vertical = second.y !== first.y;
     context.save();
-    context.translate(first.x * 16 + 8, first.y * 16 + 8);
+    // Mirrored rooms can list threshold tiles right-to-left or bottom-to-top.
+    context.translate(Math.min(first.x, second.x) * 16 + 8, Math.min(first.y, second.y) * 16 + 8);
     if (vertical) context.rotate(Math.PI / 2);
     // Two leaves fill a two-tile threshold. Open leaves fold against the jambs.
     context.fillStyle = "#35241d";
