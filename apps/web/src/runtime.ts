@@ -506,6 +506,7 @@ export class BrowserGameRuntime {
           }
           catch (error) { result = error instanceof GenerationConflict ? error.response : { ok: false, error: error instanceof Error ? error.message : String(error) }; }
           trace.toolResults.push({ name: call.function.name, result: structuredClone(result) });
+          this.#modelTranscripts.toolResult(call, result);
           this.#gmHistory.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result) });
           if (call.function.name === "create_player" && result.ok) {
             const reply = "Review your character before continuing to Caerwyn.";
@@ -587,6 +588,7 @@ export class BrowserGameRuntime {
           if (question.length > 1000) throw new Error("request must be at most 1000 characters");
           onConsultation();
           const result = await this.#askGameMaster(characterId, question, [...history, playerMessage]);
+          this.#modelTranscripts.toolResult(call, result);
           messages.push(completion, { role: "tool", tool_call_id: call.id, name: call.function.name,
             content: JSON.stringify(result) });
         }
@@ -659,6 +661,7 @@ export class BrowserGameRuntime {
         }
       },
       finish: async () => {},
+      toolResult: (call, result) => this.#modelTranscripts.toolResult(call, result),
       complete: input => this.#complete("gm_consultation", characterId, input, undefined, runKey),
     });
     const addedItems = candidate.#game.scenario().world!.objects
@@ -728,6 +731,7 @@ export class BrowserGameRuntime {
           }
           host.readResources();
         }),
+        toolResult: (call, result) => this.#modelTranscripts.toolResult(call, result),
         complete: input => this.#complete(kind, characterId, input, signal, runKey),
       }, signal);
       return { role: "assistant" as const, content: summary };
@@ -771,6 +775,7 @@ export class BrowserGameRuntime {
           review.worldChanges.push({ name: call.function.name, arguments: args });
         }
         catch (error) { result = { error: error instanceof Error ? error.message : String(error) }; }
+        this.#modelTranscripts.toolResult(call, result);
         messages.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result) });
       }
     }
@@ -1186,6 +1191,7 @@ export class BrowserGameRuntime {
             candidate.#applyReview(scenario);
             publishing = true;
             await publish(base, candidate, proposal.participants, expected);
+            this.#modelTranscripts.toolResult(call, { ok: true, published: true });
             return;
           }
         } catch (error) {
@@ -1195,6 +1201,7 @@ export class BrowserGameRuntime {
           else if (error instanceof Error && error.message === "Game changed.") throw error;
           else result = { ok: false, error: error instanceof Error ? error.message : String(error), instruction: "Nothing was written. Correct the proposal and call the write tool again.", current: this.readResources() };
         }
+        this.#modelTranscripts.toolResult(call, result);
         messages.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result) });
       }
     }

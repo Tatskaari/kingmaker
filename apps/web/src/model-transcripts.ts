@@ -37,6 +37,10 @@ export class ModelTranscripts {
     if (this.apiKey) json = json.split(JSON.stringify(this.apiKey).slice(1, -1)).join("[redacted]");
     return JSON.parse(json.replace(/sk-[a-zA-Z0-9_-]+/g, "[redacted]"));
   }
+  toolResult(call: { id: string; function: { name: string; arguments: string } }, result: unknown): void {
+    log.debug("LLM tool result", { toolCallId: call.id, tool: call.function.name,
+      arguments: this.#clean(call.function.arguments), result: this.#clean(result) });
+  }
   recent(): ModelTranscript[] { return structuredClone([...this.#entries].reverse()); }
   runs(): Record<string, ModelTranscriptRun> { return structuredClone(this.#runs); }
   start(kind: string, subject: string, characterId = subject, context?: unknown): string {

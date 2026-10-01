@@ -1,4 +1,4 @@
-import type { OpenRouterTool, OpenRouterMessage, ChatCompletionRequest } from "../../../packages/providers/src/openrouter.js";
+import type { OpenRouterToolCall, OpenRouterTool, OpenRouterMessage, ChatCompletionRequest } from "../../../packages/providers/src/openrouter.js";
 import { parseModelObject } from "../../../packages/providers/src/structured-output.js";
 import type { VersionedState } from "../../../packages/core/src/generations.js";
 import type { ReviewKind } from "./character-review.js";
@@ -78,6 +78,7 @@ export interface ReviewIO {
   read(resourceId?: string): Promise<unknown>;
   write(name: string, args: Record<string, unknown>): Promise<unknown>;
   finish(): Promise<void | { commit_result: "error"; reason: string }>;
+  toolResult?(call: OpenRouterToolCall, result: unknown): void;
   complete(request: ChatCompletionRequest): Promise<OpenRouterMessage>;
 }
 
@@ -105,20 +106,29 @@ export async function runResourceReview(request: ChatCompletionRequest, evidence
       let args: Record<string, unknown>;
       try { args = parseModelObject(call.function.arguments, "Review tool"); }
       catch (error) {
+        io.toolResult?.(call, { commit_result: "error", reason: String(error) });
         messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify({ commit_result: "error", reason: String(error) }) }); continue;
       }
       const name = call.function.name;
       let result: unknown;
       if (name === "finish_review" && reply.tool_calls.length === 1 && typeof args.summary === "string" && args.summary.trim()) {
         const finished = await io.finish();
-        if (!finished) return args.summary;
+        if (!finished) {
+          io.toolResult?.(call, { commit_result: "success", summary: args.summary });
+          return args.summary;
+        }
         result = finished;
       } else if (name === "read_state" && typeof args.resource_id === "string" && args.resource_id) {
         result = { new_state: await io.read(args.resource_id) };
       } else if (tools.some(tool => tool.function.name === name) && !["read_state", "finish_review"].includes(name)) {
         // Persistence failures propagate. They are not model argument errors.
-        result = await io.write(name, args);
+        try { result = await io.write(name, args); }
+        catch (error) {
+          io.toolResult?.(call, { commit_result: "error", reason: String(error) });
+          throw error;
+        }
       } else result = { commit_result: "error", reason: "Invalid tool or arguments. finish_review requires a summary and must be called alone." };
+      io.toolResult?.(call, result);
       messages.push({ role: "tool", tool_call_id: call.id, name, content: JSON.stringify(result) });
     }
   }

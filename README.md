@@ -268,3 +268,12 @@ failures and rate-limit retries. Model payloads use the existing transcript key
 redaction. Debug logs contain story spoilers and conversation text, so inspect them
 before sharing. A completed review on a runtime snapshot can still be rejected
 when it is published to the live game.
+
+The `decisions` category covers **every provider call**, including chat completions,
+Responses API tool calls, Jev's single/multiple-choice decisions, and direct eval
+calls. Pair request and response records using `properties.requestId`. Requests
+include model inputs and available tools/criteria; responses include returned text,
+tool arguments, choices and probabilities. These are the model's returned outputs,
+not hidden reasoning. Runtime `models` logs add character/run context and explicit
+`LLM tool result` records (matched by tool-call ID), including rejected writes and
+successful review completion. Both provider and runtime model logs redact API keys.

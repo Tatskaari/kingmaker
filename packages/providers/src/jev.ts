@@ -1,3 +1,4 @@
+import { logDecision } from "./decision-logging.js";
 import { recoverRateLimit } from "./rate-limit.js";
 
 /** OpenRouter Decisions API; criteria keys are the only permissible results. */
@@ -19,6 +20,10 @@ export class JevClient {
     return answers.next!;
   }
   async evaluate(state: unknown, questions: JevQuestions, signal: AbortSignal): Promise<Record<string, JevChoice>> {
+    return logDecision("jev", jevEvaluationRequest(state, questions), this.apiKey, () => this.#evaluate(state, questions, signal));
+  }
+
+  async #evaluate(state: unknown, questions: JevQuestions, signal: AbortSignal): Promise<Record<string, JevChoice>> {
     if (!this.apiKey.trim()) throw new Error("Enter your OpenRouter key first.");
     if (!Object.keys(questions).length) throw new Error("Jev requires at least one question.");
     const request = jevEvaluationRequest(state, questions);

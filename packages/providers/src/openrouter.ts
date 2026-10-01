@@ -1,3 +1,4 @@
+import { logDecision } from "./decision-logging.js";
 import { recoverRateLimit } from "./rate-limit.js";
 
 export type OpenRouterRole = "system" | "user" | "assistant" | "tool";
@@ -56,6 +57,11 @@ export class OpenRouterClient {
   ) {}
 
   async complete(request: ChatCompletionRequest, signal?: AbortSignal): Promise<OpenRouterMessage> {
+    return logDecision(request.api === "responses" ? "openrouter.responses" : "openrouter.chat", request, this.apiKey,
+      () => this.#complete(request, signal));
+  }
+
+  async #complete(request: ChatCompletionRequest, signal?: AbortSignal): Promise<OpenRouterMessage> {
     let combined: AbortSignal;
     const useResponses = request.api === "responses";
     const response = await recoverRateLimit(() => {
