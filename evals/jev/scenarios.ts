@@ -21,7 +21,7 @@ const treasury: JevWorldEvalScenario = {
   goal: "Go into the Treasury, close the door behind you, and wait there.", repeats: 10, maxTurns: 24,
   createRuntime(apiKey) {
     const scenario = courtAtDayOne(), world = scenario.world!, corvin = world.actors.find(actor => actor.characterId === "corvin")!;
-    corvin.roomId = "great_hall"; corvin.position = create(TilePositionSchema, { x: 22, y: 22 });
+    corvin.roomId = "great_hall"; corvin.position = create(TilePositionSchema, { x: 68, y: 22 });
     return new BrowserGameRuntime(scenario, apiKey);
   },
   evaluate({ scenario, terminalChoice }) {

@@ -8,8 +8,8 @@ import {
   type WorldMap,
 } from "../../../packages/contracts/src/index.js";
 
-const WIDTH = 78;
-const HEIGHT = 49;
+const WIDTH = palaceLayout.width;
+const HEIGHT = palaceLayout.height;
 const TILE_SIZE = 16;
 const BACKGROUND = 0;
 const FLOOR = 48;
@@ -76,7 +76,7 @@ for (let y = 0; y < HEIGHT; y += 1) {
 
 // Decorative paving demonstrates a second bounded layer on a floor tile.
 for (const [x, y] of [[13, 19], [18, 19], [13, 22], [18, 22], [13, 25], [18, 25], [13, 28], [18, 28]] as const) {
-  at(x, y).layers.push(layer(FLOOR_DETAIL));
+  at(x + 46, y).layers.push(layer(FLOOR_DETAIL));
 }
 
 export const palaceMap: WorldMap = create(WorldMapSchema, {

@@ -20,7 +20,7 @@ test("room actions offer adjacent travel and local interactions, even with every
   place(scenario, "great_hall");
   for (const door of world.doors) door.open = true;
   const king = world.actors.find(actor => actor.characterId === "king")!;
-  king.roomId = "great_hall"; king.awake = true; king.position = create(TilePositionSchema, { x: 16, y: 23 });
+  king.roomId = "great_hall"; king.awake = true; king.position = create(TilePositionSchema, { x: 62, y: 23 });
   const actions = roomAgentActions(scenario, "corvin");
   assert.ok(actions.some(action => action.id === "talk_king"));
   assert.ok(!actions.some(action => action.id === "talk_garran"));

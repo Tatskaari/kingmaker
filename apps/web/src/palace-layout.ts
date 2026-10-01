@@ -1,88 +1,76 @@
-import { RoomBuilder } from "./room-builder.js";
+import { RoomBuilder, type Region } from "./room-builder.js";
 
-const definitions = [
-  { id: "corvin_chamber", name: "Corvin's Chamber", regions: [{ x: 3, y: 3, width: 5, height: 5 }] },
-  { id: "royal_bedchamber", name: "Royal Bedchamber", regions: [
-    { x: 13, y: 3, width: 6, height: 5 },
-    { x: 15, y: 8, width: 2, height: 1 },
-  ] },
-  { id: "garran_chamber", name: "Garran's Chamber", regions: [{ x: 24, y: 3, width: 5, height: 5 }] },
-  { id: "north_corridor", name: "Royal Back Hall", regions: [
-    { x: 3, y: 11, width: 26, height: 3 },
-    { x: 5, y: 8, width: 2, height: 3 },
-    { x: 15, y: 9, width: 2, height: 2 },
-    { x: 25, y: 8, width: 2, height: 3 },
-    { x: 5, y: 14, width: 2, height: 3 },
-  ] },
-  { id: "royal_council_chamber", name: "Royal Council Chamber", regions: [
-    { x: 2, y: 17, width: 6, height: 4 },
-    { x: 8, y: 18, width: 2, height: 2 },
-  ] },
-  { id: "great_hall", name: "Great Hall", regions: [
-    { x: 10, y: 17, width: 12, height: 13 },
-    { x: 8, y: 25, width: 2, height: 2 },
-    { x: 22, y: 22, width: 2, height: 2 },
-    { x: 15, y: 30, width: 2, height: 3 },
-  ] },
-  { id: "guest_chamber", name: "Nobles' Parlour", regions: [{ x: 2, y: 24, width: 6, height: 9 }] },
-  { id: "entrance_hall", name: "Entrance Hall", regions: [
-    { x: 12, y: 33, width: 8, height: 4 },
-    { x: 15, y: 37, width: 2, height: 12 },
-  ] },
-  { id: "treasury", name: "Treasury", regions: [{ x: 24, y: 21, width: 6, height: 9 }] },
-  { id: "palace_back_hall", name: "Palace Back Hall", regions: [
-    { x: 22, y: 17, width: 13, height: 1 },
-    { x: 32, y: 12, width: 3, height: 33 },
-    { x: 35, y: 13, width: 2, height: 2 },
-    { x: 35, y: 28, width: 2, height: 2 },
-    { x: 35, y: 43, width: 2, height: 2 },
-  ] },
-  { id: "ironmark_salon", name: "Ironmark Salon", regions: [{ x: 37, y: 7, width: 9, height: 9 }] },
-  { id: "ironmark_back_hall", name: "Ironmark Back Hall", regions: [
-    { x: 48, y: 13, width: 27, height: 2 },
-    { x: 46, y: 13, width: 2, height: 2 },
-    { x: 52, y: 10, width: 2, height: 3 },
-    { x: 62, y: 10, width: 2, height: 3 },
-    { x: 72, y: 10, width: 2, height: 3 },
-  ] },
-  { id: "mara_chamber", name: "Mara's Chamber", regions: [{ x: 50, y: 5, width: 7, height: 5 }] },
-  { id: "hadrik_chamber", name: "Hadrik's Chamber", regions: [{ x: 60, y: 5, width: 7, height: 5 }] },
-  { id: "tessa_chamber", name: "Tessa's Chamber", regions: [{ x: 70, y: 5, width: 7, height: 5 }] },
-  { id: "greenweald_solar", name: "Greenweald Solar", regions: [{ x: 37, y: 22, width: 9, height: 9 }] },
-  { id: "greenweald_back_hall", name: "Greenweald Back Hall", regions: [
-    { x: 48, y: 28, width: 27, height: 2 },
-    { x: 46, y: 28, width: 2, height: 2 },
-    { x: 52, y: 25, width: 2, height: 3 },
-    { x: 62, y: 25, width: 2, height: 3 },
-    { x: 72, y: 25, width: 2, height: 3 },
-  ] },
-  { id: "elinor_chamber", name: "Elinor's Chamber", regions: [{ x: 50, y: 20, width: 7, height: 5 }] },
-  { id: "oswin_chamber", name: "Oswin's Chamber", regions: [{ x: 60, y: 20, width: 7, height: 5 }] },
-  { id: "rowan_chamber", name: "Rowan's Chamber", regions: [{ x: 70, y: 20, width: 7, height: 5 }] },
-  { id: "saltmere_drawing_room", name: "Saltmere Drawing Room", regions: [{ x: 37, y: 37, width: 9, height: 9 }] },
-  { id: "saltmere_back_hall", name: "Saltmere Back Hall", regions: [
-    { x: 48, y: 43, width: 27, height: 2 },
-    { x: 46, y: 43, width: 2, height: 2 },
-    { x: 52, y: 40, width: 2, height: 3 },
-    { x: 62, y: 40, width: 2, height: 3 },
-    { x: 72, y: 40, width: 2, height: 3 },
-  ] },
-  { id: "lucan_chamber", name: "Lucan's Chamber", regions: [{ x: 50, y: 35, width: 7, height: 5 }] },
-  { id: "sabine_chamber", name: "Sabine's Chamber", regions: [{ x: 60, y: 35, width: 7, height: 5 }] },
-  { id: "rook_chamber", name: "Rook's Chamber", regions: [{ x: 70, y: 35, width: 7, height: 5 }] },
-];
+export const palaceLayout = new RoomBuilder(124, 49);
+const room = (id: string, name: string, regions: Region[], residents: string[] = []) =>
+  palaceLayout.room({ id, name, regions, residents });
 
-export const palaceLayout = new RoomBuilder(78, 49);
-const delegations = {
-  ironmark_back_hall: ["mara", "hadrik", "tessa"],
-  greenweald_back_hall: ["elinor", "oswin", "rowan"],
-  saltmere_back_hall: ["lucan", "sabine", "rook"],
-};
-const residents: Record<string, string[]> = {
-  ...delegations,
-  north_corridor: ["corvin", "king", "garran"],
-  royal_bedchamber: ["king"],
-  guest_chamber: ["player", "corvin", "garran", "king", ...Object.values(delegations).flat()],
-};
-for (const member of ["corvin", "garran", ...Object.values(delegations).flat()]) residents[`${member}_chamber`] = [member];
-for (const room of definitions) palaceLayout.room({ ...room, residents: residents[room.id] ?? [] });
+// The royal household forms the central block between the two wings.
+room("corvin_chamber", "Corvin's Chamber", [
+  { x: 49, y: 3, width: 5, height: 5 },
+], ["corvin"]);
+room("royal_bedchamber", "Royal Bedchamber", [
+  { x: 59, y: 3, width: 6, height: 5 },
+  { x: 61, y: 8, width: 2, height: 1 },
+], ["king"]);
+room("garran_chamber", "Garran's Chamber", [
+  { x: 70, y: 3, width: 5, height: 5 },
+], ["garran"]);
+room("north_corridor", "Royal Back Hall", [
+  { x: 49, y: 11, width: 26, height: 3 },
+  { x: 51, y: 8, width: 2, height: 3 },
+  { x: 61, y: 9, width: 2, height: 2 },
+  { x: 71, y: 8, width: 2, height: 3 },
+  { x: 51, y: 14, width: 2, height: 3 },
+], ["corvin", "king", "garran"]);
+room("royal_council_chamber", "Royal Council Chamber", [
+  { x: 48, y: 17, width: 6, height: 4 },
+  { x: 54, y: 18, width: 2, height: 2 },
+], []);
+room("great_hall", "Great Hall", [
+  { x: 56, y: 17, width: 12, height: 13 },
+  { x: 54, y: 25, width: 2, height: 2 },
+  { x: 68, y: 22, width: 2, height: 2 },
+  { x: 61, y: 30, width: 2, height: 3 },
+], []);
+room("guest_chamber", "Nobles' Parlour", [
+  { x: 48, y: 24, width: 6, height: 9 },
+], ["player", "corvin", "garran", "king", "mara", "hadrik", "tessa", "elinor", "oswin", "rowan", "lucan", "sabine", "rook"]);
+room("entrance_hall", "Entrance Hall", [
+  { x: 58, y: 33, width: 8, height: 5 },
+  { x: 61, y: 37, width: 2, height: 12 },
+], []);
+room("treasury", "Treasury", [
+  { x: 70, y: 21, width: 6, height: 9 },
+], []);
+
+room("palace_back_hall", "East Wing", [
+  { x: 68, y: 17, width: 13, height: 1 },
+  { x: 78, y: 12, width: 3, height: 19 },
+  { x: 81, y: 13, width: 2, height: 2 },
+  { x: 81, y: 28, width: 2, height: 2 },
+]);
+room("west_wing", "West Wing", [
+  { x: 43, y: 12, width: 3, height: 26 },
+  { x: 41, y: 13, width: 2, height: 2 },
+  { x: 41, y: 28, width: 2, height: 2 },
+  { x: 46, y: 36, width: 12, height: 2 },
+]);
+
+/** A public receiving room buffers each private corridor from the wing.
+ * Mirroring the complete suite keeps thresholds outside bedroom rectangles. */
+function delegation(wing: "west" | "east", y: number, id: string, publicId: string,
+  title: string, members: string[]) {
+  const region = (x: number, dy: number, width: number, height: number): Region => ({
+    x: wing === "west" ? 78 - x - width : x + 46, y: y + dy, width, height,
+  });
+  room(publicId, title, [region(37, 2, 9, 9)]);
+  room(`${id}_back_hall`, `${id[0]!.toUpperCase()}${id.slice(1)} Back Hall`, [
+    region(46, 8, 29, 2), ...members.map((_, i) => region(52 + i * 10, 5, 2, 3)),
+  ], members);
+  members.forEach((member, i) => room(`${member}_chamber`,
+    `${member[0]!.toUpperCase()}${member.slice(1)}'s Chamber`, [region(50 + i * 10, 0, 7, 5)], [member]));
+}
+delegation("west", 5, "ironmark", "ironmark_salon", "Ironmark Salon", ["mara", "hadrik", "tessa"]);
+delegation("west", 20, "greenweald", "greenweald_solar", "Greenweald Solar", ["elinor", "oswin", "rowan"]);
+delegation("east", 5, "saltmere", "saltmere_drawing_room", "Saltmere Drawing Room", ["lucan", "sabine", "rook"]);
+room("dining_hall", "Long Dining Hall", [{ x: 83, y: 22, width: 40, height: 9 }]);

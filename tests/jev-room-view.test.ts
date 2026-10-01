@@ -44,7 +44,7 @@ test("Jev always receives the room-scoped text interface and local choices", asy
   assert.ok(experimental!.criteria.enter_royal_council_chamber);
   assert.ok(!experimental!.criteria.enter_treasury, "Closed exit is not selectable");
   assert.match(state, /Great Hall \(current room\)/);
-  assert.match(state, /Room connections[\s\S]*Great Hall → Royal Council Chamber/);
+  assert.match(state, /Room connections[\s\S]*Great Hall → [^\n]*Royal Council Chamber/);
   assert.match(state, /Hall sideboard[\s\S]*Contents: Unknown until opened[\s\S]*Open \(illegal\) \[open_palace_hall_cabinet\]/);
   assert.ok(!state.includes("palace_iron_key"), "Concealed contents stay hidden");
   assert.ok(!state.includes("palace_coffer_03"), "Remote furniture stays out of the scene");
