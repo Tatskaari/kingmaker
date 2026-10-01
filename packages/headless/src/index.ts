@@ -1,7 +1,7 @@
 import { fromJson, toJson } from "@bufbuild/protobuf";
 import { ScenarioSchema, type Scenario } from "../../contracts/src/index.js";
 import { BrowserGameRuntime, type RuntimeSnapshot } from "../../../apps/web/src/runtime.js";
-import { courtAgentObservation } from "../../../apps/web/src/court-agent.js";
+import { characterCourtObservation } from "../../../apps/web/src/court-agent.js";
 import { renderJevRoomView } from "../../../apps/web/src/jev-room-view.js";
 
 /** A live player console. No eval scenario, score, or automatic turn limit. */
@@ -32,7 +32,7 @@ export class HeadlessGame {
 
   #observation(characterId = this.inspect().playerCharacterId) {
     if (!characterId) throw new Error("Create a player first with game.runtime.createDevelopmentPlayer() or the normal setup flow.");
-    return courtAgentObservation(this.inspect(), characterId);
+    return characterCourtObservation(this.inspect(), characterId);
   }
 
   observe(characterId?: string) {
