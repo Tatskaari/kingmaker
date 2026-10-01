@@ -24,8 +24,8 @@ test("GM plans before dice, waits for presentation, then directs the character w
   let shown!: () => void;
   const presentation = new Promise<void>(resolve => { shown = resolve; });
   t.mock.method(OpenRouterClient.prototype, "complete", async (request: any) => {
-    const schema = request.response_format?.json_schema?.name;
-    if (schema === "conversation_dcs") { order.push("dc"); return reply({ checks: [{ skill: "persuasion", dc: 5, intent: "Convince Corvin the moon is cheese" }] }); }
+    const schema = request.messages.some((message: any) => message.content?.startsWith("Set the DC")) ? "conversation_dcs" : request.response_format?.json_schema?.name;
+    if (schema === "conversation_dcs") { order.push("dc"); return reply(5); }
     if (schema === "conversation_roll_ruling") {
       order.push("dm");
       const evidence = JSON.parse(request.messages.at(-1).content);
@@ -70,19 +70,51 @@ test("ordinary conversation skips dice and GM, while classifier errors do not si
 test("invalid DC plans show no dice and multiple checks resolve in order before one DM ruling", async () => {
   let shown = 0;
   await assert.rejects(adjudicateConversationChecks({ skills: ["persuasion"], build: undefined, messages: [],
-    complete: async () => reply({ checks: [{ skill: "persuasion", dc: 100, intent: "An attempt" }] }),
+    complete: async () => reply(100),
     present: async () => { shown++; },
-  }), /invalid check plan/);
+  }), /invalid check DC/);
   assert.equal(shown, 0);
   const rolls = [20, 6]; let calls = 0;
   const ruling = await adjudicateConversationChecks({ skills: ["persuasion", "deception"], build: undefined, messages: [],
-    complete: async () => ++calls === 1 ? reply({ checks: [
-      { skill: "persuasion", dc: 30, intent: "Do the impossible" }, { skill: "deception", dc: 10, intent: "Hide the trick" },
-    ] }) : reply({ direction: "Agree to the impossible, but expose the trick." }),
+    complete: async () => ++calls === 1 ? reply(30)
+      : calls === 2 ? reply(10) : reply({ direction: "Agree to the impossible, but expose the trick." }),
     roll: () => rolls.shift()!, present: async result => {
       assert.equal(result.degree, shown++ === 0 ? "critical_success" : "major_failure");
     },
   });
-  assert.equal(shown, 2); assert.equal(calls, 2);
+  assert.equal(shown, 2); assert.equal(calls, 3);
   assert.match(ruling!, /Agree to the impossible/);
+});
+
+test("truncated DC and ruling responses retry their own stage without rerolling", async () => {
+  const { OutputTokenLimitError } = await import("../packages/providers/src/openrouter.js");
+  const counts = { conversation_dcs: 0, conversation_roll_ruling: 0 };
+  let rolls = 0, presentations = 0;
+  const ruling = await adjudicateConversationChecks({ skills: ["intimidation"], build: undefined, messages: [],
+    complete: async request => {
+      const name = request.messages.some(message => message.content?.startsWith("Set the DC")) ? "conversation_dcs" : "conversation_roll_ruling";
+      if (++counts[name] === 1) { assert.equal(request.max_tokens, name === "conversation_dcs" ? 100 : 2000); throw new OutputTokenLimitError(); }
+      assert.equal(request.max_tokens, name === "conversation_dcs" ? 200 : 4000);
+      if (name === "conversation_dcs") {
+        assert.equal(request.response_format, undefined);
+        return reply(20);
+      }
+      assert.equal(JSON.parse(request.messages.at(-1)!.content!).resolvedChecks[0].roll, 20);
+      return reply({ direction: "Reveal what you know in a panicked rush." });
+    },
+    roll: () => { rolls++; return 20; }, present: async () => { presentations++; },
+  });
+  assert.equal(rolls, 1); assert.equal(presentations, 1);
+  assert.match(ruling!, /critical_success/);
+  assert.deepEqual(counts, { conversation_dcs: 2, conversation_roll_ruling: 2 });
+});
+
+test("persistent truncation stops after one retry without showing dice", async () => {
+  const { OutputTokenLimitError } = await import("../packages/providers/src/openrouter.js");
+  let calls = 0;
+  await assert.rejects(adjudicateConversationChecks({ skills: ["intimidation"], build: undefined, messages: [],
+    complete: async () => { calls++; throw new OutputTokenLimitError(); },
+    present: async () => { assert.fail("No valid DC means no dice"); },
+  }), OutputTokenLimitError);
+  assert.equal(calls, 2);
 });

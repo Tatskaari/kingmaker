@@ -583,7 +583,15 @@ export class BrowserGameRuntime {
     const classification = await this.#modelTranscripts.record("conversation_check", characterId, input,
       () => classifyConversationTurn(this.#jev, input, AbortSignal.timeout(30_000)),
       this.#conversationRun(characterId), this.#characterName(characterId));
+    const target = scenario.characters.find(item => item.id === characterId)!;
+    const actor = scenario.world.actors.find(item => item.characterId === characterId);
     const ruling = await adjudicateConversationChecks({ skills: classification.checks, messages,
+      context: {
+        character: { name: target.name, lore: target.lore, currentGoal: target.currentGoal,
+          relationships: target.relationships.filter(item => item.characterId === scenario.playerCharacterId) },
+        notes: scenario.notes.filter(note => note.visibility === NoteVisibility.PUBLIC || note.characterIds.includes(characterId)).map(note => note.text),
+        room: scenario.world.rooms.find(room => room.id === actor?.roomId)?.name,
+      },
       build: scenario.characters.find(item => item.id === scenario.playerCharacterId)?.dnd, present,
       complete: request => this.#complete("gm_consultation", characterId, request, undefined, this.#conversationRun(characterId)),
     });
