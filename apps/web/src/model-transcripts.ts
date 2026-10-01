@@ -1,3 +1,7 @@
+import { gameLogger } from "../../../packages/observability/src/logging.js";
+
+const log = gameLogger("models");
+
 export type ModelCallKind = "npc_request" | "npc_resolution" | "game_master" | "dialogue" | "dialogue_flavour" | "gm_consultation" | "conversation_review" | "world_event" | "event_decision" | "jev" | "outcome_review";
 export interface ModelTranscript {
   id: number;
@@ -32,6 +36,10 @@ export class ModelTranscripts {
     let json = JSON.stringify(value) ?? "null";
     if (this.apiKey) json = json.split(JSON.stringify(this.apiKey).slice(1, -1)).join("[redacted]");
     return JSON.parse(json.replace(/sk-[a-zA-Z0-9_-]+/g, "[redacted]"));
+  }
+  toolResult(call: { id: string; function: { name: string; arguments: string } }, result: unknown): void {
+    log.debug("LLM tool result", { toolCallId: call.id, tool: call.function.name,
+      arguments: this.#clean(call.function.arguments), result: this.#clean(result) });
   }
   recent(): ModelTranscript[] { return structuredClone([...this.#entries].reverse()); }
   runs(): Record<string, ModelTranscriptRun> { return structuredClone(this.#runs); }
@@ -70,6 +78,8 @@ export class ModelTranscripts {
     runKey ||= this.start(kind, subject, characterId);
     const started = Date.now();
     const entry: ModelTranscript = { id: ++this.#sequence, kind, characterId, startedAt: new Date(started).toISOString(), status: "pending", request: this.#clean(request) };
+    const fields = { runKey, callId: entry.id, kind, characterId };
+    log.debug("Model call started", { ...fields, request: entry.request });
     this.#entries.push(entry);
     this.#runs[runKey]?.calls.push(entry);
     if (this.#entries.length > 50) this.#entries.shift();
@@ -77,11 +87,13 @@ export class ModelTranscripts {
     try {
       const response = await call();
       entry.response = this.#clean(response); entry.status = "success";
+      log.debug("Model call completed", { ...fields, durationMs: Date.now() - started, response: entry.response });
       if (ownRun) this.finish(runKey);
       return response;
     } catch (error) {
       entry.error = String(this.#clean(error instanceof Error ? error.message : String(error)));
       entry.status = "error";
+      log.error("Model call failed", { ...fields, durationMs: Date.now() - started, error: entry.error });
       if (ownRun) this.fail(runKey, error);
       throw error;
     } finally { entry.durationMs = Date.now() - started; this.changed(); }

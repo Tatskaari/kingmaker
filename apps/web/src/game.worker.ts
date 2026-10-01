@@ -1,5 +1,7 @@
 /// <reference lib="webworker" />
 
+import "./logging.js";
+
 import { type TravellerIdentity } from "./introduction.js";
 
 import { fromJsonString, type JsonValue } from "@bufbuild/protobuf";

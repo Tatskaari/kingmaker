@@ -1,3 +1,4 @@
+import { logPath } from "../scripts/test-logging.js";
 import { applyFixtureAction, fixtureActions } from "../packages/core/src/fixtures.js";
 import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
 import { GM_BASE_PROMPT } from "../apps/web/src/gm-prompt.js";
@@ -692,8 +693,24 @@ test("earshot dice gate event perception before Jev sees it", async t => {
   const observedTrace = (runtime.debugCharacter("garran").eventFeed as any[]).find(item => item.eventId === event.id)!;
   assert.deepEqual({ observed: observedTrace.observed, level: observedTrace.level, jevDecision: observedTrace.jevDecision },
     { observed: true, level: "Moderate", jevDecision: "process" });
+  const logs = () => readFileSync(logPath, "utf8").trim().split("\n").map(line => JSON.parse(line))
+    .filter(record => record.properties.eventId === event.id);
+  assert.ok(logs().some(record => record.message === "World event created"));
+  const earshot = logs().find(record => record.message === "Event earshot assessed").properties;
+  assert.ok(earshot.inEarshot.some((listener: any) => listener.characterId === "garran" && listener.level === "Moderate"));
+  const roll = logs().find(record => record.message === "Event perception rolled" && record.properties.characterId === "garran").properties;
+  assert.equal(roll.roll, 0);
+  assert.equal(roll.chance, 0.6);
+  assert.equal(roll.observed, true);
+  const decision = logs().find(record => record.message === "Event decision received" && record.properties.characterId === "garran").properties;
+  assert.equal(decision.choice, "process");
+  assert.deepEqual(decision.probabilities, { process: 0.8, ignore: 0.2 });
+  assert.deepEqual({ roll: observedTrace.roll, chance: observedTrace.chance }, { roll: 0, chance: 0.6 });
   const missed = new BrowserGameRuntime(scenario, "test", undefined, undefined, undefined, () => 0.99);
   const missedAssessment = await missed.assessWorldEvent(event, new AbortController().signal);
+  const missedRoll = logs().findLast(record => record.message === "Event perception rolled" && record.properties.characterId === "garran").properties;
+  assert.equal(missedRoll.roll, 0.99);
+  assert.equal(missedRoll.observed, false);
   assert.equal(missedAssessment.reactions.some(reaction => reaction.characterId === "garran"), false);
   const missedTrace = (missed.debugCharacter("garran").eventFeed as any[]).find(item => item.eventId === event.id)!;
   assert.deepEqual({ observed: missedTrace.observed, level: missedTrace.level, jevDecision: missedTrace.jevDecision },

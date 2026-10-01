@@ -235,3 +235,45 @@ proto run moon -- run workspace:unitEval -- evals/king-accusation-response.json
 
 The production site is built into `dist/web`. Merges to main deploy through
 `.github/workflows/pages.yml`. Relative asset URLs support GitHub Pages paths.
+
+## Game logs
+
+[LogTape](https://logtape.org/) sends structured game logs to the browser console
+(including the game worker). Enable **Verbose** in DevTools to see debug records;
+filter by `kingmaker` or an event/character ID. Log properties are expandable objects.
+
+`npm test` and `npm run check` write JSON-lines files under `test-output/logs/`.
+Each test process gets its own timestamp/PID file, with its test filename in the
+first record. Tests run without Moon caching so each invocation produces fresh logs.
+Set `KINGMAKER_LOG_DIR` to override the directory. Files accumulate across runs;
+remove `test-output/logs/` when no longer needed. Logs are ignored by Git.
+For a focused test or eval with file logging:
+
+```sh
+node --import tsx --import ./scripts/test-logging.ts --test tests/contracts.test.ts
+node --import tsx --import ./scripts/test-logging.ts scripts/run-jev-world-eval.ts
+```
+
+Shared code uses `gameLogger(component)`; entry points choose the sink with
+`configureGameLogging`. The default threshold is `debug`; callers may select a
+higher level or `disabled`. The Node file sink is never imported by browser code.
+
+The `events` category records event creation, earshot candidates/exclusions,
+each perception roll (a uniform 0–1 value, compared with its chance), perceived
+text, and Jev's process/ignore choice, probabilities, and confidence when supplied.
+Use `properties.eventId` and `properties.characterId` to follow an event.
+`npc` records selected plans, executed actions, and activity stops. `models` records
+requests, responses, failures, duration, and run/call IDs; `providers` records HTTP
+failures and rate-limit retries. Model payloads use the existing transcript key
+redaction. Debug logs contain story spoilers and conversation text, so inspect them
+before sharing. A completed review on a runtime snapshot can still be rejected
+when it is published to the live game.
+
+The `decisions` category covers **every provider call**, including chat completions,
+Responses API tool calls, Jev's single/multiple-choice decisions, and direct eval
+calls. Pair request and response records using `properties.requestId`. Requests
+include model inputs and available tools/criteria; responses include returned text,
+tool arguments, choices and probabilities. These are the model's returned outputs,
+not hidden reasoning. Runtime `models` logs add character/run context and explicit
+`LLM tool result` records (matched by tool-call ID), including rejected writes and
+successful review completion. Both provider and runtime model logs redact API keys.
