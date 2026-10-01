@@ -435,10 +435,12 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
       const game = requireRuntime(), id = String(payload.characterId || "");
       conversationHolds.add(id); stopBackground(id);
       if (type === "end_conversation" && typeof payload.message === "string") {
+        void game.logConversationChecks(id, payload.message).catch(() => {});
         await commitMutation(game, () => game.endConversationAsPlayer(id, payload.message as string));
       }
       const version = generation;
       const { before, fork } = await enqueue(async () => ({ before: game.snapshot(), fork: type === "end_conversation" ? reviewFork(game) : game.forkForNpc() }));
+      if (type === "talk") void fork.logConversationChecks(id, String(payload.message || "")).catch(() => {});
       const reply = type === "talk" ? await fork.talkToCharacter(id, String(payload.message || ""), text => {
         if (generation === version && runtime === game) worker.postMessage({
           type: "dialogue_thinking", requestId, characterId: id, text,

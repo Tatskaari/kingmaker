@@ -126,9 +126,20 @@ Each classifier sends only its own binary question. `classifyConversationTurn`
 optionally batches all the same questions in one request and returns
 `{ needsCheck, checks, decisions }`. Provide established facts and obstacles as
 context; unknown facts are not assumed to warrant a check. These APIs classify
-attempts only and are not yet wired into dialogue or dice resolution. Decision
+attempts only and do not resolve dice rolls. Decision
 probabilities are model evidence, not roll success odds. Errors propagate rather
 than silently becoming a no-check result.
+
+The browser runs these classifiers alongside each submitted player conversation
+turn (including a spoken farewell), without delaying the reply. Jev receives the
+same complete initial `messages` as the dialogue LLM, including character system
+prompts, conversation history, and the current player turn. These messages are
+evidence for Jev's separate classification instructions. Look for
+`kind: "conversation_check"` in the structured browser console logs, or
+**Jev conversation checks** in the debug inspector. Results include `needsCheck`,
+the matching `checks`, and all per-skill `decisions` with probabilities and
+confidence when supplied. Calls share the conversation's run ID. Classification
+failures are logged without interrupting dialogue; results do not change game state.
 
 ### Jev world-state evals
 

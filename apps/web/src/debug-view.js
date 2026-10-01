@@ -78,6 +78,14 @@ function transcriptSummary(entry) {
   if (entry.error) return `<p class="debug-error">${escape(entry.error)}</p>`;
   const response = object(entry.response);
   if (!response) return empty("No response recorded.");
+  if (entry.kind === "conversation_check") {
+    return `<h4>Player turn</h4><p>${escape(entry.request?.playerTurn)}</p><h4>Suggested checks</h4>`
+      + (response.needsCheck ? list(array(response.checks), skill => escape(skill), "None.") : empty("No check needed."))
+      + list(Object.entries(object(response.decisions) || {}), ([skill, decision]) => `<strong>${escape(skill)}</strong>`
+        + facts([["Decision", decision.choice], ["Probability", `${Math.round((decision.probabilities?.[decision.choice] ?? 0) * 100)}%`],
+          ...(typeof decision.confidence === "number" ? [["Confidence", `${Math.round(decision.confidence * 100)}%`]] : [])]), "No decisions.")
+      + `<p class="debug-meta">Diagnostic classification only; no dice were rolled.</p>`;
+  }
   if (entry.kind === "jev") {
     const state = entry.request?.state;
     const action = array(state?.actions).find(item => item?.id === response.choice);
@@ -108,7 +116,7 @@ function transcriptSummary(entry) {
 }
 
 export function recentTranscriptsView(entries = [], runs = {}) {
-  const kinds = { npc_request: "NPC request", npc_resolution: "NPC conversation resolution", game_master: "Game master", gm_consultation: "GM consultation", dialogue: "Dialogue", dialogue_flavour: "Dialogue flavour", conversation_review: "Conversation review", world_event: "World event review", event_decision: "Event attention decision", jev: "Jev action decision", outcome_review: "Outcome review" };
+  const kinds = { npc_request: "NPC request", npc_resolution: "NPC conversation resolution", game_master: "Game master", gm_consultation: "GM consultation", dialogue: "Dialogue", dialogue_flavour: "Dialogue flavour", conversation_review: "Conversation review", conversation_check: "Jev conversation checks", world_event: "World event review", event_decision: "Event attention decision", jev: "Jev action decision", outcome_review: "Outcome review" };
   const archived = Object.entries(runs).reverse();
   const runCards = archived.length ? archived.map(([key, run]) => {
     const conversation = array(run.context?.messages);

@@ -15,6 +15,7 @@ import { courtCharactersWithinEarshot, dialogueEarshotPrompt, perceivesAt, PERCE
 import { ROOM_COURT_INSTRUCTIONS } from "./court-instructions.js";
 import { renderJevActionState, type JevActionContextOptions } from "./jev-room-view.js";
 import { JevClient, jevRequest } from "../../../packages/providers/src/jev.js";
+import { classifyConversationTurn } from "../../../packages/providers/src/conversation-checks.js";
 import { applyFixtureAction, fixtureActions } from "../../../packages/core/src/fixtures.js";
 import { IMMEDIATE_GOAL_DESCRIPTION } from "../../../packages/core/src/goal-guidance.js";
 import { applyObjectiveChange, applyParkedObjectiveChanges, ensureNpcActiveObjectives } from "./objectives.js";
@@ -378,11 +379,15 @@ export class BrowserGameRuntime {
     else this.#modelTranscripts.fail(key, "Conversation terminated before review.", context);
     this.#conversationRuns.delete(characterId);
   }
-  #complete(kind: ModelCallKind, characterId: string, request: ChatCompletionRequest, signal?: AbortSignal, runKey?: string) {
+  #prepareModelRequest(kind: ModelCallKind, request: ChatCompletionRequest): ChatCompletionRequest {
     request = withGmBasePrompt(kind, request);
     if (kind === "dialogue") request = { ...request, messages: [
       { role: "system", content: CHARACTER_COLLABORATION_INSTRUCTIONS }, ...request.messages,
     ] };
+    return request;
+  }
+  #complete(kind: ModelCallKind, characterId: string, request: ChatCompletionRequest, signal?: AbortSignal, runKey?: string) {
+    request = this.#prepareModelRequest(kind, request);
     return this.#modelTranscripts.record(kind, characterId, request, () => this.#client.complete(request, signal), runKey, this.#characterName(characterId));
   }
 
@@ -529,6 +534,38 @@ export class BrowserGameRuntime {
     }
   }
 
+  #dialogueMessages(characterId: string, messageText: string): OpenRouterMessage[] {
+    const scenario = this.#game.scenario();
+    const history = this.#conversations.get(characterId) || [];
+    const playerMessage = create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: messageText });
+    const request = create(DialogueRequestSchema, { characterId, scenario, transcript: [...history, playerMessage] });
+    const messages: OpenRouterMessage[] = new FullContextBuilder().build(request).map(item => ({ role: item.role, content: item.content }));
+    if (hasDevelopmentPlayer(scenario)) messages.unshift({ role: "system", content: DEVELOPMENT_DIALOGUE_INSTRUCTIONS });
+    messages.unshift({ role: "system", content: askGameMasterTool.function.description });
+    messages.unshift({ role: "system", content: dialogueEarshotPrompt(scenario, characterId, [characterId, scenario.playerCharacterId ?? "player"]) });
+    messages.unshift({ role: "system", content: "You may choose to end this conversation only for a concrete in-character reason to leave now: beginning an immediate task you have chosen, refusing further discussion, or responding to an urgent interruption. Completing or advancing a dialogue objective is not a reason to leave; continue naturally or move to another relevant conversational thread. Never set endConversation=true in the same response as asking the player a question, making them an offer, or requesting their help, because the player must be able to answer. When you truly take your leave, express that decision naturally and return replyOptions=[]. Otherwise set endConversation=false. Ending triggers a separate memory and goal review; speech alone does not move you or complete physical tasks." });
+    messages.unshift({ role: "system", content: "Return only a JSON object matching the supplied response schema, with no Markdown fences or surrounding prose." });
+    return messages;
+  }
+
+  /** Diagnostic only: callers can run this alongside dialogue without awaiting it. */
+  async logConversationChecks(characterId: string, playerTurn: string): Promise<void> {
+    const scenario = this.#game.scenario();
+    const listener = scenario.characters.find(character => character.id === characterId && character.id !== scenario.playerCharacterId);
+    if (scenario.world?.phase !== GamePhase.CONVERSATIONS || !listener || !playerTurn.trim() || this.#conversationEndRequested[characterId]) return;
+    const input = {
+      playerTurn,
+      messages: this.#prepareModelRequest("dialogue", {
+        ...DIALOGUE_MODEL, messages: this.#dialogueMessages(characterId, playerTurn),
+      }).messages,
+    };
+    try {
+      await this.#modelTranscripts.record("conversation_check", characterId, input,
+        () => classifyConversationTurn(this.#jev, input, AbortSignal.timeout(30_000)),
+        this.#conversationRun(characterId), this.#characterName(characterId));
+    } catch { /* The transcript logger records failures; diagnostics must not interrupt play. */ }
+  }
+
   async talkToCharacter(characterId: string, messageText: string, onThinking?: (text: string) => void): Promise<string> {
     const controller = new AbortController();
     const runKey = this.#conversationRun(characterId);
@@ -561,13 +598,7 @@ export class BrowserGameRuntime {
     if (this.#conversationEndRequested[characterId]) throw new Error("This character has ended the conversation. Finish the conversation review before speaking again.");
     const history = this.#conversations.get(characterId) || [];
     const playerMessage = create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: messageText });
-    const request = create(DialogueRequestSchema, { characterId, scenario, transcript: [...history, playerMessage] });
-    const messages: OpenRouterMessage[] = new FullContextBuilder().build(request).map(item => ({ role: item.role, content: item.content }));
-    if (hasDevelopmentPlayer(scenario)) messages.unshift({ role: "system", content: DEVELOPMENT_DIALOGUE_INSTRUCTIONS });
-    messages.unshift({ role: "system", content: askGameMasterTool.function.description });
-    messages.unshift({ role: "system", content: dialogueEarshotPrompt(scenario, characterId, [characterId, scenario.playerCharacterId ?? "player"]) });
-    messages.unshift({ role: "system", content: "You may choose to end this conversation only for a concrete in-character reason to leave now: beginning an immediate task you have chosen, refusing further discussion, or responding to an urgent interruption. Completing or advancing a dialogue objective is not a reason to leave; continue naturally or move to another relevant conversational thread. Never set endConversation=true in the same response as asking the player a question, making them an offer, or requesting their help, because the player must be able to answer. When you truly take your leave, express that decision naturally and return replyOptions=[]. Otherwise set endConversation=false. Ending triggers a separate memory and goal review; speech alone does not move you or complete physical tasks." });
-    messages.unshift({ role: "system", content: "Return only a JSON object matching the supplied response schema, with no Markdown fences or surrounding prose." });
+    const messages = this.#dialogueMessages(characterId, messageText);
     let parsed: JsonObject | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
