@@ -25,10 +25,18 @@ test("conversation classification logs independent decisions without blocking or
   await runtime.talkToCharacter("corvin", "Good evening.");
   let finish!: () => void;
   const waiting = new Promise<void>(resolve => { finish = resolve; });
+  let classifiedMessages: unknown;
+  let dialogueMessages: unknown;
+  t.mock.method(OpenRouterClient.prototype, "complete", async (request: any) => {
+    dialogueMessages = structuredClone(request.messages);
+    return { role: "assistant", content: '{"utterance":"Welcome.","replyOptions":[],"endConversation":false}' };
+  });
   t.mock.method(JevClient.prototype, "evaluate", async (input: any, questions: JevQuestions, signal: AbortSignal) => {
     assert.equal(input.playerTurn, "Please help classifier-log-secret");
-    assert.deepEqual(input.history.map((message: any) => message.text), ["Good evening.", "Welcome."]);
-    assert.equal(JSON.parse(input.context).listener.id, "corvin");
+    classifiedMessages = structuredClone(input.messages);
+    assert.ok(input.messages.some((message: any) => message.role === "system" && message.content.includes("Corvin")));
+    assert.ok(input.messages.some((message: any) => message.content.includes("Good evening.")));
+    assert.ok(input.messages.some((message: any) => message.content.includes("Welcome.")));
     assert.equal(signal.aborted, false);
     await waiting;
     return Object.fromEntries(Object.keys(questions).map(skill => [skill, {
@@ -40,6 +48,7 @@ test("conversation classification logs independent decisions without blocking or
   const pending = runtime.forkForNpc().logConversationChecks("corvin", "Please help classifier-log-secret");
   assert.equal(runtime.recentTranscripts()[0]!.status, "pending");
   assert.equal(await runtime.talkToCharacter("corvin", "Please help classifier-log-secret"), "Welcome.");
+  assert.deepEqual(classifiedMessages, dialogueMessages, "Jev receives the exact initial dialogue messages, including all system prompts");
   const afterDialogue = runtime.snapshot();
   finish(); await pending;
   assert.deepEqual(runtime.snapshot(), afterDialogue);
