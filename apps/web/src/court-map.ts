@@ -257,7 +257,13 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   await renderer.load();
   if (!root.isConnected) return;
   let position = markers.find(marker => marker.id === player?.id)?.point;
+  const artworkKey = () => JSON.stringify([
+    doors.map(door => [door.tiles, door.open]),
+    fixtures.map(item => [item.position, item.sprite, item.open]),
+  ]);
+  let drawnArtwork = "";
   const draw = () => {
+    drawnArtwork = artworkKey();
     renderer.render();
     for (const item of fixtures) if (item.position) {
       renderer.drawSprite("tiny-dungeon", item.sprite, item.position.x, item.position.y);
@@ -287,13 +293,23 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   if (position) requestAnimationFrame(() => centreOnPlayer(position!));
   root.addEventListener("court-state", event => {
     const next = (event as CustomEvent<{ characters: CourtCharacter[]; player: CourtCharacter; doors: DoorState[];
-      fixtures: MapFixture[]; fixtureActions: FixtureAction[]; roomAccess: RoomAccess[] }>).detail;
+      fixtures: MapFixture[]; fixtureActions: FixtureAction[]; roomAccess: RoomAccess[]; disabled?: boolean }>).detail;
+    if (next.disabled !== undefined) {
+      disabled = next.disabled;
+      for (const button of root.querySelectorAll<HTMLButtonElement>("button.court-character")) button.disabled = disabled;
+      if (disabled) closeMenu();
+    }
     doors = next.doors; fixtures = next.fixtures; fixtureChoices = next.fixtureActions; rooms = next.roomAccess;
     const updated = courtMarkers([...next.characters, next.player], fixtures);
     for (const marker of markers) {
       const current = updated.find(item => item.id === marker.id); if (!current) continue;
       Object.assign(marker, current);
-      if (marker.id === player?.id) { if (!moving && marker.point) { position = marker.point; place(marker.point); } continue; }
+      if (marker.id === player?.id) {
+        if (!moving && marker.point && (position?.x !== marker.point.x || position?.y !== marker.point.y)) {
+          position = marker.point; place(marker.point);
+        }
+        continue;
+      }
       const control = stage.querySelector<HTMLElement>(`[data-character-id="${CSS.escape(marker.id)}"]`);
       if (control && marker.point) {
         control.style.transition = "left 100ms linear, top 100ms linear";
@@ -302,7 +318,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
         control.setAttribute("aria-label", `Walk to ${marker.name} · ${marker.roomName}`);
       }
     }
-    draw();
+    if (artworkKey() !== drawnArtwork) draw();
   }, { signal: listeners.signal });
   walkTo = async (target, interaction) => {
     if (disabled || !position || !movePlayer) return;

@@ -490,13 +490,25 @@ function renderCharacterReview() {
 }
 
 function renderDay(bindPage = true) {
+  // Reattach synchronously so the canvas, camera, listeners and active walk survive UI renders.
+  const previousMap = app.querySelector("[data-court-map]");
+  const retainedMap = previousMap?.dataset.generation === String(gameViewGeneration) ? previousMap : null;
+  const viewport = retainedMap?.querySelector(".court-map-scroll");
+  const scroll = viewport && { left: viewport.scrollLeft, top: viewport.scrollTop };
   const openPopover = app.querySelector(".court-popover:popover-open")?.id;
   app.innerHTML = shell(`<section class="court-panel" aria-label="Palace of Caerwyn"><div data-court-map></div><p class="status ${notice.startsWith("Error") ? "error" : ""}" data-court-notice role="status">${escapeHtml(notice)}</p></section>`, true);
+  if (retainedMap) {
+    app.querySelector("[data-court-map]").replaceWith(retainedMap);
+    viewport?.scrollTo(scroll);
+    updateCourtMap(retainedMap, { ...state, disabled: busy });
+  }
   if (openPopover && !activeCharacter && !sheetOpen && !debugOpen) document.getElementById(openPopover)?.showPopover();
   updatePlayerFeed();
   if (bindPage) bind();
   updateNpcPanel();
+  if (retainedMap) return;
   const mapRoot = document.querySelector("[data-court-map]");
+  mapRoot.dataset.generation = String(gameViewGeneration);
   void mountCourtMap(mapRoot, state.characters, state.player, async id => {
     if (busy || conversationReviews.has(id) || !mapRoot.isConnected) return;
     activeCharacter = id; closedConversation = null; notice = ""; render();
@@ -520,7 +532,7 @@ function renderDay(bindPage = true) {
   }, async id => {
     const character = state.characters.find(item => item.id === id);
     await openDebug({ type: "debug_character", payload: { characterId: id } }, `${character?.name || id} Debug`);
-  }).then(() => updateCourtMap(mapRoot, state)).catch(() => {
+  }).then(() => updateCourtMap(mapRoot, { ...state, disabled: busy })).catch(() => {
     if (!mapRoot.isConnected) return;
     const message = document.createElement("p"); message.className = "status error";
     message.textContent = "The palace artwork could not load. You can still select a character by name."; mapRoot.append(message);
