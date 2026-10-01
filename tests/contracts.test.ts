@@ -469,7 +469,7 @@ test("options-only tool calls wait for spoken dialogue rather than supplying a q
   assert.deepEqual(Object.keys(JSON.parse(toolReply.tool_calls![0]!.function.arguments)).sort(), ["compelled", "options"]);
 });
 
-test("the documented Stranger checklist and escalation are the runtime prompt", () => {
+test("the documented Stranger conversation stages are the runtime prompt", () => {
   const documented = readFileSync(new URL("../content/prompts/game-master.md", import.meta.url), "utf8")
     .replace(/^# The Laughing Stranger\s+/, "").trim();
   assert.equal(load().gameMasterPrompt, documented);
@@ -2026,12 +2026,9 @@ test("GM tool schemas follow a scenario's roster, including additional delegates
 });
 
 // Exercise the new introduction independently of network responses or browser credentials.
-import { introduction, introductionTitles, introductionHandoff, validateIdentity, characterSprites } from "../apps/web/src/introduction.js";
+import { introductionHandoff, validateIdentity, characterSprites } from "../apps/web/src/introduction.js";
 
-test("history introduces the centennial succession and handoff preserves a delegation's witness role", () => {
-  assert.equal(introduction.length, 4);
-  assert.deepEqual(introductionTitles, ["The civil war", "An uneasy peace", "The slow decline", "The centennial succession"]);
-  assert.doesNotMatch(introduction.flat().join(" "), /Crown of Winter|Merlin|Lancelot|solstice/);
+test("legacy introduction handoff preserves a delegation's witness role", () => {
   const handoff = introductionHandoff({ name: "Seren", delegation: "Saltmere", gender: "Non-binary", sprite: 99 });
   assert.match(handoff, /Saltmere/);
   assert.match(handoff, /not the delegation's mandated recognition bearer/);

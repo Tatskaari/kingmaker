@@ -8,7 +8,7 @@ import { coalescedRefresh, updateTranscriptPanel } from "./debug-live.js";
 import { AlertLog } from "./alerts.js";
 import { captureCourtMap, mountCourtMap, updateCourtMap } from "./court-map.js";
 import { buildIssueReport, issuePageUrl, issueReportFilename } from "./issue-report.js";
-import { introduction, introductionTitles, introductionHandoff, handoffPrefix, nameSuggestions, delegations, characterSprites, newTraveller, patronName } from "./introduction.js";
+import { sandboxIntroduction, handoffPrefix, courtAffiliations, characterSprites, patronName } from "./introduction.js";
 import { courtCharactersWithinEarshot } from "./earshot.js";
 import { formatElapsedTime } from "./relative-time.js";
 import devOpenRouterApiKey from "virtual:kingmaker-dev-openrouter-key";
@@ -61,10 +61,7 @@ try { apiKey = sessionStorage.getItem(apiKeyStorageKey)?.trim() || ""; }
 catch { /* The app still works when browser storage is unavailable. */ }
 if (!apiKey) apiKey = devOpenRouterApiKey;
 let screen = "key";
-let introPage = 0;
-let strangerTutorialOpen = false;
 let reviewDraft = null;
-let traveller = newTraveller();
 let saves = [];
 let activeSaveId = null;
 let requestSequence = 0;
@@ -447,35 +444,24 @@ function replyOptions(options, target, compelled = false) {
 function renderCreation() {
   const messages = (state.gmMessages || []).filter(message => !(message.role === "user" && message.text.startsWith(handoffPrefix)));
   if (!messages.length) {
-    let content;
-    if (introPage < introduction.length) {
-      content = `<div class="eyebrow">The four kingdoms · ${introPage + 1} / ${introduction.length}</div><h2>${introductionTitles[introPage]}</h2>${introduction[introPage].map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join("")}<div class="intro-navigation">${introPage > 0 ? `<button class="reset" data-intro-back>Back</button>` : ""}<button class="dialogue-option" data-intro-next>${introPage === introduction.length - 1 ? "Choose your delegation →" : "Continue →"}</button></div>`;
-    } else if (introPage === introduction.length) {
-      content = `<div class="eyebrow">Your place in the realm</div><h2>Choose your delegation</h2><p>Three kingdoms have come to Caerwyn. You travel in the service of one of them. Your own loyalties are yours to decide.</p><form data-delegation-form><fieldset class="delegation-options"><legend class="sr-only">Your delegation</legend>${delegations.map(item => `<label class="delegation-card"><input type="radio" name="delegation" value="${item.id}" ${traveller.delegation === item.id ? "checked" : ""} required><span><strong>${item.id}</strong><em>${item.motto}</em><span>${item.description}</span><small>${item.demand}</small><small class="delegation-companions">Travelling with<br>${item.companions}</small></span></label>`).join("")}</fieldset><div class="intro-navigation"><button type="button" class="reset" data-intro-back>Back</button><button class="dialogue-option">Join the delegation →</button></div></form>`;
-    } else {
-      content = `<div class="eyebrow">The ${escapeHtml(traveller.delegation)} delegation</div><h2>Who travels to court?</h2><form data-traveller-form><fieldset class="identity-controls" ${busy ? "disabled" : ""}><label for="traveller-name">Your name</label><div class="identity-field"><input id="traveller-name" name="name" value="${escapeHtml(traveller.name)}" maxlength="80" required autocomplete="off"><button type="button" data-roll="name" aria-label="Generate a name">⚄</button></div><label for="traveller-gender">Your gender</label><div class="identity-field"><input id="traveller-gender" name="gender" list="gender-options" value="${escapeHtml(traveller.gender)}" maxlength="40" required autocomplete="off" placeholder="Choose or describe your gender"></div><datalist id="gender-options"><option value="Woman"><option value="Man"><option value="Non-binary"></datalist><fieldset class="sprite-options"><legend>Your appearance</legend><p class="field-hint">Choose the sprite that will represent you in court.</p><div class="sprite-grid">${characterSprites.map((sprite, index) => `<label class="sprite-choice"><input type="radio" name="sprite" value="${sprite}" ${traveller.sprite === sprite ? "checked" : ""} required><span class="court-sprite" style="background-position:${-(sprite % 12) * 32}px ${-Math.floor(sprite / 12) * 32}px" aria-hidden="true"></span><span>Traveller ${index + 1}</span></label>`).join("")}</div></fieldset><div class="intro-navigation"><button type="button" class="reset" data-intro-back ${busy ? "disabled" : ""}>Back</button><button class="dialogue-option" ${busy ? "disabled" : ""}>${busy ? "On the road…" : "Meet the Stranger →"}</button></div></fieldset></form>`;
-    }
-    app.innerHTML = shell(`<section class="introduction" aria-label="Your journey" tabindex="-1">${content}<p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
-    return bind();
+    app.innerHTML = shell(`<section class="introduction" aria-label="Welcome to Kingmaker"><div class="eyebrow">A roleplaying sandbox · Tech demo</div><h2>Welcome to Kingmaker</h2>${sandboxIntroduction.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join("")}<button class="dialogue-option" data-meet-stranger ${busy ? "disabled" : ""}>Meet the Stranger →</button><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
+    bind(); return;
   }
-  const tutorial = strangerTutorialOpen ? `<dialog class="stranger-tutorial" aria-labelledby="stranger-tutorial-title"><div class="eyebrow">Shape your story</div><h2 id="stranger-tutorial-title">The mysterious Stranger</h2><p>Before you stands a mysterious Stranger, an otherworldly character with strange power over fate and providence.</p><p>Respond in character and he will help create your backstory. What you establish together—your ambitions, relationships, and position within the court—will be shared with the other characters and used to shape the scenario around you.</p><button class="primary" data-stranger-tutorial-close>Begin the conversation</button></dialog>` : "";
-  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div><button class="character-debug" data-gm-debug>Debug Stranger</button></div><div class="messages">${messageList(messages, patronName)}</div>${replyOptions(state.gmReplyOptions?.options, "gm", state.gmReplyOptions?.compelled)}${state.gmReplyOptions?.compelled ? `<p class="compelled-hint">A powerful force compels you to respond accordingly</p>` : `<form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Tell him what you desire…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>${tutorial}`);
+  app.innerHTML = shell(`<section class="panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div><button class="character-debug" data-gm-debug>Debug Stranger</button></div><div class="messages">${messageList(messages, patronName)}</div>${replyOptions(state.gmReplyOptions?.options, "gm", state.gmReplyOptions?.compelled)}${state.gmReplyOptions?.compelled ? `<p class="compelled-hint">A powerful force compels you to respond accordingly</p>` : `<form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Invent your story, answer him, or ask for ideas…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
   bind();
-  const tutorialDialog = document.querySelector(".stranger-tutorial");
-  tutorialDialog?.addEventListener("cancel", () => { strangerTutorialOpen = false; });
-  tutorialDialog?.showModal();
-  document.querySelector(".messages")?.scrollTo(0, 999999);
+  document.querySelector(".messages")?.scrollTo(0, messages.length === 1 ? 0 : 999999);
 }
 
 function renderCharacterReview() {
   reviewDraft ||= structuredClone(state.playerDraft);
   const field = (label, key, value, multiline = false) => `<label>${label}${multiline ? `<textarea data-review-field="${key}" required ${busy ? "disabled" : ""}>${escapeHtml(value || "")}</textarea>` : `<input data-review-field="${key}" value="${escapeHtml(value || "")}" required ${busy ? "disabled" : ""}>`}</label>`;
   const identityFields = reviewDraft.player.delegation
-    ? `${field("Gender", "player.gender", reviewDraft.player.gender)}<label>Delegation<select data-review-field="player.delegation" ${busy ? "disabled" : ""}>${delegations.map(item => `<option value="${item.id}" ${reviewDraft.player.delegation === item.id ? "selected" : ""}>${item.id}</option>`).join("")}</select></label><label>Character sprite<select data-review-field="player.sprite" ${busy ? "disabled" : ""}>${characterSprites.map((sprite, index) => `<option value="${sprite}" ${reviewDraft.player.sprite === sprite ? "selected" : ""}>Traveller ${index + 1}</option>`).join("")}</select></label><span class="court-sprite review-sprite" aria-label="Selected character sprite" style="background-position:${-(reviewDraft.player.sprite % 12) * 32}px ${-Math.floor(reviewDraft.player.sprite / 12) * 32}px"></span>`
+    ? `${field("Gender", "player.gender", reviewDraft.player.gender)}<label>Court affiliation<select data-review-field="player.delegation" ${busy ? "disabled" : ""}>${courtAffiliations.map(id => `<option value="${id}" ${reviewDraft.player.delegation === id ? "selected" : ""}>${id}</option>`).join("")}</select></label>`
     : field("Homeland", "homeland", reviewDraft.homeland);
+  const appearanceChoices = reviewDraft.player.delegation ? `<fieldset class="sprite-options" ${busy ? "disabled" : ""}><legend>Your appearance</legend><p class="field-hint">Choose how you appear in court.</p><div class="sprite-grid">${characterSprites.map((sprite, index) => `<label class="sprite-choice"><input type="radio" name="appearance" data-review-field="player.sprite" value="${sprite}" ${reviewDraft.player.sprite === sprite ? "checked" : ""}><span class="court-sprite" style="background-position:${-(sprite % 12) * 32}px ${-Math.floor(sprite / 12) * 32}px" aria-hidden="true"></span><span>Traveller ${index + 1}</span></label>`).join("")}</div></fieldset>` : "";
   const buildSummary = playerStats(reviewDraft.player.dnd, true);
   const transcript = (state.gmMessages || []).filter(message => !(message.role === "user" && message.text.startsWith(handoffPrefix)));
-  app.innerHTML = shell(`<section class="panel character-review"><div class="eyebrow">Before you enter Caerwyn</div><h2>Review your character</h2><p>Review what you and the Stranger established. Correct any details before saving your character and entering court.</p><details class="review-transcript"><summary>Conversation with the Stranger</summary><div class="messages">${messageList(transcript, patronName)}</div></details><form data-review-form>${field("Name", "player.name", reviewDraft.player.name)}${identityFields}${field("Role", "embassyRole", reviewDraft.embassyRole)}${field("Biography", "player.lore", reviewDraft.player.lore, true)}${field("Personal goal", "player.currentGoal", reviewDraft.player.currentGoal, true)}${buildSummary}<h3>Relationships</h3>${reviewDraft.player.relationships.map((item, index) => field(`Your view of ${escapeHtml(state.characters.find(character => character.id === item.characterId)?.name || item.characterId)}`, `player.relationships.${index}.description`, item.description, true)).join("")}<h3>Initial impressions of you</h3>${reviewDraft.npcRelationships.map((item, index) => field(escapeHtml(state.characters.find(character => character.id === item.ownerCharacterId)?.name || item.ownerCharacterId), `npcRelationships.${index}.relationship.description`, item.relationship.description, true)).join("")}<button class="primary" ${busy ? "disabled" : ""}>Save character and enter court</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
+  app.innerHTML = shell(`<section class="panel character-review"><div class="eyebrow">Before you enter Caerwyn</div><h2>Review your character</h2><p>Review what you and the Stranger established. Correct any details before saving your character and entering court.</p><details class="review-transcript"><summary>Conversation with the Stranger</summary><div class="messages">${messageList(transcript, patronName)}</div></details><form data-review-form>${field("Name", "player.name", reviewDraft.player.name)}${identityFields}${appearanceChoices}${field("Role", "embassyRole", reviewDraft.embassyRole)}${field("Biography", "player.lore", reviewDraft.player.lore, true)}${field("Personal goal", "player.currentGoal", reviewDraft.player.currentGoal, true)}${buildSummary}<h3>Relationships</h3>${reviewDraft.player.relationships.map((item, index) => field(`Your view of ${escapeHtml(state.characters.find(character => character.id === item.characterId)?.name || item.characterId)}`, `player.relationships.${index}.description`, item.description, true)).join("")}<h3>Initial impressions of you</h3>${reviewDraft.npcRelationships.map((item, index) => field(escapeHtml(state.characters.find(character => character.id === item.ownerCharacterId)?.name || item.ownerCharacterId), `npcRelationships.${index}.relationship.description`, item.relationship.description, true)).join("")}<button class="primary" ${busy ? "disabled" : ""}>Save character and enter court</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
   bind();
 }
 
@@ -621,13 +607,13 @@ function bind() {
     sheetOpen = false; debugOpen = false; notice = ""; screen = "key"; render();
   });
   document.querySelector("[data-new-game]")?.addEventListener("click", () => run(async () => {
-    introPage = 0; strangerTutorialOpen = false; reviewDraft = null; traveller = newTraveller(); const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game"; if (state.travellerIdentity) { traveller = { ...state.travellerIdentity }; introPage = introduction.length + 1; }
+    reviewDraft = null; const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   }));
   document.querySelector("[data-skip-character]")?.addEventListener("click", () => run(async () => {
-    introPage = 0; reviewDraft = null; traveller = { name: "", homeland: "" }; const result = await rpc("create_development_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    reviewDraft = null; const result = await rpc("create_development_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   }));
   document.querySelectorAll("[data-save-load]").forEach(button => button.addEventListener("click", () => run(async () => {
-    introPage = 0; reviewDraft = null; traveller = newTraveller(); const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game"; if (state.travellerIdentity) { traveller = { ...state.travellerIdentity }; introPage = introduction.length + 1; }
+    reviewDraft = null; const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   })));
   document.querySelectorAll("[data-save-delete]").forEach(button => button.addEventListener("click", () => run(async () => {
     const result = await rpc("delete_game", { saveId: button.dataset.saveDelete }); saves = result.saves;
@@ -642,7 +628,6 @@ function bind() {
   bindAlertBell();
   bindAlertClear();
   document.querySelector("[data-gm-debug]")?.addEventListener("click", () => openDebug({ type: "debug_gm", payload: {} }, "Laughing Stranger Debug"));
-  document.querySelector("[data-stranger-tutorial-close]")?.addEventListener("click", () => { strangerTutorialOpen = false; render(); });
   document.querySelector("[data-character-debug]")?.addEventListener("click", () => {
     const character = state.characters.find(item => item.id === activeCharacter);
     openDebug({ type: "debug_character", payload: { characterId: activeCharacter } }, `${character?.name || activeCharacter} Debug`);
@@ -712,40 +697,9 @@ function bind() {
   }));
   document.querySelector("[data-debug-refresh]")?.addEventListener("click", () => debugTab === "transcripts" ? refreshDebugTranscripts() : openDebug());
   document.querySelectorAll("[data-debug-close]").forEach(button => button.addEventListener("click", () => { debugOpen = false; render(); }));
-  const moveIntro = page => { introPage = page; render(); document.querySelector(".introduction")?.focus({ preventScroll: true }); window.scrollTo(0, 0); };
-  document.querySelector("[data-intro-next]")?.addEventListener("click", () => moveIntro(introPage + 1));
-  document.querySelector("[data-intro-back]")?.addEventListener("click", () => { if (!busy) moveIntro(Math.max(0, introPage - 1)); });
-  document.querySelector("[data-delegation-form]")?.addEventListener("change", event => { traveller.delegation = event.target.value; });
-  document.querySelector("[data-delegation-form]")?.addEventListener("submit", event => {
-    event.preventDefault();
-    traveller.delegation = new FormData(event.currentTarget).get("delegation");
-    moveIntro(introduction.length + 1);
-  });
-  document.querySelector("[data-roll]")?.addEventListener("click", () => {
-    const input = document.querySelector("#traveller-name");
-    const suggestions = nameSuggestions.filter(value => value !== input.value);
-    input.value = suggestions[Math.floor(Math.random() * suggestions.length)];
-    traveller.name = input.value; input.focus();
-  });
-  document.querySelector("[data-traveller-form]")?.addEventListener("input", event => {
-    if (["name", "gender", "sprite"].includes(event.target.name)) traveller[event.target.name] = event.target.name === "sprite" ? Number(event.target.value) : event.target.value;
-  });
-  document.querySelector("[data-traveller-form]")?.addEventListener("submit", event => {
-    event.preventDefault();
-    const form = event.currentTarget;
-    for (const field of ["name", "gender"]) {
-      const input = form.elements.namedItem(field); input.value = input.value.trim();
-      if (!input.reportValidity()) return;
-      traveller[field] = input.value;
-    }
-    traveller.sprite = Number(new FormData(form).get("sprite"));
-    const selectedIdentity = { ...traveller };
-    run(async () => {
-      const identity = await rpc("set_identity", { identity: selectedIdentity }); state = identity.state; saves = identity.saves;
-      const result = await rpc("gm", { message: introductionHandoff(selectedIdentity) }); state = result.state; saves = result.saves;
-      strangerTutorialOpen = true;
-    });
-  });
+  document.querySelector("[data-meet-stranger]")?.addEventListener("click", () => run(async () => {
+    const result = await rpc("start_introduction"); state = result.state; saves = result.saves;
+  }));
   document.querySelectorAll("[data-reply-index]").forEach(button => button.addEventListener("click", () => {
     if (busy) return;
     const target = button.dataset.replyTarget;
@@ -763,10 +717,6 @@ function bind() {
     let owner = reviewDraft;
     for (const key of path.slice(0, -1)) owner = owner[key];
     owner[path.at(-1)] = input.type === "number" || input.dataset.reviewField === "player.sprite" ? (input.value === "" ? null : Number(input.value)) : input.value;
-    if (input.dataset.reviewField === "player.sprite") {
-      const preview = document.querySelector(".review-sprite");
-      if (preview) preview.style.backgroundPosition = `${-(Number(input.value) % 12) * 32}px ${-Math.floor(Number(input.value) / 12) * 32}px`;
-    }
   }));
   document.querySelector("[data-review-form]")?.addEventListener("submit", event => {
     event.preventDefault();
@@ -803,7 +753,7 @@ function bind() {
     reviewConversation(characterId);
     render();
   });
-  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { introPage = 0; reviewDraft = null; traveller = newTraveller(); const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
+  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { reviewDraft = null; const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
 }
 
 document.addEventListener("keydown", event => {

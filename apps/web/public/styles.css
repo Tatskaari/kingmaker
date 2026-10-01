@@ -212,11 +212,6 @@ button.court-character:hover:not(:focus-visible) { border-color: transparent; ba
 .conversation-modal .messages { min-height: 180px; max-height: 45dvh; margin-top: 18px; }
 .conversation-modal .composer { position: sticky; bottom: 0; background: #1f1b15; padding-bottom: 5px; }
 
-.stranger-tutorial { width: min(560px, calc(100vw - 32px)); padding: clamp(26px, 6vw, 42px); color: #ede2ca; background: linear-gradient(145deg, #282117, #15110d 72%); border: 1px solid var(--gold); box-shadow: 0 24px 100px #000d; }
-.stranger-tutorial::backdrop { background: #090705d9; }
-.stranger-tutorial h2 { margin: 10px 0 22px; color: #f4e3bb; font-size: clamp(1.7rem, 5vw, 2.3rem); }
-.stranger-tutorial p { color: #d3c6ae; font-size: 1.12rem; line-height: 1.55; }
-.stranger-tutorial .primary { display: block; margin: 28px 0 0 auto; }
 
 /* Name labels must not intercept interactions with the furniture below them. */
 .court-character:not(.court-off-map) { width: 34px; height: 34px; padding: 0; }
@@ -246,7 +241,7 @@ button.court-character:hover:not(:focus-visible) { border-color: transparent; ba
 .transcript-summary h4 { margin: 14px 0 6px; color: var(--gold); }
 .transcript-card > details { margin-top: 16px; }
 
-/* The journey from the history pages to a place in a delegation. */
+/* Sandbox welcome and character appearance review. */
 .introduction h2 { font-size: clamp(2rem, 5vw, 3rem); margin: 14px 0 28px; }
 .intro-navigation { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-top: 30px; }
 .intro-navigation .dialogue-option { margin-left: auto; }
@@ -262,7 +257,7 @@ button.court-character:hover:not(:focus-visible) { border-color: transparent; ba
 .delegation-companions { border-top: 1px solid #514838; padding-top: 12px; color: #c7b99f; }
 .sprite-options legend { font-size: 1.15rem; padding-top: 22px; }
 .sprite-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.introduction .sprite-choice { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 16px 8px; border: 1px solid #514838; margin: 0; cursor: pointer; font-size: .95rem; }
+.character-review .sprite-choice { display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 16px 8px; border: 1px solid #514838; margin: 0; cursor: pointer; font-size: .95rem; }
 .sprite-choice input { accent-color: var(--gold); }
 .sprite-choice .court-sprite { display: block; flex-shrink: 0; transform: scale(1.5); margin: 10px 0; }
 .delegation-card:focus-within, .sprite-choice:focus-within { outline: 2px solid #f1d99d; outline-offset: 3px; }

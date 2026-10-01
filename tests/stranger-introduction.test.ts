@@ -10,6 +10,20 @@ import { strangerOpening } from "../apps/web/src/introduction.js";
 const load = () => fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8"));
 const build = { classId: "rogue", abilityPriority: ["dexterity", "charisma", "constitution", "intelligence", "wisdom", "strength"], skills: ["persuasion", "deception", "insight", "stealth"] };
 
+test("resuming a sandbox interview updates its checklist while preserving the conversation", () => {
+  const scenario = load(), runtime = new BrowserGameRuntime(scenario, "test");
+  runtime.startIntroduction();
+  const saved = runtime.snapshot();
+  (saved.scenario as any).gameMasterPrompt = "Keep asking about motivation.";
+  saved.gameMasterHistory.push({ role: "user", content: "I already said I like spreading rumours." });
+  const resumed = new BrowserGameRuntime(scenario, "test", saved).snapshot();
+  assert.equal((resumed.scenario as any).gameMasterPrompt, scenario.gameMasterPrompt);
+  assert.deepEqual(resumed.gameMasterHistory, saved.gameMasterHistory);
+  saved.strangerIntroduced = false;
+  const legacy = new BrowserGameRuntime(scenario, "test", saved).snapshot();
+  assert.equal((legacy.scenario as any).gameMasterPrompt, "Keep asking about motivation.");
+});
+
 test("the authored opening needs no identity or model call and survives reload without repeating", t => {
   t.mock.method(OpenRouterClient.prototype, "complete", () => { throw new Error("The opening must not call the model"); });
   const runtime = new BrowserGameRuntime(load(), "test");
@@ -38,7 +52,7 @@ test("conversation supplies identity, rejects missing details, and preserves rev
     assert.ok(request.messages.some((item: any) => item.role === "assistant" && item.content === strangerOpening));
     const tool = request.tools.find((item: any) => item.function.name === "create_player").function;
     assert.ok(tool.parameters.required.includes("gender"));
-    assert.deepEqual(tool.parameters.properties.homeland.enum, ["Ironmark", "Greenweald", "Saltmere"]);
+    assert.deepEqual(tool.parameters.properties.homeland.enum, ["Ironmark", "Greenweald", "Saltmere", "Independent"]);
     if (attempt++ === 1) {
       assert.match(request.messages.at(-1).content, /gender/);
       return { role: "assistant", content: "How would you describe your gender?" };
@@ -87,4 +101,38 @@ test("the sandbox interview keeps suggestions optional even if the model tries c
   runtime.startIntroduction();
   await runtime.talkToGameMaster("I'm not sure yet.");
   assert.equal(runtime.view().gmReplyOptions, null);
+});
+
+
+test("an independent hero can be drafted, reloaded and admitted without a delegation", async t => {
+  const scenario = load(), ids = scenario.characters.map(character => character.id);
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => ({
+    role: "assistant", content: null, tool_calls: [{ id: "independent", type: "function", function: {
+      name: "create_player", arguments: JSON.stringify({
+        name: "Ronan", gender: "man", homeland: "Independent",
+        embassyRole: "Travelling hero welcomed by reputation", lore: "A wandering hero known for his swordsmanship.",
+        currentGoal: "Cause chaos", build,
+        relationships: ids.map(characterId => ({ characterId, description: "Known only by reputation." })),
+        npcViews: ids.map(characterId => ({ characterId, description: "A travelling hero known by reputation." })),
+      }),
+    } }],
+  }));
+  const runtime = new BrowserGameRuntime(scenario, "test");
+  runtime.startIntroduction();
+  await runtime.talkToGameMaster("I am Ronan, a man, a travelling hero admitted by reputation. I know nobody here. Ready to review.");
+  assert.equal(runtime.view().phase, "character_review");
+  const restored = new BrowserGameRuntime(scenario, "test", runtime.snapshot());
+  const draft = restored.snapshot().playerDraft as any;
+  assert.equal(draft.player?.delegation, "Independent");
+  assert.equal(draft.embassyRole, "Travelling hero welcomed by reputation");
+  restored.confirmPlayer(draft);
+  assert.equal(restored.view().phase, "conversations");
+  const saved = restored.snapshot();
+  assert.equal(saved.travellerIdentity?.delegation, "Independent");
+  const notes = (saved.scenario as any).notes.filter((note: any) => note.id.startsWith("arrival-"));
+  assert.equal(notes.length, ids.length);
+  for (const note of notes) {
+    assert.match(note.text, /Travelling hero welcomed by reputation, has arrived independently/);
+    assert.doesNotMatch(note.text, /from Independent|with the diplomatic delegation/);
+  }
 });
