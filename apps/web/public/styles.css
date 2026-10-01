@@ -283,3 +283,10 @@ button.court-character:hover:not(:focus-visible) { border-color: transparent; ba
 .objective-editor { display: grid; gap: 12px; margin-top: 12px; }
 .objective-editor label { display: grid; gap: 6px; }
 .objective-editor textarea { width: 100%; box-sizing: border-box; resize: vertical; }
+
+.player-stats { margin-block: 1.5rem; }
+.player-stats .ability-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; padding: 0; }
+.player-stats label, .player-stats dt { text-transform: capitalize; }
+.player-stats dd { margin: .25rem 0 0; font-size: 1.2rem; }
+.player-stats dd small { opacity: .7; }
+.player-stats input { width: 100%; box-sizing: border-box; }

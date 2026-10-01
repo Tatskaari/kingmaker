@@ -547,10 +547,15 @@ test("generated character waits for editable review and only enters court on exp
   assert.throws(() => restored.confirmPlayer(invalid), /Name must/);
   assert.equal(restored.view().phase, "character_review");
   draft.player.dnd.classes[0].level = 20;
+  draft.player.dnd.abilityScores.dexterity = 30;
+  draft.player.dnd.hitPoints = { current: 250, maximum: 250 };
   restored.confirmPlayer(draft);
   const savedPlayer = fromJson(ScenarioSchema, restored.snapshot().scenario).characters.find(character => character.id === "player")!;
-  assert.equal(savedPlayer.dnd!.classes[0]!.level, 3);
-  assert.equal(savedPlayer.dnd!.abilityScores!.dexterity, 15);
+  assert.equal(savedPlayer.dnd!.classes[0]!.level, 20);
+  assert.equal(savedPlayer.dnd!.abilityScores!.dexterity, 30);
+  assert.equal(savedPlayer.dnd!.hitPoints!.maximum, 250);
+  const reloaded = new BrowserGameRuntime(load(), "test", structuredClone(restored.snapshot()));
+  assert.equal((reloaded.view().player as any).dnd.abilityScores.dexterity, 30);
   assert.equal(savedPlayer.inventory!.items.length, 2);
   assert.equal(restored.view().phase, "conversations");
   assert.equal(restored.view().day, 1);
