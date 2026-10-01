@@ -1,3 +1,4 @@
+import { renderWorldPrompt } from "./world-prompt.js";
 import { locatedItems } from "./inventory.js";
 import { IMMEDIATE_GOAL_GUIDANCE } from "./goal-guidance.js";
 import { clone, toJson } from "@bufbuild/protobuf";
@@ -103,7 +104,7 @@ export class FullContextBuilder implements DialogueContextBuilder {
       { role: "system", content: `# Notes available to this character\n${recent}` },
       {
         role: "system",
-        content: `# Known world state\n${JSON.stringify(worldViewJson(worldForCharacter(scenario, character.id)), null, 2)}`,
+        content: `# Known world state\n${renderWorldPrompt(scenario, worldForCharacter(scenario, character.id), character.id)}`,
       },
     ];
 
@@ -137,10 +138,10 @@ export class FullGameMasterContextBuilder implements GameMasterContextBuilder {
     const setup: PromptMessage[] = [
       { role: "system", content: scenario.gameMasterPrompt },
       { role: "system", content: `# Scenario premise\n${scenario.premise}` },
-      { role: "system", content: `# Existing cast\n${JSON.stringify(cast, null, 2)}` },
+      { role: "system", content: `# Existing cast\n${JSON.stringify(cast)}` },
       {
         role: "system",
-        content: `# Complete world state\n${JSON.stringify(toJson(WorldStateSchema, scenario.world, { alwaysEmitImplicit: true }), null, 2)}`,
+        content: `# Complete world state\n${renderWorldPrompt(scenario, { ...scenario.world, objects: locatedItems(scenario) })}`,
       },
       {
         role: "system",
