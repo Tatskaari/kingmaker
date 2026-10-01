@@ -26,7 +26,7 @@ const completed = await Promise.all(evals.map(async ({ scenario, transcript, com
       name: variant.name,
       results: await runUnitEvalBatch(scenario, variant.transcript,
         scenario.toolset === "none" ? [] : resourceReviewTools(), {
-        generate: (model, messages, tools) => generator.complete({
+        generate: (model, messages, tools, request) => generator.complete(request ?? {
           model, api: "responses", reasoning: { effort: "medium" }, messages, tools,
         }, signal, "unit evaluation generation"),
         judge: (state, criteria) => jev.evaluate(state, Object.fromEntries(criteria.map(criterion => [criterion.id, {
