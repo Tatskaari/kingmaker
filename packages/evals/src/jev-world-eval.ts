@@ -44,7 +44,7 @@ export async function runJevEvalOnce(definition: JevWorldEvalScenario, apiKey: s
   if (minimal) {
     const snapshot = runtime.snapshot();
     runtime = new BrowserGameRuntime(fromJson(ScenarioSchema, snapshot.scenario), apiKey, snapshot,
-      undefined, undefined, undefined, true, { level: 1, includeRecentResults: false });
+      undefined, undefined, undefined, true, { level: 1, includeRecentResults: true });
   }
   const trace: JevEvalTraceEntry[] = [];
   const talkCalls: JevTalkCall[] = [];

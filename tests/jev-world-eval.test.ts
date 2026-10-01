@@ -25,11 +25,12 @@ test("Jev eval summaries separate successful and failed turn counts", () => {
   assert.equal(summary.averageSuccessTurns, 5); assert.equal(summary.averageFailureTurns, 14);
 });
 
-test("minimal eval sends the text interface without character background or recent results", async t => {
+test("minimal eval includes the action log without character background", async t => {
   let observed: unknown;
+  let decisions = 0;
   t.mock.method(JevClient.prototype, "choose", async (state: unknown) => {
     observed = state;
-    return { choice: "complete", probabilities: {} };
+    return { choice: decisions++ === 0 ? "enter_royal_council_chamber" : "complete", probabilities: {} };
   });
   const result = await runJevEvalOnce(silkScarf, "test", true);
   assert.equal(result.error, undefined);
@@ -37,6 +38,8 @@ test("minimal eval sends the text interface without character background or rece
   assert.equal(typeof observed, "string");
   assert.match(observed as string, /Great Hall/);
   assert.match(observed as string, /fetch the silk scarf/);
+  assert.match(observed as string, /Action log \(completed actions, oldest first\):/);
+  assert.match(observed as string, /Action log[^]*\nenter_royal_council_chamber/);
   assert.doesNotMatch(observed as string, /Biography|Relationships|Recent results|Parked objectives/);
 });
 

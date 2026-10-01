@@ -11,7 +11,7 @@ if (!scenarios.length) throw new Error(`No Jev eval scenario matched: ${requeste
 const startedAt = new Date(), outputDirectory = resolve(process.env.JEV_EVAL_OUTPUT_DIR?.trim() || "eval-output/jev");
 const summaries: JevEvalSummary[] = [];
 console.log(`Jev world-state evaluations\n${startedAt.toISOString()} · output ${outputDirectory}\n`);
-console.log(`Context: ${minimal ? "minimal (room-scoped scene + objective, no recent results)" : "runtime defaults"}\n`);
+console.log(`Context: ${minimal ? "minimal (room-scoped scene + objective + action log)" : "runtime defaults"}\n`);
 for (const scenario of scenarios) {
   console.log(`${scenario.name}\n  ${scenario.repeats ?? 10} runs · ${scenario.goal}`);
   const summary = await runJevEval(scenario, apiKey, (run, runNumber) => {
