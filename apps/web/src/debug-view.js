@@ -20,7 +20,7 @@ function objectiveEditor(character) {
   const fields = [["name", "Objective name", objective.name], ["status", "Status and execution plan", objective.status],
     ["success_criteria", "Success criteria", objective.successCriteria], ["current_goal", "Current goal", character.currentGoal]];
   return `<details><summary>Override active objective</summary><form data-objective-override="${escape(character.id)}" class="objective-editor">
-    <p>Replace this character's active objective and stop their current run. Use Continue in the NPC activity panel to execute the new plan.</p>
+    <p>Replace this character's active objective and stop their current run. Use Continue in Overall debug → Activity to execute the new plan.</p>
     ${fields.map(([key, title, value]) => `<label>${title}<textarea name="${key}" rows="${key === "status" ? 4 : 2}" required>${escape(value || "")}</textarea></label>`).join("")}
     <button type="submit">Save objective override</button><p data-objective-status role="status"></p>
   </form></details>`;
@@ -41,7 +41,21 @@ function worldCards(world, name, characters = []) {
     + card("Objects", list(objects, object => `<strong>${escape(object.name || object.id)}</strong><p>${escape(roomName(object.locationId))} · ${object.concealed ? "Concealed" : "Visible"}</p>`, "No known objects."));
 }
 
-export function debugOverview(type, data) {
+export const debugSections = {
+  debug: { characters: "Characters", activity: "Activity", world: "World", notes: "Notes", conversations: "Conversations" },
+  debug_character: { world: "Known world", events: "Events in earshot", notes: "Visible notes", conversation: "Conversation", context: "Model context" },
+};
+const drilldown = (section, title, detail) => `<button class="debug-drilldown" data-debug-section="${section}"><strong>${escape(title)} →</strong><span>${escape(detail)}</span></button>`;
+const characterLink = (id, name) => `<button class="debug-character-link" data-debug-character="${escape(id)}">${escape(name || id)} →</button>`;
+
+export function characterTranscripts(data, characterId) {
+  return {
+    requests: (data.requests || []).filter(entry => entry.characterId === characterId),
+    agentRuns: Object.fromEntries(Object.entries(data.agentRuns || {}).filter(([, run]) => run.characterId === characterId)),
+  };
+}
+
+export function debugOverview(type, data, section = "") {
   let content;
   if (type === "debug_gm") {
     const compulsion = data.compulsion || {};
@@ -53,17 +67,44 @@ export function debugOverview(type, data) {
     // Use only this inspector's knowledge-filtered payload, never global state.
     const character = data.character || {};
     const name = id => id === character.id ? character.name : id;
-    content = characterCard(character, name) + worldCards(data.knownWorld, name)
-      + eventFeed(data.eventFeed) + notes(data.visibleNotes) + card("Conversation", messages(data.conversation))
-      + card("Model context", facts([["Assembled messages", data.modelMessages?.length ?? 0]]) + `<p class="debug-meta">Complete prompts and messages are available in Raw JSON.</p>`);
+    const sections = {
+      world: () => worldCards(data.knownWorld, name),
+      events: () => eventFeed(data.eventFeed),
+      notes: () => notes(data.visibleNotes),
+      conversation: () => card("Conversation", messages(data.conversation)),
+      context: () => card("Model context", messages(data.modelMessages)),
+    };
+    content = sections[section] ? sections[section]() : characterCard(character, name)
+      + Object.entries(debugSections.debug_character).map(([id, title]) => drilldown(id, title, {
+        world: "What this character knows", events: `${data.eventFeed?.length ?? 0} perceived events`,
+        notes: `${data.visibleNotes?.length ?? 0} available notes`, conversation: `${data.conversation?.length ?? 0} messages`,
+        context: `${data.modelMessages?.length ?? 0} assembled messages`,
+      }[id])).join("");
+
   } else {
     const scenario = data.scenario || {};
     const name = id => scenario.characters?.find(character => character.id === id)?.name || id;
-    content = card("Scenario", facts([["ID", scenario.id], ["Characters", scenario.characters?.length ?? 0], ["Notes", scenario.notes?.length ?? 0], ["GM messages", data.gameMasterHistory?.length ?? 0]]) + `<details><summary>Premise</summary><p>${escape(scenario.premise)}</p></details>`)
-      + worldCards(scenario.world, name, scenario.characters)
-      + (scenario.characters || []).map(character => characterCard(character, name, character.id !== scenario.playerCharacterId)).join("")
-      + notes(scenario.notes)
-      + card("Conversations", list(Object.entries(data.conversations || {}), ([id, transcript]) => `<strong>${escape(name(id))}</strong><p>${transcript.length} messages</p>`, "No conversations recorded."));
+    const characters = scenario.characters || [];
+    const sections = {
+      characters: () => card("Characters", list(characters, character => character.id === scenario.playerCharacterId
+        ? `<details><summary>${escape(character.name)} · Player</summary>${characterCard(character, name, false)}</details>`
+        : characterLink(character.id, character.name) + `<p class="debug-meta">${escape(character.currentGoal || "No current goal")}</p>`, "No characters recorded.")),
+      activity: () => '<section class="debug-card npc-planner" data-npc-panel></section>',
+      world: () => worldCards(scenario.world, name, characters),
+      notes: () => notes(scenario.notes),
+      conversations: () => card("Conversations", list(Object.entries(data.conversations || {}), ([id, transcript]) =>
+        characterLink(id, name(id)) + `<p>${transcript.length} messages</p>`, "No conversations recorded.")),
+    };
+    content = sections[section] ? sections[section]()
+      : card("Scenario", facts([["ID", scenario.id], ["Phase", label(scenario.world?.phase)], ["Day", scenario.world?.day], ["Revision", scenario.world?.revision]]) + `<details><summary>Premise</summary><p>${escape(scenario.premise)}</p></details>`)
+        + Object.entries(debugSections.debug).map(([id, title]) => drilldown(id, title, {
+          characters: `${characters.length} characters · inspect individual knowledge and goals`,
+          activity: "Live NPC goals, progress and controls", world: "Authoritative locations and objects",
+          notes: `${scenario.notes?.length ?? 0} scenario notes`,
+          conversations: `${Object.keys(data.conversations || {}).length} conversations`,
+        }[id])).join("")
+        + '<button class="debug-drilldown" data-gm-debug><strong>Laughing Stranger →</strong><span>Game master prompts and history</span></button>';
+
   }
   return `<div class="debug-grid">${content}</div>`;
 }
