@@ -69,8 +69,14 @@ The action-execution Jev experiment is configured in `apps/web/src/feature-flags
   (name, status, success criteria, current task).
 - Level `2` adds biography and full parked objectives.
 - Level `3` also adds relationships and character-visible notes.
-- `JEV_ACTION_INCLUDE_RECENT_RESULTS = true` optionally adds recent completed
-  action results to any tier. It defaults to `false`.
+- `JEV_ACTION_INCLUDE_RECENT_RESULTS = true` includes the exact completed action
+  IDs, one per line, in every tier. It defaults to `true`; disable it for ablation evals.
+
+The input is ordered: who you are (including selected character context), current
+objective, world state, action log. The log is chronological and starts with
+`None yet.`. It records completed actions, not rejected plans or walking ticks,
+and is scoped to the current activity. Older saves without action IDs start an
+empty log; existing prose history remains available to the legacy planner.
 
 The text includes room connections, actions to enter adjacent rooms, local
 interactions with action IDs and walking distances, known contents, inventory,
@@ -80,7 +86,7 @@ still receives the short execution instructions and selectable choice criteria.
 Event-reaction Jev, dialogue, and GM context are unaffected by these settings.
 
 Evals can override both settings per runtime:
-`new BrowserGameRuntime(scenario, key, snapshot, undefined, undefined, Math.random, true, { level: 1, includeRecentResults: false })`.
+`new BrowserGameRuntime(scenario, key, snapshot, undefined, undefined, Math.random, true, { level: 1, includeRecentResults: true })`.
 Pass `false` as the seventh argument for the legacy baseline. Configuration follows
 runtime forks and is not saved as game state. The debug inspector displays the
 same text `state` supplied to the action planner.

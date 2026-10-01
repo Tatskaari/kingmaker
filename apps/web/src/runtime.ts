@@ -44,6 +44,8 @@ export interface NpcActivity {
   status: "idle" | "active";
   goal: string;
   history: string[];
+  /** Exact completed action IDs for the text planner; older saves may omit these. */
+  actionIds?: string[];
   result?: { reason: "complete" | "unable" | "wait" | "error" | "limit" | "cancelled"; detail: string };
   reviewPending?: boolean;
 }
@@ -847,7 +849,7 @@ export class BrowserGameRuntime {
     const keys = [...new Set([...actionResourceIds(scenario, characterId), ...observation.actions.flatMap(action => actionResourceIds(scenario, characterId, action))])];
     const generations = generationIds(this.readResources(keys));
     const state = this.roomScopedJev
-      ? renderJevActionState(scenario, observation, activity.history, this.jevActionContext)
+      ? renderJevActionState(scenario, observation, activity.actionIds ?? [], this.jevActionContext)
       : { ...observation, generations, previousWriteConflict, actions: observation.actions.map(({ path, ...action }) => action), recentActions: activity.history };
     const instructions = this.roomScopedJev ? ROOM_COURT_INSTRUCTIONS : { ...COURT_INSTRUCTIONS, legality: "Actions are mechanically possible. Those marked illegal violate ownership or room access; weigh them against your character's intentions. Reaching a requested room completes the travel, but waiting there for another character to act requires the wait choice. Use offered talk actions to initiate a conversation with the player or make requests of other NPCs. You cannot force agreement or speak for the player." };
     const decision = await this.#modelTranscripts.record("jev", characterId, jevRequest(state, instructions, criteria), () => this.#jev.choose(state, instructions, criteria, signal), undefined, this.#characterName(characterId));
@@ -1222,6 +1224,7 @@ export class BrowserGameRuntime {
     if (action.type === "fixture") message = applyFixtureAction(scenario, characterId, action.id);
     world.revision++; this.#setGame(new MemoryGame(scenario));
     activity.history.push(message);
+    (activity.actionIds ??= []).push(action.id);
     return message;
   }
 
@@ -1267,7 +1270,11 @@ export class BrowserGameRuntime {
           surroundings: courtAgentObservation(scenario, characterId).world }) }],
     }, signal);
     valid();
-    return text(this.#liveReview ? resolution.content : this.#applyReview(scenario), "summary");
+    const summary = text(this.#liveReview ? resolution.content : this.#applyReview(scenario), "summary");
+    const recordAction = (host: BrowserGameRuntime) => { (host.#npcActivities[characterId]!.actionIds ??= []).push(action.id); };
+    if (this.#liveReview) await this.#liveReview.commit(() => recordAction(this.#liveReview!.host));
+    else recordAction(this);
+    return summary;
   }
 
   async initiatePlayerConversation(characterId: string, actionId: string, revision: number, goal: string, signal: AbortSignal): Promise<string> {
@@ -1305,6 +1312,7 @@ export class BrowserGameRuntime {
     })]);
     this.#conversationEndRequested[characterId] = false;
     this.#conversationReplyOptions[characterId] = replyOptions;
+    (activity!.actionIds ??= []).push(action.id);
     return utterance;
   }
 

@@ -35,8 +35,7 @@ export function renderJevRoomView(scenario: Scenario, observation: Observation):
       ] : [] })),
   ].map(entity => ({ ...entity, actions: actionsFor(entity.id) }))
     .sort((a, b) => Math.min(...a.actions.map(action => action.path.length)) - Math.min(...b.actions.map(action => action.path.length)) || a.id.localeCompare(b.id));
-  const lines = [`You: ${observation.characterContext.character.name} [${observation.characterContext.character.id}]`,
-    "", `${room.name} (current room) [${room.id}]:`];
+  const lines = [`${room.name} (current room) [${room.id}]:`];
   for (const entity of entities) {
     const distance = Math.min(...entity.actions.map(action => action.path.length - 1));
     lines.push(`  ${Number.isFinite(distance) ? distance === 0 ? "Within reach" : steps(distance) + " away" : "No available actions"}: ${entity.name} [${entity.id}]`,
@@ -63,19 +62,21 @@ export function renderJevRoomView(scenario: Scenario, observation: Observation):
 
 /** Only the action planner uses these tiers. No premise, audience, or other
  * character context is implicitly appended to the rendered input. */
-export function renderJevActionState(scenario: Scenario, observation: Observation, recentResults: readonly string[] = [], options: JevActionContextOptions = {}): string {
+export function renderJevActionState(scenario: Scenario, observation: Observation, actionIds: readonly string[] = [], options: JevActionContextOptions = {}): string {
   const level = options.level ?? JEV_ACTION_CONTEXT_LEVEL;
   if (![1, 2, 3].includes(level)) throw new Error("Jev action context level must be 1, 2 or 3.");
   const { character, notes } = observation.characterContext;
-  const sections = [renderJevRoomView(scenario, observation), "Current objective:\n" + (character.activeObjective
-    ? objectiveText(character.activeObjective) : "None recorded.")];
-  if (!character.activeObjective || character.activeObjective.currentGoal !== observation.goal) sections.push(`Current execution task:\n${observation.goal}`);
+  const sections = [`Who you are:\n${character.name} [${character.id}]`];
   if (level >= 2) sections.push(`Biography:\n${character.lore || "None recorded."}`, "Parked objectives (not active tasks):\n"
     + (character.parkedObjectives.map(objectiveText).join("\n\n") || "None."));
   if (level >= 3) sections.push("Relationships:\n" + (character.relationships.map(item =>
     `- ${scenario.characters.find(other => other.id === item.characterId)?.name ?? item.characterId}: ${item.description}`).join("\n") || "None."),
   "Notes known to this character:\n" + (notes.map(note => `- Day ${note.day}: ${note.text}`).join("\n") || "None."));
-  if (options.includeRecentResults ?? JEV_ACTION_INCLUDE_RECENT_RESULTS) sections.push("Recent action results (already happened):\n"
-    + (recentResults.map(result => `- ${result}`).join("\n") || "None."));
+  sections.push("Current objective:\n" + (character.activeObjective
+    ? objectiveText(character.activeObjective) : "None recorded."));
+  if (!character.activeObjective || character.activeObjective.currentGoal !== observation.goal) sections.push(`Current execution task:\n${observation.goal}`);
+  sections.push("World state:\n" + renderJevRoomView(scenario, observation));
+  if (options.includeRecentResults ?? JEV_ACTION_INCLUDE_RECENT_RESULTS) sections.push("Action log (completed actions, oldest first):\n"
+    + (actionIds.join("\n") || "None yet."));
   return sections.join("\n\n");
 }

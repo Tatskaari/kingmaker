@@ -40,6 +40,9 @@ test("the boolean defaults off; enabling it changes only Jev's view and choices"
   assert.ok(baseline!.instructions.privacy);
   const state = experimental!.state;
   assert.equal(typeof state, "string");
+  const headings = ["Who you are:", "Current objective:", "World state:", "Action log ("];
+  assert.deepEqual(headings.map(heading => state.indexOf(heading)), headings.map(heading => state.indexOf(heading)).sort((a, b) => a - b));
+  assert.ok(state.endsWith("None yet."));
   const scenario = fromJson(ScenarioSchema, local.snapshot().scenario);
   assert.equal(state, renderJevActionState(scenario, courtAgentObservation(scenario, "corvin", true)));
   assert.equal(typeof experimental!.instructions, "string");
@@ -62,8 +65,10 @@ test("the boolean defaults off; enabling it changes only Jev's view and choices"
 
 test("local plans open, enter, and close a room through real runtime tile steps", async t => {
   const runtime = game(true);
+  const completed: string[] = [];
   for (const id of ["open_treasury_door_0", "enter_treasury", "close_treasury_door_1"]) {
-    t.mock.method(JevClient.prototype, "choose", async (_state: unknown, _instructions: unknown, criteria: Record<string, string>) => {
+    t.mock.method(JevClient.prototype, "choose", async (state: string, _instructions: unknown, criteria: Record<string, string>) => {
+      assert.equal(state.split("Action log (completed actions, oldest first):\n")[1], completed.join("\n") || "None yet.");
       assert.ok(id in criteria, `${id} should be offered`); return decision(id, criteria);
     });
     const plan = await runtime.planNpc("corvin", signal());
@@ -74,11 +79,13 @@ test("local plans open, enter, and close a room through real runtime tile steps"
       if (step.done) { done = true; break; }
     }
     assert.ok(done, `${id} never completed`);
+    completed.push(id);
   }
   const saved = runtime.snapshot(), world = fromJson(ScenarioSchema, saved.scenario).world!;
   assert.equal(world.actors.find(actor => actor.characterId === "corvin")!.roomId, "treasury");
   assert.equal(world.doors.find(door => door.id === "treasury_door")!.open, false);
   assert.equal(saved.npcActivities!.corvin!.history.length, 3);
+  assert.deepEqual(saved.npcActivities!.corvin!.actionIds, completed);
   const restored = game(true); restored.restore(saved);
   assert.deepEqual(restored.snapshot(), saved);
 });

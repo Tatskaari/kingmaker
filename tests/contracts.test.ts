@@ -1639,6 +1639,7 @@ test("Jev receives reachable NPC talk actions, then both participants save priva
   await runtime.executeNpcTalk("corvin", action.id, observation.revision, observation.goal, new AbortController().signal);
   const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
   assert.equal(calls, 2);
+  assert.deepEqual(runtime.snapshot().npcActivities?.corvin?.actionIds, [action.id]);
   assert.equal(runtime.snapshot().npcActivities?.corvin?.status, "idle");
   assert.equal(runtime.snapshot().npcActivities?.[action.target]?.status, "active");
   assert.deepEqual(saved.world!.objects, scenario.world!.objects);
@@ -1667,6 +1668,7 @@ test("NPC-initiated player conversations remain open despite a premature model e
   const utterance = await runtime.initiatePlayerConversation("corvin", playerAction.id, observation.revision,
     scenario.characters.find(item => item.id === "corvin")!.currentGoal, new AbortController().signal);
 
+  assert.deepEqual(runtime.snapshot().npcActivities?.corvin?.actionIds, [playerAction.id]);
   assert.equal(utterance, "Envoy, a private word about the succession.");
   assert.deepEqual(runtime.view().conversations, { corvin: [{ role: "character", text: utterance }] });
   assert.deepEqual(runtime.view().conversationReplyOptions, { corvin: ["Speak plainly.", "Not now."] });
@@ -2628,4 +2630,17 @@ test("NPC exchanges use the same DM tools and cancellation rules for both partic
   assert.ok(scenario.world!.objects.some(o => o.id === "envoy_token"));
   assert.equal(saved.npcActivities?.[action.target]?.status, "idle");
   assert.equal(scenario.characters.find(c => c.id === action.target)!.currentGoal, "");
+});
+
+
+test("completed NPC talk IDs are recorded on the live review host", async t => {
+  const { runtime, observation, action } = talkingCourt();
+  let calls = 0;
+  t.mock.method(OpenRouterClient.prototype, "complete", async () => ++calls === 1
+    ? modelReply({ request: "Hello.", intent: "Greet them." })
+    : modelReply({ summary: "They exchange greetings.", initiator: idleMemory, recipient: idleMemory }));
+  const fork = runtime.forkForResourceReview(async work => work());
+  await fork.executeNpcTalk("corvin", action.id, observation.revision, observation.goal, new AbortController().signal);
+  assert.deepEqual(runtime.snapshot().npcActivities?.corvin?.actionIds, [action.id]);
+  assert.equal(runtime.snapshot().npcActivities?.[action.target]?.actionIds, undefined);
 });
