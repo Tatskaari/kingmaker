@@ -16,7 +16,7 @@ export interface JevWorldEvalScenario {
 export interface JevEvalTraceEntry { turn: number; choice: string; action?: string; confidence?: number }
 export interface JevEvalRun extends JevEvalAssessment {
   turns: number; terminalChoice: string; trace: JevEvalTraceEntry[]; transcripts: ModelTranscript[];
-  finalSnapshot: RuntimeSnapshot; talkCalls: JevTalkCall[]; error?: string;
+  finalSnapshot: RuntimeSnapshot; talkCalls: JevTalkCall[]; minimal?: boolean; error?: string;
 }
 export interface JevEvalSummary {
   name: string; runs: JevEvalRun[]; successes: number; failures: number; successRate: number;
@@ -37,8 +37,14 @@ function activateGoal(runtime: BrowserGameRuntime, characterId: string, goal: st
   runtime.restore(snapshot);
 }
 
-export async function runJevEvalOnce(definition: JevWorldEvalScenario, apiKey: string): Promise<JevEvalRun> {
-  const runtime = definition.createRuntime(apiKey), trace: JevEvalTraceEntry[] = [];
+export async function runJevEvalOnce(definition: JevWorldEvalScenario, apiKey: string, minimal = false): Promise<JevEvalRun> {
+  let runtime = definition.createRuntime(apiKey);
+  if (minimal) {
+    const snapshot = runtime.snapshot();
+    runtime = new BrowserGameRuntime(fromJson(ScenarioSchema, snapshot.scenario), apiKey, snapshot,
+      undefined, undefined, undefined, true, { level: 1, includeRecentResults: false });
+  }
+  const trace: JevEvalTraceEntry[] = [];
   const talkCalls: JevTalkCall[] = [];
   let terminalChoice = "limit", error: string | undefined;
   try {
@@ -86,7 +92,7 @@ export async function runJevEvalOnce(definition: JevWorldEvalScenario, apiKey: s
   } catch (cause) {
     assessment = { success: false, reason: cause instanceof Error ? cause.message : String(cause) };
   }
-  return { ...assessment, turns: trace.length, terminalChoice, trace, talkCalls,
+  return { ...assessment, turns: trace.length, terminalChoice, trace, talkCalls, minimal,
     transcripts: runtime.recentTranscripts().filter(entry => entry.kind === "jev").reverse(), finalSnapshot,
     ...(error === undefined ? {} : { error }) };
 }
@@ -102,10 +108,10 @@ export function summarizeJevEval(name: string, runs: JevEvalRun[]): JevEvalSumma
     ...(failed.length ? { averageFailureTurns: mean(failed.map(run => run.turns))! } : {}) };
 }
 export async function runJevEval(definition: JevWorldEvalScenario, apiKey: string,
-  onRun?: (run: JevEvalRun, runNumber: number) => void): Promise<JevEvalSummary> {
+  onRun?: (run: JevEvalRun, runNumber: number) => void, minimal = false): Promise<JevEvalSummary> {
   const runs: JevEvalRun[] = [];
   for (let index = 0; index < (definition.repeats ?? 10); index++) {
-    const run = await runJevEvalOnce(definition, apiKey); runs.push(run); onRun?.(run, index + 1);
+    const run = await runJevEvalOnce(definition, apiKey, minimal); runs.push(run); onRun?.(run, index + 1);
   }
   return summarizeJevEval(definition.name, runs);
 }
@@ -120,6 +126,7 @@ export function writeJevEvalArtifact(outputDirectory: string, startedAt: Date, d
   const path = join(outputDirectory, artifactFileName(startedAt, definition.name, runNumber));
   writeFileSync(path, JSON.stringify({ recordedAt: new Date().toISOString(),
     scenario: { name: definition.name, characterId: definition.characterId, goal: definition.goal }, run: runNumber,
+    minimal: run.minimal ?? false,
     success: run.success, turns: run.turns, terminalChoice: run.terminalChoice, reason: run.reason, error: run.error,
     trace: run.trace, talkCalls: run.talkCalls, transcripts: run.transcripts, finalSnapshot: run.finalSnapshot }, null, 2) + "\n");
   return path;

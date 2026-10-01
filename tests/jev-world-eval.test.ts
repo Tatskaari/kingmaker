@@ -25,6 +25,21 @@ test("Jev eval summaries separate successful and failed turn counts", () => {
   assert.equal(summary.averageSuccessTurns, 5); assert.equal(summary.averageFailureTurns, 14);
 });
 
+test("minimal eval sends the text interface without character background or recent results", async t => {
+  let observed: unknown;
+  t.mock.method(JevClient.prototype, "choose", async (state: unknown) => {
+    observed = state;
+    return { choice: "complete", probabilities: {} };
+  });
+  const result = await runJevEvalOnce(silkScarf, "test", true);
+  assert.equal(result.error, undefined);
+  assert.equal(result.minimal, true);
+  assert.equal(typeof observed, "string");
+  assert.match(observed as string, /Great Hall/);
+  assert.match(observed as string, /fetch the silk scarf/);
+  assert.doesNotMatch(observed as string, /Biography|Relationships|Recent results|Parked objectives/);
+});
+
 test("mocked talks cover every guest, feed planner history, and leave recipients in place on fresh runs", async t => {
   t.mock.method(OpenRouterClient.prototype, "complete", async () => { throw new Error("Dialogue must be mocked"); });
   t.mock.method(JevClient.prototype, "choose", async (state: { recentActions: string[] }) => {

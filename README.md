@@ -139,6 +139,11 @@ both bedroom doors, then talk to Rowan. At that conversation boundary the eval
 checks the king carries the seal and all three closures are complete. It uses
 the same authored world, production prompts, and 24-decision budget.
 
+Add `--minimal` to opt each run into the room-scoped text interface with context
+level 1 (scene plus active objective) and recent results disabled:
+`npm run eval:jev -- "royal seal" --minimal`. Artifacts record `minimal: true`.
+This uses per-runtime overrides and does not change the game's default flags.
+
 ## Reset while developing
 
 With a loaded character, use the browser console:

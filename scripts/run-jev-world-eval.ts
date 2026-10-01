@@ -4,18 +4,20 @@ import { runJevEval, writeJevEvalArtifact, type JevEvalSummary } from "../packag
 
 const apiKey = process.env.OPENROUTER_API_KEY?.trim();
 if (!apiKey) throw new Error("Set OPENROUTER_API_KEY to run Jev world-state evals.");
-const requested = process.argv.slice(2).map(value => value.toLowerCase());
+const minimal = process.argv.includes("--minimal");
+const requested = process.argv.slice(2).filter(value => value !== "--minimal").map(value => value.toLowerCase());
 const scenarios = requested.length ? jevWorldEvalScenarios.filter(scenario => requested.some(value => scenario.name.toLowerCase().includes(value))) : jevWorldEvalScenarios;
 if (!scenarios.length) throw new Error(`No Jev eval scenario matched: ${requested.join(", ")}`);
 const startedAt = new Date(), outputDirectory = resolve(process.env.JEV_EVAL_OUTPUT_DIR?.trim() || "eval-output/jev");
 const summaries: JevEvalSummary[] = [];
 console.log(`Jev world-state evaluations\n${startedAt.toISOString()} · output ${outputDirectory}\n`);
+console.log(`Context: ${minimal ? "minimal (room-scoped scene + objective, no recent results)" : "runtime defaults"}\n`);
 for (const scenario of scenarios) {
   console.log(`${scenario.name}\n  ${scenario.repeats ?? 10} runs · ${scenario.goal}`);
   const summary = await runJevEval(scenario, apiKey, (run, runNumber) => {
     const path = writeJevEvalArtifact(outputDirectory, startedAt, scenario, runNumber, run);
     console.log(`  ${String(runNumber).padStart(2, " ")}. ${run.success ? "PASS" : "FAIL"} · ${run.turns} turns · ${run.terminalChoice}${run.reason ? ` · ${run.reason}` : ""}\n      ${path}`);
-  });
+  }, minimal);
   summaries.push(summary);
   const successAverage = summary.averageSuccessTurns === undefined ? "n/a" : summary.averageSuccessTurns.toFixed(1);
   const failureAverage = summary.averageFailureTurns === undefined ? "n/a" : summary.averageFailureTurns.toFixed(1);
