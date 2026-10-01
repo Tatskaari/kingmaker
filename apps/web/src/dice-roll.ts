@@ -1,3 +1,4 @@
+import { resolveDiceCheck, degreeLabel } from "../../../packages/core/src/ability-checks.js";
 type Point = [number, number, number];
 const dot = (a: Point, b: Point) => a.reduce((sum, value, i) => sum + value * b[i]!, 0);
 const sub = (a: Point, b: Point): Point => [a[0] - b[0], a[1] - b[1], a[2] - b[2]];
@@ -17,11 +18,7 @@ const vertical = unit(sub(normal.map(n => n * dot(a, normal)) as Point, a));
 const horizontal = cross(vertical, normal);
 const resting = vertices.map(v => [dot(v, horizontal), dot(v, vertical), dot(v, normal)] as Point);
 
-export function resolveDiceCheck(roll: number, dc: number, modifier: number) {
-  if (!Number.isInteger(roll) || roll < 1 || roll > 20) throw new RangeError("A d20 result must be an integer from 1 to 20.");
-  if (!Number.isSafeInteger(dc) || !Number.isSafeInteger(modifier) || !Number.isSafeInteger(roll + modifier)) throw new RangeError("DC and modifier must be safe integers.");
-  return { total: roll + modifier, success: roll + modifier >= dc };
-}
+export { resolveDiceCheck } from "../../../packages/core/src/ability-checks.js";
 
 /** Cosmetic presentation only: callers supply the resolved natural d20 result. */
 export function showDiceRoll({ roll, dc, modifier, label = "Ability check", preview = false }: { roll: number; dc: number; modifier: number; label?: string; preview?: boolean }) {
@@ -39,7 +36,7 @@ export function showDiceRoll({ roll, dc, modifier, label = "Ability check", prev
   dialog.querySelector("h2")!.textContent = label;
   const bonus = `${modifier >= 0 ? "+" : "−"}${Math.abs(modifier)}`;
   dialog.querySelector(".dice-target")!.textContent = `Difficulty ${dc}   ·   Modifier ${bonus}`;
-  dialog.querySelector(".dice-note")!.textContent = preview ? "Test roll only · Your story is unchanged" : "Roll + modifier must meet the difficulty";
+  dialog.querySelector(".dice-note")!.textContent = preview ? "Test roll only · Your story is unchanged" : "Natural 1 always fails · Natural 20 always succeeds";
   document.body.append(dialog);
   const canvas = dialog.querySelector("canvas")!;
   const ctx = canvas.getContext("2d")!;
@@ -90,7 +87,7 @@ export function showDiceRoll({ roll, dc, modifier, label = "Ability check", prev
     dialog.querySelector(".dice-caption")!.textContent = roll === 20 ? "A legendary roll" : roll === 1 ? "The fates are fickle" : "The die is cast";
     const { total, success } = result;
     dialog.dataset.outcome = success ? "success" : "failure";
-    dialog.querySelector(".dice-result strong")!.textContent = success ? "Success" : "Failure";
+    dialog.querySelector(".dice-result strong")!.textContent = degreeLabel(resolveDiceCheck(roll, dc, modifier).degree);
     dialog.querySelector(".dice-caption")!.textContent += ` · Natural ${roll}`;
     dialog.querySelector(".dice-target")!.textContent = `${roll} ${bonus} = ${total}   ·   DC ${dc}`;
     button.textContent = "Continue";

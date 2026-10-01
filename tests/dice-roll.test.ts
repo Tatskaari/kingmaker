@@ -3,11 +3,11 @@ import test from "node:test";
 import { resolveDiceCheck } from "../apps/web/src/dice-roll.js";
 
 test("ability checks include modifiers and succeed when the total meets the DC", () => {
-  assert.deepEqual(resolveDiceCheck(12, 15, 3), { total: 15, success: true });
-  assert.deepEqual(resolveDiceCheck(11, 15, 3), { total: 14, success: false });
-  assert.deepEqual(resolveDiceCheck(17, 15, -3), { total: 14, success: false });
-  assert.deepEqual(resolveDiceCheck(1, 5, 4), { total: 5, success: true });
-  assert.deepEqual(resolveDiceCheck(20, 25, 0), { total: 20, success: false });
+  assert.deepEqual(resolveDiceCheck(12, 15, 3), { total: 15, margin: 0, degree: "barely_passes", success: true });
+  assert.deepEqual(resolveDiceCheck(11, 15, 3), { total: 14, margin: -1, degree: "minor_failure", success: false });
+  assert.deepEqual(resolveDiceCheck(17, 15, -3), { total: 14, margin: -1, degree: "minor_failure", success: false });
+  assert.deepEqual(resolveDiceCheck(1, 5, 4), { total: 5, margin: 0, degree: "critical_failure", success: false });
+  assert.deepEqual(resolveDiceCheck(20, 25, 0), { total: 20, margin: -5, degree: "critical_success", success: true });
 });
 
 test("reject invalid dice results and non-integer or overflowing check parameters", () => {
