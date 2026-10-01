@@ -3,6 +3,20 @@ import { gameLogger } from "../../../packages/observability/src/logging.js";
 const log = gameLogger("models");
 
 export type ModelCallKind = "npc_request" | "npc_resolution" | "game_master" | "dialogue" | "dialogue_flavour" | "gm_consultation" | "conversation_review" | "conversation_check" | "world_event" | "event_decision" | "jev" | "outcome_review";
+export const modelCallLabels: Record<ModelCallKind, string> = {
+  npc_request: "NPC request interpretation",
+  npc_resolution: "character review (NPC action)",
+  game_master: "character creation",
+  dialogue: "dialogue generation",
+  dialogue_flavour: "dialogue flavour",
+  gm_consultation: "GM consultation",
+  conversation_review: "character review (conversation)",
+  conversation_check: "conversation classification",
+  world_event: "character review (world event)",
+  event_decision: "event relevance check",
+  jev: "NPC action selection",
+  outcome_review: "character review (outcome)",
+};
 export interface ModelTranscript {
   id: number;
   kind: ModelCallKind;
@@ -78,8 +92,10 @@ export class ModelTranscripts {
     runKey ||= this.start(kind, subject, characterId);
     const started = Date.now();
     const entry: ModelTranscript = { id: ++this.#sequence, kind, characterId, startedAt: new Date(started).toISOString(), status: "pending", request: this.#clean(request) };
-    const fields = { runKey, callId: entry.id, kind, characterId };
-    log.debug("Model call started", { ...fields, request: entry.request });
+    const callType = ["jev", "event_decision", "conversation_check"].includes(kind) ? "JEV" : "LLM";
+    const operation = modelCallLabels[kind];
+    const fields = { runKey, callId: entry.id, kind, characterId, callType, operation };
+    log.debug(`${callType}: ${operation} started`, { ...fields, request: entry.request });
     this.#entries.push(entry);
     this.#runs[runKey]?.calls.push(entry);
     if (this.#entries.length > 50) this.#entries.shift();
@@ -87,13 +103,13 @@ export class ModelTranscripts {
     try {
       const response = await call();
       entry.response = this.#clean(response); entry.status = "success";
-      log.debug("Model call completed", { ...fields, durationMs: Date.now() - started, response: entry.response });
+      log.debug(`${callType}: ${operation} completed`, { ...fields, durationMs: Date.now() - started, response: entry.response });
       if (ownRun) this.finish(runKey);
       return response;
     } catch (error) {
       entry.error = String(this.#clean(error instanceof Error ? error.message : String(error)));
       entry.status = "error";
-      log.error("Model call failed", { ...fields, durationMs: Date.now() - started, error: entry.error });
+      log.error(`${callType}: ${operation} failed`, { ...fields, durationMs: Date.now() - started, error: entry.error });
       if (ownRun) this.fail(runKey, error);
       throw error;
     } finally { entry.durationMs = Date.now() - started; this.changed(); }

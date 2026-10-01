@@ -77,7 +77,7 @@ test("classification failures are logged as errors, not no-check results", async
   assert.equal(entry.status, "error");
   assert.equal(entry.error, "[redacted] unavailable");
   assert.equal(entry.response, undefined);
-  assert.equal(records().at(-1).message, "Model call failed");
+  assert.equal(records().at(-1).message, "JEV: conversation classification failed");
   const count = runtime.recentTranscripts().length;
   await runtime.logConversationChecks("missing", "Hello");
   await runtime.logConversationChecks("corvin", " ");

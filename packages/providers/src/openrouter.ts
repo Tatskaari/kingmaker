@@ -56,9 +56,9 @@ export class OpenRouterClient {
     private readonly onWarning: (message: string) => void = () => {},
   ) {}
 
-  async complete(request: ChatCompletionRequest, signal?: AbortSignal): Promise<OpenRouterMessage> {
+  async complete(request: ChatCompletionRequest, signal?: AbortSignal, operation = "chat completion"): Promise<OpenRouterMessage> {
     return logDecision(request.api === "responses" ? "openrouter.responses" : "openrouter.chat", request, this.apiKey,
-      () => this.#complete(request, signal));
+      () => this.#complete(request, signal), operation);
   }
 
   async #complete(request: ChatCompletionRequest, signal?: AbortSignal): Promise<OpenRouterMessage> {

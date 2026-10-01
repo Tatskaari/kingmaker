@@ -19,7 +19,7 @@ test("model logs correlate calls and redact credentials on success and failure",
   assert.equal(records[0].properties.runKey, records[1].properties.runKey);
   assert.equal(records[0].properties.callId, records[1].properties.callId);
   assert.notEqual(records[0].properties.runKey, records[2].properties.runKey);
-  assert.equal(records[3].message, "Model call failed");
+  assert.equal(records[3].message, "JEV: NPC action selection failed");
   assert.equal(records[3].properties.error, "rejected [redacted]");
   assert.ok(records[3].properties.durationMs >= 0);
 });

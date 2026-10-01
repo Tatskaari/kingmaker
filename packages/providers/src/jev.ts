@@ -15,12 +15,12 @@ export class JevClient {
   constructor(private readonly apiKey: string, private readonly http: typeof fetch = (input, init) => globalThis.fetch(input, init),
     private readonly onRequest?: (request: ReturnType<typeof jevEvaluationRequest>) => void,
     private readonly onWarning: (message: string) => void = () => {}) {}
-  async choose(state: unknown, instructions: JevInstructions, criteria: Record<string, string>, signal: AbortSignal): Promise<JevChoice> {
-    const answers = await this.evaluate(state, { next: { type: "choice", instructions, criteria } }, signal);
+  async choose(state: unknown, instructions: JevInstructions, criteria: Record<string, string>, signal: AbortSignal, operation = "choice evaluation"): Promise<JevChoice> {
+    const answers = await this.evaluate(state, { next: { type: "choice", instructions, criteria } }, signal, operation);
     return answers.next!;
   }
-  async evaluate(state: unknown, questions: JevQuestions, signal: AbortSignal): Promise<Record<string, JevChoice>> {
-    return logDecision("jev", jevEvaluationRequest(state, questions), this.apiKey, () => this.#evaluate(state, questions, signal));
+  async evaluate(state: unknown, questions: JevQuestions, signal: AbortSignal, operation = "criteria evaluation"): Promise<Record<string, JevChoice>> {
+    return logDecision("jev", jevEvaluationRequest(state, questions), this.apiKey, () => this.#evaluate(state, questions, signal), operation);
   }
 
   async #evaluate(state: unknown, questions: JevQuestions, signal: AbortSignal): Promise<Record<string, JevChoice>> {

@@ -28,7 +28,7 @@ const completed = await Promise.all(evals.map(async ({ scenario, transcript, com
         scenario.toolset === "none" ? [] : resourceReviewTools(), {
         generate: (model, messages, tools) => generator.complete({
           model, api: "responses", reasoning: { effort: "medium" }, messages, tools,
-        }, signal),
+        }, signal, "unit evaluation generation"),
         judge: (state, criteria) => jev.evaluate(state, Object.fromEntries(criteria.map(criterion => [criterion.id, {
           type: "choice" as const,
           instructions: `Evaluate only this scoring criterion: ${criterion.criterion}`,
@@ -36,7 +36,7 @@ const completed = await Promise.all(evals.map(async ({ scenario, transcript, com
             meets: "The captured model response clearly meets the criterion in light of the supplied transcript.",
             does_not_meet: "The captured model response fails, contradicts, or lacks evidence for the criterion.",
           },
-        }])), signal),
+        }])), signal, "unit evaluation scoring"),
       }),
     }))),
   };
