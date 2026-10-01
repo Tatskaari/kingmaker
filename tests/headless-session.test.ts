@@ -1,47 +1,51 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import test from "node:test";
-import { guestIds, inviteGuests, jevWorldEvalScenarios, silkScarf } from "../evals/jev/scenarios.js";
-import { HeadlessSession } from "../packages/headless/src/index.js";
+import { fromJsonString } from "@bufbuild/protobuf";
+import { ScenarioSchema } from "../packages/contracts/src/index.js";
+import { HeadlessGame } from "../packages/headless/src/index.js";
 
-test("TypeScript controls the treasury eval without a model or browser", () => {
-  const session = new HeadlessSession(jevWorldEvalScenarios[0]!);
-  const initial = session.observe();
-  assert.throws(() => session.result(), /Finish/);
-  assert.throws(() => session.act("invented_action"), /Unavailable/);
-  assert.equal(session.turns, 0);
-  assert.deepEqual(session.observe(), initial);
-  session.act("open_treasury_door_0");
-  session.act("enter_treasury");
-  const inside = session.observe();
-  const close = Object.keys(inside.choices).find(id => id.startsWith("close_treasury_door"));
-  assert.ok(close);
-  session.act(close);
-  assert.equal(session.act("wait").observation, null);
-  assert.equal(session.result().success, true);
-  assert.throws(() => session.act("wait"), /ended/);
-  assert.throws(() => session.observe(), /ended/);
+function game() {
+  const game = new HeadlessGame(fromJsonString(ScenarioSchema,
+    readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")));
+  game.runtime.createDevelopmentPlayer();
+  return game;
+}
+
+test("player actions use real door mechanics and Jev's room rendering", () => {
+  const live = game();
+  assert.match(live.observe(), /Great Hall/);
+  assert.match(live.overview(), /King Aldren/);
+  const before = live.snapshot();
+  assert.throws(() => live.act("invented"), /Unavailable/);
+  assert.deepEqual(live.snapshot(), before);
+  live.act(live.actions().find(action => action.id.startsWith("open_treasury_door"))!.id);
+  live.act("enter_treasury");
+  live.act(live.actions().find(action => action.id.startsWith("close_treasury_door"))!.id);
+  const state = live.inspect();
+  assert.equal(state.world!.actors.find(actor => actor.characterId === state.playerCharacterId)!.roomId, "treasury");
+  assert.equal(state.world!.doors.find(door => door.id === "treasury_door")!.open, false);
+  live.load(before);
+  assert.match(live.observe(), /^Great Hall/);
 });
 
-test("mock conversations preserve the eval semantics and action log", () => {
-  const session = new HeadlessSession(inviteGuests, { level: 1, includeRecentResults: true });
-  for (const id of guestIds) session.act(`talk_${id}`);
-  assert.match(String(session.observe().state), /talk_mara/);
-  session.act("complete");
-  assert.equal(session.result().success, true);
-  assert.equal(session.result().score, 9);
-  const fresh = new HeadlessSession(inviteGuests);
-  assert.doesNotMatch(String(fresh.observe().state), /Action log[^]*\ntalk_mara/);
+test("inspection is detached, live edits persist, failed edits leave state intact", () => {
+  const live = game();
+  live.inspect().world!.day = 99;
+  assert.notEqual(live.inspect().world!.day, 99);
+  live.edit(state => { state.world!.day = 7; });
+  assert.equal(live.inspect().world!.day, 7);
+  assert.throws(() => live.edit(state => { state.world!.day = 8; throw new Error("stop"); }), /stop/);
+  assert.equal(live.inspect().world!.day, 7);
+  assert.equal(new HeadlessGame(live.snapshot()).inspect().world!.day, 7);
 });
 
-test("unmocked talks yield a conversation boundary rather than inventing dialogue", () => {
-  const session = new HeadlessSession(silkScarf);
-  assert.equal(session.act("talk_rowan").status, "requires_conversation");
-  assert.equal(session.result().success, true);
-});
-
-test("turn budget stops further actions", () => {
-  const session = new HeadlessSession({ ...inviteGuests, maxTurns: 1 });
-  assert.equal(session.act("talk_mara").status, "limit");
-  assert.equal(session.result().success, false);
-  assert.throws(() => session.act("talk_hadrik"), /ended/);
+test("talk approaches a character and delegates to real player dialogue methods", async t => {
+  const live = game();
+  const talk = t.mock.method(live.runtime, "talkToCharacter", async () => "Welcome, envoy.");
+  const end = t.mock.method(live.runtime, "endConversation", async () => undefined);
+  assert.equal(await live.talk("rowan", "Hello"), "Welcome, envoy.");
+  assert.deepEqual(talk.mock.calls[0]!.arguments, ["rowan", "Hello"]);
+  await live.endConversation("rowan");
+  assert.deepEqual(end.mock.calls[0]!.arguments, ["rowan"]);
 });

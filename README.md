@@ -280,34 +280,18 @@ successful review completion. Both provider and runtime model logs redact API ke
 
 ### Headless play from TypeScript
 
-Run `npx tsx scripts/play-headless.ts` for an offline Treasury playthrough. No browser,
-OpenRouter key, or model request is needed. Edit that program or import the API:
+`HeadlessGame` in `packages/headless/src/index.ts` loads a typed `Scenario` or a
+`RuntimeSnapshot`. `observe()` uses Jev's readable room view for the player;
+`actions()` lists available IDs and `act(id)` approaches and interacts through the
+same player runtime methods as the UI. `talk(id, message)` and
+`endConversation(id)` use real model-backed dialogue and review.
 
-```ts
-import { HeadlessSession } from "./packages/headless/src/index.js";
-import { royalSealKeySearch } from "./evals/jev/scenarios.js";
+`inspect()` returns detached typed state; `edit(state => { ... })` applies direct
+world edits. `snapshot()` and `load(snapshot)` capture and restore the entire
+session, including conversations. `overview()` gives an omniscient room-by-room
+cast list. The underlying `runtime` is also available for setup and advanced use.
 
-const session = new HeadlessSession(royalSealKeySearch);
-const { state, instructions, choices } = session.observe();
-// Read state and instructions, then choose an exact key from choices.
-const next = session.act("enter_royal_council_chamber");
-console.log(next.observation);
-```
-
-`observe()` returns the same text, instructions, and choice descriptions used by
-Jev's production planner. `act(choiceId)` synchronously advances the real runtime
-through the entire action, including movement, and returns `{ status, observation }`.
-Unavailable choices throw without consuming a turn. Choose `complete`, `wait`, or
-`unable` to end a run; `result()` then returns the eval assessment and score.
-Completion is the controller's judgment; scoring checks the scenario's actual criteria.
-
-The optional second constructor argument controls Jev context, for example
-`{ level: 1, includeRecentResults: true }`. Each session starts a fresh eval world.
-Pass any `JevWorldEvalScenario` to define a different starting runtime, goal, and scoring.
-The harness controls one character while other characters remain stationary, just
-like the Jev world eval. It does not run background event reactions or GM reviews.
-Talk actions use the scenario's `mockTalk` callback when provided; otherwise the run
-ends with `requires_conversation` at the dialogue boundary. Terminal runs return
-`observation: null` and reject further actions. The scenario turn budget (24 by
-default) and runtime action limit also end the session. Hidden world snapshots are
-not included in observations, and scoring is only available after the run ends.
+Run `npx tsx scripts/play-headless.ts` for an offline example. There are no eval
+criteria, terminal choices, or turn limits. Dialogue requires an OpenRouter key
+passed to the constructor. Background NPC scheduling is not automatically started;
+actions return world events for explicit processing through the runtime.
