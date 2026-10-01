@@ -1,0 +1,10 @@
+{
+  "name": "holt-security-advice",
+  "capturedInput": "../transcripts/holt-security-advice-input.json",
+  "expected": [],
+  "rationale": "Holt's lore explicitly says he offers honest security advice and wants a peaceful assembly. This request fits his established willingness.",
+  "source": {
+    "basedOn": "holt-private-invitation-input.json",
+    "variation": "Replace only the current player turn. Character facts and prior conversation are captured gameplay; this request is an authored control, not a recorded turn."
+  }
+}

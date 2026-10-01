@@ -1,0 +1,12 @@
+{
+  "name": "holt-patrol-disclosure",
+  "capturedInput": "../transcripts/holt-patrol-disclosure-input.json",
+  "expected": [
+    "persuasion"
+  ],
+  "rationale": "Holt knows the crown has paid and fielded fewer patrols than required, but loyalty has kept him from naming Aldren without proof. The appeal asks him to cross that established boundary.",
+  "source": {
+    "basedOn": "holt-private-invitation-input.json",
+    "variation": "Replace only the current player turn. Character facts and prior conversation are captured gameplay; this request is an authored control, not a recorded turn."
+  }
+}

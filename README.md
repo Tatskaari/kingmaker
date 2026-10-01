@@ -438,6 +438,13 @@ and a supported voyage statement provide no-check controls.
 
 `npm run eval:checks -- evals/jev/holt-private-invitation.json` replays Holt's
 private-conversation invitation from request 50 in the October 1, 23:21 dump.
-It expects persuasion: prior friendliness does not establish acceptance of a
-new courtship invitation. The input is captured before his reply and subsequent
+Under the agreed comfort-boundary rule it expects no roll: the captured context
+shows receptiveness and no established cost or discomfort in a quiet conversation. The input is captured before his reply and subsequent
 GM ruling; neither the expected label nor that later acceptance reaches Jev.
+
+Persuasion depends on a request crossing the listener's established interests,
+comfort, or willingness; lack of prior agreement alone is insufficient.
+`holt-security-advice.json` and `holt-patrol-disclosure.json` are explicitly
+authored controls using the same captured character context. The first asks for
+advice Holt's lore says he offers (no roll); the second asks him to publicly name
+Aldren despite his established reluctance out of loyalty (persuasion).

@@ -1,10 +1,8 @@
 {
   "name": "holt-private-invitation",
   "capturedInput": "../transcripts/holt-private-invitation-input.json",
-  "expected": [
-    "persuasion"
-  ],
-  "rationale": "The player asks Holt to continue their courtship somewhere private. His prior friendliness and the king's recommendation do not establish agreement to this invitation; he has emphasized that he will decide for himself. This is an attempt to obtain a meaningful social commitment, not merely an information question. Judge the attempt before his later acceptance.",
+  "expected": [],
+  "rationale": "Under the agreed comfort-boundary rule, undecided is not the same as uncomfortable. Holt's preceding conversation is receptive, his objective is to hear the envoy out, and a quiet conversation asks for no established harmful or uncomfortable commitment. His later acceptance is not used as evidence.",
   "source": {
     "report": "kingmaker-issue-report-2026-10-01T23-21-56-853Z.zip",
     "requestId": 50,
