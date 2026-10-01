@@ -62,7 +62,7 @@ test("conversation classification logs independent decisions without blocking or
   assert.equal(logs[0].properties.runKey, logs[1].properties.runKey);
   assert.equal(logs[0].properties.callId, logs[1].properties.callId);
   assert.doesNotMatch(JSON.stringify(logs), /classifier-log-secret/);
-  const html = recentTranscriptsView([entry]);
+  const html = recentTranscriptsView([entry], {}, { session: `request:${entry.id}`, call: String(entry.id) });
   assert.match(html, /Jev conversation checks/);
   assert.match(html, /persuasion/);
   assert.match(html, /90%/);

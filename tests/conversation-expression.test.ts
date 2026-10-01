@@ -56,7 +56,7 @@ test("expression classification logs the conversation without blocking or changi
   assert.equal(entry.kind, "conversation_expression");
   assert.equal(entry.status, "success");
   assert.equal((entry.response as any).expression, "amused");
-  assert.match(recentTranscriptsView([entry]), /amused: 100%/);
+  assert.match(recentTranscriptsView([entry], {}, { session: `request:${entry.id}`, call: String(entry.id) }), /amused: 100%/);
 });
 
 test("classification failures are logged and missing conversations are skipped", async t => {

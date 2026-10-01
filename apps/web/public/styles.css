@@ -328,3 +328,17 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 .debug-tabs button { white-space: nowrap; }
 
 .debug-grid > :only-child { grid-column: 1 / -1; }
+
+.transcript-table { width: 100%; border-collapse: collapse; margin: 18px 0; font-size: .95rem; }
+.transcript-table th { text-align: left; color: var(--dim); font-weight: 400; }
+.transcript-table th, .transcript-table td { padding: 12px; border-bottom: 1px solid #393b32; vertical-align: top; }
+.transcript-table tbody:hover { background: #ffffff05; }
+.transcript-table button { padding: 0; border: 0; background: transparent; color: var(--gold); text-align: left; text-decoration: underline; text-underline-offset: 3px; }
+.transcript-status { white-space: nowrap; }
+.transcript-status.pending { color: #e4c579; }
+.transcript-status.error { color: #ef9a85; }
+.transcript-status.success { color: #a4c5a5; }
+.transcript-status.stopped { color: var(--dim); }
+.transcript-detail { margin-top: 24px; }
+.transcript-detail .debug-facts { margin-top: 18px; }
+.transcript-detail pre { overflow-wrap: anywhere; }
