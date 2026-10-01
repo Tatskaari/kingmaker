@@ -64,7 +64,7 @@ Jev selects from currently reachable actions.
 The action-execution Jev experiment is configured in `apps/web/src/feature-flags.ts`:
 
 - `ROOM_SCOPED_JEV = true` sends the readable room/action text as Jev's actual
-  `state`. It defaults to `false` to retain the legacy baseline.
+  `state`. It defaults to `true`; set it to `false` for the legacy baseline.
 - `JEV_ACTION_CONTEXT_LEVEL = 1`: world text and the full active objective
   (name, status, success criteria, current task).
 - Level `2` adds biography and full parked objectives.

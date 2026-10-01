@@ -5,6 +5,7 @@ import { join } from "node:path";
 import test from "node:test";
 import { fromJson } from "@bufbuild/protobuf";
 import { ScenarioSchema } from "../packages/contracts/src/index.js";
+import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
 import { JevClient } from "../packages/providers/src/jev.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 import { guestIds, inviteGuests, silkScarf, royalSeal } from "../evals/jev/scenarios.js";
@@ -88,7 +89,11 @@ test("mocked talks cover every guest, feed planner history, and leave recipients
     return { choice: target ? `talk_${target}` : "complete", probabilities: {} };
   });
   for (let repeat = 0; repeat < 2; repeat++) {
-    const result = await runJevEvalOnce(inviteGuests, "test");
+    const result = await runJevEvalOnce({ ...inviteGuests, createRuntime(apiKey) {
+      const snapshot = inviteGuests.createRuntime(apiKey).snapshot();
+      return new BrowserGameRuntime(fromJson(ScenarioSchema, snapshot.scenario), apiKey, snapshot,
+        undefined, undefined, undefined, false);
+    } }, "test");
     assert.equal(result.error, undefined);
     assert.equal(result.success, true);
     assert.equal(result.turns, 10);
