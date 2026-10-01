@@ -2635,10 +2635,14 @@ test("NPC exchanges use the same DM tools and cancellation rules for both partic
 
 test("completed NPC talk IDs are recorded on the live review host", async t => {
   const { runtime, observation, action } = talkingCourt();
+  const snapshot = runtime.snapshot();
+  const target = fromJson(ScenarioSchema, snapshot.scenario).characters.find(item => item.id === action.target)!;
+  snapshot.npcActivities![action.target] = { status: "active", goal: target.currentGoal, history: [] };
+  runtime.restore(snapshot);
   let calls = 0;
   t.mock.method(OpenRouterClient.prototype, "complete", async () => ++calls === 1
     ? modelReply({ request: "Hello.", intent: "Greet them." })
-    : modelReply({ summary: "They exchange greetings.", initiator: idleMemory, recipient: idleMemory }));
+    : gmTool("finish_review", { summary: "They exchange greetings." }));
   const fork = runtime.forkForResourceReview(async work => work());
   await fork.executeNpcTalk("corvin", action.id, observation.revision, observation.goal, new AbortController().signal);
   assert.deepEqual(runtime.snapshot().npcActivities?.corvin?.actionIds, [action.id]);
