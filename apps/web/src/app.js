@@ -1,4 +1,8 @@
 import "./logging.js";
+import "./dice-roll.css";
+import { installDicePreview } from "./dice-roll.js";
+
+installDicePreview();
 import { debugOverview, recentTranscriptsView } from "./debug-view.js";
 import { AlertLog } from "./alerts.js";
 import { captureCourtMap, mountCourtMap, updateCourtMap } from "./court-map.js";
