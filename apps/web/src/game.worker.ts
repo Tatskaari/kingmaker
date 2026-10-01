@@ -379,13 +379,14 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     return { saves: await listSaves() };
   }
   if (type === "state") return { state: requireRuntime().view(), activeSaveId: activeSave?.id };
-  if (type === "set_identity") {
+  if (type === "set_identity" || type === "start_introduction") {
     const game = requireRuntime();
     // This handler already runs inside the mutation queue. Enqueuing another
     // mutation here would make the request wait on itself forever.
     const before = game.snapshot(), saveBefore = activeSave;
     try {
-      game.setTravellerIdentity(payload.identity as TravellerIdentity);
+      if (type === "start_introduction") game.startIntroduction();
+      else game.setTravellerIdentity(payload.identity as TravellerIdentity);
       await persist();
     } catch (error) {
       game.restore(before); activeSave = saveBefore;

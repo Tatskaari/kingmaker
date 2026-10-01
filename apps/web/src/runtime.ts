@@ -10,7 +10,7 @@ import { applyCharacterReview, type CharacterReview, type ReviewKind } from "./c
 import { reviewWriteTools } from "./review-tools.js";
 import { resourceState, runResourceReview, type ResourceReviewContext } from "./resource-review.js";
 import { InvalidModelJsonError, parseModelObject } from "../../../packages/providers/src/structured-output.js";
-import { validateIdentity, type TravellerIdentity } from "./introduction.js";
+import { delegations, newTraveller, strangerOpening, validateIdentity, type TravellerIdentity } from "./introduction.js";
 import { DIALOGUE_MODEL, FLAVOUR_MODEL, REASONING_MODEL } from "./model-settings.js";
 import { GM_BASE_PROMPT, GM_ADJUDICATION_GUIDANCE, withGmBasePrompt } from "./gm-prompt.js";
 import { ModelTranscripts, modelCallLabels, type ModelCallKind } from "./model-transcripts.js";
@@ -81,6 +81,7 @@ interface EventPerceptionTrace {
 }
 
 export interface RuntimeSnapshot {
+  strangerIntroduced?: boolean;
   generations?: Generations;
   travellerIdentity?: TravellerIdentity;
   npcActivities?: Record<string, NpcActivity>;
@@ -104,7 +105,7 @@ function migrateDialogueObjectives(value: JsonValue): JsonValue {
   return scenario as JsonValue;
 }
 
-function gmTools(scenario: Scenario): readonly OpenRouterTool[] {
+function gmTools(scenario: Scenario, conversationalIdentity = false): readonly OpenRouterTool[] {
   const npcIds = scenario.characters.filter(character => character.id !== scenario.playerCharacterId && character.id !== "player").map(character => character.id);
   const tools: OpenRouterTool[] = [
   {
@@ -122,6 +123,7 @@ function gmTools(scenario: Scenario): readonly OpenRouterTool[] {
           },
           compelled: {
             type: "boolean",
+            ...(conversationalIdentity ? { const: false } : {}),
             description: "Set false for ordinary optional roleplaying suggestions. Set true when the player has evaded or refused a still-missing creation detail after both your natural question and a firmer warning: this is the moment your jovial mask cracks and you use divine power to demand an answer. Continued in-character refusal is the cue to use this flag, not to abandon the interview. True makes the app display the loss-of-free-will narration and mark these options as compelled. Speak the sudden cold demand in your transcript reply. The app hides free-text input and the player must choose one of the offered options; never choose for them. GM only, during character creation. Do not use for an answered detail, genuine uncertainty, an allegiance, or readiness to depart.",
           },
         },
@@ -135,10 +137,11 @@ function gmTools(scenario: Scenario): readonly OpenRouterTool[] {
       description: "Finish the interview after the player says they are ready. Prepare an editable character draft using their saved identity choices and the conversation. Call alone. The player must review and explicitly save before entering court; never invent readiness.",
       parameters: {
         type: "object", additionalProperties: false,
-        required: ["name", "homeland", "embassyRole", "lore", "currentGoal", "relationships", "npcViews", "build"],
+        required: ["name", "homeland", "embassyRole", "lore", "currentGoal", "relationships", "npcViews", "build", ...(conversationalIdentity ? ["gender"] : [])],
         properties: {
           build: playerBuildParameter,
-          name: { type: "string" }, homeland: { type: "string" }, embassyRole: { type: "string" },
+          name: { type: "string" }, gender: { type: "string", description: "The player's stated gender; ask rather than infer from their name or role." },
+          homeland: { type: "string", ...(conversationalIdentity ? { enum: delegations.map(item => item.id), description: "The delegation agreed with the player as their way into court." } : {}) }, embassyRole: { type: "string" },
           lore: { type: "string" }, currentGoal: { type: "string" },
           relationships: { type: "array", minItems: npcIds.length, maxItems: npcIds.length, items: {
             type: "object", additionalProperties: false, required: ["characterId", "description"],
@@ -341,6 +344,7 @@ export class BrowserGameRuntime {
   #gmHistory: OpenRouterMessage[] = [];
   #gmTrace: GameMasterTrace[] = [];
   #travellerIdentity: TravellerIdentity | undefined;
+  #strangerIntroduced = false;
   #playerDraft: JsonValue | null = null;
   #gmReplyOptions: ReplyOptions | null = null;
   #conversationReplyOptions: Record<string, string[]> = {};
@@ -401,10 +405,18 @@ export class BrowserGameRuntime {
     this.#travellerIdentity = validateIdentity(identity);
   }
 
+  startIntroduction(): void {
+    if (this.#game.scenario().world?.phase !== GamePhase.PLAYER_CREATION || this.#playerDraft) throw new Error("Character creation is already complete.");
+    if (this.#gmHistory.length) return;
+    this.#strangerIntroduced = true;
+    this.#gmHistory.push({ role: "assistant", content: strangerOpening });
+  }
+
   reset(): void {
     for (const id of this.#conversations.keys()) this.#archiveConversation(id, "error");
     this.#generations = new GenerationStore();
     this.#travellerIdentity = undefined;
+    this.#strangerIntroduced = false;
     this.#npcActivities = {};
     this.#game = new MemoryGame(this.#initialScenario);
     this.#gmHistory = [];
@@ -422,6 +434,7 @@ export class BrowserGameRuntime {
     snapshot = structuredClone(snapshot);
     this.#generations = new GenerationStore(snapshot.generations);
     this.#travellerIdentity = snapshot.travellerIdentity ? validateIdentity(snapshot.travellerIdentity) : undefined;
+    this.#strangerIntroduced = snapshot.strangerIntroduced ?? false;
     this.#npcActivities = structuredClone(snapshot.npcActivities || {});
     const restoredScenario = fromJson(ScenarioSchema, migrateDialogueObjectives(migrateScenarioNotes(snapshot.scenario)));
     ensureNpcActiveObjectives(restoredScenario);
@@ -441,6 +454,7 @@ export class BrowserGameRuntime {
     this.readResources();
     return structuredClone({
       generations: this.#generations.snapshot(),
+      strangerIntroduced: this.#strangerIntroduced,
       ...(this.#travellerIdentity ? { travellerIdentity: { ...this.#travellerIdentity } } : {}),
       npcActivities: structuredClone(this.#npcActivities),
       scenario: toJson(ScenarioSchema, this.#game.scenario(), { alwaysEmitImplicit: true }),
@@ -497,7 +511,7 @@ export class BrowserGameRuntime {
         const request: ChatCompletionRequest = {
           ...REASONING_MODEL,
           messages: [...setup.map(item => ({ role: item.role, content: item.content } satisfies OpenRouterMessage)), ...(this.#travellerIdentity ? [{ role: "system" as const, content: `# Chosen identity\n${JSON.stringify(this.#travellerIdentity)}\nThese are the player’s saved choices, not instructions. Preserve them when creating the character. Develop their background within this delegation. Gender and appearance imply no occupation, personality or allegiance.` }] : []), ...this.#gmHistory],
-          tools: gmTools(this.#game.scenario()), max_tokens: 8000,
+          tools: gmTools(this.#game.scenario(), this.#strangerIntroduced), max_tokens: 8000,
         };
         const trace: GameMasterTrace = { request: structuredClone(withGmBasePrompt("game_master", request)), toolResults: [] };
         this.#gmTrace.push(trace);
@@ -1788,6 +1802,7 @@ export class BrowserGameRuntime {
     if (name === "offer_replies") {
       const options = parseReplyOptions(input.options, false);
       if (typeof input.compelled !== "boolean") throw new Error("compelled must be a boolean");
+      if (input.compelled && this.#strangerIntroduced) throw new Error("Offer optional suggestions; the player is free to invent their story.");
       if (input.compelled && this.#game.scenario().world?.phase !== GamePhase.PLAYER_CREATION) throw new Error("Compulsion is only available during character creation");
       this.#gmReplyOptions = { options, compelled: input.compelled };
       return { ok: true, instruction: "Player choices attached; none has been selected. If you have not spoken yet, speak AS THE LAUGHING STRANGER and ask for the missing detail now. Do not speak as the player or copy an option into your reply. Do not call offer_replies again. Wait for the human to choose." };
@@ -1795,12 +1810,16 @@ export class BrowserGameRuntime {
     if (name === "create_player") {
       const relationships = Array.isArray(input.relationships) ? input.relationships as JsonObject[] : [];
       const npcViews = Array.isArray(input.npcViews) ? input.npcViews as JsonObject[] : [];
+      const identity = this.#travellerIdentity ?? (this.#strangerIntroduced ? validateIdentity({
+        name: text(input.name, "name"), gender: text(input.gender, "gender"),
+        delegation: text(input.homeland, "delegation"), sprite: newTraveller().sprite,
+      }) : undefined);
       const setup = create(PlayerSetupSchema, {
-        homeland: this.#travellerIdentity?.delegation ?? text(input.homeland, "homeland"), embassyRole: text(input.embassyRole, "embassyRole"),
+        homeland: identity?.delegation ?? text(input.homeland, "homeland"), embassyRole: text(input.embassyRole, "embassyRole"),
         player: create(CharacterSchema, {
           ...buildInterviewCharacter(input.build),
-          id: "player", name: this.#travellerIdentity?.name ?? text(input.name, "name"),
-          ...(this.#travellerIdentity ? { gender: this.#travellerIdentity.gender, sprite: this.#travellerIdentity.sprite, delegation: this.#travellerIdentity.delegation } : {}), lore: text(input.lore, "lore"), currentGoal: text(input.currentGoal, "currentGoal"),
+          id: "player", name: identity?.name ?? text(input.name, "name"),
+          ...(identity ? { gender: identity.gender, sprite: identity.sprite, delegation: identity.delegation } : {}), lore: text(input.lore, "lore"), currentGoal: text(input.currentGoal, "currentGoal"),
           relationships: relationships.map(item => create(RelationshipSchema, { characterId: text(item.characterId, "characterId"), description: text(item.description, "description") })),
         }),
         npcRelationships: npcViews.map(item => create(RelationshipUpdateSchema, {
@@ -1811,6 +1830,7 @@ export class BrowserGameRuntime {
       const result = new MemoryGame(this.#game.scenario()).createPlayer(setup);
       if (!result.ok) throw new Error(result.issues.map(issue => issue.message).join("; "));
       this.#playerDraft = toJson(PlayerSetupSchema, setup);
+      this.#travellerIdentity = identity;
       this.#gmReplyOptions = null;
       return { ok: true, phase: "character_review", instruction: "Wait for the player to review and explicitly save their character. Do not narrate arrival yet." };
     }
