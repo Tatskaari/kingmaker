@@ -285,3 +285,36 @@ test("a two-participant write cannot overwrite either participant when one chang
   assert.throws(() => game.commitCharacterFork(before, fork, ["corvin", "mara"]), GenerationConflict);
   assert.deepEqual(game.snapshot(), unchanged);
 });
+
+const debugObjective = { name: "Find the ring", status: "Ask Lucan what he saw.",
+  success_criteria: "The ring is recovered.", current_goal: "Speak to Lucan" };
+
+test("debug objective override resets execution, persists, and invalidates old character work", () => {
+  const game = runtime(), before = game.snapshot(), fork = game.forkForNpc();
+  const previous = game.readResources();
+  game.overrideActiveObjective("corvin", debugObjective);
+  const snapshot = game.snapshot(), scenario = fromJson(ScenarioSchema, snapshot.scenario);
+  const character = scenario.characters.find(item => item.id === "corvin")!;
+  assert.equal(character.activeObjective?.name, debugObjective.name);
+  assert.equal(character.activeObjective?.status, debugObjective.status);
+  assert.equal(character.activeObjective?.successCriteria, debugObjective.success_criteria);
+  assert.equal(character.activeObjective?.currentGoal, debugObjective.current_goal);
+  assert.equal(character.currentGoal, debugObjective.current_goal);
+  assert.deepEqual(snapshot.npcActivities?.corvin, { status: "active", goal: debugObjective.current_goal, history: [] });
+  const updated = game.readResources();
+  assert.notEqual(updated["character:corvin"]!.generationId, previous["character:corvin"]!.generationId);
+  assert.equal(updated["character:mara"]!.generationId, previous["character:mara"]!.generationId);
+  assert.throws(() => game.commitCharacterFork(before, fork, ["corvin"]), GenerationConflict);
+  const restored = runtime(); restored.restore(snapshot);
+  assert.deepEqual(restored.debugCharacter("corvin").character, game.debugCharacter("corvin").character);
+  assert.deepEqual(restored.snapshot().npcActivities, snapshot.npcActivities);
+});
+
+test("debug objective override rejects invalid fields and non-NPCs without changing state", () => {
+  const game = runtime(), before = game.snapshot();
+  for (const [id, objective] of [["player", debugObjective], ["missing", debugObjective],
+    ["corvin", { ...debugObjective, current_goal: "  " }], ["corvin", null]] as const) {
+    assert.throws(() => game.overrideActiveObjective(id, objective));
+    assert.deepEqual(game.snapshot(), before);
+  }
+});

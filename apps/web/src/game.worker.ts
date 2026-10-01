@@ -460,6 +460,20 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     await persist();
     return { state: requireRuntime().view(), saves: await listSaves(), activeSaveId: activeSave?.id };
   }
+  if (type === "debug_override_objective") {
+    const game = requireRuntime(), id = String(payload.characterId || "");
+    const before = game.snapshot(), saveBefore = activeSave;
+    try {
+      game.overrideActiveObjective(id, payload.objective);
+      stopBackground(id);
+      await persist();
+    } catch (error) {
+      game.restore(before); activeSave = saveBefore;
+      throw error;
+    }
+    publishNpc(`${id}: objective overridden. Ready to run the new goal.`);
+    return { state: game.view(), saves: await listSaves(), activeSaveId: activeSave?.id };
+  }
   if (type === "debug_transcripts") return { requests: requireRuntime().recentTranscripts(), agentRuns: requireRuntime().transcriptRuns() };
   if (type === "issue_report") return { worldState: requireRuntime().snapshot(), requests: requireRuntime().recentTranscripts(), agentRuns: requireRuntime().transcriptRuns() };
   if (type === "debug_gm") return requireRuntime().debugGameMaster();
