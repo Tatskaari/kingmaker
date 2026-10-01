@@ -869,7 +869,8 @@ export class BrowserGameRuntime {
     this.#setGame(new MemoryGame(scenario));
   }
 
-  async planNpc(characterId: string, signal: AbortSignal, previousWriteConflict?: { error: string; instruction: string }) {
+  /** Build the exact Jev input without invoking a model. */
+  npcDecisionContext(characterId: string) {
     const scenario = this.#game.scenario();
     if (scenario.world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter court before running Jev.");
     if (this.#conversations.get(characterId)?.length) throw new Error("Finish this character's conversation review first.");
@@ -890,7 +891,14 @@ export class BrowserGameRuntime {
     const generations = generationIds(this.readResources(keys));
     const state = renderJevActionState(scenario, observation, activity.actionIds ?? [], this.jevActionContext);
     const instructions = ROOM_COURT_INSTRUCTIONS;
-    const decision = await this.#modelTranscripts.record("jev", characterId, jevRequest(state, instructions, criteria), () => this.#jev.choose(state, instructions, criteria, signal), undefined, this.#characterName(characterId));
+    return { request: jevRequest(state, instructions, criteria), observation, generations };
+  }
+
+  async planNpc(characterId: string, signal: AbortSignal, previousWriteConflict?: { error: string; instruction: string }) {
+    const { request, observation, generations } = this.npcDecisionContext(characterId);
+    const scenario = this.#game.scenario();
+    const { instructions, criteria } = request.questions.next!;
+    const decision = await this.#modelTranscripts.record("jev", characterId, request, () => this.#jev.choose(request.state, instructions, criteria, signal), undefined, this.#characterName(characterId));
     npcLog.info("NPC plan selected", { characterId, goal: observation.goal, revision: observation.revision, ...decision });
     const action = observation.actions.find(action => action.id === decision.choice);
     return { decision, revision: observation.revision, goal: observation.goal, action, observation,

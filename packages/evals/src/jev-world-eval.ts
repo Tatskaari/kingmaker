@@ -36,7 +36,7 @@ export interface JevEvalSummary {
   score: number; maxScore: number; scoreRate: number;
 }
 
-function activateGoal(runtime: BrowserGameRuntime, definition: JevWorldEvalScenario): void {
+export function activateGoal(runtime: BrowserGameRuntime, definition: JevWorldEvalScenario): void {
   const { characterId, goal, objective } = definition;
   const snapshot = runtime.snapshot(), scenario = fromJson(ScenarioSchema, snapshot.scenario);
   const character = scenario.characters.find(candidate => candidate.id === characterId);
