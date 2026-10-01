@@ -136,8 +136,12 @@ function responsesMessage(body: ResponsesResult): OpenRouterMessage {
   if (body.status !== "completed") throw new Error(`OpenRouter response ${body.status ?? "missing status"}: ${body.incomplete_details?.reason ?? "did not complete"}`);
   const output = body.output ?? [];
   const text: string[] = [], calls: OpenRouterToolCall[] = [];
+  const hasFinalAnswer = output.some(item => item.type === "message" && item.phase === "final_answer");
   for (const item of output) {
-    if (item.type === "message" && Array.isArray(item.content)) for (const part of item.content as Array<{ type: string; text?: string; refusal?: string }>) {
+    // Commentary is a separate phase, not part of the answer (or its JSON).
+    // Keep raw items below for debugging and multi-turn protocol continuity.
+    const isAnswer = hasFinalAnswer ? item.phase === "final_answer" : item.phase == null;
+    if (item.type === "message" && isAnswer && Array.isArray(item.content)) for (const part of item.content as Array<{ type: string; text?: string; refusal?: string }>) {
       if (part.type === "refusal") throw new Error(part.refusal || "Model refused this request.");
       if (part.type === "output_text" && part.text) text.push(part.text);
     }
