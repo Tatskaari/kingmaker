@@ -123,6 +123,7 @@ test("character writes return fresh state on conflict without touching other res
 
 test("inventory additions require only their inventory ID and validate atomically", () => {
   const runtime = game(), generation_id = id(runtime, "inventory:corvin");
+  const initialCount = (runtime.readResources(["inventory:corvin"])["inventory:corvin"]!.state as any).items.length;
   const item = { id: "review_note", name: "Note", details: "A written agreement.", reason: "A justified prop." };
   const before = runtime.snapshot();
   assert.throws(() => runtime.applyResourceReviewWrite("update_inventory", { owner_id: "corvin", generation_id, add_items: [item, item] }, context), /already exists/);
@@ -130,7 +131,7 @@ test("inventory additions require only their inventory ID and validate atomicall
   const result = runtime.applyResourceReviewWrite("update_inventory", { owner_id: "corvin", generation_id, add_items: [item] }, context);
   assert.equal(result.commit_result, "success");
   assert.equal(runtime.applyResourceReviewWrite("update_inventory", { owner_id: "corvin", generation_id, add_items: [{ ...item, id: "another_note" }] }, context).reason, "Generation ID out of date");
-  assert.equal((result.new_state.data as { items: unknown[] }).items.length, 1);
+  assert.equal((result.new_state.data as { items: unknown[] }).items.length, initialCount + 1);
 });
 
 test("give_item transfers an existing participant-owned item to the player exactly once", () => {
@@ -265,6 +266,7 @@ test("live review gets versions initially and explicitly reconciles a stale char
 
 test("successful resource writes survive a later failed review and retry reads saved state", async t => {
   const runtime = game(); await dialogue(runtime, t);
+  const initialCount = (runtime.readResources(["inventory:corvin"])["inventory:corvin"]!.state as any).items.length;
   let calls = 0;
   t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => {
     if (++calls > 1) throw new Error("Network unavailable");
@@ -273,10 +275,10 @@ test("successful resource writes survive a later failed review and retry reads s
   });
   await assert.rejects(runtime.forkForResourceReview(synchronousCommit).endConversation("corvin"), /Network unavailable/);
   assert.ok(runtime.snapshot().conversations.corvin?.length);
-  assert.equal((runtime.readResources(["inventory:corvin"])["inventory:corvin"]!.state as any).items.length, 1);
+  assert.equal((runtime.readResources(["inventory:corvin"])["inventory:corvin"]!.state as any).items.length, initialCount + 1);
   let retryCalls = 0;
   t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => {
-    assert.equal(world(input)["inventory:corvin"].data.items[0].id, "saved_note");
+    assert.ok(world(input)["inventory:corvin"].data.items.some((item: any) => item.id === "saved_note"));
     if (retryCalls++ === 0) return call("update_character", { character_id: "corvin",
       generation_id: world(input)["character:corvin"].generation_id,
       changes: { active_objective: { action: "complete", reason: "The greeting conversation has ended." } } });
@@ -284,7 +286,7 @@ test("successful resource writes survive a later failed review and retry reads s
   });
   await runtime.forkForResourceReview(synchronousCommit).endConversation("corvin");
   assert.equal(runtime.snapshot().conversations.corvin, undefined);
-  assert.equal((runtime.readResources(["inventory:corvin"])["inventory:corvin"]!.state as any).items.length, 1);
+  assert.equal((runtime.readResources(["inventory:corvin"])["inventory:corvin"]!.state as any).items.length, initialCount + 1);
 });
 
 test("agent-visible write descriptions document ID source, patch semantics, and error recovery", () => {

@@ -49,7 +49,116 @@
           "successCriteria": "Keep the royal administration functioning during a lawful transition.",
           "currentGoal": ""
         }
-      ]
+      ],
+      "dnd": {
+        "rulesetId": "srd-5.2.1",
+        "speciesId": "human",
+        "backgroundId": "sage",
+        "abilityScores": {
+          "strength": 8,
+          "dexterity": 12,
+          "constitution": 12,
+          "intelligence": 16,
+          "wisdom": 14,
+          "charisma": 12
+        },
+        "classes": [
+          {
+            "classId": "wizard",
+            "subclassId": "evoker",
+            "level": 3,
+            "hitDiceRemaining": 3
+          }
+        ],
+        "hitPoints": {
+          "current": 17,
+          "maximum": 17
+        },
+        "proficiencies": [
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "investigation",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "insight",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "arcana",
+            "rank": "PROFICIENCY_RANK_EXPERTISE",
+            "sourceId": "kingmaker-role"
+          }
+        ],
+        "spellcasting": {
+          "knownSpellIds": [
+            "fire-bolt",
+            "mage-hand",
+            "prestidigitation",
+            "detect-magic",
+            "identify",
+            "mage-armor",
+            "magic-missile",
+            "shield",
+            "alarm",
+            "hold-person",
+            "misty-step",
+            "invisibility",
+            "knock"
+          ],
+          "preparedSpellIds": [
+            "detect-magic",
+            "identify",
+            "mage-armor",
+            "shield",
+            "hold-person",
+            "misty-step"
+          ]
+        }
+      },
+      "inventory": {
+        "items": [
+          {
+            "id": "corvin_quarterstaff",
+            "name": "Quarterstaff",
+            "definitionId": "quarterstaff",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Magister Corvin's personal quarterstaff, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "corvin_dagger",
+            "name": "Dagger",
+            "definitionId": "dagger",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Magister Corvin's personal dagger, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "corvin_arcane_focus_wand",
+            "name": "Arcane Focus, Wand",
+            "definitionId": "arcane-focus-wand",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Magister Corvin's personal arcane focus, wand, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "corvin_clothes_fine",
+            "name": "Clothes, Fine",
+            "definitionId": "clothes-fine",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Magister Corvin's personal clothes, fine, maintained for everyday court service. It carries no special authority or enchantment."
+          }
+        ],
+        "equipment": {
+          "mainHandItemId": "corvin_quarterstaff"
+        }
+      }
     },
     {
       "id": "garran",
@@ -96,7 +205,100 @@
           "successCriteria": "Keep the royal garrison loyal to a lawful settlement.",
           "currentGoal": ""
         }
-      ]
+      ],
+      "dnd": {
+        "rulesetId": "srd-5.2.1",
+        "speciesId": "human",
+        "backgroundId": "soldier",
+        "abilityScores": {
+          "strength": 16,
+          "dexterity": 12,
+          "constitution": 14,
+          "intelligence": 10,
+          "wisdom": 14,
+          "charisma": 12
+        },
+        "classes": [
+          {
+            "classId": "fighter",
+            "subclassId": "champion",
+            "level": 3,
+            "hitDiceRemaining": 3
+          }
+        ],
+        "hitPoints": {
+          "current": 28,
+          "maximum": 28
+        },
+        "proficiencies": [
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "perception",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "insight",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          }
+        ],
+        "resources": [
+          {
+            "resourceId": "second-wind",
+            "current": 2,
+            "maximum": 2
+          },
+          {
+            "resourceId": "action-surge",
+            "current": 1,
+            "maximum": 1,
+            "recharge": "RESOURCE_RECHARGE_SHORT_REST"
+          }
+        ]
+      },
+      "inventory": {
+        "items": [
+          {
+            "id": "garran_longsword",
+            "name": "Longsword",
+            "definitionId": "longsword",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Marshal Garran Holt's personal longsword, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "garran_chain_mail",
+            "name": "Chain Mail",
+            "definitionId": "chain-mail",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Marshal Garran Holt's personal chain mail, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "garran_shield",
+            "name": "Shield",
+            "definitionId": "shield",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Marshal Garran Holt's personal shield, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "garran_clothes_travelers",
+            "name": "Clothes, Traveler's",
+            "definitionId": "clothes-travelers",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Marshal Garran Holt's personal clothes, traveler's, maintained for everyday court service. It carries no special authority or enchantment."
+          }
+        ],
+        "equipment": {
+          "mainHandItemId": "garran_longsword",
+          "armorItemId": "garran_chain_mail",
+          "shieldItemId": "garran_shield"
+        }
+      }
     },
     {
       "id": "king",
@@ -147,7 +349,87 @@
           "successCriteria": "Preserve his reputation as Edric’s worthy son without confronting the full cost of his neglect.",
           "currentGoal": ""
         }
-      ]
+      ],
+      "dnd": {
+        "rulesetId": "srd-5.2.1",
+        "speciesId": "human",
+        "backgroundId": "soldier",
+        "abilityScores": {
+          "strength": 12,
+          "dexterity": 10,
+          "constitution": 12,
+          "intelligence": 13,
+          "wisdom": 11,
+          "charisma": 16
+        },
+        "classes": [
+          {
+            "classId": "fighter",
+            "level": 2,
+            "hitDiceRemaining": 2
+          }
+        ],
+        "hitPoints": {
+          "current": 18,
+          "maximum": 18
+        },
+        "proficiencies": [
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "persuasion",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "history",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "insight",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          }
+        ],
+        "resources": [
+          {
+            "resourceId": "second-wind",
+            "current": 2,
+            "maximum": 2
+          },
+          {
+            "resourceId": "action-surge",
+            "current": 1,
+            "maximum": 1,
+            "recharge": "RESOURCE_RECHARGE_SHORT_REST"
+          }
+        ]
+      },
+      "inventory": {
+        "items": [
+          {
+            "id": "king_rapier",
+            "name": "Rapier",
+            "definitionId": "rapier",
+            "quantity": 1,
+            "concealed": true,
+            "details": "King Aldren's personal rapier, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "king_clothes_fine",
+            "name": "Clothes, Fine",
+            "definitionId": "clothes-fine",
+            "quantity": 1,
+            "concealed": true,
+            "details": "King Aldren's personal clothes, fine, maintained for everyday court service. It carries no special authority or enchantment."
+          }
+        ],
+        "equipment": {
+          "mainHandItemId": "king_rapier"
+        }
+      }
     },
     {
       "id": "mara",
@@ -198,7 +480,90 @@
           "successCriteria": "Grant recognition only to a named sovereign who accepts enforceable commitments.",
           "currentGoal": ""
         }
-      ]
+      ],
+      "dnd": {
+        "rulesetId": "srd-5.2.1",
+        "speciesId": "human",
+        "backgroundId": "soldier",
+        "abilityScores": {
+          "strength": 14,
+          "dexterity": 12,
+          "constitution": 14,
+          "intelligence": 12,
+          "wisdom": 13,
+          "charisma": 14
+        },
+        "classes": [
+          {
+            "classId": "fighter",
+            "level": 2,
+            "hitDiceRemaining": 2
+          }
+        ],
+        "hitPoints": {
+          "current": 20,
+          "maximum": 20
+        },
+        "proficiencies": [
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "persuasion",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "insight",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          }
+        ],
+        "resources": [
+          {
+            "resourceId": "second-wind",
+            "current": 2,
+            "maximum": 2
+          },
+          {
+            "resourceId": "action-surge",
+            "current": 1,
+            "maximum": 1,
+            "recharge": "RESOURCE_RECHARGE_SHORT_REST"
+          }
+        ]
+      },
+      "inventory": {
+        "items": [
+          {
+            "id": "mara_longsword",
+            "name": "Longsword",
+            "definitionId": "longsword",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Princess Mara Voss's personal longsword, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "mara_chain_shirt",
+            "name": "Chain Shirt",
+            "definitionId": "chain-shirt",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Princess Mara Voss's personal chain shirt, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "mara_clothes_fine",
+            "name": "Clothes, Fine",
+            "definitionId": "clothes-fine",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Princess Mara Voss's personal clothes, fine, maintained for everyday court service. It carries no special authority or enchantment."
+          }
+        ],
+        "equipment": {
+          "mainHandItemId": "mara_longsword",
+          "armorItemId": "mara_chain_shirt"
+        }
+      }
     },
     {
       "id": "hadrik",
@@ -249,7 +614,100 @@
           "successCriteria": "Secure the disputed fertile border valley without being branded an oath-breaker.",
           "currentGoal": ""
         }
-      ]
+      ],
+      "dnd": {
+        "rulesetId": "srd-5.2.1",
+        "speciesId": "human",
+        "backgroundId": "soldier",
+        "abilityScores": {
+          "strength": 16,
+          "dexterity": 10,
+          "constitution": 14,
+          "intelligence": 11,
+          "wisdom": 10,
+          "charisma": 14
+        },
+        "classes": [
+          {
+            "classId": "fighter",
+            "subclassId": "champion",
+            "level": 3,
+            "hitDiceRemaining": 3
+          }
+        ],
+        "hitPoints": {
+          "current": 28,
+          "maximum": 28
+        },
+        "proficiencies": [
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "history",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "perception",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          }
+        ],
+        "resources": [
+          {
+            "resourceId": "second-wind",
+            "current": 2,
+            "maximum": 2
+          },
+          {
+            "resourceId": "action-surge",
+            "current": 1,
+            "maximum": 1,
+            "recharge": "RESOURCE_RECHARGE_SHORT_REST"
+          }
+        ]
+      },
+      "inventory": {
+        "items": [
+          {
+            "id": "hadrik_longsword",
+            "name": "Longsword",
+            "definitionId": "longsword",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Lord Hadrik Voss's personal longsword, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "hadrik_chain_mail",
+            "name": "Chain Mail",
+            "definitionId": "chain-mail",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Lord Hadrik Voss's personal chain mail, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "hadrik_shield",
+            "name": "Shield",
+            "definitionId": "shield",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Lord Hadrik Voss's personal shield, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "hadrik_clothes_fine",
+            "name": "Clothes, Fine",
+            "definitionId": "clothes-fine",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Lord Hadrik Voss's personal clothes, fine, maintained for everyday court service. It carries no special authority or enchantment."
+          }
+        ],
+        "equipment": {
+          "mainHandItemId": "hadrik_longsword",
+          "armorItemId": "hadrik_chain_mail",
+          "shieldItemId": "hadrik_shield"
+        }
+      }
     },
     {
       "id": "tessa",
@@ -296,7 +754,100 @@
           "successCriteria": "Prevent desperate soldiers being used to provoke an unlawful war.",
           "currentGoal": ""
         }
-      ]
+      ],
+      "dnd": {
+        "rulesetId": "srd-5.2.1",
+        "speciesId": "human",
+        "backgroundId": "soldier",
+        "abilityScores": {
+          "strength": 14,
+          "dexterity": 14,
+          "constitution": 14,
+          "intelligence": 11,
+          "wisdom": 14,
+          "charisma": 10
+        },
+        "classes": [
+          {
+            "classId": "fighter",
+            "subclassId": "champion",
+            "level": 3,
+            "hitDiceRemaining": 3
+          }
+        ],
+        "hitPoints": {
+          "current": 28,
+          "maximum": 28
+        },
+        "proficiencies": [
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "perception",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "survival",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          }
+        ],
+        "resources": [
+          {
+            "resourceId": "second-wind",
+            "current": 2,
+            "maximum": 2
+          },
+          {
+            "resourceId": "action-surge",
+            "current": 1,
+            "maximum": 1,
+            "recharge": "RESOURCE_RECHARGE_SHORT_REST"
+          }
+        ]
+      },
+      "inventory": {
+        "items": [
+          {
+            "id": "tessa_longsword",
+            "name": "Longsword",
+            "definitionId": "longsword",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Captain Tessa Reed's personal longsword, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "tessa_chain_shirt",
+            "name": "Chain Shirt",
+            "definitionId": "chain-shirt",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Captain Tessa Reed's personal chain shirt, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "tessa_shield",
+            "name": "Shield",
+            "definitionId": "shield",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Captain Tessa Reed's personal shield, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "tessa_clothes_travelers",
+            "name": "Clothes, Traveler's",
+            "definitionId": "clothes-travelers",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Captain Tessa Reed's personal clothes, traveler's, maintained for everyday court service. It carries no special authority or enchantment."
+          }
+        ],
+        "equipment": {
+          "mainHandItemId": "tessa_longsword",
+          "armorItemId": "tessa_chain_shirt",
+          "shieldItemId": "tessa_shield"
+        }
+      }
     },
     {
       "id": "elinor",
@@ -347,7 +898,80 @@
           "successCriteria": "Keep traditionalists and reformers in one delegation while exploring an Ironmark alliance.",
           "currentGoal": ""
         }
-      ]
+      ],
+      "dnd": {
+        "rulesetId": "srd-5.2.1",
+        "speciesId": "human",
+        "backgroundId": "kingmaker-courtier",
+        "abilityScores": {
+          "strength": 8,
+          "dexterity": 12,
+          "constitution": 10,
+          "intelligence": 14,
+          "wisdom": 14,
+          "charisma": 16
+        },
+        "classes": [
+          {
+            "classId": "rogue",
+            "level": 2,
+            "hitDiceRemaining": 2
+          }
+        ],
+        "hitPoints": {
+          "current": 13,
+          "maximum": 13
+        },
+        "proficiencies": [
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "persuasion",
+            "rank": "PROFICIENCY_RANK_EXPERTISE",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "insight",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "history",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "deception",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          }
+        ]
+      },
+      "inventory": {
+        "items": [
+          {
+            "id": "elinor_dagger",
+            "name": "Dagger",
+            "definitionId": "dagger",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Lady Elinor Ash's personal dagger, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "elinor_clothes_fine",
+            "name": "Clothes, Fine",
+            "definitionId": "clothes-fine",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Lady Elinor Ash's personal clothes, fine, maintained for everyday court service. It carries no special authority or enchantment."
+          }
+        ],
+        "equipment": {
+          "mainHandItemId": "elinor_dagger"
+        }
+      }
     },
     {
       "id": "oswin",
@@ -394,7 +1018,100 @@
           "successCriteria": "Protect dependants from hunger without abandoning sacred obligations.",
           "currentGoal": ""
         }
-      ]
+      ],
+      "dnd": {
+        "rulesetId": "srd-5.2.1",
+        "speciesId": "human",
+        "backgroundId": "acolyte",
+        "abilityScores": {
+          "strength": 10,
+          "dexterity": 10,
+          "constitution": 12,
+          "intelligence": 13,
+          "wisdom": 16,
+          "charisma": 14
+        },
+        "classes": [
+          {
+            "classId": "cleric",
+            "subclassId": "life-domain",
+            "level": 3,
+            "hitDiceRemaining": 3
+          }
+        ],
+        "hitPoints": {
+          "current": 21,
+          "maximum": 21
+        },
+        "proficiencies": [
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "medicine",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "persuasion",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          }
+        ],
+        "spellcasting": {
+          "knownSpellIds": [
+            "guidance",
+            "light",
+            "sacred-flame"
+          ],
+          "preparedSpellIds": [
+            "bless",
+            "cure-wounds",
+            "healing-word",
+            "detect-magic",
+            "command",
+            "lesser-restoration"
+          ]
+        }
+      },
+      "inventory": {
+        "items": [
+          {
+            "id": "oswin_quarterstaff",
+            "name": "Quarterstaff",
+            "definitionId": "quarterstaff",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Prior Oswin's personal quarterstaff, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "oswin_holy_symbol_amulet",
+            "name": "Holy Symbol, Amulet",
+            "definitionId": "holy-symbol-amulet",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Prior Oswin's personal holy symbol, amulet, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "oswin_herbalism_kit",
+            "name": "Herbalism Kit",
+            "definitionId": "herbalism-kit",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Prior Oswin's personal herbalism kit, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "oswin_clothes_travelers",
+            "name": "Clothes, Traveler's",
+            "definitionId": "clothes-travelers",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Prior Oswin's personal clothes, traveler's, maintained for everyday court service. It carries no special authority or enchantment."
+          }
+        ],
+        "equipment": {
+          "mainHandItemId": "oswin_quarterstaff"
+        }
+      }
     },
     {
       "id": "rowan",
@@ -441,7 +1158,88 @@
           "successCriteria": "Prevent a border or marriage bargain that sacrifices the disputed valley’s inhabitants.",
           "currentGoal": ""
         }
-      ]
+      ],
+      "dnd": {
+        "rulesetId": "srd-5.2.1",
+        "speciesId": "human",
+        "backgroundId": "kingmaker-artisan",
+        "abilityScores": {
+          "strength": 10,
+          "dexterity": 13,
+          "constitution": 12,
+          "intelligence": 14,
+          "wisdom": 13,
+          "charisma": 14
+        },
+        "classes": [
+          {
+            "classId": "rogue",
+            "level": 1,
+            "hitDiceRemaining": 1
+          }
+        ],
+        "hitPoints": {
+          "current": 9,
+          "maximum": 9
+        },
+        "proficiencies": [
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "investigation",
+            "rank": "PROFICIENCY_RANK_EXPERTISE",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "persuasion",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "insight",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "sleight-of-hand",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          }
+        ]
+      },
+      "inventory": {
+        "items": [
+          {
+            "id": "rowan_dagger",
+            "name": "Dagger",
+            "definitionId": "dagger",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Rowan Ash's personal dagger, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "rowan_tinkers_tools",
+            "name": "Tinker's Tools",
+            "definitionId": "tinkers-tools",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Rowan Ash's personal tinker's tools, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "rowan_clothes_travelers",
+            "name": "Clothes, Traveler's",
+            "definitionId": "clothes-travelers",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Rowan Ash's personal clothes, traveler's, maintained for everyday court service. It carries no special authority or enchantment."
+          }
+        ],
+        "equipment": {
+          "mainHandItemId": "rowan_dagger"
+        }
+      }
     },
     {
       "id": "lucan",
@@ -488,7 +1286,88 @@
           "successCriteria": "Keep private debts from turning his mandate into someone else’s instrument.",
           "currentGoal": ""
         }
-      ]
+      ],
+      "dnd": {
+        "rulesetId": "srd-5.2.1",
+        "speciesId": "human",
+        "backgroundId": "kingmaker-courtier",
+        "abilityScores": {
+          "strength": 10,
+          "dexterity": 14,
+          "constitution": 10,
+          "intelligence": 13,
+          "wisdom": 12,
+          "charisma": 16
+        },
+        "classes": [
+          {
+            "classId": "rogue",
+            "level": 2,
+            "hitDiceRemaining": 2
+          }
+        ],
+        "hitPoints": {
+          "current": 13,
+          "maximum": 13
+        },
+        "proficiencies": [
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "persuasion",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "deception",
+            "rank": "PROFICIENCY_RANK_EXPERTISE",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "insight",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "sleight-of-hand",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          }
+        ]
+      },
+      "inventory": {
+        "items": [
+          {
+            "id": "lucan_rapier",
+            "name": "Rapier",
+            "definitionId": "rapier",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Prince Lucan Vale's personal rapier, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "lucan_dagger",
+            "name": "Dagger",
+            "definitionId": "dagger",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Prince Lucan Vale's personal dagger, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "lucan_clothes_fine",
+            "name": "Clothes, Fine",
+            "definitionId": "clothes-fine",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Prince Lucan Vale's personal clothes, fine, maintained for everyday court service. It carries no special authority or enchantment."
+          }
+        ],
+        "equipment": {
+          "mainHandItemId": "lucan_rapier"
+        }
+      }
     },
     {
       "id": "sabine",
@@ -548,6 +1427,83 @@
             "concealed": true,
             "details": "Sabine's private figures record rising attacks, insurance claims and delayed journeys. They demonstrate a commercial pattern but contain no official Caerwyn patrol count.",
             "quantity": 1
+          },
+          {
+            "id": "sabine_dagger",
+            "name": "Dagger",
+            "definitionId": "dagger",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Chancellor Sabine Venn's personal dagger, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "sabine_calligraphers_supplies",
+            "name": "Calligrapher's Supplies",
+            "definitionId": "calligraphers-supplies",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Chancellor Sabine Venn's personal calligrapher's supplies, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "sabine_clothes_fine",
+            "name": "Clothes, Fine",
+            "definitionId": "clothes-fine",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Chancellor Sabine Venn's personal clothes, fine, maintained for everyday court service. It carries no special authority or enchantment."
+          }
+        ],
+        "equipment": {
+          "mainHandItemId": "sabine_dagger"
+        }
+      },
+      "dnd": {
+        "rulesetId": "srd-5.2.1",
+        "speciesId": "human",
+        "backgroundId": "kingmaker-merchant",
+        "abilityScores": {
+          "strength": 8,
+          "dexterity": 12,
+          "constitution": 12,
+          "intelligence": 16,
+          "wisdom": 14,
+          "charisma": 14
+        },
+        "classes": [
+          {
+            "classId": "rogue",
+            "level": 2,
+            "hitDiceRemaining": 2
+          }
+        ],
+        "hitPoints": {
+          "current": 15,
+          "maximum": 15
+        },
+        "proficiencies": [
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "investigation",
+            "rank": "PROFICIENCY_RANK_EXPERTISE",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "insight",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "persuasion",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "deception",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
           }
         ]
       }
@@ -606,6 +1562,107 @@
             "concealed": true,
             "details": "A letter in Aldren's hand addresses Tomas Vey as 'my son' and asks that Garran remain the trusted keeper of his quiet life in Dunmere. Tomas's birth is not illegal; the letter is personal leverage over Aldren and Garran, not proof of the missing patrol funds.",
             "quantity": 1
+          },
+          {
+            "id": "rook_rapier",
+            "name": "Rapier",
+            "definitionId": "rapier",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Admiral Rook Fen's personal rapier, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "rook_dagger",
+            "name": "Dagger",
+            "definitionId": "dagger",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Admiral Rook Fen's personal dagger, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "rook_leather_armor",
+            "name": "Leather Armor",
+            "definitionId": "leather-armor",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Admiral Rook Fen's personal leather armor, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "rook_thieves_tools",
+            "name": "Thieves' Tools",
+            "definitionId": "thieves-tools",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Admiral Rook Fen's personal thieves' tools, maintained for everyday court service. It carries no special authority or enchantment."
+          },
+          {
+            "id": "rook_clothes_fine",
+            "name": "Clothes, Fine",
+            "definitionId": "clothes-fine",
+            "quantity": 1,
+            "concealed": true,
+            "details": "Admiral Rook Fen's personal clothes, fine, maintained for everyday court service. It carries no special authority or enchantment."
+          }
+        ],
+        "equipment": {
+          "mainHandItemId": "rook_rapier",
+          "armorItemId": "rook_leather_armor"
+        }
+      },
+      "dnd": {
+        "rulesetId": "srd-5.2.1",
+        "speciesId": "human",
+        "backgroundId": "kingmaker-sailor",
+        "abilityScores": {
+          "strength": 12,
+          "dexterity": 16,
+          "constitution": 14,
+          "intelligence": 12,
+          "wisdom": 14,
+          "charisma": 14
+        },
+        "classes": [
+          {
+            "classId": "rogue",
+            "subclassId": "thief",
+            "level": 3,
+            "hitDiceRemaining": 3
+          }
+        ],
+        "hitPoints": {
+          "current": 24,
+          "maximum": 24
+        },
+        "proficiencies": [
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "perception",
+            "rank": "PROFICIENCY_RANK_EXPERTISE",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "deception",
+            "rank": "PROFICIENCY_RANK_EXPERTISE",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "stealth",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "acrobatics",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "persuasion",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-role"
           }
         ]
       }

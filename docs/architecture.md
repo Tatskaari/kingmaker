@@ -70,3 +70,27 @@ ground storage; new ground-item interaction UI remains future work.
 The flat `WorldState.objects` format is removed. Start a fresh game after this
 change; old saves are deliberately not migrated. World reset restores authored
 inventories, while character reset preserves the current physical inventory.
+
+### Authored court builds
+
+The twelve courtiers have modest level 1–3 human NPC builds. Garran, Hadrik and
+Tessa are veteran fighter archetypes; Aldren and Mara have lighter martial
+training. Corvin is a level 3 wizard and Oswin a level 3 cleric. Elinor, Lucan,
+Sabine and Rowan use rogue mechanics for mundane social/technical competence;
+Rook is the stronger sailor/rogue. These are tailored NPC builds, not strict
+point-buy player builds. Scores range from 8–16 and HP uses the class's maximum
+first hit die plus average later hit dice and Constitution.
+
+Personal mundane arms, clothes and work tools use starter-pack item IDs. Existing
+plot evidence is preserved. Equipped slots point to those carried items, with no
+second ownership record. No enchanted equipment or new combat actions are added.
+Corvin and Oswin have modest spell selections; spells are stored data until rules
+execution is integrated. The rest of the court has no authored spellcasting.
+
+`kingmaker-courtier`, `kingmaker-merchant`, `kingmaker-artisan` and
+`kingmaker-sailor` are custom background references, requiring definitions in the
+future Kingmaker rules pack. `kingmaker-role` proficiency grants are explicit NPC
+customizations; automatic class/background grants must not be copied and counted
+again. An adapter must validate choices and resolve those content references
+before using these builds with `dnd-srd-engine`. This change does not install that
+engine or assign a build to the player during the Stranger interview.
