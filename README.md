@@ -311,3 +311,21 @@ tool arguments, choices and probabilities. These are the model's returned output
 not hidden reasoning. Runtime `models` logs add character/run context and explicit
 `LLM tool result` records (matched by tool-call ID), including rejected writes and
 successful review completion. Both provider and runtime model logs redact API keys.
+
+### Headless play from TypeScript
+
+`HeadlessGame` in `packages/headless/src/index.ts` loads a typed `Scenario` or a
+`RuntimeSnapshot`. `observe()` uses Jev's readable room view for the player;
+`actions()` lists available IDs and `act(id)` approaches and interacts through the
+same player runtime methods as the UI. `talk(id, message)` and
+`endConversation(id)` use real model-backed dialogue and review.
+
+`inspect()` returns detached typed state; `edit(state => { ... })` applies direct
+world edits. `snapshot()` and `load(snapshot)` capture and restore the entire
+session, including conversations. `overview()` gives an omniscient room-by-room
+cast list. The underlying `runtime` is also available for setup and advanced use.
+
+Run `npx tsx scripts/play-headless.ts` for an offline example. There are no eval
+criteria, terminal choices, or turn limits. Dialogue requires an OpenRouter key
+passed to the constructor. Background NPC scheduling is not automatically started;
+actions return world events for explicit processing through the runtime.
