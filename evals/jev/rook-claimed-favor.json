@@ -1,0 +1,15 @@
+{
+  "name": "rook-claimed-favor",
+  "capturedInput": "../transcripts/rook-claimed-favor-input.json",
+  "expected": [
+    "deception"
+  ],
+  "rationale": "Player claims shared history absent from the established lore. Treat this as a lie requiring deception, not an invitation to establish new backstory.",
+  "source": {
+    "report": "kingmaker-issue-report-2026-10-01T23-06-33-127Z.zip",
+    "requestId": 7,
+    "startedAt": "2026-10-01T23:05:43.573Z",
+    "characterId": "rook",
+    "recordedChecks": []
+  }
+}

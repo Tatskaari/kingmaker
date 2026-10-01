@@ -417,9 +417,18 @@ checks belong. Set `"expected": []` for no roll, or e.g.
 `"expected": ["intimidation"]` for an agreed skill set. Omitted labels remain
 REVIEW results and never count as passing or failing accuracy measurements.
 
-`OPENROUTER_API_KEY=... npm run eval:checks` runs the two starter cases. Pass JSON
+`OPENROUTER_API_KEY=... npm run eval:checks` runs the starter and recorded Rook cases. Pass JSON
 paths to run other cases. Runs repeat three times; override with
 `JEV_EVAL_REPEATS`. Artifacts retain rendered inputs, requests, decisions, labels,
 and errors after every run; set `JEV_EVAL_OUTPUT_DIR` to change their location.
 Labeled cases report exact skills, roll/no-roll accuracy, precision, and recall.
 Any mismatch or provider error exits nonzero. Labels are never sent to Jev.
+
+Recorded game regressions can use `capturedInput` instead of `transcript`: a
+relative path to the exact `{ playerTurn, messages }` from a `conversation_check`
+request in an issue dump. This preserves the scenario context as Jev saw it at
+that moment, without rebuilding it from the later saved world state or including
+subsequent GM rulings. The Rook voyage/favor cases replay requests 4 and 7 from
+the October 1, 23:06 dump. Both are labeled deception: claiming shared history
+absent from established lore is a lie under the intended game rule. Their
+recorded no-check results are failures; the classifier instructions are unchanged.
