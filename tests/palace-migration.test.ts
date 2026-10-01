@@ -57,3 +57,18 @@ test("runtime restore upgrades an old snapshot and subsequent restores keep coor
   runtime.restore(upgraded);
   assert.deepEqual(runtime.snapshot(), upgraded);
 });
+
+
+test("restore repairs an actor saved on a bedroom-side hallway pocket", () => {
+  const current = load(), runtime = new BrowserGameRuntime(current, "test");
+  const snapshot = runtime.snapshot();
+  current.world!.actors[0]!.position = create(TilePositionSchema, { x: 52, y: 8 });
+  current.world!.actors[0]!.roomId = "north_corridor";
+  current.courtArrivalPlacements.find(item => item.characterId === "player")!.position!.y = 32;
+  snapshot.scenario = toJson(ScenarioSchema, current);
+  runtime.restore(snapshot);
+  const restored = runtime.snapshot().scenario as any;
+  assert.equal(restored.courtArrivalPlacements.find((item: any) => item.characterId === "player").position.y, 30);
+  assert.equal(restored.world.actors[0].roomId, "corvin_chamber");
+  assert.deepEqual(restored.world.actors[0].position, { x: 52, y: 8 });
+});

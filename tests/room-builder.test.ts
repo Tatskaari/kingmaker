@@ -23,3 +23,16 @@ test("room generation derives access and reciprocal exits from floor ownership",
   ]);
   assert.match(layout.svg(), /Bedroom — mara/);
 });
+
+
+test("door boundaries reject a hallway pocket on the bedroom side", () => {
+  const layout = new RoomBuilder(10, 10);
+  layout.room({ id: "bedroom", name: "Bedroom", regions: [{ x: 2, y: 1, width: 2, height: 2 }] });
+  layout.room({ id: "hall", name: "Hall", regions: [{ x: 2, y: 3, width: 2, height: 4 }] });
+  const door = { id: "door", name: "Door", open: false, roomIds: ["bedroom", "hall"],
+    tiles: [{ x: 2, y: 4 }, { x: 3, y: 4 }], interactionSpots: [{ x: 2, y: 3 }, { x: 2, y: 5 }] };
+  assert.throws(() => layout.validateDoorBoundaries([door]), /expected bedroom, found hall/);
+  assert.throws(() => layout.validateDoorBoundaries([{ ...door, interactionSpots: [] }]), /hall has stranded tiles/);
+  assert.match(layout.svg([door]), /Door \(closed\)/);
+  assert.match(layout.svg([door]), /owned by hall/);
+});

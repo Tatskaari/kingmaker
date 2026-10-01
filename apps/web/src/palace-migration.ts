@@ -48,3 +48,24 @@ export function migratePalaceWings(saved: Scenario, authored: Scenario): void {
   }
   world.revision++;
 }
+
+/** Older saves may label a bedroom-side door approach as hallway floor. */
+export function reconcileDoorApproachRooms(saved: Scenario, authored: Scenario): void {
+  const world = saved.world;
+  if (!world) return;
+  for (const placement of saved.courtArrivalPlacements) {
+    if (!placement.position || courtRoomAt(placement.position)?.id === placement.roomId) continue;
+    const current = authored.courtArrivalPlacements.find(item => item.characterId === placement.characterId);
+    if (current?.position) {
+      placement.position = structuredClone(current.position);
+      placement.roomId = current.roomId;
+    }
+  }
+  for (const actor of world.actors) {
+    const point = actor.position;
+    if (!point || !world.doors.some(door => door.roomIds.includes(actor.roomId)
+      && door.tiles.some(tile => Math.abs(tile.x - point.x) + Math.abs(tile.y - point.y) === 1))) continue;
+    const room = courtRoomAt(point);
+    if (room) actor.roomId = room.id;
+  }
+}

@@ -13,4 +13,7 @@ claimed rooms, and run the workspace checks to validate them.
 
 Run `node --import tsx scripts/preview-palace.ts /tmp/palace.svg` to inspect the
 layout. Each colour is one room's floor ownership, dark areas are solid walls,
-and hovering shows the room name and allowed residents.
+and hovering shows the room name and allowed residents. Red door tiles are closed;
+gold door tiles are open. White dots mark interaction spots, with expected and
+actual room ownership in their hover text. Synchronization rejects mismatched
+approach ownership and disconnected room floors when all doors are closed.

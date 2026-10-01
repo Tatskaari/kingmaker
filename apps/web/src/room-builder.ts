@@ -1,3 +1,7 @@
+export interface PreviewDoor {
+  id: string; name: string; open: boolean; roomIds: string[];
+  tiles: { x: number; y: number }[]; interactionSpots: { x: number; y: number }[];
+}
 export interface Region { x: number; y: number; width: number; height: number }
 export interface AuthoredRoom {
   id: string; name: string; regions: Region[];
@@ -49,14 +53,41 @@ export class RoomBuilder {
     });
   }
 
+  /** Closed doors must not strand floor tiles under another room's ownership. */
+  validateDoorBoundaries(doors: readonly PreviewDoor[]): void {
+    const blocked = new Set(doors.flatMap(door => door.tiles.map(p => `${p.x},${p.y}`)));
+    for (const door of doors) for (const [side, point] of door.interactionSpots.entries()) {
+      const owner = this.owners.get(`${point.x},${point.y}`);
+      if (owner !== door.roomIds[side]) throw new Error(`${door.id} approach ${side}: expected ${door.roomIds[side]}, found ${owner}`);
+    }
+    for (const room of this.rooms) {
+      const floor = new Set([...this.owners].filter(([key, owner]) => owner === room.id && !blocked.has(key)).map(([key]) => key));
+      const pending = [floor.values().next().value!];
+      const reached = new Set<string>();
+      while (pending.length) {
+        const key = pending.pop()!;
+        if (!floor.has(key) || reached.has(key)) continue;
+        reached.add(key);
+        const [x, y] = key.split(",").map(Number) as [number, number];
+        pending.push(`${x - 1},${y}`, `${x + 1},${y}`, `${x},${y - 1}`, `${x},${y + 1}`);
+      }
+      if (reached.size !== floor.size) throw new Error(`${room.id} has stranded tiles behind closed doors`);
+    }
+  }
+
   /** A room-coloured, labelled ownership view, usable in any browser. */
-  svg(): string {
+  svg(doors: readonly PreviewDoor[] = []): string {
     const escape = (value: string) => value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('"', '&quot;');
     const shapes = this.rooms.map((room, index) => {
       const colour = `hsl(${index * 137.5 % 360} 45% 65%)`;
       return room.regions.map(r => `<rect x="${r.x * 16}" y="${r.y * 16}" width="${r.width * 16}" height="${r.height * 16}" fill="${colour}"><title>${escape(room.name)} — ${escape(room.residents?.join(', ') || 'Public')}</title></rect>`).join('')
         + `<text x="${room.regions[0]!.x * 16 + 3}" y="${room.regions[0]!.y * 16 + 12}" font-size="9">${escape(room.name)}</text>`;
     }).join('');
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.width * 16} ${this.height * 16}"><rect width="100%" height="100%" fill="#161b22"/>${shapes}</svg>`;
+    const overlays = doors.map(door => {
+      const colour = door.open ? "#ffcc33" : "#ef4444";
+      return door.tiles.map(p => `<rect x="${p.x * 16 + 1}" y="${p.y * 16 + 1}" width="14" height="14" fill="${colour}" fill-opacity=".55" stroke="#111" stroke-width="2"><title>${escape(door.name)} (${door.open ? "open" : "closed"}) — ${p.x},${p.y}</title></rect>`).join("")
+        + door.interactionSpots.map((p, side) => `<circle cx="${p.x * 16 + 8}" cy="${p.y * 16 + 8}" r="3" fill="white" stroke="#111"><title>${escape(door.name)} approach: ${escape(door.roomIds[side] ?? "")} — owned by ${escape(this.owners.get(`${p.x},${p.y}`) ?? "none")}</title></circle>`).join("");
+    }).join("");
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.width * 16} ${this.height * 16}"><rect width="100%" height="100%" fill="#161b22"/>${shapes}${overlays}<text x="16" y="${this.height * 16 - 16}" fill="white" font-size="12">Door tiles: red = closed; gold = open. White dots = interaction spots. Colours = room ownership.</text></svg>`;
   }
 }

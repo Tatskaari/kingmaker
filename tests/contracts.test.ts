@@ -1417,12 +1417,12 @@ test("reviewed immediate goal reaches Jev, which opens doors and moves the NPC i
     assert.match(state, /\[corvin\]/);
     assert.ok(!state.includes("Sealed royal decree"));
     assert.match(criteria.wait!, /depends entirely on another character/);
-    const choice = ["enter_royal_council_chamber", "open_hall_door_0", "open_corvin_door_0", "enter_corvin_chamber", "complete"][step++]!;
+    const choice = ["enter_royal_council_chamber", "open_hall_door_0", "enter_north_corridor", "open_corvin_door_0", "enter_corvin_chamber", "complete"][step++]!;
     assert.ok(criteria[choice]);
-    if (step <= 3) assert.ok(!criteria.enter_corvin_chamber, "Closed room cannot be selected as a move target");
+    if (step <= 4) assert.ok(!criteria.enter_corvin_chamber, "Closed room cannot be selected as a move target");
     return { choice, probabilities: { [choice]: 1 } };
   });
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     const plan = await runtime.planNpc("corvin", new AbortController().signal);
     assert.ok(plan.action);
     runtime.executeNpcAction("corvin", plan.action.id, plan.revision, plan.goal);
