@@ -9,6 +9,7 @@ import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 import { portraitExpressions, type PortraitExpression } from "../packages/providers/src/conversation-expression.js";
 import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
 import { strangerPortrait } from "../apps/web/src/stranger-portrait.js";
+import { coalescedRefresh } from "../apps/web/src/debug-live.js";
 import { AlertLog } from "../apps/web/src/alerts.js";
 
 test("every classified expression has a portrait and fear displays amusement", () => {
@@ -56,7 +57,7 @@ test("portrait updates ignore old replies and replaced games without re-renderin
   const requests: any[] = [], image = { src: "", alt: "" };
   let receive!: (event: any) => void;
   const context = createContext({
-    URL, AlertLog, strangerPortrait, installDicePreview() {}, devOpenRouterApiKey: "", window: {},
+    URL, AlertLog, coalescedRefresh, strangerPortrait, installDicePreview() {}, devOpenRouterApiKey: "", window: {},
     document: { querySelector: (selector: string) => selector === "[data-stranger-portrait]" ? image : null, addEventListener() {} },
     Worker: class {
       addEventListener(_type: string, callback: typeof receive) { receive = callback; }
