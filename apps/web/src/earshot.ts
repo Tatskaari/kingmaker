@@ -37,12 +37,15 @@ export function dialogueEarshotPrompt(
       if (participantIds.includes(characterId)) throw new Error(`Conversation participant ${characterId} cannot also be within_earshot`);
       return { characterId, name: character.name, level: "Moderate" as const };
     });
+  const listenerGroups = (Object.keys(EARSHOT_DESCRIPTIONS) as EarshotCharacter["level"][]).flatMap(level => {
+    const group = listeners.filter(listener => listener.level === level);
+    if (!group.length) return [];
+    return [`${EARSHOT_DESCRIPTIONS[level]}\n${group.map(listener => `- ${listener.name} (${listener.characterId})`).join("\n")}`];
+  }).join("\n\n") || "No other characters are within earshot at your current positions.";
   return `# Conversation privacy\n${JSON.stringify({ positionKnown: explicit ? false : !!speaker?.position,
     currentRoom: currentRoom ? { roomId: currentRoom.id, name: currentRoom.name, private: currentRoom.private } : null,
-    listeners,
-    levels: EARSHOT_DESCRIPTIONS,
     meetingPoints,
-  })}\nThe listeners are nearby people outside this conversation who have a walkable path to you through the current doors. Consider their identities, hearing levels and your relationships before speaking about internal affairs or secret plans. The current conversation is not automatically private: use the supplied current room and listener list, not the interface framing, to judge privacy. meetingPoints contains only named destinations that every participant is permitted to enter and can reach by legal movement, including opening permitted doors; private marks the destinations intended for private meetings. You may be guarded, use indirect language, withhold details, or ask the other participant to move to a named private meeting point when your motives warrant it. If you propose relocating, do not reveal the sensitive details first, assume agreement, or claim anyone has moved. Conclude the current exchange when movement is needed; each character must then move and open any necessary doors through physical actions before the private discussion begins. An empty listener list means no eligible listeners at these positions, not a permanent guarantee of privacy. An empty meetingPoints list means there is no valid shared destination. Speech cannot close a door or move anyone.`;
+  })}\n\n${listenerGroups}\n\nThe listeners are nearby people outside this conversation who have a walkable path to you through the current doors. Consider their identities, hearing levels and your relationships before speaking about internal affairs or secret plans. The current conversation is not automatically private: use the supplied current room and listener list, not the interface framing, to judge privacy. meetingPoints contains only named destinations that every participant is permitted to enter and can reach by legal movement, including opening permitted doors; private marks the destinations intended for private meetings. You may be guarded, use indirect language, withhold details, or ask the other participant to move to a named private meeting point when your motives warrant it. If you propose relocating, do not reveal the sensitive details first, assume agreement, or claim anyone has moved. If you want to speak privately, tell the player as such and end the conversation. You will be able to move there after that. Each character must then move and open any necessary doors through physical actions before the private discussion begins. An empty listener list means no eligible listeners at these positions, not a permanent guarantee of privacy. An empty meetingPoints list means there is no valid shared destination. Speech cannot close a door or move anyone.`;
 }
 
 export function courtCharactersWithinEarshot(speaker: PositionedCharacter, characters: readonly PositionedCharacter[], doors: readonly DoorState[] = [], fixtures: readonly MapFixture[] = []) {
@@ -64,11 +67,11 @@ export interface EarshotCharacter extends PositionedCharacter {
 export const CLEAR_EARSHOT_DISTANCE = 3;
 export const MODERATE_EARSHOT_DISTANCE = 6;
 export const EARSHOT_DISTANCE = 10;
-// Guidance for the later DM overhearing integration; not player-facing copy.
+// Address the speaking character directly, with names grouped beneath each warning.
 export const EARSHOT_DESCRIPTIONS = {
-  Clear: "Can hear the conversation clearly.",
-  Moderate: "Can hear a few words here and there, catching about half the conversation.",
-  Distant: "Can catch names and places, but not the details.",
+  Clear: "These characters are right by you and will almost certainly hear what you say.",
+  Moderate: "These characters are nearby. They will likely catch names, places and parts of what you say, but there will be gaps.",
+  Distant: "These characters are farther away. They may catch the odd name or place, but are unlikely to follow the details of what you say.",
 };
 
 export const PERCEPTION_CHANCES: Record<EarshotCharacter["level"], number> = {

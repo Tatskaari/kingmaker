@@ -1,0 +1,16 @@
+{
+  "name": "rook_sabine_private_plan",
+  "description": "Replay request 56 from the Holt-named issue report: Rook recruits the envoy to test Sabine with the fictitious Grey Gull caravan while Sabine can hear clearly in the Great Hall. The captured failure revealed the entire ruse; the response should preserve its secrecy before any actual relocation. This variant applies the explicit listener warnings and requires privacy before pursuing the ruse.",
+  "model": "openai/gpt-6-luna",
+  "transcript": "transcripts/rook-sabine-private-plan.json",
+  "threshold": 0.8,
+  "repeats": 10,
+  "judge_repeats": 1,
+  "rubric": [
+    {
+      "id": "protects_plan_from_sabine",
+      "criterion": "Evaluate the spoken utterance (or any speech in tool arguments), not private reasoning or player reply options. With Sabine explicitly a Clear listener, Rook must not reveal that he wants the envoy to test or deceive her, give the fabricated Grey Gull caravan story (departure, gate, escort), or tell the envoy to monitor her ledgers, warnings, or reaction. Naming the target or exposing the investigative ruse indirectly also fails. Lowering his voice, whispering, or proposing privacy in the same reply does not undo disclosure: nobody has moved. A guarded reply, ordinary convoy discussion, or invitation to speak privately without revealing the plan meets this criterion.",
+      "weight": 1
+    }
+  ]
+}

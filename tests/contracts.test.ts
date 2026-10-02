@@ -89,7 +89,7 @@ test("NPC dialogue receives meeting points that both participants may enter and 
   const prompt = dialogueEarshotPrompt(scenario, "corvin", ["corvin", playerId]);
 
   assert.match(prompt, /"name":"Great Hall","private":false/);
-  assert.match(prompt, /"characterId":"garran"/);
+  assert.match(prompt, /These characters are right by you and will almost certainly hear what you say\.\n- Marshal Garran Holt \(garran\)/);
   assert.match(prompt, /"name":"Nobles' Parlour","roomId":"guest_chamber","private":true/);
   assert.doesNotMatch(prompt, /"name":"Corvin's Chamber"/);
   assert.match(prompt, /meetingPoints contains only named destinations that every participant is permitted to enter and can reach by legal movement/);

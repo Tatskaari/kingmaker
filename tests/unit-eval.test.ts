@@ -51,7 +51,7 @@ test("the unit eval loads its model and production transcript", () => {
   assert.match(prompt, /King of Caerwyn and expected candidate/);
   assert.match(prompt, /under relentless pressure/);
   assert.match(prompt, /# Known world state/);
-  assert.match(prompt, /"characterId":"elinor"/);
+  assert.match(prompt, /Lady Elinor Ash \(elinor\)/);
   assert.match(prompt, /Tomas Vey/);
   assert.equal(comparison, undefined);
   assert.equal(transcript.messages.at(-1)?.role, "user");
