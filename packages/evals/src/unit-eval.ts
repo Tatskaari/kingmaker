@@ -5,7 +5,7 @@ import { CharacterSchema, DialogueRequestSchema, NoteSchema, ScenarioSchema } fr
 import { FullContextBuilder } from "../../core/src/context.js";
 import { dialogueEarshotPrompt } from "../../../apps/web/src/earshot.js";
 import jsonPatch, { type Operation } from "fast-json-patch";
-import type { OpenRouterMessage, OpenRouterTool } from "../../providers/src/openrouter.js";
+import type { ChatCompletionRequest, OpenRouterMessage, OpenRouterTool } from "../../providers/src/openrouter.js";
 import type { JevChoice } from "../../providers/src/jev.js";
 
 export interface EvalCriterion {
@@ -28,6 +28,8 @@ export interface UnitEvalScenario {
 
 export interface EvalTranscript {
   messages: OpenRouterMessage[];
+  /** Frozen issue-report request, including the original generation settings and tools. */
+  request?: ChatCompletionRequest;
 }
 
 export interface EvalComparison {
@@ -73,7 +75,7 @@ export interface UnitEvalRun {
 }
 
 export interface UnitEvalIO {
-  generate(model: string, messages: readonly OpenRouterMessage[], tools: readonly OpenRouterTool[]): Promise<OpenRouterMessage>;
+  generate(model: string, messages: readonly OpenRouterMessage[], tools: readonly OpenRouterTool[], request?: ChatCompletionRequest): Promise<OpenRouterMessage>;
   judge(state: unknown, criteria: readonly EvalCriterion[]): Promise<Record<string, JevChoice>>;
 }
 
@@ -172,6 +174,17 @@ function renderCharacterPrompt(file: string, applyContextPatch: boolean): OpenRo
 
 export function validateTranscript(value: unknown, transcriptPath: string, applyContextPatch = false): EvalTranscript {
   if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Transcript must be an object.");
+  if ("request" in value) {
+    const request = value.request as ChatCompletionRequest;
+    if (!request || typeof request !== "object") throw new Error("Captured request must be an object.");
+    requireText(request.model, "captured model");
+    if (!Array.isArray(request.messages) || !request.messages.length || request.messages.some(message =>
+      !message || !["system", "user", "assistant", "tool"].includes(message.role)
+      || (typeof message.content !== "string" && message.content !== null))) {
+      throw new Error("Captured request must contain valid messages.");
+    }
+    return { messages: request.messages, request };
+  }
   const transcript = value as { transcript?: unknown };
   if (!Array.isArray(transcript.transcript) || !transcript.transcript.length) throw new Error("Transcript must contain transcript steps.");
   const messages: OpenRouterMessage[] = [];
@@ -210,6 +223,9 @@ export function loadEvalScenario(file: string): { scenario: UnitEvalScenario; tr
   const transcriptPath = resolve(scenarioPath, "..", scenario.transcript);
   const transcriptSource = JSON.parse(readFileSync(transcriptPath, "utf8")) as unknown;
   const transcript = validateTranscript(transcriptSource, transcriptPath);
+  if (transcript.request && transcript.request.model !== scenario.model) {
+    throw new Error("Scenario model must match the captured request model.");
+  }
   if (!transcriptHasContextPatch(transcriptSource, transcriptPath)) return { scenario, transcript };
   return {
     scenario,
@@ -244,7 +260,8 @@ export async function runUnitEval(
   tools: readonly OpenRouterTool[],
   io: UnitEvalIO,
 ): Promise<UnitEvalRun> {
-  const response = captureResponse(await io.generate(scenario.model, transcript.messages, tools));
+  const response = captureResponse(await io.generate(scenario.model, transcript.messages,
+    transcript.request?.tools ?? tools, transcript.request));
   const samples = await Promise.all(Array.from({ length: scenario.judge_repeats ?? 1 }, () => io.judge({
       scenario: { name: scenario.name, description: scenario.description },
       transcript: transcript.messages,

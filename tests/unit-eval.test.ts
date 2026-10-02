@@ -1,8 +1,43 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { loadEvalScenario, runUnitEval, runUnitEvalBatch } from "../packages/evals/src/unit-eval.js";
+import { loadEvalScenario, runUnitEval, runUnitEvalBatch, validateTranscript } from "../packages/evals/src/unit-eval.js";
 
 const scenarioPath = new URL("../evals/king-accusation-response.json", import.meta.url).pathname;
+
+test("the Sabine disclosure eval replays the captured Rook request without the leaked answer", async () => {
+  const { scenario, transcript, comparison } = loadEvalScenario(
+    new URL("../evals/rook-sabine-plan-disclosure.json", import.meta.url).pathname,
+  );
+  assert.equal(comparison, undefined);
+  assert.equal(transcript.messages.length, 16);
+  const privacy = transcript.messages.find(message => message.content?.startsWith("# Conversation privacy"))!;
+  assert.match(privacy.content!, /"characterId":"sabine","name":"Chancellor Sabine Venn","distance":3,"level":"Clear"/);
+  assert.equal(transcript.messages.at(-1)?.content,
+    "I'd rather the truth be surfaced but in all truth I have no skin in the game. ");
+  assert.ok(transcript.messages.filter(message => message.role === "assistant")
+    .every(message => !message.content?.includes("Grey Gull")));
+  assert.equal(transcript.request?.reasoning?.effort, "none");
+  assert.ok(transcript.request?.response_format);
+  assert.equal(transcript.request?.tools?.length, 1);
+  await runUnitEval(scenario, transcript, [], {
+    generate: async (model, messages, tools, request) => {
+      assert.equal(model, scenario.model);
+      assert.equal(request, transcript.request);
+      assert.equal(messages, request!.messages);
+      assert.equal(tools, request!.tools);
+      return { role: "assistant", content: "Let us speak in the parlour." };
+    },
+    judge: async (_state, criteria) => Object.fromEntries(criteria.map(criterion => [criterion.id,
+      { choice: "meets", probabilities: { meets: 1, does_not_meet: 0 } }])),
+  });
+});
+
+test("captured transcripts reject missing messages and invalid roles", () => {
+  for (const messages of [[], [{ role: "invalid", content: "Hello" }], [null]]) {
+    assert.throws(() => validateTranscript({ request: { model: "test", messages } }, "/tmp/eval.json"),
+      /Captured request must contain valid messages/);
+  }
+});
 
 test("the unit eval loads its model and production transcript", () => {
   const { scenario, transcript, comparison } = loadEvalScenario(scenarioPath);

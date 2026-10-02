@@ -275,6 +275,23 @@ or more scenario paths after `--` to run only those fixtures, for example:
 proto run moon -- run workspace:unitEval -- evals/king-accusation-response.json
 ```
 
+To replay the Sabine plan-disclosure report:
+
+```sh
+OPENROUTER_API_KEY=... npm run eval:unit -- evals/rook-sabine-plan-disclosure.json
+```
+
+This fixture freezes request 56 from `kingmaker-issue-report-2026-10-01T23-47-08-090Z.zip`,
+including its messages, tools, response schema and reasoning settings. The report
+title names Holt, but Rook speaks the Grey Gull ruse with Sabine a clear listener
+three tiles away. The rubric requires keeping the ruse secret until privacy is
+actually established. Ten generations measure how often the issue recurs.
+Captured transcripts use a top-level `request` instead of declarative `transcript`
+steps; the scenario model must match the capture. `source` and `observed_response`
+retain provenance and the original failure, but are not sent to generation or scoring.
+This is a frozen reproduction, so subsequent production prompt changes do not
+automatically update it.
+
 The production site is built into `dist/web`. Merges to main deploy through
 `.github/workflows/pages.yml`. Relative asset URLs support GitHub Pages paths.
 
