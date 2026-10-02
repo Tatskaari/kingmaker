@@ -24,7 +24,7 @@ test("scenario-backed input includes the king's real context and leaves labels f
   assert.match(prompt, /Tomas Vey/);
   assert.match(prompt, /# Dialogue objectives/);
   assert.match(prompt, /# Known world state/);
-  assert.match(prompt, /"characterId":"elinor"/);
+  assert.match(prompt, /Lady Elinor Ash \(elinor\)/);
 });
 
 test("labels distinguish pending review from no roll and reject invalid skills", () => {
