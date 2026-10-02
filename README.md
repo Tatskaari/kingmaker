@@ -292,6 +292,14 @@ retain provenance and the original failure, but are not sent to generation or sc
 This is a frozen reproduction, so subsequent production prompt changes do not
 automatically update it.
 
+The tested privacy-instruction variant is `evals/rook-sabine-private-plan.json`.
+It adds explicit listener warnings and requires Rook to move somewhere private
+before discussing the ruse. Run both fixtures with:
+
+```sh
+OPENROUTER_API_KEY=... npm run eval:unit -- evals/rook-sabine-plan-disclosure.json evals/rook-sabine-private-plan.json
+```
+
 The production site is built into `dist/web`. Merges to main deploy through
 `.github/workflows/pages.yml`. Relative asset URLs support GitHub Pages paths.
 
