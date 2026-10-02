@@ -945,8 +945,8 @@ export class BrowserGameRuntime {
       && (action.target !== scenario.playerCharacterId || this.#conversations.size === 0)
     ));
     const criteria = { ...Object.fromEntries(observation.actions.map(action => [action.id, `${action.description}${action.legality === "illegal" ? " This is illegal for this character." : ""}`])),
-      complete: "The whole immediate goal is achieved. Do not choose this merely because the character reached a place and must now wait for another character; choose wait instead.",
-      wait: "Progress now depends entirely on another character initiating a conversation, arriving, deciding, or completing their own work. Choose this instead of inventing a waiting action or repeatedly checking.",
+      complete: "The current task is achieved in the live world, even if the broader objective is unfinished. Arrival completes a task to go somewhere for a later conversation.",
+      wait: "The current task is still unfinished, and progress now depends entirely on another character initiating a conversation, arriving, deciding, or completing their own work. Choose this instead of inventing a waiting action or repeatedly checking.",
       unable: "No available action can make progress, or essential clarification is needed." };
     const keys = [...new Set([...actionResourceIds(scenario, characterId), ...observation.actions.flatMap(action => actionResourceIds(scenario, characterId, action))])];
     const generations = generationIds(this.readResources(keys));

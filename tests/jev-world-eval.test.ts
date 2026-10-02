@@ -8,7 +8,7 @@ import { fromJson } from "@bufbuild/protobuf";
 import { ScenarioSchema } from "../packages/contracts/src/index.js";
 import { JevClient } from "../packages/providers/src/jev.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
-import { guestIds, inviteGuests, silkScarf, royalSeal } from "../evals/jev/scenarios.js";
+import { guestIds, inviteGuests, silkScarf, royalSeal, rookParlour, rookParlourArrived } from "../evals/jev/scenarios.js";
 import {
   artifactFileName,
   runJevEvalOnce,
@@ -158,4 +158,18 @@ test("Jev eval artifacts preserve the run transcript", () => {
   } finally {
     rmSync(directory, { recursive: true });
   }
+});
+
+
+test("Rook parlour regressions reject incomplete travel and door oscillation", () => {
+  const scenario = fromJson(ScenarioSchema, rookParlourArrived.createRuntime("test").snapshot().scenario);
+  const result = { scenario, terminalChoice: "complete", talkCalls: [], completedActionIds: [] as string[] };
+  assert.equal(rookParlourArrived.evaluate(result).success, true);
+  assert.equal(rookParlourArrived.evaluate({ ...result, terminalChoice: "limit" }).success, false);
+  assert.equal(rookParlourArrived.evaluate({ ...result, completedActionIds: ["open_guest_door_0"] }).success, false);
+  const travel = ["open_guest_door_1", "enter_guest_chamber"];
+  assert.equal(rookParlour.evaluate({ ...result, completedActionIds: travel }).success, true);
+  assert.equal(rookParlour.evaluate({ ...result, completedActionIds: [...travel, "close_guest_door_0", "open_guest_door_0"] }).success, false);
+  scenario.world!.actors.find(actor => actor.characterId === "rook")!.roomId = "great_hall";
+  assert.equal(rookParlour.evaluate(result).success, false);
 });
