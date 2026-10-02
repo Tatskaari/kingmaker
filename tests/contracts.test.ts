@@ -2254,6 +2254,9 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     assert.equal(plans[1]!.signal.aborted, false);
     assert.deepEqual(npcUpdates.at(-1).running, ["mara"]);
     await request("start_npc", { characterId: "corvin" });
+    assert.equal(plans.length, 2, "Continue cannot release a conversation hold before the first message");
+    await request("end_conversation", { characterId: "corvin" });
+    await request("start_npc", { characterId: "corvin" });
     plans[0]!.release();
     await new Promise(resolve => setImmediate(resolve));
     await request("start_npc", { characterId: "corvin" });
@@ -2268,6 +2271,30 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     assert.equal(plans.at(-1)!.signal.aborted, true, "Game replacement cancels every old run");
     plans.at(-1)!.release();
     await new Promise(resolve => setImmediate(resolve));
+  });
+
+  await t.test("loaded player conversations keep Jev paused while other NPCs can run", async t => {
+    const created = await request("create_development_game");
+    const saved = records.get(created.activeSaveId);
+    saved.snapshot.npcActivities = Object.fromEntries(["corvin", "mara"].map(id => [id, { status: "active", goal: "Wait here.", history: [] }]));
+    saved.snapshot.conversations.corvin = [{ role: "TRANSCRIPT_ROLE_PLAYER", speakerId: "player", text: "Hello." }];
+    await request("load_game", { saveId: created.activeSaveId });
+    const plans: Array<{ id: string; signal: AbortSignal; release: () => void }> = [];
+    t.mock.method(BrowserGameRuntime.prototype, "planNpc", async (id: string, signal: AbortSignal) => {
+      await new Promise<void>(resolve => plans.push({ id, signal, release: resolve }));
+      signal.throwIfAborted();
+      throw new Error("Unexpected uncancelled plan");
+    });
+    try {
+      await request("start_npc", { characterId: "corvin" });
+      await request("start_npc", { characterId: "mara" });
+      assert.deepEqual(plans.map(plan => plan.id), ["mara"]);
+      assert.equal((await request("state")).state.npcActivities.corvin.status, "active", "Pausing preserves the objective");
+    } finally {
+      await request("cancel_npc");
+      for (const plan of plans) plan.release();
+      await new Promise(resolve => setImmediate(resolve));
+    }
   });
 
   await t.test("NPC conversations reserve a pair and restart an interrupted solo run after review", async t => {

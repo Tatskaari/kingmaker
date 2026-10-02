@@ -183,7 +183,7 @@ function updateNpcPanel() {
       const running = npcRun.includes(id);
       const review = conversationReviews.get(id);
       if (review) return `<li><div class="npc-goal-content"><div class="npc-goal-heading">${escapeHtml(character?.name || id)}<span class="npc-activity-state">${review.error ? "Review failed" : "Remembering conversation"}</span></div><p>${escapeHtml(review.error || "Their memories and next goal are being reviewed.")}</p></div>${review.error ? `<button data-retry-conversation="${escapeHtml(id)}">Retry review</button>` : ""}</li>`;
-      const talking = !!state.conversations?.[id]?.length && closedConversation?.id !== id;
+      const talking = (activeCharacter === id || !!state.conversations?.[id]?.length) && closedConversation?.id !== id;
       const status = talking ? "In conversation" : activity.reviewPending ? (running ? "Reviewing outcome" : "Awaiting review") : running ? "Acting" : "Active objective";
       const objective = character?.activeObjective;
       const work = objective ? `<div class="npc-objective"><strong>${escapeHtml(objective.name)}</strong><p>${escapeHtml(objective.status)}</p><dl><dt>Success</dt><dd>${escapeHtml(objective.successCriteria)}</dd><dt>Current goal</dt><dd>${escapeHtml(objective.currentGoal)}</dd></dl></div>`

@@ -114,6 +114,8 @@ record the initiating request and the GM resolution separately.
 
 NPC execution is serial and bounded. Stop Jev cancels pending planning or walking;
 active goals and pending reviews can be resumed after loading a save.
+An NPC talking to the player stays paused until the conversation review finishes,
+including after reloading a conversation. Other NPCs can continue their goals.
 
 ### Conversation check classifiers
 

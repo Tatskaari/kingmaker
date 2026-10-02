@@ -338,6 +338,9 @@ async function loadGame(saveId: string): Promise<Record<string, unknown>> {
   const saved = await transaction<SaveRecord | undefined>("readonly", store => store.get(saveId));
   if (!saved) throw new Error("That saved game no longer exists");
   runtime = new BrowserGameRuntime(await scenarioPromise, apiKey, saved.snapshot, () => worker.postMessage({ type: "transcripts_changed" }), providerWarning);
+  for (const [id, messages] of Object.entries(saved.snapshot.conversations)) {
+    if (messages.length) conversationHolds.add(id);
+  }
   activeSave = saved;
   return { state: runtime.view(), activeSaveId: saved.id, saves: await listSaves() };
 }
@@ -359,7 +362,9 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
   if (["start_npc", "pause_npc", "talk", "end_conversation"].includes(type) && conversationReviews.has(reviewKey)) {
     throw new Error("This character is still reviewing the conversation. Try again when the review finishes.");
   }
-  if (type === "start_npc") { const id = String(payload.characterId); conversationHolds.delete(id); startBackground(id); return {}; }
+  // Only a completed conversation review releases its hold, including before
+  // the first turn and while a reply is still in flight.
+  if (type === "start_npc") { startBackground(String(payload.characterId)); return {}; }
   if (type === "pause_npc") { const id = String(payload.characterId); conversationHolds.add(id); stopBackground(id); publishNpc(`${id}: talking to you.`); void drainBackground(); return {}; }
   if (type === "configure") {
     apiKey = String(payload.apiKey || "").trim();
