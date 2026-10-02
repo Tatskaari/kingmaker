@@ -29,7 +29,10 @@ export function palaceFurniture(scenario: Scenario) {
     const room = `${id}_chamber`;
     bed(room, 0, 0, id, name);
     put(room, 6, 0, `${id}_wardrobe`, `${name}'s travel wardrobe`, 75, [item(`${id}_clothing`, clothing, clothingDetails)]);
-    put(room, 0, 3, `${id}_desk`, `${name}'s writing table`, 72, [item(`${id}_personal`, personal, personalDetails)]);
+    const deskItems = [item(`${id}_personal`, personal, personalDetails)];
+    if (id === "sabine") deskItems.push(item("sabine_dispatch_ledger", "Saltmere dispatch ledger",
+      "Sabine's private register lists Saltmere caravan bookings, gates and escort arrangements. Tomorrow's west-gate departures contain no Grey Gull booking, escorted or otherwise. This register cannot establish whether an unregistered caravan exists. Marginal notes cross-reference rising losses with fewer royal patrol sightings; they do not give official patrol headcounts."));
+    put(room, 0, 3, `${id}_desk`, `${name}'s writing table`, 72, deskItems);
     put(room, 1, 3, `${id}_stool`, `${name}'s desk stool`, 73);
   }
   bed("corvin_chamber", 3, 3, "corvin", "Corvin");

@@ -6,8 +6,25 @@ import { ScenarioSchema, TilePositionSchema, type Scenario } from "../packages/c
 import { roomAgentActions } from "../apps/web/src/room-actions.js";
 import { courtRoomAt } from "../apps/web/src/court-map.js";
 import { palaceNodes } from "../apps/web/src/palace-navigation.js";
+import { applyFixtureAction } from "../packages/core/src/fixtures.js";
 
 const load = () => fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8"));
+test("Sabine must visit and open her writing table to check the dispatch ledger", () => {
+  const scenario = load(), actor = scenario.world!.actors.find(item => item.characterId === "sabine")!;
+  const inspect = "inspect_item_furn_sabine_dispatch_ledger";
+  actor.roomId = "great_hall";
+  actor.position = create(TilePositionSchema, scenario.courtArrivalPlacements.find(item => item.characterId === "sabine")!.position!);
+  assert.ok(!roomAgentActions(scenario, "sabine").some(action => action.id === inspect));
+  actor.roomId = "sabine_chamber";
+  actor.position = create(TilePositionSchema, scenario.world!.fixtures.find(item => item.id === "furn_sabine_desk")!.interactionSpot!);
+  assert.ok(!roomAgentActions(scenario, "sabine").some(action => action.id === inspect));
+  const open = roomAgentActions(scenario, "sabine").find(action => action.id === "open_furn_sabine_desk")!;
+  assert.equal(open.legality, "normal");
+  applyFixtureAction(scenario, "sabine", open.id);
+  assert.ok(roomAgentActions(scenario, "sabine").some(action => action.id === inspect));
+  assert.match(applyFixtureAction(scenario, "sabine", inspect), /no Grey Gull booking/);
+});
+
 function place(scenario: Scenario, roomId: string) {
   const actor = scenario.world!.actors.find(item => item.characterId === "corvin")!;
   actor.roomId = roomId;

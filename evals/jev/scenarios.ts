@@ -135,4 +135,30 @@ export const privateBelongings: JevWorldEvalScenario = {
     return { success, ...(!success ? { reason: "Mara must reach her salon with the draft and leave her desk and bedroom door closed." } : {}) };
   },
 };
-export const jevWorldEvalScenarios = [treasury, inviteGuests, silkScarf, royalSeal, royalSealKeySearch, diningSupplies, privateBelongings];
+const greyGullLedger: JevWorldEvalScenario = {
+  name: "Sabine checks the Grey Gull dispatch ledger",
+  characterId: "sabine",
+  goal: "Go to my chamber, open my writing table, and inspect the Saltmere dispatch ledger once, leaving it there. Finish after that inspection.",
+  objective: {
+    name: "Check the Grey Gull rumor privately",
+    status: "The envoy says Grey Gull leaves the west gate tomorrow without escort. I downplayed the rumor and excused myself to check my dispatch ledger in my chamber. My carried caravan tallies are only a loss summary, not the departure register.",
+    successCriteria: "I have reached my chamber, opened my writing table and inspected the Saltmere dispatch ledger once. Reading the ledger completes this physical task even if it cannot verify the rumor; leave it in the table.",
+  },
+  repeats: 3, maxTurns: 16,
+  createRuntime: apiKey => new BrowserGameRuntime(courtAtDayOne(), apiKey),
+  evaluate({ scenario, terminalChoice, completedActionIds = [] }) {
+    const inspections = completedActionIds.filter(id => id === "inspect_item_furn_sabine_dispatch_ledger");
+    const milestones = [
+      { name: "Reach Sabine's chamber", points: 1,
+        achieved: scenario.world!.actors.some(actor => actor.characterId === "sabine" && actor.roomId === "sabine_chamber") },
+      { name: "Open the writing table", points: 1, achieved: completedActionIds.includes("open_furn_sabine_desk") },
+      { name: "Inspect the dispatch ledger exactly once", points: 1, achieved: inspections.length === 1 },
+      { name: "Leave the ledger in the table", points: 1,
+        achieved: locatedItems(scenario).find(item => item.id === "furn_sabine_dispatch_ledger")?.locationId === "furn_sabine_desk" },
+      { name: "Finish without repeatedly reading the carried tallies", points: 1,
+        achieved: terminalChoice === "complete" && !completedActionIds.includes("inspect_item_sabine_caravan_tallies") },
+    ];
+    return { success: milestones.every(item => item.achieved), milestones };
+  },
+};
+export const jevWorldEvalScenarios = [treasury, inviteGuests, silkScarf, royalSeal, royalSealKeySearch, diningSupplies, privateBelongings, greyGullLedger];
