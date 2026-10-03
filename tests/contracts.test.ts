@@ -1302,7 +1302,7 @@ test("main containers enforce approaches and keys, conceal contents, and persist
   let saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
   assert.ok(worldForCharacter(saved, "player").objects.some(item => item.id === "palace_royal_key"));
   assert.match(runtime.interactFixture("take_palace_royal_key"), /Picked up/);
-  assert.throws(() => runtime.interactFixture("take_palace_royal_key"), /Unknown/);
+  assert.throws(() => runtime.interactFixture("take_palace_royal_key"), /no longer available/);
   runtime.interactFixture("close_palace_corvin_drawers");
   runtime.movePlayer({ x: 61, y: 10 }); runtime.setDoor("royal_door", true);
   runtime.movePlayer({ x: 63, y: 5 });
@@ -1366,7 +1366,7 @@ test("trying locked containers needs the correct carried key and preserves conce
   const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
   assert.equal(saved.world!.fixtures.find(item => item.id === "palace_coffer_03")!.open, false);
   assert.ok(!worldForCharacter(saved, "player").objects.some(item => item.id === "palace_royal_seal"));
-  assert.throws(() => runtime.interactFixture("take_palace_royal_seal"), /Unknown/);
+  assert.throws(() => runtime.interactFixture("take_palace_royal_seal"), /no longer available/);
 });
 
 test("resetting physical world keeps character and conversation while refreshing containers and placements", async t => {

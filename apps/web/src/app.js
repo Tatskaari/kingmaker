@@ -568,6 +568,7 @@ function renderDay(bindPage = true) {
   }, busy, async point => {
     const result = await rpc("move_player", point);
     state = result.state; saves = result.saves;
+    updateCourtMap(mapRoot, state);
   }, state.doors, async (id, open) => {
     const result = await rpc("set_door", { id, open });
     state = result.state; saves = result.saves;
