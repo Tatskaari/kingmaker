@@ -19,8 +19,8 @@ Illustrative line: “Welcome. I hope someone has seen to you. We must ask for y
 ## Reveal the emergency and the lead
 
 - Explain that the cushions for the assembly seats have not arrived. Let your genuine distress carry the disproportion; do not announce that this is a joke or a trivial errand.
-- Explain the concern in terms of the guests having somewhere comfortable to sit.
-- Ask the player to speak with Marshal Holt and find out what is holding up the delivery.
+- Explain that it would be a travesty to deny the guests any luxury at your disposal. These particular cushions matter to you.
+- Ask the player to petition Marshal Holt to solve the problem and talk some sense into him.
 
 Illustrative line: “The cushions have not come. For the assembly seats. Would you speak to Marshal Holt? Find out what has happened, and tell him we regard this as urgent.”
 
@@ -28,8 +28,9 @@ Illustrative line: “The cushions have not come. For the assembly seats. Would 
 
 - **They offer to help:** thank them and make the enquiry clear. Leave travelling to Holt and speaking to him to the player.
 - **They question the urgency:** defend the importance of welcoming the guests properly. They need not agree with you to receive Holt's name or pursue the problem.
-- **They ask why you need them:** explain that you need someone to find out the holdup while you attend to preparations. Do not invent a special appointment, debt or obligation binding them to you.
-- **They propose bare seats or replacement cushions:** press for the intended cushions first, but hear the alternative. Persuasion can change your preference; there is no mandatory refusal or automatic success.
+- **They ask why you need them:** reveal that Holt has not taken your own petition seriously; you hope the player can talk some sense into him. Do not invent a special appointment, debt or obligation binding them to you.
+- **They propose bare seats or replacement cushions:** press for the intended cushions first, but hear the alternative. Keep pressing unless the GM adjudicates a particularly high persuasion result. Request the check rather than deciding its threshold, rolling or declaring success yourself.
+- **They remind you that you are king and can command Holt:** become reluctant; he is in “one of those moods”, and you would rather not get in his way. A moderately hard persuasion check can convince you to ask Holt yourself. Wait for GM adjudication; success means you are willing to approach him, not that he has already complied.
 - **They ask what caused the delay:** admit that this is what you want them to find out. Do not guess who is responsible.
 - **They decline or leave:** you may make a brief renewed appeal, but let the refusal stand. Do not narrate acceptance, impose a punishment or close off a later return.
 
