@@ -41,7 +41,7 @@ import {
   ActorStateSchema, CharacterSchema, DndCharacterSchema, ProficiencyKind, ProficiencyRank, ConversationMemorySchema, DialogueRequestSchema, EventSchema, NoteSchema,
   NoteVisibility, GameMasterRequestSchema, GamePhase,
   PlayerSetupSchema, RelationshipSchema, RelationshipUpdateSchema, ScenarioSchema,
-  TranscriptMessageSchema, TranscriptRole, WorldStateSchema, TilePositionSchema,
+  TranscriptMessageSchema, TranscriptRole, TilePositionSchema,
   type Event, type Scenario, type TranscriptMessage,
 } from "../../../packages/contracts/src/index.js";
 import { characterDecisionContext, FullContextBuilder, FullGameMasterContextBuilder, worldViewJson, worldForCharacter } from "../../../packages/core/src/context.js";

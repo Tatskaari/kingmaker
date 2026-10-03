@@ -1,4 +1,4 @@
-import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
+import { create, fromJson, type JsonValue } from "@bufbuild/protobuf";
 import { clone } from "@bufbuild/protobuf";
 import { DndCharacterSchema, WorldStateSchema as MapSchema, type WorldState as PalaceMap } from "../../../packages/contracts/src/index.js";
 import { CharacterPropertiesSchema } from "../../../packages/contracts/src/v2.js";

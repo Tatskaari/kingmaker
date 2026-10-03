@@ -2,17 +2,14 @@ import { WorldHost } from "../apps/web/src/world-host.js";
 import { loadPlayableWorld } from "./fixtures.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
-import { create, fromJsonString } from "@bufbuild/protobuf";
-import { ScenarioSchema, TranscriptMessageSchema } from "../packages/contracts/src/index.js";
+import { create } from "@bufbuild/protobuf";
+import { TranscriptMessageSchema } from "../packages/contracts/src/index.js";
 import { DocumentSchema } from "../packages/contracts/src/v2.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
 import { characterEntry } from "../packages/lore/src/active-goal.js";
-import { loadConversationWorld } from "../scripts/lib/conversation-world.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { jevActionHooks } from "../packages/conversation/src/action.js";
 import { documentReviewHooks } from "../packages/conversation/src/document-review.js";
-import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
 import { planWorldAction, reviewAndPlanWorldAction, assertWorldActionCurrent } from "../apps/web/src/world-action.js";
 
 function fixture(goal?: string) {

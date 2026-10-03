@@ -1,6 +1,6 @@
 import type { MapService } from "../../../packages/conversation/src/map.js";
-import { clone, create, toJson } from "@bufbuild/protobuf";
-import { CharacterSchema, ScenarioSchema, WorldStateSchema as MapSchema } from "../../../packages/contracts/src/index.js";
+import { create, toJson } from "@bufbuild/protobuf";
+import { CharacterSchema, ScenarioSchema } from "../../../packages/contracts/src/index.js";
 import { WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
 import { activeGoal, characterEntry } from "../../../packages/lore/src/active-goal.js";
 import { createScenarioServices } from "../../../packages/lore/src/services.js";

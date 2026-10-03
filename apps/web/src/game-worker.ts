@@ -1,6 +1,5 @@
 /// <reference lib="webworker" />
 import { type TravellerIdentity } from "./introduction.js";
-import { type JsonValue } from "@bufbuild/protobuf";
 import { type Event } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
 import { WorldGameRuntime as BrowserGameRuntime, type WorldSnapshot as RuntimeSnapshot } from "./world-runtime.js";
@@ -372,7 +371,6 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     return { saves: await listSaves() };
   }
   if (type === "state") return { state: requireRuntime().view(), activeSaveId: activeSave?.id };
-  if (type === "stranger_expression") return {};
   if (["set_identity", "start_introduction", "gm", "save_character"].includes(type)) {
     throw new Error("Character creation is not available in this scenario. Start a fresh game with the visiting envoy.");
   }
@@ -437,7 +435,6 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
           if (generation !== version) throw new Error("Game changed.");
           game.commitCharacterFork(before, fork, [id]);
         });
-      if (type === "talk") void game.logConversationExpression(id).catch(() => {});
       if (finalMessage) reply = await reviewFork(game).endConversation(id);
       if (type === "end_conversation") {
         conversationHolds.delete(id);
@@ -498,7 +495,7 @@ worker.addEventListener("message", event => {
   };
   // Background work and dialogue wait outside the mutation queue. Their results
   // rejoin it only to validate, merge and save, keeping player commands responsive.
-  if (request.type === "stranger_expression" || request.type === "cancel_npc" || request.type === "debug_transcripts" || request.type === "issue_report" || request.type === "start_npc" || request.type === "pause_npc" || request.type === "talk" || request.type === "end_conversation" || request.type === "interact_fixture" || request.type === "set_door" || request.type === "move_player") void process();
+  if (request.type === "cancel_npc" || request.type === "debug_transcripts" || request.type === "issue_report" || request.type === "start_npc" || request.type === "pause_npc" || request.type === "talk" || request.type === "end_conversation" || request.type === "interact_fixture" || request.type === "set_door" || request.type === "move_player") void process();
   else void enqueue(process);
 });
 

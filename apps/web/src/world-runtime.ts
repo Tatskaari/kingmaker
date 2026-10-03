@@ -213,5 +213,4 @@ export class WorldGameRuntime extends WorldHost {
     (this.activity.npcActivities![id]!.actionIds ??= []).push(actionId);
     return reply.content;
   }
-  async logConversationExpression(_id: string) { /* Portrait policy is optional in this host. */ }
 }

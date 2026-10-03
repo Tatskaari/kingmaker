@@ -1,11 +1,6 @@
 import { loadPlayableWorld } from "./fixtures.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
-import { fromJsonString } from "@bufbuild/protobuf";
-import { ScenarioSchema } from "../packages/contracts/src/index.js";
-import { readVault } from "../scripts/lib/lore-access.js";
-import { playableWorld } from "../apps/web/src/playable-world.js";
 import { WorldGameRuntime } from "../apps/web/src/world-runtime.js";
 import type { WorldOptions } from "../apps/web/src/world-runtime.js";
 import { activeGoal } from "../packages/lore/src/active-goal.js";

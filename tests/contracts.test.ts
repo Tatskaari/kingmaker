@@ -26,7 +26,6 @@ import {
   RelationshipSchema,
   RelationshipUpdateSchema,
   CharacterSchema,
-  ActiveObjectiveSchema,
   ScenarioSchema,
   WorldMapSchema,
   TranscriptRole,
@@ -115,7 +114,7 @@ test("the expanded authored scenario strictly parses and survives protobuf", () 
 });
 
 test("the initial dethroning plot stays with the GM while each faction receives its own leads", () => {
-  const scenario = load(), world = scenario.world!;
+  const scenario = load();
   const gm = new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario }))
     .map(message => message.content).join("\n");
   const context = (id: string) => new FullContextBuilder().build(create(DialogueRequestSchema, { scenario, characterId: id }))
@@ -2127,8 +2126,6 @@ test("failed Stranger calls retain saved identity and can resume after reload", 
 test("v2 worker persists one world and keeps scheduling, review and dice outside its mutation queue", { timeout: 30000 }, async t => {
   const { WorldGameRuntime: BrowserGameRuntime } = await import("../apps/web/src/world-runtime.js");
   type BrowserGameRuntime = import("../apps/web/src/world-runtime.js").WorldGameRuntime;
-  const { playableWorld } = await import("../apps/web/src/playable-world.js");
-  const { readVault } = await import("../scripts/lib/lore-access.js");
   const world = loadPlayableWorld();
   const globals = globalThis as any;
   const originalSelf = Object.getOwnPropertyDescriptor(globalThis, "self");
