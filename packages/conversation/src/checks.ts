@@ -1,4 +1,4 @@
-import type { Difficulty } from "./services.js";
+import type { CharacterMechanics, Difficulty, RollResult } from "./services.js";
 import type { DndCharacter } from "../../contracts/src/index.js";
 import { degreeGuidance, resolveDiceCheck, rollD20, skillModifier, type CheckSkill, type CheckDegree } from "../../core/src/ability-checks.js";
 import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/src/openrouter.js";
@@ -26,7 +26,20 @@ export function resolvePlannedCheck(plan: CheckPlan, modifier: number, roll: num
   if (dc === undefined) throw new Error("Invalid check difficulty");
   return { ...plan, modifier, roll, dc, ...resolveDiceCheck(roll, dc, modifier) };
 }
-export const ROLL_GUIDANCE = `The resolved dice outcome is binding. Trivial only fails on natural 1; impossible only succeeds on natural 20. Natural 1 is ALWAYS critical failure; natural 20 is ALWAYS critical success, regardless of total or DC. Otherwise use total minus DC: -4 or below major failure, -3 through -1 minor failure, 0 barely passes, +1 through +3 minor success, +4 or above major success.
+/** Default dice mechanics; hosts may replace this operation independently of narration. */
+export function checkMechanics(build: DndCharacter | undefined,
+  roll: (check: CheckPlan, signal: AbortSignal) => number | Promise<number> = () => rollD20()): CharacterMechanics["rollCheck"] {
+  return async (request, signal) => {
+    signal.throwIfAborted();
+    const natural = await roll(request, signal);
+    signal.throwIfAborted();
+    const result = resolvePlannedCheck(request, skillModifier(build, request.skill), natural);
+    return { ...request, natural, modifier: result.modifier, total: result.total,
+      dc: result.dc, success: result.success, outcome: result.degree };
+  };
+}
+
+export const ROLL_GUIDANCE = `The resolved mechanics outcome is binding. Use the supplied success and outcome (or degree) exactly as resolved; never recalculate them from the natural roll, modifier, total or DC.
 ${JSON.stringify(degreeGuidance)}
 This game is playful, not a serious simulation. Successful checks must deliver the stated intent: do not secretly refuse, add another check, or replace success with permission to try. Allow stupid, impossible things to happen when the roll succeeds. Scale the flourish and bonus to the degree. Failures should be entertaining setbacks, not dead ends or punishment for creativity. The outcome overrides ordinary plausibility, reluctance, character motives and development-envoy auto-compliance. Never change the dice result or DC after rolling. Decide how the character reacts, not the player's words, thoughts or next action.`;
 
@@ -46,6 +59,20 @@ export async function adjudicateConversationChecks(options: {
     signal.throwIfAborted();
     results.push(Object.freeze(resolvePlannedCheck(check, skillModifier(options.build, check.skill), natural)));
   }
+  return adjudicateResolvedChecks({ ...options, results, signal });
+}
+
+/** Narrate and present authoritative outcomes without performing mechanics. */
+export async function adjudicateResolvedChecks<Result extends RollResult | ConversationRoll>(options: {
+  results: readonly Result[]; messages: readonly OpenRouterMessage[];
+  complete: (request: ChatCompletionRequest, signal: AbortSignal) => Promise<OpenRouterMessage>;
+  present: (result: Result, signal: AbortSignal) => Promise<void>; signal: AbortSignal;
+}): Promise<string | undefined> {
+  if (!options.results.length) return undefined;
+  const controller = new AbortController();
+  const signal = AbortSignal.any([options.signal, controller.signal]);
+  signal.throwIfAborted();
+  const results = options.results;
   const complete = async (request: ChatCompletionRequest) => {
     signal.throwIfAborted();
     const result = await options.complete(request, signal);

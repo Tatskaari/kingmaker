@@ -1,8 +1,7 @@
-import type { DndCharacter } from "../../contracts/src/index.js";
 import { classifyConversationTurn, type ConversationCheckClassification } from "../../providers/src/conversation-checks.js";
 import type { ConversationHooks } from "./phases.js";
 import type { ConversationRuntime } from "./runtime.js";
-import { adjudicateConversationChecks, type CheckPlan } from "./checks.js";
+import { adjudicateResolvedChecks, type CheckPlan } from "./checks.js";
 
 export interface CheckLabels { checks: ConversationCheckClassification; plan?: CheckPlan[] }
 
@@ -10,9 +9,7 @@ export interface CheckLabels { checks: ConversationCheckClassification; plan?: C
 export function checkHooks(runtime: ConversationRuntime<CheckLabels>, options: {
   playerTurn: string;
   playerId: string;
-  build: DndCharacter | undefined;
   context?: unknown;
-  roll?: (check: CheckPlan, signal: AbortSignal) => Promise<number>;
 }): ConversationHooks<CheckLabels> {
   return {
     classify: async (context, signal) => {
@@ -39,13 +36,15 @@ export function checkHooks(runtime: ConversationRuntime<CheckLabels>, options: {
     resolve: async (context, labels, signal) => {
       if (context.completed.has("checks")) return { reclassify: false };
       if (!labels.plan && labels.checks.checks.length) throw new Error("Missing classified check plan");
-      const ruling = await adjudicateConversationChecks({ plan: labels.plan ?? [],
-        messages: context.request.messages, build: options.build,
+      const results = [];
+      for (const check of labels.plan ?? []) {
+        signal.throwIfAborted();
+        results.push(Object.freeze(await runtime.services.character.rollCheck({ characterId: options.playerId, ...check }, signal)));
+        signal.throwIfAborted();
+      }
+      const ruling = await adjudicateResolvedChecks({ results, messages: context.request.messages,
         complete: (request, cancellation) => runtime.services.ai.responses(request, cancellation),
-        present: (result, cancellation) => runtime.services.presentation.showRoll({ characterId: options.playerId,
-          skill: result.skill, natural: result.roll, modifier: result.modifier, total: result.total,
-          difficulty: result.difficulty, dc: result.dc, success: result.success, outcome: result.degree }, cancellation),
-        ...(options.roll ? { roll: options.roll } : {}),
+        present: (result, cancellation) => runtime.services.presentation.showRoll(result, cancellation),
         signal,
       });
       if (ruling) context.request.messages.push({ role: "system", content: ruling });
