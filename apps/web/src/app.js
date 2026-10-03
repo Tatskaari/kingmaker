@@ -481,7 +481,7 @@ function refreshStrangerPortrait(messages) {
 function renderCreation() {
   const messages = (state.gmMessages || []).filter(message => !(message.role === "user" && message.text.startsWith(handoffPrefix)));
   if (!messages.length) {
-    app.innerHTML = shell(`<section class="introduction" aria-label="Welcome to Kingmaker"><div class="eyebrow">A roleplaying sandbox · Tech demo</div><h2>Welcome to Kingmaker</h2>${sandboxIntroduction.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join("")}<button class="dialogue-option" data-meet-stranger ${busy ? "disabled" : ""}>Meet the Stranger →</button><button data-skip-character ${busy ? "disabled" : ""}>Skip and use default character</button><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
+    app.innerHTML = shell(`<section class="introduction" aria-label="Welcome to Kingmaker"><div class="eyebrow">A roleplaying sandbox · Tech demo</div><h2>Welcome to Kingmaker</h2>${sandboxIntroduction.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join("")}<button class="dialogue-option" data-meet-stranger ${busy ? "disabled" : ""}>Meet the Stranger →</button><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
     bind(); return;
   }
   if (strangerPortraitState.generation !== gameViewGeneration) {
