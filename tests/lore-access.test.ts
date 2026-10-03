@@ -68,7 +68,7 @@ test("reports ambiguous, missing and escaping links without selecting an arbitra
 });
 
 test("invalid metadata fails closed, including malformed YAML and reader lists", t => {
-  for (const header of ["visibility: pubic", "visibility: private\nreaders: {characters: aldren}", "visibility: private\nreaders: {character: aldren}", "visibility: [", "visibility: public\nvisibility: private"]) {
+  for (const header of ["visibility: [public]", "visibility: pubic", "visibility: private\nreaders: {characters: aldren}", "visibility: private\nreaders: {character: aldren}", "visibility: [", "visibility: public\nvisibility: private"]) {
     const root = fixture(t, { [entry]: `---\n${header}\n---\n` });
     assert.equal(auditLore(root, entry, { character: "aldren" })[0]?.kind, "invalid");
   }
