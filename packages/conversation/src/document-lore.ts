@@ -2,7 +2,7 @@ import { summaryPreview } from "../../lore/src/markdown.js";
 import { activeGoal } from "../../lore/src/active-goal.js";
 import type { ScenarioService } from "../../lore/src/services.js";
 import { permitted, labels } from "../../lore/src/access.js";
-import type { LoreService } from "./services.js";
+import type { LoreService, RuntimeServices } from "./services.js";
 
 /** Character-scoped view of the authoritative GM document service. */
 export async function documentLore(scenario: ScenarioService, characterId: string): Promise<LoreService> {
@@ -41,4 +41,18 @@ export async function documentLore(scenario: ScenarioService, characterId: strin
     },
     async open(link, signal) { signal.throwIfAborted(); return read(link.path); },
   };
+}
+
+/** Host default: construct document views lazily, preserving scoped or factory overrides. */
+export function documentLoreService(scenario: ScenarioService,
+  overrides: Partial<RuntimeServices["lore"]> = {}): Partial<RuntimeServices["lore"]> {
+  return { ...overrides, forCharacter: async (characterId, signal) => {
+    signal.throwIfAborted();
+    if (overrides.forCharacter) return overrides.forCharacter(characterId, signal);
+    const defaults = overrides.initial && overrides.links && overrides.open ? undefined : await documentLore(scenario, characterId);
+    signal.throwIfAborted();
+    return { initial: overrides.initial ?? defaults!.initial,
+      links: opened => overrides.links ? overrides.links(opened) : defaults!.links(opened),
+      open: (link, cancellation) => overrides.open ? overrides.open(link, cancellation) : defaults!.open(link, cancellation) };
+  } };
 }

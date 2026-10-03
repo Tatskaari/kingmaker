@@ -1,3 +1,4 @@
+import { documentLoreService } from "../packages/conversation/src/document-lore.js";
 import { commitReview } from "./fixtures.js";
 import { WorldHost } from "../apps/web/src/world-host.js";
 import { loadPlayableWorld } from "./fixtures.js";
@@ -30,7 +31,7 @@ const evidence = { characterId: "corvin", participants: ["corvin", "player"], tr
 
 test("v2 review commits its goal before classify/resolve returns a real command without moving anyone", async () => {
   const services = fixture(), beforeMap = services.scenario.snapshot().map, order: string[] = [];
-  const runtime = new ConversationRuntime({ services: { ...services, ai: {
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: {
     responses: async () => { order.push("review"); return commitReview({
       summary: "Agreed", newNotes: ["The player requested a visit to the hall."], activeGoal: "Go to the hall" }); },
     decisions: async (state, questions) => {
@@ -55,7 +56,7 @@ test("v2 review commits its goal before classify/resolve returns a real command 
 
 test("v2 idle reviews skip Jev, failed reviews stop planning, and terminal results return no command", async () => {
   const services = fixture(); let calls = 0;
-  const runtime = new ConversationRuntime({ services: { ...services, ai: {
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: {
     responses: async () => (commitReview({ summary: "No task", newNotes: [], activeGoal: null })),
     decisions: async () => { calls++; return { next: { choice: "wait", probabilities: {} } }; },
   } }, hooks: { review: documentReviewHooks, action: jevActionHooks } });
@@ -63,7 +64,7 @@ test("v2 idle reviews skip Jev, failed reviews stop planning, and terminal resul
   runtime.services.ai.responses = async () => { throw new Error("review failed"); };
   await assert.rejects(reviewAndPlanWorldAction(evidence, runtime), /review failed/); assert.equal(calls, 0);
   const active = fixture("Go to the hall");
-  const activeRuntime = new ConversationRuntime({ services: { ...active, ai: runtime.services.ai }, hooks: { action: jevActionHooks } });
+  const activeRuntime = new ConversationRuntime({ services: { ...active, lore: documentLoreService(active.scenario), ai: runtime.services.ai }, hooks: { action: jevActionHooks } });
   assert.equal((await planWorldAction("corvin", activeRuntime))!.action, undefined); assert.equal(calls, 1);
   await assert.rejects(planWorldAction("corvin", activeRuntime, undefined, Array(24).fill("open_door")), /limit/);
   assert.equal(calls, 1);
@@ -71,7 +72,7 @@ test("v2 idle reviews skip Jev, failed reviews stop planning, and terminal resul
 
 test("planning tolerates document changes and still honours cancellation", async () => {
   const services = fixture("Go to the hall"), controller = new AbortController();
-  const runtime = new ConversationRuntime({ services: { ...services, ai: { decisions: async () => {
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { decisions: async () => {
     const path = characterEntry(services.scenario.info(), "corvin"), doc = await services.docs.read(path);
     await services.docs.replace(path, doc.sha, "Go to the hall", "Go to the kitchen");
     return { next: { choice: "complete", probabilities: {} } };

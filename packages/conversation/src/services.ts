@@ -79,7 +79,10 @@ export interface RuntimeServices {
   readonly scenario: ScenarioService;
   readonly docs: DocsService;
   readonly ai: AiService;
-  readonly lore: LoreService;
+  readonly lore: LoreService & {
+    /** Resolve a fresh character-scoped view, including each participant in an exchange. */
+    forCharacter(characterId: string, signal: AbortSignal): Promise<LoreService>;
+  };
   readonly character: CharacterService;
   readonly presentation: PresentationService;
   readonly random: RandomService;

@@ -3,7 +3,7 @@ import test from "node:test";
 import { WorldGameRuntime, type WorldOptions } from "../apps/web/src/world-runtime.js";
 import { CheckDegree } from "../packages/core/src/ability-checks.js";
 import type { RollResult } from "../packages/conversation/src/services.js";
-import { loadPlayableWorld } from "./fixtures.js";
+import { commitReview, loadPlayableWorld } from "./fixtures.js";
 
 function game(options: WorldOptions) {
   return new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, undefined, options);
@@ -52,5 +52,60 @@ test("v2 turn mechanics overrides preserve host character methods and propagate 
     character: { rollCheck: async () => { throw new Error("Mechanics unavailable"); } },
   } }), /Mechanics unavailable/);
   assert.equal(replies, 0);
+  assert.deepEqual(runtime.snapshot(), before);
+});
+
+test("v2 dialogue honors scoped lore overrides, progressive disclosure and per-turn precedence", async () => {
+  let opened = 0, linked = 0;
+  const runtime = game({ services: {
+    scenario: { getDocument: async () => assert.fail("Complete injected lore must not load document lore") },
+    lore: {
+      initial: [{ path: "injected.md", markdown: "HOST_LORE" }],
+      links: () => { linked++; return [{ from: "injected.md", path: "detail.md" }]; },
+      open: async (link, signal) => { signal.throwIfAborted(); opened++; return { path: link.path, markdown: "OPENED_LORE" }; },
+    },
+    ai: { decisions: async (_state, questions) => Object.fromEntries(Object.keys(questions).map(id => [id, {
+      choice: id.startsWith("open_") ? id : "not_needed", probabilities: { [id]: 1 },
+    }])), responses: async request => {
+      const prompt = JSON.stringify(request);
+      assert.match(prompt, /TURN_LORE/); assert.match(prompt, /OPENED_LORE/);
+      assert.doesNotMatch(prompt, /HOST_LORE/);
+      return { role: "assistant", content: "I know." };
+    } },
+  } });
+  await runtime.checkedTalkToCharacter("rowan", "What do you know?", undefined, { services: {
+    lore: { initial: [{ path: "injected.md", markdown: "TURN_LORE" }] },
+  } });
+  assert.equal(opened, 1); assert.ok(linked >= 2);
+});
+
+test("v2 review and planning use fresh character-scoped injected lore", async () => {
+  const scopes: string[] = [];
+  const runtime = game({ services: {
+    lore: { forCharacter: async (id, signal) => {
+      signal.throwIfAborted(); scopes.push(id);
+      return { initial: [{ path: "injected.md", markdown: `SCOPED_${id}` }], links: () => [], open: async () => assert.fail() };
+    } },
+    ai: { responses: async request => {
+      assert.match(JSON.stringify(request), /SCOPED_rowan/);
+      return commitReview({ summary: "Agreed", newNotes: [], activeGoal: "Go to the hall" });
+    }, decisions: async state => {
+      assert.match(String(state), /SCOPED_rowan/);
+      return { next: { choice: "wait", probabilities: {} } };
+    } },
+  } });
+  runtime.endConversationAsPlayer("rowan", "Go to the hall.");
+  await runtime.endConversation("rowan");
+  await runtime.planNpc("rowan", new AbortController().signal);
+  assert.deepEqual(scopes, ["rowan", "rowan"]);
+});
+
+test("v2 lore failures abort dialogue before AI or transcript publication", async () => {
+  const runtime = game({ services: {
+    lore: { forCharacter: async () => { throw new Error("Lore unavailable"); } },
+    ai: { responses: async () => assert.fail(), decisions: async () => assert.fail() },
+  } });
+  const before = runtime.snapshot();
+  await assert.rejects(runtime.checkedTalkToCharacter("rowan", "Hello"), /Lore unavailable/);
   assert.deepEqual(runtime.snapshot(), before);
 });

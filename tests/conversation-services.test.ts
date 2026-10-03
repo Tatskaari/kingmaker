@@ -20,6 +20,7 @@ test("unused runtime constructs headlessly and every default service fails expli
     ["docs.delete", () => services.docs.delete("note.md", "sha")],
     ["ai.decisions", () => services.ai.decisions("context", {}, signal)],
     ["ai.responses", () => services.ai.responses({ model: "test", messages: [] }, signal)],
+    ["lore.forCharacter", () => services.lore.forCharacter("corvin", signal)],
     ["lore.initial", () => services.lore.initial],
     ["lore.links", () => services.lore.links([])],
     ["lore.open", () => services.lore.open({ path: "note.md", from: "character.md" }, signal)],

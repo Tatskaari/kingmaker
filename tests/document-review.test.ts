@@ -1,3 +1,4 @@
+import { documentLoreService } from "../packages/conversation/src/document-lore.js";
 import { commitReview } from "./fixtures.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -25,7 +26,7 @@ const answer = (activeGoal: string | null) => (commitReview({ summary: "Reviewed
 
 test("v2 review atomically saves notes and goal, preserves access metadata, and survives reload", async () => {
   const services = fixture(), before = services.scenario.snapshot();
-  const runtime = new ConversationRuntime({ services: { ...services, ai: { responses: async request => {
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
     const text = JSON.stringify(request);
     assert.match(text, /Please go to the hall/); assert.match(text, /Alice speaks softly/);
     assert.ok(!text.includes("SECRET_SENTINEL")); return answer("Go to the hall");
@@ -50,7 +51,7 @@ test("v2 review atomically saves notes and goal, preserves access metadata, and 
 test("failed and cancelled v2 reviews cannot overwrite documents or activate goals", async () => {
   for (const mode of ["malformed", "cancelled"]) {
     const services = fixture(), controller = new AbortController();
-    const runtime = new ConversationRuntime({ services: { ...services, ai: { responses: async () => {
+    const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async () => {
       if (mode === "malformed") return { role: "assistant", content: '{}' };
       if (mode === "cancelled") controller.abort();
       return answer("Go to the hall");
@@ -64,7 +65,7 @@ test("failed and cancelled v2 reviews cannot overwrite documents or activate goa
 
 test("v2 review cannot add document links through generated notes", async () => {
   const services = fixture(), before = services.scenario.snapshot();
-  const runtime = new ConversationRuntime({ services: { ...services, ai: { responses: async () => (commitReview({ summary: "Reviewed", newNotes: ["Remember [[gm.md]]"], activeGoal: "Read the secret" })) } },
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async () => (commitReview({ summary: "Reviewed", newNotes: ["Remember [[gm.md]]"], activeGoal: "Read the secret" })) } },
     hooks: { review: documentReviewHooks } });
   await assert.rejects(runConversationReview(evidence, runtime), /plain prose/);
   assert.deepEqual(services.scenario.snapshot(), before);
@@ -72,7 +73,7 @@ test("v2 review cannot add document links through generated notes", async () => 
 
 test("document conflicts refresh the tool snapshot and let the GM reconcile before retrying", async () => {
   const services = fixture(); let calls = 0;
-  const runtime = new ConversationRuntime({ services: { ...services, ai: { responses: async request => {
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
     calls++;
     if (calls === 1) {
       const current = await services.docs.read(entry);

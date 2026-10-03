@@ -231,7 +231,7 @@ through `ConversationRuntime`, rather than separately deployed services.
 | `docs` | Read and edit narrative documents with SHA-checked writes |
 | `map` | Layout, character-visible physical observations, available actions and validated interactions |
 | `ai` | Structured decisions and model responses; policy supplies the prompts |
-| `lore` | Character-scoped initial documents, permitted links and disclosure |
+| `lore` | `forCharacter(id, signal)` supplies fresh character-scoped initial documents, permitted links and disclosure |
 | `character` | Character replies and check/save operations |
 | `presentation` | Display rolls, portraits and committed map updates |
 | `random`, `debug` | Replaceable randomness and observational tracing |
@@ -239,6 +239,16 @@ through `ConversationRuntime`, rather than separately deployed services.
 The [service interfaces](packages/conversation/src/services.ts) are the compiled
 contract. Missing operations throw explicitly; hosts supply the dependencies
 their flows need.
+
+The world host resolves lore through `services.lore.forCharacter` for dialogue,
+planning, reviews and each participant in an NPC exchange. Its default document
+adapter also accepts partial `initial`, `links` and `open` overrides; a complete
+scoped override avoids loading document lore. Use `forCharacter` when replacing
+lore for multiple characters, so each receives only their permitted knowledge.
+Per-turn service methods override host methods. Check hooks call
+`services.character.rollCheck` once per classified check and pass the returned
+outcome unchanged to presentation and narration; the host supplies default dice
+mechanics when no override is provided.
 
 [`createScenarioServices`](packages/lore/src/services.ts) owns one authoritative
 v2 world: narrative documents, the physical map and typed character properties.

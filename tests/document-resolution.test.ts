@@ -1,3 +1,4 @@
+import { documentLoreService } from "../packages/conversation/src/document-lore.js";
 import { commitReview } from "./fixtures.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -22,7 +23,7 @@ function fixture() {
 test("v2 exchange isolates speakers and reviews each participant through document writes", async () => {
   const services = fixture(); let calls = 0;
   const subjects: Array<string | undefined> = [];
-  const runtime = new ConversationRuntime({ services: { ...services, ai: { responses: async (request, _signal, info) => {
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async (request, _signal, info) => {
     subjects.push(info?.characterId);
     const prompt = JSON.stringify(request); calls++;
     if (calls === 1) { assert.match(prompt, /ALICE_PRIVATE/); assert.ok(!prompt.includes("BOB_PRIVATE")); return { role: "assistant", content: "Will you help?" }; }
@@ -37,7 +38,7 @@ test("v2 exchange isolates speakers and reviews each participant through documen
 test("ignored events do not write; processed events use only their limited perception", async () => {
   for (const react of [false, true]) {
     const services = fixture(); let calls = 0;
-    const runtime = new ConversationRuntime({ services: { ...services, ai: {
+    const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: {
       decisions: async () => ({ reaction: { choice: react ? "process" : "ignore", probabilities: {} } }),
       responses: async request => { calls++; assert.match(JSON.stringify(request), /Indistinct voices/);
         return commitReview({ summary: "Heard voices", newNotes: ["Indistinct voices."], activeGoal: null }); },
@@ -46,4 +47,25 @@ test("ignored events do not write; processed events use only their limited perce
     assert.equal(calls, react ? 1 : 0);
     assert.equal((await services.docs.read(entry("alice"))).text.includes("Indistinct voices"), react);
   }
+});
+
+test("injected lore is scoped separately for both exchange speakers and their reviews", async () => {
+  const services = fixture(), scopes: string[] = [];
+  let calls = 0;
+  const runtime = new ConversationRuntime({ services: { ...services,
+    lore: { forCharacter: async id => {
+      scopes.push(id);
+      return { initial: [{ path: "injected.md", markdown: `${id}_INJECTED` }], links: () => [], open: async () => assert.fail() };
+    } },
+    ai: { responses: async request => {
+      const id = ["alice", "bob", "alice", "bob"][calls++]!;
+      const prompt = JSON.stringify(request);
+      assert.match(prompt, new RegExp(`${id}_INJECTED`));
+      assert.doesNotMatch(prompt, /ALICE_PRIVATE|BOB_PRIVATE/);
+      assert.doesNotMatch(prompt, new RegExp(`${id === "alice" ? "bob" : "alice"}_INJECTED`));
+      return calls <= 2 ? { role: "assistant", content: "Hello" } : commitReview({ summary: "Spoke", newNotes: [], activeGoal: null });
+    } },
+  }, hooks: { resolution: documentResolutionHooks } });
+  await runResolution({ kind: "npc_exchange", characterId: "alice", targetId: "bob", goal: "Talk" }, runtime);
+  assert.deepEqual(scopes, ["alice", "bob", "alice", "bob"]);
 });
