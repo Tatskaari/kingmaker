@@ -2,8 +2,11 @@ import { gameLogger } from "../../../packages/observability/src/logging.js";
 
 const log = gameLogger("models");
 
-export type ModelCallKind = "conversation_expression" | "npc_request" | "npc_resolution" | "game_master" | "dialogue" | "dialogue_flavour" | "gm_consultation" | "conversation_review" | "conversation_check" | "world_event" | "event_decision" | "jev" | "outcome_review";
+export type ModelCallKind = "skill_check" | "skill_difficulty" | "prog_disc" | "conversation_expression" | "npc_request" | "npc_resolution" | "game_master" | "dialogue" | "dialogue_flavour" | "gm_consultation" | "conversation_review" | "conversation_check" | "world_event" | "event_decision" | "jev" | "outcome_review";
 export const modelCallLabels: Record<ModelCallKind, string> = {
+  skill_check: "Jev skill check",
+  skill_difficulty: "Jev skill difficulty",
+  prog_disc: "Jev progressive disclosure",
   npc_request: "NPC request interpretation",
   npc_resolution: "character review (NPC action)",
   game_master: "character creation",

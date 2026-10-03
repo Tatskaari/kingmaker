@@ -47,7 +47,7 @@ export class WorldGameRuntime extends WorldHost {
       map: { ...this.map, ...this.options.services?.map, ...extra.services?.map },
       ai: {
         responses: (request, signal) => this.traces.record(kind, id, request, () => ai.responses(request, signal), runKey),
-        decisions: (state, questions, signal) => this.traces.record("jev", id, { state, questions }, () => ai.decisions(state, questions, signal), runKey),
+        decisions: (state, questions, signal, purpose) => this.traces.record(purpose ?? "jev", id, { state, questions }, () => ai.decisions(state, questions, signal, purpose), runKey),
       },
       random: { integer: (min, max) => min + Math.floor(Math.random() * (max - min + 1)), ...this.options.services?.random, ...extra.services?.random },
       debug: { record: () => {}, ...this.options.services?.debug, ...extra.services?.debug },
