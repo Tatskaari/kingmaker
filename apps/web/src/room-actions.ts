@@ -54,7 +54,7 @@ export function roomAgentActions(scenario: Scenario, characterId: string, contin
         description: `${door.open ? "Close" : "Open"} ${door.name} (${path.length - 1} steps).` });
     }
   }
-  for (const action of fixtureActions(scenario, characterId)) {
+  for (const action of fixtureActions(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), characterId)) {
     const fixture = world.fixtures.find(item => item.id === action.target);
     if (action.target !== characterId && (!fixture?.position || fixture.roomId !== room.id)) continue;
     if (action.verb === "open" && fixture?.requiredKeyId
