@@ -1,10 +1,10 @@
 import { labels } from "../../lore/src/access.js";
-import { links } from "../../lore/src/markdown.js";
+import { links, summaryPreview } from "../../lore/src/markdown.js";
 import path from "node:path";
 import { permitted, readVault } from "../../../scripts/lib/lore-access.js";
 import type { CharacterSources, LoreDocument } from "./conversation.js";
 
-export interface LoreLink { path: string; from: string }
+export interface LoreLink { path: string; from: string; summary?: string }
 export interface CharacterLore {
   initial: CharacterSources;
   candidates(opened: CharacterSources): LoreLink[];
@@ -47,8 +47,8 @@ export function loadCharacterLore(root: string, scenario: string, characterId: s
     for (const document of opened) for (const link of links(document.markdown)) {
       const target = resolve(document.path, link);
       if (!target || seen.has(target)) continue;
-      readable(target); // Permissions are checked before exposing candidates or reading bodies.
-      seen.add(target); result.push({ path: target, from: document.path });
+      const note = readable(target); // Check access before exposing even a summary.
+      seen.add(target); result.push({ path: target, from: document.path, ...summaryPreview(note.metadata) });
     }
     return result;
   } };

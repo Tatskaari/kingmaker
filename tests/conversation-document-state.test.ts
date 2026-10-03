@@ -56,3 +56,21 @@ test("saved document labels authorize retrieval and revocation applies to an ope
   assert.throws(() => lore.links(lore.initial), /No read access/);
   await assert.rejects(lore.open(link, new AbortController().signal), /No read access/);
 });
+
+test("saved-world candidate previews use current summaries and check access first", async () => {
+  const services = createScenarioServices(loadConversationWorld("lore", "Centennial Assembly"));
+  const lore = await documentLore(services.scenario, "aldren");
+  const link = lore.links(lore.initial).find(link => link.path.endsWith("/court_briefing.md"))!;
+  const original = await services.docs.read(link.path);
+  const text = `---\n${stringify({ ...original.document.frontmatter, summary: "Court delegations, including wizards." })}---\n${original.document.body}`;
+  await services.docs.replace(link.path, original.sha, original.text, text);
+  assert.equal(lore.links(lore.initial).find(candidate => candidate.path === link.path)?.summary, "Court delegations, including wizards.");
+  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.snapshot())));
+  const reloaded = await documentLore(restored.scenario, "aldren");
+  assert.equal(reloaded.links(reloaded.initial).find(candidate => candidate.path === link.path)?.summary, "Court delegations, including wizards.");
+  const current = await restored.docs.read(link.path);
+  // A malformed summary on a forbidden note must not be inspected before access is denied.
+  const forbidden = `---\n${stringify({ ...current.document.frontmatter, visibility: "gm", summary: ["secret"] })}---\n${current.document.body}`;
+  await restored.docs.replace(link.path, current.sha, current.text, forbidden);
+  assert.throws(() => reloaded.links(reloaded.initial), /No read access/);
+});

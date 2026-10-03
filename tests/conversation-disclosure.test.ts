@@ -167,3 +167,43 @@ test("Jev follows label-authorized briefing links without preloading their bodie
   const unlabelled = loadCharacterLore(root, "Demo", "corvin");
   assert.throws(() => unlabelled.candidates(unlabelled.initial), /No read access/);
 });
+
+test("Jev sees a permitted summary before deciding, without the unopened body", async t => {
+  const { root, folder, write, input } = fixture(t);
+  write(`${folder}/a.md`, "---\nsummary: The Nine Furrows wizards and their magical specialties.\n---\nUNOPENED_WIZARD_DETAILS");
+  const lore = loadCharacterLore(root, "Demo", "corvin");
+  assert.match(lore.candidates(lore.initial).find(link => link.path.endsWith("/a.md"))!.summary!, /wizards/);
+  const trace: DisclosureRound[] = [];
+  let considered = false;
+  const session = new DisclosureSession(lore, async (state, questions, signal) => {
+    const question = Object.values(questions).find(question => Object.values(question.criteria).some(value => value.includes("Document summary:")));
+    if (question) {
+      considered = true;
+      assert.match(Object.values(question.criteria)[0]!, /^Document summary: .*wizards/);
+      assert.doesNotMatch(state + JSON.stringify(questions), /UNOPENED_WIZARD_DETAILS/);
+    }
+    return answers(path => path.includes("Document summary:") ? 1 : 0)(state, questions, signal);
+  });
+  const opened = await session.disclose({ ...input, message: "Tell me about the wizards." }, new AbortController().signal, event => trace.push(event));
+  assert.ok(considered);
+  assert.ok(opened.some(note => note.markdown.includes("UNOPENED_WIZARD_DETAILS")));
+  assert.match(trace[0]!.candidates.find(link => link.path.endsWith("/a.md"))!.summary!, /wizards/);
+});
+
+test("forbidden or malformed summaries never reach Jev and previews count toward its budget", async t => {
+  const { root, folder, write, input } = fixture(t);
+  write(`${folder}/a.md`, "---\nvisibility: gm\nsummary: FORBIDDEN_SUMMARY\n---\nSECRET");
+  let calls = 0;
+  const evaluate: EvaluateLinks = async (state, questions, signal) => { calls++; return answers(() => 1)(state, questions, signal); };
+  const denied = new DisclosureSession(loadCharacterLore(root, "Demo", "corvin"), evaluate);
+  await assert.rejects(denied.disclose(input, new AbortController().signal, () => {}), /No read access/);
+  for (const value of ["[nested]", "42", "null", "''"]) {
+    write(`${folder}/a.md`, `---\nsummary: ${value}\n---\nBODY`);
+    const invalid = new DisclosureSession(loadCharacterLore(root, "Demo", "corvin"), evaluate);
+    await assert.rejects(invalid.disclose(input, new AbortController().signal, () => {}), /summary must be nonempty text/);
+  }
+  write(`${folder}/a.md`, `---\nsummary: ${"x".repeat(120_001)}\n---\nBODY`);
+  const oversized = new DisclosureSession(loadCharacterLore(root, "Demo", "corvin"), evaluate);
+  await assert.rejects(oversized.disclose(input, new AbortController().signal, () => {}), /context limit/);
+  assert.equal(calls, 0);
+});

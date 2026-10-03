@@ -1,3 +1,4 @@
+import { summaryPreview } from "../../lore/src/markdown.js";
 import type { ScenarioService } from "../../lore/src/services.js";
 import { permitted, labels } from "../../lore/src/access.js";
 import type { LoreService } from "./services.js";
@@ -32,7 +33,7 @@ export async function documentLore(scenario: ScenarioService, characterId: strin
         if (!target) throw new Error(`Missing document: ${link.target}`);
         allowed(link.target, target);
         seen.add(link.target);
-        return [{ from: source.path, path: link.target }];
+        return [{ from: source.path, path: link.target, ...summaryPreview(target.frontmatter ?? {}) }];
       }));
     },
     async open(link, signal) { signal.throwIfAborted(); return read(link.path); },
