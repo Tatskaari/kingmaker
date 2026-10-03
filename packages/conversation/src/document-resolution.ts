@@ -1,13 +1,12 @@
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, TranscriptRole } from "../../contracts/src/index.js";
 import { activeGoal, characterEntry } from "../../lore/src/active-goal.js";
-import { documentLore } from "./document-lore.js";
 import { reviewDocumentEvidence } from "./document-review.js";
 import type { ResolutionHooks } from "./resolution.js";
 import type { RuntimeServices } from "./services.js";
 
 async function speak(characterId: string, instruction: string, evidence: unknown, signal: AbortSignal, services: RuntimeServices) {
-  const lore = await documentLore(services.scenario, characterId);
+  const lore = await services.lore.forCharacter(characterId, signal);
   const response = await services.ai.responses({ model: "openai/gpt-6-luna", api: "responses", max_tokens: 1200,
     messages: [{ role: "system", content: "Speak only this character's words and observable gestures. Respect their motives and permitted knowledge. Do not invent the other speaker's agreement or any physical outcome. Do not request GM consultation." },
       ...lore.initial.map(doc => ({ role: "system" as const, content: doc.markdown })),
@@ -22,7 +21,7 @@ async function speak(characterId: string, instruction: string, evidence: unknown
 export const documentResolutionHooks: ResolutionHooks = {
   async classify(context, signal, services) {
     if (context.kind !== "world_event") return {};
-    const lore = await documentLore(services.scenario, context.characterId);
+    const lore = await services.lore.forCharacter(context.characterId, signal);
     const path = characterEntry(services.scenario.info(), context.characterId);
     const goal = activeGoal((await services.docs.read(path)).document);
     const result = await services.ai.decisions({ documents: lore.initial, goal, perception: context.perception }, {

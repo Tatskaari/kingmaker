@@ -71,6 +71,8 @@ export class ConversationRuntime<Labels = Record<string, never>, Review = Review
           ? services.ai.responses(...args) : unimplemented("ai.responses"),
       },
       lore: {
+        forCharacter: async (...args) => services.lore?.forCharacter
+          ? services.lore.forCharacter(...args) : unimplemented("lore.forCharacter"),
         get initial() { return services.lore?.initial ?? unimplemented("lore.initial"); },
         links: (...args) => services.lore?.links
           ? services.lore.links(...args) : unimplemented("lore.links"),

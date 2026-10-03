@@ -14,7 +14,7 @@ import { runResolution, type ResolutionContext } from "../../../packages/convers
 import { documentResolutionHooks } from "../../../packages/conversation/src/document-resolution.js";
 import { documentReviewHooks } from "../../../packages/conversation/src/document-review.js";
 import { jevActionHooks } from "../../../packages/conversation/src/action.js";
-import { documentLore } from "../../../packages/conversation/src/document-lore.js";
+import { documentLoreService } from "../../../packages/conversation/src/document-lore.js";
 import { DisclosureSession } from "../../../packages/conversation/src/disclosure.js";
 import { checkMechanics } from "../../../packages/conversation/src/checks.js";
 import { cliHooks } from "../../../packages/conversation/src/cli-hooks.js";
@@ -53,28 +53,31 @@ export class WorldGameRuntime extends WorldHost {
     const world = this.world();
     const random = { integer: (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1)), ...this.options.services?.random, ...extra.services?.random };
     const ai = { ...this.provider, ...this.options.services?.ai, ...extra.services?.ai };
+    const scenario = {
+      info: () => this.documents.scenario.info(), snapshot: () => this.documents.scenario.snapshot(),
+      getDocument: (path: string) => this.documents.scenario.getDocument(path),
+      ...this.options.services?.scenario, ...extra.services?.scenario,
+    };
     const respond = extra.services?.character?.respond ?? this.options.services?.character?.respond;
     if (kind === "dialogue" && respond) ai.responses = respond;
     const traced = traceAiService(ai, (subject = id) => {
       const location = this.world().map?.actors.find(actor => actor.characterId === subject)?.position;
       return { characterId: subject, participantIds, conversationId, turnId,
-        scenario: this.documents.scenario.info().scenario,
+        scenario: scenario.info().scenario,
         ...(location ? { location: { x: location.x, y: location.y } } : {}),
       };
     }, (span, request, call) => this.traces.record(span.operation as ModelCallKind, span.characterId, request, call, runKey, span.characterId, span), kind);
     return new ConversationRuntime<WorldTurnLabels>({ services: {
       ...this.options.services, ...extra.services,
-      scenario: {
-        info: () => this.documents.scenario.info(),
-        snapshot: () => this.documents.scenario.snapshot(),
-        getDocument: path => this.documents.scenario.getDocument(path),
-      },
+      scenario,
+      lore: documentLoreService(scenario, { ...this.options.services?.lore, ...extra.services?.lore }),
       docs: {
         read: path => this.documents.docs.read(path),
         create: (...args) => this.commit(() => this.documents.docs.create(...args), signal, persist),
         replace: (...args) => this.commit(() => this.documents.docs.replace(...args), signal, persist),
         insert: (...args) => this.commit(() => this.documents.docs.insert(...args), signal, persist),
         delete: (...args) => this.commit(() => this.documents.docs.delete(...args), signal, persist),
+        ...this.options.services?.docs, ...extra.services?.docs,
       },
       character: { rollCheck: checkMechanics(world.player ? world.docs[world.player]?.characterProperties?.dnd : undefined,
         () => random.integer(1, 20)), ...this.options.services?.character, ...extra.services?.character },
@@ -124,7 +127,8 @@ export class WorldGameRuntime extends WorldHost {
     if (!message.trim()) throw new Error("Say something first.");
     if (this.activity.conversationEndRequested?.[id]) throw new Error("Finish the conversation review first.");
     const previous = structuredClone(this.activity.conversations[id] ?? []);
-    const lore = await documentLore(this.documents.scenario, id), runtime = this.runtime(id, "dialogue", options, this.conversationRun(id), signal, [id, "player"]);
+    const runtime = this.runtime(id, "dialogue", options, this.conversationRun(id), signal, [id, "player"]);
+    const lore = await runtime.services.lore.forCharacter(id, signal);
     const disclosure = new DisclosureSession(lore, runtime.services.ai, 0.7);
     const world = this.world(), build = world.player ? world.docs[world.player]?.characterProperties?.dnd : undefined;
     const hooks = cliHooks(disclosure, runtime.services.ai, build, message,
@@ -238,8 +242,8 @@ export class WorldGameRuntime extends WorldHost {
     const observation = this.map.observe(id);
     const action = observation.actions.find(action => action.id === actionId && action.type === "talk" && action.target === "player");
     if (!action || action.path.length > 2 || observation.map.revision !== revision || Object.values(this.activity.conversations).some(turns => turns.length)) throw new Error("Conversation changed; replan.");
-    const lore = await documentLore(this.documents.scenario, id);
     const runtime = this.runtime(id, "dialogue", {}, this.conversationRun(id), signal, [id, "player"]);
+    const lore = await runtime.services.lore.forCharacter(id, signal);
     // Opening speech can disclose lore, but there is no player utterance to check.
     const disclosure = new DisclosureSession(lore, runtime.services.ai, 0.7).hooks(() => {});
     runtime.hooks.conversation = this.options.hooks?.conversation ?? {
