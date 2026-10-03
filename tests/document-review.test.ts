@@ -96,3 +96,32 @@ test("document conflicts refresh the tool snapshot and let the GM reconcile befo
   assert.doesNotMatch(doc.body, /player asked/);
   assert.equal(activeGoal(doc), "Meet Bob");
 });
+
+test("GM can preflight private and invalid links, receive trails, then commit safe notes", async () => {
+  const services = fixture(), before = services.scenario.snapshot(); let calls = 0;
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
+    assert.ok(request.tools?.some(tool => tool.function.name === "validate_documents"));
+    calls++;
+    if (calls === 1) return { role: "assistant", content: null, tool_calls: [{ id: "audit", type: "function", function: {
+      name: "validate_documents", arguments: JSON.stringify({ proposal: { path: entry,
+        text: `---\nvisibility: private\nreaders: ['character:alice']\n---\n[[${identity}]] [[gm]] [[Missing]]` } }),
+    } }] };
+    if (calls === 2) {
+      const feedback = JSON.parse(request.messages.at(-1)!.content!);
+      assert.equal(request.messages.at(-1)!.tool_call_id, "audit");
+      assert.equal(feedback.ok, false);
+      assert.ok(feedback.findings.some((f: { kind: string; trail: string[] }) => f.kind === "denied" && f.trail[0] === entry && f.trail.at(-1) === "gm.md"));
+      assert.ok(feedback.findings.some((f: { kind: string }) => f.kind === "broken"));
+      assert.ok(!JSON.stringify(feedback).includes("SECRET_SENTINEL"));
+      assert.deepEqual(services.scenario.snapshot(), before);
+      return { role: "assistant", content: null, tool_calls: [{ id: "live", type: "function", function: {
+        name: "validate_documents", arguments: JSON.stringify({ proposal: null }),
+      } }] };
+    }
+    assert.deepEqual(JSON.parse(request.messages.at(-1)!.content!), { ok: true, findings: [] });
+    return answer("Go to the hall");
+  } } }, hooks: { review: documentReviewHooks } });
+  await runConversationReview(evidence, runtime);
+  assert.equal(calls, 3);
+  assert.equal(activeGoal((await services.docs.read(entry)).document), "Go to the hall");
+});
