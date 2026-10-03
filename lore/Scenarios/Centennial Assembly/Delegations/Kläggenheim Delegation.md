@@ -1,4 +1,5 @@
 ---
+summary: "The dwarven delegation of King Gurt, Klog and Bran, and Kläggenheim's industry, grain dependence and naming customs. Links to their public roles."
 visibility: private
 readers: ["label:court-informed"]
 ---

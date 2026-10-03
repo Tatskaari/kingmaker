@@ -1,4 +1,5 @@
 ---
+summary: "Caerwyn's host court: King Aldren, Magister Corvin and Marshal Garran Holt. Explains their royal, legal, magical and logistical responsibilities and links to their public profiles."
 visibility: private
 readers: ["label:court-informed"]
 ---

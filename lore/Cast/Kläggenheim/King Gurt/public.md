@@ -1,4 +1,5 @@
 ---
+summary: "King Gurt's public role as Kläggenheim's king and recognition bearer, including the requirement for his own informed consent."
 visibility: private
 readers: ["label:court-informed"]
 ---

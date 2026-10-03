@@ -1,4 +1,5 @@
 ---
+summary: "Peregrine's public role as Saltmere's prince, gentleman-explorer and recognition bearer."
 visibility: private
 readers: ["label:court-informed"]
 ---

@@ -1,4 +1,5 @@
 ---
+summary: "King Aldren's public role as ruler of Caerwyn, host of the assembly and steward of Edric's peace."
 visibility: private
 readers: ["label:court-informed"]
 ---

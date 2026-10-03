@@ -1,4 +1,5 @@
 ---
+summary: "Your knowledge of Rowan's blocked cart, the stalled deliveries and your timetable. Covers what you need to clear the entrance and what you can communicate."
 status: draft
 visibility: private
 readers: ["character:holt"]

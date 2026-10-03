@@ -1,4 +1,5 @@
 ---
+summary: "Marshal Holt's public military and logistical responsibilities, including timetables, supplies, escorts and assembly preparations."
 visibility: private
 readers: ["label:court-informed"]
 ---

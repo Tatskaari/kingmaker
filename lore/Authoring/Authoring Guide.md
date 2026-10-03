@@ -42,6 +42,10 @@ A list can mix grant types, such as `readers: ["character:aldren", "label:court-
 
 Use `visibility: gm` for hidden truth regardless of reader entries. Use `visibility: public` only when every character may read the entire note. A filename such as `public.md`, a document label, or an Obsidian tag does not grant access. See [[Authoring/Agent Disclosure|Agent Disclosure]] for the full contract.
 
+### Help Jev find the right note
+
+When authoring or updating a retrievable note, add a `summary` **Text** property with one or two sentences describing its actual contents. Include ordinary terms a player might use, such as “wizards”, alongside names and titles. Keep the corresponding facts in the body too. Summaries are presented above the candidate path when Jev decides whether to open a permitted link; they do not replace links, permissions or the full note. See [[Authoring/Agent Disclosure|Agent Disclosure]] for the loading contract.
+
 ### Graph filters
 
 Obsidian's [Graph view](https://obsidian.md/help/plugins/graph) accepts [property searches](https://obsidian.md/help/plugins/search) in **Filters → Search files** and in **Groups**:

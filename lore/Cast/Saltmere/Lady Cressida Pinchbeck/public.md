@@ -1,4 +1,5 @@
 ---
+summary: "Cressida's public commercial expertise in accounts, contracts, trade terms and the obligations attached to bargains."
 visibility: private
 readers: ["label:court-informed"]
 ---

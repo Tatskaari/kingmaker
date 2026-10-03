@@ -1,4 +1,5 @@
 ---
+summary: "Bran's public engineering and industrial enterprises, including pumps, mills, transport and employment outside traditional dwarven clans."
 visibility: private
 readers: ["label:court-informed"]
 ---

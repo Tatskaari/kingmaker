@@ -20,6 +20,8 @@ Keep static characterization—including biography, speech style, mannerisms, en
 
 Use flat YAML list properties for lore permissions: `readers: ["character:aldren", "label:court-informed"]`, with `character:`, `faction:` or `label:` prefixes. Never author nested reader mappings. Put audience membership in the scenario character entry’s `labels: [court-informed]`; put `readers: ["label:court-informed"]` on shared notes. Keep `visibility: private` for scoped grants and `visibility: gm` for GM-only truth. Follow the examples in `lore/Authoring/Agent Disclosure.md` and `lore/Authoring/Authoring Guide.md`.
 
+Give authored retrievable notes a flat `summary` Text property describing their contents in one or two sentences, with ordinary topic words as well as names. Keep the summary faithful to the body and appropriate to its audience; leave unwritten stubs unchanged. Jev sees permitted summaries before choosing which linked documents to open.
+
 For lore navigation, every content folder under `lore/` (including the vault root) must have a lowercase `index.md`. Keep its note links, child-folder index links and parent link current when adding, moving or renaming content. Use unambiguous vault-relative links for nested indexes and relative Markdown links to the root index. These are author navigation files; retain `scenario.md` and `character.md` as agent entrypoints.
 
 ## Saved-game compatibility

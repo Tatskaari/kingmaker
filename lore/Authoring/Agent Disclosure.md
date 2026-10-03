@@ -11,6 +11,18 @@ Write GM notes to the GM, distinguishing established truth, possible outcomes, d
 ## Initial context
 The GM begins at the scenario's `scenario.md` and can consult the full authored vault. A conversation begins at its own `Characters/<id>/character.md`, which links to its private cast note and scoped scenario detail. Retrieve permitted detail when relevant; do not recursively load the graph into a prompt.
 
+## Document summaries for Jev
+
+Use a flat `summary` Text property for a one- or two-sentence description of an authored note's contents. Name the people, everyday topics and kinds of detail it covers: “the Nine Furrows wizards and their magical specialties” is more discoverable than an institution name alone. Summarize only material actually in the note; do not add facts solely to a preview.
+
+```yaml
+summary: "The three Nine Furrows wizards, their magical specialties and links to their public profiles."
+```
+
+When Jev considers an unopened linked note, its summary appears above the path in that note's opening criterion and in the CLI's link decision details. Both vault and saved-world loaders check the note's read permission first. The summary inherits the entire note's audience and never grants access or opens the note by itself.
+
+Summaries help choose what to retrieve; the character receives the full body only after the note is opened. Missing summaries remain supported, but supplied summaries must be nonempty text. Leave unwritten stubs alone rather than inventing a preview of unauthored material. Updated summaries in saved documents are used on the next disclosure pass; start a fresh game to take updated baseline vault summaries into an existing saved-world workflow.
+
 ## Cast audiences
 Each cast member has a folder under `Cast/<faction>/<name>/`:
 

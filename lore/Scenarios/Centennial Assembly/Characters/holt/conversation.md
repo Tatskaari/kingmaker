@@ -1,4 +1,5 @@
 ---
+summary: "Your responses to the cushion enquiry, requests for more repair time, Aldren's intervention and partial delivery or repair proposals."
 status: draft
 visibility: private
 readers: ["character:holt"]

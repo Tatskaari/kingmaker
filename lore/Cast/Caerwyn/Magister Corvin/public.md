@@ -1,4 +1,5 @@
 ---
+summary: "Magister Corvin's public work as juridical thaumaturge and keeper of the royal seal, including magical law, oaths, contracts and institutional authority."
 visibility: private
 readers: ["label:court-informed"]
 ---

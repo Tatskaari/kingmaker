@@ -1,4 +1,5 @@
 ---
+summary: "Abel's public maritime expertise as expedition master and navigator, covering routes, crews, costs and expedition safety."
 visibility: private
 readers: ["label:court-informed"]
 ---

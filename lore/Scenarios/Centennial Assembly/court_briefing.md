@@ -1,4 +1,5 @@
 ---
+summary: "Shared court knowledge of the Centennial Assembly's factions and delegates, including the Nine Furrows wizards, Kläggenheim dwarves, Saltmere's maritime delegation and Caerwyn's court. Links to each delegation and its members' public roles."
 visibility: private
 readers: ["label:court-informed"]
 ---
@@ -11,7 +12,7 @@ The assembly brings Caerwyn's royal court together with representatives of Nine 
 ## Delegations — read when asked
 
 - [[Scenarios/Centennial Assembly/Delegations/Caerwyn Delegation|Caerwyn]] — the host court, King Aldren, Magister Corvin and Marshal Garran Holt.
-- [[Scenarios/Centennial Assembly/Delegations/Nine Furrows Delegation|Nine Furrows]] — Greenweald's university, agriculture and the delegation of Elinor, Oswin and Rowan.
+- [[Scenarios/Centennial Assembly/Delegations/Nine Furrows Delegation|Nine Furrows]] — Greenweald's university and its wizard delegation: Elinor, Oswin and Rowan, with their agricultural and magical specialties.
 - [[Scenarios/Centennial Assembly/Delegations/Kläggenheim Delegation|Kläggenheim]] — dwarven industry, grain dependence and the delegation of Gurt, Klog and Bran.
 - [[Scenarios/Centennial Assembly/Delegations/Saltmere Delegation|Saltmere]] — shipping, credit and the delegation of Peregrine, Cressida and Abel.
 
