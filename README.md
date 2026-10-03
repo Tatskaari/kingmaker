@@ -499,9 +499,12 @@ the prepared context; classification receives a detached view.
 `HeadlessGame` accepts conversation runtime options as its third constructor
 argument, including custom hooks and individual service overrides. The browser
 worker supplies `presentation.showRoll` for its popup; the default headless
-presentation returns immediately. Existing dice difficulty and GM ruling rules
-are preserved. The proposed category-based Jev difficulty planner and parallel
-GM outcome preparation are separate future changes.
+presentation returns immediately. Jev classifies the required checks and their difficulty categories. Resolution
+generates every roll first, then runs sequential dice presentations alongside one
+GM request for the actual outcomes. Dialogue waits for both. Cancelling either
+operation cancels its sibling. Very easy/easy/normal/hard/very hard map to DC
+5/10/15/20/25; trivial only fails on natural 1 and impossible only succeeds on
+natural 20, irrespective of modifiers.
 
 Run `proto install` to install the pinned Node 26 runtime, then
 `OPENROUTER_API_KEY=… npm run conversation -- --character corvin` in an

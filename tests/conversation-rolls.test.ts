@@ -6,7 +6,7 @@ import { ScenarioSchema } from "../packages/contracts/src/index.js";
 import { JevClient, type JevQuestions } from "../packages/providers/src/jev.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
-import { adjudicateConversationChecks } from "../packages/conversation/src/checks.js";
+import { adjudicateConversationChecks, resolvePlannedCheck } from "../packages/conversation/src/checks.js";
 
 const game = () => {
   const runtime = new BrowserGameRuntime(fromJsonString(ScenarioSchema, readFileSync("content/scenarios/last-night.json", "utf8")), "test");
@@ -14,10 +14,10 @@ const game = () => {
 };
 const reply = (content: unknown) => ({ role: "assistant" as const, content: JSON.stringify(content) });
 
-test("GM plans before dice, waits for presentation, then directs the character with a persisted system ruling", async t => {
+test("Jev plans difficulty; GM runs during presentation and dialogue waits for acknowledgement", async t => {
   const runtime = game(), order: string[] = [];
   t.mock.method(JevClient.prototype, "evaluate", async (_input: unknown, questions: JevQuestions) =>
-    Object.fromEntries(Object.keys(questions).map(skill => [skill, { choice: skill === "persuasion" ? "needed" : "not_needed", probabilities: { needed: 1, not_needed: 0 } }])));
+    Object.fromEntries(Object.keys(questions).map(skill => [skill, { choice: questions[skill]!.criteria.very_easy ? "very_easy" : skill === "persuasion" ? "needed" : "not_needed", probabilities: { needed: 1, not_needed: 0, very_easy: 1 } }])));
   t.mock.method(globalThis.crypto, "getRandomValues", (buffer: any) => { buffer[0] = 0; return buffer; });
   let release!: () => void;
   const waiting = new Promise<void>(resolve => { release = resolve; });
@@ -25,7 +25,7 @@ test("GM plans before dice, waits for presentation, then directs the character w
   const presentation = new Promise<void>(resolve => { shown = resolve; });
   t.mock.method(OpenRouterClient.prototype, "complete", async (request: any) => {
     const schema = request.messages.some((message: any) => message.content?.startsWith("Set the DC")) ? "conversation_dcs" : request.response_format?.json_schema?.name;
-    if (schema === "conversation_dcs") { order.push("dc"); return reply(5); }
+    assert.notEqual(schema, "conversation_dcs", "GM must not choose difficulty");
     if (schema === "conversation_roll_ruling") {
       order.push("dm");
       const evidence = JSON.parse(request.messages.at(-1).content);
@@ -46,9 +46,9 @@ test("GM plans before dice, waits for presentation, then directs the character w
     order.push("dice"); shown(); await waiting;
   } } } });
   await presentation;
-  assert.deepEqual(order, ["dc", "dice"]);
+  assert.deepEqual(order, ["dice", "dm"]);
   release(); await pending;
-  assert.deepEqual(order, ["dc", "dice", "dm", "npc"]);
+  assert.deepEqual(order, ["dice", "dm", "npc"]);
   const restored = new BrowserGameRuntime(fromJsonString(ScenarioSchema, readFileSync("content/scenarios/last-night.json", "utf8")), "test", runtime.snapshot());
   assert.match(JSON.stringify(restored.snapshot().conversations), /critical_failure/);
   assert.doesNotMatch(JSON.stringify(restored.view().conversations), /Binding DM ruling/);
@@ -67,54 +67,69 @@ test("ordinary conversation skips dice and GM, while classifier errors do not si
   assert.deepEqual(runtime.snapshot(), before);
 });
 
-test("invalid DC plans show no dice and multiple checks resolve in order before one DM ruling", async () => {
-  let shown = 0;
-  await assert.rejects(adjudicateConversationChecks({ skills: ["persuasion"], build: undefined, messages: [],
-    complete: async () => reply(100),
-    present: async () => { shown++; },
-  }), /invalid check DC/);
-  assert.equal(shown, 0);
-  const rolls = [20, 6]; let calls = 0;
-  const ruling = await adjudicateConversationChecks({ skills: ["persuasion", "deception"], build: undefined, messages: [],
-    complete: async () => ++calls === 1 ? reply(30)
-      : calls === 2 ? reply(10) : reply({ direction: "Agree to the impossible, but expose the trick." }),
-    roll: () => rolls.shift()!, present: async result => {
+test("all dice are resolved before presentation and one GM direction covers the actual results", async () => {
+  const dice = [20, 6]; let calls = 0, shown = 0;
+  const ruling = await adjudicateConversationChecks({ plan: [
+    { skill: "persuasion", difficulty: "impossible" }, { skill: "deception", difficulty: "easy" },
+  ], build: undefined, messages: [], roll: () => dice.shift()!,
+    complete: async request => {
+      calls++;
+      const results = JSON.parse(request.messages.at(-1)!.content!).resolvedChecks;
+      assert.deepEqual(results.map((result: { roll: number }) => result.roll), [20, 6]);
+      return reply({ direction: "Agree, but expose the trick." });
+    },
+    present: async result => {
+      assert.equal(dice.length, 0);
       assert.equal(result.degree, shown++ === 0 ? "critical_success" : "major_failure");
     },
   });
-  assert.equal(shown, 2); assert.equal(calls, 3);
-  assert.match(ruling!, /Agree to the impossible/);
+  assert.equal(shown, 2); assert.equal(calls, 1);
+  assert.match(ruling!, /Agree, but expose/);
 });
 
-test("truncated DC and ruling responses retry their own stage without rerolling", async () => {
+test("trivial and impossible retain their natural-roll rules at extreme modifiers", () => {
+  for (const modifier of [-100, 100]) for (let roll = 1; roll <= 20; roll++) {
+    assert.equal(resolvePlannedCheck({ skill: "persuasion", difficulty: "trivial" }, modifier, roll).success, roll !== 1);
+    assert.equal(resolvePlannedCheck({ skill: "persuasion", difficulty: "impossible" }, modifier, roll).success, roll === 20);
+  }
+});
+
+test("truncated GM output retries without rerolling or replaying presentation", async () => {
   const { OutputTokenLimitError } = await import("../packages/providers/src/openrouter.js");
-  const counts = { conversation_dcs: 0, conversation_roll_ruling: 0 };
-  let rolls = 0, presentations = 0;
-  const ruling = await adjudicateConversationChecks({ skills: ["intimidation"], build: undefined, messages: [],
+  let calls = 0, rolls = 0, presentations = 0;
+  await adjudicateConversationChecks({ plan: [{ skill: "intimidation", difficulty: "hard" }], build: undefined, messages: [],
     complete: async request => {
-      const name = request.messages.some(message => message.content?.startsWith("Set the DC")) ? "conversation_dcs" : "conversation_roll_ruling";
-      if (++counts[name] === 1) { assert.equal(request.max_tokens, name === "conversation_dcs" ? 100 : 2000); throw new OutputTokenLimitError(); }
-      assert.equal(request.max_tokens, name === "conversation_dcs" ? 200 : 4000);
-      if (name === "conversation_dcs") {
-        assert.equal(request.response_format, undefined);
-        return reply(20);
-      }
-      assert.equal(JSON.parse(request.messages.at(-1)!.content!).resolvedChecks[0].roll, 20);
-      return reply({ direction: "Reveal what you know in a panicked rush." });
+      calls++;
+      if (calls === 1) throw new OutputTokenLimitError();
+      assert.equal(request.max_tokens, 4000);
+      return reply({ direction: "Reveal what you know." });
     },
     roll: () => { rolls++; return 20; }, present: async () => { presentations++; },
   });
-  assert.equal(rolls, 1); assert.equal(presentations, 1);
-  assert.match(ruling!, /critical_success/);
-  assert.deepEqual(counts, { conversation_dcs: 2, conversation_roll_ruling: 2 });
+  assert.deepEqual([calls, rolls, presentations], [2, 1, 1]);
 });
 
-test("persistent truncation stops after one retry without showing dice", async () => {
-  const { OutputTokenLimitError } = await import("../packages/providers/src/openrouter.js");
-  let calls = 0;
-  await assert.rejects(adjudicateConversationChecks({ skills: ["intimidation"], build: undefined, messages: [],
-    complete: async () => { calls++; throw new OutputTokenLimitError(); },
-    present: async () => { assert.fail("No valid DC means no dice"); },
-  }), OutputTokenLimitError);
-  assert.equal(calls, 2);
+test("GM failure cancels pending presentation; presentation failure cancels the GM", async () => {
+  for (const fails of ["gm", "presentation"]) {
+    let cancelled = false;
+    const wait = (signal: AbortSignal) => new Promise<never>((_resolve, reject) => {
+      signal.addEventListener("abort", () => { cancelled = true; reject(signal.reason); }, { once: true });
+    });
+    await assert.rejects(adjudicateConversationChecks({ plan: [{ skill: "insight", difficulty: "normal" }], build: undefined, messages: [],
+      complete: async (_request, signal) => fails === "gm" ? Promise.reject(new Error("GM failed")) : wait(signal),
+      present: async (_result, signal) => fails === "presentation" ? Promise.reject(new Error("Popup cancelled")) : wait(signal),
+    }), /failed|cancelled/);
+    assert.equal(cancelled, true);
+  }
+});
+
+test("finishing presentation first still waits for the GM", async () => {
+  let release!: () => void, finished = false;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const pending = adjudicateConversationChecks({ plan: [{ skill: "insight", difficulty: "normal" }], build: undefined, messages: [],
+    present: async () => {}, complete: async () => { await gate; return reply({ direction: "Notice the lie." }); },
+  }).then(result => { finished = true; return result; });
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(finished, false);
+  release(); assert.match((await pending)!, /Notice the lie/);
 });
