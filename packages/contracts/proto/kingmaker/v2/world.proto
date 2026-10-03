@@ -36,4 +36,8 @@ message WorldState {
   string scenario = 3;
   // Preserve the existing physical simulation state without changing its schema.
   kingmaker.v1.WorldState map = 4;
+  // Author/GM navigation, separate from the scenario briefing entrypoint.
+  string scenario_index = 5;
+  // Player's Markdown entrypoint; absent until the player has been created.
+  optional string player = 6;
 }

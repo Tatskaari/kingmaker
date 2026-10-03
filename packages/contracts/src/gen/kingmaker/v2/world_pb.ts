@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file kingmaker/v2/world.proto.
  */
 export const file_kingmaker_v2_world: GenFile = /*@__PURE__*/
-  fileDesc("ChhraW5nbWFrZXIvdjIvd29ybGQucHJvdG8SDGtpbmdtYWtlci52MiIuCgxEb2N1bWVudExpbmsSDgoGdGFyZ2V0GAEgASgJEg4KBnNvdXJjZRgCIAEoCSJqChNDaGFyYWN0ZXJQcm9wZXJ0aWVzEicKA2RuZBgBIAEoCzIaLmtpbmdtYWtlci52MS5EbmRDaGFyYWN0ZXISKgoJaW52ZW50b3J5GAIgASgLMhcua2luZ21ha2VyLnYxLkludmVudG9yeSKyAQoIRG9jdW1lbnQSLAoLZnJvbnRtYXR0ZXIYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EgwKBGJvZHkYAiABKAkSKQoFbGlua3MYAyADKAsyGi5raW5nbWFrZXIudjIuRG9jdW1lbnRMaW5rEj8KFGNoYXJhY3Rlcl9wcm9wZXJ0aWVzGAQgASgLMiEua2luZ21ha2VyLnYyLkNoYXJhY3RlclByb3BlcnRpZXMi0AEKCldvcmxkU3RhdGUSMAoEZG9jcxgBIAMoCzIiLmtpbmdtYWtlci52Mi5Xb3JsZFN0YXRlLkRvY3NFbnRyeRISCgpjaGFyYWN0ZXJzGAIgAygJEhAKCHNjZW5hcmlvGAMgASgJEiUKA21hcBgEIAEoCzIYLmtpbmdtYWtlci52MS5Xb3JsZFN0YXRlGkMKCURvY3NFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5raW5nbWFrZXIudjIuRG9jdW1lbnQ6AjgBYgZwcm90bzM", [file_google_protobuf_struct, file_kingmaker_v1_game]);
+  fileDesc("ChhraW5nbWFrZXIvdjIvd29ybGQucHJvdG8SDGtpbmdtYWtlci52MiIuCgxEb2N1bWVudExpbmsSDgoGdGFyZ2V0GAEgASgJEg4KBnNvdXJjZRgCIAEoCSJqChNDaGFyYWN0ZXJQcm9wZXJ0aWVzEicKA2RuZBgBIAEoCzIaLmtpbmdtYWtlci52MS5EbmRDaGFyYWN0ZXISKgoJaW52ZW50b3J5GAIgASgLMhcua2luZ21ha2VyLnYxLkludmVudG9yeSKyAQoIRG9jdW1lbnQSLAoLZnJvbnRtYXR0ZXIYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EgwKBGJvZHkYAiABKAkSKQoFbGlua3MYAyADKAsyGi5raW5nbWFrZXIudjIuRG9jdW1lbnRMaW5rEj8KFGNoYXJhY3Rlcl9wcm9wZXJ0aWVzGAQgASgLMiEua2luZ21ha2VyLnYyLkNoYXJhY3RlclByb3BlcnRpZXMiiAIKCldvcmxkU3RhdGUSMAoEZG9jcxgBIAMoCzIiLmtpbmdtYWtlci52Mi5Xb3JsZFN0YXRlLkRvY3NFbnRyeRISCgpjaGFyYWN0ZXJzGAIgAygJEhAKCHNjZW5hcmlvGAMgASgJEiUKA21hcBgEIAEoCzIYLmtpbmdtYWtlci52MS5Xb3JsZFN0YXRlEhYKDnNjZW5hcmlvX2luZGV4GAUgASgJEhMKBnBsYXllchgGIAEoCUgAiAEBGkMKCURvY3NFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5raW5nbWFrZXIudjIuRG9jdW1lbnQ6AjgBQgkKB19wbGF5ZXJiBnByb3RvMw", [file_google_protobuf_struct, file_kingmaker_v1_game]);
 
 /**
  * A document reference, resolved without loading the target's contents.
@@ -132,6 +132,20 @@ export type WorldState = Message<"kingmaker.v2.WorldState"> & {
    * @generated from field: kingmaker.v1.WorldState map = 4;
    */
   map?: WorldState$1 | undefined;
+
+  /**
+   * Author/GM navigation, separate from the scenario briefing entrypoint.
+   *
+   * @generated from field: string scenario_index = 5;
+   */
+  scenarioIndex: string;
+
+  /**
+   * Player's Markdown entrypoint; absent until the player has been created.
+   *
+   * @generated from field: optional string player = 6;
+   */
+  player?: string | undefined;
 };
 
 /**
