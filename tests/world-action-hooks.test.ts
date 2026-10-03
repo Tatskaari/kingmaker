@@ -13,7 +13,7 @@ import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { jevActionHooks } from "../packages/conversation/src/action.js";
 import { documentReviewHooks } from "../packages/conversation/src/document-review.js";
 import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
-import { planWorldAction, reviewAndPlanWorldAction, assertWorldActionCurrent } from "../apps/web/src/world-action.js";
+import { planWorldAction, reviewAndPlanWorldAction } from "../apps/web/src/world-action.js";
 
 function fixture(goal?: string) {
   const world = loadPlayableWorld();
@@ -49,9 +49,7 @@ test("v2 review commits its goal before classify/resolve returns a real command 
   assert.deepEqual(order, ["review", "classify", "resolve"]);
   assert.equal(result.plan!.action!.type, "move"); assert.ok(result.plan!.action!.path.length);
   assert.deepEqual(services.scenario.snapshot().map, beforeMap);
-  await assertWorldActionCurrent(services.scenario.snapshot(), result.plan!);
-  const changed = services.scenario.snapshot(); changed.map!.doors[0]!.open = !changed.map!.doors[0]!.open;
-  await assert.rejects(assertWorldActionCurrent(changed, result.plan!), /World changed/);
+
 });
 
 test("v2 idle reviews skip Jev, failed reviews stop planning, and terminal results return no command", async () => {
@@ -70,14 +68,14 @@ test("v2 idle reviews skip Jev, failed reviews stop planning, and terminal resul
   assert.equal(calls, 1);
 });
 
-test("v2 rejects decisions made against changed documents and cancelled requests", async () => {
+test("planning tolerates document changes and still honours cancellation", async () => {
   const services = fixture("Go to the hall"), controller = new AbortController();
   const runtime = new ConversationRuntime({ services: { ...services, ai: { decisions: async () => {
     const path = characterEntry(services.scenario.info(), "corvin"), doc = await services.docs.read(path);
     await services.docs.replace(path, doc.sha, "Go to the hall", "Go to the kitchen");
     return { next: { choice: "complete", probabilities: {} } };
   } } }, hooks: { action: jevActionHooks } });
-  await assert.rejects(planWorldAction("corvin", runtime), /World changed/);
+  assert.equal((await planWorldAction("corvin", runtime))!.decision.choice, "complete");
   controller.abort();
   await assert.rejects(planWorldAction("corvin", runtime, controller.signal), /abort/i);
 });

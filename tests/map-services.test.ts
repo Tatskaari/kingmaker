@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { WorldGameRuntime } from "../apps/web/src/world-runtime.js";
 import { loadPlayableWorld } from "./fixtures.js";
+import { generationIds } from "../packages/core/src/generations.js";
 import { mapActionHooks } from "../packages/conversation/src/action-execution.js";
 
 test("action hooks use injected map services; presentation follows the committed result", async () => {
@@ -29,11 +30,11 @@ test("map actions commit movement, reject stale state and retain headless no-op 
   const runtime = new WorldGameRuntime(loadPlayableWorld(), "");
   const observation = runtime.map.observe("player");
   const action = observation.actions.find(action => action.path.length > 1)!;
-  const expected = { "v2:world": runtime.worldGeneration() };
+  const expected = generationIds(runtime.readResources());
   const result = await runtime.executeAction({ command: { kind: "move", destination: action.path[1]! }, expected });
   assert.deepEqual(runtime.world().map!.actors.find(actor => actor.characterId === "player")!.position, { ...runtime.world().map!.actors.find(actor => actor.characterId === "player")!.position, ...action.path[1] });
   await runtime.presentMap("player", result);
-  await assert.rejects(runtime.executeAction({ command: { kind: "move", destination: action.path[0]! }, expected }), /World changed/);
+  await assert.rejects(runtime.executeAction({ command: { kind: "move", destination: action.path[0]! }, expected }), /State changed/);
   observation.map.actors.length = 0;
   assert.ok(runtime.world().map!.actors.length);
   const cancelled = new AbortController(); cancelled.abort();

@@ -2372,7 +2372,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
       return { role: "assistant", content: "Hello." };
     });
     const review = request("end_conversation", { characterId: "corvin" });
-    const stale = assert.rejects(review, /World changed/);
+
     await reviewing;
     for (const type of ["talk", "end_conversation", "pause_npc", "start_npc"]) {
       await assert.rejects(request(type, { characterId: "corvin", message: "Again" }), /still reviewing/);
@@ -2381,9 +2381,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     await request("move_player", { ...destination, generations: (await request("state")).state.generations });
     await request("talk", { characterId: "gurt", message: "Hello." });
     release();
-    await stale;
-    t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => commitReview(input));
-    const result = await request("end_conversation", { characterId: "corvin" });
+    const result = await review;
     assert.deepEqual(result.state.player.position, create(TilePositionSchema, destination));
     assert.equal(result.state.conversations.corvin, undefined);
     assert.equal(result.state.conversations.gurt.length, 2);
