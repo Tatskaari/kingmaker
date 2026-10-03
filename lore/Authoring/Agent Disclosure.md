@@ -1,30 +1,47 @@
 # Agent Disclosure
 
-This is a proposed content-loading contract for future game integration. Obsidian links provide navigation, not access control; no loader or prompt integration is implemented here.
+The vault separates character-private knowledge from GM-only truth. The lore access tests follow every note link from every scenario character entry and reject inaccessible, broken, ambiguous or invalid references. This is an authoring check; runtime loading and prompt enforcement are not implemented.
 
 ## Initial context
-The GM receives the scenario's `scenario.md`. Fill its world/opening section with the minimum setting, starting situation and invariant rules needed to adjudicate play without opening every note. Its links lead to deeper world lore, plots, quest conditions, scene trees, map state and character dossiers.
+The GM begins at the scenario's `scenario.md` and can consult the full authored vault. A conversation begins at its own `Characters/<id>/character.md`, which links to its private cast note and scoped scenario detail. Retrieve permitted detail when relevant; do not recursively load the graph into a prompt.
 
-Each conversation receives only its own `Characters/<name>/character.md`. Author its cast reference, place, time, current objective, knowledge and scenario boundaries. Stable identity and speech style are authored only in Cast; a future context builder can include explicitly approved character-facing sections from that source without duplicating them in scenario files. More detailed material is fetched only when relevant; the entry must not depend on reading all linked notes first.
+## Cast audiences
+Each cast member has a folder under `Cast/<faction>/<name>/`:
 
-## Character detail
-Each scenario character entry links to its reusable `Cast/<faction>/<name>.md` note as an author/GM reference. That link establishes identity and provenance; it does not expand the conversation agent’s retrieval permissions. Scenario-local notes hold the character-visible circumstances. Any summary of stable facts must be traced to Cast, not independently rewritten; approved stable voice sections can be supplied from Cast without exposing the entire note.
+- `private.md`: the character's identity, voice, motives and self-knowledge, explicitly private to that character ID.
+- `gm.md`: unknown truths about the person, source references, editorial uncertainty and GM guidance. Always GM-only.
+- `knowledge/<other cast member>.md`: the observing character's knowledge or beliefs about that person. Each note is private to the observer, not the subject. Relationships need not be symmetrical and beliefs need not be true.
+- `index.md` and `knowledge/index.md`: author navigation, never implicit character context.
 
-- `background.md`: character-visible identity, relationships and world understanding. Extract deliberately from author lore; other characters' hidden motives do not belong here.
-- `situation.md`: starting knowledge and beliefs, current objectives, prompting/tactics and conditions for disclosing the character's own secrets. Distinguish known facts from suspicions and unknowns.
-- `conversation.md`: that NPC's permitted dialogue beats and improvisation limits. Do not copy the full GM scene tree, hidden triggers, other speakers' private intent or unrevealed consequences.
+Every cast member has a knowledge note for every other member. Unwritten bodies remain “This is a stub.” beneath access metadata; an empty entry establishes no familiarity. Carry only established knowledge into these notes. Preserve facts with uncertain recipients in GM material rather than assuming everyone involved knows them. Tomas's parentage, for example, belongs in his GM note, not his self-knowledge.
 
-Shared cast/world notes and source issues are author/GM material by default. A character's knowledge is not defined by what is reachable through the authoring graph. Public facts can be included in scoped notes when authored; a future shared player-safe reference needs an explicit grant, not a link to the whole vault.
+Private notes link directly to their owner's knowledge notes. They must not link to another person's private dossier, a GM note, an author index or a source issue. Keep author provenance in GM notes. A note about a faction is not automatically safe for all its members.
 
-## Progressive disclosure
-1. Supply the entry file and current, recipient-visible game facts.
-2. Fetch a permitted detail note only when its topic matters. Follow plain links on demand; do not recursively expand the vault or use automatic embeds.
-3. Let the GM adjudicate actions, quest transitions and new discoveries using the full scenario notes.
-4. Send only the resulting observations/knowledge to the characters who actually learn them. Do not reveal the hidden branch or overwrite baseline lore with playthrough state.
+## Scenario detail
+Scenario-local notes place the reusable person at a particular time and location:
 
-Conversation retrieval must be restricted to the owning character's subtree and explicitly granted resources. GM material and sibling character folders must remain unavailable even if requested. Enforce that in the future loader/tool permissions; prompt wording alone is not a boundary. Until then, these are authoring conventions only.
+- `background.md`: scoped history, relationships and world understanding.
+- `situation.md`: starting knowledge, beliefs, objectives and disclosure conditions.
+- `conversation.md`: permitted dialogue beats and improvisation boundaries.
 
-## Paths and stubs
-Use vault-relative wikilinks for repeated filenames such as `character.md`, `background.md` and `scenario.md`. Each NPC has a separate directory, and every scenario should use its own subtree. Obsidian settings use absolute paths within the vault, not machine-specific paths.
+The current scenario detail stubs retain their literal text. Non-index notes inside the starting character's scenario folder have implicit access for that character only; explicit metadata overrides this convention. Other scenario character folders receive no implicit grant. Stable characterization remains in the private cast note, not duplicated into scenario files.
 
-Entry files contain routing text and a blank core section. All supporting scenario content files, excluding author navigation indexes, contain exactly “This is a stub.” until the author sketches them. See [[Scenarios/Centennial Assembly/index|Centennial Assembly]] and [[Authoring Guide]].
+## Access metadata
+Use YAML frontmatter with `visibility: public`, `visibility: private` or `visibility: gm`. Private notes list exact IDs under `readers.characters` or `readers.factions`; either list can grant access. The tests check baseline character access without faction or playthrough grants. Missing metadata defaults to GM-only except for the scoped scenario convention above. Invalid metadata never grants access.
+
+```yaml
+---
+visibility: private
+readers:
+  characters: [aldren]
+---
+```
+
+A grant covers an entire note. Split mixed audiences into separate notes. Markdown links, embeds, aliases and prose labels do not grant access or exempt a reference from checking. Author indexes may link to all audiences because they are not character entrypoints.
+
+## Discoveries during play
+The GM adjudicates actions, quest transitions and discoveries using the full scenario. Send resulting observations only to the recipients who actually learn them. A completed milestone does not automatically teach every character its secrets. Keep these recipient-specific playthrough grants separate from baseline Markdown; they never reveal GM-only branches or apply world-state changes through dialogue.
+
+A future runtime must enforce permissions before initial prompts, search results and retrieval. The passing authoring test does not replace that boundary or establish who knows an unlabelled fact inside an otherwise permitted note.
+
+Parent: [[Authoring/index|Authoring]].

@@ -4,8 +4,8 @@ Author navigation index. Agent context starts at `scenario.md` or `character.md`
 
 ## In this folder
 
-- [[Cast/Kläggenheim/Bran|Bran]]
-- [[Cast/Kläggenheim/King Gurt|King Gurt]]
-- [[Cast/Kläggenheim/Klog|Klog]]
+- [[Cast/Kläggenheim/Bran/index|Bran]]
+- [[Cast/Kläggenheim/King Gurt/index|King Gurt]]
+- [[Cast/Kläggenheim/Klog/index|Klog]]
 
 Parent: [[Cast/index|Cast]].
