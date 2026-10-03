@@ -162,7 +162,8 @@ async function runBackground(next: { id: string; handoffs: number }) {
           let result: { done: boolean; talkTarget?: string; worldEvent?: Event; generations: ExpectedGenerations } | undefined;
           try {
             while (valid()) {
-              result = await commitMutation(game, () => { signal.throwIfAborted(); return game.stepNpcAction(id, plan.action!.id, plan.goal, expected); });
+              result = await commitMutation(game, () => { signal.throwIfAborted(); return game.executeAction({ command: { kind: "step", characterId: id, actionId: plan.action!.id, goal: plan.goal }, expected }, signal); });
+              await game.presentMap("player", result).catch(error => providerWarning(String(error)));
               expected = result.generations;
               if (!valid()) return;
               publishNpc(`${id}: ${plan.action.description}`);
@@ -306,7 +307,7 @@ async function createGame(): Promise<Record<string, unknown>> {
   if (!apiKey) throw new Error("Enter an OpenRouter key first");
   const scenario = await scenarioPromise;
   const now = new Date().toISOString();
-  runtime = new BrowserGameRuntime(scenario, apiKey, undefined, () => worker.postMessage({ type: "transcripts_changed" }), providerWarning);
+  runtime = new BrowserGameRuntime(scenario, apiKey, undefined, () => worker.postMessage({ type: "transcripts_changed" }), providerWarning, { services: { presentation: { renderMap: async () => publishNpc("") } } });
   activeSave = {
     id: crypto.randomUUID(),
     characterName: "New emissary",
@@ -316,22 +317,22 @@ async function createGame(): Promise<Record<string, unknown>> {
     snapshot: runtime.snapshot(),
   };
   await persist();
-  return { state: runtime.view(), activeSaveId: activeSave.id, saves: await listSaves() };
+  return { mapLayout: runtime.map.layout(), state: runtime.view(), activeSaveId: activeSave.id, saves: await listSaves() };
 }
 
 async function createDevelopmentGame(): Promise<Record<string, unknown>> {
   await createGame();
   await persist();
-  return { state: runtime!.view(), activeSaveId: activeSave!.id, saves: await listSaves() };
+  return { mapLayout: runtime!.map.layout(), state: runtime!.view(), activeSaveId: activeSave!.id, saves: await listSaves() };
 }
 
 async function loadGame(saveId: string): Promise<Record<string, unknown>> {
   if (!apiKey) throw new Error("Enter an OpenRouter key first");
   const saved = await transaction<SaveRecord | undefined>("readonly", store => store.get(saveId));
   if (!saved) throw new Error("That saved game no longer exists");
-  runtime = new BrowserGameRuntime(await scenarioPromise, apiKey, saved.snapshot, () => worker.postMessage({ type: "transcripts_changed" }), providerWarning);
+  runtime = new BrowserGameRuntime(await scenarioPromise, apiKey, saved.snapshot, () => worker.postMessage({ type: "transcripts_changed" }), providerWarning, { services: { presentation: { renderMap: async () => publishNpc("") } } });
   activeSave = saved;
-  return { state: runtime.view(), activeSaveId: saved.id, saves: await listSaves() };
+  return { mapLayout: runtime.map.layout(), state: runtime.view(), activeSaveId: saved.id, saves: await listSaves() };
 }
 
 function requireRuntime(): BrowserGameRuntime {
@@ -387,23 +388,19 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
   }
   if (type === "interact_fixture") {
     const game = requireRuntime();
-    const { message, event } = await commitMutation(game, () => game.interactFixtureWithEvent(
-      String(payload.actionId || ""), payload.generations as ExpectedGenerations | undefined));
-    scheduleWorldEvent(game, event);
-    return { state: game.view(), saves: await listSaves(), message };
+    const result = await commitMutation(game, () => game.executeAction({ command: { kind: "fixture", id: String(payload.actionId || "") }, ...(payload.generations ? { expected: payload.generations as ExpectedGenerations } : {}) }));
+    if (result.worldEvent) scheduleWorldEvent(game, result.worldEvent);
+    await game.presentMap("player", result).catch(error => providerWarning(String(error)));
+    return { state: game.view(), saves: await listSaves(), message: result.message };
   }
-  if (type === "set_door") {
-    if (typeof payload.open !== "boolean") throw new Error("Door state must be open or closed.");
+  if (type === "set_door" || type === "move_player") {
+    if (type === "set_door" && typeof payload.open !== "boolean") throw new Error("Door state must be open or closed.");
     const game = requireRuntime();
-    const open = payload.open;
-    const event = await commitMutation(game, () => game.setDoor(String(payload.id), open, payload.generations as ExpectedGenerations | undefined));
-    scheduleWorldEvent(game, event);
-    return { state: game.view(), saves: await listSaves() };
-  }
-  if (type === "move_player") {
-    const game = requireRuntime(), before = structuredClone(game.snapshot());
-    try { game.movePlayer({ x: Number(payload.x), y: Number(payload.y) }, payload.generations as ExpectedGenerations | undefined); await persist(); }
-    catch (error) { game.restore(before); throw error; }
+    const command = type === "set_door" ? { kind: "door" as const, id: String(payload.id), open: payload.open as boolean }
+      : { kind: "move" as const, destination: { x: Number(payload.x), y: Number(payload.y) } };
+    const result = await commitMutation(game, () => game.executeAction({ command, ...(payload.generations ? { expected: payload.generations as ExpectedGenerations } : {}) }));
+    if (result.worldEvent) scheduleWorldEvent(game, result.worldEvent);
+    await game.presentMap("player", result).catch(error => providerWarning(String(error)));
     return { state: game.view(), saves: await listSaves() };
   }
   if (type === "talk" || type === "end_conversation") {
@@ -501,7 +498,7 @@ worker.addEventListener("message", event => {
   };
   // Background work and dialogue wait outside the mutation queue. Their results
   // rejoin it only to validate, merge and save, keeping player commands responsive.
-  if (request.type === "stranger_expression" || request.type === "cancel_npc" || request.type === "debug_transcripts" || request.type === "issue_report" || request.type === "start_npc" || request.type === "pause_npc" || request.type === "talk" || request.type === "end_conversation" || request.type === "interact_fixture" || request.type === "set_door") void process();
+  if (request.type === "stranger_expression" || request.type === "cancel_npc" || request.type === "debug_transcripts" || request.type === "issue_report" || request.type === "start_npc" || request.type === "pause_npc" || request.type === "talk" || request.type === "end_conversation" || request.type === "interact_fixture" || request.type === "set_door" || request.type === "move_player") void process();
   else void enqueue(process);
 });
 

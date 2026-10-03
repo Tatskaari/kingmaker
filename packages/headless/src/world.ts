@@ -24,20 +24,30 @@ export class WorldHeadlessGame {
     change(world);
     this.runtime.restore({ ...before, world: toJson(WorldStateSchema, world), worldGeneration: crypto.randomUUID() });
   }
-  private observation(id = "player") { return characterCourtObservation(projectWorld(this.inspect()), id); }
+  private observation(id = "player") {
+    const visible = this.runtime.map.observe(id);
+    return { ...characterCourtObservation({ ...projectWorld(this.inspect()), world: visible.map }, id), actions: [...visible.actions] };
+  }
   observe(id = "player") { return renderJevRoomView(projectWorld(this.inspect()), this.observation(id)); }
   actions() { return this.observation().actions.map(({ id, description, type, legality }) => ({ id, description, type, legality })); }
   overview() { return this.runtime.view(); }
-  act(id: string) {
+  async act(id: string) {
     const action = this.observation().actions.find(action => action.id === id);
     if (!action) throw new Error(`Unavailable player action: ${id}`);
-    this.runtime.movePlayer(action.path.at(-1)!);
-    if (action.type === "door") return { event: this.runtime.setDoor(action.target, action.open!) };
-    if (action.type === "fixture") return this.runtime.interactFixtureWithEvent(id);
+    await this.move(action.path.at(-1)!.x, action.path.at(-1)!.y);
+    if (action.type === "door" || action.type === "fixture") {
+      const command = action.type === "door" ? { kind: "door" as const, id: action.target, open: action.open! } : { kind: "fixture" as const, id };
+      const result = await this.runtime.executeAction({ command });
+      await this.runtime.presentMap("player", result);
+      return result;
+    }
     return { characterId: action.target };
   }
-  move(x: number, y: number) { this.runtime.movePlayer({ x, y }); }
-  async talk(id: string, message: string) { this.act(`talk_${id}`); return this.runtime.checkedTalkToCharacter(id, message); }
+  async move(x: number, y: number) {
+    const result = await this.runtime.executeAction({ command: { kind: "move", destination: { x, y } } });
+    await this.runtime.presentMap("player", result);
+  }
+  async talk(id: string, message: string) { await this.act(`talk_${id}`); return this.runtime.checkedTalkToCharacter(id, message); }
   async endConversation(id: string, message?: string, signal?: AbortSignal) {
     if (message !== undefined) this.runtime.endConversationAsPlayer(id, message);
     return this.runtime.endConversation(id, signal);

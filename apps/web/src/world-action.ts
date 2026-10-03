@@ -1,3 +1,4 @@
+import type { MapService } from "../../../packages/conversation/src/map.js";
 import { clone, create, toJson } from "@bufbuild/protobuf";
 import { CharacterSchema, ScenarioSchema, WorldStateSchema as MapSchema } from "../../../packages/contracts/src/index.js";
 import { WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
@@ -8,7 +9,7 @@ import { documentLore } from "../../../packages/conversation/src/document-lore.j
 import { runConversationReview, type ConversationReviewContext } from "../../../packages/conversation/src/review.js";
 import type { ConversationRuntime } from "../../../packages/conversation/src/runtime.js";
 import { jevRequest } from "../../../packages/providers/src/jev.js";
-import { courtAgentObservation } from "./court-agent.js";
+import { characterCourtObservation } from "./court-agent.js";
 import { ROOM_COURT_INSTRUCTIONS } from "./court-instructions.js";
 import { renderJevRoomView } from "./jev-room-view.js";
 
@@ -29,7 +30,7 @@ export async function assertWorldActionCurrent(world: WorldState, plan: WorldAct
 }
 
 /** Read-only adapter to the existing palace mechanics, not a v1 save or migration. */
-async function worldActionContext(world: WorldState, characterId: string, history: readonly string[]) {
+async function worldActionContext(world: WorldState, characterId: string, history: readonly string[], map: MapService) {
   const services = createScenarioServices(world);
   const entry = characterEntry(services.scenario.info(), characterId);
   const goal = activeGoal(world.docs[entry]!);
@@ -45,9 +46,10 @@ async function worldActionContext(world: WorldState, characterId: string, histor
   // The retained palace map identifies the player actor as "player".
   if (world.player) characters.push(create(CharacterSchema, { id: "player", name: "player",
     inventory: world.docs[world.player]?.characterProperties?.inventory }));
-  const scenario = create(ScenarioSchema, { world: clone(MapSchema, world.map), characters,
+  const visible = map.observe(characterId);
+  const scenario = create(ScenarioSchema, { world: visible.map, characters,
     playerCharacterId: world.player ? "player" : "" });
-  const observation = courtAgentObservation(scenario, characterId);
+  const observation = { ...characterCourtObservation(scenario, characterId), actions: [...visible.actions] };
   const state = [
     `Who you are: ${characterId}`,
     ...lore.initial.map(doc => `# Lore: ${doc.path}\n${doc.markdown}`),
@@ -64,7 +66,7 @@ export async function planWorldAction<Turn, Review>(characterId: string, runtime
   signal: AbortSignal = new AbortController().signal, history: readonly string[] = []): Promise<WorldActionPlan | undefined> {
   signal.throwIfAborted();
   const world = runtime.services.scenario.snapshot();
-  const context = await worldActionContext(world, characterId, history);
+  const context = await worldActionContext(world, characterId, history, runtime.services.map);
   signal.throwIfAborted();
   if (!context) return;
   if (history.length >= 24) throw new Error("NPC action limit reached.");
