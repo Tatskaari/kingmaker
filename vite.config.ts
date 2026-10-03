@@ -22,6 +22,8 @@ export default defineConfig(({ command }) => ({
     resolveId(id) { if (id === devKeyModule) return `\0${devKeyModule}`; },
     load(id) { if (id === `\0${devKeyModule}`) return `export default ${JSON.stringify(developmentOpenRouterKey(command))};`; },
   }],
+  // Markdown entity decoding must work in workers, where there is no document.
+  resolve: { alias: { "decode-named-character-reference": `${repositoryRoot}/node_modules/decode-named-character-reference/index.js` } },
   root: "apps/web",
   publicDir: "public",
   base: "./",

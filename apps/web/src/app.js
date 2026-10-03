@@ -73,6 +73,13 @@ const playerMessageReceivedAt = new Map();
 
 const gameWorker = new Worker(new URL("./game.worker.ts", import.meta.url), { type: "module" });
 const pendingRequests = new Map();
+let workerFailure;
+gameWorker.addEventListener("error", () => {
+  workerFailure = new Error("The game worker could not start. Reload the page to retry.");
+  for (const pending of pendingRequests.values()) pending.reject(workerFailure);
+  pendingRequests.clear();
+  busy = false; notice = `Error: ${workerFailure.message}`; render();
+});
 const gameReplacementRequests = new Set(["reset_world", "reset_characters", "reset", "load_game", "create_game", "create_development_game", "configure", "delete_game"]);
 let activeConversationRoll;
 gameWorker.addEventListener("message", event => {
@@ -145,6 +152,7 @@ gameWorker.addEventListener("message", event => {
 });
 
 function rpc(type, payload = {}) {
+  if (workerFailure) return Promise.reject(workerFailure);
   if (["move_player", "set_door", "interact_fixture"].includes(type)) payload = { ...payload, generations: state.generations };
   if (gameReplacementRequests.has(type)) { gameViewGeneration++; document.querySelector(".dice-dialog")?.close(); conversationReviews.clear(); stopNpcGoal(); }
   const id = ++requestSequence;
