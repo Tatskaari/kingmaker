@@ -38,3 +38,7 @@ Load a character's dossier when adjudicating their actions. Send only their own 
 
 ## Disclosure and state
 Author truth, a character's belief, and publicly established facts are distinct. Reveal only what the receiving character knows or learns through an adjudicated event. Quest branches describe possibilities; an attempted action or conversation does not automatically complete them. Record actual state changes and their knowledge recipients before supplying updates to character conversations. Keep hidden truths in your GM context; character retrieval is restricted to that character's permitted notes.
+
+## Background characters
+
+- [[Scenarios/Centennial Assembly/Characters/palace-guard/character|Palace Guards]] — ten identical brothers at separate posts, with one shared identity and memory.

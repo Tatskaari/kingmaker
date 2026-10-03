@@ -59,3 +59,5 @@ Equipment is ordinary and scenario-local. Weapons are sheathed unless named as h
 | Peregrine | Human rogue 2; 15 HP | Adapts Lucan's charming prince baseline toward an explorer: Charisma 16, Persuasion/Performance expertise, Acrobatics and Survival, with ordinary travelling notes and a rapier. |
 | Cressida | Human rogue 2; 13 HP | Adapts Elinor's courtier pattern toward a commercial adviser: Intelligence 16 and Investigation/Insight expertise for accounts and hidden obligations. |
 | Abel | Human thief rogue 3; 24 HP | Adapts Rook's experienced sailor baseline toward navigation and practical protection: Dexterity 16, Perception/Survival expertise and lock tools. Rook's intercepted letter and other old-scenario secrets are not carried across. |
+
+- [[Scenarios/Centennial Assembly/Characters/palace-guard/index|Palace Guards — background decuplets]]

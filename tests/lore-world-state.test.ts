@@ -62,7 +62,7 @@ test("builds the current Markdown vault including stubs", () => {
   const lore = new Map([...readVault(root).keys()].map(name => [name, readFileSync(path.join(root, name), "utf8")]));
   const state = worldState(create(MapSchema), lore, "Centennial Assembly");
   assert.equal(Object.keys(state.docs).length, lore.size);
-  assert.equal(state.characters.length, 12);
+  assert.equal(state.characters.length, 13);
   assert.equal(state.docs["Scenarios/Centennial Assembly/Map/Assembly Map.md"]!.body.trim(), "This is a stub.");
   assert.ok(state.characters.includes("Scenarios/Centennial Assembly/Characters/aldren/character.md"));
   assert.deepEqual(toJson(WorldStateSchema, fromJson(WorldStateSchema, toJson(WorldStateSchema, state))), toJson(WorldStateSchema, state));

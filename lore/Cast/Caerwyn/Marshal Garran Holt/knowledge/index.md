@@ -21,3 +21,5 @@ Author navigation only. Each note is private to `holt`, not the person described
 - [[Cast/Caerwyn/Marshal Garran Holt/knowledge/Abel Keel|Abel Keel]]
 
 Parent: [[Cast/Caerwyn/Marshal Garran Holt/index|Marshal Garran Holt]].
+
+- [[Cast/Caerwyn/Marshal Garran Holt/knowledge/Palace Guards|Palace Guards]]

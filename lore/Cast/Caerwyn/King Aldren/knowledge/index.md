@@ -21,3 +21,5 @@ Author navigation only. Each note is private to `aldren`, not the person describ
 - [[Cast/Caerwyn/King Aldren/knowledge/Abel Keel|Abel Keel]]
 
 Parent: [[Cast/Caerwyn/King Aldren/index|King Aldren]].
+
+- [[Cast/Caerwyn/King Aldren/knowledge/Palace Guards|Palace Guards]]

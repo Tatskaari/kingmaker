@@ -21,3 +21,5 @@ Author navigation only. Each note is private to `oswin`, not the person describe
 - [[Cast/Nine Furrows/Professor Oswin/knowledge/Abel Keel|Abel Keel]]
 
 Parent: [[Cast/Nine Furrows/Professor Oswin/index|Professor Oswin]].
+
+- [[Cast/Nine Furrows/Professor Oswin/knowledge/Palace Guards|Palace Guards]]

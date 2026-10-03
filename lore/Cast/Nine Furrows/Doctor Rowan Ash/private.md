@@ -29,3 +29,5 @@ Use the following guidance for your voice. The example lines illustrate delivery
 - [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Magister Corvin|Magister Corvin]]
 - [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Lady Elinor Ash|Lady Elinor Ash]]
 - [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Professor Oswin|Professor Oswin]]
+
+- [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Palace Guards|Palace Guards — unwritten knowledge]]

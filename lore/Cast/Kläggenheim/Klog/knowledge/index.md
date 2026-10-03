@@ -21,3 +21,5 @@ Author navigation only. Each note is private to `klog`, not the person described
 - [[Cast/Kläggenheim/Klog/knowledge/Abel Keel|Abel Keel]]
 
 Parent: [[Cast/Kläggenheim/Klog/index|Klog]].
+
+- [[Cast/Kläggenheim/Klog/knowledge/Palace Guards|Palace Guards]]

@@ -38,3 +38,5 @@ Use the following guidance for your voice. The example lines illustrate delivery
 - [[Cast/Kläggenheim/Klog/knowledge/Prince Peregrine Vane|Prince Peregrine Vane]]
 - [[Cast/Kläggenheim/Klog/knowledge/Lady Cressida Pinchbeck|Lady Cressida Pinchbeck]]
 - [[Cast/Kläggenheim/Klog/knowledge/Abel Keel|Abel Keel]]
+
+- [[Cast/Kläggenheim/Klog/knowledge/Palace Guards|Palace Guards — unwritten knowledge]]
