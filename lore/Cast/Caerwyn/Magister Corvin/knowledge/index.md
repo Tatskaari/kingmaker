@@ -21,3 +21,5 @@ Author navigation only. Each note is private to `corvin`, not the person describ
 - [[Cast/Caerwyn/Magister Corvin/knowledge/Abel Keel|Abel Keel]]
 
 Parent: [[Cast/Caerwyn/Magister Corvin/index|Magister Corvin]].
+
+- [[Cast/Caerwyn/Magister Corvin/knowledge/Palace Guards|Palace Guards]]

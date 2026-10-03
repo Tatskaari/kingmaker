@@ -21,3 +21,5 @@ Author navigation only. Each note is private to `abel`, not the person described
 - [[Cast/Saltmere/Abel Keel/knowledge/Lady Cressida Pinchbeck|Lady Cressida Pinchbeck]]
 
 Parent: [[Cast/Saltmere/Abel Keel/index|Abel Keel]].
+
+- [[Cast/Saltmere/Abel Keel/knowledge/Palace Guards|Palace Guards]]

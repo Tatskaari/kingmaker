@@ -21,3 +21,5 @@ Author navigation only. Each note is private to `tomas`, not the person describe
 - [[Cast/Caerwyn/Tomas Vey/knowledge/Abel Keel|Abel Keel]]
 
 Parent: [[Cast/Caerwyn/Tomas Vey/index|Tomas Vey]].
+
+- [[Cast/Caerwyn/Tomas Vey/knowledge/Palace Guards|Palace Guards]]

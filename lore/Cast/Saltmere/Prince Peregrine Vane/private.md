@@ -38,3 +38,5 @@ Use the following guidance for your voice. The example lines illustrate delivery
 - [[Cast/Saltmere/Prince Peregrine Vane/knowledge/Doctor Rowan Ash|Doctor Rowan Ash]]
 - [[Cast/Saltmere/Prince Peregrine Vane/knowledge/Lady Cressida Pinchbeck|Lady Cressida Pinchbeck]]
 - [[Cast/Saltmere/Prince Peregrine Vane/knowledge/Abel Keel|Abel Keel]]
+
+- [[Cast/Saltmere/Prince Peregrine Vane/knowledge/Palace Guards|Palace Guards — unwritten knowledge]]

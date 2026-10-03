@@ -38,3 +38,5 @@ Use the following guidance for your voice. The example lines illustrate delivery
 - [[Cast/Caerwyn/Magister Corvin/knowledge/Prince Peregrine Vane|Prince Peregrine Vane]]
 - [[Cast/Caerwyn/Magister Corvin/knowledge/Lady Cressida Pinchbeck|Lady Cressida Pinchbeck]]
 - [[Cast/Caerwyn/Magister Corvin/knowledge/Abel Keel|Abel Keel]]
+
+- [[Cast/Caerwyn/Magister Corvin/knowledge/Palace Guards|Palace Guards — unwritten knowledge]]

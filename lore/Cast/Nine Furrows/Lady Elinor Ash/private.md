@@ -38,3 +38,5 @@ Use the following guidance for your voice. The example lines illustrate delivery
 - [[Cast/Nine Furrows/Lady Elinor Ash/knowledge/Prince Peregrine Vane|Prince Peregrine Vane]]
 - [[Cast/Nine Furrows/Lady Elinor Ash/knowledge/Lady Cressida Pinchbeck|Lady Cressida Pinchbeck]]
 - [[Cast/Nine Furrows/Lady Elinor Ash/knowledge/Abel Keel|Abel Keel]]
+
+- [[Cast/Nine Furrows/Lady Elinor Ash/knowledge/Palace Guards|Palace Guards — unwritten knowledge]]

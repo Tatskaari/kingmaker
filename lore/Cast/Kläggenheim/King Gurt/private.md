@@ -38,3 +38,5 @@ Use the following guidance for your voice. The example lines illustrate delivery
 - [[Cast/Kläggenheim/King Gurt/knowledge/Prince Peregrine Vane|Prince Peregrine Vane]]
 - [[Cast/Kläggenheim/King Gurt/knowledge/Lady Cressida Pinchbeck|Lady Cressida Pinchbeck]]
 - [[Cast/Kläggenheim/King Gurt/knowledge/Abel Keel|Abel Keel]]
+
+- [[Cast/Kläggenheim/King Gurt/knowledge/Palace Guards|Palace Guards — unwritten knowledge]]

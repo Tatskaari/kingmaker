@@ -15,3 +15,5 @@ Author navigation index. Agent context starts at `scenario.md` or `character.md`
 - [[Cast/Caerwyn/Tomas Vey/index|Tomas Vey]]
 
 Parent: [[Cast/index|Cast]].
+
+- [[Cast/Caerwyn/Palace Guards/index|Palace Guards]]

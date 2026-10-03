@@ -21,3 +21,5 @@ Author navigation only. Each note is private to `peregrine`, not the person desc
 - [[Cast/Saltmere/Prince Peregrine Vane/knowledge/Abel Keel|Abel Keel]]
 
 Parent: [[Cast/Saltmere/Prince Peregrine Vane/index|Prince Peregrine Vane]].
+
+- [[Cast/Saltmere/Prince Peregrine Vane/knowledge/Palace Guards|Palace Guards]]

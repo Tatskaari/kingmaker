@@ -30,3 +30,5 @@ Use the following guidance for your voice. The example lines illustrate delivery
 - [[Cast/Caerwyn/Marshal Garran Holt/knowledge/Magister Corvin|Magister Corvin]]
 - [[Cast/Caerwyn/Marshal Garran Holt/knowledge/Tomas Vey|Tomas Vey]]
 - [[Cast/Caerwyn/Marshal Garran Holt/knowledge/Lady Cressida Pinchbeck|Lady Cressida Pinchbeck]]
+
+- [[Cast/Caerwyn/Marshal Garran Holt/knowledge/Palace Guards|Palace Guards — unwritten knowledge]]

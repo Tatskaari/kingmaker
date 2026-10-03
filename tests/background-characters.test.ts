@@ -10,6 +10,8 @@ import { courtMarkers } from "../apps/web/src/court-map.js";
 
 function backgroundWorld() {
   const world = loadPlayableWorld(), path = "Scenarios/Centennial Assembly/Characters/test-guard/character.md";
+  for (const entry of world.characters) if (world.docs[entry]!.frontmatter?.background) world.docs[entry]!.frontmatter!.background = false;
+  world.map!.actors = world.map!.actors.filter(actor => !actor.instanceId);
   world.docs[path] = create(DocumentSchema, { body: "Shared memory", frontmatter: { background: true, name: "Guard", active_goal: "Wander off",
     placements: [{ x: 59, y: 35 }, { x: 44, y: 34 }] } });
   world.docs[world.scenario]!.body += `\n[[${path}]]`;
@@ -61,4 +63,17 @@ test("paired bodies offer one reachable talk action and one listener, without au
   const before = stateResources(scenario, {}, {})["actor:test-guard"];
   scenario.world!.actors.reverse();
   assert.deepEqual(stateResources(scenario, {}, {})["actor:test-guard"], before);
+});
+
+test("the palace has ten identical brothers in five pairs", () => {
+  const world = loadPlayableWorld();
+  const bodies = world.map!.actors.filter(actor => actor.characterId === "palace-guard");
+  assert.equal(bodies.length, 10);
+  assert.equal(new Set(bodies.map(actor => actor.instanceId)).size, 10);
+  const rooms = new Map<string, number>();
+  for (const body of bodies) rooms.set(body.roomId, (rooms.get(body.roomId) ?? 0) + 1);
+  assert.deepEqual([...rooms.values()], [2, 2, 2, 2, 2]);
+  const voice = world.docs["Cast/Caerwyn/Palace Guards/private.md"]!.body;
+  assert.match(voice, /identical decuplet/);
+  assert.match(voice, /\*sniff\* whatareyoutalkinabeet/);
 });

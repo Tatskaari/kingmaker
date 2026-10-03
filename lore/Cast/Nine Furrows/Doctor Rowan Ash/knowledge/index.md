@@ -21,3 +21,5 @@ Author navigation only. Each note is private to `rowan`, not the person describe
 - [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Abel Keel|Abel Keel]]
 
 Parent: [[Cast/Nine Furrows/Doctor Rowan Ash/index|Doctor Rowan Ash]].
+
+- [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Palace Guards|Palace Guards]]

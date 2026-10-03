@@ -21,3 +21,5 @@ Author navigation only. Each note is private to `bran`, not the person described
 - [[Cast/Kläggenheim/Bran/knowledge/Abel Keel|Abel Keel]]
 
 Parent: [[Cast/Kläggenheim/Bran/index|Bran]].
+
+- [[Cast/Kläggenheim/Bran/knowledge/Palace Guards|Palace Guards]]

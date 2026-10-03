@@ -21,3 +21,5 @@ Author navigation only. Each note is private to `elinor`, not the person describ
 - [[Cast/Nine Furrows/Lady Elinor Ash/knowledge/Abel Keel|Abel Keel]]
 
 Parent: [[Cast/Nine Furrows/Lady Elinor Ash/index|Lady Elinor Ash]].
+
+- [[Cast/Nine Furrows/Lady Elinor Ash/knowledge/Palace Guards|Palace Guards]]
