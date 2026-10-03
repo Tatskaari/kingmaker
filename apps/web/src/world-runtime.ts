@@ -149,7 +149,7 @@ export class WorldGameRuntime extends WorldHost {
   }
   async executeAction(context: ActionExecutionContext, signal = new AbortController().signal) {
     const id = context.command.kind === "step" ? context.command.characterId : "player";
-    return this.traces.group("npc_request", id, id, key => runActionExecution(context, this.runtime(id, "npc_request", {}, key), signal), context);
+    return runActionExecution(context, this.runtime(id, "npc_request"), signal);
   }
   /** Called after persistence; presentation failure must not roll back a committed action. */
   async presentMap(id = "player", result?: import("../../../packages/conversation/src/map.js").MapResult) {
