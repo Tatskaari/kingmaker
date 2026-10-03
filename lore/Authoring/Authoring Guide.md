@@ -41,7 +41,7 @@ readers: ["label:court-informed"]
 3. Link that note from the relevant character entry or an already permitted note so Jev can discover it. For the assembly, use `court_briefing.md` → delegation overview → Cast `public.md`. Update author indexes separately.
 4. Run the lore access tests through the normal repository checks. Start a fresh game to load changed baseline metadata into saved document state.
 
-A list can mix grant types, such as `readers: ["character:aldren", "label:court-informed"]`; any match is enough. `faction:caerwyn` is also supported when a trusted audience supplies faction membership, but a faction mentioned in prose gives no permission. Use exact, case-sensitive IDs without spaces or additional colons. Unknown prefixes and nested reader mappings are invalid.
+A list can mix grant types, such as `readers: ["character:aldren", "label:court-informed"]`; any match is enough. For faction knowledge, put `factions: [caerwyn]` on the scenario character entry and `readers: ["faction:caerwyn"]` on the shared private note. A faction mentioned in prose or on a retrieved document gives no membership or permission. Use exact, case-sensitive IDs without spaces or additional colons. Unknown prefixes and nested reader mappings are invalid.
 
 Use `visibility: gm` for hidden truth regardless of reader entries. Use `visibility: public` only when every character may read the entire note. A filename such as `public.md`, a document label, or an Obsidian tag does not grant access. See [[Authoring/Agent Disclosure|Agent Disclosure]] for the full contract.
 

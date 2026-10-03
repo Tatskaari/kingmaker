@@ -1,4 +1,5 @@
 ---
+factions: [klaggenheim]
 summary: "Your Centennial Assembly entry as Klog, linking private characterization, shared court knowledge and scoped supporting notes. Your current situation and objectives remain unwritten."
 labels: [court-informed]
 ---

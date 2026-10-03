@@ -35,9 +35,9 @@ that convention, including on the entry itself. Cast private and knowledge notes
 explicitly name their owner; knowledge belongs to the observer, not the subject.
 Author indexes receive no implicit access. Invalid metadata is a test failure.
 
-The committed-vault tests include labels from each character entry, without implicit faction or
-playthrough grants. The audit helper accepts trusted `factions` and exact
-vault-relative `grants` for testing future integrations. A grant can unlock a
+The committed-vault tests include the flat `labels` and `factions` lists from each character entry.
+Folder names, prose and retrieved notes do not establish membership. The audit helper also accepts
+trusted audience `factions` and exact vault-relative `grants` for testing integrations. A grant can unlock a
 private note but never GM-only material; it does not propagate through links.
 Milestones must grant access to the recipients who actually learned something.
 The audit does not evaluate story events or write game state.
