@@ -7,6 +7,8 @@ readers:
 ---
 # Doctor Rowan Ash — conversation entry
 
+You are Doctor Rowan Ash. Begin with this briefing and your private cast context; consult linked detail when it is relevant.
+
 Private cast context: [[Cast/Nine Furrows/Doctor Rowan Ash/private|Doctor Rowan Ash]]. Use the established characterization there; this note supplies the current scene.
 
 ## Opening situation
