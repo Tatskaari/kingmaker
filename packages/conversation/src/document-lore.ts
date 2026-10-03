@@ -1,5 +1,5 @@
 import type { ScenarioService } from "../../lore/src/services.js";
-import { permitted } from "../../../scripts/lib/lore-access.js";
+import { permitted } from "../../lore/src/access.js";
 import type { LoreService } from "./services.js";
 
 /** Character-scoped view of the authoritative GM document service. */
