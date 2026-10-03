@@ -83,6 +83,11 @@ test("Jev rounds and opened Markdown can be inspected and exported alongside mod
     await step(() => setup.mockInput.typeText("Tell me more."));
     await step(() => setup.mockInput.pressEnter());
     assert.match(setup.captureCharFrame(), /Informed reply/);
+    const rowY = (id: string) => setup.renderer.root.findDescendantById(id)!.y;
+    assert.ok(rowY("message-3") < rowY("jev-1-1"), "player message precedes Jev");
+    assert.ok(rowY("jev-1-1") < rowY("opened-1-1-0"), "opened note follows its Jev round");
+    assert.ok(rowY("opened-1-1-0") < rowY("jev-1-2"), "opened note stays with its round");
+    assert.ok(rowY("jev-1-2") < rowY("message-4"), "Jev precedes the character reply");
     await click("jev-1-1");
     assert.match(setup.captureCharFrame(), /open_1: 0.9/);
     assert.match(setup.captureCharFrame(), /OPENED/);
@@ -142,5 +147,8 @@ test("CLI pauses for a manual d20, rejects invalid input, and shows the GM rulin
     assert.match(setup.captureCharFrame(), /Agreed/);
     assert.match(setup.captureCharFrame(), /GM roll ruling/);
     assert.equal(calls, 1);
+    const rowY = (id: string) => setup.renderer.root.findDescendantById(id)!.y;
+    assert.ok(rowY("jev-1-1") < rowY("gm-0"));
+    assert.ok(rowY("gm-0") < rowY("message-4"));
   } finally { await act(() => setup.renderer.destroy()); }
 });
