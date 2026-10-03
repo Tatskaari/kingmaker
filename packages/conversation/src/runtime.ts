@@ -1,7 +1,10 @@
 import type { RuntimeServices } from "./services.js";
+import type { ConversationHooks } from "./phases.js";
 
-export interface ConversationRuntimeOptions {
+export interface ConversationRuntimeOptions<Labels = Record<string, never>> {
   services?: { [Service in keyof RuntimeServices]?: Partial<RuntimeServices[Service]> };
+  hooks?: { conversation: ConversationHooks<Labels> };
+  maxPasses?: number;
 }
 
 export class UnimplementedServiceError extends Error {
@@ -13,11 +16,19 @@ export class UnimplementedServiceError extends Error {
 
 const unimplemented = (operation: string): never => { throw new UnimplementedServiceError(operation); };
 
-/** Unused service boundary for the new conversation engine. Implementations are opt-in. */
-export class ConversationRuntime {
+/** Conversation-only dependencies and hooks, supplied by the host. */
+export class ConversationRuntime<Labels = Record<string, never>> {
   readonly services: RuntimeServices;
+  readonly hooks: { conversation: ConversationHooks<Labels> };
+  readonly maxPasses: number;
 
-  constructor({ services = {} }: ConversationRuntimeOptions = {}) {
+  constructor({ services = {}, hooks, maxPasses = 16 }: ConversationRuntimeOptions<Labels> = {}) {
+    if (!Number.isSafeInteger(maxPasses) || maxPasses < 1) throw new Error("maxPasses must be a positive integer.");
+    this.maxPasses = maxPasses;
+    this.hooks = hooks ?? { conversation: {
+      classify: async () => unimplemented("hooks.conversation.classify"),
+      resolve: async () => unimplemented("hooks.conversation.resolve"),
+    } };
     this.services = {
       ai: {
         decisions: async (...args) => services.ai?.decisions
