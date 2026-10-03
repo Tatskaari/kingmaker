@@ -101,12 +101,12 @@ export class WorldGameRuntime extends WorldHost {
   }
   startIntroduction() {
     if (this.world().player || this.activity.stranger?.draft) throw new Error("Character creation is already complete.");
-    this.activity.stranger ??= beginStranger();
+    this.activity.stranger ??= beginStranger(this.world());
   }
   async talkToGameMaster(message: string) {
     if (!this.activity.stranger) throw new Error("Meet the Stranger first.");
     const before = this.activity.stranger;
-    const next = await strangerTurn(before, message, this.documents.scenario, this.runtime("gm", "game_master").services.ai);
+    const next = await strangerTurn(before, message, this.documents.scenario, this.runtime("gm", "game_master").services);
     if (this.activity.stranger !== before) throw new Error("The interview changed; retry your reply.");
     this.activity.stranger = next;
     return next.history.at(-1)?.content ?? "";
