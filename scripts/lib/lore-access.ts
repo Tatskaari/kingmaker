@@ -59,7 +59,7 @@ function links(body: string): { target: string; wiki: boolean }[] {
 
 function permitted(name: string, note: Note, entry: string, audience: Audience): boolean {
   const { visibility, readers } = note.metadata;
-  if (visibility !== undefined && !["public", "private", "gm"].includes(String(visibility))) throw new Error("Unknown visibility");
+  if (visibility !== undefined && (typeof visibility !== "string" || !["public", "private", "gm"].includes(visibility))) throw new Error("Unknown visibility");
   const list = (value: unknown): string[] => {
     if (value === undefined) return [];
     if (!Array.isArray(value) || !value.every(item => typeof item === "string" && item.length > 0)) throw new Error("Readers must be lists of IDs");
@@ -79,7 +79,7 @@ function permitted(name: string, note: Note, entry: string, audience: Audience):
 
 export function auditLore(root: string, entry: string, audience: Audience): Finding[] {
   const notes = readVault(root), findings: Finding[] = [];
-  if (!/^Scenarios\/.+\/Characters\/[^/]+\/character\.md$/.test(entry)
+  if (entry.split("/").some(part => part === "." || part === "..") || !/^Scenarios\/.+\/Characters\/[^/]+\/character\.md$/.test(entry)
     || path.posix.basename(path.posix.dirname(entry)) !== audience.character) throw new Error("Entry must be this character's Scenarios/.../Characters/<id>/character.md");
   const visited = new Set<string>();
   const queue: string[][] = [[entry]];

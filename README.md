@@ -480,3 +480,8 @@ Open [`lore/`](lore/index.md) as an Obsidian vault and begin at `index.md`.
 It organizes the direction in issues 108–111 into world, cast and plot notes,
 with empty scenario stubs ready for author sketches. The running game still
 reads `content/` and does not import the vault.
+
+Lore visibility is checked by the normal test suite. Every scenario character
+entry must link only to permitted notes, including through further links.
+See [lore access tests](docs/lore-access-audit.md) for the metadata format and
+focused test command.
