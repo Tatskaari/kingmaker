@@ -92,7 +92,7 @@ export class OpenRouterClient {
     if (!body || typeof body !== "object" || Array.isArray(body)) throw new ProviderResponseError("OpenRouter returned an invalid response. Please try again.", true);
     if (useResponses) return responsesMessage(body);
     const message = body.choices?.[0]?.message;
-    if (!message) throw new Error("OpenRouter returned no assistant message");
+    if (!message) throw new ProviderResponseError("OpenRouter returned no assistant message", true);
     return message;
   }
 }
@@ -150,6 +150,10 @@ function responsesMessage(body: ResponsesResult): OpenRouterMessage {
       calls.push({ id: item.call_id, type: "function", function: { name: item.name, arguments: item.arguments } });
     }
   }
-  if (!text.length && !calls.length) throw new Error("OpenRouter returned no assistant message");
+  if (!text.length && !calls.length) {
+    const phases = [...new Set(output.filter(item => item.type === "message")
+      .map(item => typeof item.phase === "string" ? item.phase : "unphased"))];
+    throw new ProviderResponseError(`OpenRouter returned no assistant message (${phases.length ? `message phases: ${phases.join(", ")}` : "no message or tool output"})`, true);
+  }
   return { role: "assistant", content: text.join("\n") || null, responseItems: output, ...(calls.length ? { tool_calls: calls } : {}) };
 }
