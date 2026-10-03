@@ -1,4 +1,5 @@
 ---
+summary: "GM reference on Edric's peace settlement, retained domestic rule, tribute, trade guarantees and arbitration, and its relationship to the older hundred-year mandate."
 visibility: gm
 type: world-event
 status: draft

@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Caerwyn, Kläggenheim, Nine Furrows and Saltmere."
+---
 # Factions
 
 Author navigation index. Agent context starts at `scenario.md` or `character.md`, not at this index.

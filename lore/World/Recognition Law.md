@@ -1,4 +1,5 @@
 ---
+summary: "GM reference on the centennial requirement for common recognition, the current recognition bearers and Gurt's personal consent. Formal ceremony and adjudication details remain unresolved."
 visibility: gm
 type: world-rule
 status: draft

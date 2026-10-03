@@ -1,3 +1,6 @@
+---
+summary: "The lore loading and permission contract: character and GM audiences, document-summary previews, flat reader grants, labels and knowledge learned during play."
+---
 # Agent Disclosure
 
 The vault separates character-private knowledge from GM-only truth. The lore access tests follow every note link from every scenario character entry and reject inaccessible, broken, ambiguous or invalid references. The same access rules gate runtime retrieval before documents are offered to Jev or loaded into character context.
@@ -13,7 +16,7 @@ The GM begins at the scenario's `scenario.md` and can consult the full authored 
 
 ## Document summaries for Jev
 
-Use a flat `summary` Text property for a one- or two-sentence description of an authored note's contents. Name the people, everyday topics and kinds of detail it covers: “the Nine Furrows wizards and their magical specialties” is more discoverable than an institution name alone. Summarize only material actually in the note; do not add facts solely to a preview.
+Use a flat `summary` Text property for a one- or two-sentence description of every lore note's contents, including indexes, author references and stubs. Name the people, everyday topics and kinds of detail it covers: “the Nine Furrows wizards and their magical specialties” is more discoverable than an institution name alone. Summarize only material actually in the note; do not add facts solely to a preview.
 
 ```yaml
 summary: "The three Nine Furrows wizards, their magical specialties and links to their public profiles."
@@ -21,7 +24,7 @@ summary: "The three Nine Furrows wizards, their magical specialties and links to
 
 When Jev considers an unopened linked note, its summary appears above the path in that note's opening criterion and in the CLI's link decision details. Both vault and saved-world loaders check the note's read permission first. The summary inherits the entire note's audience and never grants access or opens the note by itself.
 
-Summaries help choose what to retrieve; the character receives the full body only after the note is opened. Missing summaries remain supported, but supplied summaries must be nonempty text. Leave unwritten stubs alone rather than inventing a preview of unauthored material. Updated summaries in saved documents are used on the next disclosure pass; start a fresh game to take updated baseline vault summaries into an existing saved-world workflow.
+Summaries help choose what to retrieve; the character receives the full body only after the note is opened. The runtime accepts a missing summary, but every document in this vault must have nonempty summary text. Describe a stub as unwritten without inventing any knowledge or events, and leave its literal body unchanged. Updated summaries in saved documents are used on the next disclosure pass; start a fresh game to take updated baseline vault summaries into an existing saved-world workflow.
 
 ## Cast audiences
 Each cast member has a folder under `Cast/<faction>/<name>/`:

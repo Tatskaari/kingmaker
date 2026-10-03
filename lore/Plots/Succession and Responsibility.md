@@ -1,4 +1,5 @@
 ---
+summary: "GM plot context for Aldren, Corvin and Holt's complementary competence and avoidance, and the succession crisis their arrangement cannot contain."
 visibility: gm
 ---
 # Succession and Responsibility

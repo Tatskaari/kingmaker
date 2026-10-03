@@ -1,3 +1,6 @@
+---
+summary: "Preserved source issue #111 proposing Aldren, Corvin and Holt as a dysfunctional royal household, with contrasting obsessions, scheduling conflicts and succession consequences."
+---
 # Reimagine Caerwyn's main cast as a dysfunctional royal household
 
 Source: [Issue #111](https://github.com/Tatskaari/kingmaker/issues/111). Original issue text preserved below.
