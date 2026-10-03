@@ -1,27 +1,53 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { dirname, resolve, sep } from "node:path";
-import type { CharacterSources } from "./conversation.js";
+import { links } from "../../lore/src/markdown.js";
+import path from "node:path";
+import { permitted, readVault } from "../../../scripts/lib/lore-access.js";
+import type { CharacterSources, LoreDocument } from "./conversation.js";
 
-/** Explicit eager loading for the prototype. No recursive links or disclosure policy yet. */
-export function loadCharacterSources(root: string, scenario: string, characterId: string): CharacterSources {
-  const vaultPath = (path: string) => {
-    const absolute = resolve(root, path);
-    if (!absolute.startsWith(resolve(root) + sep)) throw new Error("Lore path must stay inside the vault.");
-    return absolute;
+export interface LoreLink { path: string; from: string }
+export interface CharacterLore {
+  initial: CharacterSources;
+  candidates(opened: CharacterSources): LoreLink[];
+  read(path: string): LoreDocument;
+}
+
+/** Resolve only authored links; never treat player input as a retrieval request. */
+export function loadCharacterLore(root: string, scenario: string, characterId: string): CharacterLore {
+  const notes = readVault(root);
+  const entry = `Scenarios/${scenario}/Characters/${characterId}/character.md`;
+  if (entry.split("/").some(part => part === "." || part === "..")) throw new Error("Invalid character entry path.");
+  const readable = (name: string) => {
+    const note = notes.get(name);
+    if (!note) throw new Error(`Missing lore note: ${name}`);
+    if (note.error) throw new Error(`${name}: ${note.error}`);
+    if (!permitted(name, note, entry, { character: characterId })) throw new Error(`No read access: ${name}`);
+    return note;
   };
-  const read = (path: string) => readFileSync(vaultPath(path), "utf8");
-  const directory = `Scenarios/${scenario}/Characters/${characterId}`;
-  const entry = read(`${directory}/character.md`);
-  const castPath = entry.match(/\[\[(Cast\/[^|\]#]+\/private)(?:\|[^\]]+)?\]\]/)?.[1];
-  if (!castPath) throw new Error(`No private Cast reference in ${directory}/character.md`);
-  const knowledgeDirectory = `${dirname(castPath)}/knowledge`;
-  const knowledgePaths = readdirSync(vaultPath(knowledgeDirectory), { withFileTypes: true })
-    .filter(file => file.isFile() && file.name.endsWith(".md") && file.name !== "index.md")
-    .map(file => `${knowledgeDirectory}/${file.name}`).sort();
-  return {
-    cast: read(`${castPath}.md`),
-    knowledge: knowledgePaths.map(path => `## ${path}\n${read(path)}`).join("\n\n"),
-    scenario: ["character", "background", "situation", "conversation"]
-      .map(name => `## ${directory}/${name}.md\n${name === "character" ? entry : read(`${directory}/${name}.md`)}`).join("\n\n"),
-  };
+  const read = (name: string): LoreDocument => ({ path: name, markdown: readable(name).body });
+  function resolve(from: string, link: { target: string; wiki: boolean }): string | undefined {
+    let target = decodeURIComponent(link.target.split("#")[0]!.split("?")[0]!);
+    if (!target || /^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(target)) return;
+    if (!link.wiki && path.posix.extname(target) && !target.endsWith(".md")) return;
+    if (!target.endsWith(".md")) target += ".md";
+    const absolute = path.posix.normalize(target.replace(/^\//, ""));
+    const relative = path.posix.normalize(path.posix.join(path.posix.dirname(from), target));
+    const matches = link.wiki
+      ? notes.has(absolute) ? [absolute] : notes.has(relative) ? [relative] : [...notes.keys()].filter(key => key.endsWith("/" + absolute))
+      : [link.target.startsWith("/") ? absolute : relative].filter(key => notes.has(key));
+    if (matches.length !== 1) throw new Error(`Broken or ambiguous link in ${from}: ${link.target}`);
+    return matches[0]!;
+  }
+  const initial = [read(entry)];
+  const privateLink = links(initial[0]!.markdown).find(link => /^Cast\/.+\/private(?:\.md)?$/.test(link.target));
+  if (!privateLink) throw new Error(`No private Cast reference in ${entry}`);
+  initial.unshift(read(resolve(entry, privateLink)!));
+  return { initial, read, candidates(opened) {
+    const seen = new Set(opened.map(document => document.path)), result: LoreLink[] = [];
+    for (const document of opened) for (const link of links(document.markdown)) {
+      const target = resolve(document.path, link);
+      if (!target || seen.has(target)) continue;
+      readable(target); // Permissions are checked before exposing candidates or reading bodies.
+      seen.add(target); result.push({ path: target, from: document.path });
+    }
+    return result;
+  } };
 }
