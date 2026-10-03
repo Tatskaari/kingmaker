@@ -28,13 +28,17 @@ import { OpenRouterClient } from "../../../packages/providers/src/openrouter.js"
 import { JevClient } from "../../../packages/providers/src/jev.js";
 import type { AiService } from "../../../packages/conversation/src/services.js";
 import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
-import { planWorldAction } from "./world-action.js";
+import { planWorldAction, type PlanningFeedback } from "./world-action.js";
 import { courtCharactersWithinEarshot, perceivesAt } from "./earshot.js";
 import { generationIds } from "../../../packages/core/src/generations.js";
 
 export type WorldTurnLabels = Awaited<ReturnType<ReturnType<typeof cliHooks>["classify"]>>;
 export type WorldOptions = ConversationRuntimeOptions<WorldTurnLabels>;
 export { type WorldSnapshot } from "./world-host.js";
+
+export type ConversationStartResult = { ok: true; text: string } | ({ ok: false } & PlanningFeedback);
+const conversationChanged = (): ConversationStartResult => ({ ok: false, error: "conversation_changed",
+  instruction: "The conversation was not started because the world or conversation changed. Inspect the fresh observation and choose an action again." });
 
 export class WorldGameRuntime extends WorldHost {
   private provider: AiService;
@@ -232,9 +236,9 @@ export class WorldGameRuntime extends WorldHost {
     this.conversationRuns.delete(id);
     return event;
   }
-  async planNpc(id: string, signal: AbortSignal, _conflict?: unknown, runKey?: string) {
+  async planNpc(id: string, signal: AbortSignal, conflict?: PlanningFeedback, runKey?: string) {
     if (this.activity.conversations[id]?.length || this.activity.npcActivities?.[id]?.reviewPending) throw new Error("NPC paused for conversation or review.");
-    const work = (key: string) => planWorldAction(id, this.runtime(id, "jev", {}, key), signal, this.activity.npcActivities?.[id]?.actionIds ?? []);
+    const work = (key: string) => planWorldAction(id, this.runtime(id, "jev", {}, key), signal, this.activity.npcActivities?.[id]?.actionIds ?? [], conflict);
     const plan = await (runKey ? work(runKey) : this.traces.group("npc_goal", id, id, work));
     if (!plan) throw new Error("NPC has no active goal.");
     return { ...plan, generations: generationIds(this.readResources()) };
@@ -259,12 +263,13 @@ export class WorldGameRuntime extends WorldHost {
       return result;
     } catch (error) { this.traces.fail(key, error); throw error; }
   }
-  async executeNpcTalk(id: string, actionId: string, revision: number, goal: string, signal: AbortSignal) {
+  async executeNpcTalk(id: string, actionId: string, revision: number, goal: string, signal: AbortSignal): Promise<ConversationStartResult> {
+    signal.throwIfAborted();
     const observation = this.map.observe(id);
     const action = observation.actions.find(action => action.id === actionId && action.type === "talk");
     if (!action || action.path.length > 2 || revision !== observation.map.revision || this.activity.conversations[id]?.length
-      || this.activity.conversations[action.target]?.length || this.activity.npcActivities?.[id]?.goal !== goal) throw new Error("Conversation changed; replan.");
-    return (await this.resolve({ kind: "npc_exchange", characterId: id, targetId: action.target, goal }, signal)).summary;
+      || this.activity.conversations[action.target]?.length || this.activity.npcActivities?.[id]?.goal !== goal) return conversationChanged();
+    return { ok: true, text: (await this.resolve({ kind: "npc_exchange", characterId: id, targetId: action.target, goal }, signal)).summary };
   }
   async reviewNpcOutcome(id: string, _allowNextGoal = true, signal = new AbortController().signal) {
     const activity = this.activity.npcActivities?.[id];
@@ -291,12 +296,17 @@ export class WorldGameRuntime extends WorldHost {
     const player = perceptions.find(p => p.characterId === "player");
     return { reactions: perceptions.filter(p => p.characterId !== "player"), ...(ownEvent ? { playerPerception: event.summary } : player ? { playerPerception: player.perception } : {}) };
   }
-  async initiatePlayerConversation(id: string, actionId: string, revision: number, goal: string, signal: AbortSignal) {
+  async initiatePlayerConversation(id: string, actionId: string, revision: number, goal: string, signal: AbortSignal): Promise<ConversationStartResult> {
+    signal.throwIfAborted();
     const persist = this.persistChange;
     const world = this.world();
-    const observation = this.map.observe(id);
-    const action = observation.actions.find(action => action.id === actionId && action.type === "talk" && action.target === "player");
-    if (!action || action.path.length > 2 || observation.map.revision !== revision || Object.values(this.activity.conversations).some(turns => turns.length)) throw new Error("Conversation changed; replan.");
+    const available = () => {
+      const current = this.map.observe(id);
+      const talk = current.actions.find(action => action.id === actionId && action.type === "talk" && action.target === "player");
+      return talk && talk.path.length <= 2 && current.map.revision === revision
+        && this.activity.npcActivities?.[id]?.goal === goal && !Object.values(this.activity.conversations).some(turns => turns.length);
+    };
+    if (!available()) return conversationChanged();
     const runtime = this.runtime(id, "dialogue", {}, this.conversationRun(id), signal, [id, "player"]);
     const lore = await runtime.services.lore.forCharacter(id, signal);
     // Opening speech can disclose lore, but there is no player utterance to check.
@@ -310,13 +320,13 @@ export class WorldGameRuntime extends WorldHost {
       message: `Open a conversation with the player to advance this goal: ${goal}. Speak only your own opening words; do not invent the player's response or physical outcomes.` });
     const reply = await runConversation(request, runtime, signal);
     signal.throwIfAborted();
-    if (reply.tool_calls?.length || !reply.content?.trim()) throw new Error("Conversation changed or invalid opening.");
-    await this.commit(() => {
-      if (Object.values(this.activity.conversations).some(turns => turns.length)) throw new Error("Conversation changed.");
+    if (reply.tool_calls?.length || !reply.content?.trim()) throw new Error("Invalid conversation opening.");
+    return this.commit((): ConversationStartResult => {
+      if (!available()) return conversationChanged();
       this.activity.conversations[id] = [toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: id, text: reply.content! }))];
       (this.activity.npcActivities![id]!.actionIds ??= []).push(actionId);
+      return { ok: true, text: reply.content! };
     }, signal, persist);
-    return reply.content;
   }
   async logConversationExpression(_id: string) { /* Portrait policy is optional in this host. */ }
 }
