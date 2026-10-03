@@ -223,3 +223,29 @@ SHA-checked document writes. Hosts must supply an authoritative v2 service pair;
 there is no implicit conversion from the existing v1 game. As with other services,
 unprovided operations fail explicitly. A resolver can use `ai` for GM reasoning
 and `debug` for observations without depending on browser presentation.
+
+Browser/headless `endConversation` now uses this pipeline. Its default classifier
+is the stub; its default resolver passes labels and full evidence to the existing
+GM reconciliation via `services.ai.responses`. The current playable v1 host keeps
+its existing resource/staged writes; it does not yet author v2 documents. Inject
+`reviewOptions` when constructing `BrowserGameRuntime`, or the fourth argument of
+`HeadlessGame`; these dependencies survive forks and headless reloads. Either
+phase can be overridden independently:
+
+```ts
+const reviewOptions = {
+  services: { scenario, docs, ai },
+  hooks: { review: {
+    classify: classifyConversationReview,
+    resolve: async (context, labels, signal, services) => {
+      // Read/revise documents via services.docs, consulting services.ai as needed.
+      return myReview(context, labels, signal, services);
+    },
+  } },
+};
+```
+
+The host clears only the reviewed transcript after both phases succeed. Failed or
+cancelled reviews retain evidence; successful incremental writes remain committed.
+A transcript changed during review is not cleared. Review cancellation is accepted
+by `endConversation` and forwarded to the model and the write boundaries.

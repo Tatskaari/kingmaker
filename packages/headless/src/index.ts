@@ -11,14 +11,15 @@ export class HeadlessGame {
   runtime: BrowserGameRuntime;
 
   constructor(source: Scenario | RuntimeSnapshot, private readonly apiKey = "",
-    private readonly conversation?: ConversationRuntimeOptions<CheckLabels>) {
+    private readonly conversation?: ConversationRuntimeOptions<CheckLabels>,
+    private readonly review?: ConversationRuntimeOptions) {
     this.runtime = this.#create(source);
   }
 
   #create(source: Scenario | RuntimeSnapshot) {
     return "scenario" in source
-      ? new BrowserGameRuntime(fromJson(ScenarioSchema, source.scenario), this.apiKey, source)
-      : new BrowserGameRuntime(source, this.apiKey);
+      ? new BrowserGameRuntime(fromJson(ScenarioSchema, source.scenario), this.apiKey, source, undefined, undefined, undefined, undefined, this.review)
+      : new BrowserGameRuntime(source, this.apiKey, undefined, undefined, undefined, undefined, undefined, this.review);
   }
 
   load(source: Scenario | RuntimeSnapshot) { this.runtime = this.#create(source); }
@@ -80,8 +81,8 @@ export class HeadlessGame {
       : this.runtime.checkedTalkToCharacter(characterId, message);
   }
 
-  async endConversation(characterId: string, message?: string) {
+  async endConversation(characterId: string, message?: string, signal?: AbortSignal) {
     if (message !== undefined) this.runtime.endConversationAsPlayer(characterId, message);
-    return this.runtime.endConversation(characterId);
+    return signal ? this.runtime.endConversation(characterId, signal) : this.runtime.endConversation(characterId);
   }
 }
