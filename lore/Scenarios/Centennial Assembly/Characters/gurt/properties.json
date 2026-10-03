@@ -1,4 +1,40 @@
 {
-  "dnd": null,
-  "inventory": null
+  "dnd": {
+    "rulesetId": "srd-5.2.1",
+    "speciesId": "dwarf",
+    "backgroundId": "soldier",
+    "abilityScores": {
+      "strength": 10,
+      "dexterity": 8,
+      "constitution": 14,
+      "intelligence": 10,
+      "wisdom": 14,
+      "charisma": 13
+    },
+    "classes": [
+      {"classId": "fighter", "level": 2, "hitDiceRemaining": 2}
+    ],
+    "hitPoints": {
+      "current": 20,
+      "maximum": 20
+    },
+    "proficiencies": [
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "history", "rank": "PROFICIENCY_RANK_EXPERTISE", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "insight", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "persuasion", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"}
+    ],
+    "resources": [
+      {"resourceId": "second-wind", "current": 2, "maximum": 2},
+      {"resourceId": "action-surge", "current": 1, "maximum": 1, "recharge": "RESOURCE_RECHARGE_SHORT_REST"}
+    ]
+  },
+  "inventory": {
+    "items": [
+      {"id": "gurt_clothes_fine", "name": "Formal clothes", "quantity": 1, "concealed": false, "details": "Ordinary well-maintained clothing for the assembly.", "definitionId": "clothes-fine"},
+      {"id": "gurt_quarterstaff", "name": "Walking stick", "quantity": 1, "concealed": false, "details": "A plain sturdy walking aid, not an enchanted royal artifact.", "definitionId": "quarterstaff"}
+    ],
+    "equipment": {
+      "mainHandItemId": "gurt_quarterstaff"
+    }
+  }
 }

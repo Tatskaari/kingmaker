@@ -1,4 +1,38 @@
 {
-  "dnd": null,
-  "inventory": null
+  "dnd": {
+    "rulesetId": "srd-5.2.1",
+    "speciesId": "dwarf",
+    "backgroundId": "kingmaker-artisan",
+    "abilityScores": {
+      "strength": 12,
+      "dexterity": 12,
+      "constitution": 14,
+      "intelligence": 16,
+      "wisdom": 12,
+      "charisma": 14
+    },
+    "classes": [
+      {"classId": "rogue", "level": 2, "hitDiceRemaining": 2}
+    ],
+    "hitPoints": {
+      "current": 17,
+      "maximum": 17
+    },
+    "proficiencies": [
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "investigation", "rank": "PROFICIENCY_RANK_EXPERTISE", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "persuasion", "rank": "PROFICIENCY_RANK_EXPERTISE", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "perception", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_TOOL", "targetId": "tinkers-tools", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"}
+    ]
+  },
+  "inventory": {
+    "items": [
+      {"id": "bran_clothes_travelers", "name": "Travel clothes", "quantity": 1, "concealed": false, "details": "Ordinary well-maintained clothing for the assembly.", "definitionId": "clothes-travelers"},
+      {"id": "bran_dagger", "name": "Dagger", "quantity": 1, "concealed": true, "details": "A small personal knife, kept sheathed beneath the outer clothing.", "definitionId": "dagger"},
+      {"id": "bran_tinkers_tools", "name": "Engineer’s tools", "quantity": 1, "concealed": false, "details": "Portable hand tools for inspection and minor mechanical repairs.", "definitionId": "tinkers-tools"},
+      {"id": "bran_measuring_cord", "name": "Measuring cord", "quantity": 1, "concealed": false, "details": "A knotted cord for checking spans and dimensions."},
+      {"id": "bran_sketchbook", "name": "Sketchbook", "quantity": 1, "concealed": false, "details": "Blank working pages and generic pump sketches; no monopoly, contract or finished machine."}
+    ],
+    "equipment": {}
+  }
 }

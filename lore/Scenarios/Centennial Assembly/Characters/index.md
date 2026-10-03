@@ -40,3 +40,11 @@ Equipment is ordinary and scenario-local. Weapons are sheathed unless named as h
 | Elinor | Human rogue 2; 13 HP | Retains the main game's Persuasion expertise and Charisma 16 courtier build. Her covenant magic is narrative authority, not an added mind-control spell or automatic agreement. |
 | Oswin | Human life-domain cleric 3; 21 HP | Adapts Prior Oswin's warding/healing baseline to Professor Oswin: Intelligence 14, Religion expertise and History emphasise sacred scholarship. No unique granary key or ritual ingredient is assumed. |
 | Rowan | Human wizard 2; 12 HP | Replaces the old artisan rogue with a junior agrimancer: Intelligence 16, Investigation expertise, Nature and tinker's tools. Corvin's existing first-level utility spells provide a modest experimental repertoire; no autonomous machinery is granted. |
+
+### Kläggenheim
+
+| Character | Draft build | Rationale |
+| --- | --- | --- |
+| Gurt | Dwarf fighter 2; 20 HP | Uses Aldren's low-level royal baseline with Constitution 14, Dexterity 8 and History expertise. His variable attentiveness stays in roleplay, not a blanket condition or a rule allowing others to supply consent. |
+| Klog | Dwarf rogue 2; 17 HP | Uses the courtier skill-specialist pattern: Intelligence 16, Wisdom 14, and expertise in Investigation and History for claims scrutiny. Forms establish no new debts. |
+| Bran | Dwarf rogue 2; 17 HP | Extends the old Rowan artisan pattern: Intelligence 16, Investigation/Persuasion expertise and tinker's tools support an engineer and entrepreneur without inventing an artificer rules pack. |
