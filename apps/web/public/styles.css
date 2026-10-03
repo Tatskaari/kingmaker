@@ -334,6 +334,8 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 .transcript-status.error { color: #ef9a85; }
 .transcript-status.success { color: #a4c5a5; }
 .transcript-status.stopped { color: var(--dim); }
+.disclosure-document { display: flex; justify-content: space-between; align-items: baseline; gap: 18px; }
+.disclosure-document strong { overflow-wrap: anywhere; min-width: 0; }
 .transcript-detail { margin-top: 24px; }
 .transcript-detail .debug-facts { margin-top: 18px; }
 .transcript-detail pre { overflow-wrap: anywhere; }

@@ -22,7 +22,8 @@ export function traceAiService(ai: AiService, context: (characterId?: string) =>
   return {
     responses: (request, signal, info) => record({ ...span(info?.purpose ?? operation, info?.characterId), ...(info?.characterId ? { characterId: info.characterId } : {}) },
       request, () => ai.responses(request, signal, info)),
-    decisions: (state, questions, signal, purpose, info) => record(span(purpose ?? operation, info?.characterId), { state, questions },
+    decisions: (state, questions, signal, purpose, info) => record(span(purpose ?? operation, info?.characterId),
+      { state, questions, ...(info?.disclosure ? { disclosure: info.disclosure } : {}) },
       () => ai.decisions(state, questions, signal, purpose, info)),
   };
 }

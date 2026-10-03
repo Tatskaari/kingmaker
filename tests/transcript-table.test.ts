@@ -67,3 +67,25 @@ test("selected calls remain stable as newer calls arrive and messages are escape
   assert.doesNotMatch(html, /Second response|<script>/);
   assert.match(recentTranscriptsView([], {}, { characterId: "corvin" }), /No AI requests recorded for this character/);
 });
+
+
+test("disclosure lists document paths with threshold decisions and open documents first", () => {
+  const entry = { ...calls[0], kind: "prog_disc", request: { disclosure: { threshold: 0.7, candidates: [
+    { id: "open_1", path: "Cast/Skipped.md", from: "entry", summary: "At threshold" },
+    { id: "open_2", path: "Cast/<Opened>.md", from: "entry", summary: "<Summary>" },
+    { id: "open_3", path: "Cast/Unknown.md", from: "entry" },
+  ] } }, response: {
+    open_1: { choice: "open_1", probabilities: { open_1: 0.7, skip: 0.3 } },
+    open_2: { choice: "open_2", probabilities: { open_2: 0.9, skip: 0.1 } },
+  } };
+  const html = recentTranscriptsView([entry], {}, { characterId: "corvin" });
+  const summary = html.split('<div class="transcript-summary">')[1].split("<details>")[0];
+  assert.match(summary, /Documents considered \(3\)/);
+  assert.match(summary, /1 selected to open/);
+  assert.match(summary, /success">Open<\/span>/);
+  assert.match(summary, /error">Not opened<\/span>/);
+  assert.match(summary, /pending">No decision<\/span>/);
+  assert.ok(summary.indexOf("Cast/&lt;Opened&gt;.md") < summary.indexOf("Cast/Skipped.md"));
+  assert.match(summary, /&lt;Summary&gt;/);
+  assert.doesNotMatch(summary, /open_1|open_2|<Opened>|<Summary>/);
+});

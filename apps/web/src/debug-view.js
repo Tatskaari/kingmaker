@@ -117,11 +117,26 @@ function parsedContent(response) {
   try { return object(JSON.parse(response?.content)); } catch { return null; }
 }
 
+function disclosureSummary(entry, response) {
+  const disclosure = entry.request.disclosure;
+  const documents = array(disclosure.candidates).map(document => {
+    const probability = response[document.id]?.probabilities?.[document.id];
+    const valid = typeof probability === "number" && Number.isFinite(probability) && probability >= 0 && probability <= 1;
+    return { ...document, probability, valid, open: valid && probability > disclosure.threshold };
+  }).sort((a, b) => Number(b.open) - Number(a.open));
+  const count = documents.filter(document => document.open).length;
+  return `<h4>Documents considered (${documents.length})</h4><p class="debug-meta">${count} selected to open. Open means relevance exceeds ${escape(disclosure.threshold * 100)}%; Not opened means it did not. These are retrieval decisions, before document loading.</p>`
+    + list(documents, document => `<div class="disclosure-document"><strong>${escape(document.path)}</strong><span class="transcript-status ${document.open ? "success" : document.valid ? "error" : "pending"}">${document.open ? "Open" : document.valid ? "Not opened" : "No decision"}</span></div>`
+      + `<p class="debug-meta">${document.valid ? `Relevance: ${escape(Math.round(document.probability * 100))}% · ` : ""}Linked from ${escape(document.from)}</p>`
+      + (document.summary ? `<p>${escape(document.summary)}</p>` : ""), "No documents considered.");
+}
+
 function transcriptSummary(entry) {
   if (entry.status === "pending") return empty("Waiting for the model…");
   if (entry.error) return `<p class="debug-error">${escape(entry.error)}</p>`;
   const response = object(entry.response);
   if (!response) return empty("No response recorded.");
+  if (entry.kind === "prog_disc" && entry.request?.disclosure) return disclosureSummary(entry, response);
   if (entry.kind === "conversation_expression") {
     return facts([["Expression", response.expression]])
       + list(Object.entries(object(response.decision?.probabilities) || {}), ([expression, probability]) =>
