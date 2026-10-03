@@ -184,7 +184,8 @@ export class PalaceMechanics {
     this.#guardPhysical(["world:context", `actor:${actorId}`, `inventory:${actorId}`,
       ...(action && action.target !== actorId ? [`fixture:${action.target}`, `inventory:${action.target}`] : []),
       ...(action?.itemId ? [`item:${action.itemId}`] : [])], expected);
-    const fixture = world.fixtures.find(item => item.id === action?.target);
+    if (!action) throw new Error("That furniture action is no longer available. Open the action menu again.");
+    const fixture = world.fixtures.find(item => item.id === action.target);
     const position = world.actors.find(actor => actor.characterId === actorId)?.position;
     if (action?.target === actorId && action.itemId) {
       const result = applyFixtureAction(scenario, actorId, actionId);

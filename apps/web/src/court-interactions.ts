@@ -1,3 +1,4 @@
+import type { FixtureAction } from "../../../packages/core/src/fixtures.js";
 import type { Point } from "./navigation.js";
 
 export interface CourtAction {
@@ -21,4 +22,11 @@ export function actionsAtTile(tile: Point, layers: readonly CourtInteractionLaye
     .sort((a, b) => a.action.order - b.action.order || a.layer.order - b.layer.order
       || a.layer.id.localeCompare(b.layer.id) || a.action.id.localeCompare(b.action.id))
     .map(({ action }) => action);
+}
+
+/** Recheck a menu choice after walking; an item may have moved in the meantime. */
+export function requireCurrentFixtureAction(action: Pick<FixtureAction, "id" | "target">, choices: readonly FixtureAction[]): void {
+  if (!choices.some(current => current.id === action.id && current.target === action.target)) {
+    throw new Error("That furniture action is no longer available. Open the action menu again.");
+  }
 }

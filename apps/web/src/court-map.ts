@@ -2,7 +2,7 @@ import { doorActionLegality, type RoomAccess } from "../../../packages/core/src/
 import type { FixtureAction } from "../../../packages/core/src/fixtures.js";
 import type { DoorState, MapFixture } from "../../../packages/contracts/src/index.js";
 import { drawDoors } from "./draw-doors.js";
-import { actionsAtTile, type CourtInteractionLayer } from "./court-interactions.js";
+import { actionsAtTile, requireCurrentFixtureAction, type CourtInteractionLayer } from "./court-interactions.js";
 import { CanvasMapRenderer } from "./map-renderer.js";
 import { palaceMap } from "./palace-map.js";
 import { canWalk, findPath, pointKey, type Point } from "./navigation.js";
@@ -198,7 +198,10 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
           const fixture = fixtures.find(item => item.id === action.target);
           const spot = fixture?.position && approach(fixture.position, fixture.interactionSpot);
           if (!spot || !interactFixture) { reportStatus("No reachable interaction spot for this furniture."); return; }
-          void walkTo(spot, () => interactFixture(action.id));
+          void walkTo(spot, () => {
+            requireCurrentFixtureAction(action, fixtureChoices);
+            return interactFixture(action.id);
+          });
         } else {
           const character = markers.find(marker => (marker.instanceId ?? marker.id) === action.target);
           if (!character) return;
@@ -305,6 +308,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       for (const button of root.querySelectorAll<HTMLButtonElement>("button.court-character")) button.disabled = disabled;
       if (disabled) closeMenu();
     }
+    if (JSON.stringify(fixtureChoices) !== JSON.stringify(next.fixtureActions)) closeMenu();
     doors = next.doors; fixtures = next.fixtures; fixtureChoices = next.fixtureActions; rooms = next.roomAccess;
     const updated = courtMarkers([...next.characters, next.player], fixtures);
     for (const marker of markers) {
