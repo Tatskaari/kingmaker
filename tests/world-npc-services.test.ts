@@ -24,7 +24,7 @@ function setup(options: WorldOptions = {}) {
 
 test("NPC planning, exchanges and outcome reviews use replacement map observations", async () => {
   const contexts: unknown[] = [];
-  const { runtime, map } = setup({ services: { ai: { decisions: async () => ({
+  const { runtime, map } = setup({ services: { disclosure: { disclose: async () => [] }, ai: { decisions: async () => ({
     next: { choice: "custom_holt", probabilities: {} },
   }) } }, hooks: { resolution: { resolve: async context => { contexts.push(context); return { summary: "Agreed" }; } } } });
   const goal = "Speak to Holt";

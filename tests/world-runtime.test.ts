@@ -12,7 +12,7 @@ import type { WorldOptions } from "../apps/web/src/world-runtime.js";
 import { activeGoal } from "../packages/lore/src/active-goal.js";
 
 function game(options: WorldOptions = {}) {
-  return new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, undefined, options);
+  return new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, undefined, { ...options, services: { disclosure: { disclose: async () => [] }, ...options.services } });
 }
 const reviewReply = commitReview({ summary: "Agreed", newNotes: ["PROMISESENTINEL"], activeGoal: "Go to the great hall" });
 const commit = async <T>(work: () => T) => work();
@@ -61,7 +61,7 @@ test("concurrent reviews update separate live documents while player movement su
   const ready = new Promise<void>(resolve => { started = resolve; });
   const gate = new Promise<void>(resolve => { release = resolve; });
   const runtime = game({ services: { ai: { responses: async request => {
-    const id = JSON.parse(request.messages[1]!.content!).characterId;
+    const id = JSON.parse(request.messages.find(message => message.role === "user")!.content!).characterId;
     if (++calls === 2) started();
     await gate;
     return commitReview({ summary: "Reviewed", newNotes: [`${id} remembered this exchange.`], activeGoal: null });

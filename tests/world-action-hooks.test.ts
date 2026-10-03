@@ -25,7 +25,7 @@ function fixture(goal?: string) {
   const other = world.characters.find(path => path.includes("/elinor/"))!;
   world.docs[other]!.body += "\nOTHER_PRIVATE_SENTINEL";
   const services = createScenarioServices(world);
-  return { ...services, map: { observe: (id: string) => new WorldHost(services.scenario.snapshot()).map.observe(id) } };
+  return { ...services, disclosure: { disclose: async () => [] }, map: { observe: (id: string) => new WorldHost(services.scenario.snapshot()).map.observe(id) } };
 }
 const evidence = { characterId: "corvin", participants: ["corvin", "player"], transcript: [create(TranscriptMessageSchema, { text: "Please go to the hall." })] };
 

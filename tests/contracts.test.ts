@@ -2290,6 +2290,8 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
   });
 
   await t.test("active objectives continue beyond three goal reviews and stop on completion", { timeout: 15000 }, async t => {
+    t.mock.method(JevClient.prototype, "evaluate", async (_state: unknown, questions: Record<string, unknown>) =>
+      Object.fromEntries(Object.keys(questions).map(id => [id, { choice: "skip", probabilities: { [id]: 0, skip: 1 } }])));
     const created = await request("create_development_game"), saved = records.get(created.activeSaveId);
     saved.snapshot.npcActivities = { corvin: { status: "active", goal: "Step 1", history: [] } };
     await request("load_game", { saveId: created.activeSaveId });

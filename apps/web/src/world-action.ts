@@ -1,3 +1,4 @@
+import { disclosedContext } from "../../../packages/conversation/src/disclosed-context.js";
 import type { RuntimeServices } from "../../../packages/conversation/src/services.js";
 import { create } from "@bufbuild/protobuf";
 import { CharacterSchema, ScenarioSchema } from "../../../packages/contracts/src/index.js";
@@ -39,13 +40,15 @@ async function worldActionContext(world: WorldState, characterId: string, histor
   const observation = { ...characterCourtObservation(scenario, characterId), actions: [...visible.actions] };
   const state = [
     `Who you are: ${characterId}`,
-    ...lore.initial.map(doc => `# Lore: ${doc.path}\n${doc.markdown}`),
     `Current execution task:\n${goal}`,
     `World state:\n${renderJevRoomView(scenario, observation)}`,
     `Action log (completed actions, oldest first):\n${history.join("\n") || "None yet."}`,
   ].join("\n\n");
+  const messages = await disclosedContext(lore, [{ role: "system", content: ROOM_COURT_INSTRUCTIONS },
+    { role: "user", content: state }], services, characterId, signal);
+  const expanded = messages.map(message => message.content).join("\n\n");
   return { characterId, goal, revision: visible.map.revision, actions: observation.actions,
-    request: jevRequest(state, ROOM_COURT_INSTRUCTIONS, actionCriteria(observation.actions)) };
+    request: jevRequest(expanded, ROOM_COURT_INSTRUCTIONS, actionCriteria(observation.actions)) };
 }
 
 /** Idle characters do not call Jev. Hosts execute commands and call again after completion. */
@@ -53,10 +56,10 @@ export async function planWorldAction<Turn, Review>(characterId: string, runtime
   signal: AbortSignal = new AbortController().signal, history: readonly string[] = []): Promise<WorldActionPlan | undefined> {
   signal.throwIfAborted();
   const world = runtime.services.scenario.snapshot();
+  if (history.length >= 24) throw new Error("NPC action limit reached.");
   const context = await worldActionContext(world, characterId, history, runtime.services, signal);
   signal.throwIfAborted();
   if (!context) return;
-  if (history.length >= 24) throw new Error("NPC action limit reached.");
   const result = await runAction(context, runtime, signal);
   const plan = { ...result, characterId, goal: context.goal, revision: context.revision };
   signal.throwIfAborted();

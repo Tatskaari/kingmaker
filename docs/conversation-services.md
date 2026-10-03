@@ -345,3 +345,24 @@ The character inspector includes calls owned by, or explicitly involving, that
 character. It filters individual calls inside sessions as well as standalone calls.
 Its chronological menu includes dialogue, decisions and reviews; selecting a call
 shows the response, request messages and correlation context.
+
+
+## Shared progressive disclosure
+
+`ProgressiveDisclosure.disclose(docs, context, signal, options?)` accepts a scoped
+`LoreService` and task messages containing its initial document bodies. It returns
+only new system messages, recursively opening relevant links until context is
+sufficient. The source owns access checks; the engine uses summaries to select
+links and never treats a link as a permission grant. Limits and cancellation fail
+without returning partial context. AI transport stays in `services.ai`; retrieval
+is independently injectable as `services.disclosure`.
+
+Conversation hooks adapt the same traversal one round at a time for player replies
+and NPC-initiated openings, retaining opened notes and running any checks only
+after disclosure finishes. Planning, reviews, perceived-event attention and NPC
+exchanges use the complete disclosure operation before their final decision or response. Each NPC
+speaker and each review gets a separate character-scoped source. Review writes
+and action execution happen after retrieval, outside its recursive loop.
+
+Disclosure decisions retain the `prog_disc` trace purpose and the requesting
+character's identity, including the recipient's calls during shared NPC exchanges.

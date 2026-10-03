@@ -1,3 +1,4 @@
+import { disclosedContext } from "./disclosed-context.js";
 import { DocumentConflictError } from "../../lore/src/services.js";
 import type { OpenRouterMessage, OpenRouterTool } from "../../providers/src/openrouter.js";
 import type { RuntimeServices } from "./services.js";
@@ -28,19 +29,20 @@ export async function reviewDocumentEvidence(context: Readonly<ConversationRevie
   signal.throwIfAborted();
   const path = characterEntry(services.scenario.info(), context.characterId);
   if (!context.participants.includes(context.characterId)) throw new Error("Review character must be a participant.");
-  const lore = await services.lore.forCharacter(context.characterId, signal);
   let before = await services.docs.read(path);
   signal.throwIfAborted();
   const messages: OpenRouterMessage[] = [
     { role: "system", content: `${instructions}\n${purpose}` },
     { role: "user", content: JSON.stringify({ characterId: context.characterId, participants: context.participants,
-      documents: lore.initial.map(doc => doc.path === path ? { path, markdown: before.document.body } : doc),
       document: before, activeGoal: activeGoal(before.document), transcript: context.transcript, labels }) },
   ];
   for (let attempt = 0; attempt < 8; attempt++) {
     signal.throwIfAborted();
+    const lore = await services.lore.forCharacter(context.characterId, signal);
     const reply = await services.ai.responses({ model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "low" },
-      max_tokens: 4000, tools: [commitTool], messages,
+      max_tokens: 4000, tools: [commitTool], messages: await disclosedContext({ ...lore,
+        initial: lore.initial.map(doc => doc.path === path ? { path, markdown: before.document.body } : doc),
+      }, messages, services, context.characterId, signal),
     }, signal, { characterId: context.characterId });
     signal.throwIfAborted();
     const call = reply.tool_calls?.[0];
