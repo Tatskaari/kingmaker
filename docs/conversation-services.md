@@ -277,3 +277,34 @@ physical state. Notes and goal publish in one SHA-checked write. A conflicting
 edit fails without overwriting the newer document; the host must review again
 against current state. Cancellation or malformed model output never publishes a
 goal. Static cast lore and other characters' documents remain untouched.
+
+### V2 review-to-action host
+
+The palace adapter `apps/web/src/world-action.ts` accepts a runtime with the v2
+scenario/document services and these hooks:
+
+```ts
+const runtime = new ConversationRuntime({
+  services: { ...createScenarioServices(world), ai },
+  hooks: { review: documentReviewHooks, action: jevActionHooks },
+});
+const { review, plan } = await reviewAndPlanWorldAction(evidence, runtime, signal);
+```
+
+Review completes before the planner reads `active_goal`. An idle result skips
+Jev. A plan contains a concrete action or a terminal decision, the goal and an
+`expectedWorldSha`; it does not execute anything. The game checks
+`assertWorldActionCurrent(currentWorld, plan)` inside its serialized commit,
+then executes the command or records the terminal outcome. Any changed document
+or map invalidates the decision; replan against the current world. Pass completed
+action IDs to subsequent `planWorldAction` calls to retain history and enforce
+the 24-action bound. The host still owns outcome review and scheduling.
+
+The adapter uses the v2 map and typed character inventories to enumerate the
+existing palace actions through a temporary mechanics projection. It does not
+create v1 saved characters or infer physical facts from Markdown. The map must
+place the selected character using its scenario directory ID; the existing
+palace uses `player` for the player actor. Supply a map whose actors match the
+selected cast. Jev receives only the character's permitted entry/private bodies,
+its goal and the filtered room view, not the complete GM document graph or other
+characters' private properties. No saved-game migration is introduced.
