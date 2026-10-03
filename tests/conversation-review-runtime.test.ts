@@ -88,3 +88,20 @@ test("failed or cancelled review retains evidence, and successful custom review 
     if (mode === "newer") assert.equal(headless.snapshot().conversations.corvin!.length, 2);
   }
 });
+
+test("conversation review replaces an old task without cancelling the newly agreed parlour goal", async () => {
+  let calls = 0;
+  const headless = game({ services: { ai: { responses: async request => {
+    assert.ok(!request.tools?.some(tool => tool.function.name === "cancel_task"));
+    if (++calls === 1) return { role: "assistant", content: null, tool_calls: [{ id: "cancel-old", type: "function",
+      function: { name: "cancel_task", arguments: JSON.stringify({ characterId: "corvin", reason: "The old greeting task is no longer relevant." }) } }] };
+    assert.ok(request.messages.some(message => message.role === "tool" && message.content?.includes("Unavailable review tool")));
+    return { role: "assistant", content: JSON.stringify({ newNotes: ["Agreed to meet the player in the parlour."],
+      relationships: [], goalUpdate: { goal: "Go to the Nobles' Parlour.", reason: "Agreed a private meeting." }, lore: null }) };
+  } } } });
+  await headless.endConversation("corvin");
+  assert.equal(calls, 2);
+  assert.equal(headless.inspect().characters.find(character => character.id === "corvin")!.currentGoal, "Go to the Nobles' Parlour.");
+  assert.equal(headless.snapshot().npcActivities?.corvin?.status, "active");
+  assert.equal(headless.snapshot().conversations.corvin, undefined);
+});

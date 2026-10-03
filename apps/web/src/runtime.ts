@@ -847,8 +847,12 @@ export class BrowserGameRuntime {
       }, signal);
       return { role: "assistant" as const, content: summary };
     }
+    // Conversation review replaces intent through its final goalUpdate. A sticky
+    // cancellation of the old task must not discard the newly agreed task.
+    const tools = kind === "conversation_review" ? reconciliationTools.filter(tool => tool.function.name !== "cancel_task") : reconciliationTools;
     const messages: OpenRouterMessage[] = [...request.messages.slice(0, -1),
       { role: "system", content: RECONCILIATION_INSTRUCTIONS },
+      ...(kind === "conversation_review" ? [{ role: "system" as const, content: "For this conversation review, replace an obsolete task by returning the agreed next task in goalUpdate. Return null to become idle. cancel_task is not available: do not cancel an old task before assigning its replacement." }] : []),
       ...(kind === "conversation_review" ? [{ role: "system" as const, content: CONVERSATION_OBJECTIVE_REVIEW }] : []),
       { role: "user", content: JSON.stringify({ authoritativeWorld: renderWorldPrompt(scenario, { ...scenario.world!, objects: locatedItems(scenario) }), participants, recentActivity: this.#npcActivities }) },
       ...request.messages.slice(-1),
@@ -856,7 +860,7 @@ export class BrowserGameRuntime {
     this.#reviewRequest = { ...request, messages };
     for (let round = 0; round < 5; round++) {
       signal?.throwIfAborted();
-      const reply = await respond({ ...request, messages: [...messages], tools: reconciliationTools });
+      const reply = await respond({ ...request, messages: [...messages], tools });
       signal?.throwIfAborted();
       if (!reply.tool_calls?.length) {
         const output = parseModelObject(reply.content, "GM reconciliation");
@@ -881,6 +885,7 @@ export class BrowserGameRuntime {
             const player = { id: scenario.playerCharacterId ?? "", name: "Player", position: scenario.world?.actors.find(actor => actor.characterId === scenario.playerCharacterId)?.position };
             if (!courtCharactersWithinEarshot(speaker, [player], scenario.world?.doors, scenario.world?.fixtures).length) throw new Error("The player is out of earshot; no overheard message may be sent.");
           }
+          if (!tools.some(tool => tool.function.name === call.function.name)) throw new Error("Unavailable review tool. Replace or clear this conversation's task using the final goalUpdate.");
           const args = parseModelObject(call.function.arguments, "GM tool");
           result = applyReconciliationTool(scenario, participants, cancelled, call.function.name, args);
           review.worldChanges.push({ name: call.function.name, arguments: args });
