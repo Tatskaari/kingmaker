@@ -1,5 +1,6 @@
 import { logDecision } from "./decision-logging.js";
 import { recoverRateLimit } from "./rate-limit.js";
+import { serverSentData } from "./sse.js";
 
 export type OpenRouterRole = "system" | "user" | "assistant" | "tool";
 
@@ -75,14 +76,18 @@ export class OpenRouterClient {
         "HTTP-Referer": this.httpReferer,
         "X-Title": "Kingmaker",
       },
-      body: JSON.stringify(useResponses ? responsesRequest(request) : request),
+      body: JSON.stringify({ ...(useResponses ? responsesRequest(request) : request), stream: true }),
       signal: combined,
       });
     }, signal, (delay, retry) => this.onWarning(`OpenRouter rate limit (429), ${request.model}: retry ${retry}/5 in ${Math.ceil(delay / 1000)}s. This request will resume automatically.`));
     let body: ChatCompletionResponse & ResponsesResult;
-    try { body = await response.json() as ChatCompletionResponse & ResponsesResult; }
+    try {
+      body = response.ok && response.headers.get("content-type")?.includes("text/event-stream")
+        ? await streamedResponse(response, useResponses, combined!)
+        : await response.json() as ChatCompletionResponse & ResponsesResult;
+    }
     catch (error) {
-      if (combined!.aborted) throw error;
+      if (combined!.aborted || error instanceof ProviderResponseError || error instanceof OutputTokenLimitError) throw error;
       throw new ProviderResponseError(`OpenRouter returned an unreadable response (HTTP ${response.status}). Please try again.`, response.ok || [502, 503, 504].includes(response.status));
     }
     if (!response.ok) {
@@ -105,6 +110,71 @@ interface ResponsesResult {
   status?: string;
   incomplete_details?: { reason?: string };
   output?: Array<Record<string, unknown>>;
+}
+
+interface StreamEvent {
+  type?: string;
+  error?: { message?: string; code?: string | number };
+  message?: string;
+  response?: ResponsesResult & { error?: { message?: string } };
+  choices?: Array<{
+    index?: number;
+    finish_reason?: string | null;
+    delta?: { content?: string | null; tool_calls?: Array<{
+      index: number; id?: string; type?: string;
+      function?: { name?: string; arguments?: string };
+    }> };
+  }>;
+}
+
+/** Buffer structured output until the protocol confirms it is complete. */
+async function streamedResponse(response: Response, useResponses: boolean, signal: AbortSignal): Promise<ChatCompletionResponse & ResponsesResult> {
+  let content = "", finished = false;
+  const calls = new Map<number, OpenRouterToolCall>();
+  for await (const data of serverSentData(response, signal)) {
+    if (data === "[DONE]") {
+      if (useResponses || !finished) break;
+      const tool_calls = [...calls.entries()].sort(([a], [b]) => a - b).map(([, call]) => call);
+      if (tool_calls.some(call => !call.id || !call.function.name || !call.function.arguments)) {
+        throw new ProviderResponseError("OpenRouter returned a malformed streamed tool call.", true);
+      }
+      if (!content && !tool_calls.length) throw new ProviderResponseError("OpenRouter returned no assistant message", true);
+      return { choices: [{ message: { role: "assistant", content: content || null, ...(tool_calls.length ? { tool_calls } : {}) } }] };
+    }
+    const event = JSON.parse(data) as StreamEvent;
+    if (!event || typeof event !== "object") throw new ProviderResponseError("OpenRouter returned an invalid stream event.", true);
+    if (event.error || event.type === "error" || event.type === "response.failed") {
+      const detail = event.error?.message ?? event.response?.error?.message ?? event.message ?? "Generation failed.";
+      const code = Number(event.error?.code);
+      throw new ProviderResponseError(`OpenRouter stream failed: ${detail}`, ![400, 401, 402, 403, 404, 422].includes(code));
+    }
+    if (useResponses) {
+      if (event.type === "response.completed" || event.type === "response.incomplete") {
+        if (!event.response) throw new ProviderResponseError("OpenRouter stream omitted its final response.", true);
+        // The terminal snapshot preserves phases, full tool arguments and encrypted reasoning.
+        return event.response;
+      }
+      continue;
+    }
+    const choice = event.choices?.find(choice => choice.index === 0 || choice.index === undefined);
+    if (!choice) continue; // Accounting frames may contain no choices.
+    if (choice.finish_reason === "length") throw new OutputTokenLimitError();
+    if (choice.finish_reason === "error") throw new ProviderResponseError("OpenRouter stream failed.", true);
+    if (choice.finish_reason === "content_filter") throw new ProviderResponseError("OpenRouter response was blocked by a content filter.", false);
+    if (choice.finish_reason) finished = true;
+    content += choice.delta?.content ?? "";
+    for (const delta of choice.delta?.tool_calls ?? []) {
+      if (!Number.isInteger(delta.index) || delta.index < 0 || (delta.type && delta.type !== "function")) {
+        throw new ProviderResponseError("OpenRouter returned a malformed streamed tool call.", true);
+      }
+      const call = calls.get(delta.index) ?? { id: "", type: "function", function: { name: "", arguments: "" } };
+      call.id += delta.id ?? "";
+      call.function.name += delta.function?.name ?? "";
+      call.function.arguments += delta.function?.arguments ?? "";
+      calls.set(delta.index, call);
+    }
+  }
+  throw new ProviderResponseError("OpenRouter stream ended before completion. Please try again.", true);
 }
 
 function responsesRequest(request: ChatCompletionRequest) {
