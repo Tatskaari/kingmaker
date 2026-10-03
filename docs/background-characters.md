@@ -8,6 +8,6 @@ Background bodies stay at their posts. They do not run autonomous movement goals
 
 ## Arrest
 
-`conversation_actions: [arrest]` grants the character the arrest action. After disclosure and skill-check resolution, a separate decision chooses `continue` or `arrest`. Dialogue mentioning jail never executes the action. The resolver supplies a binding ruling; the host saves the jail state and completed transcript together only after a successful character reply.
+`conversation_actions: [arrest]` grants the character an `arrest` tool during dialogue generation, after disclosure and skill-check resolution. The character can reply normally or call the tool with empty arguments; there is no separate Jev arrest decision. Dialogue mentioning jail never executes the action. A tool call supplies a successful tool result and binding ruling before the character gives their final arrest line. Both model calls and the tool exchange appear in the dialogue debug trace; the host saves the jail state and completed transcript together only after a successful character reply.
 
 Jail is a popup prototype, not a prison map. While jailed, player movement, doors, fixtures and new dialogue are blocked. The saved popup survives reloads. “Serve your time and return to the palace” clears jail and lets the normal conversation review preserve the guards' shared memory. Failed replies, cancellation and failed persistence do not leave a partial arrest.

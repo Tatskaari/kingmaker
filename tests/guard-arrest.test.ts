@@ -4,6 +4,8 @@ import { loadPlayableWorld, commitReview } from "./fixtures.js";
 import { WorldGameRuntime, type WorldOptions } from "../apps/web/src/world-runtime.js";
 
 const guard = "palace-guard";
+const arrestCall = (name = "arrest", args = "{}") => ({ role: "assistant" as const, content: null,
+  tool_calls: [{ id: "arrest-1", type: "function" as const, function: { name, arguments: args } }] });
 function game(choice = "arrest", response = "You're nicked, mate.", extra: WorldOptions = {}) {
   return new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, undefined, {
     hooks: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }),
@@ -12,11 +14,12 @@ function game(choice = "arrest", response = "You're nicked, mate.", extra: World
         return { reclassify: false };
       } } },
     ...extra,
-    services: { ai: { decisions: async (state, questions) => {
-      assert.ok(questions.conversation_action);
-      assert.match(JSON.stringify(state), /The threat was credible/);
-      return { conversation_action: { choice, probabilities: {} } };
-    }, responses: async () => ({ role: "assistant", content: response }) }, ...extra.services },
+    services: { ai: { decisions: async () => { throw new Error("Unexpected Jev arrest decision"); },
+      responses: async request => {
+        assert.match(JSON.stringify(request), /The threat was credible/);
+        if (request.tools?.some(tool => tool.function.name === "arrest") && choice !== "continue") return arrestCall(choice);
+        return { role: "assistant", content: response };
+      } }, ...extra.services },
   });
 }
 
@@ -45,7 +48,7 @@ test("arrest dialogue alone cannot jail the player, and ordinary characters have
   assert.equal(runtime.snapshot().jail, undefined);
 });
 
-test("failed replies and invalid action labels do not commit an arrest or a transcript", async () => {
+test("failed replies and invalid tool calls do not commit an arrest or a transcript", async () => {
   for (const runtime of [game("teleport"), game("arrest", "")]) {
     await assert.rejects(runtime.checkedTalkToCharacter(guard, "A threat"));
     assert.equal(runtime.snapshot().jail, undefined);
@@ -60,7 +63,6 @@ test("failed replies and invalid action labels do not commit an arrest or a tran
 test("a conversation remembered at one post is available to the brothers at another post", async () => {
   let remembered = false;
   const runtime = game("continue", "Righto.", { services: { disclosure: { disclose: async () => [] }, ai: {
-    decisions: async () => ({ conversation_action: { choice: "continue", probabilities: {} } }),
     responses: async request => {
       if (request.tools?.some(tool => tool.function.name === "commit_review")) return commitReview({ summary: "Learned password", newNotes: ["The password is PURPLE-TURNIP."], activeGoal: null });
       if (remembered) assert.match(JSON.stringify(request), /PURPLE-TURNIP/);
@@ -85,10 +87,38 @@ test("a conversation remembered at one post is available to the brothers at anot
 test("cancellation after selecting arrest leaves the player free", async () => {
   const controller = new AbortController();
   const runtime = game("arrest", "", { services: { ai: {
-    decisions: async () => ({ conversation_action: { choice: "arrest", probabilities: {} } }),
-    responses: async () => { controller.abort(); return { role: "assistant", content: "You're nicked." }; },
+    responses: async request => {
+      if (request.tools?.length) return arrestCall();
+      controller.abort(); return { role: "assistant", content: "You're nicked." };
+    },
   } } });
   await assert.rejects(runtime.checkedTalkToCharacter(guard, "A threat", undefined, {}, controller.signal));
   assert.equal(runtime.snapshot().jail, undefined);
   assert.equal(runtime.snapshot().conversations[guard], undefined);
+});
+
+
+test("arrest tool exchange is traced and only granted to guards", async () => {
+  const runtime = game();
+  await runtime.checkedTalkToCharacter(guard, "A threat");
+  const calls = runtime.recentTranscripts();
+  assert.equal(calls.length, 2);
+  const finalRequest = calls[0]!.request as { messages: { role: string; tool_call_id?: string }[]; tools: unknown[] };
+  assert.ok(finalRequest.messages.some(message => message.role === "tool" && message.tool_call_id === "arrest-1"));
+  assert.deepEqual(finalRequest.tools, []);
+  const ordinary = game();
+  await ordinary.checkedTalkToCharacter("corvin", "Arrest me");
+  assert.equal(ordinary.snapshot().jail, undefined);
+  assert.equal(ordinary.recentTranscripts().length, 1);
+  assert.equal((ordinary.recentTranscripts()[0]!.request as { tools?: unknown }).tools, undefined);
+});
+
+test("malformed, duplicate and repeated arrest tool calls cannot commit", async () => {
+  const duplicate = arrestCall(); duplicate.tool_calls.push(...arrestCall().tool_calls);
+  for (const reply of [arrestCall("arrest", "null"), arrestCall("arrest", '{"target":"king"}'), duplicate, arrestCall()]) {
+    const runtime = game("arrest", "", { services: { ai: { responses: async () => reply } } });
+    await assert.rejects(runtime.checkedTalkToCharacter(guard, "A threat"));
+    assert.equal(runtime.snapshot().jail, undefined);
+    assert.equal(runtime.snapshot().conversations[guard], undefined);
+  }
 });

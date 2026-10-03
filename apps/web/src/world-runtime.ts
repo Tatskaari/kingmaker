@@ -1,4 +1,4 @@
-import { arrestHooks } from "../../../packages/conversation/src/conversation-actions.js";
+import { arrestResponse } from "../../../packages/conversation/src/conversation-actions.js";
 import { retryResponses } from "../../../packages/conversation/src/ai.js";
 import { traceAiService } from "../../../packages/conversation/src/ai-tracing.js";
 import { createScenarioServices } from "../../../packages/lore/src/services.js";
@@ -207,10 +207,13 @@ export class WorldGameRuntime extends WorldHost {
     const prepared = (request: import("../../../packages/providers/src/openrouter.js").ChatCompletionRequest) => {
       for (const turn of request.messages) if (turn.role === "system" && turn.content?.startsWith("# Binding DM ruling")) rulings.push(turn.content);
     };
-    const reply = Array.isArray(granted) && granted.includes("arrest")
-      ? await runConversation(request, new ConversationRuntime({ services: runtime.services, maxPasses: runtime.maxPasses + 1,
-        hooks: { conversation: arrestHooks(runtime.hooks.conversation, runtime.services.ai, () => { arrested = true; }) } }), signal, prepared)
-      : await runConversation(request, runtime, signal, prepared);
+    if (Array.isArray(granted) && granted.includes("arrest")) {
+      runtime.services.character.respond = arrestResponse(runtime.services.ai.responses, ruling => {
+        arrested = true;
+        rulings.push(ruling);
+      });
+    }
+    const reply = await runConversation(request, runtime, signal, prepared);
     if (reply.tool_calls?.length || !reply.content?.trim()) throw new Error("Expected a character reply without tool calls.");
     await this.commit(() => {
       if (JSON.stringify(previous) !== JSON.stringify(this.activity.conversations[id] ?? [])) throw new Error("Conversation changed; retry the turn.");
