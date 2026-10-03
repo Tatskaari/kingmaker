@@ -1,3 +1,6 @@
+import { traceAiService } from "../packages/conversation/src/ai-tracing.js";
+import { retryResponses } from "../packages/conversation/src/ai.js";
+import { ModelTranscripts, type ModelCallKind } from "../apps/web/src/model-transcripts.js";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -34,7 +37,14 @@ const services = createScenarioServices(source
 const lore = await documentLore(services.scenario, options.get("--character") ?? "corvin");
 const jev = new JevClient(apiKey);
 const client = new OpenRouterClient(apiKey);
-const ai = aiService(client, jev);
+const traces = new ModelTranscripts(apiKey);
+const characterId = options.get("--character") ?? "corvin";
+const conversationId = traces.start("character", characterId, characterId, undefined, [characterId, "player"]);
+let turnId = crypto.randomUUID();
+const traced = traceAiService(aiService(client, jev, false), () => ({ characterId, participantIds: [characterId, "player"],
+  conversationId, turnId, scenario: services.scenario.info().scenario,
+}), (span, request, call) => traces.record(span.operation as ModelCallKind, characterId, request, call, conversationId, characterId, span), "dialogue");
+const ai = { ...traced, responses: retryResponses(traced.responses) };
 const disclosure = new DisclosureSession(lore, ai,
   Number(options.get("--threshold") ?? "0.7"));
 const input: ConversationInput = {
@@ -45,8 +55,9 @@ const input: ConversationInput = {
 conversationRequest(input); // Validate the snapshot and selected character before entering the terminal UI.
 const player = services.scenario.info().player;
 const build = player ? (await services.scenario.getDocument(player)).document.characterProperties?.dnd : undefined;
-const result = await runConversationCli(input, ai.responses, disclosure, { ai, build });
+const result = await runConversationCli(input, ai.responses, disclosure, { ai, build, beginTurn: () => { turnId = crypto.randomUUID(); } });
+traces.finish(conversationId);
 const output = resolve(options.get("--output") ?? `test-output/conversation-${Date.now()}.json`);
 mkdirSync(dirname(output), { recursive: true });
-writeFileSync(output, JSON.stringify({ ...result, world: toJson(WorldStateSchema, services.scenario.snapshot()), transcript: result.transcript.map(message => toJson(TranscriptMessageSchema, message)) }, null, 2));
+writeFileSync(output, JSON.stringify({ ...result, requests: traces.recent(), agentRuns: traces.runs(), world: toJson(WorldStateSchema, services.scenario.snapshot()), transcript: result.transcript.map(message => toJson(TranscriptMessageSchema, message)) }, null, 2));
 console.log(`Conversation ready for review: ${output}`);

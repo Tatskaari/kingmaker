@@ -1,3 +1,4 @@
+import type { AiSpan } from "../../../packages/conversation/src/ai-tracing.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
 
 const log = gameLogger("models");
@@ -21,7 +22,7 @@ export const modelCallLabels: Record<ModelCallKind, string> = {
   jev: "NPC action selection",
   outcome_review: "character review (outcome)",
 };
-export interface ModelTranscript {
+export interface ModelTranscript extends AiSpan {
   id: number;
   kind: ModelCallKind;
   characterId: string;
@@ -36,6 +37,8 @@ export interface ModelTranscript {
 export interface ModelTranscriptRun {
   kind: string;
   characterId: string;
+  participantIds: string[];
+  conversationId: string;
   startedAt: string;
   completedAt?: string;
   status: "pending" | "success" | "error" | "stopped";
@@ -61,10 +64,10 @@ export class ModelTranscripts {
   }
   recent(): ModelTranscript[] { return structuredClone([...this.#entries].reverse()); }
   runs(): Record<string, ModelTranscriptRun> { return structuredClone(this.#runs); }
-  start(kind: string, subject: string, characterId = subject, context?: unknown): string {
+  start(kind: string, subject: string, characterId = subject, context?: unknown, participantIds = [characterId]): string {
     const safeSubject = encodeURIComponent(subject || characterId || "unknown");
     const key = `${kind}/${safeSubject}/${crypto.randomUUID()}`;
-    this.#runs[key] = { kind, characterId, startedAt: new Date().toISOString(), status: "pending", calls: [], ...(context === undefined ? {} : { context: this.#clean(context) }) };
+    this.#runs[key] = { kind, characterId, participantIds, conversationId: key, startedAt: new Date().toISOString(), status: "pending", calls: [], ...(context === undefined ? {} : { context: this.#clean(context) }) };
     return key;
   }
   finish(key: string, context?: unknown): void {
@@ -97,14 +100,15 @@ export class ModelTranscripts {
     const completed = Object.keys(this.#runs).filter(key => this.#runs[key]!.status !== "pending");
     while (completed.length > 50) delete this.#runs[completed.shift()!];
   }
-  async record<T>(kind: ModelCallKind, characterId: string, request: unknown, call: () => Promise<T>, runKey?: string, subject = characterId): Promise<T> {
+  async record<T>(kind: ModelCallKind, characterId: string, request: unknown, call: () => Promise<T>, runKey?: string, subject = characterId, span?: AiSpan): Promise<T> {
     const ownRun = !runKey;
-    runKey ||= this.start(kind, subject, characterId);
+    runKey ||= this.start(kind, subject, characterId, undefined, span?.participantIds);
     const started = Date.now();
-    const entry: ModelTranscript = { id: ++this.#sequence, kind, characterId, startedAt: new Date(started).toISOString(), status: "pending", request: this.#clean(request) };
+    const trace: AiSpan = span ?? { characterId, participantIds: [characterId], conversationId: runKey, turnId: crypto.randomUUID(), spanId: crypto.randomUUID(), operation: kind };
+    const entry: ModelTranscript = { ...this.#clean(trace) as AiSpan, id: ++this.#sequence, kind, characterId, startedAt: new Date(started).toISOString(), status: "pending", request: this.#clean(request) };
     const callType = ["jev", "event_decision", "conversation_check"].includes(kind) ? "JEV" : "LLM";
     const operation = modelCallLabels[kind];
-    const fields = { runKey, callId: entry.id, kind, characterId, callType, operation };
+    const fields = { ...trace, runKey, callId: entry.id, kind, callType, operation };
     log.debug(`${callType}: ${operation} started`, { ...fields, request: entry.request });
     this.#entries.push(entry);
     this.#runs[runKey]?.calls.push(entry);

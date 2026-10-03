@@ -12,7 +12,7 @@ async function speak(characterId: string, instruction: string, evidence: unknown
     messages: [{ role: "system", content: "Speak only this character's words and observable gestures. Respect their motives and permitted knowledge. Do not invent the other speaker's agreement or any physical outcome. Do not request GM consultation." },
       ...lore.initial.map(doc => ({ role: "system" as const, content: doc.markdown })),
       { role: "user", content: JSON.stringify({ instruction, evidence }) }],
-  }, signal);
+  }, signal, { characterId, purpose: "dialogue" });
   signal.throwIfAborted();
   if (response.tool_calls?.length || !response.content?.trim()) throw new Error("Expected character speech.");
   return create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: characterId, text: response.content });

@@ -18,7 +18,7 @@ export function cliHooks(disclosure: DisclosureSession, ai: AiService, build: Dn
     ai: { ...ai, responses: async (request, signal) => {
       const started = Date.now();
       try {
-        const response = await ai.responses(request, signal);
+        const response = await ai.responses(request, signal, { purpose: "gm_consultation" });
         debug({ request, response, durationMs: Date.now() - started });
         return response;
       } catch (error) { debug({ request, error: String(error) }); throw error; }

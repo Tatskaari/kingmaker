@@ -142,6 +142,7 @@ test("Jev eval artifacts preserve the run transcript", () => {
   };
   const result = run(true, 4);
   result.transcripts.push({
+    participantIds: ["corvin"], conversationId: "test", turnId: "turn", spanId: "span", operation: "jev",
     id: 1,
     kind: "jev",
     characterId: "corvin",
