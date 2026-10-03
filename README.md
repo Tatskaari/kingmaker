@@ -265,9 +265,10 @@ hooks reach physical mutations through `map.interact`.
 
 [`WorldHost`](apps/web/src/world-host.ts) projects that world into disposable
 `PalaceMechanics` instances to reuse the physical rules. The projection is not a
-second source of truth. A character's `active_goal` lives in their scenario
-document; the host keeps conversations and execution bookkeeping alongside the
-world in its snapshot. Incompatible older saves require a fresh game.
+second source of truth. A character's `activity` and `wait` properties reference
+private Markdown documents; the activity holds its name, status, success criteria
+and current goal. The host keeps conversations and execution bookkeeping alongside
+the world in its snapshot. See [activities and waits](docs/activity-waits.md). Incompatible older saves require a fresh game.
 
 ### Hook pipelines
 
@@ -278,7 +279,7 @@ receives detached context; it does not mutate the live turn or execute actions.
 | Hook family | Responsibility |
 | --- | --- |
 | `conversation` | Resolve disclosure and checks, reclassify when context expands, then generate the character reply |
-| `review` | Review a completed conversation and publish character notes and an active goal |
+| `review` | Review a completed conversation and publish notes, activities and waits |
 | `action` | Plan a concrete action or return `complete`, `wait` or `unable` |
 | `actionExecution` | Execute a physical command through the map service |
 | `resolution` | Handle NPC exchanges, task outcomes and perceived world events |

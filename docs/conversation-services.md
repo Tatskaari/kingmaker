@@ -270,15 +270,12 @@ separate. Hook options survive runtime forks and headless reloads.
 
 For a v2 host, inject `documentReviewHooks` as `hooks.review`. Its resolver uses
 `services.ai.responses`, `services.scenario` and `services.docs` to append private
-conversation notes and set `active_goal` in the scenario character document's
-frontmatter. A non-empty string activates work; null (or an absent field) means
-idle. There is no second copy of the goal in the map or cast biography.
-
-The resolver preserves access metadata, existing history, typed properties and
-physical state. Notes and goal publish in one SHA-checked write. A conflicting
-edit fails without overwriting the newer document; the host must review again
-against current state. Cancellation or malformed model output never publishes a
-goal. Static cast lore and other characters' documents remain untouched.
+conversation notes and update the scenario character document's `activity` and
+`wait` references. `set_activity`, `set_wait` and `clear_activity` stage intent;
+`commit_review` publishes related documents and notes atomically through
+`docs.commit`. On a SHA conflict the model receives refreshed character state
+and must restage its edits. Static cast lore and physical properties are preserved.
+See [Character activities and waits](activity-waits.md) for file formats and tools.
 
 ### V2 review-to-action host
 
@@ -293,14 +290,15 @@ const runtime = new ConversationRuntime({
 const { review, plan } = await reviewAndPlanWorldAction(evidence, runtime, signal);
 ```
 
-Review completes before the planner reads `active_goal`. An idle result skips
-Jev. A plan contains a concrete action or a terminal decision, the goal and an
-`expectedWorldSha`; it does not execute anything. The game checks
-`assertWorldActionCurrent(currentWorld, plan)` inside its serialized commit,
-then executes the command or records the terminal outcome. Any changed document
-or map invalidates the decision; replan against the current world. Pass completed
+Review completes before the planner reads the activity document's `current_goal`.
+Without an activity, the action planner skips Jev. A plan contains a concrete
+action or terminal decision and the goal; it does not execute anything. The host
+validates generation IDs before executing physical commands. Pass completed
 action IDs to subsequent `planWorldAction` calls to retain history and enforce
-the 24-action bound. The host still owns outcome review and scheduling.
+the 24-action bound. `wait` requests an LLM-authored wait, while `complete` returns
+to the sibling routine document. The worker independently polls wait documents
+at jittered 15-second intervals, validating document hashes and observations
+before applying their decisions.
 
 The adapter uses the v2 map and typed character inventories to enumerate the
 existing palace actions through a temporary mechanics projection. It does not

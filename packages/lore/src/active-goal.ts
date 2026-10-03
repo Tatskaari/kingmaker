@@ -5,4 +5,3 @@ export function characterEntry(info: Pick<ScenarioInfo, "characters">, character
   if (!entry) throw new Error(`Unknown scenario character: ${characterId}`);
   return entry;
 }
-
