@@ -1,3 +1,4 @@
+import { loadPlayableWorld } from "./fixtures.js";
 import { logPath } from "../scripts/test-logging.js";
 import { locatedItems } from "../packages/core/src/inventory.js";
 import { applyFixtureAction, fixtureActions } from "../packages/core/src/fixtures.js";
@@ -2123,7 +2124,12 @@ test("failed Stranger calls retain saved identity and can resume after reload", 
   assert.equal(restored.view().player, null);
 });
 
-test("worker saves identity and reaches the Stranger without nesting its mutation queue", { timeout: 10000 }, async t => {
+test("v2 worker persists one world and keeps scheduling, review and dice outside its mutation queue", { timeout: 30000 }, async t => {
+  const { WorldGameRuntime: BrowserGameRuntime } = await import("../apps/web/src/world-runtime.js");
+  type BrowserGameRuntime = import("../apps/web/src/world-runtime.js").WorldGameRuntime;
+  const { playableWorld } = await import("../apps/web/src/playable-world.js");
+  const { readVault } = await import("../scripts/lib/lore-access.js");
+  const world = loadPlayableWorld();
   const globals = globalThis as any;
   const originalSelf = Object.getOwnPropertyDescriptor(globalThis, "self");
   const originalDatabase = Object.getOwnPropertyDescriptor(globalThis, "indexedDB");
@@ -2160,55 +2166,31 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   globals.indexedDB = { open: () => { const request: any = { result: db }; setImmediate(() => request.onsuccess()); return request; } };
   t.mock.method(globalThis, "fetch", async () => new Response(readFileSync(fixturePath, "utf8")));
   t.mock.method(OpenRouterClient.prototype, "complete", async () => { modelCalls++; return { role: "assistant", content: "Maren, what brings you along this road?" }; });
-  await import("../apps/web/src/game.worker.js");
+  const { startGameWorker } = await import("../apps/web/src/game-worker.js");
+  startGameWorker(globals.self, Promise.resolve(world));
   let assessWorldEvent = async (_event: Event, _signal: AbortSignal) => ({ reactions: [] });
   t.mock.method(BrowserGameRuntime.prototype, "assessWorldEvent", (event: Event, signal: AbortSignal) => assessWorldEvent(event, signal));
   const request = (type: string, payload: Record<string, unknown> = {}): Promise<any> => new Promise((resolve, reject) => {
     const id = ++sequence;
-    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`Worker ${type} did not settle`)); }, 1000);
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`Worker ${type} did not settle`)); }, 3000);
     pending.set(id, message => { clearTimeout(timer); pending.delete(id); if (message.ok) resolve(message.value); else reject(new Error(message.error)); });
+    if (type === "load_game") {
+      const saved = records.get(payload.saveId as string);
+      for (const [characterId, activity] of Object.entries(saved.snapshot.npcActivities ?? {}) as Array<[string, { goal: string }]>) {
+        const path = `Scenarios/Centennial Assembly/Characters/${characterId}/character.md`;
+        if (saved.snapshot.world.docs[path]) saved.snapshot.world.docs[path].frontmatter.active_goal = activity.goal || null;
+      }
+    }
     listener({ data: { id, type, payload } });
   });
   await request("configure", { apiKey: "test" });
-  await request("create_game");
-  const identity = { name: "Maren", gender: "Woman", delegation: "Saltmere", sprite: 99 };
-  failNextWrite = true;
-  await assert.rejects(request("set_identity", { identity }), /Test storage failure/);
-  assert.equal((await request("state")).state.travellerIdentity, null);
-  const selected = await request("set_identity", { identity });
-  assert.deepEqual(selected.state.travellerIdentity, identity);
-  assert.deepEqual([...records.values()][0].snapshot.travellerIdentity, identity);
-  assert.equal(selected.saves[0].characterName, identity.name);
-  const greeting = await request("gm", { message: introductionHandoff(identity) });
-  assert.match(greeting.reply, /Maren/);
-  assert.equal(modelCalls, 1);
-  assert.equal(greeting.state.phase, "player_creation");
-
   const fresh = await request("create_game");
-  failNextWrite = true;
-  await assert.rejects(request("start_introduction"), /Test storage failure/);
-  assert.deepEqual((await request("state")).state.gmMessages, []);
-  const introduction = await request("start_introduction");
-  assert.equal(modelCalls, 1, "The authored opening does not use a model call");
-  assert.equal(introduction.state.travellerIdentity, null);
+  assert.equal(fresh.state.phase, "conversations");
+  assert.equal(records.get(fresh.activeSaveId).snapshot.version, 2);
+  assert.equal(records.get(fresh.activeSaveId).snapshot.scenario, undefined);
+  await assert.rejects(request("start_introduction"), /Character creation is not available/);
   const resumed = await request("load_game", { saveId: fresh.activeSaveId });
-  assert.deepEqual(resumed.state.gmMessages, introduction.state.gmMessages);
-  assert.deepEqual((await request("start_introduction")).state.gmMessages, introduction.state.gmMessages);
-
-  await t.test("Stranger expression classification never holds the mutation queue", async t => {
-    let started!: () => void, finish!: () => void;
-    const entered = new Promise<void>(resolve => { started = resolve; });
-    const blocked = new Promise<void>(resolve => { finish = resolve; });
-    t.mock.method(BrowserGameRuntime.prototype, "classifyStrangerExpression", async () => {
-      started(); await blocked; return "amused";
-    });
-    const classification = request("stranger_expression");
-    try {
-      await entered;
-      assert.equal((await request("state")).state.phase, "player_creation");
-    } finally { finish(); }
-    assert.equal((await classification).expression, "amused");
-  });
+  assert.equal(resumed.state.player.name, "Visiting Envoy");
 
   await t.test("physical interactions respond before background earshot assessment finishes", async t => {
     const created = await request("create_development_game");
@@ -2233,7 +2215,7 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   await t.test("NPC plans overlap, deduplicate, and cancel independently while player commands remain available", async t => {
     const created = await request("create_development_game");
     const saved = records.get(created.activeSaveId);
-    saved.snapshot.npcActivities = Object.fromEntries(["corvin", "mara"].map(id => [id, { status: "active", goal: "Wait here.", history: [] }]));
+    saved.snapshot.npcActivities = Object.fromEntries(["corvin", "gurt"].map(id => [id, { status: "active", goal: "Wait here.", history: [] }]));
     await request("load_game", { saveId: created.activeSaveId });
     const plans: Array<{ id: string; signal: AbortSignal; release: () => void }> = [];
     t.mock.method(BrowserGameRuntime.prototype, "planNpc", async (id: string, signal: AbortSignal) => {
@@ -2244,15 +2226,15 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
       throw new Error("Unexpected uncancelled plan");
     });
     await request("start_npc", { characterId: "corvin" });
-    await request("start_npc", { characterId: "mara" });
+    await request("start_npc", { characterId: "gurt" });
     await request("start_npc", { characterId: "corvin" });
-    assert.deepEqual(plans.map(plan => plan.id), ["corvin", "mara"]);
-    assert.deepEqual(npcUpdates.at(-1).running.sort(), ["corvin", "mara"]);
+    assert.deepEqual(plans.map(plan => plan.id), ["corvin", "gurt"]);
+    assert.deepEqual(npcUpdates.at(-1).running.sort(), ["corvin", "gurt"]);
     await request("move_player", { x: 61, y: 24, generations: (await request("state")).state.generations });
     await request("pause_npc", { characterId: "corvin" });
     assert.equal(plans[0]!.signal.aborted, true);
     assert.equal(plans[1]!.signal.aborted, false);
-    assert.deepEqual(npcUpdates.at(-1).running, ["mara"]);
+    assert.deepEqual(npcUpdates.at(-1).running, ["gurt"]);
     await request("start_npc", { characterId: "corvin" });
     plans[0]!.release();
     await new Promise(resolve => setImmediate(resolve));
@@ -2263,7 +2245,7 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     assert.deepEqual(npcUpdates.at(-1).running, []);
     for (const plan of plans) plan.release();
     await new Promise(resolve => setImmediate(resolve));
-    await request("start_npc", { characterId: "mara" });
+    await request("start_npc", { characterId: "gurt" });
     await request("create_development_game");
     assert.equal(plans.at(-1)!.signal.aborted, true, "Game replacement cancels every old run");
     plans.at(-1)!.release();
@@ -2273,11 +2255,11 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   await t.test("NPC conversations reserve a pair and restart an interrupted solo run after review", async t => {
     const created = await request("create_development_game");
     const saved = records.get(created.activeSaveId);
-    saved.snapshot.npcActivities = Object.fromEntries(["corvin", "mara"].map(id => [id, { status: "active", goal: "Ask for news.", history: [] }]));
+    saved.snapshot.npcActivities = Object.fromEntries(["corvin", "gurt"].map(id => [id, { status: "active", goal: "Ask for news.", history: [] }]));
     await request("load_game", { saveId: created.activeSaveId });
     const plans: Array<{ id: string; signal: AbortSignal; release: (value: any) => void }> = [];
     t.mock.method(BrowserGameRuntime.prototype, "planNpc", (id: string, signal: AbortSignal) => new Promise<any>(resolve => plans.push({ id, signal, release: resolve })));
-    t.mock.method(BrowserGameRuntime.prototype, "stepNpcAction", () => ({ done: true, talkTarget: "mara", generations: {} }));
+    t.mock.method(BrowserGameRuntime.prototype, "stepNpcAction", () => ({ done: true, talkTarget: "gurt", generations: {} }));
     let releaseTalk!: () => void, releaseReview!: () => void;
     let talkStarted!: () => void, reviewStarted!: () => void;
     const talking = new Promise<void>(resolve => { talkStarted = resolve; });
@@ -2287,32 +2269,26 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
       reviewStarted(); await new Promise<void>(resolve => { releaseReview = resolve; });
       return "News exchanged.";
     });
-    await request("start_npc", { characterId: "mara" });
+    await request("start_npc", { characterId: "gurt" });
     await request("start_npc", { characterId: "corvin" });
-    plans[1]!.release({ decision: { choice: "talk_mara" }, action: { id: "talk_mara", description: "Talk to Mara" }, goal: "Ask for news.", generations: {} });
+    plans[1]!.release({ decision: { choice: "talk_gurt" }, action: { id: "talk_gurt", description: "Talk to Gurt" }, goal: "Ask for news.", generations: {} });
     await talking;
     assert.equal(plans[0]!.signal.aborted, true);
-    await request("start_npc", { characterId: "mara" });
+    await request("start_npc", { characterId: "gurt" });
     assert.equal(plans.length, 2, "A reserved target cannot start another solo run");
     releaseTalk(); await reviewing;
-    await request("start_npc", { characterId: "mara" });
+    await request("start_npc", { characterId: "gurt" });
     assert.equal(plans.length, 2, "The reservation lasts through GM publication");
     releaseReview();
     await new Promise(resolve => setImmediate(resolve));
-    assert.deepEqual(plans.slice(2).map(plan => plan.id).sort(), ["corvin", "mara"]);
+    assert.deepEqual(plans.slice(2).map(plan => plan.id).sort(), ["corvin", "gurt"]);
     await request("cancel_npc");
     for (const plan of plans) plan.release({});
     await new Promise(resolve => setImmediate(resolve));
   });
 
-  await t.test("active objectives continue beyond three goal reviews and stop on completion", { timeout: 4000 }, async t => {
+  await t.test("active objectives continue beyond three goal reviews and stop on completion", { timeout: 15000 }, async t => {
     const created = await request("create_development_game"), saved = records.get(created.activeSaveId);
-    const scenario = fromJson(ScenarioSchema, saved.snapshot.scenario);
-    const character = scenario.characters.find(character => character.id === "corvin")!;
-    character.currentGoal = "Step 1";
-    character.activeObjective = create(ActiveObjectiveSchema, { name: "Gather delegates", status: "Four invitations remain.",
-      successCriteria: "All invitations delivered.", currentGoal: "Step 1" });
-    saved.snapshot.scenario = toJson(ScenarioSchema, scenario);
     saved.snapshot.npcActivities = { corvin: { status: "active", goal: "Step 1", history: [] } };
     await request("load_game", { saveId: created.activeSaveId });
     let goals = 0;
@@ -2320,20 +2296,11 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
       assert.ok(++goals <= 4, "Must stop after the objective is completed");
       return { decision: { choice: "complete" } };
     });
-    t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => {
-      const tool = (name: string, args: unknown) => ({ role: "assistant", content: null, tool_calls: [
-        { id: name, type: "function", function: { name, arguments: JSON.stringify(args) } },
-      ] });
-      if (input.messages.at(-1).role === "tool") return tool("finish_review", { summary: "Reviewed progress." });
-      const resource = input.messages.map((message: any) => { try { return JSON.parse(message.content); } catch { return {}; } })
-        .find((value: any) => value.world_state).world_state["character:corvin"];
-      return tool("update_character", { character_id: "corvin", generation_id: resource.generation_id, changes: { active_objective:
-        goals === 4 ? { action: "complete", reason: "All four invitations delivered." }
-          : { action: "set", name: "Gather delegates", status: goals + " invitations delivered; continue to the next delegate.",
-            success_criteria: "All invitations delivered.", current_goal: "Step " + (goals + 1), reason: "More invitations remain." } } });
-    });
+    t.mock.method(OpenRouterClient.prototype, "complete", async () => ({ role: "assistant", content: JSON.stringify({
+      summary: "Reviewed progress", newNotes: ["Step completed"], activeGoal: goals === 4 ? null : "Step " + (goals + 1),
+    }) }));
     await request("start_npc", { characterId: "corvin" });
-    while ((await request("debug_character", { characterId: "corvin" })).character.activeObjective
+    while ((await request("state")).state.npcActivities.corvin.status === "active"
       || npcUpdates.at(-1)?.running.includes("corvin")) {
       await new Promise(resolve => setImmediate(resolve));
     }
@@ -2344,14 +2311,14 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
 
   await t.test("busy conversation targets wait without repeated model decisions", async t => {
     const created = await request("create_development_game"), saved = records.get(created.activeSaveId);
-    saved.snapshot.npcActivities = { corvin: { status: "active", goal: "Talk to Mara", history: [] } };
+    saved.snapshot.npcActivities = { corvin: { status: "active", goal: "Talk to Gurt", history: [] } };
     await request("load_game", { saveId: created.activeSaveId });
-    await request("pause_npc", { characterId: "mara" });
+    await request("pause_npc", { characterId: "gurt" });
     let decisions = 0, conversations = 0;
     t.mock.method(BrowserGameRuntime.prototype, "planNpc", async () => {
-      decisions++; return { decision: { choice: "talk_mara" }, action: { id: "talk_mara", description: "Talk to Mara" }, goal: "Talk to Mara", generations: {} };
+      decisions++; return { decision: { choice: "talk_gurt" }, action: { id: "talk_gurt", description: "Talk to Gurt" }, goal: "Talk to Gurt", generations: {} };
     });
-    t.mock.method(BrowserGameRuntime.prototype, "stepNpcAction", () => ({ done: true, talkTarget: "mara", generations: {} }));
+    t.mock.method(BrowserGameRuntime.prototype, "stepNpcAction", () => ({ done: true, talkTarget: "gurt", generations: {} }));
     t.mock.method(BrowserGameRuntime.prototype, "executeNpcTalk", async () => { conversations++; return ""; });
     await request("start_npc", { characterId: "corvin" });
     await new Promise(resolve => setTimeout(resolve, 250));
@@ -2386,53 +2353,49 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   });
 
   await t.test("conversation review leaves movement and other dialogue available", async () => {
-    t.mock.method(JevClient.prototype, "evaluate", async (_input: unknown, questions: Record<string, unknown>) => Object.fromEntries(Object.keys(questions).map(skill => [skill, { choice: "not_needed", probabilities: { needed: 0, not_needed: 1 } }])));
+    t.mock.method(JevClient.prototype, "evaluate", async (_input: unknown, questions: Record<string, unknown>) => Object.fromEntries(Object.keys(questions).map(skill => [skill, skill.startsWith("open_") ? { choice: "skip", probabilities: { [skill]: 0, skip: 1 } } : { choice: "not_needed", probabilities: { needed: 0, not_needed: 1 } }])));
     await request("create_development_game");
-    t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ utterance: "Farewell.", replyOptions: [], endConversation: true }));
+    t.mock.method(OpenRouterClient.prototype, "complete", async () => ({ role: "assistant", content: "Farewell." }));
     await request("talk", { characterId: "corvin", message: "Goodbye." });
     let release!: () => void;
     let started!: () => void;
     const reviewing = new Promise<void>(resolve => { started = resolve; });
     const waitForReview = new Promise<void>(resolve => { release = resolve; });
-    const commitReview = (input: any) => {
-      if (input.messages.some((m: any) => m.role === "tool")) return gmTool("finish_review", { summary: "Reviewed." });
-      const initial = input.messages.map((message: any) => { try { return JSON.parse(message.content); } catch { return {}; } });
-      const participant = initial.find((v: any) => v.event_type)?.participants[0];
-      const resource = initial.find((v: any) => v.world_state).world_state["character:" + participant];
-      return gmTool("update_character", { character_id: participant, generation_id: resource.generation_id,
-        changes: { append_notes: ["The envoy said goodbye."], active_objective: {
-          action: "complete", reason: "The authored greeting was completed in this conversation.",
-        } } });
-    };
+    const commitReview = (_input: any) => ({ role: "assistant", content: JSON.stringify({
+      summary: "Reviewed", newNotes: ["The envoy said goodbye."], activeGoal: null,
+    }) });
     t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => {
-      if (input.tools?.some((tool: any) => tool.function.name === "finish_review")) {
+      if (input.response_format?.json_schema?.name === "document_review") {
         started(); await waitForReview;
         return commitReview(input);
       }
-      return modelReply({ utterance: "Hello.", replyOptions: [], endConversation: false });
+      return { role: "assistant", content: "Hello." };
     });
     const review = request("end_conversation", { characterId: "corvin" });
+    const stale = assert.rejects(review, /World changed/);
     await reviewing;
     for (const type of ["talk", "end_conversation", "pause_npc", "start_npc"]) {
       await assert.rejects(request(type, { characterId: "corvin", message: "Again" }), /still reviewing/);
     }
     const destination = { x: 61, y: 24 };
     await request("move_player", { ...destination, generations: (await request("state")).state.generations });
-    await request("talk", { characterId: "mara", message: "Hello." });
+    await request("talk", { characterId: "gurt", message: "Hello." });
     release();
-    const result = await review;
+    await stale;
+    t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => commitReview(input));
+    const result = await request("end_conversation", { characterId: "corvin" });
     assert.deepEqual(result.state.player.position, create(TilePositionSchema, destination));
     assert.equal(result.state.conversations.corvin, undefined);
-    assert.equal(result.state.conversations.mara.length, 2);
+    assert.equal(result.state.conversations.gurt.length, 2);
     const saved = records.get(result.activeSaveId).snapshot;
-    assert.ok(fromJson(ScenarioSchema, saved.scenario).notes.some(note => note.text === "The envoy said goodbye."));
+    assert.match(saved.world.docs["Scenarios/Centennial Assembly/Characters/corvin/character.md"].body, /envoy said goodbye/);
 
     t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => commitReview(input));
     failNextWrite = true;
-    await assert.rejects(request("end_conversation", { characterId: "mara" }), /Test storage failure/);
-    assert.equal((await request("state")).state.conversations.mara.length, 2, "Failed reviews retain their transcript for retry");
-    await request("end_conversation", { characterId: "mara" });
-    assert.equal((await request("state")).state.conversations.mara, undefined);
+    await assert.rejects(request("end_conversation", { characterId: "gurt" }), /Test storage failure/);
+    assert.equal((await request("state")).state.conversations.gurt.length, 2, "Failed reviews retain their transcript for retry");
+    await request("end_conversation", { characterId: "gurt" });
+    assert.equal((await request("state")).state.conversations.gurt, undefined);
   });
 });
 

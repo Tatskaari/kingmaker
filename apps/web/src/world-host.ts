@@ -4,16 +4,16 @@ import { CharacterPropertiesSchema, WorldStateSchema, type WorldState } from "..
 import { createScenarioServices } from "../../../packages/lore/src/services.js";
 import { activeGoal } from "../../../packages/lore/src/active-goal.js";
 import type { ExpectedGenerations } from "../../../packages/core/src/generations.js";
-import { BrowserGameRuntime, type RuntimeSnapshot } from "./runtime.js";
+import { PalaceMechanics, type MechanicalActivity } from "./palace-mechanics.js";
 import { characterId, projectWorld } from "./world-projection.js";
 import type { Point } from "./navigation.js";
 
-export type WorldSnapshot = Omit<RuntimeSnapshot, "scenario"> & {
+export type WorldSnapshot = MechanicalActivity & {
   version: 2; world: JsonValue; worldGeneration: string;
   playerMessages: Array<{ id: string; day: number; message: string; createdAt: string }>;
 };
 
-/** Documents and mechanics have one authority. Old palace code is a disposable rules/view adapter. */
+/** Documents and mechanics have one authority. Palace mechanics are a disposable rules/view adapter. */
 export class WorldHost {
   protected documents: ReturnType<typeof createScenarioServices>;
   protected activity: Omit<WorldSnapshot, "world" | "worldGeneration">;
@@ -24,7 +24,7 @@ export class WorldHost {
   constructor(world: WorldState, saved?: WorldSnapshot) {
     this.initial = clone(WorldStateSchema, world);
     this.documents = createScenarioServices(world);
-    this.activity = { version: 2, gameMasterHistory: [], conversations: {}, npcActivities: {}, playerMessages: [] };
+    this.activity = { version: 2, conversations: {}, npcActivities: {}, playerMessages: [] };
     if (saved) this.restore(saved);
     this.syncGoals();
   }
@@ -59,13 +59,13 @@ export class WorldHost {
   protected projection() {
     this.syncGoals();
     const scenario = projectWorld(this.world());
-    return new BrowserGameRuntime(scenario, "", { ...this.activity, scenario: toJson(ScenarioSchema, scenario) });
+    return new PalaceMechanics(scenario, this.activity);
   }
-  private remember(game: BrowserGameRuntime) {
+  private remember(game: PalaceMechanics) {
     const { scenario: _scenario, ...activity } = game.snapshot();
     this.activity = { ...this.activity, ...activity };
   }
-  protected mutate<T>(operation: (game: BrowserGameRuntime) => T, expected?: ExpectedGenerations): T {
+  protected mutate<T>(operation: (game: PalaceMechanics) => T, expected?: ExpectedGenerations): T {
     if (expected?.["v2:world"] && expected["v2:world"] !== this.worldGeneration()) throw new Error("World changed; replan the action.");
     const before = this.world(), game = this.projection();
     const result = operation(game);
@@ -82,12 +82,12 @@ export class WorldHost {
   protected physicalGenerations(expected?: ExpectedGenerations) {
     return expected && Object.fromEntries(Object.entries(expected).filter(([key]) => key !== "v2:world"));
   }
-  view() {
+  view(): Record<string, unknown> {
     const game = this.projection(), view = game.view(); this.remember(game);
     return { ...view, playerMessages: structuredClone(this.activity.playerMessages) };
   }
-  debug() { return { ...this.projection().debug(), documentWorld: toJson(WorldStateSchema, this.world()) }; }
-  debugCharacter(id: string) { return { ...this.projection().debugCharacter(id), documents: this.world().docs }; }
+  debug() { return { documentWorld: toJson(WorldStateSchema, this.world()) }; }
+  debugCharacter(id: string) { return { characterId: id, documents: this.world().docs }; }
   debugGameMaster() { return { documentWorld: toJson(WorldStateSchema, this.world()) }; }
   readResources(keys?: string[]) {
     const game = this.projection(), values = game.readResources(keys?.filter(key => key !== "v2:world")); this.remember(game);
@@ -101,7 +101,7 @@ export class WorldHost {
     const result = this.mutate(game => game.stepNpcAction(id, action, goal, this.physicalGenerations(expected)), expected);
     return { ...result, generations: { ...result.generations, "v2:world": this.worldGeneration() } };
   }
-  finishNpcRun(id: string, reason: Parameters<BrowserGameRuntime["finishNpcRun"]>[1], detail: string, expected?: ExpectedGenerations) {
+  finishNpcRun(id: string, reason: Parameters<PalaceMechanics["finishNpcRun"]>[1], detail: string, expected?: ExpectedGenerations) {
     this.mutate(game => game.finishNpcRun(id, reason, detail, this.physicalGenerations(expected)), expected);
   }
   worldEvent(kind: string, summary: string, participants: string[]) { return this.projection().worldEvent(kind, summary, participants); }
@@ -111,7 +111,7 @@ export class WorldHost {
     });
   }
   reset() { this.restore({ version: 2, world: toJson(WorldStateSchema, this.initial), worldGeneration: crypto.randomUUID(),
-    gameMasterHistory: [], conversations: {}, npcActivities: {}, playerMessages: [] }); }
+    conversations: {}, npcActivities: {}, playerMessages: [] }); }
   resetWorld() {
     const before = this.world();
     this.documents.mechanics.commit(before, this.initial.map!, {});
@@ -124,7 +124,8 @@ export class WorldHost {
   async overrideActiveObjective(id: string, objective: unknown) {
     const path = this.world().characters.find(path => characterId(path, this.world()) === id);
     if (!path) throw new Error("Unknown character.");
-    const goal = objective && typeof objective === "object" && "currentGoal" in objective ? objective.currentGoal : null;
+    const goal = objective && typeof objective === "object"
+      ? ("current_goal" in objective ? objective.current_goal : "currentGoal" in objective ? objective.currentGoal : null) : null;
     if (goal !== null && typeof goal !== "string") throw new Error("Expected currentGoal text.");
     const doc = await this.documents.docs.read(path);
     const { stringify } = await import("yaml");
