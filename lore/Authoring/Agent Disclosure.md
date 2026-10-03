@@ -5,10 +5,10 @@ This is a proposed content-loading contract for future game integration. Obsidia
 ## Initial context
 The GM receives the scenario's `scenario.md`. Fill its world/opening section with the minimum setting, starting situation and invariant rules needed to adjudicate play without opening every note. Its links lead to deeper world lore, plots, quest conditions, scene trees, map state and character dossiers.
 
-Each conversation receives only its own `Characters/<name>/character.md`. Fill its core section with the minimum identity, voice, current objective and hard boundaries needed for a first response. More detailed material is fetched only when relevant; the entry must not depend on reading all linked notes first.
+Each conversation receives only its own `Characters/<name>/character.md`. Author its cast reference, place, time, current objective, knowledge and scenario boundaries. Stable identity and speech style are authored only in Cast; a future context builder can include explicitly approved character-facing sections from that source without duplicating them in scenario files. More detailed material is fetched only when relevant; the entry must not depend on reading all linked notes first.
 
 ## Character detail
-Each scenario character entry links to its reusable `Cast/<faction>/<name>.md` note as an author/GM reference. That link establishes identity and provenance; it does not expand the conversation agent’s retrieval permissions. Put the character-visible subset in their scoped notes.
+Each scenario character entry links to its reusable `Cast/<faction>/<name>.md` note as an author/GM reference. That link establishes identity and provenance; it does not expand the conversation agent’s retrieval permissions. Scenario-local notes hold the character-visible circumstances. Any summary of stable facts must be traced to Cast, not independently rewritten; approved stable voice sections can be supplied from Cast without exposing the entire note.
 
 - `background.md`: character-visible identity, relationships and world understanding. Extract deliberately from author lore; other characters' hidden motives do not belong here.
 - `situation.md`: starting knowledge and beliefs, current objectives, prompting/tactics and conditions for disclosing the character's own secrets. Distinguish known facts from suspicions and unknowns.
