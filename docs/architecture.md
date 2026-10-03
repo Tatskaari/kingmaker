@@ -13,9 +13,12 @@ Normal new games begin with the unchanged Stranger opening and conversational
 identity, talents, background and relationship interview. The interview reads the
 v2 scenario service and prepares a detached review draft; its transcript and draft
 are saved alongside the v2 world. Explicit Save publishes a private player Markdown
-entry, typed build/inventory and each NPC's own initial impression atomically through
-the player-creation service, sets the world player reference, and enters court at
-the authored positions. The development shortcut still creates the visiting envoy.
+entry and typed build/inventory through `character.create`. The Stranger workflow
+writes each NPC's own initial impression through docs, designates the player through
+the scenario service, and enters court at the authored positions. These steps run
+against privately staged services and publish together after validation. General
+character creation also supports NPCs, registering their scenario link and map
+actor without changing the day, phase or other characters' knowledge. The development shortcut still creates the visiting envoy.
 The review payload uses the existing PlayerSetup form shape as a UI transfer object;
 no v1 scenario becomes saved authority. Failed model calls or persistence leave the
 interview or review available to retry.

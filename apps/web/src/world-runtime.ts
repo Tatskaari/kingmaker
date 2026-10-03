@@ -1,12 +1,13 @@
 import { retryResponses } from "../../../packages/conversation/src/ai.js";
 import { traceAiService } from "../../../packages/conversation/src/ai-tracing.js";
+import { createScenarioServices } from "../../../packages/lore/src/services.js";
 import { beginStranger, strangerTurn } from "./stranger-interview.js";
 import { playerPublication } from "./stranger-draft.js";
 import { portraitExpressions, type PortraitExpression } from "../../../packages/providers/src/conversation-expression.js";
 import type { JsonValue } from "@bufbuild/protobuf";
 import { mapActionHooks, runActionExecution, type ActionExecutionContext } from "../../../packages/conversation/src/action-execution.js";
 import { create, fromJson, toJson } from "@bufbuild/protobuf";
-import { TranscriptMessageSchema, TranscriptRole, type Event } from "../../../packages/contracts/src/index.js";
+import { GamePhase, TranscriptMessageSchema, TranscriptRole, type Event } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
 import { WorldHost, type WorldSnapshot } from "./world-host.js";
 import { projectWorld } from "./world-projection.js";
@@ -112,7 +113,24 @@ export class WorldGameRuntime extends WorldHost {
   }
   async confirmPlayer(value: JsonValue) {
     if (!this.activity.stranger?.draft) throw new Error("No character is awaiting review.");
-    await this.documents.playerCreation.publish(playerPublication(value, this.activity.stranger.draft, this.world()));
+    // Creation is single-threaded. Stage the workflow privately so failed document
+    // writes cannot leave a half-created player or partially informed court.
+    const before = this.documents;
+    const { impressions, ...character } = playerPublication(value, this.activity.stranger.draft, this.world());
+    const staged = createScenarioServices(this.world());
+    await staged.character.create(character);
+    for (const [path, impression] of Object.entries(impressions)) {
+      const doc = await staged.docs.read(path);
+      const prose = impression.trim().replace(/[\\`*_[\]<>#]/g, "\\$&");
+      await staged.docs.replace(path, doc.sha, doc.text, `${doc.text}\n\n## Initial impression of the player\n${prose}\n`);
+    }
+    await staged.scenario.setPlayer(character.path);
+    const map = staged.scenario.snapshot().map!;
+    map.phase = GamePhase.CONVERSATIONS;
+    map.day = 1;
+    staged.mechanics.commit(map, {});
+    if (this.documents !== before) throw new Error("Character creation changed; retry saving.");
+    this.documents = staged;
     delete this.activity.stranger.draft;
     delete this.activity.stranger.replies;
   }
