@@ -40,6 +40,7 @@ test("live transcript events update the panel without rendering and discard stal
     coalescedRefresh(callback: () => Promise<void>) { refresh = callback; return callback; },
     updateTranscriptPanel(target: unknown, html: unknown) { assert.equal(target, panel); updates.push(html); },
     recentTranscriptsView(requests: unknown) { return requests; },
+    documentExplorer(data: unknown) { return data; },
     document: { querySelector: () => panel, addEventListener() {} },
     Worker: class {
       addEventListener(_type: string, callback: typeof receive) { receive = callback; }
@@ -66,4 +67,18 @@ test("live transcript events update the panel without rendering and discard stal
   receive({ data: { id: sent[1].id, ok: true, value: { requests: ["stale"], agentRuns: {} } } });
   await pending;
   assert.deepEqual(updates, [["fresh"]], "a response from the old tab must not overwrite the new screen");
+  runInContext('debugTab = "documents"; documentRoute = { path: "scene.md" };', context);
+  receive({ data: { type: "transcripts_changed" } });
+  assert.equal(sent[2].type, "debug_documents");
+  const documents = { docs: { "scene.md": { body: "Updated" } }, history: [] };
+  receive({ data: { id: sent[2].id, ok: true, value: documents } });
+  await Promise.resolve(); await Promise.resolve();
+  assert.deepEqual(updates.at(-1), documents);
+  assert.equal(runInContext("documentRoute.path", context), "scene.md", "live updates retain the selected document");
+  const oldGame = refresh();
+  runInContext("gameViewGeneration++;", context);
+  receive({ data: { id: sent[3].id, ok: true, value: { docs: "wrong game" } } });
+  await oldGame;
+  assert.deepEqual(updates.at(-1), documents);
+
 });
