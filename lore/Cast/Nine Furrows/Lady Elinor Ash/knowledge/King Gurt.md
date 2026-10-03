@@ -1,6 +1,5 @@
 ---
 visibility: private
-readers:
-  characters: [elinor]
+readers: ["character:elinor"]
 ---
 This is a stub.

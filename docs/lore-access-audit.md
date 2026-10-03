@@ -21,27 +21,29 @@ Notes use YAML frontmatter:
 ```yaml
 ---
 visibility: private
-readers:
-  characters: [aldren]
+readers: ["character:aldren"]
 ---
 ```
 
 - `public` grants every character access.
-- `private` grants explicitly listed `readers.characters` or `readers.factions`.
+- `private` grants any matching `character:<id>`, `faction:<id>` or `label:<id>` in the flat `readers` list.
 - `gm` never grants a conversation character access.
 
-IDs match exactly. Unclassified notes default to GM-only, except non-index notes
+IDs match exactly, including their prefix. Reader IDs must be nonempty and contain no whitespace or additional colons. Both inline and block YAML lists are accepted. Nested reader mappings, unknown prefixes and malformed entries fail closed, even alongside a valid grant. Unclassified notes default to GM-only, except non-index notes
 inside the starting character's scenario folder. Explicit metadata overrides
 that convention, including on the entry itself. Cast private and knowledge notes
 explicitly name their owner; knowledge belongs to the observer, not the subject.
 Author indexes receive no implicit access. Invalid metadata is a test failure.
 
-The committed-vault tests check baseline character access without faction or
+The committed-vault tests include labels from each character entry, without implicit faction or
 playthrough grants. The audit helper accepts trusted `factions` and exact
 vault-relative `grants` for testing future integrations. A grant can unlock a
 private note but never GM-only material; it does not propagate through links.
 Milestones must grant access to the recipients who actually learned something.
 The audit does not evaluate story events or write game state.
+
+The flat list is the only supported reader format. Start a fresh game for saves
+containing the former nested metadata; no saved-game conversion is provided.
 
 ## Authoring
 
@@ -63,7 +65,6 @@ External URLs, non-Markdown Markdown-link attachments, code and HTML are ignored
 Use Markdown or wikilinks for auditable note references. Hidden folders and
 symbolic links are excluded; outside-vault paths are never read.
 
-This is a read-only authoring test, not a runtime retrieval boundary or a semantic
-check of which facts a character knows. A future loader must enforce permissions
-before building prompts or returning search/retrieval results. Test output may
+This is a read-only authoring test, not a semantic check of which facts a character knows.
+The runtime loaders use the same permissions before building prompts or returning candidate links and documents. Test output may
 name private or GM resources and must not itself become character context.

@@ -2,8 +2,7 @@
 type: character
 status: draft
 visibility: private
-readers:
-  characters: [tomas]
+readers: ["character:tomas"]
 ---
 # Tomas Vey
 

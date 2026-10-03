@@ -1,7 +1,6 @@
 ---
 visibility: private
-readers:
-  characters: [aldren]
+readers: ["character:aldren"]
 ---
 # Marshal Garran Holt
 

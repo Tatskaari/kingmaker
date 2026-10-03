@@ -1,6 +1,5 @@
 ---
 visibility: private
-readers:
-  characters: [oswin]
+readers: ["character:oswin"]
 ---
 This is a stub.

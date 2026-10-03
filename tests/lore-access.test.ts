@@ -16,7 +16,7 @@ function fixture(t: test.TestContext, files: Record<string, string>) {
   return root;
 }
 const publicNote = "---\nvisibility: public\n---\n";
-const privateNote = "---\nvisibility: private\nreaders:\n  characters: [aldren]\n---\n";
+const privateNote = "---\nvisibility: private\nreaders: ['character:aldren']\n---\n";
 
 test("traces private, GM-only, sibling and unclassified notes through cycles", t => {
   const root = fixture(t, {
@@ -39,7 +39,7 @@ test("public, character, faction and playthrough grants are explicit; GM cannot 
   const root = fixture(t, {
     [entry]: "[[Public]] [[Faction]] [[Found]] [[GM]]",
     "Public.md": publicNote,
-    "Faction.md": "---\nvisibility: private\nreaders:\n  factions: [caerwyn]\n---\n",
+    "Faction.md": "---\nvisibility: private\nreaders: ['faction:caerwyn']\n---\n",
     "Found.md": "---\nvisibility: private\n---\n",
     "GM.md": "---\nvisibility: gm\n---\n",
   });
@@ -88,9 +88,9 @@ test("checks entry access, excludes navigation indexes and rejects a mismatched 
 test("entry labels grant shared knowledge without propagating labels from retrieved notes", t => {
   const root = fixture(t, {
     [entry]: "---\nlabels: [court-informed]\n---\n[[Briefing]]",
-    "Briefing.md": "---\nvisibility: private\nlabels: [secret]\nreaders:\n  labels: [court-informed]\n---\n[[Secret]] [[GM]]",
-    "Secret.md": "---\nvisibility: private\nreaders:\n  labels: [secret]\n---\n",
-    "GM.md": "---\nvisibility: gm\nreaders:\n  labels: [court-informed]\n---\n",
+    "Briefing.md": "---\nvisibility: private\nlabels: [secret]\nreaders: ['label:court-informed']\n---\n[[Secret]] [[GM]]",
+    "Secret.md": "---\nvisibility: private\nreaders: ['label:secret']\n---\n",
+    "GM.md": "---\nvisibility: gm\nreaders: ['label:court-informed']\n---\n",
   });
   assert.deepEqual(auditLore(root, entry, { character: "aldren" }).map(item => item.trail.at(-1)),
     ["Secret.md", "GM.md"]);
@@ -103,5 +103,40 @@ test("malformed document and reader labels fail closed", t => {
     "visibility: public\nreaders: {labels: court-informed}"]) {
     const root = fixture(t, { [entry]: `---\n${header}\n---\n` });
     assert.equal(auditLore(root, entry, { character: "aldren" })[0]?.kind, "invalid");
+  }
+});
+
+test("flat reader lists distinguish namespaces and accept any matching grant", t => {
+  const root = fixture(t, {
+    [entry]: "[[Shared]]",
+    "Shared.md": "---\nvisibility: private\nreaders: ['character:other', 'faction:court', 'label:informed']\n---\n",
+  });
+  assert.equal(auditLore(root, entry, { character: "aldren" }).length, 1);
+  for (const audience of [
+    { character: "aldren", factions: ["court"] },
+    { character: "aldren", labels: ["informed"] },
+  ]) assert.deepEqual(auditLore(root, entry, audience), []);
+  for (const audience of [
+    { character: "aldren", labels: ["court"] },
+    { character: "aldren", factions: ["informed"] },
+    { character: "aldren", labels: ["Informed"] },
+  ]) assert.equal(auditLore(root, entry, audience)[0]?.kind, "denied");
+  writeFileSync(path.join(root, "Shared.md"), "---\nvisibility: private\nreaders:\n  - character:aldren\n  - label:informed\n---\n");
+  assert.deepEqual(auditLore(root, entry, { character: "aldren" }), []);
+  writeFileSync(path.join(root, "Shared.md"), "---\nvisibility: private\nreaders: []\n---\n");
+  assert.equal(auditLore(root, entry, { character: "aldren" })[0]?.kind, "denied");
+});
+
+test("nested, unprefixed and malformed readers fail closed even with a valid grant", t => {
+  for (const readers of [
+    "{characters: [aldren]}", "{labels: [court-informed]}", "character:aldren", "null",
+    "[42]", "['']", "['character:']", "['label: ']", "['characters:aldren']",
+    "['character:aldren', 'unknown:any']", "['character:aldren', 'label:two words']",
+    "['character:aldren', 'label:nested:value']", "['character:aldren', {label: informed}]",
+  ]) {
+    for (const visibility of ["private", "public", "gm"]) {
+      const root = fixture(t, { [entry]: `---\nvisibility: ${visibility}\nreaders: ${readers}\n---\n` });
+      assert.equal(auditLore(root, entry, { character: "aldren" })[0]?.kind, "invalid", readers);
+    }
   }
 });

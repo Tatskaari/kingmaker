@@ -1,6 +1,5 @@
 ---
 visibility: private
-readers:
-  characters: [bran]
+readers: ["character:bran"]
 ---
 This is a stub.

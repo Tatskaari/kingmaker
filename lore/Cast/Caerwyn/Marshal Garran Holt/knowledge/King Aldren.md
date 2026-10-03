@@ -1,7 +1,6 @@
 ---
 visibility: private
-readers:
-  characters: [holt]
+readers: ["character:holt"]
 ---
 # King Aldren
 

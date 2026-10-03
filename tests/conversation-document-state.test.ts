@@ -44,7 +44,7 @@ test("saved document labels authorize retrieval and revocation applies to an ope
   const first = await documentLore(services.scenario, "corvin");
   const link = first.links(first.initial)[0]!;
   const detail = await services.docs.read(link.path);
-  const shared = "---\nvisibility: private\nreaders:\n  labels: [test-court]\n---\nShared court facts.";
+  const shared = "---\nvisibility: private\nreaders: ['label:test-court']\n---\nShared court facts.";
   await services.docs.replace(link.path, detail.sha, detail.text, shared);
   const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.snapshot())));
   const lore = await documentLore(restored.scenario, "corvin");

@@ -2,8 +2,7 @@
 type: character
 status: draft
 visibility: private
-readers:
-  characters: [corvin]
+readers: ["character:corvin"]
 ---
 # Magister Corvin
 

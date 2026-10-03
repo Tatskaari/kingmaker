@@ -1,7 +1,6 @@
 ---
 visibility: private
-readers:
-  characters: [elinor]
+readers: ["character:elinor"]
 ---
 # Magister Corvin
 

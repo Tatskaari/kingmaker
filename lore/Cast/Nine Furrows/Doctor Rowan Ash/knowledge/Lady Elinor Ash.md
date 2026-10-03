@@ -1,7 +1,6 @@
 ---
 visibility: private
-readers:
-  characters: [rowan]
+readers: ["character:rowan"]
 ---
 # Lady Elinor Ash
 

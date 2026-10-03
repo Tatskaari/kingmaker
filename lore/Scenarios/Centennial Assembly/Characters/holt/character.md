@@ -2,8 +2,7 @@
 labels: [court-informed]
 status: draft
 visibility: private
-readers:
-  characters: [holt]
+readers: ["character:holt"]
 ---
 # Marshal Garran Holt — conversation entry
 

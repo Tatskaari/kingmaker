@@ -34,15 +34,24 @@ Scenario-local notes place the reusable person at a particular time and location
 The current scenario detail stubs retain their literal text. Non-index notes inside the starting character's scenario folder have implicit access for that character only; explicit metadata overrides this convention. Other scenario character folders receive no implicit grant. Stable characterization remains in the private cast note, not duplicated into scenario files.
 
 ## Access metadata
-Use YAML frontmatter with `visibility: public`, `visibility: private` or `visibility: gm`. Private notes list exact IDs under `readers.characters`, `readers.factions` or `readers.labels`; any matching character, faction or label can grant access. The tests include labels from the character entry, without implicit faction or playthrough grants. Missing metadata defaults to GM-only except for the scoped scenario convention above. Invalid metadata never grants access.
+Use YAML frontmatter with `visibility: public`, `visibility: private` or `visibility: gm`. Private notes use a flat `readers` list of prefixed IDs: `character:aldren`, `faction:caerwyn` or `label:court-informed`. Any matching entry grants access. The tests include labels from the character entry, without implicit faction or playthrough grants. Missing metadata defaults to GM-only except for the scoped scenario convention above. Invalid metadata never grants access.
 
 ```yaml
 ---
 visibility: private
-readers:
-  characters: [aldren]
+readers: ["character:aldren"]
 ---
 ```
+
+The flat list works with [Obsidian's list properties](https://obsidian.md/help/properties); nested properties are not supported by its property editor. Inline and block YAML lists are equivalent:
+
+```yaml
+readers:
+  - "character:aldren"
+  - "label:court-informed"
+```
+
+Prefixes and IDs match exactly. IDs must be nonempty, with no whitespace or additional colons. Unknown prefixes, malformed values and the former nested reader mapping fail closed. Use a fresh game for saved documents containing the old metadata; no compatibility conversion is provided.
 
 A grant covers an entire note. Split mixed audiences into separate notes. Markdown links, embeds, aliases and prose labels do not grant access or exempt a reference from checking. Author indexes may link to all audiences because they are not character entrypoints.
 
@@ -57,12 +66,11 @@ Shared documents explicitly grant that audience access:
 ```yaml
 ---
 visibility: private
-readers:
-  labels: [court-informed]
+readers: ["label:court-informed"]
 ---
 ```
 
-A document's own `labels` do not grant access to it; `readers.labels` does. GM-only visibility overrides every grant. Keep links from the briefing within the permitted graph, and keep author provenance and private dossiers outside it. Link the briefing from both character entrypoints (for Jev) and navigation indexes (for authors). Runtime disclosure opens relevant links progressively, rather than loading all shared knowledge at conversation start. Saved document state retains this metadata; changing incompatible baseline lore requires a fresh game.
+A document's own `labels` do not grant access to it; matching `label:<id>` entries in `readers` do. GM-only visibility overrides every grant. Keep links from the briefing within the permitted graph, and keep author provenance and private dossiers outside it. Link the briefing from both character entrypoints (for Jev) and navigation indexes (for authors). Runtime disclosure opens relevant links progressively, rather than loading all shared knowledge at conversation start. Saved document state retains this metadata; changing incompatible baseline lore requires a fresh game.
 
 ## Discoveries during play
 The GM adjudicates actions, quest transitions and discoveries using the full scenario. Send resulting observations only to the recipients who actually learn them. A completed milestone does not automatically teach every character its secrets. Keep these recipient-specific playthrough grants separate from baseline Markdown; they never reveal GM-only branches or apply world-state changes through dialogue.

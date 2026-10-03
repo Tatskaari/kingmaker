@@ -1,6 +1,5 @@
 ---
 visibility: private
-readers:
-  characters: [cressida]
+readers: ["character:cressida"]
 ---
 This is a stub.

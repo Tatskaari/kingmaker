@@ -1,7 +1,6 @@
 ---
 visibility: private
-readers:
-  labels: [court-informed]
+readers: ["label:court-informed"]
 ---
 # Doctor Rowan Ash — public profile
 

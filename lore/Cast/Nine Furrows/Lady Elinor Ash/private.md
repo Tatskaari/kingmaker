@@ -2,8 +2,7 @@
 type: character
 status: draft
 visibility: private
-readers:
-  characters: [elinor]
+readers: ["character:elinor"]
 ---
 # Lady Elinor Ash
 

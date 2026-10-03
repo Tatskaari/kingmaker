@@ -14,8 +14,8 @@ const entry = "Scenarios/Test/Characters/alice/character.md", identity = "Cast/T
 function fixture() {
   return createScenarioServices(worldState(create(MapSchema), new Map([
     ["Scenarios/Test/index.md", "Index"], ["Scenarios/Test/scenario.md", `[[${entry}]]`],
-    [entry, `---\nvisibility: private\nreaders:\n  characters: [alice]\n---\n[[${identity}]]\nEarlier history.`],
-    [identity, "---\nvisibility: private\nreaders:\n  characters: [alice]\n---\nAlice speaks softly."],
+    [entry, `---\nvisibility: private\nreaders: ['character:alice']\n---\n[[${identity}]]\nEarlier history.`],
+    [identity, "---\nvisibility: private\nreaders: ['character:alice']\n---\nAlice speaks softly."],
     ["gm.md", "---\nvisibility: gm\n---\nSECRET_SENTINEL"],
   ]), "Test"));
 }

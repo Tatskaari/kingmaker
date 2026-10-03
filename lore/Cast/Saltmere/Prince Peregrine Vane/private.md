@@ -2,8 +2,7 @@
 type: character
 status: draft
 visibility: private
-readers:
-  characters: [peregrine]
+readers: ["character:peregrine"]
 ---
 # Prince Peregrine Vane
 

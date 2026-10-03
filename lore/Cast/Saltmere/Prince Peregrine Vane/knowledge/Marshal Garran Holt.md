@@ -1,6 +1,5 @@
 ---
 visibility: private
-readers:
-  characters: [peregrine]
+readers: ["character:peregrine"]
 ---
 This is a stub.

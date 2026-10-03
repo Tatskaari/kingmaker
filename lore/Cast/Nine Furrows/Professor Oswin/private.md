@@ -2,8 +2,7 @@
 type: character
 status: draft
 visibility: private
-readers:
-  characters: [oswin]
+readers: ["character:oswin"]
 ---
 # Professor Oswin
 

@@ -27,11 +27,11 @@ test("every cast member has private characterization, GM notes and observer-owne
   const owners = new Set<string>();
   for (const name of cast) {
     const directory = path.posix.dirname(name), metadata = notes.get(name)!.metadata;
-    const readers = metadata.readers as { characters: string[]; factions?: string[] };
+    const readers = metadata.readers as string[];
     assert.equal(metadata.visibility, "private", name);
-    assert.equal(readers.characters.length, 1, name);
-    assert.equal(readers.factions?.length ?? 0, 0, name);
-    const owner = readers.characters[0]!;
+    assert.equal(readers.length, 1, name);
+    assert.match(readers[0]!, /^character:[^\s:]+$/, name);
+    const owner = readers[0]!.slice("character:".length);
     assert.ok(!owners.has(owner), `Duplicate cast owner: ${owner}`);
     owners.add(owner);
     assert.equal(notes.get(`${directory}/gm.md`)?.metadata.visibility, "gm", directory);
@@ -41,7 +41,7 @@ test("every cast member has private characterization, GM notes and observer-owne
       if (other === name) continue;
       const knowledge = `${directory}/knowledge/${path.posix.basename(path.posix.dirname(other))}.md`;
       assert.equal(notes.get(knowledge)?.metadata.visibility, "private", knowledge);
-      assert.deepEqual(notes.get(knowledge)?.metadata.readers, { characters: [owner] }, knowledge);
+      assert.deepEqual(notes.get(knowledge)?.metadata.readers, [`character:${owner}`], knowledge);
     }
   }
   for (const entry of entries) assert.ok(owners.has(path.posix.basename(path.posix.dirname(entry))), `Missing cast owner for ${entry}`);

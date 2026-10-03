@@ -1,6 +1,6 @@
 # Authoring Guide
 
-For the collaboration workflow and future agent-context design, see [[Authoring/Working on Lore|Working on Lore]].
+For the collaboration workflow and agent-context design, see [[Authoring/Working on Lore|Working on Lore]].
 
 World notes own factions, places, history and enduring rules. Cast folders, grouped by faction under `Cast/`, split each person into `private.md`, `gm.md` and observer-owned `knowledge/` notes. Each scenario character entry links to its own private cast note. Author references and unknown truths stay in GM notes; keep author indexes outside character-facing links. Plot notes collect the story threads. These are summaries of the sources, not newly settled canon.
 
@@ -8,7 +8,50 @@ Each scenario has a GM-facing `scenario.md` and separate `Characters/<name>/char
 
 Start with a sketch in any stub. Link reusable author lore from GM and author notes. Character-facing notes need deliberately scoped knowledge; do not link them to unrestricted author lore. Use vault-relative wikilinks when note filenames repeat; Obsidian is configured to update links when a note is renamed. [[Scenarios/Centennial Assembly/index|Centennial Assembly]] supplies the links into the empty scenario notes until you fill them.
 
-[[Sources and Decisions]] links the complete original issues. Proposed mappings or unanswered questions stay unresolved until you decide. The vault is not imported into the game. Return to [Lore index](../index.md).
+[[Sources and Decisions]] links the complete original issues. Proposed mappings or unanswered questions stay unresolved until you decide. Conversation loaders read the vault or saved document state. Return to [Lore index](../index.md).
+
+## Labels and read access in Obsidian
+
+Set `readers` and `labels` to **List** properties in Obsidian. Use flat lists of strings; do not nest `characters`, `factions` or `labels` beneath `readers`. Inline lists and Obsidian's one-item-per-line YAML lists are equivalent. Keep `visibility` as a Text property.
+
+For a character's own private note or observer knowledge note, name the reader explicitly:
+
+```yaml
+---
+visibility: private
+readers: ["character:aldren"]
+---
+```
+
+For knowledge shared by a labelled audience:
+
+1. Add `labels: [court-informed]` to each participating scenario `character.md`. Labels on other notes do not give a reader additional access.
+2. Put the shared information in its own note with the following properties:
+
+```yaml
+---
+visibility: private
+readers: ["label:court-informed"]
+---
+```
+
+3. Link that note from the relevant character entry or an already permitted note so Jev can discover it. For the assembly, use `court_briefing.md` → delegation overview → Cast `public.md`. Update author indexes separately.
+4. Run the lore access tests through the normal repository checks. Start a fresh game to load changed baseline metadata into saved document state.
+
+A list can mix grant types, such as `readers: ["character:aldren", "label:court-informed"]`; any match is enough. `faction:caerwyn` is also supported when a trusted audience supplies faction membership, but a faction mentioned in prose gives no permission. Use exact, case-sensitive IDs without spaces or additional colons. Unknown prefixes and nested reader mappings are invalid.
+
+Use `visibility: gm` for hidden truth regardless of reader entries. Use `visibility: public` only when every character may read the entire note. A filename such as `public.md`, a document label, or an Obsidian tag does not grant access. See [[Authoring/Agent Disclosure|Agent Disclosure]] for the full contract.
+
+### Graph filters
+
+Obsidian's [Graph view](https://obsidian.md/help/plugins/graph) accepts [property searches](https://obsidian.md/help/plugins/search) in **Filters → Search files** and in **Groups**:
+
+- `[readers:"character:aldren"]` — notes explicitly naming Aldren as a reader.
+- `[readers:"label:court-informed"]` — notes granting the shared court audience access.
+- `[labels:"court-informed"]` — labelled notes, including the participating character entries.
+- `[visibility:gm]` — explicitly GM-only notes.
+
+These filters inspect properties; they do not calculate a character's complete effective access or follow permissions through links. In particular, the Aldren filter does not include his shared label grants. Keep `labels` as a list property; it is separate from Obsidian's special `tags` property.
 
 ## Folder indexes
 Every lore content folder has a lowercase `index.md`, including the vault root. Use it for the folder overview, links to its notes and immediate child indexes, and a link back to the parent. Add or update the index whenever notes are added, moved or renamed. Keep headings descriptive even though the filename is always `index.md`.

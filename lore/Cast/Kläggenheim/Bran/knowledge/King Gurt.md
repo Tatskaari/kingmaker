@@ -1,7 +1,6 @@
 ---
 visibility: private
-readers:
-  characters: [bran]
+readers: ["character:bran"]
 ---
 # King Gurt
 

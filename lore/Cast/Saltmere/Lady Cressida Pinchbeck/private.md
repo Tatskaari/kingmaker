@@ -2,8 +2,7 @@
 type: character
 status: draft
 visibility: private
-readers:
-  characters: [cressida]
+readers: ["character:cressida"]
 ---
 # Lady Cressida Pinchbeck
 

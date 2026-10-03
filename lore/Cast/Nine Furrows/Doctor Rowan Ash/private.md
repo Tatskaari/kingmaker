@@ -2,8 +2,7 @@
 type: character
 status: draft
 visibility: private
-readers:
-  characters: [rowan]
+readers: ["character:rowan"]
 ---
 # Doctor Rowan Ash
 

@@ -1,7 +1,6 @@
 ---
 visibility: private
-readers:
-  characters: [peregrine]
+readers: ["character:peregrine"]
 ---
 # Lady Cressida Pinchbeck
 

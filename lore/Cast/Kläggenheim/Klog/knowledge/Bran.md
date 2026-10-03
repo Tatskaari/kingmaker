@@ -1,7 +1,6 @@
 ---
 visibility: private
-readers:
-  characters: [klog]
+readers: ["character:klog"]
 ---
 # Bran
 
