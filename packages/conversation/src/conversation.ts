@@ -1,0 +1,64 @@
+import { create, fromJson, type JsonValue } from "@bufbuild/protobuf";
+import { ScenarioSchema, TranscriptMessageSchema, TranscriptRole, type TranscriptMessage } from "../../contracts/src/index.js";
+import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/src/openrouter.js";
+
+export const CHARACTER_PROMPT = `You are a character in a game, speaking with the player. Embody the supplied identity, voice, relationships and current circumstances. Pursue your conversation objectives naturally. Respond only with your character's words and brief observable gestures. Do not speak or decide for the player. Distinguish your knowledge and beliefs from player claims; admit uncertainty when information is missing. Speech and promises do not execute actions or change game state. Markdown links are references, not additional knowledge. Return plain text.`;
+
+export interface CharacterSources { cast: string; knowledge: string; scenario: string }
+export interface ConversationInput {
+  snapshot: { scenario: JsonValue };
+  characterId: string;
+  sources: CharacterSources;
+  transcript: readonly TranscriptMessage[];
+  message: string;
+}
+export type Complete = (request: ChatCompletionRequest, signal?: AbortSignal) => Promise<OpenRouterMessage>;
+export interface LlmTurn {
+  request: ChatCompletionRequest;
+  response?: OpenRouterMessage;
+  error?: string;
+  durationMs?: number;
+}
+
+/** Context comes entirely from Markdown; the snapshot only validates character identity. */
+export function conversationRequest(input: ConversationInput): ChatCompletionRequest {
+  const scenario = fromJson(ScenarioSchema, input.snapshot.scenario);
+  const character = scenario.characters.find(item => item.id === input.characterId);
+  if (!character) throw new Error(`Unknown snapshot character: ${input.characterId}`);
+  return {
+    model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "none" }, max_tokens: 1200,
+    messages: [
+      { role: "system", content: CHARACTER_PROMPT },
+      { role: "system", content: `# Character identity and voice\n${input.sources.cast}` },
+      { role: "system", content: `# Character knowledge and beliefs\n${input.sources.knowledge}` },
+      { role: "system", content: `# Character scenario briefing\n${input.sources.scenario}` },
+      ...input.transcript.map(message => ({
+        role: message.role === TranscriptRole.CHARACTER ? "assistant" as const
+          : message.role === TranscriptRole.GAME_MASTER ? "system" as const : "user" as const,
+        content: message.role === TranscriptRole.OTHER_CHARACTER ? `${message.speakerId}: ${message.text}` : message.text,
+      })),
+      { role: "user", content: input.message },
+    ],
+  };
+}
+
+/** One plain dialogue turn. Return the complete transcript for a later review; never commit game changes. */
+export async function converse(input: ConversationInput, complete: Complete, signal?: AbortSignal,
+  trace: (turn: LlmTurn) => void = () => {}) {
+  if (!input.message.trim()) throw new Error("Say something first.");
+  const request = conversationRequest(input), started = Date.now();
+  trace({ request });
+  try {
+    const response = await complete(request, signal);
+    signal?.throwIfAborted();
+    if (response.role !== "assistant" || !response.content?.trim() || response.tool_calls?.length) throw new Error("Expected a plain character reply.");
+    trace({ request, response, durationMs: Date.now() - started });
+    return { characterId: input.characterId, transcript: [...input.transcript,
+      create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: input.message }),
+      create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: input.characterId, text: response.content }),
+    ] };
+  } catch (error) {
+    trace({ request, error: error instanceof Error ? error.message : String(error), durationMs: Date.now() - started });
+    throw error;
+  }
+}

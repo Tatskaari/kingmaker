@@ -485,3 +485,41 @@ Lore visibility is checked by the normal test suite. Every scenario character
 entry must link only to permitted notes, including through further links.
 See [lore access tests](docs/lore-access-audit.md) for the metadata format and
 focused test command.
+
+## Conversation debugger
+
+Run `proto install` to install the pinned Node 26 runtime, then
+`OPENROUTER_API_KEY=… npm run conversation -- --character corvin` in an
+interactive terminal. OpenTUI renders React components directly in the terminal.
+The conversation takes 80% of the width; individual model
+messages take 20%. The sidebar lists system prompts, user messages and assistant
+replies in order, without repeating history for each call. Click a message (in
+terminals supporting SGR mouse reporting) or press Tab to inspect its full text.
+System prompts are available before the first reply. Use Up/Down to select
+messages, the mouse wheel over the left pane or Page Up/Down to scroll, and Escape
+to return to chat. Shift+Up/Down scrolls one line at a time. The header shows
+the latest call's duration; pending replies and errors appear in the sidebar.
+Drag normally within either pane to select its text, then press Ctrl+Y to copy.
+Ctrl+C also copies when text is selected; otherwise it finishes the conversation.
+Selection is managed by the app, so selecting multiple lines within one pane
+does not collect text from the neighbouring pane. Click a sidebar row to inspect
+it; dragging over rows selects their text. Both panes support wheel scrolling.
+Enter sends a message;
+Ctrl+D or Ctrl+C finishes and writes the transcript and debug calls to
+`test-output/conversation-<timestamp>.json` for review.
+
+`--snapshot path` accepts an existing runtime snapshot or scenario JSON (default:
+`content/scenarios/last-night.json`). `--scenario 'Centennial Assembly'` selects
+the lore directory; `--output path` chooses the review file. The character ID must
+exist in both the snapshot and that scenario's character folder. Each run starts
+a fresh conversation; no game state is changed and no automatic review runs.
+
+All character context comes from Markdown: the selected Cast `private.md`, that
+character's own `knowledge/*.md` notes (excluding the author index), and local
+character, background, situation and conversation files. Snapshot relationships,
+goals, dialogue objectives and notes are not sent to the model; the snapshot only
+validates the selected character. Knowledge and scenario stubs are sent as authored,
+without inventing missing relationships or objectives. GM notes and author indexes
+are not loaded. These files are loaded eagerly; other links are not expanded.
+Jev disclosure, runtime Markdown visibility enforcement, portraits, dice checks and
+GM tools are outside this first implementation. Review exports remain JSON.
