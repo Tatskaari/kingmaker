@@ -49,7 +49,7 @@ export class WorldHeadlessGame {
   }
   async talk(id: string, message: string) { await this.act(`talk_${id}`); return this.runtime.checkedTalkToCharacter(id, message); }
   async endConversation(id: string, message?: string, signal?: AbortSignal) {
-    if (message !== undefined) this.runtime.endConversationAsPlayer(id, message);
+    if (message !== undefined) await this.runtime.checkedTalkToCharacter(id, message, undefined, {}, signal);
     return this.runtime.endConversation(id, signal);
   }
 }
