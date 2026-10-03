@@ -1,3 +1,5 @@
+import { WorldHost } from "../apps/web/src/world-host.js";
+import { loadPlayableWorld } from "./fixtures.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -14,17 +16,14 @@ import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
 import { planWorldAction, reviewAndPlanWorldAction, assertWorldActionCurrent } from "../apps/web/src/world-action.js";
 
 function fixture(goal?: string) {
-  const game = new BrowserGameRuntime(fromJsonString(ScenarioSchema,
-    readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")), "");
-  game.createDevelopmentPlayer();
-  const world = loadConversationWorld("lore", "Centennial Assembly");
-  world.map = fromJsonString(ScenarioSchema, JSON.stringify(game.snapshot().scenario)).world;
+  const world = loadPlayableWorld();
   const entry = world.characters.find(path => path.includes("/corvin/"))!;
   if (goal) world.docs[entry]!.frontmatter!.active_goal = goal;
   world.docs["secret.md"] = create(DocumentSchema, { body: "GM_SECRET_SENTINEL", frontmatter: { visibility: "gm" } });
   const other = world.characters.find(path => path.includes("/elinor/"))!;
   world.docs[other]!.body += "\nOTHER_PRIVATE_SENTINEL";
-  return createScenarioServices(world);
+  const services = createScenarioServices(world);
+  return { ...services, map: { observe: (id: string) => new WorldHost(services.scenario.snapshot()).map.observe(id) } };
 }
 const evidence = { characterId: "corvin", participants: ["corvin", "player"], transcript: [create(TranscriptMessageSchema, { text: "Please go to the hall." })] };
 
