@@ -5,14 +5,14 @@ import type { CheckPlan } from "./checks.js";
 import type { LlmTurn } from "./conversation.js";
 import type { DisclosureRound, DisclosureSession } from "./disclosure.js";
 import { ConversationRuntime } from "./runtime.js";
-import type { AiService } from "./services.js";
+import type { AiService, PresentationService } from "./services.js";
 
 export interface ManualRoll extends CheckPlan { modifier: number }
 export type RequestRoll = (check: ManualRoll, signal: AbortSignal) => Promise<number>;
 
 /** Finish disclosure before classifying checks; resolve checks once per player turn. */
 export function cliHooks(disclosure: DisclosureSession, ai: AiService, build: DndCharacter | undefined,
-  playerTurn: string, requestRoll: RequestRoll, trace: (round: DisclosureRound) => void, debug: (turn: LlmTurn) => void) {
+  playerTurn: string, requestRoll: RequestRoll, trace: (round: DisclosureRound) => void, debug: (turn: LlmTurn) => void, presentation: Partial<PresentationService> = {}) {
   const documents = disclosure.hooks(trace);
   const runtime = new ConversationRuntime<CheckLabels>({ services: {
     ai: { ...ai, responses: async (request, signal) => {
@@ -23,7 +23,7 @@ export function cliHooks(disclosure: DisclosureSession, ai: AiService, build: Dn
         return response;
       } catch (error) { debug({ request, error: String(error) }); throw error; }
     } },
-    presentation: { showRoll: async () => {} },
+    presentation: { showRoll: async () => {}, ...presentation },
   } });
   const checks = checkHooks(runtime, { playerTurn, playerId: "player", build,
     roll: (check, signal) => requestRoll({ ...check, modifier: skillModifier(build, check.skill) }, signal) });
