@@ -1,3 +1,4 @@
+import { arrestHooks } from "../../../packages/conversation/src/conversation-actions.js";
 import { retryResponses } from "../../../packages/conversation/src/ai.js";
 import { traceAiService } from "../../../packages/conversation/src/ai-tracing.js";
 import { createScenarioServices } from "../../../packages/lore/src/services.js";
@@ -183,6 +184,7 @@ export class WorldGameRuntime extends WorldHost {
   }
   async checkedTalkToCharacter(id: string, message: string, thinking?: (text: string) => void, options: WorldOptions = {}, signal = new AbortController().signal) {
     const persist = this.persistChange;
+    this.assertPlayerFree();
     if (!message.trim()) throw new Error("Say something first.");
     if (this.activity.conversationEndRequested?.[id]) throw new Error("Finish the conversation review first.");
     const previous = structuredClone(this.activity.conversations[id] ?? []);
@@ -199,12 +201,24 @@ export class WorldGameRuntime extends WorldHost {
     const request = conversationRequest({ snapshot: { world }, characterId: id, sources: lore.initial, transcript, message });
     thinking?.("Considering your words…");
     const rulings: string[] = [];
-    const reply = await runConversation(request, runtime, signal, prepared => {
-      for (const turn of prepared.messages) if (turn.role === "system" && turn.content?.startsWith("# Binding DM ruling")) rulings.push(turn.content);
-    });
+    const entry = world.characters.find(path => path.endsWith(`/Characters/${id}/character.md`));
+    const granted = entry && world.docs[entry]!.frontmatter?.conversation_actions;
+    let arrested = false;
+    const prepared = (request: import("../../../packages/providers/src/openrouter.js").ChatCompletionRequest) => {
+      for (const turn of request.messages) if (turn.role === "system" && turn.content?.startsWith("# Binding DM ruling")) rulings.push(turn.content);
+    };
+    const reply = Array.isArray(granted) && granted.includes("arrest")
+      ? await runConversation(request, new ConversationRuntime({ services: runtime.services, maxPasses: runtime.maxPasses + 1,
+        hooks: { conversation: arrestHooks(runtime.hooks.conversation, runtime.services.ai, () => { arrested = true; }) } }), signal, prepared)
+      : await runConversation(request, runtime, signal, prepared);
     if (reply.tool_calls?.length || !reply.content?.trim()) throw new Error("Expected a character reply without tool calls.");
     await this.commit(() => {
       if (JSON.stringify(previous) !== JSON.stringify(this.activity.conversations[id] ?? [])) throw new Error("Conversation changed; retry the turn.");
+      this.assertPlayerFree();
+      if (arrested) {
+        this.activity.jail = { characterId: id, message: reply.content! };
+        (this.activity.conversationEndRequested ??= {})[id] = true;
+      }
       this.activity.conversations[id] = [...previous,
         toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: message })),
         ...rulings.map(text => toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, speakerId: "GM", text }))),
@@ -298,6 +312,7 @@ export class WorldGameRuntime extends WorldHost {
   }
   async initiatePlayerConversation(id: string, actionId: string, revision: number, goal: string, signal: AbortSignal): Promise<ConversationStartResult> {
     signal.throwIfAborted();
+    this.assertPlayerFree();
     const persist = this.persistChange;
     const world = this.world();
     const available = () => {

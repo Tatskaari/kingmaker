@@ -628,12 +628,31 @@ function renderConversation() {
   if (!busy && !debugOpen) dialog.querySelector("textarea")?.focus();
 }
 
+function renderJail() {
+  renderDay();
+  const dialog = document.createElement("dialog");
+  dialog.className = "conversation-modal";
+  dialog.setAttribute("aria-labelledby", "jail-title");
+  dialog.innerHTML = `<section class="panel"><div class="eyebrow">Under arrest</div><h2 id="jail-title">You are in jail</h2><p>${escapeHtml(state.jail.message)}</p><p>The cell door shuts. After a short stay, the guards let you out.</p><button class="primary" data-release-jail ${busy ? "disabled" : ""}>Serve your time and return to the palace</button><p class="status" role="status">${escapeHtml(notice)}</p></section>`;
+  app.append(dialog);
+  dialog.addEventListener("cancel", event => event.preventDefault());
+  dialog.querySelector("[data-release-jail]").addEventListener("click", () => run(async () => {
+    const id = state.jail.characterId;
+    const result = await rpc("release_from_jail");
+    state = result.state; saves = result.saves;
+    activeCharacter = null; closedConversation = null;
+    if (state.conversations?.[id]?.length) reviewConversation(id);
+  }));
+  dialog.showModal();
+}
+
 function render() {
   if (screen === "key" || !apiKey) return renderKeyEntry();
   if (screen === "saves") return renderSavePicker();
   if (!state) return;
   if (state.phase === "character_review") return renderCharacterReview();
   if (state.phase === "player_creation") return renderCreation();
+  if (state.jail) return renderJail();
   activeCharacter ||= initiatedConversationId();
   if (activeCharacter) return renderConversation();
   renderDay();
@@ -642,7 +661,7 @@ function render() {
 async function talkAndReview(characterId, message) {
   const response = await rpc("talk", { characterId, message });
   state = response.state; saves = response.saves;
-  if (!state.conversationEndRequested?.[characterId]) return;
+  if (state.jail || !state.conversationEndRequested?.[characterId]) return;
   const messages = state.conversations?.[characterId] || [];
   closedConversation = { id: characterId, messages };
   reviewConversation(characterId);
@@ -656,6 +675,7 @@ function reviewConversation(characterId, message) {
     if (conversationReviews.get(characterId) !== review) return;
     state = result.state; saves = result.saves;
     conversationReviews.delete(characterId);
+    if (state.jail) { render(); return; }
     updateCourtMap(document.querySelector("[data-court-map]"), state);
     updateNpcPanel();
     void runNpcGoal(characterId).catch(error => { notice = `Error: ${error.message}`; render(); });
