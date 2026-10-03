@@ -2,7 +2,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { parseMarkdown, links, resolveLink, AmbiguousLinkError, type Note } from "../../packages/lore/src/markdown.js";
 
-import { permitted, type Audience } from "../../packages/lore/src/access.js";
+import { permitted, labels, type Audience } from "../../packages/lore/src/access.js";
 export { permitted, type Audience } from "../../packages/lore/src/access.js";
 export interface Finding { kind: "denied" | "broken" | "ambiguous" | "invalid"; trail: string[]; detail: string }
 
@@ -27,6 +27,11 @@ export function auditLore(root: string, entry: string, audience: Audience): Find
   const notes = readVault(root), findings: Finding[] = [];
   if (entry.split("/").some(part => part === "." || part === "..") || !/^Scenarios\/.+\/Characters\/[^/]+\/character\.md$/.test(entry)
     || path.posix.basename(path.posix.dirname(entry)) !== audience.character) throw new Error("Entry must be this character's Scenarios/.../Characters/<id>/character.md");
+  try {
+    audience = { ...audience, labels: [...(audience.labels ?? []), ...labels(notes.get(entry)?.metadata.labels)] };
+  } catch (error) {
+    return [{ kind: "invalid", trail: [entry], detail: String(error) }];
+  }
   const visited = new Set<string>();
   const queue: string[][] = [[entry]];
   for (const trail of queue) {

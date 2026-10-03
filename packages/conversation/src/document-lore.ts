@@ -1,5 +1,5 @@
 import type { ScenarioService } from "../../lore/src/services.js";
-import { permitted } from "../../lore/src/access.js";
+import { permitted, labels } from "../../lore/src/access.js";
 import type { LoreService } from "./services.js";
 
 /** Character-scoped view of the authoritative GM document service. */
@@ -7,7 +7,9 @@ export async function documentLore(scenario: ScenarioService, characterId: strin
   const entry = scenario.info().characters.find(path => path.endsWith(`/Characters/${characterId}/character.md`));
   if (!entry) throw new Error(`Unknown scenario character: ${characterId}`);
   const allowed = (path: string, document: { body: string; frontmatter?: Record<string, unknown> | undefined }) => {
-    if (!permitted(path, { body: document.body, metadata: document.frontmatter ?? {} }, entry, { character: characterId })) {
+    if (!permitted(path, { body: document.body, metadata: document.frontmatter ?? {} }, entry, {
+      character: characterId, labels: labels(scenario.snapshot().docs[entry]?.frontmatter?.labels),
+    })) {
       throw new Error(`No read access: ${path}`);
     }
   };
