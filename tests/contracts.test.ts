@@ -2144,10 +2144,11 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
   const pending = new Map<number, (message: any) => void>();
   const npcUpdates: any[] = [];
   const diceMessages: any[] = [];
+  const alerts: any[] = [];
   const records = new Map<string, any>();
   globals.self = {
     addEventListener: (_type: string, callback: typeof listener) => { listener = callback; },
-    postMessage: (message: any) => { if (message.type === "npc_update") npcUpdates.push(message); if (message.type === "conversation_roll") diceMessages.push(message); pending.get(message.id)?.(message); },
+    postMessage: (message: any) => { if (message.type === "alert") alerts.push(message); if (message.type === "npc_update") npcUpdates.push(message); if (message.type === "conversation_roll") diceMessages.push(message); pending.get(message.id)?.(message); },
   };
   // Minimal asynchronous IDB boundary: the real worker dispatch/queue and runtime
   // run unchanged, while persistence and model transport remain deterministic.
@@ -2299,7 +2300,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     t.mock.method(BrowserGameRuntime.prototype, "executeNpcTalk", async () => {
       talkStarted(); await new Promise<void>(resolve => { releaseTalk = resolve; });
       reviewStarted(); await new Promise<void>(resolve => { releaseReview = resolve; });
-      return "News exchanged.";
+      return { ok: true, text: "News exchanged." };
     });
     await request("start_npc", { characterId: "gurt" });
     await request("start_npc", { characterId: "corvin" });
@@ -2316,6 +2317,35 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     assert.deepEqual(plans.slice(2).map(plan => plan.id).sort(), ["corvin", "gurt"]);
     await request("cancel_npc");
     for (const plan of plans) plan.release({});
+    await new Promise(resolve => setImmediate(resolve));
+  });
+
+  for (const target of ["gurt", "player"]) await t.test(`stale ${target} conversation returns feedback to planning without an alert`, async t => {
+    const created = await request("create_development_game"), saved = records.get(created.activeSaveId);
+    saved.snapshot.npcActivities = { corvin: { status: "active", goal: "Ask for news.", history: [] } };
+    await request("load_game", { saveId: created.activeSaveId });
+    const feedback = { ok: false as const, error: "conversation_changed", instruction: "Inspect the fresh observation." };
+    let replanned!: () => void;
+    const planningAgain = new Promise<void>(resolve => { replanned = resolve; });
+    let decisions = 0;
+    t.mock.method(BrowserGameRuntime.prototype, "planNpc", async (_id: string, signal: AbortSignal, conflict: unknown) => {
+      if (++decisions === 2) {
+        assert.deepEqual(conflict, feedback);
+        replanned();
+        await new Promise<void>(resolve => signal.addEventListener("abort", () => resolve(), { once: true }));
+        signal.throwIfAborted();
+      }
+      return { decision: { choice: `talk_${target}` }, action: { id: `talk_${target}`, description: "Ask for news" }, goal: "Ask for news.", generations: {} };
+    });
+    t.mock.method(BrowserGameRuntime.prototype, "stepNpcAction", () => ({ done: true, talkTarget: target, generations: {} }));
+    t.mock.method(BrowserGameRuntime.prototype, target === "player" ? "initiatePlayerConversation" : "executeNpcTalk", async () => feedback);
+    const alertCount = alerts.length;
+    await request("start_npc", { characterId: "corvin" });
+    await planningAgain;
+    assert.equal(alerts.length, alertCount);
+    assert.equal((await request("state")).state.npcActivities.corvin.status, "active");
+    assert.equal(decisions, 2);
+    await request("cancel_npc");
     await new Promise(resolve => setImmediate(resolve));
   });
 
@@ -2353,7 +2383,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
       decisions++; return { decision: { choice: "talk_gurt" }, action: { id: "talk_gurt", description: "Talk to Gurt" }, goal: "Talk to Gurt", generations: {} };
     });
     t.mock.method(BrowserGameRuntime.prototype, "stepNpcAction", () => ({ done: true, talkTarget: "gurt", generations: {} }));
-    t.mock.method(BrowserGameRuntime.prototype, "executeNpcTalk", async () => { conversations++; return ""; });
+    t.mock.method(BrowserGameRuntime.prototype, "executeNpcTalk", async () => { conversations++; return { ok: true, text: "" }; });
     await request("start_npc", { characterId: "corvin" });
     await new Promise(resolve => setTimeout(resolve, 250));
     assert.equal(decisions, 1);

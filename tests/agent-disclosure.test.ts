@@ -75,6 +75,7 @@ test("NPC opening lines retrieve knowledge in the same traced turn as their spee
   const seen: string[] = [], game = new WorldGameRuntime(fixture(), "", undefined, undefined, undefined, { services: { ai: model(seen) } });
   const action = game.map.observe("rowan").actions.find(action => action.id === "talk_player")!;
   assert.ok(action);
+  await game.overrideActiveObjective("rowan", { currentGoal: "Discuss the plan" });
   await game.initiatePlayerConversation("rowan", action.id, game.world().map!.revision, "Discuss the plan", new AbortController().signal);
   assert.deepEqual(seen, ["speech:rowan"]);
   const calls = Object.values(game.transcriptRuns()).flatMap(run => run.calls);

@@ -32,8 +32,8 @@ test("NPC planning, exchanges and outcome reviews use replacement map observatio
   const plan = await runtime.planNpc("rowan", signal);
   assert.equal(plan.action?.id, "custom_holt");
   assert.equal(plan.revision, map.revision);
-  await assert.rejects(runtime.executeNpcTalk("rowan", "custom_holt", map.revision - 1, goal, signal), /replan/);
-  assert.equal(await runtime.executeNpcTalk("rowan", "custom_holt", plan.revision, goal, signal), "Agreed");
+  assert.equal((await runtime.executeNpcTalk("rowan", "custom_holt", map.revision - 1, goal, signal)).ok, false);
+  assert.deepEqual(await runtime.executeNpcTalk("rowan", "custom_holt", plan.revision, goal, signal), { ok: true, text: "Agreed" });
   assert.deepEqual(contexts[0], { kind: "npc_exchange", characterId: "rowan", targetId: "holt", goal });
   const saved = runtime.snapshot();
   saved.npcActivities!.rowan!.reviewPending = true;
@@ -57,9 +57,9 @@ test("NPC opening speech runs conversation hooks and the character responder", a
     resolve: async context => { calls.push("resolve"); context.request.messages.push({ role: "system", content: "Hook context" }); return { reclassify: context.pass === 1 }; },
   } } });
   actions[1]!.type = "move";
-  await assert.rejects(runtime.initiatePlayerConversation("rowan", "custom_player", map.revision, goal, signal), /replan/);
+  assert.equal((await runtime.initiatePlayerConversation("rowan", "custom_player", map.revision, goal, signal)).ok, false);
   actions[1]!.type = "talk";
-  assert.equal(await runtime.initiatePlayerConversation("rowan", "custom_player", map.revision, goal, signal), "A word, please.");
+  assert.deepEqual(await runtime.initiatePlayerConversation("rowan", "custom_player", map.revision, goal, signal), { ok: true, text: "A word, please." });
   assert.deepEqual(calls, ["classify", "resolve", "classify", "resolve", "respond"]);
   assert.equal(runtime.snapshot().conversations.rowan!.length, 1);
   const call = runtime.recentTranscripts().find(call => call.kind === "dialogue")!;
@@ -76,7 +76,7 @@ test("NPC opening speech uses disclosure and AI defaults and honors cancellation
   const cancelled = new AbortController(); cancelled.abort();
   await assert.rejects(runtime.initiatePlayerConversation("rowan", "custom_player", map.revision, goal, cancelled.signal), /abort/i);
   assert.equal(runtime.snapshot().conversations.rowan, undefined);
-  assert.equal(await runtime.initiatePlayerConversation("rowan", "custom_player", map.revision, goal, signal), "Welcome.");
+  assert.deepEqual(await runtime.initiatePlayerConversation("rowan", "custom_player", map.revision, goal, signal), { ok: true, text: "Welcome." });
 });
 
 test("world event perception uses injected rolls at the moderate hearing boundary", async () => {
@@ -132,4 +132,36 @@ test("the player's own events enter the feed even without an event position", as
     assert.deepEqual(result.reactions, []);
   }
   assert.equal((await runtime.assessWorldEvent(create(EventSchema, { participantIds: ["rowan"] }), signal)).playerPerception, undefined);
+});
+
+
+test("conversation conflicts reach the next model decision without running a resolution", async () => {
+  let state = "", resolutions = 0;
+  const { runtime, map } = setup({ services: { disclosure: { disclose: async () => [] },
+    ai: { decisions: async observation => { state = String(observation); return { next: { choice: "wait", probabilities: {} } }; } } },
+    hooks: { resolution: { resolve: async () => { resolutions++; return { summary: "Unexpected" }; } } } });
+  await runtime.overrideActiveObjective("rowan", { currentGoal: "Speak to Holt" });
+  const result = await runtime.executeNpcTalk("rowan", "custom_holt", map.revision - 1, "Speak to Holt", signal);
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("Expected replan feedback");
+  await runtime.planNpc("rowan", signal, result);
+  assert.match(state, /conversation_changed/);
+  assert.match(state, /fresh observation/);
+  assert.equal(resolutions, 0);
+});
+
+test("a world change during opening speech returns a replan without publishing the stale opening", async () => {
+  const { runtime, map, goal } = setup({ services: { disclosure: { disclose: async () => [] },
+    character: { respond: async () => { map.revision++; return { role: "assistant", content: "Too late." }; } },
+  }, hooks: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }), resolve: async () => ({ reclassify: false }) } } });
+  const before = runtime.snapshot();
+  const result = await runtime.initiatePlayerConversation("rowan", "custom_player", map.revision, goal, signal);
+  assert.equal(result.ok, false);
+  assert.deepEqual(runtime.snapshot().conversations, before.conversations);
+  assert.deepEqual(runtime.snapshot().npcActivities, before.npcActivities);
+});
+
+test("conversation service failures remain errors", async () => {
+  const { runtime, map, goal } = setup({ hooks: { resolution: { resolve: async () => { throw new Error("Provider failed"); } } } });
+  await assert.rejects(runtime.executeNpcTalk("rowan", "custom_holt", map.revision, goal, signal), /Provider failed/);
 });

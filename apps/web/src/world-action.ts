@@ -12,6 +12,8 @@ import { characterCourtObservation } from "./court-agent.js";
 import { ROOM_COURT_INSTRUCTIONS } from "./court-instructions.js";
 import { renderJevRoomView } from "./jev-room-view.js";
 
+export interface PlanningFeedback { error: string; instruction: string }
+
 export interface WorldActionPlan extends ActionResult {
   characterId: string;
   revision: number;
@@ -19,7 +21,7 @@ export interface WorldActionPlan extends ActionResult {
 }
 
 /** Read-only adapter to the existing palace mechanics, not a v1 save or migration. */
-async function worldActionContext(world: WorldState, characterId: string, history: readonly string[], services: RuntimeServices, signal: AbortSignal) {
+async function worldActionContext(world: WorldState, characterId: string, history: readonly string[], services: RuntimeServices, signal: AbortSignal, feedback?: PlanningFeedback) {
   const entry = characterEntry(services.scenario.info(), characterId);
   const goal = activeGoal(world.docs[entry]!);
   if (!goal) return;
@@ -40,6 +42,7 @@ async function worldActionContext(world: WorldState, characterId: string, histor
   const observation = { ...characterCourtObservation(scenario, characterId), actions: [...visible.actions] };
   const state = [
     `Who you are: ${characterId}`,
+    ...(feedback ? [`Previous action result:\n${JSON.stringify(feedback)}`] : []),
     `Current execution task:\n${goal}`,
     `World state:\n${renderJevRoomView(scenario, observation)}`,
     `Action log (completed actions, oldest first):\n${history.join("\n") || "None yet."}`,
@@ -53,11 +56,11 @@ async function worldActionContext(world: WorldState, characterId: string, histor
 
 /** Idle characters do not call Jev. Hosts execute commands and call again after completion. */
 export async function planWorldAction<Turn, Review>(characterId: string, runtime: ConversationRuntime<Turn, Review>,
-  signal: AbortSignal = new AbortController().signal, history: readonly string[] = []): Promise<WorldActionPlan | undefined> {
+  signal: AbortSignal = new AbortController().signal, history: readonly string[] = [], feedback?: PlanningFeedback): Promise<WorldActionPlan | undefined> {
   signal.throwIfAborted();
   const world = runtime.services.scenario.snapshot();
   if (history.length >= 24) throw new Error("NPC action limit reached.");
-  const context = await worldActionContext(world, characterId, history, runtime.services, signal);
+  const context = await worldActionContext(world, characterId, history, runtime.services, signal, feedback);
   signal.throwIfAborted();
   if (!context) return;
   const result = await runAction(context, runtime, signal);

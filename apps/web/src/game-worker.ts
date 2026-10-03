@@ -193,20 +193,22 @@ async function runBackground(next: { id: string; handoffs: number }) {
             try {
               if (target === (game.view().player as { id?: string } | null)?.id) {
                 if (conversationHolds.size) continue;
-                await game.initiatePlayerConversation(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
+                const opening = await game.initiatePlayerConversation(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
+                if (!opening.ok) { conflict = opening; continue; }
                 if (!valid()) return;
                 if (conversationHolds.size) continue;
                 conversationHolds.add(id);
                 publishNpc(`${id}: started a conversation with you.`, undefined, id);
                 return;
               }
-              const summary = await game.executeNpcTalk(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
-              scheduleWorldEvent(game, game.worldEvent("having a conversation", summary, [id, target]), handoffs);
+              const conversation = await game.executeNpcTalk(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
+              if (!conversation.ok) { conflict = conversation; continue; }
+              scheduleWorldEvent(game, game.worldEvent("having a conversation", conversation.text, [id, target]), handoffs);
             } finally {
               job.participants = [id];
               if (valid() && interrupted) startBackground(target, handoffs);
               drainBackground();
-              if (valid()) publishNpc(`${id}: conversation finished.`);
+              if (valid()) publishNpc(conflict ? `${id}: conversation changed; choosing again.` : `${id}: conversation finished.`);
             }
             if (!valid()) return;
             if (handoffs > 0 && game.snapshot().npcActivities?.[target]?.status === "active") startBackground(target, handoffs - 1);
