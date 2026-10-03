@@ -1,0 +1,31 @@
+syntax = "proto3";
+
+package kingmaker.v2;
+
+import "google/protobuf/struct.proto";
+import "kingmaker/v1/game.proto";
+
+// A document reference, resolved without loading the target's contents.
+message DocumentLink {
+  string target = 1;
+  // Original Markdown destination, including any heading fragment.
+  string source = 2;
+}
+
+// Mutable playthrough lore. Frontmatter includes the authored access metadata.
+message Document {
+  google.protobuf.Struct frontmatter = 1;
+  string body = 2;
+  // Derived from body; rebuild after editing Markdown links.
+  repeated DocumentLink links = 3;
+}
+
+// Authoritative GM state, not a character prompt or a grant to read every doc.
+message WorldState {
+  // Keys and references are case-sensitive, vault-relative Markdown paths.
+  map<string, Document> docs = 1;
+  repeated string characters = 2;
+  string scenario = 3;
+  // Preserve the existing physical simulation state without changing its schema.
+  kingmaker.v1.WorldState map = 4;
+}
