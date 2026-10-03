@@ -9,4 +9,6 @@ Author navigation index. Agent context starts at `scenario.md` or `character.md`
 - [[Scenarios/Centennial Assembly/Characters/cressida/conversation|conversation]]
 - [[Scenarios/Centennial Assembly/Characters/cressida/situation|situation]]
 
+- [properties.json](properties.json) — scenario starting stats and equipment.
+
 Parent: [[Scenarios/Centennial Assembly/Characters/index|Characters]].
