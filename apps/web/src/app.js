@@ -178,15 +178,26 @@ function updatePlayerFeed() {
   if (!feed) return;
   const messages = state.playerMessages || [];
   const now = Date.now();
-  feed.innerHTML = `<h2>What you hear</h2>${messages.length
-    ? `<ol>${[...messages].reverse().map(entry => {
-      const parsedCreatedAt = Date.parse(entry.createdAt || "");
-      if (!playerMessageReceivedAt.has(entry.id)) playerMessageReceivedAt.set(entry.id, now);
-      const timestamp = Number.isNaN(parsedCreatedAt) ? playerMessageReceivedAt.get(entry.id) : parsedCreatedAt;
-      const exactTime = Number.isNaN(parsedCreatedAt) ? "Received since opening this game" : new Date(parsedCreatedAt).toLocaleString();
-      return `<li><time class="eyebrow" datetime="${escapeHtml(entry.createdAt || "")}" title="${escapeHtml(exactTime)}">${formatElapsedTime(timestamp, now)}</time><p>${escapeHtml(entry.message)}</p></li>`;
-    }).join("")}</ol>`
-    : `<p class="feed-empty">Word from the court will appear here.</p>`}`;
+  const signature = JSON.stringify(messages);
+  if (feed.dataset.messages !== signature) {
+    const previousTop = feed.scrollTop, previousHeight = feed.scrollHeight;
+    feed.innerHTML = `<h2 id="player-feed-title">What you notice</h2>${messages.length
+      ? `<ol>${[...messages].reverse().map(entry => {
+        const parsedCreatedAt = Date.parse(entry.createdAt || "");
+        if (!playerMessageReceivedAt.has(entry.id)) playerMessageReceivedAt.set(entry.id, now);
+        const timestamp = Number.isNaN(parsedCreatedAt) ? playerMessageReceivedAt.get(entry.id) : parsedCreatedAt;
+        const exactTime = Number.isNaN(parsedCreatedAt) ? "Received since opening this game" : new Date(parsedCreatedAt).toLocaleString();
+        return `<li><time class="eyebrow" data-received-at="${timestamp}" datetime="${escapeHtml(entry.createdAt || "")}" title="${escapeHtml(exactTime)}">${formatElapsedTime(timestamp, now)}</time><p>${escapeHtml(entry.message)}</p></li>`;
+      }).join("")}</ol>`
+      : `<p class="feed-empty">What you see and hear will appear here.</p>`}`;
+    feed.dataset.messages = signature;
+    // Keep older entries in view while new events arrive above them.
+    if (previousTop > 0) feed.scrollTop = previousTop + feed.scrollHeight - previousHeight;
+  }
+  for (const time of feed.querySelectorAll("[data-received-at]")) {
+    const label = formatElapsedTime(Number(time.dataset.receivedAt), now);
+    if (time.textContent !== label) time.textContent = label;
+  }
 }
 globalThis.setInterval?.(updatePlayerFeed, 1000);
 
@@ -270,11 +281,9 @@ function shell(content, inCourt = false) {
     const popover = (id, title, body) => `<aside id="${id}" class="court-popover" popover aria-label="${title}"><button class="popover-close" popovertarget="${id}" popovertargetaction="hide" aria-label="Close ${title}">×</button>${body}</aside>`;
     return `<div class="court-shell">${content}<nav class="court-toolbar" aria-label="Game controls">
       <button popovertarget="court-menu">☰ <span>Menu</span></button>
-      <button popovertarget="court-messages">Messages</button>
       ${sheetButton}<button class="debug-button" data-debug-open aria-label="Open debug inspector">⌘ <span>Debug</span></button>
-    </nav></div>
+    </nav><aside class="player-event-feed" data-player-feed aria-labelledby="player-feed-title" tabindex="0"></aside></div>
     ${popover("court-menu", "Game menu", `<div class="eyebrow">Palace of Caerwyn</div><h2>Kingmaker</h2><p>Welcome to court, ${escapeHtml(state.player?.name || "Emissary")}.</p><p>Left-click to walk. Right-click characters and objects for actions.</p><div class="court-menu-controls">${gameControls}${keyControl}</div><p class="map-credit">Tiny Dungeon tiles by Kenney · CC0</p>`)}
-    ${popover("court-messages", "Messages", '<div class="player-event-feed" data-player-feed></div>')}
     ${sheet}${debugInspector()}`;
   }
   return `${state ? `<button class="debug-button" data-debug-open aria-label="Open debug inspector">⌘ <span>Debug</span></button>` : ""}${sheetButton}<div class="shell"><header class="masthead"><div class="eyebrow">An improvised political cRPG</div><h1>Kingmaker</h1><div class="rule"></div><p class="subtitle">Four kingdoms. A century’s mandate. A peace coming undone.</p></header>${content}<div class="footer">${gameControls}${keyControl}</div></div>${sheet}${debugInspector()}`;
@@ -513,12 +522,18 @@ function renderDay(bindPage = true) {
   const retainedMap = previousMap?.dataset.generation === String(gameViewGeneration) ? previousMap : null;
   const viewport = retainedMap?.querySelector(".court-map-scroll");
   const scroll = viewport && { left: viewport.scrollLeft, top: viewport.scrollTop };
+  const previousFeed = retainedMap && app.querySelector("[data-player-feed]");
+  const feedScroll = previousFeed?.scrollTop;
   const openPopover = app.querySelector(".court-popover:popover-open")?.id;
   app.innerHTML = shell(`<section class="court-panel" aria-label="Palace of Caerwyn"><div data-court-map></div><p class="status ${notice.startsWith("Error") ? "error" : ""}" data-court-notice role="status">${escapeHtml(notice)}</p></section>`, true);
   if (retainedMap) {
     app.querySelector("[data-court-map]").replaceWith(retainedMap);
     viewport?.scrollTo(scroll);
     updateCourtMap(retainedMap, { ...state, disabled: busy });
+  }
+  if (previousFeed) {
+    app.querySelector("[data-player-feed]").replaceWith(previousFeed);
+    previousFeed.scrollTop = feedScroll;
   }
   if (openPopover && !activeCharacter && !sheetOpen && !debugOpen) document.getElementById(openPopover)?.showPopover();
   updatePlayerFeed();
