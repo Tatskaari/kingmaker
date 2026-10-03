@@ -54,6 +54,7 @@ export class WorldGameRuntime extends WorldHost {
     const random = { integer: (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1)), ...this.options.services?.random, ...extra.services?.random };
     const ai = { ...this.provider, ...this.options.services?.ai, ...extra.services?.ai };
     const scenario = {
+      setPlayer: (path: string) => this.commit(() => this.documents.scenario.setPlayer(path), signal, persist),
       info: () => this.documents.scenario.info(), snapshot: () => this.documents.scenario.snapshot(),
       getDocument: (path: string) => this.documents.scenario.getDocument(path),
       ...this.options.services?.scenario, ...extra.services?.scenario,
@@ -79,7 +80,7 @@ export class WorldGameRuntime extends WorldHost {
         delete: (...args) => this.commit(() => this.documents.docs.delete(...args), signal, persist),
         ...this.options.services?.docs, ...extra.services?.docs,
       },
-      character: { rollCheck: checkMechanics(world.player ? world.docs[world.player]?.characterProperties?.dnd : undefined,
+      character: { create: input => this.commit(() => this.documents.character.create(input), signal, persist), rollCheck: checkMechanics(world.player ? world.docs[world.player]?.characterProperties?.dnd : undefined,
         () => random.integer(1, 20)), ...this.options.services?.character, ...extra.services?.character },
       map: { ...this.map, ...this.options.services?.map, ...extra.services?.map },
       ai: { ...traced, responses: retryResponses(traced.responses) },

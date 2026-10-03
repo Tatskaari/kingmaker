@@ -1,7 +1,7 @@
 import { clone, fromJson, toJson, type JsonObject } from "@bufbuild/protobuf";
 import { stringify } from "yaml";
 import { DocumentSchema, WorldStateSchema, type Document, type WorldState, type CharacterProperties } from "../../contracts/src/v2.js";
-import { WorldStateSchema as MapSchema, type WorldState as MapState } from "../../contracts/src/index.js";
+import { ActorStateSchema, WorldStateSchema as MapSchema, type ActorState, type WorldState as MapState } from "../../contracts/src/index.js";
 import { parseMarkdown } from "./markdown.js";
 import { refreshDocumentGraph } from "./world-state.js";
 
@@ -16,9 +16,21 @@ export interface DocumentSnapshot {
 export interface MechanicsStateService {
   commit(map: MapState, properties: Readonly<Record<string, CharacterProperties>>): void;
 }
+export interface CharacterCreation {
+  id: string;
+  path: string;
+  text: string;
+  properties: CharacterProperties;
+  /** Supply a new actor, or omit to retain an authored position. */
+  actor?: ActorState;
+}
+export interface CharacterCreationService {
+  create(input: CharacterCreation): Promise<void>;
+}
 export interface ScenarioInfo { scenario: string; scenarioIndex: string; player?: string; characters: string[] }
 export interface ScenarioService {
   info(): ScenarioInfo;
+  setPlayer(path: string): Promise<void>;
   snapshot(): WorldState;
   getDocument(path: string): Promise<DocumentSnapshot>;
 }
@@ -52,7 +64,7 @@ async function snapshot(path: string, document: Document): Promise<DocumentSnaps
 }
 
 /** Both interfaces share one owned state. No filesystem, model calls or presentation dependencies. */
-export function createScenarioServices(initial: WorldState): { scenario: ScenarioService; docs: DocsService; mechanics: MechanicsStateService } {
+export function createScenarioServices(initial: WorldState): { scenario: ScenarioService; docs: DocsService; mechanics: MechanicsStateService; character: CharacterCreationService } {
   let state = refreshDocumentGraph(clone(WorldStateSchema, initial));
   let writes: Promise<unknown> = Promise.resolve();
   // Serialize asynchronous hash checks and commits; rejection must not poison subsequent writes.
@@ -126,7 +138,32 @@ export function createScenarioServices(initial: WorldState): { scenario: Scenari
       state = draft;
     }),
   };
-  return { docs, mechanics: {
+  return { docs, character: {
+    create: input => write(async () => {
+      if (!/^[a-z][a-z0-9_-]*$/.test(input.id)) throw new Error("Invalid character ID.");
+      if (Object.hasOwn(state.docs, input.path)) throw new Error("Character document already exists.");
+      const prefix = state.scenario.slice(0, state.scenario.lastIndexOf("/") + 1);
+      if (input.id !== "player" && input.path !== `${prefix}Characters/${input.id}/character.md`) {
+        throw new Error("NPC entry must use its scenario character path.");
+      }
+      if (input.id === "player" && (state.player || input.path !== "Players/player.md")) throw new Error("Invalid or existing player character.");
+      const existing = state.map?.actors.find(actor => actor.characterId === input.id);
+      if (!state.map || (!existing && !input.actor)) throw new Error("A character needs a map actor.");
+      if (input.actor && (existing || input.actor.characterId !== input.id
+        || !state.map.rooms.some(room => room.id === input.actor!.roomId) || !input.actor.position)) {
+        throw new Error("Invalid or duplicate character actor.");
+      }
+      const parsed = parseMarkdown(input.text);
+      if (parsed.error) throw new Error(parsed.error);
+      const draft = clone(WorldStateSchema, state);
+      draft.docs[input.path] = fromJson(DocumentSchema, { body: parsed.body, frontmatter: parsed.metadata as JsonObject });
+      draft.docs[input.path]!.characterProperties = structuredClone(input.properties);
+      if (input.actor) draft.map!.actors.push(clone(ActorStateSchema, input.actor));
+      if (input.id !== "player") draft.docs[draft.scenario]!.body += `\n- [[${input.path}]]\n`;
+      draft.map!.revision++;
+      state = refreshDocumentGraph(draft);
+    }),
+  }, mechanics: {
     commit(map, properties) {
       const draft = clone(WorldStateSchema, state);
       draft.map = clone(MapSchema, map);
@@ -140,5 +177,12 @@ export function createScenarioServices(initial: WorldState): { scenario: Scenari
     info: () => ({ scenario: state.scenario, scenarioIndex: state.scenarioIndex, ...(state.player === undefined ? {} : { player: state.player }), characters: [...state.characters] }),
     snapshot: () => clone(WorldStateSchema, state),
     getDocument: read,
+    setPlayer: path => write(async () => {
+      if (state.player) throw new Error("The player already exists.");
+      if (!state.docs[path]?.characterProperties || state.characters.includes(path)) throw new Error("Expected a created player character document.");
+      const draft = clone(WorldStateSchema, state);
+      draft.player = path;
+      state = refreshDocumentGraph(draft);
+    }),
   } };
 }
