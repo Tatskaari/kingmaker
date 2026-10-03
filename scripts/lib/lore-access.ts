@@ -28,7 +28,8 @@ export function auditLore(root: string, entry: string, audience: Audience): Find
   if (entry.split("/").some(part => part === "." || part === "..") || !/^Scenarios\/.+\/Characters\/[^/]+\/character\.md$/.test(entry)
     || path.posix.basename(path.posix.dirname(entry)) !== audience.character) throw new Error("Entry must be this character's Scenarios/.../Characters/<id>/character.md");
   try {
-    audience = { ...audience, labels: [...(audience.labels ?? []), ...labels(notes.get(entry)?.metadata.labels)] };
+    audience = { ...audience, labels: [...(audience.labels ?? []), ...labels(notes.get(entry)?.metadata.labels)],
+      factions: [...(audience.factions ?? []), ...labels(notes.get(entry)?.metadata.factions)] };
   } catch (error) {
     return [{ kind: "invalid", trail: [entry], detail: String(error) }];
   }

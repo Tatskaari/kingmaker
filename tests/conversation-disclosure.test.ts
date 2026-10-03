@@ -207,3 +207,15 @@ test("forbidden or malformed summaries never reach Jev and previews count toward
   await assert.rejects(oversized.disclose(input, new AbortController().signal, () => {}), /context limit/);
   assert.equal(calls, 0);
 });
+
+test("filesystem disclosure derives factions from the character entry only", t => {
+  const { root, folder, write } = fixture(t);
+  write(`${folder}/character.md`, "---\nfactions: [nine-furrows]\n---\n[[Cast/Caerwyn/Corvin/private|Identity]]\n[[Academic]]");
+  write("Academic.md", "---\nvisibility: private\nreaders: ['faction:nine-furrows']\nsummary: Academic history.\n---\nACADEMIC_FACT");
+  const member = loadCharacterLore(root, "Demo", "corvin");
+  assert.equal(member.candidates(member.initial)[0]?.summary, "Academic history.");
+  write(`${folder}/character.md`, "[[Cast/Caerwyn/Corvin/private|Identity]]\n[[Academic]]");
+  write("Cast/Caerwyn/Corvin/private.md", "---\nvisibility: private\nreaders: ['character:corvin']\nfactions: [nine-furrows]\n---\nCORVIN_IDENTITY");
+  const outsider = loadCharacterLore(root, "Demo", "corvin");
+  assert.throws(() => outsider.candidates(outsider.initial), /No read access/);
+});

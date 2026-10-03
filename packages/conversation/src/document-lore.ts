@@ -10,6 +10,7 @@ export async function documentLore(scenario: ScenarioService, characterId: strin
   const allowed = (path: string, document: { body: string; frontmatter?: Record<string, unknown> | undefined }) => {
     if (!permitted(path, { body: document.body, metadata: document.frontmatter ?? {} }, entry, {
       character: characterId, labels: labels(scenario.snapshot().docs[entry]?.frontmatter?.labels),
+      factions: labels(scenario.snapshot().docs[entry]?.frontmatter?.factions),
     })) {
       throw new Error(`No read access: ${path}`);
     }

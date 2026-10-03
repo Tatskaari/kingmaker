@@ -140,3 +140,17 @@ test("nested, unprefixed and malformed readers fail closed even with a valid gra
     }
   }
 });
+
+test("authored entry factions grant access without inheriting membership from retrieved notes", t => {
+  const root = fixture(t, {
+    [entry]: "---\nfactions: [nine-furrows]\n---\n[[Academic]]",
+    "Academic.md": "---\nvisibility: private\nreaders: ['faction:nine-furrows']\nfactions: [caerwyn]\n---\n[[Royal]] [[GM]]",
+    "Royal.md": "---\nvisibility: private\nreaders: ['faction:caerwyn']\n---\n",
+    "GM.md": "---\nvisibility: gm\nreaders: ['faction:nine-furrows']\n---\n",
+  });
+  assert.deepEqual(auditLore(root, entry, { character: "aldren" }).map(finding => finding.trail.at(-1)), ["Royal.md", "GM.md"]);
+  for (const value of ["nine-furrows", "[42]", "null"]) {
+    writeFileSync(path.join(root, entry), `---\nfactions: ${value}\n---\n[[Academic]]`);
+    assert.equal(auditLore(root, entry, { character: "aldren" })[0]?.kind, "invalid");
+  }
+});
