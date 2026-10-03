@@ -2365,8 +2365,8 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
   await t.test("dice acknowledgement gates the turn, ignores unrelated acknowledgements and cancels on game replacement", async t => {
     await request("create_development_game");
     let resumed = false;
-    t.mock.method(BrowserGameRuntime.prototype, "checkedTalkToCharacter", async (_id: string, _message: string, _thinking: unknown, present: import("../apps/web/src/conversation-rolls.js").PresentRoll) => {
-      await present!({ skill: "persuasion", dc: 15, modifier: 3, roll: 12, total: 15, margin: 0, degree: "barely_passes" as any, success: true });
+    t.mock.method(BrowserGameRuntime.prototype, "checkedTalkToCharacter", async (_id: string, _message: string, _thinking: unknown, options: import("../packages/conversation/src/runtime.js").ConversationRuntimeOptions) => {
+      await options.services!.presentation!.showRoll!({ characterId: "player", skill: "persuasion", difficulty: { dc: 15 }, dc: 15, modifier: 3, natural: 12, total: 15, outcome: "barely_passes" as any, success: true }, new AbortController().signal);
       resumed = true; return "Agreed.";
     });
     const talking = request("talk", { characterId: "corvin", message: "Help me." });

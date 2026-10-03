@@ -81,7 +81,7 @@ gameWorker.addEventListener("message", event => {
     if (!["talk", "end_conversation"].includes(pending?.type) || pending.generation !== gameViewGeneration || pending.characterId !== characterId) {
       acknowledge(false); return;
     }
-    void showDiceRoll({ ...result, label: result.skill.replaceAll("_", " ") })
+    void showDiceRoll({ roll: result.natural, dc: result.dc, modifier: result.modifier, label: result.skill.replaceAll("_", " ") })
       .then(acknowledge, () => acknowledge(false));
     return;
   }

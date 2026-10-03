@@ -1,10 +1,14 @@
 # Conversation hooks and services
 
-Status: service scaffolding implemented; conversation flow remains a proposal.
+Status: conversation phase runner and host wiring implemented; the new dice
+strategy below remains a proposal.
 The compiled interfaces live in `packages/conversation/src/services.ts`, with the
-constructor in `packages/conversation/src/runtime.ts`. No existing caller uses
-this runtime yet. Every default operation throws `UnimplementedServiceError`;
-individual methods can be supplied during construction as they are implemented.
+constructor in `packages/conversation/src/runtime.ts`. The CLI, browser and
+headless player conversation paths use `runConversation` from `phases.ts`.
+Unprovided service operations throw `UnimplementedServiceError`; each host supplies
+only the methods it needs. The CLI provides disclosure hooks and the browser and
+headless game provide hooks around their existing check policy. The rest of the
+game runtime is not migrated to these services.
 
 ```ts
 const runtime = new ConversationRuntime({
@@ -208,6 +212,9 @@ rendering or randomness. Headless checks should exercise the same classify,
 resolve and respond loop, including recursive disclosure, shared labels, deferred
 checks, deterministic rolls, selected system messages and cancellation. The RHS
 should expose classification results, all prepared GM directions, the roll result
-and the exact selected message. Those flow changes are not implemented by the
-service scaffolding; no provider, mechanics or presentation implementation is
-installed by default, including in headless mode.
+and the exact selected message. The proposed category-based difficulty selection
+and parallel preparation of GM outcomes are not implemented yet. Browser and
+headless check hooks preserve the existing numeric DC and post-roll ruling policy;
+`RollResult.difficulty` also accepts `{ dc: number }` to describe those rolls
+accurately. Browser presentation waits for acknowledgement; headless presentation
+completes immediately.
