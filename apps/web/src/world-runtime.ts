@@ -25,7 +25,7 @@ import { DisclosureSession } from "../../../packages/conversation/src/disclosure
 import { checkMechanics } from "../../../packages/conversation/src/checks.js";
 import { cliHooks } from "../../../packages/conversation/src/cli-hooks.js";
 import { aiService } from "../../../packages/conversation/src/adapters.js";
-import { OpenRouterClient } from "../../../packages/providers/src/openrouter.js";
+import { OpenRouterClient, type TextProgress } from "../../../packages/providers/src/openrouter.js";
 import { JevClient } from "../../../packages/providers/src/jev.js";
 import type { AiService } from "../../../packages/conversation/src/services.js";
 import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
@@ -108,10 +108,10 @@ export class WorldGameRuntime extends WorldHost {
     if (this.world().player || this.activity.stranger?.draft) throw new Error("Character creation is already complete.");
     this.activity.stranger ??= beginStranger(this.world());
   }
-  async talkToGameMaster(message: string) {
+  async talkToGameMaster(message: string, onText?: TextProgress) {
     if (!this.activity.stranger) throw new Error("Meet the Stranger first.");
     const before = this.activity.stranger;
-    const next = await strangerTurn(before, message, this.documents.scenario, this.runtime("gm", "game_master").services);
+    const next = await strangerTurn(before, message, this.documents.scenario, this.runtime("gm", "game_master").services, undefined, onText);
     if (this.activity.stranger !== before) throw new Error("The interview changed; retry your reply.");
     this.activity.stranger = next;
     return next.history.at(-1)?.content ?? "";
@@ -182,7 +182,7 @@ export class WorldGameRuntime extends WorldHost {
     }
     return key;
   }
-  async checkedTalkToCharacter(id: string, message: string, thinking?: (text: string) => void, options: WorldOptions = {}, signal = new AbortController().signal) {
+  async checkedTalkToCharacter(id: string, message: string, thinking?: (text: string) => void, options: WorldOptions = {}, signal = new AbortController().signal, onText?: TextProgress) {
     const persist = this.persistChange;
     this.assertPlayerFree();
     if (!message.trim()) throw new Error("Say something first.");
@@ -196,7 +196,7 @@ export class WorldGameRuntime extends WorldHost {
       async (_check, cancellation) => { cancellation.throwIfAborted(); return runtime.services.random.integer(1, 20); },
       () => {}, () => {}, runtime.services.presentation, runtime.services.character);
     runtime.hooks.conversation = options.hooks?.conversation ?? this.options.hooks?.conversation ?? hooks;
-    runtime.services.character.respond = runtime.services.ai.responses;
+    runtime.services.character.respond = (request, cancellation) => runtime.services.ai.responses(request, cancellation, onText ? { onText } : undefined);
     const transcript = previous.map(turn => fromJson(TranscriptMessageSchema, turn));
     const request = conversationRequest({ snapshot: { world }, characterId: id, sources: lore.initial, transcript, message });
     thinking?.("Considering your words…");

@@ -5,7 +5,7 @@ import type { AiService, LoreService } from "./services.js";
 import { retryResponses } from "./ai.js";
 
 export function aiService(responses: Pick<OpenRouterClient, "complete">, decisions: Pick<JevClient, "evaluate">, retry = true): AiService {
-  const respond: AiService["responses"] = (request, signal) => responses.complete(request, signal);
+  const respond: AiService["responses"] = (request, signal, info) => responses.complete(request, signal, undefined, info?.onText);
   return {
     responses: retry ? retryResponses(respond) : respond,
     decisions: (state, questions, signal) => decisions.evaluate(state, questions, signal),

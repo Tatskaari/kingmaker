@@ -4,11 +4,11 @@ import type { CharacterCreationService, DocsService, ScenarioService } from "../
 import type { CheckDegree, CheckSkill, skillAbilities } from "../../core/src/ability-checks.js";
 import type { PortraitExpression } from "../../providers/src/conversation-expression.js";
 import type { JevChoice, JevQuestions } from "../../providers/src/jev.js";
-import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/src/openrouter.js";
+import type { ChatCompletionRequest, OpenRouterMessage, TextProgress } from "../../providers/src/openrouter.js";
 import type { CharacterSources, LoreDocument } from "./conversation.js";
 import type { LoreLink } from "./lore.js";
 
-export interface AiRequestInfo { characterId?: string; purpose?: "gm_consultation" | "dialogue" }
+export interface AiRequestInfo { characterId?: string; purpose?: "gm_consultation" | "dialogue"; onText?: TextProgress }
 export interface DecisionRequestInfo {
   characterId?: string;
   disclosure?: { threshold: number; candidates: (LoreLink & { id: string })[] };

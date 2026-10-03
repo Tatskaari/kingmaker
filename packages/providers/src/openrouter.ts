@@ -3,6 +3,8 @@ import { recoverRateLimit } from "./rate-limit.js";
 import { serverSentData } from "./sse.js";
 
 export type OpenRouterRole = "system" | "user" | "assistant" | "tool";
+/** Provisional visible text, replaced on every update and cleared on retry/failure. */
+export type TextProgress = (text: string) => void;
 
 export interface OpenRouterToolCall {
   id: string;
@@ -57,12 +59,17 @@ export class OpenRouterClient {
     private readonly onWarning: (message: string) => void = () => {},
   ) {}
 
-  async complete(request: ChatCompletionRequest, signal?: AbortSignal, operation = "chat completion"): Promise<OpenRouterMessage> {
-    return logDecision(request.api === "responses" ? "openrouter.responses" : "openrouter.chat", request, this.apiKey,
-      () => this.#complete(request, signal), operation);
+  async complete(request: ChatCompletionRequest, signal?: AbortSignal, operation = "chat completion", onText?: TextProgress): Promise<OpenRouterMessage> {
+    onText?.("");
+    try {
+      const message = await logDecision(request.api === "responses" ? "openrouter.responses" : "openrouter.chat", request, this.apiKey,
+        () => this.#complete(request, signal, onText), operation);
+      onText?.(message.content ?? "");
+      return message;
+    } catch (error) { onText?.(""); throw error; }
   }
 
-  async #complete(request: ChatCompletionRequest, signal?: AbortSignal): Promise<OpenRouterMessage> {
+  async #complete(request: ChatCompletionRequest, signal?: AbortSignal, onText?: TextProgress): Promise<OpenRouterMessage> {
     let combined: AbortSignal;
     const useResponses = request.api === "responses";
     const response = await recoverRateLimit(() => {
@@ -83,7 +90,7 @@ export class OpenRouterClient {
     let body: ChatCompletionResponse & ResponsesResult;
     try {
       body = response.ok && response.headers.get("content-type")?.includes("text/event-stream")
-        ? await streamedResponse(response, useResponses, combined!)
+        ? await streamedResponse(response, useResponses, combined!, onText)
         : await response.json() as ChatCompletionResponse & ResponsesResult;
     }
     catch (error) {
@@ -114,6 +121,9 @@ interface ResponsesResult {
 
 interface StreamEvent {
   type?: string;
+  output_index?: number;
+  item?: { type?: string; phase?: string };
+  delta?: string;
   error?: { message?: string; code?: string | number };
   message?: string;
   response?: ResponsesResult & { error?: { message?: string } };
@@ -128,9 +138,10 @@ interface StreamEvent {
 }
 
 /** Buffer structured output until the protocol confirms it is complete. */
-async function streamedResponse(response: Response, useResponses: boolean, signal: AbortSignal): Promise<ChatCompletionResponse & ResponsesResult> {
+async function streamedResponse(response: Response, useResponses: boolean, signal: AbortSignal, onText?: TextProgress): Promise<ChatCompletionResponse & ResponsesResult> {
   let content = "", finished = false;
   const calls = new Map<number, OpenRouterToolCall>();
+  const messages = new Map<number, { phase?: string; text: string }>();
   for await (const data of serverSentData(response, signal)) {
     if (data === "[DONE]") {
       if (useResponses || !finished) break;
@@ -149,6 +160,18 @@ async function streamedResponse(response: Response, useResponses: boolean, signa
       throw new ProviderResponseError(`OpenRouter stream failed: ${detail}`, ![400, 401, 402, 403, 404, 422].includes(code));
     }
     if (useResponses) {
+      if (event.type === "response.output_item.added" && event.item?.type === "message" && event.output_index !== undefined) {
+        messages.set(event.output_index, { ...(event.item.phase ? { phase: event.item.phase } : {}), text: "" });
+      }
+      if (event.type === "response.output_text.delta" && typeof event.delta === "string" && event.output_index !== undefined) {
+        const message = messages.get(event.output_index);
+        if (message) {
+          message.text += event.delta;
+          const final = [...messages.values()].some(item => item.phase === "final_answer");
+          onText?.([...messages.entries()].sort(([a], [b]) => a - b).map(([, item]) => item)
+            .filter(item => final ? item.phase === "final_answer" : item.phase == null).map(item => item.text).join("\n"));
+        }
+      }
       if (event.type === "response.completed" || event.type === "response.incomplete") {
         if (!event.response) throw new ProviderResponseError("OpenRouter stream omitted its final response.", true);
         // The terminal snapshot preserves phases, full tool arguments and encrypted reasoning.
@@ -163,6 +186,7 @@ async function streamedResponse(response: Response, useResponses: boolean, signa
     if (choice.finish_reason === "content_filter") throw new ProviderResponseError("OpenRouter response was blocked by a content filter.", false);
     if (choice.finish_reason) finished = true;
     content += choice.delta?.content ?? "";
+    if (choice.delta?.content) onText?.(content);
     for (const delta of choice.delta?.tool_calls ?? []) {
       if (!Number.isInteger(delta.index) || delta.index < 0 || (delta.type && delta.type !== "function")) {
         throw new ProviderResponseError("OpenRouter returned a malformed streamed tool call.", true);
