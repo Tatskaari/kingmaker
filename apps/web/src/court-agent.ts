@@ -1,3 +1,4 @@
+import { inventoryOwners } from "../../../packages/core/src/inventory.js";
 import type { Scenario } from "../../../packages/contracts/src/index.js";
 import { characterDecisionContext, worldForCharacter } from "../../../packages/core/src/context.js";
 import { fixtureActions, fixtureName } from "../../../packages/core/src/fixtures.js";
@@ -12,7 +13,7 @@ export function actionResourceIds(scenario: Scenario, characterId: string, actio
   if (action?.type === "talk") keys.push(`character:${action.target}`, `actor:${action.target}`);
   if (action?.type === "door") keys.push(`doorway:${action.target}`);
   if (action?.type === "fixture") {
-    const fixtureAction = fixtureActions(scenario, characterId).find(item => item.id === action.id);
+    const fixtureAction = fixtureActions(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), characterId).find(item => item.id === action.id);
     if (action.target !== characterId) keys.push(`fixture:${action.target}`, `inventory:${action.target}`);
     if (fixtureAction?.itemId) keys.push(`item:${fixtureAction.itemId}`);
   }

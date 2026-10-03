@@ -30,7 +30,7 @@ export interface MechanicalActivity {
   conversationEndRequested?: Record<string, boolean>;
 }
 function fixtureEventContext(scenario: Scenario, actorId: string, actionId: string) {
-  const action = fixtureActions(scenario, actorId).find(candidate => candidate.id === actionId);
+  const action = fixtureActions(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), actorId).find(candidate => candidate.id === actionId);
   if (!action || action.target === actorId) return { details: {} as EventDetails };
   const fixture = scenario.world?.fixtures.find(candidate => candidate.id === action.target);
   const item = findItem(inventoryOwners(scenario.characters, scenario.world), action.itemId ?? "");
@@ -155,7 +155,7 @@ export class PalaceMechanics {
     actor.roomId = courtRoomAt(destination)?.id ?? actor.roomId;
     let message = action.description;
     if (action.type === "door") world.doors.find(door => door.id === action.target)!.open = action.open!;
-    if (action.type === "fixture") message = applyFixtureAction(scenario, characterId, action.id);
+    if (action.type === "fixture") message = applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), characterId, action.id);
     world.revision++; this.#setScenario(scenario);
     activity.history.push(message);
     (activity.actionIds ??= []).push(action.id);
@@ -180,7 +180,7 @@ export class PalaceMechanics {
     const scenario = this.#scenario, world = scenario.world;
     if (world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter court before interacting with furniture.");
     const actorId = scenario.playerCharacterId!;
-    const action = fixtureActions(scenario, actorId).find(item => item.id === actionId);
+    const action = fixtureActions(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), actorId).find(item => item.id === actionId);
     this.#guardPhysical(["world:context", `actor:${actorId}`, `inventory:${actorId}`,
       ...(action && action.target !== actorId ? [`fixture:${action.target}`, `inventory:${action.target}`] : []),
       ...(action?.itemId ? [`item:${action.itemId}`] : [])], expected);
@@ -188,7 +188,7 @@ export class PalaceMechanics {
     const fixture = world.fixtures.find(item => item.id === action.target);
     const position = world.actors.find(actor => actor.characterId === actorId)?.position;
     if (action?.target === actorId && action.itemId) {
-      const result = applyFixtureAction(scenario, actorId, actionId);
+      const result = applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), actorId, actionId);
       world.revision++; this.#setScenario(scenario);
       return result;
     }
@@ -198,7 +198,7 @@ export class PalaceMechanics {
       : Math.abs(position.x - fixture.position.x) + Math.abs(position.y - fixture.position.y) !== 1) {
       throw new Error("Walk to the furniture's interaction spot first.");
     }
-    const result = applyFixtureAction(scenario, actorId, actionId);
+    const result = applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), actorId, actionId);
     world.revision++;
     this.#setScenario(scenario);
     return result;
@@ -247,7 +247,7 @@ export class PalaceMechanics {
       day: world?.day || 0,
       doors: world?.doors ?? [],
       fixtures: world ? worldForCharacter(scenario, scenario.playerCharacterId ?? "").fixtures : [],
-      fixtureActions: fixtureActions(scenario, scenario.playerCharacterId ?? ""),
+      fixtureActions: fixtureActions(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), scenario.playerCharacterId ?? ""),
       inventory: itemsFor(inventoryOwners(scenario.characters, scenario.world), scenario.playerCharacterId ?? "").map(({ id, name, details }) => ({ id, name, details })),
       roomAccess: world?.rooms.map(({ id, private: restricted, allowedCharacterIds }) => ({ id, private: restricted, allowedCharacterIds })) ?? [],
       location: world?.rooms.find(room => room.id === world.actors.find(actor => actor.characterId === player?.id)?.roomId)?.name || "Great Hall",

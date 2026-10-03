@@ -2775,11 +2775,11 @@ test("DM tools validate destinations, unique IDs, and participant scope before m
   assert.deepEqual(toJson(ScenarioSchema, scenario), before);
   assert.equal(cancelled.size, 0);
   applyReconciliationTool(scenario, ["corvin"], cancelled, "create_item", { ...missingProp, locationId: "palace_treasury_shelf" });
-  assert.ok(!fixtureActions(scenario, "corvin").some(a => a.id === "inspect_item_envoy_token"));
-  applyFixtureAction(scenario, "corvin", "open_palace_treasury_shelf");
-  assert.match(applyFixtureAction(scenario, "corvin", "inspect_item_envoy_token"), /brass token/);
-  applyFixtureAction(scenario, "corvin", "take_envoy_token");
-  assert.match(applyFixtureAction(scenario, "corvin", "inspect_item_envoy_token"), /brass token/);
+  assert.ok(!fixtureActions(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "corvin").some(a => a.id === "inspect_item_envoy_token"));
+  applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "corvin", "open_palace_treasury_shelf");
+  assert.match(applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "corvin", "inspect_item_envoy_token"), /brass token/);
+  applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "corvin", "take_envoy_token");
+  assert.match(applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "corvin", "inspect_item_envoy_token"), /brass token/);
 });
 
 test("NPC exchanges use the same DM tools and cancellation rules for both participants", async t => {

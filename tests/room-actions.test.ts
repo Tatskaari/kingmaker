@@ -1,3 +1,4 @@
+import { inventoryOwners } from "../packages/core/src/inventory.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -20,9 +21,9 @@ test("Sabine must visit and open her writing table to check the dispatch ledger"
   assert.ok(!roomAgentActions(scenario, "sabine").some(action => action.id === inspect));
   const open = roomAgentActions(scenario, "sabine").find(action => action.id === "open_furn_sabine_desk")!;
   assert.equal(open.legality, "normal");
-  applyFixtureAction(scenario, "sabine", open.id);
+  applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "sabine", open.id);
   assert.ok(roomAgentActions(scenario, "sabine").some(action => action.id === inspect));
-  assert.match(applyFixtureAction(scenario, "sabine", inspect), /no Grey Gull booking/);
+  assert.match(applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "sabine", inspect), /no Grey Gull booking/);
 });
 
 function place(scenario: Scenario, roomId: string) {
