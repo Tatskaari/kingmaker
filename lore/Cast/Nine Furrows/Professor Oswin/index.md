@@ -4,6 +4,8 @@ Author navigation only. Private notes belong to `oswin`; GM notes are never char
 
 ## In this folder
 
+- [[Cast/Nine Furrows/Professor Oswin/public|Public profile]] — common court knowledge, available to court-informed readers.
+
 - [[Cast/Nine Furrows/Professor Oswin/private|Private characterization]]
 - [[Cast/Nine Furrows/Professor Oswin/gm|GM-only truth and sources]]
 - [[Cast/Nine Furrows/Professor Oswin/knowledge/index|Knowledge of other cast members]]

@@ -4,6 +4,8 @@ Author navigation only. Private notes belong to `rowan`; GM notes are never char
 
 ## In this folder
 
+- [[Cast/Nine Furrows/Doctor Rowan Ash/public|Public profile]] — common court knowledge, available to court-informed readers.
+
 - [[Cast/Nine Furrows/Doctor Rowan Ash/private|Private characterization]]
 - [[Cast/Nine Furrows/Doctor Rowan Ash/gm|GM-only truth and sources]]
 - [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/index|Knowledge of other cast members]]
