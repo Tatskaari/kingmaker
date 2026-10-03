@@ -1,0 +1,77 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { TranscriptRole } from "../packages/contracts/src/index.js";
+import { WorldHeadlessGame } from "../packages/headless/src/world.js";
+import type { WorldOptions } from "../apps/web/src/world-runtime.js";
+import { loadPlayableWorld } from "./fixtures.js";
+
+function fixture(failure?: "classify" | "resolve" | "respond" | "cancel") {
+  const order: string[] = [];
+  const controller = new AbortController();
+  const options: WorldOptions = {
+    hooks: {
+      conversation: {
+        classify: async (_context, signal) => {
+          order.push("classify");
+          assert.equal(signal, controller.signal);
+          if (failure === "classify") throw new Error("Classification failed");
+          if (failure === "cancel") controller.abort(new Error("Cancelled"));
+          return { docs: {} as never, checks: undefined };
+        },
+        resolve: async context => {
+          order.push("resolve");
+          if (failure === "resolve") throw new Error("Resolution failed");
+          context.request.messages.push({ role: "system", content: "# Binding DM ruling\nThe persuasion failed." });
+          return { reclassify: false };
+        },
+      },
+      review: {
+        resolve: async context => {
+          order.push("review");
+          assert.deepEqual(context.transcript.map(turn => [turn.role, turn.text]), [
+            [TranscriptRole.PLAYER, "Please help me. Goodbye."],
+            [TranscriptRole.GAME_MASTER, "# Binding DM ruling\nThe persuasion failed."],
+            [TranscriptRole.CHARACTER, "I refuse. Farewell."],
+          ]);
+          return { summary: "Refused" };
+        },
+      },
+    },
+    services: { character: { respond: async request => {
+      order.push("respond");
+      if (failure === "respond") throw new Error("Response failed");
+      assert.equal(request.messages.at(-1)?.content, "# Binding DM ruling\nThe persuasion failed.");
+      return { role: "assistant", content: "I refuse. Farewell." };
+    } } },
+  };
+  return { live: new WorldHeadlessGame(loadPlayableWorld(), "", options), order, controller };
+}
+
+test("v2 headless final messages are checked and answered before review, including after load", async () => {
+  const { live, order, controller } = fixture();
+  live.load(live.snapshot());
+  const event = await live.endConversation("rowan", "Please help me. Goodbye.", controller.signal);
+  assert.deepEqual(order, ["classify", "resolve", "respond", "review"]);
+  assert.ok(event);
+  assert.equal(live.snapshot().conversations.rowan, undefined);
+});
+
+for (const failure of ["classify", "resolve", "respond", "cancel"] as const) {
+  test(`v2 headless final-message ${failure} failure prevents review and transcript changes`, async () => {
+    const { live, order, controller } = fixture(failure);
+    const before = live.snapshot().conversations;
+    await assert.rejects(live.endConversation("rowan", "Please help me. Goodbye.", controller.signal),
+      /Classification failed|Resolution failed|Response failed|Cancelled/);
+    assert.ok(order.includes("classify"));
+    assert.ok(!order.includes("review"));
+    assert.deepEqual(live.snapshot().conversations, before);
+  });
+}
+
+test("v2 headless review without a final message does not generate another turn", async () => {
+  const { live, order, controller } = fixture();
+  await live.runtime.checkedTalkToCharacter("rowan", "Please help me. Goodbye.", undefined, {}, controller.signal);
+  order.length = 0;
+  await live.endConversation("rowan", undefined, controller.signal);
+  assert.deepEqual(order, ["review"]);
+});
