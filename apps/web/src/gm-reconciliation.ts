@@ -1,4 +1,4 @@
-import { inventoryFor, locatedItems } from "../../../packages/core/src/inventory.js";
+import { inventoryOwners, inventoryFor, locatedItems } from "../../../packages/core/src/inventory.js";
 import { create } from "@bufbuild/protobuf";
 import { ItemInstanceSchema, type Scenario } from "../../../packages/contracts/src/index.js";
 import type { OpenRouterTool } from "../../../packages/providers/src/openrouter.js";
@@ -37,10 +37,10 @@ export function applyReconciliationTool(scenario: Scenario, participants: readon
   const world = scenario.world!;
   const id = field(input, "id", 100), name_ = field(input, "name", 200), locationId = field(input, "locationId", 100), details = field(input, "details");
   if (!/^[a-z][a-z0-9_]*$/.test(id)) throw new Error("Use a lowercase snake_case item ID.");
-  if ([...locatedItems(scenario), ...world.fixtures, ...world.rooms, ...scenario.characters].some(item => item.id === id)) throw new Error("That ID already exists. Use the existing item instead.");
+  if ([...locatedItems(inventoryOwners(scenario.characters, scenario.world)), ...world.fixtures, ...world.rooms, ...scenario.characters].some(item => item.id === id)) throw new Error("That ID already exists. Use the existing item instead.");
   const fixture = world.fixtures.find(item => item.id === locationId && item.container);
   if (!fixture && !scenario.characters.some(item => item.id === locationId)) throw new Error("Location must be an existing container or character inventory.");
-  inventoryFor(scenario, locationId).items.push(create(ItemInstanceSchema, { id, name: name_, quantity: 1, concealed: true, details }));
+  inventoryFor(inventoryOwners(scenario.characters, scenario.world), locationId).items.push(create(ItemInstanceSchema, { id, name: name_, quantity: 1, concealed: true, details }));
   world.revision++;
   return { created: id, name: name_, locationId, details };
 }

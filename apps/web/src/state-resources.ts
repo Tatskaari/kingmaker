@@ -1,4 +1,4 @@
-import { locatedItems } from "../../../packages/core/src/inventory.js";
+import { inventoryOwners, locatedItems } from "../../../packages/core/src/inventory.js";
 import { NoteVisibility, type Scenario } from "../../../packages/contracts/src/index.js";
 
 /** Character intent/memory, physical actors, and inventories advance independently. */
@@ -22,7 +22,7 @@ export function stateResources(scenario: Scenario, activities: Record<string, un
     resources[`inventory:${fixture.id}`] = fixture.inventory ?? null;
     resources[`entity:${fixture.id}`] = "fixture";
   }
-  for (const item of locatedItems(scenario)) {
+  for (const item of locatedItems(inventoryOwners(scenario.characters, scenario.world))) {
     resources[`item:${item.id}`] = item;
     resources[`entity:${item.id}`] = "item";
   }

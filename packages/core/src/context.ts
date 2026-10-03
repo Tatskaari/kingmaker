@@ -1,5 +1,5 @@
 import { renderWorldPrompt } from "./world-prompt.js";
-import { locatedItems } from "./inventory.js";
+import { inventoryOwners, locatedItems } from "./inventory.js";
 import { IMMEDIATE_GOAL_GUIDANCE } from "./goal-guidance.js";
 import { clone, toJson } from "@bufbuild/protobuf";
 import {
@@ -47,7 +47,7 @@ export function characterDecisionContext(scenario: Scenario, characterId: string
 /** Removes concealed container contents and undiscovered fixture details. The game master sees
  * the authoritative world; character models see only this projection. */
 export function worldForCharacter(scenario: Scenario, characterId: string) {
-  const view = Object.assign(clone(WorldStateSchema, scenario.world!), { objects: locatedItems(scenario) });
+  const view = Object.assign(clone(WorldStateSchema, scenario.world!), { objects: locatedItems(inventoryOwners(scenario.characters, scenario.world)) });
   const visibleObjectIds = new Set<string>();
 
   for (const fixture of view.fixtures) {
@@ -141,7 +141,7 @@ export class FullGameMasterContextBuilder implements GameMasterContextBuilder {
       { role: "system", content: `# Existing cast\n${JSON.stringify(cast)}` },
       {
         role: "system",
-        content: `# Complete world state\n${renderWorldPrompt(scenario, { ...scenario.world, objects: locatedItems(scenario) })}`,
+        content: `# Complete world state\n${renderWorldPrompt(scenario, { ...scenario.world, objects: locatedItems(inventoryOwners(scenario.characters, scenario.world)) })}`,
       },
       {
         role: "system",

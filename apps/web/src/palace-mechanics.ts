@@ -2,7 +2,7 @@ import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import { ScenarioSchema, TranscriptMessageSchema, TranscriptRole, TilePositionSchema, DndCharacterSchema, EventSchema, GamePhase, type Scenario, type Event } from "../../../packages/contracts/src/index.js";
 import { GenerationStore, generationIds, type Generations, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 import { fixtureActions, applyFixtureAction } from "../../../packages/core/src/fixtures.js";
-import { findItem, itemsFor } from "../../../packages/core/src/inventory.js";
+import { inventoryOwners, findItem, itemsFor } from "../../../packages/core/src/inventory.js";
 import { worldForCharacter } from "../../../packages/core/src/context.js";
 import { stateResources } from "./state-resources.js";
 import { courtAgentObservation, actionResourceIds } from "./court-agent.js";
@@ -33,7 +33,7 @@ function fixtureEventContext(scenario: Scenario, actorId: string, actionId: stri
   const action = fixtureActions(scenario, actorId).find(candidate => candidate.id === actionId);
   if (!action || action.target === actorId) return { details: {} as EventDetails };
   const fixture = scenario.world?.fixtures.find(candidate => candidate.id === action.target);
-  const item = findItem(scenario, action.itemId ?? "");
+  const item = findItem(inventoryOwners(scenario.characters, scenario.world), action.itemId ?? "");
   const owner = scenario.characters.find(character => character.id === fixture?.ownerCharacterId);
   const details: EventDetails = {
     action: action.verb,
@@ -248,7 +248,7 @@ export class PalaceMechanics {
       doors: world?.doors ?? [],
       fixtures: world ? worldForCharacter(scenario, scenario.playerCharacterId ?? "").fixtures : [],
       fixtureActions: fixtureActions(scenario, scenario.playerCharacterId ?? ""),
-      inventory: itemsFor(scenario, scenario.playerCharacterId ?? "").map(({ id, name, details }) => ({ id, name, details })),
+      inventory: itemsFor(inventoryOwners(scenario.characters, scenario.world), scenario.playerCharacterId ?? "").map(({ id, name, details }) => ({ id, name, details })),
       roomAccess: world?.rooms.map(({ id, private: restricted, allowedCharacterIds }) => ({ id, private: restricted, allowedCharacterIds })) ?? [],
       location: world?.rooms.find(room => room.id === world.actors.find(actor => actor.characterId === player?.id)?.roomId)?.name || "Great Hall",
       premise: scenario.premise,
