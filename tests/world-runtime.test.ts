@@ -157,3 +157,13 @@ test("a failed save does not appear as a document tool update", async () => {
   await assert.rejects(runtime.endConversation("rowan"), /Save failed/);
   assert.deepEqual(runtime.debugDocuments().history, []);
 });
+
+test("replacing an activity with the same current goal starts a fresh run", async () => {
+  const runtime = game();
+  await runtime.overrideActiveObjective("corvin", { name: "First", currentGoal: "Go to the hall" });
+  runtime.finishNpcRun("corvin", "unable", "Blocked");
+  assert.equal(runtime.snapshot().npcActivities!.corvin!.reviewPending, true);
+  await runtime.overrideActiveObjective("corvin", { name: "Second", currentGoal: "Go to the hall" });
+  assert.equal(runtime.hasActiveObjective("corvin"), true);
+  assert.equal(runtime.snapshot().npcActivities!.corvin!.reviewPending, undefined);
+});

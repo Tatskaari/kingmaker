@@ -13,6 +13,7 @@ const npcLog = gameLogger("npc"), eventLog = gameLogger("events");
 type JsonObject = Record<string, unknown>;
 type EventDetails = Record<string, JsonValue>;
 export interface NpcActivity {
+  activityDocument?: string | null;
   status: "idle" | "active";
   goal: string;
   history: string[];

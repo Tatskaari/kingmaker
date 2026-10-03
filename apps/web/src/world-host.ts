@@ -11,7 +11,7 @@ import { clone, create, fromJson, toJson, type JsonValue } from "@bufbuild/proto
 import { ScenarioSchema, type Event } from "../../../packages/contracts/src/index.js";
 import { CharacterPropertiesSchema, WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
 import { createScenarioServices } from "../../../packages/lore/src/services.js";
-import { activityGoal, formatActivity } from "../../../packages/lore/src/activity.js";
+import { activityGoal, characterIntent, formatActivity } from "../../../packages/lore/src/activity.js";
 import { generationIds, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 import { PalaceMechanics, type MechanicalActivity } from "./palace-mechanics.js";
 import { projectWorld } from "./world-projection.js";
@@ -44,8 +44,9 @@ export class WorldHost {
     const activities = this.activity.npcActivities ??= {};
     for (const path of world.characters) {
       const id = characterId(path, world), goal = world.docs[path]!.frontmatter?.background === true ? "" : activityGoal(world, id) ?? "", previous = activities[id];
-      if (previous?.goal === goal) continue;
-      activities[id] = { status: goal ? "active" : "idle", goal, history: [] };
+      const activityDocument = characterIntent(world, id).activity;
+      if (previous?.goal === goal && previous.activityDocument === activityDocument) continue;
+      activities[id] = { status: goal ? "active" : "idle", goal, activityDocument, history: [] };
     }
   }
   snapshot(): WorldSnapshot {
