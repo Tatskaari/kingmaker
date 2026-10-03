@@ -1,5 +1,6 @@
 import { create, fromJson, type JsonValue } from "@bufbuild/protobuf";
 import { ScenarioSchema, TranscriptMessageSchema, TranscriptRole, type TranscriptMessage } from "../../contracts/src/index.js";
+import type { WorldState } from "../../contracts/src/v2.js";
 import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/src/openrouter.js";
 import { runConversation } from "./phases.js";
 import type { ConversationRuntime } from "./runtime.js";
@@ -9,7 +10,7 @@ export const CHARACTER_PROMPT = `You are a character in a game, speaking with th
 export interface LoreDocument { path: string; markdown: string }
 export type CharacterSources = readonly LoreDocument[];
 export interface ConversationInput {
-  snapshot: { scenario: JsonValue };
+  snapshot: { scenario: JsonValue } | { world: WorldState };
   characterId: string;
   sources: CharacterSources;
   transcript: readonly TranscriptMessage[];
@@ -25,9 +26,10 @@ export interface LlmTurn {
 
 /** Context comes entirely from Markdown; the snapshot only validates character identity. */
 export function conversationRequest(input: ConversationInput): ChatCompletionRequest {
-  const scenario = fromJson(ScenarioSchema, input.snapshot.scenario);
-  const character = scenario.characters.find(item => item.id === input.characterId);
-  if (!character) throw new Error(`Unknown snapshot character: ${input.characterId}`);
+  const exists = "world" in input.snapshot
+    ? input.snapshot.world.characters.some(path => path.endsWith(`/Characters/${input.characterId}/character.md`))
+    : fromJson(ScenarioSchema, input.snapshot.scenario).characters.some(item => item.id === input.characterId);
+  if (!exists) throw new Error(`Unknown snapshot character: ${input.characterId}`);
   return {
     model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "none" }, max_tokens: 1200,
     messages: [

@@ -531,11 +531,14 @@ Enter sends a message. Ctrl+D (or Ctrl+C with no selection) finishes and writes
 the transcript, model calls, Jev rounds and opened Markdown to
 `test-output/conversation-<timestamp>.json` for review.
 
-`--snapshot path` accepts an existing runtime snapshot or scenario JSON (default:
-`content/scenarios/last-night.json`). `--scenario 'Centennial Assembly'` selects
-the lore directory; `--output path` chooses the review file. The character ID must
-exist in both the snapshot and that scenario's character folder. Each run starts
-a fresh conversation; no game state is changed and no automatic review runs.
+The CLI builds a fresh Markdown world from `--scenario 'Centennial Assembly'`.
+Character identities and linked context come from scenario/docs services; typed
+`properties.json` sidecars are loaded for mechanics and never placed in character
+prompts. `--player document.md` selects an optional player document.
+`--snapshot path` loads a v2 world JSON or a CLI review file's `world` field;
+old scenario/runtime saves are not accepted. Each run starts a fresh conversation.
+`--output path` chooses the review file, which includes the world snapshot.
+The vault itself is never edited by the CLI.
 
 All character context comes from Markdown. The initial context contains the
 selected Cast `private.md` and scenario `character.md`. Before each reply, Jev
