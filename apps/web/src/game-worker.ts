@@ -371,9 +371,12 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
   if (type === "stranger_expression") return { expression: await requireRuntime().classifyStrangerExpression(payload.recentPortraits ?? []) };
   if (["start_introduction", "gm", "save_character"].includes(type)) {
     const game = requireRuntime(), before = game.snapshot(), savedBefore = activeSave;
+    const version = generation;
     try {
       if (type === "start_introduction") game.startIntroduction();
-      if (type === "gm") await game.talkToGameMaster(String(payload.message || ""));
+      if (type === "gm") await game.talkToGameMaster(String(payload.message || ""), text => {
+        if (generation === version && runtime === game) worker.postMessage({ type: "dialogue_stream", requestId, characterId: "gm", text });
+      });
       if (type === "save_character") await game.confirmPlayer(payload.draft as JsonValue);
       await persist();
     } catch (error) {
@@ -436,7 +439,9 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
           worker.postMessage({ type: "conversation_roll", requestId, characterId: id, rollId, result });
         });
         if (generation !== version || runtime !== game) throw new Error("Game changed.");
-      } } } }) : await game.endConversation(id);
+      } } } }, undefined, text => {
+        if (generation === version && runtime === game) worker.postMessage({ type: "dialogue_stream", requestId, characterId: id, text });
+      }) : await game.endConversation(id);
       if (generation !== version || runtime !== game) throw new Error("Game changed.");
       if (type === "talk") void game.logConversationExpression(id).catch(() => {});
       if (finalMessage) reply = await game.endConversation(id);

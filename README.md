@@ -70,11 +70,11 @@ exchanges with low reasoning. Settings live in
 Jev selects from currently reachable actions.
 
 OpenRouter Chat Completions and Responses requests use streaming transport.
-The provider assembles a complete reply before exposing it to gameplay, so JSON
-validation, tool execution and dialogue display still happen after completion.
-Interrupted streams fail without exposing partial text or tool arguments; the
-existing response retry policy applies. Cancellation and the request timeout
-remain active while reading the stream.
+The Stranger and court dialogue appear progressively as text arrives. Reasoning
+and tool arguments remain hidden. Provisional text is cleared on failure or retry and is
+replaced by the committed transcript on completion. JSON validation, tool
+execution and game-state changes still wait for the complete reply. Cancellation
+and the request timeout remain active while reading the stream.
 
 Action-execution Jev context is configured in `apps/web/src/feature-flags.ts`:
 
