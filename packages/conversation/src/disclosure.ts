@@ -42,7 +42,9 @@ export class DisclosureSession {
           candidates: [], openedBefore: this.sources.map(document => document.path), opened: [], status: "pending" };
         try {
           signal.throwIfAborted();
-          event.candidates = this.lore.links(this.sources).map(link => {
+          // Initial context and notes opened on earlier passes are already available.
+          // Enforce this here too, independently of the lore adapter's filtering.
+          event.candidates = this.lore.links(this.sources).filter(link => !this.#opened.has(link.path)).map(link => {
             if (!this.#ids.has(link.path)) this.#ids.set(link.path, `open_${this.#ids.size + 1}`);
             return { ...link, id: this.#ids.get(link.path)! };
           });

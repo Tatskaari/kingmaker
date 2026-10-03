@@ -52,6 +52,46 @@ const answers: (score: (path: string) => number) => EvaluateLinks = score => asy
   }),
 );
 
+test("injected notes and previously opened notes cannot be offered or reopened by an adapter", async t => {
+  const { lore, folder, input } = fixture(t);
+  const extraPath = `${folder}/a.md`, opened: string[] = [], trace: DisclosureRound[] = [];
+  let decisions = 0;
+  const session = new Session({
+    initial: lore.initial,
+    // Deliberately return already-loaded notes, including the main characterization.
+    links: () => [...lore.initial.map(note => note.path), extraPath].map(path => ({
+      path, from: `${folder}/character.md`,
+    })),
+    async open(link) { opened.push(link.path); return lore.read(link.path); },
+  }, {
+    responses: async () => { throw new Error("unused"); },
+    decisions: async (state, questions, signal) => {
+      decisions++;
+      assert.match(String(state), /CORVIN_IDENTITY/);
+      assert.equal(Object.keys(questions).length, 1);
+      assert.match(JSON.stringify(questions), /a\.md/);
+      assert.doesNotMatch(JSON.stringify(questions), /private\.md/);
+      return answers(() => 1)(String(state), questions, signal);
+    },
+  });
+  for (let turn = 0; turn < 2; turn++) {
+    const runtime = new ConversationRuntime({
+      services: { character: { respond: async request => {
+        for (const path of [...lore.initial.map(note => note.path), extraPath]) {
+          assert.equal(request.messages.filter(message => message.content?.startsWith(`# Lore: ${path}\n`)).length, 1);
+        }
+        return { role: "assistant", content: "done" };
+      } } },
+      hooks: { conversation: session.hooks(event => trace.push(event)) },
+    });
+    await runConversation(conversationRequest({ ...input, sources: session.sources }), runtime, new AbortController().signal);
+  }
+  assert.equal(decisions, 1);
+  assert.deepEqual(opened, [extraPath]);
+  assert.deepEqual(trace.filter(event => event.status !== "pending").map(event => event.status),
+    ["opened", "no_links", "no_links"]);
+});
+
 test("batch openings discover nested links, deduplicate aliases/cycles and persist across player turns", async t => {
   const { lore, input } = fixture(t), trace: DisclosureRound[] = [], states: string[] = [];
   let laterTurn = false;
