@@ -1,8 +1,7 @@
 ---
 status: draft
 visibility: private
-readers:
-  characters: [aldren]
+readers: ["character:aldren"]
 ---
 # Aldren — the late cushions
 

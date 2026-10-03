@@ -2,8 +2,7 @@
 type: character
 status: draft
 visibility: private
-readers:
-  characters: [bran]
+readers: ["character:bran"]
 ---
 # Bran
 

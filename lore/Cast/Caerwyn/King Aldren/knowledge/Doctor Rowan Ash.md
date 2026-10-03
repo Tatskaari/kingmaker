@@ -1,6 +1,5 @@
 ---
 visibility: private
-readers:
-  characters: [aldren]
+readers: ["character:aldren"]
 ---
 This is a stub.

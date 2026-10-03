@@ -1,7 +1,6 @@
 ---
 visibility: private
-readers:
-  characters: [oswin]
+readers: ["character:oswin"]
 ---
 # Doctor Rowan Ash
 

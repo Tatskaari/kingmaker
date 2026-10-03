@@ -2,8 +2,7 @@
 type: character
 status: draft
 visibility: private
-readers:
-  characters: [holt]
+readers: ["character:holt"]
 ---
 # Marshal Garran Holt
 

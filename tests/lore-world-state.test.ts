@@ -19,7 +19,7 @@ test("builds independent, serializable documents and scenario entrypoints withou
   const lore = new Map([
     [index, note("Scenario navigation")],
     [entry, note(`[[${character}]] [[${character}|Alice]]`)],
-    [character, note(body, { visibility: "private", readers: { characters: ["alice"] } })],
+    [character, note(body, { visibility: "private", readers: ["character:alice"] })],
     ["Secrets.md", note("A GM-only truth. [[Secrets]]", { visibility: "gm" })],
     ["Scenarios/Other/Characters/bob/character.md", note("This is a stub.")],
   ]);

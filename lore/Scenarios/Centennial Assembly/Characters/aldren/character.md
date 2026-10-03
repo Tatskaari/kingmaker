@@ -2,8 +2,7 @@
 labels: [court-informed]
 status: draft
 visibility: private
-readers:
-  characters: [aldren]
+readers: ["character:aldren"]
 ---
 # King Aldren — conversation entry
 

@@ -1,6 +1,5 @@
 ---
 visibility: private
-readers:
-  characters: [klog]
+readers: ["character:klog"]
 ---
 This is a stub.

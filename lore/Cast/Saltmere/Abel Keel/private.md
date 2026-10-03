@@ -2,8 +2,7 @@
 type: character
 status: draft
 visibility: private
-readers:
-  characters: [abel]
+readers: ["character:abel"]
 ---
 # Abel Keel
 

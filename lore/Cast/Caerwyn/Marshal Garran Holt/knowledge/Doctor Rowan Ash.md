@@ -1,6 +1,5 @@
 ---
 visibility: private
-readers:
-  characters: [holt]
+readers: ["character:holt"]
 ---
 This is a stub.

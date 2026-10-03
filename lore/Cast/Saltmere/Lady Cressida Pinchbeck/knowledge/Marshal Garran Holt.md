@@ -1,7 +1,6 @@
 ---
 visibility: private
-readers:
-  characters: [cressida]
+readers: ["character:cressida"]
 ---
 # Marshal Garran Holt
 

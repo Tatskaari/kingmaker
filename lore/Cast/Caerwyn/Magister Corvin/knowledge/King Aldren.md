@@ -1,7 +1,6 @@
 ---
 visibility: private
-readers:
-  characters: [corvin]
+readers: ["character:corvin"]
 ---
 # King Aldren
 

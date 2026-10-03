@@ -1,7 +1,6 @@
 ---
 visibility: private
-readers:
-  characters: [abel]
+readers: ["character:abel"]
 ---
 # Lady Cressida Pinchbeck
 

@@ -1,6 +1,5 @@
 ---
 visibility: private
-readers:
-  characters: [corvin]
+readers: ["character:corvin"]
 ---
 This is a stub.

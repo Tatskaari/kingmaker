@@ -1,6 +1,5 @@
 ---
 visibility: private
-readers:
-  characters: [gurt]
+readers: ["character:gurt"]
 ---
 This is a stub.
