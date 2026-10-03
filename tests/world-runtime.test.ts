@@ -115,3 +115,40 @@ test("parallel characters and injected character responders remain separately tr
   assert.equal(new Set(calls.map(call => call.characterId)).size, 2);
   assert.equal(new Set(calls.map(call => call.conversationId)).size, 2);
 });
+
+test("document tool history identifies concurrent reviews and remains session-only", async () => {
+  const runtime = game({ services: { ai: { responses: async request => {
+    const { characterId } = JSON.parse(request.messages.find(message => message.role === "user")!.content!);
+    return commitReview({ summary: `${characterId} review`, newNotes: [`${characterId} remembers.`], activeGoal: null });
+  } } } });
+  for (const id of ["rowan", "corvin"]) runtime.endConversationAsPlayer(id, "Goodbye.");
+  await Promise.all([runtime.endConversation("rowan"), runtime.endConversation("corvin")]);
+  const { history } = runtime.debugDocuments();
+  assert.equal(history.length, 2);
+  for (const write of history) {
+    assert.ok(write.path.endsWith(`/${write.call.characterId}/character.md`));
+    assert.equal(write.call.kind, "conversation_review");
+    assert.notEqual(write.beforeSha, write.afterSha);
+    assert.match(JSON.stringify(write.call.response), new RegExp(`${write.call.characterId} review`));
+  }
+  const reloaded = new WorldGameRuntime(loadPlayableWorld(), "", runtime.snapshot());
+  assert.deepEqual(reloaded.debugDocuments().history, []);
+  runtime.endConversationAsPlayer("rowan", "Goodbye again.");
+  await runtime.endConversation("rowan");
+  assert.equal(runtime.debugDocuments().history.length, 2, "An unchanged review adds no history");
+  runtime.resetCharacters();
+  assert.deepEqual(runtime.debugDocuments().history, []);
+});
+
+test("a failed save does not appear as a document tool update", async () => {
+  const runtime = game({ services: { ai: { responses: async () => reviewReply } } });
+  runtime.endConversationAsPlayer("rowan", "Remember this.");
+  runtime.setPersistence(async work => {
+    const before = runtime.snapshot();
+    await work();
+    runtime.restore(before);
+    throw new Error("Save failed");
+  });
+  await assert.rejects(runtime.endConversation("rowan"), /Save failed/);
+  assert.deepEqual(runtime.debugDocuments().history, []);
+});

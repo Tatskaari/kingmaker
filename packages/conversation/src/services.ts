@@ -78,6 +78,15 @@ export interface ConversationDebugEvent {
 }
 export interface DebugService {
   record(event: Readonly<ConversationDebugEvent>): void;
+  documentUpdated?(event: DocumentUpdate): void;
+}
+/** Emitted only after a tool's document write has committed successfully. */
+export interface DocumentUpdate {
+  path: string;
+  beforeSha: string;
+  afterSha: string;
+  response: OpenRouterMessage;
+  toolCallId: string;
 }
 export interface RuntimeServices {
   readonly map: MapService;

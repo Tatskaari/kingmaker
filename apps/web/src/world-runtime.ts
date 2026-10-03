@@ -94,7 +94,7 @@ export class WorldGameRuntime extends WorldHost {
       map: { ...this.map, ...this.options.services?.map, ...extra.services?.map },
       ai: { ...traced, responses: retryResponses(traced.responses) },
       random,
-      debug: { record: () => {}, ...this.options.services?.debug, ...extra.services?.debug },
+      debug: { record: () => {}, documentUpdated: event => this.traces.documentUpdated(event), ...this.options.services?.debug, ...extra.services?.debug },
       presentation: { renderMap: async () => {}, showRoll: async () => {}, setPortrait: async () => {}, ...this.options.services?.presentation, ...extra.services?.presentation },
     }, hooks: { ...this.options.hooks, ...extra.hooks,
       review: { ...documentReviewHooks, ...this.options.hooks?.review, ...extra.hooks?.review },
@@ -164,10 +164,11 @@ export class WorldGameRuntime extends WorldHost {
     for (const key of this.conversationRuns.values()) this.traces.stop(key);
     this.conversationRuns.clear();
   }
-  override reset() { super.reset(); this.stopConversations(); }
-  override resetCharacters() { super.resetCharacters(); this.stopConversations(); }
+  override reset() { super.reset(); this.stopConversations(); this.traces.clearDocumentWrites(); }
+  override resetCharacters() { super.resetCharacters(); this.stopConversations(); this.traces.clearDocumentWrites(); }
   recentTranscripts() { return this.traces.recent(); }
   transcriptRuns() { return this.traces.runs(); }
+  debugDocuments() { return { docs: this.world().docs, history: this.traces.documentWrites(), scenario: this.world().scenario }; }
   startPlanningSession(id: string) { return this.traces.start("npc_goal", id); }
   endPlanningSession(key: string, stopped: boolean, error?: unknown) {
     if (error) this.traces.fail(key, error); else if (stopped) this.traces.stop(key); else this.traces.finish(key);

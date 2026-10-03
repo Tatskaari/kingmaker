@@ -102,7 +102,7 @@ export class ConversationRuntime<Labels = Record<string, never>, Review = Review
       },
       random: { integer: (...args) => services.random?.integer
         ? services.random.integer(...args) : unimplemented("random.integer") },
-      debug: { record: (...args) => services.debug?.record
+      debug: { documentUpdated: event => services.debug?.documentUpdated?.(event), record: (...args) => services.debug?.record
         ? services.debug.record(...args) : unimplemented("debug.record") },
     };
   }
