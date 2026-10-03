@@ -1,15 +1,10 @@
+import { characterId } from "../../../packages/lore/src/character-id.js";
 import { clone, create } from "@bufbuild/protobuf";
 import { CharacterSchema, ScenarioSchema, WorldStateSchema as MapSchema } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
 import { foregroundBodies } from "./background-characters.js";
 import { activeGoal } from "../../../packages/lore/src/active-goal.js";
 
-export function characterId(path: string, world: WorldState): string {
-  if (path === world.player) return "player";
-  const id = /\/Characters\/([^/]+)\/character\.md$/.exec(path)?.[1];
-  if (!id) throw new Error(`Invalid character entry: ${path}`);
-  return id;
-}
 /** Disposable adapter for existing palace rules and views. Never a saved authority. */
 export function projectWorld(world: WorldState, observerId = "player") {
   if (!world.map) throw new Error("A physical map is required.");

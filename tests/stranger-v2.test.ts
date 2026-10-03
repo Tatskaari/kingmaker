@@ -4,7 +4,7 @@ import test from "node:test";
 import { createScenarioServices } from "../packages/lore/src/services.js";
 import { beginStranger, strangerTurn } from "../apps/web/src/stranger-interview.js";
 import { strangerOpening } from "../apps/web/src/introduction.js";
-import { characterId } from "../apps/web/src/world-projection.js";
+import { characterId } from "../packages/lore/src/character-id.js";
 import { loadPlayableWorld } from "./fixtures.js";
 import type { AiService } from "../packages/conversation/src/services.js";
 

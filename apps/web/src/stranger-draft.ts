@@ -5,7 +5,7 @@ import { PlayerSetupSchema, type PlayerSetup } from "../../../packages/contracts
 import { CharacterPropertiesSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
 import { links } from "../../../packages/lore/src/markdown.js";
 import type { CharacterCreation } from "../../../packages/lore/src/services.js";
-import { characterId } from "./world-projection.js";
+import { characterId } from "../../../packages/lore/src/character-id.js";
 import { buildInterviewCharacter, validatePlayerStats } from "./player-build.js";
 import { characterSprites } from "./introduction.js";
 
