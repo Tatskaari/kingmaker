@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Bran's Centennial Assembly entry, supporting notes, shared court briefing and starting mechanical properties."
+---
 # Bran
 
 Author navigation index. Agent context starts at `scenario.md` or `character.md`, not at this index.

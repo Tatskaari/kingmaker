@@ -1,4 +1,5 @@
 ---
+summary: "Your Centennial Assembly entry as Abel Keel, linking private characterization, shared court knowledge and scoped supporting notes. Your current situation and objectives remain unwritten."
 labels: [court-informed]
 ---
 # Abel Keel — conversation entry

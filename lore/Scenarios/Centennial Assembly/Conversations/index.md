@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for the unwritten full scene branches for grain, invitations, patrols and the private dinner."
+---
 # Conversations
 
 Author navigation index. Agent context starts at `scenario.md` or `character.md`, not at this index.

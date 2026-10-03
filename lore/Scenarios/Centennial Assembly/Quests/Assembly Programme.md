@@ -1,4 +1,5 @@
 ---
+summary: "GM opening quest tree for Aldren's missing cushions, Holt's blocked service entrance and Rowan's self-guiding cart and gift tree. Covers player choices, persuasion, knowledge boundaries and unresolved outcomes."
 status: draft
 visibility: gm
 ---

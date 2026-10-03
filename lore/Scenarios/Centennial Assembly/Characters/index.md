@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for assembly character entries, supporting notes and draft mechanical builds."
+---
 # Characters
 
 Author navigation index. Agent context starts at `scenario.md` or `character.md`, not at this index.

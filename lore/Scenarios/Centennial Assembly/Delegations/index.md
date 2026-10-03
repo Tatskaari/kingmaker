@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for the four court-known delegation overviews."
+---
 # Delegations
 
 Author navigation. These overviews are shared knowledge for court-informed characters.

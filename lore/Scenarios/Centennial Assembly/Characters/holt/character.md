@@ -1,4 +1,5 @@
 ---
+summary: "Your opening briefing as Holt at the blocked palace service entrance, with your timetable, exchanges with Rowan and current objective. Links to private characterization, shared court knowledge and scene detail."
 labels: [court-informed]
 status: draft
 visibility: private

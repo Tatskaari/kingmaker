@@ -1,4 +1,5 @@
 ---
+summary: "Your Centennial Assembly entry as Lady Elinor Ash, linking private characterization, shared court knowledge and scoped supporting notes. Your current situation and objectives remain unwritten."
 labels: [court-informed]
 ---
 # Lady Elinor Ash — conversation entry

@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for King Gurt's Centennial Assembly entry, supporting notes, shared court briefing and starting mechanical properties."
+---
 # King Gurt
 
 Author navigation index. Agent context starts at `scenario.md` or `character.md`, not at this index.
