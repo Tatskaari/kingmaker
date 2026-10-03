@@ -4,11 +4,11 @@ import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, TranscriptRole } from "../packages/contracts/src/index.js";
 import { CHARACTER_PROMPT, conversationRequest, converse, type ConversationInput, type LlmTurn } from "../packages/conversation/src/conversation.js";
-import { loadCharacterSources } from "../packages/conversation/src/lore.js";
+import { loadCharacterLore } from "../packages/conversation/src/lore.js";
 
 const input = (): ConversationInput => ({
   snapshot: { scenario: JSON.parse(readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")) },
-  characterId: "corvin", sources: { cast: "A precise legal scholar.", knowledge: "You believe the king avoids difficult decisions.", scenario: "Ask the visitor about the seal." },
+  characterId: "corvin", sources: [{ path: "private.md", markdown: "A precise legal scholar." }, { path: "knowledge.md", markdown: "You believe the king avoids difficult decisions." }, { path: "character.md", markdown: "Ask the visitor about the seal." }],
   transcript: [], message: "Who are you?",
 });
 
@@ -18,11 +18,8 @@ test("dialogue uses Markdown identity, knowledge and scenario without snapshot c
   assert.equal(request.messages[0]?.content, CHARACTER_PROMPT);
   assert.doesNotMatch(CHARACTER_PROMPT, /Corvin|Caerwyn|Centennial/);
   assert.match(request.messages[1]!.content!, /A precise legal scholar/);
-  assert.deepEqual(request.messages.slice(1, 4).map(message => message.content), [
-    `# Character identity and voice\n${requestInput.sources.cast}`,
-    `# Character knowledge and beliefs\n${requestInput.sources.knowledge}`,
-    `# Character scenario briefing\n${requestInput.sources.scenario}`,
-  ]);
+  assert.deepEqual(request.messages.slice(1, 4).map(message => message.content),
+    requestInput.sources.map(document => `# Lore: ${document.path}\n${document.markdown}`));
   assert.doesNotMatch(request.messages.map(message => message.content).join("\n"), /currentGoal|dialogueObjectives|Current character state/);
   assert.equal(request.messages.at(-1)?.content, "Who are you?");
   assert.equal(request.tools, undefined);
@@ -56,14 +53,17 @@ test("failed and cancelled calls leave history untouched and expose debug errors
   await assert.rejects(converse(request, async () => ({ role: "assistant", content: null })), /plain character reply/);
 });
 
-test("lore loads private Cast identity, observer knowledge and scenario files without author indexes or GM notes", () => {
-  const sources = loadCharacterSources(new URL("../lore", import.meta.url).pathname, "Centennial Assembly", "corvin");
-  assert.match(sources.cast, /# Magister Corvin/);
-  assert.match(sources.cast, /## Speech style/);
-  assert.match(sources.knowledge, /Magister Corvin\/knowledge\/Lady Elinor Ash.md/);
-  assert.equal((sources.knowledge.match(/characters: \[corvin\]/g) ?? []).length, 12);
-  assert.doesNotMatch([sources.cast, sources.knowledge, sources.scenario].join("\n"), /visibility: gm|GM notes|Source: #|Author navigation/);
-  for (const name of ["character", "background", "situation", "conversation"]) assert.ok(sources.scenario.includes(`/corvin/${name}.md`));
-  assert.doesNotMatch(sources.scenario, /# Centennial Assembly — GM entry/);
+test("lore starts with private identity and scenario entry; knowledge stays unopened", () => {
+  const lore = loadCharacterLore(new URL("../lore", import.meta.url).pathname, "Centennial Assembly", "corvin");
+  assert.equal(lore.initial.length, 2);
+  assert.match(lore.initial[0]!.markdown, /# Magister Corvin/);
+  assert.match(lore.initial[0]!.markdown, /## Speech style/);
+  assert.ok(lore.initial[1]!.path.endsWith("/corvin/character.md"));
+  const candidates = lore.candidates(lore.initial);
+  assert.equal(candidates.filter(link => link.path.includes("/knowledge/")).length, 12);
+  assert.equal(candidates.filter(link => link.path.includes("/corvin/")).length, 3);
+  const knowledge = lore.read(candidates.find(link => link.path.endsWith("Lady Elinor Ash.md"))!.path);
+  assert.equal(knowledge.markdown.trim(), "This is a stub.");
+  assert.throws(() => lore.read("Cast/Caerwyn/Magister Corvin/gm.md"), /No read access/);
   assert.throws(() => conversationRequest({ ...input(), characterId: "missing" }), /Unknown snapshot character/);
 });

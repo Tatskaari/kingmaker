@@ -504,8 +504,8 @@ Ctrl+C also copies when text is selected; otherwise it finishes the conversation
 Selection is managed by the app, so selecting multiple lines within one pane
 does not collect text from the neighbouring pane. Click a sidebar row to inspect
 it; dragging over rows selects their text. Both panes support wheel scrolling.
-Enter sends a message;
-Ctrl+D or Ctrl+C finishes and writes the transcript and debug calls to
+Enter sends a message. Ctrl+D (or Ctrl+C with no selection) finishes and writes
+the transcript, model calls, Jev rounds and opened Markdown to
 `test-output/conversation-<timestamp>.json` for review.
 
 `--snapshot path` accepts an existing runtime snapshot or scenario JSON (default:
@@ -514,12 +514,24 @@ the lore directory; `--output path` chooses the review file. The character ID mu
 exist in both the snapshot and that scenario's character folder. Each run starts
 a fresh conversation; no game state is changed and no automatic review runs.
 
-All character context comes from Markdown: the selected Cast `private.md`, that
-character's own `knowledge/*.md` notes (excluding the author index), and local
-character, background, situation and conversation files. Snapshot relationships,
-goals, dialogue objectives and notes are not sent to the model; the snapshot only
-validates the selected character. Knowledge and scenario stubs are sent as authored,
-without inventing missing relationships or objectives. GM notes and author indexes
-are not loaded. These files are loaded eagerly; other links are not expanded.
-Jev disclosure, runtime Markdown visibility enforcement, portraits, dice checks and
-GM tools are outside this first implementation. Review exports remain JSON.
+All character context comes from Markdown. The initial context contains the
+selected Cast `private.md` and scenario `character.md`. Before each reply, Jev
+independently scores every permitted unopened link in the current context. Notes
+whose opening probability exceeds `--threshold` (default `0.7`) are added together;
+Jev runs again with the expanded context and newly discovered links. The loop
+stops when nothing passes or no unopened links remain. Opened notes stay available
+throughout the conversation; skipped links are reconsidered on later rounds and
+player turns. Links in player speech are not retrieval candidates.
+
+The RHS includes selectable `Jev <turn>.<round>` entries with exact input context,
+questions, returned choices/probabilities, threshold and stop/error status. Each
+opened file also gets an entry showing the Markdown supplied to the character.
+These are actual model outputs, not an invented explanation of Jev's reasoning.
+
+The loader applies the vault's existing visibility rules before offering or
+opening a link. Notes are pinned for the session; restart to pick up lore edits.
+Missing/ambiguous links, provider failures, or the per-turn limits (16 rounds and
+120,000 context characters) stop that reply with a debug error instead of silently
+claiming sufficient context. Snapshot relationships, goals, objectives and notes
+are never injected. Knowledge and scenario stubs remain as authored. Portraits,
+dice checks and GM adjudication are outside this prototype. Review exports remain JSON.

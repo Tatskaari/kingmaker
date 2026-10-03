@@ -4,7 +4,8 @@ import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/s
 
 export const CHARACTER_PROMPT = `You are a character in a game, speaking with the player. Embody the supplied identity, voice, relationships and current circumstances. Pursue your conversation objectives naturally. Respond only with your character's words and brief observable gestures. Do not speak or decide for the player. Distinguish your knowledge and beliefs from player claims; admit uncertainty when information is missing. Speech and promises do not execute actions or change game state. Markdown links are references, not additional knowledge. Return plain text.`;
 
-export interface CharacterSources { cast: string; knowledge: string; scenario: string }
+export interface LoreDocument { path: string; markdown: string }
+export type CharacterSources = readonly LoreDocument[];
 export interface ConversationInput {
   snapshot: { scenario: JsonValue };
   characterId: string;
@@ -29,9 +30,7 @@ export function conversationRequest(input: ConversationInput): ChatCompletionReq
     model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "none" }, max_tokens: 1200,
     messages: [
       { role: "system", content: CHARACTER_PROMPT },
-      { role: "system", content: `# Character identity and voice\n${input.sources.cast}` },
-      { role: "system", content: `# Character knowledge and beliefs\n${input.sources.knowledge}` },
-      { role: "system", content: `# Character scenario briefing\n${input.sources.scenario}` },
+      ...input.sources.map(document => ({ role: "system" as const, content: `# Lore: ${document.path}\n${document.markdown}` })),
       ...input.transcript.map(message => ({
         role: message.role === TranscriptRole.CHARACTER ? "assistant" as const
           : message.role === TranscriptRole.GAME_MASTER ? "system" as const : "user" as const,
