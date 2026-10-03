@@ -134,3 +134,20 @@ test("finishing presentation first still waits for the GM", async () => {
   assert.equal(finished, false);
   release(); assert.match((await pending)!, /Notice the lie/);
 });
+
+test("cancelling asynchronous manual dice prevents GM and presentation calls", async () => {
+  const controller = new AbortController();
+  let requested = false;
+  const task = adjudicateConversationChecks({ plan: [{ skill: "persuasion", difficulty: "normal" }],
+    messages: [], build: undefined, signal: controller.signal,
+    roll: (_check, signal) => new Promise<number>((_resolve, reject) => {
+      requested = true;
+      signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+    }),
+    complete: async () => { throw new Error("GM must not run before a roll"); },
+    present: async () => { throw new Error("Presentation must not run before a roll"); },
+  });
+  assert.equal(requested, true);
+  controller.abort(new Error("Player cancelled"));
+  await assert.rejects(task, /Player cancelled/);
+});

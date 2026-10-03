@@ -561,3 +561,9 @@ Missing/ambiguous links, provider failures, or the per-turn limits (16 rounds an
 claiming sufficient context. Snapshot relationships, goals, objectives and notes
 are never injected. Knowledge and scenario stubs remain as authored. Portraits,
 dice checks and GM adjudication are outside this prototype. Review exports remain JSON.
+
+When Jev requests a check, the CLI pauses and asks for the raw d20 result (1–20).
+Enter the natural roll, not the total: the displayed player modifier is applied
+by the check resolver. Without a player build the debugger uses +0. The GM then
+receives the resolved outcome, and its request/reply appears under **GM roll
+ruling** in the sidebar and in the review export. Ctrl+D cancels a pending roll.

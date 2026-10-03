@@ -1,3 +1,6 @@
+import type { AiService } from "../../packages/conversation/src/services.js";
+import type { DndCharacter } from "../../packages/contracts/src/index.js";
+import { cliHooks, type ManualRoll, type RequestRoll } from "../../packages/conversation/src/cli-hooks.js";
 import { useEffect, useRef, useState } from "react";
 import { stripVTControlCharacters } from "node:util";
 import { createCliRenderer, createClipboard, createHostClipboard, createRendererClipboardAdapter,
@@ -11,22 +14,36 @@ export interface ConversationResult {
   characterId: string;
   transcript: ConversationInput["transcript"];
   turns: LlmTurn[];
+  gmTurns: LlmTurn[];
   disclosure: DisclosureRound[];
   openedDocuments: ConversationInput["sources"];
 }
 interface AppProps {
   input: ConversationInput;
   complete: Complete;
+  checks?: { ai: AiService; build: DndCharacter | undefined };
   disclosure?: DisclosureSession;
   copyText: (text: string) => Promise<string>;
   onFinish: (result: ConversationResult) => void;
 }
 
-export function ConversationApp({ input, complete, disclosure, copyText, onFinish }: AppProps) {
+export function ConversationApp({ input, complete, disclosure, checks, copyText, onFinish }: AppProps) {
   const renderer = useRenderer(), { width, height } = useTerminalDimensions();
   const [transcript, setTranscript] = useState(input.transcript);
   const [turns, setTurns] = useState<LlmTurn[]>([]);
   const [rounds, setRounds] = useState<DisclosureRound[]>([]);
+  const [rollPrompt, setRollPrompt] = useState<ManualRoll | null>(null);
+  const pendingRoll = useRef<((value: number) => void) | null>(null);
+  const [gmTurns, setGmTurns] = useState<LlmTurn[]>([]);
+  const requestRoll: RequestRoll = (check, signal) => new Promise((resolve, reject) => {
+    signal.throwIfAborted();
+    const cancel = () => { pendingRoll.current = null; setRollPrompt(null); reject(signal.reason); };
+    signal.addEventListener("abort", cancel, { once: true });
+    pendingRoll.current = value => {
+      signal.removeEventListener("abort", cancel); pendingRoll.current = null; setRollPrompt(null); resolve(value);
+    };
+    setSelected(null); setDraft(""); setRollPrompt(check);
+  });
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("");
@@ -43,6 +60,7 @@ export function ConversationApp({ input, complete, disclosure, copyText, onFinis
   }] : conversationRequest(input).messages.slice(0, -1);
   const entries = [
     ...messages.map((message, index) => ({ id: `message-${index}`, label: `${index + 1}. ${message.role}`, text: message.content ?? "No text content." })),
+    ...gmTurns.map((turn, index) => ({ id: `gm-${index}`, label: `GM roll ruling ${index + 1}`, text: JSON.stringify(turn, null, 2) })),
     ...rounds.flatMap(round => [
       { id: `jev-${round.turn}-${round.round}`, label: `Jev ${round.turn}.${round.round} ${round.status}`, text: disclosureDetails(round) },
       ...round.opened.map((document, index) => ({ id: `opened-${round.turn}-${round.round}-${index}`, label: `↳ ${document.path.split("/").at(-1)}`, text: `# ${document.path}\n${document.markdown}` })),
@@ -64,14 +82,16 @@ export function ConversationApp({ input, complete, disclosure, copyText, onFinis
     const index = turns.length;
     try {
       const turnInput = { ...input, transcript, message };
+      const trace = (round: DisclosureRound) => setRounds(previous => {
+        const index = previous.findIndex(item => item.turn === round.turn && item.round === round.round);
+        return index < 0 ? [...previous, round] : previous.map((item, i) => i === index ? round : item);
+      });
+      const hooks = disclosure && checks
+        ? cliHooks(disclosure, checks.ai, checks.build, message, requestRoll, trace, turn => setGmTurns(previous => [...previous, turn]))
+        : disclosure ? disclosure.hooks(trace) : { classify: async () => ({}), resolve: async () => ({ reclassify: false }) };
       const runtime = new ConversationRuntime({
         services: { character: { respond: complete } },
-        hooks: { conversation: disclosure ? disclosure.hooks(round => {
-          setRounds(previous => {
-            const index = previous.findIndex(item => item.turn === round.turn && item.round === round.round);
-            return index < 0 ? [...previous, round] : previous.map((item, i) => i === index ? round : item);
-          });
-        }) : { classify: async () => ({}), resolve: async () => ({ reclassify: false }) } },
+        hooks: { conversation: hooks as import("../../packages/conversation/src/phases.js").ConversationHooks<unknown> },
       });
       const result = await converse({ ...turnInput, sources: disclosure?.sources ?? input.sources }, runtime, controller.current.signal,
         turn => setTurns(previous => [...previous.slice(0, index), turn]));
@@ -91,7 +111,7 @@ export function ConversationApp({ input, complete, disclosure, copyText, onFinis
     }
     if (key.ctrl && (key.name === "c" || key.name === "d")) {
       key.preventDefault(); controller.current.abort();
-      onFinish({ characterId: input.characterId, transcript,
+      onFinish({ characterId: input.characterId, transcript, gmTurns,
         disclosure: rounds.map(round => round.status === "pending" ? { ...round, status: "error", error: "Cancelled when conversation ended." } : round),
         openedDocuments: disclosure?.sources ?? input.sources,
         turns: turns.map(turn => turn.response || turn.error ? turn : { ...turn, error: "Cancelled when conversation ended." }),
@@ -115,8 +135,13 @@ export function ConversationApp({ input, complete, disclosure, copyText, onFinis
           <text id="message-content" flexShrink={0} wrapMode="word" selectable>{stripVTControlCharacters(source)}</text>
         </scrollbox>
         <text height={1} selectable={false} truncate fg="yellow">{status || " "}</text>
-        <input id="conversation-input" value={draft} onInput={setDraft} onSubmit={() => { void send(draft); }}
-          focused={selected === null && !busy} placeholder={busy ? "Waiting for reply…" : "Say something…"} />
+        <input id="conversation-input" value={draft} onInput={setDraft} onSubmit={() => {
+          if (!rollPrompt) { void send(draft); return; }
+          const value = Number(draft);
+          if (!Number.isInteger(value) || value < 1 || value > 20) { setStatus("Enter a whole number from 1 to 20."); return; }
+          setStatus(""); setDraft(""); pendingRoll.current?.(value);
+        }}
+          focused={selected === null && (!busy || !!rollPrompt)} placeholder={rollPrompt ? `${rollPrompt.skill} · ${rollPrompt.difficulty} · modifier ${rollPrompt.modifier >= 0 ? "+" : ""}${rollPrompt.modifier}: enter d20 (1–20)` : busy ? "Waiting for reply…" : "Say something…"} />
       </box>
       <box width="20%" border flexDirection="column">
         <text height={1} selectable={false} truncate>Messages / Jev</text>
@@ -136,7 +161,7 @@ export function ConversationApp({ input, complete, disclosure, copyText, onFinis
   </box>;
 }
 
-export async function runConversationCli(input: ConversationInput, complete: Complete, disclosure?: DisclosureSession): Promise<ConversationResult> {
+export async function runConversationCli(input: ConversationInput, complete: Complete, disclosure?: DisclosureSession, checks?: AppProps["checks"]): Promise<ConversationResult> {
   let fail: (error: Error) => void = () => {};
   const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false,
     onDestroy: () => fail(new Error("Conversation terminal closed.")),
@@ -146,7 +171,7 @@ export async function runConversationCli(input: ConversationInput, complete: Com
   try {
     return await new Promise<ConversationResult>((resolve, reject) => {
       fail = reject;
-      root.render(<ConversationApp input={input} complete={complete} {...(disclosure ? { disclosure } : {})} onFinish={resolve} copyText={async text => {
+      root.render(<ConversationApp input={input} complete={complete} {...(checks ? { checks } : {})} {...(disclosure ? { disclosure } : {})} onFinish={resolve} copyText={async text => {
         const result = await clipboard.writeText(text, { destination: "best-available" });
         if (result.host.status === "written") return "Copied selection.";
         if (result.terminal.status === "attempted") return "Copy sent to terminal clipboard.";

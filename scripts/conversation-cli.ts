@@ -43,7 +43,9 @@ const input: ConversationInput = {
   transcript: [], message: "",
 };
 conversationRequest(input); // Validate the snapshot and selected character before entering the terminal UI.
-const result = await runConversationCli(input, ai.responses, disclosure);
+const player = services.scenario.info().player;
+const build = player ? (await services.scenario.getDocument(player)).document.characterProperties?.dnd : undefined;
+const result = await runConversationCli(input, ai.responses, disclosure, { ai, build });
 const output = resolve(options.get("--output") ?? `test-output/conversation-${Date.now()}.json`);
 mkdirSync(dirname(output), { recursive: true });
 writeFileSync(output, JSON.stringify({ ...result, world: toJson(WorldStateSchema, services.scenario.snapshot()), transcript: result.transcript.map(message => toJson(TranscriptMessageSchema, message)) }, null, 2));

@@ -96,3 +96,51 @@ test("Jev rounds and opened Markdown can be inspected and exported alongside mod
     assert.equal(exported?.transcript.length, 2);
   } finally { await act(() => setup.renderer.destroy()); }
 });
+
+test("CLI pauses for a manual d20, rejects invalid input, and shows the GM ruling", async () => {
+  let calls = 0;
+  const ai: import("../packages/conversation/src/services.js").AiService = {
+    decisions: async (_state, questions) => Object.fromEntries(Object.entries(questions).map(([id, question]) => {
+      const choice = "needed" in question.criteria ? id === "persuasion" ? "needed" : "not_needed" : "normal";
+      return [id, { choice, probabilities: { [choice]: 1 } }];
+    })),
+    responses: async request => {
+      calls++;
+      assert.match(JSON.stringify(request.messages), /critical_success/);
+      return { role: "assistant", content: JSON.stringify({ direction: "Accept the proposal." }) };
+    },
+  };
+  const initial = [{ path: "character.md", markdown: "A cautious envoy." }];
+  const disclosure = new DisclosureSession({ initial, links: () => [], open: async () => { throw new Error("unused"); } }, ai);
+  const setup = await testRender(createElement(ConversationApp, {
+    input: { snapshot: { scenario: JSON.parse(readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")) },
+      characterId: "corvin", sources: initial, transcript: [], message: "" },
+    disclosure, checks: { ai, build: undefined },
+    complete: async request => {
+      assert.match(JSON.stringify(request.messages), /Accept the proposal/);
+      return { role: "assistant", content: "Agreed." };
+    },
+    copyText: async () => "Copied.", onFinish: () => {},
+  }), { width: 120, height: 30, exitOnCtrlC: false, autoFocus: false });
+  const step = async (action: () => void | Promise<void>) => {
+    await act(async () => { await action(); await new Promise(resolve => setTimeout(resolve, 60)); }); await setup.flush();
+  };
+  try {
+    await setup.flush();
+    await step(() => setup.mockInput.typeText("Support my proposal."));
+    await step(() => setup.mockInput.pressEnter());
+    assert.match(setup.captureCharFrame(), /persuasion.*normal.*modifier \+0/);
+    assert.equal(calls, 0);
+    await step(() => setup.mockInput.typeText("21"));
+    await step(() => setup.mockInput.pressEnter());
+    assert.match(setup.captureCharFrame(), /whole number from 1 to 20/);
+    assert.equal(calls, 0);
+    await step(() => setup.mockInput.pressKey("a", { ctrl: true }));
+    await step(() => setup.mockInput.pressKey("k", { ctrl: true }));
+    await step(() => setup.mockInput.typeText("20"));
+    await step(() => setup.mockInput.pressEnter());
+    assert.match(setup.captureCharFrame(), /Agreed/);
+    assert.match(setup.captureCharFrame(), /GM roll ruling/);
+    assert.equal(calls, 1);
+  } finally { await act(() => setup.renderer.destroy()); }
+});
