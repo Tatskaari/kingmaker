@@ -48,3 +48,18 @@ aside { padding: 20px; overflow: auto; border-right: 1px solid #3a3028; backgrou
 .raw-error { min-height: 1.3em; margin-top: 8px; color: #ef8f85; }
 code { color: #dcb46f; }
 @media (max-width: 1000px) { body { min-width: 720px; }.workspace, .scenario-workspace { grid-template-columns: 220px 1fr; } }
+.story-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.story-grid .form-card { margin: 0; width: 100%; }
+.story-prose { white-space: pre-wrap; line-height: 1.6; margin: 16px 0; color: #c9bdad; }
+.story-stats, .connections { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+.story-stats span { padding: 8px 12px; border: 1px solid #594632; border-radius: 6px; color: #e5bd7c; }
+.character-list small { display: block; color: #9a8a78; margin-top: 6px; }
+h3 { font-size: .86rem; color: #d1b58f; margin: 20px 0 10px; }
+li { line-height: 1.5; margin-bottom: 8px; color: #b9ad9b; }
+.ambition, .relationship { border-top: 1px solid #40342a; padding: 16px 0; }
+.relationship > button { margin-bottom: 12px; }
+#copy-status { color: #c9b188; font-size: .85rem; }
+textarea:disabled, input:disabled { opacity: .8; }
+nav { flex-wrap: wrap; }
+nav button { padding-left: 12px; padding-right: 12px; }
+summary { cursor: pointer; color: #c9b188; margin: 14px 0; }

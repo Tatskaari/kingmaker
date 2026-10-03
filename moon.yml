@@ -24,7 +24,7 @@ tasks:
   editorBuild:
     deps: [contracts:generate]
     command: npx --no-install vite build --config vite.editor.config.ts
-    inputs: ['apps/editor/**/*', 'apps/web/public/**/*', 'packages/**/*', 'vite.editor.config.ts', 'package.json', 'package-lock.json']
+    inputs: ['apps/editor/**/*', 'apps/web/src/palace-*', 'apps/web/src/dungeon-autotile.ts', 'apps/web/public/**/*', 'content/**/*', 'packages/**/*', 'vite.editor.config.ts', 'package.json', 'package-lock.json']
     outputs: ['dist/editor']
   build:
     deps: [compile, webBuild, editorBuild]

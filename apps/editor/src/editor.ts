@@ -1,15 +1,16 @@
 import { palaceMap } from "../../web/src/palace-map.js";
+import { writingView, updateWriting, collaborationBrief, type CharacterWriting, type Note, type WritingPanel } from "./writing.js";
 import { DiskDocument } from "./file-sync.js";
 
 interface Point { x: number; y: number }
-interface CharacterJson { id: string; name: string; lore?: string; currentGoal?: string; gender?: string; delegation?: string; sprite?: number }
+interface CharacterJson extends CharacterWriting { id: string; name: string; lore?: string; currentGoal?: string; gender?: string; delegation?: string; sprite?: number }
 interface ActorJson { characterId: string; roomId?: string; homeRoomId?: string; position?: Point; awake?: boolean }
 interface FixtureJson { id: string; name: string; roomId?: string; position?: Point; interactionSpot?: Point; sprite?: number; [key: string]: unknown }
 interface DoorJson { id: string; name: string; tiles: Point[]; interactionSpots: Point[]; roomIds?: string[]; open?: boolean }
 interface RoomJson { id: string; name: string; description?: string; exitRoomIds?: string[]; private?: boolean; allowedCharacterIds?: string[] }
 interface ScenarioJson {
   id: string; systemPrompt?: string; premise?: string; gameMasterPrompt?: string;
-  characters: CharacterJson[]; world?: { rooms?: RoomJson[]; actors?: ActorJson[]; fixtures?: FixtureJson[]; doors?: DoorJson[] };
+  notes?: Note[]; characters: CharacterJson[]; world?: { rooms?: RoomJson[]; actors?: ActorJson[]; fixtures?: FixtureJson[]; doors?: DoorJson[] };
   [key: string]: unknown;
 }
 type Tool = "inspect" | "place";
@@ -17,7 +18,8 @@ type Entity = { kind: "actor" | "fixture" | "door"; id: string; label: string };
 
 const root = document.querySelector<HTMLElement>("#editor")!;
 const scenarioDocument = new DiskDocument<ScenarioJson>("scenario");
-let activePanel: "map" | "scenario" | "json" = "map";
+let activePanel: WritingPanel | "map" | "scenario" | "json" = "overview";
+let storyQuery = "";
 let tool: Tool = "inspect", selectedEntity = "", selectedCharacter = "";
 let selectedTile: Point | undefined;
 let tileset: HTMLImageElement | undefined;
@@ -38,7 +40,7 @@ function roomAt(point: Point): string | undefined {
   return palaceMap.rooms.find(room => room.regions.some(region => point.x >= region.x && point.y >= region.y
     && point.x < region.x + region.width && point.y < region.y + region.height))?.id;
 }
-function markScenarioDirty(update: (scenario: ScenarioJson) => void): void { scenarioDocument.change(update); drawMap(); updateStatus(); }
+function markScenarioDirty(update: (scenario: ScenarioJson) => void): void { if (!scenarioDocument.handle) return; scenarioDocument.change(update); drawMap(); updateStatus(); }
 
 function placeEntity(point: Point): void {
   const entity = entities().find(item => `${item.kind}:${item.id}` === selectedEntity); if (!entity) return;
@@ -89,15 +91,15 @@ function field(label: string, key: "id" | "premise" | "systemPrompt" | "gameMast
 function render(): void {
   const scenario = scenarioDocument.value, availableEntities = entities();
   if (!selectedEntity && availableEntities[0]) selectedEntity = `${availableEntities[0].kind}:${availableEntities[0].id}`;
-  if (!selectedCharacter && scenario?.characters[0]) selectedCharacter = scenario.characters[0].id;
+  if (!scenario?.characters.some(item => item.id === selectedCharacter) && scenario?.characters[0]) selectedCharacter = scenario.characters[0].id;
   const character = scenario?.characters.find(item => item.id === selectedCharacter);
   root.innerHTML = `
     <header><div><p class="eyebrow">Content tools</p><h1>Kingmaker Workshop</h1></div><div class="file-actions">
-      <button id="open-scenario">${scenario ? "Change scenario file" : "Open scenario JSON"}</button>
+      <button id="open-scenario">${scenarioDocument.handle ? "Change scenario file" : "Open scenario JSON"}</button>
     </div></header>
     <div id="status" class="status-strip"></div>
-    <nav><button data-panel="map" class="${activePanel === "map" ? "active" : ""}">Map</button><button data-panel="scenario" class="${activePanel === "scenario" ? "active" : ""}">Scenario</button><button data-panel="json" class="${activePanel === "json" ? "active" : ""}">Raw JSON</button></nav>
-    ${activePanel === "map" ? `<section class="workspace">
+    <nav>${[["overview", "Story overview"], ["characters", "Characters"], ["quests", "Quests & ambitions"], ["notes", "World notes"], ["scenario", "Scenario settings"], ["map", "Map"], ["json", "Raw JSON"]].map(([id, label]) => `<button data-panel="${id}" class="${activePanel === id ? "active" : ""}">${label}</button>`).join("")}</nav>
+    ${["overview", "characters", "quests", "notes"].includes(activePanel) ? (scenario ? writingView(scenario, activePanel as WritingPanel, selectedCharacter, storyQuery) : `<div class="empty">Loading scenario…</div>`) : activePanel === "map" ? `<section class="workspace">
       <aside><h2>Map tools</h2>
         <label class="field"><span>Tool</span><select id="tool">${[["inspect","Inspect"],["place","Place entity"]].map(([value,label]) => `<option value="${value}" ${tool === value ? "selected" : ""}>${label}</option>`).join("")}</select></label>
         <label class="field"><span>Entity</span><select id="entity">${availableEntities.map(item => `<option value="${item.kind}:${escapeHtml(item.id)}" ${selectedEntity === `${item.kind}:${item.id}` ? "selected" : ""}>${escapeHtml(item.label)}</option>`).join("")}</select></label>
@@ -114,9 +116,30 @@ function render(): void {
       </div>` : ""}` : `<div class="empty"><h2>Open the scenario</h2><p>Select <code>content/scenarios/last-night.json</code>.</p></div>`}</div>
     </section>` : `<section class="raw-workspace"><div class="form-card"><h2>Complete scenario JSON</h2><p class="hint">This exposes fields that do not yet have a dedicated visual control. Changes apply when the field loses focus.</p><textarea id="raw-json" spellcheck="false">${escapeHtml(scenario ? JSON.stringify(scenario, null, 2) : "")}</textarea><p id="raw-error" class="raw-error"></p></div></section>`}`;
   bind(); updateStatus(); drawMap();
+  if (!scenarioDocument.handle) {
+    root.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>("textarea, input:not(#story-search)").forEach(input => { input.readOnly = true; });
+    root.querySelectorAll<HTMLButtonElement>("[data-remove-dialogue], [data-remove-ambition], #add-dialogue, #add-ambition").forEach(button => { button.disabled = true; });
+  }
 }
 
 function bind(): void {
+  document.querySelector<HTMLInputElement>("#story-search")?.addEventListener("input", event => {
+    const input = event.target as HTMLInputElement, position = input.selectionStart;
+    storyQuery = input.value; render();
+    const replacement = document.querySelector<HTMLInputElement>("#story-search"); replacement?.focus(); replacement?.setSelectionRange(position, position);
+  });
+  document.querySelectorAll<HTMLButtonElement>("[data-story-character]").forEach(button => button.addEventListener("click", () => { selectedCharacter = button.dataset.storyCharacter!; activePanel = activePanel === "quests" ? "quests" : "characters"; render(); }));
+  document.querySelectorAll<HTMLButtonElement>("[data-story-panel]").forEach(button => button.addEventListener("click", () => { activePanel = button.dataset.storyPanel as WritingPanel; render(); }));
+  document.querySelectorAll<HTMLTextAreaElement>("[data-writing]").forEach(input => input.addEventListener("input", () => markScenarioDirty(value => updateWriting(value, input.dataset.writing!, input.value))));
+  const editCharacter = (update: (character: CharacterJson) => void) => { markScenarioDirty(value => { const character = value.characters.find(item => item.id === selectedCharacter); if (character) update(character); }); render(); };
+  document.querySelector("#add-dialogue")?.addEventListener("click", () => editCharacter(character => { (character.dialogueObjectives ??= []).push(""); }));
+  document.querySelector("#add-ambition")?.addEventListener("click", () => editCharacter(character => { (character.parkedObjectives ??= []).push({ name: "New ambition", status: "Parked; no execution plan adopted.", successCriteria: "", currentGoal: "" }); }));
+  document.querySelectorAll<HTMLButtonElement>("[data-remove-dialogue]").forEach(button => button.addEventListener("click", () => editCharacter(character => { character.dialogueObjectives?.splice(Number(button.dataset.removeDialogue), 1); })));
+  document.querySelectorAll<HTMLButtonElement>("[data-remove-ambition]").forEach(button => button.addEventListener("click", () => editCharacter(character => { character.parkedObjectives?.splice(Number(button.dataset.removeAmbition), 1); })));
+  document.querySelector("#collaboration-brief")?.addEventListener("click", () => {
+    if (!scenarioDocument.value) return;
+    void navigator.clipboard.writeText(collaborationBrief(scenarioDocument.value, selectedCharacter)).then(() => { const status = document.querySelector("#copy-status"); if (status) status.textContent = "Context copied. Paste into Codex and add the changes you want."; }).catch(() => { const status = document.querySelector("#copy-status"); if (status) status.textContent = "Clipboard unavailable. Use Raw JSON to copy the scenario context."; });
+  });
   document.querySelector("#open-scenario")?.addEventListener("click", () => void openDocument(scenarioDocument));
   document.querySelectorAll<HTMLButtonElement>("[data-panel]").forEach(button => button.addEventListener("click", () => { activePanel = button.dataset.panel as typeof activePanel; render(); }));
   document.querySelector<HTMLSelectElement>("#tool")?.addEventListener("change", event => { tool = (event.target as HTMLSelectElement).value as Tool; });
@@ -168,4 +191,12 @@ document.addEventListener("focusout", () => setTimeout(() => void saveAll(), 0))
 setInterval(() => { if (document.visibilityState === "visible") void checkDisk(); }, 1000);
 
 render(); loadTileset();
-void scenarioDocument.restore().then(() => render());
+void (async () => {
+  if (!await scenarioDocument.restore()) {
+    const response = await fetch(new URL("../../../content/scenarios/last-night.json", import.meta.url));
+    if (!response.ok) throw new Error("Could not load scenario preview");
+    scenarioDocument.value = await response.json() as ScenarioJson;
+    scenarioDocument.status = "Preview of last-night.json · Open your local scenario JSON to edit and sync with Codex";
+  }
+  render();
+})().catch(error => { scenarioDocument.status = String(error); updateStatus(); });

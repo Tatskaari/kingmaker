@@ -39,6 +39,9 @@ export class DiskDocument<T extends object> extends EventTarget {
   dirty = false;
   conflict = false;
   lastModified = 0;
+  private diskText = "";
+  private revision = 0;
+  private saving: Promise<void> | undefined;
   status = "Not connected";
 
   constructor(kind: DocumentKind) { super(); this.kind = kind; }
@@ -55,6 +58,8 @@ export class DiskDocument<T extends object> extends EventTarget {
   }
 
   async open(): Promise<void> {
+    await this.save();
+    if (this.dirty) throw new Error("Resolve unsaved changes before opening another file.");
     const picker = (window as PickerWindow).showOpenFilePicker;
     if (!picker) throw new Error("Use Chrome or Edge to edit local files.");
     const [handle] = await picker({ multiple: false, types: [{ description: `${this.kind} JSON`, accept: { "application/json": [".json"] } }] });
@@ -68,23 +73,25 @@ export class DiskDocument<T extends object> extends EventTarget {
     if (!this.value) return;
     update(this.value);
     this.dirty = true;
-    this.conflict = false;
-    this.status = "Unsaved changes";
+    this.revision += 1;
+    this.status = this.conflict ? "Disk changed while this editor has unsaved changes" : "Unsaved changes";
     this.dispatchEvent(new Event("dirty"));
   }
 
   replace(value: T): void {
     this.value = value;
     this.dirty = true;
-    this.conflict = false;
-    this.status = "Unsaved changes";
+    this.revision += 1;
+    this.status = this.conflict ? "Disk changed while this editor has unsaved changes" : "Unsaved changes";
     this.dispatchEvent(new Event("change"));
   }
 
   async reload(): Promise<void> {
     if (!this.handle) return;
     const file = await this.handle.getFile();
-    const parsed = JSON.parse(await file.text()) as T;
+    const text = await file.text();
+    const parsed = JSON.parse(text) as T;
+    this.diskText = text;
     this.value = parsed;
     this.lastModified = file.lastModified;
     this.dirty = false;
@@ -94,29 +101,51 @@ export class DiskDocument<T extends object> extends EventTarget {
   }
 
   async checkDisk(): Promise<void> {
-    if (!this.handle) return;
+    if (!this.handle || this.saving) return;
     const file = await this.handle.getFile();
-    if (file.lastModified <= this.lastModified) return;
+    const text = await file.text();
+    if (text === this.diskText) return;
     if (this.dirty) {
       this.conflict = true;
       this.status = "Disk changed while this editor has unsaved changes";
-      this.dispatchEvent(new Event("change"));
+      this.dispatchEvent(new Event("dirty"));
       return;
     }
-    await this.reload();
+    this.value = JSON.parse(text) as T;
+    this.diskText = text;
+    this.lastModified = file.lastModified;
+    this.conflict = false;
     this.status = `Reloaded ${file.name} from disk`;
     this.dispatchEvent(new Event("change"));
   }
 
   async save(): Promise<void> {
+    if (this.saving) { await this.saving; return this.save(); }
+    const pending = this.write();
+    this.saving = pending;
+    try { await pending; } finally { this.saving = undefined; }
+  }
+
+  private async write(): Promise<void> {
     if (!this.handle || !this.value || !this.dirty || this.conflict) return;
+    // Recheck immediately before writing, even if the polling interval has not elapsed.
+    const before = await this.handle.getFile();
+    if (await before.text() !== this.diskText) {
+      this.conflict = true;
+      this.status = "Disk changed while this editor has unsaved changes";
+      this.dispatchEvent(new Event("dirty"));
+      return;
+    }
+    const revision = this.revision;
+    const text = `${JSON.stringify(this.value, null, 2)}\n`;
     const writable = await this.handle.createWritable();
-    await writable.write(`${JSON.stringify(this.value, null, 2)}\n`);
+    await writable.write(text);
     await writable.close();
-    const file = await this.handle.getFile();
-    this.lastModified = file.lastModified;
-    this.dirty = false;
-    this.status = `Saved ${file.name}`;
-    this.dispatchEvent(new Event("change"));
+    this.diskText = text;
+    this.lastModified = (await this.handle.getFile()).lastModified;
+    this.dirty = this.revision !== revision;
+    this.status = this.dirty ? "Unsaved changes" : `Saved ${this.handle.name}`;
+    // Saving should not replace the focused input or interrupt the next click.
+    this.dispatchEvent(new Event("dirty"));
   }
 }

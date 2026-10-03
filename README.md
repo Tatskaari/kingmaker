@@ -475,10 +475,28 @@ advice Holt's lore says he offers (no roll); the second asks him to publicly nam
 Aldren despite his established reluctance out of loyalty (persuasion).
 ## Content editor
 
-The standalone WYSIWYG editor is built with `npm run build:editor` into
+The standalone writing workshop is built with `npm run build:editor` into
 `dist/editor`. Open the built app from any static host in Chrome or Edge, then
 choose `content/scenarios/last-night.json`. It edits that file directly through the
 browser File System Access API; no editor backend is required. Dirty documents
 save when a field or the window loses focus. The editor polls connected files
 while visible and reloads external changes automatically, unless that file also
 has unsaved editor changes, in which case it presents an explicit reload choice.
+
+
+The workshop opens on a story overview of the bundled scenario. Use **Characters**
+to edit lore and follow incoming and outgoing relationships, **Quests & ambitions**
+to write dialogue objectives and parked undertakings, and **World notes** to edit
+shared facts and secrets. Parked ambitions inform character intentions; they are
+not active planner tasks. The map remains a secondary placement tool.
+
+The bundled preview is read-only. Open the scenario JSON from the checkout where
+Codex is working to edit it together. **Copy context for Codex** copies a character,
+their incoming relationships, and related notes; paste it into your task and add
+the changes you want. This does not send a message automatically. The connected
+file reloads after external edits; conflicting unsaved edits require an explicit
+reload. Save and polling checks detect disk changes, but the browser file API does
+not provide an atomic compare-and-swap with external writers, so avoid saving in
+both tools at exactly the same instant.
+
+For local development, run `npx vite --config vite.editor.config.ts`.
