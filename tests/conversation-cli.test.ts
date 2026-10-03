@@ -67,7 +67,7 @@ test("lore starts with private identity and scenario entry; knowledge stays unop
   assert.match(lore.initial[0]!.markdown, /## Speech style/);
   assert.ok(lore.initial[1]!.path.endsWith("/corvin/character.md"));
   const candidates = lore.candidates(lore.initial);
-  assert.equal(candidates.filter(link => link.path.includes("/knowledge/")).length, 12);
+  assert.equal(candidates.filter(link => link.path.includes("/knowledge/")).length, 13);
   assert.equal(candidates.filter(link => link.path.includes("/corvin/")).length, 3);
   const knowledge = lore.read(candidates.find(link => link.path.endsWith("Lady Elinor Ash.md"))!.path);
   assert.equal(knowledge.markdown.trim(), "This is a stub.");
