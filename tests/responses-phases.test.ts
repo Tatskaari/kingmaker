@@ -34,3 +34,40 @@ test("Responses supports unphased answers and tool calls without promoting comme
   output = [message("Ignore this unphased draft"), message("20", "final_answer")];
   assert.equal((await client.complete(request)).content, "20");
 });
+
+test("AI retry recovers commentary-only output without displaying it or replaying tool results", async t => {
+  const { retryResponses } = await import("../packages/conversation/src/ai.js");
+  const output = [message("Planning only", "commentary")];
+  const inputs: unknown[] = [];
+  t.mock.method(globalThis, "fetch", async (_url: unknown, init: RequestInit) => {
+    inputs.push(JSON.parse(String(init.body)));
+    return new Response(JSON.stringify({ status: "completed", output: inputs.length === 1 ? output : [message("What brings you here?", "final_answer")] }));
+  });
+  const client = new OpenRouterClient("test");
+  const respond = retryResponses((request, signal) => client.complete(request, signal));
+  const answer = await respond({ ...request, messages: [...request.messages,
+    { role: "assistant", content: null, tool_calls: [{ id: "offer", type: "function", function: { name: "offer_replies", arguments: '{}' } }] },
+    { role: "tool", tool_call_id: "offer", content: '{"ok":true}' },
+  ] });
+  assert.equal(inputs.length, 2);
+  assert.deepEqual(inputs[0], inputs[1], "Retry only the provider call, with the same tool output");
+  assert.equal(answer.content, "What brings you here?");
+  assert.doesNotMatch(JSON.stringify(answer), /Planning only/);
+});
+
+test("empty Responses output retries once, while final refusals remain terminal", async t => {
+  const { retryResponses } = await import("../packages/conversation/src/ai.js");
+  let calls = 0, refusal = false;
+  t.mock.method(globalThis, "fetch", async () => {
+    calls++;
+    return new Response(JSON.stringify({ status: "completed", output: refusal
+      ? [{ type: "message", phase: "final_answer", content: [{ type: "refusal", refusal: "Refused" }] }] : [] }));
+  });
+  const client = new OpenRouterClient("test");
+  const respond = retryResponses((request, signal) => client.complete(request, signal));
+  await assert.rejects(respond(request), /no message or tool output/);
+  assert.equal(calls, 2);
+  calls = 0; refusal = true;
+  await assert.rejects(respond(request), /Refused/);
+  assert.equal(calls, 1);
+});
