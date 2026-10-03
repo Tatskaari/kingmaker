@@ -2,7 +2,7 @@
 
 - Status: Proposed
 - Date: 2026-10-04
-- Scope: Runtime state ownership, mechanics transactions, worker updates and presentation
+- Scope: Native document-based world support and React/canvas presentation
 - Related work: [service separation #330](https://github.com/Tatskaari/kingmaker/pull/330),
   [incremental document graph #331](https://github.com/Tatskaari/kingmaker/pull/331)
 
@@ -33,15 +33,26 @@ observation costs remain. That fix is separate from this proposed migration.
 
 ## Decision
 
-Keep one authoritative v2 world in the game worker. Mechanics operate directly on
-its physical state through validated transactions. Documents own narrative content
-and incremental link maintenance. React renders panels and controls; an independent
-canvas loop renders the map from prepared presentation data.
+This RFC proposes two refactors:
 
-Gameplay code writes state and returns command results. It never chooses UI
-components to refresh. Shared commit infrastructure captures writes and presentation
-subscriptions derive the updates. We will not build a custom DOM reactivity system
-or adopt Solid solely to decide when a canvas should draw.
+1. Make game logic natively consume the document-based scenario and its physical
+   state, removing the reconstruction of a legacy `Scenario` for mechanics and views.
+2. Make presentation consume that state through React subscriptions and a canvas
+   render loop, removing scattered defensive view rebuilds and refresh calls.
+
+Keep one authoritative v2 world in the game worker. Documents own narrative content
+and incremental link maintenance. Mechanics use the physical map and character
+properties directly. React renders panels and controls; an independent canvas loop
+renders prepared scene data. Gameplay code does not choose UI components to refresh,
+and presentation reads must not mutate authoritative world state.
+
+### Out of scope
+
+This RFC does not introduce a transaction API, compare-and-swap (CAS) design, new
+resource-generation scheme, draft/patch engine, or replacement persistence/rollback
+strategy. Preserve existing validation, conflict detection and save behavior while
+changing the representations they operate on. Any redesign of those mechanisms
+requires a separate proposal; it is not a prerequisite for either refactor here.
 
 ## Target state and ownership
 
@@ -98,55 +109,30 @@ mechanical record, actor and player designation atomically. Moving mechanics out
 documents must not make private statistics visible to a character or the ordinary UI.
 Incompatible schema changes require a fresh game; no saved-game migration is added.
 
-## Transactions and concurrency
+## Native world access
 
-Expose read-only state and a single write boundary. An illustrative command is:
+Refactor movement, inventory, fixture, NPC and observation functions to consume the
+v2 map, character mechanics and document services they actually need. Remove the
+`Scenario` projection, disposable mechanics state and serialization round trip from
+ordinary operations. A move updates an actor's physical state without reconstructing
+character lore or copying the document world.
 
-```ts
-world.transaction(expectedGenerations, draft => {
-  draft.map.actors[actorId].position = destination;
-});
-```
+Keep existing command validation and concurrency protections in place. Preserve
+incremental document graph maintenance and its dangling-link, ambiguity and audience
+checks. Existing save/load and failure behavior remain requirements, rather than
+mechanisms redesigned by this RFC.
 
-The syntax is illustrative, including actor lookup; implementation can retain repeated
-protobuf actors with an ID index. The transaction infrastructure captures changed
-paths through a draft/patch mechanism. Callers do not declare UI invalidations.
-Unchanged records retain identity; no full-world clone or JSON round trip is needed.
-
-A transaction validates command preconditions, stages affected records, checks
-resource generations and domain invariants, and commits atomically. On failure it
-discards the draft. Incremental document graph updates participate in document
-transactions only. Preserve dangling-link, ambiguity and audience-access checks,
-including shorthand links whose resolution changes when paths are added or removed.
-
-Keep generations persistent and update affected resources at mutation boundaries,
-including dependent resources such as doorway occupancy and item ownership. Preserve
-A-to-B-to-A detection and deletion tombstones. Reads and view construction never
-advance generations. This dependency logic belongs to mechanics, not individual UI
-call sites, and must cover every write path. Document SHAs guard narrative state;
-mechanical generations guard the extracted character properties. Operations that
-depend on both must check both, preserving conflict detection after the schema split.
-
-Model calls run outside the transaction queue. Their eventual writes check the
-resources they observed; unrelated movement survives, stale decisions fail, and
-reset/load invalidates work from the previous session. Never keep a writable draft
-open across a model call or silently replace stale expected generations.
-
-Initially retain persistence-before-success behavior: serialize commits, persist the
-candidate state, then publish it and acknowledge the command. Save failure leaves
-the previous committed state visible. Replace whole-world rollback snapshots with
-staged changes; serialize a full save only at the persistence boundary. Persistence
-must not construct UI views to discover a player name. A reactive notification batch
-alone does not supply validation, rollback or durable commit semantics.
+View construction becomes read-only. Persistence reads the metadata it needs directly
+instead of constructing UI views to discover a player name. This removes unnecessary
+presentation work without changing when saves occur or how failures are handled.
 
 ## Presentation and worker boundary
 
 ```mermaid
 flowchart TD
-  Commands[Player commands / NPC actions / document edits] --> Transaction[Validate, stage and persist]
-  Transaction --> World[Committed worker state]
+  Commands[Player commands / NPC actions / document edits] --> World[Authoritative v2 worker state]
   World --> Selectors[Presentation selectors]
-  Selectors --> Bridge[Revisioned updates]
+  Selectors --> Bridge[Worker presentation updates]
   Bridge --> Store[Browser presentation store]
   Store --> React[React panels and controls]
   Store --> Canvas[Canvas scene and animation loop]
@@ -155,16 +141,19 @@ flowchart TD
 Selectors declare the state they read; dependency tracking and comparison determine
 which outputs change. Start with a small set of stable outputs: map scene, player
 sheet, visible characters, active conversation and explicitly requested debug data.
-The exact selector/draft library is an implementation choice, to be proved in the
-first vertical slice. Do not assume React detects arbitrary object mutations.
+The subscription mechanism is an implementation choice, to be proved in the first
+vertical slice. Do not assume React detects arbitrary object mutations. Centralize
+presentation notification at the existing successful state-change boundary; game
+operations do not carry lists of UI components to refresh.
 
-The worker sends one initial presentation snapshot, then committed output updates
-with a session ID and ordered revisions. The bridge batches one commit, preserves
-unchanged identities in the browser store, ignores obsolete sessions and requests a
-fresh snapshot on revision gaps. Revision numbering must allow commits that do not
-change any subscribed output, using explicit base/next revisions or empty advances.
-It must not ship the entire document world on every step. Apply visibility and lore
-permissions before producing ordinary views; GM/debug subscriptions stay explicit.
+The browser keeps presentation data received from the worker and exposes it through
+a store. Send initial data when opening a game, then update affected presentation
+slices through one consistent path. Preserve unchanged slice identities so unrelated
+subscribers do not rerender. Do not ship the entire document world on every step.
+Retain existing reset/load cancellation and prevent obsolete session updates from
+replacing the active view. The wire format is an implementation detail, not a new
+concurrency protocol. Apply visibility and lore permissions before producing ordinary
+views; GM/debug subscriptions stay explicit.
 
 React components subscribe to the slices they need using `useSyncExternalStore`
 (or a library built on it). Snapshots must be immutable and stable between changes.
@@ -190,17 +179,17 @@ Deliver buildable, independently reviewable stack layers, splitting each slice a
 
 1. **State ownership:** introduce character IDs and separate mechanical records;
    update fresh-world loading, character creation and save validation. Require a fresh game.
-2. **Transaction foundation and player movement:** implement staged writes and persistent
-   generations; move player movement and doors off the `Scenario` round trip. Prove
-   rollback, stale-action rejection and occupancy updates with headless tests.
+2. **Native player movement:** move player movement and doors off the `Scenario`
+   round trip using direct physical-state access. Preserve existing validation and
+   conflict handling; test movement and occupancy behavior headlessly.
 3. **Remaining mechanics:** migrate inventory/fixture operations, NPC actions and events
    to narrow v2 access. Retain existing movement, legality and inventory rules.
 4. **Presentation vertical slice:** connect one actor and one React panel through
-   worker selectors, revisioned transport and stable browser snapshots. Verify that
+   worker presentation updates and stable browser snapshots. Verify that
    dialogue streaming does not redraw the map and movement does not rebuild unrelated panels.
-5. **Remaining presentation and persistence:** migrate views, controls and debug tools;
-   remove redundant publications and whole-world rollback copies. Keep canvas rendering
-   independent of React render frequency.
+5. **Remaining presentation:** migrate views, controls and debug tools; remove redundant
+   publications, including view construction inside persistence. Keep canvas rendering
+   independent of React render frequency and preserve existing save behavior.
 6. **Delete legacy paths:** migrate headless entrypoints, tests and eval fixtures;
    remove `projectWorld()`, disposable `PalaceMechanics` state and remaining live
    `Scenario` consumers. Temporary adapters must have named remaining consumers and
@@ -210,8 +199,8 @@ Deliver buildable, independently reviewable stack layers, splitting each slice a
 
 Preserve collision/access rules, inventory uniqueness and equipment cleanup, character
 visibility, document permissions, NPC cancellation and concurrent conversation behavior.
-Test failed persistence, stale commands, creation/deletion, reset during async work,
-revision gaps, and multiple actor instances. Exercise canvas lifecycle and UI state
+Retain regression coverage for failed persistence, stale commands, creation/deletion,
+reset during async work, and multiple actor instances. Exercise canvas lifecycle and UI state
 preservation: focus, scroll, dialogue drafts and animation must survive ordinary updates.
 
 Repeat the same headless movement and document benchmarks on each relevant layer.
@@ -220,7 +209,7 @@ report allocations and update counts as well as median/tail latency. In a browse
 check idle drawing and simultaneous NPC movement/dialogue streaming.
 
 Completion means no live `Scenario` projection, no document parsing or full-world
-copy inside movement mechanics, read-only views, and one commit-to-presentation path.
+copy inside movement mechanics, read-only views, and one state-change-to-presentation path.
 React updates subscribed slices and canvas frames consume prepared data. Full saves
 remain valid for the current format. Every stack passes the repository checks/build;
 performance gains must be measured rather than assumed from the framework choice.
