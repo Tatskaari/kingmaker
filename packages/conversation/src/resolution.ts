@@ -1,6 +1,7 @@
 import type { RuntimeServices } from "./services.js";
 
 export type ResolutionContext =
+  | { kind: "wait_ended"; characterId: string; instructions: string; observation: string }
   | { kind: "npc_exchange"; characterId: string; targetId: string; goal: string }
   | { kind: "task_outcome"; characterId: string; goal: string; actions: readonly string[];
       result: { reason: string; detail: string }; observation: unknown }

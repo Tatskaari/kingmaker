@@ -49,11 +49,15 @@ async function worldActionContext(world: WorldState, characterId: string, histor
     `World state:\n${renderJevRoomView(scenario, observation)}`,
     `Action log (completed actions, oldest first):\n${history.join("\n") || "None yet."}`,
   ].join("\n\n");
-  const messages = await disclosedContext(lore, [{ role: "system", content: ROOM_COURT_INSTRUCTIONS },
+  const instructions = ROOM_COURT_INSTRUCTIONS + " For this document activity, complete requires the activity's success criteria to be met. An explicit instruction to travel AND WAIT is not complete on arrival: choose wait once at the destination while the awaited condition remains unmet. Do not initiate the awaited person's action yourself. If the current step is finished but more planning is needed, choose unable for LLM review.";
+  const messages = await disclosedContext(lore, [{ role: "system", content: instructions },
     { role: "user", content: state }], services, characterId, signal);
   const expanded = messages.map(message => message.content).join("\n\n");
   return { characterId, goal, revision: visible.map.revision, actions: observation.actions,
-    request: jevRequest(expanded, ROOM_COURT_INSTRUCTIONS, actionCriteria(observation.actions)) };
+    request: jevRequest(expanded, instructions, { ...actionCriteria(observation.actions),
+      complete: "The activity success criteria have been met. End this activity and return to the routine.",
+      wait: "At the required waiting location, further progress depends on a condition or another actor. Ask the LLM to create a wait document.",
+    }) };
 }
 
 /** Idle characters do not call Jev. Hosts execute commands and call again after completion. */

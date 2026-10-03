@@ -21,6 +21,7 @@ import type { Point } from "./navigation.js";
 export type WorldSnapshot = MechanicalActivity & {
   stranger?: StrangerState;
   jail?: { characterId: string; message: string };
+  pendingWaitReviews?: Record<string, { instructions: string; observation: string }>;
   version: 3; world: JsonValue;
   playerMessages: Array<{ id: string; day: number; message: string; createdAt: string }>;
 };
