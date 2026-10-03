@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { create, fromJson, toJson } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, WorldStateSchema as MapSchema } from "../packages/contracts/src/index.js";
-import { WorldStateSchema } from "../packages/contracts/src/v2.js";
+import { DocumentSchema, WorldStateSchema } from "../packages/contracts/src/v2.js";
+import { DocumentValidationError } from "../packages/lore/src/document-audit.js";
 import { createScenarioServices, DocumentConflictError } from "../packages/lore/src/services.js";
 import { worldState } from "../packages/lore/src/world-state.js";
 import { activeGoal } from "../packages/lore/src/active-goal.js";
@@ -95,4 +96,24 @@ test("document conflicts refresh the tool snapshot and let the GM reconcile befo
   assert.match(doc.body, /honour my promise/);
   assert.doesNotMatch(doc.body, /player asked/);
   assert.equal(activeGoal(doc), "Meet Bob");
+});
+
+
+test("GM review commits automatically validate without exposing an optional validation tool", async () => {
+  const source = fixture().scenario.snapshot();
+  const other = "Scenarios/Test/Characters/bob/character.md";
+  source.docs[other] = create(DocumentSchema, { body: "[[gm]]" });
+  source.docs[source.scenario]!.body += `\n[[${other}]]`;
+  const services = createScenarioServices(source), before = services.scenario.snapshot();
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
+    assert.deepEqual(request.tools?.map(tool => tool.function.name), ["commit_review"]);
+    return answer("Go to the hall");
+  } } }, hooks: { review: documentReviewHooks } });
+  await assert.rejects(runConversationReview(evidence, runtime), DocumentValidationError);
+  assert.deepEqual(services.scenario.snapshot(), before);
+  // Repair the offending graph, then the same review can publish normally.
+  const unsafe = await services.docs.read(other);
+  await services.docs.replace(other, unsafe.sha, unsafe.text, "Bob knows no GM secrets.");
+  await runConversationReview(evidence, runtime);
+  assert.equal(activeGoal((await services.docs.read(entry)).document), "Go to the hall");
 });
