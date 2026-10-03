@@ -473,3 +473,10 @@ comfort, or willingness; lack of prior agreement alone is insufficient.
 authored controls using the same captured character context. The first asks for
 advice Holt's lore says he offers (no roll); the second asks him to publicly name
 Aldren despite his established reluctance out of loyalty (persuasion).
+
+## Lore authoring
+
+Open [`lore/`](lore/Home.md) as an Obsidian vault and begin at `Home`.
+It organizes the direction in issues 108–111 into world, cast and plot notes,
+with empty scenario stubs ready for author sketches. The running game still
+reads `content/` and does not import the vault.

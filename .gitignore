@@ -6,3 +6,8 @@ dist/
 !.env.example
 /eval-output/
 /test-output/
+
+# Personal Obsidian layout and cache; shared vault settings stay versioned.
+lore/.obsidian/workspace*.json
+lore/.obsidian/cache/
+lore/.trash/
