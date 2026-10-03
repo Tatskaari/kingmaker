@@ -369,11 +369,12 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
   }
   if (type === "state") return { state: requireRuntime().view(), activeSaveId: activeSave?.id };
   if (type === "stranger_expression") return { expression: await requireRuntime().classifyStrangerExpression(payload.recentPortraits ?? []) };
-  if (["start_introduction", "gm", "save_character"].includes(type)) {
+  if (["start_introduction", "start_premade", "gm", "save_character"].includes(type)) {
     const game = requireRuntime(), before = game.snapshot(), savedBefore = activeSave;
     const version = generation;
     try {
       if (type === "start_introduction") game.startIntroduction();
+      if (type === "start_premade") await game.startPremadeCharacter(String(payload.characterId || ""));
       if (type === "gm") await game.talkToGameMaster(String(payload.message || ""), text => {
         if (generation === version && runtime === game) worker.postMessage({ type: "dialogue_stream", requestId, characterId: "gm", text });
       });

@@ -1,3 +1,4 @@
+import type { PremadeCharacter } from "./premade-characters.js";
 import type { JsonValue } from "@bufbuild/protobuf";
 import type { ScenarioService } from "../../../packages/lore/src/services.js";
 import type { RuntimeServices } from "../../../packages/conversation/src/services.js";
@@ -37,7 +38,7 @@ function tools(ids: string[], affiliations: string[]): OpenRouterTool[] {
 }
 /** The interview edits only a detached draft. Scenario services supply the live v2 setting. */
 export async function strangerTurn(previous: StrangerState, text: string,
-  scenario: ScenarioService, services: Pick<RuntimeServices, "ai" | "disclosure">, signal = new AbortController().signal, onText?: TextProgress): Promise<StrangerState> {
+  scenario: ScenarioService, services: Pick<RuntimeServices, "ai" | "disclosure">, signal = new AbortController().signal, onText?: TextProgress, premade?: PremadeCharacter): Promise<StrangerState> {
   if (scenario.info().player || previous.draft) throw new Error("Character creation is already complete or awaiting review.");
   if (!text.trim()) throw new Error("Say something first.");
   const state = structuredClone(previous);
@@ -47,7 +48,7 @@ export async function strangerTurn(previous: StrangerState, text: string,
   const lore = await strangerLore(scenario);
   const cast = world.characters.map(path => ({ id: characterId(path, world), path }));
   const context = await disclosedContext(lore, [
-    { role: "system", content: strangerPrompt },
+    { role: "system", content: premade ? `Integrate the selected pre-made character into the supplied scenario. The player has chosen to enter the hall immediately; do not interview them or request review. Call create_player. Preserve the supplied identity, role, goal and build. Write a grounded biography and one relationship and NPC impression per cast member. They know nobody personally: use unfamiliarity or modest public impressions, never invented shared history. Keep service to the Stranger private and do not reveal NPC secrets. Character: ${JSON.stringify(premade)}` : strangerPrompt },
     { role: "system", content: `Active character IDs for draft relationships (not prior acquaintance):\n${JSON.stringify(cast)}` },
     ...state.history,
   ], services, "gm", signal);
@@ -55,10 +56,11 @@ export async function strangerTurn(previous: StrangerState, text: string,
   for (let pass = 0; pass < 5; pass++) {
     const reply = await services.ai.responses({ ...REASONING_MODEL, max_tokens: 8000,
       messages: [...setup, ...state.history],
-      tools: tools(cast.map(item => item.id), strangerConfiguration(world).affiliations),
+      tools: tools(cast.map(item => item.id), strangerConfiguration(world).affiliations).filter(tool => !premade || tool.function.name === "create_player"),
     }, signal, onText ? { onText } : undefined);
     state.history.push(reply);
     if (!reply.tool_calls?.length) {
+      if (premade) throw new Error("The GM did not prepare the pre-made character. Please try again.");
       if (!reply.content?.trim()) throw new Error("The Stranger returned an empty reply.");
       return state;
     }
@@ -68,7 +70,7 @@ export async function strangerTurn(previous: StrangerState, text: string,
         if (reply.tool_calls.length !== 1) throw new Error("Call a single creation or reply tool alone.");
         const input = JSON.parse(call.function.arguments) as Record<string, unknown>;
         if (call.function.name === "create_player") {
-          state.draft = interviewDraft(input, world);
+          state.draft = interviewDraft(premade ? { ...input, ...premade, lore: input.lore } : input, world);
           result = { ok: true, instruction: "Wait for explicit review and Save. Do not narrate arrival." };
         } else if (call.function.name === "offer_replies") {
           if (input.compelled !== false || !Array.isArray(input.options) || input.options.length < 2 || input.options.length > 5
