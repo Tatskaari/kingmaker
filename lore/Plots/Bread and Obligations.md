@@ -1,4 +1,5 @@
 ---
+summary: "GM plot context connecting failing wards, grain dependence, disputed claims and shipping costs, with attention to who benefits and what Gurt can approve."
 visibility: gm
 ---
 # Bread and Obligations

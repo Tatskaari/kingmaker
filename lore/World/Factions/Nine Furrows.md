@@ -1,4 +1,5 @@
 ---
+summary: "GM reference on Nine Furrows' agricultural and magical institutions, its wizard delegation and Corvin's academic connection. Its constitutional relationship to Greenweald remains unresolved."
 visibility: gm
 type: faction
 status: draft

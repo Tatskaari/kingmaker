@@ -1,4 +1,5 @@
 ---
+summary: "GM reference on the palace as Caerwyn's court and a setting for ceremony, negotiation and visible luxury. Permanent architecture and access customs remain unwritten."
 visibility: gm
 type: place
 status: draft

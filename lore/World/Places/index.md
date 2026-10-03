@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Dunmere, the royal palace and trade roads."
+---
 # Places
 
 Author navigation index. Agent context starts at `scenario.md` or `character.md`, not at this index.

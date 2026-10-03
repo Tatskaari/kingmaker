@@ -1,4 +1,5 @@
 ---
+summary: "GM reference on Kläggenheim's dwarven industry, military strength and grain dependence, with delegation links, unsettled claims and naming grievances."
 visibility: gm
 type: faction
 status: draft

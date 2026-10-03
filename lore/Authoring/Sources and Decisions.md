@@ -1,4 +1,5 @@
 ---
+summary: "Author references, source priority and unresolved lore decisions, distinguishing the latest faction direction from retained earlier setting rules."
 type: reference
 status: draft
 ---

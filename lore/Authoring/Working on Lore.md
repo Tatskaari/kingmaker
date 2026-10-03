@@ -1,3 +1,6 @@
+---
+summary: "Collaboration workflow for author-led lore development, including where material belongs, scoped agent knowledge, progressive disclosure, navigation and delivery checks."
+---
 # Working on Lore
 
 This guide is for the assistant collaborating with the author. The same vault serves two purposes: a comfortable place to develop the story in Obsidian, and a future source of selectively loaded context for in-game agents. Keep the writing understandable without requiring the author to design a runtime schema.
@@ -28,6 +31,8 @@ When we develop a quest, distinguish prerequisites, attempted actions, completed
 The GM begins with `scenario.md`; a conversation agent begins with its own `character.md`. Each entry should eventually supply enough essential context for a useful first decision (with approved static character sections drawn from Cast), plus clearly labelled links explaining what deeper notes contain and when they are relevant. Avoid an empty entry that requires loading the whole vault to understand the situation. The current blank sections are intentional authoring stubs, not finished prompts.
 
 Author permissions as flat YAML lists, never nested reader mappings. For example, `readers: ["character:aldren"]` grants Aldren access, while `readers: ["label:court-informed"]` grants the shared court audience access. Keep `labels: [court-informed]` on the scenario character entry to establish membership. See [[Authoring/Authoring Guide|Authoring Guide]] for the editing steps and Obsidian graph filters.
+
+Every Markdown note needs a one- or two-sentence `summary` property, including author indexes and source archives. Stub summaries identify the unwritten topic without filling in its body.
 
 Split detail by topic and audience. Write short, descriptive notes and links; fetch the relevant note when needed rather than recursively loading every link. Indexes are human navigation and are not automatically part of any agent prompt. Keep source issues, author discussion and editorial uncertainty out of character-facing context unless deliberately translated into that character's uncertainty.
 

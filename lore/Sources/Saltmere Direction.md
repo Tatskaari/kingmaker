@@ -1,3 +1,6 @@
+---
+summary: "Preserved source issue #110 proposing Saltmere's merchant-explorers, the Peregrine–Cressida–Abel dynamic, courtship and routes to political evidence."
+---
 # Reimagine Saltmere as the grandstanding merchant-explorer delegation
 
 Source: [Issue #110](https://github.com/Tatskaari/kingmaker/issues/110). Original issue text preserved below.

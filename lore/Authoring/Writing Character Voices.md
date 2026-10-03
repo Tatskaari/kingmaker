@@ -1,3 +1,6 @@
+---
+summary: "Author guidance for distinct character voices, grounded humour and illustrative dialogue, with enduring speech style kept in Cast and scenario changes scoped to events."
+---
 # Writing Character Voices
 
 The requested inspiration is Terry Pratchett: people earnestly defending an unreasonable position, institutions carrying sensible rules past their useful limit, practical competence, sharp differences in status, and affection beneath the satire. These are our writing choices for Kingmaker; the characters are not counterparts of particular Discworld characters.

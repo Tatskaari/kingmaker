@@ -1,3 +1,6 @@
+---
+summary: "Preserved source issue #108 proposing the Nine Furrows wizard delegation, agricultural magic, academic rivalries, elaborate titles and Corvin's rejected appointment."
+---
 # Reimagine Greenweald as the eccentric Nine Furrows wizard delegation
 
 Source: [Issue #108](https://github.com/Tatskaari/kingmaker/issues/108). Original issue text preserved below.

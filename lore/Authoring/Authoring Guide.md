@@ -1,3 +1,6 @@
+---
+summary: "How to organize and author the lore vault, including audience boundaries, summaries, flat reader properties, Obsidian filters, folder indexes and scenario character properties."
+---
 # Authoring Guide
 
 For the collaboration workflow and agent-context design, see [[Authoring/Working on Lore|Working on Lore]].
@@ -44,7 +47,7 @@ Use `visibility: gm` for hidden truth regardless of reader entries. Use `visibil
 
 ### Help Jev find the right note
 
-When authoring or updating a retrievable note, add a `summary` **Text** property with one or two sentences describing its actual contents. Include ordinary terms a player might use, such as “wizards”, alongside names and titles. Keep the corresponding facts in the body too. Summaries are presented above the candidate path when Jev decides whether to open a permitted link; they do not replace links, permissions or the full note. See [[Authoring/Agent Disclosure|Agent Disclosure]] for the loading contract.
+Every lore document, including indexes, author references and stubs, needs a `summary` **Text** property with one or two sentences describing its actual contents. Include ordinary terms a player might use, such as “wizards”, alongside names and titles. Keep the corresponding facts in the body too. For a stub, say explicitly that its content is unwritten and retain the literal “This is a stub.” body. Summaries are presented above the candidate path when Jev decides whether to open a permitted link; they do not replace links, permissions or the full note. See [[Authoring/Agent Disclosure|Agent Disclosure]] for the loading contract.
 
 ### Graph filters
 

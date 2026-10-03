@@ -1,4 +1,5 @@
 ---
+summary: "GM reference on the roads connecting the kingdoms and their reliance on funded patrols. Route names, distances and exact geography remain unwritten."
 visibility: gm
 type: place
 status: draft

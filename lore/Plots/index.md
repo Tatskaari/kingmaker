@@ -1,4 +1,5 @@
 ---
+summary: "Author navigation for the affection, grain, succession and recognition story threads."
 type: index
 status: draft
 ---

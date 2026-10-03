@@ -1,3 +1,6 @@
+---
+summary: "Author entrypoint to the Kingmaker Obsidian vault, linking setting, cast, plots, scenario material, source decisions and authoring guidance."
+---
 # Kingmaker Lore
 
 Open this `lore` folder as an Obsidian vault. No community plugins are required.

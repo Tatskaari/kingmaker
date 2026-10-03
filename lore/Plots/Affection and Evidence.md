@@ -1,4 +1,5 @@
 ---
+summary: "GM plot context linking Cressida's betrothal and attraction to Holt with patrol evidence and Abel's Tomas letter, without predetermining her choices."
 visibility: gm
 ---
 # Affection and Evidence

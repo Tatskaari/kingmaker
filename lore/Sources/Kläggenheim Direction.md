@@ -1,3 +1,6 @@
+---
+summary: "Preserved source issue #109 proposing the dwarven delegation of Gurt, Klog and Bran, with naming customs, unsettled claims, industry and meaningful royal consent."
+---
 # Reimagine Ironmark as the bickering Kläggenheim dwarf delegation
 
 Source: [Issue #109](https://github.com/Tatskaari/kingmaker/issues/109). Original issue text preserved below.

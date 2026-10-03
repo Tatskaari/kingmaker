@@ -1,4 +1,5 @@
 ---
+summary: "GM reference on Saltmere's maritime and financial infrastructure, dependence on paid expedition labour and the complementary roles of its delegates."
 visibility: gm
 type: faction
 status: draft

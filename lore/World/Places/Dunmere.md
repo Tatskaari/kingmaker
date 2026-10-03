@@ -1,4 +1,5 @@
 ---
+summary: "GM reference identifying Dunmere as Tomas Vey's home and recording his secret parentage. Geography, local society and his independent life remain unwritten."
 visibility: gm
 type: place
 status: draft

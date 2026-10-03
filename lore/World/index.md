@@ -1,4 +1,5 @@
 ---
+summary: "Author navigation for the factions, places, history and recognition law."
 type: index
 status: draft
 ---

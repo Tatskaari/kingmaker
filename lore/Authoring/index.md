@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for the lore collaboration, structure, disclosure, source-decision and character-voice guides."
+---
 # Authoring
 
 Author navigation index. Agent context starts at `scenario.md` or `character.md`, not at this index.

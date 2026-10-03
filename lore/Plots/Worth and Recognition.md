@@ -1,4 +1,5 @@
 ---
+summary: "GM plot context connecting Corvin's denied appointment and surviving committee record to legal authority, personal worth and university status."
 visibility: gm
 ---
 # Worth and Recognition

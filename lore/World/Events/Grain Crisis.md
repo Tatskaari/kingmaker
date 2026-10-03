@@ -1,4 +1,5 @@
 ---
+summary: "GM reference on the poor harvest, detained grain convoy and arbitration delay, including concealed magical causes that are not universally known."
 visibility: gm
 type: world-event
 status: draft

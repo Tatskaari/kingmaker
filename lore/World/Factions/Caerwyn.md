@@ -1,4 +1,5 @@
 ---
+summary: "GM reference on Caerwyn's roads, courts, garrisons and dependence on cooperation, and how the royal household keeps the system functioning while hiding failures."
 visibility: gm
 type: faction
 status: draft
