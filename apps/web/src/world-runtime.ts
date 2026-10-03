@@ -143,11 +143,13 @@ export class WorldGameRuntime extends WorldHost {
     const { impressions, ...character } = playerPublication(value, this.activity.stranger.draft, this.world());
     const staged = createScenarioServices(this.world());
     await staged.character.create(character);
+    const impressionWrites = [];
     for (const [path, impression] of Object.entries(impressions)) {
       const doc = await staged.docs.read(path);
       const prose = impression.trim().replace(/[\\`*_[\]<>#]/g, "\\$&");
-      await staged.docs.replace(path, doc.sha, doc.text, `${doc.text}\n\n## Initial impression of the player\n${prose}\n`);
+      impressionWrites.push({ path, expectedSha: doc.sha, text: `${doc.text}\n\n## Initial impression of the player\n${prose}\n` });
     }
+    await staged.docs.commit(impressionWrites);
     await staged.scenario.setPlayer(character.path);
     const map = staged.scenario.snapshot().map!;
     map.phase = GamePhase.CONVERSATIONS;
