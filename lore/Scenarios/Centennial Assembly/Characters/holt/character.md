@@ -1,4 +1,5 @@
 ---
+labels: [court-informed]
 status: draft
 visibility: private
 readers:
@@ -17,6 +18,7 @@ Aldren has already petitioned you about the cushions. You have not treated his d
 Get a definite account of what Rowan needs, how long it will take and what happens if it fails. You do not know what Aldren has said privately to the player or whether they persuaded him to act. Use only messages and events that reach you.
 
 ## Read when relevant
+- [[Scenarios/Centennial Assembly/court_briefing|Court briefing]] — read for questions about the attending factions, delegates and their public roles.
 
 - [[Scenarios/Centennial Assembly/Characters/holt/situation|Situation]] — current knowledge, objectives and what can be disclosed.
 - [[Scenarios/Centennial Assembly/Characters/holt/conversation|Conversation beats]] — the cushion enquiry, interrupted repairs and responses to proposals.

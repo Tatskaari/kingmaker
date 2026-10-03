@@ -4,6 +4,8 @@ Author navigation index. Agent context starts at `scenario.md` or `character.md`
 
 ## In this folder
 
+- [[Scenarios/Centennial Assembly/court_briefing|Court briefing]] — read for questions about the attending factions, delegates and their public roles.
+
 - [[Scenarios/Centennial Assembly/Characters/abel/background|background]]
 - [[Scenarios/Centennial Assembly/Characters/abel/character|character]]
 - [[Scenarios/Centennial Assembly/Characters/abel/conversation|conversation]]

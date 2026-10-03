@@ -33,6 +33,9 @@ See [[Agent Disclosure]] for the loading contract. Return to [Lore index](../../
 
 ## In this folder
 
+- [[Scenarios/Centennial Assembly/court_briefing|Court briefing]] — read for questions about the attending factions, delegates and their public roles.
+- [[Scenarios/Centennial Assembly/Delegations/index|Delegations]]
+
 - [[Scenarios/Centennial Assembly/Characters/index|Characters]]
 - [[Scenarios/Centennial Assembly/Conversations/index|Conversations]]
 - [[Scenarios/Centennial Assembly/Map/index|Map]]
