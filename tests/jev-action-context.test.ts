@@ -1,3 +1,4 @@
+import { mockJevChoice } from "./mock-jev.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -31,7 +32,7 @@ const signal = () => new AbortController().signal;
 
 test("action context tiers send exactly their selected facts as text", async t => {
   let captured = "", state = "";
-  t.mock.method(JevClient.prototype, "choose", async (input: unknown, instructions: unknown, criteria: Record<string, string>) => {
+  mockJevChoice(t, async (input: unknown, instructions: unknown, criteria: Record<string, string>) => {
     assert.equal(typeof input, "string"); state = input as string;
     captured = JSON.stringify({ state, instructions, criteria });
     return { choice: "wait", probabilities: {} };
@@ -61,7 +62,7 @@ test("action flags leave event-reaction Jev and dialogue inputs unchanged", asyn
   const baseline = game({ level: 3 }), experimental = game({ level: 1, includeRecentResults: true });
   experimental.restore(baseline.snapshot());
   let decisions: unknown[] = [];
-  t.mock.method(JevClient.prototype, "choose", async (state: unknown, instructions: unknown, criteria: Record<string, string>) => {
+  mockJevChoice(t, async (state: unknown, instructions: unknown, criteria: Record<string, string>) => {
     decisions.push({ state, instructions, criteria }); return { choice: "ignore", probabilities: {} };
   });
   const event = baseline.worldEvent("door", "The king opened a door.", ["king"]);

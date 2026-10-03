@@ -1,3 +1,4 @@
+import { aiService } from "../packages/conversation/src/adapters.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 import { JevClient } from "../packages/providers/src/jev.js";
 import { resourceReviewTools } from "../apps/web/src/resource-review.js";
@@ -13,6 +14,7 @@ if (!apiKey) throw new Error("Set OPENROUTER_API_KEY to run live unit evals.");
 
 const generator = new OpenRouterClient(apiKey);
 const jev = new JevClient(apiKey);
+const ai = aiService(generator, jev);
 const signal = new AbortController().signal;
 const evals = scenarioPaths.map(loadEvalScenario);
 const completed = await Promise.all(evals.map(async ({ scenario, transcript, comparison }) => {
@@ -26,17 +28,17 @@ const completed = await Promise.all(evals.map(async ({ scenario, transcript, com
       name: variant.name,
       results: await runUnitEvalBatch(scenario, variant.transcript,
         scenario.toolset === "none" ? [] : resourceReviewTools(), {
-        generate: (model, messages, tools, request) => generator.complete(request ?? {
+        generate: (model, messages, tools, request) => ai.responses(request ?? {
           model, api: "responses", reasoning: { effort: "medium" }, messages, tools,
-        }, signal, "unit evaluation generation"),
-        judge: (state, criteria) => jev.evaluate(state, Object.fromEntries(criteria.map(criterion => [criterion.id, {
+        }, signal),
+        judge: (state, criteria) => ai.decisions(state, Object.fromEntries(criteria.map(criterion => [criterion.id, {
           type: "choice" as const,
           instructions: `Evaluate only this scoring criterion: ${criterion.criterion}`,
           criteria: {
             meets: "The captured model response clearly meets the criterion in light of the supplied transcript.",
             does_not_meet: "The captured model response fails, contradicts, or lacks evidence for the criterion.",
           },
-        }])), signal, "unit evaluation scoring"),
+        }])), signal),
       }),
     }))),
   };

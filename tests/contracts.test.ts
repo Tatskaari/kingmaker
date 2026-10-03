@@ -1,4 +1,5 @@
 import { commitReview } from "./fixtures.js";
+import { mockJevChoice } from "./mock-jev.js";
 import { loadPlayableWorld } from "./fixtures.js";
 import { logPath } from "../scripts/test-logging.js";
 import { locatedItems } from "../packages/core/src/inventory.js";
@@ -704,7 +705,7 @@ test("closed doors exclude nearby earshot listeners until opened", () => {
 
 test("earshot dice gate event perception before Jev sees it", async t => {
   const decisions: unknown[] = [];
-  t.mock.method(JevClient.prototype, "choose", async (state: unknown) => {
+  mockJevChoice(t, async (state: unknown) => {
     decisions.push(state); return { choice: "process", probabilities: { process: 0.8, ignore: 0.2 } };
   });
   const scenario = conversationScenario();
@@ -747,7 +748,7 @@ test("earshot dice gate event perception before Jev sees it", async t => {
 test("earshot decisions run concurrently for independent listeners", async t => {
   let active = 0, mostActive = 0, release!: () => void;
   const pending = new Promise<void>(resolve => { release = resolve; });
-  t.mock.method(JevClient.prototype, "choose", async () => {
+  mockJevChoice(t, async () => {
     active++; mostActive = Math.max(mostActive, active);
     await pending; active--;
     return { choice: "ignore", probabilities: { process: 0.1, ignore: 0.9 } };
@@ -767,7 +768,7 @@ test("earshot decisions run concurrently for independent listeners", async t => 
 
 test("clear event decisions include ownership, legality, relationship and background", async t => {
   const decisions: any[] = [];
-  t.mock.method(JevClient.prototype, "choose", async (state: unknown) => {
+  mockJevChoice(t, async (state: unknown) => {
     decisions.push(state); return { choice: "ignore", probabilities: { process: 0.1, ignore: 0.9 } };
   });
   const scenario = conversationScenario();
@@ -1406,7 +1407,7 @@ test("reviewed immediate goal reaches Jev, which opens doors and moves the NPC i
   t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newNotes: [], relationships: [], goalUpdate: { goal, reason: "Agreed a meeting." }, lore: null }));
   await runtime.endConversation("corvin");
   let step = 0;
-  t.mock.method(JevClient.prototype, "choose", async (state: any, _instructions: unknown, criteria: Record<string, string>) => {
+  mockJevChoice(t, async (state: any, _instructions: unknown, criteria: Record<string, string>) => {
     assert.ok(state.includes(goal));
     assert.match(state, /\[corvin\]/);
     assert.ok(!state.includes("Sealed royal decree"));
@@ -1435,7 +1436,7 @@ test("Jev can stop on wait and marks the outcome as blocked on another character
   const goal = fromJson(ScenarioSchema, snapshot.scenario).characters.find(character => character.id === "corvin")!.currentGoal;
   snapshot.npcActivities = { corvin: { status: "active", goal, history: [] } };
   runtime.restore(snapshot);
-  t.mock.method(JevClient.prototype, "choose", async (_state: unknown, _instructions: unknown, criteria: Record<string, string>) => {
+  mockJevChoice(t, async (_state: unknown, _instructions: unknown, criteria: Record<string, string>) => {
     assert.match(criteria.wait!, /depends entirely on another character/);
     return { choice: "wait", probabilities: { wait: 1 } };
   });
@@ -1577,7 +1578,7 @@ test("recent transcripts capture every main-game model stage and retain failed r
   t.mock.method(OpenRouterClient.prototype, "complete", async () => modelReply({ newNotes: [], relationships: [], lore: null, goalUpdate: { goal: "Go to the Treasury.", reason: "Agreed." } }));
   await runtime.endConversation("corvin");
   const before = runtime.snapshot();
-  t.mock.method(JevClient.prototype, "choose", async () => { throw new Error("Rejected sk-test-secret"); });
+  mockJevChoice(t, async () => { throw new Error("Rejected sk-test-secret"); });
   await assert.rejects(runtime.planNpc("corvin", new AbortController().signal), /Rejected/);
   runtime.restore(before);
   runtime.finishNpcRun("corvin", "error", "Request failed.");
@@ -1758,7 +1759,7 @@ test("NPC conversation validation and cancellation cannot partially update eithe
 
 test("talk availability follows closed doors and Jev gets the offered talk choice", async t => {
   const { scenario, runtime, observation, action } = talkingCourt();
-  t.mock.method(JevClient.prototype, "choose", async (_state: unknown, instructions: unknown, criteria: Record<string, string>) => {
+  mockJevChoice(t, async (_state: unknown, instructions: unknown, criteria: Record<string, string>) => {
     assert.ok(action.id in criteria);
     assert.match(JSON.stringify(instructions), /Choose one offered action ID/);
     return { choice: action.id, probabilities: { [action.id]: 1 } };

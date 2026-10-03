@@ -1,3 +1,4 @@
+import { mockJevChoice } from "./mock-jev.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -32,7 +33,7 @@ test("Jev's offered actions can retrieve belongings and leave the furnished bedr
   const choices = ["enter_entrance_hall", "enter_west_wing", "enter_ironmark_salon", "open_ironmark_quarters_door_0",
     "enter_ironmark_back_hall", "open_mara_door_1", "enter_mara_chamber", "open_furn_mara_desk", "take_furn_mara_personal",
     "close_furn_mara_desk", "enter_ironmark_back_hall", "close_mara_door_1", "enter_ironmark_salon", "complete"];
-  t.mock.method(JevClient.prototype, "choose", async (_state: unknown, _instructions: unknown, criteria: Record<string, string>) => {
+  mockJevChoice(t, async (_state: unknown, _instructions: unknown, criteria: Record<string, string>) => {
     const choice = choices.shift()!;
     assert.ok(criteria[choice], `${choice} must be executable`);
     return { choice, probabilities: { [choice]: 1 } };

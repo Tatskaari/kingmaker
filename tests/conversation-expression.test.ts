@@ -1,3 +1,4 @@
+import { mockJevChoice } from "./mock-jev.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -52,7 +53,7 @@ test("expression classification logs the conversation without blocking or changi
   await runtime.talkToCharacter("corvin", "A joke.");
   let finish!: () => void;
   const waiting = new Promise<void>(resolve => { finish = resolve; });
-  t.mock.method(JevClient.prototype, "choose", async (input: any) => {
+  mockJevChoice(t, async (input: any) => {
     assert.equal(input.characterId, "corvin");
     assert.deepEqual(input.history.map((turn: any) => turn.text), ["A joke.", "Ha!"]);
     await waiting;
@@ -75,7 +76,7 @@ test("classification failures are logged and missing conversations are skipped",
   const runtime = game();
   t.mock.method(OpenRouterClient.prototype, "complete", async () => ({ role: "assistant", content: '{"utterance":"Hello.","replyOptions":[],"endConversation":false}' }));
   await runtime.talkToCharacter("corvin", "Hello");
-  t.mock.method(JevClient.prototype, "choose", async () => { throw new Error("unavailable"); });
+  mockJevChoice(t, async () => { throw new Error("unavailable"); });
   const before = runtime.snapshot();
   await runtime.logConversationExpression("corvin");
   assert.deepEqual(runtime.snapshot(), before);
