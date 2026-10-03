@@ -8,8 +8,6 @@ import { coalescedRefresh, updateTranscriptPanel } from "./debug-live.js";
 import { AlertLog } from "./alerts.js";
 import { captureCourtMap, mountCourtMap, updateCourtMap } from "./court-map.js";
 import { buildIssueReport, issuePageUrl, issueReportFilename } from "./issue-report.js";
-import { sandboxIntroduction, handoffPrefix, courtAffiliations, characterSprites, patronName } from "./introduction.js";
-import { strangerPortrait } from "./stranger-portrait.js";
 import { courtCharactersWithinEarshot } from "./earshot.js";
 import { formatElapsedTime } from "./relative-time.js";
 import devOpenRouterApiKey from "virtual:kingmaker-dev-openrouter-key";
@@ -63,12 +61,10 @@ try { apiKey = sessionStorage.getItem(apiKeyStorageKey)?.trim() || ""; }
 catch { /* The app still works when browser storage is unavailable. */ }
 if (!apiKey) apiKey = devOpenRouterApiKey;
 let screen = "key";
-let reviewDraft = null;
 let saves = [];
 let activeSaveId = null;
 let requestSequence = 0;
 let gameViewGeneration = 0;
-let strangerPortraitState = { generation: -1, key: "", expression: "amused", history: ["amused"] };
 const playerMessageReceivedAt = new Map();
 
 const gameWorker = new Worker(new URL("./game.worker.ts", import.meta.url), { type: "module" });
@@ -349,22 +345,17 @@ function renderSavePicker() {
 
 const abilityNames = ["strength", "dexterity", "constitution", "intelligence", "wisdom", "charisma"];
 const statName = value => escapeHtml(value.replaceAll("_", " ").replaceAll("-", " "));
-function playerStats(build, editable = false) {
+function playerStats(build) {
   if (!build) return `<section><h3>Stats</h3><p>No stats assigned yet.</p></section>`;
-  const numeric = (label, path, value, min = 1) => `<label>${label}<input type="number" min="${min}" max="4294967295" step="1" required data-review-field="player.dnd.${path}" value="${value ?? min}" ${busy ? "disabled" : ""}></label>`;
-  const classes = (build.classes || []).map((item, index) => editable
-    ? `<p>${statName(item.classId)} · ${statName(item.subclassId || "")}</p>${numeric("Level", `classes.${index}.level`, item.level)}`
-    : `<p>Level ${item.level} ${statName(item.classId)} · ${statName(item.subclassId || "")}</p>`).join("");
+  const classes = (build.classes || []).map(item => `<p>Level ${item.level} ${statName(item.classId)} · ${statName(item.subclassId || "")}</p>`).join("");
   const scores = abilityNames.map(ability => {
     const score = build.abilityScores?.[ability] ?? 0;
     const modifier = Math.floor((score - 10) / 2);
-    return editable ? numeric(statName(ability), `abilityScores.${ability}`, score)
-      : `<div><dt>${statName(ability)}</dt><dd>${score} <small>(${modifier >= 0 ? "+" : ""}${modifier})</small></dd></div>`;
+    return `<div><dt>${statName(ability)}</dt><dd>${score} <small>(${modifier >= 0 ? "+" : ""}${modifier})</small></dd></div>`;
   }).join("");
-  const hp = editable ? `<div class="ability-grid">${numeric("Current HP", "hitPoints.current", build.hitPoints?.current, 0)}${numeric("Maximum HP", "hitPoints.maximum", build.hitPoints?.maximum)}</div>`
-    : `<p>HP ${build.hitPoints?.current ?? 0} / ${build.hitPoints?.maximum ?? 0}</p>`;
+  const hp = `<p>HP ${build.hitPoints?.current ?? 0} / ${build.hitPoints?.maximum ?? 0}</p>`;
   const skills = (build.proficiencies || []).filter(item => item.kind === "PROFICIENCY_KIND_SKILL").map(item => `<li>${statName(item.targetId)}${item.rank === "PROFICIENCY_RANK_EXPERTISE" ? " (expertise)" : ""}</li>`).join("");
-  return `<section class="player-stats"><h3>${editable ? "Your starting build" : "Stats"}</h3>${editable ? "<p>Adjust your level, abilities and HP freely for this prototype. Scores above 20 are welcome.</p>" : ""}${classes}${hp}<${editable ? "div" : "dl"} class="ability-grid">${scores}</${editable ? "div" : "dl"}><h4>Skills</h4><ul>${skills || "<li>None recorded</li>"}</ul></section>`;
+  return `<section class="player-stats"><h3>Stats</h3>${classes}${hp}<dl class="ability-grid">${scores}</dl><h4>Skills</h4><ul>${skills || "<li>None recorded</li>"}</ul></section>`;
 }
 
 function characterSheet() {
@@ -456,55 +447,9 @@ function messageList(messages, assistantName) {
   }).join("");
 }
 
-function replyOptions(options, target, compelled = false) {
+function replyOptions(options, target) {
   if (!options?.length) return "";
-  return `<div class="reply-options" role="group" aria-label="${compelled ? "You must respond" : "Suggested replies"}">${options.map((option, index) => `<button class="reply-option" data-reply-target="${escapeHtml(target)}" data-reply-index="${index}" ${busy ? "disabled" : ""}>${escapeHtml(option)}</button>`).join("")}</div>`;
-}
-
-function refreshStrangerPortrait(messages) {
-  const portrait = strangerPortraitState;
-  const key = JSON.stringify(messages);
-  if (busy || messages.length < 2 || portrait.key === key) return;
-  portrait.key = key;
-  void rpc("stranger_expression", { recentPortraits: [...portrait.history] }).then(({ expression }) => {
-    if (!expression || portrait !== strangerPortraitState || portrait.generation !== gameViewGeneration
-      || portrait.key !== key || state?.phase !== "player_creation") return;
-    const image = document.querySelector("[data-stranger-portrait]");
-    if (!image) return;
-    const displayed = strangerPortrait(expression);
-    portrait.expression = displayed.expression;
-    portrait.history = [...portrait.history, displayed.expression].slice(-5);
-    Object.assign(image, { src: displayed.src, alt: displayed.alt });
-  }).catch(() => {});
-}
-
-function renderCreation() {
-  const messages = (state.gmMessages || []).filter(message => !(message.role === "user" && message.text.startsWith(handoffPrefix)));
-  if (!messages.length) {
-    app.innerHTML = shell(`<section class="introduction" aria-label="Welcome to Kingmaker"><div class="eyebrow">A roleplaying sandbox · Tech demo</div><h2>Welcome to Kingmaker</h2>${sandboxIntroduction.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join("")}<button class="dialogue-option" data-meet-stranger ${busy ? "disabled" : ""}>Meet the Stranger →</button><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
-    bind(); return;
-  }
-  if (strangerPortraitState.generation !== gameViewGeneration) {
-    strangerPortraitState = { generation: gameViewGeneration, key: "", expression: "amused", history: ["amused"] };
-  }
-  const portrait = strangerPortrait(strangerPortraitState.expression);
-  app.innerHTML = shell(`<section class="panel stranger-panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div><button class="character-debug" data-gm-debug>Debug Stranger</button></div><div class="stranger-scene"><img class="stranger-portrait" data-stranger-portrait src="${portrait.src}" alt="${portrait.alt}" width="1254" height="1254"><div class="stranger-conversation"><div class="messages">${messageList(messages, patronName)}</div>${replyOptions(state.gmReplyOptions?.options, "gm", state.gmReplyOptions?.compelled)}${state.gmReplyOptions?.compelled ? `<p class="compelled-hint">A powerful force compels you to respond accordingly</p>` : `<form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Invent your story, answer him, or ask for ideas…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></div></div></section>`);
-  bind();
-  document.querySelector(".messages")?.scrollTo(0, messages.length === 1 ? 0 : 999999);
-  refreshStrangerPortrait(messages);
-}
-
-function renderCharacterReview() {
-  reviewDraft ||= structuredClone(state.playerDraft);
-  const field = (label, key, value, multiline = false) => `<label>${label}${multiline ? `<textarea data-review-field="${key}" required ${busy ? "disabled" : ""}>${escapeHtml(value || "")}</textarea>` : `<input data-review-field="${key}" value="${escapeHtml(value || "")}" required ${busy ? "disabled" : ""}>`}</label>`;
-  const identityFields = reviewDraft.player.delegation
-    ? `${field("Gender", "player.gender", reviewDraft.player.gender)}<label>Court affiliation<select data-review-field="player.delegation" ${busy ? "disabled" : ""}>${courtAffiliations.map(id => `<option value="${id}" ${reviewDraft.player.delegation === id ? "selected" : ""}>${id}</option>`).join("")}</select></label>`
-    : field("Homeland", "homeland", reviewDraft.homeland);
-  const appearanceChoices = reviewDraft.player.delegation ? `<fieldset class="sprite-options" ${busy ? "disabled" : ""}><legend>Your appearance</legend><p class="field-hint">Choose how you appear in court.</p><div class="sprite-grid">${characterSprites.map((sprite, index) => `<label class="sprite-choice"><input type="radio" name="appearance" data-review-field="player.sprite" value="${sprite}" ${reviewDraft.player.sprite === sprite ? "checked" : ""}><span class="court-sprite" style="background-position:${-(sprite % 12) * 32}px ${-Math.floor(sprite / 12) * 32}px" aria-hidden="true"></span><span>Traveller ${index + 1}</span></label>`).join("")}</div></fieldset>` : "";
-  const buildSummary = playerStats(reviewDraft.player.dnd, true);
-  const transcript = (state.gmMessages || []).filter(message => !(message.role === "user" && message.text.startsWith(handoffPrefix)));
-  app.innerHTML = shell(`<section class="panel character-review"><div class="eyebrow">Before you enter Caerwyn</div><h2>Review your character</h2><p>Review what you and the Stranger established. Correct any details before saving your character and entering court.</p><details class="review-transcript"><summary>Conversation with the Stranger</summary><div class="messages">${messageList(transcript, patronName)}</div></details><form data-review-form>${field("Name", "player.name", reviewDraft.player.name)}${identityFields}${appearanceChoices}${field("Role", "embassyRole", reviewDraft.embassyRole)}${field("Biography", "player.lore", reviewDraft.player.lore, true)}${field("Personal goal", "player.currentGoal", reviewDraft.player.currentGoal, true)}${buildSummary}<h3>Relationships</h3>${reviewDraft.player.relationships.map((item, index) => field(`Your view of ${escapeHtml(state.characters.find(character => character.id === item.characterId)?.name || item.characterId)}`, `player.relationships.${index}.description`, item.description, true)).join("")}<h3>Initial impressions of you</h3>${reviewDraft.npcRelationships.map((item, index) => field(escapeHtml(state.characters.find(character => character.id === item.ownerCharacterId)?.name || item.ownerCharacterId), `npcRelationships.${index}.relationship.description`, item.relationship.description, true)).join("")}<button class="primary" ${busy ? "disabled" : ""}>Save character and enter court</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
-  bind();
+  return `<div class="reply-options" role="group" aria-label="Suggested replies">${options.map((option, index) => `<button class="reply-option" data-reply-target="${escapeHtml(target)}" data-reply-index="${index}" ${busy ? "disabled" : ""}>${escapeHtml(option)}</button>`).join("")}</div>`;
 }
 
 function renderDay(bindPage = true) {
@@ -599,8 +544,6 @@ function render() {
   if (screen === "key" || !apiKey) return renderKeyEntry();
   if (screen === "saves") return renderSavePicker();
   if (!state) return;
-  if (state.phase === "character_review") return renderCharacterReview();
-  if (state.phase === "player_creation") return renderCreation();
   activeCharacter ||= initiatedConversationId();
   if (activeCharacter) return renderConversation();
   renderDay();
@@ -641,7 +584,7 @@ function submitComposerOnEnter(form, event) {
 
 async function run(action) {
   if (busy) return;
-  busy = true; notice = state?.phase === "player_creation" ? "Somewhere in the dark, the Stranger smiles…" : "The court considers your words…"; render();
+  busy = true; notice = "The court considers your words…"; render();
   try { await action(); notice = ""; }
   catch (error) { notice = `Error: ${error.message}`; }
   finally { busy = false; render(); }
@@ -661,13 +604,13 @@ function bind() {
     sheetOpen = false; debugOpen = false; notice = ""; screen = "key"; render();
   });
   document.querySelector("[data-new-game]")?.addEventListener("click", () => run(async () => {
-    reviewDraft = null; const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   }));
   document.querySelector("[data-skip-character]")?.addEventListener("click", () => run(async () => {
-    reviewDraft = null; const result = await rpc("create_development_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    const result = await rpc("create_development_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   }));
   document.querySelectorAll("[data-save-load]").forEach(button => button.addEventListener("click", () => run(async () => {
-    reviewDraft = null; const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   })));
   document.querySelectorAll("[data-save-delete]").forEach(button => button.addEventListener("click", () => run(async () => {
     const result = await rpc("delete_game", { saveId: button.dataset.saveDelete }); saves = result.saves;
@@ -681,7 +624,6 @@ function bind() {
   if (debugButton) debugButton.insertAdjacentHTML("beforebegin", alertBell());
   bindAlertBell();
   bindAlertClear();
-  document.querySelector("[data-gm-debug]")?.addEventListener("click", () => openDebug({ type: "debug_gm", payload: {} }, "Laughing Stranger Debug"));
   document.querySelector("[data-character-debug]")?.addEventListener("click", () => {
     const character = state.characters.find(item => item.id === activeCharacter);
     openDebug({ type: "debug_character", payload: { characterId: activeCharacter } }, `${character?.name || activeCharacter} Debug`);
@@ -751,41 +693,12 @@ function bind() {
   }));
   document.querySelector("[data-debug-refresh]")?.addEventListener("click", () => debugTab === "transcripts" ? refreshDebugTranscripts() : openDebug());
   document.querySelectorAll("[data-debug-close]").forEach(button => button.addEventListener("click", () => { debugOpen = false; render(); }));
-  document.querySelector("[data-meet-stranger]")?.addEventListener("click", () => run(async () => {
-    const result = await rpc("start_introduction"); state = result.state; saves = result.saves;
-  }));
   document.querySelectorAll("[data-reply-index]").forEach(button => button.addEventListener("click", () => {
     if (busy) return;
     const target = button.dataset.replyTarget;
-    const options = target === "gm" ? state.gmReplyOptions?.options : state.conversationReplyOptions?.[target];
-    const message = options?.[Number(button.dataset.replyIndex)];
-    if (!message) return;
-    run(async () => {
-      if (target !== "gm") { await talkAndReview(target, message); return; }
-      const result = await rpc("gm", { message });
-      state = result.state; saves = result.saves;
-    });
+    const message = state.conversationReplyOptions?.[target]?.[Number(button.dataset.replyIndex)];
+    if (message) run(() => talkAndReview(target, message));
   }));
-  document.querySelectorAll("[data-review-field]").forEach(input => input.addEventListener("input", () => {
-    const path = input.dataset.reviewField.split(".");
-    let owner = reviewDraft;
-    for (const key of path.slice(0, -1)) owner = owner[key];
-    owner[path.at(-1)] = input.type === "number" || input.dataset.reviewField === "player.sprite" ? (input.value === "" ? null : Number(input.value)) : input.value;
-  }));
-  document.querySelector("[data-review-form]")?.addEventListener("submit", event => {
-    event.preventDefault();
-    if (busy) return;
-    run(async () => {
-      const result = await rpc("save_character", { draft: reviewDraft });
-      state = result.state; saves = result.saves; reviewDraft = null;
-    });
-  });
-  const gmForm = document.querySelector("[data-gm-form]");
-  gmForm?.querySelector("textarea")?.addEventListener("keydown", event => submitComposerOnEnter(gmForm, event));
-  gmForm?.addEventListener("submit", event => {
-    event.preventDefault(); const message = new FormData(event.currentTarget).get("message");
-    run(async () => { const result = await rpc("gm", { message }); state = result.state; saves = result.saves; });
-  });
   const talkForm = document.querySelector("[data-talk-form]");
   talkForm?.querySelector("textarea")?.addEventListener("keydown", event => submitComposerOnEnter(talkForm, event));
   talkForm?.addEventListener("submit", event => {
@@ -807,7 +720,7 @@ function bind() {
     reviewConversation(characterId);
     render();
   });
-  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { reviewDraft = null; const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
+  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
 }
 
 document.addEventListener("keydown", event => {
