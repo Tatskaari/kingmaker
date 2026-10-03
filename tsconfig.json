@@ -14,7 +14,8 @@
     ],
     "rootDir": ".",
     "jsx": "react-jsx",
-    "jsxImportSource": "@opentui/react"
+    "jsxImportSource": "@opentui/react",
+    "resolveJsonModule": true
   },
   "include": [
     "packages/**/*.ts",
