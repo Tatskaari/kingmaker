@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Lady Elinor Ash's public profile, private characterization, GM notes and observer-owned knowledge."
+---
 # Lady Elinor Ash
 
 Author navigation only. Private notes belong to `elinor`; GM notes are never character context.

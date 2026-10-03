@@ -1,4 +1,5 @@
 ---
+summary: "Your royal identity, fear of humiliation, generosity and tendency to postpone frightening decisions, with speech guidance and links to your knowledge of others."
 type: character
 status: draft
 visibility: private

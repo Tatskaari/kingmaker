@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for King Aldren's public profile, private characterization, GM notes and observer-owned knowledge."
+---
 # King Aldren
 
 Author navigation only. Private notes belong to `aldren`; GM notes are never character context.

@@ -1,4 +1,5 @@
 ---
+summary: "Your identity as juridical thaumaturge, exacting legal habits and denied university appointment, with speech guidance and links to your knowledge of others."
 type: character
 status: draft
 visibility: private

@@ -1,4 +1,5 @@
 ---
+summary: "GM-only truth about Tomas's parentage, Holt's protection and Abel's intercepted letter. Includes unresolved characterization and cautions against granting Tomas knowledge of his parentage."
 visibility: gm
 ---
 # Tomas Vey — GM notes

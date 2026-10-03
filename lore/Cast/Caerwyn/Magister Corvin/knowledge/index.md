@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Magister Corvin's private knowledge and beliefs about the other cast members, including unwritten entries."
+---
 # Magister Corvin — knowledge
 
 Author navigation only. Each note is private to `corvin`, not the person described. An unwritten stub establishes no familiarity.

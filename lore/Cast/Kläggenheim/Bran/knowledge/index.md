@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Bran's private knowledge and beliefs about the other cast members, including unwritten entries."
+---
 # Bran — knowledge
 
 Author navigation only. Each note is private to `bran`, not the person described. An unwritten stub establishes no familiarity.

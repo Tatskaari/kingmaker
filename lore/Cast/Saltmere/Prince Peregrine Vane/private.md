@@ -1,4 +1,5 @@
 ---
+summary: "Your princely identity, exploration, pride, desire for admiration and private debts, with speech guidance and knowledge links."
 type: character
 status: draft
 visibility: private

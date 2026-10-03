@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Klog's private knowledge and beliefs about the other cast members, including unwritten entries."
+---
 # Klog — knowledge
 
 Author navigation only. Each note is private to `klog`, not the person described. An unwritten stub establishes no familiarity.

@@ -1,4 +1,5 @@
 ---
+summary: "GM-only context for Cressida's betrothal, attraction to Holt and complementary expertise with Abel, preserving her agency and linking portrayal references."
 visibility: gm
 ---
 # Lady Cressida Pinchbeck — GM notes

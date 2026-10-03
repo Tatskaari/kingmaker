@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Lady Cressida Pinchbeck's private knowledge and beliefs about the other cast members, including unwritten entries."
+---
 # Lady Cressida Pinchbeck — knowledge
 
 Author navigation only. Each note is private to `cressida`, not the person described. An unwritten stub establishes no familiarity.

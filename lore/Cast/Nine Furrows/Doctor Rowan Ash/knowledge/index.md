@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Doctor Rowan Ash's private knowledge and beliefs about the other cast members, including unwritten entries."
+---
 # Doctor Rowan Ash — knowledge
 
 Author navigation only. Each note is private to `rowan`, not the person described. An unwritten stub establishes no familiarity.

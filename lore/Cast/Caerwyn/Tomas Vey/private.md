@@ -1,4 +1,5 @@
 ---
+summary: "Your quiet life in Dunmere and illustrative speech guidance, with links to your knowledge notes. No additional biography or parentage is established here."
 type: character
 status: draft
 visibility: private

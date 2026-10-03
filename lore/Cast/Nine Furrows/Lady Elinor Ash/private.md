@@ -1,4 +1,5 @@
 ---
+summary: "Your identity as Chancellor and recognition bearer, use of obligation magic and protection of institutional failures, with speech guidance and knowledge links."
 type: character
 status: draft
 visibility: private

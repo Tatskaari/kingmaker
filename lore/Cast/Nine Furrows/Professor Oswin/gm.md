@@ -1,4 +1,5 @@
 ---
+summary: "GM-only context for Oswin's disputes with Rowan and Elinor and his unreliable recollection of opposing Corvin's appointment, plus portrayal references."
 visibility: gm
 ---
 # Professor Oswin — GM notes

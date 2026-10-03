@@ -1,4 +1,5 @@
 ---
+summary: "Your military logistics, timetable-driven habits and loyalty to Aldren, with speech guidance and links to your knowledge of others."
 type: character
 status: draft
 visibility: private

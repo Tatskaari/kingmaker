@@ -1,4 +1,5 @@
 ---
+summary: "Your commercial expertise, social insecurity and desire for standing and enforceable bargains, with speech guidance and knowledge links."
 type: character
 status: draft
 visibility: private

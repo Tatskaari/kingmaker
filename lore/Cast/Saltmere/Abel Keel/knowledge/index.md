@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Abel Keel's private knowledge and beliefs about the other cast members, including unwritten entries."
+---
 # Abel Keel — knowledge
 
 Author navigation only. Each note is private to `abel`, not the person described. An unwritten stub establishes no familiarity.

@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Tomas Vey's private characterization, GM notes and observer-owned knowledge."
+---
 # Tomas Vey
 
 Author navigation only. Private notes belong to `tomas`; GM notes are never character context.

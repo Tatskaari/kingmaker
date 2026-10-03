@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Prince Peregrine Vane's public profile, private characterization, GM notes and observer-owned knowledge."
+---
 # Prince Peregrine Vane
 
 Author navigation only. Private notes belong to `peregrine`; GM notes are never character context.

@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for King Gurt's public profile, private characterization, GM notes and observer-owned knowledge."
+---
 # King Gurt
 
 Author navigation only. Private notes belong to `gurt`; GM notes are never character context.

@@ -1,4 +1,5 @@
 ---
+summary: "GM-only context for Klog's disputes with Bran and interpretation of Gurt, with guidance distinguishing his concern for claims from Corvin's legal precision."
 visibility: gm
 ---
 # Klog — GM notes

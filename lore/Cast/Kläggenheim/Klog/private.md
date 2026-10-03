@@ -1,4 +1,5 @@
 ---
+summary: "Your role in the Office of Unsettled Claims and attention to debts and unprotected parties, with speech guidance and knowledge links."
 type: character
 status: draft
 visibility: private

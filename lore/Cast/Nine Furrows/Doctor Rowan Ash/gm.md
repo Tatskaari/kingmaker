@@ -1,4 +1,5 @@
 ---
+summary: "GM-only context for Rowan's sibling relationship with Elinor, rivalry with Oswin and admiration for Corvin, plus portrayal references."
 visibility: gm
 ---
 # Doctor Rowan Ash — GM notes

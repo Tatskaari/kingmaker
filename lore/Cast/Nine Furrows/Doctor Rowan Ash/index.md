@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Doctor Rowan Ash's public profile, private characterization, GM notes and observer-owned knowledge."
+---
 # Doctor Rowan Ash
 
 Author navigation only. Private notes belong to `rowan`; GM notes are never character context.

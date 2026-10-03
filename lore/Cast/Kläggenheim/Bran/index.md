@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Bran's public profile, private characterization, GM notes and observer-owned knowledge."
+---
 # Bran
 
 Author navigation only. Private notes belong to `bran`; GM notes are never character context.

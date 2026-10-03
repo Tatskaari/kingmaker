@@ -1,4 +1,5 @@
 ---
+summary: "GM-only context for Abel's work keeping Peregrine alive, Cressida's scrutiny, intelligence bargains and intercepted Tomas letter, plus portrayal references."
 visibility: gm
 ---
 # Abel Keel — GM notes

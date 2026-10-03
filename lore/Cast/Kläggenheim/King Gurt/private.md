@@ -1,4 +1,5 @@
 ---
+summary: "Your identity as Kläggenheim's king, enduring memories and need to understand obligations before consenting, with speech guidance and knowledge links."
 type: character
 status: draft
 visibility: private
