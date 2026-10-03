@@ -1,6 +1,19 @@
 # Conversation hooks and services
 
-Status: proposal for review. This document does not implement the refactor.
+Status: service scaffolding implemented; conversation flow remains a proposal.
+The compiled interfaces live in `packages/conversation/src/services.ts`, with the
+constructor in `packages/conversation/src/runtime.ts`. No existing caller uses
+this runtime yet. Every default operation throws `UnimplementedServiceError`;
+individual methods can be supplied during construction as they are implemented.
+
+```ts
+const runtime = new ConversationRuntime({
+  services: {
+    ai: { responses: (request, signal) => client.complete(request, signal) },
+  },
+});
+// Only ai.responses is implemented; other operations still fail explicitly.
+```
 
 Hooks own the flow, services perform operations, and the runtime owns conversation
 state. Construction injects the hooks and services so browser, terminal and
@@ -56,7 +69,9 @@ conflict handling between classifiers remain implementation details to review.
 
 ## Injected services
 
-The interfaces below describe the proposed contract, not compiled declarations.
+The interfaces below describe the design; the compiled declarations are authoritative.
+The initial lore service is scoped to one character/scenario and reuses the existing
+loader's synchronous initial documents and link discovery, with asynchronous open.
 Request/response types should reuse existing provider and domain types where they
 fit. `AbortSignal` carries cancellation through model requests and UI interactions.
 
@@ -193,4 +208,6 @@ rendering or randomness. Headless checks should exercise the same classify,
 resolve and respond loop, including recursive disclosure, shared labels, deferred
 checks, deterministic rolls, selected system messages and cancellation. The RHS
 should expose classification results, all prepared GM directions, the roll result
-and the exact selected message. No runtime changes are part of this proposal.
+and the exact selected message. Those flow changes are not implemented by the
+service scaffolding; no provider, mechanics or presentation implementation is
+installed by default, including in headless mode.
