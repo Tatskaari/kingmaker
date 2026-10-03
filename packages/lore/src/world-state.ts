@@ -1,7 +1,9 @@
 import { clone, create, fromJson, type JsonObject } from "@bufbuild/protobuf";
 import { WorldStateSchema as MapSchema, type WorldState as MapState } from "../../contracts/src/index.js";
-import { DocumentLinkSchema, DocumentSchema, WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
-import { links, parseMarkdown, resolveLink } from "./markdown.js";
+import { DocumentSchema, WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
+import { parseMarkdown } from "./markdown.js";
+
+import { DocumentGraph } from "./document-graph.js";
 
 /** Build editable GM state without interpreting prose or recursively expanding context.
  * scenarioID is the existing directory name beneath Scenarios (e.g. Centennial Assembly).
@@ -26,27 +28,8 @@ export function worldState(map: MapState, markdown: ReadonlyMap<string, string>,
   return refreshDocumentGraph(create(WorldStateSchema, { docs, scenario, scenarioIndex, ...(player === undefined ? {} : { player }), map: clone(MapSchema, map) }));
 }
 
-/** Validate and rebuild derived references in a privately owned draft before publishing it. */
+/** Rebuild on initial load; live document services retain an incremental graph. */
 export function refreshDocumentGraph(state: WorldState): WorldState {
-  const notes = new Map(Object.entries(state.docs));
-  for (const [label, path] of [["scenario entry", state.scenario], ["scenario index", state.scenarioIndex], ["player document", state.player]]) {
-    if (path !== undefined && !notes.has(path)) throw new Error(`Missing ${label}: ${path}`);
-  }
-  for (const [name, doc] of notes) {
-    if (name.startsWith("/") || name.includes("\\") || name.split("/").some(part => !part || part === "." || part === "..") || !name.endsWith(".md")) {
-      throw new Error(`${name}: Expected a vault-relative Markdown path`);
-    }
-    try {
-      doc.links = links(doc.body).flatMap(link => {
-        const target = resolveLink(notes, name, link);
-        return target ? [create(DocumentLinkSchema, { target, source: link.target })] : [];
-      });
-    } catch (error) {
-      throw new Error(`${name}: ${String(error)}`, { cause: error });
-    }
-  }
-  const prefix = state.scenario.slice(0, state.scenario.lastIndexOf("/") + 1) + "Characters/";
-  state.characters = [...new Set(state.docs[state.scenario]!.links.map(link => link.target)
-    .filter(target => target.startsWith(prefix) && /^[^/]+\/character\.md$/.test(target.slice(prefix.length))))];
+  DocumentGraph.build(state);
   return state;
 }

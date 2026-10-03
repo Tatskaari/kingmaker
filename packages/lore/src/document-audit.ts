@@ -10,7 +10,7 @@ export class DocumentValidationError extends Error {
   }
 }
 
-/** Check access after refreshDocumentGraph validates all links in the unpublished draft. */
+/** Check access after the document graph validates all links in the unpublished draft. */
 export function validateDocuments(state: WorldState): void {
   const findings = auditDocuments(state);
   if (findings.length) throw new DocumentValidationError(findings);

@@ -1,7 +1,6 @@
 import { clone, fromJson, toJson, type JsonObject } from "@bufbuild/protobuf";
 import { DocumentSchema, WorldStateSchema, type Document } from "../../contracts/src/v2.js";
 import { parseMarkdown } from "./markdown.js";
-import { refreshDocumentGraph } from "./world-state.js";
 import { canonical, snapshot } from "./document-snapshot.js";
 import { DocumentConflictError, type DocsService, type DocumentSnapshot } from "./service-types.js";
 import type { WorldStore } from "./world-store.js";
@@ -24,7 +23,7 @@ export function createDocsService(store: WorldStore): DocsService {
     const next = fromJson(DocumentSchema, { body: note.body, frontmatter: note.metadata as JsonObject });
     next.characterProperties = draft.docs[path]?.characterProperties;
     draft.docs[path] = next;
-    refreshDocumentGraph(draft);
+    const graph = store.prepareDocuments(draft);
     const result = await snapshot(path, clone(DocumentSchema, next));
     // Only this document participates in the write. Map interactions can proceed
     // while hashing; merge into the current world rather than publishing the draft.
@@ -35,7 +34,7 @@ export function createDocsService(store: WorldStore): DocsService {
     }
     const current = clone(WorldStateSchema, store.state);
     current.docs[path] = next;
-    store.publishDocuments(current);
+    store.publishDocuments(current, graph);
     return result;
   }
   const docs: DocsService = {
