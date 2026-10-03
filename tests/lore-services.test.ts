@@ -40,7 +40,7 @@ test("scenario and document reads are detached; SHA includes frontmatter and sur
 
 test("create, replace, insert and delete preserve properties and rebuild scenario references", async () => {
   const { scenario, docs } = createScenarioServices(fixture());
-  const added = await docs.create("new.md", "Secret");
+  const added = await docs.create("new.md", "---\nvisibility: public\n---\nSecret");
   added.document.body = "external edit";
   const actorBefore = await docs.read(actor);
   const actorAfter = await docs.replace(actor, actorBefore.sha, "Alice", "Alice [[new]]");
@@ -48,8 +48,8 @@ test("create, replace, insert and delete preserve properties and rebuild scenari
   assert.equal(actorAfter.document.links[0]!.target, "new.md");
   await docs.insert(entry, (await docs.read(entry)).sha, 1, `[[${actor}]]`);
   assert.deepEqual(scenario.info().characters, [actor]);
-  const edited = await docs.insert("new.md", (await docs.read("new.md")).sha, 0, "Heading");
-  assert.equal(edited.text, "Heading\nSecret");
+  const edited = await docs.insert("new.md", (await docs.read("new.md")).sha, 3, "Heading");
+  assert.equal(edited.document.body, "Heading\nSecret");
   await docs.replace(actor, actorAfter.sha, " [[new]]", "");
   await docs.delete("new.md", edited.sha);
   await assert.rejects(docs.read("new.md"), /not found/);

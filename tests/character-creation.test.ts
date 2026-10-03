@@ -48,3 +48,15 @@ test("invalid character creation publishes no documents, actor or scenario links
   await assert.rejects(services.scenario.setPlayer("missing.md"), /created player/);
   assert.deepEqual(toJson(WorldStateSchema, services.scenario.snapshot()), before);
 });
+
+test("character creation validates private links before publishing documents or actors", async () => {
+  const services = fixture(), before = services.scenario.snapshot();
+  const secret = Object.keys(before.docs).find(path => path.endsWith("/gm.md"))!;
+  const unsafe = `${text}\n[[${secret}]]`;
+  await assert.rejects(services.character.create({ ...player, text: unsafe }), /denied/);
+  const path = "Scenarios/Centennial Assembly/Characters/visitor/character.md";
+  const actor = create(ActorStateSchema, { ...before.map!.actors[0]!, characterId: "visitor" });
+  await assert.rejects(services.character.create({ id: "visitor", path, text: `[[${secret}]]`,
+    properties: create(CharacterPropertiesSchema), actor }), /denied/);
+  assert.deepEqual(services.scenario.snapshot(), before);
+});

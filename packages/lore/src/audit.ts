@@ -4,7 +4,7 @@ import { permitted, labels, type Audience } from "./access.js";
 export interface Finding { kind: "denied" | "broken" | "ambiguous" | "invalid"; trail: string[]; detail: string }
 
 /** Audit a character's complete graph using the same rules at build time and at runtime. */
-export function auditNotes(notes: ReadonlyMap<string, Note>, entry: string, audience: Audience): Finding[] {
+export function auditNotes(notes: ReadonlyMap<string, Note>, entry: string, audience: Audience, resolvedLinks?: ReadonlyMap<string, readonly string[]>): Finding[] {
   const findings: Finding[] = [];
   try {
     audience = { ...audience, labels: [...(audience.labels ?? []), ...labels(notes.get(entry)?.metadata.labels)],
@@ -25,6 +25,11 @@ export function auditNotes(notes: ReadonlyMap<string, Note>, entry: string, audi
       if (!permitted(name, note, entry, audience)) findings.push({ kind: "denied", trail, detail: "Character has no read access" });
     } catch (error) { findings.push({ kind: "invalid", trail, detail: String(error) }); }
     // Audit the entire authoring graph, including links beyond a denied note.
+    // Runtime states already have validated references; avoid reparsing the vault for each audience.
+    if (resolvedLinks) {
+      for (const target of resolvedLinks.get(name) ?? []) queue.push([...trail, target]);
+      continue;
+    }
     for (const link of links(note.body)) {
       try {
         const target = resolveLink(notes, name, link);

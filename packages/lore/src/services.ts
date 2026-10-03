@@ -3,8 +3,7 @@ import { stringify } from "yaml";
 import { DocumentSchema, WorldStateSchema, type Document, type WorldState, type CharacterProperties } from "../../contracts/src/v2.js";
 import { ActorStateSchema, WorldStateSchema as MapSchema, type ActorState, type WorldState as MapState } from "../../contracts/src/index.js";
 import { parseMarkdown } from "./markdown.js";
-import { auditDocuments, type DocumentProposal } from "./document-audit.js";
-import type { Finding } from "./audit.js";
+import { validateDocuments } from "./document-audit.js";
 import { refreshDocumentGraph } from "./world-state.js";
 
 export interface DocumentSnapshot {
@@ -37,8 +36,6 @@ export interface ScenarioService {
   getDocument(path: string): Promise<DocumentSnapshot>;
 }
 export interface DocsService {
-  /** GM-only: check current documents or a proposed edit without publishing it. */
-  validate(proposal?: DocumentProposal): Promise<Finding[]>;
   read(path: string): Promise<DocumentSnapshot>;
   create(path: string, text: string): Promise<DocumentSnapshot>;
   replace(path: string, expectedSha: string, oldText: string, newText: string): Promise<DocumentSnapshot>;
@@ -77,6 +74,11 @@ export function createScenarioServices(initial: WorldState): { scenario: Scenari
     writes = result.catch(() => undefined);
     return result;
   }
+  function publishDraft(draft: WorldState): void {
+    refreshDocumentGraph(draft);
+    validateDocuments(draft);
+    state = draft;
+  }
   function document(path: string): Document {
     if (!Object.hasOwn(state.docs, path)) throw new Error(`${path}: document not found`);
     return clone(DocumentSchema, state.docs[path]!);
@@ -105,12 +107,11 @@ export function createScenarioServices(initial: WorldState): { scenario: Scenari
     }
     const current = clone(WorldStateSchema, state);
     current.docs[path] = next;
-    state = refreshDocumentGraph(current);
+    publishDraft(current);
     return result;
   }
   const docs: DocsService = {
     read,
-    validate: async proposal => auditDocuments(state, proposal),
     create: (path, text) => write(async () => {
       if (Object.hasOwn(state.docs, path)) throw new Error(`${path}: document already exists`);
       return publish(path, text);
@@ -139,8 +140,7 @@ export function createScenarioServices(initial: WorldState): { scenario: Scenari
       }
       const draft = clone(WorldStateSchema, state);
       delete draft.docs[path];
-      refreshDocumentGraph(draft);
-      state = draft;
+      publishDraft(draft);
     }),
   };
   return { docs, character: {
@@ -166,7 +166,7 @@ export function createScenarioServices(initial: WorldState): { scenario: Scenari
       if (input.actor) draft.map!.actors.push(clone(ActorStateSchema, input.actor));
       if (input.id !== "player") draft.docs[draft.scenario]!.body += `\n- [[${input.path}]]\n`;
       draft.map!.revision++;
-      state = refreshDocumentGraph(draft);
+      publishDraft(draft);
     }),
   }, mechanics: {
     commit(map, properties) {
@@ -187,7 +187,7 @@ export function createScenarioServices(initial: WorldState): { scenario: Scenari
       if (!state.docs[path]?.characterProperties || state.characters.includes(path)) throw new Error("Expected a created player character document.");
       const draft = clone(WorldStateSchema, state);
       draft.player = path;
-      state = refreshDocumentGraph(draft);
+      publishDraft(draft);
     }),
   } };
 }

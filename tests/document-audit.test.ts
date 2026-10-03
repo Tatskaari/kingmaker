@@ -3,6 +3,7 @@ import test from "node:test";
 import { create } from "@bufbuild/protobuf";
 import { WorldStateSchema as MapSchema } from "../packages/contracts/src/index.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
+import { DocumentValidationError } from "../packages/lore/src/document-audit.js";
 import { worldState } from "../packages/lore/src/world-state.js";
 
 const entry = "Scenarios/Test/Characters/alice/character.md";
@@ -16,40 +17,48 @@ function fixture() {
   ]), "Test"));
 }
 
-test("GM preflight reports proposed private, broken and ambiguous links without writing", async () => {
+test("every create, replace, insert and delete validates atomically without an explicit audit", async () => {
   const { docs, scenario } = fixture(), before = scenario.snapshot();
-  assert.deepEqual(await docs.validate(), []);
-  const findings = await docs.validate({ path: "Shared.md", text: shared + "[[GM]] [[Missing]] [[Duplicate]]" });
-  assert.ok(findings.some(f => f.kind === "denied" && JSON.stringify(f.trail) === JSON.stringify([entry, "Shared.md", "GM.md"])));
-  assert.ok(findings.some(f => f.kind === "broken" && f.trail.at(-1) === "Missing"));
-  assert.ok(findings.some(f => f.kind === "ambiguous" && f.trail.at(-1) === "Duplicate"));
-  assert.ok(!JSON.stringify(findings).includes("SECRET_SENTINEL"));
-  assert.deepEqual(scenario.snapshot(), before);
-  assert.ok((await docs.validate({ path: "unused.md", text: "[[Missing]]" })).some(f => f.kind === "broken"));
-  assert.ok((await docs.validate({ path: "Shared.md", text: "---\nvisibility: [\n---\n" })).some(f => f.kind === "invalid"));
-});
-
-test("preflight catches permission changes and live audience revocation", async () => {
-  const { docs } = fixture();
   const note = await docs.read("Shared.md"), character = await docs.read(entry);
-  assert.ok((await docs.validate({ path: note.path, text: note.text.replace("private", "gm") })).some(f => f.kind === "denied"));
-  const revoked = character.text.replace("- court", "- elsewhere");
-  assert.notEqual(revoked, character.text);
-  assert.ok((await docs.validate({ path: entry, text: revoked })).some(f => f.kind === "denied"));
-  await docs.replace(entry, character.sha, character.text, revoked);
-  assert.ok((await docs.validate()).some(f => f.kind === "denied"));
-  const restored = await docs.read(entry);
-  await docs.replace(entry, restored.sha, restored.text, character.text);
-  assert.deepEqual(await docs.validate(), []);
+  for (const operation of [
+    () => docs.create("unused.md", "---\nreaders: {character: alice}\n---\n"),
+    () => docs.create("unused.md", "[[Missing]]"),
+    () => docs.replace(note.path, note.sha, "Public history.", "[[Duplicate]]"),
+    () => docs.replace(note.path, note.sha, "private", "gm"),
+    () => docs.replace(entry, character.sha, "- court", "- elsewhere"),
+    () => docs.insert(note.path, note.sha, 0, "[[GM]]\n"),
+    () => docs.delete(note.path, note.sha),
+  ]) {
+    await assert.rejects(operation());
+    assert.deepEqual(scenario.snapshot(), before);
+  }
+  await assert.rejects(docs.replace(note.path, note.sha, "Public history.", "[[GM]]"), error => {
+    assert.ok(error instanceof DocumentValidationError);
+    assert.ok(error.findings.some(f => f.kind === "denied" && JSON.stringify(f.trail) === JSON.stringify([entry, "Shared.md", "GM.md"])));
+    assert.ok(!error.message.includes("SECRET_SENTINEL"));
+    return true;
+  });
+  // A rejected write leaves the SHA usable and does not poison the queue.
+  await docs.replace(note.path, note.sha, "Public history.", `Public history. [[${entry}]]`);
 });
 
-test("pre-existing defects remain visible while unrelated repairs are allowed", async () => {
+test("revoking access requires removing the link first", async () => {
+  const { docs } = fixture();
+  const character = await docs.read(entry);
+  await assert.rejects(docs.replace(entry, character.sha, "- court", "- elsewhere"), DocumentValidationError);
+  const unlinked = await docs.replace(entry, character.sha, "[[Shared]]", "No shared briefing.");
+  await docs.replace(entry, unlinked.sha, "- court", "- elsewhere");
+  const note = await docs.read("Shared.md");
+  await docs.delete(note.path, note.sha);
+});
+
+test("existing defects cannot bypass validation on unrelated edits", async () => {
   const source = fixture().scenario.snapshot();
   source.docs["Shared.md"]!.body += " [[GM]]";
-  const { docs } = createScenarioServices(source);
-  assert.ok((await docs.validate()).some(f => f.kind === "denied"));
+  const { docs, scenario } = createScenarioServices(source), before = scenario.snapshot();
+  await assert.rejects(docs.create("unrelated.md", "A new note."), DocumentValidationError);
+  assert.deepEqual(scenario.snapshot(), before);
   const note = await docs.read("Shared.md");
-  const changed = await docs.replace(note.path, note.sha, "Public history.", "Updated history.");
-  await docs.replace(note.path, changed.sha, " [[GM]]", "");
-  assert.deepEqual(await docs.validate(), []);
+  await docs.replace(note.path, note.sha, " [[GM]]", "");
+  await docs.create("unrelated.md", "A new note.");
 });
