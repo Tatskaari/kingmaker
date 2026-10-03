@@ -56,7 +56,7 @@ export class WorldGameRuntime extends WorldHost {
     const traced = traceAiService(ai, (subject = id) => {
       const location = this.world().map?.actors.find(actor => actor.characterId === subject)?.position;
       return { characterId: subject, participantIds, conversationId, turnId,
-        scenario: this.documents.scenario.info().scenario, worldGeneration: this.worldGeneration(),
+        scenario: this.documents.scenario.info().scenario,
         ...(location ? { location: { x: location.x, y: location.y } } : {}),
       };
     }, (span, request, call) => this.traces.record(span.operation as ModelCallKind, span.characterId, request, call, runKey, span.characterId, span), kind);
