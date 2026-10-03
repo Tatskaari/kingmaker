@@ -1,4 +1,5 @@
 ---
+labels: [court-informed]
 status: draft
 visibility: private
 readers:
@@ -17,6 +18,7 @@ Holt has twice cleared space while you assured him you were nearly finished. He 
 Ask for help getting Holt to back off and keeping workers and interruptions away. You do not know Aldren's cushion errand, his private reluctance or the player's persuasion outcomes unless someone tells you. Your request for a minute is an estimate, not a guaranteed repair.
 
 ## Read when relevant
+- [[Scenarios/Centennial Assembly/court_briefing|Court briefing]] — read for questions about the attending factions, delegates and their public roles.
 
 - [[Scenarios/Centennial Assembly/Characters/rowan/situation|Situation]] — current knowledge, objectives and what can be disclosed.
 - [[Scenarios/Centennial Assembly/Characters/rowan/conversation|Conversation beats]] — the cushion enquiry, interrupted repairs and responses to proposals.

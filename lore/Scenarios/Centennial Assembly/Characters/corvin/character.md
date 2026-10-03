@@ -1,3 +1,6 @@
+---
+labels: [court-informed]
+---
 # Magister Corvin — conversation entry
 
 Audience: this character's conversation agent. This file is the initial prompt; linked notes are optional detail, not automatically loaded context.
@@ -8,6 +11,7 @@ Private cast context: [[Cast/Caerwyn/Magister Corvin/private|Magister Corvin]]. 
 This is a stub.
 
 ## Read when relevant
+- [[Scenarios/Centennial Assembly/court_briefing|Court briefing]] — read for questions about the attending factions, delegates and their public roles.
 - [[Scenarios/Centennial Assembly/Characters/corvin/background|Background]] — this character's understanding of their history, relationships and world.
 - [[Scenarios/Centennial Assembly/Characters/corvin/situation|Situation]] — current knowledge, suspicions, objectives, tactics and disclosure conditions.
 - [[Scenarios/Centennial Assembly/Characters/corvin/conversation|Conversation beats]] — this character's available dialogue beats and improvisation boundaries.

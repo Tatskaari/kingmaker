@@ -4,6 +4,8 @@ Author navigation index. Agent context starts at `scenario.md` or `character.md`
 
 ## In this folder
 
+- [[Scenarios/Centennial Assembly/court_briefing|Court briefing]] — read for questions about the attending factions, delegates and their public roles.
+
 - [[Scenarios/Centennial Assembly/Characters/rowan/background|background]] — unwritten authoring stub; not offered in character disclosure.
 - [[Scenarios/Centennial Assembly/Characters/rowan/character|character]] — opening brief for the service entrance disruption.
 - [[Scenarios/Centennial Assembly/Characters/rowan/conversation|conversation]] — responses to the delivery problem and proposed remedies.

@@ -1,6 +1,6 @@
 # Agent Disclosure
 
-The vault separates character-private knowledge from GM-only truth. The lore access tests follow every note link from every scenario character entry and reject inaccessible, broken, ambiguous or invalid references. This is an authoring check; runtime loading and prompt enforcement are not implemented.
+The vault separates character-private knowledge from GM-only truth. The lore access tests follow every note link from every scenario character entry and reject inaccessible, broken, ambiguous or invalid references. The same access rules gate runtime retrieval before documents are offered to Jev or loaded into character context.
 
 ## Initial context
 The GM begins at the scenario's `scenario.md` and can consult the full authored vault. A conversation begins at its own `Characters/<id>/character.md`, which links to its private cast note and scoped scenario detail. Retrieve permitted detail when relevant; do not recursively load the graph into a prompt.
@@ -27,7 +27,7 @@ Scenario-local notes place the reusable person at a particular time and location
 The current scenario detail stubs retain their literal text. Non-index notes inside the starting character's scenario folder have implicit access for that character only; explicit metadata overrides this convention. Other scenario character folders receive no implicit grant. Stable characterization remains in the private cast note, not duplicated into scenario files.
 
 ## Access metadata
-Use YAML frontmatter with `visibility: public`, `visibility: private` or `visibility: gm`. Private notes list exact IDs under `readers.characters` or `readers.factions`; either list can grant access. The tests check baseline character access without faction or playthrough grants. Missing metadata defaults to GM-only except for the scoped scenario convention above. Invalid metadata never grants access.
+Use YAML frontmatter with `visibility: public`, `visibility: private` or `visibility: gm`. Private notes list exact IDs under `readers.characters`, `readers.factions` or `readers.labels`; any matching character, faction or label can grant access. The tests include labels from the character entry, without implicit faction or playthrough grants. Missing metadata defaults to GM-only except for the scoped scenario convention above. Invalid metadata never grants access.
 
 ```yaml
 ---
@@ -39,9 +39,27 @@ readers:
 
 A grant covers an entire note. Split mixed audiences into separate notes. Markdown links, embeds, aliases and prose labels do not grant access or exempt a reference from checking. Author indexes may link to all audiences because they are not character entrypoints.
 
+## Labels and shared court knowledge
+
+Documents can carry a YAML `labels` list. On a scenario's `character.md`, it defines that character's audience labels. Other documents' labels classify those documents but never give the reader more permissions. Labels are exact, case-sensitive IDs; malformed lists fail closed.
+
+Each Centennial Assembly character entry has `labels: [court-informed]`. This means they know the shared baseline in `court_briefing.md` and its delegation overviews. It does not imply personal acquaintance, private motives or knowledge of events that have not happened. Offstage cast members do not inherit this scenario grant.
+
+Shared documents explicitly grant that audience access:
+
+```yaml
+---
+visibility: private
+readers:
+  labels: [court-informed]
+---
+```
+
+A document's own `labels` do not grant access to it; `readers.labels` does. GM-only visibility overrides every grant. Keep links from the briefing within the permitted graph, and keep author provenance and private dossiers outside it. Link the briefing from both character entrypoints (for Jev) and navigation indexes (for authors). Runtime disclosure opens relevant links progressively, rather than loading all shared knowledge at conversation start. Saved document state retains this metadata; changing incompatible baseline lore requires a fresh game.
+
 ## Discoveries during play
 The GM adjudicates actions, quest transitions and discoveries using the full scenario. Send resulting observations only to the recipients who actually learn them. A completed milestone does not automatically teach every character its secrets. Keep these recipient-specific playthrough grants separate from baseline Markdown; they never reveal GM-only branches or apply world-state changes through dialogue.
 
-A future runtime must enforce permissions before initial prompts, search results and retrieval. The passing authoring test does not replace that boundary or establish who knows an unlabelled fact inside an otherwise permitted note.
+Runtime loaders enforce permissions before initial prompts, candidate links and retrieval. The passing authoring test does not establish who knows an unlabelled fact inside an otherwise permitted note.
 
 Parent: [[Authoring/index|Authoring]].

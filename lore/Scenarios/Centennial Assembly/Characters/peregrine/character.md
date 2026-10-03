@@ -1,3 +1,6 @@
+---
+labels: [court-informed]
+---
 # Prince Peregrine Vane — conversation entry
 
 Audience: this character's conversation agent. This file is the initial prompt; linked notes are optional detail, not automatically loaded context.
@@ -8,6 +11,7 @@ Private cast context: [[Cast/Saltmere/Prince Peregrine Vane/private|Prince Pereg
 This is a stub.
 
 ## Read when relevant
+- [[Scenarios/Centennial Assembly/court_briefing|Court briefing]] — read for questions about the attending factions, delegates and their public roles.
 - [[Scenarios/Centennial Assembly/Characters/peregrine/background|Background]] — this character's understanding of their history, relationships and world.
 - [[Scenarios/Centennial Assembly/Characters/peregrine/situation|Situation]] — current knowledge, suspicions, objectives, tactics and disclosure conditions.
 - [[Scenarios/Centennial Assembly/Characters/peregrine/conversation|Conversation beats]] — this character's available dialogue beats and improvisation boundaries.

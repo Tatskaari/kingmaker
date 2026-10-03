@@ -1,3 +1,6 @@
+---
+labels: [court-informed]
+---
 # Professor Oswin — conversation entry
 
 Audience: this character's conversation agent. This file is the initial prompt; linked notes are optional detail, not automatically loaded context.
@@ -8,6 +11,7 @@ Private cast context: [[Cast/Nine Furrows/Professor Oswin/private|Professor Oswi
 This is a stub.
 
 ## Read when relevant
+- [[Scenarios/Centennial Assembly/court_briefing|Court briefing]] — read for questions about the attending factions, delegates and their public roles.
 - [[Scenarios/Centennial Assembly/Characters/oswin/background|Background]] — this character's understanding of their history, relationships and world.
 - [[Scenarios/Centennial Assembly/Characters/oswin/situation|Situation]] — current knowledge, suspicions, objectives, tactics and disclosure conditions.
 - [[Scenarios/Centennial Assembly/Characters/oswin/conversation|Conversation beats]] — this character's available dialogue beats and improvisation boundaries.

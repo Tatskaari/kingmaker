@@ -4,6 +4,8 @@ Author navigation index. Agent context starts at `scenario.md` or `character.md`
 
 ## In this folder
 
+- [[Scenarios/Centennial Assembly/court_briefing|Court briefing]] — read for questions about the attending factions, delegates and their public roles.
+
 - [[Scenarios/Centennial Assembly/Characters/aldren/background|background]] — unwritten stub, retained for authoring; not offered in character disclosure.
 - [[Scenarios/Centennial Assembly/Characters/aldren/character|character]] — initial briefing for the greeting and cushion enquiry.
 - [[Scenarios/Centennial Assembly/Characters/aldren/conversation|conversation]] — opening beats, player objections and returning reports.
