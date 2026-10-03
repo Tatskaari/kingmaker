@@ -1,3 +1,4 @@
+import type { ResolutionHooks } from "./resolution.js";
 import type { ActionHooks } from "./action.js";
 import type { RuntimeServices } from "./services.js";
 import type { ConversationReviewHooks, ReviewLabels } from "./review.js";
@@ -5,7 +6,7 @@ import type { ConversationHooks } from "./phases.js";
 
 export interface ConversationRuntimeOptions<Labels = Record<string, never>, Review = ReviewLabels> {
   services?: { [Service in keyof RuntimeServices]?: Partial<RuntimeServices[Service]> };
-  hooks?: { conversation?: ConversationHooks<Labels>; review?: Partial<ConversationReviewHooks<Review>>; action?: Partial<ActionHooks> };
+  hooks?: { conversation?: ConversationHooks<Labels>; review?: Partial<ConversationReviewHooks<Review>>; action?: Partial<ActionHooks>; resolution?: Partial<ResolutionHooks> };
   maxPasses?: number;
 }
 
@@ -21,7 +22,7 @@ const unimplemented = (operation: string): never => { throw new UnimplementedSer
 /** Conversation, review and action dependencies and hooks, supplied by the host. */
 export class ConversationRuntime<Labels = Record<string, never>, Review = ReviewLabels> {
   readonly services: RuntimeServices;
-  readonly hooks: { conversation: ConversationHooks<Labels>; review: ConversationReviewHooks<Review>; action: ActionHooks };
+  readonly hooks: { conversation: ConversationHooks<Labels>; review: ConversationReviewHooks<Review>; action: ActionHooks; resolution: ResolutionHooks };
   readonly maxPasses: number;
 
   constructor({ services = {}, hooks, maxPasses = 16 }: ConversationRuntimeOptions<Labels, Review> = {}) {
@@ -33,6 +34,9 @@ export class ConversationRuntime<Labels = Record<string, never>, Review = Review
     }, review: {
       classify: hooks?.review?.classify ?? (async () => unimplemented("hooks.review.classify")),
       resolve: hooks?.review?.resolve ?? (async () => unimplemented("hooks.review.resolve")),
+    }, resolution: {
+      classify: hooks?.resolution?.classify ?? (async () => unimplemented("hooks.resolution.classify")),
+      resolve: hooks?.resolution?.resolve ?? (async () => unimplemented("hooks.resolution.resolve")),
     }, action: {
       classify: hooks?.action?.classify ?? (async () => unimplemented("hooks.action.classify")),
       resolve: hooks?.action?.resolve ?? (async () => unimplemented("hooks.action.resolve")),
