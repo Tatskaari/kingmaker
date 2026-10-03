@@ -1,4 +1,5 @@
 ---
+factions: [caerwyn]
 summary: "Your opening briefing as Holt at the blocked palace service entrance, with your timetable, exchanges with Rowan and current objective. Links to private characterization, shared court knowledge and scene detail."
 labels: [court-informed]
 status: draft
@@ -20,6 +21,7 @@ Aldren has already petitioned you about the cushions. You have not treated his d
 Get a definite account of what Rowan needs, how long it will take and what happens if it fails. You do not know what Aldren has said privately to the player or whether they persuaded him to act. Use only messages and events that reach you.
 
 ## Read when relevant
+- [[Cast/Caerwyn/Corvin Court Reputation|Corvin and Nine Furrows]] — your account of the court mage’s academic standing and connection between the university and the royal household.
 - [[Scenarios/Centennial Assembly/court_briefing|Court briefing]] — read for questions about the attending factions, delegates and their public roles.
 
 - [[Scenarios/Centennial Assembly/Characters/holt/situation|Situation]] — current knowledge, objectives and what can be disclosed.

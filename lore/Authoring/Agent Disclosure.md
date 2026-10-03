@@ -49,7 +49,7 @@ Scenario-local notes place the reusable person at a particular time and location
 The current scenario detail stubs retain their literal text. Non-index notes inside the starting character's scenario folder have implicit access for that character only; explicit metadata overrides this convention. Other scenario character folders receive no implicit grant. Stable characterization remains in the private cast note, not duplicated into scenario files.
 
 ## Access metadata
-Use YAML frontmatter with `visibility: public`, `visibility: private` or `visibility: gm`. Private notes use a flat `readers` list of prefixed IDs: `character:aldren`, `faction:caerwyn` or `label:court-informed`. Any matching entry grants access. The tests include labels from the character entry, without implicit faction or playthrough grants. Missing metadata defaults to GM-only except for the scoped scenario convention above. Invalid metadata never grants access.
+Use YAML frontmatter with `visibility: public`, `visibility: private` or `visibility: gm`. Private notes use a flat `readers` list of prefixed IDs: `character:aldren`, `faction:caerwyn` or `label:court-informed`. Any matching entry grants access. The tests include labels and factions explicitly authored on the character entry, without inventing membership from folder names or prose. Missing metadata defaults to GM-only except for the scoped scenario convention above. Invalid metadata never grants access.
 
 ```yaml
 ---
@@ -86,6 +86,20 @@ readers: ["label:court-informed"]
 ```
 
 A document's own `labels` do not grant access to it; matching `label:<id>` entries in `readers` do. GM-only visibility overrides every grant. Keep links from the briefing within the permitted graph, and keep author provenance and private dossiers outside it. Link the briefing from both character entrypoints (for Jev) and navigation indexes (for authors). Runtime disclosure opens relevant links progressively, rather than loading all shared knowledge at conversation start. Saved document state retains this metadata; changing incompatible baseline lore requires a fresh game.
+
+## Faction membership and differing beliefs
+
+Declare current faction membership as a flat list on the scenario character entry:
+
+```yaml
+factions: [nine-furrows]
+```
+
+A shared note can then use `visibility: private` and `readers: ["faction:nine-furrows"]`. Membership comes only from that character's entry, never from a retrieved note, their previous employer, a folder name or a claim in dialogue. The vault loader, saved-world loader and authoring audit use this same rule. Saved-world retrieval rechecks current membership before exposing a summary or opening a note.
+
+The assembly uses `caerwyn`, `nine-furrows`, `klaggenheim` and `saltmere`. Corvin's current membership is Caerwyn even though he previously worked at Nine Furrows.
+
+For differing beliefs, author separate notes with separate readers. Nine Furrows members share the account of Corvin's academic disgrace; the favourable court account names only Aldren and Holt as readers. Do not grant the latter to all of Caerwyn: Corvin already knows about his rejected chair. Link each observer's personal knowledge note and scenario entry only to the account they know or believe. Keep the GM's comparison in GM-only context.
 
 ## Discoveries during play
 The GM adjudicates actions, quest transitions and discoveries using the full scenario. Send resulting observations only to the recipients who actually learn them. A completed milestone does not automatically teach every character its secrets. Keep these recipient-specific playthrough grants separate from baseline Markdown; they never reveal GM-only branches or apply world-state changes through dialogue.

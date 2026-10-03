@@ -7,6 +7,8 @@ Author navigation index. Agent context starts at `scenario.md` or `character.md`
 
 ## In this folder
 
+- [[Cast/Nine Furrows/Corvin Academic Standing|Corvin’s academic standing — faction-private knowledge]]
+
 - [[Cast/Nine Furrows/Doctor Rowan Ash/index|Doctor Rowan Ash]]
 - [[Cast/Nine Furrows/Lady Elinor Ash/index|Lady Elinor Ash]]
 - [[Cast/Nine Furrows/Professor Oswin/index|Professor Oswin]]

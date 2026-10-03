@@ -1,4 +1,5 @@
 ---
+factions: [nine-furrows]
 summary: "Your Centennial Assembly entry as Professor Oswin, linking private characterization, shared court knowledge and scoped supporting notes. Your current situation and objectives remain unwritten."
 labels: [court-informed]
 ---
@@ -12,6 +13,7 @@ Private cast context: [[Cast/Nine Furrows/Professor Oswin/private|Professor Oswi
 This is a stub.
 
 ## Read when relevant
+- [[Cast/Nine Furrows/Corvin Academic Standing|Corvin and Nine Furrows]] — your account of the court mage’s academic standing and connection between the university and the royal household.
 - [[Scenarios/Centennial Assembly/court_briefing|Court briefing]] — read for questions about the attending factions, delegates and their public roles.
 - [[Scenarios/Centennial Assembly/Characters/oswin/background|Background]] — your understanding of your history, relationships and world.
 - [[Scenarios/Centennial Assembly/Characters/oswin/situation|Situation]] — current knowledge, suspicions, objectives, tactics and disclosure conditions.
