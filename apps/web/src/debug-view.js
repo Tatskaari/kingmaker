@@ -161,7 +161,8 @@ function transcriptSummary(entry) {
       + facts([["Choice", response.choice], ...(typeof probability === "number" ? [["Choice probability", `${Math.round(probability * 100)}%`]] : []), ...(typeof response.confidence === "number" ? [["Confidence", `${Math.round(response.confidence * 100)}%`]] : [])])
       + `<p class="debug-meta">This is the planner's decision, not confirmation that an action was executed.</p>`;
   }
-  const output = parsedContent(response);
+  const reviewTool = array(response.tool_calls).find(call => call?.function?.name === "commit_review");
+  const output = reviewTool ? parsedContent({ content: reviewTool.function.arguments }) : parsedContent(response);
   if (output && Object.hasOwn(output, "activeGoal")) return `<h4>Review summary</h4><p>${escape(output.summary)}</p>`
     + `<h4>Notes returned</h4>${list(array(output.newNotes), note => escape(note), "No new notes.")}`
     + `<h4>Active goal</h4><p>${escape(output.activeGoal ?? "No active goal")}</p>`;
