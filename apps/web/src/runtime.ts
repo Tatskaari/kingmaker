@@ -1,6 +1,7 @@
 import { initialModelResourceIds, modelResourceOverview } from "./model-resources.js";
 import { renderWorldPrompt } from "../../../packages/core/src/world-prompt.js";
 import type { Complete } from "../../../packages/conversation/src/conversation.js";
+import { retryResponses } from "../../../packages/conversation/src/ai.js";
 import { ConversationRuntime, type ConversationRuntimeOptions } from "../../../packages/conversation/src/runtime.js";
 import { runConversation } from "../../../packages/conversation/src/phases.js";
 import { checkHooks, type CheckLabels } from "../../../packages/conversation/src/check-hooks.js";
@@ -611,7 +612,7 @@ export class BrowserGameRuntime {
     const handler = new ConversationRuntime<CheckLabels>({ ...options, services: {
       ...injected,
       ai: {
-        responses: (request, signal) => this.#complete("gm_consultation", characterId, request, signal, runKey),
+        responses: retryResponses((request, signal) => this.#complete("gm_consultation", characterId, request, signal, runKey)),
         decisions: (state, questions, signal) => this.#modelTranscripts.record("conversation_check", characterId, state,
           () => this.#jev.evaluate(state, questions, signal), runKey, this.#characterName(characterId)),
         ...injected?.ai,

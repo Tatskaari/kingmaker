@@ -1,3 +1,4 @@
+import { retryResponses } from "../packages/conversation/src/ai.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -98,12 +99,12 @@ test("truncated GM output retries without rerolling or replaying presentation", 
   const { OutputTokenLimitError } = await import("../packages/providers/src/openrouter.js");
   let calls = 0, rolls = 0, presentations = 0;
   await adjudicateConversationChecks({ plan: [{ skill: "intimidation", difficulty: "hard" }], build: undefined, messages: [],
-    complete: async request => {
+    complete: retryResponses(async request => {
       calls++;
       if (calls === 1) throw new OutputTokenLimitError();
       assert.equal(request.max_tokens, 4000);
       return reply({ direction: "Reveal what you know." });
-    },
+    }),
     roll: () => { rolls++; return 20; }, present: async () => { presentations++; },
   });
   assert.deepEqual([calls, rolls, presentations], [2, 1, 1]);

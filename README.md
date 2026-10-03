@@ -506,6 +506,11 @@ operation cancels its sibling. Very easy/easy/normal/hard/very hard map to DC
 5/10/15/20/25; trivial only fails on natural 1 and impossible only succeeds on
 natural 20, irrespective of modifiers.
 
+The AI response service retries transient provider/network failures and timeouts
+once. A truncated response retries with twice the output-token budget. Cancellation
+and non-retryable provider errors stop immediately. Dice stay resolved and the
+popup remains open during a retry; exhausted failures cancel the paired operation.
+
 Run `proto install` to install the pinned Node 26 runtime, then
 `OPENROUTER_API_KEY=… npm run conversation -- --character corvin` in an
 interactive terminal. OpenTUI renders React components directly in the terminal.

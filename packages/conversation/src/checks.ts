@@ -1,7 +1,7 @@
 import type { Difficulty } from "./services.js";
 import type { DndCharacter } from "../../contracts/src/index.js";
 import { degreeGuidance, resolveDiceCheck, rollD20, skillModifier, type CheckSkill, type CheckDegree } from "../../core/src/ability-checks.js";
-import { OutputTokenLimitError, type ChatCompletionRequest, type OpenRouterMessage } from "../../providers/src/openrouter.js";
+import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/src/openrouter.js";
 import { parseModelObject } from "../../providers/src/structured-output.js";
 const REASONING_MODEL = { model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "none" } } as const;
 
@@ -43,14 +43,9 @@ export async function adjudicateConversationChecks(options: {
     skillModifier(options.build, check.skill), (options.roll ?? rollD20)())));
   const complete = async (request: ChatCompletionRequest) => {
     signal.throwIfAborted();
-    try { const result = await options.complete(request, signal); signal.throwIfAborted(); return result; }
-    catch (error) {
-      signal.throwIfAborted();
-      if (!(error instanceof OutputTokenLimitError)) throw error;
-      const result = await options.complete({ ...request, max_tokens: (request.max_tokens ?? 2000) * 2 }, signal);
-      signal.throwIfAborted();
-      return result;
-    }
+    const result = await options.complete(request, signal);
+    signal.throwIfAborted();
+    return result;
   };
   const prepareRuling = async () => {
     const ruling = parseModelObject((await complete({ ...REASONING_MODEL, messages: [

@@ -169,7 +169,10 @@ All checks are rolled before either asynchronous operation starts. Multiple dice
 popups appear sequentially while one GM request covers the complete result set.
 The result is fixed before animation; presentation cannot alter it. A failed GM
 request or cancelled popup cancels its sibling and prevents the character reply.
-A truncated GM response retries once without rerolling or replaying presentation.
+The AI response service retries transient provider/network failures and timeouts
+once; truncated output retries with twice the token budget. The resolver contains
+no retry policy. During a retry, the existing dice results and presentation remain
+in place. Cancellation and non-retryable provider errors propagate immediately.
 
 Very easy, easy, normal, hard and very hard use DCs 5, 10, 15, 20 and 25. Trivial
 only fails on natural 1; impossible only succeeds on natural 20. Their effective
