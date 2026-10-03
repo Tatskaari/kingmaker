@@ -12,7 +12,7 @@ const entry = (id: string) => `Scenarios/Test/Characters/${id}/character.md`;
 function fixture() {
   const notes = new Map([["Scenarios/Test/index.md", "Index"], ["Scenarios/Test/scenario.md", ["alice", "bob"].map(id => `[[${entry(id)}]]`).join("\n")]]);
   for (const id of ["alice", "bob"]) {
-    const access = `---\nvisibility: private\nreaders:\n  characters: [${id}]\n---\n`;
+    const access = `---\nvisibility: private\nreaders: ["character:${id}"]\n---\n`;
     notes.set(entry(id), access + `[[Cast/Test/${id}/private.md]]`);
     notes.set(`Cast/Test/${id}/private.md`, access + `${id.toUpperCase()}_PRIVATE`);
   }
