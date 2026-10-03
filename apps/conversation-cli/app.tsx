@@ -22,7 +22,7 @@ export interface ConversationResult {
 interface AppProps {
   input: ConversationInput;
   complete: Complete;
-  checks?: { ai: AiService; build: DndCharacter | undefined };
+  checks?: { ai: AiService; build: DndCharacter | undefined; beginTurn?: () => void };
   disclosure?: DisclosureSession;
   copyText: (text: string) => Promise<string>;
   onFinish: (result: ConversationResult) => void;
@@ -89,6 +89,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
     running.current = true; setBusy(true); setStatus("");
     const index = turns.length;
     try {
+      checks?.beginTurn?.();
       const turnInput = { ...input, transcript, message };
       const trace = (round: DisclosureRound) => {
         timeline.record(`jev-${round.turn}-${round.round}`);

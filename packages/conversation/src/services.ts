@@ -7,9 +7,10 @@ import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/s
 import type { CharacterSources, LoreDocument } from "./conversation.js";
 import type { LoreLink } from "./lore.js";
 
+export interface AiRequestInfo { characterId?: string; purpose?: "gm_consultation" | "dialogue" }
 export interface AiService {
   decisions(state: unknown, questions: JevQuestions, signal: AbortSignal, purpose?: "skill_check" | "skill_difficulty" | "prog_disc"): Promise<Record<string, JevChoice>>;
-  responses(request: ChatCompletionRequest, signal?: AbortSignal): Promise<OpenRouterMessage>;
+  responses(request: ChatCompletionRequest, signal?: AbortSignal, info?: AiRequestInfo): Promise<OpenRouterMessage>;
 }
 
 /** Scoped to one character/scenario at construction; access checks remain in the loader. */

@@ -17,10 +17,11 @@ export interface AiSpan extends AiTraceContext {
 export type RecordAiSpan = <T>(span: AiSpan, request: unknown, call: () => Promise<T>) => Promise<T>;
 
 /** Capture immutable per-call context, including concurrent calls and failed requests. */
-export function traceAiService(ai: AiService, context: () => AiTraceContext, record: RecordAiSpan, operation: string): AiService {
-  const span = (purpose: string): AiSpan => ({ ...structuredClone(context()), spanId: crypto.randomUUID(), operation: purpose });
+export function traceAiService(ai: AiService, context: (characterId?: string) => AiTraceContext, record: RecordAiSpan, operation: string): AiService {
+  const span = (purpose: string, characterId?: string): AiSpan => ({ ...structuredClone(context(characterId)), spanId: crypto.randomUUID(), operation: purpose });
   return {
-    responses: (request, signal) => record(span(operation), request, () => ai.responses(request, signal)),
+    responses: (request, signal, info) => record({ ...span(info?.purpose ?? operation, info?.characterId), ...(info?.characterId ? { characterId: info.characterId } : {}) },
+      request, () => ai.responses(request, signal, info)),
     decisions: (state, questions, signal, purpose) => record(span(purpose ?? operation), { state, questions },
       () => ai.decisions(state, questions, signal, purpose)),
   };

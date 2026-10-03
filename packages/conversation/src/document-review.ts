@@ -42,7 +42,7 @@ export async function reviewDocumentEvidence(context: Readonly<ConversationRevie
     signal.throwIfAborted();
     const reply = await services.ai.responses({ model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "low" },
       max_tokens: 4000, tools: [commitTool], messages,
-    }, signal);
+    }, signal, { characterId: context.characterId });
     signal.throwIfAborted();
     const call = reply.tool_calls?.[0];
     if (reply.tool_calls?.length !== 1 || call?.function.name !== "commit_review") throw new Error("Document review must call commit_review once.");

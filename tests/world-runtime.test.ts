@@ -80,3 +80,38 @@ test("concurrent reviews update separate live documents while player movement su
   const position = runtime.world().map!.actors.find(actor => actor.characterId === "player")!.position!;
   assert.equal(position.x, destination.x); assert.equal(position.y, destination.y);
 });
+
+test("conversation spans retain turn, retry, review and world context across forks", async () => {
+  let attempts = 0;
+  const runtime = game({ services: { ai: { responses: async request => {
+    if (request.response_format) return reviewReply;
+    if (++attempts === 1) throw new TypeError("Temporary transport failure");
+    return { role: "assistant", content: "Hello." };
+  } } }, hooks: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }), resolve: async () => ({ reclassify: false }) } } });
+  await runtime.checkedTalkToCharacter("rowan", "Hello");
+  await runtime.checkedTalkToCharacter("rowan", "Goodbye");
+  await runtime.forkForResourceReview(commit).endConversation("rowan");
+  const runs = Object.values(runtime.transcriptRuns());
+  assert.equal(runs.length, 1);
+  const run = runs[0]!;
+  assert.equal(run.status, "success");
+  assert.deepEqual(run.calls.map(call => call.kind), ["dialogue", "dialogue", "dialogue", "conversation_review"]);
+  assert.deepEqual(run.calls.map(call => call.status), ["error", "success", "success", "success"]);
+  assert.equal(new Set(run.calls.map(call => call.spanId)).size, 4);
+  assert.equal(new Set(run.calls.map(call => call.turnId)).size, 3);
+  assert.equal(run.calls[0]!.turnId, run.calls[1]!.turnId);
+  assert.ok(run.calls.every(call => call.conversationId === run.conversationId && call.scenario && call.worldGeneration));
+  assert.ok(run.calls.every(call => call.characterId === "rowan" && call.participantIds.includes("player")));
+  await runtime.checkedTalkToCharacter("rowan", "Hello again");
+  assert.notEqual(runtime.recentTranscripts()[0]!.conversationId, run.conversationId);
+});
+
+test("parallel characters and injected character responders remain separately traced", async () => {
+  const runtime = game({ services: { character: { respond: async () => ({ role: "assistant", content: "Yes." }) } },
+    hooks: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }), resolve: async () => ({ reclassify: false }) } } });
+  await Promise.all([runtime.checkedTalkToCharacter("rowan", "Hello"), runtime.checkedTalkToCharacter("corvin", "Hello")]);
+  const calls = runtime.recentTranscripts();
+  assert.equal(calls.length, 2);
+  assert.equal(new Set(calls.map(call => call.characterId)).size, 2);
+  assert.equal(new Set(calls.map(call => call.conversationId)).size, 2);
+});
