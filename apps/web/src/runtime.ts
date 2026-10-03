@@ -1,3 +1,4 @@
+import { classifyResolution, runResolution, type ResolutionContext } from "../../../packages/conversation/src/resolution.js";
 import { actionCriteria, jevActionHooks, runAction } from "../../../packages/conversation/src/action.js";
 import { initialModelResourceIds, modelResourceOverview } from "./model-resources.js";
 import { renderWorldPrompt } from "../../../packages/core/src/world-prompt.js";
@@ -332,7 +333,7 @@ export class BrowserGameRuntime {
   #conversationRuns = new Map<string, string>();
   #eventPerceptions: Record<string, EventPerceptionTrace[]> = {};
 
-  constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot, transcriptsChanged: () => void = () => {}, onWarning: (message: string) => void = () => {}, random: () => number = Math.random, readonly jevActionContext: JevActionContextOptions = {}, readonly reviewOptions: ConversationRuntimeOptions = {}, readonly actionOptions: ConversationRuntimeOptions = {}) {
+  constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot, transcriptsChanged: () => void = () => {}, onWarning: (message: string) => void = () => {}, random: () => number = Math.random, readonly jevActionContext: JevActionContextOptions = {}, readonly reviewOptions: ConversationRuntimeOptions = {}, readonly actionOptions: ConversationRuntimeOptions = {}, readonly resolutionOptions: ConversationRuntimeOptions = {}) {
     this.#initialScenario = fromJson(ScenarioSchema, toJson(ScenarioSchema, scenario));
     initializeNpcObjectives(this.#initialScenario);
     this.#game = new MemoryGame(this.#initialScenario);
@@ -1154,7 +1155,21 @@ export class BrowserGameRuntime {
     this.#setGame(new MemoryGame(scenario));
   }
 
-  async processPerceivedEvent(characterId: string, event: Event, perception: string, signal?: AbortSignal): Promise<void> {
+  async #resolve(context: ResolutionContext, signal: AbortSignal, resolve: () => Promise<string>) {
+    const options = this.resolutionOptions;
+    const runtime = new ConversationRuntime({ ...options, hooks: { ...options.hooks, resolution: {
+      classify: classifyResolution, resolve: async () => ({ summary: await resolve() }), ...options.hooks?.resolution,
+    } } });
+    return runResolution(context, runtime, signal);
+  }
+
+  async processPerceivedEvent(characterId: string, event: Event, perception: string, signal = new AbortController().signal): Promise<void> {
+    await this.#resolve({ kind: "world_event", characterId, eventId: event.id, perception }, signal, async () => {
+      await this.#processPerceivedEvent(characterId, event, perception, signal); return perception;
+    });
+  }
+
+  async #processPerceivedEvent(characterId: string, event: Event, perception: string, signal?: AbortSignal): Promise<void> {
     const scenario = this.#game.scenario();
     const context = new FullContextBuilder().build(create(DialogueRequestSchema, { characterId, scenario }));
     await this.#reconcile("world_event", characterId, scenario, [characterId], {
@@ -1173,7 +1188,7 @@ export class BrowserGameRuntime {
 
   /** Model work happens on a snapshot; only a validated merge touches the live game. */
   forkForNpc(): BrowserGameRuntime {
-    const fork = new BrowserGameRuntime(this.#initialScenario, "", this.snapshot(), undefined, undefined, this.#random, this.jevActionContext, this.reviewOptions, this.actionOptions);
+    const fork = new BrowserGameRuntime(this.#initialScenario, "", this.snapshot(), undefined, undefined, this.#random, this.jevActionContext, this.reviewOptions, this.actionOptions, this.resolutionOptions);
     fork.#client = this.#client; fork.#jev = this.#jev; fork.#modelTranscripts = this.#modelTranscripts;
     fork.#conversationRuns = this.#conversationRuns;
     return fork;
@@ -1461,6 +1476,13 @@ export class BrowserGameRuntime {
   }
 
   async executeNpcTalk(characterId: string, actionId: string, revision: number, goal: string, signal: AbortSignal): Promise<string> {
+    const action = courtAgentObservation(this.#game.scenario(), characterId).actions.find(action => action.id === actionId && action.type === "talk");
+    if (!action) throw new Error("Talk action unavailable.");
+    return (await this.#resolve({ kind: "npc_exchange", characterId, targetId: action.target, goal }, signal,
+      () => this.#executeNpcTalk(characterId, actionId, revision, goal, signal))).summary;
+  }
+
+  async #executeNpcTalk(characterId: string, actionId: string, revision: number, goal: string, signal: AbortSignal): Promise<string> {
     const scenario = this.#game.scenario(), world = scenario.world!;
     const activity = this.#npcActivities[characterId];
     const action = courtAgentObservation(scenario, characterId).actions.find(item => item.id === actionId && item.type === "talk");
@@ -1560,7 +1582,16 @@ export class BrowserGameRuntime {
     this.readResources();
   }
 
-  async reviewNpcOutcome(characterId: string, allowNextGoal = true, signal?: AbortSignal): Promise<void> {
+  async reviewNpcOutcome(characterId: string, allowNextGoal = true, signal = new AbortController().signal): Promise<void> {
+    const activity = this.#npcActivities[characterId];
+    if (!activity?.reviewPending || !activity.result) return;
+    await this.#resolve({ kind: "task_outcome", characterId, goal: activity.goal, actions: activity.history,
+      result: activity.result, observation: courtAgentObservation(this.#game.scenario(), characterId).world.location }, signal, async () => {
+      await this.#reviewNpcOutcome(characterId, allowNextGoal, signal); return activity.result!.detail;
+    });
+  }
+
+  async #reviewNpcOutcome(characterId: string, allowNextGoal = true, signal?: AbortSignal): Promise<void> {
     const activity = this.#npcActivities[characterId];
     if (!activity?.reviewPending || !activity.result) return;
     const scenario = this.#game.scenario();
