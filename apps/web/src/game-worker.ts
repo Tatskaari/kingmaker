@@ -1,4 +1,5 @@
 /// <reference lib="webworker" />
+import { characterCreationWorld } from "./playable-world.js";
 import { type TravellerIdentity } from "./introduction.js";
 import { type JsonValue } from "@bufbuild/protobuf";
 import { type Event } from "../../../packages/contracts/src/index.js";
@@ -293,9 +294,10 @@ async function persist(): Promise<void> {
   await transaction("readwrite", store => store.put(activeSave!));
 }
 
-async function createGame(): Promise<Record<string, unknown>> {
+async function createGame(development = false): Promise<Record<string, unknown>> {
   if (!apiKey) throw new Error("Enter an OpenRouter key first");
-  const scenario = await scenarioPromise;
+  const baseline = await scenarioPromise;
+  const scenario = development ? baseline : characterCreationWorld(baseline);
   const now = new Date().toISOString();
   runtime = new BrowserGameRuntime(scenario, apiKey, undefined, () => worker.postMessage({ type: "transcripts_changed" }), providerWarning, { services: { presentation: { renderMap: async () => publishNpc("") } } });
   activeSave = {
@@ -311,7 +313,7 @@ async function createGame(): Promise<Record<string, unknown>> {
 }
 
 async function createDevelopmentGame(): Promise<Record<string, unknown>> {
-  await createGame();
+  await createGame(true);
   await persist();
   return { mapLayout: runtime!.map.layout(), state: runtime!.view(), activeSaveId: activeSave!.id, saves: await listSaves() };
 }
@@ -364,9 +366,19 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     return { saves: await listSaves() };
   }
   if (type === "state") return { state: requireRuntime().view(), activeSaveId: activeSave?.id };
-  if (type === "stranger_expression") return {};
-  if (["set_identity", "start_introduction", "gm", "save_character"].includes(type)) {
-    throw new Error("Character creation is not available in this scenario. Start a fresh game with the visiting envoy.");
+  if (type === "stranger_expression") return { expression: await requireRuntime().classifyStrangerExpression(payload.recentPortraits ?? []) };
+  if (["start_introduction", "gm", "save_character"].includes(type)) {
+    const game = requireRuntime(), before = game.snapshot(), savedBefore = activeSave;
+    try {
+      if (type === "start_introduction") game.startIntroduction();
+      if (type === "gm") await game.talkToGameMaster(String(payload.message || ""));
+      if (type === "save_character") await game.confirmPlayer(payload.draft as JsonValue);
+      await persist();
+    } catch (error) {
+      game.restore(before); activeSave = savedBefore;
+      throw error;
+    }
+    return { state: game.view(), saves: await listSaves(), activeSaveId: activeSave?.id };
   }
   if (type === "cancel_npc") { stopBackground(); publishNpc("NPC activity paused."); return {}; }
   if (type === "reset_world" || type === "reset_characters") {

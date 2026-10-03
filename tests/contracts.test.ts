@@ -2187,12 +2187,40 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
   });
   await request("configure", { apiKey: "test" });
   const fresh = await request("create_game");
-  assert.equal(fresh.state.phase, "conversations");
+  assert.equal(fresh.state.phase, "player_creation");
   assert.equal(records.get(fresh.activeSaveId).snapshot.version, 2);
   assert.equal(records.get(fresh.activeSaveId).snapshot.scenario, undefined);
-  await assert.rejects(request("start_introduction"), /Character creation is not available/);
+  await request("start_introduction");
   const resumed = await request("load_game", { saveId: fresh.activeSaveId });
-  assert.equal(resumed.state.player.name, "Visiting Envoy");
+  assert.equal(resumed.state.player, null);
+  assert.equal(resumed.state.gmMessages.length, 1);
+
+  await t.test("creation storage failures retain the resumable interview and draft", async t => {
+    failNextWrite = true;
+    await assert.rejects(request("gm", { message: "Alex" }), /Test storage failure/);
+    assert.equal((await request("state")).state.gmMessages.length, 1);
+    const ids = world.characters.map(path => /\/Characters\/([^/]+)\//.exec(path)![1]!);
+    const input = { name: "Alex", gender: "nonbinary", homeland: "Independent", embassyRole: "Visiting scholar",
+      lore: "You serve the Stranger.", currentGoal: "Explore court",
+      relationships: ids.map(characterId => ({ characterId, description: "No prior acquaintance." })),
+      npcViews: ids.map(characterId => ({ characterId, description: "A newly arrived scholar." })),
+      build: { classId: "rogue", abilityPriority: ["dexterity", "charisma", "intelligence", "constitution", "wisdom", "strength"], skills: ["persuasion", "deception", "insight", "stealth"] } };
+    t.mock.method(OpenRouterClient.prototype, "complete", async () => ({ role: "assistant", content: null, tool_calls: [
+      { id: "draft", type: "function", function: { name: "create_player", arguments: JSON.stringify(input) } },
+    ] }));
+    const review = await request("gm", { message: "Ready" });
+    assert.equal(review.state.phase, "character_review");
+    failNextWrite = true;
+    await assert.rejects(request("save_character", { draft: review.state.playerDraft }), /Test storage failure/);
+    const pendingReview = await request("state");
+    assert.equal(pendingReview.state.phase, "character_review");
+    assert.equal(pendingReview.state.player, null);
+    assert.equal(records.get(fresh.activeSaveId).snapshot.world.player, undefined);
+    await request("save_character", { draft: review.state.playerDraft });
+    const reloaded = await request("load_game", { saveId: fresh.activeSaveId });
+    assert.equal(reloaded.state.player.name, "Alex");
+    assert.equal(reloaded.state.phase, "conversations");
+  });
 
   await t.test("physical interactions respond before background earshot assessment finishes", async t => {
     const created = await request("create_development_game");

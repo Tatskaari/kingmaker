@@ -9,11 +9,19 @@ movement, inventory and unrelated conversations survive those merges. Resetting
 or switching games cancels background execution and rejects late results.
 Credentials and recent model transcripts are kept outside save snapshots.
 
-The introduction saves the player’s delegation, name, gender and sprite before
-the Stranger interview. Once the player is ready, character creation prepares an editable review draft.
-Explicitly saving the reviewed character enters the palace with the confirmed
-identity and authored actor positions. Walking and object interactions operate
-on that same world state; there is no separate demo or night-turn engine.
+Normal new games begin with the unchanged Stranger opening and conversational
+identity, talents, background and relationship interview. The interview reads the
+v2 scenario service and prepares a detached review draft; its transcript and draft
+are saved alongside the v2 world. Explicit Save publishes a private player Markdown
+entry and typed build/inventory through `character.create`. The Stranger workflow
+writes each NPC's own initial impression through docs, designates the player through
+the scenario service, and enters court at the authored positions. These steps run
+against privately staged services and publish together after validation. General
+character creation also supports NPCs, registering their scenario link and map
+actor without changing the day, phase or other characters' knowledge. The development shortcut still creates the visiting envoy.
+The review payload uses the existing PlayerSetup form shape as a UI transfer object;
+no v1 scenario becomes saved authority. Failed model calls or persistence leave the
+interview or review available to retry.
 
 `FullContextBuilder` combines authored character context, objectives, immediate
 intent, available notes, known fixture contents and dialogue history. Spoken turns

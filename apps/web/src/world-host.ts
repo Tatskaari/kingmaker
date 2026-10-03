@@ -1,5 +1,7 @@
+import { creationAffiliations } from "./stranger-draft.js";
+import type { StrangerState } from "./stranger-interview.js";
 import { palaceMap } from "./palace-map.js";
-import { WorldMapSchema } from "../../../packages/contracts/src/index.js";
+import { GamePhase, WorldMapSchema } from "../../../packages/contracts/src/index.js";
 import type { MapService } from "../../../packages/conversation/src/map.js";
 import { characterCourtObservation } from "./court-agent.js";
 import { worldForCharacter } from "../../../packages/core/src/context.js";
@@ -14,6 +16,7 @@ import { characterId, projectWorld } from "./world-projection.js";
 import type { Point } from "./navigation.js";
 
 export type WorldSnapshot = MechanicalActivity & {
+  stranger?: StrangerState;
   version: 2; world: JsonValue;
   playerMessages: Array<{ id: string; day: number; message: string; createdAt: string }>;
 };
@@ -76,11 +79,22 @@ export class WorldHost {
   }
   view(): Record<string, unknown> {
     const game = this.projection(), view = game.view(); this.remember(game);
-    return { ...view, playerMessages: structuredClone(this.activity.playerMessages) };
+    return { ...view,
+      phase: this.world().player ? "conversations" : this.activity.stranger?.draft ? "character_review" : "player_creation",
+      playerDraft: structuredClone(this.activity.stranger?.draft ?? null),
+      courtAffiliations: [...creationAffiliations],
+      gmReplyOptions: structuredClone(this.activity.stranger?.replies ?? null),
+      gmMessages: (this.activity.stranger?.history ?? []).filter(turn => (turn.role === "user" || turn.role === "assistant") && !turn.tool_calls?.length && turn.content)
+        .map(turn => ({ role: turn.role, text: turn.content })),
+      playerMessages: structuredClone(this.activity.playerMessages) };
   }
   debug() { return { documentWorld: toJson(WorldStateSchema, this.world()) }; }
   debugCharacter(id: string) { return { characterId: id, documents: this.world().docs }; }
-  debugGameMaster() { return { documentWorld: toJson(WorldStateSchema, this.world()) }; }
+  debugGameMaster() { return { documentWorld: toJson(WorldStateSchema, this.world()),
+    savedTranscript: structuredClone(this.activity.stranger?.history ?? []), promptMatchesCurrentScenario: true,
+    compulsion: { active: false, options: this.activity.stranger?.replies?.options ?? [] },
+    traceNote: "Model requests are available in the transcript inspector.",
+  }; }
   readResources(keys?: string[]) {
     const game = this.projection(), values = game.readResources(keys); this.remember(game);
     return values;
@@ -123,7 +137,9 @@ export class WorldHost {
     conversations: {}, npcActivities: {}, playerMessages: [] }); }
   resetWorld() {
     const before = this.world();
-    this.documents.mechanics.commit(this.initial.map!, {});
+    const map = structuredClone(this.initial.map!);
+    if (before.player) { map.phase = GamePhase.CONVERSATIONS; map.day = 1; }
+    this.documents.mechanics.commit(map, {});
   }
   resetCharacters() {
     const current = this.world();
