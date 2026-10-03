@@ -14,3 +14,16 @@ Start with a sketch in any stub. Link reusable author lore from GM and author no
 Every lore content folder has a lowercase `index.md`, including the vault root. Use it for the folder overview, links to its notes and immediate child indexes, and a link back to the parent. Add or update the index whenever notes are added, moved or renamed. Keep headings descriptive even though the filename is always `index.md`.
 
 Use vault-relative wikilinks with display labels for nested indexes, such as `[[Cast/index|Cast]]`. Link to the root index with a relative Markdown path such as `[Lore index](../index.md)` so it cannot resolve to a different folder's index. Indexes are author navigation; `scenario.md` and `character.md` remain the agent entrypoints. Indexes can contain navigation prose while unwritten playable detail stays a literal stub.
+
+## Scenario character properties
+
+Each `Scenarios/<scenario>/Characters/<name>/properties.json` defines that character's starting mechanical state for that scenario. Keep it beside `character.md`, not in Cast: stats, resources and equipment can differ between scenarios. These files are author/GM data, linked from author indexes rather than character-facing notes; inventory can include concealed items and other facts the character has not learned.
+
+The file contains two fields using the existing [game protobuf](../../packages/contracts/proto/kingmaker/v1/game.proto) JSON representation:
+
+- `dnd`: `DndCharacter` — ruleset, species, background, ability scores, class levels, choices, proficiencies, hit points, resources, spellcasting and conditions.
+- `inventory`: `Inventory` — item instances and equipment references. Equipped and attuned item IDs must refer to items in this inventory.
+
+Both start as `null`, meaning **not authored yet**, not zero stats or an empty inventory. Replace each independently with a protobuf JSON object when its contents are decided. Use lowerCamelCase field names, such as `abilityScores`, `hitPoints` and `mainHandItemId`, and protobuf enum names for enums. Inside an authored object, omitted fields follow protobuf defaults; use `inventory: {}` only when an empty inventory is intended. Do not invent scores, rules IDs or equipment to fill a stub, or store calculated sheet totals outside the protobuf's fields.
+
+The normal repository checks require a properties file for each scenario character and validate authored objects against the protobuf. This is an authoring baseline only; the game still reads `content/` and does not load these files. Playthrough changes do not overwrite this baseline.
