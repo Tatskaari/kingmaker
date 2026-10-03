@@ -49,7 +49,16 @@ export async function reviewDocumentEvidence(context: Readonly<ConversationRevie
     const call = reply.tool_calls?.[0];
     if (reply.tool_calls?.length !== 1 || !call) throw new Error("Document review must call one tool at a time and finish with commit_review.");
     if (documentTools.some(tool => tool.function.name === call.function.name)) {
-      const feedback = await callDocumentTool(services.docs, call.function.name, parseModelObject(call.function.arguments, "Document tool"));
+      const input = parseModelObject(call.function.arguments, "Document tool");
+      const feedback = await callDocumentTool(services.docs, call.function.name, input);
+      if (feedback.ok && call.function.name !== "read_document") {
+        services.debug.documentUpdated?.({
+          path: input.path as string,
+          beforeSha: call.function.name === "create_document" ? "absent" : input.expectedSha as string,
+          afterSha: "current" in feedback && feedback.current ? feedback.current.sha : "deleted",
+          response: reply, toolCallId: call.id,
+        });
+      }
       signal.throwIfAborted();
       if ("current" in feedback && feedback.current?.path === path) before = feedback.current;
       messages.push(reply, { role: "tool", tool_call_id: call.id, content: JSON.stringify(feedback) });
