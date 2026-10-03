@@ -1,6 +1,7 @@
 import { clone, fromJson, toJson, type JsonObject } from "@bufbuild/protobuf";
 import { stringify } from "yaml";
-import { DocumentSchema, WorldStateSchema, type Document, type WorldState } from "../../contracts/src/v2.js";
+import { DocumentSchema, WorldStateSchema, type Document, type WorldState, type CharacterProperties } from "../../contracts/src/v2.js";
+import { WorldStateSchema as MapSchema, type WorldState as MapState } from "../../contracts/src/index.js";
 import { parseMarkdown } from "./markdown.js";
 import { refreshDocumentGraph } from "./world-state.js";
 
@@ -10,6 +11,10 @@ export interface DocumentSnapshot {
   /** Canonical Markdown, including YAML frontmatter, used by replace/insert. */
   text: string;
   document: Document;
+}
+/** Trusted mechanics publish physical results, never narrative documents. */
+export interface MechanicsStateService {
+  commit(expected: WorldState, map: MapState, properties: Readonly<Record<string, CharacterProperties>>): void;
 }
 export interface ScenarioInfo { scenario: string; scenarioIndex: string; player?: string; characters: string[] }
 export interface ScenarioService {
@@ -47,7 +52,7 @@ async function snapshot(path: string, document: Document): Promise<DocumentSnaps
 }
 
 /** Both interfaces share one owned state. No filesystem, model calls or presentation dependencies. */
-export function createScenarioServices(initial: WorldState): { scenario: ScenarioService; docs: DocsService } {
+export function createScenarioServices(initial: WorldState): { scenario: ScenarioService; docs: DocsService; mechanics: MechanicsStateService } {
   let state = refreshDocumentGraph(clone(WorldStateSchema, initial));
   let writes: Promise<unknown> = Promise.resolve();
   // Serialize asynchronous hash checks and commits; rejection must not poison subsequent writes.
@@ -69,12 +74,14 @@ export function createScenarioServices(initial: WorldState): { scenario: Scenari
   async function publish(path: string, text: string): Promise<DocumentSnapshot> {
     const note = parseMarkdown(text);
     if (note.error) throw new Error(`${path}: ${note.error}`);
+    const base = state;
     const draft = clone(WorldStateSchema, state);
     const next = fromJson(DocumentSchema, { body: note.body, frontmatter: note.metadata as JsonObject });
     next.characterProperties = draft.docs[path]?.characterProperties;
     draft.docs[path] = next;
     refreshDocumentGraph(draft);
     const result = await snapshot(path, clone(DocumentSchema, next));
+    if (state !== base) throw new Error("World changed; retry the document edit.");
     state = draft;
     return result;
   }
@@ -108,7 +115,20 @@ export function createScenarioServices(initial: WorldState): { scenario: Scenari
       state = draft;
     }),
   };
-  return { docs, scenario: {
+  return { docs, mechanics: {
+    commit(expected, map, properties) {
+      if (JSON.stringify(canonical(toJson(WorldStateSchema, expected))) !== JSON.stringify(canonical(toJson(WorldStateSchema, state)))) {
+        throw new Error("World changed; replan the action.");
+      }
+      const draft = clone(WorldStateSchema, state);
+      draft.map = clone(MapSchema, map);
+      for (const [path, value] of Object.entries(properties)) {
+        if (!draft.docs[path]) throw new Error(`Unknown character document: ${path}`);
+        draft.docs[path]!.characterProperties = structuredClone(value);
+      }
+      state = refreshDocumentGraph(draft);
+    },
+  }, scenario: {
     info: () => ({ scenario: state.scenario, scenarioIndex: state.scenarioIndex, ...(state.player === undefined ? {} : { player: state.player }), characters: [...state.characters] }),
     snapshot: () => clone(WorldStateSchema, state),
     getDocument: read,

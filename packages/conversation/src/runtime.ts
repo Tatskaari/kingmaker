@@ -42,6 +42,8 @@ export class ConversationRuntime<Labels = Record<string, never>, Review = Review
       resolve: hooks?.action?.resolve ?? (async () => unimplemented("hooks.action.resolve")),
     } };
     this.services = {
+      mechanics: { commit: (...args) => services.mechanics?.commit
+        ? services.mechanics.commit(...args) : unimplemented("mechanics.commit") },
       scenario: {
         info: () => services.scenario?.info ? services.scenario.info() : unimplemented("scenario.info"),
         snapshot: () => services.scenario?.snapshot ? services.scenario.snapshot() : unimplemented("scenario.snapshot"),
