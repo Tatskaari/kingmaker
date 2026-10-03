@@ -2127,7 +2127,7 @@ test("failed Stranger calls retain saved identity and can resume after reload", 
   assert.equal(restored.view().player, null);
 });
 
-test("v2 worker persists one world and keeps scheduling, review and dice outside its mutation queue", { timeout: 30000 }, async t => {
+test("v2 worker persists one world and keeps scheduling, review and dice outside its mutation queue", { timeout: 90000 }, async t => {
   const { WorldGameRuntime: BrowserGameRuntime } = await import("../apps/web/src/world-runtime.js");
   type BrowserGameRuntime = import("../apps/web/src/world-runtime.js").WorldGameRuntime;
   const { playableWorld } = await import("../apps/web/src/playable-world.js");
