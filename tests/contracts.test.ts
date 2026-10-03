@@ -2377,7 +2377,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     let goals = 0;
     t.mock.method(BrowserGameRuntime.prototype, "planNpc", async () => {
       assert.ok(++goals <= 4, "Must stop after the objective is completed");
-      return { decision: { choice: "complete" } };
+      return { decision: { choice: goals === 4 ? "complete" : "unable" } };
     });
     t.mock.method(OpenRouterClient.prototype, "complete", async () => (commitReview({
       summary: "Reviewed progress", newNotes: ["Step completed"], activeGoal: goals === 4 ? null : "Step " + (goals + 1),

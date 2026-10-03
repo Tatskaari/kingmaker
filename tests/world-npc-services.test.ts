@@ -37,7 +37,7 @@ test("NPC planning, exchanges and outcome reviews use replacement map observatio
   assert.deepEqual(contexts[0], { kind: "npc_exchange", characterId: "rowan", targetId: "holt", goal });
   const saved = runtime.snapshot();
   saved.npcActivities!.rowan!.reviewPending = true;
-  saved.npcActivities!.rowan!.result = { reason: "complete", detail: "Done" };
+  saved.npcActivities!.rowan!.result = { reason: "unable", detail: "Need a new plan" };
   runtime.restore(saved);
   await runtime.reviewNpcOutcome("rowan");
   assert.equal((contexts[1] as { observation: { room: string } }).observation.room, "Replacement hall");
