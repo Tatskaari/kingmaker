@@ -32,8 +32,7 @@ export function placeBackgroundCharacters(world: WorldState) {
 
 /** Existing single-character mechanics use the body nearest the player as the interlocutor.
  * Body IDs remain stable; reordering never moves or merges a physical body. */
-export function foregroundBodies(actors: readonly ActorState[]): ActorState[] {
-  const player = actors.find(actor => actor.characterId === "player")?.position;
+export function foregroundBodies(actors: readonly ActorState[], player = actors.find(actor => actor.characterId === "player")?.position): ActorState[] {
   if (!player) return [...actors];
   const distance = (actor: ActorState) => actor.position
     ? Math.abs(actor.position.x - player.x) + Math.abs(actor.position.y - player.y) : Infinity;

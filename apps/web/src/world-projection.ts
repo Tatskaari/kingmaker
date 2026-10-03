@@ -11,7 +11,7 @@ export function characterId(path: string, world: WorldState): string {
   return id;
 }
 /** Disposable adapter for existing palace rules and views. Never a saved authority. */
-export function projectWorld(world: WorldState) {
+export function projectWorld(world: WorldState, observerId = "player") {
   if (!world.map) throw new Error("A physical map is required.");
   const paths = [...world.characters, ...(world.player ? [world.player] : [])];
   const characters = paths.map(path => {
@@ -25,7 +25,7 @@ export function projectWorld(world: WorldState) {
       lore: doc.body, currentGoal: doc.frontmatter?.background === true ? "" : activeGoal(doc) ?? "", inventory: doc.characterProperties?.inventory, dnd: doc.characterProperties?.dnd });
   });
   const map = clone(MapSchema, world.map);
-  map.actors = foregroundBodies(map.actors);
+  map.actors = foregroundBodies(map.actors, map.actors.find(actor => actor.characterId === observerId)?.position);
   return create(ScenarioSchema, { id: world.scenario, world: map,
     characters, playerCharacterId: world.player ? "player" : "" });
 }

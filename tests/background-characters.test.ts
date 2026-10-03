@@ -44,3 +44,21 @@ test("invalid or overlapping template placements fail before starting a game", (
   world.docs[path]!.frontmatter!.placements = [{ x: 0, y: 0 }];
   assert.throws(() => placeBackgroundCharacters(world), /Blocked background position/);
 });
+
+test("paired bodies offer one reachable talk action and one listener, without autonomous movement", async () => {
+  const { roomAgentActions } = await import("../apps/web/src/room-actions.js");
+  const { courtCharactersWithinEarshot } = await import("../apps/web/src/earshot.js");
+  const { stateResources } = await import("../apps/web/src/state-resources.js");
+  const world = backgroundWorld(), bodies = world.map!.actors.filter(actor => actor.characterId === "test-guard");
+  bodies[1]!.position = { ...bodies[0]!.position!, x: 60 }; bodies[1]!.roomId = bodies[0]!.roomId;
+  const player = world.map!.actors.find(actor => actor.characterId === "player")!;
+  player.position = { ...bodies[0]!.position!, x: 61 }; player.roomId = bodies[0]!.roomId;
+  const scenario = projectWorld(world);
+  assert.equal(roomAgentActions(scenario, "player").filter(action => action.target === "test-guard").length, 1);
+  assert.deepEqual(roomAgentActions(scenario, "test-guard"), []);
+  assert.equal(courtCharactersWithinEarshot({ id: "player", name: "Player", position: player.position },
+    bodies.map(body => ({ id: body.characterId, name: "Guard", position: body.position }))).length, 1);
+  const before = stateResources(scenario, {}, {})["actor:test-guard"];
+  scenario.world!.actors.reverse();
+  assert.deepEqual(stateResources(scenario, {}, {})["actor:test-guard"], before);
+});
