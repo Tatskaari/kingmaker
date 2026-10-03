@@ -1,4 +1,38 @@
 {
-  "dnd": null,
-  "inventory": null
+  "dnd": {
+    "rulesetId": "srd-5.2.1",
+    "speciesId": "human",
+    "backgroundId": "soldier",
+    "abilityScores": {
+      "strength": 12,
+      "dexterity": 10,
+      "constitution": 12,
+      "intelligence": 13,
+      "wisdom": 11,
+      "charisma": 16
+    },
+    "classes": [
+      {"classId": "fighter", "level": 2, "hitDiceRemaining": 2}
+    ],
+    "hitPoints": {
+      "current": 18,
+      "maximum": 18
+    },
+    "proficiencies": [
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "persuasion", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "history", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "insight", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"}
+    ],
+    "resources": [
+      {"resourceId": "second-wind", "current": 2, "maximum": 2},
+      {"resourceId": "action-surge", "current": 1, "maximum": 1, "recharge": "RESOURCE_RECHARGE_SHORT_REST"}
+    ]
+  },
+  "inventory": {
+    "items": [
+      {"id": "aldren_clothes_fine", "name": "Formal clothes", "quantity": 1, "concealed": false, "details": "Ordinary well-maintained clothing for the assembly.", "definitionId": "clothes-fine"},
+      {"id": "aldren_rapier", "name": "Dress rapier", "quantity": 1, "concealed": false, "details": "A ceremonial sidearm, worn sheathed at the assembly.", "definitionId": "rapier"}
+    ],
+    "equipment": {}
+  }
 }

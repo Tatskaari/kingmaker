@@ -1,4 +1,65 @@
 {
-  "dnd": null,
-  "inventory": null
+  "dnd": {
+    "rulesetId": "srd-5.2.1",
+    "speciesId": "human",
+    "backgroundId": "sage",
+    "abilityScores": {
+      "strength": 8,
+      "dexterity": 12,
+      "constitution": 12,
+      "intelligence": 16,
+      "wisdom": 14,
+      "charisma": 12
+    },
+    "classes": [
+      {"classId": "wizard", "subclassId": "evoker", "level": 3, "hitDiceRemaining": 3}
+    ],
+    "hitPoints": {
+      "current": 17,
+      "maximum": 17
+    },
+    "proficiencies": [
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "investigation", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "insight", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "arcana", "rank": "PROFICIENCY_RANK_EXPERTISE", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "history", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"}
+    ],
+    "spellcasting": {
+      "knownSpellIds": [
+        "fire-bolt",
+        "mage-hand",
+        "prestidigitation",
+        "detect-magic",
+        "identify",
+        "mage-armor",
+        "magic-missile",
+        "shield",
+        "alarm",
+        "hold-person",
+        "misty-step",
+        "invisibility",
+        "knock"
+      ],
+      "preparedSpellIds": [
+        "detect-magic",
+        "identify",
+        "mage-armor",
+        "shield",
+        "hold-person",
+        "misty-step"
+      ]
+    }
+  },
+  "inventory": {
+    "items": [
+      {"id": "corvin_clothes_fine", "name": "Formal clothes", "quantity": 1, "concealed": false, "details": "Ordinary well-maintained clothing for the assembly.", "definitionId": "clothes-fine"},
+      {"id": "corvin_quarterstaff", "name": "Magister’s staff", "quantity": 1, "concealed": false, "details": "A visible, unenchanted staff carried as a walking aid and focus of attention.", "definitionId": "quarterstaff"},
+      {"id": "corvin_dagger", "name": "Dagger", "quantity": 1, "concealed": true, "details": "A small personal knife, kept sheathed beneath the outer clothing.", "definitionId": "dagger"},
+      {"id": "corvin_arcane_focus_wand", "name": "Arcane wand", "quantity": 1, "concealed": true, "details": "A plain spellcasting focus carried inside a sleeve.", "definitionId": "arcane-focus-wand"},
+      {"id": "corvin_spellbook", "name": "Spellbook", "quantity": 1, "concealed": false, "details": "A working book of the spells listed in this sheet; no scenario secrets or special authority."}
+    ],
+    "equipment": {
+      "mainHandItemId": "corvin_quarterstaff"
+    }
+  }
 }
