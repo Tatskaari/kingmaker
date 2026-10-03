@@ -1,6 +1,6 @@
 import { locatedItems, findItem } from "../../packages/core/src/inventory.js";
 import { readFileSync } from "node:fs";
-import { create, fromJsonString } from "@bufbuild/protobuf";
+import { create, fromJson, fromJsonString } from "@bufbuild/protobuf";
 import { GamePhase, ScenarioSchema, TilePositionSchema, type Scenario } from "../../packages/contracts/src/index.js";
 import { BrowserGameRuntime } from "../../apps/web/src/runtime.js";
 import type { JevWorldEvalScenario } from "../../packages/evals/src/jev-world-eval.js";
@@ -161,4 +161,42 @@ const greyGullLedger: JevWorldEvalScenario = {
     return { success: milestones.every(item => item.achieved), milestones };
   },
 };
-export const jevWorldEvalScenarios = [treasury, inviteGuests, silkScarf, royalSeal, royalSealKeySearch, diningSupplies, privateBelongings, greyGullLedger];
+// Reproduces the travel task and stale objective notes from issue report
+// kingmaker-issue-report-2026-10-02T00-32-26-622Z.zip (Rook requests 21–30).
+export const rookParlour: JevWorldEvalScenario = {
+  name: "Rook reaches the parlour without toggling its door", characterId: "rook", repeats: 5, maxTurns: 6,
+  goal: "Go to the Nobles' Parlour to continue the conversation privately.",
+  objective: {
+    name: "Test the envoy's discretion and investigate Sabine's handling of caravan information.",
+    status: "The envoy accepted the invitation to continue privately. Rook has not yet moved to the Nobles' Parlour, checked whether anyone else is present, or disclosed the Grey Gull ruse. He should go there first; only in genuine privacy should he explain the test and seek the envoy's informed agreement. If the envoy refuses, he must not expose the ruse.",
+    successCriteria: "In a private conversation, the envoy knowingly agrees to carry the Grey Gull test message to Sabine and report her response, or clearly refuses so Rook can abandon the approach without exposing the ruse.",
+  },
+  createRuntime(apiKey) {
+    const scenario = courtAtDayOne();
+    scenario.world!.doors.find(door => door.id === "guest_door")!.open = false;
+    return new BrowserGameRuntime(scenario, apiKey);
+  },
+  evaluate({ scenario, terminalChoice, completedActionIds = [] }) {
+    const arrived = scenario.world!.actors.some(actor => actor.characterId === "rook" && actor.roomId === "guest_chamber");
+    const toggled = completedActionIds.filter(id => /^(open|close)_guest_door_/.test(id)).length > 2;
+    const success = arrived && !toggled && ["complete", "wait"].includes(terminalChoice);
+    return { success, ...(!success ? { reason: "Rook must reach the parlour and finish or wait without repeatedly toggling its door." } : {}) };
+  },
+};
+export const rookParlourArrived: JevWorldEvalScenario = {
+  ...rookParlour, name: "Rook already in the parlour with outdated travel notes", maxTurns: 2,
+  createRuntime(apiKey) {
+    const runtime = rookParlour.createRuntime(apiKey), snapshot = runtime.snapshot();
+    const scenario = fromJson(ScenarioSchema, snapshot.scenario);
+    const rook = scenario.world!.actors.find(actor => actor.characterId === "rook")!;
+    rook.roomId = "guest_chamber"; rook.position = create(TilePositionSchema, { x: 51, y: 25 });
+    return new BrowserGameRuntime(scenario, apiKey);
+  },
+  evaluate(result) {
+    const base = rookParlour.evaluate(result);
+    const untouched = !result.completedActionIds?.length;
+    return { success: base.success && untouched,
+      ...(!base.success || !untouched ? { reason: "Rook has already arrived; stop without reopening the closed door or inventing more work." } : {}) };
+  },
+};
+export const jevWorldEvalScenarios = [treasury, inviteGuests, silkScarf, royalSeal, royalSealKeySearch, diningSupplies, privateBelongings, greyGullLedger, rookParlour, rookParlourArrived];
