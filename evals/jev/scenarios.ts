@@ -1,4 +1,4 @@
-import { locatedItems, findItem } from "../../packages/core/src/inventory.js";
+import { inventoryOwners, locatedItems, findItem } from "../../packages/core/src/inventory.js";
 import { readFileSync } from "node:fs";
 import { create, fromJson, fromJsonString } from "@bufbuild/protobuf";
 import { GamePhase, ScenarioSchema, TilePositionSchema, type Scenario } from "../../packages/contracts/src/index.js";
@@ -53,7 +53,7 @@ export const silkScarf: JevWorldEvalScenario = {
   createRuntime(apiKey) {
     const scenario = courtAtDayOne();
     // Reuse the authored wardrobe item, with the name used by this scenario.
-    findItem(scenario, "palace_silk_sash")!.name = "Silk scarf";
+    findItem(inventoryOwners(scenario.characters, scenario.world), "palace_silk_sash")!.name = "Silk scarf";
     return new BrowserGameRuntime(scenario, apiKey);
   },
   evaluate({ talkCalls }) {
@@ -74,7 +74,7 @@ export const royalSeal: JevWorldEvalScenario = {
   evaluate({ scenario, talkCalls, completedActionIds = [] }) {
     const world = scenario.world!;
     const did = (id: string) => completedActionIds.includes(id);
-    const hasSeal = locatedItems(scenario).some(item => item.id === "palace_royal_seal" && item.locationId === "king");
+    const hasSeal = locatedItems(inventoryOwners(scenario.characters, scenario.world)).some(item => item.id === "palace_royal_seal" && item.locationId === "king");
     const openedLockbox = did("open_palace_coffer_03");
     const outside = (roomId: string) => world.actors.find(actor => actor.characterId === "king")?.roomId !== roomId;
     const closedDoor = (id: string, roomId: string) => completedActionIds.some(action => action.startsWith(`open_${id}_`))
@@ -92,7 +92,7 @@ export const royalSeal: JevWorldEvalScenario = {
     ];
     const failures: string[] = [];
     if (!talkCalls.some(call => call.characterId === "king" && call.targetId === "rowan")) failures.push("The king did not talk to Rowan");
-    if (locatedItems(scenario).find(item => item.id === "palace_royal_seal")?.locationId !== "king") failures.push("The king is not carrying the royal seal");
+    if (locatedItems(inventoryOwners(scenario.characters, scenario.world)).find(item => item.id === "palace_royal_seal")?.locationId !== "king") failures.push("The king is not carrying the royal seal");
     if (world.fixtures.find(fixture => fixture.id === "palace_coffer_03")?.open !== false) failures.push("The royal lockbox is not closed");
     for (const id of ["corvin_door", "royal_door"]) {
       if (world.doors.find(door => door.id === id)?.open !== false) failures.push(`${id} is not closed`);
@@ -115,7 +115,7 @@ export const diningSupplies: JevWorldEvalScenario = {
   goal: "Go to the Long Dining Hall in the east wing. Take the round loaf from the bread and cheese serving table, close the table's storage, then return to the Great Hall carrying the loaf.",
   createRuntime: apiKey => new BrowserGameRuntime(courtAtDayOne(), apiKey),
   evaluate({ scenario, terminalChoice }) {
-    const success = locatedItems(scenario).some(item => item.id === "furn_bread" && item.locationId === "corvin")
+    const success = locatedItems(inventoryOwners(scenario.characters, scenario.world)).some(item => item.id === "furn_bread" && item.locationId === "corvin")
       && scenario.world!.actors.some(actor => actor.characterId === "corvin" && actor.roomId === "great_hall")
       && scenario.world!.fixtures.some(f => f.id === "furn_dining_bread" && !f.open)
       && ["complete", "wait"].includes(terminalChoice);
@@ -127,7 +127,7 @@ export const privateBelongings: JevWorldEvalScenario = {
   goal: "Go to my chamber in the west wing and take my draft assembly address from my writing table. Close the table and my bedroom door after leaving, then wait in the Ironmark Salon carrying the draft.",
   createRuntime: apiKey => new BrowserGameRuntime(courtAtDayOne(), apiKey),
   evaluate({ scenario, terminalChoice }) {
-    const success = locatedItems(scenario).some(item => item.id === "furn_mara_personal" && item.locationId === "mara")
+    const success = locatedItems(inventoryOwners(scenario.characters, scenario.world)).some(item => item.id === "furn_mara_personal" && item.locationId === "mara")
       && scenario.world!.actors.some(actor => actor.characterId === "mara" && actor.roomId === "ironmark_salon")
       && scenario.world!.fixtures.some(f => f.id === "furn_mara_desk" && !f.open)
       && scenario.world!.doors.some(d => d.id === "mara_door" && !d.open)
@@ -154,7 +154,7 @@ const greyGullLedger: JevWorldEvalScenario = {
       { name: "Open the writing table", points: 1, achieved: completedActionIds.includes("open_furn_sabine_desk") },
       { name: "Inspect the dispatch ledger exactly once", points: 1, achieved: inspections.length === 1 },
       { name: "Leave the ledger in the table", points: 1,
-        achieved: locatedItems(scenario).find(item => item.id === "furn_sabine_dispatch_ledger")?.locationId === "furn_sabine_desk" },
+        achieved: locatedItems(inventoryOwners(scenario.characters, scenario.world)).find(item => item.id === "furn_sabine_dispatch_ledger")?.locationId === "furn_sabine_desk" },
       { name: "Finish without repeatedly reading the carried tallies", points: 1,
         achieved: terminalChoice === "complete" && !completedActionIds.includes("inspect_item_sabine_caravan_tallies") },
     ];

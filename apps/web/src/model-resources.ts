@@ -1,5 +1,5 @@
 import type { Scenario } from "../../../packages/contracts/src/index.js";
-import { locatedItems } from "../../../packages/core/src/inventory.js";
+import { inventoryOwners, locatedItems } from "../../../packages/core/src/inventory.js";
 import { renderWorldPrompt } from "../../../packages/core/src/world-prompt.js";
 
 /** Preload exact versions only for participants and their immediate surroundings.
@@ -14,7 +14,7 @@ export function initialModelResourceIds(scenario: Scenario, participants: readon
     ...[...characters].flatMap(id => [`character:${id}`, `actor:${id}`, `inventory:${id}`]),
     ...[...rooms].map(id => `inventory:${id}`),
     ...fixtures.flatMap(fixture => [`fixture:${fixture.id}`, `inventory:${fixture.id}`]),
-    ...locatedItems(scenario).filter(item => owners.has(item.locationId)).map(item => `item:${item.id}`),
+    ...locatedItems(inventoryOwners(scenario.characters, scenario.world)).filter(item => owners.has(item.locationId)).map(item => `item:${item.id}`),
   ])];
 }
 
@@ -25,6 +25,6 @@ export function modelResourceOverview(scenario: Scenario): string {
     "Resource keys: world:context; character:<id>, actor:<id>, inventory:<owner id>, item:<id>, fixture:<id>, door:<id>, doorway:<door id>, entity:<id>.",
     "Character directory: " + scenario.characters.map(character => `${character.name} [${character.id}]`).join("; "),
     "Authoritative world overview (not character knowledge):",
-    renderWorldPrompt(scenario, { ...scenario.world!, objects: locatedItems(scenario) }),
+    renderWorldPrompt(scenario, { ...scenario.world!, objects: locatedItems(inventoryOwners(scenario.characters, scenario.world)) }),
   ].join("\n");
 }

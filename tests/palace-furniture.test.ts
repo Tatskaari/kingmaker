@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { fromJsonString } from "@bufbuild/protobuf";
 import { ScenarioSchema } from "../packages/contracts/src/index.js";
-import { validateInventories, locatedItems } from "../packages/core/src/inventory.js";
+import { inventoryOwners, validateInventories, locatedItems } from "../packages/core/src/inventory.js";
 import { palaceLayout } from "../apps/web/src/palace-layout.js";
 import { palaceNodes } from "../apps/web/src/palace-navigation.js";
 import { courtRoomAt } from "../apps/web/src/court-map.js";
@@ -32,7 +32,7 @@ test("furnished rooms keep every free tile and fixture approach reachable withou
 
 test("bedrooms have beds and personal belongings while original evidence stays in place", () => {
   const scenario = load(), world = scenario.world!;
-  validateInventories(scenario);
+  validateInventories(inventoryOwners(scenario.characters, scenario.world));
   assert.equal(world.fixtures.filter(f => !f.id.startsWith("furn_")).length, 26);
   for (const id of ["mara", "hadrik", "tessa", "elinor", "oswin", "rowan", "lucan", "sabine", "rook"]) {
     const fixtures = world.fixtures.filter(f => f.roomId === `${id}_chamber`);
@@ -40,7 +40,7 @@ test("bedrooms have beds and personal belongings while original evidence stays i
     assert.ok(fixtures.every(f => f.ownerCharacterId === id));
     assert.ok(fixtures.filter(f => f.container).length >= 2);
   }
-  const items = locatedItems(scenario);
+  const items = locatedItems(inventoryOwners(scenario.characters, scenario.world));
   for (const [id, location] of [["palace_royal_key", "palace_corvin_drawers"], ["palace_royal_seal", "palace_coffer_03"],
     ["palace_silk_sash", "palace_royal_cabinet"], ["palace_account_book", "palace_treasury_shelf"]]) {
     assert.equal(items.find(item => item.id === id)?.locationId, location);

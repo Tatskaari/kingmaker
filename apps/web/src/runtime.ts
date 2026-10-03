@@ -279,7 +279,7 @@ function fixtureEventContext(scenario: Scenario, actorId: string, actionId: stri
   const action = fixtureActions(scenario, actorId).find(candidate => candidate.id === actionId);
   if (!action || action.target === actorId) return { details: {} as EventDetails };
   const fixture = scenario.world?.fixtures.find(candidate => candidate.id === action.target);
-  const item = findItem(scenario, action.itemId ?? "");
+  const item = findItem(inventoryOwners(scenario.characters, scenario.world), action.itemId ?? "");
   const owner = scenario.characters.find(character => character.id === fixture?.ownerCharacterId);
   const details: EventDetails = {
     action: action.verb,
@@ -755,7 +755,8 @@ export class BrowserGameRuntime {
     // Stage GM changes on this dialogue's snapshot; the worker publishes the
     // complete turn through the existing generation-checked fork merge.
     const candidate = this.forkForNpc();
-    const originalItems = new Set(locatedItems(candidate.#game.scenario()).map(item => item.id));
+    const original = candidate.#game.scenario();
+    const originalItems = new Set(locatedItems(inventoryOwners(original.characters, original.world)).map(item => item.id));
     const context: ResourceReviewContext = {
       kind: "conversation_review", participants: [characterId], allowNextGoal: true,
     };
@@ -784,7 +785,8 @@ export class BrowserGameRuntime {
       toolResult: (call, result) => this.#modelTranscripts.toolResult(call, result),
       complete: input => this.#complete("gm_consultation", characterId, input, undefined, runKey),
     });
-    const addedItems = locatedItems(candidate.#game.scenario())
+    const reviewed = candidate.#game.scenario();
+    const addedItems = locatedItems(inventoryOwners(reviewed.characters, reviewed.world))
       .filter(item => !originalItems.has(item.id) && [characterId, candidate.#game.scenario().playerCharacterId].includes(item.locationId))
       .map(item => ({ id: item.id, name: item.name, details: item.details }));
     this.restore(candidate.snapshot());
@@ -860,7 +862,7 @@ export class BrowserGameRuntime {
       { role: "system", content: RECONCILIATION_INSTRUCTIONS },
       ...(kind === "conversation_review" ? [{ role: "system" as const, content: "For this conversation review, replace an obsolete task by returning the agreed next task in goalUpdate. Return null to become idle. cancel_task is not available: do not cancel an old task before assigning its replacement." }] : []),
       ...(kind === "conversation_review" ? [{ role: "system" as const, content: CONVERSATION_OBJECTIVE_REVIEW }] : []),
-      { role: "user", content: JSON.stringify({ authoritativeWorld: renderWorldPrompt(scenario, { ...scenario.world!, objects: locatedItems(scenario) }), participants, recentActivity: this.#npcActivities }) },
+      { role: "user", content: JSON.stringify({ authoritativeWorld: renderWorldPrompt(scenario, { ...scenario.world!, objects: locatedItems(inventoryOwners(scenario.characters, scenario.world)) }), participants, recentActivity: this.#npcActivities }) },
       ...request.messages.slice(-1),
     ];
     this.#reviewRequest = { ...request, messages };
@@ -1228,10 +1230,10 @@ export class BrowserGameRuntime {
         || !same(this.snapshot().conversations[id], before.conversations[id])) throw new Error("Character changed; retry NPC review.");
     }
     // Ownership is nested; publish only inventories whose generation was checked.
-    for (const owner of inventoryOwners(next)) {
-      const previous = inventoryOwners(base).find(value => value.id === owner.id);
+    for (const owner of inventoryOwners(next.characters, next.world)) {
+      const previous = inventoryOwners(base.characters, base.world).find(value => value.id === owner.id);
       if (!same(previous?.inventory, owner.inventory)) {
-        const target = inventoryOwners(current).find(value => value.id === owner.id);
+        const target = inventoryOwners(current.characters, current.world).find(value => value.id === owner.id);
         if (target) target.inventory = owner.inventory;
       }
     }
@@ -1326,9 +1328,9 @@ export class BrowserGameRuntime {
       } else if (name === "give_item") {
         if (!context.participants.includes(id) || id === playerId) throw new Error("Only a participating NPC may give an item.");
         text(args.reason, "reason");
-        const item = itemsFor(scenario, id).find(candidate => candidate.id === text(args.item_id, "item_id"));
+        const item = itemsFor(inventoryOwners(scenario.characters, scenario.world), id).find(candidate => candidate.id === text(args.item_id, "item_id"));
         if (!item) throw new Error("The item must be in the giving character's inventory.");
-        transferItem(scenario, item.id, playerId);
+        transferItem(inventoryOwners(scenario.characters, scenario.world), item.id, playerId);
         item.concealed = false;
         scenario.world!.revision++;
       } else if (name === "write_item") {
@@ -1727,7 +1729,7 @@ export class BrowserGameRuntime {
       doors: world?.doors ?? [],
       fixtures: world ? worldForCharacter(scenario, scenario.playerCharacterId ?? "").fixtures : [],
       fixtureActions: fixtureActions(scenario, scenario.playerCharacterId ?? ""),
-      inventory: itemsFor(scenario, scenario.playerCharacterId ?? "").map(({ id, name, details }) => ({ id, name, details })),
+      inventory: itemsFor(inventoryOwners(scenario.characters, scenario.world), scenario.playerCharacterId ?? "").map(({ id, name, details }) => ({ id, name, details })),
       roomAccess: world?.rooms.map(({ id, private: restricted, allowedCharacterIds }) => ({ id, private: restricted, allowedCharacterIds })) ?? [],
       location: world?.rooms.find(room => room.id === world.actors.find(actor => actor.characterId === player?.id)?.roomId)?.name || "Great Hall",
       premise: scenario.premise,

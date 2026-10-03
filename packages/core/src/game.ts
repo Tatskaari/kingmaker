@@ -1,4 +1,4 @@
-import { validateInventories } from "./inventory.js";
+import { inventoryOwners, validateInventories } from "./inventory.js";
 import { clone, create } from "@bufbuild/protobuf";
 import {
   ActorStateSchema,
@@ -25,7 +25,7 @@ export class MemoryGame implements GameState {
   #noteSequence = 0;
 
   constructor(scenario: Scenario) {
-    validateInventories(scenario);
+    validateInventories(inventoryOwners(scenario.characters, scenario.world));
     this.#scenario = clone(ScenarioSchema, scenario);
     for (const character of this.#scenario.characters) {
       for (const name of character.objectives) character.parkedObjectives.push(create(ActiveObjectiveSchema, {

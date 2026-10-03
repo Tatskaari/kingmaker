@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { MapFixtureSchema, type MapFixture, type Scenario } from "../../../packages/contracts/src/index.js";
-import { locatedItems } from "../../../packages/core/src/inventory.js";
+import { inventoryOwners, locatedItems } from "../../../packages/core/src/inventory.js";
 import { type RoomBuilder } from "./room-builder.js";
 
 type Point = { x: number; y: number };
@@ -19,7 +19,7 @@ export class FurnitureBuilder {
   readonly #reserved = new Set<string>();
   readonly #ids = new Set<string>();
   constructor(readonly layout: RoomBuilder, scenario: Scenario, waypoints: readonly Point[] = []) {
-    for (const item of [...locatedItems(scenario), ...scenario.world!.fixtures]) this.#ids.add(item.id);
+    for (const item of [...locatedItems(inventoryOwners(scenario.characters, scenario.world)), ...scenario.world!.fixtures]) this.#ids.add(item.id);
     for (const fixture of scenario.world!.fixtures) {
       if (fixture.position) this.#blocked.add(key(fixture.position));
       if (fixture.interactionSpot) this.#reserved.add(key(fixture.interactionSpot));

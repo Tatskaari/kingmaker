@@ -2,7 +2,7 @@ import { commitReview } from "./fixtures.js";
 import { mockJevChoice } from "./mock-jev.js";
 import { loadPlayableWorld } from "./fixtures.js";
 import { logPath } from "../scripts/test-logging.js";
-import { locatedItems } from "../packages/core/src/inventory.js";
+import { inventoryOwners, locatedItems } from "../packages/core/src/inventory.js";
 import { applyFixtureAction, fixtureActions } from "../packages/core/src/fixtures.js";
 import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
 import { GM_BASE_PROMPT } from "../apps/web/src/gm-prompt.js";
@@ -132,7 +132,7 @@ test("the initial dethroning plot stays with the GM while each faction receives 
   assert.match(context("rook"), /former courier sold him a letter/);
   assert.match(context("tessa"), /published patrol totals/);
 
-  const evidence = new Map(locatedItems(scenario).map(item => [item.id, item]));
+  const evidence = new Map(locatedItems(inventoryOwners(scenario.characters, scenario.world)).map(item => [item.id, item]));
   for (const id of [
     "palace_sealed_decree", "palace_patrol_roster", "palace_account_book", "palace_gate_ledger",
     "corvin_concord_copy", "sabine_caravan_tallies", "rook_tomas_letter", "palace_parlour_wine",
@@ -639,7 +639,7 @@ test("GM action and knowledge rulings reach dialogue immediately and publish wit
       runtime.commitCharacterFork(before, fork, ["corvin"]);
       const restored = new BrowserGameRuntime(conversationScenario(), "test", runtime.snapshot());
       const scenario = fromJson(ScenarioSchema, restored.snapshot().scenario);
-      assert.equal(locatedItems(scenario).some(value => value.id === item.id), outcome === "approve");
+      assert.equal(locatedItems(inventoryOwners(scenario.characters, scenario.world)).some(value => value.id === item.id), outcome === "approve");
       assert.equal(restored.snapshot().conversations.corvin?.length, 2);
     }
   }
@@ -1311,10 +1311,10 @@ test("main containers enforce approaches and keys, conceal contents, and persist
   runtime.interactFixture("take_palace_sealed_decree");
   const restored = new BrowserGameRuntime(scenario, "test", structuredClone(runtime.snapshot()));
   saved = fromJson(ScenarioSchema, restored.snapshot().scenario);
-  assert.equal(locatedItems(saved).find(item => item.id === "palace_royal_seal")!.locationId, "player");
-  assert.equal(locatedItems(saved).find(item => item.id === "palace_royal_key")!.locationId, "player", "Key is not consumed");
+  assert.equal(locatedItems(inventoryOwners(saved.characters, saved.world)).find(item => item.id === "palace_royal_seal")!.locationId, "player");
+  assert.equal(locatedItems(inventoryOwners(saved.characters, saved.world)).find(item => item.id === "palace_royal_key")!.locationId, "player", "Key is not consumed");
   assert.equal(saved.world!.fixtures.find(item => item.id === "palace_coffer_03")!.open, true);
-  assert.equal(locatedItems(saved).find(item => item.id === "palace_sealed_decree")!.locationId, "player");
+  assert.equal(locatedItems(inventoryOwners(saved.characters, saved.world)).find(item => item.id === "palace_sealed_decree")!.locationId, "player");
 });
 
 test("player fixture interactions emit transient world events instead of durable memories", () => {
@@ -1384,7 +1384,7 @@ test("resetting physical world keeps character and conversation while refreshing
   assert.deepEqual(after.conversations, before.conversations);
   assert.deepEqual(result.notes, fromJson(ScenarioSchema, before.scenario).notes);
   assert.deepEqual(result.world!.fixtures, authored.world!.fixtures);
-  assert.deepEqual(locatedItems(result), locatedItems(authored));
+  assert.deepEqual(locatedItems(inventoryOwners(result.characters, result.world)), locatedItems(inventoryOwners(authored.characters, authored.world)));
   assert.deepEqual(result.world!.doors, authored.world!.doors);
   for (const actor of result.world!.actors) assert.deepEqual(actor.position, authored.courtArrivalPlacements.find(item => item.characterId === actor.characterId)!.position);
   assert.equal(result.world!.phase, GamePhase.CONVERSATIONS);
@@ -1463,9 +1463,9 @@ test("NPC actions use their own keys and inventory, reject stale plans, and pres
   }
   execute("open_palace_corvin_drawers"); execute("take_palace_royal_key"); execute("enter_north_corridor"); execute("enter_royal_bedchamber"); execute("open_palace_coffer_03"); execute("take_palace_royal_seal"); execute("take_palace_sealed_decree");
   const snapshot = runtime.snapshot(), saved = fromJson(ScenarioSchema, snapshot.scenario);
-  assert.equal(locatedItems(saved).find(item => item.id === "palace_royal_key")!.locationId, "corvin");
-  assert.equal(locatedItems(saved).find(item => item.id === "palace_royal_seal")!.locationId, "corvin");
-  assert.equal(locatedItems(saved).find(item => item.id === "palace_sealed_decree")!.locationId, "corvin");
+  assert.equal(locatedItems(inventoryOwners(saved.characters, saved.world)).find(item => item.id === "palace_royal_key")!.locationId, "corvin");
+  assert.equal(locatedItems(inventoryOwners(saved.characters, saved.world)).find(item => item.id === "palace_royal_seal")!.locationId, "corvin");
+  assert.equal(locatedItems(inventoryOwners(saved.characters, saved.world)).find(item => item.id === "palace_sealed_decree")!.locationId, "corvin");
   assert.deepEqual(runtime.view().inventory, []);
   const observation = courtAgentObservation(saved, "corvin");
   runtime.resetWorld();
@@ -1679,7 +1679,7 @@ test("Jev receives reachable NPC talk actions, then both participants save priva
   assert.deepEqual(runtime.snapshot().npcActivities?.corvin?.actionIds, [action.id]);
   assert.equal(runtime.snapshot().npcActivities?.corvin?.status, "idle");
   assert.equal(runtime.snapshot().npcActivities?.[action.target]?.status, "active");
-  assert.deepEqual(locatedItems(saved), locatedItems(scenario));
+  assert.deepEqual(locatedItems(inventoryOwners(saved.characters, saved.world)), locatedItems(inventoryOwners(scenario.characters, scenario.world)));
   const events = saved.notes.filter(item => item.text === "They agree to meet in the Treasury.");
   assert.equal(events.length, 2);
   assert.ok(events.every(item => item.characterIds.length === 1 && !item.characterIds.includes("player")));
@@ -1811,9 +1811,9 @@ test("authored world rooms and connections match the palace map", () => {
   for (const fixture of scenario.world!.fixtures) assert.ok(ids.has(fixture.roomId), `${fixture.id} belongs to missing room ${fixture.roomId}`);
   const world = scenario.world!;
   const locations = new Set([...ids, ...world.fixtures.map(item => item.id), ...scenario.characters.map(item => item.id)]);
-  const objects = new Set(locatedItems(scenario).map(item => item.id));
-  assert.equal(objects.size, locatedItems(scenario).length, "Object IDs must be unique");
-  for (const item of locatedItems(scenario)) assert.ok(locations.has(item.locationId), `${item.id} is in a nonexistent container or location ${item.locationId}`);
+  const objects = new Set(locatedItems(inventoryOwners(scenario.characters, scenario.world)).map(item => item.id));
+  assert.equal(objects.size, locatedItems(inventoryOwners(scenario.characters, scenario.world)).length, "Object IDs must be unique");
+  for (const item of locatedItems(inventoryOwners(scenario.characters, scenario.world))) assert.ok(locations.has(item.locationId), `${item.id} is in a nonexistent container or location ${item.locationId}`);
   for (const fixture of world.fixtures) if (fixture.requiredKeyId) assert.ok(objects.has(fixture.requiredKeyId), `${fixture.id} needs a missing key`);
   assert.doesNotMatch(JSON.stringify(scenario), /chapel/i);
 });
@@ -1930,7 +1930,7 @@ test("background NPC review merges its memories without undoing concurrent playe
   runtime.commitCharacterFork(before, fork, ["corvin"]);
   const after = fromJson(ScenarioSchema, runtime.snapshot().scenario);
   assert.deepEqual(after.world!.actors.find(a => a.characterId === "player")!.position, create(TilePositionSchema, { x: 66, y: 21 }));
-  assert.equal(locatedItems(after).find(o => o.id === "palace_iron_key")!.locationId, "player");
+  assert.equal(locatedItems(inventoryOwners(after.characters, after.world)).find(o => o.id === "palace_iron_key")!.locationId, "player");
   assert.ok(after.notes.some(e => e.text === "I have arrived."));
   assert.equal(runtime.snapshot().npcActivities?.corvin?.reviewPending, false);
   assert.ok(action.target);
@@ -1986,7 +1986,7 @@ test("centennial court has consistent actors and relationships without the posse
   assert.match(scenario.premise, /Ordinary inheritance/);
   assert.match(scenario.premise, /Recognition by all three is required/);
   assert.match(scenario.premise, /without an accepted common sovereign/);
-  assert.ok(!locatedItems(scenario).some(item => item.id === "crown"));
+  assert.ok(!locatedItems(inventoryOwners(scenario.characters, scenario.world)).some(item => item.id === "crown"));
 });
 
 test("delegations receive shared politics without learning private debts or suspected missing pay", () => {
@@ -2702,7 +2702,7 @@ test("DM reconciles a conversation with real inventory props and an executable i
   });
   await runtime.endConversation("corvin");
   const saved = runtime.snapshot(), scenario = fromJson(ScenarioSchema, saved.scenario);
-  assert.equal(locatedItems(scenario).find(o => o.id === "envoy_token")?.locationId, "corvin");
+  assert.equal(locatedItems(inventoryOwners(scenario.characters, scenario.world)).find(o => o.id === "envoy_token")?.locationId, "corvin");
   assert.ok(worldForCharacter(scenario, "corvin").objects.some(o => o.id === "envoy_token"));
   assert.ok(!worldForCharacter(scenario, "garran").objects.some(o => o.id === "envoy_token"), "Private inventory addition does not leak");
   const observation = courtAgentObservation(scenario, "corvin");
@@ -2710,7 +2710,8 @@ test("DM reconciles a conversation with real inventory props and an executable i
   const result = runtime.executeNpcAction("corvin", "inspect_item_envoy_token", observation.revision, observation.goal);
   assert.match(result, /brass token/);
   const restored = new BrowserGameRuntime(furnishedCourt(), "test", runtime.snapshot());
-  assert.ok(locatedItems(fromJson(ScenarioSchema, restored.snapshot().scenario)).some(o => o.id === "envoy_token"));
+  const restoredState = fromJson(ScenarioSchema, restored.snapshot().scenario);
+  assert.ok(locatedItems(inventoryOwners(restoredState.characters, restoredState.world)).some(o => o.id === "envoy_token"));
 });
 
 test("DM cancel_task overrides a proposed goal and clobbers dead ends after failed actions", async t => {
@@ -2751,7 +2752,7 @@ test("GM world additions preserve unrelated player movement and inventory change
   runtime.movePlayer({ x: 66, y: 21 });
   runtime.commitCharacterFork(before, fork, ["corvin"]);
   const merged = fromJson(ScenarioSchema, runtime.snapshot().scenario);
-  assert.ok(locatedItems(merged).some(o => o.id === "envoy_token"));
+  assert.ok(locatedItems(inventoryOwners(merged.characters, merged.world)).some(o => o.id === "envoy_token"));
   assert.deepEqual(merged.world!.actors.find(a => a.characterId === "player")!.position, create(TilePositionSchema, { x: 66, y: 21 }));
   runtime.restore(before);
   runtime.movePlayer({ x: 66, y: 21 });
@@ -2759,8 +2760,8 @@ test("GM world additions preserve unrelated player movement and inventory change
   runtime.interactFixture("take_palace_iron_key");
   runtime.commitCharacterFork(before, fork, ["corvin"]);
   const changed = fromJson(ScenarioSchema, runtime.snapshot().scenario);
-  assert.equal(locatedItems(changed).find(item => item.id === "palace_iron_key")?.locationId, "player");
-  assert.equal(locatedItems(changed).find(item => item.id === "envoy_token")?.locationId, "corvin");
+  assert.equal(locatedItems(inventoryOwners(changed.characters, changed.world)).find(item => item.id === "palace_iron_key")?.locationId, "player");
+  assert.equal(locatedItems(inventoryOwners(changed.characters, changed.world)).find(item => item.id === "envoy_token")?.locationId, "corvin");
 });
 
 test("DM tools validate destinations, unique IDs, and participant scope before mutation", async () => {
@@ -2792,7 +2793,7 @@ test("NPC exchanges use the same DM tools and cancellation rules for both partic
   });
   await runtime.executeNpcTalk("corvin", action.id, observation.revision, observation.goal, new AbortController().signal);
   const saved = runtime.snapshot(), scenario = fromJson(ScenarioSchema, saved.scenario);
-  assert.ok(locatedItems(scenario).some(o => o.id === "envoy_token"));
+  assert.ok(locatedItems(inventoryOwners(scenario.characters, scenario.world)).some(o => o.id === "envoy_token"));
   assert.equal(saved.npcActivities?.[action.target]?.status, "idle");
   assert.equal(scenario.characters.find(c => c.id === action.target)!.currentGoal, "");
 });

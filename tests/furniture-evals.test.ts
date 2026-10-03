@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { fromJson, fromJsonString } from "@bufbuild/protobuf";
 import { ScenarioSchema } from "../packages/contracts/src/index.js";
-import { transferItem } from "../packages/core/src/inventory.js";
+import { inventoryOwners, transferItem } from "../packages/core/src/inventory.js";
 import { diningSupplies, privateBelongings } from "../evals/jev/scenarios.js";
 
 const load = () => fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8"));
@@ -17,7 +17,7 @@ test("new Jev evals use authored furnishings and require real inventory and clos
     assert.equal(scenario.world!.fixtures.length, load().world!.fixtures.length);
     const assess = () => definition.evaluate({ scenario, terminalChoice: "complete", talkCalls: [] });
     assert.equal(assess().success, false);
-    transferItem(scenario, item, definition.characterId);
+    transferItem(inventoryOwners(scenario.characters, scenario.world), item, definition.characterId);
     scenario.world!.actors.find(a => a.characterId === definition.characterId)!.roomId = room;
     assert.equal(assess().success, true);
     scenario.world!.fixtures.find(f => f.id === fixture)!.open = true;

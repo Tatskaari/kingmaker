@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import { ScenarioSchema } from "../packages/contracts/src/index.js";
-import { inventoryFor, itemsFor, locatedItems, transferItem, validateInventories } from "../packages/core/src/inventory.js";
+import { inventoryOwners, inventoryFor, itemsFor, locatedItems, transferItem, validateInventories } from "../packages/core/src/inventory.js";
 import { worldForCharacter, worldViewJson } from "../packages/core/src/context.js";
 
 function example() {
@@ -18,22 +18,22 @@ function example() {
 }
 
 test("transfers preserve item identity, clear equipment, and survive serialization", () => {
-  const scenario = example(), sword = itemsFor(scenario, "guard")[0]!;
-  assert.throws(() => transferItem(scenario, "sword", "missing"), /Unknown inventory owner/);
-  assert.equal(itemsFor(scenario, "guard")[0], sword);
-  assert.equal(transferItem(scenario, "sword", "chest"), sword);
-  assert.equal(itemsFor(scenario, "guard").length, 0);
-  assert.equal(inventoryFor(scenario, "guard").equipment!.mainHandItemId, "");
-  assert.deepEqual(inventoryFor(scenario, "guard").equipment!.attunedItemIds, []);
-  transferItem(scenario, "sword", "visitor");
-  transferItem(scenario, "sword", "visitor");
-  transferItem(scenario, "sword", "hall");
-  assert.equal(locatedItems(scenario).filter(item => item.id === "sword").length, 1);
+  const scenario = example(), sword = itemsFor(inventoryOwners(scenario.characters, scenario.world), "guard")[0]!;
+  assert.throws(() => transferItem(inventoryOwners(scenario.characters, scenario.world), "sword", "missing"), /Unknown inventory owner/);
+  assert.equal(itemsFor(inventoryOwners(scenario.characters, scenario.world), "guard")[0], sword);
+  assert.equal(transferItem(inventoryOwners(scenario.characters, scenario.world), "sword", "chest"), sword);
+  assert.equal(itemsFor(inventoryOwners(scenario.characters, scenario.world), "guard").length, 0);
+  assert.equal(inventoryFor(inventoryOwners(scenario.characters, scenario.world), "guard").equipment!.mainHandItemId, "");
+  assert.deepEqual(inventoryFor(inventoryOwners(scenario.characters, scenario.world), "guard").equipment!.attunedItemIds, []);
+  transferItem(inventoryOwners(scenario.characters, scenario.world), "sword", "visitor");
+  transferItem(inventoryOwners(scenario.characters, scenario.world), "sword", "visitor");
+  transferItem(inventoryOwners(scenario.characters, scenario.world), "sword", "hall");
+  assert.equal(locatedItems(inventoryOwners(scenario.characters, scenario.world)).filter(item => item.id === "sword").length, 1);
   const saved = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, scenario));
-  assert.equal(itemsFor(saved, "hall")[0]!.definitionId, "longsword");
-  assert.ok(!("locationId" in itemsFor(saved, "hall")[0]!));
+  assert.equal(itemsFor(inventoryOwners(saved.characters, saved.world), "hall")[0]!.definitionId, "longsword");
+  assert.ok(!("locationId" in itemsFor(inventoryOwners(saved.characters, saved.world), "hall")[0]!));
   assert.ok(!("objects" in saved.world!));
-  validateInventories(saved);
+  validateInventories(inventoryOwners(saved.characters, saved.world));
 });
 
 test("private inventories and unopened contents stay out of every world projection", () => {
@@ -43,23 +43,23 @@ test("private inventories and unopened contents stay out of every world projecti
   assert.match(JSON.stringify(worldViewJson(worldForCharacter(scenario, "guard"))), /sword/);
   scenario.world!.fixtures[0]!.open = true;
   assert.match(view(), /Secret instructions/);
-  assert.equal(itemsFor(scenario, "chest").length, 1, "Projection does not mutate source");
+  assert.equal(itemsFor(inventoryOwners(scenario.characters, scenario.world), "chest").length, 1, "Projection does not mutate source");
 });
 
 test("duplicate ownership and equipment outside the holder's inventory are rejected", () => {
   const scenario = example();
-  inventoryFor(scenario, "visitor").items.push(itemsFor(scenario, "guard")[0]!);
-  assert.throws(() => validateInventories(scenario), /Duplicate/);
-  inventoryFor(scenario, "visitor").items = [];
-  inventoryFor(scenario, "guard").equipment!.armorItemId = "letter";
-  assert.throws(() => validateInventories(scenario), /not carried/);
+  inventoryFor(inventoryOwners(scenario.characters, scenario.world), "visitor").items.push(itemsFor(inventoryOwners(scenario.characters, scenario.world), "guard")[0]!);
+  assert.throws(() => validateInventories(inventoryOwners(scenario.characters, scenario.world)), /Duplicate/);
+  inventoryFor(inventoryOwners(scenario.characters, scenario.world), "visitor").items = [];
+  inventoryFor(inventoryOwners(scenario.characters, scenario.world), "guard").equipment!.armorItemId = "letter";
+  assert.throws(() => validateInventories(inventoryOwners(scenario.characters, scenario.world)), /not carried/);
 });
 
 test("authored court builds have bounded stats, valid health, and uniquely carried equipment", async () => {
   const { readFileSync } = await import("node:fs");
   const { fromJsonString } = await import("@bufbuild/protobuf");
   const scenario = fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8"));
-  validateInventories(scenario);
+  validateInventories(inventoryOwners(scenario.characters, scenario.world));
   for (const character of scenario.characters) {
     const dnd = character.dnd!;
     assert.ok(dnd?.abilityScores, character.id);
@@ -75,7 +75,22 @@ test("authored court builds have bounded stats, valid health, and uniquely carri
   const corvin = scenario.characters.find(character => character.id === "corvin")!;
   assert.equal(corvin.dnd!.classes[0]!.classId, "wizard");
   assert.ok(corvin.dnd!.spellcasting!.preparedSpellIds.includes("detect-magic"));
-  assert.ok(itemsFor(scenario, "rook").some(item => item.id === "rook_tomas_letter"), "Plot evidence is retained");
+  assert.ok(itemsFor(inventoryOwners(scenario.characters, scenario.world), "rook").some(item => item.id === "rook_tomas_letter"), "Plot evidence is retained");
   const saved = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, scenario));
   assert.deepEqual(saved.characters.map(character => character.dnd), scenario.characters.map(character => character.dnd));
+});
+
+test("inventory operations accept plain owners without a scenario or character proto", async () => {
+  const { InventorySchema } = await import("../packages/contracts/src/index.js");
+  const owners: import("../packages/core/src/inventory.js").InventoryOwner[] = [
+    { id: "traveller", inventory: create(InventorySchema, { items: [{ id: "coin", name: "Coin" }] }) },
+    { id: "recipient" },
+  ];
+  const coin = itemsFor(owners, "traveller")[0]!;
+  transferItem(owners, "coin", "recipient");
+  assert.equal(owners[1]!.inventory!.items[0], coin);
+  assert.equal(itemsFor(owners, "traveller").length, 0);
+  assert.deepEqual(locatedItems(owners).map(({ id, locationId }) => ({ id, locationId })),
+    [{ id: "coin", locationId: "recipient" }]);
+  validateInventories(owners);
 });

@@ -1,4 +1,4 @@
-import { locatedItems, inventoryFor, transferItem } from "../packages/core/src/inventory.js";
+import { inventoryOwners, locatedItems, inventoryFor, transferItem } from "../packages/core/src/inventory.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -89,7 +89,7 @@ test("runtime inventories merge independently and reject stale writes atomically
     const expected = generationIds(game.readResources(["world:context", `character:${id}`, `actor:${id}`, `inventory:${id}`, `item:${itemId}`, `entity:${itemId}`]));
     const before = game.snapshot(), fork = game.forkForNpc(), snapshot = fork.snapshot();
     const scenario = fromJson(ScenarioSchema, snapshot.scenario);
-    inventoryFor(scenario, id).items.push(create(ItemInstanceSchema, { id: itemId, name: itemId }));
+    inventoryFor(inventoryOwners(scenario.characters, scenario.world), id).items.push(create(ItemInstanceSchema, { id: itemId, name: itemId }));
     snapshot.scenario = toJson(ScenarioSchema, scenario); fork.restore(snapshot);
     return { before, fork, expected };
   };
@@ -97,8 +97,9 @@ test("runtime inventories merge independently and reject stale writes atomically
   game.commitCharacterFork(first.before, first.fork, ["corvin"], first.expected);
   game.commitCharacterFork(second.before, second.fork, ["mara"], second.expected);
   const saved = game.snapshot();
-  assert.ok(locatedItems(fromJson(ScenarioSchema, saved.scenario)).some(item => item.id === "first_note"));
-  assert.ok(locatedItems(fromJson(ScenarioSchema, saved.scenario)).some(item => item.id === "second_note"));
+  const savedState = fromJson(ScenarioSchema, saved.scenario);
+  assert.ok(locatedItems(inventoryOwners(savedState.characters, savedState.world)).some(item => item.id === "first_note"));
+  assert.ok(locatedItems(inventoryOwners(savedState.characters, savedState.world)).some(item => item.id === "second_note"));
   assert.throws(() => game.commitCharacterFork(first.before, first.fork, ["corvin"], first.expected), GenerationConflict);
   assert.deepEqual(game.snapshot(), saved);
 });
@@ -175,12 +176,12 @@ test("stale physical actions reject inventory ABA before movement or item use", 
   setup.npcActivities = { corvin: { status: "active", goal: "Inspect my note.", history: [] } };
   const scenario = fromJson(ScenarioSchema, setup.scenario);
   scenario.characters.find(c => c.id === "corvin")!.currentGoal = "Inspect my note.";
-  inventoryFor(scenario, "corvin").items.push(create(ItemInstanceSchema, { id: "note", name: "Note" }));
+  inventoryFor(inventoryOwners(scenario.characters, scenario.world), "corvin").items.push(create(ItemInstanceSchema, { id: "note", name: "Note" }));
   setup.scenario = toJson(ScenarioSchema, scenario); game.restore(setup);
   const action = courtAgentObservation(scenario, "corvin").actions.find(item => item.id === "inspect_item_note")!;
   const expected = generationIds(game.readResources(actionResourceIds(scenario, "corvin", action)));
   const intervening = game.snapshot(), moved = fromJson(ScenarioSchema, intervening.scenario);
-  transferItem(moved, "note", "mara");
+  transferItem(inventoryOwners(moved.characters, moved.world), "note", "mara");
   intervening.scenario = toJson(ScenarioSchema, moved); game.restore(intervening);
   const returned = game.snapshot(); // Preserve the generation of the intervening move.
   returned.scenario = setup.scenario; game.restore(returned);
@@ -194,7 +195,7 @@ test("stale physical actions reject inventory ABA before movement or item use", 
 test("player physical commands reject stale views without disclosing concealed item IDs", () => {
   const game = runtime(), view = game.view();
   const original = game.snapshot(), scenario = fromJson(ScenarioSchema, original.scenario);
-  const hidden = locatedItems(scenario).find(item => item.concealed && !scenario.world!.fixtures.find(f => f.id === item.locationId)?.open)!;
+  const hidden = locatedItems(inventoryOwners(scenario.characters, scenario.world)).find(item => item.concealed && !scenario.world!.fixtures.find(f => f.id === item.locationId)?.open)!;
   assert.ok(hidden);
   assert.equal(Object.hasOwn(view.generations as object, `item:${hidden.id}`), false);
   game.movePlayer({ x: 61, y: 24 });
@@ -254,7 +255,7 @@ test("a conflict at publication keeps item and character updates atomic and reac
     if (calls === 3) {
       assert.equal(context.error, "generation_conflict");
       const scenario = fromJson(ScenarioSchema, game.snapshot().scenario);
-      assert.ok(!locatedItems(scenario).some(item => item.id === "new_note"));
+      assert.ok(!locatedItems(inventoryOwners(scenario.characters, scenario.world)).some(item => item.id === "new_note"));
       assert.notEqual(scenario.characters.find(c => c.id === "corvin")!.lore, "Updated atomically.");
       assert.ok(context.current["inventory:corvin"].state.items.some((item: any) => item.id === "other_note"));
     }
@@ -263,14 +264,14 @@ test("a conflict at publication keeps item and character updates atomic and reac
   await game.publishReviewedFork(before, fork, async (base, candidate, ids, expected) => {
     if (commits++ === 0) {
       const changed = game.snapshot(), scenario = fromJson(ScenarioSchema, changed.scenario);
-      inventoryFor(scenario, "corvin").items.push(create(ItemInstanceSchema, { id: "other_note", name: "Other note" }));
+      inventoryFor(inventoryOwners(scenario.characters, scenario.world), "corvin").items.push(create(ItemInstanceSchema, { id: "other_note", name: "Other note" }));
       changed.scenario = toJson(ScenarioSchema, scenario); game.restore(changed);
     }
     game.commitCharacterFork(base, candidate, ids, expected);
   });
   assert.equal(calls, 3); assert.equal(commits, 2);
   const final = fromJson(ScenarioSchema, game.snapshot().scenario);
-  assert.equal(locatedItems(final).filter(item => ["new_note", "other_note"].includes(item.id)).length, 2);
+  assert.equal(locatedItems(inventoryOwners(final.characters, final.world)).filter(item => ["new_note", "other_note"].includes(item.id)).length, 2);
   assert.equal(final.characters.find(c => c.id === "corvin")!.lore, "Updated atomically.");
 });
 
