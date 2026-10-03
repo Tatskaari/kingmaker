@@ -263,3 +263,17 @@ The browser and headless planner use these hooks, retaining the existing request
 context, action limit, transcripts and generation checks. The game executes the
 command and requests a fresh decision after it finishes. Outcome review remains
 separate. Hook options survive runtime forks and headless reloads.
+
+### Document-based conversation review
+
+For a v2 host, inject `documentReviewHooks` as `hooks.review`. Its resolver uses
+`services.ai.responses`, `services.scenario` and `services.docs` to append private
+conversation notes and set `active_goal` in the scenario character document's
+frontmatter. A non-empty string activates work; null (or an absent field) means
+idle. There is no second copy of the goal in the map or cast biography.
+
+The resolver preserves access metadata, existing history, typed properties and
+physical state. Notes and goal publish in one SHA-checked write. A conflicting
+edit fails without overwriting the newer document; the host must review again
+against current state. Cancellation or malformed model output never publishes a
+goal. Static cast lore and other characters' documents remain untouched.
