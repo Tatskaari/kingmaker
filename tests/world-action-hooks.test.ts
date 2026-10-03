@@ -1,3 +1,4 @@
+import { commitReview } from "./fixtures.js";
 import { WorldHost } from "../apps/web/src/world-host.js";
 import { loadPlayableWorld } from "./fixtures.js";
 import assert from "node:assert/strict";
@@ -30,8 +31,8 @@ const evidence = { characterId: "corvin", participants: ["corvin", "player"], tr
 test("v2 review commits its goal before classify/resolve returns a real command without moving anyone", async () => {
   const services = fixture(), beforeMap = services.scenario.snapshot().map, order: string[] = [];
   const runtime = new ConversationRuntime({ services: { ...services, ai: {
-    responses: async () => { order.push("review"); return { role: "assistant", content: JSON.stringify({
-      summary: "Agreed", newNotes: ["The player requested a visit to the hall."], activeGoal: "Go to the hall" }) }; },
+    responses: async () => { order.push("review"); return commitReview({
+      summary: "Agreed", newNotes: ["The player requested a visit to the hall."], activeGoal: "Go to the hall" }); },
     decisions: async (state, questions) => {
       order.push("classify");
       assert.equal((await services.docs.read(characterEntry(services.scenario.info(), "corvin"))).document.frontmatter!.active_goal, "Go to the hall");
@@ -55,7 +56,7 @@ test("v2 review commits its goal before classify/resolve returns a real command 
 test("v2 idle reviews skip Jev, failed reviews stop planning, and terminal results return no command", async () => {
   const services = fixture(); let calls = 0;
   const runtime = new ConversationRuntime({ services: { ...services, ai: {
-    responses: async () => ({ role: "assistant", content: JSON.stringify({ summary: "No task", newNotes: [], activeGoal: null }) }),
+    responses: async () => (commitReview({ summary: "No task", newNotes: [], activeGoal: null })),
     decisions: async () => { calls++; return { next: { choice: "wait", probabilities: {} } }; },
   } }, hooks: { review: documentReviewHooks, action: jevActionHooks } });
   assert.equal((await reviewAndPlanWorldAction(evidence, runtime)).plan, undefined); assert.equal(calls, 0);

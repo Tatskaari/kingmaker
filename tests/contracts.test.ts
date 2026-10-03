@@ -1,3 +1,4 @@
+import { commitReview } from "./fixtures.js";
 import { loadPlayableWorld } from "./fixtures.js";
 import { logPath } from "../scripts/test-logging.js";
 import { locatedItems } from "../packages/core/src/inventory.js";
@@ -2296,9 +2297,9 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
       assert.ok(++goals <= 4, "Must stop after the objective is completed");
       return { decision: { choice: "complete" } };
     });
-    t.mock.method(OpenRouterClient.prototype, "complete", async () => ({ role: "assistant", content: JSON.stringify({
+    t.mock.method(OpenRouterClient.prototype, "complete", async () => (commitReview({
       summary: "Reviewed progress", newNotes: ["Step completed"], activeGoal: goals === 4 ? null : "Step " + (goals + 1),
-    }) }));
+    })));
     await request("start_npc", { characterId: "corvin" });
     while ((await request("state")).state.npcActivities.corvin.status === "active"
       || npcUpdates.at(-1)?.running.includes("corvin")) {
@@ -2361,13 +2362,13 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     let started!: () => void;
     const reviewing = new Promise<void>(resolve => { started = resolve; });
     const waitForReview = new Promise<void>(resolve => { release = resolve; });
-    const commitReview = (_input: any) => ({ role: "assistant", content: JSON.stringify({
+    const reviewResponse = (_input: any) => (commitReview({
       summary: "Reviewed", newNotes: ["The envoy said goodbye."], activeGoal: null,
-    }) });
+    }));
     t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => {
-      if (input.response_format?.json_schema?.name === "document_review") {
+      if (input.tools?.some((tool: any) => tool.function.name === "commit_review")) {
         started(); await waitForReview;
-        return commitReview(input);
+        return reviewResponse(input);
       }
       return { role: "assistant", content: "Hello." };
     });
@@ -2388,7 +2389,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     const saved = records.get(result.activeSaveId).snapshot;
     assert.match(saved.world.docs["Scenarios/Centennial Assembly/Characters/corvin/character.md"].body, /envoy said goodbye/);
 
-    t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => commitReview(input));
+    t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => reviewResponse(input));
     failNextWrite = true;
     await assert.rejects(request("end_conversation", { characterId: "gurt" }), /Test storage failure/);
     assert.equal((await request("state")).state.conversations.gurt.length, 2, "Failed reviews retain their transcript for retry");

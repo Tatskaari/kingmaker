@@ -1,3 +1,4 @@
+import { commitReview } from "./fixtures.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create } from "@bufbuild/protobuf";
@@ -24,7 +25,7 @@ test("v2 exchange isolates speakers and reviews each participant through documen
     const prompt = JSON.stringify(request); calls++;
     if (calls === 1) { assert.match(prompt, /ALICE_PRIVATE/); assert.ok(!prompt.includes("BOB_PRIVATE")); return { role: "assistant", content: "Will you help?" }; }
     if (calls === 2) { assert.match(prompt, /BOB_PRIVATE/); assert.ok(!prompt.includes("ALICE_PRIVATE")); assert.ok(!prompt.includes("SECRET_INTENT")); return { role: "assistant", content: "I refuse." }; }
-    return { role: "assistant", content: JSON.stringify({ summary: "Refused", newNotes: ["Bob refused to help."], activeGoal: null }) };
+    return commitReview({ summary: "Refused", newNotes: ["Bob refused to help."], activeGoal: null });
   } } }, hooks: { resolution: documentResolutionHooks } });
   const result = await runResolution({ kind: "npc_exchange", characterId: "alice", targetId: "bob", goal: "SECRET_INTENT" }, runtime);
   assert.match(result.summary, /I refuse/); assert.equal(calls, 4);
@@ -36,7 +37,7 @@ test("ignored events do not write; processed events use only their limited perce
     const runtime = new ConversationRuntime({ services: { ...services, ai: {
       decisions: async () => ({ reaction: { choice: react ? "process" : "ignore", probabilities: {} } }),
       responses: async request => { calls++; assert.match(JSON.stringify(request), /Indistinct voices/);
-        return { role: "assistant", content: JSON.stringify({ summary: "Heard voices", newNotes: ["Indistinct voices."], activeGoal: null }) }; },
+        return commitReview({ summary: "Heard voices", newNotes: ["Indistinct voices."], activeGoal: null }); },
     } }, hooks: { resolution: documentResolutionHooks } });
     await runResolution({ kind: "world_event", characterId: "alice", eventId: "event", perception: "Indistinct voices." }, runtime);
     assert.equal(calls, react ? 1 : 0);
