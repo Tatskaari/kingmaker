@@ -4,6 +4,8 @@ Author navigation only. Private notes belong to `holt`; GM notes are never chara
 
 ## In this folder
 
+- [[Cast/Caerwyn/Marshal Garran Holt/public|Public profile]] — common court knowledge, available to court-informed readers.
+
 - [[Cast/Caerwyn/Marshal Garran Holt/private|Private characterization]]
 - [[Cast/Caerwyn/Marshal Garran Holt/gm|GM-only truth and sources]]
 - [[Cast/Caerwyn/Marshal Garran Holt/knowledge/index|Knowledge of other cast members]]

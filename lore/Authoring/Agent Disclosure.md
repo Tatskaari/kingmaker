@@ -14,6 +14,7 @@ The GM begins at the scenario's `scenario.md` and can consult the full authored 
 ## Cast audiences
 Each cast member has a folder under `Cast/<faction>/<name>/`:
 
+- `public.md`: a concise profile of publicly understood roles and expertise, written to an informed observer. Assembly delegates grant `court-informed` readers access; the filename alone does not make a note universally visible. Keep secrets, private motives, author references and links to private dossiers out of these profiles.
 - `private.md`: the character's identity, voice, motives and self-knowledge, explicitly private to that character ID.
 - `gm.md`: unknown truths about the person, source references, editorial uncertainty and GM guidance. Always GM-only.
 - `knowledge/<other cast member>.md`: the observing character's knowledge or beliefs about that person. Each note is private to the observer, not the subject. Relationships need not be symmetrical and beliefs need not be true.
@@ -49,7 +50,7 @@ A grant covers an entire note. Split mixed audiences into separate notes. Markdo
 
 Documents can carry a YAML `labels` list. On a scenario's `character.md`, it defines that character's audience labels. Other documents' labels classify those documents but never give the reader more permissions. Labels are exact, case-sensitive IDs; malformed lists fail closed.
 
-Each Centennial Assembly character entry has `labels: [court-informed]`. This means they know the shared baseline in `court_briefing.md` and its delegation overviews. It does not imply personal acquaintance, private motives or knowledge of events that have not happened. Offstage cast members do not inherit this scenario grant.
+Each Centennial Assembly character entry has `labels: [court-informed]`. This means they know the shared baseline in `court_briefing.md` and its delegation overviews, which link to each delegate’s public profile. It does not imply personal acquaintance, private motives or knowledge of events that have not happened. Offstage cast members do not inherit this scenario grant.
 
 Shared documents explicitly grant that audience access:
 

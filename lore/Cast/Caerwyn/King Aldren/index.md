@@ -4,6 +4,8 @@ Author navigation only. Private notes belong to `aldren`; GM notes are never cha
 
 ## In this folder
 
+- [[Cast/Caerwyn/King Aldren/public|Public profile]] — common court knowledge, available to court-informed readers.
+
 - [[Cast/Caerwyn/King Aldren/private|Private characterization]]
 - [[Cast/Caerwyn/King Aldren/gm|GM-only truth and sources]]
 - [[Cast/Caerwyn/King Aldren/knowledge/index|Knowledge of other cast members]]

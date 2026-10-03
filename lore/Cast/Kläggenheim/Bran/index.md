@@ -4,6 +4,8 @@ Author navigation only. Private notes belong to `bran`; GM notes are never chara
 
 ## In this folder
 
+- [[Cast/Kläggenheim/Bran/public|Public profile]] — common court knowledge, available to court-informed readers.
+
 - [[Cast/Kläggenheim/Bran/private|Private characterization]]
 - [[Cast/Kläggenheim/Bran/gm|GM-only truth and sources]]
 - [[Cast/Kläggenheim/Bran/knowledge/index|Knowledge of other cast members]]
