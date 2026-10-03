@@ -53,7 +53,44 @@ disclosure should load an entry body, let Jev select links, then check the targe
 access policy before retrieving it. Frontmatter remains available for those checks;
 this builder does not implement runtime retrieval or grant access through links.
 
-GM edits belong to this independent playthrough copy. Recompute derived `links`
-using `links` and `resolveLink` after body edits; renaming a document also requires
-updating incoming references. A GM editing API and prompt integration are separate
-work. Save and restore the complete result with protobuf JSON serialization.
+## Scenario and document services
+
+`createScenarioServices(state)` in `packages/lore/src/services.ts` creates a pair
+of injectable interfaces sharing an owned, deep copy of the playthrough state:
+
+- `scenario.info()` returns scenario, index, player and character references.
+- `scenario.snapshot()` returns a deep copy of the full state for saving.
+- `scenario.getDocument(path)` and `docs.read(path)` return detached snapshots
+  containing `path`, `sha`, canonical Markdown `text` and the protobuf `document`.
+  Reads take no expected SHA and return the state captured when the read starts.
+- `docs.create(path, text)` requires an absent path.
+- `docs.replace(path, expectedSha, oldText, newText)` requires exactly one match.
+- `docs.insert(path, expectedSha, afterLine, text)` inserts after a 1-based line
+  in the returned text; line 0 means the beginning.
+- `docs.delete(path, expectedSha)` removes an unreferenced document.
+
+```ts
+const { scenario, docs } = createScenarioServices(state);
+const current = await docs.read("Scenarios/Example/scenario.md");
+const edited = await docs.replace(current.path, current.sha, "This is a stub.", "The gates open.");
+const save = toJson(WorldStateSchema, scenario.snapshot());
+```
+
+Every command returns a promise; create, replace and insert return the new
+snapshot. SHA-256 covers the full document, including frontmatter, GM properties
+and derived links, with stable object-key ordering. This is a content revision,
+not an edit counter. Equivalent contents have the same SHA. Frontmatter is
+rendered as canonical YAML; original YAML formatting and comments are not retained
+by the world model. Match text against the latest returned `text`.
+
+Writes are serialized within the service pair, check the SHA and validate a
+private draft before publishing it. Stale edits throw `DocumentConflictError`
+with expected and actual hashes; the caller must reread and reconsider the edit.
+Invalid edits leave state unchanged. All links and scenario character references
+are rebuilt, catching missing or ambiguous targets even in other documents.
+Scenario, index and player documents cannot be deleted while referenced. Typed
+GM character properties and physical map data survive Markdown edits unchanged.
+
+These are GM services, with no character visibility filtering, filesystem writes
+or model calls. Runtime wiring and GM tool adapters are separate work. Save and
+restore the complete snapshot with protobuf JSON serialization.
