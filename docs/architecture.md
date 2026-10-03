@@ -1,5 +1,7 @@
 # Runtime architecture
 
+Proposed direction: [RFC 0001 — Direct world mechanics and React/canvas presentation](rfcs/0001-world-state-and-presentation.md). The RFC describes planned changes, not the current implementation.
+
 The browser UI sends commands to `game.worker.ts`. `BrowserGameRuntime` owns the
 current protobuf scenario, conversations and NPC activities. The worker persists
 snapshots in IndexedDB and restores the previous snapshot if a mutation or save
