@@ -1,5 +1,5 @@
 import type { MapService, MapObservation, MapResult } from "./map.js";
-import type { DocsService, ScenarioService, MechanicsStateService } from "../../lore/src/services.js";
+import type { DocsService, ScenarioService } from "../../lore/src/services.js";
 import type { CheckDegree, CheckSkill, skillAbilities } from "../../core/src/ability-checks.js";
 import type { PortraitExpression } from "../../providers/src/conversation-expression.js";
 import type { JevChoice, JevQuestions } from "../../providers/src/jev.js";
@@ -75,7 +75,6 @@ export interface DebugService {
 }
 export interface RuntimeServices {
   readonly map: MapService;
-  readonly mechanics: MechanicsStateService;
   readonly scenario: ScenarioService;
   readonly docs: DocsService;
   readonly ai: AiService;

@@ -51,8 +51,6 @@ export class ConversationRuntime<Labels = Record<string, never>, Review = Review
         observe: (...args) => services.map?.observe ? services.map.observe(...args) : unimplemented("map.observe"),
         interact: (...args) => services.map?.interact ? services.map.interact(...args) : unimplemented("map.interact"),
       },
-      mechanics: { commit: (...args) => services.mechanics?.commit
-        ? services.mechanics.commit(...args) : unimplemented("mechanics.commit") },
       scenario: {
         info: () => services.scenario?.info ? services.scenario.info() : unimplemented("scenario.info"),
         snapshot: () => services.scenario?.snapshot ? services.scenario.snapshot() : unimplemented("scenario.snapshot"),
