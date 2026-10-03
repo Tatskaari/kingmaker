@@ -1,4 +1,5 @@
 ---
+summary: "Klog's public work for the Office of Unsettled Claims: ownership, neglected obligations and parties an agreement might overlook."
 visibility: private
 readers: ["label:court-informed"]
 ---

@@ -1,4 +1,5 @@
 ---
+summary: "Your requests for uninterrupted repair time and responses to dismantling, help, failed attempts and newly reported cushion concerns."
 status: draft
 visibility: private
 readers: ["character:rowan"]

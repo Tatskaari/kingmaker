@@ -1,4 +1,5 @@
 ---
+summary: "Your knowledge of the self-guiding cart's protection of the gift tree and the blocked service entrance. Covers interruptions, what help you want and what you can explain about the machine."
 status: draft
 visibility: private
 readers: ["character:rowan"]

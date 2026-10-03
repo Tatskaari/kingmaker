@@ -1,4 +1,5 @@
 ---
+summary: "Your knowledge of the late cushions, what you want from Holt and the player, and what you may disclose. Covers persuasion, returning reports and the limits of what you know about the delay."
 status: draft
 visibility: private
 readers: ["character:aldren"]

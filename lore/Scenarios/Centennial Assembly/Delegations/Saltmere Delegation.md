@@ -1,4 +1,5 @@
 ---
+summary: "Saltmere's delegation of Peregrine, Cressida and Abel, with its shipping, credit and commercial expertise. Links to the delegates' public profiles."
 visibility: private
 readers: ["label:court-informed"]
 ---
