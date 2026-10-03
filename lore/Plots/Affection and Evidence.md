@@ -4,4 +4,4 @@ Cressida’s betrothal to Peregrine and attraction to Holt intersect with carava
 
 Source: [[Saltmere Direction]].
 
-Scenario sketches: [[Centennial Assembly]].
+Scenario sketches: [[Scenarios/Centennial Assembly/index|Centennial Assembly]].

@@ -4,4 +4,4 @@
 
 Source: [[Caerwyn Direction]].
 
-Scenario sketches: [[Centennial Assembly]].
+Scenario sketches: [[Scenarios/Centennial Assembly/index|Centennial Assembly]].

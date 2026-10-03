@@ -10,4 +10,4 @@ Delegation: [[Cast/Saltmere/Prince Peregrine Vane|Prince Peregrine Vane]], [[Cas
 
 Source: #110 in [[Sources and Decisions]].
 
-Related: [[World Overview]], [[Grain Crisis]].
+Related: [[World/index|World Overview]], [[Grain Crisis]].

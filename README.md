@@ -476,7 +476,7 @@ Aldren despite his established reluctance out of loyalty (persuasion).
 
 ## Lore authoring
 
-Open [`lore/`](lore/Home.md) as an Obsidian vault and begin at `Home`.
+Open [`lore/`](lore/index.md) as an Obsidian vault and begin at `index.md`.
 It organizes the direction in issues 108–111 into world, cast and plot notes,
 with empty scenario stubs ready for author sketches. The running game still
 reads `content/` and does not import the vault.

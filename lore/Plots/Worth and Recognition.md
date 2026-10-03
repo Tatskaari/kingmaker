@@ -4,4 +4,4 @@ Corvin’s denied permanent appointment and surviving committee record make lega
 
 Source: [[Nine Furrows Direction]].
 
-Scenario sketches: [[Centennial Assembly]].
+Scenario sketches: [[Scenarios/Centennial Assembly/index|Centennial Assembly]].

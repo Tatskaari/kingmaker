@@ -4,4 +4,4 @@ Failing wards and protected granaries, industrial dependence on foreign grain, d
 
 Sources: [[Nine Furrows Direction]], [[Kläggenheim Direction]], [[Saltmere Direction]].
 
-Scenario sketches: [[Centennial Assembly]].
+Scenario sketches: [[Scenarios/Centennial Assembly/index|Centennial Assembly]].

@@ -6,8 +6,8 @@ Audience: GM. This is the initial scenario briefing; load linked detail only whe
 This is a stub.
 
 ## Read when relevant
-- [[World Overview]] — enduring setting, factions, places, history and law.
-- [[Plot Index]] — overarching story threads; possible directions are not predetermined outcomes.
+- [[World/index|World Overview]] — enduring setting, factions, places, history and law.
+- [[Plots/index|Plot Index]] — overarching story threads; possible directions are not predetermined outcomes.
 - [[Assembly Map]] — current places, tiles, occupants, access and inventories.
 - [[Assembly Programme]], [[Minutes and Titles]], [[Patrol Inquiry]], [[Grain Settlement]], [[Affection at a Cost]], [[Recognition Hearing]] — possible events, prerequisites and world-state changes.
 - [[Invitation Conversation]], [[Patrol Conversation]], [[Grain Conversation]], [[Private Dinner Conversation]] — full scene branches, including GM-only conditions and consequences.

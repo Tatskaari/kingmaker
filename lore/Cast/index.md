@@ -39,4 +39,13 @@ Faction: [[Saltmere]].
 - [[Cast/Saltmere/Lady Cressida Pinchbeck|Lady Cressida Pinchbeck]]
 - [[Cast/Saltmere/Abel Keel|Abel Keel]]
 
-These are reusable identities, not a shared pool of NPC knowledge. Return to [[Home]].
+These are reusable identities, not a shared pool of NPC knowledge. Return to [Lore index](../index.md).
+
+## In this folder
+
+- [[Cast/Caerwyn/index|Caerwyn]]
+- [[Cast/Kläggenheim/index|Kläggenheim]]
+- [[Cast/Nine Furrows/index|Nine Furrows]]
+- [[Cast/Saltmere/index|Saltmere]]
+
+Parent: [Lore index](../index.md).
