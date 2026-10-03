@@ -1,3 +1,4 @@
+import { actionCriteria, jevActionHooks, runAction } from "../../../packages/conversation/src/action.js";
 import { initialModelResourceIds, modelResourceOverview } from "./model-resources.js";
 import { renderWorldPrompt } from "../../../packages/core/src/world-prompt.js";
 import type { Complete } from "../../../packages/conversation/src/conversation.js";
@@ -331,7 +332,7 @@ export class BrowserGameRuntime {
   #conversationRuns = new Map<string, string>();
   #eventPerceptions: Record<string, EventPerceptionTrace[]> = {};
 
-  constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot, transcriptsChanged: () => void = () => {}, onWarning: (message: string) => void = () => {}, random: () => number = Math.random, readonly jevActionContext: JevActionContextOptions = {}, readonly reviewOptions: ConversationRuntimeOptions = {}) {
+  constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot, transcriptsChanged: () => void = () => {}, onWarning: (message: string) => void = () => {}, random: () => number = Math.random, readonly jevActionContext: JevActionContextOptions = {}, readonly reviewOptions: ConversationRuntimeOptions = {}, readonly actionOptions: ConversationRuntimeOptions = {}) {
     this.#initialScenario = fromJson(ScenarioSchema, toJson(ScenarioSchema, scenario));
     initializeNpcObjectives(this.#initialScenario);
     this.#game = new MemoryGame(this.#initialScenario);
@@ -1007,10 +1008,7 @@ export class BrowserGameRuntime {
       && !this.#npcActivities[action.target]?.reviewPending
       && (action.target !== scenario.playerCharacterId || this.#conversations.size === 0)
     ));
-    const criteria = { ...Object.fromEntries(observation.actions.map(action => [action.id, `${action.description}${action.legality === "illegal" ? " This is illegal for this character." : ""}`])),
-      complete: "The current task is achieved in the live world, even if the broader objective is unfinished. Arrival completes a task to go somewhere for a later conversation.",
-      wait: "The current task is still unfinished, and progress now depends entirely on another character initiating a conversation, arriving, deciding, or completing their own work. Choose this instead of inventing a waiting action or repeatedly checking.",
-      unable: "No available action can make progress, or essential clarification is needed." };
+    const criteria = actionCriteria(observation.actions);
     const keys = [...new Set([...actionResourceIds(scenario, characterId), ...observation.actions.flatMap(action => actionResourceIds(scenario, characterId, action))])];
     const generations = generationIds(this.readResources(keys));
     const state = renderJevActionState(scenario, observation, activity.actionIds ?? [], this.jevActionContext);
@@ -1032,10 +1030,17 @@ export class BrowserGameRuntime {
   async planNpc(characterId: string, signal: AbortSignal, previousWriteConflict?: { error: string; instruction: string }, runKey?: string) {
     const { request, observation, generations } = this.npcDecisionContext(characterId);
     const scenario = this.#game.scenario();
-    const { instructions, criteria } = request.questions.next!;
-    const decision = await this.#modelTranscripts.record("jev", characterId, request, () => this.#jev.choose(request.state, instructions, criteria, signal, modelCallLabels.jev), runKey, this.#characterName(characterId));
+    const options = this.actionOptions;
+    const handler = new ConversationRuntime({ ...options, services: { ...options.services, ai: {
+      decisions: async (state, questions, cancellation) => Object.fromEntries(await Promise.all(Object.entries(questions).map(async ([id, question]) => [id,
+        await this.#modelTranscripts.record("jev", characterId, jevRequest(state, question.instructions, question.criteria),
+          () => this.#jev.choose(state, question.instructions, question.criteria, cancellation, modelCallLabels.jev),
+          runKey, this.#characterName(characterId)),
+      ]))),
+      ...options.services?.ai,
+    } }, hooks: { ...options.hooks, action: { ...jevActionHooks, ...options.hooks?.action } } });
+    const { decision, action } = await runAction({ characterId, goal: observation.goal, request, actions: observation.actions }, handler, signal);
     npcLog.info("NPC plan selected", { characterId, goal: observation.goal, revision: observation.revision, ...decision });
-    const action = observation.actions.find(action => action.id === decision.choice);
     return { decision, revision: observation.revision, goal: observation.goal, action, observation,
       generations: Object.fromEntries(actionResourceIds(scenario, characterId, action).map(key => [key, generations[key]!])) };
   }
@@ -1163,7 +1168,7 @@ export class BrowserGameRuntime {
 
   /** Model work happens on a snapshot; only a validated merge touches the live game. */
   forkForNpc(): BrowserGameRuntime {
-    const fork = new BrowserGameRuntime(this.#initialScenario, "", this.snapshot(), undefined, undefined, this.#random, this.jevActionContext, this.reviewOptions);
+    const fork = new BrowserGameRuntime(this.#initialScenario, "", this.snapshot(), undefined, undefined, this.#random, this.jevActionContext, this.reviewOptions, this.actionOptions);
     fork.#client = this.#client; fork.#jev = this.#jev; fork.#modelTranscripts = this.#modelTranscripts;
     fork.#conversationRuns = this.#conversationRuns;
     return fork;

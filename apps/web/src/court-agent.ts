@@ -1,13 +1,10 @@
 import type { Scenario } from "../../../packages/contracts/src/index.js";
 import { characterDecisionContext, worldForCharacter } from "../../../packages/core/src/context.js";
 import { fixtureActions, fixtureName } from "../../../packages/core/src/fixtures.js";
-import type { Point } from "./navigation.js";
 import { roomAgentActions } from "./room-actions.js";
 
-export interface CourtAgentAction {
-  id: string; type: "move" | "door" | "fixture" | "talk"; target: string;
-  description: string; path: Point[]; interactionRoomId?: string; open?: boolean; legality?: "normal" | "illegal";
-}
+export type { GameAction as CourtAgentAction } from "../../../packages/core/src/actions.js";
+import type { GameAction as CourtAgentAction } from "../../../packages/core/src/actions.js";
 
 export function actionResourceIds(scenario: Scenario, characterId: string, action?: CourtAgentAction): string[] {
   const keys = ["world:context", `character:${characterId}`, `actor:${characterId}`, `inventory:${characterId}`,

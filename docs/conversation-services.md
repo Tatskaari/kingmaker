@@ -249,3 +249,17 @@ The host clears only the reviewed transcript after both phases succeed. Failed o
 cancelled reviews retain evidence; successful incremental writes remain committed.
 A transcript changed during review is not cleared. Review cancellation is accepted
 by `endConversation` and forwarded to the model and the write boundaries.
+
+## Action selection
+
+After conversation review commits an active goal, the game calls `runAction` with
+its current observation. `hooks.action.classify` uses `services.ai.decisions`;
+`hooks.action.resolve` returns a concrete `GameAction` or a terminal judgment
+(`complete`, `wait`, `unable`). Neither phase executes movement or changes world
+state. `jevActionHooks` is the shared implementation; hosts may replace either
+phase through runtime options. Missing operations fail explicitly.
+
+The browser and headless planner use these hooks, retaining the existing request
+context, action limit, transcripts and generation checks. The game executes the
+command and requests a fresh decision after it finishes. Outcome review remains
+separate. Hook options survive runtime forks and headless reloads.
