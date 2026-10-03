@@ -18,7 +18,10 @@ export function projectWorld(world: WorldState) {
     if (!doc) throw new Error(`Missing character document: ${path}`);
     const id = characterId(path, world);
     return create(CharacterSchema, { id, name: typeof doc.frontmatter?.name === "string" ? doc.frontmatter.name : id,
-      currentGoal: activeGoal(doc) ?? "", inventory: doc.characterProperties?.inventory, dnd: doc.characterProperties?.dnd });
+      gender: typeof doc.frontmatter?.gender === "string" ? doc.frontmatter.gender : "",
+      delegation: typeof doc.frontmatter?.delegation === "string" ? doc.frontmatter.delegation : "",
+      ...(typeof doc.frontmatter?.sprite === "number" ? { sprite: doc.frontmatter.sprite } : {}),
+      lore: doc.body, currentGoal: activeGoal(doc) ?? "", inventory: doc.characterProperties?.inventory, dnd: doc.characterProperties?.dnd });
   });
   return create(ScenarioSchema, { id: world.scenario, world: clone(MapSchema, world.map),
     characters, playerCharacterId: world.player ? "player" : "" });

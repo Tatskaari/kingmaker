@@ -53,3 +53,62 @@ test("failed model turns preserve the original interview; suggestions do not sel
   assert.deepEqual(next.replies?.options, ["Charm", "Strength"]);
   assert.equal(next.history.filter(turn => turn.role === "user").length, 1);
 });
+
+import { WorldGameRuntime } from "../apps/web/src/world-runtime.js";
+import { characterCreationWorld } from "../apps/web/src/playable-world.js";
+import { fromJson, toJson } from "@bufbuild/protobuf";
+import { GamePhase, PlayerSetupSchema } from "../packages/contracts/src/index.js";
+import { documentLore } from "../packages/conversation/src/document-lore.js";
+
+test("creation resumes after reload; explicit save publishes reviewed identity, build and scoped impressions", async () => {
+  const world = characterCreationWorld(loadPlayableWorld());
+  const options = { services: { ai: ai(async () => ({ role: "assistant", content: null, tool_calls: [
+    { id: "draft", type: "function", function: { name: "create_player", arguments: JSON.stringify(creationInput(world)) } },
+  ] })) } };
+  const runtime = new WorldGameRuntime(world, "", undefined, undefined, undefined, options);
+  assert.equal(runtime.view().phase, "player_creation");
+  runtime.startIntroduction();
+  const before = runtime.snapshot();
+  runtime.restore(JSON.parse(JSON.stringify(before)));
+  assert.equal((runtime.view().gmMessages as unknown[]).length, 1);
+  await runtime.talkToGameMaster("Ready");
+  assert.equal(runtime.view().phase, "character_review");
+  assert.equal(runtime.world().player, undefined);
+  const saved = runtime.snapshot();
+  const restored = new WorldGameRuntime(world, "", JSON.parse(JSON.stringify(saved)), undefined, undefined, options);
+  const draft = fromJson(PlayerSetupSchema, restored.view().playerDraft as never);
+  draft.player!.name = "Alexandra"; draft.player!.sprite = 84;
+  draft.player!.dnd!.hitPoints!.maximum = 50;
+  draft.player!.dnd!.hitPoints!.current = 50;
+  const positions = runtime.world().map!.actors;
+  await restored.confirmPlayer(toJson(PlayerSetupSchema, draft));
+  assert.equal(restored.view().phase, "conversations");
+  assert.equal((restored.view().player as { name: string }).name, "Alexandra");
+  assert.equal((restored.view().player as { sprite: number }).sprite, 84);
+  assert.deepEqual(restored.world().map!.actors, positions);
+  const player = restored.world().docs[restored.world().player!]!;
+  assert.equal(player.characterProperties!.dnd!.hitPoints!.maximum, 50);
+  assert.ok(player.characterProperties!.inventory?.items.length);
+  const services = createScenarioServices(restored.world());
+  const npcLore = await documentLore(services.scenario, "aldren");
+  assert.doesNotMatch(JSON.stringify(npcLore.initial), /quietly serve the Stranger/);
+  assert.match(JSON.stringify(npcLore.initial), /No prior acquaintance/);
+  await assert.rejects(restored.confirmPlayer(toJson(PlayerSetupSchema, draft)), /awaiting review/);
+  restored.resetWorld();
+  assert.equal(restored.world().map!.phase, GamePhase.CONVERSATIONS);
+  assert.equal(restored.world().player, "Players/player.md");
+  restored.reset();
+  assert.equal(restored.view().phase, "player_creation");
+  assert.equal((restored.view().gmMessages as unknown[]).length, 0);
+});
+test("invalid review keeps the draft and world intact", async () => {
+  const world = characterCreationWorld(loadPlayableWorld());
+  const runtime = new WorldGameRuntime(world, "", undefined, undefined, undefined, { services: { ai: ai(async () => ({
+    role: "assistant", content: null, tool_calls: [{ id: "draft", type: "function", function: { name: "create_player", arguments: JSON.stringify(creationInput(world)) } }],
+  })) } });
+  runtime.startIntroduction(); await runtime.talkToGameMaster("Ready");
+  const draft = fromJson(PlayerSetupSchema, runtime.view().playerDraft as never), before = runtime.snapshot();
+  draft.player!.relationships.pop();
+  await assert.rejects(runtime.confirmPlayer(toJson(PlayerSetupSchema, draft)), /every court character/);
+  assert.deepEqual(runtime.snapshot(), before);
+});
