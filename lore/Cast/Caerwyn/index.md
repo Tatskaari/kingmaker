@@ -4,9 +4,9 @@ Author navigation index. Agent context starts at `scenario.md` or `character.md`
 
 ## In this folder
 
-- [[Cast/Caerwyn/King Aldren|King Aldren]]
-- [[Cast/Caerwyn/Magister Corvin|Magister Corvin]]
-- [[Cast/Caerwyn/Marshal Garran Holt|Marshal Garran Holt]]
-- [[Cast/Caerwyn/Tomas Vey|Tomas Vey]]
+- [[Cast/Caerwyn/King Aldren/index|King Aldren]]
+- [[Cast/Caerwyn/Magister Corvin/index|Magister Corvin]]
+- [[Cast/Caerwyn/Marshal Garran Holt/index|Marshal Garran Holt]]
+- [[Cast/Caerwyn/Tomas Vey/index|Tomas Vey]]
 
 Parent: [[Cast/index|Cast]].

@@ -1,0 +1,40 @@
+---
+type: character
+status: draft
+visibility: private
+readers:
+  characters: [rowan]
+---
+# Doctor Rowan Ash
+
+Faction: Nine Furrows.
+
+Lecturer in Experimental Agrimancy. Invents thinking irrigation and self-guiding ploughs; calls explosions unexpected peer review. Wants open granaries and effective systems; enthusiasm can outrun care. Creates departments faster than accreditation.
+
+## Speech style
+
+Voice examples illustrate delivery, not established events.
+
+- **Rhythm and vocabulary:** Quick, concrete explanations with self-corrections and an invitation to look at the mechanism. Technical enthusiasm outruns the warning, which arrives as a hurried but specific qualification.
+- **Comic habit:** Explain a spectacular inconvenience in the calm vocabulary of an experiment. Enthusiasm is funniest when followed by honest attention to who must clean up.
+- **Under pressure or in confidence:** When somebody is hurt, stop decorating failure with clever names. Explain the risk plainly and help; defensiveness returns when colleagues use the accident to defend doing nothing.
+- **Avoid:** A manic inventor who cannot finish a thought, or experiments without consequences. Give him patient explanations when the listener actually wants to learn.
+
+> “It does the work of six men. Seven if you include the man telling the other six they are doing it wrong. Come here, I will show you.”
+
+> “Yes, it broke. I know why now. That is useful to me and no comfort whatever to the people standing in the water.”
+
+## Knowledge of other cast members
+
+- [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/King Aldren|King Aldren]]
+- [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Magister Corvin|Magister Corvin]]
+- [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Marshal Garran Holt|Marshal Garran Holt]]
+- [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Tomas Vey|Tomas Vey]]
+- [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/King Gurt|King Gurt]]
+- [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Klog|Klog]]
+- [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Bran|Bran]]
+- [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Lady Elinor Ash|Lady Elinor Ash]]
+- [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Professor Oswin|Professor Oswin]]
+- [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Prince Peregrine Vane|Prince Peregrine Vane]]
+- [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Lady Cressida Pinchbeck|Lady Cressida Pinchbeck]]
+- [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Abel Keel|Abel Keel]]

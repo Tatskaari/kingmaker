@@ -13,7 +13,7 @@ Use the latest explicit author decisions over older issue text. Preserve the ori
 | Material | Home | Purpose |
 | --- | --- | --- |
 | Factions, places, historical events and durable rules | `World/` | Setting shared across scenarios |
-| Identity, voice, enduring motives and relationships | `Cast/<faction>/<name>.md` | Reusable character truth, with author-only secrets distinguished |
+| Identity, voice, enduring motives and relationships | `Cast/<faction>/<name>/private.md` | Character-private identity and voice; unknown truths and sources belong in `gm.md`, observer knowledge in `knowledge/` |
 | Dramatic conflicts and possible story arcs | `Plots/` | Direction without a predetermined outcome |
 | World summary, opening situation and invariant scenario rules | `Scenarios/<scenario>/scenario.md` | Compact initial GM context |
 | Cast reference, place, time, present objective, knowledge and scenario boundaries | `Characters/<name>/character.md` within a scenario | Compact initial conversation context, linked to the main cast entry |
@@ -29,14 +29,14 @@ The GM begins with `scenario.md`; a conversation agent begins with its own `char
 
 Split detail by topic and audience. Write short, descriptive notes and links; fetch the relevant note when needed rather than recursively loading every link. Indexes are human navigation and are not automatically part of any agent prompt. Keep source issues, author discussion and editorial uncertainty out of character-facing context unless deliberately translated into that character's uncertainty.
 
-Separate three things explicitly: author truth, a character's knowledge or belief, and facts established publicly in play. A cast backlink identifies the reusable person; it does not mean the conversation agent may read every secret in that note. The GM can use the full authored scenario, while a character receives only its scoped material and facts it has actually learned. The runtime will need to enforce retrieval permissions; Markdown links and instructions alone cannot do that. See [[Authoring/Agent Disclosure|Agent Disclosure]] for the loading contract.
+Separate three things explicitly: author truth, a character's knowledge or belief, and facts established publicly in play. The scenario cast link targets that person’s `private.md`; `gm.md` and other people’s private notes stay outside the character graph. The GM can use the full authored scenario, while a character receives only its scoped material and facts it has actually learned. The runtime will need to enforce retrieval permissions; Markdown links and instructions alone cannot do that. See [[Authoring/Agent Disclosure|Agent Disclosure]] for the loading contract.
 
 For example, the GM can know that a document is hidden in a room while a character knows only a rumour about it. Retrieving the GM's room note must not make the document known to the NPC. After an adjudicated discovery, the GM supplies the new fact only to recipients who learned it. Keep those playthrough updates separate from the baseline authored files.
 
 ## Navigation and delivery
 Every content folder has an `index.md`: maintain its overview, direct note links, child-folder indexes and parent link. Use full vault-relative paths for nested index links and repeated filenames, and relative Markdown links to the root index. Keep `scenario.md` and `character.md` as the distinct agent entrypoints. See [[Authoring/Authoring Guide|Authoring Guide]].
 
-After editing, verify that links resolve unambiguously, every note is reachable from the root index, character entries point to the correct cast notes, and unchanged playable stubs remain empty. Check the scope of character-facing links as well as whether they resolve. Update indexes and related notes when a change affects them; do not overwrite unrelated concurrent author edits.
+After editing, verify that links resolve unambiguously, every note is reachable from the root index, character entries point to the correct private cast notes, and unchanged playable stubs remain empty. Keep each cast member’s knowledge directory complete when adding a person; new knowledge bodies stay “This is a stub.” beneath private-reader metadata until sketched. Run the lore access tests through the normal repository checks. Check the scope of character-facing links as well as whether they resolve. Update indexes and related notes when a change affects them; do not overwrite unrelated concurrent author edits.
 
 Follow the repository's commit, check, push and stacked-PR workflow from the stable checkout. Summarize what changed and where the author should continue. Do not wire the vault into the game, generate runtime content or change save formats unless that integration is requested. The current game still reads `content/`; the vault's agent-loading design is a future contract.
 

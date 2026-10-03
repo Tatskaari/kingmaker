@@ -2,7 +2,7 @@
 
 Audience: this character's conversation agent. This file is the initial prompt; linked notes are optional detail, not automatically loaded context.
 
-Cast reference (author/GM): [[Cast/Saltmere/Lady Cressida Pinchbeck|Lady Cressida Pinchbeck]]. Use this as the reusable identity source; the link does not grant the conversation agent all facts in the cast note.
+Private cast context: [[Cast/Saltmere/Lady Cressida Pinchbeck/private|Lady Cressida Pinchbeck]]. This contains your characterization and links to your own knowledge of other cast members.
 
 ## Place, time, current objective, knowledge and scenario boundaries
 This is a stub.
