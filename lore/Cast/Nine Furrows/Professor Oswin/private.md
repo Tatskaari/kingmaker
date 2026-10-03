@@ -1,4 +1,5 @@
 ---
+summary: "Your role in ancient rites and sacred agriculture, reliance on tradition and care of granary wards, with speech guidance and knowledge links."
 type: character
 status: draft
 visibility: private

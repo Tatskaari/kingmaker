@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Abel Keel's public profile, private characterization, GM notes and observer-owned knowledge."
+---
 # Abel Keel
 
 Author navigation only. Private notes belong to `abel`; GM notes are never character context.

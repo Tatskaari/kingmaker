@@ -1,4 +1,5 @@
 ---
+summary: "Your experimental agrimancy, inventions and enthusiasm for effective systems, with speech guidance and links to your knowledge of others."
 type: character
 status: draft
 visibility: private

@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Lady Cressida Pinchbeck's public profile, private characterization, GM notes and observer-owned knowledge."
+---
 # Lady Cressida Pinchbeck
 
 Author navigation only. Private notes belong to `cressida`; GM notes are never character context.

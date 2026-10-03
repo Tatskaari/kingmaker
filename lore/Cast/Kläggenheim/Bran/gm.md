@@ -1,4 +1,5 @@
 ---
+summary: "GM-only context for Bran's desire for Gurt's approval before Klog objects, and the beneficiaries and costs of his proposals, plus portrayal references."
 visibility: gm
 ---
 # Bran — GM notes

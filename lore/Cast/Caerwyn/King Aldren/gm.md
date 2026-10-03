@@ -1,4 +1,5 @@
 ---
+summary: "GM-only relationship context for Aldren, including Tomas's secret parentage, Corvin's need for recognition and Holt's enabling role, plus portrayal references."
 visibility: gm
 ---
 # King Aldren — GM notes

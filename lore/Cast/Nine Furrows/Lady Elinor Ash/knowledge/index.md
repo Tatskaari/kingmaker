@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Lady Elinor Ash's private knowledge and beliefs about the other cast members, including unwritten entries."
+---
 # Lady Elinor Ash — knowledge
 
 Author navigation only. Each note is private to `elinor`, not the person described. An unwritten stub establishes no familiarity.

@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for the Nine Furrows cast and their character folders."
+---
 # Nine Furrows
 
 Author navigation index. Agent context starts at `scenario.md` or `character.md`, not at this index.

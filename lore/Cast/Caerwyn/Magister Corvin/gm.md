@@ -1,4 +1,5 @@
 ---
+summary: "GM-only relationships surrounding Corvin's university rejection and royal service, including his colleagues' judgments and Holt's teasing, plus portrayal references."
 visibility: gm
 ---
 # Magister Corvin — GM notes

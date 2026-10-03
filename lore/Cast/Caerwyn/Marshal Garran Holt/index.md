@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Marshal Garran Holt's public profile, private characterization, GM notes and observer-owned knowledge."
+---
 # Marshal Garran Holt
 
 Author navigation only. Private notes belong to `holt`; GM notes are never character context.

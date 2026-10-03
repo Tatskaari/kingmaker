@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Tomas Vey's private knowledge and beliefs about the other cast members, including unwritten entries."
+---
 # Tomas Vey — knowledge
 
 Author navigation only. Each note is private to `tomas`, not the person described. An unwritten stub establishes no familiarity.

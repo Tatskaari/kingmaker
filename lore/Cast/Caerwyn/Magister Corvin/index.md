@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Magister Corvin's public profile, private characterization, GM notes and observer-owned knowledge."
+---
 # Magister Corvin
 
 Author navigation only. Private notes belong to `corvin`; GM notes are never character context.

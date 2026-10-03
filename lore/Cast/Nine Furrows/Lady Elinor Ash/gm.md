@@ -1,4 +1,5 @@
 ---
+summary: "GM-only context for Elinor's relationships with Rowan, Oswin and Corvin, plus portrayal references and her unresolved royal relationship."
 visibility: gm
 ---
 # Lady Elinor Ash — GM notes

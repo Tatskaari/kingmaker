@@ -1,4 +1,5 @@
 ---
+summary: "Your expedition work, piratical past, illicit arrangements and ambition for an anti-smuggling commission, with speech guidance and knowledge links."
 type: character
 status: draft
 visibility: private

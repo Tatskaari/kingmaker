@@ -1,4 +1,5 @@
 ---
+summary: "GM-only context for Holt's loyalty to Aldren, dependence on Corvin, attraction to Cressida and protection of Tomas, plus portrayal references."
 visibility: gm
 ---
 # Marshal Garran Holt — GM notes

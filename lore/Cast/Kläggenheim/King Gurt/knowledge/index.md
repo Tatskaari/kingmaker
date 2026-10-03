@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for King Gurt's private knowledge and beliefs about the other cast members, including unwritten entries."
+---
 # King Gurt — knowledge
 
 Author navigation only. Each note is private to `gurt`, not the person described. An unwritten stub establishes no familiarity.

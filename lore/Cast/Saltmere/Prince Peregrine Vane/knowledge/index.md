@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Prince Peregrine Vane's private knowledge and beliefs about the other cast members, including unwritten entries."
+---
 # Prince Peregrine Vane — knowledge
 
 Author navigation only. Each note is private to `peregrine`, not the person described. An unwritten stub establishes no familiarity.

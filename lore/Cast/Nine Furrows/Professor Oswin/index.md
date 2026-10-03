@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Professor Oswin's public profile, private characterization, GM notes and observer-owned knowledge."
+---
 # Professor Oswin
 
 Author navigation only. Private notes belong to `oswin`; GM notes are never character context.

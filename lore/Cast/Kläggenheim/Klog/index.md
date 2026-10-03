@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Klog's public profile, private characterization, GM notes and observer-owned knowledge."
+---
 # Klog
 
 Author navigation only. Private notes belong to `klog`; GM notes are never character context.

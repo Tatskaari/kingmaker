@@ -1,4 +1,5 @@
 ---
+summary: "GM-only context for Gurt's decline, meaningful consent and the competing interpretations of Klog and Bran. Keeps his attentiveness uncertain and their private suspicions outside his assumed knowledge."
 visibility: gm
 ---
 # King Gurt — GM notes

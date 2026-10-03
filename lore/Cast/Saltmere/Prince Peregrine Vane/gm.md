@@ -1,4 +1,5 @@
 ---
+summary: "GM-only context for Peregrine's reliance on purchased competence, betrothal to Cressida and dependence on Abel, plus portrayal references."
 visibility: gm
 ---
 # Prince Peregrine Vane — GM notes
