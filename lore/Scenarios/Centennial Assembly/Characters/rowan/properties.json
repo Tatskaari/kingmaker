@@ -1,4 +1,58 @@
 {
-  "dnd": null,
-  "inventory": null
+  "dnd": {
+    "rulesetId": "srd-5.2.1",
+    "speciesId": "human",
+    "backgroundId": "kingmaker-artisan",
+    "abilityScores": {
+      "strength": 8,
+      "dexterity": 13,
+      "constitution": 12,
+      "intelligence": 16,
+      "wisdom": 10,
+      "charisma": 14
+    },
+    "classes": [
+      {"classId": "wizard", "level": 2, "hitDiceRemaining": 2}
+    ],
+    "hitPoints": {
+      "current": 12,
+      "maximum": 12
+    },
+    "proficiencies": [
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "arcana", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "investigation", "rank": "PROFICIENCY_RANK_EXPERTISE", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "nature", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_TOOL", "targetId": "tinkers-tools", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"}
+    ],
+    "spellcasting": {
+      "knownSpellIds": [
+        "fire-bolt",
+        "mage-hand",
+        "prestidigitation",
+        "detect-magic",
+        "identify",
+        "mage-armor",
+        "magic-missile",
+        "shield",
+        "alarm"
+      ],
+      "preparedSpellIds": [
+        "detect-magic",
+        "identify",
+        "mage-armor",
+        "shield",
+        "alarm"
+      ]
+    }
+  },
+  "inventory": {
+    "items": [
+      {"id": "rowan_clothes_travelers", "name": "Travel clothes", "quantity": 1, "concealed": false, "details": "Ordinary well-maintained clothing for the assembly.", "definitionId": "clothes-travelers"},
+      {"id": "rowan_dagger", "name": "Dagger", "quantity": 1, "concealed": true, "details": "A small personal knife, kept sheathed beneath the outer clothing.", "definitionId": "dagger"},
+      {"id": "rowan_tinkers_tools", "name": "Tinker’s tools", "quantity": 1, "concealed": false, "details": "Hand tools for small adjustments and demonstrations.", "definitionId": "tinkers-tools"},
+      {"id": "rowan_arcane_focus_wand", "name": "Experimental focus", "quantity": 1, "concealed": false, "details": "An ordinary wand with measurement marks, without additional magical effects.", "definitionId": "arcane-focus-wand"},
+      {"id": "rowan_spellbook", "name": "Spellbook", "quantity": 1, "concealed": false, "details": "Working spell notes with irrigation sketches; no functioning autonomous machine or quest solution."}
+    ],
+    "equipment": {}
+  }
 }

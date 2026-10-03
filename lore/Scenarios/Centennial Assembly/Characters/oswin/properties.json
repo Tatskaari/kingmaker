@@ -1,4 +1,54 @@
 {
-  "dnd": null,
-  "inventory": null
+  "dnd": {
+    "rulesetId": "srd-5.2.1",
+    "speciesId": "human",
+    "backgroundId": "acolyte",
+    "abilityScores": {
+      "strength": 10,
+      "dexterity": 10,
+      "constitution": 12,
+      "intelligence": 14,
+      "wisdom": 16,
+      "charisma": 12
+    },
+    "classes": [
+      {"classId": "cleric", "subclassId": "life-domain", "level": 3, "hitDiceRemaining": 3}
+    ],
+    "hitPoints": {
+      "current": 21,
+      "maximum": 21
+    },
+    "proficiencies": [
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "religion", "rank": "PROFICIENCY_RANK_EXPERTISE", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "history", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "medicine", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "insight", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"}
+    ],
+    "spellcasting": {
+      "knownSpellIds": [
+        "guidance",
+        "light",
+        "sacred-flame"
+      ],
+      "preparedSpellIds": [
+        "bless",
+        "cure-wounds",
+        "healing-word",
+        "detect-magic",
+        "command",
+        "lesser-restoration"
+      ]
+    }
+  },
+  "inventory": {
+    "items": [
+      {"id": "oswin_clothes_travelers", "name": "Travel clothes", "quantity": 1, "concealed": false, "details": "Ordinary well-maintained clothing for the assembly.", "definitionId": "clothes-travelers"},
+      {"id": "oswin_quarterstaff", "name": "Walking staff", "quantity": 1, "concealed": false, "details": "A sturdy, unenchanted walking staff.", "definitionId": "quarterstaff"},
+      {"id": "oswin_holy_symbol_amulet", "name": "Ritual amulet", "quantity": 1, "concealed": false, "details": "An ordinary spellcasting focus, not a key to any particular granary ward.", "definitionId": "holy-symbol-amulet"},
+      {"id": "oswin_herbalism_kit", "name": "Herbalism kit", "quantity": 1, "concealed": false, "details": "Common samples and preparation tools; no unique ritual ingredients.", "definitionId": "herbalism-kit"}
+    ],
+    "equipment": {
+      "mainHandItemId": "oswin_quarterstaff"
+    }
+  }
 }
