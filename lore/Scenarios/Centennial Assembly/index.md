@@ -1,5 +1,5 @@
 ---
-summary: "Author navigation for the assembly cast, character entries, shared court briefing, delegation overviews, quests, conversations and map."
+summary: "Author navigation for the assembly cast, character entries, shared court briefing, Stranger creation briefing, delegation overviews, quests, conversations and map."
 ---
 # Centennial Assembly
 
@@ -35,6 +35,8 @@ Map, tiles and inventories: [[Assembly Map]], based on [[Royal Palace]].
 See [[Agent Disclosure]] for the loading contract. Return to [Lore index](../../index.md).
 
 ## In this folder
+
+- [[Scenarios/Centennial Assembly/stranger|Stranger]] — GM-level entrypoint for the character-creation interview.
 
 - [[Scenarios/Centennial Assembly/court_briefing|Court briefing]] — read for questions about the attending factions, delegates and their public roles.
 - [[Scenarios/Centennial Assembly/Delegations/index|Delegations]]
