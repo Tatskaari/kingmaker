@@ -46,7 +46,8 @@ import {
   TranscriptMessageSchema, TranscriptRole, WorldStateSchema, TilePositionSchema,
   type Event, type Scenario, type TranscriptMessage,
 } from "../../../packages/contracts/src/index.js";
-import { characterDecisionContext, FullContextBuilder, FullGameMasterContextBuilder, worldViewJson, worldForCharacter } from "../../../packages/core/src/context.js";
+import { characterDecisionContext, FullContextBuilder, FullGameMasterContextBuilder } from "../../../packages/core/src/context.js";
+import { worldViewJson, worldForCharacter } from "../../../packages/core/src/physical-view.js";
 import { MemoryGame } from "../../../packages/core/src/game.js";
 import { OpenRouterClient, ProviderResponseError, type OpenRouterMessage, type OpenRouterTool, type ChatCompletionRequest } from "../../../packages/providers/src/openrouter.js";
 
@@ -862,7 +863,7 @@ export class BrowserGameRuntime {
       { role: "system", content: RECONCILIATION_INSTRUCTIONS },
       ...(kind === "conversation_review" ? [{ role: "system" as const, content: "For this conversation review, replace an obsolete task by returning the agreed next task in goalUpdate. Return null to become idle. cancel_task is not available: do not cancel an old task before assigning its replacement." }] : []),
       ...(kind === "conversation_review" ? [{ role: "system" as const, content: CONVERSATION_OBJECTIVE_REVIEW }] : []),
-      { role: "user", content: JSON.stringify({ authoritativeWorld: renderWorldPrompt(scenario, { ...scenario.world!, objects: locatedItems(inventoryOwners(scenario.characters, scenario.world)) }), participants, recentActivity: this.#npcActivities }) },
+      { role: "user", content: JSON.stringify({ authoritativeWorld: renderWorldPrompt(scenario.characters, { ...scenario.world!, objects: locatedItems(inventoryOwners(scenario.characters, scenario.world)) }), participants, recentActivity: this.#npcActivities }) },
       ...request.messages.slice(-1),
     ];
     this.#reviewRequest = { ...request, messages };
@@ -1720,14 +1721,14 @@ export class BrowserGameRuntime {
       generations: generationIds(this.readResources(["world:context", `actor:${scenario.playerCharacterId}`, `inventory:${scenario.playerCharacterId}`,
         ...(world?.doors.flatMap(door => [`door:${door.id}`, `doorway:${door.id}`]) ?? []),
         ...(world?.fixtures.flatMap(fixture => [`fixture:${fixture.id}`, `inventory:${fixture.id}`]) ?? []),
-        ...(world ? worldForCharacter(scenario, scenario.playerCharacterId ?? "").objects.map(item => `item:${item.id}`) : [])])),
+        ...(world ? worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), scenario.playerCharacterId ?? "").objects.map(item => `item:${item.id}`) : [])])),
       npcActivities: Object.fromEntries(scenario.characters.filter(item => item.id !== scenario.playerCharacterId).map(item => [item.id, this.#npcActivities[item.id] ?? { status: "idle", goal: item.currentGoal, history: [] }])),
       travellerIdentity: this.#travellerIdentity ?? null,
       playerDraft: this.#playerDraft,
       phase: this.#playerDraft ? "character_review" : world?.phase === GamePhase.PLAYER_CREATION ? "player_creation" : world?.phase === GamePhase.CONVERSATIONS ? "conversations" : "other",
       day: world?.day || 0,
       doors: world?.doors ?? [],
-      fixtures: world ? worldForCharacter(scenario, scenario.playerCharacterId ?? "").fixtures : [],
+      fixtures: world ? worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), scenario.playerCharacterId ?? "").fixtures : [],
       fixtureActions: fixtureActions(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), scenario.playerCharacterId ?? ""),
       inventory: itemsFor(inventoryOwners(scenario.characters, scenario.world), scenario.playerCharacterId ?? "").map(({ id, name, details }) => ({ id, name, details })),
       roomAccess: world?.rooms.map(({ id, private: restricted, allowedCharacterIds }) => ({ id, private: restricted, allowedCharacterIds })) ?? [],
@@ -1882,7 +1883,7 @@ export class BrowserGameRuntime {
     return {
       character: toJson(CharacterSchema, character, { alwaysEmitImplicit: true }),
       visibleNotes: scenario.notes.filter(note => note.visibility === NoteVisibility.PUBLIC || note.characterIds.includes(characterId)).map(note => toJson(NoteSchema, note, { alwaysEmitImplicit: true })),
-      knownWorld: worldViewJson(worldForCharacter(scenario, characterId)),
+      knownWorld: worldViewJson(worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), characterId)),
       conversation: transcript.map(message => toJson(TranscriptMessageSchema, message, { alwaysEmitImplicit: true })),
       eventFeed: structuredClone([...(this.#eventPerceptions[characterId] ?? [])].reverse()),
       modelMessages: new FullContextBuilder().build(create(DialogueRequestSchema, { characterId, scenario, transcript })),

@@ -1,6 +1,7 @@
 import { inventoryOwners } from "../../../packages/core/src/inventory.js";
 import type { Scenario } from "../../../packages/contracts/src/index.js";
-import { characterDecisionContext, worldForCharacter } from "../../../packages/core/src/context.js";
+import { characterDecisionContext } from "../../../packages/core/src/context.js";
+import { worldForCharacter } from "../../../packages/core/src/physical-view.js";
 import { fixtureActions, fixtureName } from "../../../packages/core/src/fixtures.js";
 import { roomAgentActions } from "./room-actions.js";
 
@@ -32,7 +33,7 @@ export function characterCourtObservation(scenario: Scenario, characterId: strin
   if (!character || !world || !actor?.position) throw new Error("Character is not placed in the palace.");
   const start = actor.position;
   const actions = roomAgentActions(scenario, characterId, continuingActionId);
-  const known = worldForCharacter(scenario, characterId);
+  const known = worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), characterId);
   return {
     revision: world.revision, goal: character.currentGoal, characterContext: characterDecisionContext(scenario, characterId, character.currentGoal),
     world: {

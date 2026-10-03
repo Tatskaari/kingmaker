@@ -36,7 +36,8 @@ import {
   type Event,
   type Scenario,
 } from "../packages/contracts/src/index.js";
-import { FullContextBuilder, FullGameMasterContextBuilder, worldForCharacter } from "../packages/core/src/context.js";
+import { FullContextBuilder, FullGameMasterContextBuilder } from "../packages/core/src/context.js";
+import { worldForCharacter } from "../packages/core/src/physical-view.js";
 import { MemoryGame } from "../packages/core/src/game.js";
 import { palaceMap } from "../apps/web/src/palace-map.js";
 
@@ -137,8 +138,8 @@ test("the initial dethroning plot stays with the GM while each faction receives 
     "palace_sealed_decree", "palace_patrol_roster", "palace_account_book", "palace_gate_ledger",
     "corvin_concord_copy", "sabine_caravan_tallies", "rook_tomas_letter", "palace_parlour_wine",
   ]) assert.ok(evidence.get(id)?.details, id);
-  assert.ok(worldForCharacter(scenario, "rook").objects.some(item => item.id === "rook_tomas_letter"));
-  assert.ok(!worldForCharacter(scenario, "mara").objects.some(item => item.id === "rook_tomas_letter"));
+  assert.ok(worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "rook").objects.some(item => item.id === "rook_tomas_letter"));
+  assert.ok(!worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "mara").objects.some(item => item.id === "rook_tomas_letter"));
 });
 
 test("the palace map is a complete layered tile grid", () => {
@@ -226,9 +227,9 @@ test("dialogue context includes premise before character context and conversatio
 
 test("character knowledge refers to live fixtures and conceals other characters' secrets", () => {
   const scenario = load();
-  const corvin = worldForCharacter(scenario, "corvin");
-  const garran = worldForCharacter(scenario, "garran");
-  const player = worldForCharacter(scenario, "player");
+  const corvin = worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "corvin");
+  const garran = worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "garran");
+  const player = worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "player");
   assert.ok(corvin.objects.some(item => item.id === "palace_royal_key"));
   assert.ok(!corvin.objects.some(item => item.id === "palace_sealed_decree"));
   assert.ok(garran.objects.some(item => item.id === "palace_sealed_decree" && item.locationId === "palace_coffer_03"));
@@ -1291,7 +1292,7 @@ function furnishedCourt(): Scenario {
 
 test("main containers enforce approaches and keys, conceal contents, and persist item transfers", () => {
   const scenario = furnishedCourt(), runtime = new BrowserGameRuntime(scenario, "test");
-  const known = worldForCharacter(scenario, "player");
+  const known = worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "player");
   assert.ok(!known.objects.some(item => item.id === "palace_royal_key"));
   assert.equal(known.fixtures.find(item => item.id === "palace_coffer_03")!.requiredKeyId, "");
   assert.throws(() => runtime.interactFixture("open_palace_corvin_drawers"), /interaction spot/);
@@ -1300,7 +1301,7 @@ test("main containers enforce approaches and keys, conceal contents, and persist
   runtime.movePlayer({ x: 52, y: 5 });
   assert.match(runtime.interactFixture("open_palace_corvin_drawers"), /Royal lockbox key/);
   let saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
-  assert.ok(worldForCharacter(saved, "player").objects.some(item => item.id === "palace_royal_key"));
+  assert.ok(worldForCharacter(saved.world!, inventoryOwners(saved.characters, saved.world), "player").objects.some(item => item.id === "palace_royal_key"));
   assert.match(runtime.interactFixture("take_palace_royal_key"), /Picked up/);
   assert.throws(() => runtime.interactFixture("take_palace_royal_key"), /no longer available/);
   runtime.interactFixture("close_palace_corvin_drawers");
@@ -1365,7 +1366,7 @@ test("trying locked containers needs the correct carried key and preserves conce
   assert.match(runtime.interactFixture("open_palace_coffer_03"), /locked/);
   const saved = fromJson(ScenarioSchema, runtime.snapshot().scenario);
   assert.equal(saved.world!.fixtures.find(item => item.id === "palace_coffer_03")!.open, false);
-  assert.ok(!worldForCharacter(saved, "player").objects.some(item => item.id === "palace_royal_seal"));
+  assert.ok(!worldForCharacter(saved.world!, inventoryOwners(saved.characters, saved.world), "player").objects.some(item => item.id === "palace_royal_seal"));
   assert.throws(() => runtime.interactFixture("take_palace_royal_seal"), /no longer available/);
 });
 
@@ -2703,8 +2704,8 @@ test("DM reconciles a conversation with real inventory props and an executable i
   await runtime.endConversation("corvin");
   const saved = runtime.snapshot(), scenario = fromJson(ScenarioSchema, saved.scenario);
   assert.equal(locatedItems(inventoryOwners(scenario.characters, scenario.world)).find(o => o.id === "envoy_token")?.locationId, "corvin");
-  assert.ok(worldForCharacter(scenario, "corvin").objects.some(o => o.id === "envoy_token"));
-  assert.ok(!worldForCharacter(scenario, "garran").objects.some(o => o.id === "envoy_token"), "Private inventory addition does not leak");
+  assert.ok(worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "corvin").objects.some(o => o.id === "envoy_token"));
+  assert.ok(!worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "garran").objects.some(o => o.id === "envoy_token"), "Private inventory addition does not leak");
   const observation = courtAgentObservation(scenario, "corvin");
   assert.ok(observation.actions.some(a => a.id === "inspect_item_envoy_token"));
   const result = runtime.executeNpcAction("corvin", "inspect_item_envoy_token", observation.revision, observation.goal);

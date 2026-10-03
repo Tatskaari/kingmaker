@@ -3,7 +3,7 @@ import test from "node:test";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import { ScenarioSchema } from "../packages/contracts/src/index.js";
 import { inventoryOwners, inventoryFor, itemsFor, locatedItems, transferItem, validateInventories } from "../packages/core/src/inventory.js";
-import { worldForCharacter, worldViewJson } from "../packages/core/src/context.js";
+import { worldForCharacter, worldViewJson } from "../packages/core/src/physical-view.js";
 
 function example() {
   return create(ScenarioSchema, {
@@ -38,9 +38,9 @@ test("transfers preserve item identity, clear equipment, and survive serializati
 
 test("private inventories and unopened contents stay out of every world projection", () => {
   const scenario = example();
-  const view = () => JSON.stringify(worldViewJson(worldForCharacter(scenario, "visitor")));
+  const view = () => JSON.stringify(worldViewJson(worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "visitor")));
   assert.doesNotMatch(view(), /sword|Secret instructions/);
-  assert.match(JSON.stringify(worldViewJson(worldForCharacter(scenario, "guard"))), /sword/);
+  assert.match(JSON.stringify(worldViewJson(worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "guard"))), /sword/);
   scenario.world!.fixtures[0]!.open = true;
   assert.match(view(), /Secret instructions/);
   assert.equal(itemsFor(inventoryOwners(scenario.characters, scenario.world), "chest").length, 1, "Projection does not mutate source");

@@ -1,3 +1,4 @@
+import { inventoryOwners } from "../../../packages/core/src/inventory.js";
 import { strangerEntry } from "./stranger-lore.js";
 import { creationAffiliations } from "./stranger-draft.js";
 import type { StrangerState } from "./stranger-interview.js";
@@ -5,7 +6,7 @@ import { palaceMap } from "./palace-map.js";
 import { GamePhase, WorldMapSchema } from "../../../packages/contracts/src/index.js";
 import type { MapService } from "../../../packages/conversation/src/map.js";
 import { characterCourtObservation } from "./court-agent.js";
-import { worldForCharacter } from "../../../packages/core/src/context.js";
+import { worldForCharacter } from "../../../packages/core/src/physical-view.js";
 import { clone, create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import { ScenarioSchema, type Event } from "../../../packages/contracts/src/index.js";
 import { CharacterPropertiesSchema, WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
@@ -105,7 +106,7 @@ export class WorldHost {
     layout: () => clone(WorldMapSchema, palaceMap),
     observe: id => {
       const scenario = projectWorld(this.world(), id);
-      return { characterId: id, map: worldForCharacter(scenario, id),
+      return { characterId: id, map: worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), id),
         actions: characterCourtObservation(scenario, id).actions };
     },
     interact: (command, expected) => {

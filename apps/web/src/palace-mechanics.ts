@@ -3,7 +3,7 @@ import { ScenarioSchema, TranscriptMessageSchema, TranscriptRole, TilePositionSc
 import { GenerationStore, generationIds, type Generations, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 import { fixtureActions, applyFixtureAction } from "../../../packages/core/src/fixtures.js";
 import { inventoryOwners, findItem, itemsFor } from "../../../packages/core/src/inventory.js";
-import { worldForCharacter } from "../../../packages/core/src/context.js";
+import { worldForCharacter } from "../../../packages/core/src/physical-view.js";
 import { stateResources } from "./state-resources.js";
 import { courtAgentObservation, actionResourceIds } from "./court-agent.js";
 import { courtPath, courtRoomAt } from "./court-map.js";
@@ -241,12 +241,12 @@ export class PalaceMechanics {
       generations: generationIds(this.readResources(["world:context", `actor:${scenario.playerCharacterId}`, `inventory:${scenario.playerCharacterId}`,
         ...(world?.doors.flatMap(door => [`door:${door.id}`, `doorway:${door.id}`]) ?? []),
         ...(world?.fixtures.flatMap(fixture => [`fixture:${fixture.id}`, `inventory:${fixture.id}`]) ?? []),
-        ...(world ? worldForCharacter(scenario, scenario.playerCharacterId ?? "").objects.map(item => `item:${item.id}`) : [])])),
+        ...(world ? worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), scenario.playerCharacterId ?? "").objects.map(item => `item:${item.id}`) : [])])),
       npcActivities: Object.fromEntries(scenario.characters.filter(item => item.id !== scenario.playerCharacterId).map(item => [item.id, this.#npcActivities[item.id] ?? { status: "idle", goal: item.currentGoal, history: [] }])),
       phase: "conversations",
       day: world?.day || 0,
       doors: world?.doors ?? [],
-      fixtures: world ? worldForCharacter(scenario, scenario.playerCharacterId ?? "").fixtures : [],
+      fixtures: world ? worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), scenario.playerCharacterId ?? "").fixtures : [],
       fixtureActions: fixtureActions(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), scenario.playerCharacterId ?? ""),
       inventory: itemsFor(inventoryOwners(scenario.characters, scenario.world), scenario.playerCharacterId ?? "").map(({ id, name, details }) => ({ id, name, details })),
       roomAccess: world?.rooms.map(({ id, private: restricted, allowedCharacterIds }) => ({ id, private: restricted, allowedCharacterIds })) ?? [],
