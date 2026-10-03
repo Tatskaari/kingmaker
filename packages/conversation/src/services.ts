@@ -1,6 +1,6 @@
 import type { ProgressiveDisclosure } from "./progressive-disclosure.js";
 import type { MapService, MapObservation, MapResult } from "./map.js";
-import type { DocsService, ScenarioService } from "../../lore/src/services.js";
+import type { CharacterCreationService, DocsService, ScenarioService } from "../../lore/src/services.js";
 import type { CheckDegree, CheckSkill, skillAbilities } from "../../core/src/ability-checks.js";
 import type { PortraitExpression } from "../../providers/src/conversation-expression.js";
 import type { JevChoice, JevQuestions } from "../../providers/src/jev.js";
@@ -51,7 +51,7 @@ export interface CharacterMechanics {
   rollCheck(request: AbilityCheckRequest, signal: AbortSignal): Promise<RollResult>;
   rollSave(request: SavingThrowRequest, signal: AbortSignal): Promise<RollResult>;
 }
-export interface CharacterService extends CharacterMechanics {
+export interface CharacterService extends CharacterMechanics, CharacterCreationService {
   respond(request: ChatCompletionRequest, signal?: AbortSignal): Promise<OpenRouterMessage>;
 }
 export interface PresentationService {

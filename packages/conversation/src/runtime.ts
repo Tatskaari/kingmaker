@@ -53,6 +53,7 @@ export class ConversationRuntime<Labels = Record<string, never>, Review = Review
         interact: (...args) => services.map?.interact ? services.map.interact(...args) : unimplemented("map.interact"),
       },
       scenario: {
+        setPlayer: async path => services.scenario?.setPlayer ? services.scenario.setPlayer(path) : unimplemented("scenario.setPlayer"),
         info: () => services.scenario?.info ? services.scenario.info() : unimplemented("scenario.info"),
         snapshot: () => services.scenario?.snapshot ? services.scenario.snapshot() : unimplemented("scenario.snapshot"),
         getDocument: async path => services.scenario?.getDocument
@@ -84,6 +85,7 @@ export class ConversationRuntime<Labels = Record<string, never>, Review = Review
           ? services.lore.open(...args) : unimplemented("lore.open"),
       },
       character: {
+        create: async input => services.character?.create ? services.character.create(input) : unimplemented("character.create"),
         rollCheck: async (...args) => services.character?.rollCheck
           ? services.character.rollCheck(...args) : unimplemented("character.rollCheck"),
         rollSave: async (...args) => services.character?.rollSave
