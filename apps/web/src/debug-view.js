@@ -49,9 +49,12 @@ const drilldown = (section, title, detail) => `<button class="debug-drilldown" d
 const characterLink = (id, name) => `<button class="debug-character-link" data-debug-character="${escape(id)}">${escape(name || id)} →</button>`;
 
 export function characterTranscripts(data, characterId) {
+  const related = entry => entry.characterId === characterId || entry.participantIds?.includes(characterId);
   return {
-    requests: (data.requests || []).filter(entry => entry.characterId === characterId),
-    agentRuns: Object.fromEntries(Object.entries(data.agentRuns || {}).filter(([, run]) => run.characterId === characterId)),
+    requests: (data.requests || []).filter(related),
+    agentRuns: Object.fromEntries(Object.entries(data.agentRuns || {})
+      .filter(([, run]) => related(run) || run.calls?.some(related))
+      .map(([key, run]) => [key, run.calls ? { ...run, calls: run.calls.filter(related) } : run])),
   };
 }
 
@@ -132,6 +135,8 @@ function transcriptSummary(entry) {
           ...(typeof decision.confidence === "number" ? [["Confidence", `${Math.round(decision.confidence * 100)}%`]] : [])]), "No decisions.")
       + `<p class="debug-meta">Diagnostic classification only; no dice were rolled.</p>`;
   }
+  if (entry.request?.questions && !response.choice) return list(Object.entries(response), ([id, decision]) =>
+    `<strong>${escape(id)}</strong>` + facts([["Decision", decision.choice], ["Probabilities", JSON.stringify(decision.probabilities)]]), "No decisions returned.");
   if (entry.kind === "jev") {
     const state = entry.request?.state;
     const action = array(state?.actions).find(item => item?.id === response.choice);
@@ -142,6 +147,9 @@ function transcriptSummary(entry) {
       + `<p class="debug-meta">This is the planner's decision, not confirmation that an action was executed.</p>`;
   }
   const output = parsedContent(response);
+  if (output && Object.hasOwn(output, "activeGoal")) return `<h4>Review summary</h4><p>${escape(output.summary)}</p>`
+    + `<h4>Notes returned</h4>${list(array(output.newNotes), note => escape(note), "No new notes.")}`
+    + `<h4>Active goal</h4><p>${escape(output.activeGoal ?? "No active goal")}</p>`;
   if (entry.kind === "npc_request" && output) return `<h4>Request</h4><p>${escape(output.request)}</p><h4>Private intent</h4><p>${escape(output.intent)}</p>`;
   if (entry.kind === "npc_resolution" && output) return `<h4>Exchange</h4><p>${escape(output.summary)}</p>` + ["initiator", "recipient"].map(role => `<h4>${escape(role)}</h4>` + transcriptSummary({ ...entry, kind: "conversation_review", response: { content: JSON.stringify(output[role]) } })).join("");
   if (entry.kind === "conversation_review" || entry.kind === "outcome_review") {
@@ -179,6 +187,7 @@ const sessionButton = (key, text) => `<button data-transcript-session="${escape(
 const statusBadge = status => `<span class="transcript-status ${escape(status)}">${escape(transcriptStatus(status))}</span>`;
 
 export function recentTranscriptsView(entries = [], runs = {}, route = {}) {
+  if (route.characterId) return characterTranscriptView(entries, runs, route);
   const sessions = transcriptSessions(entries, runs);
   const name = id => route.names?.[id] || id;
   const session = sessions.find(item => item.key === route.session);
@@ -186,7 +195,7 @@ export function recentTranscriptsView(entries = [], runs = {}, route = {}) {
   const crumbs = `<nav class="debug-breadcrumbs" aria-label="Transcript navigation">${sessionButton("", "All sessions")}${session ? `<span>/</span>${sessionButton(session.key, `${name(session.characterId)} · ${transcriptType(session.kind)}`)}` : ""}${call ? `<span>/</span><span aria-current="page">Call ${escape(call.id)}</span>` : ""}</nav>`;
   if (route.session && !session) return crumbs + empty("This session is no longer in the retained history. Return to All sessions.");
   if (route.call && !call) return crumbs + empty("This call is no longer available.");
-  if (call) return crumbs + `<section class="transcript-detail" data-transcript-key="call:${escape(call.id)}"><h3>${escape(transcriptType(call.kind))}</h3>${facts([["Character", name(call.characterId)], ["Status", transcriptStatus(call.status)], ["Started", transcriptTime(call.startedAt)], ["Duration", call.durationMs === undefined ? "In progress" : `${(call.durationMs / 1000).toFixed(2)}s`]])}<div class="transcript-summary">${transcriptSummary(call)}</div><details><summary>Full request and response</summary><h4>Request</h4><pre>${escape(JSON.stringify(call.request, null, 2))}</pre><h4>Response</h4><pre>${escape(JSON.stringify(call.response ?? null, null, 2))}</pre></details></section>`;
+  if (call) return crumbs + transcriptDetail(call, name);
   if (session) {
     const calls = session.calls || [];
     return crumbs + `<p class="debug-note">${escape(session.context?.objective || session.context?.goal || transcriptType(session.kind))} · ${calls.length} calls · ${escape(transcriptStatus(session.status))}. Session completion does not imply goal success.</p>${session.error ? `<p class="debug-error">${escape(session.error)}</p>` : ""}`
@@ -203,4 +212,25 @@ export function recentTranscriptsView(entries = [], runs = {}, route = {}) {
       escape(item.context?.objective || item.context?.goal || (item.kind === "character" ? "Conversation with the player" : transcriptType(item.kind))),
       String(item.calls?.length ?? 0), statusBadge(item.status), escape(transcriptTime(item.startedAt)),
     ])).join("")) : empty("No model calls recorded yet in this session."));
+}
+
+function transcriptDetail(call, name) {
+  return `<section class="transcript-detail" data-transcript-key="call:${escape(call.id)}"><h3>${escape(transcriptType(call.kind))}</h3>${facts([["Character", name(call.characterId)], ["Participants", (call.participantIds || [call.characterId]).map(name).join(", ")], ["Status", transcriptStatus(call.status)], ["Started", transcriptTime(call.startedAt)], ["Duration", call.durationMs === undefined ? "In progress" : `${(call.durationMs / 1000).toFixed(2)}s`]])}<div class="transcript-summary">${transcriptSummary(call)}</div><details><summary>Trace context</summary>${facts([["Conversation ID", call.conversationId], ["Turn ID", call.turnId], ["Span ID", call.spanId], ["Scenario", call.scenario], ["World generation", call.worldGeneration], ["Location", call.location ? `${call.location.x}, ${call.location.y}` : "Not recorded"]])}</details>${call.request?.messages ? `<details><summary>Request messages (${call.request.messages.length})</summary>${messages(call.request.messages)}</details>` : ""}<details><summary>Full request and response</summary><h4>Request</h4><pre>${escape(JSON.stringify(call.request, null, 2))}</pre><h4>Response</h4><pre>${escape(JSON.stringify(call.response ?? null, null, 2))}</pre></details></section>`;
+}
+
+/** Chronological request browser, scoped before resolving a selected call. */
+function characterTranscriptView(entries, runs, route) {
+  const scoped = characterTranscripts({ requests: entries, agentRuns: runs }, route.characterId);
+  const sessions = transcriptSessions(scoped.requests, scoped.agentRuns).reverse();
+  const calls = sessions.flatMap(session => session.calls || []).sort((a, b) => a.id - b.id);
+  const selected = route.call ? calls.find(call => String(call.id) === route.call) : calls.at(-1);
+  const name = id => route.names?.[id] || id;
+  if (!calls.length) return empty("No AI requests recorded for this character yet.");
+  const menu = sessions.map(session => {
+    const turns = [...new Set(session.calls.map(call => call.turnId))];
+    return `<section data-transcript-key="${escape(session.key)}"><h4>${escape(transcriptType(session.kind))} · ${escape(transcriptTime(session.startedAt))}</h4>${session.calls.map(call =>
+      `<button data-transcript-call="${escape(call.id)}" aria-current="${selected?.id === call.id ? "true" : "false"}"><span>Turn ${turns.indexOf(call.turnId) + 1} · ${escape(transcriptType(call.kind))}</span><small>${escape(name(call.characterId))} · ${escape(transcriptTime(call.startedAt))} · ${escape(transcriptStatus(call.status))}</small></button>`).join("")}</section>`;
+  }).join("");
+  return `<p class="debug-note">Requests involving ${escape(name(route.characterId))}, including dialogue, Jev decisions and character reviews. Select a call on the right. History is cleared when a game is loaded.</p>`
+    + `<div class="character-transcripts" data-transcript-container data-transcript-key="character-transcripts"><div class="transcript-selected" data-transcript-container data-transcript-key="selected">${selected ? transcriptDetail(selected, name) : empty("This call is no longer available for this character. Select another call.")}</div><nav class="transcript-call-list" aria-label="Character AI requests" data-transcript-container data-transcript-key="call-list">${menu}</nav></div>`;
 }
