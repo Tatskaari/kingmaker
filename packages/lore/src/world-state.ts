@@ -1,6 +1,6 @@
 import { clone, create, fromJson, type JsonObject } from "@bufbuild/protobuf";
 import { WorldStateSchema as MapSchema, type WorldState as MapState } from "../../contracts/src/index.js";
-import { DocumentLinkSchema, DocumentSchema, WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
+import { CharacterPropertiesSchema, DocumentLinkSchema, DocumentSchema, WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
 import { links, resolveLink, type Note } from "./vault.js";
 
 /** Build editable GM state without interpreting prose or recursively expanding context.
@@ -20,6 +20,13 @@ export function worldState(map: MapState, lore: ReadonlyMap<string, Note>, scena
       }
       if (note.error) throw new Error(note.error);
       const doc = fromJson(DocumentSchema, { body: note.body, frontmatter: note.metadata as JsonObject });
+      if (note.characterProperties !== undefined) {
+        try {
+          doc.characterProperties = fromJson(CharacterPropertiesSchema, note.characterProperties as JsonObject);
+        } catch (error) {
+          throw new Error(`properties.json: ${String(error)}`, { cause: error });
+        }
+      }
       doc.links = links(note.body).flatMap(link => {
         const target = resolveLink(lore, name, link);
         return target ? [create(DocumentLinkSchema, { target, source: link.target })] : [];

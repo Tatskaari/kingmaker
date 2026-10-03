@@ -5,7 +5,7 @@
 import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
 import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import { file_google_protobuf_struct } from "@bufbuild/protobuf/wkt";
-import type { WorldState as WorldState$1 } from "../v1/game_pb.js";
+import type { DndCharacter, Inventory, WorldState as WorldState$1 } from "../v1/game_pb.js";
 import { file_kingmaker_v1_game } from "../v1/game_pb.js";
 import type { JsonObject, Message } from "@bufbuild/protobuf";
 
@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file kingmaker/v2/world.proto.
  */
 export const file_kingmaker_v2_world: GenFile = /*@__PURE__*/
-  fileDesc("ChhraW5nbWFrZXIvdjIvd29ybGQucHJvdG8SDGtpbmdtYWtlci52MiIuCgxEb2N1bWVudExpbmsSDgoGdGFyZ2V0GAEgASgJEg4KBnNvdXJjZRgCIAEoCSJxCghEb2N1bWVudBIsCgtmcm9udG1hdHRlchgBIAEoCzIXLmdvb2dsZS5wcm90b2J1Zi5TdHJ1Y3QSDAoEYm9keRgCIAEoCRIpCgVsaW5rcxgDIAMoCzIaLmtpbmdtYWtlci52Mi5Eb2N1bWVudExpbmsi0AEKCldvcmxkU3RhdGUSMAoEZG9jcxgBIAMoCzIiLmtpbmdtYWtlci52Mi5Xb3JsZFN0YXRlLkRvY3NFbnRyeRISCgpjaGFyYWN0ZXJzGAIgAygJEhAKCHNjZW5hcmlvGAMgASgJEiUKA21hcBgEIAEoCzIYLmtpbmdtYWtlci52MS5Xb3JsZFN0YXRlGkMKCURvY3NFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5raW5nbWFrZXIudjIuRG9jdW1lbnQ6AjgBYgZwcm90bzM", [file_google_protobuf_struct, file_kingmaker_v1_game]);
+  fileDesc("ChhraW5nbWFrZXIvdjIvd29ybGQucHJvdG8SDGtpbmdtYWtlci52MiIuCgxEb2N1bWVudExpbmsSDgoGdGFyZ2V0GAEgASgJEg4KBnNvdXJjZRgCIAEoCSJqChNDaGFyYWN0ZXJQcm9wZXJ0aWVzEicKA2RuZBgBIAEoCzIaLmtpbmdtYWtlci52MS5EbmRDaGFyYWN0ZXISKgoJaW52ZW50b3J5GAIgASgLMhcua2luZ21ha2VyLnYxLkludmVudG9yeSKyAQoIRG9jdW1lbnQSLAoLZnJvbnRtYXR0ZXIYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EgwKBGJvZHkYAiABKAkSKQoFbGlua3MYAyADKAsyGi5raW5nbWFrZXIudjIuRG9jdW1lbnRMaW5rEj8KFGNoYXJhY3Rlcl9wcm9wZXJ0aWVzGAQgASgLMiEua2luZ21ha2VyLnYyLkNoYXJhY3RlclByb3BlcnRpZXMi0AEKCldvcmxkU3RhdGUSMAoEZG9jcxgBIAMoCzIiLmtpbmdtYWtlci52Mi5Xb3JsZFN0YXRlLkRvY3NFbnRyeRISCgpjaGFyYWN0ZXJzGAIgAygJEhAKCHNjZW5hcmlvGAMgASgJEiUKA21hcBgEIAEoCzIYLmtpbmdtYWtlci52MS5Xb3JsZFN0YXRlGkMKCURvY3NFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5raW5nbWFrZXIudjIuRG9jdW1lbnQ6AjgBYgZwcm90bzM", [file_google_protobuf_struct, file_kingmaker_v1_game]);
 
 /**
  * A document reference, resolved without loading the target's contents.
@@ -42,6 +42,30 @@ export const DocumentLinkSchema: GenMessage<DocumentLink> = /*@__PURE__*/
   messageDesc(file_kingmaker_v2_world, 0);
 
 /**
+ * Authored scenario mechanics. Absent fields mean not authored, not empty state.
+ *
+ * @generated from message kingmaker.v2.CharacterProperties
+ */
+export type CharacterProperties = Message<"kingmaker.v2.CharacterProperties"> & {
+  /**
+   * @generated from field: kingmaker.v1.DndCharacter dnd = 1;
+   */
+  dnd?: DndCharacter | undefined;
+
+  /**
+   * @generated from field: kingmaker.v1.Inventory inventory = 2;
+   */
+  inventory?: Inventory | undefined;
+};
+
+/**
+ * Describes the message kingmaker.v2.CharacterProperties.
+ * Use `create(CharacterPropertiesSchema)` to create a new message.
+ */
+export const CharacterPropertiesSchema: GenMessage<CharacterProperties> = /*@__PURE__*/
+  messageDesc(file_kingmaker_v2_world, 1);
+
+/**
  * Mutable playthrough lore. Frontmatter includes the authored access metadata.
  *
  * @generated from message kingmaker.v2.Document
@@ -63,6 +87,13 @@ export type Document = Message<"kingmaker.v2.Document"> & {
    * @generated from field: repeated kingmaker.v2.DocumentLink links = 3;
    */
   links: DocumentLink[];
+
+  /**
+   * GM-only sidecar data; never exposed merely because the body is readable.
+   *
+   * @generated from field: kingmaker.v2.CharacterProperties character_properties = 4;
+   */
+  characterProperties?: CharacterProperties | undefined;
 };
 
 /**
@@ -70,7 +101,7 @@ export type Document = Message<"kingmaker.v2.Document"> & {
  * Use `create(DocumentSchema)` to create a new message.
  */
 export const DocumentSchema: GenMessage<Document> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v2_world, 1);
+  messageDesc(file_kingmaker_v2_world, 2);
 
 /**
  * Authoritative GM state, not a character prompt or a grant to read every doc.
@@ -108,5 +139,5 @@ export type WorldState = Message<"kingmaker.v2.WorldState"> & {
  * Use `create(WorldStateSchema)` to create a new message.
  */
 export const WorldStateSchema: GenMessage<WorldState> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v2_world, 2);
+  messageDesc(file_kingmaker_v2_world, 3);
 

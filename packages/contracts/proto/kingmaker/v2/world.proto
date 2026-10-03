@@ -12,12 +12,20 @@ message DocumentLink {
   string source = 2;
 }
 
+// Authored scenario mechanics. Absent fields mean not authored, not empty state.
+message CharacterProperties {
+  kingmaker.v1.DndCharacter dnd = 1;
+  kingmaker.v1.Inventory inventory = 2;
+}
+
 // Mutable playthrough lore. Frontmatter includes the authored access metadata.
 message Document {
   google.protobuf.Struct frontmatter = 1;
   string body = 2;
   // Derived from body; rebuild after editing Markdown links.
   repeated DocumentLink links = 3;
+  // GM-only sidecar data; never exposed merely because the body is readable.
+  CharacterProperties character_properties = 4;
 }
 
 // Authoritative GM state, not a character prompt or a grant to read every doc.

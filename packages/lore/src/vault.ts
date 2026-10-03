@@ -6,7 +6,12 @@ import { parse } from "yaml";
 
 export interface Audience { character: string; factions?: string[]; grants?: string[] }
 export interface Finding { kind: "denied" | "broken" | "ambiguous" | "invalid"; trail: string[]; detail: string }
-export interface Note { body: string; metadata: Record<string, unknown>; error?: string }
+export interface Note {
+  body: string;
+  metadata: Record<string, unknown>;
+  error?: string;
+  characterProperties?: Record<string, unknown>;
+}
 
 export function readVault(root: string): Map<string, Note> {
   const notes = new Map<string, Note>();
