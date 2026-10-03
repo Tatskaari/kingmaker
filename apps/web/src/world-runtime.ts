@@ -23,7 +23,7 @@ import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
 import { planWorldAction } from "./world-action.js";
 import { courtAgentObservation } from "./court-agent.js";
 import { courtCharactersWithinEarshot, perceivesAt } from "./earshot.js";
-import { generationIds, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
+import { generationIds } from "../../../packages/core/src/generations.js";
 
 export type WorldTurnLabels = Awaited<ReturnType<ReturnType<typeof cliHooks>["classify"]>>;
 export type WorldOptions = ConversationRuntimeOptions<WorldTurnLabels>;
@@ -32,7 +32,11 @@ export { type WorldSnapshot } from "./world-host.js";
 export class WorldGameRuntime extends WorldHost {
   private provider: AiService;
   private traces: ModelTranscripts;
-  private live: { host: WorldGameRuntime; commit: <T>(work: () => T) => Promise<T> } | undefined;
+  private persistChange: <T>(work: () => T | Promise<T>) => Promise<T> = async work => work();
+  setPersistence(commit: <T>(work: () => T | Promise<T>) => Promise<T>) { this.persistChange = commit; }
+  private commit<T>(work: () => T | Promise<T>, signal?: AbortSignal, persist = this.persistChange): Promise<T> {
+    return persist(() => { signal?.throwIfAborted(); return work(); });
+  }
   constructor(world: WorldState, apiKey: string, saved?: WorldSnapshot, changed = () => {}, warning = (_message: string) => {},
     readonly options: WorldOptions = {}) {
     super(world, saved);
@@ -40,10 +44,23 @@ export class WorldGameRuntime extends WorldHost {
     this.provider = aiService(new OpenRouterClient(apiKey, 60_000, globalThis.location?.origin || "http://localhost", warning), new JevClient(apiKey));
     this.traces = new ModelTranscripts(apiKey, changed);
   }
-  private runtime(id: string, kind: ModelCallKind, extra: WorldOptions = {}, runKey?: string) {
+  private runtime(id: string, kind: ModelCallKind, extra: WorldOptions = {}, runKey?: string, signal?: AbortSignal) {
+    const persist = this.persistChange;
     const ai = { ...this.provider, ...this.options.services?.ai, ...extra.services?.ai };
     return new ConversationRuntime<WorldTurnLabels>({ services: {
-      ...this.options.services, ...extra.services, ...this.documents,
+      ...this.options.services, ...extra.services,
+      scenario: {
+        info: () => this.documents.scenario.info(),
+        snapshot: () => this.documents.scenario.snapshot(),
+        getDocument: path => this.documents.scenario.getDocument(path),
+      },
+      docs: {
+        read: path => this.documents.docs.read(path),
+        create: (...args) => this.commit(() => this.documents.docs.create(...args), signal, persist),
+        replace: (...args) => this.commit(() => this.documents.docs.replace(...args), signal, persist),
+        insert: (...args) => this.commit(() => this.documents.docs.insert(...args), signal, persist),
+        delete: (...args) => this.commit(() => this.documents.docs.delete(...args), signal, persist),
+      },
       map: { ...this.map, ...this.options.services?.map, ...extra.services?.map },
       ai: {
         responses: (request, signal) => this.traces.record(kind, id, request, () => ai.responses(request, signal), runKey),
@@ -74,41 +91,12 @@ export class WorldGameRuntime extends WorldHost {
   endPlanningSession(key: string, stopped: boolean, error?: unknown) {
     if (error) this.traces.fail(key, error); else if (stopped) this.traces.stop(key); else this.traces.finish(key);
   }
-  forkForNpc() {
-    const fork = new WorldGameRuntime(this.initial, "", this.snapshot(), undefined, undefined, this.options);
-    fork.provider = this.provider; fork.traces = this.traces;
-    return fork;
-  }
-  forkForResourceReview(commit: <T>(work: () => T) => Promise<T>, _read = commit) {
-    const fork = this.forkForNpc(); fork.live = { host: this, commit }; return fork;
-  }
-  commitCharacterFork(before: WorldSnapshot, fork: WorldGameRuntime, ids: string[], _expected?: ExpectedGenerations, allConversations = false) {
-    const current = this.snapshot(), next = fork.snapshot();
-    if (current.worldGeneration !== before.worldGeneration) throw new Error("World changed; retry the operation.");
-    if (allConversations && JSON.stringify(current.conversations) !== JSON.stringify(before.conversations)) throw new Error("Conversation changed.");
-    for (const id of ids) {
-      if (JSON.stringify(current.conversations[id]) !== JSON.stringify(before.conversations[id])
-        || JSON.stringify(current.npcActivities?.[id]) !== JSON.stringify(before.npcActivities?.[id])) throw new Error("Character changed; retry the operation.");
-      for (const key of ["conversations", "npcActivities", "conversationReplyOptions", "conversationEndRequested"] as const) {
-        const target = current[key] ??= {};
-        if (next[key]?.[id] === undefined) delete target[id];
-        else Object.assign(target, { [id]: next[key]![id] });
-      }
-    }
-    this.restore({ ...current, world: next.world, worldGeneration: next.worldGeneration });
-  }
-  private async publish(before: WorldSnapshot, ids: string[], signal: AbortSignal) {
-    signal.throwIfAborted();
-    if (this.live) await this.live.commit(() => {
-      signal.throwIfAborted(); this.live!.host.commitCharacterFork(before, this, ids);
-    });
-  }
   async checkedTalkToCharacter(id: string, message: string, thinking?: (text: string) => void, options: WorldOptions = {}, signal = new AbortController().signal) {
+    const persist = this.persistChange;
     if (!message.trim()) throw new Error("Say something first.");
     if (this.activity.conversationEndRequested?.[id]) throw new Error("Finish the conversation review first.");
-    const generation = this.worldGeneration();
     const previous = structuredClone(this.activity.conversations[id] ?? []);
-    const lore = await documentLore(this.documents.scenario, id), runtime = this.runtime(id, "dialogue", options);
+    const lore = await documentLore(this.documents.scenario, id), runtime = this.runtime(id, "dialogue", options, undefined, signal);
     const disclosure = new DisclosureSession(lore, runtime.services.ai, 0.7);
     const world = this.world(), build = world.player ? world.docs[world.player]?.characterProperties?.dnd : undefined;
     const hooks = cliHooks(disclosure, runtime.services.ai, build, message,
@@ -124,12 +112,14 @@ export class WorldGameRuntime extends WorldHost {
       for (const turn of prepared.messages) if (turn.role === "system" && turn.content?.startsWith("# Binding DM ruling")) rulings.push(turn.content);
     });
     if (reply.tool_calls?.length || !reply.content?.trim()) throw new Error("Expected a character reply without tool calls.");
-    if (generation !== this.worldGeneration() || JSON.stringify(previous) !== JSON.stringify(this.activity.conversations[id] ?? [])) throw new Error("Conversation changed; retry the turn.");
-    this.activity.conversations[id] = [...previous,
-      toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: message })),
-      ...rulings.map(text => toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, speakerId: "GM", text }))),
-      toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: id, text: reply.content })),
-    ];
+    await this.commit(() => {
+      if (JSON.stringify(previous) !== JSON.stringify(this.activity.conversations[id] ?? [])) throw new Error("Conversation changed; retry the turn.");
+      this.activity.conversations[id] = [...previous,
+        toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: message })),
+        ...rulings.map(text => toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, speakerId: "GM", text }))),
+        toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: id, text: reply.content! })),
+      ];
+    }, signal, persist);
     return reply.content;
   }
   endConversationAsPlayer(id: string, message: string) {
@@ -139,35 +129,37 @@ export class WorldGameRuntime extends WorldHost {
     (this.activity.conversationEndRequested ??= {})[id] = true;
   }
   async endConversation(id: string, signal = new AbortController().signal) {
-    const before = this.snapshot(), transcript = (before.conversations[id] ?? []).map(turn => fromJson(TranscriptMessageSchema, turn));
+    const persist = this.persistChange;
+    const previous = structuredClone(this.activity.conversations[id] ?? []);
+    const transcript = previous.map(turn => fromJson(TranscriptMessageSchema, turn));
     if (!transcript.length) return;
-    await runConversationReview({ characterId: id, participants: [id, "player"], transcript }, this.runtime(id, "conversation_review"), signal);
-    if (JSON.stringify(before.conversations[id]) !== JSON.stringify(this.activity.conversations[id])) throw new Error("Conversation changed.");
-    delete this.activity.conversations[id]; delete this.activity.conversationEndRequested?.[id]; delete this.activity.conversationReplyOptions?.[id];
-    this.syncGoals();
-    const event = this.worldEvent("having a conversation", transcript.filter(turn => turn.role !== TranscriptRole.GAME_MASTER).map(turn => `${turn.speakerId}: ${turn.text}`).join("\n"), [id, "player"]);
-    await this.publish(before, [id], signal);
-    return event;
+    await runConversationReview({ characterId: id, participants: [id, "player"], transcript }, this.runtime(id, "conversation_review", {}, undefined, signal), signal);
+    return this.commit(() => {
+      if (JSON.stringify(previous) !== JSON.stringify(this.activity.conversations[id] ?? [])) throw new Error("Conversation changed.");
+      delete this.activity.conversations[id]; delete this.activity.conversationEndRequested?.[id]; delete this.activity.conversationReplyOptions?.[id];
+      this.syncGoals();
+      const event = this.worldEvent("having a conversation", transcript.filter(turn => turn.role !== TranscriptRole.GAME_MASTER).map(turn => `${turn.speakerId}: ${turn.text}`).join("\n"), [id, "player"]);
+      return event;
+    }, signal, persist);
   }
   async planNpc(id: string, signal: AbortSignal, _conflict?: unknown, runKey?: string) {
     if (this.activity.conversations[id]?.length || this.activity.npcActivities?.[id]?.reviewPending) throw new Error("NPC paused for conversation or review.");
-    const token = this.worldGeneration();
     const plan = await planWorldAction(id, this.runtime(id, "jev", {}, runKey), signal, this.activity.npcActivities?.[id]?.actionIds ?? []);
     if (!plan) throw new Error("NPC has no active goal.");
-    if (token !== this.worldGeneration()) throw new Error("World changed; replan.");
-    return { ...plan, revision: this.world().map!.revision, generations: { ...generationIds(this.readResources()), "v2:world": token } };
+    return { ...plan, revision: this.world().map!.revision, generations: generationIds(this.readResources()) };
   }
   private async resolve(context: ResolutionContext, signal: AbortSignal) {
-    const before = this.snapshot();
-    const result = await runResolution(context, this.runtime(context.characterId, context.kind === "npc_exchange" ? "npc_resolution" : context.kind === "world_event" ? "world_event" : "outcome_review"), signal);
-    this.syncGoals();
-    if (context.kind === "task_outcome") {
-      const activity = this.activity.npcActivities![context.characterId]!;
-      activity.reviewPending = false; activity.status = activity.goal ? "active" : "idle";
-      activity.history = []; activity.actionIds = [];
-    }
-    if (context.kind === "npc_exchange") (this.activity.npcActivities![context.characterId]!.actionIds ??= []).push(`talk_${context.targetId}`);
-    await this.publish(before, context.kind === "npc_exchange" ? [context.characterId, context.targetId] : [context.characterId], signal);
+    const persist = this.persistChange;
+    const result = await runResolution(context, this.runtime(context.characterId, context.kind === "npc_exchange" ? "npc_resolution" : context.kind === "world_event" ? "world_event" : "outcome_review", {}, undefined, signal), signal);
+    await this.commit(() => {
+      this.syncGoals();
+      if (context.kind === "task_outcome") {
+        const activity = this.activity.npcActivities![context.characterId]!;
+        activity.reviewPending = false; activity.status = activity.goal ? "active" : "idle";
+        activity.history = []; activity.actionIds = [];
+      }
+      if (context.kind === "npc_exchange") (this.activity.npcActivities![context.characterId]!.actionIds ??= []).push(`talk_${context.targetId}`);
+    }, signal, persist);
     return result;
   }
   async executeNpcTalk(id: string, actionId: string, revision: number, goal: string, signal: AbortSignal) {
@@ -199,7 +191,8 @@ export class WorldGameRuntime extends WorldHost {
     return { reactions: perceptions.filter(p => p.characterId !== "player"), ...(player ? { playerPerception: player.perception } : {}) };
   }
   async initiatePlayerConversation(id: string, actionId: string, revision: number, goal: string, signal: AbortSignal) {
-    const world = this.world(), token = this.worldGeneration();
+    const persist = this.persistChange;
+    const world = this.world();
     const action = courtAgentObservation(projectWorld(world), id).actions.find(action => action.id === actionId && action.target === "player");
     if (!action || action.path.length > 2 || world.map!.revision !== revision || Object.values(this.activity.conversations).some(turns => turns.length)) throw new Error("Conversation changed; replan.");
     const lore = await documentLore(this.documents.scenario, id);
@@ -208,9 +201,12 @@ export class WorldGameRuntime extends WorldHost {
         { role: "user", content: `Open a conversation with the player to advance this goal: ${goal}. Speak only your own opening words; do not invent the player's response or physical outcomes.` }],
     }, signal);
     signal.throwIfAborted();
-    if (token !== this.worldGeneration() || reply.tool_calls?.length || !reply.content?.trim()) throw new Error("Conversation changed or invalid opening.");
-    this.activity.conversations[id] = [toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: id, text: reply.content }))];
-    (this.activity.npcActivities![id]!.actionIds ??= []).push(actionId);
+    if (reply.tool_calls?.length || !reply.content?.trim()) throw new Error("Conversation changed or invalid opening.");
+    await this.commit(() => {
+      if (Object.values(this.activity.conversations).some(turns => turns.length)) throw new Error("Conversation changed.");
+      this.activity.conversations[id] = [toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: id, text: reply.content! }))];
+      (this.activity.npcActivities![id]!.actionIds ??= []).push(actionId);
+    }, signal, persist);
     return reply.content;
   }
   async logConversationExpression(_id: string) { /* Portrait policy is optional in this host. */ }

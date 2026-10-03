@@ -27,7 +27,7 @@ test("v2 game reviews into documents, saves without v1 state, and subsequent dia
   } } }, hooks: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }), resolve: async () => ({ reclassify: false }) } } });
   assert.equal(runtime.view().phase, "conversations");
   runtime.endConversationAsPlayer("rowan", "Please go to the hall.");
-  await runtime.forkForResourceReview(commit).endConversation("rowan");
+  await runtime.endConversation("rowan");
   const path = runtime.world().characters.find(path => path.endsWith("/rowan/character.md"))!;
   assert.equal(activeGoal(runtime.world().docs[path]!), "Go to the great hall");
   assert.equal(runtime.snapshot().conversations.rowan, undefined);
@@ -40,7 +40,7 @@ test("v2 game reviews into documents, saves without v1 state, and subsequent dia
   assert.throws(() => runtime.restore({ ...saved, version: 1 }), /fresh game/);
 });
 
-test("v2 planning, physical execution and stale review publication share one state", async () => {
+test("v2 planning and physical execution use the live state", async () => {
   const runtime = game({ services: { ai: { responses: async () => reviewReply,
     decisions: async (_state, questions) => ({ next: { choice: Object.keys(questions.next!.criteria).find(id => !["complete", "wait", "unable"].includes(id))!, probabilities: {} } }),
   } } });
@@ -50,8 +50,7 @@ test("v2 planning, physical execution and stale review publication share one sta
   const plan = await runtime.planNpc("rowan", signal);
   assert.ok(plan.action);
   const result = runtime.stepNpcAction("rowan", plan.action.id, plan.goal, plan.generations);
-  assert.ok(result.generations["v2:world"]);
-  const before = runtime.snapshot(), fork = runtime.forkForNpc();
+  assert.ok(result.generations["actor:rowan"]);
   await runtime.overrideActiveObjective("rowan", { currentGoal: "Speak to Holt" });
-  assert.throws(() => runtime.commitCharacterFork(before, fork, ["rowan"]), /World changed/);
+  assert.equal(runtime.snapshot().npcActivities!.rowan!.goal, "Speak to Holt");
 });

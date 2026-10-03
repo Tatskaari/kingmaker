@@ -1,7 +1,7 @@
 import type { MapService } from "../../../packages/conversation/src/map.js";
-import { clone, create, toJson } from "@bufbuild/protobuf";
-import { CharacterSchema, ScenarioSchema, WorldStateSchema as MapSchema } from "../../../packages/contracts/src/index.js";
-import { WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
+import { create } from "@bufbuild/protobuf";
+import { CharacterSchema, ScenarioSchema } from "../../../packages/contracts/src/index.js";
+import { type WorldState } from "../../../packages/contracts/src/v2.js";
 import { activeGoal, characterEntry } from "../../../packages/lore/src/active-goal.js";
 import { createScenarioServices } from "../../../packages/lore/src/services.js";
 import { actionCriteria, runAction, type ActionResult } from "../../../packages/conversation/src/action.js";
@@ -16,17 +16,6 @@ import { renderJevRoomView } from "./jev-room-view.js";
 export interface WorldActionPlan extends ActionResult {
   characterId: string;
   goal: string;
-  /** Guards the reviewed documents and physical state, including terminal judgments. */
-  expectedWorldSha: string;
-}
-async function worldSha(world: WorldState): Promise<string> {
-  const bytes = new TextEncoder().encode(JSON.stringify(toJson(WorldStateSchema, world)));
-  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map(byte => byte.toString(16).padStart(2, "0")).join("");
-}
-
-/** Use inside the game's serialized commit before executing or recording a terminal result. */
-export async function assertWorldActionCurrent(world: WorldState, plan: WorldActionPlan): Promise<void> {
-  if (await worldSha(world) !== plan.expectedWorldSha) throw new Error("World changed; replan the action.");
 }
 
 /** Read-only adapter to the existing palace mechanics, not a v1 save or migration. */
@@ -70,10 +59,8 @@ export async function planWorldAction<Turn, Review>(characterId: string, runtime
   signal.throwIfAborted();
   if (!context) return;
   if (history.length >= 24) throw new Error("NPC action limit reached.");
-  const expectedWorldSha = await worldSha(world);
   const result = await runAction(context, runtime, signal);
-  const plan = { ...result, characterId, goal: context.goal, expectedWorldSha };
-  await assertWorldActionCurrent(runtime.services.scenario.snapshot(), plan);
+  const plan = { ...result, characterId, goal: context.goal };
   signal.throwIfAborted();
   return plan;
 }

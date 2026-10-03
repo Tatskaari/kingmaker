@@ -63,7 +63,7 @@ function stopWorldEvents() {
   for (const controller of worldEvents) controller.abort();
   worldEvents.clear();
 }
-async function commitMutation<T>(game: BrowserGameRuntime, work: () => T): Promise<T> {
+async function commitMutation<T>(game: BrowserGameRuntime, work: () => T | Promise<T>): Promise<T> {
   return enqueue(async () => {
     if (runtime !== game) throw new Error("Game changed.");
     const before = game.snapshot(), saveBefore = activeSave;
@@ -73,18 +73,12 @@ async function commitMutation<T>(game: BrowserGameRuntime, work: () => T): Promi
 }
 async function reviewBackground(game: BrowserGameRuntime, id: string, signal: AbortSignal, allowNextGoal: boolean) {
   signal.throwIfAborted();
-  const fork = reviewFork(game, signal);
-  await fork.reviewNpcOutcome(id, allowNextGoal, signal);
+  await game.reviewNpcOutcome(id, allowNextGoal, signal);
 }
-function reviewFork(game: BrowserGameRuntime, signal?: AbortSignal) {
+function attachPersistence(game: BrowserGameRuntime) {
   const version = generation;
-  return game.forkForResourceReview(work => commitMutation(game, () => {
-    signal?.throwIfAborted();
+  game.setPersistence(work => commitMutation(game, () => {
     if (generation !== version) throw new Error("Game changed.");
-    return work();
-  }), work => enqueue(async () => {
-    signal?.throwIfAborted();
-    if (runtime !== game || generation !== version) throw new Error("Game changed.");
     return work();
   }));
 }
@@ -112,7 +106,7 @@ async function handleWorldEvent(game: BrowserGameRuntime, event: Event, signal: 
     signal.throwIfAborted();
     stopBackground(reaction.characterId);
     publishNpc(`${reaction.characterId}: processing a perceived event…`);
-    await reviewFork(game, signal).processPerceivedEvent(reaction.characterId, event, reaction.perception, signal);
+    await game.processPerceivedEvent(reaction.characterId, event, reaction.perception, signal);
     publishNpc(`${reaction.characterId}: processed a perceived event.`);
     if (handoffs > 0 && game.snapshot().npcActivities?.[reaction.characterId]?.status === "active") startBackground(reaction.characterId, handoffs - 1);
   }));
@@ -195,22 +189,17 @@ async function runBackground(next: { id: string; handoffs: number }) {
             stopBackground(target);
             job.participants = [id, target];
             publishNpc(`${id}: talking to ${target}…`);
-            let before: RuntimeSnapshot;
             try {
-              before = game.snapshot();
-              const fork = reviewFork(game, signal);
               if (target === (game.view().player as { id?: string } | null)?.id) {
                 if (conversationHolds.size) continue;
-                await fork.initiatePlayerConversation(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
+                await game.initiatePlayerConversation(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
                 if (!valid()) return;
                 if (conversationHolds.size) continue;
-                try { await commitMutation(game, () => { signal.throwIfAborted(); game.commitCharacterFork(before, fork, [id], undefined, true); }); }
-                catch (error) { if (!valid()) return; if (/changed/i.test(String(error))) continue; throw error; }
                 conversationHolds.add(id);
                 publishNpc(`${id}: started a conversation with you.`, undefined, id);
                 return;
               }
-              const summary = await fork.executeNpcTalk(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
+              const summary = await game.executeNpcTalk(id, plan.action.id, Number(game.view().revision), plan.goal, signal);
               scheduleWorldEvent(game, game.worldEvent("having a conversation", summary, [id, target]), handoffs);
             } finally {
               job.participants = [id];
@@ -293,6 +282,7 @@ async function persist(): Promise<void> {
   const identity = view.travellerIdentity as TravellerIdentity | null;
   const characterName = player?.name || identity?.name || activeSave.characterName;
   const now = new Date().toISOString();
+  attachPersistence(runtime);
   activeSave = {
     ...activeSave,
     characterName,
@@ -331,6 +321,7 @@ async function loadGame(saveId: string): Promise<Record<string, unknown>> {
   const saved = await transaction<SaveRecord | undefined>("readonly", store => store.get(saveId));
   if (!saved) throw new Error("That saved game no longer exists");
   runtime = new BrowserGameRuntime(await scenarioPromise, apiKey, saved.snapshot, () => worker.postMessage({ type: "transcripts_changed" }), providerWarning, { services: { presentation: { renderMap: async () => publishNpc("") } } });
+  attachPersistence(runtime);
   activeSave = saved;
   return { mapLayout: runtime.map.layout(), state: runtime.view(), activeSaveId: saved.id, saves: await listSaves() };
 }
@@ -345,6 +336,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     for (const pending of pendingDice.values()) pending.reject(new Error("Game changed during a dice roll."));
     pendingDice.clear();
     generation++; stopBackground(); stopWorldEvents(); conversationHolds.clear();
+    if (runtime) attachPersistence(runtime);
   }
   const reviewKey = `${generation}:${String(payload.characterId || "")}`;
   if (["move_player", "set_door", "interact_fixture"].includes(type)
@@ -410,8 +402,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
       conversationHolds.add(id); stopBackground(id);
       const finalMessage = type === "end_conversation" && typeof payload.message === "string";
       const version = generation;
-      const { before, fork } = await enqueue(async () => ({ before: game.snapshot(), fork: type === "end_conversation" && !finalMessage ? reviewFork(game) : game.forkForNpc() }));
-      let reply = type === "talk" || finalMessage ? await fork.checkedTalkToCharacter(id, String(payload.message || ""), text => {
+      let reply = type === "talk" || finalMessage ? await game.checkedTalkToCharacter(id, String(payload.message || ""), text => {
         if (generation === version && runtime === game) worker.postMessage({
           type: "dialogue_thinking", requestId, characterId: id, text,
         });
@@ -431,14 +422,10 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
           worker.postMessage({ type: "conversation_roll", requestId, characterId: id, rollId, result });
         });
         if (generation !== version || runtime !== game) throw new Error("Game changed.");
-      } } } }) : await fork.endConversation(id);
+      } } } }) : await game.endConversation(id);
       if (generation !== version || runtime !== game) throw new Error("Game changed.");
-      if (type === "talk" || finalMessage) await commitMutation(game, () => {
-          if (generation !== version) throw new Error("Game changed.");
-          game.commitCharacterFork(before, fork, [id]);
-        });
       if (type === "talk") void game.logConversationExpression(id).catch(() => {});
-      if (finalMessage) reply = await reviewFork(game).endConversation(id);
+      if (finalMessage) reply = await game.endConversation(id);
       if (type === "end_conversation") {
         conversationHolds.delete(id);
         if (game.hasActiveObjective(id)) startBackground(id);

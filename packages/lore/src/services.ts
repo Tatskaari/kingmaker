@@ -14,7 +14,7 @@ export interface DocumentSnapshot {
 }
 /** Trusted mechanics publish physical results, never narrative documents. */
 export interface MechanicsStateService {
-  commit(expected: WorldState, map: MapState, properties: Readonly<Record<string, CharacterProperties>>): void;
+  commit(map: MapState, properties: Readonly<Record<string, CharacterProperties>>): void;
 }
 export interface ScenarioInfo { scenario: string; scenarioIndex: string; player?: string; characters: string[] }
 export interface ScenarioService {
@@ -71,18 +71,25 @@ export function createScenarioServices(initial: WorldState): { scenario: Scenari
     if (current.sha !== expectedSha) throw new DocumentConflictError(path, expectedSha, current.sha);
     return current;
   }
-  async function publish(path: string, text: string): Promise<DocumentSnapshot> {
+  async function publish(path: string, text: string, expected?: DocumentSnapshot): Promise<DocumentSnapshot> {
     const note = parseMarkdown(text);
     if (note.error) throw new Error(`${path}: ${note.error}`);
-    const base = state;
     const draft = clone(WorldStateSchema, state);
     const next = fromJson(DocumentSchema, { body: note.body, frontmatter: note.metadata as JsonObject });
     next.characterProperties = draft.docs[path]?.characterProperties;
     draft.docs[path] = next;
     refreshDocumentGraph(draft);
     const result = await snapshot(path, clone(DocumentSchema, next));
-    if (state !== base) throw new Error("World changed; retry the document edit.");
-    state = draft;
+    // Only this document participates in the write. Map interactions can proceed
+    // while hashing; merge into the current world rather than publishing the draft.
+    const live = state.docs[path];
+    if (JSON.stringify(canonical(live && toJson(DocumentSchema, live))) !== JSON.stringify(canonical(expected && toJson(DocumentSchema, expected.document)))) {
+      const actual = live ? (await read(path)).sha : "deleted";
+      throw new DocumentConflictError(path, expected?.sha ?? "absent", actual);
+    }
+    const current = clone(WorldStateSchema, state);
+    current.docs[path] = next;
+    state = refreshDocumentGraph(current);
     return result;
   }
   const docs: DocsService = {
@@ -95,7 +102,7 @@ export function createScenarioServices(initial: WorldState): { scenario: Scenari
       const current = await checked(path, sha);
       const offset = current.text.indexOf(oldText);
       if (!oldText || offset < 0 || current.text.indexOf(oldText, offset + 1) >= 0) throw new Error(`${path}: oldText must match exactly once`);
-      return publish(path, current.text.slice(0, offset) + newText + current.text.slice(offset + oldText.length));
+      return publish(path, current.text.slice(0, offset) + newText + current.text.slice(offset + oldText.length), current);
     }),
     insert: (path, sha, afterLine, text) => write(async () => {
       const current = await checked(path, sha);
@@ -105,7 +112,7 @@ export function createScenarioServices(initial: WorldState): { scenario: Scenari
       const offset = lines.slice(0, afterLine).reduce((sum, line) => sum + line.length + 1, 0);
       const before = current.text.slice(0, offset);
       const after = current.text.slice(offset);
-      return publish(path, before + (before && !before.endsWith("\n") && text ? "\n" : "") + text + (after && text && !text.endsWith("\n") ? "\n" : "") + after);
+      return publish(path, before + (before && !before.endsWith("\n") && text ? "\n" : "") + text + (after && text && !text.endsWith("\n") ? "\n" : "") + after, current);
     }),
     delete: (path, sha) => write(async () => {
       await checked(path, sha);
@@ -116,10 +123,7 @@ export function createScenarioServices(initial: WorldState): { scenario: Scenari
     }),
   };
   return { docs, mechanics: {
-    commit(expected, map, properties) {
-      if (JSON.stringify(canonical(toJson(WorldStateSchema, expected))) !== JSON.stringify(canonical(toJson(WorldStateSchema, state)))) {
-        throw new Error("World changed; replan the action.");
-      }
+    commit(map, properties) {
       const draft = clone(WorldStateSchema, state);
       draft.map = clone(MapSchema, map);
       for (const [path, value] of Object.entries(properties)) {

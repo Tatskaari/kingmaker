@@ -22,7 +22,7 @@ export class WorldHeadlessGame {
   edit(change: (state: WorldState) => void) {
     const before = this.snapshot(), world = this.inspect();
     change(world);
-    this.runtime.restore({ ...before, world: toJson(WorldStateSchema, world), worldGeneration: crypto.randomUUID() });
+    this.runtime.restore({ ...before, world: toJson(WorldStateSchema, world) });
   }
   private observation(id = "player") {
     const visible = this.runtime.map.observe(id);
