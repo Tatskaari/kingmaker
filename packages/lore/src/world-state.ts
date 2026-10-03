@@ -1,18 +1,22 @@
 import { clone, create, fromJson, type JsonObject } from "@bufbuild/protobuf";
 import { WorldStateSchema as MapSchema, type WorldState as MapState } from "../../contracts/src/index.js";
 import { DocumentLinkSchema, DocumentSchema, WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
-import { links, resolveLink, type Note } from "./vault.js";
+import { links, parseMarkdown, resolveLink } from "./markdown.js";
 
 /** Build editable GM state without interpreting prose or recursively expanding context.
  * scenarioID is the existing directory name beneath Scenarios (e.g. Centennial Assembly).
  * Character entrypoints come from the selected scenario's direct Markdown links.
  */
-export function worldState(map: MapState, lore: ReadonlyMap<string, Note>, scenarioID: string): WorldState {
+export function worldState(map: MapState, markdown: ReadonlyMap<string, string>, scenarioID: string, player?: string): WorldState {
   if (!scenarioID || /[/\\]/.test(scenarioID) || scenarioID === "." || scenarioID === "..") {
     throw new Error("scenarioID must be a single scenario directory name");
   }
+  const lore = new Map([...markdown].map(([name, source]) => [name, parseMarkdown(source)]));
   const scenario = `Scenarios/${scenarioID}/scenario.md`;
   if (!lore.has(scenario)) throw new Error(`Missing scenario entry: ${scenario}`);
+  const scenarioIndex = `Scenarios/${scenarioID}/index.md`;
+  if (!lore.has(scenarioIndex)) throw new Error(`Missing scenario index: ${scenarioIndex}`);
+  if (player !== undefined && !lore.has(player)) throw new Error(`Missing player document: ${player}`);
   const docs = Object.fromEntries([...lore].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([name, note]) => {
     try {
       if (name.startsWith("/") || name.includes("\\") || name.split("/").some(part => !part || part === "." || part === "..") || !name.endsWith(".md")) {
@@ -32,5 +36,5 @@ export function worldState(map: MapState, lore: ReadonlyMap<string, Note>, scena
   const prefix = `Scenarios/${scenarioID}/Characters/`;
   const characters = [...new Set(docs[scenario]!.links.map(link => link.target)
     .filter(target => target.startsWith(prefix) && /^[^/]+\/character\.md$/.test(target.slice(prefix.length))))];
-  return create(WorldStateSchema, { docs, characters, scenario, map: clone(MapSchema, map) });
+  return create(WorldStateSchema, { docs, characters, scenario, scenarioIndex, ...(player === undefined ? {} : { player }), map: clone(MapSchema, map) });
 }
