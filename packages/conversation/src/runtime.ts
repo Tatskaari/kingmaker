@@ -1,3 +1,4 @@
+import { ProgressiveDisclosure } from "./progressive-disclosure.js";
 import type { ActionExecutionHooks } from "./action-execution.js";
 import type { ResolutionHooks } from "./resolution.js";
 import type { ActionHooks } from "./action.js";
@@ -70,6 +71,9 @@ export class ConversationRuntime<Labels = Record<string, never>, Review = Review
         responses: async (...args) => services.ai?.responses
           ? services.ai.responses(...args) : unimplemented("ai.responses"),
       },
+      disclosure: { disclose: (...args) => services.disclosure?.disclose
+        ? services.disclosure.disclose(...args)
+        : new ProgressiveDisclosure(this.services.ai).disclose(...args) },
       lore: {
         forCharacter: async (...args) => services.lore?.forCharacter
           ? services.lore.forCharacter(...args) : unimplemented("lore.forCharacter"),

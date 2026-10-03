@@ -1,3 +1,4 @@
+import type { ProgressiveDisclosure } from "./progressive-disclosure.js";
 import type { MapService, MapObservation, MapResult } from "./map.js";
 import type { DocsService, ScenarioService } from "../../lore/src/services.js";
 import type { CheckDegree, CheckSkill, skillAbilities } from "../../core/src/ability-checks.js";
@@ -9,7 +10,7 @@ import type { LoreLink } from "./lore.js";
 
 export interface AiRequestInfo { characterId?: string; purpose?: "gm_consultation" | "dialogue" }
 export interface AiService {
-  decisions(state: unknown, questions: JevQuestions, signal: AbortSignal, purpose?: "skill_check" | "skill_difficulty" | "prog_disc"): Promise<Record<string, JevChoice>>;
+  decisions(state: unknown, questions: JevQuestions, signal: AbortSignal, purpose?: "skill_check" | "skill_difficulty" | "prog_disc", info?: Pick<AiRequestInfo, "characterId">): Promise<Record<string, JevChoice>>;
   responses(request: ChatCompletionRequest, signal?: AbortSignal, info?: AiRequestInfo): Promise<OpenRouterMessage>;
 }
 
@@ -79,6 +80,7 @@ export interface RuntimeServices {
   readonly scenario: ScenarioService;
   readonly docs: DocsService;
   readonly ai: AiService;
+  readonly disclosure: Pick<ProgressiveDisclosure, "disclose">;
   readonly lore: LoreService & {
     /** Resolve a fresh character-scoped view, including each participant in an exchange. */
     forCharacter(characterId: string, signal: AbortSignal): Promise<LoreService>;
