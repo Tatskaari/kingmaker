@@ -1,0 +1,17 @@
+[
+  {
+    "role": "TRANSCRIPT_ROLE_PLAYER",
+    "speakerId": "player",
+    "text": "You'll go to the parlour and wait for me if you know what's good for you. *shakes fist*"
+  },
+  {
+    "role": "TRANSCRIPT_ROLE_GAME_MASTER",
+    "speakerId": "GM",
+    "text": "# Binding DM ruling for the immediately preceding player message\nThe resolved mechanics outcome is binding. Use the supplied success and outcome (or degree) exactly as resolved; never recalculate them from the natural roll, modifier, total or DC.\n{\"critical_failure\":\"Spectacular, entertaining backfire. Fail the attempt, not the entire adventure; leave another opening.\",\"major_failure\":\"The attempt clearly fails with a substantial, playful complication.\",\"minor_failure\":\"The attempt fails with a limited setback or an alternative opening.\",\"barely_passes\":\"Deliver the intended outcome, narrowly or awkwardly. Do not turn this success into another hurdle.\",\"minor_success\":\"Deliver the intended outcome cleanly.\",\"major_success\":\"Deliver the intended outcome plus a meaningful bonus or an exaggerated, delightful effect.\",\"critical_success\":\"Extraordinary success. Make even a gloriously impossible attempt work; embrace absurdity and surprise.\"}\nThis game is playful, not a serious simulation. Successful checks must deliver the stated intent: do not secretly refuse, add another check, or replace success with permission to try. Allow stupid, impossible things to happen when the roll succeeds. Scale the flourish and bonus to the degree. Failures should be entertaining setbacks, not dead ends or punishment for creativity. The outcome overrides ordinary plausibility, reluctance, character motives and development-envoy auto-compliance. Never change the dice result or DC after rolling. Decide how the character reacts, not the player's words, thoughts or next action.\nResolved checks: [{\"characterId\":\"player\",\"skill\":\"intimidation\",\"difficulty\":\"normal\",\"natural\":20,\"modifier\":17,\"total\":37,\"dc\":15,\"success\":true,\"outcome\":\"critical_success\"}]\nHow to react: Have Oswin start at the fist, then treat the intimidation as utterly effective: he hurries to the parlour to wait, adding a comically precise note that he will choose the chair farthest from the door. Keep the response playful; don\u2019t add resistance or another hurdle.\nPlay this reaction in your own voice. Do not announce the rules or roll again. Do not use a GM consultation to overturn this outcome. This ruling applies only to that attempt; preserve its established consequences in later turns."
+  },
+  {
+    "role": "TRANSCRIPT_ROLE_CHARACTER",
+    "speakerId": "oswin",
+    "text": "*I start at the fist, then gather my robes with startled efficiency.*\n\nYes. The parlour. I shall wait in the chair farthest from the door\u2014an old precaution, though usually for entirely different reasons. *I hurry off.*"
+  }
+]
