@@ -2,7 +2,7 @@ import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/s
 import type { ConversationRuntime } from "./runtime.js";
 
 export interface ConversationContext {
-  request: ChatCompletionRequest;
+  request: Omit<ChatCompletionRequest, "messages"> & { messages: OpenRouterMessage[] };
   pass: number;
   /** Resolvers can record effects that must not run again on a later pass. */
   completed: Set<string>;
@@ -16,7 +16,7 @@ export interface ConversationHooks<Labels = Record<string, never>> {
 export async function runConversation<Labels>(request: ChatCompletionRequest, runtime: ConversationRuntime<Labels>,
   signal: AbortSignal = new AbortController().signal,
   onRespond: (request: ChatCompletionRequest) => void = () => {}): Promise<OpenRouterMessage> {
-  const context: ConversationContext = { request: structuredClone(request), pass: 1, completed: new Set() };
+  const context: ConversationContext = { request: { ...structuredClone(request), messages: structuredClone([...request.messages]) }, pass: 1, completed: new Set() };
   for (; context.pass <= runtime.maxPasses; context.pass++) {
     signal.throwIfAborted();
     // Classifiers receive a detached view, so accidental writes cannot change the turn.
