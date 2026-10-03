@@ -280,15 +280,16 @@ export class WorldGameRuntime extends WorldHost {
     signal.throwIfAborted();
     const world = this.world(), scenario = projectWorld(world);
     const { random } = this.runtime("player", "world_event").services;
-    if (!event.position) return { reactions: [] };
+    const ownEvent = event.participantIds.includes("player");
+    if (!event.position) return { reactions: [], ...(ownEvent ? { playerPerception: event.summary } : {}) };
     const source = { id: event.participantIds[0] ?? event.id, name: event.kind, position: event.position };
     const listeners = courtCharactersWithinEarshot(source, scenario.characters.filter(c => !event.participantIds.includes(c.id)).map(c => ({
       id: c.id, name: c.name, position: world.map!.actors.find(actor => actor.characterId === c.id)?.position,
-    })), world.map!.doors, world.map!.fixtures).filter(listener => perceivesAt(listener.level, () => (random.integer(1, 100) - 1) / 100));
+    })), world.map!.doors, world.map!.fixtures).filter(listener => perceivesAt(listener.level, () => (random.integer(1, 100) - 1) / 100, listener.id === "player"));
     const perceptions = listeners.map(listener => ({ characterId: listener.id, level: listener.level,
-      perception: listener.level === "Clear" ? event.summary : `You notice ${event.participantIds.join(" and ")} ${event.kind}, but cannot make out the details.` }));
+      perception: listener.level === "Clear" ? event.summary : `You notice ${event.participantIds.map(id => scenario.characters.find(c => c.id === id)?.name ?? id).join(" and ")} ${event.kind}, but cannot make out the details.` }));
     const player = perceptions.find(p => p.characterId === "player");
-    return { reactions: perceptions.filter(p => p.characterId !== "player"), ...(player ? { playerPerception: player.perception } : {}) };
+    return { reactions: perceptions.filter(p => p.characterId !== "player"), ...(ownEvent ? { playerPerception: event.summary } : player ? { playerPerception: player.perception } : {}) };
   }
   async initiatePlayerConversation(id: string, actionId: string, revision: number, goal: string, signal: AbortSignal) {
     const persist = this.persistChange;

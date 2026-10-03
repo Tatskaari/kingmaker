@@ -67,6 +67,9 @@ export interface EarshotCharacter extends PositionedCharacter {
 export const CLEAR_EARSHOT_DISTANCE = 3;
 export const MODERATE_EARSHOT_DISTANCE = 6;
 export const EARSHOT_DISTANCE = 10;
+// The player gets a wider, clearer view of nearby activity than NPCs.
+export const PLAYER_EARSHOT_DISTANCE = 15;
+export const PLAYER_PERCEPTION_CHANCES = { Clear: 1, Moderate: 0.9, Distant: 0.6 };
 // Address the speaking character directly, with names grouped beneath each warning.
 export const EARSHOT_DESCRIPTIONS = {
   Clear: "These characters are right by you and will almost certainly hear what you say.",
@@ -81,8 +84,8 @@ export const PERCEPTION_CHANCES: Record<EarshotCharacter["level"], number> = {
 };
 
 /** A single independent perception roll for a real-world event. */
-export function perceivesAt(level: EarshotCharacter["level"], random: () => number = Math.random): boolean {
-  return random() < PERCEPTION_CHANCES[level];
+export function perceivesAt(level: EarshotCharacter["level"], random: () => number = Math.random, isPlayer = false): boolean {
+  return random() < (isPlayer ? PLAYER_PERCEPTION_CHANCES : PERCEPTION_CHANCES)[level];
 }
 
 export function charactersWithinEarshot(
@@ -98,11 +101,11 @@ export function charactersWithinEarshot(
       distance: Math.abs(character.position!.x - speaker.position!.x)
         + Math.abs(character.position!.y - speaker.position!.y),
     }))
-    .filter(character => character.distance <= maximumDistance)
+    .filter(character => character.distance <= (character.id === "player" ? Math.max(maximumDistance, PLAYER_EARSHOT_DISTANCE) : maximumDistance))
     .map((character): EarshotCharacter => ({
       ...character,
-      level: character.distance <= CLEAR_EARSHOT_DISTANCE ? "Clear"
-        : character.distance <= MODERATE_EARSHOT_DISTANCE ? "Moderate" : "Distant",
+      level: character.distance <= (character.id === "player" ? MODERATE_EARSHOT_DISTANCE : CLEAR_EARSHOT_DISTANCE) ? "Clear"
+        : character.distance <= (character.id === "player" ? EARSHOT_DISTANCE : MODERATE_EARSHOT_DISTANCE) ? "Moderate" : "Distant",
     }))
     .sort((a, b) => a.distance - b.distance || a.name.localeCompare(b.name));
 }
