@@ -94,3 +94,22 @@ GM character properties and physical map data survive Markdown edits unchanged.
 These are GM services, with no character visibility filtering, filesystem writes
 or model calls. Runtime wiring and GM tool adapters are separate work. Save and
 restore the complete snapshot with protobuf JSON serialization.
+
+### GM editing tools
+
+Document-backed GM reviews expose `read_document`, `create_document`,
+`replace_document`, `insert_document`, and `delete_document` over the document
+service. Each call returns a result before the GM chooses its next tool. Reads
+and successful writes return canonical Markdown and a SHA; edits and deletion
+require that SHA. Conflicts return the current snapshot for reconciliation, and
+validation errors return feedback without publishing the failed edit.
+
+Each successful document write saves immediately, including when a later review
+step fails or is cancelled. Automatic access and link validation applies to every
+write. The GM must preserve who knows what and use appropriate access metadata.
+
+`commit_review` finishes the review: it appends deduplicated plain-prose notes and
+sets or clears `active_goal` on the reviewed character in one SHA-checked write.
+Its summary is returned to the caller. It does not publish or roll back preceding
+document-tool edits. An edit/read of the reviewed character refreshes the snapshot
+used by this final write, preserving edits made earlier in the tool loop.
