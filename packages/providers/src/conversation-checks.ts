@@ -52,7 +52,7 @@ export interface ConversationCheckResult {
   needsCheck: boolean;
   decision: JevChoice;
 }
-type CheckClassifier = (client: JevClient, input: ConversationCheckInput, signal: AbortSignal) => Promise<ConversationCheckResult>;
+type CheckClassifier = (client: Pick<JevClient, "evaluate">, input: ConversationCheckInput, signal: AbortSignal) => Promise<ConversationCheckResult>;
 const skillNames = Object.keys(skills) as ConversationCheckSkill[];
 function questionFor(skill: ConversationCheckSkill): JevChoiceQuestion {
   return {
@@ -70,7 +70,7 @@ function validateInput(input: ConversationCheckInput, signal: AbortSignal): void
 
 /** Each callable classifier asks Jev about exactly one check type. */
 export const conversationCheckClassifiers: Readonly<Record<ConversationCheckSkill, CheckClassifier>> = Object.freeze(
-  Object.fromEntries(skillNames.map(skill => [skill, async (client: JevClient, input: ConversationCheckInput, signal: AbortSignal) => {
+  Object.fromEntries(skillNames.map(skill => [skill, async (client: Pick<JevClient, "evaluate">, input: ConversationCheckInput, signal: AbortSignal) => {
     validateInput(input, signal);
     const answers = await client.evaluate(input, { [skill]: questionFor(skill) }, signal, `conversation classification (${skill})`);
     const decision = answers[skill]!;
@@ -80,7 +80,7 @@ export const conversationCheckClassifiers: Readonly<Record<ConversationCheckSkil
 
 /** One Decisions API request; does not mutate the conversation or resolve checks. */
 export async function classifyConversationTurn(
-  client: JevClient, input: ConversationCheckInput, signal: AbortSignal,
+  client: Pick<JevClient, "evaluate">, input: ConversationCheckInput, signal: AbortSignal,
 ): Promise<ConversationCheckClassification> {
   validateInput(input, signal);
   const questions = Object.fromEntries(skillNames.map(skill => [skill, questionFor(skill)]));

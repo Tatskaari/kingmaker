@@ -488,6 +488,21 @@ focused test command.
 
 ## Conversation debugger
 
+Conversation turns share a `classify → resolve → respond` handler in
+`packages/conversation/src/phases.ts`. Hooks and conversation services are supplied
+to `ConversationRuntime`; this does not change the rest of the game runtime.
+The CLI uses disclosure hooks, while browser and headless player conversations
+use the existing skill-check policy through check hooks. Resolution can request
+another classification pass after adding information. Only resolution changes
+the prepared context; classification receives a detached view.
+
+`HeadlessGame` accepts conversation runtime options as its third constructor
+argument, including custom hooks and individual service overrides. The browser
+worker supplies `presentation.showRoll` for its popup; the default headless
+presentation returns immediately. Existing dice difficulty and GM ruling rules
+are preserved. The proposed category-based Jev difficulty planner and parallel
+GM outcome preparation are separate future changes.
+
 Run `proto install` to install the pinned Node 26 runtime, then
 `OPENROUTER_API_KEY=… npm run conversation -- --character corvin` in an
 interactive terminal. OpenTUI renders React components directly in the terminal.

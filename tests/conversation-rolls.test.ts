@@ -6,7 +6,7 @@ import { ScenarioSchema } from "../packages/contracts/src/index.js";
 import { JevClient, type JevQuestions } from "../packages/providers/src/jev.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
-import { adjudicateConversationChecks } from "../apps/web/src/conversation-rolls.js";
+import { adjudicateConversationChecks } from "../packages/conversation/src/checks.js";
 
 const game = () => {
   const runtime = new BrowserGameRuntime(fromJsonString(ScenarioSchema, readFileSync("content/scenarios/last-night.json", "utf8")), "test");
@@ -42,9 +42,9 @@ test("GM plans before dice, waits for presentation, then directs the character w
     assert.match(request.messages.at(-1).content, /Laugh as their argument/);
     return reply({ utterance: "Cheese? Even the mice disagree!", replyOptions: [], endConversation: false });
   });
-  const pending = runtime.checkedTalkToCharacter("corvin", "The moon is cheese.", undefined, async () => {
+  const pending = runtime.checkedTalkToCharacter("corvin", "The moon is cheese.", undefined, { services: { presentation: { showRoll: async () => {
     order.push("dice"); shown(); await waiting;
-  });
+  } } } });
   await presentation;
   assert.deepEqual(order, ["dc", "dice"]);
   release(); await pending;
@@ -59,7 +59,7 @@ test("ordinary conversation skips dice and GM, while classifier errors do not si
   t.mock.method(JevClient.prototype, "evaluate", async (_input: unknown, questions: JevQuestions) =>
     Object.fromEntries(Object.keys(questions).map(skill => [skill, { choice: "not_needed", probabilities: { needed: 0, not_needed: 1 } }])));
   t.mock.method(OpenRouterClient.prototype, "complete", async () => reply({ utterance: "Hello.", replyOptions: [], endConversation: false }));
-  await runtime.checkedTalkToCharacter("corvin", "Hello.", undefined, async () => { rolls++; });
+  await runtime.checkedTalkToCharacter("corvin", "Hello.", undefined, { services: { presentation: { showRoll: async () => { rolls++; } } } });
   assert.equal(rolls, 0);
   const before = runtime.snapshot();
   t.mock.method(JevClient.prototype, "evaluate", async () => { throw new Error("Classifier unavailable"); });

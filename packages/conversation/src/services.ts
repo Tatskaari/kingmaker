@@ -34,7 +34,9 @@ export interface RollResult {
   natural: number;
   modifier: number;
   total: number;
-  difficulty: Difficulty;
+  /** Numeric DCs remain supported by the existing conversation adjudicator. */
+  difficulty: Difficulty | { dc: number };
+  skill?: CheckSkill;
   /** Absent for categorical endpoint rules such as trivial and impossible. */
   dc?: number;
   success: boolean;

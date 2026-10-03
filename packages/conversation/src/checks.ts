@@ -1,8 +1,8 @@
-import type { DndCharacter } from "../../../packages/contracts/src/index.js";
-import { degreeGuidance, resolveDiceCheck, rollD20, skillModifier, type CheckSkill, type CheckDegree } from "../../../packages/core/src/ability-checks.js";
-import { OutputTokenLimitError, type ChatCompletionRequest, type OpenRouterMessage } from "../../../packages/providers/src/openrouter.js";
-import { parseModelObject } from "../../../packages/providers/src/structured-output.js";
-import { REASONING_MODEL } from "./model-settings.js";
+import type { DndCharacter } from "../../contracts/src/index.js";
+import { degreeGuidance, resolveDiceCheck, rollD20, skillModifier, type CheckSkill, type CheckDegree } from "../../core/src/ability-checks.js";
+import { OutputTokenLimitError, type ChatCompletionRequest, type OpenRouterMessage } from "../../providers/src/openrouter.js";
+import { parseModelObject } from "../../providers/src/structured-output.js";
+const REASONING_MODEL = { model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "none" } } as const;
 
 export interface ConversationRoll {
   skill: CheckSkill;
@@ -22,11 +22,12 @@ This game is playful, not a serious simulation. Successful checks must deliver t
 export async function adjudicateConversationChecks(options: {
   skills: CheckSkill[]; messages: OpenRouterMessage[]; context?: unknown; build: DndCharacter | undefined;
   complete: (request: ChatCompletionRequest) => Promise<OpenRouterMessage>;
-  present: PresentRoll; roll?: () => number;
+  present: PresentRoll; roll?: () => number; signal?: AbortSignal;
 }): Promise<string | undefined> {
   if (!options.skills.length) return undefined;
   const complete = async (request: ChatCompletionRequest) => {
-    try { return await options.complete(request); }
+    options.signal?.throwIfAborted();
+    try { const result = await options.complete(request); options.signal?.throwIfAborted(); return result; }
     catch (error) {
       if (!(error instanceof OutputTokenLimitError)) throw error;
       // Retry only the interrupted GM stage, retaining already-resolved dice.
@@ -47,10 +48,12 @@ export async function adjudicateConversationChecks(options: {
   }
   const results: ConversationRoll[] = [];
   for (const check of plan) {
+    options.signal?.throwIfAborted();
     const modifier = skillModifier(options.build, check.skill), roll = (options.roll ?? rollD20)();
     const result = { ...check, modifier, roll, ...resolveDiceCheck(roll, check.dc, modifier) };
     results.push(result);
     await options.present(result);
+    options.signal?.throwIfAborted();
   }
   const ruling = parseModelObject((await complete({ ...REASONING_MODEL, messages: [
     { role: "system", content: `${ROLL_GUIDANCE}\nGive a concise, concrete direction to the NPC for their next response to the immediately preceding player message. Describe what succeeded/failed and how to play it off, rather than writing their dialogue. Address each result independently if multiple skills had different outcomes. Establish only information this character should know; do not reveal unrelated secrets. Return a direction string.` },
