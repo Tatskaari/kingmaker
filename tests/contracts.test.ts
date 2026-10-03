@@ -2196,6 +2196,8 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
   assert.equal(resumed.state.gmMessages.length, 1);
 
   await t.test("creation storage failures retain the resumable interview and draft", async t => {
+    t.mock.method(JevClient.prototype, "evaluate", async (_state: unknown, questions: Record<string, unknown>) =>
+      Object.fromEntries(Object.keys(questions).map(id => [id, { choice: "skip", probabilities: { [id]: 0, skip: 1 } }])));
     failNextWrite = true;
     await assert.rejects(request("gm", { message: "Alex" }), /Test storage failure/);
     assert.equal((await request("state")).state.gmMessages.length, 1);

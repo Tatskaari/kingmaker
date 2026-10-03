@@ -23,6 +23,16 @@ The review payload uses the existing PlayerSetup form shape as a UI transfer obj
 no v1 scenario becomes saved authority. Failed model calls or persistence leave the
 interview or review available to retry.
 
+The Stranger's code prompt contains the generic character-creation workflow.
+`Scenarios/<scenario>/stranger.md` supplies the encounter identity, world briefing,
+opening and allowed affiliations. Before each reply, the shared injected
+`disclosure.disclose` service opens relevant links from that entry using summary
+previews. This creation-only source has GM access; ordinary character sources keep
+their audience checks. Retrieved secrets remain GM context, not automatic player
+or NPC knowledge. Failed disclosure stops the reply; saved-world edits are read on
+the next turn. Start a fresh game to pick up new authored briefing content.
+
+
 `FullContextBuilder` combines authored character context, objectives, immediate
 intent, available notes, known fixture contents and dialogue history. Spoken turns
 return dialogue, reply suggestions and an optional conversation-ending flag.

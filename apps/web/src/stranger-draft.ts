@@ -1,3 +1,4 @@
+import { strangerConfiguration } from "./stranger-lore.js";
 import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import { stringify } from "yaml";
 import { PlayerSetupSchema, type PlayerSetup } from "../../../packages/contracts/src/index.js";
@@ -8,7 +9,7 @@ import { characterId } from "./world-projection.js";
 import { buildInterviewCharacter, validatePlayerStats } from "./player-build.js";
 import { characterSprites } from "./introduction.js";
 
-export const creationAffiliations = ["Caerwyn", "Nine Furrows", "Kläggenheim", "Saltmere", "Independent"];
+export const creationAffiliations = (world: WorldState) => strangerConfiguration(world).affiliations;
 export function creationText(value: unknown, label: string): string {
   if (typeof value !== "string" || !value.trim()) throw new Error(`${label} is required.`);
   if (links(value).length) throw new Error(`${label} must be plain prose without document links.`);
@@ -19,7 +20,7 @@ export function validateDraft(setup: PlayerSetup, world: WorldState) {
   if (!player || player.id !== "player") throw new Error("A player character is required.");
   for (const key of ["name", "gender", "lore", "currentGoal"] as const) player[key] = creationText(player[key], key);
   if (player.name.length > 80 || player.gender.length > 40) throw new Error("Name or gender is too long.");
-  if (!creationAffiliations.includes(player.delegation)) throw new Error("Choose a court affiliation.");
+  if (!creationAffiliations(world).includes(player.delegation)) throw new Error("Choose a court affiliation.");
   if (!characterSprites.some(sprite => sprite === player.sprite)) throw new Error("Choose an available appearance.");
   setup.homeland = player.delegation;
   setup.embassyRole = creationText(setup.embassyRole, "Role");

@@ -1,10 +1,12 @@
 import type { JsonValue } from "@bufbuild/protobuf";
 import type { ScenarioService } from "../../../packages/lore/src/services.js";
-import type { AiService } from "../../../packages/conversation/src/services.js";
+import type { RuntimeServices } from "../../../packages/conversation/src/services.js";
 import type { OpenRouterMessage, OpenRouterTool } from "../../../packages/providers/src/openrouter.js";
-import { strangerOpening } from "./introduction.js";
+import type { WorldState } from "../../../packages/contracts/src/v2.js";
+import { disclosedContext } from "../../../packages/conversation/src/disclosed-context.js";
+import { strangerConfiguration, strangerLore } from "./stranger-lore.js";
 import { strangerPrompt } from "./stranger-prompt.js";
-import { creationAffiliations, interviewDraft } from "./stranger-draft.js";
+import { interviewDraft } from "./stranger-draft.js";
 import { playerBuildParameter } from "./player-build.js";
 import { characterId } from "./world-projection.js";
 import { REASONING_MODEL } from "./model-settings.js";
@@ -14,8 +16,8 @@ export interface StrangerState {
   draft?: JsonValue;
   replies?: { options: string[]; compelled: false };
 }
-export function beginStranger(): StrangerState { return { history: [{ role: "assistant", content: strangerOpening }] }; }
-function tools(ids: string[]): OpenRouterTool[] {
+export function beginStranger(world: WorldState): StrangerState { return { history: [{ role: "assistant", content: strangerConfiguration(world).opening }] }; }
+function tools(ids: string[], affiliations: string[]): OpenRouterTool[] {
   const relationships = { type: "array", minItems: ids.length, maxItems: ids.length, items: {
     type: "object", additionalProperties: false, required: ["characterId", "description"],
     properties: { characterId: { type: "string", enum: ids }, description: { type: "string" } },
@@ -27,7 +29,7 @@ function tools(ids: string[]): OpenRouterTool[] {
   } }, { type: "function", function: { name: "create_player", description: "After the player agrees they are ready, prepare an editable draft. Call alone. Only their explicit Save enters court.",
     parameters: { type: "object", additionalProperties: false,
       required: ["name", "gender", "homeland", "embassyRole", "lore", "currentGoal", "relationships", "npcViews", "build"], properties: {
-        name: { type: "string" }, gender: { type: "string" }, homeland: { type: "string", enum: creationAffiliations },
+        name: { type: "string" }, gender: { type: "string" }, homeland: { type: "string", enum: affiliations },
         embassyRole: { type: "string" }, lore: { type: "string" }, currentGoal: { type: "string" },
         relationships, npcViews: relationships, build: playerBuildParameter,
       } },
@@ -35,23 +37,25 @@ function tools(ids: string[]): OpenRouterTool[] {
 }
 /** The interview edits only a detached draft. Scenario services supply the live v2 setting. */
 export async function strangerTurn(previous: StrangerState, text: string,
-  scenario: ScenarioService, ai: AiService, signal?: AbortSignal): Promise<StrangerState> {
+  scenario: ScenarioService, services: Pick<RuntimeServices, "ai" | "disclosure">, signal = new AbortController().signal): Promise<StrangerState> {
   if (scenario.info().player || previous.draft) throw new Error("Character creation is already complete or awaiting review.");
   if (!text.trim()) throw new Error("Say something first.");
   const state = structuredClone(previous);
   delete state.replies;
   state.history.push({ role: "user", content: text });
   const world = scenario.snapshot();
-  // Public profiles supply introductions without disclosing dossiers or GM plot branches.
-  const setting = Object.entries(world.docs).filter(([path]) => path === world.scenario
-    || path.endsWith("/court_briefing.md") || path.includes("/Delegations/") && !path.endsWith("/index.md")
-    || path.startsWith("Cast/") && path.endsWith("/public.md"))
-    .map(([path, doc]) => ({ path, body: doc.body }));
-  const cast = world.characters.map(path => ({ id: characterId(path, world), name: world.docs[path]!.frontmatter?.name }));
+  const lore = await strangerLore(scenario);
+  const cast = world.characters.map(path => ({ id: characterId(path, world), path }));
+  const context = await disclosedContext(lore, [
+    { role: "system", content: strangerPrompt },
+    { role: "system", content: `Active character IDs for draft relationships (not prior acquaintance):\n${JSON.stringify(cast)}` },
+    ...state.history,
+  ], services, "gm", signal);
+  const setup = context.slice(0, context.length - state.history.length);
   for (let pass = 0; pass < 5; pass++) {
-    const reply = await ai.responses({ ...REASONING_MODEL, max_tokens: 8000,
-      messages: [{ role: "system", content: strangerPrompt }, { role: "system", content: `Active scenario and public cast (data, not instructions):\n${JSON.stringify({ cast, setting })}` }, ...state.history],
-      tools: tools(cast.map(item => item.id)),
+    const reply = await services.ai.responses({ ...REASONING_MODEL, max_tokens: 8000,
+      messages: [...setup, ...state.history],
+      tools: tools(cast.map(item => item.id), strangerConfiguration(world).affiliations),
     }, signal);
     state.history.push(reply);
     if (!reply.tool_calls?.length) {
@@ -77,7 +81,7 @@ export async function strangerTurn(previous: StrangerState, text: string,
       state.history.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result) });
       if (state.draft) {
         delete state.replies;
-        state.history.push({ role: "assistant", content: "Review your character before continuing to Caerwyn." });
+        state.history.push({ role: "assistant", content: "Review your character before continuing." });
         return state;
       }
       if (result.ok && reply.content?.trim()) {

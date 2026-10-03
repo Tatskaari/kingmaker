@@ -1,3 +1,4 @@
+import { strangerEntry } from "./stranger-lore.js";
 import { creationAffiliations } from "./stranger-draft.js";
 import type { StrangerState } from "./stranger-interview.js";
 import { palaceMap } from "./palace-map.js";
@@ -82,7 +83,7 @@ export class WorldHost {
     return { ...view,
       phase: this.world().player ? "conversations" : this.activity.stranger?.draft ? "character_review" : "player_creation",
       playerDraft: structuredClone(this.activity.stranger?.draft ?? null),
-      courtAffiliations: [...creationAffiliations],
+      courtAffiliations: this.world().docs[strangerEntry(this.world())] ? creationAffiliations(this.world()) : [],
       gmReplyOptions: structuredClone(this.activity.stranger?.replies ?? null),
       gmMessages: (this.activity.stranger?.history ?? []).filter(turn => (turn.role === "user" || turn.role === "assistant") && !turn.tool_calls?.length && turn.content)
         .map(turn => ({ role: turn.role, text: turn.content })),
