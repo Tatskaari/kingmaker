@@ -10,6 +10,14 @@ test("unused runtime constructs headlessly and every default service fails expli
   const result: RollResult = { characterId: "player", natural: 20, modifier: 0, total: 20,
     difficulty: "impossible", success: true, outcome: CheckDegree.CriticalSuccess };
   const calls: Array<[string, () => unknown]> = [
+    ["scenario.info", () => services.scenario.info()],
+    ["scenario.snapshot", () => services.scenario.snapshot()],
+    ["scenario.getDocument", () => services.scenario.getDocument("note.md")],
+    ["docs.read", () => services.docs.read("note.md")],
+    ["docs.create", () => services.docs.create("note.md", "Note")],
+    ["docs.replace", () => services.docs.replace("note.md", "sha", "old", "new")],
+    ["docs.insert", () => services.docs.insert("note.md", "sha", 0, "Note")],
+    ["docs.delete", () => services.docs.delete("note.md", "sha")],
     ["ai.decisions", () => services.ai.decisions("context", {}, signal)],
     ["ai.responses", () => services.ai.responses({ model: "test", messages: [] }, signal)],
     ["lore.initial", () => services.lore.initial],

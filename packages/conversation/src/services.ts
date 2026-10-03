@@ -1,3 +1,4 @@
+import type { DocsService, ScenarioService } from "../../lore/src/services.js";
 import type { CheckDegree, CheckSkill, skillAbilities } from "../../core/src/ability-checks.js";
 import type { PortraitExpression } from "../../providers/src/conversation-expression.js";
 import type { JevChoice, JevQuestions } from "../../providers/src/jev.js";
@@ -71,6 +72,8 @@ export interface DebugService {
   record(event: Readonly<ConversationDebugEvent>): void;
 }
 export interface RuntimeServices {
+  readonly scenario: ScenarioService;
+  readonly docs: DocsService;
   readonly ai: AiService;
   readonly lore: LoreService;
   readonly character: CharacterService;

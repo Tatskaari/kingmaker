@@ -207,3 +207,19 @@ should expose classification results, all prepared GM directions, the roll resul
 and the exact selected message. Browser presentation waits for acknowledgement;
 headless presentation completes immediately. The CLI still uses disclosure hooks;
 the check policy is installed in browser and headless player conversations.
+
+## Conversation review
+
+`runConversationReview` in `review.ts` runs one `hooks.review.classify` then
+`hooks.review.resolve` pass over detached transcript evidence, including GM
+rulings. Classification returns labels without changing the evidence; resolution
+receives those labels and the complete transcript. `classifyConversationReview`
+is an empty-label stub for future Jev classification, not a reason to skip review.
+Errors and cancellation propagate; hosts archive transcripts only after success.
+
+Review hooks receive the same injected services as turns as their final argument. `scenario` and `docs` reuse
+`ScenarioService` and `DocsService` from `packages/lore/src/services.ts`, preserving
+SHA-checked document writes. Hosts must supply an authoritative v2 service pair;
+there is no implicit conversion from the existing v1 game. As with other services,
+unprovided operations fail explicitly. A resolver can use `ai` for GM reasoning
+and `debug` for observations without depending on browser presentation.
