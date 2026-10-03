@@ -11,6 +11,7 @@ import { buildIssueReport, issuePageUrl, issueReportFilename } from "./issue-rep
 import { sandboxIntroduction, handoffPrefix, courtAffiliations, characterSprites, patronName } from "./introduction.js";
 import { strangerPortrait } from "./stranger-portrait.js";
 import { courtCharactersWithinEarshot } from "./earshot.js";
+import { mountPlayerFeedDrag } from "./player-feed-drag.js";
 import { formatElapsedTime } from "./relative-time.js";
 import devOpenRouterApiKey from "virtual:kingmaker-dev-openrouter-key";
 
@@ -23,6 +24,8 @@ const conversationReviews = new Map();
 let busy = false;
 let npcRun = [];
 let notice = "";
+let courtNotices = [];
+let lastCourtNotice = "";
 let sheetOpen = false;
 let debugOpen = false;
 let debugTab = "overview";
@@ -154,7 +157,7 @@ gameWorker.addEventListener("message", event => {
 function rpc(type, payload = {}) {
   if (workerFailure) return Promise.reject(workerFailure);
   if (["move_player", "set_door", "interact_fixture"].includes(type)) payload = { ...payload, generations: state.generations };
-  if (gameReplacementRequests.has(type)) { gameViewGeneration++; document.querySelector(".dice-dialog")?.close(); conversationReviews.clear(); stopNpcGoal(); }
+  if (gameReplacementRequests.has(type)) { gameViewGeneration++; courtNotices = []; lastCourtNotice = ""; document.querySelector(".dice-dialog")?.close(); conversationReviews.clear(); stopNpcGoal(); }
   const id = ++requestSequence;
   gameWorker.postMessage({ id, type, payload });
   return new Promise((resolve, reject) => pendingRequests.set(id, {
@@ -173,20 +176,37 @@ function initiatedConversationId() {
 async function runNpcGoal(characterId) {
   await rpc("start_npc", { characterId });
 }
+function recordCourtNotice(message) {
+  if (!message) return;
+  courtNotices.push({ id: `ui-${crypto.randomUUID()}`, message, createdAt: new Date().toISOString() });
+  updatePlayerFeed();
+}
 function updatePlayerFeed() {
   const feed = document.querySelector("[data-player-feed]");
   if (!feed) return;
-  const messages = state.playerMessages || [];
+  const messages = [...(state.playerMessages || []), ...courtNotices]
+    .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
   const now = Date.now();
-  feed.innerHTML = `<h2>What you hear</h2>${messages.length
-    ? `<ol>${[...messages].reverse().map(entry => {
-      const parsedCreatedAt = Date.parse(entry.createdAt || "");
-      if (!playerMessageReceivedAt.has(entry.id)) playerMessageReceivedAt.set(entry.id, now);
-      const timestamp = Number.isNaN(parsedCreatedAt) ? playerMessageReceivedAt.get(entry.id) : parsedCreatedAt;
-      const exactTime = Number.isNaN(parsedCreatedAt) ? "Received since opening this game" : new Date(parsedCreatedAt).toLocaleString();
-      return `<li><time class="eyebrow" datetime="${escapeHtml(entry.createdAt || "")}" title="${escapeHtml(exactTime)}">${formatElapsedTime(timestamp, now)}</time><p>${escapeHtml(entry.message)}</p></li>`;
-    }).join("")}</ol>`
-    : `<p class="feed-empty">Word from the court will appear here.</p>`}`;
+  const signature = JSON.stringify(messages);
+  if (feed.dataset.messages !== signature) {
+    const previousTop = feed.scrollTop, previousHeight = feed.scrollHeight;
+    feed.innerHTML = `<h2 id="player-feed-title"><button type="button" data-feed-drag aria-label="Move event feed. Drag or use arrow keys; Home resets position." title="Drag to move · Drag bottom-right corner to resize · Arrow keys to move · Home to reset">Events <span aria-hidden="true">⠿</span></button></h2>${messages.length
+      ? `<ol>${[...messages].reverse().map(entry => {
+        const parsedCreatedAt = Date.parse(entry.createdAt || "");
+        if (!playerMessageReceivedAt.has(entry.id)) playerMessageReceivedAt.set(entry.id, now);
+        const timestamp = Number.isNaN(parsedCreatedAt) ? playerMessageReceivedAt.get(entry.id) : parsedCreatedAt;
+        const exactTime = Number.isNaN(parsedCreatedAt) ? "Received since opening this game" : new Date(parsedCreatedAt).toLocaleString();
+        return `<li><time class="eyebrow" data-received-at="${timestamp}" datetime="${escapeHtml(entry.createdAt || "")}" title="${escapeHtml(exactTime)}">${formatElapsedTime(timestamp, now)}</time><p>${escapeHtml(entry.message)}</p></li>`;
+      }).join("")}</ol>`
+      : `<p class="feed-empty">Events will appear here.</p>`}`;
+    feed.dataset.messages = signature;
+    // Keep older entries in view while new events arrive above them.
+    if (previousTop > 0) feed.scrollTop = previousTop + feed.scrollHeight - previousHeight;
+  }
+  for (const time of feed.querySelectorAll("[data-received-at]")) {
+    const label = formatElapsedTime(Number(time.dataset.receivedAt), now);
+    if (time.textContent !== label) time.textContent = label;
+  }
 }
 globalThis.setInterval?.(updatePlayerFeed, 1000);
 
@@ -270,11 +290,9 @@ function shell(content, inCourt = false) {
     const popover = (id, title, body) => `<aside id="${id}" class="court-popover" popover aria-label="${title}"><button class="popover-close" popovertarget="${id}" popovertargetaction="hide" aria-label="Close ${title}">×</button>${body}</aside>`;
     return `<div class="court-shell">${content}<nav class="court-toolbar" aria-label="Game controls">
       <button popovertarget="court-menu">☰ <span>Menu</span></button>
-      <button popovertarget="court-messages">Messages</button>
       ${sheetButton}<button class="debug-button" data-debug-open aria-label="Open debug inspector">⌘ <span>Debug</span></button>
-    </nav></div>
+    </nav><aside class="player-event-feed" data-player-feed aria-label="Events" tabindex="0"></aside></div>
     ${popover("court-menu", "Game menu", `<div class="eyebrow">Palace of Caerwyn</div><h2>Kingmaker</h2><p>Welcome to court, ${escapeHtml(state.player?.name || "Emissary")}.</p><p>Left-click to walk. Right-click characters and objects for actions.</p><div class="court-menu-controls">${gameControls}${keyControl}</div><p class="map-credit">Tiny Dungeon tiles by Kenney · CC0</p>`)}
-    ${popover("court-messages", "Messages", '<div class="player-event-feed" data-player-feed></div>')}
     ${sheet}${debugInspector()}`;
   }
   return `${state ? `<button class="debug-button" data-debug-open aria-label="Open debug inspector">⌘ <span>Debug</span></button>` : ""}${sheetButton}<div class="shell"><header class="masthead"><div class="eyebrow">An improvised political cRPG</div><h1>Kingmaker</h1><div class="rule"></div><p class="subtitle">Four kingdoms. A century’s mandate. A peace coming undone.</p></header>${content}<div class="footer">${gameControls}${keyControl}</div></div>${sheet}${debugInspector()}`;
@@ -513,15 +531,24 @@ function renderDay(bindPage = true) {
   const retainedMap = previousMap?.dataset.generation === String(gameViewGeneration) ? previousMap : null;
   const viewport = retainedMap?.querySelector(".court-map-scroll");
   const scroll = viewport && { left: viewport.scrollLeft, top: viewport.scrollTop };
+  const previousFeed = retainedMap && app.querySelector("[data-player-feed]");
+  const feedScroll = previousFeed?.scrollTop;
   const openPopover = app.querySelector(".court-popover:popover-open")?.id;
-  app.innerHTML = shell(`<section class="court-panel" aria-label="Palace of Caerwyn"><div data-court-map></div><p class="status ${notice.startsWith("Error") ? "error" : ""}" data-court-notice role="status">${escapeHtml(notice)}</p></section>`, true);
+  app.innerHTML = shell(`<section class="court-panel" aria-label="Palace of Caerwyn"><div data-court-map></div></section>`, true);
   if (retainedMap) {
     app.querySelector("[data-court-map]").replaceWith(retainedMap);
     viewport?.scrollTo(scroll);
     updateCourtMap(retainedMap, { ...state, disabled: busy });
   }
+  if (previousFeed) {
+    app.querySelector("[data-player-feed]").replaceWith(previousFeed);
+    previousFeed.scrollTop = feedScroll;
+  }
   if (openPopover && !activeCharacter && !sheetOpen && !debugOpen) document.getElementById(openPopover)?.showPopover();
+  if (!activeCharacter && notice && notice !== lastCourtNotice) recordCourtNotice(notice);
+  if (!activeCharacter) lastCourtNotice = notice;
   updatePlayerFeed();
+  mountPlayerFeedDrag(document.querySelector("[data-player-feed]"));
   if (bindPage) bind();
   updateNpcPanel();
   if (retainedMap) return;
@@ -540,20 +567,18 @@ function renderDay(bindPage = true) {
     return state.doors;
   }, state.roomAccess, state.fixtures, state.fixtureActions, async actionId => {
     const result = await rpc("interact_fixture", { actionId });
-    state = result.state; saves = result.saves; notice = result.message;
+    state = result.state; saves = result.saves;
+    recordCourtNotice(result.message);
     updateCourtMap(mapRoot, state); updateNpcPanel(); updatePlayerFeed();
-    const status = document.querySelector("[data-court-notice]");
-    if (status) { status.textContent = notice; status.classList.toggle("error", notice.startsWith("Error")); }
   }, async id => {
     if (conversationReviews.has(id)) throw new Error("Conversation review is pending.");
     await rpc("pause_npc", { characterId: id });
   }, async id => {
     const character = state.characters.find(item => item.id === id);
     await openDebug({ type: "debug_character", payload: { characterId: id } }, `${character?.name || id} Debug`);
-  }, mapLayout).then(() => updateCourtMap(mapRoot, { ...state, disabled: busy })).catch(() => {
+  }, mapLayout, message => { if (mapRoot.isConnected) recordCourtNotice(message); }).then(() => updateCourtMap(mapRoot, { ...state, disabled: busy })).catch(() => {
     if (!mapRoot.isConnected) return;
-    const message = document.createElement("p"); message.className = "status error";
-    message.textContent = "The palace artwork could not load. You can still select a character by name."; mapRoot.append(message);
+    recordCourtNotice("The palace artwork could not load. You can still select a character by name.");
   });
 }
 
