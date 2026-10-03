@@ -15,6 +15,7 @@ import { renderJevRoomView } from "./jev-room-view.js";
 
 export interface WorldActionPlan extends ActionResult {
   characterId: string;
+  revision: number;
   goal: string;
 }
 
@@ -46,7 +47,7 @@ async function worldActionContext(world: WorldState, characterId: string, histor
     `World state:\n${renderJevRoomView(scenario, observation)}`,
     `Action log (completed actions, oldest first):\n${history.join("\n") || "None yet."}`,
   ].join("\n\n");
-  return { characterId, goal, actions: observation.actions,
+  return { characterId, goal, revision: visible.map.revision, actions: observation.actions,
     request: jevRequest(state, ROOM_COURT_INSTRUCTIONS, actionCriteria(observation.actions)) };
 }
 
@@ -60,7 +61,7 @@ export async function planWorldAction<Turn, Review>(characterId: string, runtime
   if (!context) return;
   if (history.length >= 24) throw new Error("NPC action limit reached.");
   const result = await runAction(context, runtime, signal);
-  const plan = { ...result, characterId, goal: context.goal };
+  const plan = { ...result, characterId, goal: context.goal, revision: context.revision };
   signal.throwIfAborted();
   return plan;
 }

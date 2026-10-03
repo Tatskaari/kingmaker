@@ -23,7 +23,6 @@ import { JevClient } from "../../../packages/providers/src/jev.js";
 import type { AiService } from "../../../packages/conversation/src/services.js";
 import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
 import { planWorldAction } from "./world-action.js";
-import { courtAgentObservation } from "./court-agent.js";
 import { courtCharactersWithinEarshot, perceivesAt } from "./earshot.js";
 import { generationIds } from "../../../packages/core/src/generations.js";
 
@@ -175,7 +174,7 @@ export class WorldGameRuntime extends WorldHost {
     const work = (key: string) => planWorldAction(id, this.runtime(id, "jev", {}, key), signal, this.activity.npcActivities?.[id]?.actionIds ?? []);
     const plan = await (runKey ? work(runKey) : this.traces.group("npc_goal", id, id, work));
     if (!plan) throw new Error("NPC has no active goal.");
-    return { ...plan, revision: this.world().map!.revision, generations: generationIds(this.readResources()) };
+    return { ...plan, generations: generationIds(this.readResources()) };
   }
   private async resolve(context: ResolutionContext, signal: AbortSignal) {
     const persist = this.persistChange;
@@ -198,16 +197,18 @@ export class WorldGameRuntime extends WorldHost {
     } catch (error) { this.traces.fail(key, error); throw error; }
   }
   async executeNpcTalk(id: string, actionId: string, revision: number, goal: string, signal: AbortSignal) {
-    const action = courtAgentObservation(projectWorld(this.world()), id).actions.find(action => action.id === actionId && action.type === "talk");
-    if (!action || action.path.length > 2 || revision !== this.world().map!.revision || this.activity.conversations[id]?.length
+    const observation = this.map.observe(id);
+    const action = observation.actions.find(action => action.id === actionId && action.type === "talk");
+    if (!action || action.path.length > 2 || revision !== observation.map.revision || this.activity.conversations[id]?.length
       || this.activity.conversations[action.target]?.length || this.activity.npcActivities?.[id]?.goal !== goal) throw new Error("Conversation changed; replan.");
     return (await this.resolve({ kind: "npc_exchange", characterId: id, targetId: action.target, goal }, signal)).summary;
   }
   async reviewNpcOutcome(id: string, _allowNextGoal = true, signal = new AbortController().signal) {
     const activity = this.activity.npcActivities?.[id];
     if (!activity?.reviewPending || !activity.result) return;
+    const { map } = this.map.observe(id), actor = map.actors.find(actor => actor.characterId === id);
     await this.resolve({ kind: "task_outcome", characterId: id, goal: activity.goal, actions: activity.history, result: activity.result,
-      observation: courtAgentObservation(projectWorld(this.world()), id).world.location }, signal);
+      observation: { roomId: actor?.roomId, room: map.rooms.find(room => room.id === actor?.roomId)?.name, position: actor?.position } }, signal);
   }
   async processPerceivedEvent(id: string, event: Event, perception: string, signal = new AbortController().signal) {
     await this.resolve({ kind: "world_event", characterId: id, eventId: event.id, perception }, signal);
@@ -215,11 +216,12 @@ export class WorldGameRuntime extends WorldHost {
   async assessWorldEvent(event: Event, signal: AbortSignal) {
     signal.throwIfAborted();
     const world = this.world(), scenario = projectWorld(world);
+    const { random } = this.runtime("player", "world_event").services;
     if (!event.position) return { reactions: [] };
     const source = { id: event.participantIds[0] ?? event.id, name: event.kind, position: event.position };
     const listeners = courtCharactersWithinEarshot(source, scenario.characters.filter(c => !event.participantIds.includes(c.id)).map(c => ({
       id: c.id, name: c.name, position: world.map!.actors.find(actor => actor.characterId === c.id)?.position,
-    })), world.map!.doors, world.map!.fixtures).filter(listener => perceivesAt(listener.level));
+    })), world.map!.doors, world.map!.fixtures).filter(listener => perceivesAt(listener.level, () => (random.integer(1, 100) - 1) / 100));
     const perceptions = listeners.map(listener => ({ characterId: listener.id, level: listener.level,
       perception: listener.level === "Clear" ? event.summary : `You notice ${event.participantIds.join(" and ")} ${event.kind}, but cannot make out the details.` }));
     const player = perceptions.find(p => p.characterId === "player");
@@ -228,13 +230,21 @@ export class WorldGameRuntime extends WorldHost {
   async initiatePlayerConversation(id: string, actionId: string, revision: number, goal: string, signal: AbortSignal) {
     const persist = this.persistChange;
     const world = this.world();
-    const action = courtAgentObservation(projectWorld(world), id).actions.find(action => action.id === actionId && action.target === "player");
-    if (!action || action.path.length > 2 || world.map!.revision !== revision || Object.values(this.activity.conversations).some(turns => turns.length)) throw new Error("Conversation changed; replan.");
+    const observation = this.map.observe(id);
+    const action = observation.actions.find(action => action.id === actionId && action.type === "talk" && action.target === "player");
+    if (!action || action.path.length > 2 || observation.map.revision !== revision || Object.values(this.activity.conversations).some(turns => turns.length)) throw new Error("Conversation changed; replan.");
     const lore = await documentLore(this.documents.scenario, id);
-    const reply = await this.runtime(id, "dialogue", {}, this.conversationRun(id), signal, [id, "player"]).services.ai.responses({ model: "openai/gpt-6-luna", api: "responses", max_tokens: 1000,
-      messages: [...lore.initial.map(doc => ({ role: "system" as const, content: doc.markdown })),
-        { role: "user", content: `Open a conversation with the player to advance this goal: ${goal}. Speak only your own opening words; do not invent the player's response or physical outcomes.` }],
-    }, signal);
+    const runtime = this.runtime(id, "dialogue", {}, this.conversationRun(id), signal, [id, "player"]);
+    // Opening speech can disclose lore, but there is no player utterance to check.
+    const disclosure = new DisclosureSession(lore, runtime.services.ai, 0.7).hooks(() => {});
+    runtime.hooks.conversation = this.options.hooks?.conversation ?? {
+      classify: async (...args) => ({ docs: await disclosure.classify(...args), checks: undefined }),
+      resolve: (context, labels, cancellation) => disclosure.resolve(context, labels.docs, cancellation),
+    };
+    runtime.services.character.respond = runtime.services.ai.responses;
+    const request = conversationRequest({ snapshot: { world }, characterId: id, sources: lore.initial, transcript: [],
+      message: `Open a conversation with the player to advance this goal: ${goal}. Speak only your own opening words; do not invent the player's response or physical outcomes.` });
+    const reply = await runConversation(request, runtime, signal);
     signal.throwIfAborted();
     if (reply.tool_calls?.length || !reply.content?.trim()) throw new Error("Conversation changed or invalid opening.");
     await this.commit(() => {
