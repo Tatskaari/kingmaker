@@ -10,6 +10,10 @@ Perform implementation work in a dedicated Git worktree for the task, not in the
 
 When moving an existing task into a worktree, preserve its uncommitted changes with a stash and commit them on its feature branch before handoff. An unfinished checkpoint commit is allowed for this transfer; record any outstanding validation and continue it after the move.
 
+### Lore collaboration exception
+
+Collaborate on lore and the Obsidian vault directly in `~/git/kingmaker`, with the vault at `~/git/kingmaker/lore`, so the user's Obsidian setup has a stable path. This is an explicit exception to the dedicated-worktree rule for lore authoring. Run lore edits, commits, checks and stack commands from that checkout. Before moving a lore branch there, commit the task's changes, release the branch from its current worktree, and check it out in `~/git/kingmaker` without overwriting unrelated changes. Preserve the user's in-progress Obsidian edits. Continue using dedicated worktrees for game-code implementation.
+
 ## Saved-game compatibility
 
 Do not add or maintain migrations or backward-compatibility code for existing saved games. When save schemas or authored world content change incompatibly, require a fresh game instead of upgrading old saves. Keep ordinary save/load support for the current format.
