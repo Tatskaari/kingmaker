@@ -16,6 +16,7 @@ import { documentReviewHooks } from "../../../packages/conversation/src/document
 import { jevActionHooks } from "../../../packages/conversation/src/action.js";
 import { documentLore } from "../../../packages/conversation/src/document-lore.js";
 import { DisclosureSession } from "../../../packages/conversation/src/disclosure.js";
+import { checkMechanics } from "../../../packages/conversation/src/checks.js";
 import { cliHooks } from "../../../packages/conversation/src/cli-hooks.js";
 import { aiService } from "../../../packages/conversation/src/adapters.js";
 import { OpenRouterClient } from "../../../packages/providers/src/openrouter.js";
@@ -49,6 +50,8 @@ export class WorldGameRuntime extends WorldHost {
   private runtime(id: string, kind: ModelCallKind, extra: WorldOptions = {}, runKey?: string, signal?: AbortSignal, participantIds = [id]) {
     const turnId = crypto.randomUUID(), conversationId = runKey ?? crypto.randomUUID();
     const persist = this.persistChange;
+    const world = this.world();
+    const random = { integer: (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1)), ...this.options.services?.random, ...extra.services?.random };
     const ai = { ...this.provider, ...this.options.services?.ai, ...extra.services?.ai };
     const respond = extra.services?.character?.respond ?? this.options.services?.character?.respond;
     if (kind === "dialogue" && respond) ai.responses = respond;
@@ -73,9 +76,11 @@ export class WorldGameRuntime extends WorldHost {
         insert: (...args) => this.commit(() => this.documents.docs.insert(...args), signal, persist),
         delete: (...args) => this.commit(() => this.documents.docs.delete(...args), signal, persist),
       },
+      character: { rollCheck: checkMechanics(world.player ? world.docs[world.player]?.characterProperties?.dnd : undefined,
+        () => random.integer(1, 20)), ...this.options.services?.character, ...extra.services?.character },
       map: { ...this.map, ...this.options.services?.map, ...extra.services?.map },
       ai: { ...traced, responses: retryResponses(traced.responses) },
-      random: { integer: (min, max) => min + Math.floor(Math.random() * (max - min + 1)), ...this.options.services?.random, ...extra.services?.random },
+      random,
       debug: { record: () => {}, ...this.options.services?.debug, ...extra.services?.debug },
       presentation: { renderMap: async () => {}, showRoll: async () => {}, setPortrait: async () => {}, ...this.options.services?.presentation, ...extra.services?.presentation },
     }, hooks: { ...this.options.hooks, ...extra.hooks,
@@ -124,7 +129,7 @@ export class WorldGameRuntime extends WorldHost {
     const world = this.world(), build = world.player ? world.docs[world.player]?.characterProperties?.dnd : undefined;
     const hooks = cliHooks(disclosure, runtime.services.ai, build, message,
       async (_check, cancellation) => { cancellation.throwIfAborted(); return runtime.services.random.integer(1, 20); },
-      () => {}, () => {}, runtime.services.presentation);
+      () => {}, () => {}, runtime.services.presentation, runtime.services.character);
     runtime.hooks.conversation = options.hooks?.conversation ?? this.options.hooks?.conversation ?? hooks;
     runtime.services.character.respond = runtime.services.ai.responses;
     const transcript = previous.map(turn => fromJson(TranscriptMessageSchema, turn));

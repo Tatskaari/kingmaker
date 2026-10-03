@@ -30,10 +30,10 @@ test("Jev plans difficulty; GM runs during presentation and dialogue waits for a
     if (schema === "conversation_roll_ruling") {
       order.push("dm");
       const evidence = JSON.parse(request.messages.at(-1).content);
-      assert.equal(evidence.resolvedChecks[0].roll, 1);
+      assert.equal(evidence.resolvedChecks[0].natural, 1);
       assert.equal(evidence.resolvedChecks[0].modifier, 17);
       assert.equal(evidence.resolvedChecks[0].success, false);
-      assert.equal(evidence.resolvedChecks[0].degree, "critical_failure");
+      assert.equal(evidence.resolvedChecks[0].outcome, "critical_failure");
       return reply({ direction: "Laugh as their argument spectacularly backfires, but offer another opening." });
     }
     order.push("npc");

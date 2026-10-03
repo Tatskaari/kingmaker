@@ -1,4 +1,5 @@
 import { aiService, decisionClient } from "../../../packages/conversation/src/adapters.js";
+import { checkMechanics } from "../../../packages/conversation/src/checks.js";
 import { classifyResolution, runResolution, type ResolutionContext } from "../../../packages/conversation/src/resolution.js";
 import { actionCriteria, jevActionHooks, runAction } from "../../../packages/conversation/src/action.js";
 import { initialModelResourceIds, modelResourceOverview } from "./model-resources.js";
@@ -635,9 +636,10 @@ export class BrowserGameRuntime {
     } });
     const target = scenario.characters.find(item => item.id === characterId)!;
     const actor = scenario.world.actors.find(item => item.characterId === characterId);
+    handler.services.character.rollCheck = options.services?.character?.rollCheck
+      ?? checkMechanics(scenario.characters.find(item => item.id === scenario.playerCharacterId)?.dnd);
     if (!options.hooks?.conversation) handler.hooks.conversation = checkHooks(handler, {
       playerTurn: messageText, playerId: scenario.playerCharacterId ?? "player",
-      build: scenario.characters.find(item => item.id === scenario.playerCharacterId)?.dnd,
       context: {
         character: { name: target.name, lore: target.lore, currentGoal: target.currentGoal,
           relationships: target.relationships.filter(item => item.characterId === scenario.playerCharacterId) },
