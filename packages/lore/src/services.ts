@@ -1,8 +1,8 @@
 import { clone, fromJson, toJson, type JsonObject } from "@bufbuild/protobuf";
 import { stringify } from "yaml";
 import { DocumentSchema, WorldStateSchema, type Document, type WorldState, type CharacterProperties } from "../../contracts/src/v2.js";
-import { WorldStateSchema as MapSchema, type WorldState as MapState } from "../../contracts/src/index.js";
-import { parseMarkdown } from "./markdown.js";
+import { GamePhase, WorldStateSchema as MapSchema, type WorldState as MapState } from "../../contracts/src/index.js";
+import { links, parseMarkdown } from "./markdown.js";
 import { refreshDocumentGraph } from "./world-state.js";
 
 export interface DocumentSnapshot {
@@ -15,6 +15,16 @@ export interface DocumentSnapshot {
 /** Trusted mechanics publish physical results, never narrative documents. */
 export interface MechanicsStateService {
   commit(map: MapState, properties: Readonly<Record<string, CharacterProperties>>): void;
+}
+export interface PlayerPublication {
+  path: string;
+  text: string;
+  properties: CharacterProperties;
+  /** One private, plain-prose impression for each active NPC entrypoint. */
+  impressions: Readonly<Record<string, string>>;
+}
+export interface PlayerCreationService {
+  publish(input: PlayerPublication): Promise<void>;
 }
 export interface ScenarioInfo { scenario: string; scenarioIndex: string; player?: string; characters: string[] }
 export interface ScenarioService {
@@ -52,7 +62,7 @@ async function snapshot(path: string, document: Document): Promise<DocumentSnaps
 }
 
 /** Both interfaces share one owned state. No filesystem, model calls or presentation dependencies. */
-export function createScenarioServices(initial: WorldState): { scenario: ScenarioService; docs: DocsService; mechanics: MechanicsStateService } {
+export function createScenarioServices(initial: WorldState): { scenario: ScenarioService; docs: DocsService; mechanics: MechanicsStateService; playerCreation: PlayerCreationService } {
   let state = refreshDocumentGraph(clone(WorldStateSchema, initial));
   let writes: Promise<unknown> = Promise.resolve();
   // Serialize asynchronous hash checks and commits; rejection must not poison subsequent writes.
@@ -126,7 +136,35 @@ export function createScenarioServices(initial: WorldState): { scenario: Scenari
       state = draft;
     }),
   };
-  return { docs, mechanics: {
+  return { docs, playerCreation: {
+    publish: input => write(async () => {
+      if (state.player) throw new Error("The player already exists.");
+      if (Object.hasOwn(state.docs, input.path)) throw new Error("Player document already exists.");
+      if (!state.map?.actors.some(actor => actor.characterId === "player")) throw new Error("Missing authored player position.");
+      const paths = Object.keys(input.impressions);
+      if (paths.length !== state.characters.length || state.characters.some(path => !paths.includes(path))) {
+        throw new Error("Describe an impression for every court character.");
+      }
+      const parsed = parseMarkdown(input.text);
+      if (parsed.error) throw new Error(parsed.error);
+      const draft = clone(WorldStateSchema, state);
+      draft.docs[input.path] = fromJson(DocumentSchema, { body: parsed.body, frontmatter: parsed.metadata as JsonObject });
+      draft.docs[input.path]!.characterProperties = structuredClone(input.properties);
+      draft.player = input.path;
+      for (const path of paths) {
+        const impression = input.impressions[path];
+        if (typeof impression !== "string" || !impression.trim()) throw new Error("An initial impression is required.");
+        // Text cannot inject document edges or alter the NPC's access metadata.
+        if (links(impression).length) throw new Error("Initial impressions must not contain document links.");
+        const prose = impression.trim().replace(/[\\`*_[\]<>#]/g, "\\$&");
+        draft.docs[path]!.body += `\n\n## Initial impression of the player\n${prose}\n`;
+      }
+      draft.map!.phase = GamePhase.CONVERSATIONS;
+      draft.map!.day = 1;
+      draft.map!.revision++;
+      state = refreshDocumentGraph(draft);
+    }),
+  }, mechanics: {
     commit(map, properties) {
       const draft = clone(WorldStateSchema, state);
       draft.map = clone(MapSchema, map);
