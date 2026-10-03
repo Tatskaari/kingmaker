@@ -106,7 +106,7 @@ test("GM review commits automatically validate without exposing an optional vali
   source.docs[source.scenario]!.body += `\n[[${other}]]`;
   const services = createScenarioServices(source), before = services.scenario.snapshot();
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
-    assert.deepEqual(request.tools?.map(tool => tool.function.name), ["commit_review"]);
+    assert.deepEqual(request.tools?.map(tool => tool.function.name), ["read_document", "create_document", "replace_document", "insert_document", "delete_document", "commit_review"]);
     return answer("Go to the hall");
   } } }, hooks: { review: documentReviewHooks } });
   await assert.rejects(runConversationReview(evidence, runtime), DocumentValidationError);
@@ -116,4 +116,59 @@ test("GM review commits automatically validate without exposing an optional vali
   await services.docs.replace(other, unsafe.sha, unsafe.text, "Bob knows no GM secrets.");
   await runConversationReview(evidence, runtime);
   assert.equal(activeGoal((await services.docs.read(entry)).document), "Go to the hall");
+});
+
+test("GM uses the full editing suite and finishes without overwriting its own edits", async () => {
+  const services = fixture(); let step = 0;
+  const note = "review-note.md";
+  const call = (name: string, args: Record<string, unknown>) => ({ role: "assistant" as const, content: null,
+    tool_calls: [{ id: `edit-${step}`, type: "function" as const, function: { name, arguments: JSON.stringify(args) } }] });
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
+    const feedback = step ? JSON.parse(request.messages.at(-1)!.content!) : undefined;
+    if (feedback) assert.equal(feedback.ok, true);
+    switch (step++) {
+      case 0: return call("read_document", { path: entry });
+      case 1: return call("replace_document", { path: entry, expectedSha: feedback.current.sha, oldText: "Earlier history.", newText: "Corrected history." });
+      case 2: return call("insert_document", { path: entry, expectedSha: feedback.current.sha, afterLine: feedback.current.text.trimEnd().split("\n").length, text: "An additional recollection.\n" });
+      case 3: return call("create_document", { path: note, text: "---\nvisibility: gm\nsummary: A temporary GM record.\n---\nTemporary record." });
+      case 4: return call("delete_document", { path: note, expectedSha: feedback.current.sha });
+      default: return answer("Go to the hall");
+    }
+  } } }, hooks: { review: documentReviewHooks } });
+  await runConversationReview(evidence, runtime);
+  assert.equal(step, 6);
+  const result = await services.docs.read(entry);
+  assert.match(result.text, /Corrected history/);
+  assert.match(result.text, /additional recollection/);
+  assert.match(result.text, /player asked/);
+  assert.equal(activeGoal(result.document), "Go to the hall");
+  await assert.rejects(services.docs.read(note), /not found/);
+});
+
+test("GM receives edit conflicts and validation failures and can repair its proposal", async () => {
+  const services = fixture(); let step = 0;
+  const initial = await services.docs.read(entry);
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
+    const feedback = step ? JSON.parse(request.messages.at(-1)!.content!) : undefined;
+    const edit = (sha: string, newText: string) => ({ role: "assistant" as const, content: null,
+      tool_calls: [{ id: `edit-${step}`, type: "function" as const, function: { name: "replace_document", arguments: JSON.stringify({ path: entry, expectedSha: sha, oldText: "Earlier history.", newText }) } }] });
+    switch (step++) {
+      case 0: return edit("stale", "Should not appear.");
+      case 1:
+        assert.equal(feedback.error, "document_conflict");
+        assert.equal(feedback.current.sha, initial.sha);
+        return edit(feedback.current.sha, "[[gm.md]]");
+      case 2:
+        assert.equal(feedback.error, "document_validation");
+        assert.equal((await services.docs.read(entry)).sha, initial.sha);
+        return edit(initial.sha, "Corrected history.");
+      default:
+        assert.equal(feedback.ok, true);
+        return answer(null);
+    }
+  } } }, hooks: { review: documentReviewHooks } });
+  await runConversationReview(evidence, runtime);
+  const result = await services.docs.read(entry);
+  assert.match(result.text, /Corrected history/);
+  assert.doesNotMatch(result.text, /Should not appear|\[\[gm.md\]\]/);
 });
