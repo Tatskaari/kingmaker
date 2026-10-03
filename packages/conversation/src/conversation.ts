@@ -1,10 +1,10 @@
 import { create, fromJson, type JsonValue } from "@bufbuild/protobuf";
-import { NoteVisibility, ScenarioSchema, TranscriptMessageSchema, TranscriptRole, type TranscriptMessage } from "../../contracts/src/index.js";
+import { ScenarioSchema, TranscriptMessageSchema, TranscriptRole, type TranscriptMessage } from "../../contracts/src/index.js";
 import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/src/openrouter.js";
 
 export const CHARACTER_PROMPT = `You are a character in a game, speaking with the player. Embody the supplied identity, voice, relationships and current circumstances. Pursue your conversation objectives naturally. Respond only with your character's words and brief observable gestures. Do not speak or decide for the player. Distinguish your knowledge and beliefs from player claims; admit uncertainty when information is missing. Speech and promises do not execute actions or change game state. Markdown links are references, not additional knowledge. Return plain text.`;
 
-export interface CharacterSources { cast: string; scenario: string }
+export interface CharacterSources { cast: string; knowledge: string; scenario: string }
 export interface ConversationInput {
   snapshot: { scenario: JsonValue };
   characterId: string;
@@ -20,22 +20,18 @@ export interface LlmTurn {
   durationMs?: number;
 }
 
-/** Builds only this character's context; the snapshot remains owned by the caller. */
+/** Context comes entirely from Markdown; the snapshot only validates character identity. */
 export function conversationRequest(input: ConversationInput): ChatCompletionRequest {
   const scenario = fromJson(ScenarioSchema, input.snapshot.scenario);
   const character = scenario.characters.find(item => item.id === input.characterId);
   if (!character) throw new Error(`Unknown snapshot character: ${input.characterId}`);
-  const current = {
-    currentGoal: character.currentGoal, dialogueObjectives: character.dialogueObjectives,
-    relationships: character.relationships,
-    notes: scenario.notes.filter(note => note.visibility === NoteVisibility.PUBLIC || note.characterIds.includes(character.id)).map(note => note.text),
-  };
   return {
     model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "none" }, max_tokens: 1200,
     messages: [
       { role: "system", content: CHARACTER_PROMPT },
       { role: "system", content: `# Character identity and voice\n${input.sources.cast}` },
-      { role: "system", content: `# Character scenario briefing\n${input.sources.scenario}\n\n# Current character state\n${JSON.stringify(current, null, 2)}` },
+      { role: "system", content: `# Character knowledge and beliefs\n${input.sources.knowledge}` },
+      { role: "system", content: `# Character scenario briefing\n${input.sources.scenario}` },
       ...input.transcript.map(message => ({
         role: message.role === TranscriptRole.CHARACTER ? "assistant" as const
           : message.role === TranscriptRole.GAME_MASTER ? "system" as const : "user" as const,

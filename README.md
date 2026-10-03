@@ -506,9 +506,12 @@ the lore directory; `--output path` chooses the review file. The character ID mu
 exist in both the snapshot and that scenario's character folder. Each run starts
 a fresh conversation; no game state is changed and no automatic review runs.
 
-This prototype eagerly supplies the selected Cast note, local character,
-background, situation and conversation Markdown, plus the snapshot's current
-goal, dialogue objectives, relationships and available notes. Scenario Markdown
-is still largely stubbed: the CLI displays and sends those stubs as authored.
-Linked notes are not expanded. Jev disclosure, Markdown visibility, portraits,
-dice checks and GM tools are outside this first implementation.
+All character context comes from Markdown: the selected Cast `private.md`, that
+character's own `knowledge/*.md` notes (excluding the author index), and local
+character, background, situation and conversation files. Snapshot relationships,
+goals, dialogue objectives and notes are not sent to the model; the snapshot only
+validates the selected character. Knowledge and scenario stubs are sent as authored,
+without inventing missing relationships or objectives. GM notes and author indexes
+are not loaded. These files are loaded eagerly; other links are not expanded.
+Jev disclosure, runtime Markdown visibility enforcement, portraits, dice checks and
+GM tools are outside this first implementation. Review exports remain JSON.

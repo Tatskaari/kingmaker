@@ -8,17 +8,22 @@ import { loadCharacterSources } from "../packages/conversation/src/lore.js";
 
 const input = (): ConversationInput => ({
   snapshot: { scenario: JSON.parse(readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")) },
-  characterId: "corvin", sources: { cast: "A precise legal scholar.", scenario: "Ask the visitor about the seal." },
+  characterId: "corvin", sources: { cast: "A precise legal scholar.", knowledge: "You believe the king avoids difficult decisions.", scenario: "Ask the visitor about the seal." },
   transcript: [], message: "Who are you?",
 });
 
-test("dialogue separates generic instructions, Cast identity and scenario state", () => {
-  const request = conversationRequest(input());
+test("dialogue uses Markdown identity, knowledge and scenario without snapshot context", () => {
+  const requestInput = input();
+  const request = conversationRequest(requestInput);
   assert.equal(request.messages[0]?.content, CHARACTER_PROMPT);
   assert.doesNotMatch(CHARACTER_PROMPT, /Corvin|Caerwyn|Centennial/);
   assert.match(request.messages[1]!.content!, /A precise legal scholar/);
-  assert.match(request.messages[2]!.content!, /Ask the visitor about the seal/);
-  assert.match(request.messages[2]!.content!, /dialogueObjectives/);
+  assert.deepEqual(request.messages.slice(1, 4).map(message => message.content), [
+    `# Character identity and voice\n${requestInput.sources.cast}`,
+    `# Character knowledge and beliefs\n${requestInput.sources.knowledge}`,
+    `# Character scenario briefing\n${requestInput.sources.scenario}`,
+  ]);
+  assert.doesNotMatch(request.messages.map(message => message.content).join("\n"), /currentGoal|dialogueObjectives|Current character state/);
   assert.equal(request.messages.at(-1)?.content, "Who are you?");
   assert.equal(request.tools, undefined);
 });
@@ -51,10 +56,13 @@ test("failed and cancelled calls leave history untouched and expose debug errors
   await assert.rejects(converse(request, async () => ({ role: "assistant", content: null })), /plain character reply/);
 });
 
-test("lore loads the selected Cast note and local scenario files without expanding links", () => {
+test("lore loads private Cast identity, observer knowledge and scenario files without author indexes or GM notes", () => {
   const sources = loadCharacterSources(new URL("../lore", import.meta.url).pathname, "Centennial Assembly", "corvin");
   assert.match(sources.cast, /# Magister Corvin/);
   assert.match(sources.cast, /## Speech style/);
+  assert.match(sources.knowledge, /Magister Corvin\/knowledge\/Lady Elinor Ash.md/);
+  assert.equal((sources.knowledge.match(/characters: \[corvin\]/g) ?? []).length, 12);
+  assert.doesNotMatch([sources.cast, sources.knowledge, sources.scenario].join("\n"), /visibility: gm|GM notes|Source: #|Author navigation/);
   for (const name of ["character", "background", "situation", "conversation"]) assert.ok(sources.scenario.includes(`/corvin/${name}.md`));
   assert.doesNotMatch(sources.scenario, /# Centennial Assembly — GM entry/);
   assert.throws(() => conversationRequest({ ...input(), characterId: "missing" }), /Unknown snapshot character/);
