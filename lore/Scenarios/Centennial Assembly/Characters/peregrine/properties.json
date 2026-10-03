@@ -1,4 +1,37 @@
 {
-  "dnd": null,
-  "inventory": null
+  "dnd": {
+    "rulesetId": "srd-5.2.1",
+    "speciesId": "human",
+    "backgroundId": "kingmaker-courtier",
+    "abilityScores": {
+      "strength": 12,
+      "dexterity": 14,
+      "constitution": 12,
+      "intelligence": 12,
+      "wisdom": 10,
+      "charisma": 16
+    },
+    "classes": [
+      {"classId": "rogue", "level": 2, "hitDiceRemaining": 2}
+    ],
+    "hitPoints": {
+      "current": 15,
+      "maximum": 15
+    },
+    "proficiencies": [
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "persuasion", "rank": "PROFICIENCY_RANK_EXPERTISE", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "performance", "rank": "PROFICIENCY_RANK_EXPERTISE", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "acrobatics", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "survival", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"}
+    ]
+  },
+  "inventory": {
+    "items": [
+      {"id": "peregrine_clothes_fine", "name": "Formal clothes", "quantity": 1, "concealed": false, "details": "Ordinary well-maintained clothing for the assembly.", "definitionId": "clothes-fine"},
+      {"id": "peregrine_rapier", "name": "Explorer’s rapier", "quantity": 1, "concealed": false, "details": "A well-kept sidearm, sheathed for the assembly.", "definitionId": "rapier"},
+      {"id": "peregrine_dagger", "name": "Dagger", "quantity": 1, "concealed": true, "details": "A small personal knife, kept sheathed beneath the outer clothing.", "definitionId": "dagger"},
+      {"id": "peregrine_travel_journal", "name": "Travel journal", "quantity": 1, "concealed": false, "details": "Personal space for travel anecdotes; no established discoveries or secret routes."}
+    ],
+    "equipment": {}
+  }
 }

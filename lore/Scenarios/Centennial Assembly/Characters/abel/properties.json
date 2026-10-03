@@ -1,4 +1,43 @@
 {
-  "dnd": null,
-  "inventory": null
+  "dnd": {
+    "rulesetId": "srd-5.2.1",
+    "speciesId": "human",
+    "backgroundId": "kingmaker-sailor",
+    "abilityScores": {
+      "strength": 12,
+      "dexterity": 16,
+      "constitution": 14,
+      "intelligence": 13,
+      "wisdom": 14,
+      "charisma": 12
+    },
+    "classes": [
+      {"classId": "rogue", "subclassId": "thief", "level": 3, "hitDiceRemaining": 3}
+    ],
+    "hitPoints": {
+      "current": 24,
+      "maximum": 24
+    },
+    "proficiencies": [
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "perception", "rank": "PROFICIENCY_RANK_EXPERTISE", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "survival", "rank": "PROFICIENCY_RANK_EXPERTISE", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "athletics", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "stealth", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "persuasion", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_TOOL", "targetId": "thieves-tools", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"}
+    ]
+  },
+  "inventory": {
+    "items": [
+      {"id": "abel_clothes_travelers", "name": "Travel clothes", "quantity": 1, "concealed": false, "details": "Ordinary well-maintained clothing for the assembly.", "definitionId": "clothes-travelers"},
+      {"id": "abel_rapier", "name": "Sailor’s rapier", "quantity": 1, "concealed": false, "details": "A practical sidearm, sheathed while in court.", "definitionId": "rapier"},
+      {"id": "abel_dagger", "name": "Dagger", "quantity": 1, "concealed": true, "details": "A small personal knife, kept sheathed beneath the outer clothing.", "definitionId": "dagger"},
+      {"id": "abel_leather_armor", "name": "Leather armor", "quantity": 1, "concealed": true, "details": "Plain light armor worn beneath a travelling coat.", "definitionId": "leather-armor"},
+      {"id": "abel_thieves_tools", "name": "Lock tools", "quantity": 1, "concealed": true, "details": "A compact set carried discreetly for practical work.", "definitionId": "thieves-tools"},
+      {"id": "abel_route_notebook", "name": "Route notebook", "quantity": 1, "concealed": false, "details": "Blank route-planning pages; no smuggling routes or privileged access."}
+    ],
+    "equipment": {
+      "armorItemId": "abel_leather_armor"
+    }
+  }
 }

@@ -1,4 +1,37 @@
 {
-  "dnd": null,
-  "inventory": null
+  "dnd": {
+    "rulesetId": "srd-5.2.1",
+    "speciesId": "human",
+    "backgroundId": "kingmaker-courtier",
+    "abilityScores": {
+      "strength": 8,
+      "dexterity": 12,
+      "constitution": 10,
+      "intelligence": 16,
+      "wisdom": 13,
+      "charisma": 14
+    },
+    "classes": [
+      {"classId": "rogue", "level": 2, "hitDiceRemaining": 2}
+    ],
+    "hitPoints": {
+      "current": 13,
+      "maximum": 13
+    },
+    "proficiencies": [
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "investigation", "rank": "PROFICIENCY_RANK_EXPERTISE", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "insight", "rank": "PROFICIENCY_RANK_EXPERTISE", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "persuasion", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "history", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"}
+    ]
+  },
+  "inventory": {
+    "items": [
+      {"id": "cressida_clothes_fine", "name": "Formal clothes", "quantity": 1, "concealed": false, "details": "Ordinary well-maintained clothing for the assembly.", "definitionId": "clothes-fine"},
+      {"id": "cressida_dagger", "name": "Dagger", "quantity": 1, "concealed": true, "details": "A small personal knife, kept sheathed beneath the outer clothing.", "definitionId": "dagger"},
+      {"id": "cressida_accounts_notebook", "name": "Accounts notebook", "quantity": 1, "concealed": false, "details": "Blank accounting tables for checking proposals; no authored debts or incriminating transactions."},
+      {"id": "cressida_writing_kit", "name": "Writing kit", "quantity": 1, "concealed": false, "details": "Fine but ordinary pens, ink and paper."}
+    ],
+    "equipment": {}
+  }
 }

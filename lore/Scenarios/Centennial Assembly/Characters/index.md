@@ -48,3 +48,11 @@ Equipment is ordinary and scenario-local. Weapons are sheathed unless named as h
 | Gurt | Dwarf fighter 2; 20 HP | Uses Aldren's low-level royal baseline with Constitution 14, Dexterity 8 and History expertise. His variable attentiveness stays in roleplay, not a blanket condition or a rule allowing others to supply consent. |
 | Klog | Dwarf rogue 2; 17 HP | Uses the courtier skill-specialist pattern: Intelligence 16, Wisdom 14, and expertise in Investigation and History for claims scrutiny. Forms establish no new debts. |
 | Bran | Dwarf rogue 2; 17 HP | Extends the old Rowan artisan pattern: Intelligence 16, Investigation/Persuasion expertise and tinker's tools support an engineer and entrepreneur without inventing an artificer rules pack. |
+
+### Saltmere
+
+| Character | Draft build | Rationale |
+| --- | --- | --- |
+| Peregrine | Human rogue 2; 15 HP | Adapts Lucan's charming prince baseline toward an explorer: Charisma 16, Persuasion/Performance expertise, Acrobatics and Survival, with ordinary travelling notes and a rapier. |
+| Cressida | Human rogue 2; 13 HP | Adapts Elinor's courtier pattern toward a commercial adviser: Intelligence 16 and Investigation/Insight expertise for accounts and hidden obligations. |
+| Abel | Human thief rogue 3; 24 HP | Adapts Rook's experienced sailor baseline toward navigation and practical protection: Dexterity 16, Perception/Survival expertise and lock tools. Rook's intercepted letter and other old-scenario secrets are not carried across. |
