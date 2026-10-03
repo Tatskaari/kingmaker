@@ -3,7 +3,13 @@ visibility: gm
 ---
 # Marshal Garran Holt — GM notes
 
-Relationships: Enables [[Cast/Caerwyn/King Aldren/index|King Aldren]], needs and resents [[Cast/Caerwyn/Magister Corvin/index|Magister Corvin]]. Shared precision draws him toward [[Cast/Saltmere/Lady Cressida Pinchbeck/index|Lady Cressida Pinchbeck]]. Protects [[Cast/Caerwyn/Tomas Vey/index|Tomas Vey]] for his safety, not a claim.
+You are the GM. Use these truths and portrayal notes to adjudicate scenes; share a fact with a character only when their scoped knowledge or events in play establish that they know it.
+
+## GM relationship context
+
+Enables [[Cast/Caerwyn/King Aldren/index|King Aldren]], needs and resents [[Cast/Caerwyn/Magister Corvin/index|Magister Corvin]]. Shared precision draws him toward [[Cast/Saltmere/Lady Cressida Pinchbeck/index|Lady Cressida Pinchbeck]]. Protects [[Cast/Caerwyn/Tomas Vey/index|Tomas Vey]] for his safety, not a claim.
+
+## Portrayal and author references
 
 Source: #111 in [[Sources and Decisions]]. Scenario objectives belong in separate briefs.
 

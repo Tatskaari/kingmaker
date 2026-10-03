@@ -1,4 +1,9 @@
+---
+visibility: gm
+---
 # Bread and Obligations
+
+GM reference. Use this as setting or plot context; it does not grant characters knowledge of every fact below.
 
 Failing wards and protected granaries, industrial dependence on foreign grain, disputed claims, shipping costs and the detained convoy connect all three delegations. A settlement must feed people while confronting who benefits, whose rights are protected and what Gurt can meaningfully approve.
 

@@ -3,7 +3,13 @@ visibility: gm
 ---
 # Professor Oswin — GM notes
 
-Relationships: Disputes reform with [[Cast/Nine Furrows/Doctor Rowan Ash/index|Doctor Rowan Ash]] and administration with [[Cast/Nine Furrows/Lady Elinor Ash/index|Lady Elinor Ash]]. Remembers opposing an appointment involving [[Cast/Caerwyn/Magister Corvin/index|Magister Corvin]], with unreliable recollection of his reason.
+You are the GM. Use these truths and portrayal notes to adjudicate scenes; share a fact with a character only when their scoped knowledge or events in play establish that they know it.
+
+## GM relationship context
+
+Disputes reform with [[Cast/Nine Furrows/Doctor Rowan Ash/index|Doctor Rowan Ash]] and administration with [[Cast/Nine Furrows/Lady Elinor Ash/index|Lady Elinor Ash]]. Remembers opposing an appointment involving [[Cast/Caerwyn/Magister Corvin/index|Magister Corvin]], with unreliable recollection of his reason.
+
+## Portrayal and author references
 
 Source: #108 in [[Sources and Decisions]]. Scenario objectives belong in separate briefs.
 

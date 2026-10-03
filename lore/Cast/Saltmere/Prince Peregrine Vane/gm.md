@@ -3,9 +3,15 @@ visibility: gm
 ---
 # Prince Peregrine Vane — GM notes
 
+You are the GM. Use these truths and portrayal notes to adjudicate scenes; share a fact with a character only when their scoped knowledge or events in play establish that they know it.
+
 Purchased competence makes Peregrine mistake support for innate genius.
 
-Relationships: Betrothed to [[Cast/Saltmere/Lady Cressida Pinchbeck/index|Lady Cressida Pinchbeck]] and reliant on [[Cast/Saltmere/Abel Keel/index|Abel Keel]]. Her criticism provokes ever grander boasts; his promises create Abel’s work.
+## GM relationship context
+
+Betrothed to [[Cast/Saltmere/Lady Cressida Pinchbeck/index|Lady Cressida Pinchbeck]] and reliant on [[Cast/Saltmere/Abel Keel/index|Abel Keel]]. Her criticism provokes ever grander boasts; his promises create Abel’s work.
+
+## Portrayal and author references
 
 Source: #110 in [[Sources and Decisions]]. Scenario objectives belong in separate briefs.
 

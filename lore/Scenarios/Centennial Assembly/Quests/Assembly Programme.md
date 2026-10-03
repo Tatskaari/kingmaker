@@ -4,7 +4,7 @@ visibility: gm
 ---
 # Assembly Programme
 
-Opening quest sketch for the first interaction after character creation. This tree develops the author's opening beats; response branches are proposed possibilities, not a fixed sequence of completed events. The later quest remains to be sketched.
+You are the GM. Use this opening quest sketch for the first interaction after character creation. The response branches are possible outcomes to adjudicate, not a fixed sequence of completed events. Later quest details remain unwritten.
 
 ## Premise
 
@@ -28,17 +28,17 @@ Opening quest sketch for the first interaction after character creation. This tr
   - Play his concern sincerely. Let the disproportion between his urgency and the problem establish the tone.
   - **The player offers to help:** he directs them to petition Holt to solve the holdup.
   - **They question whether this is an emergency:** he explains why the guests' comfort matters to him. He considers it a travesty if his guests are not provided with all the luxuries at his disposal, and renews the request. Agreement with him is not required to obtain the lead.
-  - **They suggest using the existing seats or substitutes:** he presses for the cushions he ordered; he genuinely cares about these cushions and keeps pressing unless the GM adjudicates a particularly high persuasion result. The precise threshold remains to be set; do not turn this into automatic refusal or automatic success.
+  - **They suggest using the existing seats or substitutes:** he presses for the cushions he ordered; he genuinely cares about these cushions and keeps pressing unless you adjudicate a particularly high persuasion result. The precise threshold remains to be set; do not turn this into automatic refusal or automatic success.
   - **They decline:** the delivery remains late. Hearing the request does not commit the player to fixing it.
   - The king asks the player to petition Holt to solve the problem. If asked why he does not do this himself, he reveals that Holt is not taking his petition seriously. He wants the player to talk some sense into Holt.
-  - The player can remind Aldren that he is king and can command Holt. Aldren is reluctant: Holt is in “one of those moods”, and Aldren would rather not get in his way. A moderately hard persuasion check can convince him to approach Holt himself. The GM sets the threshold and adjudicates the roll. Success changes Aldren’s willingness; it does not make the approach, Holt’s response or the delivery happen automatically.
+  - The player can remind Aldren that he is king and can command Holt. Aldren is reluctant: Holt is in “one of those moods”, and Aldren would rather not get in his way. A moderately hard persuasion check can convince him to approach Holt himself. Set the threshold and adjudicate the roll. Success changes Aldren’s willingness; it does not make the approach, Holt’s response or the delivery happen automatically.
   - Lead revealed: Holt is coordinating the preparations and is the next person to consult.
 
 - **3. The player brings the problem to Holt.**
   - Prerequisite: the player actually reaches and speaks with him. Aldren's referral does not itself start this conversation or inform Holt.
   - Holt is already dealing with a disrupted programme. The cushion enquiry is another demand on his attention.
   - He explains the relevant timetable with absurd precision: the hall preparations should have been finished by **3:47 this afternoon**.
-  - Keep the person responsible for finishing the hall unnamed until chosen. The time comes from the author's sketch; the rest of the itinerary is unwritten.
+  - Keep the person responsible for finishing the hall unnamed until chosen. Only that time is established; do not invent the rest of the itinerary as prior fact.
   - **The player repeats Aldren's demand:** Holt explains why the plan has broken down.
   - **They ask what help he actually needs:** he explains the obstruction and the immediate problem it creates for the preparations.
   - **They blame him for the delay:** he distinguishes what he planned from the event outside his control; the player can still learn what happened.
@@ -62,7 +62,7 @@ Opening quest sketch for the first interaction after character creation. This tr
   - **They support dismantling:** Holt wants the entrance cleared; Rowan resists losing days of rebuilding. Resolve actual consent, actions and damage through play.
 
 - **6. Balance the competing demands.**
-  - The player may attempt a repair, arrange another route, negotiate dismantling, or carry the cushions through by hand if the GM establishes a safe route.
+  - The player may attempt a repair, arrange another route, negotiate dismantling, or carry the cushions through by hand if you establish a safe route.
   - Getting cushions to the hall can satisfy Aldren's original request while leaving Holt's blocked entrance unresolved.
   - If Aldren learns about the gift tree, he wants that preserved too. Do not grant him this knowledge at the start.
   - Rowan can explain his interest in moving food with too few workers if asked about the machine's purpose; this does not disclose other people's agricultural secrets.
@@ -77,11 +77,11 @@ Opening quest sketch for the first interaction after character creation. This tr
 - Record an accepted errand, an attempted remedy, an agreed change of plan and a completed remedy separately. Only adjudicated events change the physical preparations or establish success.
 - Keep this full tree GM-only. Give each involved character only their own scenario notes and information they actually learn.
 
-## Next author decisions
+## Unresolved author decisions
 
-- Set the precise persuasion thresholds, repair options and consequences when the relevant mechanics are authored.
-- Decide which wider assembly troubles should surface along the way; no specific political lead is established by this sketch.
-- Develop the investigation, escalating requests and possible outcomes after the introduction.
+- Precise persuasion thresholds, repair options and consequences remain to be authored or adjudicated for the actual attempt.
+- Wider assembly troubles and political leads remain undecided; this sketch establishes no specific lead.
+- The investigation, escalating requests and possible outcomes after the introduction remain unwritten.
 
 Character references: [[Cast/Caerwyn/King Aldren/private|Aldren]], [[Cast/Caerwyn/Marshal Garran Holt/private|Holt]] and [[Cast/Nine Furrows/Doctor Rowan Ash/private|Rowan]]. Their enduring characterization stays in Cast.
 

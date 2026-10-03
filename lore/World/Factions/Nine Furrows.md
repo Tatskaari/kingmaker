@@ -1,8 +1,11 @@
 ---
+visibility: gm
 type: faction
 status: draft
 ---
 # Nine Furrows
+
+GM reference. Use this as setting or plot context; it does not grant characters knowledge of every fact below.
 
 The Ancient and Collegiate University of the Nine Furrows operates Greenweald's granaries, hospitals, irrigation, estates and weather wards. Its exact constitutional relationship to Greenweald remains unresolved.
 

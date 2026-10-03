@@ -1,8 +1,11 @@
 ---
+visibility: gm
 type: place
 status: draft
 ---
 # Dunmere
+
+GM reference. Use this as setting or plot context; it does not grant characters knowledge of every fact below.
 
 Distant home of Tomas Vey, Aldren's adult son. His identity is an author-only secret; the town's existence is not.
 

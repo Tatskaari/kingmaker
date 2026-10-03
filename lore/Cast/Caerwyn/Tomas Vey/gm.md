@@ -3,9 +3,15 @@ visibility: gm
 ---
 # Tomas Vey — GM notes
 
-Adult son of Aldren, living quietly in Dunmere. His birth is not a crime, proof of patrol fraud or an automatic claim to the common throne. Author-only fact until discovered. TODO: His own wants and relationships beyond the secret; the voice below is provisional.
+You are the GM. Use these truths and portrayal notes to adjudicate scenes; share a fact with a character only when their scoped knowledge or events in play establish that they know it.
 
-Relationships: [[Cast/Caerwyn/King Aldren/index|King Aldren]] is his father; [[Cast/Caerwyn/Marshal Garran Holt/index|Marshal Garran Holt]] protects him; [[Cast/Saltmere/Abel Keel/index|Abel Keel]] holds an intercepted letter. Location: [[Dunmere]].
+Adult son of Aldren, living quietly in Dunmere. His birth is not a crime, proof of patrol fraud or an automatic claim to the common throne. Author-only fact until discovered. TODO: His own wants and relationships beyond the secret; his private voice guidance is provisional.
+
+## GM relationship context
+
+[[Cast/Caerwyn/King Aldren/index|King Aldren]] is his father; [[Cast/Caerwyn/Marshal Garran Holt/index|Marshal Garran Holt]] protects him; [[Cast/Saltmere/Abel Keel/index|Abel Keel]] holds an intercepted letter. Location: [[Dunmere]].
+
+## Portrayal and author references
 
 Source: existing scenario in [[Sources and Decisions]]. Scenario objectives belong in separate briefs.
 

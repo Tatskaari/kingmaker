@@ -3,7 +3,13 @@ visibility: gm
 ---
 # Doctor Rowan Ash — GM notes
 
-Relationships: Younger brother of [[Cast/Nine Furrows/Lady Elinor Ash/index|Lady Elinor Ash]], rival of [[Cast/Nine Furrows/Professor Oswin/index|Professor Oswin]], admiring but tactless defender of [[Cast/Caerwyn/Magister Corvin/index|Magister Corvin]].
+You are the GM. Use these truths and portrayal notes to adjudicate scenes; share a fact with a character only when their scoped knowledge or events in play establish that they know it.
+
+## GM relationship context
+
+Younger brother of [[Cast/Nine Furrows/Lady Elinor Ash/index|Lady Elinor Ash]], rival of [[Cast/Nine Furrows/Professor Oswin/index|Professor Oswin]], admiring but tactless defender of [[Cast/Caerwyn/Magister Corvin/index|Magister Corvin]].
+
+## Portrayal and author references
 
 Source: #108 in [[Sources and Decisions]]. Scenario objectives belong in separate briefs.
 

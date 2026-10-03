@@ -3,7 +3,13 @@ visibility: gm
 ---
 # Klog — GM notes
 
-Relationships: Challenges [[Cast/Kläggenheim/Bran/index|Bran]] over ownership and ancestral obligations; interprets [[Cast/Kläggenheim/King Gurt/index|King Gurt]] too readily while accusing Bran of doing the same.
+You are the GM. Use these truths and portrayal notes to adjudicate scenes; share a fact with a character only when their scoped knowledge or events in play establish that they know it.
+
+## GM relationship context
+
+Challenges [[Cast/Kläggenheim/Bran/index|Bran]] over ownership and ancestral obligations; interprets [[Cast/Kläggenheim/King Gurt/index|King Gurt]] too readily while accusing Bran of doing the same.
+
+## Portrayal and author references
 
 Source: #109 in [[Sources and Decisions]]. Scenario objectives belong in separate briefs.
 
