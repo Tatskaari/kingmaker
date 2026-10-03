@@ -100,3 +100,36 @@ test("world event perception uses injected rolls at the moderate hearing boundar
   assert.ok(rolls.length > 0);
   assert.ok(rolls.every(range => range[0] === 1 && range[1] === 100));
 });
+
+test("player perceives nearby physical events more reliably and clearly than NPCs", async () => {
+  const world = loadPlayableWorld();
+  const source = world.map!.actors.find(actor => actor.characterId === "rowan")!;
+  source.position = { $typeName: "kingmaker.v1.TilePosition", x: 58, y: 24 };
+  for (const id of ["player", "holt"]) {
+    world.map!.actors.find(actor => actor.characterId === id)!.position = { ...source.position, x: 62 };
+  }
+  const runtime = new WorldGameRuntime(world, "", undefined, undefined, undefined, {
+    services: { random: { integer: () => 100 } },
+  });
+  const event = create(EventSchema, { id: "door-open", participantIds: ["rowan"], position: source.position,
+    kind: "using a door", summary: "Rowan opened the hall door." });
+  const result = await runtime.assessWorldEvent(event, signal);
+  assert.equal(result.playerPerception, event.summary);
+  assert.ok(!result.reactions.some(reaction => reaction.characterId === "holt"));
+  runtime.recordPlayerPerception(event, result.playerPerception!);
+  runtime.recordPlayerPerception(event, result.playerPerception!);
+  const saved = runtime.snapshot();
+  runtime.restore(saved);
+  assert.deepEqual(runtime.snapshot().playerMessages.map(entry => entry.message), [event.summary]);
+});
+
+test("the player's own events enter the feed even without an event position", async () => {
+  const runtime = new WorldGameRuntime(loadPlayableWorld(), "");
+  for (const kind of ["using a door", "interacting with an object"]) {
+    const event = create(EventSchema, { id: kind, participantIds: ["player"], kind, summary: `You are ${kind}.` });
+    const result = await runtime.assessWorldEvent(event, signal);
+    assert.equal(result.playerPerception, event.summary);
+    assert.deepEqual(result.reactions, []);
+  }
+  assert.equal((await runtime.assessWorldEvent(create(EventSchema, { participantIds: ["rowan"] }), signal)).playerPerception, undefined);
+});
