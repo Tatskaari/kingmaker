@@ -1,3 +1,4 @@
+import { stringify } from "yaml";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { fromJson, toJson } from "@bufbuild/protobuf";
@@ -31,4 +32,27 @@ test("CLI builds Markdown state, discloses edited documents and reloads independ
     await services.docs.replace(link.path, changed.sha, changed.text, text);
     await assert.rejects(lore.open(link, new AbortController().signal), /No read access/);
   }
+});
+
+test("saved document labels authorize retrieval and revocation applies to an open conversation", async () => {
+  const services = createScenarioServices(loadConversationWorld("lore", "Centennial Assembly"));
+  const entry = services.scenario.info().characters.find(path => path.includes("/corvin/"))!;
+  const original = await services.docs.read(entry);
+  // Add an isolated label while preserving the authored character's baseline access.
+  const labelled = `---\n${stringify({ ...original.document.frontmatter, labels: [...(original.document.frontmatter?.labels as string[] ?? []), "test-court"] })}---\n${original.document.body}`;
+  await services.docs.replace(entry, original.sha, original.text, labelled);
+  const first = await documentLore(services.scenario, "corvin");
+  const link = first.links(first.initial)[0]!;
+  const detail = await services.docs.read(link.path);
+  const shared = "---\nvisibility: private\nreaders:\n  labels: [test-court]\n---\nShared court facts.";
+  await services.docs.replace(link.path, detail.sha, detail.text, shared);
+  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.snapshot())));
+  const lore = await documentLore(restored.scenario, "corvin");
+  assert.ok(lore.links(lore.initial).some(candidate => candidate.path === link.path));
+  assert.equal((await lore.open(link, new AbortController().signal)).markdown, "Shared court facts.");
+  const current = await restored.docs.read(entry);
+  const revoked = `---\n${stringify({ ...current.document.frontmatter, labels: (current.document.frontmatter?.labels as string[]).filter(label => label !== "test-court") })}---\n${current.document.body}`;
+  await restored.docs.replace(entry, current.sha, current.text, revoked);
+  assert.throws(() => lore.links(lore.initial), /No read access/);
+  await assert.rejects(lore.open(link, new AbortController().signal), /No read access/);
 });

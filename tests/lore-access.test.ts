@@ -84,3 +84,24 @@ test("checks entry access, excludes navigation indexes and rejects a mismatched 
   writeFileSync(path.join(root, entry), "---\nvisibility: gm\n---\n");
   assert.deepEqual(auditLore(root, entry, { character: "aldren" })[0]?.trail, [entry]);
 });
+
+test("entry labels grant shared knowledge without propagating labels from retrieved notes", t => {
+  const root = fixture(t, {
+    [entry]: "---\nlabels: [court-informed]\n---\n[[Briefing]]",
+    "Briefing.md": "---\nvisibility: private\nlabels: [secret]\nreaders:\n  labels: [court-informed]\n---\n[[Secret]] [[GM]]",
+    "Secret.md": "---\nvisibility: private\nreaders:\n  labels: [secret]\n---\n",
+    "GM.md": "---\nvisibility: gm\nreaders:\n  labels: [court-informed]\n---\n",
+  });
+  assert.deepEqual(auditLore(root, entry, { character: "aldren" }).map(item => item.trail.at(-1)),
+    ["Secret.md", "GM.md"]);
+  writeFileSync(path.join(root, entry), "[[Briefing]]");
+  assert.equal(auditLore(root, entry, { character: "aldren" })[0]?.trail.at(-1), "Briefing.md");
+});
+
+test("malformed document and reader labels fail closed", t => {
+  for (const header of ["labels: court-informed", "labels: [42]", "labels: [' ']",
+    "visibility: public\nreaders: {labels: court-informed}"]) {
+    const root = fixture(t, { [entry]: `---\n${header}\n---\n` });
+    assert.equal(auditLore(root, entry, { character: "aldren" })[0]?.kind, "invalid");
+  }
+});

@@ -1,3 +1,4 @@
+import { labels } from "../../lore/src/access.js";
 import { links } from "../../lore/src/markdown.js";
 import path from "node:path";
 import { permitted, readVault } from "../../../scripts/lib/lore-access.js";
@@ -15,11 +16,12 @@ export function loadCharacterLore(root: string, scenario: string, characterId: s
   const notes = readVault(root);
   const entry = `Scenarios/${scenario}/Characters/${characterId}/character.md`;
   if (entry.split("/").some(part => part === "." || part === "..")) throw new Error("Invalid character entry path.");
+  const audience = { character: characterId, labels: labels(notes.get(entry)?.metadata.labels) };
   const readable = (name: string) => {
     const note = notes.get(name);
     if (!note) throw new Error(`Missing lore note: ${name}`);
     if (note.error) throw new Error(`${name}: ${note.error}`);
-    if (!permitted(name, note, entry, { character: characterId })) throw new Error(`No read access: ${name}`);
+    if (!permitted(name, note, entry, audience)) throw new Error(`No read access: ${name}`);
     return note;
   };
   const read = (name: string): LoreDocument => ({ path: name, markdown: readable(name).body });

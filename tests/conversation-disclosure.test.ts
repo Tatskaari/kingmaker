@@ -152,3 +152,18 @@ test("permission and resolution failures cannot expose forbidden documents to Je
   const missing = loadCharacterLore(root, "Demo", "corvin");
   assert.throws(() => missing.candidates([...missing.initial, missing.read(`${folder}/a.md`)]), /Broken or ambiguous/);
 });
+
+test("Jev follows label-authorized briefing links without preloading their bodies", async t => {
+  const { root, folder, write, input } = fixture(t);
+  write(`${folder}/character.md`, `---\nlabels: [court-informed]\n---\n[[Cast/Caerwyn/Corvin/private|Identity]]\n[[Briefing]]`);
+  write("Briefing.md", "---\nvisibility: private\nreaders:\n  labels: [court-informed]\n---\nCOURT_BRIEFING [[Delegation]]");
+  write("Delegation.md", "---\nvisibility: private\nreaders:\n  labels: [court-informed]\n---\nDELEGATION_OVERVIEW");
+  const lore = loadCharacterLore(root, "Demo", "corvin");
+  assert.doesNotMatch(JSON.stringify(lore.initial), /COURT_BRIEFING|DELEGATION_OVERVIEW/);
+  const session = new DisclosureSession(lore, answers(() => 1));
+  const opened = await session.disclose(input, new AbortController().signal, () => {});
+  assert.ok(opened.some(note => note.markdown.includes("DELEGATION_OVERVIEW")));
+  write(`${folder}/character.md`, "[[Cast/Caerwyn/Corvin/private|Identity]]\n[[Briefing]]");
+  const unlabelled = loadCharacterLore(root, "Demo", "corvin");
+  assert.throws(() => unlabelled.candidates(unlabelled.initial), /No read access/);
+});
