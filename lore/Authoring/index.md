@@ -10,4 +10,6 @@ Author navigation index. Agent context starts at `scenario.md` or `character.md`
 
 - [[Authoring/Working on Lore|Working on Lore]]
 
+- [[Authoring/Writing Character Voices|Writing Character Voices]]
+
 Parent: [Lore index](../index.md).
