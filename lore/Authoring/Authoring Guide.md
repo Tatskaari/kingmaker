@@ -1,6 +1,6 @@
 # Authoring Guide
 
-World notes own factions, places, history and enduring rules. Cast notes own a person's identity, voice and relationships across scenarios. Plot notes collect the story threads. These are summaries of the sources, not newly settled canon.
+World notes own factions, places, history and enduring rules. Cast notes, grouped into faction folders under `Cast/`, own a person's identity, voice and relationships across scenarios. Each scenario character entry links back to its cast note as an author/GM reference. Plot notes collect the story threads. These are summaries of the sources, not newly settled canon.
 
 Each scenario has a GM-facing `scenario.md` and separate `Characters/<name>/character.md` conversation entries. Their scoped detail stubs are for what that person wants, knows and does, including prompting; see [[Agent Disclosure]]. Quest stubs are for possible events and the world-state changes they cause. Conversation stubs are for dialogue branches to improvise around. The map stub is for a place at a point in time, including tiles, occupants and inventories.
 

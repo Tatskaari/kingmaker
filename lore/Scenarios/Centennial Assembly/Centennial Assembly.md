@@ -7,20 +7,20 @@ Cast notes are author references and may contain secrets the character does not 
 
 | Author reference | Conversation entry |
 | --- | --- |
-| [[King Aldren]] | [[Scenarios/Centennial Assembly/Characters/aldren/character|Aldren]] |
-| [[Magister Corvin]] | [[Scenarios/Centennial Assembly/Characters/corvin/character|Corvin]] |
-| [[Marshal Garran Holt]] | [[Scenarios/Centennial Assembly/Characters/holt/character|Holt]] |
-| [[Lady Elinor Ash]] | [[Scenarios/Centennial Assembly/Characters/elinor/character|Elinor]] |
-| [[Professor Oswin]] | [[Scenarios/Centennial Assembly/Characters/oswin/character|Oswin]] |
-| [[Doctor Rowan Ash]] | [[Scenarios/Centennial Assembly/Characters/rowan/character|Rowan]] |
-| [[King Gurt]] | [[Scenarios/Centennial Assembly/Characters/gurt/character|Gurt]] |
-| [[Klog]] | [[Scenarios/Centennial Assembly/Characters/klog/character|Klog]] |
-| [[Bran]] | [[Scenarios/Centennial Assembly/Characters/bran/character|Bran]] |
-| [[Prince Peregrine Vane]] | [[Scenarios/Centennial Assembly/Characters/peregrine/character|Peregrine]] |
-| [[Lady Cressida Pinchbeck]] | [[Scenarios/Centennial Assembly/Characters/cressida/character|Cressida]] |
-| [[Abel Keel]] | [[Scenarios/Centennial Assembly/Characters/abel/character|Abel]] |
+| [[Cast/Caerwyn/King Aldren|King Aldren]] | [[Scenarios/Centennial Assembly/Characters/aldren/character|Aldren]] |
+| [[Cast/Caerwyn/Magister Corvin|Magister Corvin]] | [[Scenarios/Centennial Assembly/Characters/corvin/character|Corvin]] |
+| [[Cast/Caerwyn/Marshal Garran Holt|Marshal Garran Holt]] | [[Scenarios/Centennial Assembly/Characters/holt/character|Holt]] |
+| [[Cast/Nine Furrows/Lady Elinor Ash|Lady Elinor Ash]] | [[Scenarios/Centennial Assembly/Characters/elinor/character|Elinor]] |
+| [[Cast/Nine Furrows/Professor Oswin|Professor Oswin]] | [[Scenarios/Centennial Assembly/Characters/oswin/character|Oswin]] |
+| [[Cast/Nine Furrows/Doctor Rowan Ash|Doctor Rowan Ash]] | [[Scenarios/Centennial Assembly/Characters/rowan/character|Rowan]] |
+| [[Cast/Kläggenheim/King Gurt|King Gurt]] | [[Scenarios/Centennial Assembly/Characters/gurt/character|Gurt]] |
+| [[Cast/Kläggenheim/Klog|Klog]] | [[Scenarios/Centennial Assembly/Characters/klog/character|Klog]] |
+| [[Cast/Kläggenheim/Bran|Bran]] | [[Scenarios/Centennial Assembly/Characters/bran/character|Bran]] |
+| [[Cast/Saltmere/Prince Peregrine Vane|Prince Peregrine Vane]] | [[Scenarios/Centennial Assembly/Characters/peregrine/character|Peregrine]] |
+| [[Cast/Saltmere/Lady Cressida Pinchbeck|Lady Cressida Pinchbeck]] | [[Scenarios/Centennial Assembly/Characters/cressida/character|Cressida]] |
+| [[Cast/Saltmere/Abel Keel|Abel Keel]] | [[Scenarios/Centennial Assembly/Characters/abel/character|Abel]] |
 
-[[Tomas Vey]] remains offstage lore until his participation is decided.
+[[Cast/Caerwyn/Tomas Vey|Tomas Vey]] remains offstage lore until his participation is decided.
 
 ## GM detail to sketch
 Quests: [[Assembly Programme]], [[Minutes and Titles]], [[Patrol Inquiry]], [[Grain Settlement]], [[Affection at a Cost]], [[Recognition Hearing]].
