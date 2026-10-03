@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { stripVTControlCharacters } from "node:util";
 import { Box, Text, render, useApp, useInput, useStdout, useWindowSize } from "ink";
 import wrapAnsi from "wrap-ansi";
-import { converse, type Complete, type ConversationInput, type LlmTurn } from "../../packages/conversation/src/conversation.js";
+import { conversationRequest, converse, type Complete, type ConversationInput, type LlmTurn } from "../../packages/conversation/src/conversation.js";
 
 export interface ConversationResult {
   characterId: string;
@@ -22,10 +22,19 @@ export function ConversationApp({ input, complete }: { input: ConversationInput;
   const controller = useRef(new AbortController());
   const running = useRef(false);
   const leftWidth = Math.floor(columns * 0.8), height = Math.max(1, rows - 7);
-  const recent = turns.map((turn, index) => ({ turn, index })).slice(-Math.max(1, rows - 6)).reverse();
+  const latest = turns.at(-1);
+  // The latest request already contains the prior conversation. Show that sequence
+  // once, followed by its reply, rather than duplicating history for every call.
+  const messages = latest ? [...latest.request.messages, latest.response ?? {
+    role: latest.error ? "error" : "pending", content: latest.error ?? "Waiting for the character's reply…",
+  }] : conversationRequest(input).messages.slice(0, -1);
+  const capacity = Math.max(1, rows - 6);
+  const listStart = Math.min(Math.max(0, (selected ?? messages.length - 1) - Math.floor(capacity / 2)), Math.max(0, messages.length - capacity));
+  const visibleMessages = messages.slice(listStart, listStart + capacity);
+  const inspected = selected === null ? undefined : messages[selected];
   const source = selected === null
     ? transcript.map(message => `${message.speakerId === "player" ? "You" : input.characterId}: ${message.text}`).join("\n\n") || "Type a message to begin."
-    : JSON.stringify(turns[selected], null, 2);
+    : inspected?.content ?? "No text content.";
   const lines = wrapAnsi(stripVTControlCharacters(source), Math.max(1, leftWidth - 4), { hard: true, trim: false }).split("\n");
   const maxOffset = Math.max(0, lines.length - height);
   const start = selected === null ? Math.max(0, maxOffset - offset) : Math.min(offset, maxOffset);
@@ -56,20 +65,20 @@ export function ConversationApp({ input, complete }: { input: ConversationInput;
     const mouse = value.match(/^\[<(\d+);(\d+);(\d+)([Mm])$/);
     if (mouse) {
       if (mouse[1] === "0" && mouse[4] === "M" && Number(mouse[2]) > leftWidth) {
-        const item = recent[Number(mouse[3]) - 4];
-        if (item) choose(item.index);
+        const row = Number(mouse[3]) - 4;
+        if (visibleMessages[row]) choose(listStart + row);
       }
       return;
     }
     if (key.ctrl && (value === "c" || value === "d")) return finish();
     if (key.escape) return choose(null);
-    if (key.tab) return choose(selected === null && turns.length ? turns.length - 1 : null);
+    if (key.tab) return choose(selected === null && messages.length ? 0 : null);
     if (key.pageUp || key.pageDown) {
       const direction = (key.pageDown ? 1 : -1) * (selected === null ? -1 : 1);
       return setOffset(Math.max(0, Math.min(maxOffset, offset + direction * height)));
     }
     if (selected !== null) {
-      if (key.upArrow || key.downArrow) choose(Math.max(0, Math.min(turns.length - 1, selected + (key.upArrow ? 1 : -1))));
+      if (key.upArrow || key.downArrow) choose(Math.max(0, Math.min(messages.length - 1, selected + (key.upArrow ? -1 : 1))));
       return;
     }
     if (key.return) { void send(); return; }
@@ -80,22 +89,22 @@ export function ConversationApp({ input, complete }: { input: ConversationInput;
     }
   });
   return <Box flexDirection="column" width={columns} height={rows}>
-    <Text bold wrap="truncate">Conversation · {input.characterId}{busy ? " · Thinking…" : ""}</Text>
+    <Text bold wrap="truncate">Conversation · {input.characterId}{busy ? " · Thinking…" : latest?.durationMs !== undefined ? ` · ${latest.durationMs}ms` : ""}</Text>
     <Box height={rows - 2}>
       <Box width={leftWidth} borderStyle="round" flexDirection="column" paddingX={1}>
-        <Text bold wrap="truncate">{selected === null ? "Conversation" : `LLM turn ${selected + 1} · request / response · Esc to return`}</Text>
+        <Text bold wrap="truncate">{selected === null ? "Conversation" : `Message ${selected + 1} · ${inspected?.role} · Esc to return`}</Text>
         <Box height={height} flexShrink={0}><Text>{lines.slice(start, start + height).join("\n")}</Text></Box>
         <Text color="red" wrap="truncate">{error || " "}</Text>
         <Text wrap="truncate">{selected === null ? `> ${draft.slice(-Math.max(1, leftWidth - 8))}${busy ? " …" : "▏"}` : `Lines ${start + 1}–${Math.min(lines.length, start + height)} / ${lines.length}`}</Text>
       </Box>
       <Box width={columns - leftWidth} borderStyle="round" flexDirection="column">
-        <Text bold wrap="truncate"> LLM turns</Text>
-        {recent.map(({ turn, index }) => <Text key={index} inverse={selected === index} wrap="truncate">
-          {` ${index + 1}. ${turn.error ? "Error" : turn.response ? `${turn.durationMs}ms` : "Pending…"}`}
+        <Text bold wrap="truncate"> Messages</Text>
+        {visibleMessages.map((message, row) => <Text key={listStart + row} inverse={selected === listStart + row} wrap="truncate">
+          {` ${listStart + row + 1}. ${message.role}`}
         </Text>)}
       </Box>
     </Box>
-    <Text dimColor wrap="truncate">Enter send · Click/Tab debug · ↑↓ turns · PgUp/Dn scroll · Esc chat · ^D finish</Text>
+    <Text dimColor wrap="truncate">Enter send · Click/Tab debug · ↑↓ select · PgUp/Dn scroll · Esc chat · ^D finish</Text>
   </Box>;
 }
 

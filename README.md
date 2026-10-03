@@ -489,10 +489,14 @@ focused test command.
 ## Conversation debugger
 
 Run `OPENROUTER_API_KEY=… npm run conversation -- --character corvin` in an
-interactive terminal. The conversation takes 80% of the width; recent LLM calls
-take 20%. Click a call (in terminals supporting SGR mouse reporting) or press Tab
-to inspect its exact request, response, duration or error. Use Up/Down to select
-calls, Page Up/Down to scroll, and Escape to return to chat. Enter sends a message;
+interactive terminal. The conversation takes 80% of the width; individual model
+messages take 20%. The sidebar lists system prompts, user messages and assistant
+replies in order, without repeating history for each call. Click a message (in
+terminals supporting SGR mouse reporting) or press Tab to inspect its full text.
+System prompts are available before the first reply. Use Up/Down to select
+messages, Page Up/Down to scroll, and Escape to return to chat. The header shows
+the latest call's duration; pending replies and errors appear in the sidebar.
+Enter sends a message;
 Ctrl+D or Ctrl+C finishes and writes the transcript and debug calls to
 `test-output/conversation-<timestamp>.json` for review.
 
