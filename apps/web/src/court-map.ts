@@ -118,7 +118,7 @@ export function redirectCourtPath(path: readonly Point[], progress: number, dest
 
 /** Mount inside the court screen; native buttons retain keyboard and touch access. */
 export async function mountCourtMap(root: HTMLElement, characters: readonly CourtCharacter[], player: CourtCharacter | null,
-  selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<void>, doors: DoorState[] = [], changeDoor?: (id: string, open: boolean) => Promise<DoorState[]>, rooms: readonly RoomAccess[] = [], fixtures: readonly MapFixture[] = [], fixtureChoices: readonly FixtureAction[] = [], interactFixture?: (actionId: string) => Promise<void>, pauseCharacter?: (id: string) => Promise<void>, debugCharacter?: (id: string) => Promise<void>, layout = palaceMap): Promise<void> {
+  selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<void>, doors: DoorState[] = [], changeDoor?: (id: string, open: boolean) => Promise<DoorState[]>, rooms: readonly RoomAccess[] = [], fixtures: readonly MapFixture[] = [], fixtureChoices: readonly FixtureAction[] = [], interactFixture?: (actionId: string) => Promise<void>, pauseCharacter?: (id: string) => Promise<void>, debugCharacter?: (id: string) => Promise<void>, layout = palaceMap, reportStatus: (message: string) => void = () => {}): Promise<void> {
   const palaceMap = layout;
   const viewport = document.createElement("div"); viewport.className = "court-map-scroll";
   const stage = document.createElement("div"); stage.className = "court-map-stage";
@@ -126,8 +126,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   stage.style.width = `${palaceMap.width * 24}px`;
   const canvas = document.createElement("canvas"); canvas.setAttribute("aria-label", "Palace of Caerwyn");
   stage.append(canvas); viewport.append(stage); root.append(viewport);
-  const status = document.createElement("p"); status.className = "status"; status.setAttribute("role", "status");
-  status.textContent = "Left-click to walk; click again to change destination. Right-click a tile or character for actions."; root.append(status);
+  reportStatus("Left-click to walk; click again to change destination. Right-click a tile or character for actions.");
   let moving = false;
   let redirect: ((destination: Point) => boolean) | undefined;
   let playerControl: HTMLElement | undefined;
@@ -189,23 +188,23 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
         else if (action.type === "door") {
           const door = doors.find(door => door.id === action.target);
           const spot = door && visualPosition && nearestDoorSpot({ x: Math.round(visualPosition.x), y: Math.round(visualPosition.y) }, door, doors, fixtures);
-          if (!door || !spot || !changeDoor) { status.textContent = "No reachable interaction spot for this door."; return; }
+          if (!door || !spot || !changeDoor) { reportStatus("No reachable interaction spot for this door."); return; }
           const open = !door.open;
           void walkTo(spot, async () => {
             doors = await changeDoor(door.id, open);
-            status.textContent = `${door.name} ${open ? "opened" : "closed"}.`; draw();
+            draw();
           });
         } else if (action.type === "fixture") {
           const fixture = fixtures.find(item => item.id === action.target);
           const spot = fixture?.position && approach(fixture.position, fixture.interactionSpot);
-          if (!spot || !interactFixture) { status.textContent = "No reachable interaction spot for this furniture."; return; }
+          if (!spot || !interactFixture) { reportStatus("No reachable interaction spot for this furniture."); return; }
           void walkTo(spot, () => interactFixture(action.id));
         } else {
           try { await pauseCharacter?.(action.target); }
-          catch { status.textContent = "Could not pause this character. Try again."; return; }
+          catch { reportStatus("Could not pause this character. Try again."); return; }
           const character = markers.find(marker => marker.id === action.target);
           const spot = character?.point && approach(character.point);
-          if (!spot) { status.textContent = "There is no reachable interaction spot for that character."; return; }
+          if (!spot) { reportStatus("There is no reachable interaction spot for that character."); return; }
           void walkTo(spot, () => selectCharacter(action.target));
         }
       });
@@ -327,16 +326,16 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       if (redirect) {
         const changed = redirect(target);
         pendingInteraction = changed ? interaction : undefined;
-        if (!changed) status.textContent = "That tile is blocked; continuing to your previous destination.";
+        if (!changed) reportStatus("That tile is blocked; continuing to your previous destination.");
       }
       return;
     }
     let path = courtPath(position, target, doors, fixtures);
     pendingInteraction = path ? interaction : undefined;
-    if (!path) { status.textContent = "You cannot walk there. Choose a clear floor tile."; return; }
+    if (!path) { reportStatus("You cannot walk there. Choose a clear floor tile."); return; }
     if (path.length < 2) {
       const action = pendingInteraction; pendingInteraction = undefined; moving = true;
-      try { await action?.(); } catch (error) { status.textContent = error instanceof Error ? error.message : "Interaction failed."; }
+      try { await action?.(); } catch (error) { reportStatus(error instanceof Error ? error.message : "Interaction failed."); }
       finally { moving = false; }
       return;
     }
@@ -344,7 +343,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
 
     const start = position;
     let destination = path[path.length - 1]!;
-    status.textContent = `Walking to ${courtRoomAt(destination)?.name ?? "the passage"}…`;
+    reportStatus(`Walking to ${courtRoomAt(destination)?.name ?? "the passage"}…`);
     const context = canvas.getContext("2d")!;
     const drawRoute = () => {
       draw();
@@ -359,7 +358,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       if (!replacement) return false;
       path = replacement; started = now; destination = target;
       place(path[0]!); drawRoute();
-      status.textContent = `Changed course: walking to ${courtRoomAt(target)?.name ?? "the passage"}…`;
+      reportStatus(`Changed course: walking to ${courtRoomAt(target)?.name ?? "the passage"}…`);
       return true;
     };
     const arrived = await new Promise<boolean>(resolve => {
@@ -367,7 +366,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
         if (!root.isConnected) { resolve(false); return; }
         const progress = Math.min((time - started) / 100, path!.length - 1);
         if (!canWalk(palaceMap, path![Math.ceil(progress)]!, courtDoorBlockers(doors, fixtures))) {
-          status.textContent = "The route changed. Choose another destination.";
+          reportStatus("The route changed. Choose another destination.");
           resolve(false); return;
         }
         place(courtWalkPoint(path!, progress));
@@ -382,12 +381,12 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     let committed = false;
     try {
       await movePlayer(destination); position = destination; committed = true;
-      status.textContent = `Arrived in ${courtRoomAt(destination)?.name ?? "the palace"}.`;
+      reportStatus(`Arrived in ${courtRoomAt(destination)?.name ?? "the palace"}.`);
       const action = pendingInteraction; pendingInteraction = undefined;
       if (root.isConnected) await action?.();
     } catch (error) {
       pendingInteraction = undefined;
-      if (!committed) place(start); status.textContent = error instanceof Error ? error.message : "Could not save your move.";
+      if (!committed) place(start); reportStatus(error instanceof Error ? error.message : "Could not save your move.");
     } finally {
       moving = false; draw();
 

@@ -37,11 +37,18 @@ h1 { font-size: clamp(2.7rem, 8vw, 5.4rem); letter-spacing: .08em; color: #f3e5b
 .message.user, .message.player { justify-self: end; text-align: right; color: #fff3d8; background: #ffffff09; border-right: 2px solid #81745f; }
 .speaker { display: block; color: var(--gold); font-family: Cinzel, serif; font-size: .68rem; letter-spacing: .12em; text-transform: uppercase; margin-bottom: 5px; }
 .earshot { display: block; margin-top: 8px; color: var(--dim); font-size: .95rem; font-style: italic; }
-.player-event-feed { position: absolute; inset: auto 0 0; height: var(--feed-height); overflow-y: auto; overscroll-behavior: contain; padding: 12px max(20px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left)); background: var(--panel); border-top: 1px solid var(--line); }
-.player-event-feed h2 { font-size: 1.1rem; color: var(--gold); margin: 0 0 10px; }
+.player-event-feed { position: absolute; z-index: 10; left: max(12px, env(safe-area-inset-left)); bottom: max(12px, env(safe-area-inset-bottom)); width: min(380px, calc(100% - 24px)); height: var(--feed-height); min-width: min(220px, calc(100% - 24px)); min-height: 90px; max-width: calc(100% - 24px); max-height: calc(100% - 24px); resize: both; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 10px 12px; background: linear-gradient(110deg, #100e0bd9, #100e0b8c); border: 1px solid #c9a66238; border-radius: 4px; box-shadow: 0 3px 14px #0004; font-size: 14px; text-shadow: 0 1px 2px #000; }
+.player-event-feed:hover, .player-event-feed:focus-within { background: #100e0be8; border-color: #c9a66270; }
+.player-event-feed h2 { font-size: 11px; color: var(--gold); margin: 0 0 7px; letter-spacing: .06em; }
+.player-event-feed h2 { position: sticky; top: -10px; z-index: 1; background: #100e0bed; margin: -10px -12px 7px; }
+.player-event-feed [data-feed-drag] { display: flex; justify-content: space-between; align-items: center; width: 100%; padding: 8px 12px; border: 0; background: transparent; color: inherit; font: inherit; letter-spacing: inherit; text-transform: uppercase; text-align: left; cursor: grab; touch-action: none; user-select: none; }
+.player-event-feed [data-feed-drag]:focus-visible { outline: 1px solid var(--gold); outline-offset: -2px; }
+.player-event-feed.dragging, .player-event-feed.dragging [data-feed-drag] { cursor: grabbing; }
 .player-event-feed ol { list-style: none; margin: 0; padding: 0; }
-.player-event-feed li + li { border-top: 1px solid var(--line); padding-top: 8px; margin-top: 8px; }
-.player-event-feed p { line-height: 1.45; margin: 6px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.player-event-feed li { line-height: 1.35; }
+.player-event-feed li + li { margin-top: 5px; }
+.player-event-feed time { display: inline; margin-right: 7px; font-size: 10px; letter-spacing: 0; color: var(--dim); }
+.player-event-feed p { display: inline; line-height: inherit; margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .feed-empty { color: var(--dim); font-style: italic; }
 .composer { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding-top: 17px; border-top: 1px solid var(--line); }
 .composer-actions { display: flex; align-items: stretch; gap: 10px; }
@@ -282,11 +289,11 @@ button.court-character:hover:not(:focus-visible) { border-color: transparent; ba
 .player-stats input { width: 100%; box-sizing: border-box; }
 
 
-/* Reserve the bottom of court for the feed; controls float above the camera. */
+/* The camera fills court; the compact event feed and controls float above it. */
 body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-behavior: none; }
 .in-court #app, .court-shell { position: fixed; inset: 0; overflow: hidden; }
-.court-shell { --feed-height: clamp(130px, 24dvh, 220px); }
-.in-court .court-panel { position: absolute; inset: 0 0 var(--feed-height); padding: 0; }
+.court-shell { --feed-height: min(150px, 25dvh); }
+.in-court .court-panel { position: absolute; inset: 0; padding: 0; }
 .in-court [data-court-map] { position: absolute; inset: 0; padding: 0; }
 .in-court .court-map-scroll { height: 100%; border: 0; }
 .court-toolbar { position: absolute; z-index: 20; top: max(12px, env(safe-area-inset-top)); left: max(12px, env(safe-area-inset-left)); right: max(12px, env(safe-area-inset-right)); display: flex; flex-wrap: wrap; gap: 6px; pointer-events: none; }
@@ -301,8 +308,6 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 .popover-close { position: absolute; top: 8px; right: 12px; border: 0; background: transparent; color: var(--gold); font-size: 1.7rem; }
 .court-menu-controls { display: grid; justify-items: start; gap: 18px; margin: 28px 0; }
 .court-popover .npc-planner { padding: 0; margin: 16px 0 0; border: 0; }
-.in-court [data-court-map] > .status, .in-court [data-court-notice] { position: absolute; left: 12px; bottom: max(12px, env(safe-area-inset-bottom)); max-width: min(640px, calc(100% - 24px)); margin: 0; padding: 8px 12px; background: #17130fed; pointer-events: none; font-size: .95rem; }
-.in-court [data-court-notice]:empty { display: none; }
 .in-court .sheet-scrim:not(.open), .in-court .character-sheet:not(.open),
 .in-court .debug-scrim:not(.open), .in-court .debug-inspector:not(.open) { visibility: hidden; }
 @media (max-width: 620px) {
