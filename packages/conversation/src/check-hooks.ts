@@ -12,6 +12,7 @@ export function checkHooks(runtime: ConversationRuntime<CheckLabels>, options: {
   playerId: string;
   build: DndCharacter | undefined;
   context?: unknown;
+  roll?: (check: CheckPlan, signal: AbortSignal) => Promise<number>;
 }): ConversationHooks<CheckLabels> {
   return {
     classify: async (context, signal) => {
@@ -44,6 +45,7 @@ export function checkHooks(runtime: ConversationRuntime<CheckLabels>, options: {
         present: (result, cancellation) => runtime.services.presentation.showRoll({ characterId: options.playerId,
           skill: result.skill, natural: result.roll, modifier: result.modifier, total: result.total,
           difficulty: result.difficulty, dc: result.dc, success: result.success, outcome: result.degree }, cancellation),
+        ...(options.roll ? { roll: options.roll } : {}),
         signal,
       });
       if (ruling) context.request.messages.push({ role: "system", content: ruling });

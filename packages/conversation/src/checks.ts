@@ -33,14 +33,19 @@ This game is playful, not a serious simulation. Successful checks must deliver t
 export async function adjudicateConversationChecks(options: {
   plan: CheckPlan[]; messages: readonly OpenRouterMessage[]; build: DndCharacter | undefined;
   complete: (request: ChatCompletionRequest, signal: AbortSignal) => Promise<OpenRouterMessage>;
-  present: PresentRoll; roll?: () => number; signal?: AbortSignal;
+  present: PresentRoll; roll?: (check: CheckPlan, signal: AbortSignal) => number | Promise<number>; signal?: AbortSignal;
 }): Promise<string | undefined> {
   if (!options.plan.length) return undefined;
   const controller = new AbortController();
   const signal = options.signal ? AbortSignal.any([options.signal, controller.signal]) : controller.signal;
   signal.throwIfAborted();
-  const results = options.plan.map(check => Object.freeze(resolvePlannedCheck(check,
-    skillModifier(options.build, check.skill), (options.roll ?? rollD20)())));
+  const results: Readonly<ConversationRoll>[] = [];
+  for (const check of options.plan) {
+    signal.throwIfAborted();
+    const natural = await (options.roll ? options.roll(check, signal) : rollD20());
+    signal.throwIfAborted();
+    results.push(Object.freeze(resolvePlannedCheck(check, skillModifier(options.build, check.skill), natural)));
+  }
   const complete = async (request: ChatCompletionRequest) => {
     signal.throwIfAborted();
     const result = await options.complete(request, signal);
