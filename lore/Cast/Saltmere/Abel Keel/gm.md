@@ -3,7 +3,13 @@ visibility: gm
 ---
 # Abel Keel — GM notes
 
-Relationships: Keeps [[Cast/Saltmere/Prince Peregrine Vane/index|Prince Peregrine Vane]] alive under [[Cast/Saltmere/Lady Cressida Pinchbeck/index|Lady Cressida Pinchbeck]]’s scrutiny. Trades concrete help for intelligence. His intercepted letter concerns [[Cast/Caerwyn/Tomas Vey/index|Tomas Vey]].
+You are the GM. Use these truths and portrayal notes to adjudicate scenes; share a fact with a character only when their scoped knowledge or events in play establish that they know it.
+
+## GM relationship context
+
+Keeps [[Cast/Saltmere/Prince Peregrine Vane/index|Prince Peregrine Vane]] alive under [[Cast/Saltmere/Lady Cressida Pinchbeck/index|Lady Cressida Pinchbeck]]’s scrutiny. Trades concrete help for intelligence. His intercepted letter concerns [[Cast/Caerwyn/Tomas Vey/index|Tomas Vey]].
+
+## Portrayal and author references
 
 Source: #110 in [[Sources and Decisions]]. Scenario objectives belong in separate briefs.
 

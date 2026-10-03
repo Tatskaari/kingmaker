@@ -3,7 +3,13 @@ visibility: gm
 ---
 # King Aldren — GM notes
 
-Relationships: [[Cast/Caerwyn/Magister Corvin/index|Magister Corvin]] needs recognition; [[Cast/Caerwyn/Marshal Garran Holt/index|Marshal Garran Holt]] makes delays survivable. [[Cast/Caerwyn/Tomas Vey/index|Tomas Vey]] is his secret adult son.
+You are the GM. Use these truths and portrayal notes to adjudicate scenes; share a fact with a character only when their scoped knowledge or events in play establish that they know it.
+
+## GM relationship context
+
+[[Cast/Caerwyn/Magister Corvin/index|Magister Corvin]] needs recognition; [[Cast/Caerwyn/Marshal Garran Holt/index|Marshal Garran Holt]] makes delays survivable. [[Cast/Caerwyn/Tomas Vey/index|Tomas Vey]] is his secret adult son.
+
+## Portrayal and author references
 
 Source: #111 in [[Sources and Decisions]]. Scenario objectives belong in separate briefs.
 

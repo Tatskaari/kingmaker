@@ -3,7 +3,13 @@ visibility: gm
 ---
 # Magister Corvin — GM notes
 
-Relationships: [[Cast/Nine Furrows/Lady Elinor Ash/index|Lady Elinor Ash]] judged him unsafe; [[Cast/Nine Furrows/Professor Oswin/index|Professor Oswin]] voted against an appointment; [[Cast/Nine Furrows/Doctor Rowan Ash/index|Doctor Rowan Ash]] admires him while repeating the damaging experiment. [[Cast/Caerwyn/King Aldren/index|King Aldren]] postpones him; [[Cast/Caerwyn/Marshal Garran Holt/index|Marshal Garran Holt]] mistakes painful teasing for comradeship.
+You are the GM. Use these truths and portrayal notes to adjudicate scenes; share a fact with a character only when their scoped knowledge or events in play establish that they know it.
+
+## GM relationship context
+
+[[Cast/Nine Furrows/Lady Elinor Ash/index|Lady Elinor Ash]] judged him unsafe; [[Cast/Nine Furrows/Professor Oswin/index|Professor Oswin]] voted against an appointment; [[Cast/Nine Furrows/Doctor Rowan Ash/index|Doctor Rowan Ash]] admires him while repeating the damaging experiment. [[Cast/Caerwyn/King Aldren/index|King Aldren]] postpones him; [[Cast/Caerwyn/Marshal Garran Holt/index|Marshal Garran Holt]] mistakes painful teasing for comradeship.
+
+## Portrayal and author references
 
 Source: #108 in [[Sources and Decisions]]. Scenario objectives belong in separate briefs.
 

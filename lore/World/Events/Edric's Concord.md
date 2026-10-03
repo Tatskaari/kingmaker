@@ -1,8 +1,11 @@
 ---
+visibility: gm
 type: world-event
 status: draft
 ---
 # Edric's Concord
+
+GM reference. Use this as setting or plot context; it does not grant characters knowledge of every fact below.
 
 A generation ago, King Edric the Peacemaker ended a civil war through a settlement preserving domestic rulers and laws in exchange for tribute, trade guarantees and royal arbitration. Private wars were forbidden. It did not restart the hundred-year mandate.
 

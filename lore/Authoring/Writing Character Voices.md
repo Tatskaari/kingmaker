@@ -3,7 +3,7 @@
 The requested inspiration is Terry Pratchett: people earnestly defending an unreasonable position, institutions carrying sensible rules past their useful limit, practical competence, sharp differences in status, and affection beneath the satire. These are our writing choices for Kingmaker; the characters are not counterparts of particular Discworld characters.
 
 ## Voice belongs in Cast
-A character's habitual vocabulary, rhythm, humour, evasions and ways of sounding under pressure belong in their main `Cast/<faction>/<name>.md` entry. Keep one enduring voice there. Scenario notes specify where and when that person is acting, what they want now, what they currently know, and any temporary delivery change justified by events. A frightened whisper is scenario direction; their ordinary manner of speech is cast lore.
+A character's habitual vocabulary, rhythm, humour, evasions and ways of sounding under pressure belong in their main `Cast/<faction>/<name>/private.md` entry. Keep one enduring voice there. Scenario notes specify where and when that person is acting, what they want now, what they currently know, and any temporary delivery change justified by events. A frightened whisper is scenario direction; their ordinary manner of speech is cast lore.
 
 The cast speech sections contain original illustrative lines. They demonstrate cadence and intention, not mandatory catchphrases, witnessed events, new backstory or facts an NPC automatically knows. Tomas's voice is explicitly provisional because his independent characterization remains largely unwritten.
 

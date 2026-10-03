@@ -1,6 +1,9 @@
+---
+visibility: gm
+---
 # Centennial Assembly — GM entry
 
-Audience: GM. This is the initial scenario briefing; load linked detail only when relevant. Authoring indexes and source issues are not part of the initial prompt.
+You are the GM. Begin with this scenario briefing and consult linked detail when relevant. Authoring indexes and source issues are reference material, not character knowledge.
 
 ## World, opening situation and scenario rules
 This is a stub.
@@ -11,6 +14,10 @@ This is a stub.
 - [[Assembly Map]] — current places, tiles, occupants, access and inventories.
 - [[Assembly Programme]], [[Minutes and Titles]], [[Patrol Inquiry]], [[Grain Settlement]], [[Affection at a Cost]], [[Recognition Hearing]] — possible events, prerequisites and world-state changes.
 - [[Invitation Conversation]], [[Patrol Conversation]], [[Grain Conversation]], [[Private Dinner Conversation]] — full scene branches, including GM-only conditions and consequences.
+
+## Shared court knowledge
+
+[[Scenarios/Centennial Assembly/court_briefing|Court briefing]] and its delegation overviews are baseline knowledge for the assembly characters labelled `court-informed`. Other setting and plot notes remain GM-only unless explicitly granted. This common background does not reveal private plans or events that have not happened.
 
 ## Character entry files
 Load a character's dossier when adjudicating their actions. Send only their own entry file to their conversation agent, with relevant facts from the current game state; do not send this GM briefing or the full cast.
@@ -29,4 +36,4 @@ Load a character's dossier when adjudicating their actions. Send only their own 
 - [[Scenarios/Centennial Assembly/Characters/abel/character|Abel Keel]]
 
 ## Disclosure and state
-Author truth, a character's belief, and publicly established facts are distinct. Reveal only what the receiving character knows or learns through an adjudicated event. Quest branches describe possibilities; an attempted action or conversation does not automatically complete them. Record actual state changes and their knowledge recipients before supplying updates to character conversations. These files are authoring structure, not a runtime implementation.
+Author truth, a character's belief, and publicly established facts are distinct. Reveal only what the receiving character knows or learns through an adjudicated event. Quest branches describe possibilities; an attempted action or conversation does not automatically complete them. Record actual state changes and their knowledge recipients before supplying updates to character conversations. Keep hidden truths in your GM context; character retrieval is restricted to that character's permitted notes.

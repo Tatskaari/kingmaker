@@ -1,8 +1,11 @@
 ---
+visibility: gm
 type: world-event
 status: draft
 ---
 # Grain Crisis
+
+GM reference. Use this as setting or plot context; it does not grant characters knowledge of every fact below.
 
 A poor harvest strains reserves, raises freight and credit costs and leaves industrial towns hungry. A grain convoy bound for Kläggenheim is detained over disputed charges; armed escorts risk breaching the Concord. Aldren delays arbitration.
 

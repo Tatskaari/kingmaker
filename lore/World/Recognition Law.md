@@ -1,8 +1,11 @@
 ---
+visibility: gm
 type: world-rule
 status: draft
 ---
 # Recognition Law
+
+GM reference. Use this as setting or plot context; it does not grant characters knowledge of every fact below.
 
 Every hundred years the three other kingdoms must publicly recognise the same named common sovereign. Domestic inheritance continues within the mandate. Regalia, private promises, popularity and force do not substitute for recognition. Without agreement at expiry there is no accepted common sovereign; domestic rulers remain.
 
