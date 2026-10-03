@@ -1,9 +1,10 @@
 import type { RuntimeServices } from "./services.js";
+import type { ConversationReviewHooks, ReviewLabels } from "./review.js";
 import type { ConversationHooks } from "./phases.js";
 
-export interface ConversationRuntimeOptions<Labels = Record<string, never>> {
+export interface ConversationRuntimeOptions<Labels = Record<string, never>, Review = ReviewLabels> {
   services?: { [Service in keyof RuntimeServices]?: Partial<RuntimeServices[Service]> };
-  hooks?: { conversation: ConversationHooks<Labels> };
+  hooks?: { conversation?: ConversationHooks<Labels>; review?: Partial<ConversationReviewHooks<Review>> };
   maxPasses?: number;
 }
 
@@ -17,19 +18,35 @@ export class UnimplementedServiceError extends Error {
 const unimplemented = (operation: string): never => { throw new UnimplementedServiceError(operation); };
 
 /** Conversation-only dependencies and hooks, supplied by the host. */
-export class ConversationRuntime<Labels = Record<string, never>> {
+export class ConversationRuntime<Labels = Record<string, never>, Review = ReviewLabels> {
   readonly services: RuntimeServices;
-  readonly hooks: { conversation: ConversationHooks<Labels> };
+  readonly hooks: { conversation: ConversationHooks<Labels>; review: ConversationReviewHooks<Review> };
   readonly maxPasses: number;
 
-  constructor({ services = {}, hooks, maxPasses = 16 }: ConversationRuntimeOptions<Labels> = {}) {
+  constructor({ services = {}, hooks, maxPasses = 16 }: ConversationRuntimeOptions<Labels, Review> = {}) {
     if (!Number.isSafeInteger(maxPasses) || maxPasses < 1) throw new Error("maxPasses must be a positive integer.");
     this.maxPasses = maxPasses;
-    this.hooks = hooks ?? { conversation: {
+    this.hooks = { conversation: hooks?.conversation ?? {
       classify: async () => unimplemented("hooks.conversation.classify"),
       resolve: async () => unimplemented("hooks.conversation.resolve"),
+    }, review: {
+      classify: hooks?.review?.classify ?? (async () => unimplemented("hooks.review.classify")),
+      resolve: hooks?.review?.resolve ?? (async () => unimplemented("hooks.review.resolve")),
     } };
     this.services = {
+      scenario: {
+        info: () => services.scenario?.info ? services.scenario.info() : unimplemented("scenario.info"),
+        snapshot: () => services.scenario?.snapshot ? services.scenario.snapshot() : unimplemented("scenario.snapshot"),
+        getDocument: async path => services.scenario?.getDocument
+          ? services.scenario.getDocument(path) : unimplemented("scenario.getDocument"),
+      },
+      docs: {
+        read: async (...args) => services.docs?.read ? services.docs.read(...args) : unimplemented("docs.read"),
+        create: async (...args) => services.docs?.create ? services.docs.create(...args) : unimplemented("docs.create"),
+        replace: async (...args) => services.docs?.replace ? services.docs.replace(...args) : unimplemented("docs.replace"),
+        insert: async (...args) => services.docs?.insert ? services.docs.insert(...args) : unimplemented("docs.insert"),
+        delete: async (...args) => services.docs?.delete ? services.docs.delete(...args) : unimplemented("docs.delete"),
+      },
       ai: {
         decisions: async (...args) => services.ai?.decisions
           ? services.ai.decisions(...args) : unimplemented("ai.decisions"),
