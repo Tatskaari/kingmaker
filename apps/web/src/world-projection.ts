@@ -1,6 +1,7 @@
 import { clone, create } from "@bufbuild/protobuf";
 import { CharacterSchema, ScenarioSchema, WorldStateSchema as MapSchema } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
+import { foregroundBodies } from "./background-characters.js";
 import { activeGoal } from "../../../packages/lore/src/active-goal.js";
 
 export function characterId(path: string, world: WorldState): string {
@@ -21,8 +22,10 @@ export function projectWorld(world: WorldState) {
       gender: typeof doc.frontmatter?.gender === "string" ? doc.frontmatter.gender : "",
       delegation: typeof doc.frontmatter?.delegation === "string" ? doc.frontmatter.delegation : "",
       ...(typeof doc.frontmatter?.sprite === "number" ? { sprite: doc.frontmatter.sprite } : {}),
-      lore: doc.body, currentGoal: activeGoal(doc) ?? "", inventory: doc.characterProperties?.inventory, dnd: doc.characterProperties?.dnd });
+      lore: doc.body, currentGoal: doc.frontmatter?.background === true ? "" : activeGoal(doc) ?? "", inventory: doc.characterProperties?.inventory, dnd: doc.characterProperties?.dnd });
   });
-  return create(ScenarioSchema, { id: world.scenario, world: clone(MapSchema, world.map),
+  const map = clone(MapSchema, world.map);
+  map.actors = foregroundBodies(map.actors);
+  return create(ScenarioSchema, { id: world.scenario, world: map,
     characters, playerCharacterId: world.player ? "player" : "" });
 }

@@ -304,6 +304,8 @@ message ActorPlacement {
 }
 
 message ActorState {
+  // Distinguishes stationary background bodies sharing one character identity.
+  optional string instance_id = 6;
   string character_id = 1;
   string home_room_id = 2;
   string room_id = 3;

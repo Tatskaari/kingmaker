@@ -260,7 +260,8 @@ export class PalaceMechanics {
           description: relationship.description,
         })),
       } : null,
-      characters: scenario.characters.filter(character => character.id !== "player").map(character => ({ id: character.id, name: character.name, dialogueObjectives: character.dialogueObjectives, activeObjective: character.activeObjective, currentGoal: character.currentGoal, position: world?.actors.find(actor => actor.characterId === character.id)?.position, roomId: world?.actors.find(actor => actor.characterId === character.id)?.roomId })),
+      characters: scenario.characters.filter(character => character.id !== "player").flatMap(character =>
+        (world?.actors.filter(actor => actor.characterId === character.id) ?? []).map(actor => ({ id: character.id, instanceId: actor.instanceId || character.id, name: character.name, sprite: character.sprite, dialogueObjectives: character.dialogueObjectives, activeObjective: character.activeObjective, currentGoal: character.currentGoal, position: actor.position, roomId: actor.roomId }))),
       conversationReplyOptions: this.#conversationReplyOptions,
       conversationEndRequested: this.#conversationEndRequested,
       conversations: Object.fromEntries([...this.#conversations].map(([id, transcript]) => [id, transcript.filter(message => message.role !== TranscriptRole.GAME_MASTER).map(message => ({

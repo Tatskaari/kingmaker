@@ -7,7 +7,7 @@ import { CanvasMapRenderer } from "./map-renderer.js";
 import { palaceMap } from "./palace-map.js";
 import { canWalk, findPath, pointKey, type Point } from "./navigation.js";
 
-export interface CourtCharacter { id: string; name: string; roomId?: string; position?: Point; sprite?: number }
+export interface CourtCharacter { id: string; instanceId?: string; name: string; roomId?: string; position?: Point; sprite?: number }
 export interface CourtMarker extends CourtCharacter { point?: Point; roomName: string; sprite: number }
 
 function canvasBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -167,9 +167,9 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     for (const marker of markers) {
       const point = marker.id === player?.id ? visualPosition ?? marker.point : marker.point;
       if (!point) continue;
-      layers.push({ id: marker.id, position: { x: Math.round(point.x), y: Math.round(point.y) }, order: 30,
+      layers.push({ id: marker.instanceId ?? marker.id, position: { x: Math.round(point.x), y: Math.round(point.y) }, order: 30,
         actions: marker.id === player?.id ? [] : [
-          { id: `talk_${marker.id}`, label: `Talk to ${marker.name}`, type: "talk", target: marker.id, order: 10, legality: "normal" },
+          { id: `talk_${marker.id}`, label: `Talk to ${marker.name}`, type: "talk", target: marker.instanceId ?? marker.id, order: 10, legality: "normal" },
           ...(debugCharacter ? [{ id: `debug_${marker.id}`, label: `Debug character: ${marker.name}`, type: "debug" as const, target: marker.id, order: 11, legality: "normal" as const }] : []),
         ] });
     }
@@ -200,12 +200,13 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
           if (!spot || !interactFixture) { reportStatus("No reachable interaction spot for this furniture."); return; }
           void walkTo(spot, () => interactFixture(action.id));
         } else {
-          try { await pauseCharacter?.(action.target); }
+          const character = markers.find(marker => (marker.instanceId ?? marker.id) === action.target);
+          if (!character) return;
+          try { await pauseCharacter?.(character.id); }
           catch { reportStatus("Could not pause this character. Try again."); return; }
-          const character = markers.find(marker => marker.id === action.target);
           const spot = character?.point && approach(character.point);
           if (!spot) { reportStatus("There is no reachable interaction spot for that character."); return; }
-          void walkTo(spot, () => selectCharacter(action.target));
+          void walkTo(spot, () => selectCharacter(character.id));
         }
       });
       menu.append(button);
@@ -222,6 +223,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     const isPlayer = marker.id === player?.id;
     const control = document.createElement(isPlayer ? "div" : "button");
     control.dataset.characterId = marker.id;
+    control.dataset.instanceId = marker.instanceId ?? marker.id;
     control.dataset.characterSprite = String(marker.sprite);
     control.className = `court-character${isPlayer ? " court-player" : ""}`;
     if (control instanceof HTMLButtonElement) {
@@ -302,7 +304,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     doors = next.doors; fixtures = next.fixtures; fixtureChoices = next.fixtureActions; rooms = next.roomAccess;
     const updated = courtMarkers([...next.characters, next.player], fixtures);
     for (const marker of markers) {
-      const current = updated.find(item => item.id === marker.id); if (!current) continue;
+      const current = updated.find(item => (item.instanceId ?? item.id) === (marker.instanceId ?? marker.id)); if (!current) continue;
       Object.assign(marker, current);
       if (marker.id === player?.id) {
         if (!moving && marker.point && (position?.x !== marker.point.x || position?.y !== marker.point.y)) {
@@ -310,7 +312,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
         }
         continue;
       }
-      const control = stage.querySelector<HTMLElement>(`[data-character-id="${CSS.escape(marker.id)}"]`);
+      const control = stage.querySelector<HTMLElement>(`[data-instance-id="${CSS.escape(marker.instanceId ?? marker.id)}"]`);
       if (control && marker.point) {
         control.style.transition = "left 100ms linear, top 100ms linear";
         control.style.left = `${(marker.point.x + 0.5) / palaceMap.width * 100}%`;
