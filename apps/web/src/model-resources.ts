@@ -25,6 +25,6 @@ export function modelResourceOverview(scenario: Scenario): string {
     "Resource keys: world:context; character:<id>, actor:<id>, inventory:<owner id>, item:<id>, fixture:<id>, door:<id>, doorway:<door id>, entity:<id>.",
     "Character directory: " + scenario.characters.map(character => `${character.name} [${character.id}]`).join("; "),
     "Authoritative world overview (not character knowledge):",
-    renderWorldPrompt(scenario, { ...scenario.world!, objects: locatedItems(inventoryOwners(scenario.characters, scenario.world)) }),
+    renderWorldPrompt(scenario.characters, { ...scenario.world!, objects: locatedItems(inventoryOwners(scenario.characters, scenario.world)) }),
   ].join("\n");
 }

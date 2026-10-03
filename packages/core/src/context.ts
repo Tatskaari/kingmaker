@@ -1,13 +1,11 @@
+import { worldForCharacter } from "./physical-view.js";
 import { renderWorldPrompt } from "./world-prompt.js";
 import { inventoryOwners, locatedItems } from "./inventory.js";
 import { IMMEDIATE_GOAL_GUIDANCE } from "./goal-guidance.js";
-import { clone, toJson } from "@bufbuild/protobuf";
 import {
   NoteVisibility,
   GamePhase,
   TranscriptRole,
-  WorldStateSchema,
-  ItemInstanceSchema,
   type Scenario,
   type DialogueRequest,
   type Note,
@@ -44,37 +42,6 @@ export function characterDecisionContext(scenario: Scenario, characterId: string
   };
 }
 
-/** Removes concealed container contents and undiscovered fixture details. The game master sees
- * the authoritative world; character models see only this projection. */
-export function worldForCharacter(scenario: Scenario, characterId: string) {
-  const view = Object.assign(clone(WorldStateSchema, scenario.world!), { objects: locatedItems(inventoryOwners(scenario.characters, scenario.world)) });
-  const visibleObjectIds = new Set<string>();
-
-  for (const fixture of view.fixtures) {
-    const known = fixture.open || fixture.searchedBy.includes(characterId);
-    if (known) for (const item of view.objects) {
-      if (item.locationId === fixture.id) visibleObjectIds.add(item.id);
-    }
-    if (fixture.inventory) fixture.inventory.items = fixture.inventory.items.filter(item => known || !item.concealed);
-    if (!fixture.examinedBy.includes(characterId)) {
-      fixture.requiredKeyId = "";
-      fixture.revealedName = "";
-    }
-    fixture.examinedBy = fixture.examinedBy.filter(id => id === characterId);
-    fixture.searchedBy = fixture.searchedBy.filter(id => id === characterId);
-  }
-
-  view.objects = view.objects.filter(object => !object.concealed || object.locationId === characterId || visibleObjectIds.has(object.id));
-  for (const room of view.rooms) if (room.inventory) room.inventory.items = room.inventory.items.filter(item => !item.concealed);
-  return view;
-}
-
-/** Flattened prompt/debug projection only; never persisted as authoritative ownership. */
-export function worldViewJson(view: ReturnType<typeof worldForCharacter>) {
-  return { ...toJson(WorldStateSchema, view, { alwaysEmitImplicit: true }) as object,
-    objects: view.objects.map(item => ({ ...toJson(ItemInstanceSchema, item) as object, locationId: item.locationId })) };
-}
-
 export class FullContextBuilder implements DialogueContextBuilder {
   build(request: DialogueRequest): readonly PromptMessage[] {
     const scenario = request.scenario;
@@ -104,7 +71,7 @@ export class FullContextBuilder implements DialogueContextBuilder {
       { role: "system", content: `# Notes available to this character\n${recent}` },
       {
         role: "system",
-        content: `# Known world state\n${renderWorldPrompt(scenario, worldForCharacter(scenario, character.id), character.id)}`,
+        content: `# Known world state\n${renderWorldPrompt(scenario.characters, worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), character.id), character.id)}`,
       },
     ];
 
@@ -141,7 +108,7 @@ export class FullGameMasterContextBuilder implements GameMasterContextBuilder {
       { role: "system", content: `# Existing cast\n${JSON.stringify(cast)}` },
       {
         role: "system",
-        content: `# Complete world state\n${renderWorldPrompt(scenario, { ...scenario.world, objects: locatedItems(inventoryOwners(scenario.characters, scenario.world)) })}`,
+        content: `# Complete world state\n${renderWorldPrompt(scenario.characters, { ...scenario.world, objects: locatedItems(inventoryOwners(scenario.characters, scenario.world)) })}`,
       },
       {
         role: "system",
