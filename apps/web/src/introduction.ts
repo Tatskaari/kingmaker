@@ -14,8 +14,8 @@ He unfolds a blank sheet of paper.
 “We’ll need a story to get you inside. But first—what shall I call you?”`;
 export const sandboxIntroduction = [
   "This is a tech demo of a reactive roleplaying sandbox. Explore a royal court, get to know its inhabitants, and interfere in their plans. Try a deception, pursue an ambition, start an argument, or see where your curiosity takes you. The characters will respond to what you say and do.",
-  "First, you’ll meet the Laughing Stranger, a trickster god with an interest in causing trouble. You play one of his devotees, whom he is sending into court.",
-  "Together, you’ll invent your character: your name, what you want, what you’re good at, and the story that gets you through the palace doors. You can make things up, ask for suggestions, and change your mind. You’ll review your character and choose your appearance before entering the sandbox.",
+  "You serve the Laughing Stranger, a trickster god with an interest in causing trouble. He is sending you, one of his devotees, into court.",
+  "Create a custom character with him, or choose a pre-made traveller and enter the hall after the GM writes them into the story. For a custom character, together you’ll invent your name, what you want, what you’re good at, and the story that gets you through the palace doors. You can make things up, ask for suggestions, and change your mind. You’ll review your character and choose your appearance before entering the sandbox.",
 ];
 
 export const delegations = [

@@ -1,3 +1,4 @@
+import { premadeCharacters } from "./premade-characters.js";
 import "./logging.js";
 import "./dice-roll.css";
 import { installDicePreview, showDiceRoll } from "./dice-roll.js";
@@ -24,6 +25,7 @@ let activeCharacter = null;
 let closedConversation = null;
 const conversationReviews = new Map();
 let busy = false;
+let choosingPremade = false;
 let npcRun = [];
 let notice = "";
 let dialogueDraft;
@@ -408,7 +410,7 @@ function renderSavePicker() {
   const games = saves.length
     ? `<div class="save-list">${saves.map(save => `<article class="save-card"><button class="save-load" data-save-load="${escapeHtml(save.id)}"><strong>${escapeHtml(save.characterName)}</strong><span>Last played ${escapeHtml(new Date(save.updatedAt).toLocaleString())}</span></button><button class="save-delete" data-save-delete="${escapeHtml(save.id)}" aria-label="Delete ${escapeHtml(save.characterName)}">×</button></article>`).join("")}</div>`
     : `<p class="empty-saves">No emissaries have entered the Great Hall on this device.</p>`;
-  app.innerHTML = shell(`<section class="panel save-picker"><div class="conversation-head"><div><div class="eyebrow">Local chronicles</div><h2>Centennial Assembly</h2></div><div class="save-actions"><button class="primary" data-new-game>New game</button><button data-skip-character>Use default character</button></div></div>${games}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
+  app.innerHTML = shell(`<section class="panel save-picker"><div class="conversation-head"><div><div class="eyebrow">Local chronicles</div><h2>Centennial Assembly</h2></div><div class="save-actions"><button class="primary" data-new-game>New game</button><button data-skip-character>Development envoy (skip GM)</button></div></div>${games}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></section>`);
   bind();
 }
 
@@ -551,14 +553,17 @@ function refreshStrangerPortrait(messages) {
 function renderCreation() {
   const messages = (state.gmMessages || []).filter(message => !(message.role === "user" && message.text.startsWith(handoffPrefix)));
   if (!messages.length) {
-    app.innerHTML = shell(`<section class="introduction" aria-label="Welcome to Kingmaker"><div class="eyebrow">A roleplaying sandbox · Tech demo</div><h2>Welcome to Kingmaker</h2>${sandboxIntroduction.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join("")}<button class="dialogue-option" data-meet-stranger ${busy ? "disabled" : ""}>Meet the Stranger →</button><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
+    const choices = choosingPremade
+      ? `<h2>Play a pre-made character</h2><p>Choose a traveller. The GM will write them into the story, then you’ll enter the hall.</p>${premadeCharacters.map(character => `<article class="panel"><h3>${escapeHtml(character.archetype)} · ${escapeHtml(character.name)}</h3><p>${escapeHtml(character.lore)}</p><p>Level 3 ${escapeHtml(character.build.classId)} · ${escapeHtml(character.gender)} · ${escapeHtml(character.homeland)}</p><button class="dialogue-option" data-premade="${character.id}" ${busy ? "disabled" : ""}>Play as ${escapeHtml(character.name)} →</button></article>`).join("")}<button data-creation-back ${busy ? "disabled" : ""}>Back</button>`
+      : `<h2>Welcome to Kingmaker</h2>${sandboxIntroduction.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join("")}<button class="dialogue-option" data-meet-stranger ${busy ? "disabled" : ""}>Create a custom character</button><p>OR</p><button class="dialogue-option" data-choose-premade ${busy ? "disabled" : ""}>Play a pre-made character</button>`;
+    app.innerHTML = shell(`<section class="introduction" aria-label="Choose your character"><div class="eyebrow">A roleplaying sandbox · Tech demo</div>${choices}<p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
     bind(); return;
   }
   if (strangerPortraitState.generation !== gameViewGeneration) {
     strangerPortraitState = { generation: gameViewGeneration, key: "", expression: "amused", history: ["amused"] };
   }
   const portrait = strangerPortrait(strangerPortraitState.expression);
-  app.innerHTML = shell(`<section class="panel stranger-panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div><div class="save-actions"><button data-skip-character ${busy ? "disabled" : ""}>Skip and use default character</button><button class="character-debug" data-gm-debug>Debug Stranger</button></div></div><div class="stranger-scene"><img class="stranger-portrait" data-stranger-portrait src="${portrait.src}" alt="${portrait.alt}" width="1254" height="1254"><div class="stranger-conversation"><div class="messages">${messageList(messages, patronName)}${dialogueDraftView("gm", patronName)}</div>${replyOptions(state.gmReplyOptions?.options, "gm", state.gmReplyOptions?.compelled)}${state.gmReplyOptions?.compelled ? `<p class="compelled-hint">A powerful force compels you to respond accordingly</p>` : `<form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Invent your story, answer him, or ask for ideas…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></div></div></section>`);
+  app.innerHTML = shell(`<section class="panel stranger-panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div><div class="save-actions"><button data-skip-character ${busy ? "disabled" : ""}>Development envoy (skip GM)</button><button class="character-debug" data-gm-debug>Debug Stranger</button></div></div><div class="stranger-scene"><img class="stranger-portrait" data-stranger-portrait src="${portrait.src}" alt="${portrait.alt}" width="1254" height="1254"><div class="stranger-conversation"><div class="messages">${messageList(messages, patronName)}${dialogueDraftView("gm", patronName)}</div>${replyOptions(state.gmReplyOptions?.options, "gm", state.gmReplyOptions?.compelled)}${state.gmReplyOptions?.compelled ? `<p class="compelled-hint">A powerful force compels you to respond accordingly</p>` : `<form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Invent your story, answer him, or ask for ideas…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></div></div></section>`);
   bind();
   document.querySelector(".messages")?.scrollTo(0, messages.length === 1 ? 0 : 999999);
   refreshStrangerPortrait(messages);
@@ -759,7 +764,7 @@ function bind() {
     sheetOpen = false; debugOpen = false; notice = ""; screen = "key"; render();
   });
   document.querySelector("[data-new-game]")?.addEventListener("click", () => run(async () => {
-    reviewDraft = null; const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    choosingPremade = false; reviewDraft = null; const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
   }));
   document.querySelector("[data-skip-character]")?.addEventListener("click", () => run(async () => {
     reviewDraft = null; const result = await rpc("create_development_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
@@ -861,6 +866,13 @@ function bind() {
   }));
   document.querySelector("[data-debug-refresh]")?.addEventListener("click", () => ["transcripts", "documents"].includes(debugTab) ? refreshDebugTranscripts() : openDebug());
   document.querySelectorAll("[data-debug-close]").forEach(button => button.addEventListener("click", () => { debugOpen = false; render(); }));
+  document.querySelector("[data-choose-premade]")?.addEventListener("click", () => { if (!busy) { choosingPremade = true; render(); } });
+  document.querySelector("[data-creation-back]")?.addEventListener("click", () => { if (!busy) { choosingPremade = false; render(); } });
+  document.querySelectorAll("[data-premade]").forEach(button => button.addEventListener("click", () => run(async () => {
+    const result = await rpc("start_premade", { characterId: button.dataset.premade });
+    state = result.state; saves = result.saves; activeSaveId = result.activeSaveId;
+    choosingPremade = false;
+  })));
   document.querySelector("[data-meet-stranger]")?.addEventListener("click", () => run(async () => {
     const result = await rpc("start_introduction"); state = result.state; saves = result.saves;
   }));
