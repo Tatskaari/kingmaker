@@ -30,7 +30,9 @@ export interface ScenarioService {
   snapshot(): WorldState;
   getDocument(path: string): Promise<DocumentSnapshot>;
 }
+export interface DocumentWrite { path: string; expectedSha: string | null; text: string }
 export interface DocsService {
+  commit(writes: readonly DocumentWrite[]): Promise<void>;
   read(path: string): Promise<DocumentSnapshot>;
   create(path: string, text: string): Promise<DocumentSnapshot>;
   replace(path: string, expectedSha: string, oldText: string, newText: string): Promise<DocumentSnapshot>;

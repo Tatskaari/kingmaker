@@ -3,7 +3,8 @@ import type { RuntimeServices } from "../../../packages/conversation/src/service
 import { create } from "@bufbuild/protobuf";
 import { CharacterSchema, ScenarioSchema } from "../../../packages/contracts/src/index.js";
 import { type WorldState } from "../../../packages/contracts/src/v2.js";
-import { activeGoal, characterEntry } from "../../../packages/lore/src/active-goal.js";
+import { characterEntry } from "../../../packages/lore/src/active-goal.js";
+import { activityGoal, intentContext } from "../../../packages/lore/src/activity.js";
 import { actionCriteria, runAction, type ActionResult } from "../../../packages/conversation/src/action.js";
 import { runConversationReview, type ConversationReviewContext } from "../../../packages/conversation/src/review.js";
 import type { ConversationRuntime } from "../../../packages/conversation/src/runtime.js";
@@ -23,7 +24,7 @@ export interface WorldActionPlan extends ActionResult {
 /** Read-only adapter to the existing palace mechanics, not a v1 save or migration. */
 async function worldActionContext(world: WorldState, characterId: string, history: readonly string[], services: RuntimeServices, signal: AbortSignal, feedback?: PlanningFeedback) {
   const entry = characterEntry(services.scenario.info(), characterId);
-  const goal = activeGoal(world.docs[entry]!);
+  const goal = activityGoal(world, characterId);
   if (!goal) return;
   if (!world.map) throw new Error("Action planning requires a physical map.");
   const lore = await services.lore.forCharacter(characterId, signal);
@@ -43,6 +44,7 @@ async function worldActionContext(world: WorldState, characterId: string, histor
   const state = [
     `Who you are: ${characterId}`,
     ...(feedback ? [`Previous action result:\n${JSON.stringify(feedback)}`] : []),
+    intentContext(world, characterId),
     `Current execution task:\n${goal}`,
     `World state:\n${renderJevRoomView(scenario, observation)}`,
     `Action log (completed actions, oldest first):\n${history.join("\n") || "None yet."}`,

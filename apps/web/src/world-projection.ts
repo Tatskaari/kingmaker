@@ -1,9 +1,9 @@
+import { foregroundBodies } from "./background-characters.js";
 import { characterId } from "../../../packages/lore/src/character-id.js";
 import { clone, create } from "@bufbuild/protobuf";
 import { CharacterSchema, ScenarioSchema, WorldStateSchema as MapSchema } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
-import { foregroundBodies } from "./background-characters.js";
-import { activeGoal } from "../../../packages/lore/src/active-goal.js";
+import { activityGoal, intentContext } from "../../../packages/lore/src/activity.js";
 
 /** Disposable adapter for existing palace rules and views. Never a saved authority. */
 export function projectWorld(world: WorldState, observerId = "player") {
@@ -17,7 +17,7 @@ export function projectWorld(world: WorldState, observerId = "player") {
       gender: typeof doc.frontmatter?.gender === "string" ? doc.frontmatter.gender : "",
       delegation: typeof doc.frontmatter?.delegation === "string" ? doc.frontmatter.delegation : "",
       ...(typeof doc.frontmatter?.sprite === "number" ? { sprite: doc.frontmatter.sprite } : {}),
-      lore: doc.body, currentGoal: doc.frontmatter?.background === true ? "" : activeGoal(doc) ?? "", inventory: doc.characterProperties?.inventory, dnd: doc.characterProperties?.dnd });
+      lore: doc.body, currentGoal: id === "player" || doc.frontmatter?.background === true ? "" : activityGoal(world, id) ?? "", inventory: doc.characterProperties?.inventory, dnd: doc.characterProperties?.dnd });
   });
   const map = clone(MapSchema, world.map);
   map.actors = foregroundBodies(map.actors, map.actors.find(actor => actor.characterId === observerId)?.position);

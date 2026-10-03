@@ -1,5 +1,5 @@
 import { commitReview } from "./fixtures.js";
-import { loadPlayableWorld } from "./fixtures.js";
+import { loadPlayableWorld, assignActivity } from "./fixtures.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -10,7 +10,7 @@ import { playableWorld } from "../apps/web/src/playable-world.js";
 import { AlertLog } from "../apps/web/src/alerts.js";
 import { WorldGameRuntime } from "../apps/web/src/world-runtime.js";
 import type { WorldOptions } from "../apps/web/src/world-runtime.js";
-import { activeGoal } from "../packages/lore/src/active-goal.js";
+import { activityGoal } from "../packages/lore/src/activity.js";
 
 function game(options: WorldOptions = {}, warning?: (message: string) => void) {
   return new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, warning, { ...options, services: { disclosure: { disclose: async () => [] }, ...options.services } });
@@ -31,7 +31,7 @@ test("v2 game reviews into documents, saves without v1 state, and subsequent dia
   runtime.endConversationAsPlayer("rowan", "Please go to the hall.");
   await runtime.endConversation("rowan");
   const path = runtime.world().characters.find(path => path.endsWith("/rowan/character.md"))!;
-  assert.equal(activeGoal(runtime.world().docs[path]!), "Go to the great hall");
+  assert.equal(activityGoal(runtime.world(), "rowan"), "Go to the great hall");
   assert.equal(runtime.snapshot().conversations.rowan, undefined);
   assert.equal(runtime.snapshot().npcActivities!.rowan!.status, "active");
   const saved = JSON.parse(JSON.stringify(runtime.snapshot()));

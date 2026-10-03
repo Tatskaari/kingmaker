@@ -60,6 +60,7 @@ export class ConversationRuntime<Labels = Record<string, never>, Review = Review
           ? services.scenario.getDocument(path) : unimplemented("scenario.getDocument"),
       },
       docs: {
+        commit: async writes => services.docs?.commit ? services.docs.commit(writes) : unimplemented("docs.commit"),
         read: async (...args) => services.docs?.read ? services.docs.read(...args) : unimplemented("docs.read"),
         create: async (...args) => services.docs?.create ? services.docs.create(...args) : unimplemented("docs.create"),
         replace: async (...args) => services.docs?.replace ? services.docs.replace(...args) : unimplemented("docs.replace"),

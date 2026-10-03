@@ -57,7 +57,7 @@ export function playerPublication(value: JsonValue, assigned: JsonValue, world: 
   return { id: "player", path: "Players/player.md", text: `---\n${stringify({
     name: player.name, gender: player.gender, delegation: player.delegation, sprite: player.sprite,
     summary: `${player.name}'s identity, background, personal goal and relationships.`,
-    visibility: "private", readers: ["character:player"], active_goal: player.currentGoal,
+    visibility: "private", readers: ["character:player"],
   })}---\n# Your character\n${prose(player.lore)}\n\n## Public role\n${prose(setup.embassyRole)}\n\n## Relationships\n${player.relationships.map(item => `- ${item.characterId}: ${prose(item.description)}`).join("\n")}\n`,
     properties: create(CharacterPropertiesSchema, { dnd: player.dnd, ...(gear ? { inventory: gear } : {}) }),
     impressions: Object.fromEntries(setup.npcRelationships.map(item => [world.characters.find(path => characterId(path, world) === item.ownerCharacterId)!, item.relationship!.description])),
