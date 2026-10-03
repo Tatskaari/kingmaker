@@ -1,10 +1,11 @@
+import type { ActionHooks } from "./action.js";
 import type { RuntimeServices } from "./services.js";
 import type { ConversationReviewHooks, ReviewLabels } from "./review.js";
 import type { ConversationHooks } from "./phases.js";
 
 export interface ConversationRuntimeOptions<Labels = Record<string, never>, Review = ReviewLabels> {
   services?: { [Service in keyof RuntimeServices]?: Partial<RuntimeServices[Service]> };
-  hooks?: { conversation?: ConversationHooks<Labels>; review?: Partial<ConversationReviewHooks<Review>> };
+  hooks?: { conversation?: ConversationHooks<Labels>; review?: Partial<ConversationReviewHooks<Review>>; action?: Partial<ActionHooks> };
   maxPasses?: number;
 }
 
@@ -17,10 +18,10 @@ export class UnimplementedServiceError extends Error {
 
 const unimplemented = (operation: string): never => { throw new UnimplementedServiceError(operation); };
 
-/** Conversation-only dependencies and hooks, supplied by the host. */
+/** Conversation, review and action dependencies and hooks, supplied by the host. */
 export class ConversationRuntime<Labels = Record<string, never>, Review = ReviewLabels> {
   readonly services: RuntimeServices;
-  readonly hooks: { conversation: ConversationHooks<Labels>; review: ConversationReviewHooks<Review> };
+  readonly hooks: { conversation: ConversationHooks<Labels>; review: ConversationReviewHooks<Review>; action: ActionHooks };
   readonly maxPasses: number;
 
   constructor({ services = {}, hooks, maxPasses = 16 }: ConversationRuntimeOptions<Labels, Review> = {}) {
@@ -32,6 +33,9 @@ export class ConversationRuntime<Labels = Record<string, never>, Review = Review
     }, review: {
       classify: hooks?.review?.classify ?? (async () => unimplemented("hooks.review.classify")),
       resolve: hooks?.review?.resolve ?? (async () => unimplemented("hooks.review.resolve")),
+    }, action: {
+      classify: hooks?.action?.classify ?? (async () => unimplemented("hooks.action.classify")),
+      resolve: hooks?.action?.resolve ?? (async () => unimplemented("hooks.action.resolve")),
     } };
     this.services = {
       scenario: {

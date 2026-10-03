@@ -12,14 +12,15 @@ export class HeadlessGame {
 
   constructor(source: Scenario | RuntimeSnapshot, private readonly apiKey = "",
     private readonly conversation?: ConversationRuntimeOptions<CheckLabels>,
-    private readonly review?: ConversationRuntimeOptions) {
+    private readonly review?: ConversationRuntimeOptions,
+    private readonly action?: ConversationRuntimeOptions) {
     this.runtime = this.#create(source);
   }
 
   #create(source: Scenario | RuntimeSnapshot) {
     return "scenario" in source
-      ? new BrowserGameRuntime(fromJson(ScenarioSchema, source.scenario), this.apiKey, source, undefined, undefined, undefined, undefined, this.review)
-      : new BrowserGameRuntime(source, this.apiKey, undefined, undefined, undefined, undefined, undefined, this.review);
+      ? new BrowserGameRuntime(fromJson(ScenarioSchema, source.scenario), this.apiKey, source, undefined, undefined, undefined, undefined, this.review, this.action)
+      : new BrowserGameRuntime(source, this.apiKey, undefined, undefined, undefined, undefined, undefined, this.review, this.action);
   }
 
   load(source: Scenario | RuntimeSnapshot) { this.runtime = this.#create(source); }
