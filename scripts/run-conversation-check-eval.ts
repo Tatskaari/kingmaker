@@ -1,3 +1,5 @@
+import { aiService, decisionClient } from "../packages/conversation/src/adapters.js";
+import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { loadConversationCheckEval, scoreConversationChecks } from "../packages/evals/src/conversation-check-eval.js";
@@ -25,7 +27,8 @@ if (preview) {
   process.exit(0);
 }
 const requests: unknown[] = [];
-const client = new JevClient(apiKey!, undefined, request => requests.push(request));
+const client = decisionClient(aiService(new OpenRouterClient(apiKey!),
+  new JevClient(apiKey!, undefined, request => requests.push(request))));
 const results = [];
 for (const fixture of cases) {
   for (let run = 1; run <= repeats; run++) {

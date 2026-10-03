@@ -1,3 +1,4 @@
+import { mockJevChoice } from "./mock-jev.js";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { createContext, runInContext } from "node:vm";
@@ -48,7 +49,7 @@ test("the classifier sees Stranger speech and the player, excluding setup and to
   runtime.restore(saved);
   t.mock.method(OpenRouterClient.prototype, "complete", async () => ({ role: "assistant", content: "He laughs. A splendid joke!" }));
   await runtime.talkToGameMaster("I want to make them laugh.");
-  t.mock.method(JevClient.prototype, "choose", async (input: any) => {
+  mockJevChoice(t, async (input: any) => {
     assert.deepEqual(input, { characterId: "gm", history: [
       { speakerId: "gm", text: "What do you want?" },
       { speakerId: "player", text: "I want to make them laugh." },
@@ -61,7 +62,7 @@ test("the classifier sees Stranger speech and the player, excluding setup and to
   await assert.rejects(runtime.classifyStrangerExpression(["invented"]), /Invalid portrait history/);
   assert.deepEqual(runtime.snapshot(), before);
   assert.equal(runtime.recentTranscripts()[0]!.kind, "conversation_expression");
-  t.mock.method(JevClient.prototype, "choose", async () => { throw new Error("Offline"); });
+  mockJevChoice(t, async () => { throw new Error("Offline"); });
   assert.equal(await runtime.classifyStrangerExpression(), undefined);
   assert.equal(runtime.recentTranscripts()[0]!.status, "error");
 });

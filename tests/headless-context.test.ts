@@ -1,3 +1,4 @@
+import { mockJevChoice } from "./mock-jev.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { silkScarf } from "../evals/jev/scenarios.js";
@@ -9,7 +10,7 @@ test("offline decision context is exactly the request sent to Jev", async t => {
   assert.throws(() => runtime.npcDecisionContext(silkScarf.characterId), /idle/);
   activateGoal(runtime, silkScarf);
   const context = runtime.npcDecisionContext(silkScarf.characterId);
-  t.mock.method(JevClient.prototype, "choose", async (...[state, instructions, criteria]: Parameters<JevClient["choose"]>) => {
+  mockJevChoice(t, async (...[state, instructions, criteria]: Parameters<JevClient["choose"]>) => {
     assert.deepEqual(jevRequest(state, instructions, criteria), context.request);
     return { choice: "wait", probabilities: {} };
   });

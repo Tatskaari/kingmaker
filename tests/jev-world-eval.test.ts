@@ -1,3 +1,4 @@
+import { mockJevChoice } from "./mock-jev.js";
 import { transferItem } from "../packages/core/src/inventory.js";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
@@ -52,7 +53,7 @@ test("royal seal milestones award progress without credit for untouched closures
 test("minimal eval includes the action log without character background", async t => {
   let observed: unknown;
   let decisions = 0;
-  t.mock.method(JevClient.prototype, "choose", async (state: unknown) => {
+  mockJevChoice(t, async (state: unknown) => {
     observed = state;
     return { choice: decisions++ === 0 ? "enter_royal_council_chamber" : "complete", probabilities: {} };
   });
@@ -69,7 +70,7 @@ test("minimal eval includes the action log without character background", async 
 
 test("the authored royal-seal objective reaches minimal Jev without a generated status", async t => {
   let observed: unknown;
-  t.mock.method(JevClient.prototype, "choose", async (state: unknown) => {
+  mockJevChoice(t, async (state: unknown) => {
     observed = state;
     return { choice: "unable", probabilities: {} };
   });
@@ -84,7 +85,7 @@ test("the authored royal-seal objective reaches minimal Jev without a generated 
 
 test("mocked talks cover every guest, feed planner history, and leave recipients in place on fresh runs", async t => {
   t.mock.method(OpenRouterClient.prototype, "complete", async () => { throw new Error("Dialogue must be mocked"); });
-  t.mock.method(JevClient.prototype, "choose", async (state: string) => {
+  mockJevChoice(t, async (state: string) => {
     const completed = state.split("Action log (completed actions, oldest first):\n")[1]!;
     const target = guestIds.filter(id => !completed.split("\n").includes(`talk_${id}`))[0];
     return { choice: target ? `talk_${target}` : "complete", probabilities: {} };
@@ -101,7 +102,7 @@ test("mocked talks cover every guest, feed planner history, and leave recipients
 });
 
 test("repeating one guest cannot satisfy coverage", async t => {
-  t.mock.method(JevClient.prototype, "choose", async () => ({ choice: "talk_mara", probabilities: {} }));
+  mockJevChoice(t, async () => ({ choice: "talk_mara", probabilities: {} }));
   const result = await runJevEvalOnce({ ...inviteGuests, maxTurns: 2 }, "test");
   assert.equal(result.success, false);
   assert.equal(result.terminalChoice, "limit");
@@ -112,7 +113,7 @@ test("scarf eval stops and scores the talk target without running conversation",
   t.mock.method(OpenRouterClient.prototype, "complete", async () => { throw new Error("Conversation must not run"); });
   for (const target of ["rowan", "mara"]) {
     let decisions = 0;
-    const mock = t.mock.method(JevClient.prototype, "choose", async () => {
+    const mock = mockJevChoice(t, async () => {
       assert.equal(++decisions, 1, "Stop immediately at the talk call");
       return { choice: `talk_${target}`, probabilities: {} };
     });

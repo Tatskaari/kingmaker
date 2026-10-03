@@ -1,3 +1,4 @@
+import { mockJevChoice } from "./mock-jev.js";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
@@ -26,7 +27,7 @@ const decision = (choice: string, criteria: Record<string, string>) => ({ choice
 test("Jev always receives the room-scoped text interface and local choices", async t => {
   const local = game(), before = local.snapshot();
   const requests: Array<{ state: any; instructions: any; criteria: Record<string, string> }> = [];
-  t.mock.method(JevClient.prototype, "choose", async (state: unknown, instructions: unknown, criteria: Record<string, string>) => {
+  mockJevChoice(t, async (state: unknown, instructions: unknown, criteria: Record<string, string>) => {
     requests.push({ state, instructions, criteria }); return decision("wait", criteria);
   });
   await local.planNpc("corvin", signal());
@@ -62,7 +63,7 @@ test("local plans open, enter, and close a room through real runtime tile steps"
   const runtime = game();
   const completed: string[] = [];
   for (const id of ["open_treasury_door_0", "enter_treasury", "close_treasury_door_1"]) {
-    t.mock.method(JevClient.prototype, "choose", async (state: string, _instructions: unknown, criteria: Record<string, string>) => {
+    mockJevChoice(t, async (state: string, _instructions: unknown, criteria: Record<string, string>) => {
       assert.equal(state.split("Action log (completed actions, oldest first):\n")[1], completed.join("\n") || "None yet.");
       assert.ok(id in criteria, `${id} should be offered`); return decision(id, criteria);
     });
@@ -87,7 +88,7 @@ test("local plans open, enter, and close a room through real runtime tile steps"
 
 test("concurrent door changes invalidate local travel before the next step", async t => {
   const runtime = game();
-  t.mock.method(JevClient.prototype, "choose", async (_state: unknown, _instructions: unknown, criteria: Record<string, string>) => decision("enter_royal_council_chamber", criteria));
+  mockJevChoice(t, async (_state: unknown, _instructions: unknown, criteria: Record<string, string>) => decision("enter_royal_council_chamber", criteria));
   const plan = await runtime.planNpc("corvin", signal());
   const snapshot: any = runtime.snapshot();
   snapshot.scenario.world.doors.find((door: any) => door.id === "royal_council_door").open = false;

@@ -1,3 +1,4 @@
+import { aiService, decisionClient } from "../../../packages/conversation/src/adapters.js";
 import { classifyResolution, runResolution, type ResolutionContext } from "../../../packages/conversation/src/resolution.js";
 import { actionCriteria, jevActionHooks, runAction } from "../../../packages/conversation/src/action.js";
 import { initialModelResourceIds, modelResourceOverview } from "./model-resources.js";
@@ -316,8 +317,8 @@ export class BrowserGameRuntime {
   #reviewGuards: string[] = [];
   readonly #initialScenario: Scenario;
   #game: MemoryGame;
-  #client: OpenRouterClient;
-  #jev: JevClient;
+  #ai: AiService;
+  #jev: ReturnType<typeof decisionClient>;
   readonly #random: () => number;
   #modelTranscripts: ModelTranscripts;
   #npcActivities: Record<string, NpcActivity> = {};
@@ -337,8 +338,9 @@ export class BrowserGameRuntime {
     this.#initialScenario = fromJson(ScenarioSchema, toJson(ScenarioSchema, scenario));
     initializeNpcObjectives(this.#initialScenario);
     this.#game = new MemoryGame(this.#initialScenario);
-    this.#client = new OpenRouterClient(apiKey, 60_000, globalThis.location?.origin || "http://localhost", onWarning);
-    this.#jev = new JevClient(apiKey, undefined, undefined, onWarning);
+    this.#ai = aiService(new OpenRouterClient(apiKey, 60_000, globalThis.location?.origin || "http://localhost", onWarning),
+      new JevClient(apiKey, undefined, undefined, onWarning), false);
+    this.#jev = decisionClient(this.#ai);
     this.#random = random;
     this.#modelTranscripts = new ModelTranscripts(apiKey, transcriptsChanged);
     if (snapshot) this.restore(snapshot);
@@ -377,7 +379,7 @@ export class BrowserGameRuntime {
   }
   #complete(kind: ModelCallKind, characterId: string, request: ChatCompletionRequest, signal?: AbortSignal, runKey?: string, complete?: Complete) {
     request = this.#prepareModelRequest(kind, request);
-    return this.#modelTranscripts.record(kind, characterId, request, () => complete ? complete(request, signal) : this.#client.complete(request, signal, modelCallLabels[kind]), runKey, this.#characterName(characterId));
+    return this.#modelTranscripts.record(kind, characterId, request, () => complete ? complete(request, signal) : this.#ai.responses(request, signal), runKey, this.#characterName(characterId));
   }
 
   setTravellerIdentity(identity: TravellerIdentity): void {
@@ -915,7 +917,7 @@ export class BrowserGameRuntime {
       ...options.services,
       ai: {
         decisions: (state, questions, cancellation) => this.#jev.evaluate(state, questions, cancellation),
-        responses: (request, cancellation) => this.#client.complete(request, cancellation, modelCallLabels.conversation_review),
+        responses: (request, cancellation) => this.#ai.responses(request, cancellation),
         ...options.services?.ai,
       },
     } });
@@ -1189,7 +1191,7 @@ export class BrowserGameRuntime {
   /** Model work happens on a snapshot; only a validated merge touches the live game. */
   forkForNpc(): BrowserGameRuntime {
     const fork = new BrowserGameRuntime(this.#initialScenario, "", this.snapshot(), undefined, undefined, this.#random, this.jevActionContext, this.reviewOptions, this.actionOptions, this.resolutionOptions);
-    fork.#client = this.#client; fork.#jev = this.#jev; fork.#modelTranscripts = this.#modelTranscripts;
+    fork.#ai = this.#ai; fork.#jev = this.#jev; fork.#modelTranscripts = this.#modelTranscripts;
     fork.#conversationRuns = this.#conversationRuns;
     return fork;
   }

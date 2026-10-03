@@ -16,7 +16,7 @@ export interface ConversationExpressionInput {
 
 /** Classify the portrait subject's visible expression, not the player's mood. */
 export async function classifyConversationExpression(
-  client: JevClient, input: ConversationExpressionInput, signal: AbortSignal,
+  client: Pick<JevClient, "choose">, input: ConversationExpressionInput, signal: AbortSignal,
 ): Promise<{ expression: PortraitExpression; decision: JevChoice }> {
   signal.throwIfAborted();
   if (!input.characterId || !input.history.some(turn => turn.speakerId === input.characterId && turn.text.trim())) {
