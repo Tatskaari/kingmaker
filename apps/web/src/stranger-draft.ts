@@ -3,7 +3,7 @@ import { stringify } from "yaml";
 import { PlayerSetupSchema, type PlayerSetup } from "../../../packages/contracts/src/index.js";
 import { CharacterPropertiesSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
 import { links } from "../../../packages/lore/src/markdown.js";
-import type { PlayerPublication } from "../../../packages/lore/src/services.js";
+import type { CharacterCreation } from "../../../packages/lore/src/services.js";
 import { characterId } from "./world-projection.js";
 import { buildInterviewCharacter, validatePlayerStats } from "./player-build.js";
 import { characterSprites } from "./introduction.js";
@@ -49,11 +49,11 @@ export function interviewDraft(input: Record<string, unknown>, world: WorldState
   });
   return toJson(PlayerSetupSchema, validateDraft(setup, world));
 }
-export function playerPublication(value: JsonValue, assigned: JsonValue, world: WorldState): PlayerPublication {
+export function playerPublication(value: JsonValue, assigned: JsonValue, world: WorldState): CharacterCreation & { impressions: Record<string, string> } {
   const setup = validateDraft(fromJson(PlayerSetupSchema, value), world), player = setup.player!;
   const gear = fromJson(PlayerSetupSchema, assigned).player?.inventory;
   const prose = (value: string) => value.replace(/[\\`*_[\]<>#]/g, "\\$&");
-  return { path: "Players/player.md", text: `---\n${stringify({
+  return { id: "player", path: "Players/player.md", text: `---\n${stringify({
     name: player.name, gender: player.gender, delegation: player.delegation, sprite: player.sprite,
     summary: `${player.name}'s identity, background, personal goal and relationships.`,
     visibility: "private", readers: ["character:player"], active_goal: player.currentGoal,
