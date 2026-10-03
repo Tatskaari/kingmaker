@@ -18,6 +18,7 @@ import type { Point } from "./navigation.js";
 
 export type WorldSnapshot = MechanicalActivity & {
   stranger?: StrangerState;
+  jail?: { characterId: string; message: string };
   version: 2; world: JsonValue;
   playerMessages: Array<{ id: string; day: number; message: string; createdAt: string }>;
 };
@@ -80,7 +81,7 @@ export class WorldHost {
   }
   view(): Record<string, unknown> {
     const game = this.projection(), view = game.view(); this.remember(game);
-    return { ...view,
+    return { ...view, jail: structuredClone(this.activity.jail ?? null),
       phase: this.world().player ? "conversations" : this.activity.stranger?.draft ? "character_review" : "player_creation",
       playerDraft: structuredClone(this.activity.stranger?.draft ?? null),
       courtAffiliations: this.world().docs[strangerEntry(this.world())] ? creationAffiliations(this.world()) : [],
@@ -118,9 +119,11 @@ export class WorldHost {
     },
   };
   hasActiveObjective(id: string) { this.syncGoals(); return this.activity.npcActivities?.[id]?.status === "active"; }
-  movePlayer(destination: Point, expected?: ExpectedGenerations) { return this.mutate(game => game.movePlayer(destination, expected), expected); }
-  setDoor(id: string, open: boolean, expected?: ExpectedGenerations) { return this.mutate(game => game.setDoor(id, open, expected), expected); }
-  interactFixtureWithEvent(id: string, expected?: ExpectedGenerations) { return this.mutate(game => game.interactFixtureWithEvent(id, expected), expected); }
+  protected assertPlayerFree() { if (this.activity.jail) throw new Error("You are in jail."); }
+  releaseFromJail() { delete this.activity.jail; }
+  movePlayer(destination: Point, expected?: ExpectedGenerations) { this.assertPlayerFree(); return this.mutate(game => game.movePlayer(destination, expected), expected); }
+  setDoor(id: string, open: boolean, expected?: ExpectedGenerations) { this.assertPlayerFree(); return this.mutate(game => game.setDoor(id, open, expected), expected); }
+  interactFixtureWithEvent(id: string, expected?: ExpectedGenerations) { this.assertPlayerFree(); return this.mutate(game => game.interactFixtureWithEvent(id, expected), expected); }
   stepNpcAction(id: string, action: string, goal: string, expected?: ExpectedGenerations) {
     const result = this.mutate(game => game.stepNpcAction(id, action, goal, expected), expected);
     return result;

@@ -392,6 +392,11 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     } catch (error) { game.restore(before); activeSave = savedBefore; throw error; }
     return { state: game.view(), saves: await listSaves() };
   }
+  if (type === "release_from_jail") {
+    const game = requireRuntime();
+    await commitMutation(game, () => game.releaseFromJail());
+    return { state: game.view(), saves: await listSaves() };
+  }
   if (type === "interact_fixture") {
     const game = requireRuntime();
     const result = await commitMutation(game, () => game.executeAction({ command: { kind: "fixture", id: String(payload.actionId || "") }, ...(payload.generations ? { expected: payload.generations as ExpectedGenerations } : {}) }));
@@ -500,7 +505,7 @@ worker.addEventListener("message", event => {
   };
   // Background work and dialogue wait outside the mutation queue. Their results
   // rejoin it only to validate, merge and save, keeping player commands responsive.
-  if (request.type === "stranger_expression" || request.type === "cancel_npc" || request.type === "debug_transcripts" || request.type === "issue_report" || request.type === "start_npc" || request.type === "pause_npc" || request.type === "talk" || request.type === "end_conversation" || request.type === "interact_fixture" || request.type === "set_door" || request.type === "move_player") void process();
+  if (request.type === "release_from_jail" || request.type === "stranger_expression" || request.type === "cancel_npc" || request.type === "debug_transcripts" || request.type === "issue_report" || request.type === "start_npc" || request.type === "pause_npc" || request.type === "talk" || request.type === "end_conversation" || request.type === "interact_fixture" || request.type === "set_door" || request.type === "move_player") void process();
   else void enqueue(process);
 });
 

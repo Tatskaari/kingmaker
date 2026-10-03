@@ -2175,7 +2175,8 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
   t.mock.method(BrowserGameRuntime.prototype, "assessWorldEvent", (event: Event, signal: AbortSignal) => assessWorldEvent(event, signal));
   const request = (type: string, payload: Record<string, unknown> = {}): Promise<any> => new Promise((resolve, reject) => {
     const id = ++sequence;
-    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`Worker ${type} did not settle`)); }, 3000);
+    // Full-vault creation performs many document writes; allow for parallel suite load.
+    const timer = setTimeout(() => { pending.delete(id); reject(new Error(`Worker ${type} did not settle`)); }, 10000);
     pending.set(id, message => { clearTimeout(timer); pending.delete(id); if (message.ok) resolve(message.value); else reject(new Error(message.error)); });
     if (type === "load_game") {
       const saved = records.get(payload.saveId as string);
@@ -2223,6 +2224,18 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     const reloaded = await request("load_game", { saveId: fresh.activeSaveId });
     assert.equal(reloaded.state.player.name, "Alex");
     assert.equal(reloaded.state.phase, "conversations");
+  });
+
+  await t.test("jail release settles outside the worker queue and rolls back failed saves", async () => {
+    const created = await request("create_development_game");
+    records.get(created.activeSaveId).snapshot.jail = { characterId: "palace-guard", message: "You're nicked." };
+    const loaded = await request("load_game", { saveId: created.activeSaveId });
+    assert.equal(loaded.state.jail.characterId, "palace-guard");
+    failNextWrite = true;
+    await assert.rejects(request("release_from_jail"), /Test storage failure/);
+    assert.equal((await request("state")).state.jail.characterId, "palace-guard");
+    assert.equal((await request("release_from_jail")).state.jail, null);
+    assert.equal(records.get(created.activeSaveId).snapshot.jail, undefined);
   });
 
   await t.test("physical interactions respond before background earshot assessment finishes", async t => {

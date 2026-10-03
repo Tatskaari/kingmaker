@@ -245,7 +245,11 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     sprite.style.backgroundPosition = `${-(marker.sprite % 12) * 32}px ${-Math.floor(marker.sprite / 12) * 32}px`;
     const label = document.createElement("span"); label.className = "court-character-name";
     label.textContent = `${marker.name}${isPlayer ? " (you)" : ""}`;
-    control.append(sprite, label);
+    // Adjacent identical bodies share a visible label, while each button remains named.
+    const labelledBody = marker.instanceId && marker.point ? markers.find(other => other.id === marker.id && other.point
+      && Math.abs(other.point.x - marker.point!.x) + Math.abs(other.point.y - marker.point!.y) <= 2) : marker;
+    control.append(sprite);
+    if (labelledBody === marker) control.append(label);
     if (isPlayer) playerControl = control;
     if (marker.point) {
       control.style.left = `${(marker.point.x + 0.5) / palaceMap.width * 100}%`;
