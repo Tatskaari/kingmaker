@@ -161,7 +161,8 @@ function transcriptSummary(entry) {
       + facts([["Choice", response.choice], ...(typeof probability === "number" ? [["Choice probability", `${Math.round(probability * 100)}%`]] : []), ...(typeof response.confidence === "number" ? [["Confidence", `${Math.round(response.confidence * 100)}%`]] : [])])
       + `<p class="debug-meta">This is the planner's decision, not confirmation that an action was executed.</p>`;
   }
-  const output = parsedContent(response);
+  const reviewTool = array(response.tool_calls).find(call => call?.function?.name === "commit_review");
+  const output = reviewTool ? parsedContent({ content: reviewTool.function.arguments }) : parsedContent(response);
   if (output && Object.hasOwn(output, "activeGoal")) return `<h4>Review summary</h4><p>${escape(output.summary)}</p>`
     + `<h4>Notes returned</h4>${list(array(output.newNotes), note => escape(note), "No new notes.")}`
     + `<h4>Active goal</h4><p>${escape(output.activeGoal ?? "No active goal")}</p>`;
@@ -229,7 +230,7 @@ export function recentTranscriptsView(entries = [], runs = {}, route = {}) {
     ])).join("")) : empty("No model calls recorded yet in this session."));
 }
 
-function transcriptDetail(call, name) {
+export function transcriptDetail(call, name) {
   return `<section class="transcript-detail" data-transcript-key="call:${escape(call.id)}"><h3>${escape(transcriptType(call.kind))}</h3>${facts([["Character", name(call.characterId)], ["Participants", (call.participantIds || [call.characterId]).map(name).join(", ")], ["Status", transcriptStatus(call.status)], ["Started", transcriptTime(call.startedAt)], ["Duration", call.durationMs === undefined ? "In progress" : `${(call.durationMs / 1000).toFixed(2)}s`]])}<div class="transcript-summary">${transcriptSummary(call)}</div><details><summary>Trace context</summary>${facts([["Conversation ID", call.conversationId], ["Turn ID", call.turnId], ["Span ID", call.spanId], ["Scenario", call.scenario], ["World generation", call.worldGeneration], ["Location", call.location ? `${call.location.x}, ${call.location.y}` : "Not recorded"]])}</details>${call.request?.messages ? `<details><summary>Request messages (${call.request.messages.length})</summary>${messages(call.request.messages)}</details>` : ""}<details><summary>Full request and response</summary><h4>Request</h4><pre>${escape(JSON.stringify(call.request, null, 2))}</pre><h4>Response</h4><pre>${escape(JSON.stringify(call.response ?? null, null, 2))}</pre></details></section>`;
 }
 
