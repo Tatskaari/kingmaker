@@ -1,4 +1,36 @@
 {
-  "dnd": null,
-  "inventory": null
+  "dnd": {
+    "rulesetId": "srd-5.2.1",
+    "speciesId": "human",
+    "backgroundId": "kingmaker-courtier",
+    "abilityScores": {
+      "strength": 8,
+      "dexterity": 12,
+      "constitution": 10,
+      "intelligence": 14,
+      "wisdom": 14,
+      "charisma": 16
+    },
+    "classes": [
+      {"classId": "rogue", "level": 2, "hitDiceRemaining": 2}
+    ],
+    "hitPoints": {
+      "current": 13,
+      "maximum": 13
+    },
+    "proficiencies": [
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "persuasion", "rank": "PROFICIENCY_RANK_EXPERTISE", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "insight", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "history", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "deception", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"}
+    ]
+  },
+  "inventory": {
+    "items": [
+      {"id": "elinor_clothes_fine", "name": "Formal clothes", "quantity": 1, "concealed": false, "details": "Ordinary well-maintained clothing for the assembly.", "definitionId": "clothes-fine"},
+      {"id": "elinor_dagger", "name": "Dagger", "quantity": 1, "concealed": true, "details": "A small personal knife, kept sheathed beneath the outer clothing.", "definitionId": "dagger"},
+      {"id": "elinor_blank_correspondence", "name": "Blank correspondence", "quantity": 1, "concealed": false, "details": "Writing materials and blank paper for ordinary correspondence; no promises or signed covenants."}
+    ],
+    "equipment": {}
+  }
 }

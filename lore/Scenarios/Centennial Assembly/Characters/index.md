@@ -32,3 +32,11 @@ Equipment is ordinary and scenario-local. Weapons are sheathed unless named as h
 | Aldren | Human fighter 2; 18 HP | Keeps the main game's charming, lightly martial king: Charisma 16, diplomatic skills and a dress rapier. |
 | Corvin | Human evoker wizard 3; 17 HP | Keeps the existing wizard baseline and spell list; adds History for his legal scholarship. Ordinary spellbook and focus, without granting the royal seal mechanical powers. |
 | Holt | Human champion fighter 3; 28 HP | Adapts `garran` to the lore's `holt` ID. Intelligence 14, Investigation and Athletics supplement his military awareness and logistics; service mail and a sheathed sword suit assembly security. |
+
+### Nine Furrows
+
+| Character | Draft build | Rationale |
+| --- | --- | --- |
+| Elinor | Human rogue 2; 13 HP | Retains the main game's Persuasion expertise and Charisma 16 courtier build. Her covenant magic is narrative authority, not an added mind-control spell or automatic agreement. |
+| Oswin | Human life-domain cleric 3; 21 HP | Adapts Prior Oswin's warding/healing baseline to Professor Oswin: Intelligence 14, Religion expertise and History emphasise sacred scholarship. No unique granary key or ritual ingredient is assumed. |
+| Rowan | Human wizard 2; 12 HP | Replaces the old artisan rogue with a junior agrimancer: Intelligence 16, Investigation expertise, Nature and tinker's tools. Corvin's existing first-level utility spells provide a modest experimental repertoire; no autonomous machinery is granted. |
