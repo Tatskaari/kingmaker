@@ -63,8 +63,9 @@ export async function reviewDocumentEvidence(context: Readonly<ConversationRevie
         const body = before.document.body + (notes.length ? `\n\n## Conversation review\n${notes.map(note => `- ${note}`).join("\n")}\n` : "");
         const text = `---\n${stringify({ ...before.document.frontmatter, active_goal: result.activeGoal })}---\n${body}`;
         signal.throwIfAborted();
-        if (before.text) await services.docs.replace(path, before.sha, before.text, text);
-        else await services.docs.insert(path, before.sha, 0, text);
+        const after = before.text ? await services.docs.replace(path, before.sha, before.text, text)
+          : await services.docs.insert(path, before.sha, 0, text);
+        services.debug.documentUpdated?.({ path, beforeSha: before.sha, afterSha: after.sha, response: reply, toolCallId: call.id });
       }
       return { summary: result.summary };
     } catch (error) {

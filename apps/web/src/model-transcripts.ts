@@ -1,4 +1,5 @@
 import type { AiSpan } from "../../../packages/conversation/src/ai-tracing.js";
+import type { DocumentUpdate } from "../../../packages/conversation/src/services.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
 
 const log = gameLogger("models");
@@ -47,11 +48,18 @@ export interface ModelTranscriptRun {
   error?: string;
 }
 
+export interface DocumentWrite extends Omit<DocumentUpdate, "response"> {
+  updatedAt: string;
+  call: ModelTranscript;
+}
+
 /** Debug history is deliberately separate from game snapshots and rollback. */
 export class ModelTranscripts {
   #entries: ModelTranscript[] = [];
   #runs: Record<string, ModelTranscriptRun> = {};
   #sequence = 0;
+  #responses = new WeakMap<object, ModelTranscript>();
+  #documentWrites: DocumentWrite[] = [];
   constructor(private readonly apiKey: string, private readonly changed: () => void = () => {}) {}
   #clean(value: unknown): unknown {
     let json = JSON.stringify(value) ?? "null";
@@ -64,6 +72,16 @@ export class ModelTranscripts {
   }
   recent(): ModelTranscript[] { return structuredClone([...this.#entries].reverse()); }
   runs(): Record<string, ModelTranscriptRun> { return structuredClone(this.#runs); }
+  documentWrites(): DocumentWrite[] { return structuredClone([...this.#documentWrites].reverse()); }
+  clearDocumentWrites(): void { this.#documentWrites = []; }
+  documentUpdated({ response, ...update }: DocumentUpdate): void {
+    const call = this.#responses.get(response);
+    if (!call || update.beforeSha === update.afterSha) return;
+    // Keep the exact redacted call with its write even after ordinary runs expire.
+    this.#documentWrites.push({ ...update, updatedAt: new Date().toISOString(), call });
+    if (this.#documentWrites.length > 50) this.#documentWrites.shift();
+    this.changed();
+  }
   start(kind: string, subject: string, characterId = subject, context?: unknown, participantIds = [characterId]): string {
     const safeSubject = encodeURIComponent(subject || characterId || "unknown");
     const key = `${kind}/${safeSubject}/${crypto.randomUUID()}`;
@@ -117,6 +135,7 @@ export class ModelTranscripts {
     try {
       const response = await call();
       entry.response = this.#clean(response); entry.status = "success";
+      if (response && typeof response === "object") this.#responses.set(response, entry);
       log.debug(`${callType}: ${operation} completed`, { ...fields, durationMs: Date.now() - started, response: entry.response });
       if (ownRun) this.finish(runKey);
       return response;
