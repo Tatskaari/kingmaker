@@ -1,3 +1,4 @@
+import { disclosedContext } from "./disclosed-context.js";
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, TranscriptRole } from "../../contracts/src/index.js";
 import { activeGoal, characterEntry } from "../../lore/src/active-goal.js";
@@ -8,9 +9,8 @@ import type { RuntimeServices } from "./services.js";
 async function speak(characterId: string, instruction: string, evidence: unknown, signal: AbortSignal, services: RuntimeServices) {
   const lore = await services.lore.forCharacter(characterId, signal);
   const response = await services.ai.responses({ model: "openai/gpt-6-luna", api: "responses", max_tokens: 1200,
-    messages: [{ role: "system", content: "Speak only this character's words and observable gestures. Respect their motives and permitted knowledge. Do not invent the other speaker's agreement or any physical outcome. Do not request GM consultation." },
-      ...lore.initial.map(doc => ({ role: "system" as const, content: doc.markdown })),
-      { role: "user", content: JSON.stringify({ instruction, evidence }) }],
+    messages: await disclosedContext(lore, [{ role: "system", content: "Speak only this character's words and observable gestures. Respect their motives and permitted knowledge. Do not invent the other speaker's agreement or any physical outcome. Do not request GM consultation." },
+      { role: "user", content: JSON.stringify({ instruction, evidence }) }], services, characterId, signal),
   }, signal, { characterId, purpose: "dialogue" });
   signal.throwIfAborted();
   if (response.tool_calls?.length || !response.content?.trim()) throw new Error("Expected character speech.");
@@ -24,7 +24,11 @@ export const documentResolutionHooks: ResolutionHooks = {
     const lore = await services.lore.forCharacter(context.characterId, signal);
     const path = characterEntry(services.scenario.info(), context.characterId);
     const goal = activeGoal((await services.docs.read(path)).document);
-    const result = await services.ai.decisions({ documents: lore.initial, goal, perception: context.perception }, {
+    const messages = await disclosedContext(lore, [{ role: "user", content: JSON.stringify({
+      task: "Decide whether this perceived event warrants attention based on your knowledge and motives. Do not infer unperceived details.",
+      goal, perception: context.perception,
+    }) }], services, context.characterId, signal);
+    const result = await services.ai.decisions({ messages, goal, perception: context.perception }, {
       reaction: { type: "choice", instructions: "Does this perceived event warrant attention based on this character's knowledge and motives? Do not infer unperceived details.",
         criteria: { process: "Materially changes an objective or warrants an immediate reaction.", ignore: "Incidental, already known or irrelevant." } },
     }, signal);
