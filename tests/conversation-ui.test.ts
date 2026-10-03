@@ -4,6 +4,7 @@ import { test } from "node:test";
 import { act, createElement } from "react";
 import { testRender } from "@opentui/react/test-utils";
 import { ConversationApp, type ConversationResult } from "../apps/conversation-cli/app.js";
+import { loreService } from "../packages/conversation/src/adapters.js";
 import { DisclosureSession } from "../packages/conversation/src/disclosure.js";
 
 test("OpenTUI scrolls and copies pane-local text while preserving message clicks and dialogue", async () => {
@@ -54,11 +55,11 @@ test("OpenTUI scrolls and copies pane-local text while preserving message clicks
 test("Jev rounds and opened Markdown can be inspected and exported alongside model messages", async () => {
   const initial = [{ path: "character.md", markdown: "[Details](detail.md)" }];
   const detail = { path: "detail.md", markdown: "REVEALED_DETAIL" };
-  const disclosure = new DisclosureSession({ initial, read: () => detail,
+  const disclosure = new DisclosureSession(loreService({ initial, read: () => detail,
     candidates: opened => opened.length === 1 ? [{ path: detail.path, from: initial[0]!.path }] : [],
-  }, async (_state, questions) => Object.fromEntries(Object.keys(questions).map(id => [id,
+  }), { responses: async () => { throw new Error("unused"); }, decisions: async (_state, questions) => Object.fromEntries(Object.keys(questions).map(id => [id,
     { choice: id, probabilities: { [id]: 0.9, skip: 0.1 } },
-  ])));
+  ])) });
   let exported: ConversationResult | undefined;
   const setup = await testRender(createElement(ConversationApp, {
     input: { snapshot: { scenario: JSON.parse(readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")) },

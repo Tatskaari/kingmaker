@@ -6,6 +6,7 @@ import { TranscriptMessageSchema } from "../packages/contracts/src/index.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 import { conversationRequest, type ConversationInput } from "../packages/conversation/src/conversation.js";
 import { JevClient } from "../packages/providers/src/jev.js";
+import { aiService, loreService } from "../packages/conversation/src/adapters.js";
 import { DisclosureSession } from "../packages/conversation/src/disclosure.js";
 import { loadCharacterLore } from "../packages/conversation/src/lore.js";
 import { runConversationCli } from "../apps/conversation-cli/app.js";
@@ -25,7 +26,9 @@ if (!apiKey) throw new Error("Set OPENROUTER_API_KEY before starting the convers
 const source = JSON.parse(readFileSync(options.get("--snapshot") ?? new URL("../content/scenarios/last-night.json", import.meta.url), "utf8"));
 const lore = loadCharacterLore(fileURLToPath(new URL("../lore", import.meta.url)), options.get("--scenario") ?? "Centennial Assembly", options.get("--character") ?? "corvin");
 const jev = new JevClient(apiKey);
-const disclosure = new DisclosureSession(lore, (state, questions, signal) => jev.evaluate(state, questions, signal, "conversation disclosure"),
+const client = new OpenRouterClient(apiKey);
+const ai = aiService(client, jev);
+const disclosure = new DisclosureSession(loreService(lore), ai,
   Number(options.get("--threshold") ?? "0.7"));
 const input: ConversationInput = {
   snapshot: source.scenario ? source : { scenario: source }, characterId: options.get("--character") ?? "corvin",
@@ -33,8 +36,7 @@ const input: ConversationInput = {
   transcript: [], message: "",
 };
 conversationRequest(input); // Validate the snapshot and selected character before entering the terminal UI.
-const client = new OpenRouterClient(apiKey);
-const result = await runConversationCli(input, (request, signal) => client.complete(request, signal, "conversation debugger"), disclosure);
+const result = await runConversationCli(input, ai.responses, disclosure);
 const output = resolve(options.get("--output") ?? `test-output/conversation-${Date.now()}.json`);
 mkdirSync(dirname(output), { recursive: true });
 writeFileSync(output, JSON.stringify({ ...result, transcript: result.transcript.map(message => toJson(TranscriptMessageSchema, message)) }, null, 2));

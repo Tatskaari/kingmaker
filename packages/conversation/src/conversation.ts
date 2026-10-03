@@ -1,6 +1,8 @@
 import { create, fromJson, type JsonValue } from "@bufbuild/protobuf";
 import { ScenarioSchema, TranscriptMessageSchema, TranscriptRole, type TranscriptMessage } from "../../contracts/src/index.js";
 import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/src/openrouter.js";
+import { runConversation } from "./phases.js";
+import type { ConversationRuntime } from "./runtime.js";
 
 export const CHARACTER_PROMPT = `You are a character in a game, speaking with the player. Embody the supplied identity, voice, relationships and current circumstances. Pursue your conversation objectives naturally. Respond only with your character's words and brief observable gestures. Do not speak or decide for the player. Distinguish your knowledge and beliefs from player claims; admit uncertainty when information is missing. Speech and promises do not execute actions or change game state. Markdown links are references, not additional knowledge. Return plain text.`;
 
@@ -42,13 +44,14 @@ export function conversationRequest(input: ConversationInput): ChatCompletionReq
 }
 
 /** One plain dialogue turn. Return the complete transcript for a later review; never commit game changes. */
-export async function converse(input: ConversationInput, complete: Complete, signal?: AbortSignal,
+export async function converse<Labels>(input: ConversationInput, runtime: ConversationRuntime<Labels>, signal?: AbortSignal,
   trace: (turn: LlmTurn) => void = () => {}) {
   if (!input.message.trim()) throw new Error("Say something first.");
-  const request = conversationRequest(input), started = Date.now();
+  let request = conversationRequest(input);
+  const started = Date.now();
   trace({ request });
   try {
-    const response = await complete(request, signal);
+    const response = await runConversation(request, runtime, signal, prepared => { request = prepared; trace({ request }); });
     signal?.throwIfAborted();
     if (response.role !== "assistant" || !response.content?.trim() || response.tool_calls?.length) throw new Error("Expected a plain character reply.");
     trace({ request, response, durationMs: Date.now() - started });

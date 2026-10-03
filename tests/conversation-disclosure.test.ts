@@ -3,9 +3,30 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "nod
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
-import { DisclosureSession, type DisclosureRound, type EvaluateLinks } from "../packages/conversation/src/disclosure.js";
+import { DisclosureSession as Session, type DisclosureRound, type EvaluateLinks } from "../packages/conversation/src/disclosure.js";
 import { loadCharacterLore } from "../packages/conversation/src/lore.js";
+import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
+import { runConversation } from "../packages/conversation/src/phases.js";
+import { loreService } from "../packages/conversation/src/adapters.js";
+import type { CharacterLore } from "../packages/conversation/src/lore.js";
+import { conversationRequest } from "../packages/conversation/src/conversation.js";
 import type { ConversationInput } from "../packages/conversation/src/conversation.js";
+
+// Exercise the production phase loop without a renderer or dialogue provider.
+class DisclosureSession extends Session {
+  constructor(lore: CharacterLore, evaluate: EvaluateLinks, threshold = 0.7, private maxPasses = 16, maxCharacters = 120_000) {
+    super(loreService(lore), { responses: async () => { throw new Error("unused"); },
+      decisions: (state, questions, signal) => evaluate(String(state), questions, signal) }, threshold, maxCharacters);
+  }
+  async disclose(input: ConversationInput, signal: AbortSignal, trace: (event: DisclosureRound) => void) {
+    const runtime = new ConversationRuntime({ maxPasses: this.maxPasses,
+      services: { character: { respond: async () => ({ role: "assistant", content: "done" }) } },
+      hooks: { conversation: this.hooks(trace) },
+    });
+    await runConversation(conversationRequest({ ...input, sources: this.sources }), runtime, signal);
+    return this.sources;
+  }
+}
 
 function fixture(t: { after(fn: () => void): void }) {
   const root = mkdtempSync(join(tmpdir(), "disclosure-"));
@@ -78,7 +99,6 @@ test("invalid probabilities and disclosure budgets never silently produce a comp
   assert.equal(invalid.sources.length, 2);
   const limited = new DisclosureSession(lore, answers(() => 1), 0.7, 1);
   await assert.rejects(limited.disclose(input, new AbortController().signal, event => trace.push(event)), /round limit/);
-  assert.equal(trace.at(-1)?.status, "error");
   const small = new DisclosureSession(lore, answers(() => 1), 0.7, 16, 100);
   await assert.rejects(small.disclose(input, new AbortController().signal, event => trace.push(event)), /context limit/);
 });

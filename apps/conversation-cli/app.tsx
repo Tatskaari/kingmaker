@@ -3,6 +3,7 @@ import { stripVTControlCharacters } from "node:util";
 import { createCliRenderer, createClipboard, createHostClipboard, createRendererClipboardAdapter,
   type ScrollBoxRenderable } from "@opentui/core";
 import { createRoot, useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react";
+import { ConversationRuntime } from "../../packages/conversation/src/runtime.js";
 import { disclosureDetails, type DisclosureRound, type DisclosureSession } from "../../packages/conversation/src/disclosure.js";
 import { conversationRequest, converse, type Complete, type ConversationInput, type LlmTurn } from "../../packages/conversation/src/conversation.js";
 
@@ -63,13 +64,16 @@ export function ConversationApp({ input, complete, disclosure, copyText, onFinis
     const index = turns.length;
     try {
       const turnInput = { ...input, transcript, message };
-      const sources = disclosure ? await disclosure.disclose(turnInput, controller.current.signal, round => {
-        setRounds(previous => {
-          const index = previous.findIndex(item => item.turn === round.turn && item.round === round.round);
-          return index < 0 ? [...previous, round] : previous.map((item, i) => i === index ? round : item);
-        });
-      }) : input.sources;
-      const result = await converse({ ...turnInput, sources }, complete, controller.current.signal,
+      const runtime = new ConversationRuntime({
+        services: { character: { respond: complete } },
+        hooks: { conversation: disclosure ? disclosure.hooks(round => {
+          setRounds(previous => {
+            const index = previous.findIndex(item => item.turn === round.turn && item.round === round.round);
+            return index < 0 ? [...previous, round] : previous.map((item, i) => i === index ? round : item);
+          });
+        }) : { classify: async () => ({}), resolve: async () => ({ reclassify: false }) } },
+      });
+      const result = await converse({ ...turnInput, sources: disclosure?.sources ?? input.sources }, runtime, controller.current.signal,
         turn => setTurns(previous => [...previous.slice(0, index), turn]));
       setTranscript(result.transcript); setDraft("");
     } catch (cause) { setStatus(cause instanceof Error ? cause.message : String(cause)); }

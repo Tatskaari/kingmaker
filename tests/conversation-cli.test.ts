@@ -3,8 +3,15 @@ import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, TranscriptRole } from "../packages/contracts/src/index.js";
-import { CHARACTER_PROMPT, conversationRequest, converse, type ConversationInput, type LlmTurn } from "../packages/conversation/src/conversation.js";
+import { CHARACTER_PROMPT, conversationRequest, converse as runTurn, type ConversationInput, type LlmTurn } from "../packages/conversation/src/conversation.js";
+import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
+import type { Complete } from "../packages/conversation/src/conversation.js";
 import { loadCharacterLore } from "../packages/conversation/src/lore.js";
+
+const converse = (input: ConversationInput, complete: Complete, signal?: AbortSignal, trace?: (turn: LlmTurn) => void) =>
+  runTurn(input, new ConversationRuntime({ services: { character: { respond: complete } }, hooks: { conversation: {
+    classify: async () => ({}), resolve: async () => ({ reclassify: false }),
+  } } }), signal, trace);
 
 const input = (): ConversationInput => ({
   snapshot: { scenario: JSON.parse(readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")) },
@@ -36,8 +43,8 @@ test("a turn returns a reviewable transcript without changing the snapshot or pr
   assert.deepEqual(request, before);
   assert.equal(result.characterId, "corvin");
   assert.deepEqual(result.transcript.map(message => message.role), [TranscriptRole.CHARACTER, TranscriptRole.PLAYER, TranscriptRole.CHARACTER]);
-  assert.equal(traces.length, 2);
-  assert.equal(traces[1]?.response?.content, result.transcript.at(-1)?.text);
+  assert.equal(traces.length, 3);
+  assert.equal(traces[2]?.response?.content, result.transcript.at(-1)?.text);
 });
 
 test("failed and cancelled calls leave history untouched and expose debug errors", async () => {
