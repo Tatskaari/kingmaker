@@ -8,26 +8,34 @@ test("AI service retries transient failures once and expands only truncated resp
   for (const failure of [new ProviderResponseError("unavailable", true), new TypeError("fetch failed"),
     new DOMException("timeout", "TimeoutError"), new OutputTokenLimitError()]) {
     let calls = 0;
+    const warnings: string[] = [];
     const respond = retryResponses(async request => {
       if (++calls === 1) throw failure;
+      assert.equal(warnings.length, 1);
       assert.equal(request.max_tokens, failure instanceof OutputTokenLimitError ? 400 : 200);
       return { role: "assistant", content: "Recovered" };
-    });
+    }, message => warnings.push(message));
     assert.equal((await respond({ model: "test", messages: [], max_tokens: 200 })).content, "Recovered");
     assert.equal(calls, 2);
+    assert.equal(warnings.length, 1);
+    assert.match(warnings[0]!, /test: retry 1\/1/);
+    assert.ok(warnings[0]!.includes(failure.message));
+    assert.equal(warnings[0]!.includes("twice the output token limit"), failure instanceof OutputTokenLimitError);
   }
 });
 
 test("terminal errors and cancellation do not retry; repeated transient failures stop after two calls", async () => {
   for (const mode of ["terminal", "cancel", "exhausted"]) {
     const controller = new AbortController(); let calls = 0;
+    const warnings: string[] = [];
     const respond = retryResponses(async () => {
       calls++;
       if (mode === "cancel") controller.abort();
       throw new ProviderResponseError("failed", mode !== "terminal");
-    });
+    }, message => warnings.push(message));
     await assert.rejects(respond({ model: "test", messages: [] }, controller.signal));
     assert.equal(calls, mode === "exhausted" ? 2 : 1);
+    assert.equal(warnings.length, mode === "exhausted" ? 1 : 0);
   }
 });
 

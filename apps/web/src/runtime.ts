@@ -5,7 +5,7 @@ import { actionCriteria, jevActionHooks, runAction } from "../../../packages/con
 import { initialModelResourceIds, modelResourceOverview } from "./model-resources.js";
 import { renderWorldPrompt } from "../../../packages/core/src/world-prompt.js";
 import type { Complete } from "../../../packages/conversation/src/conversation.js";
-import { retryResponses } from "../../../packages/conversation/src/ai.js";
+import { retryResponses, warnResponseRetry } from "../../../packages/conversation/src/ai.js";
 import { ConversationRuntime, type ConversationRuntimeOptions } from "../../../packages/conversation/src/runtime.js";
 import { classifyConversationReview, runConversationReview, type ConversationReviewContext, type ReviewLabels } from "../../../packages/conversation/src/review.js";
 import type { AiService } from "../../../packages/conversation/src/services.js";
@@ -335,7 +335,7 @@ export class BrowserGameRuntime {
   #conversationRuns = new Map<string, string>();
   #eventPerceptions: Record<string, EventPerceptionTrace[]> = {};
 
-  constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot, transcriptsChanged: () => void = () => {}, onWarning: (message: string) => void = () => {}, random: () => number = Math.random, readonly jevActionContext: JevActionContextOptions = {}, readonly reviewOptions: ConversationRuntimeOptions = {}, readonly actionOptions: ConversationRuntimeOptions = {}, readonly resolutionOptions: ConversationRuntimeOptions = {}) {
+  constructor(scenario: Scenario, apiKey: string, snapshot?: RuntimeSnapshot, transcriptsChanged: () => void = () => {}, private readonly onWarning: (message: string) => void = () => {}, random: () => number = Math.random, readonly jevActionContext: JevActionContextOptions = {}, readonly reviewOptions: ConversationRuntimeOptions = {}, readonly actionOptions: ConversationRuntimeOptions = {}, readonly resolutionOptions: ConversationRuntimeOptions = {}) {
     this.#initialScenario = fromJson(ScenarioSchema, toJson(ScenarioSchema, scenario));
     initializeNpcObjectives(this.#initialScenario);
     this.#game = new MemoryGame(this.#initialScenario);
@@ -619,7 +619,7 @@ export class BrowserGameRuntime {
     const handler = new ConversationRuntime<CheckLabels>({ ...options, services: {
       ...injected,
       ai: {
-        responses: retryResponses((request, signal) => this.#complete("gm_consultation", characterId, request, signal, runKey)),
+        responses: retryResponses((request, signal) => this.#complete("gm_consultation", characterId, request, signal, runKey), this.onWarning),
         decisions: (state, questions, signal) => this.#modelTranscripts.record("conversation_check", characterId, state,
           () => this.#jev.evaluate(state, questions, signal), runKey, this.#characterName(characterId)),
         ...injected?.ai,
@@ -715,6 +715,7 @@ export class BrowserGameRuntime {
         const malformed = error instanceof InvalidModelJsonError;
         const retryable = malformed || (error instanceof ProviderResponseError && error.retryable);
         if (!retryable || attempt === 1) throw error;
+        warnResponseRetry(DIALOGUE_MODEL.model, error, this.onWarning);
         if (malformed) messages.push({ role: "system", content: "The previous response could not be read as the required JSON object. Answer the same player message using valid JSON that matches the supplied schema. Do not add commentary outside that object." });
       }
     }

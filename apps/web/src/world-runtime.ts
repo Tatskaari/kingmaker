@@ -49,11 +49,11 @@ export class WorldGameRuntime extends WorldHost {
   private commit<T>(work: () => T | Promise<T>, signal?: AbortSignal, persist = this.persistChange): Promise<T> {
     return persist(() => { signal?.throwIfAborted(); return work(); });
   }
-  constructor(world: WorldState, apiKey: string, saved?: WorldSnapshot, changed = () => {}, warning = (_message: string) => {},
+  constructor(world: WorldState, apiKey: string, saved?: WorldSnapshot, changed = () => {}, private readonly warning = (_message: string) => {},
     readonly options: WorldOptions = {}) {
     super(world, saved);
     Object.assign(this.map, options.services?.map);
-    this.provider = aiService(new OpenRouterClient(apiKey, 60_000, globalThis.location?.origin || "http://localhost", warning), new JevClient(apiKey), false);
+    this.provider = aiService(new OpenRouterClient(apiKey, 60_000, globalThis.location?.origin || "http://localhost", warning), new JevClient(apiKey, undefined, undefined, warning), false);
     this.traces = new ModelTranscripts(apiKey, changed);
   }
   private runtime(id: string, kind: ModelCallKind, extra: WorldOptions = {}, runKey?: string, signal?: AbortSignal, participantIds = [id]) {
@@ -92,7 +92,7 @@ export class WorldGameRuntime extends WorldHost {
       character: { create: input => this.commit(() => this.documents.character.create(input), signal, persist), rollCheck: checkMechanics(world.player ? world.docs[world.player]?.characterProperties?.dnd : undefined,
         () => random.integer(1, 20)), ...this.options.services?.character, ...extra.services?.character },
       map: { ...this.map, ...this.options.services?.map, ...extra.services?.map },
-      ai: { ...traced, responses: retryResponses(traced.responses) },
+      ai: { ...traced, responses: retryResponses(traced.responses, this.warning) },
       random,
       debug: { record: () => {}, documentUpdated: event => this.traces.documentUpdated(event), ...this.options.services?.debug, ...extra.services?.debug },
       presentation: { renderMap: async () => {}, showRoll: async () => {}, setPortrait: async () => {}, ...this.options.services?.presentation, ...extra.services?.presentation },

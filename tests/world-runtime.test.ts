@@ -7,12 +7,13 @@ import { fromJsonString } from "@bufbuild/protobuf";
 import { ScenarioSchema } from "../packages/contracts/src/index.js";
 import { readVault } from "../scripts/lib/lore-access.js";
 import { playableWorld } from "../apps/web/src/playable-world.js";
+import { AlertLog } from "../apps/web/src/alerts.js";
 import { WorldGameRuntime } from "../apps/web/src/world-runtime.js";
 import type { WorldOptions } from "../apps/web/src/world-runtime.js";
 import { activeGoal } from "../packages/lore/src/active-goal.js";
 
-function game(options: WorldOptions = {}) {
-  return new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, undefined, { ...options, services: { disclosure: { disclose: async () => [] }, ...options.services } });
+function game(options: WorldOptions = {}, warning?: (message: string) => void) {
+  return new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, warning, { ...options, services: { disclosure: { disclose: async () => [] }, ...options.services } });
 }
 const reviewReply = commitReview({ summary: "Agreed", newNotes: ["PROMISESENTINEL"], activeGoal: "Go to the great hall" });
 const commit = async <T>(work: () => T) => work();
@@ -83,12 +84,16 @@ test("concurrent reviews update separate live documents while player movement su
 
 test("conversation spans retain turn, retry, review and scenario context", async () => {
   let attempts = 0;
+  const alerts = new AlertLog();
   const runtime = game({ services: { ai: { responses: async request => {
     if (request.tools) return reviewReply;
     if (++attempts === 1) throw new TypeError("Temporary transport failure");
     return { role: "assistant", content: "Hello." };
-  } } }, hooks: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }), resolve: async () => ({ reclassify: false }) } } });
+  } } }, hooks: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }), resolve: async () => ({ reclassify: false }) } } }, message => alerts.add("warning", message));
   await runtime.checkedTalkToCharacter("rowan", "Hello");
+  assert.equal(alerts.severity, "warning");
+  assert.equal(alerts.unread, 1);
+  assert.match(alerts.entries[0]!.message, /retry 1\/1.*Temporary transport failure/);
   await runtime.checkedTalkToCharacter("rowan", "Goodbye");
   await runtime.endConversation("rowan");
   const runs = Object.values(runtime.transcriptRuns());
