@@ -26,6 +26,8 @@ const conversationReviews = new Map();
 let busy = false;
 let npcRun = [];
 let notice = "";
+let dialogueDraft;
+let dialogueFramePending = false;
 let courtNotices = [];
 let lastCourtNotice = "";
 let sheetOpen = false;
@@ -84,11 +86,25 @@ gameWorker.addEventListener("error", () => {
   workerFailure = new Error("The game worker could not start. Reload the page to retry.");
   for (const pending of pendingRequests.values()) pending.reject(workerFailure);
   pendingRequests.clear();
+  clearDialogueDraft();
   busy = false; notice = `Error: ${workerFailure.message}`; render();
 });
 const gameReplacementRequests = new Set(["reset_world", "reset_characters", "reset", "load_game", "create_game", "create_development_game", "configure", "delete_game"]);
 let activeConversationRoll;
 gameWorker.addEventListener("message", event => {
+  if (event.data.type === "dialogue_stream") {
+    const { requestId, characterId, text } = event.data;
+    const pending = pendingRequests.get(requestId);
+    const visible = pending?.type === "gm" ? characterId === "gm" && state?.phase === "player_creation"
+      : pending?.type === "talk" && pending.characterId === characterId && activeCharacter === characterId;
+    if (!visible || !busy || pending.generation !== gameViewGeneration || typeof text !== "string") return;
+    dialogueDraft = { requestId, characterId, text, message: pending.message };
+    if (!dialogueFramePending) {
+      dialogueFramePending = true;
+      requestAnimationFrame(() => { dialogueFramePending = false; refreshDialogueDraft(); });
+    }
+    return;
+  }
   if (event.data.type === "cancel_conversation_roll") {
     if (activeConversationRoll?.id === event.data.rollId) activeConversationRoll.controller.abort();
     return;
@@ -146,6 +162,7 @@ gameWorker.addEventListener("message", event => {
   const pending = pendingRequests.get(event.data.id);
   if (!pending) return;
   pendingRequests.delete(event.data.id);
+  if (dialogueDraft?.requestId === event.data.id) clearDialogueDraft();
   if (event.data.ok) {
     const value = event.data.value;
     if (value?.mapLayout) mapLayout = value.mapLayout;
@@ -160,12 +177,39 @@ gameWorker.addEventListener("message", event => {
 function rpc(type, payload = {}) {
   if (workerFailure) return Promise.reject(workerFailure);
   if (["move_player", "set_door", "interact_fixture"].includes(type)) payload = { ...payload, generations: state.generations };
-  if (gameReplacementRequests.has(type)) { documentRoute = {}; gameViewGeneration++; courtNotices = []; lastCourtNotice = ""; document.querySelector(".dice-dialog")?.close(); conversationReviews.clear(); stopNpcGoal(); }
+  if (gameReplacementRequests.has(type)) { clearDialogueDraft(); documentRoute = {}; gameViewGeneration++; courtNotices = []; lastCourtNotice = ""; document.querySelector(".dice-dialog")?.close(); conversationReviews.clear(); stopNpcGoal(); }
   const id = ++requestSequence;
   gameWorker.postMessage({ id, type, payload });
   return new Promise((resolve, reject) => pendingRequests.set(id, {
-    resolve, reject, type, generation: gameViewGeneration, characterId: payload.characterId,
+    resolve, reject, type, generation: gameViewGeneration, characterId: payload.characterId, message: payload.message,
   }));
+}
+
+function clearDialogueDraft() {
+  dialogueDraft = undefined;
+  document.querySelector("[data-dialogue-stream]")?.remove?.();
+}
+
+function dialogueDraftView(characterId, name) {
+  if (dialogueDraft?.characterId !== characterId) return "";
+  const { text, message } = dialogueDraft;
+  return `<div data-dialogue-stream aria-live="off" aria-busy="true">${messageList(message ? [{ role: "user", text: message }] : [], name)}<div class="message character" data-stream-reply ${text ? "" : "hidden"}><span class="speaker">${escapeHtml(name)}</span><span data-stream-text>${escapeHtml(text)}</span></div></div>`;
+}
+
+function refreshDialogueDraft() {
+  if (!dialogueDraft) return;
+  const { characterId, text } = dialogueDraft;
+  const container = document.querySelector(characterId === "gm" ? ".stranger-conversation .messages" : ".conversation-modal .messages");
+  if (!container) return;
+  if (!container.querySelector("[data-dialogue-stream]")) {
+    const name = characterId === "gm" ? patronName : state.characters.find(item => item.id === characterId)?.name || characterId;
+    container.insertAdjacentHTML("beforeend", dialogueDraftView(characterId, name));
+  }
+  container.querySelector("[data-stream-text]").textContent = text;
+  container.querySelector("[data-stream-reply]").hidden = !text;
+  const waiting = container.querySelector(".waiting");
+  if (waiting) waiting.hidden = !!text;
+  container.scrollTo(0, container.scrollHeight);
 }
 
 function stopNpcGoal() {
@@ -514,7 +558,7 @@ function renderCreation() {
     strangerPortraitState = { generation: gameViewGeneration, key: "", expression: "amused", history: ["amused"] };
   }
   const portrait = strangerPortrait(strangerPortraitState.expression);
-  app.innerHTML = shell(`<section class="panel stranger-panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div><div class="save-actions"><button data-skip-character ${busy ? "disabled" : ""}>Skip and use default character</button><button class="character-debug" data-gm-debug>Debug Stranger</button></div></div><div class="stranger-scene"><img class="stranger-portrait" data-stranger-portrait src="${portrait.src}" alt="${portrait.alt}" width="1254" height="1254"><div class="stranger-conversation"><div class="messages">${messageList(messages, patronName)}</div>${replyOptions(state.gmReplyOptions?.options, "gm", state.gmReplyOptions?.compelled)}${state.gmReplyOptions?.compelled ? `<p class="compelled-hint">A powerful force compels you to respond accordingly</p>` : `<form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Invent your story, answer him, or ask for ideas…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></div></div></section>`);
+  app.innerHTML = shell(`<section class="panel stranger-panel"><div class="conversation-head"><div><div class="eyebrow">A private audience with your patron</div><h2>${patronName}</h2></div><div class="save-actions"><button data-skip-character ${busy ? "disabled" : ""}>Skip and use default character</button><button class="character-debug" data-gm-debug>Debug Stranger</button></div></div><div class="stranger-scene"><img class="stranger-portrait" data-stranger-portrait src="${portrait.src}" alt="${portrait.alt}" width="1254" height="1254"><div class="stranger-conversation"><div class="messages">${messageList(messages, patronName)}${dialogueDraftView("gm", patronName)}</div>${replyOptions(state.gmReplyOptions?.options, "gm", state.gmReplyOptions?.compelled)}${state.gmReplyOptions?.compelled ? `<p class="compelled-hint">A powerful force compels you to respond accordingly</p>` : `<form class="composer" data-gm-form><textarea name="message" aria-label="Speak to the Laughing Stranger" placeholder="Invent your story, answer him, or ask for ideas…" required ${busy ? "disabled" : ""}></textarea><button class="primary" ${busy ? "disabled" : ""}>Reply</button></form>`}<p class="status ${notice.startsWith("Error") ? "error" : ""}">${escapeHtml(notice)}</p></div></div></section>`);
   bind();
   document.querySelector(".messages")?.scrollTo(0, messages.length === 1 ? 0 : 999999);
   refreshStrangerPortrait(messages);
@@ -592,7 +636,7 @@ function renderDay(bindPage = true) {
 
 function conversationNoticeView() {
   const waitingText = notice.replace(/(?:\.\.\.|…|\.)$/, "");
-  const waitingMessage = busy && waitingText && !notice.startsWith("Error")
+  const waitingMessage = busy && !dialogueDraft?.text && waitingText && !notice.startsWith("Error")
     ? `<div class="message waiting" role="status"><span class="speaker">Scene</span>${escapeHtml(waitingText)}<span class="waiting-dots" aria-hidden="true"><span>.</span><span>.</span><span>.</span></span></div>`
     : "";
   return { waitingMessage, statusMessage: waitingMessage ? "" : notice };
@@ -613,7 +657,7 @@ function renderConversation() {
   const dialog = document.createElement("dialog");
   dialog.className = "conversation-modal";
   dialog.setAttribute("aria-label", `Conversation with ${character.name}`);
-  dialog.innerHTML = `<section class="panel"><div class="conversation-head"><button class="back" data-end-conversation ${busy ? "disabled" : ""}>${busy ? "Please wait…" : ended ? "Return to palace" : ending ? "Finish conversation review" : "End conversation"}</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.<span class="earshot">${escapeHtml(earshotMessage)}</span></div>`}${waitingMessage}</div>${ended || ending ? `<p class="scene">${escapeHtml(character.name)} has ended the conversation. You can return to the palace while their memories and next goal are reviewed.</p>` : `${replyOptions(state.conversationReplyOptions?.[activeCharacter], activeCharacter)}<form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><div class="composer-actions"><button class="primary" ${busy ? "disabled" : ""}>Speak</button><button type="submit" data-respond-and-close ${busy ? "disabled" : ""}>Speak &amp; leave</button></div></form>`}<p class="status ${statusMessage.startsWith("Error") ? "error" : ""}">${escapeHtml(statusMessage)}</p></section>`;
+  dialog.innerHTML = `<section class="panel"><div class="conversation-head"><button class="back" data-end-conversation ${busy ? "disabled" : ""}>${busy ? "Please wait…" : ended ? "Return to palace" : ending ? "Finish conversation review" : "End conversation"}</button><div class="conversation-tools"><span class="eyebrow">A private audience</span><button class="character-debug" data-character-debug>⌘ Debug ${escapeHtml(character.name)}</button></div></div><h2>${escapeHtml(character.name)}</h2><div class="messages">${messages.length ? messageList(messages, character.name) : `<div class="message character"><span class="speaker">Scene</span>${escapeHtml(character.name)} waits for you to speak first.<span class="earshot">${escapeHtml(earshotMessage)}</span></div>`}${dialogueDraftView(activeCharacter, character.name)}${waitingMessage}</div>${ended || ending ? `<p class="scene">${escapeHtml(character.name)} has ended the conversation. You can return to the palace while their memories and next goal are reviewed.</p>` : `${replyOptions(state.conversationReplyOptions?.[activeCharacter], activeCharacter)}<form class="composer" data-talk-form><textarea name="message" placeholder="What do you say?" required ${busy ? "disabled" : ""}></textarea><div class="composer-actions"><button class="primary" ${busy ? "disabled" : ""}>Speak</button><button type="submit" data-respond-and-close ${busy ? "disabled" : ""}>Speak &amp; leave</button></div></form>`}<p class="status ${statusMessage.startsWith("Error") ? "error" : ""}">${escapeHtml(statusMessage)}</p></section>`;
   // Keep character debugging within the modal's focus boundary.
   for (const panel of app.querySelectorAll(".debug-scrim, .debug-inspector")) dialog.append(panel);
   app.append(dialog);
