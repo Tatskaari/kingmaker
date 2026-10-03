@@ -14,7 +14,9 @@ export function stateResources(scenario: Scenario, activities: Record<string, un
     resources[`inventory:${character.id}`] = character.inventory ?? null;
     resources[`entity:${character.id}`] = "character";
   }
-  for (const actor of world?.actors ?? []) resources[`actor:${actor.characterId}`] = actor;
+  for (const actor of world?.actors ?? []) resources[`actor:${actor.characterId}`] = actor.instanceId
+    ? world!.actors.filter(body => body.characterId === actor.characterId).sort((a, b) => (a.instanceId ?? "").localeCompare(b.instanceId ?? ""))
+    : actor;
   for (const fixture of world?.fixtures ?? []) {
     resources[`fixture:${fixture.id}`] = { ...fixture, inventory: undefined };
     resources[`inventory:${fixture.id}`] = fixture.inventory ?? null;

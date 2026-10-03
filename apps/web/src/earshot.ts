@@ -10,8 +10,8 @@ export function dialogueEarshotPrompt(
   explicit?: { withinEarshot: readonly string[] },
 ): string {
   const world = scenario.world;
-  const characters = scenario.characters.map(character => ({ id: character.id, name: character.name,
-    position: world?.actors.find(actor => actor.characterId === character.id)?.position }));
+  const characters = scenario.characters.flatMap(character => (world?.actors.filter(actor => actor.characterId === character.id) ?? [])
+    .map(actor => ({ id: character.id, name: character.name, position: actor.position })));
   const speaker = characters.find(character => character.id === speakerId);
   const speakerActor = world?.actors.find(actor => actor.characterId === speakerId);
   const currentRoom = world?.rooms.find(room => room.id === speakerActor?.roomId);
@@ -49,8 +49,11 @@ export function dialogueEarshotPrompt(
 }
 
 export function courtCharactersWithinEarshot(speaker: PositionedCharacter, characters: readonly PositionedCharacter[], doors: readonly DoorState[] = [], fixtures: readonly MapFixture[] = []) {
-  return charactersWithinEarshot(speaker, characters).filter(listener =>
-    !!courtPath(speaker.position!, listener.position!, doors, fixtures));
+  const heard = new Set<string>();
+  return charactersWithinEarshot(speaker, characters).filter(listener => {
+    if (heard.has(listener.id) || !courtPath(speaker.position!, listener.position!, doors, fixtures)) return false;
+    heard.add(listener.id); return true;
+  });
 }
 
 export interface PositionedCharacter {

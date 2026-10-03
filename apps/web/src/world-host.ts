@@ -40,7 +40,7 @@ export class WorldHost {
     const world = this.world();
     const activities = this.activity.npcActivities ??= {};
     for (const path of world.characters) {
-      const id = characterId(path, world), goal = activeGoal(world.docs[path]!) ?? "", previous = activities[id];
+      const id = characterId(path, world), goal = world.docs[path]!.frontmatter?.background === true ? "" : activeGoal(world.docs[path]!) ?? "", previous = activities[id];
       if (previous?.goal === goal) continue;
       activities[id] = { status: goal ? "active" : "idle", goal, history: [] };
     }
@@ -103,7 +103,7 @@ export class WorldHost {
   readonly map: MapService = {
     layout: () => clone(WorldMapSchema, palaceMap),
     observe: id => {
-      const scenario = projectWorld(this.world());
+      const scenario = projectWorld(this.world(), id);
       return { characterId: id, map: worldForCharacter(scenario, id),
         actions: characterCourtObservation(scenario, id).actions };
     },

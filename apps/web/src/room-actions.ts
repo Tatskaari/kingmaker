@@ -21,6 +21,7 @@ const neighbours = (point: Point): Point[] => [
  * may occupy the adjoining room's threshold in the authored map. */
 export function roomAgentActions(scenario: Scenario, characterId: string, continuingActionId?: string): CourtAgentAction[] {
   const world = scenario.world!, actor = world.actors.find(item => item.characterId === characterId)!;
+  if (actor.instanceId) return []; // Background bodies hold their posts; conversation actions are separate.
   const start = actor.position!, room = world.rooms.find(item => item.id === actor.roomId)!;
   const physicalBlockers = courtDoorBlockers(world.doors, world.fixtures);
   const route = (end: Point, allowedRooms = [room.id], thresholds: Point[] = []) => {
@@ -67,8 +68,13 @@ export function roomAgentActions(scenario: Scenario, characterId: string, contin
     if (other.characterId === characterId || other.roomId !== room.id || !other.awake || !other.position) continue;
     const target = scenario.characters.find(item => item.id === other.characterId);
     const path = shortest(neighbours(other.position).map(point => route(point)));
-    if (target && path) actions.push({ id: `talk_${target.id}`, type: "talk", target: target.id, path,
-      description: `Talk to ${target.name} (${path.length - 1} steps).` });
+    if (target && path) {
+      const existing = actions.findIndex(action => action.id === `talk_${target.id}`);
+      if (existing >= 0 && actions[existing]!.path.length <= path.length) continue;
+      const action: CourtAgentAction = { id: `talk_${target.id}`, type: "talk", target: target.id, path,
+        description: `Talk to ${target.name} (${path.length - 1} steps).` };
+      if (existing >= 0) actions[existing] = action; else actions.push(action);
+    }
   }
   return actions;
 }
