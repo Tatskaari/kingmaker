@@ -13,6 +13,7 @@ Separate GM adjudication from tasks for the physical action planner. The planner
 
 // Every new model-call kind must explicitly declare whether it speaks as GM.
 const gmCalls: Record<ModelCallKind, boolean> = {
+  skill_check: false, skill_difficulty: false, prog_disc: false,
   game_master: true, gm_consultation: true, conversation_review: true,
   npc_resolution: true, outcome_review: true, world_event: true,
   dialogue: false, dialogue_flavour: false, npc_request: false, event_decision: false, jev: false, conversation_check: false, conversation_expression: false,

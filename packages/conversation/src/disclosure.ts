@@ -59,7 +59,7 @@ export class DisclosureSession {
           event.request = jevEvaluationRequest(state, questions);
           trace(event);
           const started = Date.now();
-          const answers = await this.ai.decisions(state, questions, signal);
+          const answers = await this.ai.decisions(state, questions, signal, "prog_disc");
           signal.throwIfAborted();
           event = { ...event, answers, durationMs: Date.now() - started };
           for (const candidate of event.candidates) {
