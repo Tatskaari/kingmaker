@@ -217,14 +217,113 @@ doors, containers and inventories. Reload after changing authored scenario data.
 Old saves are not migrated to the renamed characters and expanded court; start a
 fresh game for this scenario.
 
+## World v2 architecture
+
+Hooks define game policy, services provide operations, and the host owns state
+and coordinates execution. These are in-process TypeScript interfaces, injected
+through `ConversationRuntime`, rather than separately deployed services.
+
+### Services and state
+
+| Service | Responsibility |
+| --- | --- |
+| `scenario` | Scenario identity, character entrypoints and detached world snapshots |
+| `docs` | Read and edit narrative documents with SHA-checked writes |
+| `map` | Layout, character-visible physical observations, available actions and validated interactions |
+| `ai` | Structured decisions and model responses; policy supplies the prompts |
+| `lore` | Character-scoped initial documents, permitted links and disclosure |
+| `character` | Character replies and check/save operations |
+| `presentation` | Display rolls, portraits and committed map updates |
+| `random`, `debug` | Replaceable randomness and observational tracing |
+
+The [service interfaces](packages/conversation/src/services.ts) are the compiled
+contract. Missing operations throw explicitly; hosts supply the dependencies
+their flows need.
+
+[`createScenarioServices`](packages/lore/src/services.ts) owns one authoritative
+v2 world: narrative documents, the physical map and typed character properties.
+Document writes preserve physical properties. An internal mechanics commit
+updates the map and typed properties without rewriting narrative documents;
+hooks reach physical mutations through `map.interact`.
+
+[`WorldHost`](apps/web/src/world-host.ts) projects that world into disposable
+`PalaceMechanics` instances to reuse the physical rules. The projection is not a
+second source of truth. A character's `active_goal` lives in their scenario
+document; the host keeps conversations and execution bookkeeping alongside the
+world in its snapshot. Incompatible older saves require a fresh game.
+
+### Hook pipelines
+
+Hooks separate classification from resolution: classifiers return labels from
+evidence, and resolvers use those labels to perform operations. Classification
+receives detached context; it does not mutate the live turn or execute actions.
+
+| Hook family | Responsibility |
+| --- | --- |
+| `conversation` | Resolve disclosure and checks, reclassify when context expands, then generate the character reply |
+| `review` | Review a completed conversation and publish character notes and an active goal |
+| `action` | Plan a concrete action or return `complete`, `wait` or `unable` |
+| `actionExecution` | Execute a physical command through the map service |
+| `resolution` | Handle NPC exchanges, task outcomes and perceived world events |
+
+Planning and execution are separate. Choosing an action does not move a character;
+execution validates current state and advances the action, potentially one tile
+at a time. A talk result hands off to conversation or exchange resolution.
+Narrative review records knowledge and intentions, not completed physical effects.
+Review and action-execution classifiers currently return empty labels; perceived
+event classification decides whether an event warrants attention.
+
+The normal cycle is conversation → review → notes and active goal → observe →
+plan → execute, repeating planning as needed. Exchanges, task outcomes and
+perceived events feed back into notes and goals through resolution hooks.
+
+[`WorldGameRuntime`](apps/web/src/world-runtime.ts) composes the default policies
+and services. Hosts coordinate scheduling, cancellation, persistence and fork
+publication. SHA checks protect document edits; world generations and transcript
+checks reject stale plans or model results. The browser worker persists an action
+before presenting its map update, so a rendering failure cannot undo a saved
+action. Headless map presentation defaults to a no-op.
+
+### Dependency injection for implementations, tests and evals
+
+Dependency injection (DI) is how we plug in new implementations: replace hooks
+to change decision-making policy, replace services to change how operations are
+performed, and change the host for scheduling or application integration.
+`ConversationRuntime` accepts `services` and `hooks` options;
+`WorldGameRuntime` composes overrides with its defaults, and `WorldHeadlessGame`
+accepts these options as its third constructor argument. Overrides are retained
+when the world runtime forks or the headless game reloads.
+
+Tests can inject fake or mocked AI responses, map interactions, presentation and
+deterministic randomness while exercising the shared pipelines. Individual hook
+phases can also be replaced to test a policy independently.
+
+The same boundaries support evals that A/B test a candidate implementation
+against a baseline. Start each variant from the same world snapshot and evidence,
+inject the baseline or candidate hook/service, and keep the remaining dependencies,
+randomness and scoring criteria fixed. Compare outcomes and recorded traces across
+repeated runs. This allows policy, prompt, provider or service changes to be
+evaluated through the same execution flow used by the game. It is an injection
+pattern for eval harnesses, not a claim that every existing eval runner already
+supports arbitrary v2 overrides.
+
+The migration is still in progress: some host paths retain palace-specific
+observations and perception rules, conversation setup still wires some dependencies
+directly, and legacy runtime/eval cleanup remains. See
+[map services](docs/map-services.md) and
+[conversation hooks and services](docs/conversation-services.md) for more detail;
+the compiled interfaces and v2 host take precedence over older v1 examples.
+
 ## Code and validation
 
 - `content/scenarios/last-night.json`: characters, notes and physical world data.
-- `apps/web/src/runtime.ts`: authoritative interactions and model workflows.
+- `apps/web/src/world-host.ts`: authoritative v2 state and physical mechanics adapter.
+- `apps/web/src/world-runtime.ts`: service injection and game policy composition.
+- `packages/conversation/src/runtime.ts`: shared hook and service contracts.
 - `apps/web/src/court-agent.ts`: grounded actions and planner observations.
 - `apps/web/src/court-map.ts`: map rendering, walking and interaction menus.
 - `packages/core/src/context.ts`: character knowledge and dialogue context.
-- `packages/contracts/proto/kingmaker/v1/game.proto`: persisted data contracts.
+- `packages/contracts/proto/kingmaker/v2/world.proto`: document-backed world contract.
 - [Architecture](docs/architecture.md), [navigation](docs/navigation.md),
   [autotiling](docs/autotiling.md), [cleanup audit](docs/cleanup-audit.md).
 
@@ -490,7 +589,8 @@ focused test command.
 
 Conversation turns share a `classify → resolve → respond` handler in
 `packages/conversation/src/phases.ts`. Hooks and conversation services are supplied
-to `ConversationRuntime`; this does not change the rest of the game runtime.
+to `ConversationRuntime`; the [v2 architecture](#world-v2-architecture) extends
+these boundaries to review, action planning, execution and resolution.
 The CLI uses disclosure hooks, while browser and headless player conversations
 use the existing skill-check policy through check hooks. Resolution can request
 another classification pass after adding information. Only resolution changes

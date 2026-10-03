@@ -1,3 +1,4 @@
+import { mapActionHooks, runActionExecution, type ActionExecutionContext } from "../../../packages/conversation/src/action-execution.js";
 import { create, fromJson, toJson } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, TranscriptRole, type Event } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
@@ -35,6 +36,7 @@ export class WorldGameRuntime extends WorldHost {
   constructor(world: WorldState, apiKey: string, saved?: WorldSnapshot, changed = () => {}, warning = (_message: string) => {},
     readonly options: WorldOptions = {}) {
     super(world, saved);
+    Object.assign(this.map, options.services?.map);
     this.provider = aiService(new OpenRouterClient(apiKey, 60_000, globalThis.location?.origin || "http://localhost", warning), new JevClient(apiKey));
     this.traces = new ModelTranscripts(apiKey, changed);
   }
@@ -42,18 +44,29 @@ export class WorldGameRuntime extends WorldHost {
     const ai = { ...this.provider, ...this.options.services?.ai, ...extra.services?.ai };
     return new ConversationRuntime<WorldTurnLabels>({ services: {
       ...this.options.services, ...extra.services, ...this.documents,
+      map: { ...this.map, ...this.options.services?.map, ...extra.services?.map },
       ai: {
         responses: (request, signal) => this.traces.record(kind, id, request, () => ai.responses(request, signal), runKey),
         decisions: (state, questions, signal) => this.traces.record("jev", id, { state, questions }, () => ai.decisions(state, questions, signal), runKey),
       },
       random: { integer: (min, max) => min + Math.floor(Math.random() * (max - min + 1)), ...this.options.services?.random, ...extra.services?.random },
       debug: { record: () => {}, ...this.options.services?.debug, ...extra.services?.debug },
-      presentation: { showRoll: async () => {}, setPortrait: async () => {}, ...this.options.services?.presentation, ...extra.services?.presentation },
+      presentation: { renderMap: async () => {}, showRoll: async () => {}, setPortrait: async () => {}, ...this.options.services?.presentation, ...extra.services?.presentation },
     }, hooks: { ...this.options.hooks, ...extra.hooks,
       review: { ...documentReviewHooks, ...this.options.hooks?.review, ...extra.hooks?.review },
+      actionExecution: { ...mapActionHooks, ...this.options.hooks?.actionExecution, ...extra.hooks?.actionExecution },
       action: { ...jevActionHooks, ...this.options.hooks?.action, ...extra.hooks?.action },
       resolution: { ...documentResolutionHooks, ...this.options.hooks?.resolution, ...extra.hooks?.resolution },
     } });
+  }
+  async executeAction(context: ActionExecutionContext, signal = new AbortController().signal) {
+    const id = context.command.kind === "step" ? context.command.characterId : "player";
+    return runActionExecution(context, this.runtime(id, "npc_request"), signal);
+  }
+  /** Called after persistence; presentation failure must not roll back a committed action. */
+  async presentMap(id = "player", result?: import("../../../packages/conversation/src/map.js").MapResult) {
+    const { services } = this.runtime(id, "npc_request");
+    await services.presentation.renderMap(services.map.observe(id), result);
   }
   recentTranscripts() { return this.traces.recent(); }
   transcriptRuns() { return this.traces.runs(); }

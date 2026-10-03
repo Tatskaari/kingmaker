@@ -1,4 +1,5 @@
-import type { DocsService, ScenarioService, MechanicsStateService } from "../../lore/src/services.js";
+import type { MapService, MapObservation, MapResult } from "./map.js";
+import type { DocsService, ScenarioService } from "../../lore/src/services.js";
 import type { CheckDegree, CheckSkill, skillAbilities } from "../../core/src/ability-checks.js";
 import type { PortraitExpression } from "../../providers/src/conversation-expression.js";
 import type { JevChoice, JevQuestions } from "../../providers/src/jev.js";
@@ -52,6 +53,7 @@ export interface CharacterService extends CharacterMechanics {
   respond(request: ChatCompletionRequest, signal?: AbortSignal): Promise<OpenRouterMessage>;
 }
 export interface PresentationService {
+  renderMap(observation: Readonly<MapObservation>, result?: Readonly<MapResult>): Promise<void>;
   showRoll(result: Readonly<RollResult>, signal: AbortSignal): Promise<void>;
   setPortrait(characterId: string, expression: PortraitExpression, signal: AbortSignal): Promise<void>;
 }
@@ -72,7 +74,7 @@ export interface DebugService {
   record(event: Readonly<ConversationDebugEvent>): void;
 }
 export interface RuntimeServices {
-  readonly mechanics: MechanicsStateService;
+  readonly map: MapService;
   readonly scenario: ScenarioService;
   readonly docs: DocsService;
   readonly ai: AiService;

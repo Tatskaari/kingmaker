@@ -16,6 +16,7 @@ import devOpenRouterApiKey from "virtual:kingmaker-dev-openrouter-key";
 
 const app = document.querySelector("#app");
 let state;
+let mapLayout;
 let activeCharacter = null;
 let closedConversation = null;
 const conversationReviews = new Map();
@@ -134,6 +135,7 @@ gameWorker.addEventListener("message", event => {
   pendingRequests.delete(event.data.id);
   if (event.data.ok) {
     const value = event.data.value;
+    if (value?.mapLayout) mapLayout = value.mapLayout;
     // A background commit can arrive while a dialogue response is listing saves.
     if (value?.state && state && !gameReplacementRequests.has(pending.type)
       && value.state.revision < state.revision) value.state = state;
@@ -540,7 +542,7 @@ function renderDay(bindPage = true) {
   }, async id => {
     const character = state.characters.find(item => item.id === id);
     await openDebug({ type: "debug_character", payload: { characterId: id } }, `${character?.name || id} Debug`);
-  }).then(() => updateCourtMap(mapRoot, { ...state, disabled: busy })).catch(() => {
+  }, mapLayout).then(() => updateCourtMap(mapRoot, { ...state, disabled: busy })).catch(() => {
     if (!mapRoot.isConnected) return;
     const message = document.createElement("p"); message.className = "status error";
     message.textContent = "The palace artwork could not load. You can still select a character by name."; mapRoot.append(message);

@@ -1,3 +1,8 @@
+import { palaceMap } from "./palace-map.js";
+import { WorldMapSchema } from "../../../packages/contracts/src/index.js";
+import type { MapService } from "../../../packages/conversation/src/map.js";
+import { characterCourtObservation } from "./court-agent.js";
+import { worldForCharacter } from "../../../packages/core/src/context.js";
 import { clone, create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import { ScenarioSchema, type Event } from "../../../packages/contracts/src/index.js";
 import { CharacterPropertiesSchema, WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
@@ -80,7 +85,8 @@ export class WorldHost {
     return result;
   }
   protected physicalGenerations(expected?: ExpectedGenerations) {
-    return expected && Object.fromEntries(Object.entries(expected).filter(([key]) => key !== "v2:world"));
+    const entries = expected && Object.entries(expected).filter(([key]) => key !== "v2:world");
+    return entries?.length ? Object.fromEntries(entries) : undefined;
   }
   view(): Record<string, unknown> {
     const game = this.projection(), view = game.view(); this.remember(game);
@@ -93,6 +99,23 @@ export class WorldHost {
     const game = this.projection(), values = game.readResources(keys?.filter(key => key !== "v2:world")); this.remember(game);
     return { ...values, "v2:world": { generationId: this.worldGeneration(), state: null } };
   }
+  readonly map: MapService = {
+    layout: () => clone(WorldMapSchema, palaceMap),
+    observe: id => {
+      const scenario = projectWorld(this.world());
+      return { characterId: id, map: worldForCharacter(scenario, id),
+        actions: characterCourtObservation(scenario, id).actions };
+    },
+    interact: (command, expected) => {
+      if (command.kind === "step") return this.stepNpcAction(command.characterId, command.actionId, command.goal, expected);
+      let worldEvent: Event | undefined, message: string | undefined;
+      if (command.kind === "move") this.movePlayer(command.destination, expected);
+      if (command.kind === "door") worldEvent = this.setDoor(command.id, command.open, expected);
+      if (command.kind === "fixture") { const result = this.interactFixtureWithEvent(command.id, expected); worldEvent = result.event; message = result.message; }
+      return { done: true, generations: { "v2:world": this.worldGeneration() },
+        ...(worldEvent ? { worldEvent } : {}), ...(message ? { message } : {}) };
+    },
+  };
   hasActiveObjective(id: string) { this.syncGoals(); return this.activity.npcActivities?.[id]?.status === "active"; }
   movePlayer(destination: Point, expected?: ExpectedGenerations) { return this.mutate(game => game.movePlayer(destination, this.physicalGenerations(expected)), expected); }
   setDoor(id: string, open: boolean, expected?: ExpectedGenerations) { return this.mutate(game => game.setDoor(id, open, this.physicalGenerations(expected)), expected); }
