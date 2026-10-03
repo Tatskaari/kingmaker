@@ -1,7 +1,7 @@
 import type { JsonValue } from "@bufbuild/protobuf";
 import type { ScenarioService } from "../../../packages/lore/src/services.js";
 import type { RuntimeServices } from "../../../packages/conversation/src/services.js";
-import type { OpenRouterMessage, OpenRouterTool } from "../../../packages/providers/src/openrouter.js";
+import type { OpenRouterMessage, OpenRouterTool, TextProgress } from "../../../packages/providers/src/openrouter.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
 import { disclosedContext } from "../../../packages/conversation/src/disclosed-context.js";
 import { strangerConfiguration, strangerLore } from "./stranger-lore.js";
@@ -37,7 +37,7 @@ function tools(ids: string[], affiliations: string[]): OpenRouterTool[] {
 }
 /** The interview edits only a detached draft. Scenario services supply the live v2 setting. */
 export async function strangerTurn(previous: StrangerState, text: string,
-  scenario: ScenarioService, services: Pick<RuntimeServices, "ai" | "disclosure">, signal = new AbortController().signal): Promise<StrangerState> {
+  scenario: ScenarioService, services: Pick<RuntimeServices, "ai" | "disclosure">, signal = new AbortController().signal, onText?: TextProgress): Promise<StrangerState> {
   if (scenario.info().player || previous.draft) throw new Error("Character creation is already complete or awaiting review.");
   if (!text.trim()) throw new Error("Say something first.");
   const state = structuredClone(previous);
@@ -56,7 +56,7 @@ export async function strangerTurn(previous: StrangerState, text: string,
     const reply = await services.ai.responses({ ...REASONING_MODEL, max_tokens: 8000,
       messages: [...setup, ...state.history],
       tools: tools(cast.map(item => item.id), strangerConfiguration(world).affiliations),
-    }, signal);
+    }, signal, onText ? { onText } : undefined);
     state.history.push(reply);
     if (!reply.tool_calls?.length) {
       if (!reply.content?.trim()) throw new Error("The Stranger returned an empty reply.");
