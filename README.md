@@ -69,6 +69,13 @@ exchanges with low reasoning. Settings live in
 `openai/gpt-6-luna`.
 Jev selects from currently reachable actions.
 
+OpenRouter Chat Completions and Responses requests use streaming transport.
+The provider assembles a complete reply before exposing it to gameplay, so JSON
+validation, tool execution and dialogue display still happen after completion.
+Interrupted streams fail without exposing partial text or tool arguments; the
+existing response retry policy applies. Cancellation and the request timeout
+remain active while reading the stream.
+
 Action-execution Jev context is configured in `apps/web/src/feature-flags.ts`:
 
 - Jev always receives the readable room/action text as its actual `state`, with
