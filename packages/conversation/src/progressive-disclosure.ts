@@ -34,8 +34,8 @@ export class ProgressiveDisclosure {
     options: { trace?: (round: DisclosureRound) => void; characterId?: string } = {}): Promise<OpenRouterMessage[]> {
     const maxPasses = this.options.maxPasses ?? 16;
     if (!Number.isSafeInteger(maxPasses) || maxPasses < 1) throw new Error("Disclosure round limit must be positive.");
-    const ai: Pick<AiService, "decisions"> = { decisions: (state, questions, cancellation, purpose) =>
-      this.ai.decisions(state, questions, cancellation, purpose, options.characterId ? { characterId: options.characterId } : undefined) };
+    const ai: Pick<AiService, "decisions"> = { decisions: (state, questions, cancellation, purpose, info) =>
+      this.ai.decisions(state, questions, cancellation, purpose, { ...info, ...(options.characterId ? { characterId: options.characterId } : {}) }) };
     const traversal = new DisclosureTraversal(docs, ai, this.options.threshold, this.options.maxCharacters);
     const hooks = traversal.rounds(options.trace ?? (() => {})), messages = [...context], additions: OpenRouterMessage[] = [];
     for (let pass = 1; pass <= maxPasses; pass++) {
@@ -88,7 +88,9 @@ export class DisclosureTraversal {
           event.request = jevEvaluationRequest(state, questions);
           trace(event);
           const started = Date.now();
-          const answers = await this.ai.decisions(state, questions, signal, "prog_disc");
+          const answers = await this.ai.decisions(state, questions, signal, "prog_disc", {
+            disclosure: { threshold: this.threshold, candidates: event.candidates },
+          });
           signal.throwIfAborted();
           event = { ...event, answers, durationMs: Date.now() - started };
           for (const candidate of event.candidates) {
@@ -119,4 +121,3 @@ export class DisclosureTraversal {
     };
   }
 }
-

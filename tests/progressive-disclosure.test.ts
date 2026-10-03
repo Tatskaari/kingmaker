@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ProgressiveDisclosure } from "../packages/conversation/src/progressive-disclosure.js";
+import { traceAiService } from "../packages/conversation/src/ai-tracing.js";
 import type { LoreService } from "../packages/conversation/src/services.js";
 
 const docs: LoreService = {
@@ -37,4 +38,19 @@ test("generic disclosure fails instead of returning partial context at its round
   await assert.rejects(pd.disclose(docs, context, new AbortController().signal), /round limit/);
   const controller = new AbortController(); controller.abort();
   await assert.rejects(pd.disclose(docs, context, controller.signal), /abort/i);
+});
+
+
+test("disclosure tracing retains document metadata and custom threshold with character attribution", async () => {
+  const requests: unknown[] = [];
+  const ai = traceAiService({ responses: async () => { throw new Error("unused"); },
+    decisions: async (_state, questions) => Object.fromEntries(Object.keys(questions).map(id =>
+      [id, { choice: "skip", probabilities: { [id]: 0.1, skip: 0.9 } }])) },
+  characterId => ({ characterId: characterId!, participantIds: [], conversationId: "test", turnId: "turn" }),
+  async (span, request, call) => { assert.equal(span.characterId, "aldren"); requests.push(request); return call(); }, "dialogue");
+  await new ProgressiveDisclosure(ai, { threshold: 0.8 }).disclose(docs, context, new AbortController().signal, { characterId: "aldren" });
+  assert.equal(requests.length, 1);
+  assert.deepEqual((requests[0] as { disclosure: unknown }).disclosure, {
+    threshold: 0.8, candidates: [{ id: "open_1", from: "entry", path: "detail", summary: "Relevant task detail" }],
+  });
 });

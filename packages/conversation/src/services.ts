@@ -9,8 +9,12 @@ import type { CharacterSources, LoreDocument } from "./conversation.js";
 import type { LoreLink } from "./lore.js";
 
 export interface AiRequestInfo { characterId?: string; purpose?: "gm_consultation" | "dialogue" }
+export interface DecisionRequestInfo {
+  characterId?: string;
+  disclosure?: { threshold: number; candidates: (LoreLink & { id: string })[] };
+}
 export interface AiService {
-  decisions(state: unknown, questions: JevQuestions, signal: AbortSignal, purpose?: "skill_check" | "skill_difficulty" | "prog_disc", info?: Pick<AiRequestInfo, "characterId">): Promise<Record<string, JevChoice>>;
+  decisions(state: unknown, questions: JevQuestions, signal: AbortSignal, purpose?: "skill_check" | "skill_difficulty" | "prog_disc", info?: DecisionRequestInfo): Promise<Record<string, JevChoice>>;
   responses(request: ChatCompletionRequest, signal?: AbortSignal, info?: AiRequestInfo): Promise<OpenRouterMessage>;
 }
 
