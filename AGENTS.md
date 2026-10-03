@@ -40,8 +40,14 @@ The local OpenRouter development key is stored as a plain key in `~/secrets/king
 4. Add each dependent layer with `gh stack add <branch>`, then implement and commit it.
 5. Run `proto run moon -- run workspace:check workspace:build` from the top branch.
 6. Submit or update the complete stack with `gh stack submit --auto --open`.
-7. Replace generated PR bodies with concise problem, resulting behavior, validation, and stack-order details. Use `gh pr edit <number> --body-file <file>`.
+7. Replace generated PR bodies with concise problem, resulting behavior, validation, actionable QA criteria, and stack-order details. Use `gh pr edit <number> --body-file <file>`.
 8. Verify the stack with `gh stack view` and confirm each PR's base and head using `gh pr view`.
+
+## PR QA criteria
+
+Every PR description must include a QA checklist a reviewer can follow. Explain what the change adds or changes, name the page, screen, panel or other surface where it can be observed, and give concrete actions with expected results. Include necessary setup such as a fresh game, credentials, fixtures or the dependent stack layer needed to expose the behavior. For example: “On the New game screen, choose Play a pre-made character; expect three character choices and a Back button.”
+
+For backend or tooling changes without a visible UI, say so and provide a specific command, test or log/artifact to inspect, with the expected result. Distinguish behavior available in this layer from behavior that requires a later layer. State any model-dependent or failure-injection prerequisites rather than implying a prompt reliably triggers them. Keep proposed QA steps separate from validation already performed; never imply an unchecked step has passed. Refresh the checklist when updating the PR's scope.
 
 ## Change a lower layer
 
