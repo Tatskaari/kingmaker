@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for the unwritten Assembly Map."
+---
 # Map
 
 Author navigation index. Agent context starts at `scenario.md` or `character.md`, not at this index.

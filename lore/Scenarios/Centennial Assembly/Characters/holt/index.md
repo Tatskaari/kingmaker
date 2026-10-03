@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for Marshal Garran Holt's Centennial Assembly entry, supporting notes, shared court briefing and starting mechanical properties."
+---
 # Marshal Garran Holt
 
 Author navigation index. Agent context starts at `scenario.md` or `character.md`, not at this index.

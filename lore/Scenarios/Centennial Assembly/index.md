@@ -1,3 +1,6 @@
+---
+summary: "Author navigation for the assembly cast, character entries, shared court briefing, delegation overviews, quests, conversations and map."
+---
 # Centennial Assembly
 
 Author-facing index, not an agent prompt. Start the GM at [[Scenarios/Centennial Assembly/scenario|scenario.md]]. Each conversation starts at that character's `character.md`. [[Assembly Programme]] has an opening event-tree sketch. Aldren, Holt and Rowan have character briefings, situation notes and conversation beats for the cushion enquiry and blocked cart; the other character briefings and supporting prose remain to be sketched. Scenario character `properties.json` files contain draft starting stats and equipment; see [[Scenarios/Centennial Assembly/Characters/index|Characters]] for build choices.

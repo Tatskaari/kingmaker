@@ -1,4 +1,5 @@
 ---
+summary: "GM entrypoint for the Centennial Assembly, routing to setting, quests, cast and shared court knowledge with disclosure boundaries. The opening world and scenario-rule section remains a stub."
 visibility: gm
 ---
 # Centennial Assembly — GM entry
