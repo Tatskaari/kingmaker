@@ -4,6 +4,14 @@ import { parse } from "yaml";
 
 export interface Note { body: string; metadata: Record<string, unknown>; error?: string }
 
+/** Call only after checking access: summaries are part of the protected document. */
+export function summaryPreview(metadata: Record<string, unknown>): { summary?: string } {
+  const summary = metadata.summary;
+  if (summary === undefined) return {};
+  if (typeof summary !== "string" || !summary.trim()) throw new Error("Document summary must be nonempty text");
+  return { summary: summary.trim() };
+}
+
 /** Parse supplied Markdown text; no filesystem access or runtime services. */
 export function parseMarkdown(input: string): Note {
   const source = input.replace(/^\uFEFF/, "");
