@@ -152,3 +152,73 @@ test("a failed save does not appear as a document tool update", async () => {
   await assert.rejects(runtime.endConversation("rowan"), /Save failed/);
   assert.deepEqual(runtime.debugDocuments().history, []);
 });
+
+test("GM editing tools record committed writes with their exact model calls", async () => {
+  const path = "qa-history.md";
+  let step = 0;
+  const runtime = game({ services: { ai: { responses: async request => {
+    const feedback = step ? JSON.parse(request.messages.at(-1)!.content!) : undefined;
+    const call = (name: string, args: Record<string, unknown>) => ({ role: "assistant" as const, content: null,
+      tool_calls: [{ id: `edit-${step}`, type: "function" as const, function: { name, arguments: JSON.stringify(args) } }] });
+    switch (step++) {
+      case 0: return call("create_document", { path, text: "---\nvisibility: gm\nsummary: QA history note.\n---\nOriginal note." });
+      case 1:
+        assert.equal(feedback.ok, true);
+        return call("read_document", { path });
+      case 2: return call("replace_document", { path, expectedSha: "stale", oldText: "Original", newText: "Rejected" });
+      case 3:
+        assert.equal(feedback.error, "document_conflict");
+        return call("replace_document", { path, expectedSha: feedback.current.sha, oldText: "Original", newText: "Revised" });
+      case 4:
+        assert.equal(feedback.ok, true);
+        return call("replace_document", { path, expectedSha: feedback.current.sha, oldText: "Revised", newText: "Revised" });
+      case 5: return call("insert_document", { path, expectedSha: feedback.current.sha,
+        afterLine: feedback.current.text.trimEnd().split("\n").length, text: "Additional note.\n" });
+      case 6:
+        assert.equal(feedback.ok, true);
+        return call("delete_document", { path, expectedSha: feedback.current.sha });
+      default:
+        assert.equal(feedback.ok, true);
+        return commitReview({ summary: "Editing completed", newNotes: [], activeGoal: null });
+    }
+  } } } });
+  runtime.endConversationAsPlayer("corvin", "Review this.");
+  await runtime.endConversation("corvin");
+  const history = runtime.debugDocuments().history.slice().reverse();
+  assert.equal(history.length, 4, "Reads, conflicts, no-ops and an unchanged final commit add no history");
+  assert.deepEqual(history.map(write => write.toolCallId), ["edit-1", "edit-4", "edit-6", "edit-7"]);
+  for (const write of history) {
+    assert.equal(write.path, path);
+    assert.equal(write.call.characterId, "corvin");
+    assert.equal(write.call.kind, "conversation_review");
+    assert.ok(JSON.stringify(write.call.response).includes(write.toolCallId));
+    assert.notEqual(write.beforeSha, write.afterSha);
+  }
+  assert.equal(history[0]!.beforeSha, "absent");
+  for (let index = 1; index < history.length; index++) assert.equal(history[index]!.beforeSha, history[index - 1]!.afterSha);
+  assert.equal(history.at(-1)!.afterSha, "deleted");
+  assert.equal(runtime.world().docs[path], undefined);
+});
+
+test("a failed editing-tool save does not create history", async () => {
+  let step = 0;
+  const runtime = game({ services: { ai: { responses: async request => {
+    if (step++) {
+      assert.match(request.messages.at(-1)!.content!, /Save failed/);
+      return commitReview({ summary: "Save rejected", newNotes: [], activeGoal: null });
+    }
+    return { role: "assistant", content: null, tool_calls: [{ id: "failed-create", type: "function",
+      function: { name: "create_document", arguments: JSON.stringify({ path: "qa-failed.md",
+        text: "---\nvisibility: gm\nsummary: A failed note.\n---\nNot saved." }) } }] };
+  } } } });
+  runtime.endConversationAsPlayer("corvin", "Review this.");
+  runtime.setPersistence(async work => {
+    const before = runtime.snapshot();
+    await work();
+    runtime.restore(before);
+    throw new Error("Save failed");
+  });
+  await assert.rejects(runtime.endConversation("corvin"), /Save failed/);
+  assert.deepEqual(runtime.debugDocuments().history, []);
+  assert.equal(runtime.world().docs["qa-failed.md"], undefined);
+});
