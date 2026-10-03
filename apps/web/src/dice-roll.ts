@@ -21,7 +21,8 @@ const resting = vertices.map(v => [dot(v, horizontal), dot(v, vertical), dot(v, 
 export { resolveDiceCheck } from "../../../packages/core/src/ability-checks.js";
 
 /** Cosmetic presentation only: callers supply the resolved natural d20 result. */
-export function showDiceRoll({ roll, dc, modifier, label = "Ability check", preview = false }: { roll: number; dc: number; modifier: number; label?: string; preview?: boolean }) {
+export function showDiceRoll({ roll, dc, modifier, label = "Ability check", preview = false, signal, difficultyLabel }: { roll: number; dc: number; modifier: number; label?: string; preview?: boolean; signal?: AbortSignal; difficultyLabel?: string }) {
+  signal?.throwIfAborted();
   const result = resolveDiceCheck(roll, dc, modifier);
   if (document.querySelector(".dice-dialog")) return Promise.resolve(false);
   let finish!: (completed: boolean) => void;
@@ -37,7 +38,7 @@ export function showDiceRoll({ roll, dc, modifier, label = "Ability check", prev
   dialog.querySelector(".dice-eyebrow")!.textContent = preview ? "Dice preview · D20" : "The moment of truth · D20";
   dialog.querySelector("h2")!.textContent = label;
   const bonus = `${modifier >= 0 ? "+" : "−"}${Math.abs(modifier)}`;
-  dialog.querySelector(".dice-target")!.textContent = `Difficulty ${dc}   ·   Modifier ${bonus}`;
+  dialog.querySelector(".dice-target")!.textContent = `Difficulty ${difficultyLabel ?? dc}   ·   Modifier ${bonus}`;
   dialog.querySelector(".dice-note")!.textContent = preview ? "Test roll only · Your story is unchanged" : "Natural 1 always fails · Natural 20 always succeeds";
   document.body.append(dialog);
   const canvas = dialog.querySelector("canvas")!;
@@ -46,8 +47,11 @@ export function showDiceRoll({ roll, dc, modifier, label = "Ability check", prev
   const die = dialog.querySelector<HTMLButtonElement>(".dice-trigger")!;
   let frame = 0, settled = false, rolling = false;
   const close = () => dialog.close();
+  const abort = () => { settled = false; close(); };
+  signal?.addEventListener("abort", abort, { once: true });
   dialog.querySelector(".dice-close")!.addEventListener("click", close);
   dialog.addEventListener("close", () => {
+    signal?.removeEventListener("abort", abort);
     cancelAnimationFrame(frame); dialog.remove(); finish(settled);
     if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
   }, { once: true });
@@ -91,7 +95,7 @@ export function showDiceRoll({ roll, dc, modifier, label = "Ability check", prev
     dialog.dataset.outcome = success ? "success" : "failure";
     dialog.querySelector(".dice-result strong")!.textContent = degreeLabel(resolveDiceCheck(roll, dc, modifier).degree);
     dialog.querySelector(".dice-caption")!.textContent += ` · Natural ${roll}`;
-    dialog.querySelector(".dice-target")!.textContent = `${roll} ${bonus} = ${total}   ·   DC ${dc}`;
+    dialog.querySelector(".dice-target")!.textContent = `${roll} ${bonus} = ${total}   ·   ${difficultyLabel ?? `DC ${dc}`}`;
     button.textContent = "Continue";
   }
   function startRoll() {

@@ -34,16 +34,15 @@ export interface RollResult {
   natural: number;
   modifier: number;
   total: number;
-  /** Numeric DCs remain supported by the existing conversation adjudicator. */
-  difficulty: Difficulty | { dc: number };
+  difficulty: Difficulty;
   skill?: CheckSkill;
-  /** Absent for categorical endpoint rules such as trivial and impossible. */
+  /** Effective numeric target used to display the resolved check. */
   dc?: number;
   success: boolean;
   outcome: CheckDegree;
 }
 
-/** Implementations own rules and await presentation before returning a resolved roll. */
+/** Mechanics determine the outcome; resolvers coordinate presentation separately. */
 export interface CharacterMechanics {
   rollCheck(request: AbilityCheckRequest, signal: AbortSignal): Promise<RollResult>;
   rollSave(request: SavingThrowRequest, signal: AbortSignal): Promise<RollResult>;

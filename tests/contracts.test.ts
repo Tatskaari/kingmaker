@@ -2366,7 +2366,7 @@ test("worker saves identity and reaches the Stranger without nesting its mutatio
     await request("create_development_game");
     let resumed = false;
     t.mock.method(BrowserGameRuntime.prototype, "checkedTalkToCharacter", async (_id: string, _message: string, _thinking: unknown, options: import("../packages/conversation/src/runtime.js").ConversationRuntimeOptions) => {
-      await options.services!.presentation!.showRoll!({ characterId: "player", skill: "persuasion", difficulty: { dc: 15 }, dc: 15, modifier: 3, natural: 12, total: 15, outcome: "barely_passes" as any, success: true }, new AbortController().signal);
+      await options.services!.presentation!.showRoll!({ characterId: "player", skill: "persuasion", difficulty: "normal", dc: 15, modifier: 3, natural: 12, total: 15, outcome: "barely_passes" as any, success: true }, new AbortController().signal);
       resumed = true; return "Agreed.";
     });
     const talking = request("talk", { characterId: "corvin", message: "Help me." });
@@ -2441,8 +2441,9 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
   let receive!: (event: any) => void;
   let endDialogue!: () => void;
   let finishDice!: (completed: boolean) => void;
+  let diceSignal: AbortSignal | undefined;
   const context = createContext({
-    URL, AlertLog, coalescedRefresh, installDicePreview() {}, showDiceRoll: () => new Promise<boolean>(resolve => { finishDice = resolve; }), window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
+    URL, AbortController, AlertLog, coalescedRefresh, installDicePreview() {}, showDiceRoll: ({ signal }: { signal: AbortSignal }) => new Promise<boolean>(resolve => { diceSignal = signal; finishDice = resolve; }), window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
     document: {
       querySelector: (selector: string) => selector === "[data-end-conversation]"
         ? { addEventListener: (_type: string, callback: () => void) => { endDialogue = callback; } } : null,
@@ -2491,6 +2492,13 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
   finishDice(true); await new Promise(resolve => setImmediate(resolve));
   assert.equal(sent.at(-1).type, "acknowledge_roll");
   assert.equal(sent.at(-1).payload.completed, true);
+  receive({ data: { type: "conversation_roll", requestId: talk.id, characterId: "mara", rollId: "roll-2", result: { skill: "persuasion" } } });
+  receive({ data: { type: "cancel_conversation_roll", rollId: "unrelated" } });
+  assert.equal(diceSignal?.aborted, false);
+  receive({ data: { type: "cancel_conversation_roll", rollId: "roll-2" } });
+  assert.equal(diceSignal?.aborted, true);
+  finishDice(false); await new Promise(resolve => setImmediate(resolve));
+  assert.equal(sent.at(-1).payload.completed, false);
   receive({ data: { type: "dialogue_thinking", requestId: talk.id, characterId: "mara", text: "Mara considers her answer." } });
   assert.equal(runInContext("notice", context), "Mara considers her answer.");
   assert.match(runInContext("conversationNoticeView().waitingMessage", context), /class="message waiting" role="status"/);

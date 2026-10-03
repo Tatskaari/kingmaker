@@ -1,7 +1,6 @@
 # Conversation hooks and services
 
-Status: conversation phase runner and host wiring implemented; the new dice
-strategy below remains a proposal.
+Status: conversation phases, host wiring and parallel dice/GM resolution implemented.
 The compiled interfaces live in `packages/conversation/src/services.ts`, with the
 constructor in `packages/conversation/src/runtime.ts`. The CLI, browser and
 headless player conversation paths use `runConversation` from `phases.ts`.
@@ -142,8 +141,8 @@ interface DebugService {
   handles link resolution and permissions; the runtime tracks opened documents.
 - **Character:** provides mechanics and dialogue operations. `runtime.character`
   can reference `runtime.services.character`. The default implementation gets
-  modifiers from current game state, uses injected randomness, applies rules and
-  awaits presentation. `respond` uses the AI service with the prepared messages.
+  modifiers from current game state, uses randomness and applies rules. The
+  resolver coordinates presentation separately. `respond` uses the AI service with the prepared messages.
 - **Presentation:** renders authoritative outcomes without calculating them.
   `showRoll` resolves when the interaction completes and rejects on cancellation.
   Headless presentation completes immediately. Portrait implementation can wait.
@@ -162,35 +161,25 @@ needed initially.
 
 1. Jev identifies whether a check is needed.
 2. Jev selects the skill and difficulty category.
-3. Resolution starts the dice interaction and asks the GM to prepare directions
-   for every possible outcome concurrently.
-4. When both complete, select the direction matching the actual outcome and add
-   it as a system message before the character responds.
+3. Resolution generates the authoritative dice results immediately.
+4. Presentation animates those results while the GM prepares one direction using
+   the actual outcomes. Wait for both, then add the direction as a system message.
 
-```ts
-const [result, outcomes] = await Promise.all([
-  runtime.character.rollCheck(check, signal),
-  prepareOutcomeDirections(context, check, runtime.services.ai, signal),
-]);
+All checks are rolled before either asynchronous operation starts. Multiple dice
+popups appear sequentially while one GM request covers the complete result set.
+The result is fixed before animation; presentation cannot alter it. A failed GM
+request or cancelled popup cancels its sibling and prevents the character reply.
+A truncated GM response retries once without rerolling or replaying presentation.
 
-context.addSystemMessage(outcomes[result.outcome]);
-```
+Very easy, easy, normal, hard and very hard use DCs 5, 10, 15, 20 and 25. Trivial
+only fails on natural 1; impossible only succeeds on natural 20. Their effective
+DCs are modifier + 2 and modifier + 20 respectively, enforcing those endpoints
+while retaining existing degree-of-success calculations. The UI names the category.
 
 `RollResult` includes the natural roll, modifier, difficulty, success and outcome
-category. Use the existing seven outcome categories initially: critical failure,
-major failure, minor failure, barely passes, minor success, major success and
-critical success. The GM receives the plan and context, not the actual result;
-validate its complete outcome map before selecting a direction.
-
-Trivial succeeds unless the natural roll is 1. Impossible fails unless the natural
-roll is 20. Encode those rules explicitly rather than using extreme numeric DCs.
-The middle categories use configured DCs and character modifiers. Their numeric
-mapping and endpoint degree mapping still need agreement before implementation.
-
-The resolver must cancel the sibling operation if either parallel operation fails;
-`Promise.all` alone does not cancel it. A cancelled roll or failed GM preparation
-prevents a character reply. Resolution must retain enough action state to avoid
-rerolling a completed check during reclassification.
+category. The existing seven outcome categories remain in use. Jev selects
+categories before any dice are generated; the GM no longer sets numeric DCs or
+prepares hypothetical outcome directions.
 
 ## Composition and verification
 
@@ -212,9 +201,6 @@ rendering or randomness. Headless checks should exercise the same classify,
 resolve and respond loop, including recursive disclosure, shared labels, deferred
 checks, deterministic rolls, selected system messages and cancellation. The RHS
 should expose classification results, all prepared GM directions, the roll result
-and the exact selected message. The proposed category-based difficulty selection
-and parallel preparation of GM outcomes are not implemented yet. Browser and
-headless check hooks preserve the existing numeric DC and post-roll ruling policy;
-`RollResult.difficulty` also accepts `{ dc: number }` to describe those rolls
-accurately. Browser presentation waits for acknowledgement; headless presentation
-completes immediately.
+and the exact selected message. Browser presentation waits for acknowledgement;
+headless presentation completes immediately. The CLI still uses disclosure hooks;
+the check policy is installed in browser and headless player conversations.
