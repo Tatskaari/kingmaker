@@ -26,7 +26,7 @@ Gurt, Klog and Bran replace the delegation concept. Do not silently transfer Mar
 - TODO: Dwarven full names, map coordinates, quantities and runtime IDs.
 - TODO: Sketch scenario objectives, event branches, conversation trees and map data.
 
-Scenario files are empty stubs for your sketches. Source issues remain open; this work does not implement their game acceptance criteria.
+Scenario entry files provide agent routing; their content sections and supporting files are stubs for your sketches. Source issues remain open; this work does not implement their game acceptance criteria.
 
 ## Complete issue text
 [[Nine Furrows Direction]], [[Kläggenheim Direction]], [[Saltmere Direction]], [[Caerwyn Direction]].

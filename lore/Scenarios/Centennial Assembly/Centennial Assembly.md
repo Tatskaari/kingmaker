@@ -1,35 +1,32 @@
 # Centennial Assembly
 
-Scenario authoring index. Each linked scenario file contains only a stub, ready for your sketch.
+Author-facing index, not an agent prompt. Start the GM at [[Scenarios/Centennial Assembly/scenario|scenario.md]]. Each conversation starts at that character's `character.md`. Entry files contain routing and blank briefing sections; supporting playable content remains literal stubs.
 
-## Characters in this scenario
-| Reusable character | Scenario objective and prompting |
+## Cast source and scoped conversation entry
+Cast notes are author references and may contain secrets the character does not know. Use them to write the scoped files deliberately; do not import them wholesale.
+
+| Author reference | Conversation entry |
 | --- | --- |
-| [[King Aldren]] | [[Assembly - Aldren]] |
-| [[Magister Corvin]] | [[Assembly - Corvin]] |
-| [[Marshal Garran Holt]] | [[Assembly - Holt]] |
-| [[Lady Elinor Ash]] | [[Assembly - Elinor]] |
-| [[Professor Oswin]] | [[Assembly - Oswin]] |
-| [[Doctor Rowan Ash]] | [[Assembly - Rowan]] |
-| [[King Gurt]] | [[Assembly - Gurt]] |
-| [[Klog]] | [[Assembly - Klog]] |
-| [[Bran]] | [[Assembly - Bran]] |
-| [[Prince Peregrine Vane]] | [[Assembly - Peregrine]] |
-| [[Lady Cressida Pinchbeck]] | [[Assembly - Cressida]] |
-| [[Abel Keel]] | [[Assembly - Abel]] |
+| [[King Aldren]] | [[Scenarios/Centennial Assembly/Characters/aldren/character|Aldren]] |
+| [[Magister Corvin]] | [[Scenarios/Centennial Assembly/Characters/corvin/character|Corvin]] |
+| [[Marshal Garran Holt]] | [[Scenarios/Centennial Assembly/Characters/holt/character|Holt]] |
+| [[Lady Elinor Ash]] | [[Scenarios/Centennial Assembly/Characters/elinor/character|Elinor]] |
+| [[Professor Oswin]] | [[Scenarios/Centennial Assembly/Characters/oswin/character|Oswin]] |
+| [[Doctor Rowan Ash]] | [[Scenarios/Centennial Assembly/Characters/rowan/character|Rowan]] |
+| [[King Gurt]] | [[Scenarios/Centennial Assembly/Characters/gurt/character|Gurt]] |
+| [[Klog]] | [[Scenarios/Centennial Assembly/Characters/klog/character|Klog]] |
+| [[Bran]] | [[Scenarios/Centennial Assembly/Characters/bran/character|Bran]] |
+| [[Prince Peregrine Vane]] | [[Scenarios/Centennial Assembly/Characters/peregrine/character|Peregrine]] |
+| [[Lady Cressida Pinchbeck]] | [[Scenarios/Centennial Assembly/Characters/cressida/character|Cressida]] |
+| [[Abel Keel]] | [[Scenarios/Centennial Assembly/Characters/abel/character|Abel]] |
 
-[[Tomas Vey]] is part of the lore; his participation remains for you to decide.
+[[Tomas Vey]] remains offstage lore until his participation is decided.
 
-## Quests and world-state changes
-[[Assembly Programme]], [[Minutes and Titles]], [[Patrol Inquiry]], [[Grain Settlement]], [[Affection at a Cost]], [[Recognition Hearing]]. These are working filenames for threads in the issues, not settled quest designs.
+## GM detail to sketch
+Quests: [[Assembly Programme]], [[Minutes and Titles]], [[Patrol Inquiry]], [[Grain Settlement]], [[Affection at a Cost]], [[Recognition Hearing]].
 
-## Conversation templates
-[[Invitation Conversation]], [[Patrol Conversation]], [[Grain Conversation]], [[Private Dinner Conversation]].
+Full scene trees: [[Invitation Conversation]], [[Patrol Conversation]], [[Grain Conversation]], [[Private Dinner Conversation]]. Put only each NPC's permitted beats in their scoped conversation note.
 
-## Map, tiles and inventories
-[[Assembly Map]], based on [[Royal Palace]].
+Map, tiles and inventories: [[Assembly Map]], based on [[Royal Palace]].
 
-## Scenario overview to sketch
-[[Assembly Premise]].
-
-Return to [[Home]].
+See [[Agent Disclosure]] for the loading contract. Return to [[Home]].
