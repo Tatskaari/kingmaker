@@ -10,4 +10,4 @@ Delegation: [[Cast/Kläggenheim/King Gurt|King Gurt]], [[Cast/Kläggenheim/Klog|
 
 Source: #109 in [[Sources and Decisions]].
 
-Related: [[World Overview]], [[Grain Crisis]].
+Related: [[World/index|World Overview]], [[Grain Crisis]].

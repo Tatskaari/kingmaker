@@ -27,4 +27,4 @@ Conversation retrieval must be restricted to the owning character's subtree and 
 ## Paths and stubs
 Use vault-relative wikilinks for repeated filenames such as `character.md`, `background.md` and `scenario.md`. Each NPC has a separate directory, and every scenario should use its own subtree. Obsidian settings use absolute paths within the vault, not machine-specific paths.
 
-Entry files contain routing text and a blank core section. All supporting scenario files contain exactly “This is a stub.” until the author sketches them. See [[Centennial Assembly]] and [[Authoring Guide]].
+Entry files contain routing text and a blank core section. All supporting scenario content files, excluding author navigation indexes, contain exactly “This is a stub.” until the author sketches them. See [[Scenarios/Centennial Assembly/index|Centennial Assembly]] and [[Authoring Guide]].

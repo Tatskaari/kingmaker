@@ -10,4 +10,4 @@ Delegation: [[Cast/Nine Furrows/Lady Elinor Ash|Lady Elinor Ash]], [[Cast/Nine F
 
 Source: #108 in [[Sources and Decisions]].
 
-Related: [[World Overview]], [[Grain Crisis]].
+Related: [[World/index|World Overview]], [[Grain Crisis]].

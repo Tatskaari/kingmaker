@@ -29,4 +29,14 @@ Full scene trees: [[Invitation Conversation]], [[Patrol Conversation]], [[Grain 
 
 Map, tiles and inventories: [[Assembly Map]], based on [[Royal Palace]].
 
-See [[Agent Disclosure]] for the loading contract. Return to [[Home]].
+See [[Agent Disclosure]] for the loading contract. Return to [Lore index](../../index.md).
+
+## In this folder
+
+- [[Scenarios/Centennial Assembly/Characters/index|Characters]]
+- [[Scenarios/Centennial Assembly/Conversations/index|Conversations]]
+- [[Scenarios/Centennial Assembly/Map/index|Map]]
+- [[Scenarios/Centennial Assembly/Quests/index|Quests]]
+- [[Scenarios/Centennial Assembly/scenario|scenario]]
+
+Parent: [[Scenarios/index|Scenarios]].

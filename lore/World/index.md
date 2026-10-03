@@ -14,3 +14,12 @@ status: draft
 [[Edric's Concord]], [[Grain Crisis]] and [[Recognition Law]]. The Concord is a settlement within the older centennial system, not its beginning.
 
 Source: [[Sources and Decisions]].
+
+## In this folder
+
+- [[World/Events/index|Events]]
+- [[World/Factions/index|Factions]]
+- [[World/Places/index|Places]]
+- [[World/Recognition Law|Recognition Law]]
+
+Parent: [Lore index](../index.md).
