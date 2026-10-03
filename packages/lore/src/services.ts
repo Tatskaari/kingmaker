@@ -3,6 +3,8 @@ import { stringify } from "yaml";
 import { DocumentSchema, WorldStateSchema, type Document, type WorldState, type CharacterProperties } from "../../contracts/src/v2.js";
 import { ActorStateSchema, WorldStateSchema as MapSchema, type ActorState, type WorldState as MapState } from "../../contracts/src/index.js";
 import { parseMarkdown } from "./markdown.js";
+import { auditDocuments, type DocumentProposal } from "./document-audit.js";
+import type { Finding } from "./audit.js";
 import { refreshDocumentGraph } from "./world-state.js";
 
 export interface DocumentSnapshot {
@@ -35,6 +37,8 @@ export interface ScenarioService {
   getDocument(path: string): Promise<DocumentSnapshot>;
 }
 export interface DocsService {
+  /** GM-only: check current documents or a proposed edit without publishing it. */
+  validate(proposal?: DocumentProposal): Promise<Finding[]>;
   read(path: string): Promise<DocumentSnapshot>;
   create(path: string, text: string): Promise<DocumentSnapshot>;
   replace(path: string, expectedSha: string, oldText: string, newText: string): Promise<DocumentSnapshot>;
@@ -106,6 +110,7 @@ export function createScenarioServices(initial: WorldState): { scenario: Scenari
   }
   const docs: DocsService = {
     read,
+    validate: async proposal => auditDocuments(state, proposal),
     create: (path, text) => write(async () => {
       if (Object.hasOwn(state.docs, path)) throw new Error(`${path}: document already exists`);
       return publish(path, text);
