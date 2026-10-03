@@ -23,7 +23,8 @@ export function updateTranscriptPanel(panel: HTMLElement, html: string): void {
     let node = next;
     if (previous) {
       existing.delete(id);
-      if (previous.matches("table") && next.matches("table")) {
+      if ((previous.matches("table") && next.matches("table"))
+        || (previous.hasAttribute("data-transcript-container") && next.hasAttribute("data-transcript-container"))) {
         updateTranscriptPanel(previous as HTMLElement, next.innerHTML);
         node = previous;
       } else if (normalized(previous) === normalized(next)) node = previous;

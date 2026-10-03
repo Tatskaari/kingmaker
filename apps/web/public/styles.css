@@ -347,3 +347,16 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
   .stranger-scene { grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .stranger-portrait { max-width: 230px; justify-self: center; }
 }
+
+.character-transcripts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 30%); gap: 24px; align-items: start; }
+.transcript-selected { min-width: 0; }
+.transcript-call-list { position: sticky; top: 0; max-height: 65vh; overflow-y: auto; border-left: 1px solid #393b32; padding-left: 16px; }
+.transcript-call-list h4 { color: var(--dim); font-size: .9rem; margin: 20px 0 8px; }
+.transcript-call-list button { display: block; width: 100%; text-align: left; padding: 10px; margin: 4px 0; color: #eee1c7; background: #141815; border: 1px solid #393b32; cursor: pointer; }
+.transcript-call-list button[aria-current="true"] { border-color: var(--gold); background: #b59b6230; }
+.transcript-call-list small { display: block; color: var(--dim); margin-top: 5px; }
+.transcript-detail .debug-facts dd { overflow-wrap: anywhere; }
+@media (max-width: 720px) {
+  .character-transcripts { grid-template-columns: 1fr; }
+  .transcript-call-list { position: static; grid-row: 1; max-height: 28vh; border-left: 0; border-bottom: 1px solid #393b32; padding: 0 0 12px; }
+}

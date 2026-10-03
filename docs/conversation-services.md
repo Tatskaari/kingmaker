@@ -7,15 +7,17 @@ headless player conversation paths use `runConversation` from `phases.ts`.
 Unprovided service operations throw `UnimplementedServiceError`; each host supplies
 only the methods it needs. The CLI provides disclosure hooks and the browser and
 headless game provide hooks around their existing check policy. The rest of the
-game runtime is not migrated to these services.
+legacy game runtime adapts its provider classifiers through the same AI service.
+The document-world runtime uses these services for dialogue, reviews, NPC actions
+and event reactions.
 
 ```ts
 const runtime = new ConversationRuntime({
   services: {
-    ai: { responses: (request, signal) => client.complete(request, signal) },
+    ai: aiService(client, jev),
   },
 });
-// Only ai.responses is implemented; other operations still fail explicitly.
+// Responses and decisions use the shared adapter; other services are host supplied.
 ```
 
 Hooks own the flow, services perform operations, and the runtime owns conversation
@@ -308,3 +310,38 @@ palace uses `player` for the player actor. Supply a map whose actors match the
 selected cast. Jev receives only the character's permitted entry/private bodies,
 its goal and the filtered room view, not the complete GM document graph or other
 characters' private properties. No saved-game migration is introduced.
+
+## AI request correlation
+
+`aiService` is the provider transport boundary for browser, CLI and live evaluation
+entrypoints. Older classifiers use `decisionClient(ai)` to reach this boundary.
+Provider implementations and provider unit tests can call their own transports;
+gameplay code should use `services.ai`.
+
+The document-world host and conversation CLI wrap this boundary with
+`traceAiService`. Each captured request has:
+
+- `characterId`: the subject of this particular request; the parent character scope.
+- `participantIds`: characters involved in the operation, including both NPCs in an exchange.
+- `conversationId`: the conversation or execution session, shared across its calls.
+- `turnId`: one player turn, closing review, or NPC operation within that session.
+- `spanId`: a unique request/response pair, including failures and response retries.
+- `operation`, scenario, and (in the game host) world generation and character position.
+
+Dialogue, disclosure, skill checks and GM rulings share one turn. Closing review
+has its own turn in the same conversation. Starting another conversation creates
+a new conversation ID. Forks share the recorder and conversation identity; each
+call captures its own context so concurrent characters cannot overwrite it.
+Response retry attempts have separate spans with the same turn ID. Provider-level
+rate-limit recovery remains inside its service-call span.
+
+Context is metadata, never extra model instructions or provider payload fields.
+The recorder redacts secrets and retains failed calls independently of rollback.
+Debug history is session-local: it is not saved or migrated with games. The browser
+keeps 50 completed sessions plus active sessions and 50 recent calls; the CLI exports
+its retained requests and sessions alongside the conversation artifact.
+
+The character inspector includes calls owned by, or explicitly involving, that
+character. It filters individual calls inside sessions as well as standalone calls.
+Its chronological menu includes dialogue, decisions and reviews; selecting a call
+shows the response, request messages and correlation context.

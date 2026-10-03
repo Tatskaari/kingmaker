@@ -391,7 +391,7 @@ function debugInspector() {
 
 function transcriptView() {
   return recentTranscriptsView(debugData?.requests, debugData?.agentRuns, {
-    ...transcriptRoute, names: Object.fromEntries((state?.characters || []).map(character => [character.id, character.name])),
+    ...transcriptRoute, characterId: debugRequest.type === "debug_character" ? debugRequest.payload.characterId : undefined, names: Object.fromEntries((state?.characters || []).map(character => [character.id, character.name])),
   });
 }
 
@@ -712,7 +712,7 @@ function bind() {
     if (!session && !call) return;
     transcriptRoute = session ? { session: session.dataset.transcriptSession } : { ...transcriptRoute, call: call.dataset.transcriptCall };
     const panel = document.querySelector("#debug-panel");
-    panel.innerHTML = transcriptView();
+    updateTranscriptPanel(panel, transcriptView());
     panel.scrollTop = 0;
     panel.focus();
   });
