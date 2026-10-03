@@ -9,6 +9,7 @@ import { createRoot, useKeyboard, useRenderer, useTerminalDimensions } from "@op
 import { ConversationRuntime } from "../../packages/conversation/src/runtime.js";
 import { disclosureDetails, type DisclosureRound, type DisclosureSession } from "../../packages/conversation/src/disclosure.js";
 import { conversationRequest, converse, type Complete, type ConversationInput, type LlmTurn } from "../../packages/conversation/src/conversation.js";
+import { CliTimeline } from "./timeline.js";
 
 export interface ConversationResult {
   characterId: string;
@@ -29,6 +30,12 @@ interface AppProps {
 
 export function ConversationApp({ input, complete, disclosure, checks, copyText, onFinish }: AppProps) {
   const renderer = useRenderer(), { width, height } = useTerminalDimensions();
+  const [timeline] = useState(() => {
+    const result = new CliTimeline();
+    result.recordMessages(conversationRequest(input).messages.slice(0, -1));
+    return result;
+  });
+  const gmCount = useRef(0);
   const [transcript, setTranscript] = useState(input.transcript);
   const [turns, setTurns] = useState<LlmTurn[]>([]);
   const [rounds, setRounds] = useState<DisclosureRound[]>([]);
@@ -58,14 +65,15 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
   const messages = latest ? [...latest.request.messages, latest.response ?? {
     role: latest.error ? "error" : "pending", content: latest.error ?? "Waiting for the character's reply…",
   }] : conversationRequest(input).messages.slice(0, -1);
-  const entries = [
-    ...messages.map((message, index) => ({ id: `message-${index}`, label: `${index + 1}. ${message.role}`, text: message.content ?? "No text content." })),
-    ...gmTurns.map((turn, index) => ({ id: `gm-${index}`, label: `GM roll ruling ${index + 1}`, text: JSON.stringify(turn, null, 2) })),
+  const messageIds = timeline.messageIds(messages);
+  const entries = timeline.sort([
+    ...messages.map((message, index) => ({ id: `message-${index}`, timeId: messageIds[index]!, label: `${index + 1}. ${message.role}`, text: message.content ?? "No text content." })),
+    ...gmTurns.map((turn, index) => ({ id: `gm-${index}`, timeId: `gm-${index}`, label: `GM roll ruling ${index + 1}`, text: JSON.stringify(turn, null, 2) })),
     ...rounds.flatMap(round => [
-      { id: `jev-${round.turn}-${round.round}`, label: `Jev ${round.turn}.${round.round} ${round.status}`, text: disclosureDetails(round) },
-      ...round.opened.map((document, index) => ({ id: `opened-${round.turn}-${round.round}-${index}`, label: `↳ ${document.path.split("/").at(-1)}`, text: `# ${document.path}\n${document.markdown}` })),
+      { id: `jev-${round.turn}-${round.round}`, timeId: `jev-${round.turn}-${round.round}`, label: `Jev ${round.turn}.${round.round} ${round.status}`, text: disclosureDetails(round) },
+      ...round.opened.map((document, index) => ({ id: `opened-${round.turn}-${round.round}-${index}`, timeId: `jev-${round.turn}-${round.round}`, label: `↳ ${document.path.split("/").at(-1)}`, text: `# ${document.path}\n${document.markdown}` })),
     ]),
-  ];
+  ]);
   const selectedIndex = entries.findIndex(entry => entry.id === selected);
   const source = selected === null
     ? transcript.map(message => `${message.speakerId === "player" ? "You" : input.characterId}: ${message.text}`).join("\n\n") || "Type a message to begin."
@@ -82,19 +90,28 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
     const index = turns.length;
     try {
       const turnInput = { ...input, transcript, message };
-      const trace = (round: DisclosureRound) => setRounds(previous => {
-        const index = previous.findIndex(item => item.turn === round.turn && item.round === round.round);
-        return index < 0 ? [...previous, round] : previous.map((item, i) => i === index ? round : item);
-      });
+      const trace = (round: DisclosureRound) => {
+        timeline.record(`jev-${round.turn}-${round.round}`);
+        setRounds(previous => {
+          const index = previous.findIndex(item => item.turn === round.turn && item.round === round.round);
+          return index < 0 ? [...previous, round] : previous.map((item, i) => i === index ? round : item);
+        });
+      };
       const hooks = disclosure && checks
-        ? cliHooks(disclosure, checks.ai, checks.build, message, requestRoll, trace, turn => setGmTurns(previous => [...previous, turn]))
+        ? cliHooks(disclosure, checks.ai, checks.build, message, requestRoll, trace, turn => {
+          timeline.record(`gm-${gmCount.current++}`);
+          setGmTurns(previous => [...previous, turn]);
+        })
         : disclosure ? disclosure.hooks(trace) : { classify: async () => ({}), resolve: async () => ({ reclassify: false }) };
       const runtime = new ConversationRuntime({
         services: { character: { respond: complete } },
         hooks: { conversation: hooks as import("../../packages/conversation/src/phases.js").ConversationHooks<unknown> },
       });
       const result = await converse({ ...turnInput, sources: disclosure?.sources ?? input.sources }, runtime, controller.current.signal,
-        turn => setTurns(previous => [...previous.slice(0, index), turn]));
+        turn => {
+          timeline.recordMessages([...turn.request.messages, ...(turn.response ? [turn.response] : [])]);
+          setTurns(previous => [...previous.slice(0, index), turn]);
+        });
       setTranscript(result.transcript); setDraft("");
     } catch (cause) { setStatus(cause instanceof Error ? cause.message : String(cause)); }
     finally { running.current = false; setBusy(false); }
