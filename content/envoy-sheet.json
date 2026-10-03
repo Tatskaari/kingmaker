@@ -1,0 +1,51 @@
+{
+  "rulesetId": "srd-5.2.1",
+  "speciesId": "human",
+  "backgroundId": "kingmaker-dev-envoy",
+  "abilityScores": {
+    "strength": 20,
+    "dexterity": 20,
+    "constitution": 20,
+    "intelligence": 20,
+    "wisdom": 20,
+    "charisma": 20
+  },
+  "classes": [
+    {
+      "classId": "bard",
+      "subclassId": "college-of-lore",
+      "level": 20,
+      "hitDiceRemaining": 20
+    }
+  ],
+  "proficiencies": [
+    {
+      "kind": "PROFICIENCY_KIND_SKILL",
+      "targetId": "persuasion",
+      "rank": "PROFICIENCY_RANK_EXPERTISE",
+      "sourceId": "kingmaker-dev-envoy"
+    },
+    {
+      "kind": "PROFICIENCY_KIND_SKILL",
+      "targetId": "deception",
+      "rank": "PROFICIENCY_RANK_EXPERTISE",
+      "sourceId": "kingmaker-dev-envoy"
+    },
+    {
+      "kind": "PROFICIENCY_KIND_SKILL",
+      "targetId": "intimidation",
+      "rank": "PROFICIENCY_RANK_EXPERTISE",
+      "sourceId": "kingmaker-dev-envoy"
+    },
+    {
+      "kind": "PROFICIENCY_KIND_SKILL",
+      "targetId": "insight",
+      "rank": "PROFICIENCY_RANK_EXPERTISE",
+      "sourceId": "kingmaker-dev-envoy"
+    }
+  ],
+  "hitPoints": {
+    "current": 203,
+    "maximum": 203
+  }
+}

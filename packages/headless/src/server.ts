@@ -5,6 +5,7 @@ import { format } from "node:util";
 import { runInNewContext } from "node:vm";
 import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import { ExecuteRequestSchema, ExecuteResponseSchema, ExecutionErrorSchema } from "../../contracts/src/gen/kingmaker/headless/v1/console_pb.js";
+import type { WorldHeadlessGame } from "./world.js";
 import type { HeadlessGame } from "./index.js";
 
 const MAX_BYTES = 1024 * 1024;
@@ -12,7 +13,7 @@ const fault = (id: unknown, code: number, message: string, data?: JsonValue) =>
   ({ jsonrpc: "2.0", id, error: { code, message, ...(data === undefined ? {} : { data }) } });
 
 /** Trusted local developer console; vm is an execution context, not a security sandbox. */
-export function createDispatcher(game: HeadlessGame) {
+export function createDispatcher(game: HeadlessGame | WorldHeadlessGame) {
   async function dispatch(input: unknown): Promise<unknown> {
     if (Array.isArray(input)) {
       if (!input.length) return fault(null, -32600, "Empty batch");
@@ -63,7 +64,7 @@ export function createDispatcher(game: HeadlessGame) {
 }
 
 /** Newline-delimited JSON-RPC; one global queue serializes every client's code. */
-export async function startConsole(game: HeadlessGame, socketPath: string) {
+export async function startConsole(game: HeadlessGame | WorldHeadlessGame, socketPath: string) {
   const dispatch = createDispatcher(game);
   let queue = Promise.resolve();
   const server = createServer(socket => {

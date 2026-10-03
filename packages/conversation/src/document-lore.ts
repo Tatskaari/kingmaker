@@ -1,3 +1,4 @@
+import { activeGoal } from "../../lore/src/active-goal.js";
 import type { ScenarioService } from "../../lore/src/services.js";
 import { permitted } from "../../lore/src/access.js";
 import type { LoreService } from "./services.js";
@@ -14,7 +15,8 @@ export async function documentLore(scenario: ScenarioService, characterId: strin
   const read = async (path: string) => {
     const { document } = await scenario.getDocument(path);
     allowed(path, document);
-    return { path, markdown: document.body };
+    const goal = path === entry ? activeGoal(document) : null;
+    return { path, markdown: document.body + (goal ? `\n\nCurrent active task: ${goal}` : "") };
   };
   const character = await scenario.getDocument(entry);
   const identity = character.document.links.find(link => /^Cast\/.+\/private\.md$/.test(link.target));
