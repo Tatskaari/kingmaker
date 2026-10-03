@@ -1,6 +1,10 @@
 import { initialModelResourceIds, modelResourceOverview } from "./model-resources.js";
 import { renderWorldPrompt } from "../../../packages/core/src/world-prompt.js";
-import { adjudicateConversationChecks, type PresentRoll } from "./conversation-rolls.js";
+import type { Complete } from "../../../packages/conversation/src/conversation.js";
+import { retryResponses } from "../../../packages/conversation/src/ai.js";
+import { ConversationRuntime, type ConversationRuntimeOptions } from "../../../packages/conversation/src/runtime.js";
+import { runConversation } from "../../../packages/conversation/src/phases.js";
+import { checkHooks, type CheckLabels } from "../../../packages/conversation/src/check-hooks.js";
 import { classifyConversationExpression, portraitExpressions, type PortraitExpression } from "../../../packages/providers/src/conversation-expression.js";
 import { buildInterviewCharacter, playerBuildParameter, validatePlayerStats } from "./player-build.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
@@ -596,33 +600,50 @@ export class BrowserGameRuntime {
 
   /** Player-facing turn: classify, roll, receive a binding DM direction, then speak. */
   async checkedTalkToCharacter(characterId: string, messageText: string, onThinking?: (text: string) => void,
-    present: PresentRoll = async () => {}): Promise<string> {
+    options: ConversationRuntimeOptions<CheckLabels> = {}): Promise<string> {
     const scenario = this.#game.scenario();
     if (scenario.world?.phase !== GamePhase.CONVERSATIONS || !scenario.characters.some(item => item.id === characterId && item.id !== scenario.playerCharacterId)) throw new Error("Unknown or unavailable conversation.");
     if (this.#conversationEndRequested[characterId]) throw new Error("This character has ended the conversation.");
     if (!messageText.trim()) throw new Error("Say something first.");
     const messages = this.#dialogueMessages(characterId, messageText);
-    const input = { playerTurn: messageText, messages: withGmBasePrompt("dialogue", { ...DIALOGUE_MODEL, messages }).messages };
     onThinking?.("Considering your attempt…");
-    const classification = await this.#modelTranscripts.record("conversation_check", characterId, input,
-      () => classifyConversationTurn(this.#jev, input, AbortSignal.timeout(30_000)),
-      this.#conversationRun(characterId), this.#characterName(characterId));
+    const runKey = this.#conversationRun(characterId);
+    const injected = options.services;
+    const handler = new ConversationRuntime<CheckLabels>({ ...options, services: {
+      ...injected,
+      ai: {
+        responses: retryResponses((request, signal) => this.#complete("gm_consultation", characterId, request, signal, runKey)),
+        decisions: (state, questions, signal) => this.#modelTranscripts.record("conversation_check", characterId, state,
+          () => this.#jev.evaluate(state, questions, signal), runKey, this.#characterName(characterId)),
+        ...injected?.ai,
+      },
+      presentation: { showRoll: async (_result, signal) => { signal.throwIfAborted(); }, ...injected?.presentation },
+      character: { ...injected?.character, respond: async request => {
+        const ruling = request.messages.filter(message => message.role === "system"
+          && !messages.some(original => original.role === "system" && original.content === message.content))
+          .map(message => message.content ?? "").join("\n\n");
+        const content = await this.talkToCharacter(characterId, messageText, onThinking, ruling || undefined,
+          injected?.character?.respond ?? injected?.ai?.responses, request.messages);
+        return { role: "assistant", content };
+      } },
+    } });
     const target = scenario.characters.find(item => item.id === characterId)!;
     const actor = scenario.world.actors.find(item => item.characterId === characterId);
-    const ruling = await adjudicateConversationChecks({ skills: classification.checks, messages,
+    if (!options.hooks) handler.hooks.conversation = checkHooks(handler, {
+      playerTurn: messageText, playerId: scenario.playerCharacterId ?? "player",
+      build: scenario.characters.find(item => item.id === scenario.playerCharacterId)?.dnd,
       context: {
         character: { name: target.name, lore: target.lore, currentGoal: target.currentGoal,
           relationships: target.relationships.filter(item => item.characterId === scenario.playerCharacterId) },
         notes: scenario.notes.filter(note => note.visibility === NoteVisibility.PUBLIC || note.characterIds.includes(characterId)).map(note => note.text),
         room: scenario.world.rooms.find(room => room.id === actor?.roomId)?.name,
       },
-      build: scenario.characters.find(item => item.id === scenario.playerCharacterId)?.dnd, present,
-      complete: request => this.#complete("gm_consultation", characterId, request, undefined, this.#conversationRun(characterId)),
     });
-    return this.talkToCharacter(characterId, messageText, onThinking, ruling);
+    const reply = await runConversation({ ...DIALOGUE_MODEL, messages }, handler);
+    return reply.content!;
   }
 
-  async talkToCharacter(characterId: string, messageText: string, onThinking?: (text: string) => void, ruling?: string): Promise<string> {
+  async talkToCharacter(characterId: string, messageText: string, onThinking?: (text: string) => void, ruling?: string, respond?: Complete, prepared?: readonly OpenRouterMessage[]): Promise<string> {
     const controller = new AbortController();
     const runKey = this.#conversationRun(characterId);
     let started = false;
@@ -643,27 +664,26 @@ export class BrowserGameRuntime {
           const line = reply.content?.trim();
           if (!controller.signal.aborted && line && line.length <= 240) onThinking(line);
         }).catch(() => { /* The fallback stays visible; flavour failures do not affect dialogue. */ });
-      }, runKey, ruling);
+      }, runKey, ruling, respond, prepared);
     } finally { controller.abort(); }
   }
 
-  async #talkToCharacter(characterId: string, messageText: string, onConsultation: () => void, runKey: string, ruling?: string): Promise<string> {
+  async #talkToCharacter(characterId: string, messageText: string, onConsultation: () => void, runKey: string, ruling?: string, respond?: Complete, prepared?: readonly OpenRouterMessage[]): Promise<string> {
     const scenario = this.#game.scenario();
     if (scenario.world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Character conversations have not begun");
     if (!scenario.characters.some(character => character.id === characterId && character.id !== "player")) throw new Error("Unknown character");
     if (this.#conversationEndRequested[characterId]) throw new Error("This character has ended the conversation. Finish the conversation review before speaking again.");
     const history = this.#conversations.get(characterId) || [];
     const playerMessage = create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: messageText });
-    const messages = this.#dialogueMessages(characterId, messageText);
+    const messages = prepared ? [...prepared] : this.#dialogueMessages(characterId, messageText);
     const dmMessages = ruling ? [create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, speakerId: "DM", text: ruling })] : [];
-    if (ruling) messages.push({ role: "system", content: ruling });
+    if (ruling && !prepared) messages.push({ role: "system", content: ruling });
     let parsed: JsonObject | undefined;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         for (let step = 0; step < 4; step++) {
-          const completion = await this.#complete("dialogue", characterId, {
-            ...DIALOGUE_MODEL, messages, response_format: dialogueFormat, tools: [askGameMasterTool], max_tokens: 900,
-          }, undefined, runKey);
+          const request = { ...DIALOGUE_MODEL, messages, response_format: dialogueFormat, tools: [askGameMasterTool], max_tokens: 900 };
+          const completion = await (respond ? respond(request) : this.#complete("dialogue", characterId, request, undefined, runKey));
           if (!completion.tool_calls?.length) {
             parsed = parseModelObject(completion.content, "Court dialogue");
             break;

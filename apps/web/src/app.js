@@ -73,7 +73,12 @@ const playerMessageReceivedAt = new Map();
 const gameWorker = new Worker(new URL("./game.worker.ts", import.meta.url), { type: "module" });
 const pendingRequests = new Map();
 const gameReplacementRequests = new Set(["reset_world", "reset_characters", "reset", "load_game", "create_game", "create_development_game", "configure", "delete_game"]);
+let activeConversationRoll;
 gameWorker.addEventListener("message", event => {
+  if (event.data.type === "cancel_conversation_roll") {
+    if (activeConversationRoll?.id === event.data.rollId) activeConversationRoll.controller.abort();
+    return;
+  }
   if (event.data.type === "conversation_roll") {
     const { requestId, rollId, characterId, result } = event.data;
     const pending = pendingRequests.get(requestId);
@@ -81,8 +86,11 @@ gameWorker.addEventListener("message", event => {
     if (!["talk", "end_conversation"].includes(pending?.type) || pending.generation !== gameViewGeneration || pending.characterId !== characterId) {
       acknowledge(false); return;
     }
-    void showDiceRoll({ ...result, label: result.skill.replaceAll("_", " ") })
-      .then(acknowledge, () => acknowledge(false));
+    const controller = new AbortController();
+    activeConversationRoll = { id: rollId, controller };
+    void showDiceRoll({ signal: controller.signal, difficultyLabel: typeof result.difficulty === "string" ? result.difficulty.replaceAll("_", " ") : undefined, roll: result.natural, dc: result.dc, modifier: result.modifier, label: result.skill.replaceAll("_", " ") })
+      .then(acknowledge, () => acknowledge(false))
+      .finally(() => { if (activeConversationRoll?.id === rollId) activeConversationRoll = undefined; });
     return;
   }
   if (event.data.type === "dialogue_thinking") {

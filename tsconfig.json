@@ -12,13 +12,16 @@
     "types": [
       "node"
     ],
-    "rootDir": "."
+    "rootDir": ".",
+    "jsx": "react-jsx",
+    "jsxImportSource": "@opentui/react"
   },
   "include": [
     "packages/**/*.ts",
     "apps/**/*.ts",
     "evals/**/*.ts",
     "scripts/**/*.ts",
-    "tests/**/*.ts"
+    "tests/**/*.ts",
+    "apps/**/*.tsx"
   ]
 }

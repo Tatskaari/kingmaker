@@ -21,7 +21,7 @@ export function readVault(root: string): Map<string, Note> {
   return notes;
 }
 
-function permitted(name: string, note: Note, entry: string, audience: Audience): boolean {
+export function permitted(name: string, note: Note, entry: string, audience: Audience): boolean {
   const { visibility, readers } = note.metadata;
   if (visibility !== undefined && (typeof visibility !== "string" || !["public", "private", "gm"].includes(visibility))) throw new Error("Unknown visibility");
   const list = (value: unknown): string[] => {

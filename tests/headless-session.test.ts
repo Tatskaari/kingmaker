@@ -49,3 +49,50 @@ test("talk approaches a character and delegates to real player dialogue methods"
   await live.endConversation("rowan");
   assert.deepEqual(end.mock.calls[0]!.arguments, ["rowan"]);
 });
+
+test("headless conversations run injected classification, resolution and response after load", async () => {
+  const order: string[] = [];
+  const live = new HeadlessGame(fromJsonString(ScenarioSchema,
+    readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")), "", {
+    hooks: { conversation: {
+      classify: async () => {
+        order.push("classify");
+        return { checks: { needsCheck: false, checks: [], decisions: {} as never } };
+      },
+      resolve: async (context, labels) => {
+        order.push("resolve");
+        assert.equal(labels.checks.needsCheck, false);
+        context.request.messages.splice(1, 0, { role: "system", content: "OPENED_LORE" });
+        context.request.messages.push({ role: "system", content: "HEADLESS_RULING" });
+        return { reclassify: false };
+      },
+    } },
+    services: { character: { respond: async request => {
+      order.push("respond");
+      assert.equal(request.messages.at(-1)?.content, "HEADLESS_RULING");
+      assert.ok(request.messages.some(message => message.content === "OPENED_LORE"));
+      return { role: "assistant", content: JSON.stringify({ utterance: "Headless reply.", replyOptions: [], endConversation: false }) };
+    } } },
+  });
+  live.runtime.createDevelopmentPlayer();
+  live.load(live.snapshot());
+  assert.equal(await live.talk("rowan", "Hello"), "Headless reply.");
+  assert.deepEqual(order, ["classify", "resolve", "respond"]);
+  assert.match(JSON.stringify(live.snapshot().conversations), /HEADLESS_RULING/);
+  assert.match(JSON.stringify(live.snapshot().conversations), /Headless reply/);
+});
+
+test("headless resolver failure saves no partial conversation and never responds", async () => {
+  const live = new HeadlessGame(fromJsonString(ScenarioSchema,
+    readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")), "", {
+    hooks: { conversation: {
+      classify: async () => ({ checks: { needsCheck: false, checks: [], decisions: {} as never } }),
+      resolve: async () => { throw new Error("Resolution failed"); },
+    } },
+    services: { character: { respond: async () => { assert.fail("Must not respond"); } } },
+  });
+  live.runtime.createDevelopmentPlayer();
+  const before = live.snapshot().conversations;
+  await assert.rejects(live.talk("rowan", "Hello"), /Resolution failed/);
+  assert.deepEqual(live.snapshot().conversations, before);
+});

@@ -1,3 +1,5 @@
+import type { ConversationRuntimeOptions } from "../../conversation/src/runtime.js";
+import type { CheckLabels } from "../../conversation/src/check-hooks.js";
 import { fromJson, toJson } from "@bufbuild/protobuf";
 import { ScenarioSchema, type Scenario } from "../../contracts/src/index.js";
 import { BrowserGameRuntime, type RuntimeSnapshot } from "../../../apps/web/src/runtime.js";
@@ -8,7 +10,8 @@ import { renderJevRoomView } from "../../../apps/web/src/jev-room-view.js";
 export class HeadlessGame {
   runtime: BrowserGameRuntime;
 
-  constructor(source: Scenario | RuntimeSnapshot, private readonly apiKey = "") {
+  constructor(source: Scenario | RuntimeSnapshot, private readonly apiKey = "",
+    private readonly conversation?: ConversationRuntimeOptions<CheckLabels>) {
     this.runtime = this.#create(source);
   }
 
@@ -72,7 +75,9 @@ export class HeadlessGame {
 
   async talk(characterId: string, message: string) {
     this.act(`talk_${characterId}`);
-    return this.runtime.checkedTalkToCharacter(characterId, message);
+    return this.conversation
+      ? this.runtime.checkedTalkToCharacter(characterId, message, undefined, this.conversation)
+      : this.runtime.checkedTalkToCharacter(characterId, message);
   }
 
   async endConversation(characterId: string, message?: string) {

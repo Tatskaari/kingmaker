@@ -455,15 +455,23 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
         if (generation === version && runtime === game) worker.postMessage({
           type: "dialogue_thinking", requestId, characterId: id, text,
         });
-      }, async result => {
+      }, { services: { presentation: { showRoll: async (result, signal) => {
         if (generation !== version || runtime !== game) throw new Error("Game changed.");
         const rollId = crypto.randomUUID();
         await new Promise<void>((resolve, reject) => {
-          pendingDice.set(rollId, { requestId, resolve, reject });
+          signal.throwIfAborted();
+          const abort = () => {
+            pendingDice.delete(rollId);
+            worker.postMessage({ type: "cancel_conversation_roll", rollId });
+            reject(signal.reason);
+          };
+          const cleanup = () => signal.removeEventListener("abort", abort);
+          pendingDice.set(rollId, { requestId, resolve: () => { cleanup(); resolve(); }, reject: error => { cleanup(); reject(error); } });
+          signal.addEventListener("abort", abort, { once: true });
           worker.postMessage({ type: "conversation_roll", requestId, characterId: id, rollId, result });
         });
         if (generation !== version || runtime !== game) throw new Error("Game changed.");
-      }) : await fork.endConversation(id);
+      } } } }) : await fork.endConversation(id);
       if (generation !== version || runtime !== game) throw new Error("Game changed.");
       if (type === "talk" || finalMessage) await commitMutation(game, () => {
           if (generation !== version) throw new Error("Game changed.");
