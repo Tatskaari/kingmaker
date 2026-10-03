@@ -488,14 +488,22 @@ focused test command.
 
 ## Conversation debugger
 
-Run `OPENROUTER_API_KEY=… npm run conversation -- --character corvin` in an
-interactive terminal. The conversation takes 80% of the width; individual model
+Run `proto install` to install the pinned Node 26 runtime, then
+`OPENROUTER_API_KEY=… npm run conversation -- --character corvin` in an
+interactive terminal. OpenTUI renders React components directly in the terminal.
+The conversation takes 80% of the width; individual model
 messages take 20%. The sidebar lists system prompts, user messages and assistant
 replies in order, without repeating history for each call. Click a message (in
 terminals supporting SGR mouse reporting) or press Tab to inspect its full text.
 System prompts are available before the first reply. Use Up/Down to select
-messages, Page Up/Down to scroll, and Escape to return to chat. The header shows
+messages, the mouse wheel over the left pane or Page Up/Down to scroll, and Escape
+to return to chat. Shift+Up/Down scrolls one line at a time. The header shows
 the latest call's duration; pending replies and errors appear in the sidebar.
+Drag normally within either pane to select its text, then press Ctrl+Y to copy.
+Ctrl+C also copies when text is selected; otherwise it finishes the conversation.
+Selection is managed by the app, so selecting multiple lines within one pane
+does not collect text from the neighbouring pane. Click a sidebar row to inspect
+it; dragging over rows selects their text. Both panes support wheel scrolling.
 Enter sends a message;
 Ctrl+D or Ctrl+C finishes and writes the transcript and debug calls to
 `test-output/conversation-<timestamp>.json` for review.

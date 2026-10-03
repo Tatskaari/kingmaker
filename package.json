@@ -4,7 +4,7 @@
   "type": "module",
   "version": "0.0.0",
   "engines": {
-    "node": ">=24"
+    "node": ">=26.4.0"
   },
   "scripts": {
     "check": "proto run moon -- run workspace:check",
@@ -17,7 +17,7 @@
     "generate": "proto run moon -- run contracts:generate",
     "dev": "proto run moon -- run workspace:dev",
     "eval:checks": "tsx scripts/run-conversation-check-eval.ts",
-    "conversation": "tsx scripts/conversation-cli.ts"
+    "conversation": "node --experimental-ffi --import tsx scripts/conversation-cli.ts"
   },
   "dependencies": {
     "@bufbuild/protobuf": "2.15.0",
@@ -28,18 +28,18 @@
     "@bufbuild/buf": "1.73.0",
     "@bufbuild/protoc-gen-es": "2.15.0",
     "@logtape/file": "2.3.10",
+    "@opentui/core": "^0.5.14",
+    "@opentui/react": "^0.5.14",
     "@types/node": "26.6.3",
+    "@types/react": "^19.3.0",
     "cli-table3": "^0.6.5",
     "fast-json-patch": "^3.1.1",
     "mdast-util-from-markdown": "^2.0.3",
+    "react": "^19.3.0",
     "tsx": "4.23.15",
     "typescript": "7.0.2",
     "vite": "^8.3.1",
-    "yaml": "^2.9.1",
-    "@types/react": "^19.3.0",
-    "ink": "^7.1.1",
-    "react": "^19.3.0",
-    "wrap-ansi": "^10.0.2"
+    "yaml": "^2.9.1"
   },
   "packageManager": "npm@11.16.0"
 }

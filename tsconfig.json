@@ -13,7 +13,8 @@
       "node"
     ],
     "rootDir": ".",
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "jsxImportSource": "@opentui/react"
   },
   "include": [
     "packages/**/*.ts",

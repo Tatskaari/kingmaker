@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { stripVTControlCharacters } from "node:util";
-import { Box, Text, render, useApp, useInput, useStdout, useWindowSize } from "ink";
-import wrapAnsi from "wrap-ansi";
+import { createCliRenderer, createClipboard, createHostClipboard, createRendererClipboardAdapter,
+  type ScrollBoxRenderable } from "@opentui/core";
+import { createRoot, useKeyboard, useRenderer, useTerminalDimensions } from "@opentui/react";
 import { conversationRequest, converse, type Complete, type ConversationInput, type LlmTurn } from "../../packages/conversation/src/conversation.js";
 
 export interface ConversationResult {
@@ -9,106 +10,122 @@ export interface ConversationResult {
   transcript: ConversationInput["transcript"];
   turns: LlmTurn[];
 }
+interface AppProps {
+  input: ConversationInput;
+  complete: Complete;
+  copyText: (text: string) => Promise<string>;
+  onFinish: (result: ConversationResult) => void;
+}
 
-export function ConversationApp({ input, complete }: { input: ConversationInput; complete: Complete }) {
-  const { exit } = useApp(), { stdout } = useStdout(), { columns, rows } = useWindowSize();
+export function ConversationApp({ input, complete, copyText, onFinish }: AppProps) {
+  const renderer = useRenderer(), { width, height } = useTerminalDimensions();
   const [transcript, setTranscript] = useState(input.transcript);
   const [turns, setTurns] = useState<LlmTurn[]>([]);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
   const [selected, setSelected] = useState<number | null>(null);
-  const [offset, setOffset] = useState(0);
   const controller = useRef(new AbortController());
   const running = useRef(false);
-  const leftWidth = Math.floor(columns * 0.8), height = Math.max(1, rows - 7);
+  const content = useRef<ScrollBoxRenderable>(null);
+  const sidebar = useRef<ScrollBoxRenderable>(null);
+  const clickStart = useRef<{ x: number; y: number } | null>(null);
   const latest = turns.at(-1);
-  // The latest request already contains the prior conversation. Show that sequence
-  // once, followed by its reply, rather than duplicating history for every call.
+  // A request already includes prior speech. Display that history only once.
   const messages = latest ? [...latest.request.messages, latest.response ?? {
     role: latest.error ? "error" : "pending", content: latest.error ?? "Waiting for the character's reply…",
   }] : conversationRequest(input).messages.slice(0, -1);
-  const capacity = Math.max(1, rows - 6);
-  const listStart = Math.min(Math.max(0, (selected ?? messages.length - 1) - Math.floor(capacity / 2)), Math.max(0, messages.length - capacity));
-  const visibleMessages = messages.slice(listStart, listStart + capacity);
-  const inspected = selected === null ? undefined : messages[selected];
   const source = selected === null
     ? transcript.map(message => `${message.speakerId === "player" ? "You" : input.characterId}: ${message.text}`).join("\n\n") || "Type a message to begin."
-    : inspected?.content ?? "No text content.";
-  const lines = wrapAnsi(stripVTControlCharacters(source), Math.max(1, leftWidth - 4), { hard: true, trim: false }).split("\n");
-  const maxOffset = Math.max(0, lines.length - height);
-  const start = selected === null ? Math.max(0, maxOffset - offset) : Math.min(offset, maxOffset);
-  const choose = (index: number | null) => { setSelected(index); setOffset(0); };
-  const finish = () => {
-    controller.current.abort();
-    exit({ characterId: input.characterId, transcript,
-      turns: turns.map(turn => turn.response || turn.error ? turn : { ...turn, error: "Cancelled when conversation ended." }),
-    } satisfies ConversationResult);
-  };
+    : messages[selected]?.content ?? "No text content.";
+  const choose = (index: number | null) => { renderer.clearSelection(); setSelected(index); };
+  useEffect(() => () => controller.current.abort(), []);
   useEffect(() => {
-    // SGR mouse reporting; Ink's input parser delivers each complete CSI sequence.
-    stdout.write("\x1b[?1000h\x1b[?1006h");
-    return () => { stdout.write("\x1b[?1000l\x1b[?1006l"); controller.current.abort(); };
-  }, [stdout]);
-  async function send() {
-    if (running.current || !draft.trim()) return;
-    running.current = true; setBusy(true); setError("");
+    content.current?.scrollTo(selected === null ? content.current.scrollHeight : 0);
+    if (selected !== null) sidebar.current?.scrollChildIntoView(`message-${selected}`);
+  }, [selected]);
+  async function send(message: string) {
+    if (running.current || !message.trim()) return;
+    running.current = true; setBusy(true); setStatus("");
     const index = turns.length;
     try {
-      const result = await converse({ ...input, transcript, message: draft }, complete, controller.current.signal,
+      const result = await converse({ ...input, transcript, message }, complete, controller.current.signal,
         turn => setTurns(previous => [...previous.slice(0, index), turn]));
-      setTranscript(result.transcript); setDraft(""); setOffset(0);
-    } catch (cause) { setError(cause instanceof Error ? cause.message : String(cause)); }
+      setTranscript(result.transcript); setDraft("");
+    } catch (cause) { setStatus(cause instanceof Error ? cause.message : String(cause)); }
     finally { running.current = false; setBusy(false); }
   }
-  useInput((value, key) => {
-    const mouse = value.match(/^\[<(\d+);(\d+);(\d+)([Mm])$/);
-    if (mouse) {
-      if (mouse[1] === "0" && mouse[4] === "M" && Number(mouse[2]) > leftWidth) {
-        const row = Number(mouse[3]) - 4;
-        if (visibleMessages[row]) choose(listStart + row);
-      }
-      return;
+  async function copy() {
+    const text = renderer.getSelection()?.getSelectedText();
+    if (!text) { setStatus("Drag over text in either pane to select it."); return; }
+    try { setStatus(await copyText(text)); }
+    catch (cause) { setStatus(`Copy failed: ${cause instanceof Error ? cause.message : String(cause)}`); }
+  }
+  useKeyboard(key => {
+    if (key.ctrl && (key.name === "y" || (key.name === "c" && renderer.getSelection()?.getSelectedText()))) {
+      key.preventDefault(); void copy(); return;
     }
-    if (key.ctrl && (value === "c" || value === "d")) return finish();
-    if (key.escape) return choose(null);
-    if (key.tab) return choose(selected === null && messages.length ? 0 : null);
-    if (key.pageUp || key.pageDown) {
-      const direction = (key.pageDown ? 1 : -1) * (selected === null ? -1 : 1);
-      return setOffset(Math.max(0, Math.min(maxOffset, offset + direction * height)));
-    }
-    if (selected !== null) {
-      if (key.upArrow || key.downArrow) choose(Math.max(0, Math.min(messages.length - 1, selected + (key.upArrow ? -1 : 1))));
-      return;
-    }
-    if (key.return) { void send(); return; }
-    if (busy) return;
-    if (key.backspace || key.delete) setDraft(text => [...text].slice(0, -1).join(""));
-    else if (!key.ctrl && !key.meta && !key.leftArrow && !key.rightArrow && !key.upArrow && !key.downArrow) {
-      setDraft(text => text + value.replace(/[\x00-\x1f\x7f]/g, " "));
+    if (key.ctrl && (key.name === "c" || key.name === "d")) {
+      key.preventDefault(); controller.current.abort();
+      onFinish({ characterId: input.characterId, transcript,
+        turns: turns.map(turn => turn.response || turn.error ? turn : { ...turn, error: "Cancelled when conversation ended." }),
+      });
+    } else if (key.name === "escape") { key.preventDefault(); choose(null); }
+    else if (key.name === "tab") { key.preventDefault(); choose(selected === null ? 0 : null); }
+    else if (key.name === "pageup" || key.name === "pagedown" || (key.shift && ["up", "down"].includes(key.name))) {
+      key.preventDefault();
+      content.current?.scrollBy((key.name === "pageup" || key.name === "up" ? -1 : 1) * (key.shift ? 1 : Math.max(1, height - 7)));
+    } else if (selected !== null && ["up", "down"].includes(key.name)) {
+      key.preventDefault(); choose(Math.max(0, Math.min(messages.length - 1, selected + (key.name === "up" ? -1 : 1))));
     }
   });
-  return <Box flexDirection="column" width={columns} height={rows}>
-    <Text bold wrap="truncate">Conversation · {input.characterId}{busy ? " · Thinking…" : latest?.durationMs !== undefined ? ` · ${latest.durationMs}ms` : ""}</Text>
-    <Box height={rows - 2}>
-      <Box width={leftWidth} borderStyle="round" flexDirection="column" paddingX={1}>
-        <Text bold wrap="truncate">{selected === null ? "Conversation" : `Message ${selected + 1} · ${inspected?.role} · Esc to return`}</Text>
-        <Box height={height} flexShrink={0}><Text>{lines.slice(start, start + height).join("\n")}</Text></Box>
-        <Text color="red" wrap="truncate">{error || " "}</Text>
-        <Text wrap="truncate">{selected === null ? `> ${draft.slice(-Math.max(1, leftWidth - 8))}${busy ? " …" : "▏"}` : `Lines ${start + 1}–${Math.min(lines.length, start + height)} / ${lines.length}`}</Text>
-      </Box>
-      <Box width={columns - leftWidth} borderStyle="round" flexDirection="column">
-        <Text bold wrap="truncate"> Messages</Text>
-        {visibleMessages.map((message, row) => <Text key={listStart + row} inverse={selected === listStart + row} wrap="truncate">
-          {` ${listStart + row + 1}. ${message.role}`}
-        </Text>)}
-      </Box>
-    </Box>
-    <Text dimColor wrap="truncate">Enter send · Click/Tab debug · ↑↓ select · PgUp/Dn scroll · Esc chat · ^D finish</Text>
-  </Box>;
+  return <box width={width} height={height} flexDirection="column">
+    <text height={1} selectable={false} truncate>{`Conversation · ${input.characterId}${busy ? " · Thinking…" : latest?.durationMs !== undefined ? ` · ${latest.durationMs}ms` : ""}`}</text>
+    <box flexDirection="row" flexGrow={1} minHeight={0}>
+      <box width="80%" border flexDirection="column" paddingX={1}>
+        <text height={1} selectable={false} truncate>{selected === null ? "Conversation" : `Message ${selected + 1} · ${messages[selected]?.role} · Esc to return`}</text>
+        <scrollbox id="conversation-content" ref={content} flexGrow={1} minHeight={0} scrollX={false}
+          stickyScroll={selected === null} stickyStart="bottom" viewportCulling={false}>
+          <text id="message-content" flexShrink={0} wrapMode="word" selectable>{stripVTControlCharacters(source)}</text>
+        </scrollbox>
+        <text height={1} selectable={false} truncate fg="yellow">{status || " "}</text>
+        <input id="conversation-input" value={draft} onInput={setDraft} onSubmit={() => { void send(draft); }}
+          focused={selected === null && !busy} placeholder={busy ? "Waiting for reply…" : "Say something…"} />
+      </box>
+      <box width="20%" border flexDirection="column">
+        <text height={1} selectable={false}>Messages</text>
+        <scrollbox id="message-list" ref={sidebar} flexGrow={1} minHeight={0} scrollX={false} viewportCulling={false}>
+          {messages.map((message, index) => <text id={`message-${index}`} key={index} height={1} flexShrink={0}
+            selectable truncate bg={selected === index ? "#334155" : "transparent"}
+            onMouseDown={event => { clickStart.current = { x: event.x, y: event.y }; }}
+            onMouseUp={event => {
+              // A drag selects sidebar text; only an un-dragged click opens it.
+              if (event.x === clickStart.current?.x && event.y === clickStart.current?.y) choose(index);
+              clickStart.current = null;
+            }}>{`${index + 1}. ${message.role}`}</text>)}
+        </scrollbox>
+      </box>
+    </box>
+    <text height={1} selectable={false} truncate>Wheel scroll · Drag select · Ctrl+Y copy · Tab inspect · Esc chat · Ctrl+D finish</text>
+  </box>;
 }
 
 export async function runConversationCli(input: ConversationInput, complete: Complete): Promise<ConversationResult> {
-  const app = render(<ConversationApp input={input} complete={complete} />, { alternateScreen: true, exitOnCtrlC: false });
-  return await app.waitUntilExit() as ConversationResult;
+  let fail: (error: Error) => void = () => {};
+  const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false,
+    onDestroy: () => fail(new Error("Conversation terminal closed.")),
+  });
+  const clipboard = createClipboard({ host: createHostClipboard(), terminal: createRendererClipboardAdapter(renderer) });
+  const root = createRoot(renderer);
+  try {
+    return await new Promise<ConversationResult>((resolve, reject) => {
+      fail = reject;
+      root.render(<ConversationApp input={input} complete={complete} onFinish={resolve} copyText={async text => {
+        const result = await clipboard.writeText(text, { destination: "best-available" });
+        if (result.host.status === "written") return "Copied selection.";
+        if (result.terminal.status === "attempted") return "Copy sent to terminal clipboard.";
+        throw new Error("No clipboard is available in this terminal.");
+      }} />);
+    });
+  } finally { root.unmount(); renderer.destroy(); await clipboard.dispose(); }
 }
