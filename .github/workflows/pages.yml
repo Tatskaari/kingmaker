@@ -3,6 +3,9 @@ name: Deploy GitHub Pages
 on:
   push:
     branches: [main]
+  workflow_run:
+    workflows: [Build PR preview]
+    types: [completed]
   workflow_dispatch:
 
 permissions:
@@ -12,13 +15,21 @@ permissions:
 
 concurrency:
   group: pages
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   build:
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
+      # workflow_run executes the trusted default-branch workflow.
+      # Build production from main; preview files are copied as static assets only.
       - uses: actions/checkout@v6
+        with:
+          ref: main
       - uses: actions/setup-node@v4
         with:
           node-version: 26.9.0
@@ -26,6 +37,15 @@ jobs:
       - run: npm ci
       - uses: actions/configure-pages@v5
       - run: npm run build:web
+      - name: Include PR previews
+        shell: bash
+        run: |
+          if [ -n "$(git ls-remote --heads origin gh-pages)" ]; then
+            git fetch --depth=1 origin gh-pages
+            if [ -n "$(git ls-tree FETCH_HEAD -- pr-preview)" ]; then
+              git archive FETCH_HEAD pr-preview | tar -x -C dist/web
+            fi
+          fi
       - uses: actions/upload-pages-artifact@v4
         with:
           path: dist/web

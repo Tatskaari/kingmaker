@@ -62,7 +62,7 @@ let debugTitle = "Debug Inspector";
 let debugRequest = { type: "debug", payload: {} };
 const apiKeyStorageKey = "kingmaker.openrouter-api-key";
 let apiKey = devOpenRouterApiKey;
-try { apiKey = sessionStorage.getItem(apiKeyStorageKey)?.trim() || ""; }
+try { apiKey = localStorage.getItem(apiKeyStorageKey)?.trim() || ""; }
 catch { /* The app still works when browser storage is unavailable. */ }
 if (!apiKey) apiKey = devOpenRouterApiKey;
 let screen = "key";
@@ -353,7 +353,7 @@ function openIssueReporter() {
 }
 
 function renderKeyEntry() {
-  app.innerHTML = shell(`<section class="panel key-entry"><div><div class="eyebrow">Connect your model</div><h2>Enter an OpenRouter key</h2><p>The key stays in this browser tab across reloads and is never included in game saves or debug output.</p><form data-key-form><input type="password" name="apiKey" autocomplete="off" placeholder="sk-or-v1-…" required><button class="primary" ${busy ? "disabled" : ""}>${busy ? "Connecting…" : "Continue"}</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></div></section>`);
+  app.innerHTML = shell(`<section class="panel key-entry"><div><div class="eyebrow">Connect your model</div><h2>Enter an OpenRouter key</h2><p>The key is remembered in this browser, including across QA previews. Use “Change OpenRouter key” to forget it. It is never included in game saves or debug output.</p><form data-key-form><input type="password" name="apiKey" autocomplete="off" placeholder="sk-or-v1-…" required><button class="primary" ${busy ? "disabled" : ""}>${busy ? "Connecting…" : "Continue"}</button></form><p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></div></section>`);
   bind();
 }
 
@@ -681,7 +681,7 @@ function bind() {
   });
   document.querySelector("[data-key-change]")?.addEventListener("click", () => {
     if (busy) return;
-    try { sessionStorage.removeItem(apiKeyStorageKey); } catch {}
+    try { localStorage.removeItem(apiKeyStorageKey); } catch {}
     apiKey = ""; state = null; activeSaveId = null; activeCharacter = null;
     sheetOpen = false; debugOpen = false; notice = ""; screen = "key"; render();
   });
@@ -842,7 +842,7 @@ document.addEventListener("keydown", event => {
 async function configure(key) {
   const result = await rpc("configure", { apiKey: key });
   apiKey = key;
-  try { sessionStorage.setItem(apiKeyStorageKey, key); } catch {}
+  try { localStorage.setItem(apiKeyStorageKey, key); } catch {}
   saves = result.saves;
   screen = "saves";
 }

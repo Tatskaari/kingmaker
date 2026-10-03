@@ -412,6 +412,28 @@ OPENROUTER_API_KEY=... npm run eval:unit -- evals/rook-sabine-plan-disclosure.js
 The production site is built into `dist/web`. Merges to main deploy through
 `.github/workflows/pages.yml`. Relative asset URLs support GitHub Pages paths.
 
+Pull requests from branches in this repository get a sticky QA comment linking to
+`https://tatskaari.github.io/kingmaker/pr-preview/pr-<number>/`. Each push updates
+the preview; closing or merging the PR removes it. Fork PRs do not publish previews.
+The comment appears when the preview build is stored; wait for **Deploy GitHub
+Pages** to finish before opening it (or refresh if it still shows the previous build).
+
+`preview.yml` stores compiled previews on `gh-pages`. On successful completion,
+`pages.yml` builds production from `main`, includes the stored `pr-preview/` tree,
+and deploys the combined site. Production deploys preserve other open previews.
+Keep the repository Pages source set to **GitHub Actions**. The workflows must land
+on `main` once before the completion trigger can publish previews; existing PRs
+get a preview on their next push or reopen. A manual Pages run republishes the
+latest production and stored previews if a deployment needs retrying.
+
+The OpenRouter key is remembered in local browser storage across tabs, browser
+restarts, production and previews on the same origin. Enter it once in that browser;
+**Change OpenRouter key** removes the remembered key. Clearing site data or using a
+different browser requires entering it again. Only open trusted previews: their
+JavaScript can access the remembered key, as can other sites on the same GitHub
+Pages origin. No key is embedded in deployed files, comments or game saves.
+
+
 ## Game logs
 
 [LogTape](https://logtape.org/) sends structured game logs to the browser console
