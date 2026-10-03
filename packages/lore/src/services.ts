@@ -115,7 +115,11 @@ export function createScenarioServices(initial: WorldState): { scenario: Scenari
       return publish(path, before + (before && !before.endsWith("\n") && text ? "\n" : "") + text + (after && text && !text.endsWith("\n") ? "\n" : "") + after, current);
     }),
     delete: (path, sha) => write(async () => {
-      await checked(path, sha);
+      const expected = await checked(path, sha);
+      const current = state.docs[path];
+      if (JSON.stringify(canonical(current && toJson(DocumentSchema, current))) !== JSON.stringify(canonical(toJson(DocumentSchema, expected.document)))) {
+        throw new DocumentConflictError(path, sha, current ? (await read(path)).sha : "deleted");
+      }
       const draft = clone(WorldStateSchema, state);
       delete draft.docs[path];
       refreshDocumentGraph(draft);

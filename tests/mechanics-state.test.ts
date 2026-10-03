@@ -42,3 +42,28 @@ test("movement during document hashing does not reject or undo the edit", async 
   assert.equal(services.scenario.snapshot().map!.day, 2);
   assert.match((await services.docs.read(doc.path)).text, /Reviewed/);
 });
+
+test("a same-document property change during hashing still rejects a stale edit", async t => {
+  const { CharacterPropertiesSchema } = await import("../packages/contracts/src/v2.js");
+  const { DocumentConflictError } = await import("../packages/lore/src/services.js");
+  const services = createScenarioServices(worldState(create(MapSchema), new Map([
+    ["Scenarios/Test/scenario.md", "Briefing"], ["Scenarios/Test/index.md", "Index"],
+  ]), "Test"));
+  const doc = await services.docs.read("Scenarios/Test/scenario.md");
+  const digest = crypto.subtle.digest.bind(crypto.subtle);
+  let release!: () => void, started!: () => void, calls = 0;
+  const waiting = new Promise<void>(resolve => { started = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  t.mock.method(crypto.subtle, "digest", async (...args: Parameters<typeof digest>) => {
+    if (++calls === 2) { started(); await gate; }
+    return digest(...args);
+  });
+  const write = services.docs.insert(doc.path, doc.sha, 1, "Stale review.");
+  const rejected = assert.rejects(write, DocumentConflictError);
+  await waiting;
+  services.mechanics.commit(create(MapSchema), { [doc.path]: create(CharacterPropertiesSchema, { inventory: { items: [] } }) });
+  release(); await rejected;
+  const current = await services.docs.read(doc.path);
+  assert.doesNotMatch(current.text, /Stale review/);
+  assert.ok(current.document.characterProperties?.inventory);
+});

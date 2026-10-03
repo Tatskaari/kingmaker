@@ -1,3 +1,4 @@
+import { commitReview } from "./fixtures.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create, fromJson, toJson } from "@bufbuild/protobuf";
@@ -20,8 +21,7 @@ function fixture() {
   ]), "Test"));
 }
 const evidence = { characterId: "alice", participants: ["alice", "player"], transcript: [create(TranscriptMessageSchema, { text: "Please go to the hall." })] };
-const answer = (activeGoal: string | null) => ({ role: "assistant" as const,
-  content: JSON.stringify({ summary: "Reviewed", newNotes: ["The player asked me to go to the hall."], activeGoal }) });
+const answer = (activeGoal: string | null) => (commitReview({ summary: "Reviewed", newNotes: ["The player asked me to go to the hall."], activeGoal }));
 
 test("v2 review atomically saves notes and goal, preserves access metadata, and survives reload", async () => {
   const services = fixture(), before = services.scenario.snapshot();
@@ -47,31 +47,51 @@ test("v2 review atomically saves notes and goal, preserves access metadata, and 
   assert.equal(activeGoal((await services.docs.read(entry)).document), null);
 });
 
-test("failed, cancelled and conflicting v2 reviews cannot overwrite documents or activate goals", async () => {
-  for (const mode of ["malformed", "cancelled", "conflict"]) {
+test("failed and cancelled v2 reviews cannot overwrite documents or activate goals", async () => {
+  for (const mode of ["malformed", "cancelled"]) {
     const services = fixture(), controller = new AbortController();
     const runtime = new ConversationRuntime({ services: { ...services, ai: { responses: async () => {
       if (mode === "malformed") return { role: "assistant", content: '{}' };
       if (mode === "cancelled") controller.abort();
-      if (mode === "conflict") {
-        const current = await services.docs.read(entry);
-        await services.docs.replace(entry, current.sha, "Earlier history.", "Newer concurrent history.");
-      }
       return answer("Go to the hall");
     } } }, hooks: { review: documentReviewHooks } });
-    await assert.rejects(runConversationReview(evidence, runtime, controller.signal), mode === "conflict" ? DocumentConflictError : /Invalid|abort/i);
+    await assert.rejects(runConversationReview(evidence, runtime, controller.signal), /Invalid|abort|must call/i);
     const doc = (await services.docs.read(entry)).document;
     assert.equal(activeGoal(doc), null); assert.ok(!doc.body.includes("player asked"));
-    if (mode === "conflict") assert.match(doc.body, /Newer concurrent history/);
   }
 });
 
 
 test("v2 review cannot add document links through generated notes", async () => {
   const services = fixture(), before = services.scenario.snapshot();
-  const runtime = new ConversationRuntime({ services: { ...services, ai: { responses: async () => ({ role: "assistant",
-    content: JSON.stringify({ summary: "Reviewed", newNotes: ["Remember [[gm.md]]"], activeGoal: "Read the secret" }) }) } },
+  const runtime = new ConversationRuntime({ services: { ...services, ai: { responses: async () => (commitReview({ summary: "Reviewed", newNotes: ["Remember [[gm.md]]"], activeGoal: "Read the secret" })) } },
     hooks: { review: documentReviewHooks } });
   await assert.rejects(runConversationReview(evidence, runtime), /plain prose/);
   assert.deepEqual(services.scenario.snapshot(), before);
+});
+
+test("document conflicts refresh the tool snapshot and let the GM reconcile before retrying", async () => {
+  const services = fixture(); let calls = 0;
+  const runtime = new ConversationRuntime({ services: { ...services, ai: { responses: async request => {
+    calls++;
+    if (calls === 1) {
+      const current = await services.docs.read(entry);
+      await services.docs.replace(entry, current.sha, "Earlier history.", "A new promise: meet Bob.");
+      return answer("Go to the hall");
+    }
+    const feedback = JSON.parse(request.messages.at(-1)!.content!);
+    assert.equal(request.messages.at(-1)!.role, "tool");
+    assert.equal(feedback.error, "document_conflict");
+    assert.equal(feedback.current.sha, (await services.docs.read(entry)).sha);
+    assert.match(feedback.current.text, /new promise: meet Bob/);
+    assert.doesNotMatch(feedback.current.text, /player asked/);
+    return commitReview({ summary: "Reconciled", newNotes: ["First honour my promise to Bob."], activeGoal: "Meet Bob" });
+  } } }, hooks: { review: documentReviewHooks } });
+  assert.equal((await runConversationReview(evidence, runtime)).summary, "Reconciled");
+  assert.equal(calls, 2);
+  const doc = (await services.docs.read(entry)).document;
+  assert.match(doc.body, /new promise: meet Bob/);
+  assert.match(doc.body, /honour my promise/);
+  assert.doesNotMatch(doc.body, /player asked/);
+  assert.equal(activeGoal(doc), "Meet Bob");
 });

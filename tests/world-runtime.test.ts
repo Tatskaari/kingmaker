@@ -1,3 +1,4 @@
+import { commitReview } from "./fixtures.js";
 import { loadPlayableWorld } from "./fixtures.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -13,7 +14,7 @@ import { activeGoal } from "../packages/lore/src/active-goal.js";
 function game(options: WorldOptions = {}) {
   return new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, undefined, options);
 }
-const reviewReply = { role: "assistant" as const, content: JSON.stringify({ summary: "Agreed", newNotes: ["PROMISESENTINEL"], activeGoal: "Go to the great hall" }) };
+const reviewReply = commitReview({ summary: "Agreed", newNotes: ["PROMISESENTINEL"], activeGoal: "Go to the great hall" });
 const commit = async <T>(work: () => T) => work();
 
 test("v2 game reviews into documents, saves without v1 state, and subsequent dialogue sees edits", async () => {
@@ -53,4 +54,29 @@ test("v2 planning and physical execution use the live state", async () => {
   assert.ok(result.generations["actor:rowan"]);
   await runtime.overrideActiveObjective("rowan", { currentGoal: "Speak to Holt" });
   assert.equal(runtime.snapshot().npcActivities!.rowan!.goal, "Speak to Holt");
+});
+
+test("concurrent reviews update separate live documents while player movement survives", async () => {
+  let release!: () => void, started!: () => void, calls = 0;
+  const ready = new Promise<void>(resolve => { started = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const runtime = game({ services: { ai: { responses: async request => {
+    const id = JSON.parse(request.messages[1]!.content!).characterId;
+    if (++calls === 2) started();
+    await gate;
+    return commitReview({ summary: "Reviewed", newNotes: [`${id} remembered this exchange.`], activeGoal: null });
+  } } } });
+  runtime.endConversationAsPlayer("corvin", "Goodbye.");
+  runtime.endConversationAsPlayer("aldren", "Goodbye.");
+  const reviews = Promise.all([runtime.endConversation("corvin"), runtime.endConversation("aldren")]);
+  await ready;
+  const destination = runtime.map.observe("player").actions.find(action => action.path.length > 1)!.path[1]!;
+  runtime.movePlayer(destination);
+  release(); await reviews;
+  for (const id of ["corvin", "aldren"]) {
+    assert.match(runtime.world().docs[`Scenarios/Centennial Assembly/Characters/${id}/character.md`]!.body, new RegExp(`${id} remembered`));
+    assert.equal(runtime.snapshot().conversations[id], undefined);
+  }
+  const position = runtime.world().map!.actors.find(actor => actor.characterId === "player")!.position!;
+  assert.equal(position.x, destination.x); assert.equal(position.y, destination.y);
 });
