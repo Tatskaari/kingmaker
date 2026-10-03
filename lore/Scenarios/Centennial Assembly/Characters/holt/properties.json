@@ -1,4 +1,44 @@
 {
-  "dnd": null,
-  "inventory": null
+  "dnd": {
+    "rulesetId": "srd-5.2.1",
+    "speciesId": "human",
+    "backgroundId": "soldier",
+    "abilityScores": {
+      "strength": 16,
+      "dexterity": 12,
+      "constitution": 14,
+      "intelligence": 14,
+      "wisdom": 14,
+      "charisma": 12
+    },
+    "classes": [
+      {"classId": "fighter", "subclassId": "champion", "level": 3, "hitDiceRemaining": 3}
+    ],
+    "hitPoints": {
+      "current": 28,
+      "maximum": 28
+    },
+    "proficiencies": [
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "perception", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "insight", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "athletics", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"},
+      {"kind": "PROFICIENCY_KIND_SKILL", "targetId": "investigation", "rank": "PROFICIENCY_RANK_PROFICIENT", "sourceId": "kingmaker-role"}
+    ],
+    "resources": [
+      {"resourceId": "second-wind", "current": 2, "maximum": 2},
+      {"resourceId": "action-surge", "current": 1, "maximum": 1, "recharge": "RESOURCE_RECHARGE_SHORT_REST"}
+    ]
+  },
+  "inventory": {
+    "items": [
+      {"id": "holt_clothes_travelers", "name": "Travel clothes", "quantity": 1, "concealed": false, "details": "Ordinary well-maintained clothing for the assembly.", "definitionId": "clothes-travelers"},
+      {"id": "holt_longsword", "name": "Service longsword", "quantity": 1, "concealed": false, "details": "A maintained military sidearm, currently sheathed.", "definitionId": "longsword"},
+      {"id": "holt_chain_mail", "name": "Service mail", "quantity": 1, "concealed": false, "details": "Visible armor worn while overseeing assembly security.", "definitionId": "chain-mail"},
+      {"id": "holt_shield", "name": "Shield", "quantity": 1, "concealed": false, "details": "A plain service shield carried on a shoulder strap.", "definitionId": "shield"},
+      {"id": "holt_pocket_timetable", "name": "Pocket timetable", "quantity": 1, "concealed": false, "details": "Personal scheduling notes with blank space for assembly arrangements; no orders or access credentials."}
+    ],
+    "equipment": {
+      "armorItemId": "holt_chain_mail"
+    }
+  }
 }
