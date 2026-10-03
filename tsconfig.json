@@ -12,13 +12,15 @@
     "types": [
       "node"
     ],
-    "rootDir": "."
+    "rootDir": ".",
+    "jsx": "react-jsx"
   },
   "include": [
     "packages/**/*.ts",
     "apps/**/*.ts",
     "evals/**/*.ts",
     "scripts/**/*.ts",
-    "tests/**/*.ts"
+    "tests/**/*.ts",
+    "apps/**/*.tsx"
   ]
 }

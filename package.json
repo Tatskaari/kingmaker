@@ -16,7 +16,8 @@
     "headless": "tsx scripts/headless.ts",
     "generate": "proto run moon -- run contracts:generate",
     "dev": "proto run moon -- run workspace:dev",
-    "eval:checks": "tsx scripts/run-conversation-check-eval.ts"
+    "eval:checks": "tsx scripts/run-conversation-check-eval.ts",
+    "conversation": "tsx scripts/conversation-cli.ts"
   },
   "dependencies": {
     "@bufbuild/protobuf": "2.15.0",
@@ -34,7 +35,11 @@
     "tsx": "4.23.15",
     "typescript": "7.0.2",
     "vite": "^8.3.1",
-    "yaml": "^2.9.1"
+    "yaml": "^2.9.1",
+    "@types/react": "^19.3.0",
+    "ink": "^7.1.1",
+    "react": "^19.3.0",
+    "wrap-ansi": "^10.0.2"
   },
   "packageManager": "npm@11.16.0"
 }

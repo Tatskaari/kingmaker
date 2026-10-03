@@ -485,3 +485,26 @@ Lore visibility is checked by the normal test suite. Every scenario character
 entry must link only to permitted notes, including through further links.
 See [lore access tests](docs/lore-access-audit.md) for the metadata format and
 focused test command.
+
+## Conversation debugger
+
+Run `OPENROUTER_API_KEY=… npm run conversation -- --character corvin` in an
+interactive terminal. The conversation takes 80% of the width; recent LLM calls
+take 20%. Click a call (in terminals supporting SGR mouse reporting) or press Tab
+to inspect its exact request, response, duration or error. Use Up/Down to select
+calls, Page Up/Down to scroll, and Escape to return to chat. Enter sends a message;
+Ctrl+D or Ctrl+C finishes and writes the transcript and debug calls to
+`test-output/conversation-<timestamp>.json` for review.
+
+`--snapshot path` accepts an existing runtime snapshot or scenario JSON (default:
+`content/scenarios/last-night.json`). `--scenario 'Centennial Assembly'` selects
+the lore directory; `--output path` chooses the review file. The character ID must
+exist in both the snapshot and that scenario's character folder. Each run starts
+a fresh conversation; no game state is changed and no automatic review runs.
+
+This prototype eagerly supplies the selected Cast note, local character,
+background, situation and conversation Markdown, plus the snapshot's current
+goal, dialogue objectives, relationships and available notes. Scenario Markdown
+is still largely stubbed: the CLI displays and sends those stubs as authored.
+Linked notes are not expanded. Jev disclosure, Markdown visibility, portraits,
+dice checks and GM tools are outside this first implementation.
