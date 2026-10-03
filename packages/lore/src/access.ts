@@ -10,6 +10,7 @@ export function permitted(name: string, note: Note, entry: string, audience: Aud
     throw new Error("Readers must use character:<id>, faction:<id> or label:<id>");
   }
   labels(note.metadata.labels);
+  labels(note.metadata.factions);
   if (visibility === "public") return true;
   if (visibility === "gm") return false;
   if (visibility === "private") {
@@ -24,11 +25,11 @@ export function permitted(name: string, note: Note, entry: string, audience: Aud
   return name.startsWith(entry.slice(0, entry.lastIndexOf("/") + 1)) && name.slice(name.lastIndexOf("/") + 1) !== "index.md";
 }
 
-/** Labels on the authored character entry define its audience, never retrieved notes. */
+/** Validate flat reader and audience ID lists; membership comes only from the character entry. */
 export function labels(value: unknown): string[] {
   if (value === undefined) return [];
   if (!Array.isArray(value) || !value.every(item => typeof item === "string" && item.trim().length > 0)) {
-    throw new Error("Labels and readers must be lists of nonempty IDs");
+    throw new Error("Labels, factions and readers must be lists of nonempty IDs");
   }
   return value;
 }

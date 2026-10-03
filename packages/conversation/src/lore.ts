@@ -16,7 +16,7 @@ export function loadCharacterLore(root: string, scenario: string, characterId: s
   const notes = readVault(root);
   const entry = `Scenarios/${scenario}/Characters/${characterId}/character.md`;
   if (entry.split("/").some(part => part === "." || part === "..")) throw new Error("Invalid character entry path.");
-  const audience = { character: characterId, labels: labels(notes.get(entry)?.metadata.labels) };
+  const audience = { character: characterId, labels: labels(notes.get(entry)?.metadata.labels), factions: labels(notes.get(entry)?.metadata.factions) };
   const readable = (name: string) => {
     const note = notes.get(name);
     if (!note) throw new Error(`Missing lore note: ${name}`);

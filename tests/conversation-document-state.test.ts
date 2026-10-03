@@ -74,3 +74,25 @@ test("saved-world candidate previews use current summaries and check access firs
   await restored.docs.replace(link.path, current.sha, current.text, forbidden);
   assert.throws(() => reloaded.links(reloaded.initial), /No read access/);
 });
+
+test("saved-world faction grants use current entry membership and revoke preview access", async () => {
+  const services = createScenarioServices(loadConversationWorld("lore", "Centennial Assembly"));
+  const entry = services.scenario.info().characters.find(path => path.includes("/aldren/"))!;
+  const character = await services.docs.read(entry);
+  await services.docs.replace(entry, character.sha, character.text,
+    `---\n${stringify({ ...character.document.frontmatter, factions: ["test-academy"] })}---\n${character.document.body}`);
+  const first = await documentLore(services.scenario, "aldren");
+  const link = first.links(first.initial).find(link => link.path.endsWith("/court_briefing.md"))!;
+  const note = await services.docs.read(link.path);
+  await services.docs.replace(link.path, note.sha, note.text,
+    "---\nvisibility: private\nreaders: ['faction:test-academy']\nsummary: Private academic history.\n---\nACADEMIC_FACT");
+  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.snapshot())));
+  const lore = await documentLore(restored.scenario, "aldren");
+  assert.equal(lore.links(lore.initial).find(candidate => candidate.path === link.path)?.summary, "Private academic history.");
+  assert.equal((await lore.open(link, new AbortController().signal)).markdown, "ACADEMIC_FACT");
+  const current = await restored.docs.read(entry);
+  await restored.docs.replace(entry, current.sha, current.text,
+    `---\n${stringify({ ...current.document.frontmatter, factions: [] })}---\n${current.document.body}`);
+  assert.throws(() => lore.links(lore.initial), /No read access/);
+  await assert.rejects(lore.open(link, new AbortController().signal), /No read access/);
+});
