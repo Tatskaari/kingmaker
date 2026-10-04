@@ -3,10 +3,10 @@ import test from "node:test";
 import { runExperiment, type Experiment, type RuntimeConfig } from "../packages/evals/src/experiment.js";
 
 function fixture(): Experiment {
-  const config = (name: string): RuntimeConfig => ({ name, configure(recording) {
+  const config = (name: string): RuntimeConfig => ({ name, configure() {
     let value = 0;
-    const ai = recording.wrap("ai", { responses: async () => { value++; return { role: "assistant" as const, content: "ok" }; } });
-    return { services: { ai, character: { respond: request => ai.responses() } }, strategies: {
+    const ai = { responses: async () => { value++; return { role: "assistant" as const, content: "ok" }; } };
+    return { services: { ai: () => ai, character: services => ({ respond: request => services.ai.responses(request) }) }, strategies: {
       review: { classify: async () => ({ value }), resolve: async () => ({ summary: "ok" }) },
     } };
   } });
@@ -58,4 +58,15 @@ test("timeouts retain evidence, score errors are bounded, and invalid configs fa
   await assert.rejects(runExperiment(fixture(), { variants: ["typo"] }), /Unknown variant/);
   const bad = fixture(); bad.score = async () => ({ criteria: { quality: { score: NaN } } });
   assert.match(JSON.stringify((await runExperiment(bad, { repeats: 1, variants: [] }))[0]!.scoringError), /between 0 and 1/);
+});
+
+
+test("service factories reject dependency cycles before executing a trial", async () => {
+  const experiment = fixture();
+  experiment.getBaseline = () => ({ name: "cycle", configure: () => ({ services: {
+    ai: services => { services.character.respond; return {}; },
+    character: services => { services.ai.responses; return {}; },
+  } }) });
+  const trials = await runExperiment(experiment, { repeats: 1, variants: [] });
+  assert.match(JSON.stringify(trials[0]!.recording.error), /Circular service dependency/);
 });

@@ -1,11 +1,12 @@
-import { ConversationRuntime, type ConversationRuntimeOptions } from "../../conversation/src/runtime.js";
+import { type ConversationRuntime } from "../../conversation/src/runtime.js";
 import type { ReviewLabels } from "../../conversation/src/review.js";
+import { createRecordedRuntime, type EvalRuntimeOptions } from "./runtime.js";
 import { Recording, type ServiceCall } from "../../service-tools/src/recording.js";
 
 export interface RuntimeConfig<Labels = Record<string, never>, Review = ReviewLabels> {
   name: string;
-  /** Construct fresh dependencies. Wrap dependencies before injecting them into composed services. */
-  configure(recording: Recording): ConversationRuntimeOptions<Labels, Review> | Promise<ConversationRuntimeOptions<Labels, Review>>;
+  /** Fresh service factories and strategy hooks for every trial. */
+  configure(): EvalRuntimeOptions<Labels, Review> | Promise<EvalRuntimeOptions<Labels, Review>>;
 }
 export interface Criterion { name: string; description: string; weight?: number }
 export interface CriterionScore { score: number; reason?: string; probabilities?: Record<string, number> }
@@ -94,13 +95,11 @@ export async function runExperiment<L, R>(experiment: Experiment<L, R>, options:
     let snapshot: (() => unknown) | undefined;
     try {
       await bounded(async signal => {
-        const setup = await config.configure(recording);
+        const setup = await config.configure();
         signal.throwIfAborted();
-        const services = setup.services ?? {};
-        snapshot = services.scenario?.snapshot?.bind(services.scenario);
+        const runtime = createRecordedRuntime(setup, recording);
+        if (setup.services?.scenario) snapshot = () => runtime.services.scenario.snapshot();
         initialState = recording.snapshot(snapshot?.());
-        const wrapped = Object.fromEntries(Object.entries(services).map(([name, service]) => [name, recording.wrap(name, service)]));
-        const runtime = new ConversationRuntime<L, R>({ ...setup, services: wrapped });
         await experiment.run(runtime, signal);
       }, timeoutMs, options.signal);
     } catch (cause) { error = recording.snapshot(cause); }
