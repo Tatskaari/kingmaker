@@ -14,18 +14,24 @@ function game(choice = "arrest", response = "You're nicked, mate.", extra: World
         return { reclassify: false };
       } } },
     ...extra,
-    services: { ai: { decisions: async () => { throw new Error("Unexpected Jev arrest decision"); },
+    services: { random: { integer: () => 1 }, ai: { decisions: async () => { throw new Error("Unexpected Jev arrest decision"); },
       responses: async request => {
         assert.match(JSON.stringify(request), /The threat was credible/);
+        if (request.response_format) return { role: "assistant", content: JSON.stringify({ direction: "Honour the defense check result." }) };
         if (request.tools?.some(tool => tool.function.name === "arrest") && choice !== "continue") return arrestCall(choice);
         return { role: "assistant", content: response };
       } }, ...extra.services },
   });
 }
 
-test("only an explicit guard action arrests; jail persists and blocks player actions until release", async () => {
+test("guards offer a defense before arrest; a failed roll permits jail and its restrictions survive reload", async () => {
   const runtime = game();
   await runtime.checkedTalkToCharacter(guard, "I'm going to stab the king.");
+  assert.equal(runtime.snapshot().jail, undefined);
+  assert.equal(runtime.snapshot().arrestChallenges?.[guard], true);
+  const challenged = game(); challenged.restore(runtime.snapshot());
+  assert.equal(challenged.snapshot().arrestChallenges?.[guard], true);
+  await runtime.checkedTalkToCharacter(guard, "I was only joking. Let me go.");
   const saved = runtime.snapshot();
   assert.equal(saved.jail?.characterId, guard);
   assert.equal(saved.conversationEndRequested?.[guard], true);
@@ -121,4 +127,30 @@ test("malformed, duplicate and repeated arrest tool calls cannot commit", async 
     assert.equal(runtime.snapshot().jail, undefined);
     assert.equal(runtime.snapshot().conversations[guard], undefined);
   }
+});
+
+test("successful defense presents a roll and prevents arrest even if the guard would choose it", async () => {
+  const rolls: unknown[] = [];
+  const runtime = game("arrest", "All right, off you go.", { services: {
+    random: { integer: () => 20 }, presentation: { showRoll: async result => { rolls.push(result); } },
+  } });
+  await runtime.checkedTalkToCharacter(guard, "I'm going to stab the king.");
+  assert.equal(rolls.length, 0);
+  await runtime.checkedTalkToCharacter(guard, "It's a misunderstanding. Please let me explain.");
+  assert.equal(rolls.length, 1);
+  assert.equal((rolls[0] as { success: boolean }).success, true);
+  assert.equal(runtime.snapshot().jail, undefined);
+  assert.equal(runtime.snapshot().arrestChallenges?.[guard], undefined);
+  assert.equal(runtime.snapshot().conversationEndRequested?.[guard], undefined);
+});
+
+test("a failed defense reply keeps the pending challenge and publishes no arrest", async () => {
+  const runtime = game("arrest", "Explain yourself.");
+  await runtime.checkedTalkToCharacter(guard, "I'm going to stab the king.");
+  const before = runtime.snapshot();
+  runtime.setPersistence(async () => { throw new Error("Disk unavailable"); });
+  await assert.rejects(runtime.checkedTalkToCharacter(guard, "I was only joking."), /Disk unavailable/);
+  assert.equal(runtime.snapshot().arrestChallenges?.[guard], true);
+  assert.equal(runtime.snapshot().jail, undefined);
+  assert.deepEqual(runtime.snapshot().conversations, before.conversations);
 });

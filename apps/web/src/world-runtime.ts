@@ -26,12 +26,13 @@ import { documentReviewHooks } from "../../../packages/conversation/src/document
 import { jevActionHooks } from "../../../packages/conversation/src/action.js";
 import { documentLoreService } from "../../../packages/conversation/src/document-lore.js";
 import { DisclosureSession } from "../../../packages/conversation/src/disclosure.js";
-import { checkMechanics } from "../../../packages/conversation/src/checks.js";
+import { runGameMaster } from "../../../packages/conversation/src/game-master.js";
+import { checkMechanics, adjudicateResolvedChecks } from "../../../packages/conversation/src/checks.js";
 import { cliHooks } from "../../../packages/conversation/src/cli-hooks.js";
 import { aiService } from "../../../packages/conversation/src/adapters.js";
 import { OpenRouterClient, type TextProgress } from "../../../packages/providers/src/openrouter.js";
 import { JevClient } from "../../../packages/providers/src/jev.js";
-import type { AiService } from "../../../packages/conversation/src/services.js";
+import type { AiService, RollResult } from "../../../packages/conversation/src/services.js";
 import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
 import { planWorldAction, type PlanningFeedback } from "./world-action.js";
 import { courtCharactersWithinEarshot, perceivesAt } from "./earshot.js";
@@ -218,6 +219,13 @@ export class WorldGameRuntime extends WorldHost {
     if (this.activity.conversationEndRequested?.[id]) throw new Error("Finish the conversation review first.");
     const previous = structuredClone(this.activity.conversations[id] ?? []);
     const runtime = this.runtime(id, "dialogue", options, this.conversationRun(id), signal, [id, "player"]);
+    const defending = !!this.activity.arrestChallenges?.[id], defenseRolls: RollResult[] = [];
+    const rollCheck = runtime.services.character.rollCheck;
+    runtime.services.character.rollCheck = async (...args) => {
+      const result = await rollCheck(...args);
+      if (defending && result.characterId === "player") defenseRolls.push(result);
+      return result;
+    };
     const lore = await runtime.services.lore.forCharacter(id, signal);
     const disclosure = new DisclosureSession(lore, runtime.services.ai, 0.7);
     const world = this.world(), build = world.player ? world.docs[world.player]?.characterProperties?.dnd : undefined;
@@ -228,25 +236,42 @@ export class WorldGameRuntime extends WorldHost {
     runtime.services.character.respond = (request, cancellation) => runtime.services.ai.responses(request, cancellation, onText ? { onText } : undefined);
     const transcript = previous.map(turn => fromJson(TranscriptMessageSchema, turn));
     const request = conversationRequest({ snapshot: { world }, characterId: id, sources: lore.initial, transcript, message });
+    if (defending) request.messages = [...request.messages, { role: "system", content: "The guard has challenged the player before arresting them. This reply is the player's opportunity to defend themselves. Resolve their stated defense using the normal skill checks. A successful defense prevents this arrest; a failed defense permits the guard to proceed. Do not assume the player is already jailed." }];
     thinking?.("Considering your words…");
     const rulings: string[] = [];
     const entry = characterIntent(world, id).entry;
     const granted = entry && world.docs[entry]!.frontmatter?.conversation_actions;
-    let arrested = false;
+    let arrested = false, challenged = false;
     const prepared = (request: import("../../../packages/providers/src/openrouter.js").ChatCompletionRequest) => {
       for (const turn of request.messages) if (turn.role === "system" && turn.content?.startsWith("# Binding DM ruling")) rulings.push(turn.content);
     };
     if (Array.isArray(granted) && granted.includes("arrest")) {
-      runtime.services.character.respond = arrestResponse(runtime.services.ai.responses, ruling => {
-        arrested = true;
-        rulings.push(ruling);
-      });
+      const respond = arrestResponse(runtime.services.ai.responses, ruling => {
+        arrested = true; rulings.push(ruling);
+      }, { outcome: () => !defending || !defenseRolls.length ? "unheard" : defenseRolls.some(roll => roll.success) ? "passed" : "failed",
+        challenge: () => { challenged = true; } });
+      runtime.services.character.respond = async (request, cancellation = signal) => {
+        if (defending && !defenseRolls.length) {
+          const result = await runtime.services.character.rollCheck({ characterId: "player", skill: "persuasion", difficulty: "normal" }, cancellation);
+          const ruling = await adjudicateResolvedChecks({ results: [result], messages: request.messages, signal: cancellation,
+            complete: (request, cancellation) => runGameMaster(request, runtime.services, cancellation, { characterId: id }),
+            present: runtime.services.presentation.showRoll });
+          if (ruling) {
+            rulings.push(ruling);
+            request = { ...request, messages: [...request.messages, { role: "system", content: ruling }] };
+          }
+        }
+        return respond(request, cancellation);
+      };
     }
     const reply = await runConversation(request, runtime, signal, prepared);
     if (reply.tool_calls?.length || !reply.content?.trim()) throw new Error("Expected a character reply without tool calls.");
     await this.commit(() => {
       if (JSON.stringify(previous) !== JSON.stringify(this.activity.conversations[id] ?? [])) throw new Error("Conversation changed; retry the turn.");
       this.assertPlayerFree();
+      if (!!this.activity.arrestChallenges?.[id] !== defending) throw new Error("Arrest challenge changed; retry the turn.");
+      if (challenged) (this.activity.arrestChallenges ??= {})[id] = true;
+      if (arrested || defenseRolls.some(roll => roll.success)) delete this.activity.arrestChallenges?.[id];
       if (arrested) {
         this.activity.jail = { characterId: id, message: reply.content! };
         (this.activity.conversationEndRequested ??= {})[id] = true;
@@ -419,10 +444,11 @@ export class WorldGameRuntime extends WorldHost {
       classify: async (...args) => ({ docs: await disclosure.classify(...args), checks: undefined }),
       resolve: (context, labels, cancellation) => disclosure.resolve(context, labels.docs, cancellation),
     };
-    let arrested = false;
+    let challenged = false;
     const granted = world.docs[characterIntent(world, id).entry]!.frontmatter?.conversation_actions;
     runtime.services.character.respond = Array.isArray(granted) && granted.includes("arrest")
-      ? arrestResponse(runtime.services.ai.responses, () => { arrested = true; }) : runtime.services.ai.responses;
+      ? arrestResponse(runtime.services.ai.responses, () => { throw new Error("An opening cannot execute an arrest."); },
+        { outcome: () => "unheard", challenge: () => { challenged = true; } }) : runtime.services.ai.responses;
     const request = conversationRequest({ snapshot: { world }, characterId: id, sources: lore.initial, transcript: [],
       message: `Open a conversation with the player to advance this goal: ${goal}. Speak only your own opening words; do not invent the player's response or physical outcomes.` });
     const actor = world.map!.actors.find(actor => actor.characterId === id)!;
@@ -434,10 +460,7 @@ export class WorldGameRuntime extends WorldHost {
     if (reply.tool_calls?.length || !reply.content?.trim()) throw new Error("Invalid conversation opening.");
     return this.commit((): ConversationStartResult => {
       if (!available()) return conversationChanged();
-      if (arrested) {
-        this.activity.jail = { characterId: id, message: reply.content! };
-        (this.activity.conversationEndRequested ??= {})[id] = true;
-      }
+      if (challenged) (this.activity.arrestChallenges ??= {})[id] = true;
       this.activity.conversations[id] = [toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: id, text: reply.content! }))];
       (this.activity.npcActivities![id]!.actionIds ??= []).push(actionId);
       return { ok: true, text: reply.content! };

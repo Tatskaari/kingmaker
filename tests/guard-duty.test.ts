@@ -33,17 +33,18 @@ test("private room entry emits evidence, while permitted entry does not", async 
   }
 });
 
-test("a guard can execute arrest when initiating a nearby conversation", async () => {
+test("a guard opening challenges the player instead of arresting without a defense", async () => {
   const world = loadPlayableWorld(), player = world.map!.actors.find(actor => actor.characterId === "player")!;
   player.position = { ...player.position!, x: 61, y: 11 }; player.roomId = "north_corridor";
   const game = new WorldGameRuntime(world, "", undefined, undefined, undefined, {
     hooks: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }), resolve: async () => ({ reclassify: false }) } },
     services: { ai: { responses: async request => request.tools?.some(tool => tool.function.name === "arrest")
       ? { role: "assistant", content: null, tool_calls: [{ id: "arrest", type: "function", function: { name: "arrest", arguments: "{}" } }] }
-      : { role: "assistant", content: "You're nicked for breaking into the royal bedchamber." } } },
+      : { role: "assistant", content: "You're in the royal bedchamber. Explain yourself." } } },
   });
   const result = await game.initiatePlayerConversation(guard, "talk_player", world.map!.revision, activityGoal(world, guard)!, new AbortController().signal);
   assert.equal(result.ok, true);
-  assert.equal(game.snapshot().jail?.characterId, guard);
-  assert.equal(game.snapshot().conversationEndRequested?.[guard], true);
+  assert.equal(game.snapshot().jail, undefined);
+  assert.equal(game.snapshot().arrestChallenges?.[guard], true);
+  assert.equal(game.snapshot().conversationEndRequested?.[guard], undefined);
 });
