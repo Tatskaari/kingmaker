@@ -4,7 +4,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
-import { runExperiment, type Experiment, type Trial } from "./experiment.js";
+import { evalTypes, runExperiment, type Experiment, type Trial } from "./experiment.js";
 import { compareResults, formatComparison } from "./report.js";
 
 const help = `Eval options:
@@ -37,6 +37,7 @@ export async function runEvalCli<L, R>(experiments: readonly Experiment<L, R>[],
   for (const name of names ?? []) if (!experiments.some(experiment => experiment.name === name)) throw new Error(`Unknown experiment: ${name}`);
   const selected = experiments.filter(experiment => !names || names.includes(experiment.name));
   if (!selected.length) throw new Error("No experiments selected.");
+  if (selected.some(experiment => !evalTypes.includes(experiment.type))) throw new Error("Unknown eval type");
   const configurations = selected.map(experiment => {
     const baseline = experiment.getBaseline(), variants = experiment.getVariants();
     const available = [baseline.name, ...variants.map(variant => variant.name)];
@@ -54,7 +55,8 @@ export async function runEvalCli<L, R>(experiments: readonly Experiment<L, R>[],
   mkdirSync(directory, { recursive: true });
   let revision = "unknown";
   try { revision = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { /* Also works outside a checkout. */ }
-  const metadata = { revision, rubric, concurrency, experiments: selected.map(experiment => experiment.name), repeats: Number(values.repeats),
+  const metadata = { revision, rubric, concurrency,
+    experimentTypes: Object.fromEntries(selected.map(experiment => [experiment.name, experiment.type])), experiments: selected.map(experiment => experiment.name), repeats: Number(values.repeats),
     variants: values.variants?.split(","), timeoutMs: Number(values["timeout-ms"]) };
   writeFileSync(`${directory}/manifest.json`, JSON.stringify(metadata, null, 2) + "\n");
   const trials: Trial[] = [];

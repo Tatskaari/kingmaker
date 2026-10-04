@@ -42,7 +42,7 @@ test("Jev scoring records its calls separately and refuses missing criterion ans
 test("CLI saves each trial and an aggregate table; list never constructs services", async () => {
   const output = mkdtempSync(join(tmpdir(), "kingmaker-eval-cli-")), lines: string[] = [];
   let constructions = 0;
-  const experiment: Experiment = { name: "fixture", rubric,
+  const experiment: Experiment = { name: "fixture", type: "review", rubric,
     getBaseline: () => ({ name: "base", configure: () => { constructions++; return {}; } }), getVariants: () => [],
     run: async () => {}, summarise: () => "No changes", score: async () => ({ criteria: { quality: { score: 1 } } }),
   };
@@ -64,7 +64,7 @@ test("CLI saves each trial and an aggregate table; list never constructs service
 
 test("CLI rejects unequal comparison populations before constructing any runtimes", async () => {
   const baseline = { name: "base", configure: () => { throw new Error("Must not construct"); } };
-  const experiment: Experiment = { name: "first", rubric, getBaseline: () => baseline, getVariants: () => [],
+  const experiment: Experiment = { name: "first", type: "review", rubric, getBaseline: () => baseline, getVariants: () => [],
     run: async () => {}, summarise: () => "", score: async () => ({ criteria: {} }),
   };
   await assert.rejects(runEvalCli([experiment, { ...experiment, name: "second",

@@ -210,3 +210,16 @@ world notes and assigning objectives/waits. Missing inventory is not by itself a
 blocker. Ordinary transfers of established possessions remain `possible`; explicit
 constraints remain `impossible` unless a ruling overrides them. Two additional fixtures
 distinguish an improvised wooden-bird gift from an established-key transfer.
+
+## Eval types
+
+Every `Experiment` declares a `type`: `conversation`, `review`, `jev-decision`, or
+`jev-action`. Classify by the behavior exercised, not by which model grades it.
+Review replay cases (including the gift case) use `review`; attention classification
+cases use `jev-decision`. Add further categories to the shared `EvalType` definition.
+
+The CLI saves `experimentTypes` in manifests and aggregate artifacts. Published
+per-experiment results include a top-level `type`; `evals/types.json` maps experiment
+names to types for the dashboard's Type filter. Existing result URLs and indexes stay
+unchanged. Publication backfills missing types for experiments in that run, preserving
+scores, dates and existing classifications. Unknown historical cases stay unclassified.
