@@ -1,3 +1,4 @@
+import { createPhysicalEvent } from "./physical-event.js";
 import { inventoryOwners } from "../../../packages/core/src/inventory.js";
 import { strangerEntry } from "./stranger-lore.js";
 import { creationAffiliations } from "./stranger-draft.js";
@@ -155,7 +156,11 @@ export class WorldHost {
   finishNpcRun(id: string, reason: Parameters<PalaceMechanics["finishNpcRun"]>[1], detail: string, expected?: ExpectedGenerations) {
     this.mutate(game => game.finishNpcRun(id, reason, detail, expected), expected);
   }
-  worldEvent(kind: string, summary: string, participants: string[]) { return this.projection().worldEvent(kind, summary, participants); }
+  worldEvent(kind: string, summary: string, participants: string[]) {
+    const map = this.world().map;
+    if (!map) throw new Error("A physical map is required.");
+    return createPhysicalEvent({ day: map.day, actors: foregroundBodies(map.actors) }, kind, summary, participants);
+  }
   recordPlayerPerception(event: Event, perception: string) {
     if (!this.activity.playerMessages.some(message => message.id === event.id)) this.activity.playerMessages.push({
       id: event.id, day: event.day, message: perception, createdAt: new Date().toISOString(),
