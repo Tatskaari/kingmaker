@@ -35,3 +35,21 @@ journey is not. Lack of a playable destination does not mean the city cannot exi
 Run `OPENROUTER_API_KEY=… npm run eval:review -- --experiments oswin-kobold-city --repeats 3`.
 This exercises conversation review and grades its document/intent output. It does **not**
 execute the historical 24-step movement loop; use `observed.json` to inspect that evidence.
+
+## Initial baseline findings
+
+Three live baseline repeats on 2026-10-04 all produced active intent involving the
+unsupported journey. The original broad intent criterion passed these outputs, so the
+criterion now explicitly considers every step of `current_goal` and `success_criteria`:
+local preparation cannot excuse a later requirement to set out for an unsupported
+destination. The scorer also receives the active activity/wait documents explicitly.
+
+Calibration with the revised rubric rejected the captured bad activity (0.99 fail
+probability) and accepted a local conversation with travel explicitly deferred until a
+supported route exists (0.98 pass probability). Regrading the same three runtime
+recordings then failed intent in all three. These are three generation runs followed by
+regrading, not six independent runs; grader probabilities are not statistical confidence.
+
+Working hypothesis: review promotes a future promise into immediate travel without
+grounding it in available destinations. A subsequent comparison should test that boundary
+while preserving the binding agreement and keeping this fixture and rubric fixed.
