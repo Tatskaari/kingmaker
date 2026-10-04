@@ -17,6 +17,7 @@
     "conversation": "node --experimental-ffi --import tsx scripts/conversation-cli.ts",
     "eval:review": "tsx scripts/run-conversation-review-eval.ts",
     "eval:review:gift": "tsx scripts/run-peregrine-gift-eval.ts",
+    "eval:review:lifecycle": "tsx scripts/run-kobold-lifecycle-eval.ts",
     "eval:wait": "tsx scripts/run-wait-eval.ts",
     "eval:review:handoff": "tsx scripts/run-review-handoff-eval.ts"
   },
