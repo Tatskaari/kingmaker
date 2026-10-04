@@ -557,7 +557,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     if (originalDatabase) Object.defineProperty(globalThis, "indexedDB", originalDatabase); else delete globals.indexedDB;
   });
   let listener: (event: { data: unknown }) => void = () => {};
-  let sequence = 0, failNextWrite = false, modelCalls = 0;
+  let sequence = 0, failNextWrite = false, failNextRead = false, modelCalls = 0;
   const pending = new Map<number, (message: any) => void>();
   const npcUpdates: any[] = [];
   const diceMessages: any[] = [];
@@ -572,8 +572,8 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
   const db = {
     close() {},
     transaction(_store: string, mode: string) {
-      const fail = mode === "readwrite" && failNextWrite;
-      if (fail) failNextWrite = false;
+      const fail = mode === "readwrite" ? failNextWrite : failNextRead;
+      if (mode === "readwrite") failNextWrite = false; else failNextRead = false;
       const tx: any = { error: new Error("Test storage failure"), objectStore: () => ({
         getAll: () => ({ result: structuredClone([...records.values()]) }),
         get: (id: string) => ({ result: structuredClone(records.get(id)) }),
@@ -672,10 +672,11 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     t.mock.method(BrowserGameRuntime.prototype, "restore", () => { throw new Error("Unexpected world rollback"); });
     await assert.rejects(request("move_player", { x: -1, y: -1 }), /not reachable/);
     assert.equal(snapshots, 0, "Rejected writes do not take a rollback or save snapshot");
-    failNextWrite = true;
+    failNextWrite = true; failNextRead = true;
     const moved = await request("move_player", { x: 61, y: 24 });
     assert.deepEqual(moved.state.player.position, create(TilePositionSchema, { x: 61, y: 24 }));
     assert.equal(snapshots, 1, "Only the actual autosave serializes a snapshot");
+    assert.equal(moved.saves, undefined, "Unavailable save metadata does not reject an accepted move");
     assert.deepEqual(records.get(created.activeSaveId).snapshot, before);
     assert.match(alerts.at(-1).message, /only in memory/);
     await request("move_player", { x: 61, y: 25 });
