@@ -63,7 +63,7 @@ test("live transcript events update the panel without rendering and discard stal
   await Promise.resolve(); await Promise.resolve();
   assert.deepEqual(updates, [["fresh"]]);
   const pending = refresh();
-  runInContext('debugTab = "overview"; debugReadSequence++;', context);
+  runInContext('debugTab = "json"; debugReadSequence++;', context);
   receive({ data: { id: sent[1].id, ok: true, value: { requests: ["stale"], agentRuns: {} } } });
   await pending;
   assert.deepEqual(updates, [["fresh"]], "a response from the old tab must not overwrite the new screen");
@@ -80,5 +80,27 @@ test("live transcript events update the panel without rendering and discard stal
   receive({ data: { id: sent[3].id, ok: true, value: { docs: "wrong game" } } });
   await oldGame;
   assert.deepEqual(updates.at(-1), documents);
+
+  runInContext('render = () => {}; debugOpen = false; state = { characters: [{ id: "oswin", name: "Oswin" }] };', context);
+  const opening = runInContext('openDebug({ type: "debug_character", payload: { characterId: "oswin" } }, "Oswin")', context);
+  assert.equal(sent[4].type, "debug_documents");
+  const characterPath = "Scenarios/Test/Characters/oswin/character.md";
+  const characterDocs = { docs: { [characterPath]: { body: "Oswin's memories" } }, characterPaths: { oswin: characterPath }, scenario: "scene.md" };
+  receive({ data: { id: sent[4].id, ok: true, value: characterDocs } });
+  await opening;
+  assert.equal(runInContext("debugTab", context), "documents");
+  assert.equal(runInContext("documentRoute.path", context), characterPath);
+  const html = runInContext("debugInspector()", context);
+  assert.doesNotMatch(html, /Browse|data-debug-tab="overview"/);
+  assert.match(html, /data-debug-tab="activity"/);
+  runInContext('documentRoute = { path: "linked-activity.md" };', context);
+  const reread = runInContext("openDebug()", context);
+  receive({ data: { id: sent[5].id, ok: true, value: characterDocs } });
+  await reread;
+  assert.equal(runInContext("documentRoute.path", context), "linked-activity.md", "refresh retains document navigation");
+  const returning = runInContext('openDebug({ type: "debug_character", payload: { characterId: "oswin" } }, "Oswin")', context);
+  receive({ data: { id: sent[6].id, ok: true, value: characterDocs } });
+  await returning;
+  assert.equal(runInContext("documentRoute.path", context), characterPath, "a new character debug action opens its entry again");
 
 });

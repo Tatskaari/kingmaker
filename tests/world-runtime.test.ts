@@ -32,6 +32,8 @@ test("v2 game reviews into documents, saves without v1 state, and subsequent dia
   await runtime.endConversation("rowan");
   const path = runtime.world().characters.find(path => path.endsWith("/rowan/character.md"))!;
   assert.equal(activityGoal(runtime.world(), "rowan"), "Go to the great hall");
+  assert.equal(runtime.debugDocuments().characterPaths.rowan, path);
+  assert.equal(runtime.debugDocuments().characterPaths.player, runtime.world().player);
   assert.equal(runtime.snapshot().conversations.rowan, undefined);
   assert.equal(runtime.snapshot().npcActivities!.rowan!.status, "active");
   const saved = JSON.parse(JSON.stringify(runtime.snapshot()));
