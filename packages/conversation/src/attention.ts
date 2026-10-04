@@ -21,10 +21,10 @@ const categories = {
 };
 export const attentionQuestions: JevQuestions = {
   ...Object.fromEntries(Object.entries(categories).map(([name, criterion]) => [name, {
-    type: "choice" as const, instructions: `${guidance}\nEvaluate ONLY ${name}: ${criterion}`,
+    type: "choice" as const, instructions: renderPrompt("attention-instructions", { guidance, name, criterion }),
     criteria: { flagged: renderPrompt("attention-flagged", { name }), not_flagged: renderPrompt("attention-not-flagged", { name }) },
   }])),
-  immediate_feasibility: { type: "choice", instructions: renderPrompt("attention-instructions", { guidance }), criteria: {
+  immediate_feasibility: { type: "choice", instructions: renderPrompt("attention-feasibility", { guidance }), criteria: {
     possible: renderPrompt("attention-possible"),
     gms_discretion: renderPrompt("attention-gms-discretion"),
     impossible: renderPrompt("attention-impossible"),
