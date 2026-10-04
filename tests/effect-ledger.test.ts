@@ -3,14 +3,13 @@ import test from "node:test";
 import { applyNewItems } from "../packages/evals/src/effect-ledger-variant.js";
 import { createInventoryReviewServices } from "../packages/evals/src/inventory-docs-candidate.js";
 import { peregrineGiftCase, giftInventoryScore } from "../packages/evals/src/peregrine-gift-case.js";
-import type { RuntimeServices } from "../packages/conversation/src/services.js";
 import { Recording } from "../packages/service-tools/src/recording.js";
 
 const item = { recipientId: "player", name: "Carved wooden bird", details: "Faded blue wings; origin attributed to the giver." };
 test("effect ledger maps recipient to a real recorded inventory write", async () => {
   const backing = createInventoryReviewServices(peregrineGiftCase.loadWorld([]));
   const recording = new Recording();
-  const services = { ...backing, docs: recording.wrap("docs", backing.docs) } as RuntimeServices;
+  const services = { ...backing, docs: recording.wrap("docs", backing.docs) };
   const before = backing.scenario.snapshot();
   const applied = await applyNewItems([item], services, new AbortController().signal);
   const after = backing.scenario.snapshot();
@@ -24,6 +23,6 @@ test("effect ledger maps recipient to a real recorded inventory write", async ()
 
 test("effect ledger rejects unknown recipients before any item is written", async () => {
   const backing = createInventoryReviewServices(peregrineGiftCase.loadWorld([]));
-  await assert.rejects(applyNewItems([item, { ...item, recipientId: "nonexistent" }], backing as RuntimeServices, new AbortController().signal), /Unknown recipient/);
+  await assert.rejects(applyNewItems([item, { ...item, recipientId: "nonexistent" }], backing, new AbortController().signal), /Unknown recipient/);
   assert.equal(giftInventoryScore(backing.scenario.snapshot()).score, 0);
 });

@@ -19,7 +19,7 @@ function gifts(value: unknown): Gift[] {
 }
 
 /** The model chooses effects; the resolver maps recipient IDs to recorded document writes. */
-export async function applyNewItems(value: unknown, services: RuntimeServices, signal: AbortSignal) {
+export async function applyNewItems(value: unknown, services: Pick<RuntimeServices, "docs" | "scenario">, signal: AbortSignal) {
   const world = services.scenario.snapshot();
   const plan = gifts(value).map(item => {
     const path = item.recipientId === "player" ? world.player : world.runtimeCharacters[item.recipientId]?.document;
