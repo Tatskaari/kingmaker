@@ -5,7 +5,7 @@ import { fixtureActions, applyFixtureAction } from "../../../packages/core/src/f
 import { inventoryOwners, findItem } from "../../../packages/core/src/inventory.js";
 import { CharacterPropertiesSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
 import { characterDocuments } from "../../../packages/lore/src/character-id.js";
-import { activeGoal } from "../../../packages/lore/src/active-goal.js";
+import { activityGoal } from "../../../packages/lore/src/activity.js";
 import { foregroundBodies } from "./background-characters.js";
 import { roomAgentActions } from "./room-actions.js";
 
@@ -14,7 +14,7 @@ import { gameLogger } from "../../../packages/observability/src/logging.js";
 function mechanicalCharacters(world: WorldState) {
   return characterDocuments(world).map(({ id, path, document }) => ({ id, path,
     name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
-    currentGoal: document.frontmatter?.background === true ? "" : activeGoal(document) ?? "",
+    currentGoal: activityGoal(world, id) ?? "",
     properties: document.characterProperties, inventory: document.characterProperties?.inventory }));
 }
 const npcLog = gameLogger("npc");
