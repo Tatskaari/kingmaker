@@ -286,7 +286,7 @@ globalThis.setInterval?.(updatePlayerFeed, 1000);
 function showConversationHistory(entry) {
   const dialog = document.createElement("dialog");
   dialog.className = "conversation-modal";
-  dialog.dataset.conversationHistoryModal = "";
+  dialog.dataset.conversationHistoryModal = entry.id;
   dialog.setAttribute("aria-label", entry.conversationTitle);
   dialog.innerHTML = `<section class="panel"><div class="conversation-head"><h2>${escapeHtml(entry.conversationTitle)}</h2><button type="button" data-history-close autofocus>Close</button></div><div class="messages conversation-history-text">${escapeHtml(entry.message)}</div></section>`;
   dialog.querySelector("[data-history-close]").addEventListener("click", () => dialog.close());
@@ -653,8 +653,11 @@ function renderDay(bindPage = true) {
     previousFeed.scrollTop = feedScroll;
   }
   if (historyDialog && retainedMap && !activeCharacter && !sheetOpen && !debugOpen) {
-    app.append(historyDialog);
-    historyDialog.showModal();
+    const entry = state.playerMessages.find(message => message.id === historyDialog.dataset.conversationHistoryModal);
+    if (entry) {
+      showConversationHistory(entry);
+      app.querySelector("[data-conversation-history-modal] .messages").scrollTop = historyDialog.querySelector(".messages").scrollTop;
+    }
   }
   if (openPopover && !activeCharacter && !sheetOpen && !debugOpen) document.getElementById(openPopover)?.showPopover();
   if (!activeCharacter && notice && notice !== lastCourtNotice) recordCourtNotice(notice);
