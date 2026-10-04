@@ -27,11 +27,12 @@ test("Jev scoring records its calls separately and refuses missing criterion ans
   const score = createJevScorer(rubric, evidence => ({ changes: evidence.finalState }), { decisions: async (state, questions) => {
     assert.deepEqual(state, { changes: { memory: "promise" } });
     assert.match(questions.criterion_0!.instructions as string, /Preserve the promise/);
-    return { criterion_0: { choice: "pass", probabilities: { pass: 0.9, fail: 0.1, uncertain: 0 } } };
+    return { criterion_0: { choice: "mostly", probabilities: { mostly: 0.9, partial: 0.1 } } };
   } });
   const evidence = new RunRecording([], {}, { memory: "promise" });
   const result = await score(evidence, { recording, signal: new AbortController().signal });
-  assert.equal(result.criteria.quality!.score, 1);
+  assert.equal(result.criteria.quality!.score, 0.75);
+  assert.match(result.criteria.quality!.reason!, /75%/);
   assert.equal(recording.getServiceRecord("ai").length, 1);
   assert.equal(evidence.getCalls().length, 0);
   await assert.rejects(createJevScorer(rubric, () => ({}), { decisions: async () => ({}) })(evidence,
@@ -64,4 +65,20 @@ test("CLI rejects unequal comparison populations before constructing any runtime
   };
   await assert.rejects(runEvalCli([experiment, { ...experiment, name: "second",
     getVariants: () => [{ ...baseline, name: "candidate" }] }], { args: [], print: () => {} }), /same selected configurations/);
+});
+
+
+test("accuracy uses rubric anchors rather than confidence and rejects unscorable evidence", async () => {
+  const evidence = new RunRecording([], {}, {});
+  const context = { recording: new Recording(), signal: new AbortController().signal };
+  for (const [choice, expected] of [["incorrect", 0], ["limited", 0.25], ["partial", 0.5], ["mostly", 0.75], ["complete", 1]] as const) {
+    const score = createJevScorer(rubric, () => ({}), { decisions: async () => ({
+      criterion_0: { choice, probabilities: { [choice]: 0.6 } },
+    }) });
+    assert.equal((await score(evidence, context)).criteria.quality!.score, expected);
+  }
+  const unscorable = createJevScorer(rubric, () => ({}), { decisions: async () => ({
+    criterion_0: { choice: "unscorable", probabilities: { unscorable: 1 } },
+  }) });
+  await assert.rejects(unscorable(evidence, context), /unscorable/);
 });

@@ -76,8 +76,12 @@ Review variants can provide `overlays`, which their case's `loadWorld(overlays)`
 Review grading includes committed document diffs, relevant starting documents, document
 update calls and resulting intent pointers. Jev assesses grounding, coverage, knowledge,
 intent, preservation and restraint. Physical-state preservation is checked deterministically.
-`createJevScorer` is reusable for other rubrics: each criterion has pass/fail/uncertain choices;
-pass scores 1, fail and uncertain score 0. Probabilities and verdicts remain in artifacts.
+`createJevScorer` is reusable for other rubrics: each judged criterion uses anchored accuracy levels:
+0%, 25%, 50%, 75% and 100%, from fundamentally incorrect to fully correct. Partial credit
+measures correctness and completeness, not judge confidence. Unscorable evidence is a
+judging error, not a zero score. Level descriptions and probabilities remain in artifacts.
+The physical-state preservation invariant remains a deterministic 0 or 1. The total is
+a weighted mean of criterion scores, not a pass rate or a statistically calibrated accuracy.
 The judge sees evidence and expectations, not configuration names. Judge model calls have
 a separate recording. Keep rubric and judge settings fixed when comparing policies.
 
