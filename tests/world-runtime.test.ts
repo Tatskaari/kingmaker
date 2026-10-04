@@ -168,3 +168,41 @@ test("replacing an activity with the same current goal starts a fresh run", asyn
   assert.equal(runtime.hasActiveObjective("corvin"), true);
   assert.equal(runtime.snapshot().npcActivities!.corvin!.reviewPending, undefined);
 });
+
+test("conversation history is published before review and survives failed review reloads without duplicates", async () => {
+  let release!: () => void, started!: () => void;
+  const ready = new Promise<void>(resolve => { started = resolve; });
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const published: unknown[] = [];
+  const runtime = game({ services: { presentation: { renderMap: async () => {
+    published.push(runtime.view().playerMessages);
+  } } }, strategies: { review: { resolve: async () => {
+    started();
+    await gate;
+    throw new Error("Review failed");
+  } } } });
+  runtime.endConversationAsPlayer("rowan", "Remember this conversation.");
+  const review = runtime.endConversation("rowan");
+  await ready;
+  const messages = runtime.snapshot().playerMessages;
+  assert.equal(messages.length, 1);
+  assert.match(messages[0]!.conversationTitle!, /Rowan/);
+  assert.equal(messages[0]!.message, "player: Remember this conversation.");
+  assert.deepEqual(published, [messages]);
+  assert.ok(runtime.snapshot().conversations.rowan?.length);
+  const failed = assert.rejects(review, /Review failed/);
+  release();
+  await failed;
+  const restored = new WorldGameRuntime(loadPlayableWorld(), "", JSON.parse(JSON.stringify(runtime.snapshot())), undefined, undefined,
+    { strategies: { review: { resolve: async () => ({ summary: "Reviewed" }) } } });
+  const event = await restored.endConversation("rowan");
+  assert.equal(event!.id, messages[0]!.id);
+  restored.recordPlayerPerception(event!, event!.summary);
+  assert.deepEqual(restored.snapshot().playerMessages, messages);
+  assert.equal(restored.snapshot().conversations.rowan, undefined);
+  assert.equal(restored.snapshot().pendingConversationEvents?.rowan, undefined);
+  assert.equal(await restored.endConversation("rowan"), undefined);
+  restored.endConversationAsPlayer("rowan", "Remember this conversation.");
+  await restored.endConversation("rowan");
+  assert.equal(restored.snapshot().playerMessages.length, 2);
+});

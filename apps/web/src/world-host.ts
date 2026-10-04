@@ -24,6 +24,7 @@ export type WorldSnapshot = MechanicalActivity & {
   stranger?: StrangerState;
   jail?: { characterId: string; message: string };
   arrestChallenges?: Record<string, boolean>;
+  pendingConversationEvents?: Record<string, JsonValue>;
   pendingWaitReviews?: Record<string, { instructions: string; observation: string }>;
   version: 5; world: JsonValue;
   playerMessages: Array<{ id: string; day: number; message: string; createdAt: string; conversationTitle?: string }>;
