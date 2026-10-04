@@ -208,7 +208,7 @@ test("conversation history is published before review and survives failed review
 });
 
 const noChecks = (questions: Record<string, unknown>) => Object.fromEntries(Object.keys(questions).map(id =>
-  [id, { choice: id.startsWith("open_") ? "skip" : "not_needed", probabilities: {} }]));
+  [id, { choice: id.startsWith("open_") ? "skip" : "not_needed", probabilities: { [id]: 0, skip: 1 } }]));
 const selected = (choice: string) => ({ choice, probabilities: { [choice]: 1 } });
 
 test("main game keeps denied drafts private and displays only the accepted response", async () => {
