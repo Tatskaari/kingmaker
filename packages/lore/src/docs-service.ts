@@ -26,7 +26,7 @@ export function createDocsService(store: WorldStore): DocsService {
     next.characterProperties = draft.docs[path]?.characterProperties;
     draft.docs[path] = next;
     const graph = store.prepareDocuments(draft);
-    const result = await snapshot(path, clone(DocumentSchema, next));
+    const result = await snapshot(path, clone(DocumentSchema, draft.docs[path]!));
     // Only this document participates in the write. Map interactions can proceed
     // while hashing; merge into the current world rather than publishing the draft.
     const live = store.state.docs[path];

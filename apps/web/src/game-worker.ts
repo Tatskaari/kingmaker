@@ -28,7 +28,7 @@ interface WorkerRequest {
 export function startGameWorker(worker: DedicatedWorkerGlobalScope, scenarioPromise: Promise<WorldState>) {
 let apiKey = "";
 let runtime: BrowserGameRuntime | undefined;
-let activeSave: SaveRecord | undefined;
+let activeSave: Omit<SaveRecord, "snapshot"> | undefined;
 let generation = 0;
 
 // Network waits never hold this queue; only validated mutations and saves do.
@@ -332,7 +332,6 @@ async function createGame(development = false): Promise<Record<string, unknown>>
     normalizedName: "new emissary",
     createdAt: now,
     updatedAt: now,
-    snapshot: runtime.snapshot(),
   };
   await persist();
   return { mapLayout: runtime.map.layout(), state: runtime.view(), activeSaveId: activeSave.id, saves: await listSaves() };

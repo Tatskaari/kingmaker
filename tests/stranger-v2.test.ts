@@ -1,3 +1,4 @@
+import { WorldStore } from "../packages/lore/src/world-store.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -119,7 +120,7 @@ test("invalid review keeps the draft and world intact", async () => {
 });
 
 import { premadeCharacters } from "../apps/web/src/premade-characters.js";
-for (const character of premadeCharacters) test(`pre-made ${character.id} calls the GM, preserves its build and enters court`, async () => {
+for (const character of premadeCharacters) test(`pre-made ${character.id} calls the GM, preserves its build and enters court`, async t => {
   const world = characterCreationWorld(loadPlayableWorld()); let calls = 0;
   const runtime = new WorldGameRuntime(world, "", undefined, undefined, undefined, { services: { ai: ai(async request => {
     calls++;
@@ -129,7 +130,10 @@ for (const character of premadeCharacters) test(`pre-made ${character.id} calls 
       name: "create_player", arguments: JSON.stringify({ ...creationInput(world), lore: "A newcomer arriving for the assembly." }),
     } }] };
   }) } });
+  const snapshot = t.mock.method(runtime, "snapshot", () => { throw new Error("Unexpected save snapshot during creation"); });
+  t.mock.method(runtime, "restore", () => { throw new Error("Unexpected saved-game rollback"); });
   await runtime.startPremadeCharacter(character.id);
+  snapshot.mock.restore();
   assert.equal(calls, 1);
   assert.equal(runtime.view().phase, "conversations");
   assert.equal(runtime.view().playerDraft, null);
@@ -151,6 +155,26 @@ test("failed pre-made generation leaves creation retryable and rejects unknown c
   await assert.rejects(runtime.startPremadeCharacter("missing"), /available pre-made/);
   await assert.rejects(runtime.startPremadeCharacter("fighter"), /did not prepare/);
   assert.deepEqual(runtime.snapshot(), before);
+  runtime.startIntroduction();
+  assert.equal((runtime.view().gmMessages as unknown[]).length, 1);
+});
+
+
+test("failed pre-made publication preserves the live world without a saved-game rollback", async t => {
+  const world = creationWorld();
+  const runtime = new WorldGameRuntime(world, "", undefined, undefined, undefined, { services: { ai: ai(async () => ({
+    role: "assistant", content: null, tool_calls: [{ id: "draft", type: "function", function: {
+      name: "create_player", arguments: JSON.stringify(creationInput(world)),
+    } }],
+  })) } });
+  const before = runtime.world(), view = runtime.view();
+  t.mock.method(runtime, "snapshot", () => { throw new Error("Unexpected save snapshot during creation"); });
+  t.mock.method(runtime, "restore", () => { throw new Error("Unexpected saved-game rollback"); });
+  t.mock.method(WorldStore.prototype, "publishDocuments", () => { throw new Error("Rejected staged character"); });
+  await assert.rejects(runtime.startPremadeCharacter("fighter"), /Rejected staged character/);
+  assert.equal(runtime.world(), before);
+  assert.deepEqual(runtime.view(), view);
+  assert.equal(before.docs["Players/player.md"], undefined);
   runtime.startIntroduction();
   assert.equal((runtime.view().gmMessages as unknown[]).length, 1);
 });

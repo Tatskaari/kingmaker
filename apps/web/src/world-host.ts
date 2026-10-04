@@ -1,3 +1,4 @@
+import { refreshDocumentGraph } from "../../../packages/lore/src/world-state.js";
 import { validateDocuments } from "../../../packages/lore/src/document-audit.js";
 import { movePlayer, setPlayerDoor } from "./physical-movement.js";
 import { worldView } from "./world-view.js";
@@ -197,7 +198,8 @@ export class WorldHost {
       runtimeCharacters[id] = { ...character, activity: initial?.activity, wait: initial?.wait,
         intentRevision: character.intentRevision + 1 };
     }
-    validateDocuments({ ...current, docs, runtimeCharacters });
+    const draft = refreshDocumentGraph({ ...current, docs, runtimeCharacters });
+    validateDocuments(draft);
     current.docs = docs;
     current.runtimeCharacters = runtimeCharacters;
     this.activity.npcActivities = {};
