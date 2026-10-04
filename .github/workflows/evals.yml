@@ -1,0 +1,77 @@
+name: Run evals
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval-history
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    # Live credentials are used only with trusted main-branch code.
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.9.0
+          cache: npm
+      - uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+      - run: npm ci
+      - name: Check credentials
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_EVAL_KEY }}
+        run: test -n "$OPENROUTER_API_KEY" || { echo 'Add the OPENROUTER_EVAL_KEY repository secret to run evals.'; exit 1; }
+      - name: Run registered Moon eval tasks
+        id: eval
+        continue-on-error: true
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_EVAL_KEY }}
+        run: proto run moon -- run workspace:eval
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.eval.outcome != 'skipped'
+        with:
+          name: eval-results
+          path: eval-output
+          if-no-files-found: warn
+      - name: Merge results into history
+        if: success() && steps.eval.outcome != 'skipped'
+        shell: bash
+        run: |
+          source="$GITHUB_WORKSPACE"
+          history="$RUNNER_TEMP/eval-history"
+          git init "$history"
+          git -C "$history" remote add origin "$(git remote get-url origin)"
+          # Reuse checkout's authenticated transport without writing a token to results.
+          auth="$(git config --get http.https://github.com/.extraheader)"
+          git -C "$history" config http.https://github.com/.extraheader "$auth"
+          git -C "$history" config user.name 'github-actions[bot]'
+          git -C "$history" config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          for attempt in 1 2 3 4 5; do
+            if git -C "$history" fetch origin gh-pages; then
+              git -C "$history" checkout -B gh-pages FETCH_HEAD
+            else
+              git -C "$history" checkout --orphan gh-pages
+            fi
+            npx --no-install tsx scripts/publish-eval-history.ts "$source/eval-output" "$history/evals"
+            git -C "$history" add evals
+            git -C "$history" commit -m "Record evals for $GITHUB_SHA"
+            if git -C "$history" push origin HEAD:gh-pages; then exit 0; fi
+            # Another publisher may have updated previews; rebuild against its latest tree.
+          done
+          exit 1
+      - name: Report eval failures after retaining evidence
+        if: steps.eval.outcome == 'failure'
+        run: exit 1

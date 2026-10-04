@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   workflow_run:
-    workflows: [Build PR preview]
+    workflows: [Build PR preview, Run evals]
     types: [completed]
   workflow_dispatch:
 
@@ -21,7 +21,7 @@ jobs:
   build:
     if: >-
       github.event_name != 'workflow_run' ||
-      (github.event.workflow_run.conclusion == 'success' &&
+      ((github.event.workflow_run.conclusion == 'success' || github.event.workflow_run.name == 'Run evals') &&
        github.event.workflow_run.head_repository.full_name == github.repository)
     runs-on: ubuntu-latest
     steps:
@@ -37,14 +37,16 @@ jobs:
       - run: npm ci
       - uses: actions/configure-pages@v5
       - run: npm run build:web
-      - name: Include PR previews
+      - name: Include PR previews and eval history
         shell: bash
         run: |
           if [ -n "$(git ls-remote --heads origin gh-pages)" ]; then
             git fetch --depth=1 origin gh-pages
-            if [ -n "$(git ls-tree FETCH_HEAD -- pr-preview)" ]; then
-              git archive FETCH_HEAD pr-preview | tar -x -C dist/web
-            fi
+            for directory in pr-preview evals; do
+              if [ -n "$(git ls-tree FETCH_HEAD -- "$directory")" ]; then
+                git archive FETCH_HEAD "$directory" | tar -x -C dist/web
+              fi
+            done
           fi
       - uses: actions/upload-pages-artifact@v4
         with:

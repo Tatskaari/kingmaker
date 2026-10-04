@@ -1,6 +1,15 @@
 toolchains:
   default: node
 tasks:
+  evalReview:
+    command: npx --no-install tsx scripts/run-conversation-review-eval.ts
+    deps: [contracts:generate]
+    options:
+      cache: false
+  eval:
+    deps: [evalReview]
+    options:
+      cache: false
   typecheck:
     command: npx --no-install tsc --noEmit
     deps: [contracts:generate]
