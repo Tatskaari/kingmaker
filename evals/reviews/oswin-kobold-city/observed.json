@@ -1,0 +1,40 @@
+{
+  "source": "kingmaker-issue-report-2026-10-04T10-23-08-154Z.zip",
+  "sha256": "bf92cc7b8cec096b1a60890806a4eab3f826821d7e6173a7c23b8fda26a6e4df",
+  "preview": "pr-394",
+  "reviewStartedAt": "2026-10-04T10:20:46.522Z",
+  "recordedActivity": {
+    "characterId": "oswin",
+    "name": "Prepare to accompany Berz to Kobold City",
+    "status": "Oswin has enthusiastically accepted Berz's invitation for a fashion consultation. He remains in the Great Hall and has not yet travelled.",
+    "success_criteria": "Oswin leaves the Great Hall and reaches Kobold City to meet Berz for the promised consultation.",
+    "current_goal": "Begin the journey from the Great Hall toward Kobold City; do not treat any travel as completed until his physical location changes."
+  },
+  "recordedPlannerChoices": [
+    "enter_entrance_hall",
+    "enter_west_wing",
+    "enter_entrance_hall",
+    "enter_west_wing",
+    "enter_entrance_hall",
+    "enter_west_wing",
+    "enter_entrance_hall",
+    "enter_west_wing",
+    "enter_entrance_hall",
+    "enter_west_wing",
+    "enter_entrance_hall",
+    "enter_west_wing",
+    "enter_entrance_hall",
+    "enter_west_wing",
+    "enter_entrance_hall",
+    "enter_west_wing",
+    "enter_entrance_hall",
+    "enter_west_wing",
+    "enter_entrance_hall",
+    "enter_west_wing",
+    "enter_entrance_hall",
+    "enter_west_wing",
+    "enter_entrance_hall",
+    "enter_west_wing"
+  ],
+  "scope": "Review replay only. Planner choices are diagnostic evidence, not seeded state or a live movement replay."
+}
