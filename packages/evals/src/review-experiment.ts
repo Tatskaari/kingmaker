@@ -5,6 +5,9 @@ import { WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
 import type { ConversationReviewContext } from "../../conversation/src/review.js";
 import { runConversationReview } from "../../conversation/src/review.js";
 import { documentLoreService } from "../../conversation/src/document-lore.js";
+import { replayConversation, type ReviewConversation, type ReviewConversationFactory } from "./review-conversation.js";
+import { directConversationStrategy } from "../../conversation/src/phases.js";
+import type { ConversationStrategy } from "../../conversation/src/phases.js";
 import type { AiService } from "../../conversation/src/services.js";
 import { createScenarioServices } from "../../lore/src/services.js";
 import { defaultWorldStrategies } from "../../../apps/web/src/world-strategies.js";
@@ -20,6 +23,7 @@ export interface ReviewCase extends ConversationReviewContext {
 }
 export interface ReviewVariant {
   name: string;
+  conversation?: ReviewConversationFactory;
   overlays?: readonly string[];
   strategies?: ConversationRuntimeOptions["strategies"];
 }
@@ -44,51 +48,49 @@ export function documentChanges(recording: RunRecording) {
     .map(path => ({ path, before: before[path] ?? null, after: after[path] ?? null }));
 }
 
-/** Grade actual persisted state, including partial failures, plus the calls that attempted edits. */
+/** Judge the conversation and original docs edit calls, including their results/errors. */
 export function reviewEvidence(testCase: ReviewCase, recording: RunRecording) {
-  const before = recording.initialState as WorldState | undefined, after = recording.finalState as WorldState | undefined;
-  const changes = documentChanges(recording);
-  const paths = new Set(changes.map(change => change.path));
-  const entry = before?.runtimeCharacters[testCase.characterId]?.document;
-  if (entry) paths.add(entry);
-  for (const call of recording.getCalls()) {
-    if ((call.service === "docs" && call.method === "read") || (call.service === "scenario" && call.method === "getDocument")) {
-      const path = (call.args as unknown[])[0];
-      if (typeof path === "string") paths.add(path);
-    }
-  }
   return { transcript: testCase.transcript, participants: testCase.participants, characterId: testCase.characterId,
     expectations: testCase.expectations, error: recording.error,
-    contextDocuments: [...paths].flatMap(path => before?.docs[path] ? [{ path, document: before.docs[path] }] : []),
-    changes, updates: recording.getServiceRecord("docs").filter(call => call.method !== "read"),
-    beforeIntent: before?.runtimeCharacters, afterIntent: after?.runtimeCharacters,
-    reviewedCharacterIntent: (() => {
-      const actor = after?.runtimeCharacters[testCase.characterId];
-      return { actor, activity: actor?.activity ? after?.docs[actor.activity] : null,
-        wait: actor?.wait ? after?.docs[actor.wait] : null };
-    })(),
-    physicalState: before?.map?.actors, rooms: before?.map?.rooms.map(({ id, name }) => ({ id, name })) };
+    updates: recording.getServiceRecord("docs").filter(call => call.method !== "read") };
 }
 
 export function createReviewExperiment(testCase: ReviewCase, variants: readonly ReviewVariant[], createAi: () => AiService,
   judge: Pick<AiService, "decisions">): Experiment {
+  const conversations = new WeakMap<ConversationStrategy, ReviewConversation>();
   const config = (variant: ReviewVariant): RuntimeConfig => ({ name: variant.name, configure() {
     const backing = createScenarioServices(clone(WorldStateSchema, testCase.loadWorld(variant.overlays ?? [])));
-    return { services: { inventory: () => backing.inventory, docs: () => backing.docs, scenario: () => backing.scenario, ai: () => createAi(),
+    const conversation = variant.conversation?.(testCase) ?? { strategy: { ...(variant.strategies?.conversation ?? directConversationStrategy) }, drain: async () => {} };
+    const replay: ReviewConversation = { ...conversation };
+    conversations.set(conversation.strategy, replay);
+    return { recordServices: ["docs"], services: { inventory: () => backing.inventory, docs: () => backing.docs, scenario: () => backing.scenario, ai: () => createAi(),
+      map: services => ({ observe: characterId => ({ characterId, map: services.scenario.snapshot().map!, actions: [] }) }),
+      character: services => ({ respond: async (request, signal) => {
+        const draft = replay.draft;
+        delete replay.draft;
+        return draft ?? services.ai.responses(request, signal, { purpose: "dialogue" });
+      } }),
       lore: services => documentLoreService(services.scenario), debug: () => ({ record: () => {} }) },
-      strategies: { ...defaultWorldStrategies, ...variant.strategies,
+      strategies: { ...defaultWorldStrategies, ...variant.strategies, conversation: conversation.strategy,
         review: { ...defaultWorldStrategies.review, ...variant.strategies?.review } } };
   } });
   const score = createJevScorer(reviewRubric.slice(0, -1), recording => reviewEvidence(testCase, recording), judge);
   return { name: testCase.name, type: "review", rubric: reviewRubric,
     getBaseline: () => config({ name: "game" }), getVariants: () => variants.map(config),
     async run(runtime, signal) {
-      await runConversationReview({ characterId: testCase.characterId, participants: testCase.participants,
-        transcript: structuredClone(testCase.transcript) }, runtime, signal);
+      const conversation = conversations.get(runtime.strategies.conversation)!;
+      try {
+        const transcript = await replayConversation(testCase, conversation, runtime, signal);
+        await conversation.drain();
+        await runConversationReview({ characterId: testCase.characterId, participants: testCase.participants,
+          transcript }, runtime, signal);
+      } finally {
+        await conversation.drain();
+      }
     },
     summarise(recording) {
       const changes = documentChanges(recording), writes = recording.getServiceRecord("docs").filter(call => call.method !== "read");
-      return `${changes.length} changed documents; ${writes.length} write calls; ${recording.getServiceRecord("ai").length} AI calls`;
+      return `${changes.length} changed documents; ${writes.length} write calls`;
     },
     async score(recording, context) {
       const result = await score(recording, context);
