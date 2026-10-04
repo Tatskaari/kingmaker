@@ -47,7 +47,8 @@ export class WorldHeadlessGame {
   async act(id: string) {
     const action = this.observation().actions.find(action => action.id === id);
     if (!action) throw new Error(`Unavailable player action: ${id}`);
-    await this.move(action.path.at(-1)!.x, action.path.at(-1)!.y);
+    const movement = await this.move(action.path.at(-1)!.x, action.path.at(-1)!.y);
+    if (action.type === "move") return movement;
     if (action.type === "door" || action.type === "fixture") {
       const command = action.type === "door" ? { kind: "door" as const, id: action.target, open: action.open! } : { kind: "fixture" as const, id };
       const result = await this.runtime.executeAction({ command });
