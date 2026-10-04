@@ -1,3 +1,4 @@
+import { traceCliGmCalls, gmCallLabel, type CliGmCall } from "./gm-calls.js";
 import type { ConversationStrategy } from "../../packages/conversation/src/phases.js";
 import { directConversationStrategy } from "../../packages/conversation/src/phases.js";
 import { traceCliDecisions, decisionCallLabel, type CliDecisionCall } from "./decision-calls.js";
@@ -19,7 +20,7 @@ export interface ConversationResult {
   characterId: string;
   transcript: ConversationInput["transcript"];
   turns: LlmTurn[];
-  gmTurns: LlmTurn[];
+  gmTurns: CliGmCall[];
   analysis: MessageAnalysis[];
   decisionCalls: CliDecisionCall[];
   disclosure: DisclosureRound[];
@@ -49,7 +50,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
   const pendingRoll = useRef<((value: number) => void) | null>(null);
   const [decisionCalls, setDecisionCalls] = useState<CliDecisionCall[]>([]);
   const [analysis, setAnalysis] = useState<MessageAnalysis[]>([]);
-  const [gmTurns, setGmTurns] = useState<LlmTurn[]>([]);
+  const [gmTurns, setGmTurns] = useState<CliGmCall[]>([]);
   const requestRoll: RequestRoll = (check, signal) => new Promise((resolve, reject) => {
     signal.throwIfAborted();
     const cancel = () => { pendingRoll.current = null; setRollPrompt(null); reject(signal.reason); };
@@ -76,7 +77,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
   const messageIds = timeline.messageIds(messages);
   const entries = timeline.sort([
     ...messages.map((message, index) => ({ id: `message-${index}`, timeId: messageIds[index]!, label: `${index + 1}. ${message.role}`, text: message.content ?? "No text content." })),
-    ...gmTurns.map((turn, index) => ({ id: `gm-${index}`, timeId: `gm-${index}`, label: `GM roll ruling ${index + 1}`, text: JSON.stringify(turn, null, 2) })),
+    ...gmTurns.map(call => ({ id: call.id, timeId: call.id, label: gmCallLabel(call), text: JSON.stringify(call, null, 2) })),
     ...decisionCalls.map(call => ({ id: call.id, timeId: call.id, label: decisionCallLabel(call), text: JSON.stringify(call, null, 2) })),
     ...rounds.flatMap(round => [
       { id: `jev-${round.turn}-${round.round}`, timeId: `jev-${round.turn}-${round.round}`, label: `Jev ${round.turn}.${round.round} ${round.status}`, text: disclosureDetails(round) },
@@ -115,17 +116,18 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
           return index < 0 ? [...previous, round] : previous.map((item, i) => i === index ? round : item);
         });
       };
-      const tracedAi = checks && traceCliDecisions(checks.ai, call => {
+      const tracedAi = checks && traceCliDecisions(traceCliGmCalls(checks.ai, call => {
+        timeline.record(call.id);
+        setGmTurns(previous => previous.some(item => item.id === call.id)
+          ? previous.map(item => item.id === call.id ? call : item) : [...previous, call]);
+      }, () => `gm-${gmCount.current++}`), call => {
         timeline.record(call.id);
         setDecisionCalls(previous => previous.some(item => item.id === call.id)
           ? previous.map(item => item.id === call.id ? call : item) : [...previous, call]);
       });
       const report = (event: import("../../packages/conversation/src/attention.js").AnalysisEvent) => setAnalysis(previous => [...previous, { ...event, messageIndex: messageIndex + (event.subject === "character" ? 1 : 0) }]);
       const strategies = disclosure && checks
-        ? conversationStrategy(disclosure, tracedAi!, checks.build, message, requestRoll, trace, turn => {
-          timeline.record(`gm-${gmCount.current++}`);
-          setGmTurns(previous => [...previous, turn]);
-        }, {}, {}, checks.services ? { services: checks.services, characterId: input.characterId } : undefined,
+        ? conversationStrategy(disclosure, tracedAi!, checks.build, message, requestRoll, trace, () => {}, {}, {}, checks.services ? { services: checks.services, characterId: input.characterId } : undefined,
         report, checks.response?.(report))
         : disclosure ? disclosure.strategy(trace) : directConversationStrategy;
       const runtime = new ConversationRuntime({
