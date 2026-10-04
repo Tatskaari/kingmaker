@@ -12,6 +12,7 @@ test("a response strategy owns generation and returns only its accepted reply", 
   } } }, strategies: { conversation: {
     respond: async (context, signal, services) => {
       await services.character.respond(context.request, signal);
+      assert.equal(context.request.messages[0], request.messages[0]);
       context.request.messages.push({ role: "system", content: "The crown cannot be given away." });
       return services.character.respond(context.request, signal);
     },

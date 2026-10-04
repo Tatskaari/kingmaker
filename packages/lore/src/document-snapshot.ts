@@ -8,10 +8,16 @@ export function canonical(value: unknown): unknown {
   if (value && typeof value === "object") return Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([k, v]) => [k, canonical(v)]));
   return value;
 }
+/** Stable version input; callers can retain this string across asynchronous hashing. */
+export function documentVersion(document: Document): string {
+  return JSON.stringify(canonical(toJson(DocumentSchema, document)));
+}
+export async function documentSha(version: string): Promise<string> {
+  const bytes = new TextEncoder().encode(version);
+  return [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map(byte => byte.toString(16).padStart(2, "0")).join("");
+}
 export async function snapshot(path: string, document: Document): Promise<DocumentSnapshot> {
-  // Hash the full document, including GM properties and derived links, in stable key order.
-  const bytes = new TextEncoder().encode(JSON.stringify(canonical(toJson(DocumentSchema, document))));
-  const sha = [...new Uint8Array(await crypto.subtle.digest("SHA-256", bytes))].map(byte => byte.toString(16).padStart(2, "0")).join("");
+  const sha = await documentSha(documentVersion(document));
   const metadata = document.frontmatter ?? {};
   const text = (Object.keys(metadata).length || /^---\r?\n/.test(document.body)) ? `---\n${stringify(canonical(metadata))}---\n${document.body}` : document.body;
   return { path, sha, text, document };
