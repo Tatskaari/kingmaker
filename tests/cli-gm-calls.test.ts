@@ -15,11 +15,11 @@ test("GM approval and review traces retain pending state, tool transcripts and s
   const request: ChatCompletionRequest = { model: "test", messages: [
     { role: "user", content: "Review the accepted gift." },
     { role: "tool", tool_call_id: "edit-1", content: '{"ok":true}' },
-  ], tools: [{ type: "function", function: { name: "commit_review", description: "Finish review", parameters: {} } }] };
+  ], tools: [{ type: "function", function: { name: "set_activity", description: "Finish review", parameters: {} } }] };
   const operation = ai.responses(request, signal, info);
   assert.equal(gmCallLabel(events[0]!), "GM review · pending");
   const reply: OpenRouterMessage = { role: "assistant", content: null,
-    tool_calls: [{ id: "commit-1", type: "function", function: { name: "commit_review", arguments: '{}' } }] };
+    tool_calls: [{ id: "commit-1", type: "function", function: { name: "set_activity", arguments: '{}' } }] };
   finish(reply); await operation;
   assert.equal(events[1]?.id, events[0]?.id);
   assert.deepEqual(events[1]?.request.messages, request.messages);

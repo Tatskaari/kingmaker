@@ -10,14 +10,14 @@ import { activityGoal } from "../packages/lore/src/activity.js";
 function game(options: WorldOptions = {}, warning?: (message: string) => void) {
   return new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, warning, { ...options, services: { disclosure: { disclose: async () => [] }, ...options.services } });
 }
-const reviewReply = commitReview({ summary: "Agreed", newNotes: ["PROMISESENTINEL"], activeGoal: "Go to the great hall" });
+const reviewReply = (request: import("../packages/providers/src/openrouter.js").ChatCompletionRequest) => commitReview({ summary: "Agreed", newNotes: ["PROMISESENTINEL"], activeGoal: "Go to the great hall" }, request);
 const commit = async <T>(work: () => T) => work();
 
 test("v2 game reviews into documents, saves without v1 state, and subsequent dialogue sees edits", async () => {
   let calls = 0;
   const runtime = game({ services: { ai: { responses: async request => {
     calls++;
-    if (calls === 1) return reviewReply;
+    if (request.tools) return reviewReply(request);
     assert.match(JSON.stringify(request), /PROMISESENTINEL/);
     assert.ok(!JSON.stringify(request).includes("ask_the_game_master"));
     return { role: "assistant", content: "I remember." };
@@ -35,12 +35,12 @@ test("v2 game reviews into documents, saves without v1 state, and subsequent dia
   assert.equal(saved.scenario, undefined);
   runtime.restore(saved);
   assert.equal(await runtime.checkedTalkToCharacter("rowan", "What did we agree?"), "I remember.");
-  assert.equal(calls, 2);
+  assert.equal(calls, 3);
   assert.throws(() => runtime.restore({ ...saved, version: 2 }), /fresh game/);
 });
 
 test("v2 planning and physical execution use the live state", async () => {
-  const runtime = game({ services: { ai: { responses: async () => reviewReply,
+  const runtime = game({ services: { ai: { responses: async request => reviewReply(request),
     decisions: async (_state, questions) => ({ next: { choice: Object.keys(questions.next!.criteria).find(id => !["complete", "wait", "unable"].includes(id))!, probabilities: {} } }),
   } } });
   runtime.endConversationAsPlayer("rowan", "Go to the hall.");
@@ -66,7 +66,7 @@ test("concurrent reviews update separate live documents while player movement su
     const id = JSON.parse(request.messages.find(message => message.role === "user" && message.content?.startsWith('{"characterId"'))!.content!).characterId;
     if (++calls === 2) started();
     await gate;
-    return commitReview({ summary: "Reviewed", newNotes: [`${id} remembered this exchange.`], activeGoal: null });
+    return commitReview({ summary: "Reviewed", newNotes: [`${id} remembered this exchange.`], activeGoal: null }, request);
   } } } });
   runtime.endConversationAsPlayer("corvin", "Goodbye.");
   runtime.endConversationAsPlayer("aldren", "Goodbye.");
@@ -87,7 +87,7 @@ test("conversation spans retain turn, retry, review and scenario context", async
   let attempts = 0;
   const alerts = new AlertLog();
   const runtime = game({ services: { ai: { responses: async request => {
-    if (request.tools) return reviewReply;
+    if (request.tools) return reviewReply(request);
     if (++attempts === 1) throw new TypeError("Temporary transport failure");
     return { role: "assistant", content: "Hello." };
   } } }, strategies: { conversation: { respond: (context, signal, services) => services.character.respond(context.request, signal), } } }, message => alerts.add("warning", message));
@@ -101,9 +101,9 @@ test("conversation spans retain turn, retry, review and scenario context", async
   assert.equal(runs.length, 1);
   const run = runs[0]!;
   assert.equal(run.status, "success");
-  assert.deepEqual(run.calls.map(call => call.kind), ["dialogue", "dialogue", "dialogue", "conversation_review"]);
-  assert.deepEqual(run.calls.map(call => call.status), ["error", "success", "success", "success"]);
-  assert.equal(new Set(run.calls.map(call => call.spanId)).size, 4);
+  assert.deepEqual(run.calls.map(call => call.kind), ["dialogue", "dialogue", "dialogue", "conversation_review", "conversation_review"]);
+  assert.deepEqual(run.calls.map(call => call.status), ["error", "success", "success", "success", "success"]);
+  assert.equal(new Set(run.calls.map(call => call.spanId)).size, 5);
   assert.equal(new Set(run.calls.map(call => call.turnId)).size, 3);
   assert.equal(run.calls[0]!.turnId, run.calls[1]!.turnId);
   assert.ok(run.calls.every(call => call.conversationId === run.conversationId && call.scenario && call.location));
@@ -125,7 +125,7 @@ test("parallel characters and injected character responders remain separately tr
 test("document tool history identifies concurrent reviews and remains session-only", async () => {
   const runtime = game({ services: { ai: { responses: async request => {
     const { characterId } = JSON.parse(request.messages.find(message => message.role === "user" && message.content?.startsWith('{"characterId"'))!.content!);
-    return commitReview({ summary: `${characterId} review`, newNotes: [`${characterId} remembers.`], activeGoal: null });
+    return commitReview({ summary: `${characterId} review`, newNotes: [`${characterId} remembers.`], activeGoal: null }, request);
   } } } });
   for (const id of ["rowan", "corvin"]) runtime.endConversationAsPlayer(id, "Goodbye.");
   await Promise.all([runtime.endConversation("rowan"), runtime.endConversation("corvin")]);
@@ -135,7 +135,7 @@ test("document tool history identifies concurrent reviews and remains session-on
     assert.ok(write.path.endsWith(`/${write.call.characterId}/character.md`));
     assert.equal(write.call.kind, "conversation_review");
     assert.notEqual(write.beforeSha, write.afterSha);
-    assert.match(JSON.stringify(write.call.response), new RegExp(`${write.call.characterId} review`));
+    assert.match(JSON.stringify(write.call.response), new RegExp(`${write.call.characterId} remembers`));
   }
   const reloaded = new WorldGameRuntime(loadPlayableWorld(), "", runtime.snapshot());
   assert.deepEqual(reloaded.debugDocuments().history, []);
@@ -147,7 +147,7 @@ test("document tool history identifies concurrent reviews and remains session-on
 });
 
 test("a failed save does not appear as a document tool update", async () => {
-  const runtime = game({ services: { ai: { responses: async () => reviewReply } } });
+  const runtime = game({ services: { ai: { responses: async request => reviewReply(request) } } });
   runtime.endConversationAsPlayer("rowan", "Remember this.");
   runtime.setPersistence(async work => {
     const before = runtime.snapshot();

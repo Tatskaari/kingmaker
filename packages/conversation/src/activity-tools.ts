@@ -30,6 +30,8 @@ export class ActivityEdits {
     this.expected = characterIntent(services.scenario.snapshot(), id);
     this.id = this.expected.actorId;
   }
+  get pending() { return this.writes.size > 0 || this.intent !== undefined; }
+  refreshDocument(before: DocumentSnapshot) { this.before = before; }
   async call(name: string, input: Record<string, unknown>) {
     const world = this.draft();
     if (name === "clear_activity") {

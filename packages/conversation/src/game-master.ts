@@ -1,4 +1,3 @@
-import { renderPrompt } from "../../prompts/src/index.js";
 import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/src/openrouter.js";
 import { InvalidModelJsonError, parseModelObject } from "../../providers/src/structured-output.js";
 import { DocumentConflictError } from "../../lore/src/services.js";
@@ -9,34 +8,34 @@ export { GAME_MASTER_PROMPT } from "./agent-setup.js";
 
 /** All GM entrypoints use the same tool definitions, execution and conflict handling. */
 export async function runGameMaster(request: ChatCompletionRequest, services: RuntimeServices, signal: AbortSignal,
-  options: { characterId?: string; requireCommit?: boolean; prepare?: (messages: OpenRouterMessage[]) => Promise<OpenRouterMessage[]> } = {}) {
+  options: { characterId?: string; review?: boolean; prepare?: (messages: OpenRouterMessage[]) => Promise<OpenRouterMessage[]> } = {}) {
   const messages = await services.agents.prepare({ agent: "game_master", ...(options.characterId ? { characterId: options.characterId } : {}), messages: request.messages }, signal);
   const session = new GameMasterTools(services, options.characterId);
-  if (options.requireCommit) await session.begin();
+  if (options.review) await session.begin();
   let corrections = 0;
   for (let turn = 0; turn < 16; turn++) {
     signal.throwIfAborted();
     const response = await services.ai.responses({ ...request, tools: gameMasterTools,
       messages: options.prepare ? await options.prepare(messages) : messages,
-    }, signal, { ...(options.characterId ? { characterId: options.characterId } : {}), ...(!options.requireCommit ? { purpose: "gm_consultation" as const } : {}) });
+    }, signal, { ...(options.characterId ? { characterId: options.characterId } : {}), ...(!options.review ? { purpose: "gm_consultation" as const } : {}) });
     signal.throwIfAborted();
     if (!response.tool_calls?.length) {
-      if (options.requireCommit || session.pending) {
-        const instruction = renderPrompt("game-master-instruction");
-        if (corrections++ >= 2) throw new Error(instruction);
-        messages.push(response, { role: "system", content: instruction });
+      try {
+        await session.commit();
+      } catch (error) {
+        if (!(error instanceof DocumentConflictError)) throw error;
+        messages.push(response, { role: "system", content: JSON.stringify(await session.conflict(error)) });
         continue;
       }
+      signal.throwIfAborted();
       return response;
     }
     messages.push(response);
-    for (const [index, call] of response.tool_calls.entries()) {
-      if (call.function.name === "commit_review" && index !== response.tool_calls.length - 1) throw new Error("commit_review must be the final tool call.");
+    for (const call of response.tool_calls) {
       try {
         const input = parseModelObject(call.function.arguments, "Game master tool");
         const result = await session.call(call.function.name, input, { response, toolCallId: call.id });
         messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
-        if (call.function.name === "commit_review" && options.requireCommit) return { role: "assistant" as const, content: JSON.stringify(result) };
       } catch (error) {
         if (error instanceof DocumentConflictError) {
           messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(await session.conflict(error)) });

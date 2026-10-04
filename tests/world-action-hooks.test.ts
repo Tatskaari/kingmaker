@@ -29,8 +29,8 @@ const evidence = { characterId: "corvin", participants: ["corvin", "player"], tr
 test("v2 review commits its goal before classify/resolve returns a real command without moving anyone", async () => {
   const services = fixture(), beforeMap = services.scenario.snapshot().map, order: string[] = [];
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: {
-    responses: async () => { order.push("review"); return commitReview({
-      summary: "Agreed", newNotes: ["The player requested a visit to the hall."], activeGoal: "Go to the hall" }); },
+    responses: async request => { order.push("review"); return commitReview({
+      summary: "Agreed", newNotes: ["The player requested a visit to the hall."], activeGoal: "Go to the hall" }, request); },
     decisions: async (state, questions) => {
       order.push("classify");
       assert.equal(activityGoal(services.scenario.snapshot(), "corvin"), "Go to the hall");
@@ -45,7 +45,7 @@ test("v2 review commits its goal before classify/resolve returns a real command 
     resolve: async (...args) => { order.push("resolve"); return jevActionStrategy.resolve(...args); },
   } } });
   const result = await reviewAndPlanWorldAction(evidence, runtime);
-  assert.deepEqual(order, ["review", "classify", "resolve"]);
+  assert.deepEqual(order, ["review", "review", "classify", "resolve"]);
   assert.equal(result.plan!.action!.type, "move"); assert.ok(result.plan!.action!.path.length);
   assert.deepEqual(services.scenario.snapshot().map, beforeMap);
 
@@ -54,11 +54,11 @@ test("v2 review commits its goal before classify/resolve returns a real command 
 test("v2 idle reviews skip Jev, failed reviews stop planning, and terminal results return no command", async () => {
   const services = fixture(); let calls = 0;
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: {
-    responses: async () => (commitReview({ summary: "No task", newNotes: [], activeGoal: null })),
+    responses: async request => (commitReview({ summary: "No task", newNotes: [], activeGoal: null }, request)),
     decisions: async () => { calls++; return { next: { choice: "wait", probabilities: {} } }; },
   } }, strategies: { review: documentReviewStrategy, action: jevActionStrategy } });
   assert.equal((await reviewAndPlanWorldAction(evidence, runtime)).plan, undefined); assert.equal(calls, 0);
-  runtime.services.ai.responses = async () => { throw new Error("review failed"); };
+  runtime.services.ai.responses = async request => { throw new Error("review failed"); };
   await assert.rejects(reviewAndPlanWorldAction(evidence, runtime), /review failed/); assert.equal(calls, 0);
   const active = fixture("Go to the hall");
   const activeRuntime = new ConversationRuntime({ services: { ...active, lore: documentLoreService(active.scenario), ai: runtime.services.ai }, strategies: { action: jevActionStrategy } });

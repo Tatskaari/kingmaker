@@ -820,9 +820,9 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
       assert.ok(++goals <= 4, "Must stop after the objective is completed");
       return { decision: { choice: goals === 4 ? "complete" : "unable" } };
     });
-    t.mock.method(OpenRouterClient.prototype, "complete", async () => (commitReview({
+    t.mock.method(OpenRouterClient.prototype, "complete", async (_input: any) => (commitReview({
       summary: "Reviewed progress", newNotes: ["Step completed"], activeGoal: goals === 4 ? null : "Step " + (goals + 1),
-    })));
+    }, _input)));
     await request("start_npc", { characterId: "corvin" });
     while ((await request("state")).state.npcActivities.corvin.status === "active"
       || npcUpdates.at(-1)?.running.includes("corvin")) {
@@ -887,9 +887,9 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     const waitForReview = new Promise<void>(resolve => { release = resolve; });
     const reviewResponse = (_input: any) => (commitReview({
       summary: "Reviewed", newNotes: ["The envoy said goodbye."], activeGoal: null,
-    }));
+    }, _input));
     t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => {
-      if (input.tools?.some((tool: any) => tool.function.name === "commit_review")) {
+      if (input.tools?.some((tool: any) => tool.function.name === "set_activity")) {
         started(); await waitForReview;
         return reviewResponse(input);
       }

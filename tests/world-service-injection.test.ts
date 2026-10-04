@@ -46,7 +46,7 @@ test("v2 check strategies use injected mechanics once and preserve their result 
 test("v2 turn mechanics overrides preserve host character methods and propagate failure without committing", async () => {
   let replies = 0;
   const runtime = game({ services: {
-    ai: { decisions, responses: async () => assert.fail("No narration after mechanics fail") },
+    ai: { decisions, responses: async request => assert.fail("No narration after mechanics fail") },
     character: { rollCheck: async () => assert.fail("Turn override must win"), respond: async () => { replies++; return { role: "assistant", content: "Hi" }; } },
   } });
   const before = runtime.snapshot();
@@ -71,7 +71,7 @@ test("successive dialogue turns persist only new rulings, including identical re
         if ((JSON.stringify(request.response_format) ?? "").includes("conversation_roll_ruling")) {
           return { role: "assistant", content: '{"direction":"Consider the offer."}' };
         }
-        if (request.tools) return commitReview({ summary: "Discussed the cart", newNotes: [], activeGoal: null });
+        if (request.tools) return commitReview({ summary: "Discussed the cart", newNotes: [], activeGoal: null }, request);
         assert.equal(request.messages.filter(message => message.role === "system"
           && message.content?.startsWith("# Binding DM ruling")).length, expectedRulings);
         if (failReply) throw new Error("Reply failed");
@@ -134,7 +134,7 @@ test("v2 review and planning use fresh character-scoped injected lore", async ()
     } },
     ai: { responses: async request => {
       assert.match(JSON.stringify(request), /SCOPED_rowan/);
-      return commitReview({ summary: "Agreed", newNotes: [], activeGoal: "Go to the hall" });
+      return commitReview({ summary: "Agreed", newNotes: [], activeGoal: "Go to the hall" }, request);
     }, decisions: async state => {
       assert.match(String(state), /SCOPED_rowan/);
       return { next: { choice: "wait", probabilities: {} } };
@@ -143,13 +143,13 @@ test("v2 review and planning use fresh character-scoped injected lore", async ()
   runtime.endConversationAsPlayer("rowan", "Go to the hall.");
   await runtime.endConversation("rowan");
   await runtime.planNpc("rowan", new AbortController().signal);
-  assert.deepEqual(scopes, ["rowan", "rowan"]);
+  assert.deepEqual(scopes, ["rowan", "rowan", "rowan"]);
 });
 
 test("v2 lore failures abort dialogue before AI or transcript publication", async () => {
   const runtime = game({ services: {
     lore: { forCharacter: async () => { throw new Error("Lore unavailable"); } },
-    ai: { responses: async () => assert.fail(), decisions: async () => assert.fail() },
+    ai: { responses: async request => assert.fail(), decisions: async () => assert.fail() },
   } });
   const before = runtime.snapshot();
   await assert.rejects(runtime.checkedTalkToCharacter("rowan", "Hello"), /Lore unavailable/);

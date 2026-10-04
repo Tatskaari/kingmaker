@@ -262,8 +262,8 @@ For a v2 host, inject `documentReviewStrategy` as `strategies.review`. Its resol
 `services.ai.responses`, `services.scenario` and `services.docs` to append private
 conversation notes and update the scenario character document's `activity` and
 `wait` references. `set_activity`, `set_wait` and `clear_activity` stage intent;
-`commit_review` publishes related documents and notes atomically through
-`docs.commit`. On a SHA conflict the model receives refreshed character state
+the host publishes staged intent atomically through `docs.commit` after the GM’s
+final response. Memories use the ordinary document edit tools. On a SHA conflict the model receives refreshed character state
 and must restage its edits. Static cast lore and physical properties are preserved.
 See [Character activities and waits](activity-waits.md) for file formats and tools.
 

@@ -13,7 +13,7 @@ test("review experiments replay real tools, record only docs, and grade final fi
   const experiment = createReviewExperiment({ name: "oswin", characterId: "oswin", participants: ["oswin", "player"],
     transcript: transcript.map(turn => fromJson(TranscriptMessageSchema, turn)), expectations: "Go to the parlour.", loadWorld: () => source,
   }, [{ name: "candidate" }], () => ({
-    responses: async () => commitReview({ summary: "Reviewed", newNotes: ["The player ordered me to the parlour."], activeGoal: "Go to the parlour." }),
+    responses: async request => commitReview({ summary: "Reviewed", newNotes: ["The player ordered me to the parlour."], activeGoal: "Go to the parlour." }, request),
     decisions: async (_state, questions) => Object.fromEntries(Object.keys(questions).map(key => [key, { choice: "skip", probabilities: { [key]: 0, skip: 1 } }])),
   }), { decisions: async (state, questions) => {
     const evidence = state as { documents: unknown[] };
@@ -62,7 +62,7 @@ test("review comparison runs conversation turns, drains their work, then reviews
       events.push("classify"); return {};
     },
     resolve: async () => { events.push("review"); return { summary: "Reviewed" }; },
-  } } }], () => ({ responses: async () => { throw new Error("Unexpected model call"); }, decisions: async () => ({}) }), { decisions: async () => ({}) });
+  } } }], () => ({ responses: async request => { throw new Error("Unexpected model call"); }, decisions: async () => ({}) }), { decisions: async () => ({}) });
   const { createRecordedRuntime } = await import("../packages/evals/src/runtime.js");
   const { Recording } = await import("../packages/service-tools/src/recording.js");
   const runtime = createRecordedRuntime(await experiment.getVariants()[0]!.configure(), new Recording());

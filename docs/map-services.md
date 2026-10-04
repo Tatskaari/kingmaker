@@ -20,11 +20,11 @@ there is no review world fork, whole-world generation check, or snapshot merge.
 Planning and dialogue likewise do not compare whole-world versions. Existing
 physical action validation and conversation-turn/lifecycle checks remain.
 
-The GM calls `commit_review` with notes and an active goal. The adapter writes through
-the docs service using the reviewed document's SHA. A conflict writes nothing,
-refreshes that document snapshot, and returns its text and SHA as a tool result.
-The GM reconciles against that result and calls the tool again. Retries are bounded
-at eight model calls. Separate participant documents commit independently.
+The GM writes memories using document tools and finishes with a plain-text summary.
+The host then commits staged activity/wait changes through the docs service. A
+conflict publishes none of the staged changes, refreshes the affected document,
+and returns control to the GM to reconcile. The tool loop is bounded at sixteen
+model calls. Earlier successful document edits remain saved.
 
 The worker serializes individual mutations and their IndexedDB saves. Models run
 outside that queue. Saving failure still restores the state immediately before

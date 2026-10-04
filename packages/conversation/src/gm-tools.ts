@@ -8,7 +8,6 @@ import type { RuntimeServices, DocumentUpdate } from "./services.js";
 import { ActivityEdits, activityTools } from "./activity-tools.js";
 import { characterIntent } from "../../lore/src/activity.js";
 import { DocumentConflictError, type DocumentSnapshot } from "../../lore/src/services.js";
-import { links } from "../../lore/src/markdown.js";
 
 export class InvalidReviewError extends Error {}
 
@@ -29,15 +28,13 @@ export const gameMasterTools: OpenRouterTool[] = [
     parameters: { ...item.function.parameters, properties: { ...(item.function.parameters as { properties: object }).properties,
       characterId: { type: "string", description: renderPrompt("gm-tools-target-character") } } },
   } })),
-  tool("commit_review", renderPrompt("gm-tools-commit-review"), {
-    summary: text, newNotes: { type: "array", items: text },
-  }),
+
 ];
 
 /** One tool surface for GM reviews and rulings. Documents have world-wide access; NPC knowledge remains scoped. */
 export class GameMasterTools {
   pending = false;
-  private edits = new Map<string, { before: DocumentSnapshot; activity: ActivityEdits }>();
+  private edits = new Map<string, { before: DocumentSnapshot; activity: ActivityEdits; trace?: Pick<DocumentUpdate, "response" | "toolCallId"> }>();
   constructor(private services: RuntimeServices, private characterId?: string) {
     if (characterId) this.characterId = characterIntent(services.scenario.snapshot(), characterId).actorId;
   }
@@ -67,9 +64,9 @@ export class GameMasterTools {
       });
       await this.services.inventory.commit(changes);
       const current = await Promise.all(changes.map(change => docs.read(change.path)));
-      if (!this.pending) for (const [id, edit] of this.edits) {
+      for (const [, edit] of this.edits) {
         const updated = current.find(item => item.path === edit.before.path);
-        if (updated) this.edits.set(id, { before: updated, activity: new ActivityEdits(this.services, id, updated) });
+        if (updated) { edit.before = updated; edit.activity.refreshDocument(updated); }
       }
       return { ok: true, current };
     }
@@ -86,40 +83,41 @@ export class GameMasterTools {
     }
     if (documentTools.some(tool => tool.function.name === name)) {
       const result = await callDocumentTool(docs, name, input);
-      if (!this.pending && "current" in result && result.current) {
-        for (const [id, edit] of this.edits) if (edit.before.path === result.current.path) {
-          this.edits.set(id, { before: result.current, activity: new ActivityEdits(this.services, id, result.current) });
+      if ("current" in result && result.current) {
+        for (const [, edit] of this.edits) if (edit.before.path === result.current.path) {
+          edit.before = result.current; edit.activity.refreshDocument(result.current);
         }
       }
+      if (trace && result.ok && name !== "read_document") this.services.debug.documentUpdated?.({
+        path: String(input.path), beforeSha: typeof input.expectedSha === "string" ? input.expectedSha : "",
+        afterSha: "current" in result && result.current ? result.current.sha : "", ...trace });
       return result;
     }
-    if (name !== "commit_review") {
+    if (activityTools.some(tool => tool.function.name === name)) {
       const id = input.characterId === undefined ? this.characterId : string("characterId");
       if (!id) throw new Error("Supply characterId for the target NPC.");
-      const result = await (await this.target(id)).activity.call(name, input);
+      const edit = await this.target(id);
+      const result = await edit.activity.call(name, input);
+      if (trace) edit.trace = trace;
       this.pending = true;
       return result;
     }
-    const summary = input.summary, notes = input.newNotes;
-    if (typeof summary !== "string" || !summary.trim() || !Array.isArray(notes) || !notes.every(note => typeof note === "string" && note.trim())
-      || Object.keys(input).some(key => !["summary", "newNotes"].includes(key))) throw new InvalidReviewError("commit_review requires only a nonempty summary and newNotes (an array of prose strings). Do not include characterId: memory belongs to the reviewed NPC.");
-    if (notes.some(note => links(note).length)) throw new Error("Review notes must be plain prose without document links.");
-    if (notes.length && !this.characterId) throw new Error("No reviewed NPC: use document tools for memories.");
-    if (notes.length && this.characterId) await this.target(this.characterId);
-    const changes = [...this.edits].sort(([a], [b]) => Number(a === this.characterId) - Number(b === this.characterId)).map(([id, { before, activity }]) => {
-      const additions = id === this.characterId ? [...new Set<string>(notes)].map(note => note.trim().replace(/[\\`*_[\]<>#]/g, "\\$&"))
-        .filter(note => !before.document.body.includes(note)) : [];
-      return activity.changes(before.document.body + (additions.length ? renderPrompt("gm-tools-memory", { notes: additions.map(note => `- ${note}`).join("\n") }) : ""));
-    });
+    throw new InvalidReviewError(`Unknown GM tool: ${name}`);
+  }
+  /** Host-only finalization. Memories are written exclusively through document tools. */
+  async commit() {
+    if (!this.pending) return;
+    const changes = [...this.edits.values()].filter(edit => edit.activity.pending)
+      .map(({ before, activity }) => activity.changes(before.document.body));
     const writes = new Map(changes.flatMap(change => change.writes).map(write => [write.path, write]));
-    if (writes.size) await docs.commit([...writes.values()], changes.flatMap(change => change.intents));
-    for (const { before } of this.edits.values()) {
-      const after = await docs.read(before.path);
+    if (writes.size) await this.services.docs.commit([...writes.values()], changes.flatMap(change => change.intents));
+    for (const { before, trace, activity } of this.edits.values()) {
+      if (!activity.pending) continue;
+      const after = await this.services.docs.read(before.path);
       if (trace) this.services.debug.documentUpdated?.({ path: before.path, beforeSha: before.sha, afterSha: after.sha, ...trace });
     }
     this.edits.clear();
     this.pending = false;
-    return { committed: true, summary };
   }
   async conflict(error: DocumentConflictError) {
     this.edits.clear();

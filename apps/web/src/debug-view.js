@@ -161,22 +161,9 @@ function transcriptSummary(entry) {
       + facts([["Choice", response.choice], ...(typeof probability === "number" ? [["Choice probability", `${Math.round(probability * 100)}%`]] : []), ...(typeof response.confidence === "number" ? [["Confidence", `${Math.round(response.confidence * 100)}%`]] : [])])
       + `<p class="debug-meta">This is the planner's decision, not confirmation that an action was executed.</p>`;
   }
-  const reviewTool = array(response.tool_calls).find(call => call?.function?.name === "commit_review");
-  const output = reviewTool ? parsedContent({ content: reviewTool.function.arguments }) : parsedContent(response);
-  if (output && Object.hasOwn(output, "activeGoal")) return `<h4>Review summary</h4><p>${escape(output.summary)}</p>`
-    + `<h4>Notes returned</h4>${list(array(output.newNotes), note => escape(note), "No new notes.")}`
-    + `<h4>Active goal</h4><p>${escape(output.activeGoal ?? "No active goal")}</p>`;
+  const output = parsedContent(response);
   if (entry.kind === "npc_request" && output) return `<h4>Request</h4><p>${escape(output.request)}</p><h4>Private intent</h4><p>${escape(output.intent)}</p>`;
   if (entry.kind === "npc_resolution" && output) return `<h4>Exchange</h4><p>${escape(output.summary)}</p>` + ["initiator", "recipient"].map(role => `<h4>${escape(role)}</h4>` + transcriptSummary({ ...entry, kind: "conversation_review", response: { content: JSON.stringify(output[role]) } })).join("");
-  if (entry.kind === "conversation_review" || entry.kind === "outcome_review") {
-    if (!output) return empty("Could not read structured review output. See the full response below.");
-    const newNotes = array(output.newNotes), relationships = array(output.relationships), goal = object(output.goalUpdate);
-    return `<h4>Notes returned (${newNotes.length})</h4>${list(newNotes, note => `<p>${escape(note)}</p>`, "No new notes.")}`
-      + `<h4>Immediate goal</h4>${goal ? `<p>${escape(goal.goal)}</p><p class="debug-meta">Reason: ${escape(goal.reason)}</p>` : output.goalUpdate === null ? empty("No new goal — stay idle.") : empty("No goal update returned.")}`
-      + `<h4>Relationship updates (${relationships.length})</h4>${list(relationships, relationship => `<strong>${escape(relationship?.characterId)}</strong><p>${escape(relationship?.description)}</p>`, "No relationship changes.")}`
-      + `<h4>Biography</h4>${typeof output.lore === "string" ? `<p>${escape(output.lore)}</p>` : empty("Unchanged.")}`
-      + `<p class="debug-meta">These are model-returned updates; validation and saving happen afterwards.</p>`;
-  }
   if (entry.kind === "dialogue" && output) {
     return `<h4>Character said</h4><p>${escape(output.utterance)}</p><p class="debug-meta">${output.endConversation === true ? "Chose to end the conversation." : "Conversation continues."}</p>`
       + `<h4>Suggested player replies</h4>${list(array(output.replyOptions), reply => escape(reply), "No suggested replies.")}`;

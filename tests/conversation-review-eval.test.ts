@@ -19,7 +19,7 @@ for (const mode of ["travel", "wait", "unrelated", "error"] as const) {
               name: "Wait in the parlour", instructions: "Wait for the player to arrive.", activities: [],
             }) } },
           ] };
-          const reply = commitReview({ summary: "Reviewed", newNotes: [], activeGoal: "Go to the parlour and wait for the player." });
+          const reply = commitReview({ summary: "Reviewed", newNotes: [], activeGoal: "Go to the parlour and wait for the player." }, request);
           if (mode === "wait") {
             assert.equal(request.messages.at(-1)?.role, "tool");
             reply.tool_calls.shift();

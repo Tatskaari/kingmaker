@@ -189,7 +189,7 @@ test("CLI shows approval and pending background GM review transcripts in the RHS
         response_format: { type: "json_schema", json_schema: { name: "conversation_approval" } } }, signal);
       const reply = await services.character.respond(context.request, signal);
       background = services.ai.responses({ model: "test", messages: [{ role: "tool", tool_call_id: "edit-1", content: "RECORDED_EDIT_RESULT" }],
-        tools: [{ type: "function", function: { name: "commit_review", description: "Finish", parameters: {} } }] }, signal);
+        tools: [{ type: "function", function: { name: "set_activity", description: "Finish", parameters: {} } }] }, signal);
       return reply;
     } }) },
     complete: async () => ({ role: "assistant" as const, content: "Your gift is ready." }),

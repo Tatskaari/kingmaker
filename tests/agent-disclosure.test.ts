@@ -35,8 +35,7 @@ function fixture() {
   for (const id of ["rowan", "corvin"]) assignActivity(world, id, "Go to the hall");
   return world;
 }
-const review = { role: "assistant" as const, content: null, tool_calls: [{ id: "commit", type: "function" as const, function: { name: "commit_review",
-  arguments: JSON.stringify({ summary: "Reviewed", newNotes: [] }) } }] };
+const review = { role: "assistant" as const, content: "Reviewed." };
 function model(seen: string[]): AiService {
   return {
     decisions: async (state, questions, _signal, purpose, info) => {
@@ -55,8 +54,8 @@ function model(seen: string[]): AiService {
       const text = JSON.stringify(request), id = info?.characterId ?? "rowan";
       assert.match(text, new RegExp(`${id.toUpperCase()}_DEEP_KNOWLEDGE`));
       assert.doesNotMatch(text, id === "corvin" ? /ROWAN_DEEP_KNOWLEDGE|GM_SECRET/ : /CORVIN_DEEP_KNOWLEDGE|GM_SECRET/);
-      seen.push(request.tools?.some(tool => tool.function.name === "commit_review") ? `review:${id}` : `speech:${id}`);
-      return request.tools?.some(tool => tool.function.name === "commit_review") ? review : { role: "assistant", content: "Hello." };
+      seen.push(request.tools?.some(tool => tool.function.name === "set_activity") ? `review:${id}` : `speech:${id}`);
+      return request.tools?.some(tool => tool.function.name === "set_activity") ? review : { role: "assistant", content: "Hello." };
     },
   };
 }

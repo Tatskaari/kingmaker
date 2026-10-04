@@ -69,7 +69,7 @@ test("a conversation remembered at one post is available to the brothers at anot
   let remembered = false;
   const runtime = game("continue", "Righto.", { services: { disclosure: { disclose: async () => [] }, ai: {
     responses: async request => {
-      if (request.tools?.some(tool => tool.function.name === "commit_review")) return commitReview({ summary: "Learned password", newNotes: ["The password is PURPLE-TURNIP."], activeGoal: null });
+      if (request.tools?.some(tool => tool.function.name === "set_activity")) return commitReview({ summary: "Learned password", newNotes: ["The password is PURPLE-TURNIP."], activeGoal: null }, request);
       if (remembered) assert.match(JSON.stringify(request), /PURPLE-TURNIP/);
       return { role: "assistant", content: "Righto." };
     },
@@ -121,7 +121,7 @@ test("arrest tool exchange is traced and only granted to guards", async () => {
 test("malformed, duplicate and repeated arrest tool calls cannot commit", async () => {
   const duplicate = arrestCall(); duplicate.tool_calls.push(...arrestCall().tool_calls);
   for (const reply of [arrestCall("arrest", "null"), arrestCall("arrest", '{"target":"king"}'), duplicate, arrestCall()]) {
-    const runtime = game("arrest", "", { services: { ai: { responses: async () => reply } } });
+    const runtime = game("arrest", "", { services: { ai: { responses: async request => reply } } });
     await assert.rejects(runtime.checkedTalkToCharacter(guard, "A threat"));
     assert.equal(runtime.snapshot().jail, undefined);
     assert.equal(runtime.snapshot().conversations[guard], undefined);

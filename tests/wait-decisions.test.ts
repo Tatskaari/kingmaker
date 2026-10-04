@@ -30,12 +30,12 @@ test("wait decisions continue without an LLM, activate listed documents, or clea
         responses: async request => {
           reviews++; assert.equal(characterIntent(game.world(), id).wait, null);
           assert.match(JSON.stringify(request), /wait has ended/);
-          return commitReview({ summary: "Begin", newNotes: [], activeGoal: "Speak to the player." });
+          return commitReview({ summary: "Begin", newNotes: [], activeGoal: "Speak to the player." }, request);
         },
       },
     } });
     await game.checkWait(id, 15);
-    assert.equal(reviews, choice === "stop_waiting" ? 1 : 0);
+    assert.equal(reviews, choice === "stop_waiting" ? 2 : 0);
     assert.equal(characterIntent(game.world(), id).wait, choice === "continue" ? wait : null);
     assert.equal(!!activityGoal(game.world(), id), choice !== "continue");
     assert.equal(game.snapshot().pendingWaitReviews?.[id], undefined);
@@ -53,7 +53,7 @@ test("wait checks omit remote actors and reject stale decisions when the player 
       Object.assign(next.map!.actors.find(actor => actor.characterId === "player")!, { roomId: actor.roomId, position: { ...actor.position! } });
       snapshot.world = toJson(WorldStateSchema, next); game.restore(snapshot);
       return { waiting: { choice: "stop_waiting", probabilities: {} } };
-    }, responses: async () => assert.fail("Stale observation must not wake the LLM") },
+    }, responses: async request => assert.fail("Stale observation must not wake the LLM") },
   } });
   await game.checkWait(id, 15);
   assert.equal(characterIntent(game.world(), id).wait, wait);
@@ -65,7 +65,7 @@ test("completion returns to routine; failed wake reviews survive reload and retr
   let fail = true, decisions = 0;
   const options = { services: { disclosure: { disclose: async () => [] }, ai: {
     decisions: async () => { decisions++; return { waiting: { choice: "stop_waiting", probabilities: {} } }; },
-    responses: async () => { if (fail) throw new Error("offline"); return commitReview({ summary: "Ready", newNotes: [], activeGoal: "Speak to the player." }); },
+    responses: async (request: import("../packages/providers/src/openrouter.js").ChatCompletionRequest) => { if (fail) throw new Error("offline"); return commitReview({ summary: "Ready", newNotes: [], activeGoal: "Speak to the player." }, request); },
   } } };
   const game = new WorldGameRuntime(world, "", undefined, undefined, undefined, options);
   game.finishNpcRun(id, "complete", "Done");

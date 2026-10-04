@@ -20,12 +20,30 @@ export function physicalFixture(source: WorldState = loadPlayableWorld()) {
   }) };
 }
 
-export function commitReview(result: { summary: string; newNotes: string[]; activeGoal: string | null }) {
-  const { activeGoal, ...review } = result;
+/** Script a review using the real document/activity tools, then a plain final response. */
+export function commitReview(result: { summary: string; newNotes: string[]; activeGoal: string | null },
+  request?: import("../packages/providers/src/openrouter.js").ChatCompletionRequest) {
+  const { activeGoal, summary, newNotes } = result;
+  const messages = request?.messages ?? [];
+  const lastConflict = messages.findLastIndex(message => message.role === "system" && message.content?.includes('"document_conflict"'));
+  if (messages.slice(lastConflict + 1).some(message => message.role === "tool" && message.tool_call_id === "fixture-intent")) {
+    return { role: "assistant" as const, content: summary, tool_calls: [] };
+  }
+  const snapshots = messages.flatMap(message => {
+    try {
+      const value = JSON.parse(message.content ?? "");
+      return value.document?.path ? [value.document] : value.current?.path ? [value.current] : [];
+    } catch { return []; }
+  });
+  const current = snapshots.filter(snapshot => snapshot.path === snapshots[0]?.path).at(-1);
+  const notes = newNotes.filter(note => !current?.document.body.includes(note));
   return { role: "assistant" as const, content: null, tool_calls: [
-    { id: "intent", type: "function" as const, function: activeGoal ? { name: "set_activity", arguments: JSON.stringify({
+    ...(notes.length ? [{ id: "review", type: "function" as const, function: { name: "replace_document", arguments: JSON.stringify({
+      path: current?.path ?? "fixture.md", expectedSha: current?.sha ?? "fixture", oldText: current?.document.body ?? "Fixture",
+      newText: (current?.document.body ?? "Fixture") + "\n" + notes.map(note => `- ${note}`).join("\n"),
+    }) } }] : []),
+    { id: "fixture-intent", type: "function" as const, function: activeGoal ? { name: "set_activity", arguments: JSON.stringify({
       name: activeGoal, status: "Assigned", success_criteria: activeGoal, current_goal: activeGoal,
     }) } : { name: "clear_activity", arguments: "{}" } },
-    { id: "review", type: "function" as const, function: { name: "commit_review", arguments: JSON.stringify(review) } },
   ] };
 }
