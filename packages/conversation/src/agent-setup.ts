@@ -24,6 +24,8 @@ export interface AgentSetupContext {
   agent: "character" | "game_master" | "exchange" | "planner" | "wait" | "attention" | "stranger";
   characterId?: string;
   messages: readonly OpenRouterMessage[];
+  /** Active speakers are not bystanders in the earshot warning. */
+  participantIds?: readonly string[];
   /** Already scoped by the host; never widen this source's permissions. */
   lore?: LoreService;
   /** Dialogue hosts may already have loaded the initial scoped documents. */
