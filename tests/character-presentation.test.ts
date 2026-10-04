@@ -21,8 +21,9 @@ test("fresh games seed public presentations for all characters without copying s
   world.docs[entry]!.characterProperties!.inventory!.items.push({
     ...world.docs[entry]!.characterProperties!.inventory!.items[0]!, name: "Secret poison", concealed: true,
   });
+  world.docs[entry]!.characterProperties!.inventory!.items[0]!.details = "SECRET ITEM MECHANICS";
   seedPresentation(world, entry);
-  assert.doesNotMatch(world.docs[presentationPath(entry)]!.body, /Secret|Stranger/);
+  assert.doesNotMatch(world.docs[presentationPath(entry)]!.body, /Secret|Stranger|SECRET ITEM MECHANICS/);
   assert.equal(characterCreationWorld(world).docs[presentationPath(world.player!)], undefined);
 });
 

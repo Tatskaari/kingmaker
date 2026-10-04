@@ -12,7 +12,7 @@ export function seedPresentation(world: WorldState, entry: string, prose?: strin
   const doc = world.docs[entry]!;
   const visible = doc.characterProperties?.inventory?.items.filter(item => !item.concealed && (item.quantity ?? 1) > 0) ?? [];
   const body = prose ?? (visible.length
-    ? `Visible attire and belongings: ${visible.map(item => `${item.name}${item.details ? ` (${item.details})` : ""}`).join("; ")}.`
+    ? `Visible attire and belongings: ${visible.map(item => item.name).join("; ")}.`
     : "Their clothing and grooming have not yet been described.");
   world.docs[path] = create(DocumentSchema, { frontmatter: { visibility: "public",
     summary: `The visible appearance, clothing and grooming of ${doc.frontmatter?.name ?? "this character"}.` }, body });
