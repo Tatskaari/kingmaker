@@ -17,6 +17,7 @@ export interface CharacterCreation {
   path: string;
   text: string;
   properties: CharacterProperties;
+  presentation?: string;
   /** Supply a new actor, or omit to retain an authored position. */
   actor?: ActorState;
 }

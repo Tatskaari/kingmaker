@@ -1,3 +1,4 @@
+import { seedPresentation } from "./presentation.js";
 import { clone, fromJson, type JsonObject } from "@bufbuild/protobuf";
 import { ActorStateSchema } from "../../contracts/src/index.js";
 import { DocumentSchema, WorldStateSchema } from "../../contracts/src/v2.js";
@@ -27,6 +28,7 @@ export function createCharacterService(store: WorldStore): CharacterCreationServ
       const draft = clone(WorldStateSchema, store.state);
       draft.docs[input.path] = fromJson(DocumentSchema, { body: parsed.body, frontmatter: parsed.metadata as JsonObject });
       draft.docs[input.path]!.characterProperties = structuredClone(input.properties);
+      seedPresentation(draft, input.path, input.presentation);
       if (input.actor) draft.map!.actors.push(clone(ActorStateSchema, input.actor));
       seedRuntimeCharacter(draft, input.actor?.instanceId ?? input.id, input.id, input.path);
       if (input.id !== "player") draft.docs[draft.scenario]!.body += `\n- [[${input.path}]]\n`;

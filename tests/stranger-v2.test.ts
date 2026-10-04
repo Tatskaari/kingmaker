@@ -15,7 +15,7 @@ export function creationWorld() {
 }
 export function creationInput(world = creationWorld()) {
   const entries = world.characters.map(path => ({ characterId: characterId(path, world), description: "No prior acquaintance." }));
-  return { name: "Alex", gender: "nonbinary", homeland: "Independent", embassyRole: "A visiting scholar", lore: "You quietly serve the Stranger.",
+  return { presentation: "A tattered riding coat and shaggy, uncombed hair look out of place at court.", name: "Alex", gender: "nonbinary", homeland: "Independent", embassyRole: "A visiting scholar", lore: "You quietly serve the Stranger.",
     currentGoal: "Explore court", relationships: entries, npcViews: entries,
     build: { classId: "rogue", abilityPriority: ["dexterity", "charisma", "intelligence", "constitution", "wisdom", "strength"], skills: ["persuasion", "deception", "insight", "stealth"] } };
 }

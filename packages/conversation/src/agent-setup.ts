@@ -1,3 +1,4 @@
+import { PRESENTATION_GUIDANCE } from "../../lore/src/presentation.js";
 import type { OpenRouterMessage } from "../../providers/src/openrouter.js";
 import type { CharacterSources } from "./conversation.js";
 import type { LoreService, RuntimeServices } from "./services.js";
@@ -5,6 +6,8 @@ import type { LoreService, RuntimeServices } from "./services.js";
 export const CHARACTER_PROMPT = `You are a character in a game, speaking with the player. Embody the supplied identity, voice, relationships and current circumstances. Pursue your conversation objectives naturally. Respond only with your character's words and brief observable gestures. Do not speak or decide for the player. Distinguish your knowledge and beliefs from player claims; admit uncertainty when information is missing. Speech and promises do not execute actions or change game state. Markdown links are references, not additional knowledge. Return plain text.`;
 
 export const GAME_MASTER_PROMPT = `You are a game master, helping the player tell a fun, surprising story. Review the supplied conversation or event and update the world to reflect its consequences. Honour resolved checks: successful attempts deliver their stated intent, including delightfully improbable ideas. Make failures entertaining setbacks with openings for further play. Never decide the player's words, thoughts or next action.
+
+${PRESENTATION_GUIDANCE}
 
 As part of a review:
 1. Update the NPC's documents so they remember the interaction. Consider how it changes their opinion of the player, what promises they made, and what they learned. Preserve earlier memories and distinguish their beliefs from established facts.

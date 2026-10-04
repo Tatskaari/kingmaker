@@ -40,6 +40,7 @@ export function interviewDraft(input: Record<string, unknown>, world: WorldState
     return value.map(item => ({ characterId: creationText(item?.characterId, "Character ID"), description: creationText(item?.description, "Relationship") }));
   };
   const setup = create(PlayerSetupSchema, {
+    presentation: creationText(input.presentation, "Presentation"),
     homeland: creationText(input.homeland, "Court affiliation"), embassyRole: creationText(input.embassyRole, "Role"),
     player: { id: "player", name: creationText(input.name, "Name"), gender: creationText(input.gender, "Gender"),
       delegation: creationText(input.homeland, "Court affiliation"), sprite: 98,
@@ -59,6 +60,7 @@ export function playerPublication(value: JsonValue, assigned: JsonValue, world: 
     summary: `${player.name}'s identity, background, personal goal and relationships.`,
     visibility: "private", readers: ["character:player"],
   })}---\n# Your character\n${prose(player.lore)}\n\n## Public role\n${prose(setup.embassyRole)}\n\n## Relationships\n${player.relationships.map(item => `- ${item.characterId}: ${prose(item.description)}`).join("\n")}\n`,
+    presentation: creationText(setup.presentation, "Presentation"),
     properties: create(CharacterPropertiesSchema, { dnd: player.dnd, ...(gear ? { inventory: gear } : {}) }),
     impressions: Object.fromEntries(setup.npcRelationships.map(item => [world.characters.find(path => characterId(path, world) === item.ownerCharacterId)!, item.relationship!.description])),
   };
