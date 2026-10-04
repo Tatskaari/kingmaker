@@ -17,3 +17,11 @@ separately. Baselines use the production strategy and services unchanged.
 
 Do not infer that semantic scores are independent diagnoses. Inspect persisted memories,
 activities and typed inventory, especially when Jev scores disagree with visible behavior.
+
+- **material-consequences**: hypothesis that possessions fail because GM Markdown writes
+  preserve typed properties and cannot express item creation. Add an eval-only docs service
+  that exposes typed inventory in character Markdown reads and supports atomic, SHA-checked
+  edits through the same tools. Add guidance resolving a requested and willingly given
+  mundane gift without another acceptance turn. Uses situated-priorities framing otherwise.
+  This combines a capability and a policy change; improvement cannot isolate their effects.
+  It does not seed a bird or mention a character/case by name. No production service changes.

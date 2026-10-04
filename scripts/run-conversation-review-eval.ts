@@ -6,7 +6,7 @@ import { JevClient } from "../packages/providers/src/jev.js";
 import { loadPlayableWorld } from "./lib/playable-world.js";
 import { createReviewExperiment } from "../packages/evals/src/review-experiment.js";
 import { oswinKoboldCase } from "../packages/evals/src/oswin-kobold-case.js";
-import { realityVariants } from "../packages/evals/src/reality-variants.js";
+import { realityVariants, materialConsequencesVariant } from "../packages/evals/src/reality-variants.js";
 import { deferredPromiseVariant } from "../packages/evals/src/deferred-promise-variant.js";
 import { runEvalCli } from "../packages/evals/src/cli.js";
 import transcript from "../evals/reviews/oswin-parlour.json" with { type: "json" };
@@ -28,6 +28,6 @@ const experiment = createReviewExperiment({ name: "oswin-parlour", characterId: 
     world.runtimeCharacters.oswin!.wait = undefined;
     return world;
   },
-}, [deferredPromiseVariant, ...realityVariants], createAi, createAi());
-const result = await runEvalCli([experiment, createReviewExperiment(oswinKoboldCase, [deferredPromiseVariant, ...realityVariants], createAi, createAi())], { secrets: [key] });
+}, [deferredPromiseVariant, ...realityVariants, materialConsequencesVariant], createAi, createAi());
+const result = await runEvalCli([experiment, createReviewExperiment(oswinKoboldCase, [deferredPromiseVariant, ...realityVariants, materialConsequencesVariant], createAi, createAi())], { secrets: [key] });
 process.exitCode = result.exitCode;

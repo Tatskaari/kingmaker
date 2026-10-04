@@ -20,6 +20,8 @@ export interface ReviewCase extends ConversationReviewContext {
 export interface ReviewVariant {
   name: string;
   overlays?: readonly string[];
+  /** Optional isolated candidate service implementation; production baseline uses the normal factory. */
+  createServices?: (world: WorldState) => Pick<ReturnType<typeof createScenarioServices>, "docs" | "scenario">;
   strategies?: ConversationRuntimeOptions["strategies"];
 }
 const judgedCriteria: readonly Criterion[] = [
@@ -72,7 +74,7 @@ export function reviewEvidence(testCase: ReviewCase, recording: RunRecording) {
 export function createReviewExperiment(testCase: ReviewCase, variants: readonly ReviewVariant[], createAi: () => AiService,
   judge: Pick<AiService, "decisions">): Experiment {
   const config = (variant: ReviewVariant): RuntimeConfig => ({ name: variant.name, configure() {
-    const backing = createScenarioServices(clone(WorldStateSchema, testCase.loadWorld(variant.overlays ?? [])));
+    const backing = (variant.createServices ?? createScenarioServices)(clone(WorldStateSchema, testCase.loadWorld(variant.overlays ?? [])));
     return { services: { docs: () => backing.docs, scenario: () => backing.scenario, ai: () => createAi(),
       lore: services => documentLoreService(services.scenario), debug: () => ({ record: () => {} }) },
       strategies: { ...defaultWorldStrategies, ...variant.strategies,
