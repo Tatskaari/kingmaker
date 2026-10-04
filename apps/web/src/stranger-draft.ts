@@ -23,6 +23,7 @@ export function validateDraft(setup: PlayerSetup, world: WorldState) {
   if (!creationAffiliations(world).includes(player.delegation)) throw new Error("Choose a court affiliation.");
   if (!characterSprites.some(sprite => sprite === player.sprite)) throw new Error("Choose an available appearance.");
   setup.homeland = player.delegation;
+  setup.presentation = creationText(setup.presentation, "Presentation");
   setup.embassyRole = creationText(setup.embassyRole, "Role");
   validatePlayerStats(player.dnd);
   const ids = world.characters.map(path => characterId(path, world));

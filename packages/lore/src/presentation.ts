@@ -10,7 +10,7 @@ export function seedPresentation(world: WorldState, entry: string, prose?: strin
   const path = presentationPath(entry);
   if (world.docs[path]) return;
   const doc = world.docs[entry]!;
-  const visible = doc.characterProperties?.inventory?.items.filter(item => !item.concealed && item.quantity > 0) ?? [];
+  const visible = doc.characterProperties?.inventory?.items.filter(item => !item.concealed && (item.quantity ?? 1) > 0) ?? [];
   const body = prose ?? (visible.length
     ? `Visible attire and belongings: ${visible.map(item => `${item.name}${item.details ? ` (${item.details})` : ""}`).join("; ")}.`
     : "Their clothing and grooming have not yet been described.");

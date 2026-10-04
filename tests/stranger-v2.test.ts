@@ -9,9 +9,7 @@ import { loadPlayableWorld } from "./fixtures.js";
 import type { AiService } from "../packages/conversation/src/services.js";
 
 export function creationWorld() {
-  const world = loadPlayableWorld();
-  delete world.docs[world.player!]; delete world.player;
-  return world;
+  return characterCreationWorld(loadPlayableWorld());
 }
 export function creationInput(world = creationWorld()) {
   const entries = world.characters.map(path => ({ characterId: characterId(path, world), description: "No prior acquaintance." }));
@@ -79,6 +77,8 @@ test("creation resumes after reload; explicit save publishes reviewed identity, 
   const saved = runtime.snapshot();
   const restored = new WorldGameRuntime(world, "", JSON.parse(JSON.stringify(saved)), undefined, undefined, options);
   const draft = fromJson(PlayerSetupSchema, restored.view().playerDraft as never);
+  draft.presentation = "A tattered riding coat and neatly combed hair.";
+  draft.player!.dnd!.speciesId = "elf";
   draft.player!.name = "Alexandra"; draft.player!.sprite = 84;
   draft.player!.dnd!.hitPoints!.maximum = 50;
   draft.player!.dnd!.hitPoints!.current = 50;
@@ -91,6 +91,9 @@ test("creation resumes after reload; explicit save publishes reviewed identity, 
   const player = restored.world().docs[restored.world().player!]!;
   assert.equal(player.characterProperties!.dnd!.hitPoints!.maximum, 50);
   assert.ok(player.characterProperties!.inventory?.items.length);
+  assert.equal(player.characterProperties!.dnd!.speciesId, "elf");
+  assert.equal(restored.world().docs["Players/presentation.md"]!.body, draft.presentation);
+  assert.equal(restored.world().docs["Players/presentation.md"]!.frontmatter!.visibility, "public");
   const services = createScenarioServices(restored.world());
   const npcLore = await documentLore(services.scenario, "aldren");
   assert.doesNotMatch(JSON.stringify(npcLore.initial), /quietly serve the Stranger/);
