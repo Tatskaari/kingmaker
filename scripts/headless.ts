@@ -36,8 +36,8 @@ if (args[0] === "exec") {
 } else if (!args.length || args[0] === "start" || args[0]?.startsWith("--")) {
   const worldPath = option("--world");
   const source = worldPath ? JSON.parse(readFileSync(worldPath, "utf8")) : undefined;
-  if (source && source.version !== 2 && !source.docs) throw new Error("Start a fresh game; this console requires a v2 world or snapshot.");
-  const world = source ? (source.version === 2 ? source as WorldSnapshot : fromJson(WorldStateSchema, source))
+  if (source && source.version !== 4 && !source.docs) throw new Error("Start a fresh game; this console requires a v2 world or snapshot.");
+  const world = source ? (source.version === 4 ? source as WorldSnapshot : fromJson(WorldStateSchema, source))
     : loadPlayableWorld();
   const game = new WorldHeadlessGame(world, process.env.OPENROUTER_API_KEY ?? "");
   mkdirSync(dirname(socketPath), { recursive: true, mode: 0o700 });

@@ -62,3 +62,21 @@ test("active runtime paths prevent deleting their target documents", async () =>
   await assert.rejects(services.docs.delete(task, before.sha), /Missing intent document/);
   assert.equal((await services.docs.read(task)).sha, before.sha);
 });
+
+test("fresh scene defaults seed runtime characters once, including unplaced CLI characters", async () => {
+  const { create } = await import("@bufbuild/protobuf");
+  const { WorldStateSchema: MapSchema } = await import("../packages/contracts/src/index.js");
+  const { worldState } = await import("../packages/lore/src/world-state.js");
+  const entry = "Scenarios/Test/Characters/palace-guard/character.md";
+  const world = worldState(create(MapSchema), new Map([
+    ["Scenarios/Test/scenario.md", `[[${entry}]]`], ["Scenarios/Test/index.md", "Index"],
+    [entry, `---\nactivity: ${task}\n---\nGuard`], [task, text],
+  ]), "Test");
+  assert.equal(world.runtimeCharacters["palace-guard"]!.activity, task);
+  const services = createScenarioServices(world);
+  await services.docs.commit([], [{ actorId: "palace-guard", expectedRevision: 0, activity: null, wait: null }]);
+  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.snapshot())));
+  assert.equal(restored.scenario.snapshot().runtimeCharacters["palace-guard"]!.activity, undefined);
+  assert.equal(restored.scenario.snapshot().docs[entry]!.frontmatter!.activity, task);
+  assert.deepEqual(restored.scenario.snapshot().map, world.map);
+});

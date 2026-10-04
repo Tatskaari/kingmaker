@@ -2183,7 +2183,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
       const saved = records.get(payload.saveId as string);
       for (const [characterId, activity] of Object.entries(saved.snapshot.npcActivities ?? {}) as Array<[string, { goal: string }]>) {
         const path = `Scenarios/Centennial Assembly/Characters/${characterId}/character.md`;
-        if (saved.snapshot.world.docs[path]) {
+        if (saved.snapshot.world.docs[path] && saved.snapshot.world.runtimeCharacters[characterId]) {
           const task = path.replace("character.md", "task.md");
           saved.snapshot.world.docs[task] = { frontmatter: { visibility: "private", readers: [`character:${characterId}`],
             name: activity.goal, status: "Assigned", success_criteria: activity.goal, current_goal: activity.goal }, body: "" };

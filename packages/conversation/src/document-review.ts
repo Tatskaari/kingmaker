@@ -1,6 +1,6 @@
 import type { OpenRouterMessage } from "../../providers/src/openrouter.js";
 import type { RuntimeServices } from "./services.js";
-import { intentContext } from "../../lore/src/activity.js";
+import { characterIntent, intentContext } from "../../lore/src/activity.js";
 import { characterEntry } from "../../lore/src/active-goal.js";
 import { parseModelObject } from "../../providers/src/structured-output.js";
 import { classifyConversationReview, type ConversationReviewHooks, type ConversationReviewContext, type ReviewLabels } from "./review.js";
@@ -15,21 +15,21 @@ export const documentReviewHooks: ConversationReviewHooks = {
 export async function reviewDocumentEvidence(context: Readonly<ConversationReviewContext>, labels: Readonly<ReviewLabels>,
   signal: AbortSignal, services: RuntimeServices, purpose = "Review the recent conversation between the player and the NPC.") {
   signal.throwIfAborted();
-  const path = characterEntry(services.scenario.info(), context.characterId);
+  const intent = characterIntent(services.scenario.snapshot(), context.characterId), path = intent.entry;
   if (!context.participants.includes(context.characterId)) throw new Error("Review character must be a participant.");
   const before = await services.docs.read(path), world = services.scenario.snapshot();
-  const actor = world.map?.actors.find(actor => actor.characterId === context.characterId);
+  const actor = world.map?.actors.find(actor => (actor.instanceId ?? actor.characterId) === intent.actorId);
   let opened: OpenRouterMessage[] | undefined;
   const reply = await runGameMaster({ model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "low" }, max_tokens: 4000,
     messages: [{ role: "system", content: purpose }, { role: "user", content: JSON.stringify({
       characterId: context.characterId, participants: context.participants, document: before,
-      intent: intentContext(world, context.characterId), transcript: context.transcript, labels,
+      intent: intentContext(world, intent.actorId), transcript: context.transcript, labels,
       physicalState: actor ? { characterId: actor.characterId, roomId: actor.roomId,
         roomName: world.map?.rooms.find(room => room.id === actor.roomId)?.name, position: actor.position } : null,
       scenarioDocument: services.scenario.info().scenario,
     }) }],
-  }, services, signal, { characterId: context.characterId, requireCommit: true, prepare: async messages => {
-    const lore = await services.lore.forCharacter(context.characterId, signal);
+  }, services, signal, { characterId: intent.actorId, requireCommit: true, prepare: async messages => {
+    const lore = await services.lore.forCharacter(intent.actorId, signal);
     const current = await services.docs.read(path);
     const initial: OpenRouterMessage[] = lore.initial.map(doc => ({ role: "user", content: `# Character evidence: ${doc.path}\n${doc.path === path ? current.document.body : doc.markdown}` }));
     const [system, task, ...evidence] = messages;

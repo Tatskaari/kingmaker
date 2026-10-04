@@ -12,10 +12,11 @@ function tool(name: string, description: string, properties: Record<string, unkn
 }
 export const gameMasterTools: OpenRouterTool[] = [
   tool("list_documents", "List world documents, including every character and GM quest note. Use prefix to narrow paths and nextOffset to page. Read relevant documents before editing.", { prefix: text, offset: { type: "integer", minimum: 0 }, limit: { type: "integer", minimum: 1, maximum: 50 } }, []),
+  tool("list_characters", "List runtime NPC instances, their shared character documents and their current activity/wait paths. Use the instance id to target one body sharing lore.", {}),
   ...documentTools,
   ...activityTools.map(item => ({ ...item, function: { ...item.function,
     parameters: { ...item.function.parameters, properties: { ...(item.function.parameters as { properties: object }).properties,
-      characterId: { type: "string", description: "Target NPC. Defaults to the character being reviewed; may name any NPC." } } },
+      characterId: { type: "string", description: "Target runtime NPC id from list_characters. Defaults to the instance being reviewed." } } },
   } })),
   tool("commit_review", "Atomically publish staged activities/waits and append newNotes to the reviewed NPC's memory. Finish a review with this tool. Direct document edits are already saved. On conflict restage discarded intent edits. Notes must be plain prose without Markdown links.", {
     summary: text, newNotes: { type: "array", items: text },
@@ -26,7 +27,9 @@ export const gameMasterTools: OpenRouterTool[] = [
 export class GameMasterTools {
   pending = false;
   private edits = new Map<string, { before: DocumentSnapshot; activity: ActivityEdits }>();
-  constructor(private services: RuntimeServices, private characterId?: string) {}
+  constructor(private services: RuntimeServices, private characterId?: string) {
+    if (characterId) this.characterId = characterIntent(services.scenario.snapshot(), characterId).actorId;
+  }
   private async target(id: string) {
     id = characterIntent(this.services.scenario.snapshot(), id).actorId;
     if (!this.edits.has(id)) {
@@ -44,6 +47,9 @@ export class GameMasterTools {
   async call(name: string, input: Record<string, unknown>, trace?: Pick<DocumentUpdate, "response" | "toolCallId">) {
     const string = (key: string) => { if (typeof input[key] !== "string") throw new Error(`Expected ${key}.`); return input[key] as string; };
     const docs = this.services.docs;
+    if (name === "list_characters") return { characters: Object.values(this.services.scenario.snapshot().runtimeCharacters)
+      .filter(character => character.characterId !== "player").map(({ id, characterId, document, activity, wait }) =>
+        ({ id, characterId, document, activity: activity ?? null, wait: wait ?? null })) };
     if (name === "list_documents") {
       const prefix = input.prefix === undefined ? "" : string("prefix"), offset = input.offset ?? 0, limit = input.limit ?? 25;
       if (!Number.isInteger(offset) || Number(offset) < 0 || !Number.isInteger(limit) || Number(limit) < 1 || Number(limit) > 50) throw new Error("Invalid document pagination.");
