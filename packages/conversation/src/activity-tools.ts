@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../prompts/src/index.js";
 import { stringify } from "yaml";
 import { create, clone } from "@bufbuild/protobuf";
 import { DocumentSchema, WorldStateSchema } from "../../contracts/src/v2.js";
@@ -9,15 +10,15 @@ import type { RuntimeServices } from "./services.js";
 
 const text = { type: "string", minLength: 1 };
 export const activityTools: OpenRouterTool[] = [
-  { type: "function", function: { name: "set_activity", description: "Stage a character-private activity document with name, status, success_criteria and current_goal. Activates it by default and clears the wait. Set activate:false to define an activity option for a wait; the result gives its Markdown path. Nothing publishes until commit_review.", parameters: {
+  { type: "function", function: { name: "set_activity", description: renderPrompt("activity-tools-1"), parameters: {
     type: "object", additionalProperties: false, required: ["name", "status", "success_criteria", "current_goal"],
     properties: { name: text, status: text, success_criteria: text, current_goal: text, activate: { type: "boolean" } },
   } } },
-  { type: "function", function: { name: "set_wait", description: "Stage a private wait document and clear the active activity. instructions must state explicit observable conditions for each choice. continue means KEEP WAITING, never resume the undertaking. When the awaited condition is satisfied, select a listed activity or stop_waiting for LLM reconsideration. With no activities, a satisfied condition must use stop_waiting. Current observations override historical absence notes. activities lists existing or staged activity paths. Set routine:true to write this character's routine.md. Nothing publishes until commit_review.", parameters: {
+  { type: "function", function: { name: "set_wait", description: renderPrompt("activity-tools-2"), parameters: {
     type: "object", additionalProperties: false, required: ["name", "instructions", "activities"],
     properties: { name: text, instructions: text, activities: { type: "array", items: text }, routine: { type: "boolean" } },
   } } },
-  { type: "function", function: { name: "clear_activity", description: "Stage removal of the active activity and return to routine.md if present, otherwise idle. Nothing publishes until commit_review.", parameters: { type: "object", additionalProperties: false, properties: {} } } },
+  { type: "function", function: { name: "clear_activity", description: renderPrompt("activity-tools-3"), parameters: { type: "object", additionalProperties: false, properties: {} } } },
 ];
 
 /** Stage intent tools so a failed review cannot publish half an objective or its notes. */

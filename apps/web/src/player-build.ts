@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../../packages/prompts/src/index.js";
 import { create } from "@bufbuild/protobuf";
 import { DndCharacterSchema, InventorySchema, ProficiencyKind, ProficiencyRank, type DndCharacter } from "../../../packages/contracts/src/index.js";
 
@@ -21,9 +22,9 @@ const classes = {
 
 export const playerBuildParameter = {
   type: "object", additionalProperties: false, required: ["classId", "abilityPriority", "skills"],
-  description: "Infer a level 3 starting build from the interview: occupation, training and demonstrated talents. Do not ask the player to fill out a rules form. Use a mundane class for a mundane history. The first two skills receive expertise for bards and rogues. Code assigns scores, HP and level; never invent those numbers.",
+  description: renderPrompt("player-build-1"),
   properties: {
-    speciesId: { type: "string", description: "Species named by the player, as a lowercase hyphenated ID (for example human, elf or half-orc). Assume human unless they say otherwise; do not add an interview question." },
+    speciesId: { type: "string", description: renderPrompt("player-build-2") },
     classId: { type: "string", enum: Object.keys(classes) },
     abilityPriority: { type: "array", minItems: 6, maxItems: 6, uniqueItems: true, items: { type: "string", enum: abilities }, description: "All six abilities, strongest first. Receives final scores 15, 14, 13, 12, 10, 8 respectively." },
     skills: { type: "array", minItems: 4, maxItems: 4, uniqueItems: true, items: { type: "string", enum: skills }, description: "Four skills justified by the interview, strongest talents first." },

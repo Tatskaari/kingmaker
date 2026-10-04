@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../prompts/src/index.js";
 import { documentTools, callDocumentTool } from "./document-tools.js";
 import type { OpenRouterTool } from "../../providers/src/openrouter.js";
 import type { RuntimeServices, DocumentUpdate } from "./services.js";
@@ -13,14 +14,14 @@ function tool(name: string, description: string, properties: Record<string, unkn
   return { type: "function", function: { name, description, parameters: { type: "object", additionalProperties: false, properties, required } } };
 }
 export const gameMasterTools: OpenRouterTool[] = [
-  tool("list_documents", "List world documents, including every character and GM quest note. Use prefix to narrow paths and nextOffset to page. Read relevant documents before editing.", { prefix: text, offset: { type: "integer", minimum: 0 }, limit: { type: "integer", minimum: 1, maximum: 50 } }, []),
-  tool("list_characters", "List runtime NPC instances, their shared character documents and their current activity/wait paths. Use the instance id to target one body sharing lore.", {}),
+  tool("list_documents", renderPrompt("gm-tools-1"), { prefix: text, offset: { type: "integer", minimum: 0 }, limit: { type: "integer", minimum: 1, maximum: 50 } }, []),
+  tool("list_characters", renderPrompt("gm-tools-2"), {}),
   ...documentTools,
   ...activityTools.map(item => ({ ...item, function: { ...item.function,
     parameters: { ...item.function.parameters, properties: { ...(item.function.parameters as { properties: object }).properties,
-      characterId: { type: "string", description: "Target runtime NPC id from list_characters. Defaults to the instance being reviewed." } } },
+      characterId: { type: "string", description: renderPrompt("gm-tools-3") } } },
   } })),
-  tool("commit_review", "Atomically publish staged activities/waits and append newNotes to the reviewed NPC's memory. Finish a review with this tool. Direct document edits are already saved. On conflict restage discarded intent edits. Notes must be plain prose without Markdown links.", {
+  tool("commit_review", renderPrompt("gm-tools-4"), {
     summary: text, newNotes: { type: "array", items: text },
   }),
 ];
@@ -85,7 +86,7 @@ export class GameMasterTools {
     const changes = [...this.edits].sort(([a], [b]) => Number(a === this.characterId) - Number(b === this.characterId)).map(([id, { before, activity }]) => {
       const additions = id === this.characterId ? [...new Set<string>(notes)].map(note => note.trim().replace(/[\\`*_[\]<>#]/g, "\\$&"))
         .filter(note => !before.document.body.includes(note)) : [];
-      return activity.changes(before.document.body + (additions.length ? `\n\n## Conversation review\n${additions.map(note => `- ${note}`).join("\n")}\n` : ""));
+      return activity.changes(before.document.body + (additions.length ? renderPrompt("gm-tools-5", { value1: additions.map(note => `- ${note}`).join("\n") }) : ""));
     });
     const writes = new Map(changes.flatMap(change => change.writes).map(write => [write.path, write]));
     if (writes.size) await docs.commit([...writes.values()], changes.flatMap(change => change.intents));
@@ -102,6 +103,6 @@ export class GameMasterTools {
     this.pending = false;
     await this.begin();
     return { ok: false, error: "document_conflict", current: await this.services.docs.read(error.path),
-      instruction: "This call wrote nothing. Earlier direct document edits remain saved. Staged intent edits were discarded; reconcile with current documents and restage before commit_review." };
+      instruction: renderPrompt("gm-tools-6") };
   }
 }

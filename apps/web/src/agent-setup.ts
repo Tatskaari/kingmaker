@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../../packages/prompts/src/index.js";
 import { participantPresentations, PRESENTATIONS_PREFIX } from "../../../packages/conversation/src/participant-presentation.js";
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, TranscriptRole, type TranscriptMessage } from "../../../packages/contracts/src/index.js";
@@ -40,7 +41,7 @@ export const setupWorldAgent: AgentSetupHook = async (context, signal, services)
     const nearby = listeners.filter(listener => listener.level === level).sort((a, b) => a.id.localeCompare(b.id));
     return nearby.length ? [`${level}: ${EARSHOT_DESCRIPTIONS[level]}\n${nearby.map(listener => `- ${listener.name} (${listener.id})`).join("\n")}`] : [];
   });
-  const content = `# Current conversation earshot\n${groups.length ? groups.join("\n\n") : "No one else is within earshot."}\nTake this audience into account when choosing what to say aloud. This describes who may overhear, not proof they heard or learned anything.`;
+  const content = renderPrompt("agent-setup-content", { value1: groups.length ? groups.join("\n\n") : "No one else is within earshot." });
   if (latestEarshot(context.messages) === content) return setupAgent(context, signal, services);
   return setupAgent({ ...context, messages: [...context.messages.slice(0, -1), { role: "system", content }, ...context.messages.slice(-1)] }, signal, services);
 };

@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../prompts/src/index.js";
 import { ProficiencyKind, ProficiencyRank, type DndCharacter } from "../../contracts/src/index.js";
 
 export const skillAbilities = {
@@ -8,13 +9,13 @@ export const skillAbilities = {
 } as const;
 export type CheckSkill = keyof typeof skillAbilities;
 export const degreeGuidance = {
-  critical_failure: "Spectacular, entertaining backfire. Fail the attempt, not the entire adventure; leave another opening.",
+  critical_failure: renderPrompt("ability-checks-1"),
   major_failure: "The attempt clearly fails with a substantial, playful complication.",
   minor_failure: "The attempt fails with a limited setback or an alternative opening.",
   barely_passes: "Deliver the intended outcome, narrowly or awkwardly. Do not turn this success into another hurdle.",
   minor_success: "Deliver the intended outcome cleanly.",
   major_success: "Deliver the intended outcome plus a meaningful bonus or an exaggerated, delightful effect.",
-  critical_success: "Extraordinary success. Make even a gloriously impossible attempt work; embrace absurdity and surprise.",
+  critical_success: renderPrompt("ability-checks-2"),
 } as const;
 export enum CheckDegree {
   CriticalFailure = "critical_failure",

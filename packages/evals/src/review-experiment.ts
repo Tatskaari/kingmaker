@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../prompts/src/index.js";
 import { isDeepStrictEqual } from "node:util";
 import { clone } from "@bufbuild/protobuf";
 import { WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
@@ -24,9 +25,9 @@ export interface ReviewVariant {
 }
 const judgedCriteria: readonly Criterion[] = [
   { name: "grounding", description: "New facts are supported by conversation or existing context; binding GM rulings are preserved." },
-  { name: "coverage", description: "Consequential promises, revelations and outcomes in the case expectations are retained in appropriate documents." },
-  { name: "knowledge", description: "Each character learns only what they could know; private beliefs and GM truth retain the correct audience." },
-  { name: "intent", description: "Every activated activity, including its success_criteria and all steps of current_goal, is executable under the case expectations and current map. If the case identifies an unsupported destination, FAIL an active activity that requires setting out, travelling to, or reaching it, even if the goal starts with preparation or coordination. A purely local next step or explicit deferral until a supported route exists can PASS. Preserve the promise without claiming completed travel." },
+  { name: "coverage", description: renderPrompt("review-experiment-1") },
+  { name: "knowledge", description: renderPrompt("review-experiment-2") },
+  { name: "intent", description: renderPrompt("review-experiment-3") },
   { name: "preservation", description: "Unrelated facts, characterization and permissions are preserved." },
   { name: "restraint", description: "Changes are relevant and avoid redundant memories, unnecessary rewrites and invented consequences." },
 ];
