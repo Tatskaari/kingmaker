@@ -55,9 +55,11 @@ export const documentResolutionHooks: ResolutionHooks = {
       }
       return { summary: transcript.map(turn => `${turn.speakerId}: ${turn.text}`).join("\n") };
     }
-    const purpose = context.kind === "world_event"
+    const purpose = context.kind === "wait_ended"
+      ? "The wait has ended and its pointer has been cleared. Reconsider the character using the wait instructions and the observed condition. The current observation supersedes historical notes about who had not arrived. When the awaited condition is satisfied and a next action is feasible, call set_activity and commit it now. Do not then call set_wait just to defer your own available action: greeting a present player is immediately executable. Use set_wait only for a genuinely new unmet external dependency, not the condition that just ended."
+      : context.kind === "world_event"
       ? "Review the perceived event, not a conversation. Record only the supplied perception, retaining its uncertainty. Consider whether it changes or reactivates work."
-      : "Review the completed action attempt, not a conversation. Use actual actions and observations. A wait result means this task is blocked on another actor: clear that goal unless a different immediately executable task is warranted. Do not restart failed work without new evidence.";
+      : "Review the completed action attempt, not a conversation. Use actual actions and observations. A wait result means this activity is blocked on a condition or another actor. You MUST call set_wait to describe the condition, what the character can observe, and when to stop_waiting or activate a listed activity. Preserve the unfinished undertaking in the wait instructions. Do not clear_activity or immediately restart the blocked task. Do not restart failed work without new evidence.";
     const text = context.kind === "world_event" ? context.perception : JSON.stringify(context);
     return reviewDocumentEvidence({ characterId: context.characterId, participants: [context.characterId],
       transcript: [create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, speakerId: "observation", text })],

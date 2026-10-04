@@ -1,4 +1,7 @@
 import { arrestResponse } from "../../../packages/conversation/src/conversation-actions.js";
+import { decideWait, waitObservation } from "../../../packages/conversation/src/wait.js";
+import { characterIntent, routinePath, setIntent } from "../../../packages/lore/src/activity.js";
+import { stringify } from "yaml";
 import { retryResponses } from "../../../packages/conversation/src/ai.js";
 import { traceAiService } from "../../../packages/conversation/src/ai-tracing.js";
 import { createScenarioServices } from "../../../packages/lore/src/services.js";
@@ -311,11 +314,63 @@ export class WorldGameRuntime extends WorldHost {
     return { ok: true, text: (await this.resolve({ kind: "npc_exchange", characterId: id, targetId: action.target, goal }, signal)).summary };
   }
   async reviewNpcOutcome(id: string, _allowNextGoal = true, signal = new AbortController().signal) {
+    const pending = this.activity.pendingWaitReviews?.[id];
+    if (pending) {
+      await this.resolve({ kind: "wait_ended", characterId: id, ...pending }, signal);
+      await this.commit(() => { delete this.activity.pendingWaitReviews?.[id]; }, signal);
+      return;
+    }
     const activity = this.activity.npcActivities?.[id];
     if (!activity?.reviewPending || !activity.result) return;
+    if (activity.result.reason === "complete") {
+      await this.commit(async () => {
+        const world = this.world(), intent = characterIntent(world, id);
+        const before = await this.documents.docs.read(intent.entry);
+        await setIntent(this.documents, before, { activity: null, wait: routinePath(world, id) });
+        this.syncGoals();
+        const next = this.activity.npcActivities![id]!;
+        next.reviewPending = false; next.history = []; next.actionIds = [];
+      }, signal);
+      return;
+    }
     const { map } = this.map.observe(id), actor = map.actors.find(actor => actor.characterId === id);
     await this.resolve({ kind: "task_outcome", characterId: id, goal: activity.goal, actions: activity.history, result: activity.result,
       observation: { roomId: actor?.roomId, room: map.rooms.find(room => room.id === actor?.roomId)?.name, position: actor?.position } }, signal);
+  }
+  waitingCharacters(): string[] {
+    const world = this.world();
+    return world.characters.flatMap(path => {
+      const id = /\/Characters\/([^/]+)\/character\.md$/.exec(path)![1]!;
+      const intent = characterIntent(world, id);
+      return (!intent.activity && intent.wait || this.activity.pendingWaitReviews?.[id]) ? [id] : [];
+    });
+  }
+  async checkWait(id: string, elapsedSeconds: number, signal = new AbortController().signal) {
+    if (this.activity.conversations[id]?.length) return;
+    if (this.activity.pendingWaitReviews?.[id]) { await this.reviewNpcOutcome(id, true, signal); return; }
+    if (this.activity.npcActivities?.[id]?.reviewPending) return;
+    const runtime = this.runtime(id, "jev", {}, undefined, signal);
+    const decision = await decideWait(id, elapsedSeconds, runtime.services, signal);
+    if (!decision) return;
+    await this.commit(async () => {
+      if (this.activity.conversations[id]?.length || waitObservation(runtime.services, id) !== decision.observation) return;
+      const intent = characterIntent(this.world(), id);
+      if (intent.activity || intent.wait !== decision.wait.path) return;
+      const next = decision.choice.startsWith("set_activity:") ? decision.choice.slice("set_activity:".length) : null;
+      const metadata = { ...decision.character.document.frontmatter,
+        activity: next, wait: decision.choice === "continue" ? decision.wait.path : null };
+      await this.documents.docs.commit([
+        ...[decision.wait, ...decision.targets].map(doc => ({ path: doc.path, expectedSha: doc.sha, text: doc.text })),
+        { path: decision.character.path, expectedSha: decision.character.sha,
+          text: `---\n${stringify(metadata)}---\n${decision.character.document.body}` },
+      ]);
+      if (decision.choice === "stop_waiting") (this.activity.pendingWaitReviews ??= {})[id] = {
+        instructions: decision.wait.document.body, observation: decision.observation,
+      };
+      this.syncGoals();
+    }, signal);
+    if (this.activity.pendingWaitReviews?.[id]) await this.reviewNpcOutcome(id, true, signal);
+    return decision.choice;
   }
   async processPerceivedEvent(id: string, event: Event, perception: string, signal = new AbortController().signal) {
     await this.resolve({ kind: "world_event", characterId: id, eventId: event.id, perception }, signal);
