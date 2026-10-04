@@ -3,7 +3,7 @@ import test from "node:test";
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { publishEvalHistory } from "../scripts/publish-eval-history.js";
+import { publishEvalHistory, updateEvalTypes } from "../scripts/publish-eval-history.js";
 
 test("history preserves prior commits, separates experiments and replaces reruns", async () => {
   const root = mkdtempSync(join(tmpdir(), "eval-history-"));
@@ -30,7 +30,7 @@ test("history preserves prior commits, separates experiments and replaces reruns
     assert.deepEqual(read("index.json"), ["one", "two"]);
     assert.equal(read(`one/${"a".repeat(40)}.json`).comparison[0].total, 0.75);
     assert.equal(read(`two/${"a".repeat(40)}.json`).trials[0].result.criteria.accuracy.reason, "Partial credit");
-    write("manifest.json", { revision: "b".repeat(40), rubric, experiments: ["one"], repeats: 1 });
+    write("manifest.json", { revision: "b".repeat(40), rubric, experiments: ["one"], experimentTypes: { one: "review" }, repeats: 1 });
     const failed = { ...trial("one", 1), recording: { error: "Execution failed" } };
     write("0001.json", failed);
     await publishEvalHistory(source, destination);
@@ -40,6 +40,14 @@ test("history preserves prior commits, separates experiments and replaces reruns
     assert.deepEqual(read("one/index.json"), [`${"a".repeat(40)}.json`, `${"b".repeat(40)}.json`]);
     assert.equal(read(`one/${"b".repeat(40)}.json`).comparison[0].total, null);
     assert.equal(read(`one/${"a".repeat(40)}.json`).comparison[0].total, 0.75);
+    assert.equal(read(`one/${"b".repeat(40)}.json`).type, "review");
+    const before = read(`one/${"a".repeat(40)}.json`);
+    updateEvalTypes(destination, { one: "review" });
+    assert.deepEqual(read(`one/${"a".repeat(40)}.json`), { ...before, type: "review" });
+    assert.deepEqual(read("types.json"), { one: "review", two: "unclassified" });
+    updateEvalTypes(destination, { one: "jev-action", two: "jev-decision" });
+    assert.equal(read(`one/${"a".repeat(40)}.json`).type, "review");
+    assert.equal(read(`two/${"a".repeat(40)}.json`).type, "jev-decision");
     assert.deepEqual(read("two/index.json"), [`${"a".repeat(40)}.json`]);
   } finally { rmSync(root, { recursive: true, force: true }); }
 });

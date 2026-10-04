@@ -50,6 +50,7 @@ test("CLI saves each trial and an aggregate table; list never constructs service
     await runEvalCli([experiment], { args: ["--list"], print: line => lines.push(line) });
     assert.equal(constructions, 0);
     const result = await runEvalCli([experiment], { args: ["--repeats", "2", "--output", output], print: line => lines.push(line) });
+    assert.deepEqual(JSON.parse(readFileSync(`${result.directory}/manifest.json`, "utf8")).experimentTypes, { fixture: "review" });
     assert.equal(constructions, 2); assert.equal(result.exitCode, 0);
     assert.equal(JSON.parse(readFileSync(`${result.directory}/0002.json`, "utf8")).repeat, 2);
     assert.equal(JSON.parse(readFileSync(`${result.directory}/results.json`, "utf8")).comparison[0].total, 1);
