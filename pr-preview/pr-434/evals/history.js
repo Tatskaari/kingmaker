@@ -1,7 +1,16 @@
 const $ = id => document.getElementById(id);
 const colors = ['#80ded0', '#e8b76b', '#b6a4f7', '#ee92b0', '#8abdf3', '#b7d876'];
 const percentage = value => value == null ? 'Unscored' : `${(value * 100).toFixed(1)}%`;
-let runs = [], filenames = [], selection = 0;
+let runs = [], filenames = [], selection = 0, names = [], types = {};
+const typeLabels = { conversation: 'Conversation', review: 'Review', 'jev-decision': 'Jev decision', 'jev-action': 'Jev action', unclassified: 'Unclassified' };
+function filterEvals() {
+  const previous = $('eval').value;
+  const filtered = names.filter(name => !$('type').value || (types[name] ?? 'unclassified') === $('type').value);
+  $('eval').replaceChildren(...filtered.map(name => option(name, name)));
+  if (filtered.includes(previous)) $('eval').value = previous;
+  if (filtered.length) return loadEval();
+}
+$('type').addEventListener('change', filterEvals);
 function option(value, text) {
   const item = document.createElement('option');
   item.value = value; item.textContent = text; return item;
@@ -101,7 +110,11 @@ $('eval').addEventListener('change', loadEval);
 $('metric').addEventListener('change', draw);
 $('commit').addEventListener('change', details);
 try {
-  const names = await json('index.json');
+  names = await json('index.json');
+  try { types = await json('types.json'); } catch { /* Older publications remain browsable as unclassified. */ }
+  const groups = [...new Set(names.map(name => types[name] ?? 'unclassified'))].sort();
+  $('type').replaceChildren(option('', 'All types'), ...groups.map(type => option(type, typeLabels[type] ?? type)));
+  $('type').disabled = !names.length;
   $('eval').replaceChildren(...names.map(name => option(name, name)));
   $('eval').disabled = !names.length;
   if (names.length) await loadEval();
