@@ -34,3 +34,12 @@ activities and typed inventory, especially when Jev scores disagree with visible
   inventory service, explicitly separate those timescales, retain the physical movement
   boundary, and authorize supported ownership changes. Compare with material-consequences
   and a fresh baseline; keep prior variants and the rubric unchanged.
+
+- **effect-ledger** (follow-up): traces showed prose claiming player ownership while edits
+  added the gift to the giver's inventory. Hypothesis: classify effects before writing,
+  and let the resolver map model-selected recipient IDs to actual document paths. A new
+  classify hook returns newly introduced items and distinguishes immediate/future intent;
+  the resolver writes those items through the recorded docs service before memory review.
+  It uses consequence-led framing and the same inventory service. This adds an LLM call
+  and supports only newly introduced items, not transfer of existing items. No case names,
+  bird descriptions or expected answers are embedded in the strategy.
