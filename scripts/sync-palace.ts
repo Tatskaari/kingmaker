@@ -1,19 +1,23 @@
 import { fromJson, toJson } from "@bufbuild/protobuf";
-import { ScenarioSchema, MapFixtureSchema } from "../packages/contracts/src/index.js";
+import { WorldStateSchema, MapFixtureSchema } from "../packages/contracts/src/index.js";
 import { palaceFurniture } from "../apps/web/src/palace-furniture.js";
+import { inventoryOwners } from "../packages/core/src/inventory.js";
+import { characterDocuments } from "../packages/lore/src/character-id.js";
+import { loadPlayableWorld } from "./lib/playable-world.js";
 import { readFileSync, writeFileSync } from "node:fs";
 import { palaceLayout } from "../apps/web/src/palace-layout.js";
 
-// Preserve narrative/inventory content while deriving geometry-dependent access
-// and exits from the same room functions that build the playable map.
-const path = new URL("../content/scenarios/last-night.json", import.meta.url);
-const scenario = JSON.parse(readFileSync(path, "utf8"));
-palaceLayout.validateDoorBoundaries(scenario.world.doors);
-scenario.world.rooms = palaceLayout.worldRooms().map(room => ({
-  ...scenario.world.rooms.find((existing: { id: string }) => existing.id === room.id), ...room,
+// Derive geometry from the shared layout; character inventories come from documents.
+const path = new URL("../content/palace-map.json", import.meta.url);
+const map = JSON.parse(readFileSync(path, "utf8"));
+palaceLayout.validateDoorBoundaries(map.doors);
+map.rooms = palaceLayout.worldRooms().map(room => ({
+  ...map.rooms.find((existing: { id: string }) => existing.id === room.id), ...room,
 }));
-scenario.world.fixtures = scenario.world.fixtures.filter((fixture: { id: string }) => !fixture.id.startsWith("furn_"));
-const additions = palaceFurniture(fromJson(ScenarioSchema, scenario));
-scenario.world.fixtures.push(...additions.map(fixture => toJson(MapFixtureSchema, fixture)));
-writeFileSync(path, JSON.stringify(scenario, null, 2) + "\n");
-console.log("Synchronized palace room ownership, access and exits.");
+map.fixtures = map.fixtures.filter((fixture: { id: string }) => !fixture.id.startsWith("furn_"));
+const world = loadPlayableWorld(), physical = fromJson(WorldStateSchema, map);
+const characters = characterDocuments(world).map(({ id, document }) => ({ id, inventory: document.characterProperties?.inventory }));
+const additions = palaceFurniture(physical, inventoryOwners(characters, physical));
+map.fixtures.push(...additions.map(fixture => toJson(MapFixtureSchema, fixture)));
+writeFileSync(path, JSON.stringify(map, null, 2) + "\n");
+console.log("Synchronized palace room ownership, access, exits and furniture.");
