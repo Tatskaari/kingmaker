@@ -131,3 +131,9 @@ Open `evals/index.html` on the published site to select an experiment, graph its
 total or individual criteria across commits, and inspect a commit's variant breakdown.
 Chart points are keyboard accessible and select the same detail table as the commit picker.
 Missing scores create gaps; rubric changes break connecting lines. Scores JSON is linked from each commit. Download full recordings from the corresponding workflow run’s `eval-results` artifact. Until the first publication, the dashboard displays setup guidance.
+## Gift review reproduction
+
+`OPENROUTER_API_KEY=… npm run eval:review:gift -- --repeats 3` runs the baseline-only
+`peregrine-gift` screenshot reconstruction. It adds an inventory ownership criterion to
+the shared review rubric so a memory of giving a gift cannot substitute for a real item.
+See [fixture assumptions and criteria](../evals/reviews/peregrine-gift/README.md).

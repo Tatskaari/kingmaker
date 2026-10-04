@@ -1,0 +1,65 @@
+{
+  "sourceRevision": "6cf18ff64664d47599bbf64b636cc25f5426e5cd",
+  "artifactDirectory": "2026-10-04T11-21-45.606Z-974203d9",
+  "repeats": 3,
+  "executionErrors": 0,
+  "judgeErrors": 0,
+  "trials": [
+    {
+      "repeat": 3,
+      "scores": {
+        "grounding": 0,
+        "coverage": 0,
+        "knowledge": 0,
+        "intent": 0,
+        "preservation": 0,
+        "restraint": 0,
+        "physical-state": 1,
+        "gift-inventory": 0
+      },
+      "giftInventoryReason": "Matching wooden birds: player=0, Peregrine=0; expected 1 and 0.",
+      "changedDocuments": [
+        "Cast/Saltmere/Prince Peregrine Vane/knowledge/Abel Keel.md",
+        "Scenarios/Centennial Assembly/Characters/peregrine/character.md"
+      ],
+      "playerInventory": null
+    },
+    {
+      "repeat": 2,
+      "scores": {
+        "grounding": 0,
+        "coverage": 0,
+        "knowledge": 0,
+        "intent": 0,
+        "preservation": 0,
+        "restraint": 0,
+        "physical-state": 1,
+        "gift-inventory": 0
+      },
+      "giftInventoryReason": "Matching wooden birds: player=0, Peregrine=0; expected 1 and 0.",
+      "changedDocuments": [
+        "Scenarios/Centennial Assembly/Characters/peregrine/character.md"
+      ],
+      "playerInventory": null
+    },
+    {
+      "repeat": 1,
+      "scores": {
+        "grounding": 0,
+        "coverage": 0,
+        "knowledge": 0,
+        "intent": 0,
+        "preservation": 0,
+        "restraint": 0,
+        "physical-state": 1,
+        "gift-inventory": 0
+      },
+      "giftInventoryReason": "Matching wooden birds: player=0, Peregrine=0; expected 1 and 0.",
+      "changedDocuments": [
+        "Scenarios/Centennial Assembly/Characters/peregrine/character.md",
+        "Scenarios/Centennial Assembly/Characters/peregrine/situation.md"
+      ],
+      "playerInventory": null
+    }
+  ]
+}

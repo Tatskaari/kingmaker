@@ -16,6 +16,7 @@
     "dev": "proto run moon -- run workspace:dev",
     "conversation": "node --experimental-ffi --import tsx scripts/conversation-cli.ts",
     "eval:review": "tsx scripts/run-conversation-review-eval.ts",
+    "eval:review:gift": "tsx scripts/run-peregrine-gift-eval.ts",
     "eval:wait": "tsx scripts/run-wait-eval.ts",
     "eval:review:handoff": "tsx scripts/run-review-handoff-eval.ts"
   },
