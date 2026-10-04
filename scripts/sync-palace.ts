@@ -9,9 +9,8 @@ import { palaceLayout } from "../apps/web/src/palace-layout.js";
 
 const world = loadPlayableWorld(), map = world.map!;
 palaceLayout.validateDoorBoundaries(map.doors);
-map.rooms = palaceLayout.worldRooms().map(room => create(RoomSchema, {
-  ...map.rooms.find(existing => existing.id === room.id), ...room,
-}));
+map.rooms = palaceLayout.worldRooms().map(room => Object.assign(create(RoomSchema),
+  map.rooms.find(existing => existing.id === room.id), room));
 map.fixtures = map.fixtures.filter(fixture => !fixture.id.startsWith("furn_"));
 const characters = characterDocuments(world).map(({ id, document }) => ({ id, inventory: document.characterProperties?.inventory }));
 map.fixtures.push(...palaceFurniture(map, inventoryOwners(characters, map)));
