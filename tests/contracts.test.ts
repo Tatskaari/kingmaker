@@ -876,11 +876,13 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     await rejected; assert.equal(resumed, false);
   });
 
-  await t.test("conversation review leaves movement and other dialogue available", async () => {
+  await t.test("post-review of a loaded conversation leaves movement and other dialogue available", async () => {
     t.mock.method(JevClient.prototype, "evaluate", async (_input: unknown, questions: Record<string, unknown>) => Object.fromEntries(Object.keys(questions).map(skill => [skill, skill.startsWith("open_") ? { choice: "skip", probabilities: { [skill]: 0, skip: 1 } } : { choice: "not_needed", probabilities: { needed: 0, not_needed: 1 } }])));
     await request("create_development_game");
     t.mock.method(OpenRouterClient.prototype, "complete", async () => ({ role: "assistant", content: "Farewell." }));
-    await request("talk", { characterId: "corvin", message: "Goodbye." });
+    const spoken = await request("talk", { characterId: "corvin", message: "Goodbye." });
+    // A loaded conversation has no live review session and uses post-review.
+    await request("load_game", { saveId: spoken.activeSaveId });
     let release!: () => void;
     let started!: () => void;
     const reviewing = new Promise<void>(resolve => { started = resolve; });
