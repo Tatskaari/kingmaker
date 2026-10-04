@@ -2,114 +2,13 @@
   "sourceRevision": "915b979c631d614e0bfe7c9cd5c64f37f0cc0da5",
   "artifactDirectory": "2026-10-04T11-10-50.980Z-45d7977f",
   "command": "npm run eval:review -- --repeats 3 --output eval-output/deferred-promises",
-  "comparison": [
-    {
-      "variant": "game",
-      "baseline": true,
-      "runs": 6,
-      "executionErrors": 0,
-      "scoringErrors": 0,
-      "criteria": {
-        "grounding": 1,
-        "coverage": 1,
-        "knowledge": 0.5,
-        "intent": 0,
-        "preservation": 1,
-        "restraint": 0.5,
-        "physical-state": 1
-      },
-      "total": 0.7142857142857143,
-      "delta": 0
-    },
-    {
-      "variant": "deferred-promises",
-      "baseline": false,
-      "runs": 6,
-      "executionErrors": 0,
-      "scoringErrors": 0,
-      "criteria": {
-        "grounding": 1,
-        "coverage": 1,
-        "knowledge": 0.3333333333333333,
-        "intent": 0,
-        "preservation": 1,
-        "restraint": 0.3333333333333333,
-        "physical-state": 1
-      },
-      "total": 0.6666666666666667,
-      "delta": -0.04761904761904756
-    }
-  ],
   "trials": [
     {
       "experiment": "oswin-parlour",
       "variant": "deferred-promises",
       "repeat": 2,
-      "criteria": {
-        "grounding": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "fail": 0.18,
-            "pass": 0.8200000000000001
-          }
-        },
-        "coverage": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "fail": 0.23,
-            "pass": 0.77
-          }
-        },
-        "knowledge": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0.01,
-            "fail": 0.39,
-            "pass": 0.6
-          }
-        },
-        "intent": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0.01,
-            "fail": 0.77,
-            "pass": 0.22
-          }
-        },
-        "preservation": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0.01,
-            "fail": 0.25,
-            "pass": 0.74
-          }
-        },
-        "restraint": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "fail": 0.38,
-            "pass": 0.62
-          }
-        },
-        "physical-state": {
-          "score": 1
-        }
-      },
+      "criteria": {"grounding": 1, "coverage": 1, "knowledge": 1, "intent": 0, "preservation": 1, "restraint": 1, "physical-state": 1},
       "activity": {
-        "summary": "Hurry to the parlour and wait",
-        "visibility": "private",
-        "readers": [
-          "character:oswin"
-        ],
         "name": "Hurry to the parlour and wait",
         "status": "Oswin has been thoroughly intimidated and is hurrying to the parlour; he intends to wait in the chair farthest from the door.",
         "success_criteria": "Reach the parlour and take the chair farthest from the door, then remain there awaiting the player.",
@@ -121,71 +20,8 @@
       "experiment": "oswin-parlour",
       "variant": "deferred-promises",
       "repeat": 1,
-      "criteria": {
-        "grounding": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.56,
-            "fail": 0.44
-          }
-        },
-        "coverage": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.59,
-            "fail": 0.41
-          }
-        },
-        "knowledge": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0.01,
-            "pass": 0.47,
-            "fail": 0.52
-          }
-        },
-        "intent": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0.01,
-            "pass": 0.11,
-            "fail": 0.88
-          }
-        },
-        "preservation": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0.01,
-            "pass": 0.5599999999999999,
-            "fail": 0.43
-          }
-        },
-        "restraint": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.4,
-            "fail": 0.6
-          }
-        },
-        "physical-state": {
-          "score": 1
-        }
-      },
+      "criteria": {"grounding": 1, "coverage": 1, "knowledge": 0, "intent": 0, "preservation": 1, "restraint": 0, "physical-state": 1},
       "activity": {
-        "summary": "Go to the parlour and wait",
-        "visibility": "private",
-        "readers": [
-          "character:oswin"
-        ],
         "name": "Go to the parlour and wait",
         "status": "Oswin has left the Great Hall and is heading to the parlour, intending to wait there in the chair farthest from the door.",
         "success_criteria": "Reach the parlour and wait there in the chair farthest from the door until the player arrives or gives a new instruction.",
@@ -197,71 +33,8 @@
       "experiment": "oswin-parlour",
       "variant": "deferred-promises",
       "repeat": 3,
-      "criteria": {
-        "grounding": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "fail": 0.16,
-            "uncertain": 0,
-            "pass": 0.84
-          }
-        },
-        "coverage": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "fail": 0.13,
-            "uncertain": 0,
-            "pass": 0.87
-          }
-        },
-        "knowledge": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "fail": 0.34,
-            "uncertain": 0.01,
-            "pass": 0.65
-          }
-        },
-        "intent": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "fail": 0.59,
-            "uncertain": 0.01,
-            "pass": 0.4
-          }
-        },
-        "preservation": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "fail": 0.19,
-            "pass": 0.8,
-            "uncertain": 0.01
-          }
-        },
-        "restraint": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "fail": 0.33,
-            "uncertain": 0,
-            "pass": 0.67
-          }
-        },
-        "physical-state": {
-          "score": 1
-        }
-      },
+      "criteria": {"grounding": 1, "coverage": 1, "knowledge": 1, "intent": 0, "preservation": 1, "restraint": 1, "physical-state": 1},
       "activity": {
-        "summary": "Go to the parlour and wait for the player",
-        "visibility": "private",
-        "readers": [
-          "character:oswin"
-        ],
         "name": "Go to the parlour and wait for the player",
         "status": "Oswin is complying with the player's intimidation and is making his way from the Great Hall to the parlour. He intends to choose the chair farthest from the door.",
         "success_criteria": "Reach the parlour and wait there in the chair farthest from the door until the player arrives or gives another instruction.",
@@ -273,71 +46,8 @@
       "experiment": "oswin-parlour",
       "variant": "game",
       "repeat": 1,
-      "criteria": {
-        "grounding": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "fail": 0.09,
-            "pass": 0.91,
-            "uncertain": 0
-          }
-        },
-        "coverage": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "fail": 0.04,
-            "pass": 0.96,
-            "uncertain": 0
-          }
-        },
-        "knowledge": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "fail": 0.37,
-            "pass": 0.62,
-            "uncertain": 0.01
-          }
-        },
-        "intent": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "fail": 0.55,
-            "pass": 0.44,
-            "uncertain": 0.01
-          }
-        },
-        "preservation": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "fail": 0.13,
-            "pass": 0.87,
-            "uncertain": 0
-          }
-        },
-        "restraint": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "fail": 0.28,
-            "pass": 0.72,
-            "uncertain": 0
-          }
-        },
-        "physical-state": {
-          "score": 1
-        }
-      },
+      "criteria": {"grounding": 1, "coverage": 1, "knowledge": 1, "intent": 0, "preservation": 1, "restraint": 1, "physical-state": 1},
       "activity": {
-        "summary": "Go to the parlour and wait",
-        "visibility": "private",
-        "readers": [
-          "character:oswin"
-        ],
         "name": "Go to the parlour and wait",
         "status": "Oswin is hurrying from the Great Hall toward the parlour, obeying the player's intimidation.",
         "success_criteria": "Reach the parlour, select the chair farthest from the door, and wait there for the player.",
@@ -349,71 +59,8 @@
       "experiment": "oswin-parlour",
       "variant": "game",
       "repeat": 3,
-      "criteria": {
-        "grounding": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "fail": 0.14,
-            "pass": 0.86
-          }
-        },
-        "coverage": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "fail": 0.07,
-            "pass": 0.93
-          }
-        },
-        "knowledge": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0.01,
-            "fail": 0.37,
-            "pass": 0.62
-          }
-        },
-        "intent": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0.01,
-            "fail": 0.51,
-            "pass": 0.48
-          }
-        },
-        "preservation": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0.01,
-            "fail": 0.16,
-            "pass": 0.83
-          }
-        },
-        "restraint": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "fail": 0.27,
-            "pass": 0.73
-          }
-        },
-        "physical-state": {
-          "score": 1
-        }
-      },
+      "criteria": {"grounding": 1, "coverage": 1, "knowledge": 1, "intent": 0, "preservation": 1, "restraint": 1, "physical-state": 1},
       "activity": {
-        "summary": "Hurry to the parlour",
-        "visibility": "private",
-        "readers": [
-          "character:oswin"
-        ],
         "name": "Hurry to the parlour",
         "status": "Oswin has been decisively intimidated and is hurrying from the Great Hall to the parlour, intending to wait there in the chair farthest from the door. He has not yet arrived.",
         "success_criteria": "Oswin physically arrives in the parlour and sits in the chair farthest from the door, ready to wait for the player.",
@@ -425,71 +72,8 @@
       "experiment": "oswin-parlour",
       "variant": "game",
       "repeat": 2,
-      "criteria": {
-        "grounding": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.93,
-            "fail": 0.07
-          }
-        },
-        "coverage": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.97,
-            "fail": 0.03
-          }
-        },
-        "knowledge": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0.01,
-            "pass": 0.65,
-            "fail": 0.34
-          }
-        },
-        "intent": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0.01,
-            "pass": 0.43,
-            "fail": 0.56
-          }
-        },
-        "preservation": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.9,
-            "fail": 0.1
-          }
-        },
-        "restraint": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.78,
-            "fail": 0.22
-          }
-        },
-        "physical-state": {
-          "score": 1
-        }
-      },
+      "criteria": {"grounding": 1, "coverage": 1, "knowledge": 1, "intent": 0, "preservation": 1, "restraint": 1, "physical-state": 1},
       "activity": {
-        "summary": "Hurry to the parlour",
-        "visibility": "private",
-        "readers": [
-          "character:oswin"
-        ],
         "name": "Hurry to the parlour",
         "status": "Oswin is in the Great Hall and has agreed under the player's effective intimidation to go wait in the parlour, choosing the chair farthest from the door.",
         "success_criteria": "Oswin physically reaches the parlour, then takes the chair farthest from the door and waits there for the player.",
@@ -501,71 +85,8 @@
       "experiment": "oswin-kobold-city",
       "variant": "game",
       "repeat": 1,
-      "criteria": {
-        "grounding": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "fail": 0.25,
-            "uncertain": 0,
-            "pass": 0.75
-          }
-        },
-        "coverage": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "fail": 0.08,
-            "uncertain": 0,
-            "pass": 0.92
-          }
-        },
-        "knowledge": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "fail": 0.55,
-            "uncertain": 0.02,
-            "pass": 0.43
-          }
-        },
-        "intent": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "fail": 0.99,
-            "uncertain": 0,
-            "pass": 0.01
-          }
-        },
-        "preservation": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "fail": 0.27,
-            "uncertain": 0.01,
-            "pass": 0.72
-          }
-        },
-        "restraint": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "fail": 0.78,
-            "uncertain": 0,
-            "pass": 0.22
-          }
-        },
-        "physical-state": {
-          "score": 1
-        }
-      },
+      "criteria": {"grounding": 1, "coverage": 1, "knowledge": 0, "intent": 0, "preservation": 1, "restraint": 0, "physical-state": 1},
       "activity": {
-        "summary": "Travel to Kobold City with Berz for fashion consultation",
-        "visibility": "private",
-        "readers": [
-          "character:oswin"
-        ],
         "name": "Travel to Kobold City with Berz for fashion consultation",
         "status": "Oswin has accepted Berz's invitation to accompany them to Kobold City and receive fashion advice. They remain in the Great Hall and have not begun the journey.",
         "success_criteria": "Travel to Kobold City with Berz and arrive ready for the promised fashion consultation about his tassel-troubled hat.",
@@ -577,71 +98,8 @@
       "experiment": "oswin-kobold-city",
       "variant": "game",
       "repeat": 3,
-      "criteria": {
-        "grounding": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.67,
-            "fail": 0.33
-          }
-        },
-        "coverage": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.82,
-            "fail": 0.18
-          }
-        },
-        "knowledge": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0.02,
-            "pass": 0.38,
-            "fail": 0.6
-          }
-        },
-        "intent": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.01,
-            "fail": 0.99
-          }
-        },
-        "preservation": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0.01,
-            "pass": 0.69,
-            "fail": 0.3
-          }
-        },
-        "restraint": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.23,
-            "fail": 0.77
-          }
-        },
-        "physical-state": {
-          "score": 1
-        }
-      },
+      "criteria": {"grounding": 1, "coverage": 1, "knowledge": 0, "intent": 0, "preservation": 1, "restraint": 0, "physical-state": 1},
       "activity": {
-        "summary": "Prepare to travel to Kobold City with Berz",
-        "visibility": "private",
-        "readers": [
-          "character:oswin"
-        ],
         "name": "Prepare to travel to Kobold City with Berz",
         "status": "Oswin has accepted Berz's invitation and is still in the Great Hall. He has not yet travelled; prepare for the fashion consultation and then set out to meet Berz for the journey.",
         "success_criteria": "Oswin has made reasonable preparations and departed the Great Hall to accompany Berz toward Kobold City; no arrival is assumed.",
@@ -653,71 +111,8 @@
       "experiment": "oswin-kobold-city",
       "variant": "deferred-promises",
       "repeat": 3,
-      "criteria": {
-        "grounding": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.73,
-            "fail": 0.27
-          }
-        },
-        "coverage": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.91,
-            "fail": 0.09
-          }
-        },
-        "knowledge": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0.01,
-            "pass": 0.4,
-            "fail": 0.59
-          }
-        },
-        "intent": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0.01,
-            "pass": 0.45,
-            "fail": 0.54
-          }
-        },
-        "preservation": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0.01,
-            "pass": 0.75,
-            "fail": 0.24
-          }
-        },
-        "restraint": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.33,
-            "fail": 0.67
-          }
-        },
-        "physical-state": {
-          "score": 1
-        }
-      },
+      "criteria": {"grounding": 1, "coverage": 1, "knowledge": 0, "intent": 0, "preservation": 1, "restraint": 0, "physical-state": 1},
       "activity": {
-        "summary": "Prepare for Berz\u2019s Kobold City fashion consultation",
-        "visibility": "private",
-        "readers": [
-          "character:oswin"
-        ],
         "name": "Prepare for Berz\u2019s Kobold City fashion consultation",
         "status": "Oswin has accepted Berz\u2019s invitation and is getting ready to accompany them to Kobold City for a fashion consultation; he has not traveled yet.",
         "success_criteria": "Oswin is practically ready to accompany Berz, with the ceremonial hat available for the promised style consultation. Do not presume the journey has begun or impose any obstacle.",
@@ -729,71 +124,8 @@
       "experiment": "oswin-kobold-city",
       "variant": "game",
       "repeat": 2,
-      "criteria": {
-        "grounding": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "pass": 0.63,
-            "uncertain": 0.01,
-            "fail": 0.36
-          }
-        },
-        "coverage": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "pass": 0.8,
-            "uncertain": 0,
-            "fail": 0.2
-          }
-        },
-        "knowledge": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "pass": 0.37,
-            "uncertain": 0.02,
-            "fail": 0.61
-          }
-        },
-        "intent": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "pass": 0.01,
-            "uncertain": 0,
-            "fail": 0.99
-          }
-        },
-        "preservation": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "pass": 0.61,
-            "uncertain": 0.01,
-            "fail": 0.38
-          }
-        },
-        "restraint": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "pass": 0.27,
-            "uncertain": 0,
-            "fail": 0.73
-          }
-        },
-        "physical-state": {
-          "score": 1
-        }
-      },
+      "criteria": {"grounding": 1, "coverage": 1, "knowledge": 0, "intent": 0, "preservation": 1, "restraint": 0, "physical-state": 1},
       "activity": {
-        "summary": "Prepare to accompany Berz to Kobold City",
-        "visibility": "private",
-        "readers": [
-          "character:oswin"
-        ],
         "name": "Prepare to accompany Berz to Kobold City",
         "status": "Oswin has accepted Berz's invitation to travel to Kobold City for a fashion consultation. He remains in the Great Hall and has not yet traveled.",
         "success_criteria": "Oswin makes reasonable preparations to leave the Great Hall for the journey to Kobold City, keeping his promise to accompany Berz.",
@@ -805,71 +137,8 @@
       "experiment": "oswin-kobold-city",
       "variant": "deferred-promises",
       "repeat": 1,
-      "criteria": {
-        "grounding": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.64,
-            "fail": 0.36
-          }
-        },
-        "coverage": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.78,
-            "fail": 0.22
-          }
-        },
-        "knowledge": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0.01,
-            "pass": 0.38,
-            "fail": 0.61
-          }
-        },
-        "intent": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0.01,
-            "pass": 0.31,
-            "fail": 0.6799999999999999
-          }
-        },
-        "preservation": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0.01,
-            "pass": 0.67,
-            "fail": 0.32
-          }
-        },
-        "restraint": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.19,
-            "fail": 0.81
-          }
-        },
-        "physical-state": {
-          "score": 1
-        }
-      },
+      "criteria": {"grounding": 1, "coverage": 1, "knowledge": 0, "intent": 0, "preservation": 1, "restraint": 0, "physical-state": 1},
       "activity": {
-        "summary": "Prepare for Kobold City fashion consultation",
-        "visibility": "private",
-        "readers": [
-          "character:oswin"
-        ],
         "name": "Prepare for Kobold City fashion consultation",
         "status": "Oswin accepted Berz's invitation, and the promised trip has not yet begun.",
         "success_criteria": "Be ready to accompany Berz to Kobold City for a fashion consultation centered on the troublesome hat tassel.",
@@ -881,71 +150,8 @@
       "experiment": "oswin-kobold-city",
       "variant": "deferred-promises",
       "repeat": 2,
-      "criteria": {
-        "grounding": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0.01,
-            "pass": 0.66,
-            "fail": 0.33
-          }
-        },
-        "coverage": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.76,
-            "fail": 0.24
-          }
-        },
-        "knowledge": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0.02,
-            "pass": 0.41,
-            "fail": 0.5700000000000001
-          }
-        },
-        "intent": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.09,
-            "fail": 0.91
-          }
-        },
-        "preservation": {
-          "score": 1,
-          "reason": "pass",
-          "probabilities": {
-            "uncertain": 0.01,
-            "pass": 0.64,
-            "fail": 0.35
-          }
-        },
-        "restraint": {
-          "score": 0,
-          "reason": "fail",
-          "probabilities": {
-            "uncertain": 0,
-            "pass": 0.3,
-            "fail": 0.7
-          }
-        },
-        "physical-state": {
-          "score": 1
-        }
-      },
+      "criteria": {"grounding": 1, "coverage": 1, "knowledge": 0, "intent": 0, "preservation": 1, "restraint": 0, "physical-state": 1},
       "activity": {
-        "summary": "Prepare for Kobold City fashion consultation",
-        "visibility": "private",
-        "readers": [
-          "character:oswin"
-        ],
         "name": "Prepare for Kobold City fashion consultation",
         "status": "Oswin accepted Berz's invitation and intends to accompany them to Kobold City for a fashion consultation. They remain in the Great Hall; the journey has not begun.",
         "success_criteria": "Oswin is ready to depart with Berz for Kobold City, bringing his troublesome hat and suitable travel necessities; no travel is presumed complete.",
