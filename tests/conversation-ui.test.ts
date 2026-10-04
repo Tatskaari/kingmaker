@@ -104,9 +104,10 @@ test("Jev rounds and opened Markdown can be inspected and exported alongside mod
 
 test("CLI pauses for a manual d20, rejects invalid input, and shows the GM ruling", async () => {
   let calls = 0;
+  let exported: ConversationResult | undefined;
   const ai: import("../packages/conversation/src/services.js").AiService = {
     decisions: async (_state, questions) => Object.fromEntries(Object.entries(questions).map(([id, question]) => {
-      const choice = "needed" in question.criteria ? id === "persuasion" ? "needed" : "not_needed" : "normal";
+      const choice = "needed" in question.criteria ? id === "persuasion" ? "needed" : "not_needed" : "normal" in question.criteria ? "normal" : "not_applicable" in question.criteria ? "not_applicable" : "not_flagged";
       return [id, { choice, probabilities: { [choice]: 1 } }];
     })),
     responses: async request => {
@@ -125,8 +126,8 @@ test("CLI pauses for a manual d20, rejects invalid input, and shows the GM rulin
       assert.match(JSON.stringify(request.messages), /Accept the proposal/);
       return { role: "assistant", content: "Agreed." };
     },
-    copyText: async () => "Copied.", onFinish: () => {},
-  }), { width: 120, height: 30, exitOnCtrlC: false, autoFocus: false });
+    copyText: async () => "Copied.", onFinish: result => { exported = result; },
+  }), { width: 160, height: 60, exitOnCtrlC: false, autoFocus: false });
   const step = async (action: () => void | Promise<void>) => {
     await act(async () => { await action(); await new Promise(resolve => setTimeout(resolve, 60)); }); await setup.flush();
   };
@@ -147,8 +148,24 @@ test("CLI pauses for a manual d20, rejects invalid input, and shows the GM rulin
     assert.match(setup.captureCharFrame(), /Agreed/);
     assert.match(setup.captureCharFrame(), /GM roll ruling/);
     assert.equal(calls, 1);
+    assert.match(setup.captureCharFrame(), /skill_check · persuasion: needed/);
+    assert.match(setup.captureCharFrame(), /skill_difficulty · persuasion: normal/);
+    assert.match(setup.captureCharFrame(), /d20 20 \+ 0 = 20/);
+    assert.doesNotMatch(setup.captureCharFrame(), /attention · immediate_commitment:/);
+    assert.doesNotMatch(setup.captureCharFrame(), /attention · immediate_feasibility:/);
+    await step(() => setup.mockInput.pressKey("d", { ctrl: true }));
+    assert.ok(exported?.analysis.some(event => event.messageIndex === 0 && event.kind === "roll"));
+    assert.ok(exported?.analysis.some(event => event.messageIndex === 1 && event.kind === "labels" && event.source === "attention"));
     const rowY = (id: string) => setup.renderer.root.findDescendantById(id)!.y;
     assert.ok(rowY("jev-1-1") < rowY("gm-0"));
     assert.ok(rowY("gm-0") < rowY("message-4"));
+    const attention = exported!.decisionCalls.find(call => call.purpose === "conversation_attention")!;
+    assert.equal(attention.status, "completed");
+    assert.equal(attention.answers?.immediate_commitment?.choice, "not_flagged");
+    assert.ok(rowY("message-4") < rowY(attention.id), "attention follows the character reply");
+    const attentionRow = setup.renderer.root.findDescendantById(attention.id)!;
+    await step(() => setup.mockMouse.click(attentionRow.x + 2, attentionRow.y));
+    assert.match(setup.captureCharFrame(), /Jev attention · completed/);
+    assert.match(setup.captureCharFrame(), /conversation_attention/);
   } finally { await act(() => setup.renderer.destroy()); }
 });

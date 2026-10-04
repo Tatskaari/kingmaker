@@ -1,3 +1,5 @@
+import { traceCliDecisions, decisionCallLabel, type CliDecisionCall } from "./decision-calls.js";
+import { formatConversation, type MessageAnalysis } from "./analysis.js";
 import type { AiService, RuntimeServices } from "../../packages/conversation/src/services.js";
 import type { DndCharacter } from "../../packages/contracts/src/index.js";
 import { cliStrategy, type ManualRoll, type RequestRoll } from "../../packages/conversation/src/cli-strategy.js";
@@ -16,6 +18,8 @@ export interface ConversationResult {
   transcript: ConversationInput["transcript"];
   turns: LlmTurn[];
   gmTurns: LlmTurn[];
+  analysis: MessageAnalysis[];
+  decisionCalls: CliDecisionCall[];
   disclosure: DisclosureRound[];
   openedDocuments: ConversationInput["sources"];
 }
@@ -41,6 +45,8 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
   const [rounds, setRounds] = useState<DisclosureRound[]>([]);
   const [rollPrompt, setRollPrompt] = useState<ManualRoll | null>(null);
   const pendingRoll = useRef<((value: number) => void) | null>(null);
+  const [decisionCalls, setDecisionCalls] = useState<CliDecisionCall[]>([]);
+  const [analysis, setAnalysis] = useState<MessageAnalysis[]>([]);
   const [gmTurns, setGmTurns] = useState<LlmTurn[]>([]);
   const requestRoll: RequestRoll = (check, signal) => new Promise((resolve, reject) => {
     signal.throwIfAborted();
@@ -69,6 +75,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
   const entries = timeline.sort([
     ...messages.map((message, index) => ({ id: `message-${index}`, timeId: messageIds[index]!, label: `${index + 1}. ${message.role}`, text: message.content ?? "No text content." })),
     ...gmTurns.map((turn, index) => ({ id: `gm-${index}`, timeId: `gm-${index}`, label: `GM roll ruling ${index + 1}`, text: JSON.stringify(turn, null, 2) })),
+    ...decisionCalls.map(call => ({ id: call.id, timeId: call.id, label: decisionCallLabel(call), text: JSON.stringify(call, null, 2) })),
     ...rounds.flatMap(round => [
       { id: `jev-${round.turn}-${round.round}`, timeId: `jev-${round.turn}-${round.round}`, label: `Jev ${round.turn}.${round.round} ${round.status}`, text: disclosureDetails(round) },
       ...round.opened.map((document, index) => ({ id: `opened-${round.turn}-${round.round}-${index}`, timeId: `jev-${round.turn}-${round.round}`, label: `↳ ${document.path.split("/").at(-1)}`, text: `# ${document.path}\n${document.markdown}` })),
@@ -76,7 +83,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
   ]);
   const selectedIndex = entries.findIndex(entry => entry.id === selected);
   const source = selected === null
-    ? transcript.map(message => `${message.speakerId === "player" ? "You" : input.characterId}: ${message.text}`).join("\n\n") || "Type a message to begin."
+    ? formatConversation(transcript, input.characterId, analysis) || "Type a message to begin."
     : entries[selectedIndex]?.text ?? "No text content.";
   const choose = (id: string | null) => { renderer.clearSelection(); setSelected(id); };
   useEffect(() => () => controller.current.abort(), []);
@@ -88,24 +95,44 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
     if (running.current || !message.trim()) return;
     running.current = true; setBusy(true); setStatus("");
     const index = turns.length;
+    const messageIndex = transcript.length;
+    setAnalysis(previous => previous.filter(event => event.messageIndex < messageIndex));
     try {
       checks?.beginTurn?.();
       const turnInput = { ...input, transcript, message };
       const trace = (round: DisclosureRound) => {
         timeline.record(`jev-${round.turn}-${round.round}`);
+        if (round.answers) {
+          const source = `disclosure round ${round.round}`;
+          setAnalysis(previous => [...previous.filter(event => !(event.messageIndex === messageIndex && event.kind === "labels" && event.source === source)),
+            { messageIndex, kind: "labels", subject: "player", source, decisions: round.answers! }]);
+        }
         setRounds(previous => {
           const index = previous.findIndex(item => item.turn === round.turn && item.round === round.round);
           return index < 0 ? [...previous, round] : previous.map((item, i) => i === index ? round : item);
         });
       };
+      const tracedAi = checks && traceCliDecisions(checks.ai, call => {
+        timeline.record(call.id);
+        setDecisionCalls(previous => previous.some(item => item.id === call.id)
+          ? previous.map(item => item.id === call.id ? call : item) : [...previous, call]);
+      });
       const strategies = disclosure && checks
-        ? cliStrategy(disclosure, checks.ai, checks.build, message, requestRoll, trace, turn => {
+        ? cliStrategy(disclosure, tracedAi!, checks.build, message, requestRoll, trace, turn => {
           timeline.record(`gm-${gmCount.current++}`);
           setGmTurns(previous => [...previous, turn]);
-        }, {}, {}, checks.services ? { services: checks.services, characterId: input.characterId } : undefined)
+        }, {}, {}, checks.services ? { services: checks.services, characterId: input.characterId } : undefined,
+        event => setAnalysis(previous => [...previous, { ...event, messageIndex: messageIndex + (event.subject === "character" ? 1 : 0) }]))
         : disclosure ? disclosure.strategy(trace) : { classify: async () => ({}), resolve: async () => ({ reclassify: false }) };
       const runtime = new ConversationRuntime({
-        services: { character: { respond: complete } },
+        services: { character: { respond: async (request, signal) => {
+          const response = await complete(request, signal);
+          signal?.throwIfAborted();
+          // Stamp the reply before post-reply analysis starts, not when it finishes.
+          timeline.recordMessages([...request.messages, response]);
+          setTurns(previous => [...previous.slice(0, index), { request, response }]);
+          return response;
+        } } },
         strategies: { conversation: strategies as import("../../packages/conversation/src/phases.js").ConversationStrategy<unknown> },
       });
       const result = await converse({ ...turnInput, sources: disclosure?.sources ?? input.sources }, runtime, controller.current.signal,
@@ -129,7 +156,9 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
     }
     if (key.ctrl && (key.name === "c" || key.name === "d")) {
       key.preventDefault(); controller.current.abort();
-      onFinish({ characterId: input.characterId, transcript, gmTurns,
+      onFinish({ characterId: input.characterId, transcript, gmTurns, analysis,
+        decisionCalls: decisionCalls.map(call => call.status === "pending"
+          ? { ...call, status: "failed", error: "Cancelled when conversation ended." } : call),
         disclosure: rounds.map(round => round.status === "pending" ? { ...round, status: "error", error: "Cancelled when conversation ended." } : round),
         openedDocuments: disclosure?.sources ?? input.sources,
         turns: turns.map(turn => turn.response || turn.error ? turn : { ...turn, error: "Cancelled when conversation ended." }),
