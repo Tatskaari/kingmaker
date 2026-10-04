@@ -8,10 +8,9 @@ const arrestCall = (name = "arrest", args = "{}") => ({ role: "assistant" as con
   tool_calls: [{ id: "arrest-1", type: "function" as const, function: { name, arguments: args } }] });
 function game(choice = "arrest", response = "You're nicked, mate.", extra: WorldOptions = {}) {
   return new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, undefined, {
-    strategies: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }),
-      resolve: async context => {
+    strategies: { conversation: { respond: async (context, signal, services) => {
         context.request.messages.push({ role: "system", content: "# Binding DM ruling\nThe threat was credible." });
-        return { reclassify: false };
+        return services.character.respond(context.request, signal);
       } } },
     ...extra,
     services: { random: { integer: () => 1 }, ai: { decisions: async () => { throw new Error("Unexpected Jev arrest decision"); },

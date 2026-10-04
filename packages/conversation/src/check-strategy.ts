@@ -1,21 +1,21 @@
 import { renderPrompt } from "../../prompts/src/index.js";
 import { runGameMaster } from "./game-master.js";
 import { classifyConversationTurn, type ConversationCheckClassification } from "../../providers/src/conversation-checks.js";
-import type { ConversationStrategy } from "./phases.js";
+import type { ConversationContext } from "./phases.js";
 import type { ConversationRuntime } from "./runtime.js";
 import { adjudicateResolvedChecks, type CheckPlan } from "./checks.js";
 
 export interface CheckLabels { checks: ConversationCheckClassification; plan?: CheckPlan[] }
 
 /** Existing check policy behind the same classify/resolve contract as disclosure. */
-export function checkStrategy(runtime: ConversationRuntime<CheckLabels>, options: {
+export function checkStrategy(runtime: ConversationRuntime, options: {
   playerTurn: string;
   playerId: string;
   context?: unknown;
   characterId?: string;
-}): ConversationStrategy<CheckLabels> {
+}) {
   return {
-    classify: async (context, signal) => {
+    classify: async (context: Readonly<ConversationContext>, signal: AbortSignal): Promise<CheckLabels> => {
       const state = { playerTurn: options.playerTurn, messages: context.request.messages, context: options.context };
       const checks = await classifyConversationTurn(
         { evaluate: (input, questions, cancellation) => runtime.services.ai.decisions(input, questions, cancellation, "skill_check") }, { playerTurn: options.playerTurn, messages: context.request.messages }, signal);
@@ -36,7 +36,7 @@ export function checkStrategy(runtime: ConversationRuntime<CheckLabels>, options
       });
       return { checks, plan };
     },
-    resolve: async (context, labels, signal) => {
+    resolve: async (context: ConversationContext, labels: Readonly<CheckLabels>, signal: AbortSignal) => {
       if (context.completed.has("checks")) return { reclassify: false };
       if (!labels.plan && labels.checks.checks.length) throw new Error("Missing classified check plan");
       const results = [];

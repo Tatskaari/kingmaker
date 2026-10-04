@@ -5,7 +5,7 @@ import { runExperiment } from "../packages/evals/src/experiment.js";
 import { attentionQuestions } from "../packages/conversation/src/attention.js";
 import cases from "../evals/attention/shared-graduation.json" with { type: "json" };
 
-test("attention eval uses the production hook, fixed evidence and recorded AI for each fresh trial", async () => {
+test("attention eval uses the shared classifier, response hook and recorded AI for each fresh trial", async () => {
   let services = 0;
   for (const fixture of cases) {
     const experiment = createAttentionExperiment(fixture, () => {

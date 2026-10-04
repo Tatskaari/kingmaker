@@ -28,7 +28,7 @@ import { documentLoreService } from "../../../packages/conversation/src/document
 import { DisclosureSession } from "../../../packages/conversation/src/disclosure.js";
 import { runGameMaster } from "../../../packages/conversation/src/game-master.js";
 import { checkMechanics, adjudicateResolvedChecks } from "../../../packages/conversation/src/checks.js";
-import { cliStrategy } from "../../../packages/conversation/src/cli-strategy.js";
+import { conversationStrategy } from "../../../packages/conversation/src/conversation-strategy.js";
 import { aiService } from "../../../packages/conversation/src/adapters.js";
 import { OpenRouterClient, type TextProgress } from "../../../packages/providers/src/openrouter.js";
 import { JevClient } from "../../../packages/providers/src/jev.js";
@@ -37,8 +37,7 @@ import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
 import { planWorldAction, type PlanningFeedback } from "./world-action.js";
 import { courtCharactersWithinEarshot, perceivesAt } from "./earshot.js";
 
-export type WorldTurnLabels = Awaited<ReturnType<ReturnType<typeof cliStrategy>["classify"]>>;
-export type WorldOptions = ConversationRuntimeOptions<WorldTurnLabels>;
+export type WorldOptions = ConversationRuntimeOptions;
 export { type WorldSnapshot } from "./world-host.js";
 
 export type ConversationStartResult = { ok: true; text: string } | ({ ok: false } & PlanningFeedback);
@@ -85,7 +84,7 @@ export class WorldGameRuntime extends WorldHost {
         ...(location ? { location: { x: location.x, y: location.y } } : {}),
       };
     }, (span, request, call) => this.traces.record(span.operation as ModelCallKind, span.characterId, request, call, runKey, span.characterId, span), kind);
-    return new ConversationRuntime<WorldTurnLabels>({ services: {
+    return new ConversationRuntime({ services: {
       ...this.options.services, ...extra.services,
       scenario,
       lore: documentLoreService(scenario, { ...this.options.services?.lore, ...extra.services?.lore }),
@@ -228,7 +227,7 @@ export class WorldGameRuntime extends WorldHost {
     const lore = await runtime.services.lore.forCharacter(id, signal);
     const disclosure = new DisclosureSession(lore, runtime.services.ai, 0.7);
     const world = this.world(), build = world.player ? world.docs[world.player]?.characterProperties?.dnd : undefined;
-    const strategies = cliStrategy(disclosure, runtime.services.ai, build, message,
+    const strategies = conversationStrategy(disclosure, runtime.services.ai, build, message,
       async (_check, cancellation) => { cancellation.throwIfAborted(); return runtime.services.random.integer(1, 20); },
       () => {}, () => {}, runtime.services.presentation, runtime.services.character, { services: runtime.services, characterId: id });
     runtime.strategies.conversation = options.strategies?.conversation ?? this.options.strategies?.conversation ?? strategies;
@@ -463,10 +462,7 @@ export class WorldGameRuntime extends WorldHost {
     const lore = await runtime.services.lore.forCharacter(id, signal);
     // Opening speech can disclose lore, but there is no player utterance to check.
     const disclosure = new DisclosureSession(lore, runtime.services.ai, 0.7).strategy(() => {});
-    runtime.strategies.conversation = this.options.strategies?.conversation ?? {
-      classify: async (...args) => ({ docs: await disclosure.classify(...args), checks: undefined }),
-      resolve: (context, labels, cancellation) => disclosure.resolve(context, labels.docs, cancellation),
-    };
+    runtime.strategies.conversation = this.options.strategies?.conversation ?? disclosure;
     let challenged = false;
     const granted = world.docs[characterIntent(world, id).entry]!.frontmatter?.conversation_actions;
     runtime.services.character.respond = Array.isArray(granted) && granted.includes("arrest")

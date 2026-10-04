@@ -20,58 +20,50 @@ const runtime = new ConversationRuntime({
 // Responses and decisions use the shared adapter; other services are host supplied.
 ```
 
-Strategies group policy callbacks called hooks (`prepare`, `classify`, `resolve`).
-Strategies own the flow, services perform operations, and the runtime owns conversation
-state. Construction injects the hooks and services so browser, terminal and
-headless implementations can share the same conversation function.
+The conversation strategy has one hook: `respond(context, signal, services)`.
+It owns preparation, model calls and any review required before returning a reply.
+Other strategies retain their own hooks, such as setup's `prepare` and review's
+`classify`/`resolve`. Hosts inject services and swap the complete conversation policy.
 
-## Turn phases
+## Response hook
+
+The shared `runConversation` dispatcher clones the request, checks cancellation,
+and delegates once:
 
 ```ts
-async function converse(turn, runtime, signal) {
-  const context = runtime.context.forTurn(turn);
-
-  while (true) {
-    const labels = await runtime.strategies.conversation.classify(context, signal);
-    const result = await runtime.strategies.conversation.resolve(context, labels, signal);
-    if (!result.reclassify) break;
-  }
-
-  return runtime.services.character.respond({ messages: context.messages }, signal);
-}
+const reply = await runtime.strategies.conversation.respond(
+  { request, maxPasses: runtime.maxPasses }, signal, services,
+);
 ```
 
-Classification only returns what Jev wants to do. It does not open documents,
-roll dice, update portraits or modify context. Classifiers contribute typed labels
-to a shared result; resolvers can use labels produced by any classifier.
-
-Resolution performs effects and applies context changes. If documents need
-opening, open them and request reclassification against the expanded context.
-Defer dice decisions from that pass until the knowledge is settled. Reclassification
-produces fresh labels; opened documents and completed actions remain recorded so
-later passes do not reopen notes or reroll completed checks. Bound the loop and
-context size; exceeding a limit is an error, not permission to reply prematurely.
+It checks cancellation again before returning. The dispatcher wraps the character
+service to notify the host of each prepared model request for tracing and binding
+GM ruling capture. It does not generate another reply after the hook returns.
 
 ```ts
 interface ConversationStrategy {
-  classify(
-    context: Readonly<ConversationContext>,
+  respond(
+    context: { request: ConversationContext["request"]; maxPasses: number },
     signal: AbortSignal,
-  ): Promise<ConversationLabels>;
-
-  resolve(
-    context: ConversationContext,
-    labels: Readonly<ConversationLabels>,
-    signal: AbortSignal,
-  ): Promise<{ reclassify: boolean }>;
+    services: RuntimeServices,
+  ): Promise<OpenRouterMessage>;
 }
 ```
 
-The runtime coordinates context updates in a stable order. The context includes
-the current player turn, transcript, opened Markdown, added system messages and
-completed actions. Labels contain decisions and their parameters, such as check
-plans, document links and portrait expressions. Exact label composition and
-conflict handling between classifiers remain implementation details to review.
+The existing `conversationStrategy`, also used by browser and headless player dialogue,
+finishes recursive lore disclosure, classifies and resolves skill checks once,
+adds the binding dice ruling, calls `services.character.respond`, and runs Jev
+attention analysis before returning the reply. Disclosure still enforces its pass
+and context limits. Dice outcomes and label reporting are unchanged.
+
+`DisclosureSession.strategy()` provides a disclosure-only response strategy for
+NPC openings and the CLI without checks. `directConversationStrategy` delegates
+straight to the character service. A replacement strategy can generate multiple
+private drafts or return a fixed response without calling that service.
+
+This refactor does not yet add GM attention adjudication, regeneration, background
+review, or buffering of the browser's existing token stream. Attention remains
+diagnostic; a failed attention call reports an error without discarding the reply.
 
 ## Injected services
 
@@ -191,25 +183,22 @@ prepares hypothetical outcome directions.
 
 ```ts
 const runtime = new ConversationRuntime({
-  snapshot,
   services,
   strategies: {
-    conversation: createConversationStrategy({
-      classifiers: [disclosureClassifier, checkClassifier],
-      resolvers: [disclosureResolver, checkResolver],
-    }),
+    conversation: {
+      respond: async ({ request }, signal, services) => {
+        return services.character.respond(request, signal);
+      },
+    },
   },
 });
 ```
 
-Replacing hooks changes the strategy; replacing services changes providers,
-rendering or randomness. Headless checks should exercise the same classify,
-resolve and respond loop, including recursive disclosure, shared labels, deferred
-checks, deterministic rolls, selected system messages and cancellation. The RHS
-should expose classification results, all prepared GM directions, the roll result
-and the exact selected message. Browser presentation waits for acknowledgement;
-headless presentation completes immediately. The CLI still uses disclosure hooks;
-the check policy is installed in browser and headless player conversations.
+Replacing `respond` changes the conversation policy; replacing services changes
+providers, rendering or randomness. CLI, browser, headless and eval callers all
+use this hook. Tests cover cancellation, prepared-request tracing, replacement
+strategies, disclosure, dice and attention reporting. Fixed-transcript attention
+evals run the shared attention classifier inside their own response strategy.
 
 ## Conversation review
 
@@ -380,7 +369,7 @@ and after setup. This facade lets resolvers and nested GM calls use the host's
 policy without depending on a particular runtime instance. Supplying that service
 explicitly overrides dispatch; forwarding it to a nested runtime preserves the
 parent policy. Setup runs before model execution, not inside provider retries.
-Player dialogue retains its classify/resolve disclosure loop. The synchronous
+Player dialogue runs its disclosure loop inside the response strategy. The synchronous
 `conversationRequest` helper remains a default-policy preview for CLI displays;
 actual turns use `prepareConversation` and the setup hook.
 

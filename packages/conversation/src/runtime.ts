@@ -7,12 +7,12 @@ import type { RuntimeServices } from "./services.js";
 import type { ConversationReviewStrategy, ReviewLabels } from "./review.js";
 import type { ConversationStrategy } from "./phases.js";
 
-/** Strategies group policy hooks; each callback (prepare, classify, resolve) is a hook. */
-export interface RuntimeStrategies<Labels = Record<string, never>, Review = ReviewLabels> { setup: { prepare: AgentSetupHook }; conversation: ConversationStrategy<Labels>; review: ConversationReviewStrategy<Review>; action: ActionStrategy; actionExecution: ActionExecutionStrategy; resolution: ResolutionStrategy }
+/** Strategies group policy hooks; each callback (respond, prepare, classify, resolve) is a hook. */
+export interface RuntimeStrategies<Review = ReviewLabels> { setup: { prepare: AgentSetupHook }; conversation: ConversationStrategy; review: ConversationReviewStrategy<Review>; action: ActionStrategy; actionExecution: ActionExecutionStrategy; resolution: ResolutionStrategy }
 
-export interface ConversationRuntimeOptions<Labels = Record<string, never>, Review = ReviewLabels> {
+export interface ConversationRuntimeOptions<Review = ReviewLabels> {
   services?: { [Service in keyof RuntimeServices]?: Partial<RuntimeServices[Service]> };
-  strategies?: { setup?: { prepare: AgentSetupHook }; conversation?: ConversationStrategy<Labels>; review?: Partial<ConversationReviewStrategy<Review>>; action?: Partial<ActionStrategy>; actionExecution?: Partial<ActionExecutionStrategy>; resolution?: Partial<ResolutionStrategy> };
+  strategies?: { setup?: { prepare: AgentSetupHook }; conversation?: ConversationStrategy; review?: Partial<ConversationReviewStrategy<Review>>; action?: Partial<ActionStrategy>; actionExecution?: Partial<ActionExecutionStrategy>; resolution?: Partial<ResolutionStrategy> };
   maxPasses?: number;
 }
 
@@ -26,17 +26,16 @@ export class UnimplementedServiceError extends Error {
 const unimplemented = (operation: string): never => { throw new UnimplementedServiceError(operation); };
 
 /** Conversation, review and action dependencies and strategies, supplied by the host. */
-export class ConversationRuntime<Labels = Record<string, never>, Review = ReviewLabels> {
+export class ConversationRuntime<Review = ReviewLabels> {
   readonly services: RuntimeServices;
-  readonly strategies: RuntimeStrategies<Labels, Review>;
+  readonly strategies: RuntimeStrategies<Review>;
   readonly maxPasses: number;
 
-  constructor({ services = {}, strategies, maxPasses = 16 }: ConversationRuntimeOptions<Labels, Review> = {}) {
+  constructor({ services = {}, strategies, maxPasses = 16 }: ConversationRuntimeOptions<Review> = {}) {
     if (!Number.isSafeInteger(maxPasses) || maxPasses < 1) throw new Error("maxPasses must be a positive integer.");
     this.maxPasses = maxPasses;
     this.strategies = { setup: strategies?.setup ?? { prepare: setupAgent }, conversation: strategies?.conversation ?? {
-      classify: async () => unimplemented("strategies.conversation.classify"),
-      resolve: async () => unimplemented("strategies.conversation.resolve"),
+      respond: async () => unimplemented("strategies.conversation.respond"),
     }, review: {
       classify: strategies?.review?.classify ?? (async () => unimplemented("strategies.review.classify")),
       resolve: strategies?.review?.resolve ?? (async () => unimplemented("strategies.review.resolve")),

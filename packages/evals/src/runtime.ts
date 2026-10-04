@@ -4,12 +4,12 @@ import type { Recording } from "../../service-tools/src/recording.js";
 
 /** Factories receive recorded dependencies. Use the supplied services instead of capturing raw peers. */
 export type ServiceFactories = { [K in keyof RuntimeServices]?: (services: RuntimeServices) => Partial<RuntimeServices[K]> };
-export interface EvalRuntimeOptions<L, R> extends Omit<ConversationRuntimeOptions<L, R>, "services"> { services?: ServiceFactories }
+export interface EvalRuntimeOptions<R> extends Omit<ConversationRuntimeOptions<R>, "services"> { services?: ServiceFactories }
 
 /** Construct each dependency once per trial, recording it before any dependent factory can use it. */
-export function createRecordedRuntime<L, R>(options: EvalRuntimeOptions<L, R>, recording: Recording): ConversationRuntime<L, R> {
+export function createRecordedRuntime<R>(options: EvalRuntimeOptions<R>, recording: Recording): ConversationRuntime<R> {
   const { services: factories = {}, ...policy } = options;
-  const runtime = new ConversationRuntime<L, R>(policy);
+  const runtime = new ConversationRuntime<R>(policy);
   const defaults = { ...runtime.services }, cache = new Map<keyof RuntimeServices, object>(), constructing = new Set<string>();
   const resolve = <K extends keyof RuntimeServices>(name: K): RuntimeServices[K] => {
     if (cache.has(name)) return cache.get(name) as RuntimeServices[K];

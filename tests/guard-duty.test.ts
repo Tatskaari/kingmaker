@@ -37,7 +37,7 @@ test("a guard opening challenges the player instead of arresting without a defen
   const world = loadPlayableWorld(), player = world.map!.actors.find(actor => actor.characterId === "player")!;
   player.position = { ...player.position!, x: 61, y: 11 }; player.roomId = "north_corridor";
   const game = new WorldGameRuntime(world, "", undefined, undefined, undefined, {
-    strategies: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }), resolve: async () => ({ reclassify: false }) } },
+    strategies: { conversation: { respond: (context, signal, services) => services.character.respond(context.request, signal), } },
     services: { ai: { responses: async request => request.tools?.some(tool => tool.function.name === "arrest")
       ? { role: "assistant", content: null, tool_calls: [{ id: "arrest", type: "function", function: { name: "arrest", arguments: "{}" } }] }
       : { role: "assistant", content: "You're in the royal bedchamber. Explain yourself." } } },

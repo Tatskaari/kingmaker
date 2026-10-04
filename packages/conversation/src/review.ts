@@ -22,8 +22,8 @@ export async function classifyConversationReview(_context: Readonly<Conversation
 }
 
 /** One classify/resolve pass. The host owns transcript cleanup after success. */
-export async function runConversationReview<Turn, Labels>(context: ConversationReviewContext,
-  runtime: ConversationRuntime<Turn, Labels>, signal: AbortSignal = new AbortController().signal): Promise<ConversationReviewResult> {
+export async function runConversationReview<Labels>(context: ConversationReviewContext,
+  runtime: ConversationRuntime<Labels>, signal: AbortSignal = new AbortController().signal): Promise<ConversationReviewResult> {
   const evidence = structuredClone(context);
   signal.throwIfAborted();
   const labels = await runtime.strategies.review.classify(structuredClone(evidence), signal, runtime.services);

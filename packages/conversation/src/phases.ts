@@ -1,40 +1,38 @@
 import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/src/openrouter.js";
 import type { ConversationRuntime } from "./runtime.js";
+import type { RuntimeServices } from "./services.js";
 
+/** Internal state for the disclosure and check helpers. */
 export interface ConversationContext {
   request: Omit<ChatCompletionRequest, "messages"> & { messages: OpenRouterMessage[] };
   pass: number;
-  /** Resolvers can record effects that must not run again on a later pass. */
   completed: Set<string>;
 }
-export interface ConversationStrategy<Labels = Record<string, never>> {
-  /** Inspect a completed reply without changing the dialogue or world. */
-  analyze?(context: Readonly<ConversationContext>, reply: Readonly<OpenRouterMessage>, signal: AbortSignal): Promise<void>;
-  classify(context: Readonly<ConversationContext>, signal: AbortSignal): Promise<Labels>;
-  resolve(context: ConversationContext, labels: Readonly<Labels>, signal: AbortSignal): Promise<{ reclassify: boolean }>;
+export interface ConversationStrategy {
+  /** Own the complete turn, including any preparation, generation and review. */
+  respond(context: { request: ConversationContext["request"]; maxPasses: number }, signal: AbortSignal,
+    services: RuntimeServices): Promise<OpenRouterMessage>;
 }
 
-/** All hosts share this loop; classifiers decide and resolvers alone perform effects. */
-export async function runConversation<Labels>(request: ChatCompletionRequest, runtime: ConversationRuntime<Labels>,
+export const directConversationStrategy: ConversationStrategy = {
+  respond: (context, signal, services) => services.character.respond(context.request, signal),
+};
+
+/** Hosts dispatch through the same swappable response hook. */
+export async function runConversation(request: ChatCompletionRequest, runtime: ConversationRuntime,
   signal: AbortSignal = new AbortController().signal,
   onRespond: (request: ChatCompletionRequest) => void = () => {}): Promise<OpenRouterMessage> {
-  const context: ConversationContext = { request: { ...structuredClone(request), messages: structuredClone([...request.messages]) }, pass: 1, completed: new Set() };
-  for (; context.pass <= runtime.maxPasses; context.pass++) {
-    signal.throwIfAborted();
-    // Classifiers receive a detached view, so accidental writes cannot change the turn.
-    const labels = await runtime.strategies.conversation.classify(structuredClone(context), signal);
-    signal.throwIfAborted();
-    const result = await runtime.strategies.conversation.resolve(context, labels, signal);
-    signal.throwIfAborted();
-    if (result.reclassify) continue;
-    onRespond(context.request);
-    const reply = await runtime.services.character.respond(context.request, signal);
-    signal.throwIfAborted();
-    if (reply.role === "assistant" && reply.content?.trim() && !reply.tool_calls?.length) {
-      await runtime.strategies.conversation.analyze?.(structuredClone(context), structuredClone(reply), signal);
-      signal.throwIfAborted();
-    }
-    return reply;
-  }
-  throw new Error("Conversation round limit reached; no dialogue generated.");
+  signal.throwIfAborted();
+  const services = { ...runtime.services, character: { ...runtime.services.character,
+    respond: async (prepared: ChatCompletionRequest, cancellation: AbortSignal) => {
+      cancellation.throwIfAborted();
+      onRespond(prepared);
+      const reply = await runtime.services.character.respond(prepared, cancellation);
+      cancellation.throwIfAborted();
+      return reply;
+    },
+  } };
+  const reply = await runtime.strategies.conversation.respond({ request: { ...structuredClone(request), messages: structuredClone([...request.messages]) }, maxPasses: runtime.maxPasses }, signal, services);
+  signal.throwIfAborted();
+  return reply;
 }

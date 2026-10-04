@@ -1,10 +1,12 @@
+import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
+import { runConversation } from "../packages/conversation/src/phases.js";
 import { CheckDegree } from "../packages/core/src/ability-checks.js";
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema } from "../packages/contracts/src/index.js";
 import { formatAnalysis, formatConversation, type MessageAnalysis } from "../apps/conversation-cli/analysis.js";
-import { cliStrategy } from "../packages/conversation/src/cli-strategy.js";
+import { conversationStrategy } from "../packages/conversation/src/conversation-strategy.js";
 import { DisclosureSession } from "../packages/conversation/src/disclosure.js";
 import type { AiService } from "../packages/conversation/src/services.js";
 
@@ -28,17 +30,21 @@ test("inline analysis stays under its message and shows only flagged labels with
 });
 
 test("CLI reports failed attention analysis without losing reply and propagates cancellation", async () => {
-  const ai: AiService = { decisions: async () => { throw Error("Provider unavailable"); }, responses: async () => ({ role: "assistant", content: "Reply" }) };
+  const ai: AiService = { decisions: async (_state, questions, _signal, purpose) => {
+    if (purpose === "conversation_attention") throw Error("Provider unavailable");
+    return Object.fromEntries(Object.keys(questions).map(id => [id, { choice: "not_needed", probabilities: { not_needed: 1 } }]));
+  }, responses: async () => ({ role: "assistant", content: "Reply" }) };
   const disclosure = new DisclosureSession({ initial: [], links: () => [], open: async () => { throw Error("Unexpected open"); } }, ai);
   const events: unknown[] = [];
-  const strategy = cliStrategy(disclosure, ai, undefined, "Hello", async () => 10, () => {}, () => {}, {}, {}, undefined, event => events.push(event));
-  const context = { request: { model: "test", messages: [] }, pass: 1, completed: new Set<string>() };
+  const strategy = conversationStrategy(disclosure, ai, undefined, "Hello", async () => 10, () => {}, () => {}, {}, {}, undefined, event => events.push(event));
+  const request = { model: "test", messages: [] };
+  const runtime = new ConversationRuntime({ strategies: { conversation: strategy }, services: { character: { respond: ai.responses } } });
   const reply = { role: "assistant" as const, content: "Reply" };
-  await strategy.analyze(context, reply, new AbortController().signal);
-  assert.deepEqual(events, [{ kind: "error", subject: "character", error: "Error: Provider unavailable" }]);
+  assert.deepEqual(await runConversation(request, runtime), reply);
+  assert.deepEqual(events.slice(-1), [{ kind: "error", subject: "character", error: "Error: Provider unavailable" }]);
   const controller = new AbortController(); controller.abort();
-  await assert.rejects(strategy.analyze(context, reply, controller.signal), /abort/i);
-  assert.equal(events.length, 1);
+  await assert.rejects(runConversation(request, runtime, controller.signal), /abort/i);
+  assert.equal(events.length, 2);
 });
 
 

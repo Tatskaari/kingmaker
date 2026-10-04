@@ -4,10 +4,10 @@ import type { ReviewLabels } from "../../conversation/src/review.js";
 import { createRecordedRuntime, type EvalRuntimeOptions } from "./runtime.js";
 import { Recording, type ServiceCall } from "../../service-tools/src/recording.js";
 
-export interface RuntimeConfig<Labels = Record<string, never>, Review = ReviewLabels> {
+export interface RuntimeConfig<Review = ReviewLabels> {
   name: string;
   /** Fresh service factories and strategy hooks for every trial. */
-  configure(): EvalRuntimeOptions<Labels, Review> | Promise<EvalRuntimeOptions<Labels, Review>>;
+  configure(): EvalRuntimeOptions<Review> | Promise<EvalRuntimeOptions<Review>>;
 }
 export interface ScoreLevel { score: number; description: string }
 export interface Criterion { name: string; description: string; weight?: number; levels?: Record<string, ScoreLevel> }
@@ -22,13 +22,13 @@ export interface ScoreContext { signal: AbortSignal; recording: Recording }
 export const evalTypes = ["conversation", "review", "jev-decision", "jev-action"] as const;
 export type EvalType = typeof evalTypes[number];
 
-export interface Experiment<Labels = Record<string, never>, Review = ReviewLabels> {
+export interface Experiment<Review = ReviewLabels> {
   name: string;
   type: EvalType;
   rubric: readonly Criterion[];
-  getBaseline(): RuntimeConfig<Labels, Review>;
-  getVariants(): readonly RuntimeConfig<Labels, Review>[];
-  run(runtime: ConversationRuntime<Labels, Review>, signal: AbortSignal): Promise<void>;
+  getBaseline(): RuntimeConfig<Review>;
+  getVariants(): readonly RuntimeConfig<Review>[];
+  run(runtime: ConversationRuntime<Review>, signal: AbortSignal): Promise<void>;
   summarise(recording: RunRecording): string;
   score(recording: RunRecording, context: ScoreContext): Promise<Result>;
 }
@@ -88,7 +88,7 @@ export function validateResult(result: Result, rubric: readonly Criterion[]) {
 }
 
 /** Executes baseline and variants against fresh services; judges see evidence, never variant names. */
-export async function runExperiment<L, R>(experiment: Experiment<L, R>, options: RunOptions = {}): Promise<Trial[]> {
+export async function runExperiment<R>(experiment: Experiment<R>, options: RunOptions = {}): Promise<Trial[]> {
   const repeats = options.repeats ?? 3, timeoutMs = options.timeoutMs ?? 180_000;
   if (!Number.isSafeInteger(repeats) || repeats < 1 || repeats > 100) throw new Error("repeats must be between 1 and 100");
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1) throw new Error("timeoutMs must be positive");

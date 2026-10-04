@@ -56,7 +56,7 @@ export async function prepareConversation(input: ConversationInput, services: Pi
 }
 
 /** One plain dialogue turn. Return the complete transcript for a later review; never commit game changes. */
-export async function converse<Labels>(input: ConversationInput, runtime: ConversationRuntime<Labels>, signal?: AbortSignal,
+export async function converse(input: ConversationInput, runtime: ConversationRuntime, signal?: AbortSignal,
   trace: (turn: LlmTurn) => void = () => {}) {
   if (!input.message.trim()) throw new Error("Say something first.");
   let request = await prepareConversation(input, runtime.services, signal);

@@ -51,7 +51,7 @@ async function worldActionContext(world: WorldState, characterId: string, histor
 }
 
 /** Idle characters do not call Jev. Hosts execute commands and call again after completion. */
-export async function planWorldAction<Turn, Review>(characterId: string, runtime: ConversationRuntime<Turn, Review>,
+export async function planWorldAction<Review>(characterId: string, runtime: ConversationRuntime<Review>,
   signal: AbortSignal = new AbortController().signal, history: readonly string[] = [], feedback?: PlanningFeedback): Promise<WorldActionPlan | undefined> {
   signal.throwIfAborted();
   const world = runtime.services.scenario.snapshot();
@@ -66,8 +66,8 @@ export async function planWorldAction<Turn, Review>(characterId: string, runtime
 }
 
 /** A successful review publishes intent before action classification can begin. */
-export async function reviewAndPlanWorldAction<Turn, Review>(context: ConversationReviewContext,
-  runtime: ConversationRuntime<Turn, Review>, signal: AbortSignal = new AbortController().signal) {
+export async function reviewAndPlanWorldAction<Review>(context: ConversationReviewContext,
+  runtime: ConversationRuntime<Review>, signal: AbortSignal = new AbortController().signal) {
   const review = await runConversationReview(context, runtime, signal);
   const plan = await planWorldAction(context.characterId, runtime, signal);
   return { review, plan };
