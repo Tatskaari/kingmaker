@@ -425,6 +425,10 @@ export class WorldGameRuntime extends WorldHost {
       ? arrestResponse(runtime.services.ai.responses, () => { arrested = true; }) : runtime.services.ai.responses;
     const request = conversationRequest({ snapshot: { world }, characterId: id, sources: lore.initial, transcript: [],
       message: `Open a conversation with the player to advance this goal: ${goal}. Speak only your own opening words; do not invent the player's response or physical outcomes.` });
+    const actor = world.map!.actors.find(actor => actor.characterId === id)!;
+    const room = world.map!.rooms.find(room => room.id === actor.roomId)!;
+    request.messages.push({ role: "user", content: JSON.stringify({ currentObservation: JSON.parse(waitObservation(runtime.services, id)),
+      roomAccess: { private: room.private, playerAuthorized: !room.private || room.allowedCharacterIds.includes("player") } }) });
     const reply = await runConversation(request, runtime, signal);
     signal.throwIfAborted();
     if (reply.tool_calls?.length || !reply.content?.trim()) throw new Error("Invalid conversation opening.");
