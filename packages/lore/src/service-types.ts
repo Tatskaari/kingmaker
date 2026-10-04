@@ -31,8 +31,14 @@ export interface ScenarioService {
   getDocument(path: string): Promise<DocumentSnapshot>;
 }
 export interface DocumentWrite { path: string; expectedSha: string | null; text: string }
+export interface IntentWrite {
+  actorId: string;
+  expectedRevision: number;
+  activity: string | null;
+  wait: string | null;
+}
 export interface DocsService {
-  commit(writes: readonly DocumentWrite[]): Promise<void>;
+  commit(writes: readonly DocumentWrite[], intents?: readonly IntentWrite[]): Promise<void>;
   read(path: string): Promise<DocumentSnapshot>;
   create(path: string, text: string): Promise<DocumentSnapshot>;
   replace(path: string, expectedSha: string, oldText: string, newText: string): Promise<DocumentSnapshot>;

@@ -306,6 +306,10 @@ message ActorPlacement {
 message ActorState {
   // Distinguishes stationary background bodies sharing one character identity.
   optional string instance_id = 6;
+  // Per-body intent. Authored Markdown references seed these only on scene creation.
+  optional string activity = 7;
+  optional string wait = 8;
+  uint32 intent_revision = 9;
   string character_id = 1;
   string home_room_id = 2;
   string room_id = 3;
