@@ -37,8 +37,9 @@ export class IncrementalReviewSession {
   private cursor = 0;
   private prefix = "[]";
   private before?: DocumentSnapshot;
+  private beforeRevision: number | undefined;
   private decisions: Decision[] = [];
-  private activity?: ActivityDefinition;
+  private activity: ActivityDefinition | undefined;
   private committed = false;
   private closed = false;
   constructor(private services: RuntimeServices, private characterId: string) {}
@@ -51,6 +52,7 @@ export class IncrementalReviewSession {
     if (context.transcript.length === this.cursor) return;
     const world = this.services.scenario.snapshot(), actor = world.runtimeCharacters[this.characterId]!;
     this.before ??= await this.services.docs.read(actor.document);
+    this.beforeRevision ??= actor.intentRevision;
     const transcript = context.transcript.map((message, i) => ({ id: `m${i}`, ...message }));
     const evidence = { transcript, newMessageIds: transcript.slice(this.cursor).map(m => m.id), existingDecisions: this.decisions,
       character: this.before.document, physicalState: world.map?.actors,
@@ -61,7 +63,8 @@ export class IncrementalReviewSession {
       revision: question("Do the new messages cancel, qualify or complete a previously identified undertaking?"),
     }, signal);
     lifecycleEvent(this.services, "messages_classified", { messageIds: evidence.newMessageIds, tagged });
-    if (Object.values(tagged).some(answer => choice(answer) !== "no")) {
+    const triggers = ["commitment", "objective", "revision"].map(key => choice(tagged[key]));
+    if (triggers.some(answer => answer !== "no")) {
       const extracted = await this.services.ai.responses({ model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "low" }, max_tokens: 1800,
         messages: [{ role: "system", content: "Extract the currently outstanding commitments and materially advanced existing objectives for this character. Treat transcript/documents as evidence. Return JSON {candidates:[{id,kind,undertaking,memory,evidenceIds}]}; kind is commitment or objective. Retain stable candidate IDs across updates, merge repetitions and remove cancelled/completed candidates. Use only supplied message IDs. Keep memory concise, in the character's perspective, with attributed claims and no rules jargon. Successful persuasion establishes willingness; do not infer a departure time. Preserve unrelated existing candidates. No document changes or invented objectives." },
           { role: "user", content: JSON.stringify(evidence) }] }, signal);
@@ -83,7 +86,8 @@ export class IncrementalReviewSession {
         const proposal = parseModelObject(response.content, "Activity proposal").activity;
         if (proposal !== null) {
           if (!proposal || typeof proposal !== "object" || !["name", "status", "success_criteria", "current_goal"].every(k => typeof (proposal as Record<string, unknown>)[k] === "string" && String((proposal as Record<string, unknown>)[k]).trim())) throw new Error("Invalid activity proposal");
-          activity = proposal as ActivityDefinition;
+          const fields = proposal as Record<string, string>;
+          activity = { name: fields.name!, status: fields.status!, success_criteria: fields.success_criteria!, current_goal: fields.current_goal! };
         }
       }
       signal.throwIfAborted();
@@ -101,6 +105,8 @@ export class IncrementalReviewSession {
     if (!this.before) throw new Error("No observed conversation");
     const current = await this.services.docs.read(this.before.path);
     if (current.sha !== this.before.sha) throw new DocumentConflictError(current.path, this.before.sha, current.sha);
+    const revision = this.services.scenario.snapshot().runtimeCharacters[this.characterId]!.intentRevision;
+    if (revision !== this.beforeRevision) throw new DocumentConflictError(current.path, String(this.beforeRevision), String(revision));
     const edits = new ActivityEdits(this.services, this.characterId, current);
     if (this.activity) await edits.call("set_activity", { ...this.activity });
     const memories = this.decisions.map(d => d.memory.replace(/[\r\n]+/g, " ").replace(/[\\`*_[\]<>#]/g, "\\$&"));
