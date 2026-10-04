@@ -212,3 +212,25 @@ test("review can update GM quest documents without copying GM secrets into NPC m
   assert.match((await services.docs.read("gm.md")).text, /first quest stage complete/);
   assert.doesNotMatch((await services.docs.read(entry)).text, /SECRET_SENTINEL/);
 });
+
+test("GM reviews receive editable presentation snapshots for every participant including the player", async () => {
+  const { loadPlayableWorld } = await import("./fixtures.js");
+  const services = createScenarioServices(loadPlayableWorld());
+  let calls = 0;
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
+    if (calls++) return commitReview({ summary: "Updated visible grooming", newNotes: [], activeGoal: null });
+    const context = request.messages.flatMap(message => {
+      try { const value = JSON.parse(message.content ?? ""); return value.presentations ? [value] : []; } catch { return []; }
+    })[0];
+    assert.equal(context.presentations.length, 2);
+    const player = context.presentations.find((doc: { path: string }) => doc.path === "Players/presentation.md");
+    assert.ok(player.sha);
+    return { role: "assistant", content: null, tool_calls: [{ id: "appearance", type: "function", function: {
+      name: "replace_document", arguments: JSON.stringify({ path: player.path, expectedSha: player.sha,
+        oldText: player.document.body, newText: "Their hair is smoothed flat and their coat brushed free of loose dust." }),
+    } }] };
+  } } }, hooks: { review: documentReviewHooks } });
+  await runConversationReview({ characterId: "aldren", participants: ["aldren", "player"],
+    transcript: [create(TranscriptMessageSchema, { text: "I smooth my hair and brush the dust off my coat." })] }, runtime);
+  assert.match((await services.docs.read("Players/presentation.md")).document.body, /hair is smoothed flat/);
+});

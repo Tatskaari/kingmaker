@@ -1,3 +1,4 @@
+import { presentationPath } from "../../lore/src/presentation.js";
 import type { OpenRouterMessage } from "../../providers/src/openrouter.js";
 import type { RuntimeServices } from "./services.js";
 import { characterIntent, intentContext } from "../../lore/src/activity.js";
@@ -18,11 +19,16 @@ export async function reviewDocumentEvidence(context: Readonly<ConversationRevie
   const intent = characterIntent(services.scenario.snapshot(), context.characterId), path = intent.entry;
   if (!context.participants.includes(context.characterId)) throw new Error("Review character must be a participant.");
   const before = await services.docs.read(path), world = services.scenario.snapshot();
+  const presentations = await Promise.all([...new Set(context.participants)].flatMap(id => {
+    const entry = id === "player" ? world.player : world.runtimeCharacters[id]?.document;
+    const path = entry && presentationPath(entry);
+    return path && world.docs[path] ? [services.docs.read(path)] : [];
+  }));
   const actor = world.map?.actors.find(actor => (actor.instanceId ?? actor.characterId) === intent.actorId);
   let opened: OpenRouterMessage[] | undefined;
   const reply = await runGameMaster({ model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "low" }, max_tokens: 4000,
     messages: [{ role: "system", content: purpose }, { role: "user", content: JSON.stringify({
-      characterId: context.characterId, participants: context.participants, document: before,
+      characterId: context.characterId, participants: context.participants, document: before, presentations,
       intent: intentContext(world, intent.actorId), transcript: context.transcript, labels,
       physicalState: actor ? { characterId: actor.characterId, roomId: actor.roomId,
         roomName: world.map?.rooms.find(room => room.id === actor.roomId)?.name, position: actor.position } : null,
