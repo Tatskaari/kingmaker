@@ -1,4 +1,5 @@
 import { loadPlayableWorld } from "./lib/playable-world.js";
+import { characterCreationWorld } from "../apps/web/src/playable-world.js";
 import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
@@ -34,7 +35,7 @@ if (args[0] === "exec") {
   const source = worldPath ? JSON.parse(readFileSync(worldPath, "utf8")) : undefined;
   if (source && source.version !== 5 && !source.docs) throw new Error("Start a fresh game; this console requires a v2 world or snapshot.");
   const world = source ? (source.version === 5 ? source as WorldSnapshot : fromJson(WorldStateSchema, source))
-    : loadPlayableWorld();
+    : args.includes("--dev-player") ? loadPlayableWorld() : characterCreationWorld(loadPlayableWorld());
   const game = new WorldHeadlessGame(world, process.env.OPENROUTER_API_KEY ?? "");
   mkdirSync(dirname(socketPath), { recursive: true, mode: 0o700 });
   const server = await startConsole(game, socketPath);
