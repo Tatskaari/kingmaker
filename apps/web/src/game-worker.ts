@@ -7,7 +7,6 @@ import { type JsonValue } from "@bufbuild/protobuf";
 import { type Event } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
 import { WorldGameRuntime as BrowserGameRuntime, type WorldSnapshot as RuntimeSnapshot } from "./world-runtime.js";
-import { GenerationConflict, generationIds, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 
 interface SaveRecord {
   id: string;
@@ -163,7 +162,6 @@ async function runBackground(next: { id: string; handoffs: number }) {
       let planningError: unknown;
       try {
         let reason: "complete" | "unable" | "wait" | "limit" = "limit", detail = "Reached the 24-action limit.";
-        let finishGenerations: ExpectedGenerations | undefined;
         let conflict: { error: string; instruction: string } | undefined;
         for (let step = 0; step < 24 && valid(); step++) {
           publishNpc(`${id}: choosing an action…`);
@@ -172,17 +170,14 @@ async function runBackground(next: { id: string; handoffs: number }) {
           if (!valid()) return;
           publishNpc(`${id}: ${plan.action?.description ?? plan.decision.choice}`, plan);
           if (plan.decision.choice === "complete" || plan.decision.choice === "unable" || plan.decision.choice === "wait") {
-            // A changed world invalidates a terminal judgment as well as a physical action.
-            reason = plan.decision.choice; detail = JSON.stringify(plan.decision); finishGenerations = plan.generations; break;
+            reason = plan.decision.choice; detail = JSON.stringify(plan.decision); break;
           }
           if (!plan.action) throw new Error("Jev returned an unavailable action.");
-          let expected: ExpectedGenerations = plan.generations;
-          let result: { done: boolean; talkTarget?: string; worldEvent?: Event; generations: ExpectedGenerations } | undefined;
+          let result: { done: boolean; talkTarget?: string; worldEvent?: Event } | undefined;
           try {
             while (valid()) {
-              result = await commitMutation(game, () => { signal.throwIfAborted(); return game.executeAction({ command: { kind: "step", characterId: id, actionId: plan.action!.id, goal: plan.goal }, expected }, signal); });
+              result = await commitMutation(game, () => { signal.throwIfAborted(); return game.executeAction({ command: { kind: "step", characterId: id, actionId: plan.action!.id, goal: plan.goal } }, signal); });
               await game.presentMap("player", result).catch(error => providerWarning(String(error)));
-              expected = result.generations;
               if (!valid()) return;
               publishNpc(`${id}: ${plan.action.description}`);
               if (result.done) break;
@@ -190,10 +185,6 @@ async function runBackground(next: { id: string; handoffs: number }) {
             }
           } catch (error) {
             if (!valid()) return;
-            if (error instanceof GenerationConflict) {
-              conflict = { error: error.response.error, instruction: "The previous action was not applied because its generation IDs changed. Inspect this fresh observation, reconcile your intention, and choose an action again." };
-              continue;
-            }
             // Doors, targets or goals may have changed while the player acted. Replan.
             if (/replan|changed|doorway/i.test(String(error))) continue;
             throw error;
@@ -239,8 +230,7 @@ async function runBackground(next: { id: string; handoffs: number }) {
           }
         }
         if (!valid()) return;
-        const expectedFinish = finishGenerations ?? generationIds(game.readResources([`character:${id}`]));
-        await commitMutation(game, () => { signal.throwIfAborted(); game.finishNpcRun(id, reason, detail, expectedFinish); });
+        await commitMutation(game, () => { signal.throwIfAborted(); game.finishNpcRun(id, reason, detail); });
         publishNpc(`${id}: reviewing the result…`);
         await reviewBackground(game, id, signal, true);
       } catch (error) {
@@ -252,7 +242,7 @@ async function runBackground(next: { id: string; handoffs: number }) {
     }
     continueObjective = valid() && game.hasActiveObjective(id);
   } catch (error) {
-    if (valid() && (error instanceof GenerationConflict || /World changed; (replan|retry)/.test(String(error)))) {
+    if (valid() && /World changed; (replan|retry)/.test(String(error))) {
       pendingNpcs.push({ id, handoffs });
       finalStatus = `${id}: state changed; choosing again.`;
       return;
@@ -368,8 +358,6 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     if (runtime) attachPersistence(runtime);
   }
   const reviewKey = `${generation}:${String(payload.characterId || "")}`;
-  if (["move_player", "set_door", "interact_fixture"].includes(type)
-    && (!payload.generations || typeof payload.generations !== "object" || Array.isArray(payload.generations))) throw new Error("Expected generation IDs are required for physical updates.");
   if (["start_npc", "pause_npc", "talk", "end_conversation"].includes(type) && conversationReviews.has(reviewKey)) {
     throw new Error("This character is still reviewing the conversation. Try again when the review finishes.");
   }
@@ -428,7 +416,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
   }
   if (type === "interact_fixture") {
     const game = requireRuntime();
-    const result = await commitMutation(game, () => game.executeAction({ command: { kind: "fixture", id: String(payload.actionId || "") }, ...(payload.generations ? { expected: payload.generations as ExpectedGenerations } : {}) }));
+    const result = await commitMutation(game, () => game.executeAction({ command: { kind: "fixture", id: String(payload.actionId || "") } }));
     if (result.worldEvent) scheduleWorldEvent(game, result.worldEvent);
     await game.presentMap("player", result).catch(error => providerWarning(String(error)));
     return { state: game.view(), saves: await listSaves(), message: result.message };
@@ -438,7 +426,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     const game = requireRuntime();
     const command = type === "set_door" ? { kind: "door" as const, id: String(payload.id), open: payload.open as boolean }
       : { kind: "move" as const, destination: { x: Number(payload.x), y: Number(payload.y) } };
-    const result = await commitMutation(game, () => game.executeAction({ command, ...(payload.generations ? { expected: payload.generations as ExpectedGenerations } : {}) }));
+    const result = await commitMutation(game, () => game.executeAction({ command }));
     if (result.worldEvent) scheduleWorldEvent(game, result.worldEvent);
     await game.presentMap("player", result).catch(error => providerWarning(String(error)));
     return { state: game.view(), saves: await listSaves() };
@@ -529,8 +517,7 @@ worker.addEventListener("message", event => {
       const value = await handle(request.type, request.payload || {}, request.id);
       worker.postMessage({ id: request.id, ok: true, value });
     } catch (error) {
-      if (error instanceof GenerationConflict) publishNpc("State changed. Review the updated palace and choose again.");
-      alertUser(error instanceof GenerationConflict ? "warning" : "error", `${request.type}: ${error instanceof Error ? error.message : String(error)}`);
+      alertUser("error", `${request.type}: ${error instanceof Error ? error.message : String(error)}`);
       worker.postMessage({ id: request.id, ok: false, error: error instanceof Error ? error.message : String(error) });
     } finally { waits.sync(); }
   };

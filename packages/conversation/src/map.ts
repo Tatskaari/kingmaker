@@ -1,6 +1,5 @@
 import type { Event, WorldState, WorldMap } from "../../contracts/src/index.js";
 import type { GameAction } from "../../core/src/actions.js";
-import type { ExpectedGenerations } from "../../core/src/generations.js";
 
 export interface MapObservation {
   characterId: string;
@@ -18,11 +17,10 @@ export interface MapResult {
   talkTarget?: string;
   worldEvent?: Event;
   message?: string;
-  generations: ExpectedGenerations;
 }
 export interface MapService {
   layout(): WorldMap;
   observe(characterId: string): MapObservation;
   /** Validate and commit against current state. A step advances at most one tile. */
-  interact(command: Readonly<MapCommand>, expected?: ExpectedGenerations): MapResult;
+  interact(command: Readonly<MapCommand>): MapResult;
 }

@@ -36,7 +36,6 @@ import type { AiService, RollResult } from "../../../packages/conversation/src/s
 import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
 import { planWorldAction, type PlanningFeedback } from "./world-action.js";
 import { courtCharactersWithinEarshot, perceivesAt } from "./earshot.js";
-import { generationIds } from "../../../packages/core/src/generations.js";
 
 export type WorldTurnLabels = Awaited<ReturnType<ReturnType<typeof cliHooks>["classify"]>>;
 export type WorldOptions = ConversationRuntimeOptions<WorldTurnLabels>;
@@ -313,7 +312,7 @@ export class WorldGameRuntime extends WorldHost {
     const work = (key: string) => planWorldAction(id, this.runtime(id, "jev", {}, key), signal, this.activity.npcActivities?.[id]?.actionIds ?? [], conflict);
     const plan = await (runKey ? work(runKey) : this.traces.group("npc_goal", id, id, work));
     if (!plan) throw new Error("NPC has no active goal.");
-    return { ...plan, generations: generationIds(this.readResources()) };
+    return plan;
   }
   private async resolve(context: ResolutionContext, signal: AbortSignal) {
     const persist = this.persistChange;

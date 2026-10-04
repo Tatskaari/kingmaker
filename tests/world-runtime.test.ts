@@ -41,7 +41,7 @@ test("v2 game reviews into documents, saves without v1 state, and subsequent dia
   runtime.restore(saved);
   assert.equal(await runtime.checkedTalkToCharacter("rowan", "What did we agree?"), "I remember.");
   assert.equal(calls, 2);
-  assert.throws(() => runtime.restore({ ...saved, version: 1 }), /fresh game/);
+  assert.throws(() => runtime.restore({ ...saved, version: 2 }), /fresh game/);
 });
 
 test("v2 planning and physical execution use the live state", async () => {
@@ -53,8 +53,12 @@ test("v2 planning and physical execution use the live state", async () => {
   const signal = new AbortController().signal;
   const plan = await runtime.planNpc("rowan", signal);
   assert.ok(plan.action);
-  const result = runtime.stepNpcAction("rowan", plan.action.id, plan.goal, plan.generations);
-  assert.ok(result.generations["actor:rowan"]);
+  const result = runtime.stepNpcAction("rowan", plan.action.id, plan.goal);
+  assert.equal(typeof result.done, "boolean");
+  assert.ok(!("generations" in plan));
+  assert.ok(!("generations" in result));
+  assert.ok(!("generations" in runtime.snapshot()));
+  assert.ok(!("generations" in runtime.view()));
   await runtime.overrideActiveObjective("rowan", { currentGoal: "Speak to Holt" });
   assert.equal(runtime.snapshot().npcActivities!.rowan!.goal, "Speak to Holt");
 });

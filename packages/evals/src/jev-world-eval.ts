@@ -71,14 +71,12 @@ export async function runJevEvalOnce(definition: JevWorldEvalScenario, apiKey: s
         ...(plan.decision.confidence === undefined ? {} : { confidence: plan.decision.confidence }) });
       if (["complete", "wait", "unable"].includes(plan.decision.choice)) {
         terminalChoice = plan.decision.choice;
-        runtime.finishNpcRun(definition.characterId, terminalChoice as "complete" | "wait" | "unable", JSON.stringify(plan.decision), plan.generations);
+        runtime.finishNpcRun(definition.characterId, terminalChoice as "complete" | "wait" | "unable", JSON.stringify(plan.decision));
         break;
       }
       if (!plan.action) { terminalChoice = "invalid_action"; break; }
-      let expected = plan.generations;
       while (true) {
-        const step = runtime.stepNpcAction(definition.characterId, plan.action.id, plan.goal, expected);
-        expected = step.generations;
+        const step = runtime.stepNpcAction(definition.characterId, plan.action.id, plan.goal);
         if (step.talkTarget) {
           const call = { characterId: definition.characterId, targetId: step.talkTarget,
             actionId: plan.action.id, goal: plan.goal, turn };

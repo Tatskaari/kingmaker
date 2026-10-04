@@ -2283,7 +2283,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     await request("start_npc", { characterId: "corvin" });
     assert.deepEqual(plans.map(plan => plan.id), ["corvin", "gurt"]);
     assert.deepEqual(npcUpdates.at(-1).running.sort(), ["corvin", "gurt"]);
-    await request("move_player", { x: 61, y: 24, generations: (await request("state")).state.generations });
+    await request("move_player", { x: 61, y: 24 });
     await request("pause_npc", { characterId: "corvin" });
     assert.equal(plans[0]!.signal.aborted, true);
     assert.equal(plans[1]!.signal.aborted, false);
@@ -2312,7 +2312,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     await request("load_game", { saveId: created.activeSaveId });
     const plans: Array<{ id: string; signal: AbortSignal; release: (value: any) => void }> = [];
     t.mock.method(BrowserGameRuntime.prototype, "planNpc", (id: string, signal: AbortSignal) => new Promise<any>(resolve => plans.push({ id, signal, release: resolve })));
-    t.mock.method(BrowserGameRuntime.prototype, "stepNpcAction", () => ({ done: true, talkTarget: "gurt", generations: {} }));
+    t.mock.method(BrowserGameRuntime.prototype, "stepNpcAction", () => ({ done: true, talkTarget: "gurt" }));
     let releaseTalk!: () => void, releaseReview!: () => void;
     let talkStarted!: () => void, reviewStarted!: () => void;
     const talking = new Promise<void>(resolve => { talkStarted = resolve; });
@@ -2324,7 +2324,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     });
     await request("start_npc", { characterId: "gurt" });
     await request("start_npc", { characterId: "corvin" });
-    plans[1]!.release({ decision: { choice: "talk_gurt" }, action: { id: "talk_gurt", description: "Talk to Gurt" }, goal: "Ask for news.", generations: {} });
+    plans[1]!.release({ decision: { choice: "talk_gurt" }, action: { id: "talk_gurt", description: "Talk to Gurt" }, goal: "Ask for news." });
     await talking;
     assert.equal(plans[0]!.signal.aborted, true);
     await request("start_npc", { characterId: "gurt" });
@@ -2355,9 +2355,9 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
         await new Promise<void>(resolve => signal.addEventListener("abort", () => resolve(), { once: true }));
         signal.throwIfAborted();
       }
-      return { decision: { choice: `talk_${target}` }, action: { id: `talk_${target}`, description: "Ask for news" }, goal: "Ask for news.", generations: {} };
+      return { decision: { choice: `talk_${target}` }, action: { id: `talk_${target}`, description: "Ask for news" }, goal: "Ask for news." };
     });
-    t.mock.method(BrowserGameRuntime.prototype, "stepNpcAction", () => ({ done: true, talkTarget: target, generations: {} }));
+    t.mock.method(BrowserGameRuntime.prototype, "stepNpcAction", () => ({ done: true, talkTarget: target }));
     t.mock.method(BrowserGameRuntime.prototype, target === "player" ? "initiatePlayerConversation" : "executeNpcTalk", async () => feedback);
     const alertCount = alerts.length;
     await request("start_npc", { characterId: "corvin" });
@@ -2400,9 +2400,9 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     await request("pause_npc", { characterId: "gurt" });
     let decisions = 0, conversations = 0;
     t.mock.method(BrowserGameRuntime.prototype, "planNpc", async () => {
-      decisions++; return { decision: { choice: "talk_gurt" }, action: { id: "talk_gurt", description: "Talk to Gurt" }, goal: "Talk to Gurt", generations: {} };
+      decisions++; return { decision: { choice: "talk_gurt" }, action: { id: "talk_gurt", description: "Talk to Gurt" }, goal: "Talk to Gurt" };
     });
-    t.mock.method(BrowserGameRuntime.prototype, "stepNpcAction", () => ({ done: true, talkTarget: "gurt", generations: {} }));
+    t.mock.method(BrowserGameRuntime.prototype, "stepNpcAction", () => ({ done: true, talkTarget: "gurt" }));
     t.mock.method(BrowserGameRuntime.prototype, "executeNpcTalk", async () => { conversations++; return { ok: true, text: "" }; });
     await request("start_npc", { characterId: "corvin" });
     await new Promise(resolve => setTimeout(resolve, 250));
@@ -2462,7 +2462,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
       await assert.rejects(request(type, { characterId: "corvin", message: "Again" }), /still reviewing/);
     }
     const destination = { x: 61, y: 24 };
-    await request("move_player", { ...destination, generations: (await request("state")).state.generations });
+    await request("move_player", { ...destination });
     await request("talk", { characterId: "gurt", message: "Hello." });
     release();
     const result = await review;
