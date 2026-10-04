@@ -8,7 +8,7 @@ import { loadPlayableWorld } from "./fixtures.js";
 
 const signal = () => new AbortController().signal;
 test("character setup can replace the prompt using injected services without changing caller evidence", async () => {
-  const runtime = new ConversationRuntime({ services: { scenario: { info: () => ({ scenario: "scenario.md" }) } },
+  const runtime = new ConversationRuntime({ services: { scenario: { info: () => ({ scenario: "scenario.md", scenarioIndex: "index.md", characters: [] }) } },
     hooks: { setup: async (context, cancellation, services) => {
       assert.equal(context.agent, "character");
       assert.equal(context.characterId, "corvin");
