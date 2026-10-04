@@ -7,7 +7,7 @@ import { stringify } from "yaml";
 import { retryResponses } from "../../../packages/conversation/src/ai.js";
 import { traceAiService } from "../../../packages/conversation/src/ai-tracing.js";
 import { createScenarioServices } from "../../../packages/lore/src/services.js";
-import { beginStranger, strangerTurn } from "./stranger-interview.js";
+import { beginStranger, strangerTurn, type StrangerState } from "./stranger-interview.js";
 import { premadeCharacter } from "./premade-characters.js";
 import { playerPublication } from "./stranger-draft.js";
 import { portraitExpressions, type PortraitExpression } from "../../../packages/providers/src/conversation-expression.js";
@@ -130,23 +130,25 @@ export class WorldGameRuntime extends WorldHost {
   async startPremadeCharacter(id: string) {
     const character = premadeCharacter(id);
     if (this.world().player || this.activity.stranger) throw new Error("Start a new game to choose a pre-made character.");
-    const before = this.snapshot();
-    try {
-      const next = await strangerTurn({ history: [] }, "Play this pre-made character and enter the hall.",
-        this.documents.scenario, this.runtime("gm", "game_master").services, undefined, undefined, character);
-      if (!next.draft) throw new Error("The GM did not prepare a character. Please try again.");
-      const draft = next.draft as { player: { sprite: number } };
-      draft.player.sprite = character.sprite;
-      this.activity.stranger = next;
-      await this.confirmPlayer(next.draft);
-    } catch (error) { this.restore(before); throw error; }
+    const before = this.documents;
+    const next = await strangerTurn({ history: [] }, "Play this pre-made character and enter the hall.",
+      this.documents.scenario, this.runtime("gm", "game_master").services, undefined, undefined, character);
+    if (!next.draft) throw new Error("The GM did not prepare a character. Please try again.");
+    const draft = next.draft as { player: { sprite: number } };
+    draft.player.sprite = character.sprite;
+    if (this.documents !== before || this.activity.stranger || this.world().player) throw new Error("Character creation changed; retry saving.");
+    await this.publishPlayer(next.draft, next);
+    this.activity.stranger = next;
   }
   async confirmPlayer(value: JsonValue) {
     if (!this.activity.stranger?.draft) throw new Error("No character is awaiting review.");
+    await this.publishPlayer(value, this.activity.stranger);
+  }
+  private async publishPlayer(value: JsonValue, stranger: StrangerState) {
     // Creation is single-threaded. Stage the workflow privately so failed document
     // writes cannot leave a half-created player or partially informed court.
     const before = this.documents;
-    const { impressions, ...character } = playerPublication(value, this.activity.stranger.draft, this.world());
+    const { impressions, ...character } = playerPublication(value, stranger.draft!, this.world());
     const staged = createScenarioServices(this.world());
     await staged.character.create(character);
     const impressionWrites = [];
@@ -157,14 +159,14 @@ export class WorldGameRuntime extends WorldHost {
     }
     await staged.docs.commit(impressionWrites);
     await staged.scenario.setPlayer(character.path);
-    const map = staged.scenario.snapshot().map!;
+    const map = staged.currentWorld().map!;
     map.phase = GamePhase.CONVERSATIONS;
     map.day = 1;
     staged.mechanics.commit(map, {});
     if (this.documents !== before) throw new Error("Character creation changed; retry saving.");
     this.documents = staged;
-    delete this.activity.stranger.draft;
-    delete this.activity.stranger.replies;
+    delete stranger.draft;
+    delete stranger.replies;
   }
   async classifyStrangerExpression(recentPortraits: unknown = []): Promise<PortraitExpression | undefined> {
     if (!Array.isArray(recentPortraits) || recentPortraits.some(value => typeof value !== "string" || !Object.hasOwn(portraitExpressions, value))) throw new Error("Invalid portrait history.");

@@ -36,15 +36,19 @@ export class DocumentGraph {
           return target ? [{ target, source: link.target }] : [];
         }) : previous!.resolved;
         sources.set(name, { body: doc.body, references, resolved });
-        // Keep published documents detached from the cache and other drafts.
+        // Replace changed link lists without mutating documents shared with live state.
         const intent = [doc.frontmatter?.activity, doc.frontmatter?.wait,
           ...(Array.isArray(doc.frontmatter?.activities) ? doc.frontmatter.activities : [])]
           .filter(value => value !== undefined && value !== null);
         for (const path of intent) {
           if (typeof path !== "string" || !notes.has(path)) throw new Error(`Missing intent document: ${String(path)}`);
         }
-        doc.links = [...intent.map(path => create(DocumentLinkSchema, { target: path as string, source: path as string })),
+        const nextLinks = [...intent.map(path => create(DocumentLinkSchema, { target: path as string, source: path as string })),
           ...resolved.map(link => create(DocumentLinkSchema, link))];
+        if (doc.links.length !== nextLinks.length || doc.links.some((link, index) =>
+          link.target !== nextLinks[index]!.target || link.source !== nextLinks[index]!.source)) {
+          state.docs[name] = { ...doc, links: nextLinks };
+        }
       } catch (error) {
         throw new Error(`${name}: ${String(error)}`, { cause: error });
       }
