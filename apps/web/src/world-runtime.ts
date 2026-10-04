@@ -13,7 +13,7 @@ import { portraitExpressions, type PortraitExpression } from "../../../packages/
 import type { JsonValue } from "@bufbuild/protobuf";
 import { runActionExecution, type ActionExecutionContext } from "../../../packages/conversation/src/action-execution.js";
 import { create, fromJson, toJson } from "@bufbuild/protobuf";
-import { GamePhase, TranscriptMessageSchema, TranscriptRole, type Event } from "../../../packages/contracts/src/index.js";
+import { EventSchema, GamePhase, TranscriptMessageSchema, TranscriptRole, type Event } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
 import { WorldHost, type WorldSnapshot } from "./world-host.js";
 import { characterId } from "../../../packages/lore/src/character-id.js";
@@ -294,14 +294,24 @@ export class WorldGameRuntime extends WorldHost {
     const previous = structuredClone(this.activity.conversations[id] ?? []);
     const transcript = previous.map(turn => fromJson(TranscriptMessageSchema, turn));
     if (!transcript.length) return;
+    const event = await this.commit(() => {
+      if (JSON.stringify(previous) !== JSON.stringify(this.activity.conversations[id] ?? [])) throw new Error("Conversation changed.");
+      const pending = (this.activity.pendingConversationEvents ??= {});
+      const event = pending[id] ? fromJson(EventSchema, pending[id]) : this.worldEvent("having a conversation",
+        transcript.filter(turn => turn.role !== TranscriptRole.GAME_MASTER).map(turn => `${turn.speakerId}: ${turn.text}`).join("\n"), [id, "player"]);
+      pending[id] = toJson(EventSchema, event);
+      (this.activity.conversationEndRequested ??= {})[id] = true;
+      this.recordPlayerPerception(event, event.summary);
+      return event;
+    }, signal, persist);
+    await this.presentMap().catch(error => this.warning(String(error)));
     const key = this.conversationRun(id);
     await runConversationReview({ characterId: id, participants: [id, "player"], transcript }, this.runtime(id, "conversation_review", {}, key, signal, [id, "player"]), signal);
-    const event = await this.commit(() => {
+    await this.commit(() => {
       if (JSON.stringify(previous) !== JSON.stringify(this.activity.conversations[id] ?? [])) throw new Error("Conversation changed.");
       delete this.activity.conversations[id]; delete this.activity.conversationEndRequested?.[id]; delete this.activity.conversationReplyOptions?.[id];
       this.syncGoals();
-      const event = this.worldEvent("having a conversation", transcript.filter(turn => turn.role !== TranscriptRole.GAME_MASTER).map(turn => `${turn.speakerId}: ${turn.text}`).join("\n"), [id, "player"]);
-      return event;
+      delete this.activity.pendingConversationEvents?.[id];
     }, signal, persist);
     this.traces.finish(key, { participants: [id, "player"], messages: transcript });
     this.conversationRuns.delete(id);
