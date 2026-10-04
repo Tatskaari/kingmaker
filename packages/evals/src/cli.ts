@@ -1,3 +1,4 @@
+import { availableParallelism } from "node:os";
 import { parseArgs } from "node:util";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -10,6 +11,7 @@ const help = `Eval options:
   --experiments name,name  Select experiments (default: all)
   --variants name,name     Select variants (baseline always included)
   --repeats N              Runs per configuration (default: 3)
+  --concurrency N          Concurrent trials (default: available CPU count)
   --timeout-ms N           Timeout per execution and grading phase (default: 180000)
   --output PATH            Artifact parent directory (default: eval-output)
   --list                   List experiments and configurations without calling models
@@ -22,6 +24,7 @@ export async function runEvalCli<L, R>(experiments: readonly Experiment<L, R>[],
   const print = options.print ?? console.log;
   const { values } = parseArgs({ args: options.args ?? process.argv.slice(2), options: {
     experiments: { type: "string" }, variants: { type: "string" }, repeats: { type: "string", default: "3" },
+    concurrency: { type: "string", default: String(availableParallelism()) },
     "timeout-ms": { type: "string", default: "180000" }, output: { type: "string", default: "eval-output" },
     help: { type: "boolean" }, list: { type: "boolean" },
   } });
@@ -45,11 +48,13 @@ export async function runEvalCli<L, R>(experiments: readonly Experiment<L, R>[],
   }
   const rubric = selected[0]!.rubric;
   if (selected.some(experiment => JSON.stringify(experiment.rubric) !== JSON.stringify(rubric))) throw new Error("Combined experiments must use the same rubric.");
+  const concurrency = Number(values.concurrency);
+  if (!Number.isSafeInteger(concurrency) || concurrency < 1) throw new Error("concurrency must be a positive integer");
   const directory = resolve(values.output, `${new Date().toISOString().replaceAll(":", "-")}-${randomUUID().slice(0, 8)}`);
   mkdirSync(directory, { recursive: true });
   let revision = "unknown";
   try { revision = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim(); } catch { /* Also works outside a checkout. */ }
-  const metadata = { revision, rubric, experiments: selected.map(experiment => experiment.name), repeats: Number(values.repeats),
+  const metadata = { revision, rubric, concurrency, experiments: selected.map(experiment => experiment.name), repeats: Number(values.repeats),
     variants: values.variants?.split(","), timeoutMs: Number(values["timeout-ms"]) };
   writeFileSync(`${directory}/manifest.json`, JSON.stringify(metadata, null, 2) + "\n");
   const trials: Trial[] = [];
@@ -58,7 +63,7 @@ export async function runEvalCli<L, R>(experiments: readonly Experiment<L, R>[],
   try {
     for (const experiment of selected) {
       print(`\nExperiment: ${experiment.name}`);
-      await runExperiment(experiment, { repeats: metadata.repeats, timeoutMs: metadata.timeoutMs,
+      await runExperiment(experiment, { repeats: metadata.repeats, concurrency, timeoutMs: metadata.timeoutMs,
         ...(metadata.variants ? { variants: metadata.variants } : {}), ...(options.secrets ? { secrets: options.secrets } : {}), signal: controller.signal,
         onTrial(trial) {
           trials.push(trial);

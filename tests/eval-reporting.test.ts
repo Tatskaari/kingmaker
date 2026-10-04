@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { mkdtempSync, readFileSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { availableParallelism, tmpdir } from "node:os";
 import { join } from "node:path";
 import { RunRecording, type Experiment, type Trial } from "../packages/evals/src/experiment.js";
 import { compareResults, formatComparison } from "../packages/evals/src/report.js";
@@ -53,6 +53,10 @@ test("CLI saves each trial and an aggregate table; list never constructs service
     assert.equal(constructions, 2); assert.equal(result.exitCode, 0);
     assert.equal(JSON.parse(readFileSync(`${result.directory}/0002.json`, "utf8")).repeat, 2);
     assert.equal(JSON.parse(readFileSync(`${result.directory}/results.json`, "utf8")).comparison[0].total, 1);
+    assert.equal(JSON.parse(readFileSync(`${result.directory}/manifest.json`, "utf8")).concurrency, availableParallelism());
+    const serial = await runEvalCli([experiment], { args: ["--repeats", "1", "--concurrency", "1", "--output", output], print: () => {} });
+    assert.equal(JSON.parse(readFileSync(`${serial.directory}/manifest.json`, "utf8")).concurrency, 1);
+    await assert.rejects(runEvalCli([experiment], { args: ["--concurrency", "0"], print: () => {} }), /positive integer/);
     assert.match(lines.join("\n"), /Experiment: fixture/);
   } finally { rmSync(output, { recursive: true, force: true }); }
 });
