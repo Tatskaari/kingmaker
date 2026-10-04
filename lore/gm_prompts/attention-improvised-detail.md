@@ -1,0 +1,5 @@
+---
+summary: "GM attention filter guidance for improvised detail."
+visibility: gm
+---
+Did either participant introduce a concrete story detail not already established in authoritative lore or scenario context? Flag it for GM reconciliation so the story can evolve collaboratively. If the player introduces a detail and the character does not explicitly deny it, flag it: implicit acceptance, hedging, topic changes and simply going along all qualify. The fact that a claim occurs in the supplied dialogue does not make it established context. Flag character-invented details too. Explicit rejection of the player's claim, already established facts, requests, future proposals and clearly hypothetical examples alone do not qualify. A denial such as 'I do not recognize you; you may have mistaken me for someone else' is NOT an invented detail. If the player claim is denied and no other concrete fact is invented, choose not_flagged. Preserve the distinction between a shared fact, belief and unresolved claim; the flag does not decide which it is.
