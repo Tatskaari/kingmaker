@@ -137,3 +137,45 @@ Missing scores create gaps; rubric changes break connecting lines. Scores JSON i
 `peregrine-gift` screenshot reconstruction. It adds an inventory ownership criterion to
 the shared review rubric so a memory of giving a gift cannot substitute for a real item.
 See [fixture assumptions and criteria](../evals/reviews/peregrine-gift/README.md).
+
+## Player-led shared-history acceptance
+
+`npm run eval:attention -- --repeats 3` runs the unchanged CLI post-reply analysis
+hook against fixed dialogue; `--list` requires no credentials. It is registered in
+`workspace:eval` for published history. This is a baseline-only reproduction, not a
+production classifier change or a proposed strategy.
+
+The observed case transcribes the user's Corvin graduation screenshot. The original
+request/disclosed documents were unavailable: the minimal context is reconstructed
+from the exchange (Corvin's royal appointment and Nine Furrows contract), with shared
+attendance and graduation deliberately **not** established. This tests the analysis
+of the given reply, not the probability of generating that reply. No world state is
+mutated and no new dialogue is generated. Positive controls explicitly accept the
+player's claim; negative controls reject it, leave it unaddressed, or confirm it when
+already established in authoritative lore.
+
+The user's expected policy treats Corvin's discussion of the graduation ceremony as
+possible adoption needing reconciliation, even though he hedges about friendship.
+The flag must not establish that the claim is true. The single binary `acceptance`
+criterion checks recorded hook output for a reconciliation flag (`improvised_detail`,
+`plot_progress`, `other_world_update`, or a future `accepted_player_detail`). Commitment
+and feasibility labels alone earn no credit. Negative cases require no reconciliation
+flag; execution errors score zero and remain visible. Deterministic grading avoids
+asking another model to decide whether a label was present; this is classification
+accuracy, not prose quality or committed-world-state grading.
+
+Initial live baseline (2026-10-04, three repeats per case, Jev `typesafe/jev-1.13`):
+
+| Case | Correct decisions |
+| --- | --- |
+| Observed graduation accommodation | 0/3 |
+| Explicit acceptance | 3/3 |
+| Rejected claim | 3/3 |
+| Noncommittal reply | 3/3 |
+| Lore-supported history | 3/3 |
+
+The baseline missed reconciliation in all three observed-case trials, flagging only
+`deferred_commitment`. It detected explicit acceptance via `improvised_detail`. The
+aggregate was 12/15 (80%), with zero execution or judging errors. This small sample
+reproduces the accommodation gap; it is not an estimate of general classifier accuracy.
+Local full recordings: `eval-output/2026-10-04T20-16-02.548Z-0a0312b1/`.
