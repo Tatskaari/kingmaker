@@ -169,3 +169,49 @@ test("CLI pauses for a manual d20, rejects invalid input, and shows the GM rulin
     assert.match(setup.captureCharFrame(), /conversation_attention/);
   } finally { await act(() => setup.renderer.destroy()); }
 });
+
+test("CLI shows approval and pending background GM review transcripts in the RHS", async () => {
+  let finishReview: () => void = () => {};
+  const reviewReady = new Promise<void>(resolve => { finishReview = resolve; });
+  let background: Promise<unknown> | undefined, exported: ConversationResult | undefined;
+  const ai: import("../packages/conversation/src/services.js").AiService = {
+    decisions: async (_state, questions) => Object.fromEntries(Object.keys(questions).map(id => [id, { choice: "not_needed", probabilities: { not_needed: 1 } }])),
+    responses: async request => {
+      if (request.tools) { await reviewReady; return { role: "assistant", content: "REVIEW_COMPLETE" }; }
+      return { role: "assistant", content: '{"allowed":true,"reason":"APPROVED_GIFT"}' };
+    },
+  };
+  const disclosure = new DisclosureSession({ initial: [], links: () => [], open: async () => { throw new Error("Unexpected open"); } }, ai);
+  const setup = await testRender(createElement(ConversationApp, {
+    input: { snapshot: { world: loadPlayableWorld() }, characterId: "corvin", sources: [], transcript: [], message: "" },
+    disclosure, checks: { ai, build: undefined, response: () => ({ respond: async (context, signal, services) => {
+      await services.ai.responses({ model: "test", messages: [{ role: "user", content: "APPROVAL_REQUEST" }],
+        response_format: { type: "json_schema", json_schema: { name: "conversation_approval" } } }, signal);
+      const reply = await services.character.respond(context.request, signal);
+      background = services.ai.responses({ model: "test", messages: [{ role: "tool", tool_call_id: "edit-1", content: "RECORDED_EDIT_RESULT" }],
+        tools: [{ type: "function", function: { name: "commit_review", description: "Finish", parameters: {} } }] }, signal);
+      return reply;
+    } }) },
+    complete: async () => ({ role: "assistant" as const, content: "Your gift is ready." }),
+    copyText: async () => "Copied", onFinish: result => { exported = result; },
+  }), { width: 140, height: 35, exitOnCtrlC: false, autoFocus: false });
+  const step = async (action: () => void | Promise<void>) => {
+    await act(async () => { await action(); await new Promise(resolve => setTimeout(resolve, 60)); }); await setup.flush();
+  };
+  try {
+    await setup.flush();
+    await step(() => setup.mockInput.typeText("A gift?"));
+    await step(() => setup.mockInput.pressEnter());
+    await setup.waitForFrame(frame => frame.includes("Your gift is ready."));
+    assert.match(setup.captureCharFrame(), /GM approval · completed/);
+    assert.match(setup.captureCharFrame(), /GM review · pending/);
+    const row = setup.renderer.root.findDescendantById("gm-1")!;
+    await step(() => setup.mockMouse.click(row.x + 2, row.y));
+    assert.match(setup.captureCharFrame(), /RECORDED_EDIT_RESULT/);
+    await step(async () => { finishReview(); await background; });
+    assert.match(setup.captureCharFrame(), /GM review · completed/);
+    assert.match(setup.captureCharFrame(), /REVIEW_COMPLETE/);
+    await step(() => setup.mockInput.pressKey("d", { ctrl: true }));
+    assert.deepEqual(exported?.gmTurns.map(call => [call.purpose, call.status]), [["approval", "completed"], ["review", "completed"]]);
+  } finally { finishReview(); await background; await act(() => setup.renderer.destroy()); }
+});
