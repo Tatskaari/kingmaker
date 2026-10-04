@@ -141,7 +141,7 @@ See [fixture assumptions and criteria](../evals/reviews/peregrine-gift/README.md
 ## Responsive conversation attention
 
 `npm run eval:attention -- --repeats 3` runs the CLI post-reply analysis hook against
-16 fixed interactions; `--list` requires no credentials. It is registered in
+18 fixed interactions; `--list` requires no credentials. It is registered in
 `workspace:eval` for published history. The runner is baseline-only again after
 promoting the responsive-world prompts; the temporary candidate has been removed.
 
@@ -202,3 +202,11 @@ revised comparison `eval-output/2026-10-04T20-45-59.594Z-8cc9cdc7/` (revision `1
 These are small fixed-transcript samples, not a general accuracy estimate. The rubric
 checks named expectations, not all emitted labels: some extras, such as world/plot flags
 on a blocked promise, remain possible with this deliberately broad attention policy.
+
+
+Feasibility also supports `gms_discretion`: the GM can reconcile inventories by adding
+an improvised item, transferring ownership or adjusting quantities, as well as editing
+world notes and assigning objectives/waits. Missing inventory is not by itself a hard
+blocker. Ordinary transfers of established possessions remain `possible`; explicit
+constraints remain `impossible` unless a ruling overrides them. Two additional fixtures
+distinguish an improvised wooden-bird gift from an established-key transfer.

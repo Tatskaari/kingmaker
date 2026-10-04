@@ -3,7 +3,7 @@ import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema } from "../packages/contracts/src/index.js";
-import { formatConversation, type MessageAnalysis } from "../apps/conversation-cli/analysis.js";
+import { formatAnalysis, formatConversation, type MessageAnalysis } from "../apps/conversation-cli/analysis.js";
 import { cliStrategy } from "../packages/conversation/src/cli-strategy.js";
 import { DisclosureSession } from "../packages/conversation/src/disclosure.js";
 import type { AiService } from "../packages/conversation/src/services.js";
@@ -39,4 +39,13 @@ test("CLI reports failed attention analysis without losing reply and propagates 
   const controller = new AbortController(); controller.abort();
   await assert.rejects(strategy.analyze(context, reply, controller.signal), /abort/i);
   assert.equal(events.length, 1);
+});
+
+
+test("CLI shows GM discretion alongside an immediate commitment", () => {
+  const text = formatAnalysis({ kind: "labels", subject: "character", source: "attention", decisions: {
+    immediate_commitment: { choice: "flagged", probabilities: { flagged: 1, not_flagged: 0 } },
+    immediate_feasibility: { choice: "gms_discretion", probabilities: { gms_discretion: 0.9, impossible: 0.1 } },
+  } });
+  assert.match(text, /immediate_feasibility: gms_discretion/);
 });
