@@ -76,29 +76,15 @@ replaced by the committed transcript on completion. JSON validation, tool
 execution and game-state changes still wait for the complete reply. Cancellation
 and the request timeout remain active while reading the stream.
 
-Action-execution Jev context is configured in `apps/web/src/feature-flags.ts`:
+Action-execution Jev receives permitted character documents through disclosure,
+followed by the current objective, room-scoped physical observations and a
+chronological log of completed action IDs. The log starts with `None yet.` and
+is scoped to the current activity.
 
-- Jev always receives the readable room/action text as its actual `state`, with
-  room-scoped actions. The legacy palace-wide planner has been removed.
-- `JEV_ACTION_CONTEXT_LEVEL = 1`: world text and the full active objective
-  (name, status, success criteria, current task).
-- Level `2` adds biography and full parked objectives.
-- Level `3` also adds relationships and character-visible notes.
-- `JEV_ACTION_INCLUDE_RECENT_RESULTS = true` includes the exact completed action
-  IDs, one per line, in every tier. It defaults to `true`; disable it for ablation evals.
-
-The input is ordered: who you are (including selected character context), current
-objective, world state, action log. The log is chronological and starts with
-`None yet.`. It records completed actions, not rejected plans or walking ticks,
-and is scoped to the current activity. Older saves without action IDs start an
-empty log; existing prose history is retained in saved activity state.
-
-The text includes room connections, actions to enter adjacent rooms, local
-interactions with action IDs and walking distances, known contents, inventory,
-blocked exits, and illegal-action labels. Paths and generation guards remain in
-the engine. No scenario premise or hidden character context is appended. The API
-still receives the short execution instructions and selectable choice criteria.
-Event-reaction Jev, dialogue, and GM context are unaffected by these settings.
+Physical observations include room connections, local interactions with action
+IDs and walking distances, known contents, inventory, blocked exits and illegal
+action labels. The engine checks paths and current physical legality when an
+action executes. Hidden character documents are not appended to observations.
 
 The debug inspector shows world state, character context and recent transcripts:
 requests, responses, summaries, duration and errors for the latest 50 calls.
@@ -230,8 +216,8 @@ perceived events feed back into notes and goals through resolution hooks.
 
 [`WorldGameRuntime`](apps/web/src/world-runtime.ts) composes the default policies
 and services. Hosts coordinate scheduling, cancellation, persistence and fork
-publication. SHA checks protect document edits; world generations and transcript
-checks reject stale plans or model results. The browser worker persists an action
+publication. SHA checks protect document edits; current physical legality and transcript
+checks reject invalid actions or stale conversation results. The browser worker persists an action
 before presenting its map update, so a rendering failure cannot undo a saved
 action. Headless map presentation defaults to a no-op.
 
@@ -255,20 +241,21 @@ inject the baseline or candidate hook/service, and keep the remaining dependenci
 randomness and scoring criteria fixed. Compare outcomes and recorded traces across
 repeated runs. This allows policy, prompt, provider or service changes to be
 evaluated through the same execution flow used by the game. It is an injection
-pattern for eval harnesses, not a claim that every existing eval runner already
-supports arbitrary v2 overrides.
+pattern for future eval harnesses; the obsolete Scenario-based runners have
+been retired.
 
-The migration is still in progress: some host paths retain palace-specific
-observations and perception rules, conversation setup still wires some dependencies
-directly, and legacy runtime/eval cleanup remains. See
+The Scenario proto and its legacy runtime/evals have been removed. Physical
+geometry still uses the v1 map types inside the document-backed v2 world; some
+host paths retain palace-specific observations and perception rules. See
 [map services](docs/map-services.md) and
 [conversation hooks and services](docs/conversation-services.md) for more detail;
 the compiled interfaces and v2 host take precedence over older v1 examples.
 
 ## Code and validation
 
-- `content/scenarios/last-night.json`: characters, notes and physical world data.
-- `apps/web/src/world-host.ts`: authoritative v2 state and physical mechanics adapter.
+- `lore/Scenarios/Centennial Assembly/`: document-authored characters and scenario context.
+- `content/palace-map.json`: physical rooms, actors, doors and fixtures.
+- `apps/web/src/world-host.ts`: authoritative document-backed world state and physical mechanics.
 - `apps/web/src/world-runtime.ts`: service injection and game policy composition.
 - `packages/conversation/src/runtime.ts`: shared hook and service contracts.
 - `apps/web/src/world-action.ts`: document-native planner observations.
@@ -387,7 +374,7 @@ try normal roleplay, change its delegation through `game.edit(...)`, or load a
 normal player save. Without this flag, an authored scenario starts in player
 creation; the normal setup methods remain accessible through `game.runtime`.
 
-Use `--world path.json` to load a Scenario JSON or RuntimeSnapshot JSON, and
+Use `--world path.json` to load document-backed v2 WorldState JSON or a current WorldSnapshot JSON, and
 `--socket path` on both commands to select a separate game. The default socket is
 `/tmp/kingmaker-<uid>/game.sock` (under the system temp directory). Existing sockets
 are never removed on startup: stop the previous server, or remove a stale socket

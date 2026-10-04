@@ -366,17 +366,6 @@ enum GamePhase {
   reserved "GAME_PHASE_NIGHT_ACTIONS", "GAME_PHASE_SOLSTICE", "GAME_PHASE_RESOLVED";
 }
 
-message Scenario {
-  string id = 1;
-  string system_prompt = 2;
-  string premise = 3;
-  string game_master_prompt = 4;
-  repeated Character characters = 5;
-  repeated Note notes = 6;
-  WorldState world = 7;
-  optional string player_character_id = 8;
-  repeated ActorPlacement court_arrival_placements = 9;
-}
 
 enum TranscriptRole {
   TRANSCRIPT_ROLE_UNSPECIFIED = 0;
@@ -392,11 +381,6 @@ message TranscriptMessage {
   string text = 3;
 }
 
-message DialogueRequest {
-  string character_id = 1;
-  Scenario scenario = 2;
-  repeated TranscriptMessage transcript = 3;
-}
 
 message GoalUpdate {
   string goal = 1;
@@ -425,7 +409,3 @@ message PlayerSetup {
   string embassy_role = 4;
 }
 
-message GameMasterRequest {
-  Scenario scenario = 1;
-  repeated TranscriptMessage transcript = 2;
-}
