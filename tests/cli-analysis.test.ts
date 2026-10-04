@@ -1,3 +1,4 @@
+import { CheckDegree } from "../packages/core/src/ability-checks.js";
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
@@ -13,7 +14,7 @@ test("inline analysis stays under its message and includes negative labels, prob
     create(TranscriptMessageSchema, { speakerId: "corvin", text: "I will help." })];
   const analysis: MessageAnalysis[] = [
     { messageIndex: 0, subject: "player", kind: "labels", source: "skill_check", decisions: { persuasion: { ...label, choice: "needed" } } },
-    { messageIndex: 0, subject: "player", kind: "roll", result: { characterId: "player", skill: "persuasion", difficulty: "normal", natural: 15, modifier: 2, total: 17, dc: 15, success: true, outcome: "success" } },
+    { messageIndex: 0, subject: "player", kind: "roll", result: { characterId: "player", skill: "persuasion", difficulty: "normal", natural: 15, modifier: 2, total: 17, dc: 15, success: true, outcome: CheckDegree.MinorSuccess } },
     { messageIndex: 1, subject: "character", kind: "labels", source: "attention", decisions: { immediate_commitment: label } },
   ];
   const output = formatConversation(transcript, "corvin", analysis);
