@@ -59,12 +59,13 @@ export class ActivityEdits {
     }
     return world;
   }
-  async commit(body: string) {
+  changes(body: string) {
     const world = this.draft(), intent = this.intent ?? characterIntent(world, this.id);
     if (intent.activity) activityDefinition(intentDocument(world, this.id, intent.activity));
     if (intent.wait) for (const path of waitActivities(intentDocument(world, this.id, intent.wait))) activityDefinition(intentDocument(world, this.id, path));
     const metadata = { ...this.before.document.frontmatter, activity: intent.activity, wait: intent.wait };
     const text = `---\n${stringify(metadata)}---\n${body}`;
-    await this.services.docs.commit([...this.writes.values(), { path: this.before.path, expectedSha: this.before.sha, text }]);
+    return [...this.writes.values(), { path: this.before.path, expectedSha: this.before.sha, text }];
   }
+  async commit(body: string) { await this.services.docs.commit(this.changes(body)); }
 }
