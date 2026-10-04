@@ -161,7 +161,7 @@ export class WorldHost {
   }
   recordPlayerPerception(event: Event, perception: string) {
     const participants = event.participantIds.filter(id => id !== "player");
-    const characters = event.kind === "having a conversation" ? projectWorld(this.world()).characters : [];
+    const characters = event.kind === "having a conversation" ? characterDocuments(this.world()).map(({ id, document }) => ({ id, name: document.frontmatter?.name })) : [];
     const conversationTitle = event.kind === "having a conversation"
       ? `Conversation with ${participants.map(id => characters.find(character => character.id === id)?.name ?? id).join(" and ") || "the court"}`
       : undefined;

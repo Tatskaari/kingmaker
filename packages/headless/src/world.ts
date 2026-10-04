@@ -35,7 +35,7 @@ export class WorldHeadlessGame {
       name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
       inventory: document.characterProperties?.inventory }));
     const known = worldForCharacter(visible.map, inventoryOwners(characters, visible.map), id);
-    const goal = activityGoal(this.inspect(), id) ?? "";
+    const goal = id === "player" ? "" : activityGoal(this.inspect(), id) ?? "";
     return { ...physicalCharacterObservation(known, id, goal, visible.actions), map: visible.map, characters };
   }
   observe(id = "player") {

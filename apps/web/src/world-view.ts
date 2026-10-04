@@ -16,7 +16,7 @@ export function worldView(world: WorldState, activity: MechanicalActivity) {
   const characters = characterDocuments(world).map(({ id, document }) => ({ id, document,
     name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
     sprite: typeof document.frontmatter?.sprite === "number" ? document.frontmatter.sprite : undefined,
-    currentGoal: activityGoal(world, id) ?? "",
+    currentGoal: id === "player" ? "" : activityGoal(world, id) ?? "",
     inventory: document.characterProperties?.inventory }));
   const player = characters.find(character => character.id === "player"), playerId = player?.id ?? "";
   const actors = foregroundBodies(map.actors, map.actors.find(actor => actor.characterId === playerId)?.position);

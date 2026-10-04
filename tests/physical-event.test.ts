@@ -18,11 +18,11 @@ test("physical events retain actor position, day, participants and details witho
   assert.equal(createPhysicalEvent(undefined, "unknown", "No map", []).day, 0);
 });
 
-test("document-world event creation does not inspect lore and keeps the nearest background body", t => {
-  const world = loadPlayableWorld(), bodies = world.map!.actors.filter(actor => actor.characterId === "palace-guard");
+test("document-world event creation does not inspect lore and uses the participating guard body", t => {
+  const world = loadPlayableWorld(), bodies = world.map!.actors.filter(actor => actor.characterId.startsWith("palace-guard-"));
   world.map!.actors.find(actor => actor.characterId === "player")!.position = { ...bodies.at(-1)!.position! };
   const host = new WorldHost(world), before = host.snapshot();
-  const event = host.worldEvent("speaking", "The guard spoke", ["palace-guard"]);
+  const event = host.worldEvent("speaking", "The guard spoke", [bodies.at(-1)!.characterId]);
   assert.deepEqual(event.position, bodies.at(-1)!.position);
   assert.deepEqual(host.snapshot(), before);
   const detached = host.world();
@@ -30,5 +30,5 @@ test("document-world event creation does not inspect lore and keeps the nearest 
     Object.defineProperty(document, "body", { get() { throw new Error("Unexpected lore read"); } });
   }
   t.mock.method(host, "world", () => detached);
-  assert.equal(host.worldEvent("speaking", "The guard spoke", ["palace-guard"]).summary, event.summary);
+  assert.equal(host.worldEvent("speaking", "The guard spoke", [bodies.at(-1)!.characterId]).summary, event.summary);
 });

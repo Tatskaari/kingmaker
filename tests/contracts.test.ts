@@ -455,7 +455,7 @@ test("each visiting delegation has a public room, private back hall and individu
     assert.ok(courtPath({ x: 61, y: 24 }, delegation.publicPoint, world.doors, world.fixtures));
     const backHall = world.rooms.find(room => room.id === delegation.backHall)!;
     assert.equal(backHall.private, true);
-    assert.deepEqual([...backHall.allowedCharacterIds].sort(), delegation.members.map(resident).sort());
+    assert.deepEqual([...backHall.allowedCharacterIds].sort(), [...delegation.members.map(resident), ...world.actors.filter(actor => actor.characterId.startsWith("palace-guard-")).map(actor => actor.characterId)].sort());
     for (const member of delegation.members) {
       const actor = world.actors.find(actor => actor.characterId === resident(member))!;
       assert.equal(actor.homeRoomId, `${member}_chamber`);
@@ -472,7 +472,7 @@ test("the royal household has a public council chamber, private back hall and me
   assert.equal(council.name, "Royal Council Chamber");
   assert.equal(backHall.name, "Royal Back Hall");
   assert.equal(backHall.private, true);
-  assert.deepEqual([...backHall.allowedCharacterIds].sort(), ["aldren", "corvin", "holt"]);
+  assert.deepEqual([...backHall.allowedCharacterIds].sort(), ["aldren", "corvin", "holt", ...world.actors.filter(actor => actor.characterId.startsWith("palace-guard-")).map(actor => actor.characterId)].sort());
   const meetingDoors = ["royal_council_door", "ironmark_salon_door", "greenweald_solar_door", "saltmere_drawing_room_door"];
   for (const id of meetingDoors) {
     const door = world.doors.find(door => door.id === id)!;
