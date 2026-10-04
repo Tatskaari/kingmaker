@@ -8,7 +8,6 @@ import { JevClient } from "../packages/providers/src/jev.js";
 import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
 import { courtAgentObservation } from "../apps/web/src/court-agent.js";
 import { renderJevActionState } from "../apps/web/src/jev-room-view.js";
-import { GenerationConflict } from "../packages/core/src/generations.js";
 
 function game() {
   const scenario = fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8"));
@@ -68,10 +67,9 @@ test("local plans open, enter, and close a room through real runtime tile steps"
       assert.ok(id in criteria, `${id} should be offered`); return decision(id, criteria);
     });
     const plan = await runtime.planNpc("corvin", signal());
-    let expected = plan.generations, done = false;
+    let done = false;
     for (let tick = 0; tick < 100; tick++) {
-      const step = runtime.stepNpcAction("corvin", id, plan.goal, expected);
-      expected = step.generations;
+      const step = runtime.stepNpcAction("corvin", id, plan.goal);
       if (step.done) { done = true; break; }
     }
     assert.ok(done, `${id} never completed`);
@@ -93,5 +91,5 @@ test("concurrent door changes invalidate local travel before the next step", asy
   const snapshot: any = runtime.snapshot();
   snapshot.scenario.world.doors.find((door: any) => door.id === "royal_council_door").open = false;
   runtime.restore(snapshot);
-  assert.throws(() => runtime.stepNpcAction("corvin", plan.action!.id, plan.goal, plan.generations), GenerationConflict);
+  assert.throws(() => runtime.stepNpcAction("corvin", plan.action!.id, plan.goal), /Action changed; replan/);
 });

@@ -4,7 +4,6 @@ import { create } from "@bufbuild/protobuf";
 import { InventorySchema, MapFixtureSchema } from "../packages/contracts/src/index.js";
 import { inventoryOwners, itemsFor, type InventoryOwner } from "../packages/core/src/inventory.js";
 import { applyFixtureAction, fixtureActions } from "../packages/core/src/fixtures.js";
-import { generationIds } from "../packages/core/src/generations.js";
 import { requireCurrentFixtureAction } from "../apps/web/src/court-interactions.js";
 import { WorldGameRuntime } from "../apps/web/src/world-runtime.js";
 import { loadPlayableWorld } from "./fixtures.js";
@@ -40,9 +39,7 @@ test("repeating a completed furniture action reports an unavailable choice witho
   const result = await runtime.executeAction({ command: take });
   assert.match(result.message!, /Picked up/);
   const before = runtime.world();
-  // Walking refreshes generation IDs, but does not make the old menu choice valid.
-  const expected = generationIds(runtime.readResources());
-  await assert.rejects(runtime.executeAction({ command: take, expected }), /no longer available/);
+  await assert.rejects(runtime.executeAction({ command: take }), /no longer available/);
   assert.deepEqual(runtime.world(), before);
   const inspect = await runtime.executeAction({ command: { kind: "fixture", id: "inspect_item_palace_royal_key" } });
   assert.match(inspect.message!, /Royal lockbox key/);

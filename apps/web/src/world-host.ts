@@ -14,7 +14,6 @@ import { ScenarioSchema, type Event } from "../../../packages/contracts/src/inde
 import { CharacterPropertiesSchema, WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
 import { createScenarioServices } from "../../../packages/lore/src/services.js";
 import { activityGoal, characterIntent, formatActivity } from "../../../packages/lore/src/activity.js";
-import { generationIds, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 import { PalaceMechanics, type MechanicalActivity } from "./palace-mechanics.js";
 import { projectWorld } from "./world-projection.js";
 import { characterDocuments, characterId } from "../../../packages/lore/src/character-id.js";
@@ -73,7 +72,7 @@ export class WorldHost {
     const { scenario: _scenario, ...activity } = game.snapshot();
     this.activity = { ...this.activity, ...activity };
   }
-  protected mutate<T>(operation: (game: PalaceMechanics) => T, expected?: ExpectedGenerations): T {
+  protected mutate<T>(operation: (game: PalaceMechanics) => T): T {
     const before = this.world(), game = this.projection();
     const result = operation(game);
     const next = fromJson(ScenarioSchema, game.snapshot().scenario);
@@ -104,10 +103,6 @@ export class WorldHost {
     compulsion: { active: false, options: this.activity.stranger?.replies?.options ?? [] },
     traceNote: "Model requests are available in the transcript inspector.",
   }; }
-  readResources(keys?: string[]) {
-    const game = this.projection(), values = game.readResources(keys); this.remember(game);
-    return values;
-  }
   readonly map: MapService = {
     layout: () => clone(WorldMapSchema, palaceMap),
     observe: id => {
@@ -125,36 +120,36 @@ export class WorldHost {
       return { characterId: id, map: worldForCharacter(map, owners, id),
         actions: roomAgentActions(map, characters, owners, id) };
     },
-    interact: (command, expected) => {
-      if (command.kind === "step") return this.stepNpcAction(command.characterId, command.actionId, command.goal, expected);
+    interact: (command) => {
+      if (command.kind === "step") return this.stepNpcAction(command.characterId, command.actionId, command.goal);
       let worldEvent: Event | undefined, message: string | undefined;
       if (command.kind === "move") {
         const before = this.world().map!.actors.find(actor => actor.characterId === "player")!.roomId;
-        this.movePlayer(command.destination, expected);
+        this.movePlayer(command.destination);
         const world = this.world().map!, player = world.actors.find(actor => actor.characterId === "player")!;
         const room = world.rooms.find(room => room.id === player.roomId)!;
         if (before !== room.id && room.private && !room.allowedCharacterIds.includes("player")) {
           worldEvent = this.worldEvent(`entering ${room.name}`, `The player entered ${room.name} without permission.`, ["player"]);
         }
       }
-      if (command.kind === "door") worldEvent = this.setDoor(command.id, command.open, expected);
-      if (command.kind === "fixture") { const result = this.interactFixtureWithEvent(command.id, expected); worldEvent = result.event; message = result.message; }
-      return { done: true, generations: generationIds(this.readResources()),
+      if (command.kind === "door") worldEvent = this.setDoor(command.id, command.open);
+      if (command.kind === "fixture") { const result = this.interactFixtureWithEvent(command.id); worldEvent = result.event; message = result.message; }
+      return { done: true,
         ...(worldEvent ? { worldEvent } : {}), ...(message ? { message } : {}) };
     },
   };
   hasActiveObjective(id: string) { this.syncGoals(); return this.activity.npcActivities?.[id]?.status === "active"; }
   protected assertPlayerFree() { if (this.activity.jail) throw new Error("You are in jail."); }
   releaseFromJail() { delete this.activity.jail; }
-  movePlayer(destination: Point, expected?: ExpectedGenerations) { this.assertPlayerFree(); return this.mutate(game => game.movePlayer(destination, expected), expected); }
-  setDoor(id: string, open: boolean, expected?: ExpectedGenerations) { this.assertPlayerFree(); return this.mutate(game => game.setDoor(id, open, expected), expected); }
-  interactFixtureWithEvent(id: string, expected?: ExpectedGenerations) { this.assertPlayerFree(); return this.mutate(game => game.interactFixtureWithEvent(id, expected), expected); }
-  stepNpcAction(id: string, action: string, goal: string, expected?: ExpectedGenerations) {
-    const result = this.mutate(game => game.stepNpcAction(id, action, goal, expected), expected);
+  movePlayer(destination: Point) { this.assertPlayerFree(); return this.mutate(game => game.movePlayer(destination)); }
+  setDoor(id: string, open: boolean) { this.assertPlayerFree(); return this.mutate(game => game.setDoor(id, open)); }
+  interactFixtureWithEvent(id: string) { this.assertPlayerFree(); return this.mutate(game => game.interactFixtureWithEvent(id)); }
+  stepNpcAction(id: string, action: string, goal: string) {
+    const result = this.mutate(game => game.stepNpcAction(id, action, goal));
     return result;
   }
-  finishNpcRun(id: string, reason: Parameters<PalaceMechanics["finishNpcRun"]>[1], detail: string, expected?: ExpectedGenerations) {
-    this.mutate(game => game.finishNpcRun(id, reason, detail, expected), expected);
+  finishNpcRun(id: string, reason: Parameters<PalaceMechanics["finishNpcRun"]>[1], detail: string) {
+    this.mutate(game => game.finishNpcRun(id, reason, detail));
   }
   worldEvent(kind: string, summary: string, participants: string[]) {
     const map = this.world().map;

@@ -1,8 +1,7 @@
-import type { ExpectedGenerations } from "../../core/src/generations.js";
 import type { MapCommand, MapResult } from "./map.js";
 import type { RuntimeServices } from "./services.js";
 
-export interface ActionExecutionContext { command: MapCommand; expected?: ExpectedGenerations }
+export interface ActionExecutionContext { command: MapCommand }
 export type ActionExecutionLabels = Record<string, unknown>;
 export interface ActionExecutionHooks {
   classify(context: Readonly<ActionExecutionContext>, signal: AbortSignal, services: RuntimeServices): Promise<ActionExecutionLabels>;
@@ -13,7 +12,7 @@ export const mapActionHooks: ActionExecutionHooks = {
   classify: async () => ({}),
   async resolve(context, _labels, signal, services) {
     signal.throwIfAborted();
-    return services.map.interact(context.command, context.expected);
+    return services.map.interact(context.command);
   },
 };
 export async function runActionExecution(context: ActionExecutionContext,
