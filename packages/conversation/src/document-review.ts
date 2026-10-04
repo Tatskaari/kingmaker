@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../prompts/src/index.js";
 import { presentationPath } from "../../lore/src/presentation.js";
 import type { OpenRouterMessage } from "../../providers/src/openrouter.js";
 import type { RuntimeServices } from "./services.js";
@@ -14,7 +15,7 @@ export const documentReviewStrategy: ConversationReviewStrategy = {
 
 /** GM reviews can edit the world; memories must still respect each NPC's knowledge. */
 export async function reviewDocumentEvidence(context: Readonly<ConversationReviewContext>, labels: Readonly<ReviewLabels>,
-  signal: AbortSignal, services: RuntimeServices, purpose = "Review the recent conversation between the player and the NPC.") {
+  signal: AbortSignal, services: RuntimeServices, purpose = renderPrompt("review-conversation")) {
   signal.throwIfAborted();
   const intent = characterIntent(services.scenario.snapshot(), context.characterId), path = intent.entry;
   if (!context.participants.includes(context.characterId)) throw new Error("Review character must be a participant.");

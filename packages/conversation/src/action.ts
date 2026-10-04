@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../prompts/src/index.js";
 import type { GameAction } from "../../core/src/actions.js";
 import type { JevChoice, jevRequest } from "../../providers/src/jev.js";
 import type { RuntimeServices } from "./services.js";
@@ -14,9 +15,9 @@ export interface ActionStrategy {
   resolve(context: Readonly<ActionContext>, labels: Readonly<JevChoice>, signal: AbortSignal, services: RuntimeServices): Promise<ActionResult>;
 }
 export const terminalActions = {
-  complete: "The current task is achieved in the live world, even if the broader objective is unfinished. Arrival completes a task to go somewhere for a later conversation.",
-  wait: "The current task is still unfinished, and progress now depends entirely on another character initiating a conversation, arriving, deciding, or completing their own work. Choose this instead of inventing a waiting action or repeatedly checking.",
-  unable: "No available action can make progress, or essential clarification is needed.",
+  complete: renderPrompt("action-complete"),
+  wait: renderPrompt("action-wait"),
+  unable: renderPrompt("action-unable"),
 };
 export function actionCriteria(actions: readonly GameAction[]): Record<string, string> {
   const ids = new Set<string>();
@@ -25,7 +26,7 @@ export function actionCriteria(actions: readonly GameAction[]): Record<string, s
     ids.add(action.id);
   }
   return { ...Object.fromEntries(actions.map(action => [action.id,
-    `${action.description}${action.legality === "illegal" ? " This is illegal for this character." : ""}`])), ...terminalActions };
+    renderPrompt("action-criterion", { description: action.description, illegal: action.legality === "illegal" })])), ...terminalActions };
 }
 export const jevActionStrategy: ActionStrategy = {
   async classify(context, signal, services) {

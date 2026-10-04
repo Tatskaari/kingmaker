@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../../packages/prompts/src/index.js";
 import type { PremadeCharacter } from "./premade-characters.js";
 import type { JsonValue } from "@bufbuild/protobuf";
 import type { ScenarioService } from "../../../packages/lore/src/services.js";
@@ -23,16 +24,16 @@ function tools(ids: string[], affiliations: string[]): OpenRouterTool[] {
     type: "object", additionalProperties: false, required: ["characterId", "description"],
     properties: { characterId: { type: "string", enum: ids }, description: { type: "string" } },
   } };
-  return [{ type: "function", function: { name: "offer_replies", description: "Offer optional first-person player suggestions. Call alone; never select an answer.",
+  return [{ type: "function", function: { name: "offer_replies", description: renderPrompt("stranger-interview-offer-replies"),
     parameters: { type: "object", additionalProperties: false, required: ["options", "compelled"], properties: {
       options: { type: "array", minItems: 2, maxItems: 5, items: { type: "string" } }, compelled: { const: false, type: "boolean" },
     } },
-  } }, { type: "function", function: { name: "create_player", description: "After the player agrees they are ready, prepare an editable draft. Call alone. Only their explicit Save enters court.",
+  } }, { type: "function", function: { name: "create_player", description: renderPrompt("stranger-interview-create-player"),
     parameters: { type: "object", additionalProperties: false,
       required: ["name", "gender", "homeland", "embassyRole", "lore", "currentGoal", "relationships", "npcViews", "build", "presentation"], properties: {
         name: { type: "string" }, gender: { type: "string" }, homeland: { type: "string", enum: affiliations },
         embassyRole: { type: "string" }, lore: { type: "string" }, currentGoal: { type: "string" },
-        presentation: { type: "string", description: "Public appearance only: clothing and visible equipment; grooming, hair and visible condition; impression in this setting. A short evocative paragraph grounded in the interview and traveller clothes. Omit unknown details and all secrets, concealed items, motives and biography. No document links." },
+        presentation: { type: "string", description: renderPrompt("stranger-interview-appearance") },
         relationships, npcViews: relationships, build: playerBuildParameter,
       } },
   } }];
@@ -49,8 +50,8 @@ export async function strangerTurn(previous: StrangerState, text: string,
   const lore = await strangerLore(scenario);
   const cast = world.characters.map(path => ({ id: characterId(path, world), path }));
   const context = await disclosedContext("stranger", [
-    { role: "system", content: premade ? `Integrate the selected pre-made character into the supplied scenario. The player has chosen to enter the hall immediately; do not interview them or request review. Call create_player. Preserve the supplied identity, role, goal and build. Write a grounded biography and one relationship and NPC impression per cast member. They know nobody personally: use unfamiliarity or modest public impressions, never invented shared history. Keep service to the Stranger private and do not reveal NPC secrets. Character: ${JSON.stringify(premade)}` : strangerPrompt },
-    { role: "system", content: `Active character IDs for draft relationships (not prior acquaintance):\n${JSON.stringify(cast)}` },
+    { role: "system", content: premade ? renderPrompt("stranger-interview-premade", { character: JSON.stringify(premade) }) : strangerPrompt },
+    { role: "system", content: renderPrompt("stranger-interview-cast", { cast: JSON.stringify(cast) }) },
     ...state.history,
   ], services, "gm", signal, { lore });
   const initialHistoryLength = state.history.length;
@@ -72,19 +73,19 @@ export async function strangerTurn(previous: StrangerState, text: string,
         const input = JSON.parse(call.function.arguments) as Record<string, unknown>;
         if (call.function.name === "create_player") {
           state.draft = interviewDraft(premade ? { ...input, ...premade, lore: input.lore } : input, world);
-          result = { ok: true, instruction: "Wait for explicit review and Save. Do not narrate arrival." };
+          result = { ok: true, instruction: renderPrompt("stranger-interview-await-save") };
         } else if (call.function.name === "offer_replies") {
           if (input.compelled !== false || !Array.isArray(input.options) || input.options.length < 2 || input.options.length > 5
             || input.options.some(item => typeof item !== "string" || !item.trim())) throw new Error("Offer two to five optional replies; compulsion is unavailable.");
           if (state.replies) throw new Error("Replies already offered. Speak as the Stranger and wait.");
           state.replies = { options: input.options as string[], compelled: false };
-          result = { ok: true, instruction: "Speak as the Stranger if you have not spoken, then wait. No reply is selected." };
+          result = { ok: true, instruction: renderPrompt("stranger-interview-await-reply") };
         } else throw new Error("Unknown Stranger tool.");
       } catch (error) { result = { ok: false, error: String(error) }; }
       state.history.push({ role: "tool", tool_call_id: call.id, name: call.function.name, content: JSON.stringify(result) });
       if (state.draft) {
         delete state.replies;
-        state.history.push({ role: "assistant", content: "Review your character before continuing." });
+        state.history.push({ role: "assistant", content: renderPrompt("stranger-interview-review-notice") });
         return state;
       }
       if (result.ok && reply.content?.trim()) {

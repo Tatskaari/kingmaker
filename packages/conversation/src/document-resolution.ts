@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../prompts/src/index.js";
 import { disclosedContext } from "./disclosed-context.js";
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, TranscriptRole } from "../../contracts/src/index.js";
@@ -22,12 +23,12 @@ export const documentResolutionStrategy: ResolutionStrategy = {
     if (context.kind !== "world_event") return {};
     const goal = activityGoal(services.scenario.snapshot(), context.characterId);
     const messages = await disclosedContext("attention", [{ role: "user", content: JSON.stringify({
-      task: "Decide whether this perceived event warrants attention based on your knowledge and motives. Do not infer unperceived details.",
+      task: renderPrompt("document-resolution-attention-context"),
       goal, perception: context.perception,
     }) }], services, context.characterId, signal);
     const result = await services.ai.decisions({ messages, goal, perception: context.perception }, {
-      reaction: { type: "choice", instructions: "Does this perceived event warrant attention based on this character's knowledge and motives? Do not infer unperceived details.",
-        criteria: { process: "Materially changes an objective or warrants an immediate reaction.", ignore: "Incidental, already known or irrelevant." } },
+      reaction: { type: "choice", instructions: renderPrompt("document-resolution-attention"),
+        criteria: { process: renderPrompt("document-resolution-process"), ignore: renderPrompt("document-resolution-ignore") } },
     }, signal);
     const choice = result.reaction?.choice;
     if (choice !== "process" && choice !== "ignore") throw new Error("Invalid event reaction classification.");
@@ -40,22 +41,22 @@ export const documentResolutionStrategy: ResolutionStrategy = {
       if (context.characterId === context.targetId) throw new Error("An exchange needs two different participants.");
       const participants = [context.characterId, context.targetId];
       // Each speaker gets only their own context and what the other actually said.
-      const opening = await speak(context.characterId, context.targetId, "Initiate a brief exchange to advance your goal.",
+      const opening = await speak(context.characterId, context.targetId, renderPrompt("document-resolution-open-exchange"),
         { target: context.targetId, goal: context.goal }, signal, services);
-      const response = await speak(context.targetId, context.characterId, "Respond to the words spoken to you. You may refuse or negotiate.",
+      const response = await speak(context.targetId, context.characterId, renderPrompt("document-resolution-reply-exchange"),
         { speaker: context.characterId, words: opening.text }, signal, services);
       const transcript = [opening, response];
       for (const characterId of participants) {
         await reviewDocumentEvidence({ characterId, participants, transcript }, labels, signal, services,
-          "Review only this participant's knowledge of the exchange. The other participant's motives are private. Speech does not execute physical actions.");
+          renderPrompt("document-resolution-review-exchange"));
       }
       return { summary: transcript.map(turn => `${turn.speakerId}: ${turn.text}`).join("\n") };
     }
     const purpose = context.kind === "wait_ended"
-      ? "The wait has ended and its pointer has been cleared. Reconsider the character using the wait instructions and the observed condition. The current observation supersedes historical notes about who had not arrived. When the awaited condition is satisfied and a next action is feasible, call set_activity and commit it now. Do not then call set_wait just to defer your own available action: greeting a present player is immediately executable. Use set_wait only for a genuinely new unmet external dependency, not the condition that just ended."
+      ? renderPrompt("document-resolution-review-wait")
       : context.kind === "world_event"
-      ? "Review the perceived event, not a conversation. Record only the supplied perception, retaining its uncertainty. Consider whether it changes or reactivates work."
-      : "Review the completed action attempt, not a conversation. Use actual actions and observations. A wait result means this activity is blocked on a condition or another actor. You MUST call set_wait to describe the condition, what the character can observe, and when to stop_waiting or activate a listed activity. Preserve the unfinished undertaking in the wait instructions. Do not clear_activity or immediately restart the blocked task. Do not restart failed work without new evidence.";
+      ? renderPrompt("document-resolution-review-event")
+      : renderPrompt("document-resolution-review-action");
     const text = context.kind === "world_event" ? context.perception : JSON.stringify(context);
     return reviewDocumentEvidence({ characterId: context.characterId, participants: [context.characterId],
       transcript: [create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, speakerId: "observation", text })],

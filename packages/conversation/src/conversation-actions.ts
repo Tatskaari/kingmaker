@@ -1,9 +1,10 @@
+import { renderPrompt } from "../../prompts/src/index.js";
 import type { Complete } from "./conversation.js";
 import type { OpenRouterTool } from "../../providers/src/openrouter.js";
 
 const arrestTool: OpenRouterTool = { type: "function", function: {
   name: "arrest",
-  description: "Attempt to arrest the player. The first call opens a challenge: explain the accusation and invite the player to defend themselves. Only after their defense has failed a check can this action end the conversation and place them in jail. Use for a credible threat of violence, an admitted serious palace crime, a witnessed break-in to restricted palace quarters, or clear ongoing trouble after a warning. Respect binding check rulings. Confusion, cheek, questions about identical brothers and fourth-wall jokes are not crimes. Threats or mentions of jail alone do not execute an arrest.",
+  description: renderPrompt("conversation-actions-arrest-tool"),
   parameters: { type: "object", properties: {}, required: [], additionalProperties: false },
 } };
 
@@ -13,7 +14,7 @@ export function arrestResponse(respond: Complete, stageArrest: (ruling: string) 
   defense: { outcome: () => "unheard" | "passed" | "failed"; challenge: () => void }): Complete {
   return async (request, signal) => {
     if (defense.outcome() === "passed") return respond({ ...request, tools: [], messages: [...request.messages,
-      { role: "system", content: "The player successfully defended against this arrest. Do not arrest them for this incident. Honour the resolved check and let them go." }] }, signal);
+      { role: "system", content: renderPrompt("conversation-actions-defense-passed") }] }, signal);
     const reply = await respond({ ...request, tools: [arrestTool] }, signal);
     signal?.throwIfAborted();
     if (!reply.tool_calls?.length) return reply;
@@ -25,10 +26,10 @@ export function arrestResponse(respond: Complete, stageArrest: (ruling: string) 
       defense.challenge();
       return respond({ ...request, tools: [], messages: [...request.messages, reply,
         { role: "tool", tool_call_id: call!.id, content: JSON.stringify({ arrested: false, defenseRequired: true }) },
-        { role: "system", content: "You have stopped the player to challenge them, not jailed them. Briefly explain the accusation and explicitly invite their explanation or defense. Wait for their reply; it will receive a skill check. Do not narrate an arrest, imprisonment or their response." },
+        { role: "system", content: renderPrompt("conversation-actions-challenge") },
       ] }, signal);
     }
-    const ruling = "# Binding DM ruling\nYour arrest action succeeds. The player is placed in jail and this conversation ends. Give a brief in-character arrest line; do not ask a follow-up question or offer an escape. The game will show the jail popup.";
+    const ruling = renderPrompt("conversation-actions-ruling");
     stageArrest(ruling);
     return respond({ ...request, tools: [], messages: [...request.messages, reply,
       { role: "tool", tool_call_id: call!.id, content: JSON.stringify({ arrested: true }) },

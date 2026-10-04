@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../prompts/src/index.js";
 import { toJson } from "@bufbuild/protobuf";
 import { GamePhase, ItemInstanceSchema, type WorldState } from "../../contracts/src/index.js";
 import type { locatedItems } from "./inventory.js";
@@ -14,8 +15,8 @@ export function renderWorldPrompt(characters: readonly { id: string; name: strin
   const name = (id: string) => characters.find(item => item.id === id)?.name ?? id;
   const lines = [
     `Day ${view.day}; phase ${GamePhase[view.phase]}; revision ${view.revision}.`,
-    ...(characterId ? [`Current room: ${actor?.roomId || "Not placed"}. Furniture lists local and previously known fixtures only; omission does not mean absence.`] : []),
-    "Room connections describe the map, not permission or a guarantee of a reachable path. Physical actions must use the engine.",
+    ...(characterId ? [renderPrompt("world-prompt-current-room", { room: actor?.roomId || "Not placed" })] : []),
+    renderPrompt("world-prompt-map-boundary"),
     "Rooms (id, name, description, exits, privacy and access):",
     ...view.rooms.map(room => JSON.stringify({ id: room.id, name: room.name, description: room.description,
       exits: room.exitRoomIds, ...(room.private ? { private: true } : {}),
@@ -30,7 +31,7 @@ export function renderWorldPrompt(characters: readonly { id: string; name: strin
       ...(item.container ? { state: item.open ? "open" : "closed",
         ...(item.requiredKeyId ? { requiredKey: item.requiredKeyId } : {}),
         contentsKnown: !characterId || item.open || item.searchedBy.includes(characterId) } : {}) })),
-    "Known items (location identifies the current owner or container; quantities and details are authoritative):",
+    renderPrompt("world-prompt-known-items"),
     ...view.objects.map(item => JSON.stringify({ ...toJson(ItemInstanceSchema, item) as object, locationId: item.locationId })),
     `Established facts: ${JSON.stringify(view.facts ?? {})}`,
   ];

@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../prompts/src/index.js";
 import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/src/openrouter.js";
 import { InvalidModelJsonError, parseModelObject } from "../../providers/src/structured-output.js";
 import { DocumentConflictError } from "../../lore/src/services.js";
@@ -21,7 +22,7 @@ export async function runGameMaster(request: ChatCompletionRequest, services: Ru
     signal.throwIfAborted();
     if (!response.tool_calls?.length) {
       if (options.requireCommit || session.pending) {
-        const instruction = "Document review must call a tool and finish with commit_review. No review was committed. Reconcile any conflict using the latest documents, restage discarded activities, then call commit_review.";
+        const instruction = renderPrompt("game-master-instruction");
         if (corrections++ >= 2) throw new Error(instruction);
         messages.push(response, { role: "system", content: instruction });
         continue;

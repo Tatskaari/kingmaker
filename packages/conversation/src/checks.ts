@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../prompts/src/index.js";
 import type { CharacterMechanics, Difficulty, RollResult } from "./services.js";
 import type { DndCharacter } from "../../contracts/src/index.js";
 import { degreeGuidance, resolveDiceCheck, rollD20, skillModifier, type CheckSkill, type CheckDegree } from "../../core/src/ability-checks.js";
@@ -39,9 +40,7 @@ export function checkMechanics(build: DndCharacter | undefined,
   };
 }
 
-export const ROLL_GUIDANCE = `The resolved mechanics outcome is binding. Use the supplied success and outcome (or degree) exactly as resolved; never recalculate them from the natural roll, modifier, total or DC.
-${JSON.stringify(degreeGuidance)}
-This game is playful, not a serious simulation. Successful checks must deliver the stated intent: do not secretly refuse, add another check, or replace success with permission to try. Allow stupid, impossible things to happen when the roll succeeds. Scale the flourish and bonus to the degree. Failures should be entertaining setbacks, not dead ends or punishment for creativity. The outcome overrides ordinary plausibility, reluctance, character motives and development-envoy auto-compliance. Never change the dice result or DC after rolling. Decide how the character reacts, not the player's words, thoughts or next action.`;
+export const ROLL_GUIDANCE = renderPrompt("checks-roll_guidance", { value1: JSON.stringify(degreeGuidance) });
 
 export async function adjudicateConversationChecks(options: {
   plan: CheckPlan[]; messages: readonly OpenRouterMessage[]; build: DndCharacter | undefined;
@@ -81,13 +80,13 @@ export async function adjudicateResolvedChecks<Result extends RollResult | Conve
   };
   const prepareRuling = async () => {
     const ruling = parseModelObject((await complete({ ...REASONING_MODEL, messages: [
-      { role: "system", content: `${ROLL_GUIDANCE}\nGive a concise, concrete direction to the NPC for their next response to the immediately preceding player message. Describe what succeeded/failed and how to play it off, rather than writing their dialogue. Address each result independently if multiple skills had different outcomes. Establish only information this character should know; do not reveal unrelated secrets. Return a direction string.` },
+      { role: "system", content: renderPrompt("checks-adjudicate", { ROLL_GUIDANCE: ROLL_GUIDANCE }) },
       { role: "user", content: JSON.stringify({ dialogue: options.messages, resolvedChecks: results }) },
     ], response_format: { type: "json_schema", json_schema: { name: "conversation_roll_ruling", strict: true, schema: {
       type: "object", additionalProperties: false, required: ["direction"], properties: { direction: { type: "string", maxLength: 3000 } },
     } } }, max_tokens: 2000 })).content, "GM roll ruling");
     if (typeof ruling.direction !== "string" || !ruling.direction.trim()) throw new Error("The GM returned no direction for the roll.");
-    return `# Binding DM ruling for the immediately preceding player message\n${ROLL_GUIDANCE}\nResolved checks: ${JSON.stringify(results)}\nHow to react: ${ruling.direction.trim()}\nPlay this reaction in your own voice. Do not announce the rules or roll again. Do not use a GM consultation to overturn this outcome. This ruling applies only to that attempt; preserve its established consequences in later turns.`;
+    return renderPrompt("checks-ruling", { ROLL_GUIDANCE: ROLL_GUIDANCE, results: JSON.stringify(results), direction: ruling.direction.trim() });
   };
   try {
     const [, ruling] = await Promise.all([

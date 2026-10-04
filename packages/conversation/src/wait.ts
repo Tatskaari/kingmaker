@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../prompts/src/index.js";
 import { activityDefinition, characterIntent, intentDocument, waitActivities } from "../../lore/src/activity.js";
 import type { DocumentSnapshot } from "../../lore/src/services.js";
 import type { RuntimeServices } from "./services.js";
@@ -24,13 +25,13 @@ export async function decideWait(id: string, elapsedSeconds: number, services: R
   const character = await services.docs.read(intent.entry), wait = await services.docs.read(intent.wait);
   const doc = intentDocument(world, id, intent.wait), targets: DocumentSnapshot[] = [];
   const criteria: Record<string, string> = {
-    continue: "The awaited condition is NOT satisfied and waiting still makes sense. Remain asleep until the next check. This never means resume the undertaking.",
-    stop_waiting: "The awaited condition IS satisfied but no offered activity fits, or waiting no longer makes sense. Clear the wait and ask the LLM for the next action. Seeing the awaited person here satisfies a wait for their arrival.",
+    continue: renderPrompt("wait-continue"),
+    stop_waiting: renderPrompt("wait-stop"),
   };
   for (const path of waitActivities(doc)) {
     const activity = activityDefinition(intentDocument(world, id, path));
     targets.push(await services.docs.read(path));
-    criteria[`set_activity:${path}`] = `Begin this activity when the wait's instructions warrant it: ${JSON.stringify(activity)}`;
+    criteria[`set_activity:${path}`] = renderPrompt("wait-activate", { activity: JSON.stringify(activity) });
   }
   const observation = waitObservation(services, id);
   const messages = await disclosedContext("wait", [{ role: "user", content: JSON.stringify({
@@ -38,7 +39,7 @@ export async function decideWait(id: string, elapsedSeconds: number, services: R
     elapsedSeconds, observation: JSON.parse(observation),
   }) }], services, id, signal);
   const result = await services.ai.decisions({ messages }, { waiting: { type: "choice",
-    instructions: "Apply this wait's instructions to the character's CURRENT observations and elapsed time. Current observations override historical statements in the wait and notes: a person visible here now has arrived even if older text says they have not. On a satisfied trigger, choose a matching set_activity option; if none is offered, choose stop_waiting. Choose only an offered option. Continue if its condition is unmet. Never infer a remote person's location, unseen events, or a promise's fulfilment. Passing a 15-second interval alone is not a reason to end a conditional wait.", criteria } }, signal);
+    instructions: renderPrompt("wait-instructions"), criteria } }, signal);
   signal.throwIfAborted();
   const choice = result.waiting?.choice;
   if (!choice || !Object.hasOwn(criteria, choice)) throw new Error("Jev returned an unavailable wait choice.");

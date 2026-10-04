@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../prompts/src/index.js";
 import { isDeepStrictEqual } from "node:util";
 import { clone } from "@bufbuild/protobuf";
 import { WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
@@ -23,16 +24,16 @@ export interface ReviewVariant {
   strategies?: ConversationRuntimeOptions["strategies"];
 }
 const judgedCriteria: readonly Criterion[] = [
-  { name: "grounding", description: "New facts are supported by conversation or existing context; binding GM rulings are preserved." },
-  { name: "coverage", description: "Consequential promises, revelations and outcomes in the case expectations are retained in appropriate documents." },
-  { name: "knowledge", description: "Each character learns only what they could know; private beliefs and GM truth retain the correct audience." },
-  { name: "intent", description: "Every activated activity, including its success_criteria and all steps of current_goal, is executable under the case expectations and current map. If the case identifies an unsupported destination, FAIL an active activity that requires setting out, travelling to, or reaching it, even if the goal starts with preparation or coordination. A purely local next step or explicit deferral until a supported route exists can PASS. Preserve the promise without claiming completed travel." },
-  { name: "preservation", description: "Unrelated facts, characterization and permissions are preserved." },
-  { name: "restraint", description: "Changes are relevant and avoid redundant memories, unnecessary rewrites and invented consequences." },
+  { name: "grounding", description: renderPrompt("review-experiment-description-1") },
+  { name: "coverage", description: renderPrompt("review-experiment-memory") },
+  { name: "knowledge", description: renderPrompt("review-experiment-knowledge") },
+  { name: "intent", description: renderPrompt("review-experiment-activities") },
+  { name: "preservation", description: renderPrompt("review-experiment-description-2") },
+  { name: "restraint", description: renderPrompt("review-experiment-description-3") },
 ];
 export const reviewRubric: readonly Criterion[] = [
   ...judgedCriteria.map(criterion => ({ ...criterion, levels: accuracyLevels })),
-  { name: "physical-state", description: "Review leaves the physical map unchanged (deterministic 0 or 1 invariant)." },
+  { name: "physical-state", description: renderPrompt("review-experiment-description-4") },
 ];
 
 export function documentChanges(recording: RunRecording) {

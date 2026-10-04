@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../../packages/prompts/src/index.js";
 import { courtPath } from "./court-map.js";
 import type { DoorState, MapFixture } from "../../../packages/contracts/src/index.js";
 
@@ -30,9 +31,9 @@ export const PLAYER_EARSHOT_DISTANCE = 15;
 export const PLAYER_PERCEPTION_CHANCES = { Clear: 1, Moderate: 0.9, Distant: 0.6 };
 // Address the speaking character directly, with names grouped beneath each warning.
 export const EARSHOT_DESCRIPTIONS = {
-  Clear: "These characters are right by you and will almost certainly hear what you say.",
-  Moderate: "These characters are nearby. They will likely catch names, places and parts of what you say, but there will be gaps.",
-  Distant: "These characters are farther away. They may catch the odd name or place, but are unlikely to follow the details of what you say.",
+  Clear: renderPrompt("earshot-clear"),
+  Moderate: renderPrompt("earshot-nearby"),
+  Distant: renderPrompt("earshot-distant"),
 };
 
 export const PERCEPTION_CHANCES: Record<EarshotCharacter["level"], number> = {
