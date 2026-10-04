@@ -408,4 +408,3 @@ message PlayerSetup {
   string homeland = 3;
   string embassy_role = 4;
 }
-
