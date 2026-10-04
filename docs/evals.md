@@ -21,6 +21,12 @@ Temporary variants can be added for a hypothesis-driven comparison, then removed
 when the supported change is promoted into the game baseline. The scenario and rubric
 remain as regression coverage; the framework still supports variant comparisons.
 
+`oswin-kobold-city` reconstructs a review from a game dump where Oswin accepted a
+fashion consultation in an off-map city and was assigned an immediate journey there.
+It checks that the agreement survives without inventing executable travel. See the
+[fixture notes](../evals/reviews/oswin-kobold-city/README.md) for reconstruction limits
+and the recorded planner loop. Select it with `--experiments oswin-kobold-city`.
+
 The old physical travel probe remains `npm run eval:review:handoff`; its existing
 `REVIEW_EVAL_REPEATS` and `REVIEW_EVAL_OUTPUT_DIR` settings apply only to that command.
 

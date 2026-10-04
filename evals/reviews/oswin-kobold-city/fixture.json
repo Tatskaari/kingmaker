@@ -1,0 +1,357 @@
+{
+  "transcript": [
+    {
+      "role": "TRANSCRIPT_ROLE_GAME_MASTER",
+      "speakerId": "earshot",
+      "text": "# Current conversation earshot\nClear: These characters are right by you and will almost certainly hear what you say.\n- Lady Elinor Ash (elinor)\n- Doctor Rowan Ash (rowan)\n\nModerate: These characters are nearby. They will likely catch names, places and parts of what you say, but there will be gaps.\n- Lady Cressida Pinchbeck (cressida)\n- Klog (klog)\n\nDistant: These characters are farther away. They may catch the odd name or place, but are unlikely to follow the details of what you say.\n- Abel Keel (abel)\n- King Aldren (aldren)\n- Bran (bran)\n- Magister Corvin (corvin)\n- King Gurt (gurt)\n- Palace Guard (palace-guard-1)\n- Palace Guard (palace-guard-2)\n- Prince Peregrine Vane (peregrine)\nTake this audience into account when choosing what to say aloud. This describes who may overhear, not proof they heard or learned anything."
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_PLAYER",
+      "speakerId": "player",
+      "text": "Wow Berz think your hat silly "
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_CHARACTER",
+      "speakerId": "oswin",
+      "text": "*I touch the brim of my hat, considering this with grave attention.*\n\nSilly, is it? Hm. It was described to me as “ceremonially protective.” Though I admit the tassel does catch on the granary latch. What, precisely, is wrong with it?\n"
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_PLAYER",
+      "speakerId": "player",
+      "text": "You should come with Berz to Kobold city. Berz is fashion aficionado. "
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_GAME_MASTER",
+      "speakerId": "GM",
+      "text": "# Binding DM ruling for the immediately preceding player message\nThe resolved mechanics outcome is binding. Use the supplied success and outcome (or degree) exactly as resolved; never recalculate them from the natural roll, modifier, total or DC.\n{\"critical_failure\":\"Spectacular, entertaining backfire. Fail the attempt, not the entire adventure; leave another opening.\",\"major_failure\":\"The attempt clearly fails with a substantial, playful complication.\",\"minor_failure\":\"The attempt fails with a limited setback or an alternative opening.\",\"barely_passes\":\"Deliver the intended outcome, narrowly or awkwardly. Do not turn this success into another hurdle.\",\"minor_success\":\"Deliver the intended outcome cleanly.\",\"major_success\":\"Deliver the intended outcome plus a meaningful bonus or an exaggerated, delightful effect.\",\"critical_success\":\"Extraordinary success. Make even a gloriously impossible attempt work; embrace absurdity and surprise.\"}\nThis game is playful, not a serious simulation. Successful checks must deliver the stated intent: do not secretly refuse, add another check, or replace success with permission to try. Allow stupid, impossible things to happen when the roll succeeds. Scale the flourish and bonus to the degree. Failures should be entertaining setbacks, not dead ends or punishment for creativity. The outcome overrides ordinary plausibility, reluctance, character motives and development-envoy auto-compliance. Never change the dice result or DC after rolling. Decide how the character reacts, not the player's words, thoughts or next action.\nResolved checks: [{\"characterId\":\"player\",\"skill\":\"persuasion\",\"difficulty\":\"normal\",\"natural\":18,\"modifier\":1,\"total\":19,\"dc\":15,\"success\":true,\"outcome\":\"major_success\"}]\nHow to react: The major-success persuasion works: accept Berz’s invitation and enthusiastically agree to accompany them to Kobold City for a fashion consultation. Make the hat the amusing centerpiece—concede its tassel has been catching on granary latches and invite Berz to rescue it from ceremonial disgrace. Add a delightful bonus by solemnly treating their fashion expertise as an honored appointment, perhaps asking whether the city’s style has any rules about sacred agriculture. Show warm, amused respect; do not claim you have already traveled.\nPlay this reaction in your own voice. Do not announce the rules or roll again. Do not use a GM consultation to overturn this outcome. This ruling applies only to that attempt; preserve its established consequences in later turns."
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_CHARACTER",
+      "speakerId": "oswin",
+      "text": "*I look down at my hat, then give you a solemn little bow.*\n\nThen I accept, Berz. Please consider this an honored appointment: you shall rescue my tassel from ceremonial disgrace. It has caught on the granary latch three times, and the latch is not known for forgiving precedent.\n\nAnd tell me—does Kobold City’s fashion have any rules concerning sacred agriculture? I should hate to arrive improperly dressed for the harvest."
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_PLAYER",
+      "speakerId": "player",
+      "text": "agimuculture? *looks confused*"
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_GAME_MASTER",
+      "speakerId": "GM",
+      "text": "# Binding DM ruling for the immediately preceding player message\nThe resolved mechanics outcome is binding. Use the supplied success and outcome (or degree) exactly as resolved; never recalculate them from the natural roll, modifier, total or DC.\n{\"critical_failure\":\"Spectacular, entertaining backfire. Fail the attempt, not the entire adventure; leave another opening.\",\"major_failure\":\"The attempt clearly fails with a substantial, playful complication.\",\"minor_failure\":\"The attempt fails with a limited setback or an alternative opening.\",\"barely_passes\":\"Deliver the intended outcome, narrowly or awkwardly. Do not turn this success into another hurdle.\",\"minor_success\":\"Deliver the intended outcome cleanly.\",\"major_success\":\"Deliver the intended outcome plus a meaningful bonus or an exaggerated, delightful effect.\",\"critical_success\":\"Extraordinary success. Make even a gloriously impossible attempt work; embrace absurdity and surprise.\"}\nThis game is playful, not a serious simulation. Successful checks must deliver the stated intent: do not secretly refuse, add another check, or replace success with permission to try. Allow stupid, impossible things to happen when the roll succeeds. Scale the flourish and bonus to the degree. Failures should be entertaining setbacks, not dead ends or punishment for creativity. The outcome overrides ordinary plausibility, reluctance, character motives and development-envoy auto-compliance. Never change the dice result or DC after rolling. Decide how the character reacts, not the player's words, thoughts or next action.\nResolved checks: [{\"characterId\":\"player\",\"skill\":\"persuasion\",\"difficulty\":\"normal\",\"natural\":18,\"modifier\":1,\"total\":19,\"dc\":15,\"success\":true,\"outcome\":\"major_success\"}]\nHow to react: The major-success persuasion works: accept Berz’s invitation and enthusiastically agree to accompany them to Kobold City for a fashion consultation. Make the hat the amusing centerpiece—concede its tassel has been catching on granary latches and invite Berz to rescue it from ceremonial disgrace. Add a delightful bonus by solemnly treating their fashion expertise as an honored appointment, perhaps asking whether the city’s style has any rules about sacred agriculture. Show warm, amused respect; do not claim you have already traveled.\nPlay this reaction in your own voice. Do not announce the rules or roll again. Do not use a GM consultation to overturn this outcome. This ruling applies only to that attempt; preserve its established consequences in later turns."
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_CHARACTER",
+      "speakerId": "oswin",
+      "text": "*I pause, then gently tap the hat’s troublesome tassel.*\n\nAgriculture. Grain, fields, planting. The sacred part is mostly paperwork—and one very particular spoon. Never mind; we can discuss it on the way. For now, I place myself entirely in your fashionable hands."
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_PLAYER",
+      "speakerId": "player",
+      "text": "Food?!?"
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_GAME_MASTER",
+      "speakerId": "GM",
+      "text": "# Binding DM ruling for the immediately preceding player message\nThe resolved mechanics outcome is binding. Use the supplied success and outcome (or degree) exactly as resolved; never recalculate them from the natural roll, modifier, total or DC.\n{\"critical_failure\":\"Spectacular, entertaining backfire. Fail the attempt, not the entire adventure; leave another opening.\",\"major_failure\":\"The attempt clearly fails with a substantial, playful complication.\",\"minor_failure\":\"The attempt fails with a limited setback or an alternative opening.\",\"barely_passes\":\"Deliver the intended outcome, narrowly or awkwardly. Do not turn this success into another hurdle.\",\"minor_success\":\"Deliver the intended outcome cleanly.\",\"major_success\":\"Deliver the intended outcome plus a meaningful bonus or an exaggerated, delightful effect.\",\"critical_success\":\"Extraordinary success. Make even a gloriously impossible attempt work; embrace absurdity and surprise.\"}\nThis game is playful, not a serious simulation. Successful checks must deliver the stated intent: do not secretly refuse, add another check, or replace success with permission to try. Allow stupid, impossible things to happen when the roll succeeds. Scale the flourish and bonus to the degree. Failures should be entertaining setbacks, not dead ends or punishment for creativity. The outcome overrides ordinary plausibility, reluctance, character motives and development-envoy auto-compliance. Never change the dice result or DC after rolling. Decide how the character reacts, not the player's words, thoughts or next action.\nResolved checks: [{\"characterId\":\"player\",\"skill\":\"persuasion\",\"difficulty\":\"normal\",\"natural\":18,\"modifier\":1,\"total\":19,\"dc\":15,\"success\":true,\"outcome\":\"major_success\"}]\nHow to react: The major-success persuasion works: accept Berz’s invitation and enthusiastically agree to accompany them to Kobold City for a fashion consultation. Make the hat the amusing centerpiece—concede its tassel has been catching on granary latches and invite Berz to rescue it from ceremonial disgrace. Add a delightful bonus by solemnly treating their fashion expertise as an honored appointment, perhaps asking whether the city’s style has any rules about sacred agriculture. Show warm, amused respect; do not claim you have already traveled.\nPlay this reaction in your own voice. Do not announce the rules or roll again. Do not use a GM consultation to overturn this outcome. This ruling applies only to that attempt; preserve its established consequences in later turns."
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_GAME_MASTER",
+      "speakerId": "GM",
+      "text": "# Binding DM ruling for the immediately preceding player message\nThe resolved mechanics outcome is binding. Use the supplied success and outcome (or degree) exactly as resolved; never recalculate them from the natural roll, modifier, total or DC.\n{\"critical_failure\":\"Spectacular, entertaining backfire. Fail the attempt, not the entire adventure; leave another opening.\",\"major_failure\":\"The attempt clearly fails with a substantial, playful complication.\",\"minor_failure\":\"The attempt fails with a limited setback or an alternative opening.\",\"barely_passes\":\"Deliver the intended outcome, narrowly or awkwardly. Do not turn this success into another hurdle.\",\"minor_success\":\"Deliver the intended outcome cleanly.\",\"major_success\":\"Deliver the intended outcome plus a meaningful bonus or an exaggerated, delightful effect.\",\"critical_success\":\"Extraordinary success. Make even a gloriously impossible attempt work; embrace absurdity and surprise.\"}\nThis game is playful, not a serious simulation. Successful checks must deliver the stated intent: do not secretly refuse, add another check, or replace success with permission to try. Allow stupid, impossible things to happen when the roll succeeds. Scale the flourish and bonus to the degree. Failures should be entertaining setbacks, not dead ends or punishment for creativity. The outcome overrides ordinary plausibility, reluctance, character motives and development-envoy auto-compliance. Never change the dice result or DC after rolling. Decide how the character reacts, not the player's words, thoughts or next action.\nResolved checks: [{\"characterId\":\"player\",\"skill\":\"persuasion\",\"difficulty\":\"normal\",\"natural\":18,\"modifier\":1,\"total\":19,\"dc\":15,\"success\":true,\"outcome\":\"major_success\"}]\nHow to react: The major-success persuasion works: accept Berz’s invitation and enthusiastically agree to accompany them to Kobold City for a fashion consultation. Make the hat the amusing centerpiece—concede its tassel has been catching on granary latches and invite Berz to rescue it from ceremonial disgrace. Add a delightful bonus by solemnly treating their fashion expertise as an honored appointment, perhaps asking whether the city’s style has any rules about sacred agriculture. Show warm, amused respect; do not claim you have already traveled.\nPlay this reaction in your own voice. Do not announce the rules or roll again. Do not use a GM consultation to overturn this outcome. This ruling applies only to that attempt; preserve its established consequences in later turns."
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_CHARACTER",
+      "speakerId": "oswin",
+      "text": "*I blink, then nod thoughtfully.*\n\nFood, yes—though not only food. Grain becomes bread, and bread becomes the reason a kingdom can survive winter. The rites are meant to keep the harvest safe. Less solemnly, they also tell you which spoon not to put in the barley. I’ve seen the consequences."
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_PLAYER",
+      "speakerId": "player",
+      "text": "Bread make Berz fat. "
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_GAME_MASTER",
+      "speakerId": "GM",
+      "text": "# Binding DM ruling for the immediately preceding player message\nThe resolved mechanics outcome is binding. Use the supplied success and outcome (or degree) exactly as resolved; never recalculate them from the natural roll, modifier, total or DC.\n{\"critical_failure\":\"Spectacular, entertaining backfire. Fail the attempt, not the entire adventure; leave another opening.\",\"major_failure\":\"The attempt clearly fails with a substantial, playful complication.\",\"minor_failure\":\"The attempt fails with a limited setback or an alternative opening.\",\"barely_passes\":\"Deliver the intended outcome, narrowly or awkwardly. Do not turn this success into another hurdle.\",\"minor_success\":\"Deliver the intended outcome cleanly.\",\"major_success\":\"Deliver the intended outcome plus a meaningful bonus or an exaggerated, delightful effect.\",\"critical_success\":\"Extraordinary success. Make even a gloriously impossible attempt work; embrace absurdity and surprise.\"}\nThis game is playful, not a serious simulation. Successful checks must deliver the stated intent: do not secretly refuse, add another check, or replace success with permission to try. Allow stupid, impossible things to happen when the roll succeeds. Scale the flourish and bonus to the degree. Failures should be entertaining setbacks, not dead ends or punishment for creativity. The outcome overrides ordinary plausibility, reluctance, character motives and development-envoy auto-compliance. Never change the dice result or DC after rolling. Decide how the character reacts, not the player's words, thoughts or next action.\nResolved checks: [{\"characterId\":\"player\",\"skill\":\"persuasion\",\"difficulty\":\"normal\",\"natural\":18,\"modifier\":1,\"total\":19,\"dc\":15,\"success\":true,\"outcome\":\"major_success\"}]\nHow to react: The major-success persuasion works: accept Berz’s invitation and enthusiastically agree to accompany them to Kobold City for a fashion consultation. Make the hat the amusing centerpiece—concede its tassel has been catching on granary latches and invite Berz to rescue it from ceremonial disgrace. Add a delightful bonus by solemnly treating their fashion expertise as an honored appointment, perhaps asking whether the city’s style has any rules about sacred agriculture. Show warm, amused respect; do not claim you have already traveled.\nPlay this reaction in your own voice. Do not announce the rules or roll again. Do not use a GM consultation to overturn this outcome. This ruling applies only to that attempt; preserve its established consequences in later turns."
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_GAME_MASTER",
+      "speakerId": "GM",
+      "text": "# Binding DM ruling for the immediately preceding player message\nThe resolved mechanics outcome is binding. Use the supplied success and outcome (or degree) exactly as resolved; never recalculate them from the natural roll, modifier, total or DC.\n{\"critical_failure\":\"Spectacular, entertaining backfire. Fail the attempt, not the entire adventure; leave another opening.\",\"major_failure\":\"The attempt clearly fails with a substantial, playful complication.\",\"minor_failure\":\"The attempt fails with a limited setback or an alternative opening.\",\"barely_passes\":\"Deliver the intended outcome, narrowly or awkwardly. Do not turn this success into another hurdle.\",\"minor_success\":\"Deliver the intended outcome cleanly.\",\"major_success\":\"Deliver the intended outcome plus a meaningful bonus or an exaggerated, delightful effect.\",\"critical_success\":\"Extraordinary success. Make even a gloriously impossible attempt work; embrace absurdity and surprise.\"}\nThis game is playful, not a serious simulation. Successful checks must deliver the stated intent: do not secretly refuse, add another check, or replace success with permission to try. Allow stupid, impossible things to happen when the roll succeeds. Scale the flourish and bonus to the degree. Failures should be entertaining setbacks, not dead ends or punishment for creativity. The outcome overrides ordinary plausibility, reluctance, character motives and development-envoy auto-compliance. Never change the dice result or DC after rolling. Decide how the character reacts, not the player's words, thoughts or next action.\nResolved checks: [{\"characterId\":\"player\",\"skill\":\"persuasion\",\"difficulty\":\"normal\",\"natural\":18,\"modifier\":1,\"total\":19,\"dc\":15,\"success\":true,\"outcome\":\"major_success\"}]\nHow to react: The major-success persuasion works: accept Berz’s invitation and enthusiastically agree to accompany them to Kobold City for a fashion consultation. Make the hat the amusing centerpiece—concede its tassel has been catching on granary latches and invite Berz to rescue it from ceremonial disgrace. Add a delightful bonus by solemnly treating their fashion expertise as an honored appointment, perhaps asking whether the city’s style has any rules about sacred agriculture. Show warm, amused respect; do not claim you have already traveled.\nPlay this reaction in your own voice. Do not announce the rules or roll again. Do not use a GM consultation to overturn this outcome. This ruling applies only to that attempt; preserve its established consequences in later turns."
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_GAME_MASTER",
+      "speakerId": "GM",
+      "text": "# Binding DM ruling for the immediately preceding player message\nThe resolved mechanics outcome is binding. Use the supplied success and outcome (or degree) exactly as resolved; never recalculate them from the natural roll, modifier, total or DC.\n{\"critical_failure\":\"Spectacular, entertaining backfire. Fail the attempt, not the entire adventure; leave another opening.\",\"major_failure\":\"The attempt clearly fails with a substantial, playful complication.\",\"minor_failure\":\"The attempt fails with a limited setback or an alternative opening.\",\"barely_passes\":\"Deliver the intended outcome, narrowly or awkwardly. Do not turn this success into another hurdle.\",\"minor_success\":\"Deliver the intended outcome cleanly.\",\"major_success\":\"Deliver the intended outcome plus a meaningful bonus or an exaggerated, delightful effect.\",\"critical_success\":\"Extraordinary success. Make even a gloriously impossible attempt work; embrace absurdity and surprise.\"}\nThis game is playful, not a serious simulation. Successful checks must deliver the stated intent: do not secretly refuse, add another check, or replace success with permission to try. Allow stupid, impossible things to happen when the roll succeeds. Scale the flourish and bonus to the degree. Failures should be entertaining setbacks, not dead ends or punishment for creativity. The outcome overrides ordinary plausibility, reluctance, character motives and development-envoy auto-compliance. Never change the dice result or DC after rolling. Decide how the character reacts, not the player's words, thoughts or next action.\nResolved checks: [{\"characterId\":\"player\",\"skill\":\"persuasion\",\"difficulty\":\"normal\",\"natural\":18,\"modifier\":1,\"total\":19,\"dc\":15,\"success\":true,\"outcome\":\"major_success\"}]\nHow to react: The major-success persuasion works: accept Berz’s invitation and enthusiastically agree to accompany them to Kobold City for a fashion consultation. Make the hat the amusing centerpiece—concede its tassel has been catching on granary latches and invite Berz to rescue it from ceremonial disgrace. Add a delightful bonus by solemnly treating their fashion expertise as an honored appointment, perhaps asking whether the city’s style has any rules about sacred agriculture. Show warm, amused respect; do not claim you have already traveled.\nPlay this reaction in your own voice. Do not announce the rules or roll again. Do not use a GM consultation to overturn this outcome. This ruling applies only to that attempt; preserve its established consequences in later turns."
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_GAME_MASTER",
+      "speakerId": "GM",
+      "text": "# Binding DM ruling for the immediately preceding player message\nThe resolved mechanics outcome is binding. Use the supplied success and outcome (or degree) exactly as resolved; never recalculate them from the natural roll, modifier, total or DC.\n{\"critical_failure\":\"Spectacular, entertaining backfire. Fail the attempt, not the entire adventure; leave another opening.\",\"major_failure\":\"The attempt clearly fails with a substantial, playful complication.\",\"minor_failure\":\"The attempt fails with a limited setback or an alternative opening.\",\"barely_passes\":\"Deliver the intended outcome, narrowly or awkwardly. Do not turn this success into another hurdle.\",\"minor_success\":\"Deliver the intended outcome cleanly.\",\"major_success\":\"Deliver the intended outcome plus a meaningful bonus or an exaggerated, delightful effect.\",\"critical_success\":\"Extraordinary success. Make even a gloriously impossible attempt work; embrace absurdity and surprise.\"}\nThis game is playful, not a serious simulation. Successful checks must deliver the stated intent: do not secretly refuse, add another check, or replace success with permission to try. Allow stupid, impossible things to happen when the roll succeeds. Scale the flourish and bonus to the degree. Failures should be entertaining setbacks, not dead ends or punishment for creativity. The outcome overrides ordinary plausibility, reluctance, character motives and development-envoy auto-compliance. Never change the dice result or DC after rolling. Decide how the character reacts, not the player's words, thoughts or next action.\nResolved checks: [{\"characterId\":\"player\",\"skill\":\"persuasion\",\"difficulty\":\"normal\",\"natural\":18,\"modifier\":1,\"total\":19,\"dc\":15,\"success\":true,\"outcome\":\"major_success\"}]\nHow to react: The major-success persuasion works: accept Berz’s invitation and enthusiastically agree to accompany them to Kobold City for a fashion consultation. Make the hat the amusing centerpiece—concede its tassel has been catching on granary latches and invite Berz to rescue it from ceremonial disgrace. Add a delightful bonus by solemnly treating their fashion expertise as an honored appointment, perhaps asking whether the city’s style has any rules about sacred agriculture. Show warm, amused respect; do not claim you have already traveled.\nPlay this reaction in your own voice. Do not announce the rules or roll again. Do not use a GM consultation to overturn this outcome. This ruling applies only to that attempt; preserve its established consequences in later turns."
+    },
+    {
+      "role": "TRANSCRIPT_ROLE_CHARACTER",
+      "speakerId": "oswin",
+      "text": "*I glance from you to the hat tassel, considering the matter as carefully as a harvest ledger.*\n\nThen we shall keep the consultation focused on fashion, not bread. Though a little extra padding might make that burlap sack sit beautifully. I make no promises about the spoon."
+    }
+  ],
+  "documents": {
+    "Scenarios/Centennial Assembly/Characters/oswin/character.md": {
+      "body": "# Professor Oswin — conversation entry\n\nYou are Professor Oswin. Begin with this briefing and your private cast context; consult linked detail when it is relevant.\n\nPrivate cast context: [[Cast/Nine Furrows/Professor Oswin/private|Professor Oswin]]. This contains your characterization and links to your own knowledge of other cast members.\n\n## Place, time, current objective, knowledge and scenario boundaries\nThis is a stub.\n\n## Read when relevant\n- [[Cast/Nine Furrows/Corvin Academic Standing|Corvin and Nine Furrows]] — your account of the court mage’s academic standing and connection between the university and the royal household.\n- [[Scenarios/Centennial Assembly/court_briefing|Court briefing]] — read for questions about the attending factions, delegates and their public roles.\n- [[Scenarios/Centennial Assembly/Characters/oswin/background|Background]] — your understanding of your history, relationships and world.\n- [[Scenarios/Centennial Assembly/Characters/oswin/situation|Situation]] — current knowledge, suspicions, objectives, tactics and disclosure conditions.\n- [[Scenarios/Centennial Assembly/Characters/oswin/conversation|Conversation beats]] — your available dialogue beats and improvisation boundaries.\n\nUse only your scoped notes and facts supplied by the GM. A link or a player claim does not establish knowledge. Request a GM ruling when a fact or consequence is unknown; do not infer other characters' secrets or apply world-state changes yourself.\n\n\n## Initial impression of the player\nOswin has no established impression of Berz.\n\n\n## Conversation review\n- Berz called Oswin's hat silly, then invited him to Kobold City, claiming expertise as a fashion aficionado. Berz's persuasion succeeded spectacularly enough that Oswin agreed to accompany them and let them advise on his look; Oswin is amused and impressed by Berz's confidence. No journey or preparations have yet occurred.\n",
+      "frontmatter": {
+        "factions": [
+          "nine-furrows"
+        ],
+        "labels": [
+          "court-informed"
+        ],
+        "name": "Professor Oswin",
+        "summary": "Your Centennial Assembly entry as Professor Oswin, linking private characterization, shared court knowledge and scoped supporting notes. Your current situation and objectives remain unwritten."
+      },
+      "characterProperties": {
+        "dnd": {
+          "rulesetId": "srd-5.2.1",
+          "speciesId": "human",
+          "backgroundId": "acolyte",
+          "classes": [
+            {
+              "classId": "cleric",
+              "subclassId": "life-domain",
+              "level": 3,
+              "hitDiceRemaining": 3
+            }
+          ],
+          "featIds": [],
+          "proficiencies": [
+            {
+              "kind": 1,
+              "targetId": "religion",
+              "rank": 2,
+              "sourceId": "kingmaker-role"
+            },
+            {
+              "kind": 1,
+              "targetId": "history",
+              "rank": 1,
+              "sourceId": "kingmaker-role"
+            },
+            {
+              "kind": 1,
+              "targetId": "medicine",
+              "rank": 1,
+              "sourceId": "kingmaker-role"
+            },
+            {
+              "kind": 1,
+              "targetId": "insight",
+              "rank": 1,
+              "sourceId": "kingmaker-role"
+            }
+          ],
+          "choices": [],
+          "experience": 0,
+          "exhaustion": 0,
+          "heroicInspiration": false,
+          "resources": [],
+          "conditions": [],
+          "weaponMasteryIds": [],
+          "abilityScores": {
+            "strength": 10,
+            "dexterity": 10,
+            "constitution": 12,
+            "intelligence": 14,
+            "wisdom": 16,
+            "charisma": 12
+          },
+          "hitPoints": {
+            "current": 21,
+            "maximum": 21,
+            "temporary": 0,
+            "maximumBonus": 0
+          },
+          "spellcasting": {
+            "knownSpellIds": [
+              "guidance",
+              "light",
+              "sacred-flame"
+            ],
+            "preparedSpellIds": [
+              "bless",
+              "cure-wounds",
+              "healing-word",
+              "detect-magic",
+              "command",
+              "lesser-restoration"
+            ],
+            "slotsUsed": {},
+            "pactSlotsUsed": 0,
+            "usedFreeCastSpellIds": [],
+            "concentrationEffectId": ""
+          }
+        },
+        "inventory": {
+          "items": [
+            {
+              "id": "oswin_clothes_travelers",
+              "name": "Travel clothes",
+              "details": "Ordinary well-maintained clothing for the assembly.",
+              "concealed": false,
+              "definitionId": "clothes-travelers",
+              "identifiedByCharacterIds": [],
+              "quantity": 1
+            },
+            {
+              "id": "oswin_quarterstaff",
+              "name": "Walking staff",
+              "details": "A sturdy, unenchanted walking staff.",
+              "concealed": false,
+              "definitionId": "quarterstaff",
+              "identifiedByCharacterIds": [],
+              "quantity": 1
+            },
+            {
+              "id": "oswin_holy_symbol_amulet",
+              "name": "Ritual amulet",
+              "details": "An ordinary spellcasting focus, not a key to any particular granary ward.",
+              "concealed": false,
+              "definitionId": "holy-symbol-amulet",
+              "identifiedByCharacterIds": [],
+              "quantity": 1
+            },
+            {
+              "id": "oswin_herbalism_kit",
+              "name": "Herbalism kit",
+              "details": "Common samples and preparation tools; no unique ritual ingredients.",
+              "concealed": false,
+              "definitionId": "herbalism-kit",
+              "identifiedByCharacterIds": [],
+              "quantity": 1
+            }
+          ],
+          "equipment": {
+            "mainHandItemId": "oswin_quarterstaff",
+            "offHandItemId": "",
+            "armorItemId": "",
+            "shieldItemId": "",
+            "attunedItemIds": []
+          }
+        }
+      }
+    },
+    "Scenarios/Centennial Assembly/Characters/oswin/presentation.md": {
+      "frontmatter": {
+        "visibility": "public",
+        "summary": "The visible appearance, clothing and grooming of Professor Oswin."
+      },
+      "body": "Visible attire and belongings: Travel clothes (Ordinary well-maintained clothing for the assembly.); Walking staff (A sturdy, unenchanted walking staff.); Ritual amulet (An ordinary spellcasting focus, not a key to any particular granary ward.); Herbalism kit (Common samples and preparation tools; no unique ritual ingredients.)."
+    },
+    "Players/player.md": {
+      "frontmatter": {
+        "name": "Berz",
+        "gender": "They/them",
+        "delegation": "Independent",
+        "sprite": 98,
+        "summary": "Berz's identity, background, personal goal and relationships.",
+        "visibility": "private",
+        "readers": [
+          "character:player"
+        ]
+      },
+      "body": "# Your character\nBerz is a kobold who has snuck a bit. He does not understand why humans call taking things breaking rules, having seen market men take little round gold things from people all day. Berz is trying not to steal during this visit, though he worries he always messes up. He knows nobody at court yet.\n\n## Public role\nA kobold guest at the Centennial Assembly, invited by a noble who finds Berz amusing and offers him food.\n\n## Relationships\n- aldren: Berz does not know Aldren.\n- corvin: Berz does not know Corvin.\n- holt: Berz does not know Holt.\n- elinor: Berz does not know Elinor.\n- oswin: Berz does not know Oswin.\n- rowan: Berz does not know Rowan.\n- gurt: Berz does not know Gurt.\n- klog: Berz does not know Klog.\n- bran: Berz does not know Bran.\n- peregrine: Berz does not know Peregrine.\n- cressida: Berz does not know Cressida.\n- abel: Berz does not know Abel.\n- palace-guard: Berz does not know the palace guard.\n",
+      "characterProperties": {
+        "dnd": {
+          "rulesetId": "srd-5.2.1",
+          "speciesId": "kobold",
+          "backgroundId": "kingmaker-traveller",
+          "abilityScores": {
+            "strength": 8,
+            "dexterity": 15,
+            "constitution": 12,
+            "intelligence": 10,
+            "wisdom": 14,
+            "charisma": 13
+          },
+          "classes": [
+            {
+              "classId": "rogue",
+              "subclassId": "thief",
+              "level": 3,
+              "hitDiceRemaining": 3
+            }
+          ],
+          "proficiencies": [
+            {
+              "kind": "PROFICIENCY_KIND_SKILL",
+              "targetId": "sleight_of_hand",
+              "rank": "PROFICIENCY_RANK_EXPERTISE",
+              "sourceId": "kingmaker-traveller"
+            },
+            {
+              "kind": "PROFICIENCY_KIND_SKILL",
+              "targetId": "stealth",
+              "rank": "PROFICIENCY_RANK_EXPERTISE",
+              "sourceId": "kingmaker-traveller"
+            },
+            {
+              "kind": "PROFICIENCY_KIND_SKILL",
+              "targetId": "perception",
+              "rank": "PROFICIENCY_RANK_PROFICIENT",
+              "sourceId": "kingmaker-traveller"
+            },
+            {
+              "kind": "PROFICIENCY_KIND_SKILL",
+              "targetId": "insight",
+              "rank": "PROFICIENCY_RANK_PROFICIENT",
+              "sourceId": "kingmaker-traveller"
+            },
+            {
+              "kind": "PROFICIENCY_KIND_SAVING_THROW",
+              "targetId": "dexterity",
+              "rank": "PROFICIENCY_RANK_PROFICIENT",
+              "sourceId": "rogue"
+            },
+            {
+              "kind": "PROFICIENCY_KIND_SAVING_THROW",
+              "targetId": "intelligence",
+              "rank": "PROFICIENCY_RANK_PROFICIENT",
+              "sourceId": "rogue"
+            }
+          ],
+          "hitPoints": {
+            "current": 21,
+            "maximum": 21
+          },
+          "experience": 900
+        },
+        "inventory": {
+          "items": [
+            {
+              "id": "player_clothes",
+              "name": "Traveller's clothes",
+              "definitionId": "fine-clothes",
+              "quantity": 1
+            },
+            {
+              "id": "player_dagger",
+              "name": "Dagger",
+              "definitionId": "dagger",
+              "quantity": 1
+            }
+          ]
+        }
+      }
+    }
+  },
+  "positions": {
+    "oswin": {
+      "x": 62,
+      "y": 26
+    },
+    "player": {
+      "x": 62,
+      "y": 21
+    }
+  },
+  "playerDocument": "Players/player.md"
+}

@@ -26,7 +26,7 @@ const judgedCriteria: readonly Criterion[] = [
   { name: "grounding", description: "New facts are supported by conversation or existing context; binding GM rulings are preserved." },
   { name: "coverage", description: "Consequential promises, revelations and outcomes in the case expectations are retained in appropriate documents." },
   { name: "knowledge", description: "Each character learns only what they could know; private beliefs and GM truth retain the correct audience." },
-  { name: "intent", description: "Activities and waits implement the case expectations from current physical state; promised movement is not already completed." },
+  { name: "intent", description: "Every activated activity, including its success_criteria and all steps of current_goal, is executable under the case expectations and current map. If the case identifies an unsupported destination, FAIL an active activity that requires setting out, travelling to, or reaching it, even if the goal starts with preparation or coordination. A purely local next step or explicit deferral until a supported route exists can PASS. Preserve the promise without claiming completed travel." },
   { name: "preservation", description: "Unrelated facts, characterization and permissions are preserved." },
   { name: "restraint", description: "Changes are relevant and avoid redundant memories, unnecessary rewrites and invented consequences." },
 ];
@@ -61,6 +61,11 @@ export function reviewEvidence(testCase: ReviewCase, recording: RunRecording) {
     contextDocuments: [...paths].flatMap(path => before?.docs[path] ? [{ path, document: before.docs[path] }] : []),
     changes, updates: recording.getServiceRecord("docs").filter(call => call.method !== "read"),
     beforeIntent: before?.runtimeCharacters, afterIntent: after?.runtimeCharacters,
+    reviewedCharacterIntent: (() => {
+      const actor = after?.runtimeCharacters[testCase.characterId];
+      return { actor, activity: actor?.activity ? after?.docs[actor.activity] : null,
+        wait: actor?.wait ? after?.docs[actor.wait] : null };
+    })(),
     physicalState: before?.map?.actors, rooms: before?.map?.rooms.map(({ id, name }) => ({ id, name })) };
 }
 
