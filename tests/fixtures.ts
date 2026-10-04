@@ -8,9 +8,17 @@ export function assignActivity(world: WorldState, id: string, goal: string) {
   world.runtimeCharacters[id]!.activity = activity;
 }
 import { loadPlayableWorld } from "../scripts/lib/playable-world.js";
-import { projectWorld } from "./legacy-world-fixture.js";
+import { InventorySchema } from "../packages/contracts/src/index.js";
+import { CharacterPropertiesSchema } from "../packages/contracts/src/v2.js";
+import { characterDocuments } from "../packages/lore/src/character-id.js";
 export { loadPlayableWorld };
-export const physicalFixture = () => projectWorld(loadPlayableWorld());
+export function physicalFixture(source: WorldState = loadPlayableWorld()) {
+  return { source, world: source.map!, characters: characterDocuments(source).map(({ id, document }) => {
+    const properties = document.characterProperties ??= create(CharacterPropertiesSchema);
+    return { id, name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
+      inventory: properties.inventory ??= create(InventorySchema), dnd: properties.dnd };
+  }) };
+}
 
 export function commitReview(result: { summary: string; newNotes: string[]; activeGoal: string | null }) {
   const { activeGoal, ...review } = result;

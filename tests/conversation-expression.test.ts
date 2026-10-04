@@ -1,15 +1,8 @@
-import { mockJevChoice } from "./mock-jev.js";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
-import { fromJsonString } from "@bufbuild/protobuf";
-import { ScenarioSchema } from "../packages/contracts/src/index.js";
 import { classifyConversationExpression, portraitExpressions } from "../packages/providers/src/conversation-expression.js";
 import { JevClient } from "../packages/providers/src/jev.js";
-import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 
-// @ts-expect-error The browser debug renderer is JavaScript.
-import { recentTranscriptsView } from "../apps/web/src/debug-view.js";
 
 const input = { characterId: "corvin", history: [{ speakerId: "player", text: "A joke." }, { speakerId: "corvin", text: "Ha!" }] };
 test("Jev selects each supported expression using the conversation and portrait subject", async () => {

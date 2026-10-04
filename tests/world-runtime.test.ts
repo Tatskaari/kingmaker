@@ -1,14 +1,9 @@
+import { WorldGameRuntime } from "../apps/web/src/world-runtime.js";
 import { commitReview } from "./fixtures.js";
 import { loadPlayableWorld, assignActivity } from "./fixtures.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
-import { fromJsonString } from "@bufbuild/protobuf";
-import { ScenarioSchema } from "../packages/contracts/src/index.js";
-import { readVault } from "../scripts/lib/lore-access.js";
-import { playableWorld } from "../apps/web/src/playable-world.js";
 import { AlertLog } from "../apps/web/src/alerts.js";
-import { WorldGameRuntime } from "../apps/web/src/world-runtime.js";
 import type { WorldOptions } from "../apps/web/src/world-runtime.js";
 import { activityGoal } from "../packages/lore/src/activity.js";
 

@@ -1,14 +1,12 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
-import { fromJsonString } from "@bufbuild/protobuf";
-import { ScenarioSchema } from "../packages/contracts/src/index.js";
-import { inventoryOwners, validateInventories, locatedItems } from "../packages/core/src/inventory.js";
+import { courtRoomAt } from "../apps/web/src/court-map.js";
 import { palaceLayout } from "../apps/web/src/palace-layout.js";
 import { palaceNodes } from "../apps/web/src/palace-navigation.js";
-import { courtRoomAt } from "../apps/web/src/court-map.js";
+import { inventoryOwners, locatedItems, validateInventories } from "../packages/core/src/inventory.js";
+import { physicalFixture } from "./fixtures.js";
 
-const load = () => fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8"));
+const load = physicalFixture;
 test("furnished rooms keep every free tile and fixture approach reachable without crossing a closed door", () => {
   const scenario = load(), world = scenario.world!;
   const blocked = new Set([...world.fixtures.flatMap(f => f.position ? [`${f.position.x},${f.position.y}`] : []),
@@ -37,7 +35,8 @@ test("bedrooms have beds and personal belongings while original evidence stays i
   for (const id of ["mara", "hadrik", "tessa", "elinor", "oswin", "rowan", "lucan", "sabine", "rook"]) {
     const fixtures = world.fixtures.filter(f => f.roomId === `${id}_chamber`);
     assert.ok(fixtures.some(f => f.id === `furn_${id}_bed_head`));
-    assert.ok(fixtures.every(f => f.ownerCharacterId === id));
+    const resident = world.rooms.find(room => room.id === `${id}_chamber`)!.allowedCharacterIds[0];
+    assert.ok(fixtures.every(f => f.ownerCharacterId === resident));
     assert.ok(fixtures.filter(f => f.container).length >= 2);
   }
   const items = locatedItems(inventoryOwners(scenario.characters, scenario.world));
