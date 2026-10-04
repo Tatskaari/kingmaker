@@ -30,7 +30,7 @@ export async function runEvalCli<L, R>(experiments: readonly Experiment<L, R>[],
   } });
   if (values.help) { print(help); return { trials: [], exitCode: 0 }; }
   if (values.list) {
-    for (const experiment of experiments) print(`${experiment.name}: ${experiment.getBaseline().name} (baseline), ${experiment.getVariants().map(config => config.name).join(", ")}`);
+    for (const experiment of experiments) print(`${experiment.name}: ${[`${experiment.getBaseline().name} (baseline)`, ...experiment.getVariants().map(config => config.name)].join(", ")}`);
     return { trials: [], exitCode: 0 };
   }
   const names = values.experiments?.split(",");

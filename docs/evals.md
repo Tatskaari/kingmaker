@@ -10,16 +10,14 @@ runtime per trial, records services, scores evidence, saves artifacts and prints
 ```sh
 npm run eval:review -- --list
 OPENROUTER_API_KEY=… npm run eval:review -- --repeats 3
-OPENROUTER_API_KEY=… npm run eval:review -- --variants minimal-edits --repeats 1
 ```
 
-`oswin-parlour` replays the same transcript and fresh physical/document state for:
+`oswin-parlour` replays the transcript against fresh physical/document state using
+only `game`, the default game strategy objects shared with the browser runtime.
+Temporary variants can be added for a hypothesis-driven comparison, then removed
+when the supported change is promoted into the game baseline. The scenario and rubric
+remain as regression coverage; the framework still supports variant comparisons.
 
-- `game`: the default game strategy objects, shared with the browser runtime.
-- `evidence-first`: Jev classifies commitments, knowledge and quest evidence before resolution.
-- `minimal-edits`: a setup hook adds instructions to minimize unnecessary edits.
-
-The variants are experiments, not known improvements. The baseline is always included.
 The old physical travel probe remains `npm run eval:review:handoff`; its existing
 `REVIEW_EVAL_REPEATS` and `REVIEW_EVAL_OUTPUT_DIR` settings apply only to that command.
 
