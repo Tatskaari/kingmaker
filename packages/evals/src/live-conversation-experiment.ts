@@ -11,7 +11,7 @@ import { runConversation, type ConversationStrategy } from "../../conversation/s
 import { documentLoreService } from "../../conversation/src/document-lore.js";
 import type { AiService } from "../../conversation/src/services.js";
 import { createScenarioServices } from "../../lore/src/services.js";
-import { createReviewExperiment, documentChanges, reviewEvidence, reviewRubric, type ReviewCase } from "./review-experiment.js";
+import { createReviewExperiment, documentChanges, reviewRubric, type ReviewCase } from "./review-experiment.js";
 import { giftInventoryScore } from "./peregrine-gift-case.js";
 import type { Experiment, RuntimeConfig } from "./experiment.js";
 
@@ -28,7 +28,7 @@ export function createLiveConversationExperiment(testCase: LiveConversationCase,
     const backing = createScenarioServices(clone(WorldStateSchema, testCase.loadWorld([])));
     const selected = variant?.strategy(testCase);
     let drafts: OpenRouterMessage[] = [];
-    return { recordScenarioSnapshots: false, services: { inventory: () => backing.inventory, docs: () => backing.docs, scenario: () => backing.scenario, ai: () => createAi(),
+    return { services: { inventory: () => backing.inventory, docs: () => backing.docs, scenario: () => backing.scenario, ai: () => createAi(),
       lore: services => documentLoreService(services.scenario), debug: () => ({ record: () => {} }),
       character: services => ({ respond: async (request, signal) => {
         const fixed = drafts.shift();
@@ -67,11 +67,14 @@ export function createLiveConversationExperiment(testCase: LiveConversationCase,
     async score(recording, context) {
       const events = recording.getServiceRecord("debug").map(call => (call.args as [{ source?: string; output?: unknown }])[0]);
       const accepted = events.find(event => event?.source === "accepted-transcript")?.output as typeof testCase.transcript | undefined;
-      const scoreReview = createJevScorer(reviewRubric.slice(0, -1), recording => {
-        const evidence = reviewEvidence({ ...testCase, transcript: accepted ?? testCase.transcript }, recording);
-        // Full tool traces stay in artifacts. The judge needs final diffs, not every intermediate snapshot.
-        return { ...evidence, updates: evidence.updates.map(call => ({ method: call.method, args: call.method === "commit" ? "See committed document diffs" : (call.args as unknown[]).slice(0, 1), status: call.outcome?.status })) };
-      }, judge);
+      const scoreReview = createJevScorer(reviewRubric.slice(0, -1), recording => ({
+        transcript: accepted ?? testCase.transcript,
+        participants: testCase.participants,
+        characterId: testCase.characterId,
+        expectations: testCase.expectations,
+        error: recording.error,
+        updates: recording.getServiceRecord("docs").filter(call => call.method !== "read"),
+      }), judge);
       const result = await scoreReview(recording, context);
       result.criteria["physical-state"] = { score: isDeepStrictEqual((recording.initialState as WorldState)?.map, (recording.finalState as WorldState)?.map) ? 1 : 0 };
       const world = recording.finalState as WorldState | undefined;

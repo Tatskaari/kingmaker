@@ -248,11 +248,6 @@ original gift case retains its original permissive preconditions.
 `review-order` checks one completed review per accepted flagged draft, before
 release for discretion and after release for background work. Rejected drafts
 are excluded from the accepted transcript used for grading. The judge receives
-final document diffs and compact write metadata; full intermediate traces remain
-in the artifacts to avoid exceeding the Decisions input limit on long dialogues.
-
-The live suite sets `recordScenarioSnapshots: false`: repeated `scenario.snapshot`
-read results are marked as omitted in call traces. Calls still return complete state
-to the strategy; the framework retains full initial/final worlds and the live eval
-records the gift assertion at every reply release. Other services, model evidence,
-and document edits remain fully recorded. Other suites keep full snapshot recording.
+the accepted conversation, case expectations, and recorded docs-service edit calls
+with their original arguments and results. No extra document copies or world
+snapshots are added to the judge input. State-based assertions run locally.

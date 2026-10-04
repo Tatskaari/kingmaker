@@ -42,7 +42,7 @@ export class Recording {
   getCalls(): ServiceCall[] { return structuredClone(this.entries); }
   getServiceRecord(name: string): ServiceCall[] { return this.getCalls().filter(call => call.service === name); }
 
-  wrap<T extends object>(name: string, service: T, options?: { summarizeReturn?: (method: string, value: unknown) => unknown }): T {
+  wrap<T extends object>(name: string, service: T): T {
     const cached = this.wrappers.get(service)?.get(name);
     if (cached) return cached as T;
     const methods = new Map<PropertyKey, { original: Function; wrapped: Function }>();
@@ -58,7 +58,7 @@ export class Recording {
         const started = performance.now();
         const finish = (status: "returned" | "threw", result: unknown) => {
           call.durationMs = performance.now() - started;
-          call.outcome = status === "returned" ? { status, value: this.snapshot(options?.summarizeReturn ? options.summarizeReturn(String(key), result) : result) } : { status, error: this.snapshot(result) };
+          call.outcome = status === "returned" ? { status, value: this.snapshot(result) } : { status, error: this.snapshot(result) };
         };
         return this.active.run(call.id, () => {
           try {

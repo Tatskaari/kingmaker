@@ -113,18 +113,3 @@ test("invalid concurrency is rejected before constructing services", async () =>
     await assert.rejects(runExperiment(fixture(), { concurrency }), /concurrency must be a positive integer/);
   }
 });
-
-test("summary snapshot recording preserves actual strategy state and complete initial/final worlds", async () => {
-  const { createRecordedRuntime } = await import("../packages/evals/src/runtime.js");
-  const { Recording } = await import("../packages/service-tools/src/recording.js");
-  const { loadPlayableWorld } = await import("./fixtures.js");
-  const { createScenarioServices } = await import("../packages/lore/src/services.js");
-  const backing = createScenarioServices(loadPlayableWorld()), recording = new Recording();
-  const runtime = createRecordedRuntime({ recordScenarioSnapshots: false, services: { scenario: () => backing.scenario } }, recording);
-  const world = runtime.services.scenario.snapshot();
-  assert.ok(world.docs[world.scenario]);
-  const recorded = recording.getServiceRecord("scenario").at(-1)!;
-  assert.equal(recorded.outcome?.status, "returned");
-  assert.match(JSON.stringify(recorded.outcome), /Repeated snapshot/);
-  assert.doesNotMatch(JSON.stringify(recorded.outcome), /runtimeCharacters/);
-});
