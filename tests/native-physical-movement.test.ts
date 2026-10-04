@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { courtPath, courtRoomAt } from "../apps/web/src/court-map.js";
 import { WorldHost } from "../apps/web/src/world-host.js";
 import { loadPlayableWorld } from "./fixtures.js";
 
@@ -14,8 +15,11 @@ test("player movement and doors commit native map state without rebuilding chara
   assert.match(event.summary, /opened/);
   assert.equal(host.world().map!.doors.find(item => item.id === door.id)!.open, true);
   assert.deepEqual(host.world().docs, before.docs);
-  const action = host.map.observe("player").actions.find(action => action.path.length > 1)!;
-  host.movePlayer(action.path[1]!);
+  const map = host.world().map!, position = player.position!;
+  const destination = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([x, y]) => ({ x: position.x + x!, y: position.y + y! }))
+    .find(point => courtRoomAt(point) && courtPath(position, point, map.doors, map.fixtures))!;
+  assert.ok(destination);
+  host.movePlayer(destination);
   assert.equal(host.world().map!.revision, before.map!.revision + 2);
   assert.deepEqual(host.world().docs, before.docs);
 });
