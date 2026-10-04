@@ -1,3 +1,4 @@
+import { createInventoryService } from "./inventory-service.js";
 import type { WorldState } from "../../contracts/src/v2.js";
 import { WorldStore } from "./world-store.js";
 import { createDocsService } from "./docs-service.js";
@@ -12,6 +13,6 @@ export function createScenarioServices(initial: WorldState) {
   const store = new WorldStore(initial);
   const docs = createDocsService(store);
   // Trusted synchronous host code reads live state; document APIs retain CAS snapshots.
-  return { currentWorld: () => store.state, docs, scenario: createScenarioService(store, docs),
+  return { inventory: createInventoryService(store), currentWorld: () => store.state, docs, scenario: createScenarioService(store, docs),
     character: createCharacterService(store), mechanics: createMechanicsService(store) };
 }

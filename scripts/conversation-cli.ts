@@ -62,7 +62,7 @@ const strategyName = options.get("--strategy") ?? "game";
 if (!["game", "live-review"].includes(strategyName)) throw new Error("Unknown conversation strategy");
 const reviews = new ConversationReviews();
 const result = await runConversationCli(input, ai.responses, disclosure, { ai, build,
-  services: new ConversationRuntime({ services: { docs: services.docs, scenario: services.scenario, lore: documentLoreService(services.scenario) } }).services,
+  services: new ConversationRuntime({ services: { inventory: services.inventory, docs: services.docs, scenario: services.scenario, lore: documentLoreService(services.scenario) } }).services,
   ...(strategyName === "live-review" ? {
     beforeTurn: async () => { await reviews.drain(); return new DisclosureSession(await documentLore(services.scenario, characterId), ai, Number(options.get("--threshold") ?? "0.7")); },
     response: report => liveConversationStrategy({ characterId, reviews, report }),

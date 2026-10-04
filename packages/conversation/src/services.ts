@@ -1,7 +1,7 @@
 import type { AgentSetupContext } from "./agent-setup.js";
 import type { ProgressiveDisclosure } from "./progressive-disclosure.js";
 import type { MapService, MapObservation, MapResult } from "./map.js";
-import type { CharacterCreationService, DocsService, ScenarioService } from "../../lore/src/services.js";
+import type { InventoryService, CharacterCreationService, DocsService, ScenarioService } from "../../lore/src/services.js";
 import type { CheckDegree, CheckSkill, skillAbilities } from "../../core/src/ability-checks.js";
 import type { PortraitExpression } from "../../providers/src/conversation-expression.js";
 import type { JevChoice, JevQuestions } from "../../providers/src/jev.js";
@@ -96,6 +96,7 @@ export interface RuntimeServices {
   readonly map: MapService;
   readonly scenario: ScenarioService;
   readonly docs: DocsService;
+  readonly inventory: InventoryService;
   readonly ai: AiService;
   readonly disclosure: Pick<ProgressiveDisclosure, "disclose">;
   readonly lore: LoreService & {

@@ -88,6 +88,7 @@ export class WorldGameRuntime extends WorldHost {
       ...this.options.services, ...extra.services,
       scenario,
       lore: documentLoreService(scenario, { ...this.options.services?.lore, ...extra.services?.lore }),
+      inventory: { commit: changes => this.commit(() => this.documents.inventory.commit(changes), signal, persist), ...this.options.services?.inventory, ...extra.services?.inventory },
       docs: {
         commit: (writes, intents) => this.commit(() => this.documents.docs.commit(writes, intents), signal, persist),
         read: path => this.documents.docs.read(path),

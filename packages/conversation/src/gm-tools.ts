@@ -1,4 +1,7 @@
 import { renderPrompt } from "../../prompts/src/index.js";
+import { fromJsonString } from "@bufbuild/protobuf";
+import { InventorySchema } from "../../contracts/src/index.js";
+
 import { documentTools, callDocumentTool } from "./document-tools.js";
 import type { OpenRouterTool } from "../../providers/src/openrouter.js";
 import type { RuntimeServices, DocumentUpdate } from "./services.js";
@@ -16,6 +19,11 @@ function tool(name: string, description: string, properties: Record<string, unkn
 export const gameMasterTools: OpenRouterTool[] = [
   tool("list_documents", renderPrompt("gm-tools-list-documents"), { prefix: text, offset: { type: "integer", minimum: 0 }, limit: { type: "integer", minimum: 1, maximum: 50 } }, []),
   tool("list_characters", renderPrompt("gm-tools-list-characters"), {}),
+  tool("update_inventories", "Commit actual typed possessions for gifts, trades, additions or removals. Read each owner document first and use its SHA. Supply each complete inventory as JSON (items and equipment), preserving unrelated items. New narrative props need a unique id, name, details and quantity; do not invent mechanical definitionIds. Include both owners in one call for a transfer. Memory or presentation prose alone does not transfer an item.", {
+    changes: { type: "array", minItems: 1, items: { type: "object", additionalProperties: false,
+      required: ["path", "expectedSha", "inventoryJson"], properties: { path: text, expectedSha: text, inventoryJson: text } } },
+  }),
+
   ...documentTools,
   ...activityTools.map(item => ({ ...item, function: { ...item.function,
     parameters: { ...item.function.parameters, properties: { ...(item.function.parameters as { properties: object }).properties,
@@ -50,6 +58,21 @@ export class GameMasterTools {
   async call(name: string, input: Record<string, unknown>, trace?: Pick<DocumentUpdate, "response" | "toolCallId">) {
     const string = (key: string) => { if (typeof input[key] !== "string") throw new Error(`Expected ${key}.`); return input[key] as string; };
     const docs = this.services.docs;
+    if (name === "update_inventories") {
+      if (!Array.isArray(input.changes) || !input.changes.length) throw new InvalidReviewError("Supply inventory changes");
+      const changes = input.changes.map(value => {
+        if (!value || typeof value.path !== "string" || typeof value.expectedSha !== "string" || typeof value.inventoryJson !== "string") throw new InvalidReviewError("Invalid inventory change");
+        try { return { path: value.path as string, expectedSha: value.expectedSha as string, inventory: fromJsonString(InventorySchema, value.inventoryJson) }; }
+        catch { throw new InvalidReviewError("inventoryJson must be a valid inventory object"); }
+      });
+      await this.services.inventory.commit(changes);
+      const current = await Promise.all(changes.map(change => docs.read(change.path)));
+      if (!this.pending) for (const [id, edit] of this.edits) {
+        const updated = current.find(item => item.path === edit.before.path);
+        if (updated) this.edits.set(id, { before: updated, activity: new ActivityEdits(this.services, id, updated) });
+      }
+      return { ok: true, current };
+    }
     if (name === "list_characters") return { characters: Object.values(this.services.scenario.snapshot().runtimeCharacters)
       .filter(character => character.characterId !== "player").map(({ id, characterId, document, activity, wait }) =>
         ({ id, characterId, document, activity: activity ?? null, wait: wait ?? null })) };

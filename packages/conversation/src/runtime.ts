@@ -70,6 +70,7 @@ export class ConversationRuntime<Review = ReviewLabels> {
         getDocument: async path => services.scenario?.getDocument
           ? services.scenario.getDocument(path) : unimplemented("scenario.getDocument"),
       },
+      inventory: { commit: changes => services.inventory?.commit ? services.inventory.commit(changes) : unimplemented("inventory.commit") },
       docs: {
         commit: async (writes, intents) => services.docs?.commit ? services.docs.commit(writes, intents) : unimplemented("docs.commit"),
         read: async (...args) => services.docs?.read ? services.docs.read(...args) : unimplemented("docs.read"),
