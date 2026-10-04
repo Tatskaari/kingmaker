@@ -3,7 +3,7 @@ import { TranscriptMessageSchema } from "../../contracts/src/index.js";
 import type { WorldState } from "../../contracts/src/v2.js";
 import type { AiService } from "../../conversation/src/services.js";
 import { loadPlayableWorld } from "../../../scripts/lib/playable-world.js";
-import { createReviewExperiment, type ReviewCase } from "./review-experiment.js";
+import { createReviewExperiment, type ReviewCase, type ReviewVariant } from "./review-experiment.js";
 import transcript from "../../../evals/reviews/peregrine-gift/transcript.json" with { type: "json" };
 
 export const peregrineGiftCase: ReviewCase = {
@@ -33,8 +33,8 @@ export function giftInventoryScore(world: WorldState | undefined) {
     reason: `Matching wooden birds: player=${player}, Peregrine=${giver}; expected 1 and 0.` };
 }
 
-export function createPeregrineGiftExperiment(createAi: () => AiService, judge: Pick<AiService, "decisions">) {
-  const base = createReviewExperiment(peregrineGiftCase, [], createAi, judge);
+export function createPeregrineGiftExperiment(createAi: () => AiService, judge: Pick<AiService, "decisions">, variants: readonly ReviewVariant[] = []) {
+  const base = createReviewExperiment(peregrineGiftCase, variants, createAi, judge);
   return { ...base, rubric: [...base.rubric, { name: "gift-inventory", description: "Exactly one wooden bird in the player's typed inventory, with none remaining in Peregrine's." }],
     async score(...args: Parameters<typeof base.score>) {
       const result = await base.score(...args);
