@@ -1,4 +1,4 @@
-import { setupWorldAgent } from "./agent-setup.js";
+import { earshotNotes, setupWorldAgent } from "./agent-setup.js";
 import { arrestResponse } from "../../../packages/conversation/src/conversation-actions.js";
 import { decideWait, waitObservation } from "../../../packages/conversation/src/wait.js";
 import { characterIntent, routinePath, setIntent } from "../../../packages/lore/src/activity.js";
@@ -277,6 +277,7 @@ export class WorldGameRuntime extends WorldHost {
         (this.activity.conversationEndRequested ??= {})[id] = true;
       }
       this.activity.conversations[id] = [...previous,
+        ...earshotNotes(request.messages, transcript).map(turn => toJson(TranscriptMessageSchema, turn)),
         toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: message })),
         ...rulings.map(text => toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, speakerId: "GM", text }))),
         toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: id, text: reply.content! })),
@@ -461,7 +462,7 @@ export class WorldGameRuntime extends WorldHost {
     return this.commit((): ConversationStartResult => {
       if (!available()) return conversationChanged();
       if (challenged) (this.activity.arrestChallenges ??= {})[id] = true;
-      this.activity.conversations[id] = [toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: id, text: reply.content! }))];
+      this.activity.conversations[id] = [...earshotNotes(request.messages).map(turn => toJson(TranscriptMessageSchema, turn)), toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: id, text: reply.content! }))];
       (this.activity.npcActivities![id]!.actionIds ??= []).push(actionId);
       return { ok: true, text: reply.content! };
     }, signal, persist);

@@ -28,7 +28,7 @@ function fixture(failure?: "classify" | "resolve" | "respond" | "cancel") {
       review: {
         resolve: async context => {
           order.push("review");
-          assert.deepEqual(context.transcript.map(turn => [turn.role, turn.text]), [
+          assert.deepEqual(context.transcript.filter(turn => turn.speakerId !== "earshot").map(turn => [turn.role, turn.text]), [
             [TranscriptRole.PLAYER, "Please help me. Goodbye."],
             [TranscriptRole.GAME_MASTER, "# Binding DM ruling\nThe persuasion failed."],
             [TranscriptRole.CHARACTER, "I refuse. Farewell."],

@@ -392,7 +392,10 @@ keeping that evidence in user messages and preserving all custom system messages
 
 The browser/headless host installs `setupWorldAgent` by default. For character
 replies, NPC openings and NPC exchanges, it reads the map and scenario services
-to add current bystanders grouped by Clear, Moderate and Distant earshot. Active
+to record initial bystanders grouped by Clear, Moderate and Distant earshot in the
+conversation transcript, adding another context note only when listeners or
+hearing levels change. Unchanged turns retain the existing note in history;
+save/load preserves it and failed replies do not commit new notes. Active
 participants are excluded; door obstruction and distinct body IDs follow the
 existing earshot rules. The warning is context for speech, not a perception event
 or a claim that anyone learned it. Override `hooks.setup` to replace this policy,

@@ -61,7 +61,7 @@ test("NPC opening speech runs conversation hooks and the character responder", a
   actions[1]!.type = "talk";
   assert.deepEqual(await runtime.initiatePlayerConversation("rowan", "custom_player", map.revision, goal, signal), { ok: true, text: "A word, please." });
   assert.deepEqual(calls, ["classify", "resolve", "classify", "resolve", "respond"]);
-  assert.equal(runtime.snapshot().conversations.rowan!.length, 1);
+  assert.equal(runtime.snapshot().conversations.rowan!.filter(turn => (turn as { speakerId?: string }).speakerId !== "earshot").length, 1);
   const call = runtime.recentTranscripts().find(call => call.kind === "dialogue")!;
   assert.equal(call.characterId, "rowan");
   assert.deepEqual(call.participantIds, ["rowan", "player"]);

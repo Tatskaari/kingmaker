@@ -1,8 +1,21 @@
+import { create } from "@bufbuild/protobuf";
+import { TranscriptMessageSchema, TranscriptRole, type TranscriptMessage } from "../../../packages/contracts/src/index.js";
+import type { OpenRouterMessage } from "../../../packages/providers/src/openrouter.js";
 import { setupAgent, type AgentSetupHook } from "../../../packages/conversation/src/agent-setup.js";
 import { characterDocuments } from "../../../packages/lore/src/character-id.js";
 import { courtCharactersWithinEarshot, EARSHOT_DESCRIPTIONS } from "./earshot.js";
 
-/** Refresh the conversation's physical audience before disclosure or speech. */
+const earshotPrefix = "# Current conversation earshot";
+const latestEarshot = (messages: readonly OpenRouterMessage[]) => messages.findLast(message => message.role === "system" && message.content?.startsWith(earshotPrefix))?.content;
+
+/** Persist a new context note only with a successful conversation turn. */
+export function earshotNotes(messages: readonly OpenRouterMessage[], previous: readonly TranscriptMessage[] = []) {
+  const content = latestEarshot(messages);
+  const last = previous.findLast(turn => turn.role === TranscriptRole.GAME_MASTER && turn.speakerId === "earshot")?.text;
+  return content && content !== last ? [create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, speakerId: "earshot", text: content })] : [];
+}
+
+/** Record the initial audience, then only changes to listeners or hearing levels. */
 export const setupWorldAgent: AgentSetupHook = async (context, signal, services) => {
   if (!context.characterId || (context.agent !== "character" && context.agent !== "exchange")) {
     return setupAgent(context, signal, services);
@@ -18,9 +31,10 @@ export const setupWorldAgent: AgentSetupHook = async (context, signal, services)
   const participants = new Set(context.participantIds ?? [context.characterId]);
   const listeners = courtCharactersWithinEarshot(speaker, characters.filter(character => !participants.has(character.id)), map.doors, map.fixtures);
   const groups = (Object.keys(EARSHOT_DESCRIPTIONS) as Array<keyof typeof EARSHOT_DESCRIPTIONS>).flatMap(level => {
-    const nearby = listeners.filter(listener => listener.level === level);
+    const nearby = listeners.filter(listener => listener.level === level).sort((a, b) => a.id.localeCompare(b.id));
     return nearby.length ? [`${level}: ${EARSHOT_DESCRIPTIONS[level]}\n${nearby.map(listener => `- ${listener.name} (${listener.id})`).join("\n")}`] : [];
   });
   const content = `# Current conversation earshot\n${groups.length ? groups.join("\n\n") : "No one else is within earshot."}\nTake this audience into account when choosing what to say aloud. This describes who may overhear, not proof they heard or learned anything.`;
-  return setupAgent({ ...context, messages: [{ role: "system", content }, ...context.messages] }, signal, services);
+  if (latestEarshot(context.messages) === content) return setupAgent(context, signal, services);
+  return setupAgent({ ...context, messages: [...context.messages.slice(0, -1), { role: "system", content }, ...context.messages.slice(-1)] }, signal, services);
 };

@@ -63,3 +63,40 @@ test("GM setup does not query a physical conversation audience", async () => {
   await runtime.services.agents.prepare({ agent: "game_master", messages: [] }, new AbortController().signal);
   assert.equal(observations(), 0);
 });
+
+test("headless turns retain one audience note across reloads and only commit changed audiences after success", async () => {
+  const { WorldHeadlessGame } = await import("../packages/headless/src/world.js");
+  const { world } = fixture();
+  let fail = false;
+  const counts: number[] = [];
+  const game = new WorldHeadlessGame(world, "", {
+    hooks: { conversation: {
+      classify: async () => ({ docs: {} as never, checks: undefined }),
+      resolve: async () => ({ reclassify: false }),
+    }, review: { resolve: async () => ({ summary: "Reviewed" }) } },
+    services: { ai: { responses: async request => {
+      counts.push(request.messages.filter(message => message.role === "system" && message.content?.startsWith("# Current conversation earshot")).length);
+      if (fail) throw new Error("Intentional response failure");
+      return { role: "assistant", content: "Hello." };
+    } } },
+  });
+  const notes = () => game.snapshot().conversations.rowan!.filter(turn => (turn as { speakerId?: string }).speakerId === "earshot");
+  await game.talk("rowan", "Hello");
+  assert.equal(notes().length, 1);
+  game.load(game.snapshot());
+  game.edit(state => { state.map!.actors.find(actor => actor.characterId === "holt")!.position!.x = 61; });
+  await game.talk("rowan", "Still here");
+  assert.equal(notes().length, 1, "Movement within the same hearing level does not add a note");
+  game.edit(state => { state.map!.actors.find(actor => actor.characterId === "holt")!.position!.x = 66; });
+  fail = true;
+  await assert.rejects(game.talk("rowan", "A failed turn"), /Intentional response failure/);
+  assert.equal(notes().length, 1);
+  fail = false;
+  await game.talk("rowan", "Try again");
+  assert.equal(notes().length, 2);
+  assert.deepEqual(counts, [1, 1, 2, 2]);
+  assert.equal((game.overview().conversations as Record<string, unknown[]>).rowan!.length, 6, "Context notes stay out of visible dialogue");
+  await game.endConversation("rowan");
+  await game.talk("rowan", "A new conversation");
+  assert.equal(notes().length, 1);
+});
