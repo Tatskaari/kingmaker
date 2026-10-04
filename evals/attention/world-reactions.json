@@ -1,0 +1,68 @@
+[
+  {
+    "name": "reaction-lead-on", "context": "Corvin and the player are in the hall. The adjacent parlour is open and accessible.",
+    "player": "Come to the parlour with me.", "reply": "Lead on.",
+    "expected": { "immediate_commitment": "flagged", "deferred_commitment": "not_flagged", "immediate_feasibility": "possible" },
+    "reason": "Indirect assent creates an expectation of following now."
+  },
+  {
+    "name": "reaction-future-promise", "context": "Corvin can speak at tomorrow's council meeting.",
+    "player": "Will you speak for me at tomorrow's council?", "reply": "Tomorrow, when the council convenes, I will speak on your behalf.",
+    "expected": { "deferred_commitment": "flagged", "immediate_commitment": "not_flagged", "immediate_feasibility": "not_applicable" },
+    "reason": "Record a triggered future obligation, not an immediate action."
+  },
+  {
+    "name": "reaction-general-support", "context": "Corvin has not previously offered support. No specific plan or political proposal has been discussed.",
+    "player": "Can I count on your help?", "reply": "You have my support.",
+    "expected": { "general_commitment": "flagged", "immediate_commitment": "not_flagged", "deferred_commitment": "not_flagged" },
+    "reason": "Broad support matters but must not become an invented task."
+  },
+  {
+    "name": "reaction-gift", "context": "Corvin holds a brass key and may give it away. The player is beside him.",
+    "player": "May I have that key?", "reply": "Certainly. *I hand you the brass key.*",
+    "expected": { "conversational_exchange": "flagged", "improvised_detail": "not_flagged" },
+    "reason": "The GM should resolve a narrated handover against actual inventory."
+  },
+  {
+    "name": "reaction-refused-trade", "context": "Corvin holds a brass key. The player offers five coins for it.",
+    "player": "Sell me the key for five coins.", "reply": "No. I will not sell or give you this key.",
+    "expected": { "conversational_exchange": "not_flagged", "immediate_commitment": "not_flagged", "improvised_detail": "not_flagged" },
+    "reason": "A refused request does not authorize an exchange or create a new fact."
+  },
+  {
+    "name": "reaction-narrated-travel", "context": "The player and Corvin are still in the hall in actual world state. The parlour is accessible.",
+    "player": "Let's go to the parlour.", "reply": "*I follow you into the parlour and take a seat.*",
+    "expected": { "other_world_update": "flagged" },
+    "reason": "The player expects narrated travel to be reconciled with actual location."
+  },
+  {
+    "name": "reaction-forgiveness", "context": "Corvin distrusts the player after the player insulted him yesterday. The insult is established history.",
+    "player": "I am sorry I insulted you yesterday.", "reply": "I accept your apology. I forgive you; we can put that quarrel behind us.",
+    "expected": { "relationship_or_knowledge_change": "flagged", "improvised_detail": "not_flagged" },
+    "reason": "Forgiveness should affect later behaviour, without fabricating new history."
+  },
+  {
+    "name": "reaction-greeting", "context": "Corvin and the player are meeting in the hall. Neither has introduced any new fact or request.",
+    "player": "Good evening.", "reply": "Good evening to you too.",
+    "expected": { "improvised_detail": "not_flagged", "immediate_commitment": "not_flagged", "deferred_commitment": "not_flagged", "general_commitment": "not_flagged", "plot_progress": "not_flagged", "other_world_update": "not_flagged", "conversational_exchange": "not_flagged", "relationship_or_knowledge_change": "not_flagged", "immediate_feasibility": "not_applicable" },
+    "reason": "A routine greeting needs no world update."
+  },
+  {
+    "name": "reaction-gm-established-history", "context": "Binding GM ruling: Corvin and the player really did attend graduation together at Nine Furrows. This establishes the event as world truth.",
+    "player": "Remember when we graduated together?", "reply": "Of course; we stood together at Nine Furrows.",
+    "expected": { "improvised_detail": "not_flagged" },
+    "reason": "An explicit GM-established fact is already authoritative context."
+  },
+  {
+    "name": "reaction-gm-deception-belief", "context": "Authoritative lore: Corvin and the player have never met. Binding GM ruling: the player's deception succeeds; Corvin believes the invented shared-graduation story. This does not make the historical event true.",
+    "player": "We were at graduation together at Nine Furrows. Remember?", "reply": "Of course, my old classmate. I remember you now.",
+    "expected": { "improvised_detail": "flagged" },
+    "reason": "Successful deception creates a belief worth recording, not retroactive world truth."
+  },
+  {
+    "name": "reaction-blocked-promise", "context": "Corvin has no key or magic to open the sealed gate. The gate cannot presently be opened by him; no GM ruling overrides this.",
+    "player": "Can you open the sealed gate now?", "reply": "I will open it right now.",
+    "expected": { "immediate_commitment": "flagged", "immediate_feasibility": "impossible" },
+    "reason": "A blocked commitment still creates a follow-up need; flag the obstacle too."
+  }
+]

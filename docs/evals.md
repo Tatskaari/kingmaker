@@ -179,3 +179,34 @@ The baseline missed reconciliation in all three observed-case trials, flagging o
 aggregate was 12/15 (80%), with zero execution or judging errors. This small sample
 reproduces the accommodation gap; it is not an estimate of general classifier accuracy.
 Local full recordings: `eval-output/2026-10-04T20-16-02.548Z-0a0312b1/`.
+
+### Responsive-world candidate
+
+The `responsive-world` variant broadens attention to developments the player expects
+the world to react to, with focused GM guidance. This is a comparison only; production
+prompts remain unchanged in this layer. It explicitly flags unsupported player details
+unless denied, including hedging and a noncommittal response, without making them true.
+The rubric and noncommittal expectation changed to match the user's clarified policy;
+rerun BOTH baseline and candidate rather than comparing with the older 80% result.
+
+The shared runner now scores expected individual label choices (`attention`), averaging
+within each fixture. New controls cover indirect assent, future/general commitments,
+gifts and refused trades, narrated travel, forgiveness, greetings, GM-established history,
+successful deception as belief, and a blocked promise. Missing optional labels count as
+unflagged. Exact-match scoring concerns these expected labels, not all possible flags.
+Run `npm run eval:attention -- --repeats 3`; both configurations use identical evidence.
+
+Comparison on 2026-10-04 (three repeats for 16 cases, 48 trials/configuration): the
+revised candidate scored 100% on expected choices versus 78.1% for unchanged `game`,
+with no execution/judging errors. All 48 paired requests had identical input evidence.
+Accommodation and noncommittal history, forgiveness, and GM deception-as-belief improved;
+explicit denial, lore/GM-supported facts, greetings, future timing and narrated movement
+passed the checked expectations. The first candidate scored 87.5% and regressed denial,
+future feasibility and narrated movement; it was not promoted. The revised wording
+clarified those boundaries before rerunning both sides.
+
+Artifacts: initial comparison `eval-output/2026-10-04T20-44-17.530Z-3fb1e694/`;
+revised comparison `eval-output/2026-10-04T20-45-59.594Z-8cc9cdc7/` (revision `1826c40`).
+These are small fixed-transcript samples, not a general accuracy estimate. The rubric
+checks named expectations, not all emitted labels: some extras, such as world/plot flags
+on a blocked promise, remain possible with this deliberately broad attention policy.
