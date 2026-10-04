@@ -79,7 +79,7 @@ export async function reviewDocumentEvidence(context: Readonly<ConversationRevie
         signal.throwIfAborted();
         await edits.commit(body);
         const after = await services.docs.read(path);
-        services.debug.documentUpdated?.({ path, before: before.text, after: after.text, summary: result.summary });
+        services.debug.documentUpdated?.({ path, beforeSha: before.sha, afterSha: after.sha, response: reply, toolCallId: call.id });
         committed = { summary: result.summary };
       } catch (error) {
         if (!(error instanceof DocumentConflictError)) throw error;
