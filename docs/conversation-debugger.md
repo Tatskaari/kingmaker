@@ -81,3 +81,10 @@ receives the resolved outcome, and its request/reply appears under **GM roll
 ruling** in the sidebar and in the review export. Ctrl+D cancels a pending roll.
 
 See [local setup and validation](development.md) for prerequisites and checks.
+
+With `--strategy live-review`, the RHS also shows GM approval and review calls.
+Each call appears while pending and updates to completed or failed in place.
+Select it to inspect the full request, response/tool calls or error and duration;
+later tool-loop requests include earlier tool results. Background review entries
+continue updating after the character reply appears. Dice calls remain labelled
+GM roll ruling. All these entries are included in the exported `gmTurns` list.
