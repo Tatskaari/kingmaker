@@ -1,6 +1,7 @@
 import { clone, fromJson, type JsonObject } from "@bufbuild/protobuf";
 import { ActorStateSchema } from "../../contracts/src/index.js";
 import { DocumentSchema, WorldStateSchema } from "../../contracts/src/v2.js";
+import { seedActorIntent } from "./runtime-actor.js";
 import { parseMarkdown } from "./markdown.js";
 import type { CharacterCreationService } from "./service-types.js";
 import type { WorldStore } from "./world-store.js";
@@ -27,6 +28,7 @@ export function createCharacterService(store: WorldStore): CharacterCreationServ
       draft.docs[input.path] = fromJson(DocumentSchema, { body: parsed.body, frontmatter: parsed.metadata as JsonObject });
       draft.docs[input.path]!.characterProperties = structuredClone(input.properties);
       if (input.actor) draft.map!.actors.push(clone(ActorStateSchema, input.actor));
+      seedActorIntent(draft.map!.actors.find(actor => actor.characterId === input.id)!, parsed.metadata);
       if (input.id !== "player") draft.docs[draft.scenario]!.body += `\n- [[${input.path}]]\n`;
       draft.map!.revision++;
       store.publishDocuments(draft);

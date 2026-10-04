@@ -5,7 +5,7 @@ import { DocumentSchema } from "../packages/contracts/src/v2.js";
 import { loadPlayableWorld } from "./fixtures.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
 import { characterEntry } from "../packages/lore/src/active-goal.js";
-import { activityGoal, formatActivity, formatWait, intentContext, setIntent } from "../packages/lore/src/activity.js";
+import { activityGoal, characterIntent, formatActivity, formatWait, intentContext, setIntent } from "../packages/lore/src/activity.js";
 
 test("document activities preserve objective fields, enforce permission and publish with a character SHA", async () => {
   const services = createScenarioServices(loadPlayableWorld());
@@ -15,16 +15,17 @@ test("document activities preserve objective fields, enforce permission and publ
   await services.docs.create(activity, formatActivity("corvin", { name: "Meet the player", status: "The player has not arrived.",
     success_criteria: "Meet the player in the treasury.", current_goal: "Go to the treasury and wait for the player." }));
   await services.docs.create(wait, formatWait("corvin", { name: "Watch for the player", instructions: "Continue until you see the player.", activities: [activity] }));
+  const expected = characterIntent(services.scenario.snapshot(), "corvin");
   await setIntent(services, before, { activity, wait });
   assert.equal(activityGoal(services.scenario.snapshot(), "corvin"), "Go to the treasury and wait for the player.");
   assert.match(intentContext(services.scenario.snapshot(), "corvin"), /success_criteria: Meet the player/);
-  await assert.rejects(setIntent(services, before, { activity: null, wait }), /document changed/);
+  await assert.rejects(setIntent(services, before, { activity: null, wait }, before.document.body, expected), /document changed/);
   const fresh = await services.docs.read(entry);
   await setIntent(services, fresh, { activity: null, wait });
   assert.equal(activityGoal(services.scenario.snapshot(), "corvin"), null);
-  assert.equal((await services.docs.read(entry)).document.frontmatter!.wait, wait);
+  assert.equal(characterIntent(services.scenario.snapshot(), "corvin").wait, wait);
   const restored = createScenarioServices(services.scenario.snapshot());
-  assert.equal((await restored.docs.read(entry)).document.frontmatter!.wait, wait);
+  assert.equal(characterIntent(restored.scenario.snapshot(), "corvin").wait, wait);
 });
 
 test("intent references cannot expose other characters or GM documents", async () => {

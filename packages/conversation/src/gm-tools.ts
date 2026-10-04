@@ -2,7 +2,7 @@ import { documentTools, callDocumentTool } from "./document-tools.js";
 import type { OpenRouterTool } from "../../providers/src/openrouter.js";
 import type { RuntimeServices, DocumentUpdate } from "./services.js";
 import { ActivityEdits, activityTools } from "./activity-tools.js";
-import { characterEntry } from "../../lore/src/active-goal.js";
+import { characterIntent } from "../../lore/src/activity.js";
 import { DocumentConflictError, type DocumentSnapshot } from "../../lore/src/services.js";
 import { links } from "../../lore/src/markdown.js";
 
@@ -28,13 +28,19 @@ export class GameMasterTools {
   private edits = new Map<string, { before: DocumentSnapshot; activity: ActivityEdits }>();
   constructor(private services: RuntimeServices, private characterId?: string) {}
   private async target(id: string) {
+    id = characterIntent(this.services.scenario.snapshot(), id).actorId;
     if (!this.edits.has(id)) {
-      const before = await this.services.docs.read(characterEntry(this.services.scenario.info(), id));
+      const before = await this.services.docs.read(characterIntent(this.services.scenario.snapshot(), id).entry);
       this.edits.set(id, { before, activity: new ActivityEdits(this.services, id, before) });
     }
     return this.edits.get(id)!;
   }
-  async begin() { if (this.characterId) await this.target(this.characterId); }
+  async begin() {
+    if (this.characterId) {
+      this.characterId = characterIntent(this.services.scenario.snapshot(), this.characterId).actorId;
+      await this.target(this.characterId);
+    }
+  }
   async call(name: string, input: Record<string, unknown>, trace?: Pick<DocumentUpdate, "response" | "toolCallId">) {
     const string = (key: string) => { if (typeof input[key] !== "string") throw new Error(`Expected ${key}.`); return input[key] as string; };
     const docs = this.services.docs;
@@ -68,12 +74,13 @@ export class GameMasterTools {
     if (notes.some(note => links(note).length)) throw new Error("Review notes must be plain prose without document links.");
     if (notes.length && !this.characterId) throw new Error("No reviewed NPC: use document tools for memories.");
     if (notes.length && this.characterId) await this.target(this.characterId);
-    const writes = [...this.edits].flatMap(([id, { before, activity }]) => {
+    const changes = [...this.edits].sort(([a], [b]) => Number(a === this.characterId) - Number(b === this.characterId)).map(([id, { before, activity }]) => {
       const additions = id === this.characterId ? [...new Set<string>(notes)].map(note => note.trim().replace(/[\\`*_[\]<>#]/g, "\\$&"))
         .filter(note => !before.document.body.includes(note)) : [];
       return activity.changes(before.document.body + (additions.length ? `\n\n## Conversation review\n${additions.map(note => `- ${note}`).join("\n")}\n` : ""));
     });
-    if (writes.length) await docs.commit(writes);
+    const writes = new Map(changes.flatMap(change => change.writes).map(write => [write.path, write]));
+    if (writes.size) await docs.commit([...writes.values()], changes.flatMap(change => change.intents));
     for (const { before } of this.edits.values()) {
       const after = await docs.read(before.path);
       if (trace) this.services.debug.documentUpdated?.({ path: before.path, beforeSha: before.sha, afterSha: after.sha, ...trace });

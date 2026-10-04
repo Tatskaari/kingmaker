@@ -1,6 +1,6 @@
 # Character activities and waits
 
-A character's saved `character.md` frontmatter has two nullable, vault-relative Markdown paths: `activity` and `wait`. An activity takes precedence. Without an activity, a wait receives an independent Jev check every 12–18 seconds. Without either reference the character is idle. Saved-game format 3 requires a fresh game; older saves are not migrated.
+Each runtime actor owns optional vault-relative Markdown paths, `activity` and `wait`, plus an `intentRevision`. Scene creation copies authored `character.md` defaults into these fields once. Subsequent reviews change runtime fields, leaving the authored defaults unchanged. Bodies sharing one character document have independent pointers; a shared identity targets the nearest body, while an explicit instance ID targets that body. An activity takes precedence. Without an activity, a wait receives an independent Jev check every 12–18 seconds. Without either reference the character is idle. Saved-game format 4 requires a fresh game; older saves are not migrated.
 
 Activity documents retain the old objective's four fields in frontmatter:
 
@@ -31,7 +31,7 @@ The review LLM has three intent tools:
 - `set_wait(name, instructions, activities, routine?)` stages a wait and clears the activity. `routine:true` writes the character's sibling `routine.md`.
 - `clear_activity()` clears the activity and returns to the sibling routine, if present.
 
-These tools stage document writes. `commit_review(summary, newNotes)` publishes all files, notes and character references atomically with SHA conflict checks. A conflict publishes nothing and requires restaging against the refreshed character document. Runtime files are part of the saved world, not edits to the author's vault.
+These tools stage document writes. `commit_review(summary, newNotes)` publishes all files, notes and runtime pointers atomically with document SHA and actor intent-revision conflict checks. A conflict publishes nothing and requires restaging against the refreshed character document. Runtime files are part of the saved world, not edits to the author's vault.
 
 The action planner explicitly supplies the activity's full fields to Jev. `wait` sends the action outcome to the LLM to create a conditional wait. `complete` clears the activity and sets `wait` to the character's `routine.md`, or null if absent. Finishing travel is not completion of an explicit travel-and-wait instruction.
 
@@ -39,7 +39,7 @@ Wait Jev receives the wait, elapsed time, permitted character context, and curre
 
 - `set_activity:<path>` for an entry in `activities`: activates that file and clears the wait, without an LLM call.
 - `continue`: retains the wait and sleeps until the next check.
-- `stop_waiting`: clears the wait, then calls the review LLM. Pending reconsideration is saved so a provider failure can be retried after reload.
+- `stop_waiting`: clears the wait, then calls the review LLM. Guard bodies still hold their posts: this storage change does not enable autonomous guard movement. Pending reconsideration is saved so a provider failure can be retried after reload.
 
 Checks do not overlap for a character and are skipped during conversations and conflicting work. Game replacement and pause cancel outstanding checks. Changed observations or document hashes invalidate stale decisions. Timers start anew on load rather than replaying offline ticks.
 

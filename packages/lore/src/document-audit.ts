@@ -30,7 +30,10 @@ function auditDocuments(state: WorldState): Finding[] {
   for (const entry of notes.keys()) {
     if (!(entry.startsWith(prefix) && /^[^/]+\/character\.md$/.test(entry.slice(prefix.length))) && entry !== state.player && entry !== "Players/player.md") continue;
     const character = entry.startsWith(prefix) ? entry.slice(prefix.length).split("/")[0]! : "player";
-    findings.push(...auditNotes(notes, entry, { character }, resolved));
+    const scoped = new Map(resolved);
+    scoped.set(entry, [...(resolved.get(entry) ?? []), ...state.map?.actors
+      .filter(actor => actor.characterId === character).flatMap(actor => [actor.activity, actor.wait].filter((path): path is string => path !== undefined)) ?? []]);
+    findings.push(...auditNotes(notes, entry, { character }, scoped));
   }
   return findings;
 }

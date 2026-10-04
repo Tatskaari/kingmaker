@@ -5,7 +5,7 @@ export function assignActivity(world: WorldState, id: string, goal: string) {
   const entry = characterEntry(world, id), activity = entry.replace("character.md", "task.md");
   world.docs[activity] = create(DocumentSchema, { frontmatter: { visibility: "private", readers: [`character:${id}`],
     name: goal, status: "Assigned", success_criteria: goal, current_goal: goal } });
-  world.docs[entry]!.frontmatter = { ...world.docs[entry]!.frontmatter, activity };
+  world.map!.actors.find(actor => actor.characterId === id)!.activity = activity;
 }
 import { loadPlayableWorld } from "../scripts/lib/playable-world.js";
 import { projectWorld } from "../apps/web/src/world-projection.js";

@@ -2187,7 +2187,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
           const task = path.replace("character.md", "task.md");
           saved.snapshot.world.docs[task] = { frontmatter: { visibility: "private", readers: [`character:${characterId}`],
             name: activity.goal, status: "Assigned", success_criteria: activity.goal, current_goal: activity.goal }, body: "" };
-          saved.snapshot.world.docs[path].frontmatter.activity = activity.goal ? task : null;
+          saved.snapshot.world.map.actors.find((actor: { characterId: string }) => actor.characterId === characterId).activity = activity.goal ? task : undefined;
         }
       }
     }
@@ -2196,7 +2196,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
   await request("configure", { apiKey: "test" });
   const fresh = await request("create_game");
   assert.equal(fresh.state.phase, "player_creation");
-  assert.equal(records.get(fresh.activeSaveId).snapshot.version, 3);
+  assert.equal(records.get(fresh.activeSaveId).snapshot.version, 4);
   assert.equal(records.get(fresh.activeSaveId).snapshot.scenario, undefined);
   await request("start_introduction");
   const resumed = await request("load_game", { saveId: fresh.activeSaveId });

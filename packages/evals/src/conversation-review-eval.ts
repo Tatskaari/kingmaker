@@ -14,7 +14,8 @@ export async function runConversationReviewEval(source: WorldState, apiKey: stri
     Object.assign(actor.position!, { x: 62, y });
   }
   const intent = characterIntent(world, id);
-  world.docs[intent.entry]!.frontmatter = { ...world.docs[intent.entry]!.frontmatter, activity: null, wait: null };
+  const actor = world.map!.actors.find(actor => actor.characterId === id)!;
+  actor.activity = undefined; actor.wait = undefined;
   const game = new WorldGameRuntime(world, apiKey, undefined, undefined, undefined, options);
   const before = game.snapshot();
   game.restore({ ...before, conversations: { [id]: transcript } });

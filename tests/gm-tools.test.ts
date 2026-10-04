@@ -61,3 +61,18 @@ test("GM rulings and reviews expose the identical tool registry and execute docu
     assert.equal(calls, 2);
   }
 });
+
+test("GM assignments to two guard bodies share memories but keep separate activity pointers", async () => {
+  const services = fixture(), gm = new GameMasterTools(services, "palace-guard-1");
+  await gm.begin();
+  for (const [characterId, goal] of [["palace-guard-1", "Watch the west door"], ["palace-guard-2", "Watch the east door"]]) {
+    await gm.call("set_activity", { characterId, name: goal, status: "Assigned", success_criteria: goal, current_goal: goal });
+  }
+  await gm.call("commit_review", { summary: "Assign posts", newNotes: ["We agreed to watch the doors."] });
+  assert.equal(activityGoal(services.scenario.snapshot(), "palace-guard-1"), "Watch the west door");
+  assert.equal(activityGoal(services.scenario.snapshot(), "palace-guard-2"), "Watch the east door");
+  assert.equal(activityGoal(services.scenario.snapshot(), "palace-guard-3"), null);
+  const doc = await services.docs.read(characterEntry(services.scenario.info(), "palace-guard"));
+  assert.match(doc.document.body, /We agreed to watch the doors/);
+  assert.equal(doc.document.frontmatter?.activity, undefined);
+});

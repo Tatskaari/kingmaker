@@ -3,6 +3,7 @@ import { WorldStateSchema as MapSchema, type WorldState as MapState } from "../.
 import { DocumentSchema, WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
 import { parseMarkdown } from "./markdown.js";
 
+import { seedActorIntent } from "./runtime-actor.js";
 import { DocumentGraph } from "./document-graph.js";
 
 /** Build editable GM state without interpreting prose or recursively expanding context.
@@ -25,7 +26,12 @@ export function worldState(map: MapState, markdown: ReadonlyMap<string, string>,
       throw new Error(`${name}: ${String(error)}`, { cause: error });
     }
   }));
-  return refreshDocumentGraph(create(WorldStateSchema, { docs, scenario, scenarioIndex, ...(player === undefined ? {} : { player }), map: clone(MapSchema, map) }));
+  const world = refreshDocumentGraph(create(WorldStateSchema, { docs, scenario, scenarioIndex, ...(player === undefined ? {} : { player }), map: clone(MapSchema, map) }));
+  for (const path of world.characters) {
+    const id = /\/Characters\/([^/]+)\/character\.md$/.exec(path)![1]!;
+    for (const actor of world.map!.actors.filter(actor => actor.characterId === id)) seedActorIntent(actor, world.docs[path]!.frontmatter);
+  }
+  return world;
 }
 
 /** Rebuild on initial load; live document services retain an incremental graph. */

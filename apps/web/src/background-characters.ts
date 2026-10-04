@@ -1,3 +1,4 @@
+import { seedActorIntent } from "../../../packages/lore/src/runtime-actor.js";
 import { create } from "@bufbuild/protobuf";
 import { ActorStateSchema, type ActorState } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
@@ -24,8 +25,10 @@ export function placeBackgroundCharacters(world: WorldState) {
       const position = { x: placement.x, y: placement.y }, room = courtRoomAt(position);
       if (!room || !canWalk(palaceMap, position, blocked) || occupied.has(pointKey(position))) throw new Error(`Blocked background position: ${id}`);
       occupied.add(pointKey(position));
-      map.actors.push(create(ActorStateSchema, { characterId: id, instanceId: `${id}-${index + 1}`,
-        position, roomId: room.id, homeRoomId: room.id, awake: true }));
+      const actor = create(ActorStateSchema, { characterId: id, instanceId: `${id}-${index + 1}`,
+        position, roomId: room.id, homeRoomId: room.id, awake: true });
+      seedActorIntent(actor, metadata);
+      map.actors.push(actor);
     }
   }
 }

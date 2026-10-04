@@ -52,3 +52,13 @@ test("scene defaults seed independent actor fields and intent permissions still 
     { actorId: "corvin", expectedRevision: 0, activity: task, wait: null },
   ]), /No read access/);
 });
+
+test("active runtime paths prevent deleting their target documents", async () => {
+  const services = createScenarioServices(loadPlayableWorld());
+  await services.docs.commit([{ path: task, expectedSha: null, text }], [
+    { actorId: "palace-guard-1", expectedRevision: 0, activity: task, wait: null },
+  ]);
+  const before = await services.docs.read(task);
+  await assert.rejects(services.docs.delete(task, before.sha), /Missing intent document/);
+  assert.equal((await services.docs.read(task)).sha, before.sha);
+});
