@@ -10,7 +10,7 @@ permissions:
 
 concurrency:
   group: eval-history
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   evaluate:
