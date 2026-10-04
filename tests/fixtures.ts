@@ -8,9 +8,8 @@ export function assignActivity(world: WorldState, id: string, goal: string) {
   world.runtimeCharacters[id]!.activity = activity;
 }
 import { loadPlayableWorld } from "../scripts/lib/playable-world.js";
-import { create } from "@bufbuild/protobuf";
 import { InventorySchema } from "../packages/contracts/src/index.js";
-import { CharacterPropertiesSchema, type WorldState } from "../packages/contracts/src/v2.js";
+import { CharacterPropertiesSchema } from "../packages/contracts/src/v2.js";
 import { characterDocuments } from "../packages/lore/src/character-id.js";
 export { loadPlayableWorld };
 export function physicalFixture(source: WorldState = loadPlayableWorld()) {
