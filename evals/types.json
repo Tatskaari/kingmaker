@@ -1,0 +1,23 @@
+{
+  "graduation-established-history": "jev-decision",
+  "graduation-explicit-acceptance": "jev-decision",
+  "graduation-noncommittal-reply": "jev-decision",
+  "graduation-observed-accommodation": "jev-decision",
+  "graduation-rejected-claim": "jev-decision",
+  "oswin-kobold-city": "review",
+  "oswin-parlour": "review",
+  "peregrine-gift": "review",
+  "reaction-blocked-promise": "jev-decision",
+  "reaction-established-key-transfer": "jev-decision",
+  "reaction-forgiveness": "jev-decision",
+  "reaction-future-promise": "jev-decision",
+  "reaction-general-support": "jev-decision",
+  "reaction-gift": "jev-decision",
+  "reaction-gm-deception-belief": "jev-decision",
+  "reaction-gm-established-history": "jev-decision",
+  "reaction-greeting": "jev-decision",
+  "reaction-improvised-bird": "jev-decision",
+  "reaction-lead-on": "jev-decision",
+  "reaction-narrated-travel": "jev-decision",
+  "reaction-refused-trade": "jev-decision"
+}
