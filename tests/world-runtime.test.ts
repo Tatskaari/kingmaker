@@ -234,31 +234,34 @@ test("main game keeps denied drafts private and displays only the accepted respo
   assert.ok(runtime.recentTranscripts().some(call => call.kind === "gm_consultation"));
 });
 
-test("main game drains live reviews before final review and holds the NPC throughout", async () => {
+test("main game releases the NPC to act on committed activity while live review is pending", async () => {
   let release!: () => void, started!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
   const ready = new Promise<void>(resolve => { started = resolve; });
-  let liveFinished = false, finalStarted = false;
-  const runtime = game({ services: { ai: {
+  let liveFinished = false, finished!: () => void;
+  const done = new Promise<void>(resolve => { finished = resolve; });
+  const runtime = game({ services: { debug: { record: event => { if (event.source === "live-review") finished(); } }, ai: {
     decisions: async (_state, questions, _signal, purpose) => purpose === "conversation_attention"
-      ? { immediate_commitment: selected("flagged"), immediate_feasibility: selected("possible") } : noChecks(questions),
+      ? { immediate_commitment: selected("flagged"), immediate_feasibility: selected("possible") }
+      : questions.next ? { next: selected("wait") } : noChecks(questions),
     responses: async request => {
       if (!request.tools) return { role: "assistant", content: "I will meet you in the great hall." };
       const live = JSON.stringify(request.messages).includes("newly accepted conversation turn");
-      if (live) { started(); await gate; }
-      else { finalStarted = true; assert.equal(liveFinished, true); }
+      assert.equal(live, true, "Ending a live conversation must not run a full review");
       const reply = reviewReply(request);
-      if (live && reply.content) liveFinished = true;
+      if (reply.content) { started(); await gate; liveFinished = true; }
       return reply;
     },
   } } });
   assert.equal(await runtime.checkedTalkToCharacter("rowan", "Meet me in the hall."), "I will meet you in the great hall.");
   await ready;
-  const finish = runtime.endConversation("rowan");
   await assert.rejects(runtime.planNpc("rowan", new AbortController().signal), /paused for conversation/);
-  assert.equal(finalStarted, false);
-  release(); await finish;
-  assert.equal(finalStarted, true);
+  await runtime.endConversation("rowan");
+  assert.equal(liveFinished, false, "Ending the conversation must not wait for the GM");
+  const plan = await runtime.planNpc("rowan", new AbortController().signal);
+  assert.equal(plan.goal, "Go to the great hall");
+  release(); await done;
+  assert.equal(liveFinished, true);
   assert.equal(activityGoal(runtime.world(), "rowan"), "Go to the great hall");
   assert.equal(runtime.snapshot().conversations.rowan, undefined);
   assert.ok(runtime.recentTranscripts().some(call => call.kind === "conversation_review"

@@ -66,9 +66,11 @@ those disclosure and dice steps. Jev classifies a private draft; ordinary flags
 queue a background GM review, while `gms_discretion` requires GM approval and
 consequence updates before release. A refusal adds system guidance and regenerates
 the character reply without rerolling. Only the accepted reply is displayed.
-Each conversation owns a review queue. The host drains it before the next turn
-and before the final conversation review; the NPC remains held until the
-conversation ends. Reset/restore cancels that session. GM review calls appear in
+Each conversation owns a review queue. The host drains it before the next turn.
+Ending a live conversation releases the NPC to act on committed activity immediately,
+without waiting for remaining reviews or running another full review. Pending
+reviews continue in the background; later activity changes use the existing replan path. Conversations using a replacement strategy or with no live session still
+use the post-conversation review. Reset/restore cancels the live session. GM review calls appear in
 the model transcript panel. The strategy remains replaceable through the normal
 runtime options; the CLI and eval harness can select it independently.
 

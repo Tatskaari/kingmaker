@@ -49,7 +49,8 @@ export class WorldGameRuntime extends WorldHost {
   private provider: AiService;
   private traces: ModelTranscripts;
   private conversationRuns = new Map<string, string>();
-  private liveConversations = new Map<string, { reviews: ConversationReviews; response: ReturnType<typeof liveConversationStrategy> }>();
+  private liveConversations = new Map<string, { reviews: ConversationReviews; response: ReturnType<typeof liveConversationStrategy>; reviewedLive: boolean }>();
+  private finishingReviews = new Set<ConversationReviews>();
   private persistChange: <T>(work: () => T | Promise<T>) => Promise<T> = async work => work();
   setPersistence(commit: <T>(work: () => T | Promise<T>) => Promise<T>) { this.persistChange = commit; }
   private commit<T>(work: () => T | Promise<T>, signal?: AbortSignal, persist = this.persistChange): Promise<T> {
@@ -190,6 +191,8 @@ export class WorldGameRuntime extends WorldHost {
   private stopConversations() {
     for (const { reviews } of this.liveConversations.values()) reviews.cancel();
     this.liveConversations.clear();
+    for (const reviews of this.finishingReviews) reviews.cancel();
+    this.finishingReviews.clear();
     for (const key of this.conversationRuns.values()) this.traces.stop(key);
     this.conversationRuns.clear();
   }
@@ -227,12 +230,13 @@ export class WorldGameRuntime extends WorldHost {
     let session = this.liveConversations.get(id);
     if (!session) {
       const reviews = new ConversationReviews();
-      session = { reviews, response: liveConversationStrategy({ characterId: id, reviews }) };
+      session = { reviews, response: liveConversationStrategy({ characterId: id, reviews }), reviewedLive: true };
       this.liveConversations.set(id, session);
     }
     await session.reviews.drain();
     const strategyOverride = options.strategies?.conversation ?? this.options.strategies?.conversation;
-    if (!strategyOverride) signal = AbortSignal.any([signal, session.reviews.signal]);
+    if (strategyOverride) session.reviewedLive = false;
+    else signal = AbortSignal.any([signal, session.reviews.signal]);
     signal.throwIfAborted();
     const previous = structuredClone(this.activity.conversations[id] ?? []);
     const runtime = this.runtime(id, "dialogue", options, this.conversationRun(id), signal, [id, "player"]);
@@ -320,12 +324,14 @@ export class WorldGameRuntime extends WorldHost {
   }
   endConversationAsPlayer(id: string, message: string) {
     if (!message.trim()) throw new Error("Say something first.");
+    const session = this.liveConversations.get(id);
+    if (session) session.reviewedLive = false;
     (this.activity.conversations[id] ??= []).push(toJson(TranscriptMessageSchema,
       create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: message })));
     (this.activity.conversationEndRequested ??= {})[id] = true;
   }
   async endConversation(id: string, signal = new AbortController().signal) {
-    const reviews = this.liveConversations.get(id)?.reviews;
+    const session = this.liveConversations.get(id), reviews = session?.reviews;
     if (reviews) signal = AbortSignal.any([signal, reviews.signal]);
     const persist = this.persistChange;
     const previous = structuredClone(this.activity.conversations[id] ?? []);
@@ -343,18 +349,26 @@ export class WorldGameRuntime extends WorldHost {
     }, signal, persist);
     await this.presentMap().catch(error => this.warning(String(error)));
     const key = this.conversationRun(id);
-    await reviews?.drain();
     signal.throwIfAborted();
-    await runConversationReview({ characterId: id, participants: [id, "player"], transcript }, this.runtime(id, "conversation_review", {}, key, signal, [id, "player"]), signal);
+    if (!session?.reviewedLive) {
+      await reviews?.drain();
+      await runConversationReview({ characterId: id, participants: [id, "player"], transcript }, this.runtime(id, "conversation_review", {}, key, signal, [id, "player"]), signal);
+    }
     await this.commit(() => {
       if (JSON.stringify(previous) !== JSON.stringify(this.activity.conversations[id] ?? [])) throw new Error("Conversation changed.");
       delete this.activity.conversations[id]; delete this.activity.conversationEndRequested?.[id]; delete this.activity.conversationReplyOptions?.[id];
       this.syncGoals();
       delete this.activity.pendingConversationEvents?.[id];
     }, signal, persist);
-    this.traces.finish(key, { participants: [id, "player"], messages: transcript });
+    const finishTrace = () => this.traces.finish(key, { participants: [id, "player"], messages: transcript });
+    if (reviews && session?.reviewedLive) {
+      this.finishingReviews.add(reviews);
+      void reviews.drain().then(finishTrace, error => {
+        if (reviews.signal.aborted) this.traces.stop(key);
+        else { this.traces.fail(key, error); this.warning(`${id}: live conversation review: ${String(error)}`); }
+      }).finally(() => { this.finishingReviews.delete(reviews); });
+    } else finishTrace();
     this.conversationRuns.delete(id);
-    this.liveConversations.get(id)?.reviews.cancel();
     this.liveConversations.delete(id);
     return event;
   }
