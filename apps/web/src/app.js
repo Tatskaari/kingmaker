@@ -42,27 +42,48 @@ let debugData = null;
 let debugError = "";
 const alerts = new AlertLog();
 function alertBell() {
-  return `<button class="alert-bell ${alerts.severity}" data-alert-open aria-label="Warnings and errors: ${alerts.unread} unread" title="Warnings and errors"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a2 2 0 0 1 2 2v.35A7 7 0 0 1 19 11v5l2 3H3l2-3v-5a7 7 0 0 1 5-6.65V4a2 2 0 0 1 2-2Zm-3 19h6a3 3 0 0 1-6 0Z"/></svg> ${alerts.unread || ""}</button>`;
+  return `<button class="alert-bell ${alerts.severity}" data-alert-open aria-haspopup="dialog" aria-label="Warnings and errors: ${alerts.unread} unread" title="Warnings and errors"><svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2a2 2 0 0 1 2 2v.35A7 7 0 0 1 19 11v5l2 3H3l2-3v-5a7 7 0 0 1 5-6.65V4a2 2 0 0 1 2-2Zm-3 19h6a3 3 0 0 1-6 0Z"/></svg> ${alerts.unread || ""}</button>`;
 }
 function alertsView() {
-  return `<p>Recent warnings and errors in this session. Retry times are measured from each entry's timestamp.</p><button data-alert-clear>Clear history</button>${alerts.entries.map(entry => `<article class="alert-entry ${entry.level}"><strong>${entry.level === "error" ? "Error" : "Warning"}</strong> <time>${new Date(entry.time).toLocaleTimeString()}</time><p>${escapeHtml(entry.message)}</p></article>`).join("") || "<p>No warnings or errors.</p>"}`;
+  return `<p>Recent warnings and errors in this session. Retry times are measured from each entry's timestamp.</p>${alerts.entries.map(entry => `<article class="alert-entry ${entry.level}"><strong>${entry.level === "error" ? "Error" : "Warning"}</strong> <time>${new Date(entry.time).toLocaleTimeString()}</time><p>${escapeHtml(entry.message)}</p></article>`).join("") || "<p>No warnings or errors.</p>"}`;
 }
 function refreshAlerts() {
+  const panel = document.querySelector("[data-alert-content]");
+  if (panel) {
+    alerts.acknowledge();
+    panel.innerHTML = alertsView();
+  }
   const bell = document.querySelector("[data-alert-open]");
-  if (bell) { bell.outerHTML = alertBell(); bindAlertBell(); }
-  if (debugOpen && debugTab === "alerts") {
-    document.querySelector("#debug-panel").innerHTML = alertsView();
-    bindAlertClear();
+  if (bell) {
+    bell.className = `alert-bell ${alerts.severity}`;
+    bell.setAttribute("aria-label", `Warnings and errors: ${alerts.unread} unread`);
+    bell.lastChild.textContent = ` ${alerts.unread || ""}`;
   }
 }
-function bindAlertClear() {
-  document.querySelector("[data-alert-clear]")?.addEventListener("click", () => { alerts.clear(); refreshAlerts(); });
+function openAlerts() {
+  if (document.querySelector(".alerts-dialog")) return;
+  const dialog = document.createElement("dialog");
+  dialog.className = "alerts-dialog";
+  dialog.setAttribute("aria-labelledby", "alerts-title");
+  dialog.innerHTML = `<header><h2 id="alerts-title">Session warnings &amp; errors</h2><button data-alert-close aria-label="Close session warnings and errors" autofocus>×</button></header><button data-alert-clear>Clear history</button><div data-alert-content></div>`;
+  // Keep the popup mounted while background game updates re-render the app.
+  document.body.append(dialog);
+  dialog.querySelector("[data-alert-close]").addEventListener("click", () => dialog.close());
+  dialog.querySelector("[data-alert-clear]").addEventListener("click", () => { alerts.clear(); refreshAlerts(); });
+  dialog.addEventListener("click", event => {
+    if (event.target !== dialog) return;
+    const bounds = dialog.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close();
+  });
+  dialog.addEventListener("close", () => {
+    dialog.remove();
+    document.querySelector("[data-alert-open]")?.focus();
+  });
+  refreshAlerts();
+  dialog.showModal();
 }
 function bindAlertBell() {
-  document.querySelector("[data-alert-open]")?.addEventListener("click", () => {
-    debugOpen = true; sheetOpen = false; debugTab = "alerts";
-    alerts.acknowledge(); debugReadSequence++; render();
-  });
+  document.querySelector("[data-alert-open]")?.addEventListener("click", openAlerts);
 }
 let debugTitle = "Debug Inspector";
 let debugRequest = { type: "debug", payload: {} };
@@ -443,12 +464,12 @@ function characterSheet() {
 }
 
 function debugInspector() {
-  const content = debugTab === "alerts" ? alertsView() : debugError
+  const content = debugError
     ? `<p class="debug-error">${escapeHtml(debugError)}</p>`
     : debugData
       ? debugTab === "activity" ? '<section class="debug-card npc-planner" data-npc-panel></section>'  : debugTab === "transcripts" ? transcriptView() : debugTab === "documents" ? documentsView() : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
       : `<p class="debug-loading">Reading worker state…</p>`;
-  const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${[["documents", "Documents"], ["activity", "Activity"], ["json", "Raw JSON"], ["transcripts", "Agent runs & requests"], ["alerts", "Session warnings & errors"]].map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
+  const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${[["documents", "Documents"], ["activity", "Activity"], ["json", "Raw JSON"], ["transcripts", "Agent runs & requests"]].map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
   const isCharacter = debugRequest.type === "debug_character";
   return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}" ${debugOpen ? "" : "inert"}><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTab === "documents" ? "Documents" : debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">${debugTab === "documents" ? "Live documents for the whole game. Select a file to read it and inspect recent tool updates." : isCharacter ? "Agent runs are filtered to this character." : "Authoritative world state and live activity."} API keys are excluded.</p>${tabs}<div id="debug-panel" class="debug-panel ${debugTab === "documents" ? "documents-panel" : ""}" role="tabpanel" aria-labelledby="debug-tab-${debugTab}" tabindex="0">${content}</div></aside>`;
 }
@@ -495,7 +516,6 @@ const refreshDebugTranscripts = coalescedRefresh(async () => {
 });
 
 async function openDebug(request = debugRequest, title = debugTitle) {
-  if (debugOpen && debugTab === "alerts" && request === debugRequest) { alerts.acknowledge(); render(); return; }
   const readSequence = ++debugReadSequence;
   const changedTarget = !debugOpen || request !== debugRequest || request.type !== debugRequest.type || request.payload.characterId !== debugRequest.payload.characterId;
   if (changedTarget) { debugTab = "documents"; transcriptRoute = {}; documentRoute = {}; }
@@ -797,7 +817,6 @@ function bind() {
   const debugButton = document.querySelector("[data-debug-open]");
   if (debugButton) debugButton.insertAdjacentHTML("beforebegin", alertBell());
   bindAlertBell();
-  bindAlertClear();
   document.querySelector("[data-gm-debug]")?.addEventListener("click", () => openDebug({ type: "debug_gm", payload: {} }, "Laughing Stranger Debug"));
   document.querySelector("[data-character-debug]")?.addEventListener("click", () => {
     const character = state.characters.find(item => item.id === activeCharacter);
@@ -840,7 +859,7 @@ function bind() {
     button.addEventListener("keydown", event => {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
       event.preventDefault();
-      const tabs = ["documents", "activity", "json", "transcripts", "alerts"];
+      const tabs = ["documents", "activity", "json", "transcripts"];
       const index = tabs.indexOf(debugTab);
       select(event.key === "Home" ? tabs[0] : event.key === "End" ? tabs[tabs.length - 1] : tabs[(index + (event.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length]);
     });

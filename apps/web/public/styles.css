@@ -121,6 +121,12 @@ button:disabled { opacity: .48; cursor: wait; }
 .alert-bell { position: fixed; z-index: 20; top: 18px; right: 125px; display: flex; align-items: center; gap: 5px; min-height: 33px; padding: 6px 9px; background: #17130fe8; color: #bdb09a; border: 1px solid currentColor; }
 .alert-bell.warning, .alert-entry.warning strong { color: #f2c94c; }
 .alert-bell.error, .alert-entry.error strong { color: #ff7777; }
+.alerts-dialog { width: min(640px, calc(100vw - 32px)); max-height: calc(100dvh - 48px); box-sizing: border-box; overflow: auto; padding: 24px; color: #ede2ca; background: #17130f; border: 1px solid var(--gold); box-shadow: 0 24px 100px #000d; }
+.alerts-dialog::backdrop { background: #090705b8; }
+.alerts-dialog header { display: flex; align-items: start; justify-content: space-between; gap: 16px; margin-bottom: 16px; }
+.alerts-dialog h2 { margin: 0; color: #f4e3bb; font-size: 1.25rem; }
+.alerts-dialog [data-alert-close] { padding: 0 8px; background: transparent; font-size: 1.5rem; }
+.alerts-dialog p { line-height: 1.5; }
 .alert-entry { border-bottom: 1px solid #786b56; padding: 14px 0; overflow-wrap: anywhere; }
 .alert-entry time { font-size: .8rem; color: #bdb09a; }
 .alert-entry p { white-space: pre-wrap; }
