@@ -1,4 +1,4 @@
-import { earshotNotes, setupWorldAgent } from "./agent-setup.js";
+import { earshotNotes } from "./agent-setup.js";
 import { arrestResponse } from "../../../packages/conversation/src/conversation-actions.js";
 import { decideWait, waitObservation } from "../../../packages/conversation/src/wait.js";
 import { characterIntent, routinePath, setIntent } from "../../../packages/lore/src/activity.js";
@@ -11,7 +11,7 @@ import { premadeCharacter } from "./premade-characters.js";
 import { playerPublication } from "./stranger-draft.js";
 import { portraitExpressions, type PortraitExpression } from "../../../packages/providers/src/conversation-expression.js";
 import type { JsonValue } from "@bufbuild/protobuf";
-import { mapActionStrategy, runActionExecution, type ActionExecutionContext } from "../../../packages/conversation/src/action-execution.js";
+import { runActionExecution, type ActionExecutionContext } from "../../../packages/conversation/src/action-execution.js";
 import { create, fromJson, toJson } from "@bufbuild/protobuf";
 import { GamePhase, TranscriptMessageSchema, TranscriptRole, type Event } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
@@ -22,9 +22,7 @@ import { prepareConversation } from "../../../packages/conversation/src/conversa
 import { runConversation } from "../../../packages/conversation/src/phases.js";
 import { runConversationReview } from "../../../packages/conversation/src/review.js";
 import { runResolution, type ResolutionContext } from "../../../packages/conversation/src/resolution.js";
-import { documentResolutionStrategy } from "../../../packages/conversation/src/document-resolution.js";
-import { documentReviewStrategy } from "../../../packages/conversation/src/document-review.js";
-import { jevActionStrategy } from "../../../packages/conversation/src/action.js";
+import { defaultWorldStrategies } from "./world-strategies.js";
 import { documentLoreService } from "../../../packages/conversation/src/document-lore.js";
 import { DisclosureSession } from "../../../packages/conversation/src/disclosure.js";
 import { runGameMaster } from "../../../packages/conversation/src/game-master.js";
@@ -106,11 +104,11 @@ export class WorldGameRuntime extends WorldHost {
       random,
       debug: { record: () => {}, documentUpdated: event => this.traces.documentUpdated(event), ...this.options.services?.debug, ...extra.services?.debug },
       presentation: { renderMap: async () => {}, showRoll: async () => {}, setPortrait: async () => {}, ...this.options.services?.presentation, ...extra.services?.presentation },
-    }, strategies: { setup: { prepare: setupWorldAgent }, ...this.options.strategies, ...extra.strategies,
-      review: { ...documentReviewStrategy, ...this.options.strategies?.review, ...extra.strategies?.review },
-      actionExecution: { ...mapActionStrategy, ...this.options.strategies?.actionExecution, ...extra.strategies?.actionExecution },
-      action: { ...jevActionStrategy, ...this.options.strategies?.action, ...extra.strategies?.action },
-      resolution: { ...documentResolutionStrategy, ...this.options.strategies?.resolution, ...extra.strategies?.resolution },
+    }, strategies: { ...defaultWorldStrategies, ...this.options.strategies, ...extra.strategies,
+      review: { ...defaultWorldStrategies.review, ...this.options.strategies?.review, ...extra.strategies?.review },
+      actionExecution: { ...defaultWorldStrategies.actionExecution, ...this.options.strategies?.actionExecution, ...extra.strategies?.actionExecution },
+      action: { ...defaultWorldStrategies.action, ...this.options.strategies?.action, ...extra.strategies?.action },
+      resolution: { ...defaultWorldStrategies.resolution, ...this.options.strategies?.resolution, ...extra.strategies?.resolution },
     } });
   }
   startIntroduction() {
