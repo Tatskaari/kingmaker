@@ -27,7 +27,7 @@ export const peregrineGiftCase: ReviewCase = {
 export function giftInventoryScore(world: WorldState | undefined) {
   const count = (path?: string) => (path ? world?.docs[path]?.characterProperties?.inventory?.items ?? [] : [])
     .filter(item => /\bbird\b/i.test(`${item.name} ${item.details}`) && /\bwood(?:en)?\b/i.test(`${item.name} ${item.details}`))
-    .reduce((total, item) => total + item.quantity, 0);
+    .reduce((total, item) => total + (item.quantity ?? 1), 0);
   const player = count(world?.player), giver = count(world?.runtimeCharacters.peregrine?.document);
   return { score: player === 1 && giver === 0 ? 1 : 0,
     reason: `Matching wooden birds: player=${player}, Peregrine=${giver}; expected 1 and 0.` };
