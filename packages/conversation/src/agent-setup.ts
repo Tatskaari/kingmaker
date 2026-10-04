@@ -45,7 +45,7 @@ export const setupAgent: AgentSetupHook = async (context, signal, services) => {
   const initial = (context.sources ?? lore?.initial)?.map(doc => ({ role: "system" as const, content: `# Lore: ${doc.path}\n${doc.markdown}` })) ?? [];
   const messages = context.agent === "character" ? [task[0]!, ...initial, ...task.slice(1)] : [...initial, ...task];
   const opened = lore && context.disclose
-    ? await services.disclosure.disclose(lore, messages, signal, { characterId: context.characterId }) : [];
+    ? await services.disclosure.disclose(lore, messages, signal, context.characterId ? { characterId: context.characterId } : {}) : [];
   signal.throwIfAborted();
   return context.agent === "character" ? [...messages, ...opened] : [...initial, ...opened, ...task];
 };

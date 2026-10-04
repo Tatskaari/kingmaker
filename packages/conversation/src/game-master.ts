@@ -9,7 +9,7 @@ export { GAME_MASTER_PROMPT } from "./agent-setup.js";
 /** All GM entrypoints use the same tool definitions, execution and conflict handling. */
 export async function runGameMaster(request: ChatCompletionRequest, services: RuntimeServices, signal: AbortSignal,
   options: { characterId?: string; requireCommit?: boolean; prepare?: (messages: OpenRouterMessage[]) => Promise<OpenRouterMessage[]> } = {}) {
-  const messages = await services.agents.prepare({ agent: "game_master", characterId: options.characterId, messages: request.messages }, signal);
+  const messages = await services.agents.prepare({ agent: "game_master", ...(options.characterId ? { characterId: options.characterId } : {}), messages: request.messages }, signal);
   const session = new GameMasterTools(services, options.characterId);
   if (options.requireCommit) await session.begin();
   let corrections = 0;
