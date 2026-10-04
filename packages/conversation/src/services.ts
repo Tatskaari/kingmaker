@@ -9,7 +9,7 @@ import type { ChatCompletionRequest, OpenRouterMessage, TextProgress } from "../
 import type { CharacterSources, LoreDocument } from "./conversation.js";
 import type { LoreLink } from "./lore.js";
 
-export interface AiRequestInfo { characterId?: string; purpose?: "gm_consultation" | "dialogue"; onText?: TextProgress }
+export interface AiRequestInfo { characterId?: string; purpose?: "gm_consultation" | "dialogue" | "conversation_review"; onText?: TextProgress }
 export interface DecisionRequestInfo {
   characterId?: string;
   disclosure?: { threshold: number; candidates: (LoreLink & { id: string })[] };
