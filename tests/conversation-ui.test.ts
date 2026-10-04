@@ -192,7 +192,7 @@ test("CLI shows approval and pending background GM review transcripts in the RHS
         tools: [{ type: "function", function: { name: "commit_review", description: "Finish", parameters: {} } }] }, signal);
       return reply;
     } }) },
-    complete: async () => ({ role: "assistant", content: "Your gift is ready." }),
+    complete: async () => ({ role: "assistant" as const, content: "Your gift is ready." }),
     copyText: async () => "Copied", onFinish: result => { exported = result; },
   }), { width: 140, height: 35, exitOnCtrlC: false, autoFocus: false });
   const step = async (action: () => void | Promise<void>) => {
