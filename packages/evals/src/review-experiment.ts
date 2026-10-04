@@ -8,7 +8,7 @@ import type { AiService } from "../../conversation/src/services.js";
 import { createScenarioServices } from "../../lore/src/services.js";
 import { defaultWorldStrategies } from "../../../apps/web/src/world-strategies.js";
 import type { ConversationRuntimeOptions } from "../../conversation/src/runtime.js";
-import { createJevScorer } from "./jev-scorer.js";
+import { accuracyLevels, createJevScorer } from "./jev-scorer.js";
 import type { Criterion, Experiment, RunRecording, RuntimeConfig } from "./experiment.js";
 
 export interface ReviewCase extends ConversationReviewContext {
@@ -22,14 +22,17 @@ export interface ReviewVariant {
   overlays?: readonly string[];
   strategies?: ConversationRuntimeOptions["strategies"];
 }
-export const reviewRubric: readonly Criterion[] = [
+const judgedCriteria: readonly Criterion[] = [
   { name: "grounding", description: "New facts are supported by conversation or existing context; binding GM rulings are preserved." },
   { name: "coverage", description: "Consequential promises, revelations and outcomes in the case expectations are retained in appropriate documents." },
   { name: "knowledge", description: "Each character learns only what they could know; private beliefs and GM truth retain the correct audience." },
   { name: "intent", description: "Activities and waits implement the case expectations from current physical state; promised movement is not already completed." },
   { name: "preservation", description: "Unrelated facts, characterization and permissions are preserved." },
   { name: "restraint", description: "Changes are relevant and avoid redundant memories, unnecessary rewrites and invented consequences." },
-  { name: "physical-state", description: "Review leaves the physical map unchanged." },
+];
+export const reviewRubric: readonly Criterion[] = [
+  ...judgedCriteria.map(criterion => ({ ...criterion, levels: accuracyLevels })),
+  { name: "physical-state", description: "Review leaves the physical map unchanged (deterministic 0 or 1 invariant)." },
 ];
 
 export function documentChanges(recording: RunRecording) {

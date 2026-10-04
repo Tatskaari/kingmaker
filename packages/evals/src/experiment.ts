@@ -8,7 +8,8 @@ export interface RuntimeConfig<Labels = Record<string, never>, Review = ReviewLa
   /** Fresh service factories and strategy hooks for every trial. */
   configure(): EvalRuntimeOptions<Labels, Review> | Promise<EvalRuntimeOptions<Labels, Review>>;
 }
-export interface Criterion { name: string; description: string; weight?: number }
+export interface ScoreLevel { score: number; description: string }
+export interface Criterion { name: string; description: string; weight?: number; levels?: Record<string, ScoreLevel> }
 export interface CriterionScore { score: number; reason?: string; probabilities?: Record<string, number> }
 export interface Result { criteria: Record<string, CriterionScore> }
 export class RunRecording {
@@ -65,6 +66,11 @@ export function validateRubric(rubric: readonly Criterion[]) {
   if (!rubric.length || new Set(rubric.map(item => item.name)).size !== rubric.length
     || rubric.some(item => !item.name.trim() || !Number.isFinite(item.weight ?? 1) || (item.weight ?? 1) <= 0)) {
     throw new Error("Rubric requires unique nonempty criterion names and positive finite weights.");
+  }
+  for (const criterion of rubric) if (criterion.levels && (!Object.keys(criterion.levels).length
+    || Object.entries(criterion.levels).some(([name, level]) => !name.trim() || !level.description.trim()
+      || !Number.isFinite(level.score) || level.score < 0 || level.score > 1))) {
+    throw new Error("Rubric score levels require names, descriptions and scores between 0 and 1.");
   }
 }
 export function validateResult(result: Result, rubric: readonly Criterion[]) {
