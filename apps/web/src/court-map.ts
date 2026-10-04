@@ -353,7 +353,6 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
 
     const start = position;
     let destination = path[path.length - 1]!;
-    reportStatus(`Walking to ${courtRoomAt(destination)?.name ?? "the passage"}…`);
     const context = canvas.getContext("2d")!;
     const drawRoute = () => {
       draw();
@@ -368,7 +367,6 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       if (!replacement) return false;
       path = replacement; started = now; destination = target;
       place(path[0]!); drawRoute();
-      reportStatus(`Changed course: walking to ${courtRoomAt(target)?.name ?? "the passage"}…`);
       return true;
     };
     const arrived = await new Promise<boolean>(resolve => {
@@ -391,7 +389,6 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     let committed = false;
     try {
       await movePlayer(destination); position = destination; committed = true;
-      reportStatus(`Arrived in ${courtRoomAt(destination)?.name ?? "the palace"}.`);
       const action = pendingInteraction; pendingInteraction = undefined;
       if (root.isConnected) await action?.();
     } catch (error) {
