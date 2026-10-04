@@ -90,7 +90,7 @@ export class WorldGameRuntime extends WorldHost {
       scenario,
       lore: documentLoreService(scenario, { ...this.options.services?.lore, ...extra.services?.lore }),
       docs: {
-        commit: writes => this.commit(() => this.documents.docs.commit(writes), signal, persist),
+        commit: (writes, intents) => this.commit(() => this.documents.docs.commit(writes, intents), signal, persist),
         read: path => this.documents.docs.read(path),
         create: (...args) => this.commit(() => this.documents.docs.create(...args), signal, persist),
         replace: (...args) => this.commit(() => this.documents.docs.replace(...args), signal, persist),
@@ -331,7 +331,7 @@ export class WorldGameRuntime extends WorldHost {
       await this.commit(async () => {
         const world = this.world(), intent = characterIntent(world, id);
         const before = await this.documents.docs.read(intent.entry);
-        await setIntent(this.documents, before, { activity: null, wait: routinePath(world, id) });
+        await setIntent(this.documents, before, { activity: null, wait: routinePath(world, id) }, before.document.body, intent);
         this.syncGoals();
         const next = this.activity.npcActivities![id]!;
         next.reviewPending = false; next.history = []; next.actionIds = [];
@@ -360,15 +360,14 @@ export class WorldGameRuntime extends WorldHost {
     await this.commit(async () => {
       if (this.activity.conversations[id]?.length || waitObservation(runtime.services, id) !== decision.observation) return;
       const intent = characterIntent(this.world(), id);
-      if (intent.activity || intent.wait !== decision.wait.path) return;
+      if (intent.actorId !== decision.intent.actorId || intent.activity || intent.wait !== decision.wait.path) return;
       const next = decision.choice.startsWith("set_activity:") ? decision.choice.slice("set_activity:".length) : null;
-      const metadata = { ...decision.character.document.frontmatter,
-        activity: next, wait: decision.choice === "continue" ? decision.wait.path : null };
+
       await this.documents.docs.commit([
         ...[decision.wait, ...decision.targets].map(doc => ({ path: doc.path, expectedSha: doc.sha, text: doc.text })),
         { path: decision.character.path, expectedSha: decision.character.sha,
-          text: `---\n${stringify(metadata)}---\n${decision.character.document.body}` },
-      ]);
+          text: decision.character.text },
+      ], [{ ...decision.intent, activity: next, wait: decision.choice === "continue" ? decision.wait.path : null }]);
       if (decision.choice === "stop_waiting") (this.activity.pendingWaitReviews ??= {})[id] = {
         instructions: decision.wait.document.body, observation: decision.observation,
       };

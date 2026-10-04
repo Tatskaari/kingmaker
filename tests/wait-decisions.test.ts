@@ -13,7 +13,7 @@ function fixture() {
   const { entry, activity } = characterIntent(world, id), wait = entry.replace("character.md", "routine.md");
   world.docs[wait] = create(DocumentSchema, { frontmatter: { visibility: "private", readers: [`character:${id}`], activities: [activity!] },
     body: "When you see the player, stop_waiting to decide what to do. Otherwise continue." });
-  world.docs[entry]!.frontmatter = { ...world.docs[entry]!.frontmatter, activity: null, wait };
+  Object.assign(world.runtimeCharacters[id]!, { activity: undefined, wait });
   return { world, entry, activity, wait };
 }
 
@@ -61,7 +61,7 @@ test("wait checks omit remote actors and reject stale decisions when the player 
 
 test("completion returns to routine; failed wake reviews survive reload and retry without another Jev decision", async () => {
   const { world, activity, entry, wait } = fixture();
-  world.docs[entry]!.frontmatter!.activity = activity!;
+  world.runtimeCharacters[id]!.activity = activity!;
   let fail = true, decisions = 0;
   const options = { services: { disclosure: { disclose: async () => [] }, ai: {
     decisions: async () => { decisions++; return { waiting: { choice: "stop_waiting", probabilities: {} } }; },

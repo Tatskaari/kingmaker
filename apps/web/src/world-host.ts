@@ -22,7 +22,7 @@ export type WorldSnapshot = MechanicalActivity & {
   stranger?: StrangerState;
   jail?: { characterId: string; message: string };
   pendingWaitReviews?: Record<string, { instructions: string; observation: string }>;
-  version: 3; world: JsonValue;
+  version: 4; world: JsonValue;
   playerMessages: Array<{ id: string; day: number; message: string; createdAt: string }>;
 };
 
@@ -35,7 +35,7 @@ export class WorldHost {
   constructor(world: WorldState, saved?: WorldSnapshot) {
     this.initial = clone(WorldStateSchema, world);
     this.documents = createScenarioServices(world);
-    this.activity = { version: 3, conversations: {}, npcActivities: {}, playerMessages: [] };
+    this.activity = { version: 4, conversations: {}, npcActivities: {}, playerMessages: [] };
     if (saved) this.restore(saved);
     this.syncGoals();
   }
@@ -55,7 +55,7 @@ export class WorldHost {
     return structuredClone({ ...this.activity, world: toJson(WorldStateSchema, this.world()) });
   }
   restore(saved: WorldSnapshot): void {
-    if (saved.version !== 3 || !saved.world) throw new Error("This save uses an older world format. Start a fresh game.");
+    if (saved.version !== 4 || !saved.world) throw new Error("This save uses an older world format. Start a fresh game.");
     const { world, ...activity } = structuredClone(saved);
     const state = fromJson(WorldStateSchema, world);
     this.documents = createScenarioServices(state);
@@ -141,7 +141,7 @@ export class WorldHost {
       id: event.id, day: event.day, message: perception, createdAt: new Date().toISOString(),
     });
   }
-  reset() { this.restore({ version: 3, world: toJson(WorldStateSchema, this.initial),
+  reset() { this.restore({ version: 4, world: toJson(WorldStateSchema, this.initial),
     conversations: {}, npcActivities: {}, playerMessages: [] }); }
   resetWorld() {
     const before = this.world();
@@ -152,6 +152,10 @@ export class WorldHost {
   resetCharacters() {
     const current = this.world();
     for (const path of current.characters) current.docs[path] = clone(WorldStateSchema, this.initial).docs[path]!;
+    for (const [id, character] of Object.entries(current.runtimeCharacters)) {
+      const initial = this.initial.runtimeCharacters[id];
+      character.activity = initial?.activity; character.wait = initial?.wait; character.intentRevision++;
+    }
     this.restore({ ...this.snapshot(), world: toJson(WorldStateSchema, current), npcActivities: {}, conversations: {} });
   }
   async overrideActiveObjective(id: string, objective: unknown) {
@@ -161,17 +165,16 @@ export class WorldHost {
       ? ("current_goal" in objective ? objective.current_goal : "currentGoal" in objective ? objective.currentGoal : null) : null;
     if (goal !== null && typeof goal !== "string") throw new Error("Expected currentGoal text.");
     const doc = await this.documents.docs.read(path);
-    const { stringify } = await import("yaml");
     const activity = goal ? path.replace(/character\.md$/, `activity-${crypto.randomUUID()}.md`) : null;
     const fields = objective as Record<string, unknown> | null;
-    const text = `---\n${stringify({ ...doc.document.frontmatter, activity, wait: null })}---\n${doc.document.body}`;
+    const expected = characterIntent(this.world(), id);
     await this.documents.docs.commit([
       ...(activity ? [{ path: activity, expectedSha: null, text: formatActivity(id, {
         name: String(fields?.name ?? goal), status: String(fields?.status ?? "Assigned by the GM."),
         success_criteria: String(fields?.success_criteria ?? fields?.successCriteria ?? goal), current_goal: goal!,
       }) }] : []),
-      { path, expectedSha: doc.sha, text },
-    ]);
+      { path, expectedSha: doc.sha, text: doc.text },
+    ], [{ ...expected, activity, wait: null }]);
     this.syncGoals();
   }
 }

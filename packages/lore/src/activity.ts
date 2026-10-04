@@ -1,6 +1,7 @@
 import { stringify } from "yaml";
 import type { Document, WorldState } from "../../contracts/src/v2.js";
 import { labels, permitted } from "./access.js";
+import { runtimeActor } from "./runtime-actor.js";
 import { characterEntry } from "./active-goal.js";
 import type { DocsService, DocumentSnapshot, ScenarioService } from "./services.js";
 
@@ -33,6 +34,7 @@ export function waitActivities(document: Document): string[] {
 /** References never confer permission to read their targets. */
 export function intentDocument(world: WorldState, id: string, path: string): Document {
   documentReference(path);
+  id = world.runtimeCharacters[id]?.characterId ?? id;
   const entry = characterEntry(world, id), character = world.docs[entry]!;
   const doc = world.docs[path];
   if (!doc) throw new Error(`Missing intent document: ${path}`);
@@ -42,12 +44,12 @@ export function intentDocument(world: WorldState, id: string, path: string): Doc
   return doc;
 }
 export function characterIntent(world: WorldState, id: string) {
-  const entry = characterEntry(world, id), metadata = world.docs[entry]!.frontmatter;
-  const activity = documentReference(metadata?.activity), wait = documentReference(metadata?.wait);
-  return { entry, activity, wait };
+  const actor = runtimeActor(world, id), entry = actor.document;
+  const activity = documentReference(actor.activity), wait = documentReference(actor.wait);
+  return { entry, activity, wait, actorId: actor.id, expectedRevision: actor.intentRevision };
 }
 export function routinePath(world: WorldState, id: string): string | null {
-  const path = characterEntry(world, id).replace(/character\.md$/, "routine.md");
+  const path = characterIntent(world, id).entry.replace(/character\.md$/, "routine.md");
   if (!world.docs[path]) return null;
   waitActivities(intentDocument(world, id, path));
   return path;
@@ -73,19 +75,10 @@ export function formatWait(id: string, definition: WaitDefinition): string {
   definition.activities.forEach(path => { if (!documentReference(path)) throw new Error("Expected activity path."); });
   return `---\n${stringify({ summary: definition.name, visibility: "private", readers: [`character:${id}`], activities: definition.activities })}---\n${definition.instructions}\n`;
 }
-/** Publish the pointer and notes with one SHA-checked character write. */
+/** Publish runtime intent and memory notes in one checked transaction. */
 export async function setIntent(services: IntentServices, before: DocumentSnapshot,
-  intent: { activity: string | null; wait: string | null }, body = before.document.body) {
-  const world = services.scenario.snapshot();
-  const id = /\/Characters\/([^/]+)\/character\.md$/.exec(before.path)?.[1];
-  if (!id) throw new Error("Intent requires an NPC character entry.");
-  if (intent.activity) activityDefinition(intentDocument(world, id, intent.activity));
-  if (intent.wait) {
-    const doc = intentDocument(world, id, intent.wait);
-    for (const path of waitActivities(doc)) activityDefinition(intentDocument(world, id, path));
-  }
-  const text = `---\n${stringify({ ...before.document.frontmatter, ...intent })}---\n${body}`;
-  if (text === before.text) return;
-  if (before.text) await services.docs.replace(before.path, before.sha, before.text, text);
-  else await services.docs.insert(before.path, before.sha, 0, text);
+  intent: { activity: string | null; wait: string | null }, body = before.document.body,
+  expected = characterIntent(services.scenario.snapshot(), /\/Characters\/([^/]+)\/character\.md$/.exec(before.path)![1]!)) {
+  const text = `---\n${stringify(before.document.frontmatter ?? {})}---\n${body}`;
+  await services.docs.commit([{ path: before.path, expectedSha: before.sha, text }], [{ ...expected, ...intent }]);
 }

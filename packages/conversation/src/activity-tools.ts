@@ -24,7 +24,11 @@ export const activityTools: OpenRouterTool[] = [
 export class ActivityEdits {
   private writes = new Map<string, DocumentWrite>();
   private intent: { activity: string | null; wait: string | null } | undefined;
-  constructor(private services: RuntimeServices, private id: string, private before: DocumentSnapshot) {}
+  private expected;
+  constructor(private services: RuntimeServices, private id: string, private before: DocumentSnapshot) {
+    this.expected = characterIntent(services.scenario.snapshot(), id);
+    this.id = this.expected.actorId;
+  }
   async call(name: string, input: Record<string, unknown>) {
     const world = this.draft();
     if (name === "clear_activity") {
@@ -35,13 +39,13 @@ export class ActivityEdits {
     if (name === "set_activity") {
       const { name: title, status, success_criteria, current_goal } = input;
       const definition = { name: title, status, success_criteria, current_goal } as ActivityDefinition;
-      content = formatActivity(this.id, definition);
+      content = formatActivity(/\/Characters\/([^/]+)\//.exec(this.before.path)![1]!, definition);
       const current = characterIntent(world, this.id).activity;
       path = current && JSON.stringify(activityDefinition(intentDocument(world, this.id, current))) === JSON.stringify(definition)
         ? current : `${folder}activity-${crypto.randomUUID()}.md`;
       if (input.activate !== false) this.intent = { activity: path, wait: null };
     } else if (name === "set_wait") {
-      content = formatWait(this.id, input as unknown as WaitDefinition);
+      content = formatWait(/\/Characters\/([^/]+)\//.exec(this.before.path)![1]!, input as unknown as WaitDefinition);
       path = input.routine === true ? `${folder}routine.md` : `${folder}wait-${crypto.randomUUID()}.md`;
       this.intent = { activity: null, wait: path };
     } else throw new Error(`Unknown activity tool: ${name}`);
@@ -63,9 +67,10 @@ export class ActivityEdits {
     const world = this.draft(), intent = this.intent ?? characterIntent(world, this.id);
     if (intent.activity) activityDefinition(intentDocument(world, this.id, intent.activity));
     if (intent.wait) for (const path of waitActivities(intentDocument(world, this.id, intent.wait))) activityDefinition(intentDocument(world, this.id, path));
-    const metadata = { ...this.before.document.frontmatter, activity: intent.activity, wait: intent.wait };
+    const metadata = this.before.document.frontmatter;
     const text = `---\n${stringify(metadata)}---\n${body}`;
-    return [...this.writes.values(), { path: this.before.path, expectedSha: this.before.sha, text }];
+    return { writes: [...this.writes.values(), { path: this.before.path, expectedSha: this.before.sha, text }],
+      intents: this.intent ? [{ ...this.expected, ...intent }] : [] };
   }
-  async commit(body: string) { await this.services.docs.commit(this.changes(body)); }
+  async commit(body: string) { const { writes, intents } = this.changes(body); await this.services.docs.commit(writes, intents); }
 }

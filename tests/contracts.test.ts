@@ -2183,11 +2183,12 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
       const saved = records.get(payload.saveId as string);
       for (const [characterId, activity] of Object.entries(saved.snapshot.npcActivities ?? {}) as Array<[string, { goal: string }]>) {
         const path = `Scenarios/Centennial Assembly/Characters/${characterId}/character.md`;
-        if (saved.snapshot.world.docs[path]) {
+        if (saved.snapshot.world.docs[path] && saved.snapshot.world.runtimeCharacters[characterId]) {
           const task = path.replace("character.md", "task.md");
           saved.snapshot.world.docs[task] = { frontmatter: { visibility: "private", readers: [`character:${characterId}`],
             name: activity.goal, status: "Assigned", success_criteria: activity.goal, current_goal: activity.goal }, body: "" };
-          saved.snapshot.world.docs[path].frontmatter.activity = activity.goal ? task : null;
+          if (activity.goal) saved.snapshot.world.runtimeCharacters[characterId].activity = task;
+          else delete saved.snapshot.world.runtimeCharacters[characterId].activity;
         }
       }
     }
@@ -2196,7 +2197,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
   await request("configure", { apiKey: "test" });
   const fresh = await request("create_game");
   assert.equal(fresh.state.phase, "player_creation");
-  assert.equal(records.get(fresh.activeSaveId).snapshot.version, 3);
+  assert.equal(records.get(fresh.activeSaveId).snapshot.version, 4);
   assert.equal(records.get(fresh.activeSaveId).snapshot.scenario, undefined);
   await request("start_introduction");
   const resumed = await request("load_game", { saveId: fresh.activeSaveId });

@@ -5,7 +5,7 @@ import { disclosedContext } from "./disclosed-context.js";
 
 export interface WaitDecision {
   choice: string; character: DocumentSnapshot; wait: DocumentSnapshot; targets: DocumentSnapshot[];
-  observation: string;
+  observation: string; intent: ReturnType<typeof characterIntent>;
 }
 /** Deliberately excludes remote actors, their documents and unobserved world events. */
 export function waitObservation(services: RuntimeServices, id: string): string {
@@ -43,5 +43,5 @@ export async function decideWait(id: string, elapsedSeconds: number, services: R
   signal.throwIfAborted();
   const choice = result.waiting?.choice;
   if (!choice || !Object.hasOwn(criteria, choice)) throw new Error("Jev returned an unavailable wait choice.");
-  return { choice, character, wait, targets, observation };
+  return { choice, character, wait, targets, observation, intent };
 }
