@@ -1,3 +1,4 @@
+import { formatConversation, type MessageAnalysis } from "./analysis.js";
 import type { AiService, RuntimeServices } from "../../packages/conversation/src/services.js";
 import type { DndCharacter } from "../../packages/contracts/src/index.js";
 import { cliStrategy, type ManualRoll, type RequestRoll } from "../../packages/conversation/src/cli-strategy.js";
@@ -16,6 +17,7 @@ export interface ConversationResult {
   transcript: ConversationInput["transcript"];
   turns: LlmTurn[];
   gmTurns: LlmTurn[];
+  analysis: MessageAnalysis[];
   disclosure: DisclosureRound[];
   openedDocuments: ConversationInput["sources"];
 }
@@ -41,6 +43,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
   const [rounds, setRounds] = useState<DisclosureRound[]>([]);
   const [rollPrompt, setRollPrompt] = useState<ManualRoll | null>(null);
   const pendingRoll = useRef<((value: number) => void) | null>(null);
+  const [analysis, setAnalysis] = useState<MessageAnalysis[]>([]);
   const [gmTurns, setGmTurns] = useState<LlmTurn[]>([]);
   const requestRoll: RequestRoll = (check, signal) => new Promise((resolve, reject) => {
     signal.throwIfAborted();
@@ -76,7 +79,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
   ]);
   const selectedIndex = entries.findIndex(entry => entry.id === selected);
   const source = selected === null
-    ? transcript.map(message => `${message.speakerId === "player" ? "You" : input.characterId}: ${message.text}`).join("\n\n") || "Type a message to begin."
+    ? formatConversation(transcript, input.characterId, analysis) || "Type a message to begin."
     : entries[selectedIndex]?.text ?? "No text content.";
   const choose = (id: string | null) => { renderer.clearSelection(); setSelected(id); };
   useEffect(() => () => controller.current.abort(), []);
@@ -88,11 +91,18 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
     if (running.current || !message.trim()) return;
     running.current = true; setBusy(true); setStatus("");
     const index = turns.length;
+    const messageIndex = transcript.length;
+    setAnalysis(previous => previous.filter(event => event.messageIndex < messageIndex));
     try {
       checks?.beginTurn?.();
       const turnInput = { ...input, transcript, message };
       const trace = (round: DisclosureRound) => {
         timeline.record(`jev-${round.turn}-${round.round}`);
+        if (round.answers) {
+          const source = `disclosure round ${round.round}`;
+          setAnalysis(previous => [...previous.filter(event => !(event.messageIndex === messageIndex && event.kind === "labels" && event.source === source)),
+            { messageIndex, kind: "labels", subject: "player", source, decisions: round.answers! }]);
+        }
         setRounds(previous => {
           const index = previous.findIndex(item => item.turn === round.turn && item.round === round.round);
           return index < 0 ? [...previous, round] : previous.map((item, i) => i === index ? round : item);
@@ -102,7 +112,8 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
         ? cliStrategy(disclosure, checks.ai, checks.build, message, requestRoll, trace, turn => {
           timeline.record(`gm-${gmCount.current++}`);
           setGmTurns(previous => [...previous, turn]);
-        }, {}, {}, checks.services ? { services: checks.services, characterId: input.characterId } : undefined)
+        }, {}, {}, checks.services ? { services: checks.services, characterId: input.characterId } : undefined,
+        event => setAnalysis(previous => [...previous, { ...event, messageIndex: messageIndex + (event.subject === "character" ? 1 : 0) }]))
         : disclosure ? disclosure.strategy(trace) : { classify: async () => ({}), resolve: async () => ({ reclassify: false }) };
       const runtime = new ConversationRuntime({
         services: { character: { respond: complete } },
@@ -129,7 +140,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
     }
     if (key.ctrl && (key.name === "c" || key.name === "d")) {
       key.preventDefault(); controller.current.abort();
-      onFinish({ characterId: input.characterId, transcript, gmTurns,
+      onFinish({ characterId: input.characterId, transcript, gmTurns, analysis,
         disclosure: rounds.map(round => round.status === "pending" ? { ...round, status: "error", error: "Cancelled when conversation ended." } : round),
         openedDocuments: disclosure?.sources ?? input.sources,
         turns: turns.map(turn => turn.response || turn.error ? turn : { ...turn, error: "Cancelled when conversation ended." }),
