@@ -1044,7 +1044,7 @@ test("main palace movement validates routes and survives saving and restoring", 
   const scenario = load(); scenario.characters.push(create(CharacterSchema, { id: "player", name: "Envoy" })); scenario.playerCharacterId = "player";
   scenario.world!.phase = GamePhase.CONVERSATIONS;
   for (const actor of scenario.world!.actors) actor.roomId = "great_hall";
-  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 62, y: 22 }) });
+  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", intentRevision: 0, characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 62, y: 22 }) });
   const runtime = new BrowserGameRuntime(scenario, "test");
   runtime.movePlayer({ x: 51, y: 16 }); runtime.setDoor("hall_door", true);
   runtime.movePlayer({ x: 51, y: 10 });
@@ -1152,7 +1152,7 @@ test("main doors choose the closest reachable side and block paths until opened"
 test("door operations validate approach and occupancy, and persist through saves", () => {
   const scenario = load(); scenario.characters.push(create(CharacterSchema, { id: "player", name: "Envoy" })); scenario.playerCharacterId = "player";
   scenario.world!.phase = GamePhase.CONVERSATIONS;
-  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true,
+  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", intentRevision: 0, characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true,
     position: create(TilePositionSchema, { x: 62, y: 22 }) });
   const runtime = new BrowserGameRuntime(scenario, "test");
   assert.throws(() => runtime.setDoor("corvin_door", true), /interaction spot/);
@@ -1286,7 +1286,7 @@ test("authored parked objectives remain distinct from immediate greeting goals i
 
 function furnishedCourt(): Scenario {
   const scenario = conversationScenario();
-  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 62, y: 22 }) });
+  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", intentRevision: 0, characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 62, y: 22 }) });
   return scenario;
 }
 
