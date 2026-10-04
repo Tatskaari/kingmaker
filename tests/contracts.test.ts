@@ -585,7 +585,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     },
   };
   globals.indexedDB = { open: () => { const request: any = { result: db }; setImmediate(() => request.onsuccess()); return request; } };
-  t.mock.method(globalThis, "fetch", async () => new Response(readFileSync(fixturePath, "utf8")));
+  t.mock.method(globalThis, "fetch", async () => { throw new Error("Unexpected network request in worker test"); });
   t.mock.method(OpenRouterClient.prototype, "complete", async () => { modelCalls++; return { role: "assistant", content: "Maren, what brings you along this road?" }; });
   const { startGameWorker } = await import("../apps/web/src/game-worker.js");
   startGameWorker(globals.self, Promise.resolve(world));
