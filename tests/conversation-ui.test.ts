@@ -44,9 +44,9 @@ test("OpenTUI scrolls and copies pane-local text while preserving message clicks
     await step(() => setup.mockInput.typeText("Hello"));
     await step(() => setup.mockInput.pressEnter());
     await setup.waitForFrame(frame => frame.includes("A reply from Corvin."));
-    assert.match(setup.captureCharFrame(), /6\. assistant/);
-    await step(() => setup.mockMouse.click(83, 8));
-    assert.match(setup.captureCharFrame(), /6\. assistant · Esc/);
+    assert.match(setup.captureCharFrame(), /7\. assistant/);
+    await step(() => setup.mockMouse.click(83, 9));
+    assert.match(setup.captureCharFrame(), /7\. assistant · Esc/);
     await step(() => setup.resize(80, 24));
     assert.match(setup.captureCharFrame(), /A reply from Corvin/);
   } finally { await act(() => setup.renderer.destroy()); }
@@ -84,10 +84,10 @@ test("Jev rounds and opened Markdown can be inspected and exported alongside mod
     await step(() => setup.mockInput.pressEnter());
     assert.match(setup.captureCharFrame(), /Informed reply/);
     const rowY = (id: string) => setup.renderer.root.findDescendantById(id)!.y;
-    assert.ok(rowY("message-3") < rowY("jev-1-1"), "player message precedes Jev");
+    assert.ok(rowY("message-4") < rowY("jev-1-1"), "player message precedes Jev");
     assert.ok(rowY("jev-1-1") < rowY("opened-1-1-0"), "opened note follows its Jev round");
     assert.ok(rowY("opened-1-1-0") < rowY("jev-1-2"), "opened note stays with its round");
-    assert.ok(rowY("jev-1-2") < rowY("message-4"), "Jev precedes the character reply");
+    assert.ok(rowY("jev-1-2") < rowY("message-5"), "Jev precedes the character reply");
     await click("jev-1-1");
     assert.match(setup.captureCharFrame(), /open_1: 0.9/);
     assert.match(setup.captureCharFrame(), /OPENED/);

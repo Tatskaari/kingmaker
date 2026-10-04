@@ -81,6 +81,6 @@ test("dialogue previews, live turns and NPC exchanges get current participant pr
   assert.match(request.messages.map(item => item.content).join("\n"), /freshly mended coat/);
   const exchange = await runtime.services.agents.prepare({ agent: "exchange", characterId: "aldren",
     participantIds: ["aldren", "corvin"], sources: [], messages: [] }, new AbortController().signal);
-  assert.match(exchange.map(item => item.content).join("\n"), /Before you stands Corvin/);
+  assert.match(exchange.map(item => item.content).join("\n"), /Before you stands Magister Corvin/);
   assert.doesNotMatch(exchange.map(item => item.content).join("\n"), /Before you stands Visiting Envoy/);
 });
