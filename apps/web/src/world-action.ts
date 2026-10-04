@@ -66,7 +66,7 @@ export async function planWorldAction<Review>(characterId: string, runtime: Conv
 }
 
 /** A successful review publishes intent before action classification can begin. */
-export async function reviewAndPlanWorldAction<Turn, Review>(context: ConversationReviewContext,
+export async function reviewAndPlanWorldAction<Review>(context: ConversationReviewContext,
   runtime: ConversationRuntime<Review>, signal: AbortSignal = new AbortController().signal) {
   const review = await runConversationReview(context, runtime, signal);
   const plan = await planWorldAction(context.characterId, runtime, signal);

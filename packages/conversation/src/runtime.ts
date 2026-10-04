@@ -7,7 +7,7 @@ import type { RuntimeServices } from "./services.js";
 import type { ConversationReviewStrategy, ReviewLabels } from "./review.js";
 import type { ConversationStrategy } from "./phases.js";
 
-/** Strategies group policy hooks; each callback (prepare, classify, resolve) is a hook. */
+/** Strategies group policy hooks; each callback (respond, prepare, classify, resolve) is a hook. */
 export interface RuntimeStrategies<Review = ReviewLabels> { setup: { prepare: AgentSetupHook }; conversation: ConversationStrategy; review: ConversationReviewStrategy<Review>; action: ActionStrategy; actionExecution: ActionExecutionStrategy; resolution: ResolutionStrategy }
 
 export interface ConversationRuntimeOptions<Review = ReviewLabels> {
