@@ -217,7 +217,7 @@ test("GM reviews receive editable presentation snapshots for every participant i
   const { loadPlayableWorld } = await import("./fixtures.js");
   const services = createScenarioServices(loadPlayableWorld());
   let calls = 0;
-  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), disclosure: { disclose: async () => [] }, ai: { responses: async request => {
     if (calls++) return commitReview({ summary: "Updated visible grooming", newNotes: [], activeGoal: null });
     const context = request.messages.flatMap(message => {
       try { const value = JSON.parse(message.content ?? ""); return value.presentations ? [value] : []; } catch { return []; }
