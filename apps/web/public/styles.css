@@ -86,7 +86,7 @@ button:disabled { opacity: .48; cursor: wait; }
 .choice.end { border-color: #79654a; background: #2c251c; }
 .back, .reset { background: transparent; color: var(--dim); border: 0; padding: 5px 0; text-decoration: underline; text-underline-offset: 3px; }
 .conversation-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 17px; }
-.conversation-tools { display: flex; align-items: center; gap: 13px; }
+.conversation-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 13px; }
 .character-debug { border: 1px solid #665b49; background: #17130f; color: #bdb09a; padding: 6px 9px; font: .7rem ui-monospace, SFMono-Regular, Menlo, monospace; }
 .character-debug:hover { border-color: var(--gold); color: #f1dfb5; }
 .status { min-height: 24px; color: #d6b56e; font-style: italic; margin: 10px 0 0; }
