@@ -25,3 +25,12 @@ activities and typed inventory, especially when Jev scores disagree with visible
   mundane gift without another acceptance turn. Uses situated-priorities framing otherwise.
   This combines a capability and a policy change; improvement cannot isolate their effects.
   It does not seed a bird or mention a character/case by name. No production service changes.
+
+- **consequence-led** (follow-up): initial framing candidates avoided the Kobold journey,
+  but some parlour outputs skipped travel and claimed arrival. The first inventory candidate
+  created the gift for the player in only 1/3 runs; another created it for the giver.
+  Hypothesis: the prompt conflates settled effects, immediate next steps and future promises,
+  and its blanket ban on physical effects contradicts writable possessions. Keep the same
+  inventory service, explicitly separate those timescales, retain the physical movement
+  boundary, and authorize supported ownership changes. Compare with material-consequences
+  and a fresh baseline; keep prior variants and the rubric unchanged.
