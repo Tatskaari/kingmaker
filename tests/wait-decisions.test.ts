@@ -35,7 +35,7 @@ test("wait decisions continue without an LLM, activate listed documents, or clea
       },
     } });
     await game.checkWait(id, 15);
-    assert.equal(reviews, choice === "stop_waiting" ? 1 : 0);
+    assert.equal(reviews, choice === "stop_waiting" ? 2 : 0);
     assert.equal(characterIntent(game.world(), id).wait, choice === "continue" ? wait : null);
     assert.equal(!!activityGoal(game.world(), id), choice !== "continue");
     assert.equal(game.snapshot().pendingWaitReviews?.[id], undefined);

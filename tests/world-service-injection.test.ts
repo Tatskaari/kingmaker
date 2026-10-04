@@ -143,7 +143,7 @@ test("v2 review and planning use fresh character-scoped injected lore", async ()
   runtime.endConversationAsPlayer("rowan", "Go to the hall.");
   await runtime.endConversation("rowan");
   await runtime.planNpc("rowan", new AbortController().signal);
-  assert.deepEqual(scopes, ["rowan", "rowan"]);
+  assert.deepEqual(scopes, ["rowan", "rowan", "rowan"]);
 });
 
 test("v2 lore failures abort dialogue before AI or transcript publication", async () => {

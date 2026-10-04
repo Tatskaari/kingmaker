@@ -45,7 +45,7 @@ test("v2 review commits its goal before classify/resolve returns a real command 
     resolve: async (...args) => { order.push("resolve"); return jevActionStrategy.resolve(...args); },
   } } });
   const result = await reviewAndPlanWorldAction(evidence, runtime);
-  assert.deepEqual(order, ["review", "classify", "resolve"]);
+  assert.deepEqual(order, ["review", "review", "classify", "resolve"]);
   assert.equal(result.plan!.action!.type, "move"); assert.ok(result.plan!.action!.path.length);
   assert.deepEqual(services.scenario.snapshot().map, beforeMap);
 

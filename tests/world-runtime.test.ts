@@ -17,7 +17,7 @@ test("v2 game reviews into documents, saves without v1 state, and subsequent dia
   let calls = 0;
   const runtime = game({ services: { ai: { responses: async request => {
     calls++;
-    if (calls === 1) return reviewReply(request);
+    if (request.tools) return reviewReply(request);
     assert.match(JSON.stringify(request), /PROMISESENTINEL/);
     assert.ok(!JSON.stringify(request).includes("ask_the_game_master"));
     return { role: "assistant", content: "I remember." };
@@ -35,7 +35,7 @@ test("v2 game reviews into documents, saves without v1 state, and subsequent dia
   assert.equal(saved.scenario, undefined);
   runtime.restore(saved);
   assert.equal(await runtime.checkedTalkToCharacter("rowan", "What did we agree?"), "I remember.");
-  assert.equal(calls, 2);
+  assert.equal(calls, 3);
   assert.throws(() => runtime.restore({ ...saved, version: 2 }), /fresh game/);
 });
 
@@ -101,9 +101,9 @@ test("conversation spans retain turn, retry, review and scenario context", async
   assert.equal(runs.length, 1);
   const run = runs[0]!;
   assert.equal(run.status, "success");
-  assert.deepEqual(run.calls.map(call => call.kind), ["dialogue", "dialogue", "dialogue", "conversation_review"]);
-  assert.deepEqual(run.calls.map(call => call.status), ["error", "success", "success", "success"]);
-  assert.equal(new Set(run.calls.map(call => call.spanId)).size, 4);
+  assert.deepEqual(run.calls.map(call => call.kind), ["dialogue", "dialogue", "dialogue", "conversation_review", "conversation_review"]);
+  assert.deepEqual(run.calls.map(call => call.status), ["error", "success", "success", "success", "success"]);
+  assert.equal(new Set(run.calls.map(call => call.spanId)).size, 5);
   assert.equal(new Set(run.calls.map(call => call.turnId)).size, 3);
   assert.equal(run.calls[0]!.turnId, run.calls[1]!.turnId);
   assert.ok(run.calls.every(call => call.conversationId === run.conversationId && call.scenario && call.location));
@@ -135,7 +135,7 @@ test("document tool history identifies concurrent reviews and remains session-on
     assert.ok(write.path.endsWith(`/${write.call.characterId}/character.md`));
     assert.equal(write.call.kind, "conversation_review");
     assert.notEqual(write.beforeSha, write.afterSha);
-    assert.match(JSON.stringify(write.call.response), new RegExp(`${write.call.characterId} review`));
+    assert.match(JSON.stringify(write.call.response), new RegExp(`${write.call.characterId} remembers`));
   }
   const reloaded = new WorldGameRuntime(loadPlayableWorld(), "", runtime.snapshot());
   assert.deepEqual(reloaded.debugDocuments().history, []);
