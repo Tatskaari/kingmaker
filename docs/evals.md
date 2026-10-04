@@ -228,6 +228,14 @@ names to types for the dashboard's Type filter. Existing result URLs and indexes
 unchanged. Publication backfills missing types for experiments in that run, preserving
 scores, dates and existing classifications. Unknown historical cases stay unclassified.
 
+Choose **All evals** with a specific Type to aggregate that group, or **All types** and
+**All evals** to aggregate the entire suite. Each available eval contributes equally to
+its variant's score, regardless of repeat count. Criteria average only evals whose rubric
+contains that criterion. Missing judge scores leave the aggregate unscored; absent evals
+are excluded and visible in the Evals coverage column. Lines break when contributing
+evals or rubrics change. Baseline deltas average the paired deltas for each variant's
+own contributing evals. Individual eval selection retains the original detailed view.
+
 ## Conversation strategy comparison
 
 The existing `npm run eval:review` and `npm run eval:review:gift` commands compare
