@@ -58,7 +58,7 @@ function details() {
   if (!run) return;
   const commit = document.createElement('a'); commit.textContent = run.revision.slice(0, 7);
   commit.href = `https://github.com/Tatskaari/kingmaker/commit/${encodeURIComponent(run.revision)}`;
-  const raw = document.createElement('a'); raw.textContent = 'Full result JSON';
+  const raw = document.createElement('a'); raw.textContent = 'Scores JSON';
   raw.href = `${encodeURIComponent($('eval').value)}/${encodeURIComponent(filenames[i])}`;
   $('metadata').replaceChildren(commit, ` · Published ${new Date(run.publishedAt).toLocaleString()} · `, raw);
   const table = $('breakdown'); table.replaceChildren();
