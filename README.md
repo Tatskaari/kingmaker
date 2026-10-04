@@ -1,13 +1,44 @@
 # Kingmaker
 
-Kingmaker is an AI-powered fantasy roleplaying sandbox chasing the tabletop
-promise: **“What do you want to do?”** Speak in your own words, invent a scheme,
-change your mind, and give the court something unexpected to react to. AI plays
-the characters and game master, drawing on their lore to improvise responses
-and carry the consequences of your conversations forward.
+**Talk to your campaign notes.** Kingmaker is an experiment in turning an
+Obsidian vault into a world you can roleplay in. Write characters, relationships
+and secrets as linked Markdown notes, then meet the people you've written and
+speak to them in your own words. AI plays the characters and game master,
+drawing on those notes to improvise responses and carry conversations forward.
 
-A royal court full of powerful people, all expecting to get their own way.
-Your patron, the Laughing Stranger, has sent you to cause a little trouble.
+## Start with your notes in Obsidian
+
+The characters' minds start as linked Markdown notes: their histories,
+personalities, motives, relationships and beliefs. Open the repository's
+[`lore/`](lore/index.md) folder as an Obsidian vault and you can rewrite what
+makes them tick. Give a courtier a grudge, change who they trust, or write a
+piece of history they remember. Those notes become the foundations of their
+roleplaying.
+
+When a character needs context, **Jev, the decision mode, picks out the relevant
+lore** from notes that character is allowed to know. They can draw on a web of
+personal knowledge while other people's secrets stay private.
+
+After conversations, **the GM reviews what happened and updates the characters'
+in-game notes and intentions**. What they've learned and what they want to do
+next can change through play, keeping the world and its inhabitants dynamic.
+
+![Obsidian lore feeds Jev's relevance decisions, characters respond from their own knowledge, and the GM reviews conversations to update in-game notes.](docs/images/character-mind.png)
+
+To try your own edits, [run the game locally](docs/development.md#run-locally)
+and start a fresh game with the updated lore. Playthrough memories live in the
+save; the GM doesn't overwrite your authored Obsidian vault. The
+[lore authoring guide](lore/Authoring/Authoring%20Guide.md) explains how to write
+and link notes and decide who knows what.
+
+## Play the experiment
+
+The current setting is a fantasy royal court full of powerful people, all
+expecting to get their own way. Your patron, the Laughing Stranger, has sent you
+to cause a little trouble.
+
+The tabletop promise is **“What do you want to do?”** Invent a scheme, change
+your mind, and give the court something unexpected to react to.
 
 **[Play the browser demo](https://tatskaari.github.io/kingmaker/)** — requires
 an OpenRouter API key and credit for model usage.
@@ -35,31 +66,6 @@ Stranger helps you find a place at court. You don't need to study the lore first
 - **Interfere in people's plans.** Characters can remember encounters, form
   intentions, move around the palace and speak to one another. See what happens
   when you give them a reason to act.
-
-## Edit their brains in Obsidian
-
-The characters' minds start as linked Markdown notes: their histories,
-personalities, motives, relationships and beliefs. Open the repository's
-[`lore/`](lore/index.md) folder as an Obsidian vault and you can rewrite what
-makes them tick. Give a courtier a grudge, change who they trust, or write a
-piece of history they remember. Those notes become the foundations of their
-roleplaying.
-
-When a character needs context, **Jev, the decision mode, picks out the relevant
-lore** from notes that character is allowed to know. They can draw on a web of
-personal knowledge while other people's secrets stay private.
-
-After conversations, **the GM reviews what happened and updates the characters'
-in-game notes and intentions**. What they've learned and what they want to do
-next can change through play, keeping the world and its inhabitants dynamic.
-
-![Obsidian lore feeds Jev's relevance decisions, characters respond from their own knowledge, and the GM reviews conversations to update in-game notes.](docs/images/character-mind.png)
-
-To try your own edits, [run the game locally](docs/development.md#run-locally)
-and start a fresh game with the updated lore. Playthrough memories live in the
-save; the GM doesn't overwrite your authored Obsidian vault. The
-[lore authoring guide](lore/Authoring/Authoring%20Guide.md) explains how to write
-and link notes and decide who knows what.
 
 ## What's playable now?
 
