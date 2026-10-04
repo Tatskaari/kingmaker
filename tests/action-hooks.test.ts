@@ -47,4 +47,3 @@ test("cancellation between classification and resolution never resolves", async 
   await assert.rejects(runAction(context(), runtime, controller.signal), /abort/i);
   await assert.rejects(runAction(context(), new ConversationRuntime()), /hooks.action.classify/);
 });
-

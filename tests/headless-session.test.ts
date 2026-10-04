@@ -45,4 +45,3 @@ test("talk approaches a character and delegates to real player dialogue methods"
   await live.endConversation("rowan");
   assert.deepEqual(end.mock.calls[0]!.arguments, ["rowan", undefined]);
 });
-
