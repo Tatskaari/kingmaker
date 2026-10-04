@@ -1,5 +1,6 @@
+import { loadPlayableWorld } from "./fixtures.js";
 import { strict as assert } from "node:assert";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
@@ -41,7 +42,7 @@ function fixture(t: { after(fn: () => void): void }) {
   write(`${folder}/b.md`, `B_BODY\n[[${folder}/c|C]]`);
   write(`${folder}/c.md`, "C_BODY\n[Cycle](character.md)");
   const lore = loadCharacterLore(root, "Demo", "corvin");
-  const input: ConversationInput = { snapshot: { scenario: JSON.parse(readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")) },
+  const input: ConversationInput = { snapshot: { world: loadPlayableWorld() },
     characterId: "corvin", sources: lore.initial, transcript: [], message: "Tell me about A and B." };
   return { root, folder, write, lore, input };
 }

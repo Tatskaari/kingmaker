@@ -1,5 +1,5 @@
+import { loadPlayableWorld } from "./fixtures.js";
 import { strict as assert } from "node:assert";
-import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, TranscriptRole } from "../packages/contracts/src/index.js";
@@ -14,7 +14,7 @@ const converse = (input: ConversationInput, complete: Complete, signal?: AbortSi
   } } }), signal, trace);
 
 const input = (): ConversationInput => ({
-  snapshot: { scenario: JSON.parse(readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")) },
+  snapshot: { world: loadPlayableWorld() },
   characterId: "corvin", sources: [{ path: "private.md", markdown: "A precise legal scholar." }, { path: "knowledge.md", markdown: "You believe the king avoids difficult decisions." }, { path: "character.md", markdown: "Ask the visitor about the seal." }],
   transcript: [], message: "Who are you?",
 });

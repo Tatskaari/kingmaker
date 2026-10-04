@@ -1,5 +1,5 @@
+import { loadPlayableWorld } from "./fixtures.js";
 import { strict as assert } from "node:assert";
-import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { act, createElement } from "react";
 import { testRender } from "@opentui/react/test-utils";
@@ -11,7 +11,7 @@ test("OpenTUI scrolls and copies pane-local text while preserving message clicks
   const copied: string[] = [];
   const setup = await testRender(createElement(ConversationApp, {
     input: {
-      snapshot: { scenario: JSON.parse(readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")) },
+      snapshot: { world: loadPlayableWorld() },
       characterId: "corvin", transcript: [], message: "",
       sources: [{ path: "private.md", markdown: Array.from({ length: 100 }, (_, i) => `Lore line ${i + 1}`).join("\n") }, { path: "knowledge.md", markdown: "Known things" }, { path: "character.md", markdown: "Scenario" }],
     },
@@ -62,7 +62,7 @@ test("Jev rounds and opened Markdown can be inspected and exported alongside mod
   ])) });
   let exported: ConversationResult | undefined;
   const setup = await testRender(createElement(ConversationApp, {
-    input: { snapshot: { scenario: JSON.parse(readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")) },
+    input: { snapshot: { world: loadPlayableWorld() },
       characterId: "corvin", sources: initial, transcript: [], message: "" },
     disclosure,
     complete: async request => {
@@ -118,7 +118,7 @@ test("CLI pauses for a manual d20, rejects invalid input, and shows the GM rulin
   const initial = [{ path: "character.md", markdown: "A cautious envoy." }];
   const disclosure = new DisclosureSession({ initial, links: () => [], open: async () => { throw new Error("unused"); } }, ai);
   const setup = await testRender(createElement(ConversationApp, {
-    input: { snapshot: { scenario: JSON.parse(readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")) },
+    input: { snapshot: { world: loadPlayableWorld() },
       characterId: "corvin", sources: initial, transcript: [], message: "" },
     disclosure, checks: { ai, build: undefined },
     complete: async request => {
