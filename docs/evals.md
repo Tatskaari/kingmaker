@@ -16,7 +16,10 @@ OPENROUTER_API_KEY=… npm run eval:review -- --repeats 3
 ```
 
 `oswin-parlour` replays the transcript against fresh physical/document state using
-only `game`, the default game strategy objects shared with the browser runtime.
+`game`, the default game strategy objects shared with the browser runtime.
+The temporary `deferred-promises` candidate changes only the GM commitment paragraph
+to distinguish immediate actions from future promises. Both cases compare this candidate
+with the unchanged baseline; use `--variants game` for baseline-only runs.
 Temporary variants can be added for a hypothesis-driven comparison, then removed
 when the supported change is promoted into the game baseline. The scenario and rubric
 remain as regression coverage; the framework still supports variant comparisons.
