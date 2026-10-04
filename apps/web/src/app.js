@@ -337,7 +337,7 @@ window.resetWorld = async function resetWorld() {
   busy = true; notice = "Resetting the palace…"; render();
   try {
     const result = await rpc("reset_world");
-    state = result.state; saves = result.saves;
+    state = result.state; saves = result.saves ?? saves;
     activeCharacter = null; closedConversation = null; debugData = null;
     notice = "Palace reset. Your character and conversations have been kept.";
     return { reset: true };
@@ -352,7 +352,7 @@ window.resetCharacters = async function resetCharacters() {
   busy = true; notice = "Resetting characters…"; render();
   try {
     const result = await rpc("reset_characters");
-    state = result.state; saves = result.saves;
+    state = result.state; saves = result.saves ?? saves;
     activeCharacter = null; closedConversation = null; debugData = null;
     npcRun = [];
     notice = "NPCs reset. Conversations and learned notes cleared; your character and palace have been kept.";
@@ -675,16 +675,16 @@ function renderDay(bindPage = true) {
     activeCharacter = id; closedConversation = null; notice = ""; render();
   }, busy, async point => {
     const result = await rpc("move_player", point);
-    state = result.state; saves = result.saves;
+    state = result.state; saves = result.saves ?? saves;
     updateCourtMap(mapRoot, state);
   }, state.doors, async (id, open) => {
     const result = await rpc("set_door", { id, open });
-    state = result.state; saves = result.saves;
+    state = result.state; saves = result.saves ?? saves;
     updateCourtMap(mapRoot, state);
     return state.doors;
   }, state.roomAccess, state.fixtures, state.fixtureActions, async actionId => {
     const result = await rpc("interact_fixture", { actionId });
-    state = result.state; saves = result.saves;
+    state = result.state; saves = result.saves ?? saves;
     recordCourtNotice(result.message);
     updateCourtMap(mapRoot, state); updateNpcPanel(); updatePlayerFeed();
   }, async id => {
@@ -748,7 +748,7 @@ function renderJail() {
   dialog.querySelector("[data-release-jail]").addEventListener("click", () => run(async () => {
     const id = state.jail.characterId;
     const result = await rpc("release_from_jail");
-    state = result.state; saves = result.saves;
+    state = result.state; saves = result.saves ?? saves;
     activeCharacter = null; closedConversation = null;
     if (state.conversations?.[id]?.length) reviewConversation(id);
   }));
@@ -782,7 +782,7 @@ function reviewConversation(characterId, message) {
   conversationReviews.set(characterId, review);
   void rpc("end_conversation", { characterId, ...(message === undefined ? {} : { message }) }).then(result => {
     if (conversationReviews.get(characterId) !== review) return;
-    state = result.state; saves = result.saves;
+    state = result.state; saves = result.saves ?? saves;
     conversationReviews.delete(characterId);
     if (state.jail) { render(); return; }
     updateCourtMap(document.querySelector("[data-court-map]"), state);
@@ -823,16 +823,16 @@ function bind() {
     sheetOpen = false; debugOpen = false; notice = ""; screen = "key"; render();
   });
   document.querySelector("[data-new-game]")?.addEventListener("click", () => run(async () => {
-    choosingPremade = false; reviewDraft = null; const result = await rpc("create_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    choosingPremade = false; reviewDraft = null; const result = await rpc("create_game"); state = result.state; saves = result.saves ?? saves; activeSaveId = result.activeSaveId; screen = "game";
   }));
   document.querySelector("[data-skip-character]")?.addEventListener("click", () => run(async () => {
-    reviewDraft = null; const result = await rpc("create_development_game"); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    reviewDraft = null; const result = await rpc("create_development_game"); state = result.state; saves = result.saves ?? saves; activeSaveId = result.activeSaveId; screen = "game";
   }));
   document.querySelectorAll("[data-save-load]").forEach(button => button.addEventListener("click", () => run(async () => {
-    reviewDraft = null; const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves; activeSaveId = result.activeSaveId; screen = "game";
+    reviewDraft = null; const result = await rpc("load_game", { saveId: button.dataset.saveLoad }); state = result.state; saves = result.saves ?? saves; activeSaveId = result.activeSaveId; screen = "game";
   })));
   document.querySelectorAll("[data-save-delete]").forEach(button => button.addEventListener("click", () => run(async () => {
-    const result = await rpc("delete_game", { saveId: button.dataset.saveDelete }); saves = result.saves;
+    const result = await rpc("delete_game", { saveId: button.dataset.saveDelete }); saves = result.saves ?? saves;
   })));
   document.querySelector("[data-games]")?.addEventListener("click", () => { state = null; activeSaveId = null; activeCharacter = null; screen = "saves"; render(); });
   document.querySelector("[data-report-issue]")?.addEventListener("click", openIssueReporter);
@@ -901,7 +901,7 @@ function bind() {
         characterId: form.dataset.objectiveOverride, objective: Object.fromEntries(new FormData(form)),
       });
       if (generation !== gameViewGeneration) return;
-      state = result.state; saves = result.saves;
+      state = result.state; saves = result.saves ?? saves;
       if (debugOpen && sequence === debugReadSequence) await openDebug();
     } catch (error) {
       status.textContent = error.message;
@@ -917,7 +917,7 @@ function bind() {
     choosingPremade = false;
   })));
   document.querySelector("[data-meet-stranger]")?.addEventListener("click", () => run(async () => {
-    const result = await rpc("start_introduction"); state = result.state; saves = result.saves;
+    const result = await rpc("start_introduction"); state = result.state; saves = result.saves ?? saves;
   }));
   document.querySelectorAll("[data-reply-index]").forEach(button => button.addEventListener("click", () => {
     if (busy) return;
@@ -928,7 +928,7 @@ function bind() {
     run(async () => {
       if (target !== "gm") { await talkAndReview(target, message); return; }
       const result = await rpc("gm", { message });
-      state = result.state; saves = result.saves;
+      state = result.state; saves = result.saves ?? saves;
     });
   }));
   document.querySelectorAll("[data-review-field]").forEach(input => input.addEventListener("input", () => {
@@ -942,14 +942,14 @@ function bind() {
     if (busy) return;
     run(async () => {
       const result = await rpc("save_character", { draft: reviewDraft });
-      state = result.state; saves = result.saves; reviewDraft = null;
+      state = result.state; saves = result.saves ?? saves; reviewDraft = null;
     });
   });
   const gmForm = document.querySelector("[data-gm-form]");
   gmForm?.querySelector("textarea")?.addEventListener("keydown", event => submitComposerOnEnter(gmForm, event));
   gmForm?.addEventListener("submit", event => {
     event.preventDefault(); const message = new FormData(event.currentTarget).get("message");
-    run(async () => { const result = await rpc("gm", { message }); state = result.state; saves = result.saves; });
+    run(async () => { const result = await rpc("gm", { message }); state = result.state; saves = result.saves ?? saves; });
   });
   const talkForm = document.querySelector("[data-talk-form]");
   talkForm?.querySelector("textarea")?.addEventListener("keydown", event => submitComposerOnEnter(talkForm, event));
@@ -972,7 +972,7 @@ function bind() {
     reviewConversation(characterId);
     render();
   });
-  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { reviewDraft = null; const result = await rpc("reset"); state = result.state; saves = result.saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
+  document.querySelector("[data-reset]")?.addEventListener("click", () => run(async () => { reviewDraft = null; const result = await rpc("reset"); state = result.state; saves = result.saves ?? saves; activeCharacter = null; sheetOpen = false; debugOpen = false; }));
 }
 
 document.addEventListener("keydown", event => {
@@ -983,7 +983,7 @@ async function configure(key) {
   const result = await rpc("configure", { apiKey: key });
   apiKey = key;
   try { localStorage.setItem(apiKeyStorageKey, key); } catch {}
-  saves = result.saves;
+  saves = result.saves ?? saves;
   screen = "saves";
 }
 
