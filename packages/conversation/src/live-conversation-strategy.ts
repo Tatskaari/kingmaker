@@ -39,7 +39,7 @@ export function liveConversationStrategy(options: {
     await options.reviews.drain();
     signal.throwIfAborted();
     const currentTurn = ++turn;
-    const messages = structuredClone(request.messages);
+    const messages = [...request.messages];
     const playerIndex = messages.findLastIndex(message => message.role === "user");
     if (playerIndex < 0) throw new Error("Live review requires a player message");
     const record = (stage: "classify" | "resolve" | "respond", source: string, output: unknown, pass: number) =>
@@ -50,7 +50,7 @@ export function liveConversationStrategy(options: {
       const reply = await services.character.respond({ ...request, messages }, signal);
       signal.throwIfAborted();
       if (reply.role !== "assistant" || !reply.content?.trim() || reply.tool_calls?.length) throw new Error("Expected a plain character draft");
-      const labels = await analyzeAttention(services.ai, structuredClone(messages), structuredClone(reply), signal);
+      const labels = await analyzeAttention(services.ai, messages, reply, signal);
       record("classify", "live-attention", labels, pass);
       options.report?.({ kind: "labels", subject: "character", source: "attention", decisions: labels });
       const discretion = labels.immediate_feasibility?.choice === "gms_discretion";

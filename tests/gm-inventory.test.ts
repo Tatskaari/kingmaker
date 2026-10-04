@@ -11,6 +11,8 @@ const bird = () => create(ItemInstanceSchema, { id: "gift-wooden-bird", name: "W
 test("GM inventory writes create one real gift and preserve unrelated properties", async () => {
   const backing = createScenarioServices(loadPlayableWorld());
   const path = backing.scenario.info().player!;
+  const live = backing.currentWorld();
+  const unchanged = live.docs[live.scenario];
   const before = await backing.docs.read(path);
   const inventory = clone(InventorySchema, before.document.characterProperties!.inventory ?? create(InventorySchema));
   inventory.items.push(bird());
@@ -18,6 +20,8 @@ test("GM inventory writes create one real gift and preserve unrelated properties
   const gm = new GameMasterTools(runtime.services, "peregrine");
   await gm.begin();
   await gm.call("update_inventories", { changes: [{ path, expectedSha: before.sha, inventoryJson: toJsonString(InventorySchema, inventory) }] });
+  assert.equal(backing.currentWorld(), live);
+  assert.equal(backing.currentWorld().docs[live.scenario], unchanged);
   const after = await backing.docs.read(path);
   assert.equal(after.document.characterProperties!.inventory!.items.filter(item => item.id === bird().id).length, 1);
   assert.deepEqual({ ...after.document.characterProperties, inventory: undefined }, { ...before.document.characterProperties, inventory: undefined });

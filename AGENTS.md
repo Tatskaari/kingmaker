@@ -1,3 +1,7 @@
+# World-state ownership
+
+Never clone the world. Do not deep-copy a WorldState with protobuf clone, structuredClone, JSON round-trips, or equivalent helpers. Read the live world and stage only the specific documents, inventories or actors an operation changes. Validate before publishing those changes. Build fresh worlds from source fixtures when isolation is required; serialization is for explicit save/export boundaries, not a substitute for cloning during updates.
+
 # Repository workflow
 
 Use the official GitHub Stacks CLI extension for related pull requests. Keep each layer independently reviewable and make every branch target the branch directly below it.

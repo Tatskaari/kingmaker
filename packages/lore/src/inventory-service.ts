@@ -1,9 +1,8 @@
 import { clone } from "@bufbuild/protobuf";
 import { InventorySchema } from "../../contracts/src/index.js";
-import { DocumentSchema, WorldStateSchema } from "../../contracts/src/v2.js";
 import { validateInventories } from "../../core/src/inventory.js";
 import { DocumentConflictError, type InventoryService } from "./service-types.js";
-import { snapshot } from "./document-snapshot.js";
+import { documentSha, documentVersion } from "./document-snapshot.js";
 import type { WorldStore } from "./world-store.js";
 
 /** Update all owners of a trade atomically; preserve everything outside their inventories. */
@@ -14,18 +13,19 @@ export function createInventoryService(store: WorldStore): InventoryService {
     for (const change of changes) {
       const document = store.state.docs[change.path];
       if (!document?.characterProperties) throw new Error(`Not a character inventory: ${change.path}`);
-      const captured = clone(DocumentSchema, document);
-      const current = await snapshot(change.path, captured);
-      if (current.sha !== change.expectedSha) throw new DocumentConflictError(change.path, change.expectedSha, current.sha);
-      expected.set(change.path, JSON.stringify(captured));
+      const version = documentVersion(document);
+      const sha = await documentSha(version);
+      if (sha !== change.expectedSha) throw new DocumentConflictError(change.path, change.expectedSha, sha);
+      expected.set(change.path, version);
     }
     // Compare synchronously after hashing; mechanics can run while hashes await.
     for (const [path, document] of expected) {
-      if (JSON.stringify(store.state.docs[path]) !== document) throw new DocumentConflictError(path, "read version", "changed");
+      if (!store.state.docs[path] || documentVersion(store.state.docs[path]!) !== document) throw new DocumentConflictError(path, "read version", "changed");
     }
-    const draft = clone(WorldStateSchema, store.state);
-    for (const change of changes) draft.docs[change.path]!.characterProperties!.inventory = clone(InventorySchema, change.inventory);
-    validateInventories(Object.entries(draft.docs).flatMap(([id, doc]) => doc.characterProperties ? [{ id, inventory: doc.characterProperties.inventory }] : []));
-    store.publishDocuments(draft);
+    // Stage only replacement inventories. All validation precedes synchronous mutation.
+    const replacements = new Map(changes.map(change => [change.path, clone(InventorySchema, change.inventory)]));
+    validateInventories(Object.entries(store.state.docs).flatMap(([id, doc]) => doc.characterProperties
+      ? [{ id, inventory: replacements.get(id) ?? doc.characterProperties.inventory }] : []));
+    for (const [path, inventory] of replacements) store.state.docs[path]!.characterProperties!.inventory = inventory;
   }) };
 }

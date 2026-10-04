@@ -1,7 +1,6 @@
 import { renderPrompt } from "../../prompts/src/index.js";
 import { isDeepStrictEqual } from "node:util";
-import { clone } from "@bufbuild/protobuf";
-import { WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
+import type { WorldState } from "../../contracts/src/v2.js";
 import type { ConversationReviewContext } from "../../conversation/src/review.js";
 import { runConversationReview } from "../../conversation/src/review.js";
 import { documentLoreService } from "../../conversation/src/document-lore.js";
@@ -74,7 +73,7 @@ export function createReviewExperiment(testCase: ReviewCase, variants: readonly 
   judge: Pick<AiService, "decisions">): Experiment {
   const conversations = new WeakMap<ConversationStrategy, ReviewConversation>();
   const config = (variant: ReviewVariant): RuntimeConfig => ({ name: variant.name, configure() {
-    const backing = createScenarioServices(clone(WorldStateSchema, testCase.loadWorld(variant.overlays ?? [])));
+    const backing = createScenarioServices(testCase.loadWorld(variant.overlays ?? []));
     const conversation = variant.conversation?.(testCase) ?? { strategy: { ...(variant.strategies?.conversation ?? directConversationStrategy) }, drain: async () => {} };
     const replay: ReviewConversation = { ...conversation };
     conversations.set(conversation.strategy, replay);

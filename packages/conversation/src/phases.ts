@@ -32,7 +32,7 @@ export async function runConversation(request: ChatCompletionRequest, runtime: C
       return reply;
     },
   } };
-  const reply = await runtime.strategies.conversation.respond({ request: { ...structuredClone(request), messages: structuredClone([...request.messages]) }, maxPasses: runtime.maxPasses }, signal, services);
+  const reply = await runtime.strategies.conversation.respond({ request: { ...request, messages: [...request.messages] }, maxPasses: runtime.maxPasses }, signal, services);
   signal.throwIfAborted();
   return reply;
 }

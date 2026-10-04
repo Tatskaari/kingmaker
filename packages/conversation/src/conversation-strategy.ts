@@ -39,7 +39,7 @@ export function conversationStrategy(disclosure: DisclosureSession, ai: AiServic
   return {
     respond: async ({ request, maxPasses }, signal, services) => {
       const context = await disclosure.prepare(request, signal, trace, maxPasses);
-      const labels = await checks.classify(structuredClone(context), signal);
+      const labels = await checks.classify(context, signal);
       signal.throwIfAborted();
       await checks.resolve(context, labels, signal);
       signal.throwIfAborted();
@@ -55,7 +55,7 @@ export function attentionResponseStrategy(report: (event: AnalysisEvent) => void
       signal.throwIfAborted();
       if (reply.role === "assistant" && reply.content?.trim() && !reply.tool_calls?.length) {
         try {
-          const decisions = await analyzeAttention(services.ai, structuredClone(request.messages), structuredClone(reply), signal);
+          const decisions = await analyzeAttention(services.ai, request.messages, reply, signal);
           report({ kind: "labels", subject: "character", source: "attention", decisions });
         } catch (error) {
           signal.throwIfAborted();
