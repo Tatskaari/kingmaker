@@ -14,7 +14,7 @@ test("review experiments replay real tools, record AI and docs, and grade state 
     transcript: transcript.map(turn => fromJson(TranscriptMessageSchema, turn)), expectations: "Go to the parlour.", loadWorld: () => source,
   }, [{ name: "candidate" }], () => ({
     responses: async () => commitReview({ summary: "Reviewed", newNotes: ["The player ordered me to the parlour."], activeGoal: "Go to the parlour." }),
-    decisions: async (_state, questions) => Object.fromEntries(Object.keys(questions).map(key => [key, { choice: "skip", probabilities: {} }])),
+    decisions: async (_state, questions) => Object.fromEntries(Object.keys(questions).map(key => [key, { choice: "skip", probabilities: { [key]: 0, skip: 1 } }])),
   }), { decisions: async (state, questions) => {
     const evidence = state as { changes: unknown[]; updates: unknown[]; contextDocuments: unknown[] };
     assert.ok(evidence.changes.length >= 2); assert.ok(evidence.updates.length >= 1); assert.ok(evidence.contextDocuments.length >= 2);
