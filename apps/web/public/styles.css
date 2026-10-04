@@ -429,4 +429,17 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 }
 
 .conversation-history-link { padding: 0; border: 0; background: none; color: var(--gold); font: inherit; text-align: left; text-decoration: underline; cursor: pointer; }
-.conversation-history-text { white-space: pre-wrap; overflow-wrap: anywhere; }
+.conversation-history-modal { width: min(740px, calc(100vw - 28px)); }
+.conversation-history-modal > .panel { background: radial-gradient(ellipse at top left, #c9a6620d, transparent 65%), var(--panel); }
+.conversation-history-modal .conversation-head { align-items: flex-start; gap: 20px; padding-bottom: 22px; margin-bottom: 0; border-bottom: 1px solid var(--line); }
+.conversation-history-modal .eyebrow { font-size: .65rem; margin-bottom: 9px; }
+.conversation-history-modal h2 { font-size: clamp(1.15rem, 3vw, 1.5rem); line-height: 1.4; text-wrap: balance; }
+.history-close { flex: 0 0 36px; width: 36px; height: 36px; display: grid; place-items: center; padding: 0; border: 1px solid var(--line); border-radius: 50%; background: transparent; color: var(--gold); transition: background .15s, border-color .15s; }
+.history-close:hover { background: #c9a66218; border-color: var(--gold); }
+.history-close:focus-visible { outline: 2px solid var(--gold); outline-offset: 4px; }
+.conversation-history-modal .messages { min-height: 0; max-height: 55dvh; align-content: start; gap: 24px; margin-top: 24px; padding: 2px 12px 4px 2px; scrollbar-width: thin; scrollbar-color: var(--gold) transparent; }
+.history-turn { padding: 2px 0 2px 18px; border-left: 2px solid var(--gold); overflow-wrap: anywhere; }
+.history-turn.player { border-color: #81745f; }
+.history-turn.player .speaker, .history-turn.scene .speaker { color: #b6ab98; }
+.history-turn p { margin: 0; white-space: pre-wrap; font-size: 1.15rem; line-height: 1.6; color: #f2e6cf; }
+.history-turn.scene { border-color: var(--line); font-style: italic; }

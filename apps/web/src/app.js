@@ -15,6 +15,7 @@ import { sandboxIntroduction, handoffPrefix, courtAffiliations, characterSprites
 import { strangerPortrait } from "./stranger-portrait.js";
 import { courtCharactersWithinEarshot } from "./earshot.js";
 import { mountPlayerFeedDrag } from "./player-feed-drag.js";
+import { historyTurns } from "./conversation-history.js";
 import { formatElapsedTime } from "./relative-time.js";
 import devOpenRouterApiKey from "virtual:kingmaker-dev-openrouter-key";
 
@@ -286,9 +287,10 @@ globalThis.setInterval?.(updatePlayerFeed, 1000);
 function showConversationHistory(entry) {
   const dialog = document.createElement("dialog");
   dialog.className = "conversation-modal";
+  dialog.classList.add("conversation-history-modal");
   dialog.dataset.conversationHistoryModal = entry.id;
   dialog.setAttribute("aria-label", entry.conversationTitle);
-  dialog.innerHTML = `<section class="panel"><div class="conversation-head"><h2>${escapeHtml(entry.conversationTitle)}</h2><button type="button" data-history-close autofocus>Close</button></div><div class="messages conversation-history-text">${escapeHtml(entry.message)}</div></section>`;
+  dialog.innerHTML = `<section class="panel"><header class="conversation-head"><div><div class="eyebrow">Conversation history</div><h2>${escapeHtml(entry.conversationTitle)}</h2></div><button type="button" class="history-close" data-history-close aria-label="Close conversation history" title="Close (Esc)" autofocus><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header><div class="messages conversation-history-text">${historyTurns(entry.message, state.characters).map(turn => `<article class="history-turn ${turn.role}"><span class="speaker">${escapeHtml(turn.speaker)}</span><p>${escapeHtml(turn.text)}</p></article>`).join("")}</div></section>`;
   dialog.querySelector("[data-history-close]").addEventListener("click", () => dialog.close());
   dialog.addEventListener("close", () => dialog.remove());
   app.append(dialog);
