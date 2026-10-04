@@ -2,7 +2,7 @@ import { fromJson, toJson } from "@bufbuild/protobuf";
 import { WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
 import { WorldGameRuntime, type WorldSnapshot, type WorldOptions } from "../../../apps/web/src/world-runtime.js";
 import { characterDocuments } from "../../lore/src/character-id.js";
-import { activeGoal } from "../../lore/src/active-goal.js";
+import { activityGoal } from "../../lore/src/activity.js";
 import { inventoryOwners } from "../../core/src/inventory.js";
 import { worldForCharacter } from "../../core/src/physical-view.js";
 import { physicalCharacterObservation } from "../../../apps/web/src/physical-observation.js";
@@ -35,7 +35,7 @@ export class WorldHeadlessGame {
       name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
       inventory: document.characterProperties?.inventory }));
     const known = worldForCharacter(visible.map, inventoryOwners(characters, visible.map), id);
-    const goal = entry.document.frontmatter?.background === true ? "" : activeGoal(entry.document) ?? "";
+    const goal = activityGoal(this.inspect(), id) ?? "";
     return { ...physicalCharacterObservation(known, id, goal, visible.actions), map: visible.map, characters };
   }
   observe(id = "player") {
