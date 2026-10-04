@@ -1,3 +1,4 @@
+import { setupAgent } from "../packages/conversation/src/agent-setup.js";
 import { documentLoreService } from "../packages/conversation/src/document-lore.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -61,9 +62,12 @@ function model(seen: string[]): AiService {
 }
 
 test("planning, reviews, events and both NPC speakers retrieve nested knowledge independently", async () => {
-  const world = fixture(), documents = createScenarioServices(world), seen: string[] = [];
+  const world = fixture(), documents = createScenarioServices(world), seen: string[] = [], setups: string[] = [];
   const runtime = new ConversationRuntime({ services: { ...documents, lore: documentLoreService(documents.scenario), ai: model(seen), map: new WorldHost(world).map },
-    hooks: { review: documentReviewHooks, resolution: documentResolutionHooks, action: jevActionHooks } });
+    hooks: { setup: async (context, signal, services) => {
+      setups.push(`${context.agent}:${context.characterId}`);
+      return setupAgent(context, signal, services);
+    }, review: documentReviewHooks, resolution: documentResolutionHooks, action: jevActionHooks } });
   await planWorldAction("rowan", runtime);
   await runConversationReview({ characterId: "rowan", participants: ["rowan", "player"],
     transcript: [create(TranscriptMessageSchema, { text: "Remember the plan." })] }, runtime);
@@ -71,6 +75,8 @@ test("planning, reviews, events and both NPC speakers retrieve nested knowledge 
   await runResolution({ kind: "task_outcome", characterId: "rowan", goal: "Go to the hall", actions: [], result: { reason: "wait", detail: "Blocked" }, observation: "Hall" }, runtime);
   await runResolution({ kind: "npc_exchange", characterId: "rowan", targetId: "corvin", goal: "Discuss the plan" }, runtime);
   assert.deepEqual(seen, ["plan", "review:rowan", "attention", "review:rowan", "review:rowan", "speech:rowan", "speech:corvin", "review:rowan", "review:corvin"]);
+  assert.deepEqual(setups, ["planner:rowan", "game_master:rowan", "attention:rowan", "game_master:rowan", "game_master:rowan",
+    "exchange:rowan", "exchange:corvin", "game_master:rowan", "game_master:corvin"]);
 });
 
 test("NPC opening lines retrieve knowledge in the same traced turn as their speech", async () => {

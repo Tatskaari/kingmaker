@@ -32,10 +32,12 @@ export async function reviewDocumentEvidence(context: Readonly<ConversationRevie
     const lore = await services.lore.forCharacter(intent.actorId, signal);
     const current = await services.docs.read(path);
     const initial: OpenRouterMessage[] = lore.initial.map(doc => ({ role: "user", content: `# Character evidence: ${doc.path}\n${doc.path === path ? current.document.body : doc.markdown}` }));
-    const [system, task, ...evidence] = messages;
-    opened ??= await services.disclosure.disclose(lore, [system!, task!, ...initial, ...evidence], signal, { characterId: context.characterId });
+    const boundary = messages.findIndex(message => message.role !== "system");
+    const head = messages.slice(0, boundary < 0 ? messages.length : boundary);
+    const evidence = messages.slice(head.length);
+    opened ??= await services.disclosure.disclose(lore, [...head, ...initial, ...evidence], signal, { characterId: context.characterId });
     signal.throwIfAborted();
-    return [system!, task!, ...initial, ...opened.map(doc => ({ role: "user" as const, content: doc.content })), ...evidence];
+    return [...head, ...initial, ...opened.map(doc => ({ role: "user" as const, content: doc.content })), ...evidence];
   } });
   return { summary: parseModelObject(reply.content, "Game master review").summary as string };
 }

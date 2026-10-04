@@ -1,3 +1,4 @@
+import { setupAgent } from "../packages/conversation/src/agent-setup.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create } from "@bufbuild/protobuf";
@@ -23,7 +24,10 @@ function fixture() {
 
 test("Stranger uses shared multi-round disclosure with GM access and summary previews", async () => {
   const { scenario } = fixture(); let rounds = 0, replies = 0;
-  const services = new ConversationRuntime({ services: { ai: {
+  const services = new ConversationRuntime({ hooks: { setup: async (context, signal, services) => {
+    assert.equal(context.agent, "stranger");
+    return [...await setupAgent(context, signal, services), { role: "system", content: "Custom interview guidance" }];
+  } }, services: { ai: {
     decisions: async (context, questions, _signal, purpose) => {
       assert.equal(purpose, "prog_disc"); rounds++;
       if (rounds === 1) {
@@ -37,6 +41,7 @@ test("Stranger uses shared multi-round disclosure with GM access and summary pre
     },
     responses: async request => {
       replies++;
+      assert.equal(request.messages.at(-1)!.content, "Custom interview guidance");
       const content = JSON.stringify(request.messages);
       assert.match(content, /DETAIL_SENTINEL/); assert.match(content, /PRIVATE_SENTINEL/);
       assert.doesNotMatch(content, /SKIPPED_SENTINEL|UNLINKED_SENTINEL|Scenario sentinel/);
