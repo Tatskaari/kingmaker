@@ -8,7 +8,7 @@ const arrestCall = (name = "arrest", args = "{}") => ({ role: "assistant" as con
   tool_calls: [{ id: "arrest-1", type: "function" as const, function: { name, arguments: args } }] });
 function game(choice = "arrest", response = "You're nicked, mate.", extra: WorldOptions = {}) {
   return new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, undefined, {
-    hooks: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }),
+    strategies: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }),
       resolve: async context => {
         context.request.messages.push({ role: "system", content: "# Binding DM ruling\nThe threat was credible." });
         return { reclassify: false };

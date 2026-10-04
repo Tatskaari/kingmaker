@@ -1,18 +1,18 @@
 import { runGameMaster } from "./game-master.js";
 import { classifyConversationTurn, type ConversationCheckClassification } from "../../providers/src/conversation-checks.js";
-import type { ConversationHooks } from "./phases.js";
+import type { ConversationStrategy } from "./phases.js";
 import type { ConversationRuntime } from "./runtime.js";
 import { adjudicateResolvedChecks, type CheckPlan } from "./checks.js";
 
 export interface CheckLabels { checks: ConversationCheckClassification; plan?: CheckPlan[] }
 
 /** Existing check policy behind the same classify/resolve contract as disclosure. */
-export function checkHooks(runtime: ConversationRuntime<CheckLabels>, options: {
+export function checkStrategy(runtime: ConversationRuntime<CheckLabels>, options: {
   playerTurn: string;
   playerId: string;
   context?: unknown;
   characterId?: string;
-}): ConversationHooks<CheckLabels> {
+}): ConversationStrategy<CheckLabels> {
   return {
     classify: async (context, signal) => {
       const state = { playerTurn: options.playerTurn, messages: context.request.messages, context: options.context };

@@ -135,10 +135,10 @@ See [runtime architecture](architecture.md), [conversation hooks and services](c
 
 ## Dependency injection for implementations, tests and evals
 
-Dependency injection (DI) is how we plug in new implementations: replace hooks
+Dependency injection (DI) is how we plug in new implementations: replace strategies
 to change decision-making policy, replace services to change how operations are
 performed, and change the host for scheduling or application integration.
-`ConversationRuntime` accepts `services` and `hooks` options;
+`ConversationRuntime` accepts `services` and `strategies` options;
 `WorldGameRuntime` composes overrides with its defaults, and `WorldHeadlessGame`
 accepts these options as its third constructor argument. Overrides are retained
 when the world runtime forks or the headless game reloads.

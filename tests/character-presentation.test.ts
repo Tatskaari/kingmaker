@@ -71,7 +71,7 @@ test("dialogue previews, live turns and NPC exchanges get current participant pr
   const runtime = new ConversationRuntime({ services: { ...services,
     map: { observe: characterId => ({ characterId, map: world.map!, actions: [] }) },
     lore: { forCharacter: async () => ({ initial: [], links: () => [], open: async () => { throw new Error("unused"); } }) },
-  }, hooks: { setup: setupWorldAgent } });
+  }, strategies: { setup: { prepare: setupWorldAgent } } });
   const input = { snapshot: { world }, characterId: "aldren", sources: [], transcript: [], message: "Hello" };
   assert.match(conversationRequest(input).messages.map(item => item.content).join("\n"), /Before you stands Visiting Envoy/);
   const path = presentationPath(world.player!), before = await services.docs.read(path);

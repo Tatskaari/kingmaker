@@ -7,7 +7,7 @@ export interface ConversationContext {
   /** Resolvers can record effects that must not run again on a later pass. */
   completed: Set<string>;
 }
-export interface ConversationHooks<Labels = Record<string, never>> {
+export interface ConversationStrategy<Labels = Record<string, never>> {
   classify(context: Readonly<ConversationContext>, signal: AbortSignal): Promise<Labels>;
   resolve(context: ConversationContext, labels: Readonly<Labels>, signal: AbortSignal): Promise<{ reclassify: boolean }>;
 }
@@ -20,9 +20,9 @@ export async function runConversation<Labels>(request: ChatCompletionRequest, ru
   for (; context.pass <= runtime.maxPasses; context.pass++) {
     signal.throwIfAborted();
     // Classifiers receive a detached view, so accidental writes cannot change the turn.
-    const labels = await runtime.hooks.conversation.classify(structuredClone(context), signal);
+    const labels = await runtime.strategies.conversation.classify(structuredClone(context), signal);
     signal.throwIfAborted();
-    const result = await runtime.hooks.conversation.resolve(context, labels, signal);
+    const result = await runtime.strategies.conversation.resolve(context, labels, signal);
     signal.throwIfAborted();
     if (result.reclassify) continue;
     onRespond(context.request);

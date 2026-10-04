@@ -4,7 +4,7 @@ import { TranscriptMessageSchema, TranscriptRole } from "../../contracts/src/ind
 import { characterEntry } from "../../lore/src/active-goal.js";
 import { activityGoal, intentContext } from "../../lore/src/activity.js";
 import { reviewDocumentEvidence } from "./document-review.js";
-import type { ResolutionHooks } from "./resolution.js";
+import type { ResolutionStrategy } from "./resolution.js";
 import type { RuntimeServices } from "./services.js";
 
 async function speak(characterId: string, partnerId: string, instruction: string, evidence: unknown, signal: AbortSignal, services: RuntimeServices) {
@@ -17,7 +17,7 @@ async function speak(characterId: string, partnerId: string, instruction: string
 }
 
 /** Decisions use character-visible evidence; resolution writes through the shared docs service. */
-export const documentResolutionHooks: ResolutionHooks = {
+export const documentResolutionStrategy: ResolutionStrategy = {
   async classify(context, signal, services) {
     if (context.kind !== "world_event") return {};
     const goal = activityGoal(services.scenario.snapshot(), context.characterId);

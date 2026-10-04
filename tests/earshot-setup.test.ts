@@ -12,7 +12,7 @@ function fixture() {
     actor(id).position = { $typeName: "kingmaker.v1.TilePosition", x, y: 24 };
   }
   let observations = 0;
-  const runtime = new ConversationRuntime({ hooks: { setup: setupWorldAgent }, services: {
+  const runtime = new ConversationRuntime({ strategies: { setup: { prepare: setupWorldAgent } }, services: {
     scenario: { snapshot: () => world }, map: { observe: id => {
       observations++; assert.equal(id, "rowan"); return { characterId: id, map, actions: [] };
     } },
@@ -70,7 +70,7 @@ test("headless turns retain one audience note across reloads and only commit cha
   let fail = false;
   const counts: number[] = [];
   const game = new WorldHeadlessGame(world, "", {
-    hooks: { conversation: {
+    strategies: { conversation: {
       classify: async () => ({ docs: {} as never, checks: undefined }),
       resolve: async () => ({ reclassify: false }),
     }, review: { resolve: async () => ({ summary: "Reviewed" }) } },

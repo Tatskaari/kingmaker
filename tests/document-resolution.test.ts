@@ -7,7 +7,7 @@ import { WorldStateSchema } from "../packages/contracts/src/index.js";
 import { worldState } from "../packages/lore/src/world-state.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
-import { documentResolutionHooks } from "../packages/conversation/src/document-resolution.js";
+import { documentResolutionStrategy } from "../packages/conversation/src/document-resolution.js";
 import { runResolution } from "../packages/conversation/src/resolution.js";
 
 const entry = (id: string) => `Scenarios/Test/Characters/${id}/character.md`;
@@ -29,7 +29,7 @@ test("v2 exchange isolates speakers and reviews each participant through documen
     if (calls === 1) { assert.match(prompt, /ALICE_PRIVATE/); assert.ok(!prompt.includes("BOB_PRIVATE")); return { role: "assistant", content: "Will you help?" }; }
     if (calls === 2) { assert.match(prompt, /BOB_PRIVATE/); assert.ok(!prompt.includes("ALICE_PRIVATE")); assert.ok(!prompt.includes("SECRET_INTENT")); return { role: "assistant", content: "I refuse." }; }
     return commitReview({ summary: "Refused", newNotes: ["Bob refused to help."], activeGoal: null });
-  } } }, hooks: { resolution: documentResolutionHooks } });
+  } } }, strategies: { resolution: documentResolutionStrategy } });
   const result = await runResolution({ kind: "npc_exchange", characterId: "alice", targetId: "bob", goal: "SECRET_INTENT" }, runtime);
   assert.match(result.summary, /I refuse/); assert.equal(calls, 4);
   assert.deepEqual(subjects, ["alice", "bob", "alice", "bob"]);
@@ -42,7 +42,7 @@ test("ignored events do not write; processed events use only their limited perce
       decisions: async () => ({ reaction: { choice: react ? "process" : "ignore", probabilities: {} } }),
       responses: async request => { calls++; assert.match(JSON.stringify(request), /Indistinct voices/);
         return commitReview({ summary: "Heard voices", newNotes: ["Indistinct voices."], activeGoal: null }); },
-    } }, hooks: { resolution: documentResolutionHooks } });
+    } }, strategies: { resolution: documentResolutionStrategy } });
     await runResolution({ kind: "world_event", characterId: "alice", eventId: "event", perception: "Indistinct voices." }, runtime);
     assert.equal(calls, react ? 1 : 0);
     assert.equal((await services.docs.read(entry("alice"))).text.includes("Indistinct voices"), react);
@@ -65,7 +65,7 @@ test("injected lore is scoped separately for both exchange speakers and their re
       assert.doesNotMatch(prompt, new RegExp(`${id === "alice" ? "bob" : "alice"}_INJECTED`));
       return calls <= 2 ? { role: "assistant", content: "Hello" } : commitReview({ summary: "Spoke", newNotes: [], activeGoal: null });
     } },
-  }, hooks: { resolution: documentResolutionHooks } });
+  }, strategies: { resolution: documentResolutionStrategy } });
   await runResolution({ kind: "npc_exchange", characterId: "alice", targetId: "bob", goal: "Talk" }, runtime);
   assert.deepEqual(scopes, ["alice", "bob", "alice", "bob"]);
 });

@@ -10,7 +10,7 @@ export interface ConversationReviewContext {
   transcript: readonly TranscriptMessage[];
 }
 export interface ConversationReviewResult { summary: string }
-export interface ConversationReviewHooks<Labels = ReviewLabels> {
+export interface ConversationReviewStrategy<Labels = ReviewLabels> {
   classify(context: Readonly<ConversationReviewContext>, signal: AbortSignal, services: RuntimeServices): Promise<Labels>;
   resolve(context: Readonly<ConversationReviewContext>, labels: Readonly<Labels>, signal: AbortSignal, services: RuntimeServices): Promise<ConversationReviewResult>;
 }
@@ -26,9 +26,9 @@ export async function runConversationReview<Turn, Labels>(context: ConversationR
   runtime: ConversationRuntime<Turn, Labels>, signal: AbortSignal = new AbortController().signal): Promise<ConversationReviewResult> {
   const evidence = structuredClone(context);
   signal.throwIfAborted();
-  const labels = await runtime.hooks.review.classify(structuredClone(evidence), signal, runtime.services);
+  const labels = await runtime.strategies.review.classify(structuredClone(evidence), signal, runtime.services);
   signal.throwIfAborted();
-  const result = await runtime.hooks.review.resolve(structuredClone(evidence), labels, signal, runtime.services);
+  const result = await runtime.strategies.review.resolve(structuredClone(evidence), labels, signal, runtime.services);
   signal.throwIfAborted();
   return result;
 }

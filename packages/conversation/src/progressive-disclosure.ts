@@ -37,10 +37,10 @@ export class ProgressiveDisclosure {
     const ai: Pick<AiService, "decisions"> = { decisions: (state, questions, cancellation, purpose, info) =>
       this.ai.decisions(state, questions, cancellation, purpose, { ...info, ...(options.characterId ? { characterId: options.characterId } : {}) }) };
     const traversal = new DisclosureTraversal(docs, ai, this.options.threshold, this.options.maxCharacters);
-    const hooks = traversal.rounds(options.trace ?? (() => {})), messages = [...context], additions: OpenRouterMessage[] = [];
+    const strategies = traversal.rounds(options.trace ?? (() => {})), messages = [...context], additions: OpenRouterMessage[] = [];
     for (let pass = 1; pass <= maxPasses; pass++) {
-      const labels = await hooks.classify(messages, pass, signal);
-      const opened = await hooks.resolve(messages, labels, signal);
+      const labels = await strategies.classify(messages, pass, signal);
+      const opened = await strategies.resolve(messages, labels, signal);
       messages.push(...opened); additions.push(...opened);
       if (!opened.length) return additions;
     }

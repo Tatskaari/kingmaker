@@ -9,7 +9,7 @@ import type { Complete } from "../packages/conversation/src/conversation.js";
 import { loadCharacterLore } from "../packages/conversation/src/lore.js";
 
 const converse = (input: ConversationInput, complete: Complete, signal?: AbortSignal, trace?: (turn: LlmTurn) => void) =>
-  runTurn(input, new ConversationRuntime({ services: { character: { respond: complete } }, hooks: { conversation: {
+  runTurn(input, new ConversationRuntime({ services: { character: { respond: complete } }, strategies: { conversation: {
     classify: async () => ({}), resolve: async () => ({ reclassify: false }),
   } } }), signal, trace);
 

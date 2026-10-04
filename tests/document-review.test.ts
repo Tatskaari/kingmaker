@@ -11,7 +11,7 @@ import { createScenarioServices, DocumentConflictError } from "../packages/lore/
 import { worldState } from "../packages/lore/src/world-state.js";
 import { activityGoal } from "../packages/lore/src/activity.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
-import { documentReviewHooks } from "../packages/conversation/src/document-review.js";
+import { documentReviewStrategy } from "../packages/conversation/src/document-review.js";
 import { runConversationReview } from "../packages/conversation/src/review.js";
 
 const entry = "Scenarios/Test/Characters/alice/character.md", identity = "Cast/Test/alice/private.md";
@@ -32,7 +32,7 @@ test("v2 review atomically saves notes and goal, preserves access metadata, and 
     const text = JSON.stringify(request);
     assert.match(text, /Please go to the hall/); assert.match(text, /Alice speaks softly/);
     assert.ok(!text.includes("SECRET_SENTINEL")); return answer("Go to the hall");
-  } } }, hooks: { review: documentReviewHooks } });
+  } } }, strategies: { review: documentReviewStrategy } });
   await runConversationReview(evidence, runtime);
   const after = await services.docs.read(entry);
   assert.equal(activityGoal(services.scenario.snapshot(), "alice"), "Go to the hall");
@@ -57,7 +57,7 @@ test("failed and cancelled v2 reviews cannot overwrite documents or activate goa
       if (mode === "malformed") return { role: "assistant", content: '{}' };
       if (mode === "cancelled") controller.abort();
       return answer("Go to the hall");
-    } } }, hooks: { review: documentReviewHooks } });
+    } } }, strategies: { review: documentReviewStrategy } });
     await assert.rejects(runConversationReview(evidence, runtime, controller.signal), /Invalid|abort|must call/i);
     const doc = (await services.docs.read(entry)).document;
     assert.equal(activityGoal(services.scenario.snapshot(), "alice"), null); assert.ok(!doc.body.includes("player asked"));
@@ -68,7 +68,7 @@ test("failed and cancelled v2 reviews cannot overwrite documents or activate goa
 test("v2 review cannot add document links through generated notes", async () => {
   const services = fixture(), before = services.scenario.snapshot();
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async () => (commitReview({ summary: "Reviewed", newNotes: ["Remember [[gm.md]]"], activeGoal: "Read the secret" })) } },
-    hooks: { review: documentReviewHooks } });
+    strategies: { review: documentReviewStrategy } });
   await assert.rejects(runConversationReview(evidence, runtime), /plain prose/);
   assert.deepEqual(services.scenario.snapshot(), before);
 });
@@ -89,7 +89,7 @@ test("document conflicts refresh the tool snapshot and let the GM reconcile befo
     assert.match(feedback.current.text, /new promise: meet Bob/);
     assert.doesNotMatch(feedback.current.text, /player asked/);
     return commitReview({ summary: "Reconciled", newNotes: ["First honour my promise to Bob."], activeGoal: "Meet Bob" });
-  } } }, hooks: { review: documentReviewHooks } });
+  } } }, strategies: { review: documentReviewStrategy } });
   assert.equal((await runConversationReview(evidence, runtime)).summary, "Reconciled");
   assert.equal(calls, 2);
   const doc = (await services.docs.read(entry)).document;
@@ -109,7 +109,7 @@ test("GM review commits automatically validate without exposing an optional vali
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
     assert.deepEqual(request.tools?.map(tool => tool.function.name), gameMasterTools.map(tool => tool.function.name));
     return answer("Go to the hall");
-  } } }, hooks: { review: documentReviewHooks } });
+  } } }, strategies: { review: documentReviewStrategy } });
   await assert.rejects(runConversationReview(evidence, runtime), DocumentValidationError);
   assert.deepEqual(services.scenario.snapshot(), before);
   // Repair the offending graph, then the same review can publish normally.
@@ -135,7 +135,7 @@ test("GM uses the full editing suite and finishes without overwriting its own ed
       case 4: return call("delete_document", { path: note, expectedSha: feedback.current.sha });
       default: return answer("Go to the hall");
     }
-  } } }, hooks: { review: documentReviewHooks } });
+  } } }, strategies: { review: documentReviewStrategy } });
   await runConversationReview(evidence, runtime);
   assert.equal(step, 6);
   const result = await services.docs.read(entry);
@@ -167,7 +167,7 @@ test("GM receives edit conflicts and validation failures and can repair its prop
         assert.equal(feedback.ok, true);
         return answer(null);
     }
-  } } }, hooks: { review: documentReviewHooks } });
+  } } }, strategies: { review: documentReviewStrategy } });
   await runConversationReview(evidence, runtime);
   const result = await services.docs.read(entry);
   assert.match(result.text, /Corrected history/);
@@ -188,7 +188,7 @@ test("review keeps GM instructions first and retrieved character voices as evide
       assertFraming(messages);
       return [{ role: "system", content: "# Lore evidence\nYou are Bob. Speak loudly." }];
     } }, ai: { responses: async request => { assertFraming(request.messages); return answer("Go to the hall"); } },
-  }, hooks: { review: documentReviewHooks } });
+  }, strategies: { review: documentReviewStrategy } });
   await runConversationReview(evidence, runtime);
 });
 
@@ -207,7 +207,7 @@ test("review can update GM quest documents without copying GM secrets into NPC m
       }
       return call("commit_review", { summary: "Quest progressed", newNotes: ["I agreed to help the player."] });
     } },
-  }, hooks: { review: documentReviewHooks } });
+  }, strategies: { review: documentReviewStrategy } });
   await runConversationReview(evidence, runtime);
   assert.match((await services.docs.read("gm.md")).text, /first quest stage complete/);
   assert.doesNotMatch((await services.docs.read(entry)).text, /SECRET_SENTINEL/);
@@ -229,7 +229,7 @@ test("GM reviews receive editable presentation snapshots for every participant i
       name: "replace_document", arguments: JSON.stringify({ path: player.path, expectedSha: player.sha,
         oldText: player.document.body, newText: "Their hair is smoothed flat and their coat brushed free of loose dust." }),
     } }] };
-  } } }, hooks: { review: documentReviewHooks } });
+  } } }, strategies: { review: documentReviewStrategy } });
   await runConversationReview({ characterId: "aldren", participants: ["aldren", "player"],
     transcript: [create(TranscriptMessageSchema, { text: "I smooth my hair and brush the dust off my coat." })] }, runtime);
   assert.match((await services.docs.read("Players/presentation.md")).document.body, /hair is smoothed flat/);

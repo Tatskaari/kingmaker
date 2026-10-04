@@ -9,7 +9,7 @@ function fixture(failure?: "classify" | "resolve" | "respond" | "cancel") {
   const order: string[] = [];
   const controller = new AbortController();
   const options: WorldOptions = {
-    hooks: {
+    strategies: {
       conversation: {
         classify: async (_context, signal) => {
           order.push("classify");

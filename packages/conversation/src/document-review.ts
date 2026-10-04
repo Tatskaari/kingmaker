@@ -4,10 +4,10 @@ import type { RuntimeServices } from "./services.js";
 import { characterIntent, intentContext } from "../../lore/src/activity.js";
 import { characterEntry } from "../../lore/src/active-goal.js";
 import { parseModelObject } from "../../providers/src/structured-output.js";
-import { classifyConversationReview, type ConversationReviewHooks, type ConversationReviewContext, type ReviewLabels } from "./review.js";
+import { classifyConversationReview, type ConversationReviewStrategy, type ConversationReviewContext, type ReviewLabels } from "./review.js";
 import { runGameMaster } from "./game-master.js";
 
-export const documentReviewHooks: ConversationReviewHooks = {
+export const documentReviewStrategy: ConversationReviewStrategy = {
   classify: classifyConversationReview,
   resolve: (context, labels, signal, services) => reviewDocumentEvidence(context, labels, signal, services),
 };

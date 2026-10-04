@@ -1,4 +1,4 @@
-# Conversation hooks and services
+# Conversation strategies, hooks and services
 
 Status: conversation phases, host wiring and parallel dice/GM resolution implemented.
 The compiled interfaces live in `packages/conversation/src/services.ts`, with the
@@ -20,7 +20,8 @@ const runtime = new ConversationRuntime({
 // Responses and decisions use the shared adapter; other services are host supplied.
 ```
 
-Hooks own the flow, services perform operations, and the runtime owns conversation
+Strategies group policy callbacks called hooks (`prepare`, `classify`, `resolve`).
+Strategies own the flow, services perform operations, and the runtime owns conversation
 state. Construction injects the hooks and services so browser, terminal and
 headless implementations can share the same conversation function.
 
@@ -31,8 +32,8 @@ async function converse(turn, runtime, signal) {
   const context = runtime.context.forTurn(turn);
 
   while (true) {
-    const labels = await runtime.hooks.conversation.classify(context, signal);
-    const result = await runtime.hooks.conversation.resolve(context, labels, signal);
+    const labels = await runtime.strategies.conversation.classify(context, signal);
+    const result = await runtime.strategies.conversation.resolve(context, labels, signal);
     if (!result.reclassify) break;
   }
 
@@ -52,7 +53,7 @@ later passes do not reopen notes or reroll completed checks. Bound the loop and
 context size; exceeding a limit is an error, not permission to reply prematurely.
 
 ```ts
-interface ConversationHooks {
+interface ConversationStrategy {
   classify(
     context: Readonly<ConversationContext>,
     signal: AbortSignal,
@@ -192,8 +193,8 @@ prepares hypothetical outcome directions.
 const runtime = new ConversationRuntime({
   snapshot,
   services,
-  hooks: {
-    conversation: createConversationHooks({
+  strategies: {
+    conversation: createConversationStrategy({
       classifiers: [disclosureClassifier, checkClassifier],
       resolvers: [disclosureResolver, checkResolver],
     }),
@@ -212,8 +213,8 @@ the check policy is installed in browser and headless player conversations.
 
 ## Conversation review
 
-`runConversationReview` in `review.ts` runs one `hooks.review.classify` then
-`hooks.review.resolve` pass over detached transcript evidence, including GM
+`runConversationReview` in `review.ts` runs one `strategies.review.classify` then
+`strategies.review.resolve` pass over detached transcript evidence, including GM
 rulings. Classification returns labels without changing the evidence; resolution
 receives those labels and the complete transcript. `classifyConversationReview`
 is an empty-label stub for future Jev classification, not a reason to skip review.
@@ -237,7 +238,7 @@ phase can be overridden independently:
 ```ts
 const reviewOptions = {
   services: { scenario, docs, ai },
-  hooks: { review: {
+  strategies: { review: {
     classify: classifyConversationReview,
     resolve: async (context, labels, signal, services) => {
       // Read/revise documents via services.docs, consulting services.ai as needed.
@@ -255,10 +256,10 @@ by `endConversation` and forwarded to the model and the write boundaries.
 ## Action selection
 
 After conversation review commits an active goal, the game calls `runAction` with
-its current observation. `hooks.action.classify` uses `services.ai.decisions`;
-`hooks.action.resolve` returns a concrete `GameAction` or a terminal judgment
+its current observation. `strategies.action.classify` uses `services.ai.decisions`;
+`strategies.action.resolve` returns a concrete `GameAction` or a terminal judgment
 (`complete`, `wait`, `unable`). Neither phase executes movement or changes world
-state. `jevActionHooks` is the shared implementation; hosts may replace either
+state. `jevActionStrategy` is the shared implementation; hosts may replace either
 phase through runtime options. Missing operations fail explicitly.
 
 The browser and headless planner use these hooks, retaining the existing request
@@ -268,7 +269,7 @@ separate. Hook options survive runtime forks and headless reloads.
 
 ### Document-based conversation review
 
-For a v2 host, inject `documentReviewHooks` as `hooks.review`. Its resolver uses
+For a v2 host, inject `documentReviewStrategy` as `strategies.review`. Its resolver uses
 `services.ai.responses`, `services.scenario` and `services.docs` to append private
 conversation notes and update the scenario character document's `activity` and
 `wait` references. `set_activity`, `set_wait` and `clear_activity` stage intent;
@@ -280,12 +281,12 @@ See [Character activities and waits](activity-waits.md) for file formats and too
 ### V2 review-to-action host
 
 The palace adapter `apps/web/src/world-action.ts` accepts a runtime with the v2
-scenario/document services and these hooks:
+scenario/document services and these strategies:
 
 ```ts
 const runtime = new ConversationRuntime({
   services: { ...createScenarioServices(world), ai },
-  hooks: { review: documentReviewHooks, action: jevActionHooks },
+  strategies: { review: documentReviewStrategy, action: jevActionStrategy },
 });
 const { review, plan } = await reviewAndPlanWorldAction(evidence, runtime, signal);
 ```
@@ -367,7 +368,7 @@ character's identity, including the recipient's calls during shared NPC exchange
 
 ## Agent setup
 
-`hooks.setup(context, signal, services)` prepares an agent's messages before
+`strategies.setup.prepare(context, signal, services)` prepares an agent's messages before
 execution. Context identifies the agent role and character and carries task
 messages plus an optional already-scoped lore source or initial documents.
 The default `setupAgent` supplies character/GM instructions and can retrieve
@@ -398,5 +399,5 @@ hearing levels change. Unchanged turns retain the existing note in history;
 save/load preserves it and failed replies do not commit new notes. Active
 participants are excluded; door obstruction and distinct body IDs follow the
 existing earshot rules. The warning is context for speech, not a perception event
-or a claim that anyone learned it. Override `hooks.setup` to replace this policy,
+or a claim that anyone learned it. Override `strategies.setup.prepare` to replace this policy,
 or delegate to `setupWorldAgent` to retain the earshot warning.
