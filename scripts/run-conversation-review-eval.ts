@@ -6,6 +6,7 @@ import { JevClient } from "../packages/providers/src/jev.js";
 import { loadPlayableWorld } from "./lib/playable-world.js";
 import { createReviewExperiment } from "../packages/evals/src/review-experiment.js";
 import { oswinKoboldCase } from "../packages/evals/src/oswin-kobold-case.js";
+import { deferredPromiseVariant } from "../packages/evals/src/deferred-promise-variant.js";
 import { runEvalCli } from "../packages/evals/src/cli.js";
 import transcript from "../evals/reviews/oswin-parlour.json" with { type: "json" };
 
@@ -26,6 +27,6 @@ const experiment = createReviewExperiment({ name: "oswin-parlour", characterId: 
     world.runtimeCharacters.oswin!.wait = undefined;
     return world;
   },
-}, [], createAi, createAi());
-const result = await runEvalCli([experiment, createReviewExperiment(oswinKoboldCase, [], createAi, createAi())], { secrets: [key] });
+}, [deferredPromiseVariant], createAi, createAi());
+const result = await runEvalCli([experiment, createReviewExperiment(oswinKoboldCase, [deferredPromiseVariant], createAi, createAi())], { secrets: [key] });
 process.exitCode = result.exitCode;
