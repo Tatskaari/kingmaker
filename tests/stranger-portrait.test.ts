@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
-import { existsSync,readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
-import { createContext,runInContext } from "node:vm";
+import { createContext, runInContext } from "node:vm";
 import { AlertLog } from "../apps/web/src/alerts.js";
 import { coalescedRefresh } from "../apps/web/src/debug-live.js";
 import { strangerPortrait } from "../apps/web/src/stranger-portrait.js";
-import { portraitExpressions,type PortraitExpression } from "../packages/providers/src/conversation-expression.js";
+import { portraitExpressions, type PortraitExpression } from "../packages/providers/src/conversation-expression.js";
 
 test("every classified expression has a portrait and fear displays amusement", () => {
   for (const expression of Object.keys(portraitExpressions) as PortraitExpression[]) {

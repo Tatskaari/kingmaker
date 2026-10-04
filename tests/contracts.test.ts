@@ -1,35 +1,29 @@
-import { create,fromBinary,fromJsonString,toBinary } from "@bufbuild/protobuf";
+import { create, fromBinary, fromJsonString, toBinary } from "@bufbuild/protobuf";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { createContext,runInContext } from "node:vm";
+import { createContext, runInContext } from "node:vm";
 import { AlertLog } from "../apps/web/src/alerts.js";
-import { actionsAtTile,type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
-import { courtCameraScroll,courtInteractionPoint,courtMarkers,courtPath,courtRoomAt,courtWalkPoint,nearestDoorSpot,redirectCourtPath } from "../apps/web/src/court-map.js";
+import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
+import { courtCameraScroll, courtInteractionPoint, courtMarkers, courtPath, courtRoomAt, courtWalkPoint, nearestDoorSpot, redirectCourtPath } from "../apps/web/src/court-map.js";
 import { coalescedRefresh } from "../apps/web/src/debug-live.js";
 import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
 import { palaceMap } from "../apps/web/src/palace-map.js";
-import {
-TilePositionSchema,
-WorldMapSchema,
-WorldStateSchema,
-type Event
-} from "../packages/contracts/src/index.js";
+import { TilePositionSchema, WorldMapSchema, WorldStateSchema, type Event } from "../packages/contracts/src/index.js";
 import { doorActionLegality } from "../packages/core/src/access.js";
-import { inventoryOwners,locatedItems } from "../packages/core/src/inventory.js";
+import { inventoryOwners, locatedItems } from "../packages/core/src/inventory.js";
 import { worldForCharacter } from "../packages/core/src/physical-view.js";
-import { commitReview,loadPlayableWorld,physicalFixture } from "./fixtures.js";
+import { commitReview, loadPlayableWorld, physicalFixture } from "./fixtures.js";
 
-import { charactersWithinEarshot,courtCharactersWithinEarshot,EARSHOT_DISTANCE } from "../apps/web/src/earshot.js";
-import { canWalk,findPath,pointKey } from "../apps/web/src/navigation.js";
+import { charactersWithinEarshot, courtCharactersWithinEarshot, EARSHOT_DISTANCE } from "../apps/web/src/earshot.js";
+import { canWalk, findPath, pointKey } from "../apps/web/src/navigation.js";
 import { palaceNodes } from "../apps/web/src/palace-navigation.js";
 
 
 import { JevClient } from "../packages/providers/src/jev.js";
-import { OpenRouterClient,type OpenRouterMessage } from "../packages/providers/src/openrouter.js";
+import { OpenRouterClient, type OpenRouterMessage } from "../packages/providers/src/openrouter.js";
 
 
-const fixturePath = new URL("../content/scenarios/last-night.json", import.meta.url);
 const load = physicalFixture;
 
 test("earshot uses tile distance and excludes the conversation partner", () => {

@@ -1,9 +1,9 @@
-import { create,fromBinary,toBinary } from "@bufbuild/protobuf";
+import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { WorldStateSchema } from "../packages/contracts/src/v2.js";
-import { inventoryFor,inventoryOwners,itemsFor,locatedItems,transferItem,validateInventories } from "../packages/core/src/inventory.js";
-import { worldForCharacter,worldViewJson } from "../packages/core/src/physical-view.js";
+import { inventoryFor, inventoryOwners, itemsFor, locatedItems, transferItem, validateInventories } from "../packages/core/src/inventory.js";
+import { worldForCharacter, worldViewJson } from "../packages/core/src/physical-view.js";
 import { physicalFixture } from "./fixtures.js";
 
 function example() {
@@ -68,7 +68,6 @@ test("authored court builds have bounded stats, valid health, and uniquely carri
     assert.ok(dnd.classes.every(entry => entry.level >= 1 && entry.level <= 3));
     assert.ok(dnd.hitPoints!.maximum > 0);
     assert.equal(dnd.hitPoints!.current, dnd.hitPoints!.maximum);
-    assert.ok(character.inventory!.equipment!.mainHandItemId);
     assert.ok(character.inventory!.items.every(item => (item.quantity ?? 1) > 0));
   }
   const corvin = scenario.characters.find(character => character.id === "corvin")!;

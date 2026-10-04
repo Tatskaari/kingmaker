@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { retryResponses } from "../packages/conversation/src/ai.js";
-import { adjudicateConversationChecks,resolvePlannedCheck } from "../packages/conversation/src/checks.js";
+import { adjudicateConversationChecks, resolvePlannedCheck } from "../packages/conversation/src/checks.js";
 const reply = (content: unknown) => ({ role: "assistant" as const, content: JSON.stringify(content) });
 
 test("all dice are resolved before presentation and one GM direction covers the actual results", async () => {

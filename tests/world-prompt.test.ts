@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { ItemInstanceSchema } from "../packages/contracts/src/index.js";
 import { inventoryOwners } from "../packages/core/src/inventory.js";
-import { worldForCharacter,worldViewJson } from "../packages/core/src/physical-view.js";
+import { worldForCharacter, worldViewJson } from "../packages/core/src/physical-view.js";
 import { renderWorldPrompt } from "../packages/core/src/world-prompt.js";
 import { physicalFixture } from "./fixtures.js";
 
