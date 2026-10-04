@@ -11,7 +11,7 @@ import { create, fromJson, toJson } from "@bufbuild/protobuf";
 import { GamePhase, TranscriptMessageSchema, TranscriptRole, type Event } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
 import { WorldHost, type WorldSnapshot } from "./world-host.js";
-import { projectWorld } from "./world-projection.js";
+import { characterId } from "../../../packages/lore/src/character-id.js";
 import { ConversationRuntime, type ConversationRuntimeOptions } from "../../../packages/conversation/src/runtime.js";
 import { conversationRequest } from "../../../packages/conversation/src/conversation.js";
 import { runConversation } from "../../../packages/conversation/src/phases.js";
@@ -57,11 +57,14 @@ export class WorldGameRuntime extends WorldHost {
     this.provider = aiService(new OpenRouterClient(apiKey, 60_000, globalThis.location?.origin || "http://localhost", warning), new JevClient(apiKey, undefined, undefined, warning), false);
     this.traces = new ModelTranscripts(apiKey, changed);
   }
+  private random() {
+    return { integer: (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1)), ...this.options.services?.random };
+  }
   private runtime(id: string, kind: ModelCallKind, extra: WorldOptions = {}, runKey?: string, signal?: AbortSignal, participantIds = [id]) {
     const turnId = crypto.randomUUID(), conversationId = runKey ?? crypto.randomUUID();
     const persist = this.persistChange;
     const world = this.world();
-    const random = { integer: (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1)), ...this.options.services?.random, ...extra.services?.random };
+    const random = { ...this.random(), ...extra.services?.random };
     const ai = { ...this.provider, ...this.options.services?.ai, ...extra.services?.ai };
     const scenario = {
       setPlayer: (path: string) => this.commit(() => this.documents.scenario.setPlayer(path), signal, persist),
@@ -301,15 +304,23 @@ export class WorldGameRuntime extends WorldHost {
   }
   async assessWorldEvent(event: Event, signal: AbortSignal) {
     signal.throwIfAborted();
-    const world = this.world(), scenario = projectWorld(world);
-    const { random } = this.runtime("player", "world_event").services;
+    const world = this.world(), map = world.map;
+    if (!map) throw new Error("A physical map is required.");
+    // Perception needs identities and public names, not character lore or mechanics.
+    const names = new Map([...world.characters, ...(world.player ? [world.player] : [])].map(path => {
+      const doc = world.docs[path];
+      if (!doc) throw new Error(`Missing character document: ${path}`);
+      const id = characterId(path, world);
+      return [id, typeof doc.frontmatter?.name === "string" ? doc.frontmatter.name : id];
+    }));
+    const random = this.random();
     const ownEvent = event.participantIds.includes("player");
     if (!event.position) return { reactions: [], ...(ownEvent ? { playerPerception: event.summary } : {}) };
     const source = { id: event.participantIds[0] ?? event.id, name: event.kind, position: event.position };
-    const listeners = courtCharactersWithinEarshot(source, scenario.characters.filter(c => !event.participantIds.includes(c.id)).flatMap(c => world.map!.actors.filter(actor => actor.characterId === c.id)
-      .map(actor => ({ id: c.id, name: c.name, position: actor.position }))), world.map!.doors, world.map!.fixtures).filter(listener => perceivesAt(listener.level, () => (random.integer(1, 100) - 1) / 100, listener.id === "player"));
+    const listeners = courtCharactersWithinEarshot(source, [...names].filter(([id]) => !event.participantIds.includes(id)).flatMap(([id, name]) => map.actors.filter(actor => actor.characterId === id)
+      .map(actor => ({ id, name, position: actor.position }))), map.doors, map.fixtures).filter(listener => perceivesAt(listener.level, () => (random.integer(1, 100) - 1) / 100, listener.id === "player"));
     const perceptions = listeners.map(listener => ({ characterId: listener.id, level: listener.level,
-      perception: listener.level === "Clear" ? event.summary : `You notice ${event.participantIds.map(id => scenario.characters.find(c => c.id === id)?.name ?? id).join(" and ")} ${event.kind}, but cannot make out the details.` }));
+      perception: listener.level === "Clear" ? event.summary : `You notice ${event.participantIds.map(id => names.get(id) ?? id).join(" and ")} ${event.kind}, but cannot make out the details.` }));
     const player = perceptions.find(p => p.characterId === "player");
     return { reactions: perceptions.filter(p => p.characterId !== "player"), ...(ownEvent ? { playerPerception: event.summary } : player ? { playerPerception: player.perception } : {}) };
   }

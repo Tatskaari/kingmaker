@@ -14,7 +14,8 @@ import { createScenarioServices } from "../../../packages/lore/src/services.js";
 import { activeGoal } from "../../../packages/lore/src/active-goal.js";
 import { generationIds, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 import { PalaceMechanics, type MechanicalActivity } from "./palace-mechanics.js";
-import { characterId, projectWorld } from "./world-projection.js";
+import { projectWorld } from "./world-projection.js";
+import { characterId } from "../../../packages/lore/src/character-id.js";
 import type { Point } from "./navigation.js";
 
 export type WorldSnapshot = MechanicalActivity & {

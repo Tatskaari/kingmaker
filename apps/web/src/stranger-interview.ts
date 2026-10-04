@@ -8,7 +8,7 @@ import { strangerConfiguration, strangerLore } from "./stranger-lore.js";
 import { strangerPrompt } from "./stranger-prompt.js";
 import { interviewDraft } from "./stranger-draft.js";
 import { playerBuildParameter } from "./player-build.js";
-import { characterId } from "./world-projection.js";
+import { characterId } from "../../../packages/lore/src/character-id.js";
 import { REASONING_MODEL } from "./model-settings.js";
 
 export interface StrangerState {
