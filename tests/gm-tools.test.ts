@@ -77,3 +77,55 @@ test("GM assignments to two guard bodies share memories but keep separate activi
   assert.match(doc.document.body, /We agreed to watch the doors/);
   assert.equal(doc.document.frontmatter?.activity, undefined);
 });
+
+const toolReply = (name: string, input: unknown) => ({ role: "assistant" as const, content: null,
+  tool_calls: [{ id: crypto.randomUUID(), type: "function" as const, function: { name, arguments: JSON.stringify(input) } }] });
+
+test("review corrects the dump's extra commit characterId without publishing rejected notes", async () => {
+  const services = fixture(), path = characterEntry(services.scenario.info(), "oswin");
+  const before = await services.docs.read(path); let calls = 0;
+  services.ai.responses = async request => {
+    if (++calls === 1) return toolReply("commit_review", { characterId: "corvin", summary: "Reviewed", newNotes: ["Rejected note."] });
+    assert.equal((await services.docs.read(path)).sha, before.sha);
+    assert.match(request.messages.at(-1)!.content!, /invalid_tool_arguments.*Do not include characterId/);
+    return toolReply("commit_review", { summary: "Corrected", newNotes: ["Corrected note."] });
+  };
+  await runGameMaster({ model: "test", messages: [] }, services, new AbortController().signal, { characterId: "oswin", requireCommit: true });
+  assert.equal(calls, 2);
+  const after = await services.docs.read(path);
+  assert.match(after.text, /Corrected note/); assert.doesNotMatch(after.text, /Rejected note/);
+});
+
+test("review recovers after a conflict followed by an uncommitted prose reply", async () => {
+  const services = fixture(), path = characterEntry(services.scenario.info(), "oswin"); let calls = 0;
+  services.ai.responses = async request => {
+    switch (++calls) {
+      case 1: return toolReply("set_activity", { name: "Old", status: "Pending", success_criteria: "Arrive", current_goal: "Old goal" });
+      case 2: {
+        const current = await services.docs.read(path);
+        await services.docs.commit([{ path, expectedSha: current.sha, text: current.text + "\nConcurrent memory.\n" }]);
+        return toolReply("commit_review", { summary: "Reviewed", newNotes: [] });
+      }
+      case 3:
+        assert.match(request.messages.at(-1)!.content!, /document_conflict/);
+        return { role: "assistant", content: "I could not publish because the character document changed." };
+      case 4:
+        assert.match(request.messages.at(-1)!.content!, /No review was committed/);
+        assert.equal(activityGoal(services.scenario.snapshot(), "oswin"), null);
+        return toolReply("set_activity", { name: "New", status: "Pending", success_criteria: "Arrive", current_goal: "Reconciled goal" });
+      default: return toolReply("commit_review", { summary: "Reconciled", newNotes: ["Reconciled memory."] });
+    }
+  };
+  await runGameMaster({ model: "test", messages: [] }, services, new AbortController().signal, { characterId: "oswin", requireCommit: true });
+  assert.equal(calls, 5);
+  assert.equal(activityGoal(services.scenario.snapshot(), "oswin"), "Reconciled goal");
+  assert.match((await services.docs.read(path)).text, /Concurrent memory[\s\S]*Reconciled memory/);
+});
+
+test("review protocol correction is bounded and never treats prose as a commit", async () => {
+  const services = fixture(), before = services.scenario.snapshot(); let calls = 0;
+  services.ai.responses = async () => { calls++; return { role: "assistant", content: "Done." }; };
+  await assert.rejects(runGameMaster({ model: "test", messages: [] }, services, new AbortController().signal,
+    { characterId: "oswin", requireCommit: true }), /must call a tool/);
+  assert.equal(calls, 3); assert.deepEqual(services.scenario.snapshot(), before);
+});

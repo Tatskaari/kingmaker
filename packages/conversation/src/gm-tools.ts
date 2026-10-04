@@ -6,6 +6,8 @@ import { characterIntent } from "../../lore/src/activity.js";
 import { DocumentConflictError, type DocumentSnapshot } from "../../lore/src/services.js";
 import { links } from "../../lore/src/markdown.js";
 
+export class InvalidReviewError extends Error {}
+
 const text = { type: "string" };
 function tool(name: string, description: string, properties: Record<string, unknown>, required = Object.keys(properties)): OpenRouterTool {
   return { type: "function", function: { name, description, parameters: { type: "object", additionalProperties: false, properties, required } } };
@@ -74,9 +76,9 @@ export class GameMasterTools {
       this.pending = true;
       return result;
     }
-    const summary = string("summary"), notes = input.newNotes;
-    if (!summary.trim() || !Array.isArray(notes) || !notes.every(note => typeof note === "string" && note.trim())
-      || Object.keys(input).some(key => !["summary", "newNotes"].includes(key))) throw new Error("Invalid document review result.");
+    const summary = input.summary, notes = input.newNotes;
+    if (typeof summary !== "string" || !summary.trim() || !Array.isArray(notes) || !notes.every(note => typeof note === "string" && note.trim())
+      || Object.keys(input).some(key => !["summary", "newNotes"].includes(key))) throw new InvalidReviewError("commit_review requires only a nonempty summary and newNotes (an array of prose strings). Do not include characterId: memory belongs to the reviewed NPC.");
     if (notes.some(note => links(note).length)) throw new Error("Review notes must be plain prose without document links.");
     if (notes.length && !this.characterId) throw new Error("No reviewed NPC: use document tools for memories.");
     if (notes.length && this.characterId) await this.target(this.characterId);
