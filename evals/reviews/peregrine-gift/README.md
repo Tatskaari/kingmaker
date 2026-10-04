@@ -18,6 +18,7 @@ is pre-seeded: it was introduced in dialogue and does not exist in authored inve
 This replays conversation review only, not dialogue generation or physical handoff execution.
 
 Run `OPENROUTER_API_KEY=… npm run eval:review:gift -- --repeats 3`.
+The uncached `workspace:evalGift` task also runs as part of `workspace:eval` in CI.
 The dedicated entrypoint uses the common runner, recorders, Jev grader, concurrency and
 artifact reporting. It keeps this baseline-only case and its additional inventory criterion
 separate from the existing strategy comparison suite. No candidate or production fix is added.

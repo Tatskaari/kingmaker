@@ -6,8 +6,13 @@ tasks:
     deps: [contracts:generate]
     options:
       cache: false
+  evalGift:
+    command: npx --no-install tsx scripts/run-peregrine-gift-eval.ts
+    deps: [contracts:generate]
+    options:
+      cache: false
   eval:
-    deps: [evalReview]
+    deps: [evalReview, evalGift]
     options:
       cache: false
   typecheck:
