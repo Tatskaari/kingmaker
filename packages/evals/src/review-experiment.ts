@@ -79,7 +79,7 @@ export function createReviewExperiment(testCase: ReviewCase, variants: readonly 
         review: { ...defaultWorldStrategies.review, ...variant.strategies?.review } } };
   } });
   const score = createJevScorer(reviewRubric.slice(0, -1), recording => reviewEvidence(testCase, recording), judge);
-  return { name: testCase.name, rubric: reviewRubric,
+  return { name: testCase.name, type: "review", rubric: reviewRubric,
     getBaseline: () => config({ name: "game" }), getVariants: () => variants.map(config),
     async run(runtime, signal) {
       await runConversationReview({ characterId: testCase.characterId, participants: testCase.participants,

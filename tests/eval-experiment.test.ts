@@ -12,7 +12,7 @@ function fixture(): Experiment {
       review: { classify: async () => ({ value }), resolve: async () => ({ summary: "ok" }) },
     } };
   } });
-  return { name: "Example", rubric: [{ name: "quality", description: "Correct result" }],
+  return { name: "Example", type: "conversation", rubric: [{ name: "quality", description: "Correct result" }],
     getBaseline: () => config("baseline"), getVariants: () => [config("candidate")],
     async run(runtime) {
       const labels = await runtime.strategies.review.classify({ characterId: "a", participants: [], transcript: [] }, new AbortController().signal, runtime.services);

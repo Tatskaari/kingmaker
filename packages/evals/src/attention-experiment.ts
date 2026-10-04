@@ -46,7 +46,7 @@ export function createAttentionExperiment(fixture: AttentionCase, createAi: () =
     };
   } });
   return {
-    name: fixture.name, rubric,
+    name: fixture.name, type: "jev-decision", rubric,
     getBaseline: () => config("game"),
     getVariants: () => variants.map(variant => config(variant.name, variant.questions)),
     async run(runtime, signal) {

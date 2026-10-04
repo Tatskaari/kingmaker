@@ -19,8 +19,12 @@ export class RunRecording {
   getServiceRecord(name: string) { return this.getCalls().filter(call => call.service === name); }
 }
 export interface ScoreContext { signal: AbortSignal; recording: Recording }
+export const evalTypes = ["conversation", "review", "jev-decision", "jev-action"] as const;
+export type EvalType = typeof evalTypes[number];
+
 export interface Experiment<Labels = Record<string, never>, Review = ReviewLabels> {
   name: string;
+  type: EvalType;
   rubric: readonly Criterion[];
   getBaseline(): RuntimeConfig<Labels, Review>;
   getVariants(): readonly RuntimeConfig<Labels, Review>[];
