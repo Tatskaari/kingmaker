@@ -23,6 +23,7 @@ export const playerBuildParameter = {
   type: "object", additionalProperties: false, required: ["classId", "abilityPriority", "skills"],
   description: "Infer a level 3 starting build from the interview: occupation, training and demonstrated talents. Do not ask the player to fill out a rules form. Use a mundane class for a mundane history. The first two skills receive expertise for bards and rogues. Code assigns scores, HP and level; never invent those numbers.",
   properties: {
+    speciesId: { type: "string", description: "Species named by the player, as a lowercase hyphenated ID (for example human, elf or half-orc). Assume human unless they say otherwise; do not add an interview question." },
     classId: { type: "string", enum: Object.keys(classes) },
     abilityPriority: { type: "array", minItems: 6, maxItems: 6, uniqueItems: true, items: { type: "string", enum: abilities }, description: "All six abilities, strongest first. Receives final scores 15, 14, 13, 12, 10, 8 respectively." },
     skills: { type: "array", minItems: 4, maxItems: 4, uniqueItems: true, items: { type: "string", enum: skills }, description: "Four skills justified by the interview, strongest talents first." },
@@ -41,6 +42,8 @@ export function buildInterviewCharacter(input: unknown) {
   if (!input || typeof input !== "object" || Array.isArray(input)) throw new Error("The Stranger must supply a character build.");
   const choice = input as Record<string, unknown>;
   if (typeof choice.classId !== "string" || !Object.hasOwn(classes, choice.classId)) throw new Error("Choose a supported character class.");
+  const speciesId = choice.speciesId ?? "human";
+  if (typeof speciesId !== "string" || !/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(speciesId) || speciesId.length > 60) throw new Error("Choose a valid species ID.");
   const classId = choice.classId as keyof typeof classes, profile = classes[classId];
   const priority = selection(choice.abilityPriority, abilities, 6, "Ability priority");
   const selectedSkills = selection(choice.skills, skills, 4, "Skills");
@@ -48,7 +51,7 @@ export function buildInterviewCharacter(input: unknown) {
   const hp = profile.hitDie + 2 * (profile.hitDie / 2 + 1) + 3 * Math.floor((scores.constitution - 10) / 2);
   return {
     dnd: create(DndCharacterSchema, {
-      rulesetId: "srd-5.2.1", speciesId: "human", backgroundId: "kingmaker-traveller",
+      rulesetId: "srd-5.2.1", speciesId, backgroundId: "kingmaker-traveller",
       abilityScores: scores, classes: [{ classId, subclassId: profile.subclass, level: 3, hitDiceRemaining: 3 }],
       experience: 900, hitPoints: { current: hp, maximum: hp },
       proficiencies: [
