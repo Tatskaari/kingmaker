@@ -8,7 +8,10 @@ import { physicalFixture } from "./fixtures.js";
 
 function example() {
   const guard = "Scenarios/Test/Characters/guard/character.md", visitor = "Scenarios/Test/Characters/visitor/character.md";
-  return physicalFixture(create(WorldStateSchema, { characters: [guard, visitor], docs: {
+  return physicalFixture(create(WorldStateSchema, { characters: [guard, visitor], runtimeCharacters: {
+    guard: { id: "guard", characterId: "guard", document: guard },
+    visitor: { id: "visitor", characterId: "visitor", document: visitor },
+  }, docs: {
     [guard]: { characterProperties: { inventory: {
       items: [{ id: "sword", name: "Sword", definitionId: "longsword", quantity: 1, concealed: true }],
       equipment: { mainHandItemId: "sword", attunedItemIds: ["sword"] },

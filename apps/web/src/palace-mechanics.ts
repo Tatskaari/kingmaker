@@ -14,7 +14,7 @@ import { gameLogger } from "../../../packages/observability/src/logging.js";
 function mechanicalCharacters(world: WorldState) {
   return characterDocuments(world).map(({ id, path, document }) => ({ id, path,
     name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
-    currentGoal: activityGoal(world, id) ?? "",
+    currentGoal: id === "player" ? "" : activityGoal(world, id) ?? "",
     properties: document.characterProperties, inventory: document.characterProperties?.inventory }));
 }
 const npcLog = gameLogger("npc");
