@@ -368,16 +368,15 @@ successful review completion. Both provider and runtime model logs redact API ke
 
 ### Headless play from TypeScript
 
-`HeadlessGame` in `packages/headless/src/index.ts` loads a typed `Scenario` or a
-`RuntimeSnapshot`. `observe()` uses Jev's readable room view for the player;
-`actions()` lists available IDs and `act(id)` approaches and interacts through the
+`WorldHeadlessGame` in `packages/headless/src/world.ts` loads a document `WorldState`
+or `WorldSnapshot`. `observe()` uses Jev's readable room view for the player;
+`actions()` lists available IDs and `await act(id)` approaches and interacts through the
 same player runtime methods as the UI. `talk(id, message)` and
 `endConversation(id)` use real model-backed dialogue and review.
 
 `inspect()` returns detached typed state; `edit(state => { ... })` applies direct
 world edits. `snapshot()` and `load(snapshot)` capture and restore the entire
-session, including conversations. `overview()` gives an omniscient room-by-room
-cast list. The underlying `runtime` is also available for setup and advanced use.
+session, including conversations. `overview()` returns the browser view as an object. The underlying `runtime` is also available for setup and advanced use.
 
 Run `npx tsx scripts/play-headless.ts` for an offline example. There are no eval
 criteria, terminal choices, or turn limits. Dialogue requires an OpenRouter key
@@ -469,7 +468,7 @@ use the existing skill-check policy through check hooks. Resolution can request
 another classification pass after adding information. Only resolution changes
 the prepared context; classification receives a detached view.
 
-`HeadlessGame` accepts conversation runtime options as its third constructor
+`WorldHeadlessGame` accepts conversation runtime options as its third constructor
 argument, including custom hooks and individual service overrides. The browser
 worker supplies `presentation.showRoll` for its popup; the default headless
 presentation returns immediately. Jev classifies the required checks and their difficulty categories. Resolution
