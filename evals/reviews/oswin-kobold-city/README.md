@@ -53,3 +53,26 @@ regrading, not six independent runs; grader probabilities are not statistical co
 Working hypothesis: review promotes a future promise into immediate travel without
 grounding it in available destinations. A subsequent comparison should test that boundary
 while preserving the binding agreement and keeping this fixture and rubric fixed.
+
+## Deferred-promise framing comparison
+
+The user-authored candidate distinguishes immediate commitments from future promises,
+asks whether an action is actionable in the world, and encourages remembering future
+agreements for later conversations. Its world-editing qualification remains “if it helps
+tell a fun and surprising story.” Only spelling and grammar were corrected.
+
+Three fresh repeats per configuration on both cases completed without execution or judge
+errors. On Kobold City, both versions scored 57.1%, with coverage passing 3/3 and intent
+failing 3/3. The candidate shifted the output toward preparation, but still assigned an
+active preparation task in all three runs rather than simply retaining a future objective.
+The recorded AI requests confirm that only candidate runs used the changed paragraph.
+
+Across both cases, the baseline scored 71.4% and the candidate 66.7%. Both still assigned
+immediate parlour travel in the control case, but the judge failed intent for all six
+parlour outputs. That control score warrants inspection before interpreting it as evidence
+of a travel regression. These small samples do not establish a general improvement or
+regression. No candidate has been promoted. Discuss the next hypothesis with the user.
+
+`deferred-promises-results.json` retains scores and resulting activity definitions for all
+12 trials, the source revision and artifact directory name. Complete docs/AI recordings
+remain in the ignored `eval-output/deferred-promises/` directory on the machine that ran it.
