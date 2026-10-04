@@ -16,7 +16,7 @@
   },
   "action-criterion": {
     "template": [
-      "{{{description}}}{{{legality}}}"
+      "{{{description}}}{{#illegal}} This is illegal for this character.{{/illegal}}"
     ]
   },
   "action-unable": {
@@ -394,6 +394,11 @@
       "Replace text matching exactly once in canonical Markdown. Use the SHA from your latest read or edit. Saves immediately after automatic validation."
     ]
   },
+  "earshot-clear": {
+    "template": [
+      "These characters are right by you and will almost certainly hear what you say."
+    ]
+  },
   "earshot-distant": {
     "template": [
       "These characters are farther away. They may catch the odd name or place, but are unlikely to follow the details of what you say."
@@ -491,6 +496,31 @@
       "Continue waiting while the post is quiet. Activate the duty activity when observed trouble requires intervention."
     ]
   },
+  "jev-scorer-description-1": {
+    "template": [
+      "0%: Required behavior is absent or fundamentally incorrect."
+    ]
+  },
+  "jev-scorer-description-2": {
+    "template": [
+      "25%: A small part is correct, but major errors or omissions dominate."
+    ]
+  },
+  "jev-scorer-description-3": {
+    "template": [
+      "50%: Substantial correct behavior, with equally substantial errors or omissions."
+    ]
+  },
+  "jev-scorer-description-4": {
+    "template": [
+      "75%: Most required behavior is correct; limited errors or omissions remain."
+    ]
+  },
+  "jev-scorer-description-5": {
+    "template": [
+      "100%: All applicable requirements are accurately satisfied, with no material errors or omissions."
+    ]
+  },
   "jev-scorer-instructions": {
     "template": [
       "Evaluate the accuracy and completeness of the supplied evidence against this criterion: {{{criterion}}}",
@@ -516,6 +546,11 @@
       "{{{appearances}}}"
     ]
   },
+  "peregrine-gift-case-description-1": {
+    "template": [
+      "Exactly one wooden bird in the player's typed inventory, with none remaining in Peregrine's."
+    ]
+  },
   "planner-context": {
     "template": [
       "Who you are: {{{characterId}}}",
@@ -538,6 +573,16 @@
   "player-build-build": {
     "template": [
       "Infer a level 3 starting build from the interview: occupation, training and demonstrated talents. Do not ask the player to fill out a rules form. Use a mundane class for a mundane history. The first two skills receive expertise for bards and rogues. Code assigns scores, HP and level; never invent those numbers."
+    ]
+  },
+  "player-build-description-1": {
+    "template": [
+      "All six abilities, strongest first. Receives final scores 15, 14, 13, 12, 10, 8 respectively."
+    ]
+  },
+  "player-build-description-2": {
+    "template": [
+      "Four skills justified by the interview, strongest talents first."
     ]
   },
   "player-build-species": {
@@ -609,6 +654,26 @@
   "review-experiment-activities": {
     "template": [
       "Every activated activity, including its success_criteria and all steps of current_goal, is executable under the case expectations and current map. If the case identifies an unsupported destination, FAIL an active activity that requires setting out, travelling to, or reaching it, even if the goal starts with preparation or coordination. A purely local next step or explicit deferral until a supported route exists can PASS. Preserve the promise without claiming completed travel."
+    ]
+  },
+  "review-experiment-description-1": {
+    "template": [
+      "New facts are supported by conversation or existing context; binding GM rulings are preserved."
+    ]
+  },
+  "review-experiment-description-2": {
+    "template": [
+      "Unrelated facts, characterization and permissions are preserved."
+    ]
+  },
+  "review-experiment-description-3": {
+    "template": [
+      "Changes are relevant and avoid redundant memories, unnecessary rewrites and invented consequences."
+    ]
+  },
+  "review-experiment-description-4": {
+    "template": [
+      "Review leaves the physical map unchanged (deterministic 0 or 1 invariant)."
     ]
   },
   "review-experiment-knowledge": {
