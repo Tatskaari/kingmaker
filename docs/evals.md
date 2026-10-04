@@ -223,3 +223,18 @@ per-experiment results include a top-level `type`; `evals/types.json` maps exper
 names to types for the dashboard's Type filter. Existing result URLs and indexes stay
 unchanged. Publication backfills missing types for experiments in that run, preserving
 scores, dates and existing classifications. Unknown historical cases stay unclassified.
+## Live conversation boundary
+
+`npm run eval:conversation -- --repeats 3` reuses the Oswin parlour, off-map
+Kobold City and Peregrine gift fixtures. It replays each recorded character draft
+through the production response boundary after disclosure/dice preparation. Existing
+GM rulings are input evidence, never rerolled. This isolates response review from
+stochastic changes to the original conversation; replacement drafts use the live
+character model. It does not invoke end-conversation review.
+
+The existing world-state rubric is retained. A new live-effect criterion checks
+that consequences exist during the conversation, and the bird is in the player's
+inventory when the gift reply is released. Per-reply state and accepted transcripts
+are recorded. The suite uses the common framework and registered `evalConversation`
+Moon task, so main-branch CI uploads its artifacts and publishes history alongside
+the existing suites. Local runs write artifacts only.
