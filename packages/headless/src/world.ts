@@ -28,7 +28,10 @@ export class WorldHeadlessGame {
     const visible = this.runtime.map.observe(id);
     return { ...characterCourtObservation({ ...projectWorld(this.inspect()), world: visible.map }, id), actions: [...visible.actions] };
   }
-  observe(id = "player") { return renderJevRoomView(projectWorld(this.inspect()), this.observation(id)); }
+  observe(id = "player") {
+    const scenario = projectWorld(this.inspect());
+    return renderJevRoomView(scenario.world!, scenario.characters, this.observation(id));
+  }
   actions() { return this.observation().actions.map(({ id, description, type, legality }) => ({ id, description, type, legality })); }
   overview() { return this.runtime.view(); }
   async act(id: string) {

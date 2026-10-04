@@ -1,4 +1,5 @@
-import type { ActiveObjective, Scenario } from "../../../packages/contracts/src/index.js";
+import type { PhysicalCharacterObservation } from "./physical-observation.js";
+import type { ActiveObjective, Scenario, WorldState } from "../../../packages/contracts/src/index.js";
 import type { courtAgentObservation, CourtAgentAction } from "./court-agent.js";
 import { JEV_ACTION_CONTEXT_LEVEL, JEV_ACTION_INCLUDE_RECENT_RESULTS, type JevActionContextLevel } from "./feature-flags.js";
 
@@ -14,8 +15,8 @@ const objectiveText = (objective: ActiveObjective) => [
 ].join("\n");
 
 /** This text is the world interface sent to Jev, not a separate debug summary. */
-export function renderJevRoomView(scenario: Scenario, observation: Observation): string {
-  const world = scenario.world!, roomId = observation.world.location.roomId;
+export function renderJevRoomView(world: WorldState, characters: readonly { id: string; name: string }[], observation: PhysicalCharacterObservation): string {
+  const roomId = observation.world.location.roomId;
   const room = world.rooms.find(item => item.id === roomId)!;
   const nameOfRoom = (id: string) => world.rooms.find(item => item.id === id)?.name ?? id;
   const actionsFor = (target: string) => observation.actions.filter(action => action.target === target);
@@ -26,8 +27,8 @@ export function renderJevRoomView(scenario: Scenario, observation: Observation):
       + (distance === action.path.length - 1 ? "" : ` — ${steps(action.path.length - 1)}`) + ` [${action.id}]`;
   });
   const entities = [
-    ...observation.world.nearbyCharacters.filter(item => item.characterId !== observation.characterContext.character.id)
-      .map(({ characterId }) => ({ id: characterId, name: scenario.characters.find(item => item.id === characterId)?.name ?? characterId, details: [] as string[] })),
+    ...observation.world.nearbyCharacters.filter(item => item.characterId !== observation.characterId)
+      .map(({ characterId }) => ({ id: characterId, name: characters.find(item => item.id === characterId)?.name ?? characterId, details: [] as string[] })),
     ...observation.world.furniture.map(item => ({ id: item.id, name: item.name, details:
       world.fixtures.find(fixture => fixture.id === item.id)?.container ? [
         `State: ${item.open ? "open" : item.requiredKeyId ? "locked" : "closed"}`,
@@ -75,7 +76,7 @@ export function renderJevActionState(scenario: Scenario, observation: Observatio
   sections.push("Current objective:\n" + (character.activeObjective
     ? objectiveText(character.activeObjective) : "None recorded."));
   if (!character.activeObjective || character.activeObjective.currentGoal !== observation.goal) sections.push(`Current execution task:\n${observation.goal}`);
-  sections.push("World state:\n" + renderJevRoomView(scenario, observation));
+  sections.push("World state:\n" + renderJevRoomView(scenario.world!, scenario.characters, observation));
   if (options.includeRecentResults ?? JEV_ACTION_INCLUDE_RECENT_RESULTS) sections.push("Action log (completed actions, oldest first):\n"
     + (actionIds.join("\n") || "None yet."));
   return sections.join("\n\n");
