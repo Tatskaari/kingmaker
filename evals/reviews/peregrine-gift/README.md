@@ -28,3 +28,18 @@ requires exactly one item described as a wooden bird in the player's typed inven
 none in Peregrine's. Prose memories alone cannot pass. Identification uses “bird” and
 “wood”/“wooden” in item names/details, not an imposed item ID; alternate descriptions may
 need inspection. Jev assesses semantic fidelity and preservation separately.
+
+## Initial baseline results
+
+Three live repeats completed without execution or judging errors. All three wrote narrative
+memories, but none updated the player's inventory; `gift-inventory` failed 3/3. One review
+explicitly wrote that the exchange did not establish the player had accepted or taken the
+bird. The complete player inventory remained absent in every final snapshot.
+
+Jev also failed all six semantic criteria, producing an overall 12.5% with only physical
+state passing. Treat those broad semantic verdicts as preliminary, not six independently
+diagnosed problems. The directly verified reproduction is missing persisted ownership.
+`baseline-results.json` records the source revision, scores and changed document paths;
+complete service traces remain under the ignored `eval-output/peregrine-gift/` directory.
+The optional-quantity scorer correction does not change these results: no matching item
+was present. Discuss explanations and possible fixes with the user before candidate work.
