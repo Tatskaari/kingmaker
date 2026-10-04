@@ -4,7 +4,6 @@ import { readFileSync } from "node:fs";
 import test from "node:test";
 import { create, fromJsonString, toJson } from "@bufbuild/protobuf";
 import { DialogueRequestSchema, GameMasterRequestSchema, ScenarioSchema } from "../packages/contracts/src/index.js";
-import { FullContextBuilder, FullGameMasterContextBuilder } from "../packages/core/src/context.js";
 import { worldForCharacter, worldViewJson } from "../packages/core/src/physical-view.js";
 import { renderWorldPrompt } from "../packages/core/src/world-prompt.js";
 
@@ -32,17 +31,4 @@ test("narrative world context shrinks furnished worlds without losing knowledge 
   assert.equal(JSON.stringify(toJson(ScenarioSchema, scenario)), before, "does not mutate authoritative state");
   remote.examinedBy.push("rook");
   assert.ok(renderWorldPrompt(scenario.characters, worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "rook"), "rook").includes(remote.name));
-});
-
-test("dialogue and GM builders use compact views with separate knowledge boundaries", () => {
-  const scenario = load();
-  const dialogue = new FullContextBuilder().build(create(DialogueRequestSchema, { scenario, characterId: "rook" }));
-  const gm = new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario }));
-  const known = dialogue.find(message => message.content.startsWith("# Known world state"))!.content;
-  const complete = gm.find(message => message.content.startsWith("# Complete world state"))!.content;
-  assert.match(known, /Room connections describe the map/);
-  assert.ok(!known.includes("palace_sealed_decree"));
-  assert.ok(complete.includes("palace_sealed_decree"));
-  for (const fixture of scenario.world!.fixtures) assert.ok(complete.includes(fixture.id));
-  for (const room of scenario.world!.rooms) assert.ok(known.includes(room.id));
 });

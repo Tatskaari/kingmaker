@@ -51,7 +51,6 @@ test("invalid or overlapping template placements fail before starting a game", (
 test("paired bodies offer independent talk actions, listeners and movement", async () => {
   const { roomAgentActions } = await import("../apps/web/src/room-actions.js");
   const { courtCharactersWithinEarshot } = await import("../apps/web/src/earshot.js");
-  const { stateResources } = await import("../apps/web/src/state-resources.js");
   const world = backgroundWorld(), bodies = world.map!.actors.filter(actor => actor.characterId.startsWith("test-guard-"));
   bodies[1]!.position = { ...bodies[0]!.position!, x: 60 }; bodies[1]!.roomId = bodies[0]!.roomId;
   const player = world.map!.actors.find(actor => actor.characterId === "player")!;
@@ -61,9 +60,6 @@ test("paired bodies offer independent talk actions, listeners and movement", asy
   assert.ok(roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "test-guard-1").length > 0);
   assert.equal(courtCharactersWithinEarshot({ id: "player", name: "Player", position: player.position },
     bodies.map(body => ({ id: body.characterId, name: "Guard", position: body.position }))).length, 2);
-  const before = stateResources(scenario, {}, {})["actor:test-guard-1"];
-  scenario.world!.actors.reverse();
-  assert.deepEqual(stateResources(scenario, {}, {})["actor:test-guard-1"], before);
 });
 
 test("the palace has ten identical brothers in five pairs", () => {

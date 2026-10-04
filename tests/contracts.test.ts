@@ -8,7 +8,6 @@ import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
 import { GM_BASE_PROMPT } from "../apps/web/src/gm-prompt.js";
 import { coalescedRefresh } from "../apps/web/src/debug-live.js";
 import { AlertLog } from "../apps/web/src/alerts.js";
-import { courtAgentObservation } from "../apps/web/src/court-agent.js";
 import { doorActionLegality } from "../packages/core/src/access.js";
 import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
 import { courtCameraScroll, courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath, courtInteractionPoint, nearestDoorSpot } from "../apps/web/src/court-map.js";
@@ -36,14 +35,12 @@ import {
   type Event,
   type Scenario,
 } from "../packages/contracts/src/index.js";
-import { FullContextBuilder, FullGameMasterContextBuilder } from "../packages/core/src/context.js";
 import { worldForCharacter } from "../packages/core/src/physical-view.js";
-import { MemoryGame } from "../packages/core/src/game.js";
 import { palaceMap } from "../apps/web/src/palace-map.js";
 
 import { canWalk, findPath, pointKey } from "../apps/web/src/navigation.js";
 import { palaceNodes } from "../apps/web/src/palace-navigation.js";
-import { charactersWithinEarshot, courtCharactersWithinEarshot, dialogueEarshotPrompt, EARSHOT_DISTANCE } from "../apps/web/src/earshot.js";
+import { charactersWithinEarshot, courtCharactersWithinEarshot, EARSHOT_DISTANCE } from "../apps/web/src/earshot.js";
 
 
 import { JevClient } from "../packages/providers/src/jev.js";
@@ -78,27 +75,7 @@ test("earshot levels cover each distance boundary", () => {
   ]);
 });
 
-test("NPC dialogue receives meeting points that both participants may enter and reach", () => {
-  const scenario = conversationScenario();
-  const playerId = scenario.playerCharacterId!;
-  const speaker = scenario.world!.actors.find(actor => actor.characterId === "corvin")!;
-  const listener = scenario.world!.actors.find(actor => actor.characterId === "garran")!;
-  speaker.roomId = "great_hall";
-  speaker.position = create(TilePositionSchema, { x: 61, y: 24 });
-  scenario.world!.actors.push(create(ActorStateSchema, { characterId: playerId, roomId: "great_hall", awake: true,
-    position: create(TilePositionSchema, { x: 62, y: 24 }) }));
-  listener.roomId = "great_hall";
-  listener.position = create(TilePositionSchema, { x: 60, y: 24 });
 
-  const prompt = dialogueEarshotPrompt(scenario, "corvin", ["corvin", playerId]);
-
-  assert.match(prompt, /"name":"Great Hall","private":false/);
-  assert.match(prompt, /These characters are right by you and will almost certainly hear what you say\.\n- Marshal Garran Holt \(garran\)/);
-  assert.match(prompt, /"name":"Nobles' Parlour","roomId":"guest_chamber","private":true/);
-  assert.doesNotMatch(prompt, /"name":"Corvin's Chamber"/);
-  assert.match(prompt, /meetingPoints contains only named destinations that every participant is permitted to enter and can reach by legal movement/);
-  assert.match(prompt, /ask the other participant to move to a named private meeting point/);
-});
 
 test("the expanded authored scenario strictly parses and survives protobuf", () => {
   const scenario = load();
@@ -115,31 +92,6 @@ test("the expanded authored scenario strictly parses and survives protobuf", () 
   assert.equal(scenario.world?.phase, GamePhase.PLAYER_CREATION);
   assert.ok(scenario.world?.actors.every(actor => !actor.awake && actor.roomId === actor.homeRoomId));
   assert.equal(scenario.world?.rooms.length, 27);
-});
-
-test("the initial dethroning plot stays with the GM while each faction receives its own leads", () => {
-  const scenario = load(), world = scenario.world!;
-  const gm = new FullGameMasterContextBuilder().build(create(GameMasterRequestSchema, { scenario }))
-    .map(message => message.content).join("\n");
-  const context = (id: string) => new FullContextBuilder().build(create(DialogueRequestSchema, { scenario, characterId: id }))
-    .map(message => message.content).join("\n");
-  assert.match(gm, /Private initial plot — The king's missing patrols/);
-  assert.match(gm, /Aldren knowingly moved part of the protected levy/);
-  assert.doesNotMatch(context("mara"), /Private initial plot|Tomas Vey/);
-  assert.match(context("garran"), /Tomas Vey/);
-  assert.match(context("king"), /Tomas Vey/);
-  assert.match(context("king"), /terrified of losing any more face at court/);
-  assert.match(context("sabine"), /caravan tallies show attacks rising/);
-  assert.match(context("rook"), /former courier sold him a letter/);
-  assert.match(context("tessa"), /published patrol totals/);
-
-  const evidence = new Map(locatedItems(inventoryOwners(scenario.characters, scenario.world)).map(item => [item.id, item]));
-  for (const id of [
-    "palace_sealed_decree", "palace_patrol_roster", "palace_account_book", "palace_gate_ledger",
-    "corvin_concord_copy", "sabine_caravan_tallies", "rook_tomas_letter", "palace_parlour_wine",
-  ]) assert.ok(evidence.get(id)?.details, id);
-  assert.ok(worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "rook").objects.some(item => item.id === "rook_tomas_letter"));
-  assert.ok(!worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "mara").objects.some(item => item.id === "rook_tomas_letter"));
 });
 
 test("the palace map is a complete layered tile grid", () => {
@@ -191,40 +143,6 @@ test("the palace map is a complete layered tile grid", () => {
   assert.ok(reached.has(`61,${decoded.height - 1}`), "exterior entrance stays open");
 });
 
-test("game master context frames an emissary interview without defining the player", () => {
-  const scenario = load();
-  const request = create(GameMasterRequestSchema, { scenario });
-  const messages = new FullGameMasterContextBuilder().build(request);
-  const prompt = messages.map(message => message.content).join("\n");
-  assert.equal(messages.length, 5);
-  assert.match(prompt, /player define or invent their homeland/i);
-  assert.match(prompt, /emissary from a vassal state of Caerwyn/i);
-  assert.match(prompt, /Interview the player/);
-  assert.doesNotMatch(prompt, /playerCharacterId/);
-});
-
-test("dialogue context includes premise before character context and conversation", () => {
-  const scenario = load();
-  const request = create(DialogueRequestSchema, {
-    characterId: "corvin",
-    scenario,
-    transcript: [
-      { role: TranscriptRole.PLAYER, speakerId: "player", text: "Would you trust Garran with the key?" },
-      { role: TranscriptRole.CHARACTER, speakerId: "corvin", text: "Trust is too generous a word." },
-    ],
-  });
-  const messages = new FullContextBuilder().build(request);
-  assert.equal(messages.length, 8);
-  assert.equal(messages[0]?.role, "system");
-  assert.match(messages[1]?.content ?? "", /^# Scenario premise[\s\S]*Every hundred years/);
-  assert.match(messages[2]?.content ?? "", /# Character[\s\S]*# Current goal/);
-  assert.match(messages[3]?.content ?? "", /^# Relationships/);
-  assert.match(messages[4]?.content ?? "", /^# Notes/);
-  assert.match(messages[5]?.content ?? "", /^# Known world state/);
-  assert.equal(messages[6]?.content, "Would you trust Garran with the key?");
-  assert.equal(messages[7]?.role, "assistant");
-});
-
 test("character knowledge refers to live fixtures and conceals other characters' secrets", () => {
   const scenario = load();
   const corvin = worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "corvin");
@@ -240,58 +158,6 @@ test("character knowledge refers to live fixtures and conceals other characters'
 
 test("unknown fixture fields remain schema errors", () => {
   assert.throws(() => fromJsonString(ScenarioSchema, '{"id":"x","quests":[]}'));
-});
-
-test("creating the emissary begins day one with the whole cast in the Great Hall", () => {
-  const game = new MemoryGame(load());
-  const npcIds = load().characters.map(character => character.id);
-  const setup = create(PlayerSetupSchema, {
-    homeland: "Valedorn",
-    embassyRole: "special envoy",
-    player: create(CharacterSchema, {
-      id: "ignored",
-      name: "Ilyra Venn",
-      lore: "A Valedorn envoy carrying a trade mandate and a private interest in a peaceful succession.",
-      currentGoal: "Learn what each claimant intends before choosing whom to support.",
-      relationships: npcIds.map(characterId => create(RelationshipSchema, {
-        characterId,
-        description: `Ilyra has heard conflicting reports about ${characterId}.`,
-      })),
-    }),
-    npcRelationships: npcIds.map(ownerCharacterId => create(RelationshipUpdateSchema, {
-      ownerCharacterId,
-      relationship: create(RelationshipSchema, {
-        characterId: "player",
-        description: "A newly arrived foreign envoy whose real loyalties are unknown.",
-      }),
-    })),
-  });
-
-  const before = toJsonString(ScenarioSchema, game.scenario());
-  const missingDelegate = structuredClone(setup);
-  missingDelegate.npcRelationships = setup.npcRelationships.slice(0, -1);
-  assert.equal(game.createPlayer(missingDelegate).ok, false);
-  const duplicateDelegate = structuredClone(setup);
-  duplicateDelegate.player!.relationships = [...setup.player!.relationships.slice(0, -1), setup.player!.relationships[0]!];
-  assert.equal(game.createPlayer(duplicateDelegate).ok, false);
-  assert.equal(toJsonString(ScenarioSchema, game.scenario()), before, "Invalid roster must not partly create a player");
-
-  const created = game.createPlayer(setup);
-  assert.equal(created.ok, true);
-  const scenario = game.scenario();
-  assert.equal(scenario.playerCharacterId, "player");
-  assert.equal(scenario.world?.day, 1);
-  assert.equal(scenario.world?.phase, GamePhase.CONVERSATIONS);
-  assert.deepEqual(scenario.world?.actors.map(actor => actor.characterId).sort(), [...npcIds, "player"].sort());
-  assert.ok(scenario.world?.actors.every(actor => actor.roomId === "great_hall" && actor.awake));
-  for (const actor of scenario.world!.actors) {
-    assert.deepEqual(actor.position, scenario.courtArrivalPlacements.find(placement => placement.characterId === actor.characterId)!.position);
-  }
-  assert.ok(npcIds.every(id => scenario.characters.find(character => character.id === id)?.relationships.some(relationship => relationship.characterId === "player")));
-  const arrivals = scenario.notes.filter(note => note.id.startsWith("arrival-"));
-  assert.equal(arrivals.length, npcIds.length);
-  assert.ok(arrivals.every(note => note.text.includes("Ilyra Venn") && note.text.includes("Valedorn")));
-  assert.deepEqual(arrivals.map(event => event.characterIds[0]).sort(), [...npcIds].sort());
 });
 import { OpenRouterClient, type ChatCompletionRequest, type OpenRouterMessage } from "../packages/providers/src/openrouter.js";
 const originalOpenRouterComplete = OpenRouterClient.prototype.complete;
@@ -579,16 +445,6 @@ test("the nobles' parlour admits every court character but remains restricted to
   assert.equal(doorActionLegality(door, world.rooms, "stranger"), "illegal");
 });
 
-test("authored parked objectives remain distinct from immediate greeting goals in model context", () => {
-  const scenario = load();
-  for (const character of scenario.characters) {
-    assert.equal(character.parkedObjectives.length, 3);
-    const context = new FullContextBuilder().build(create(DialogueRequestSchema, { scenario, characterId: character.id }));
-    for (const objective of character.parkedObjectives) assert.ok(context.some(message => message.content.includes(objective.name)));
-    assert.match(character.currentGoal, /greet the visiting player/);
-  }
-});
-
 function furnishedCourt(): Scenario {
   const scenario = conversationScenario();
   scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 62, y: 22 }) });
@@ -756,19 +612,6 @@ test("centennial court has consistent actors and relationships without the posse
   assert.match(scenario.premise, /Recognition by all three is required/);
   assert.match(scenario.premise, /without an accepted common sovereign/);
   assert.ok(!locatedItems(inventoryOwners(scenario.characters, scenario.world)).some(item => item.id === "crown"));
-});
-
-test("delegations receive shared politics without learning private debts or suspected missing pay", () => {
-  const scenario = load();
-  const context = (id: string) => new FullContextBuilder().build(create(DialogueRequestSchema, { scenario, characterId: id })).map(message => message.content).join("\n");
-  for (const id of ["mara", "elinor", "sabine"]) {
-    assert.match(context(id), /Edric the Peacemaker/);
-    assert.match(context(id), /Ironmark grain convoy/);
-    assert.doesNotMatch(context(id), /privately mortgaged much|unexplained gaps in garrison pay|still receives a share of illicit/);
-  }
-  assert.match(context("lucan"), /privately mortgaged much/);
-  assert.match(context("tessa"), /unexplained gaps in garrison pay/);
-  assert.match(context("rook"), /still receives a share of illicit/);
 });
 
 // Exercise the new introduction independently of network responses or browser credentials.
@@ -1294,21 +1137,3 @@ function gmTool(name: string, args: Record<string, unknown>) {
 }
 const idleMemory = { newNotes: [], relationships: [], lore: null, goalUpdate: null };
 const missingProp = { id: "envoy_token", name: "Envoy's token", locationId: "corvin", details: "A brass token bearing the embassy's seal.", reason: "A mundane token established in the exchange makes inspection possible." };
-
-test("DM tools validate destinations, unique IDs, and participant scope before mutation", async () => {
-  const { applyReconciliationTool } = await import("../apps/web/src/gm-reconciliation.js");
-  const scenario = furnishedCourt(), before = toJson(ScenarioSchema, scenario), cancelled = new Map<string, string>();
-  for (const locationId of ["missing_shelf", "great_hall"]) {
-    assert.throws(() => applyReconciliationTool(scenario, ["corvin"], cancelled, "create_item", { ...missingProp, locationId }), /Location/);
-  }
-  assert.throws(() => applyReconciliationTool(scenario, ["corvin"], cancelled, "create_item", { ...missingProp, id: "palace_royal_key" }), /already exists/);
-  assert.throws(() => applyReconciliationTool(scenario, ["corvin"], cancelled, "cancel_task", { characterId: "king", reason: "Stop" }), /participants/);
-  assert.deepEqual(toJson(ScenarioSchema, scenario), before);
-  assert.equal(cancelled.size, 0);
-  applyReconciliationTool(scenario, ["corvin"], cancelled, "create_item", { ...missingProp, locationId: "palace_treasury_shelf" });
-  assert.ok(!fixtureActions(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "corvin").some(a => a.id === "inspect_item_envoy_token"));
-  applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "corvin", "open_palace_treasury_shelf");
-  assert.match(applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "corvin", "inspect_item_envoy_token"), /brass token/);
-  applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "corvin", "take_envoy_token");
-  assert.match(applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "corvin", "inspect_item_envoy_token"), /brass token/);
-});

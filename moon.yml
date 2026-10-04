@@ -25,12 +25,6 @@ tasks:
     deps: [compile, webBuild]
   check:
     deps: [contracts:lint, typecheck, test]
-  renderContexts:
-    command: npx --no-install tsx scripts/render-dialogue-contexts.ts /tmp/kingmaker-openrouter-contexts
-    deps: [contracts:generate]
-    inputs: ['scripts/**/*', 'content/**/*', 'packages/core/**/*', 'packages/contracts/**/*']
-    options:
-      cache: false
   dev:
     command: npx --no-install vite
     deps: [contracts:generate]

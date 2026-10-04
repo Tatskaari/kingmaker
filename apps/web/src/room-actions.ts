@@ -2,7 +2,7 @@ import { itemsFor, type InventoryOwner } from "../../../packages/core/src/invent
 import type { WorldState } from "../../../packages/contracts/src/index.js";
 import { doorActionLegality } from "../../../packages/core/src/access.js";
 import { fixtureActions } from "../../../packages/core/src/fixtures.js";
-import type { CourtAgentAction } from "./court-agent.js";
+import type { GameAction as CourtAgentAction } from "../../../packages/core/src/actions.js";
 import { courtDoorBlockers, courtRoomAt } from "./court-map.js";
 import { palaceMap } from "./palace-map.js";
 import { palaceNodes } from "./palace-navigation.js";
