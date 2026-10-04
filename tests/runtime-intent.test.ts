@@ -4,15 +4,23 @@ import { fromJson, toJson } from "@bufbuild/protobuf";
 import { WorldStateSchema } from "../packages/contracts/src/v2.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
 import { formatActivity } from "../packages/lore/src/activity.js";
-import { runtimeActor, seedActorIntent } from "../packages/lore/src/runtime-actor.js";
+import { runtimeActor, seedRuntimeCharacter } from "../packages/lore/src/runtime-actor.js";
 import { loadPlayableWorld } from "./fixtures.js";
+function fixture() {
+  const world = loadPlayableWorld();
+  for (const actor of world.map!.actors.filter(actor => actor.characterId !== "player")) {
+    seedRuntimeCharacter(world, actor.instanceId ?? actor.characterId, actor.characterId,
+      `Scenarios/Centennial Assembly/Characters/${actor.characterId}/character.md`);
+  }
+  return world;
+}
 
 const task = "Scenarios/Centennial Assembly/Characters/palace-guard/task.md";
 const text = formatActivity("palace-guard", { name: "Watch the door", status: "Assigned",
   success_criteria: "Keep the door clear", current_goal: "Watch the door" });
 
 test("shared guard lore retains independent, saved body intent and rejects stale atomic writes", async () => {
-  const services = createScenarioServices(loadPlayableWorld());
+  const services = createScenarioServices(fixture());
   const entry = "Scenarios/Centennial Assembly/Characters/palace-guard/character.md";
   const before = await services.docs.read(entry);
   await services.docs.commit([{ path: task, expectedSha: null, text }], [
@@ -31,11 +39,13 @@ test("shared guard lore retains independent, saved body intent and rejects stale
 });
 
 test("scene defaults seed independent actor fields and intent permissions still apply", async () => {
-  const world = loadPlayableWorld(), actor = runtimeActor(world, "palace-guard-1");
-  seedActorIntent(actor, { activity: task });
-  assert.equal(actor.activity, task);
+  const world = fixture(), actor = runtimeActor(world, "palace-guard-1");
+  world.docs[actor.document]!.frontmatter!.activity = task;
+  seedRuntimeCharacter(world, actor.id, actor.characterId, actor.document);
+  assert.equal(runtimeActor(world, actor.id).activity, task);
   assert.equal(runtimeActor(world, "palace-guard-2").activity, undefined);
-  seedActorIntent(actor);
+  delete world.docs[actor.document]!.frontmatter!.activity;
+  seedRuntimeCharacter(world, actor.id, actor.characterId, actor.document);
   const services = createScenarioServices(world);
   await services.docs.create(task, text);
   await assert.rejects(services.docs.commit([], [
