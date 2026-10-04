@@ -16,11 +16,15 @@ export function compareResults(trials: readonly Trial[], rubric: readonly Criter
   const rows = [...new Set(trials.map(trial => trial.variant))].map(variant => {
     const runs = trials.filter(trial => trial.variant === variant);
     const executionErrors = runs.filter(trial => trial.recording.error !== undefined).length;
-    const scoringErrors = runs.filter(trial => !trial.result).length;
-    const criteria = Object.fromEntries(rubric.map(({ name }) => [name, scoringErrors ? null :
-      runs.reduce((sum, trial) => sum + (trial.recording.error !== undefined ? 0 : trial.result!.criteria[name]!.score), 0) / runs.length]));
-    const total = scoringErrors ? null : rubric.reduce((sum, item) => sum + criteria[item.name]! * (item.weight ?? 1), 0)
-      / rubric.reduce((sum, item) => sum + (item.weight ?? 1), 0);
+    const scoringErrors = runs.filter(trial => trial.recording.error === undefined &&
+      (!trial.result || trial.scoringError !== undefined || rubric.some(({ name }) => trial.result!.criteria[name]?.score == null))).length;
+    const criteria = Object.fromEntries(rubric.map(({ name }) => {
+      const scores = runs.map(trial => trial.recording.error !== undefined ? 0 : trial.result?.criteria[name]?.score);
+      return [name, scores.some(score => score == null) ? null : scores.reduce<number>((sum, score) => sum + score!, 0) / runs.length];
+    }));
+    const total = Object.values(criteria).some(score => score === null) ? null
+      : rubric.reduce((sum, item) => sum + criteria[item.name]! * (item.weight ?? 1), 0)
+        / rubric.reduce((sum, item) => sum + (item.weight ?? 1), 0);
     return { variant, baseline: runs.some(trial => trial.baseline), runs: runs.length, executionErrors, scoringErrors, criteria, total, delta: null } as Comparison;
   });
   const baseline = rows.find(row => row.baseline)?.total;

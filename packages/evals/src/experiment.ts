@@ -11,7 +11,7 @@ export interface RuntimeConfig<Review = ReviewLabels> {
 }
 export interface ScoreLevel { score: number; description: string }
 export interface Criterion { name: string; description: string; weight?: number; levels?: Record<string, ScoreLevel> }
-export interface CriterionScore { score: number; reason?: string; probabilities?: Record<string, number> }
+export interface CriterionScore { score: number | null; reason?: string; probabilities?: Record<string, number> }
 export interface Result { criteria: Record<string, CriterionScore> }
 export class RunRecording {
   constructor(readonly calls: readonly ServiceCall[], readonly initialState: unknown, readonly finalState: unknown, readonly error?: unknown) {}
@@ -81,9 +81,10 @@ export function validateRubric(rubric: readonly Criterion[]) {
 }
 export function validateResult(result: Result, rubric: readonly Criterion[]) {
   if (!result?.criteria || Object.keys(result.criteria).length !== rubric.length || rubric.some(({ name }) =>
-    !Object.hasOwn(result.criteria, name) || !Number.isFinite(result.criteria[name]?.score)
-    || result.criteria[name]!.score < 0 || result.criteria[name]!.score > 1)) {
-    throw new Error("Scores must include exactly the rubric criteria, each between 0 and 1.");
+    !Object.hasOwn(result.criteria, name) || (result.criteria[name]?.score !== null &&
+      (typeof result.criteria[name]?.score !== "number" || !Number.isFinite(result.criteria[name]!.score)
+        || result.criteria[name]!.score! < 0 || result.criteria[name]!.score! > 1)))) {
+    throw new Error("Scores must include exactly the rubric criteria, each between 0 and 1 or explicitly null.");
   }
 }
 
@@ -126,9 +127,15 @@ export async function runExperiment<R>(experiment: Experiment<R>, options: RunOp
     try { trial.summary = String(recording.snapshot(experiment.summarise(evidence))); }
     catch (cause) { trial.summary = `Summary failed: ${JSON.stringify(recording.snapshot(cause))}`; }
     try {
-      trial.result = await bounded(signal => experiment.score(evidence, { signal, recording: grading }), timeoutMs, options.signal);
+      // A failed execution is already a known zero; judging partial evidence can only
+      // obscure that result with an unrelated scoring failure.
+      trial.result = error !== undefined
+        ? { criteria: Object.fromEntries(experiment.rubric.map(({ name }) => [name, { score: 0, reason: "Execution failed; see recording.error." }])) }
+        : await bounded(signal => experiment.score(evidence, { signal, recording: grading }), timeoutMs, options.signal);
       validateResult(trial.result, experiment.rubric);
       trial.result = grading.snapshot(trial.result) as Result;
+      const missing = experiment.rubric.filter(({ name }) => trial.result!.criteria[name]!.score === null);
+      if (missing.length) trial.scoringError = grading.snapshot(new Error(`Missing or unscorable judge answers: ${missing.map(item => item.name).join(", ")}`));
     } catch (cause) { delete trial.result; trial.scoringError = grading.snapshot(cause); }
     trial.gradingCalls = grading.getCalls();
     await options.onTrial?.(trial);

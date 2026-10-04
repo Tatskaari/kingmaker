@@ -26,7 +26,8 @@ export function createJevScorer(rubric: readonly Criterion[], evidence: (recordi
     return { criteria: Object.fromEntries(rubric.map((criterion, index) => {
       const answer = answers[`criterion_${index}`];
       const levels = criterion.levels ?? accuracyLevels;
-      if (!answer || !Object.hasOwn(levels, answer.choice)) throw new Error(`Missing or unscorable judge answer: ${criterion.name}`);
+      if (!answer || !Object.hasOwn(levels, answer.choice)) return [criterion.name, { score: null,
+        reason: `Missing or unscorable judge answer: ${criterion.name}`, ...(answer ? { probabilities: answer.probabilities } : {}) }];
       const level = levels[answer.choice]!;
       return [criterion.name, { score: level.score,
         reason: level.description, probabilities: answer.probabilities }];
