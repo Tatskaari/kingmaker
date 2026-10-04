@@ -71,6 +71,7 @@ export function buildInterviewCharacter(input: unknown) {
 
 export function validatePlayerStats(build: DndCharacter | undefined): void {
   if (!build?.abilityScores || !build.hitPoints || !build.classes.length) throw new Error("A class, ability scores and HP are required.");
+  if (!/^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/.test(build.speciesId) || build.speciesId.length > 60) throw new Error("Choose a valid species ID.");
   const positive = (value: number, label: string) => {
     if (!Number.isInteger(value) || value < 1 || value > 4294967295) throw new Error(`${label} must be a positive whole number.`);
   };

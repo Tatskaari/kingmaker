@@ -407,4 +407,6 @@ message PlayerSetup {
   repeated RelationshipUpdate npc_relationships = 2;
   string homeland = 3;
   string embassy_role = 4;
+  // Observable appearance, separate from private biography.
+  string presentation = 5;
 }

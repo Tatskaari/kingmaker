@@ -29,9 +29,10 @@ function tools(ids: string[], affiliations: string[]): OpenRouterTool[] {
     } },
   } }, { type: "function", function: { name: "create_player", description: "After the player agrees they are ready, prepare an editable draft. Call alone. Only their explicit Save enters court.",
     parameters: { type: "object", additionalProperties: false,
-      required: ["name", "gender", "homeland", "embassyRole", "lore", "currentGoal", "relationships", "npcViews", "build"], properties: {
+      required: ["name", "gender", "homeland", "embassyRole", "lore", "currentGoal", "relationships", "npcViews", "build", "presentation"], properties: {
         name: { type: "string" }, gender: { type: "string" }, homeland: { type: "string", enum: affiliations },
         embassyRole: { type: "string" }, lore: { type: "string" }, currentGoal: { type: "string" },
+        presentation: { type: "string", description: "Public appearance only: clothing and visible equipment; grooming, hair and visible condition; impression in this setting. A short evocative paragraph grounded in the interview and traveller clothes. Omit unknown details and all secrets, concealed items, motives and biography. No document links." },
         relationships, npcViews: relationships, build: playerBuildParameter,
       } },
   } }];

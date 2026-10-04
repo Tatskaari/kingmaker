@@ -628,7 +628,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     assert.equal((await request("state")).state.gmMessages.length, 3);
     assert.match(alerts.at(-1).message, /autosave failed/);
     const ids = world.characters.map(path => /\/Characters\/([^/]+)\//.exec(path)![1]!);
-    const input = { name: "Alex", gender: "nonbinary", homeland: "Independent", embassyRole: "Visiting scholar",
+    const input = { presentation: "A scholar in travel-worn clothes.", name: "Alex", gender: "nonbinary", homeland: "Independent", embassyRole: "Visiting scholar",
       lore: "You serve the Stranger.", currentGoal: "Explore court",
       relationships: ids.map(characterId => ({ characterId, description: "No prior acquaintance." })),
       npcViews: ids.map(characterId => ({ characterId, description: "A newly arrived scholar." })),

@@ -1,3 +1,4 @@
+import { seedPresentation, presentationPath } from "../../../packages/lore/src/presentation.js";
 import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import { clone } from "@bufbuild/protobuf";
 import { GamePhase, DndCharacterSchema, WorldStateSchema as MapSchema, type WorldState as PalaceMap } from "../../../packages/contracts/src/index.js";
@@ -24,6 +25,7 @@ export function playableWorld(baseline: PalaceMap, markdown: ReadonlyMap<string,
     if (!world.map!.actors.some(actor => actor.characterId === id || world.runtimeCharacters[actor.characterId]?.characterId === id)) throw new Error(`Missing palace actor for ${id}`);
   }
   world.docs[player]!.characterProperties = create(CharacterPropertiesSchema, { dnd: fromJson(DndCharacterSchema, envoySheet) });
+  for (const path of [...world.characters, player]) seedPresentation(world, path);
   assignGuardPosts(world);
   return refreshDocumentGraph(world);
 }
@@ -31,7 +33,10 @@ export function playableWorld(baseline: PalaceMap, markdown: ReadonlyMap<string,
 /** A normal fresh game starts before the interview; the development envoy remains an explicit shortcut. */
 export function characterCreationWorld(baseline: WorldState): WorldState {
   const world = clone(WorldStateSchema, baseline);
-  if (world.player) delete world.docs[world.player];
+  if (world.player) {
+    delete world.docs[presentationPath(world.player)];
+    delete world.docs[world.player];
+  }
   delete world.player;
   world.map!.phase = GamePhase.PLAYER_CREATION;
   world.map!.day = 0;
