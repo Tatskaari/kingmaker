@@ -75,3 +75,25 @@ test("v2 headless review without a final message does not generate another turn"
   await live.endConversation("rowan", undefined, controller.signal);
   assert.deepEqual(order, ["review"]);
 });
+
+test("headless observations render the supplied map and actions directly", () => {
+  const world = loadPlayableWorld(), map = world.map!;
+  const player = map.actors.find(actor => actor.characterId === "player")!;
+  const room = map.rooms.find(room => room.id === player.roomId)!;
+  room.name = "Injected observation room";
+  const target = map.actors.find(actor => actor.characterId === "rowan")!;
+  target.roomId = player.roomId;
+  const action = { id: "custom_talk", type: "talk" as const, target: "rowan", legality: "normal" as const,
+    description: "Ask Rowan", path: [player.position!] };
+  let observations = 0;
+  // The runtime's authored map deliberately has a different room name.
+  const live = new WorldHeadlessGame(loadPlayableWorld(), "", { services: { map: {
+    observe: characterId => { observations++; return { characterId, map, actions: [action] }; },
+  } } });
+  const rendered = live.observe();
+  assert.equal(observations, 1);
+  assert.match(rendered, /Injected observation room \(current room\)/);
+  assert.match(rendered, /\[custom_talk\]/);
+  assert.deepEqual(live.actions(), [{ id: action.id, description: action.description, type: action.type, legality: action.legality }]);
+  assert.equal(observations, 2);
+});

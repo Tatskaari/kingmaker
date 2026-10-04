@@ -1,8 +1,11 @@
 import { fromJson, toJson } from "@bufbuild/protobuf";
 import { WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
 import { WorldGameRuntime, type WorldSnapshot, type WorldOptions } from "../../../apps/web/src/world-runtime.js";
-import { projectWorld } from "../../../apps/web/src/world-projection.js";
-import { characterCourtObservation } from "../../../apps/web/src/court-agent.js";
+import { characterDocuments } from "../../lore/src/character-id.js";
+import { activityGoal } from "../../lore/src/activity.js";
+import { inventoryOwners } from "../../core/src/inventory.js";
+import { worldForCharacter } from "../../core/src/physical-view.js";
+import { physicalCharacterObservation } from "../../../apps/web/src/physical-observation.js";
 import { renderJevRoomView } from "../../../apps/web/src/jev-room-view.js";
 
 /** The production console uses the same v2 host as the browser worker. */
@@ -25,12 +28,19 @@ export class WorldHeadlessGame {
     this.runtime.restore({ ...before, world: toJson(WorldStateSchema, world) });
   }
   private observation(id = "player") {
-    const visible = this.runtime.map.observe(id);
-    return { ...characterCourtObservation({ ...projectWorld(this.inspect()), world: visible.map }, id), actions: [...visible.actions] };
+    const visible = this.runtime.map.observe(id), entries = characterDocuments(this.inspect());
+    const entry = entries.find(entry => entry.id === id);
+    if (!entry) throw new Error("Character is not placed in the palace.");
+    const characters = entries.map(({ id, document }) => ({ id,
+      name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
+      inventory: document.characterProperties?.inventory }));
+    const known = worldForCharacter(visible.map, inventoryOwners(characters, visible.map), id);
+    const goal = activityGoal(this.inspect(), id) ?? "";
+    return { ...physicalCharacterObservation(known, id, goal, visible.actions), map: visible.map, characters };
   }
   observe(id = "player") {
-    const scenario = projectWorld(this.inspect());
-    return renderJevRoomView(scenario.world!, scenario.characters, this.observation(id));
+    const observation = this.observation(id);
+    return renderJevRoomView(observation.map, observation.characters, observation);
   }
   actions() { return this.observation().actions.map(({ id, description, type, legality }) => ({ id, description, type, legality })); }
   overview() { return this.runtime.view(); }
