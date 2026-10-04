@@ -15,7 +15,10 @@ function mechanicalCharacters(world: WorldState) {
   return characterDocuments(world).map(({ id, path, document }) => ({ id, path,
     name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
     currentGoal: id === "player" ? "" : activityGoal(world, id) ?? "",
-    properties: document.characterProperties, inventory: document.characterProperties?.inventory }));
+    get properties() { return document.characterProperties; },
+    get inventory() { return document.characterProperties?.inventory; },
+    set inventory(value) { (document.characterProperties ??= create(CharacterPropertiesSchema)).inventory = value; },
+  }));
 }
 const npcLog = gameLogger("npc");
 type EventDetails = Record<string, JsonValue>;
@@ -59,7 +62,7 @@ function fixtureEventContext(world: PhysicalMap, characters: ReturnType<typeof m
   };
   return { details, describe };
 }
-/** Synchronous rules over a detached document world's mechanical state. */
+/** Synchronous rules over a live document world's mechanical state. */
 export class PalaceMechanics {
   #world: PhysicalMap;
   #characters;
@@ -68,16 +71,15 @@ export class PalaceMechanics {
   #conversations: MechanicalActivity["conversations"];
   constructor(world: WorldState, activity: MechanicalActivity) {
     if (!world.map) throw new Error("A physical map is required.");
-    this.#world = world.map;
-    this.#world.actors = foregroundBodies(this.#world.actors);
+    this.#world = { ...world.map, actors: foregroundBodies(world.map.actors) };
     this.#characters = mechanicalCharacters(world);
     this.#playerId = world.player ? "player" : "";
-    this.#npcActivities = structuredClone(activity.npcActivities ?? {});
+    this.#npcActivities = activity.npcActivities ??= {};
     this.#conversations = activity.conversations;
   }
   snapshot() {
     return { map: this.#world, properties: Object.fromEntries(this.#characters.map(character => [character.path,
-      create(CharacterPropertiesSchema, { ...character.properties, inventory: character.inventory })])),
+      character.properties ?? create(CharacterPropertiesSchema)])),
       npcActivities: this.#npcActivities };
   }
   private observe(characterId: string, continuingActionId: string) {
