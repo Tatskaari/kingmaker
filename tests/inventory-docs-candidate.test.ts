@@ -29,3 +29,15 @@ test("invalid inventory changes publish neither prose nor possessions", async ()
   await assert.rejects(candidate.docs.replace(path, before.sha, "inventory: {}", 'inventory:\n  items: []\n  equipment:\n    mainHandItemId: missing'), /not carried/);
   assert.deepEqual(await candidate.docs.read(path), before);
 });
+
+test("sealed inventory rejects later ownership rewrites while permitting memories", async () => {
+  const candidate = createInventoryReviewServices(peregrineGiftCase.loadWorld([]));
+  const path = candidate.scenario.info().player!;
+  let current = await candidate.docs.read(path);
+  current = await candidate.docs.replace(path, current.sha, "inventory: {}", `inventory:\n  ${gift}`);
+  candidate.docs.sealInventories();
+  await assert.rejects(candidate.docs.replace(path, current.sha, "quantity: 1", "quantity: 2"), /already settled/);
+  const after = await candidate.docs.insert(path, current.sha, current.text.trimEnd().split("\n").length, "\nA gift remembered.\n");
+  assert.match(after.document.body, /A gift remembered/);
+  assert.equal(giftInventoryScore(candidate.scenario.snapshot()).score, 1);
+});

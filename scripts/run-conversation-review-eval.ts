@@ -9,7 +9,7 @@ import { oswinKoboldCase } from "../packages/evals/src/oswin-kobold-case.js";
 import { realityVariants, materialConsequencesVariant } from "../packages/evals/src/reality-variants.js";
 import { deferredPromiseVariant } from "../packages/evals/src/deferred-promise-variant.js";
 import { consequenceLedVariant } from "../packages/evals/src/consequence-led-variant.js";
-import { effectLedgerVariant } from "../packages/evals/src/effect-ledger-variant.js";
+import { effectLedgerVariant, sealedLedgerVariant } from "../packages/evals/src/effect-ledger-variant.js";
 import { runEvalCli } from "../packages/evals/src/cli.js";
 import transcript from "../evals/reviews/oswin-parlour.json" with { type: "json" };
 
@@ -30,6 +30,6 @@ const experiment = createReviewExperiment({ name: "oswin-parlour", characterId: 
     world.runtimeCharacters.oswin!.wait = undefined;
     return world;
   },
-}, [deferredPromiseVariant, ...realityVariants, materialConsequencesVariant, consequenceLedVariant, effectLedgerVariant], createAi, createAi());
-const result = await runEvalCli([experiment, createReviewExperiment(oswinKoboldCase, [deferredPromiseVariant, ...realityVariants, materialConsequencesVariant, consequenceLedVariant, effectLedgerVariant], createAi, createAi())], { secrets: [key] });
+}, [deferredPromiseVariant, ...realityVariants, materialConsequencesVariant, consequenceLedVariant, effectLedgerVariant, sealedLedgerVariant], createAi, createAi());
+const result = await runEvalCli([experiment, createReviewExperiment(oswinKoboldCase, [deferredPromiseVariant, ...realityVariants, materialConsequencesVariant, consequenceLedVariant, effectLedgerVariant, sealedLedgerVariant], createAi, createAi())], { secrets: [key] });
 process.exitCode = result.exitCode;

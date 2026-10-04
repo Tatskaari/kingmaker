@@ -43,3 +43,11 @@ activities and typed inventory, especially when Jev scores disagree with visible
   It uses consequence-led framing and the same inventory service. This adds an LLM call
   and supports only newly introduced items, not transfer of existing items. No case names,
   bird descriptions or expected answers are embedded in the strategy.
+
+- **sealed-ledger** (follow-up): all three effect-ledger classifications assigned the gift
+  to the player and persisted it, but later memory review recreated a duplicate for the
+  giver. Hypothesis: give the two phases separate write responsibilities. Reuse the same
+  classification and application, then seal typed inventories during memory/intent review.
+  Invalid inventory edits return a tool error; prose edits still work. This preserves
+  model-selected ownership rather than repairing it after seeing the rubric. The original
+  effect-ledger remains available as an ablation. This restriction is eval-only.

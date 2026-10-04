@@ -42,8 +42,8 @@ export async function applyNewItems(value: unknown, services: RuntimeServices, s
   return applied;
 }
 
-export const effectLedgerVariant: ReviewVariant = {
-  ...consequenceLedVariant, name: "effect-ledger",
+function ledgerVariant(name: string, seal: boolean): ReviewVariant { return {
+  ...consequenceLedVariant, name,
   strategies: { ...consequenceLedVariant.strategies, review: {
     async classify(context, signal, services) {
       const world = services.scenario.snapshot();
@@ -59,8 +59,12 @@ export const effectLedgerVariant: ReviewVariant = {
     },
     async resolve(context, labels, signal, services) {
       const resolvedEffects = await applyNewItems(labels.newItems, services, signal);
+      if (seal) (services.docs as typeof services.docs & { sealInventories(): void }).sealInventories();
       return documentReviewStrategy.resolve(context, { ...labels, resolvedEffects,
         instruction: "resolvedEffects are already committed inventory changes. Reflect them faithfully in memory without recreating items or changing their owner. Use the ledger's distinction between immediate undertakings and future promises, but current physical state remains authoritative." }, signal, services);
     },
   } },
-};
+}; }
+
+export const effectLedgerVariant = ledgerVariant("effect-ledger", false);
+export const sealedLedgerVariant = ledgerVariant("sealed-ledger", true);

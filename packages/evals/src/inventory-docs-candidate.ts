@@ -13,6 +13,7 @@ import { DocumentConflictError, type DocsService } from "../../lore/src/service-
 /** Eval-only hypothesis: expose typed inventory through the existing recorded document tools. */
 export function createInventoryReviewServices(initial: WorldState) {
   const store = new WorldStore(initial), base = createDocsService(store);
+  let inventoriesSealed = false;
   const character = (path: string) => store.state.characters.includes(path) || store.state.player === path;
   const read: DocsService["read"] = async path => {
     const current = await base.read(path);
@@ -29,6 +30,10 @@ export function createInventoryReviewServices(initial: WorldState) {
     if (note.error) throw new Error(note.error);
     if (!Object.hasOwn(note.metadata, "inventory")) throw new Error("Keep inventory present; use items: [] to empty it.");
     const inventory = fromJson(InventorySchema, note.metadata.inventory as JsonObject);
+    if (inventoriesSealed && JSON.stringify(toJson(InventorySchema, inventory)) !== JSON.stringify(toJson(InventorySchema,
+      before.document.characterProperties?.inventory ?? create(InventorySchema)))) {
+      throw new Error("Inventory effects are already settled. Preserve current inventory; this phase updates memories and intent only.");
+    }
     const metadata = { ...note.metadata }; delete metadata.inventory;
     // No awaits from here to publication: concurrent mechanics cannot be overwritten by a stale draft.
     const live = store.state.docs[path]!;
@@ -45,7 +50,8 @@ export function createInventoryReviewServices(initial: WorldState) {
     result.text = `---\n${stringify({ ...next.frontmatter, inventory: toJson(InventorySchema, inventory) })}---\n${next.body}`;
     return result;
   });
-  const docs: DocsService = { ...base, read,
+  const docs: DocsService & { sealInventories(): void } = { ...base, read,
+    sealInventories: () => { inventoriesSealed = true; },
     replace: (path, sha, oldText, newText) => !character(path) ? base.replace(path, sha, oldText, newText) : edit(path, sha, text => {
       const start = text.indexOf(oldText);
       if (!oldText || start < 0 || text.indexOf(oldText, start + 1) >= 0) throw new Error("oldText must match exactly once");
