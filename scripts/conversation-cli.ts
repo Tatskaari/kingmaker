@@ -1,3 +1,6 @@
+import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
+import { ConversationReviews, liveConversationStrategy } from "../packages/conversation/src/live-conversation-strategy.js";
+import { documentLoreService } from "../packages/conversation/src/document-lore.js";
 import { traceAiService } from "../packages/conversation/src/ai-tracing.js";
 import { retryResponses } from "../packages/conversation/src/ai.js";
 import { ModelTranscripts, type ModelCallKind } from "../apps/web/src/model-transcripts.js";
@@ -19,11 +22,11 @@ import { runConversationCli } from "../apps/conversation-cli/app.js";
 
 const args = process.argv.slice(2);
 const options = new Map<string, string>();
-const usage = "npm run conversation -- [--character corvin] [--scenario 'Centennial Assembly'] [--snapshot path] [--player document.md] [--output path] [--threshold 0.7]";
+const usage = "npm run conversation -- [--character corvin] [--scenario 'Centennial Assembly'] [--snapshot path] [--player document.md] [--output path] [--threshold 0.7] [--strategy game|live-review]";
 if (args.includes("--help")) { console.log(usage); process.exit(0); }
 for (let index = 0; index < args.length; index += 2) {
   const name = args[index]!, value = args[index + 1];
-  if (!["--character", "--scenario", "--snapshot", "--output", "--threshold", "--player"].includes(name) || !value || value.startsWith("--")) throw new Error(usage);
+  if (!["--character", "--scenario", "--snapshot", "--output", "--threshold", "--player", "--strategy"].includes(name) || !value || value.startsWith("--")) throw new Error(usage);
   options.set(name, value);
 }
 if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error("The conversation debugger requires an interactive terminal.");
@@ -55,7 +58,16 @@ const input: ConversationInput = {
 conversationRequest(input); // Validate the snapshot and selected character before entering the terminal UI.
 const player = services.scenario.info().player;
 const build = player ? (await services.scenario.getDocument(player)).document.characterProperties?.dnd : undefined;
-const result = await runConversationCli(input, ai.responses, disclosure, { ai, build, services: { docs: services.docs, scenario: services.scenario }, beginTurn: () => { turnId = crypto.randomUUID(); } });
+const strategyName = options.get("--strategy") ?? "game";
+if (!["game", "live-review"].includes(strategyName)) throw new Error("Unknown conversation strategy");
+const reviews = new ConversationReviews();
+const result = await runConversationCli(input, ai.responses, disclosure, { ai, build,
+  services: new ConversationRuntime({ services: { docs: services.docs, scenario: services.scenario, lore: documentLoreService(services.scenario) } }).services,
+  ...(strategyName === "live-review" ? {
+    beforeTurn: async () => { await reviews.drain(); return new DisclosureSession(await documentLore(services.scenario, characterId), ai, Number(options.get("--threshold") ?? "0.7")); },
+    response: report => liveConversationStrategy({ characterId, reviews, report }),
+  } : {}), beginTurn: () => { turnId = crypto.randomUUID(); } });
+await reviews.drain();
 traces.finish(conversationId);
 const output = resolve(options.get("--output") ?? `test-output/conversation-${Date.now()}.json`);
 mkdirSync(dirname(output), { recursive: true });
