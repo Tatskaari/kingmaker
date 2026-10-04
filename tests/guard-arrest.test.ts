@@ -154,3 +154,30 @@ test("a failed defense reply keeps the pending challenge and publishes no arrest
   assert.equal(runtime.snapshot().jail, undefined);
   assert.deepEqual(runtime.snapshot().conversations, before.conversations);
 });
+
+test("classified defense checks are reused without adding a second fallback roll", async () => {
+  let defending = false;
+  const rolls: Array<{ skill?: string; success: boolean }> = [];
+  const runtime = new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, undefined, { services: {
+    random: { integer: () => 20 },
+    presentation: { showRoll: async result => { rolls.push(result); } },
+    ai: {
+      decisions: async (_state, questions, _signal, purpose) => Object.fromEntries(Object.keys(questions).map(key => {
+        const choice = purpose === "skill_check" ? defending && key === "deception" ? "needed" : "not_needed"
+          : purpose === "skill_difficulty" ? "normal" : "skip";
+        return [key, { choice, probabilities: { [choice]: 1, ...(purpose === "prog_disc" ? { [key]: 0 } : {}) } }];
+      })),
+      responses: async request => {
+        if (request.response_format) return { role: "assistant", content: JSON.stringify({ direction: "The defense succeeds. Let the player go." }) };
+        if (request.tools?.some(tool => tool.function.name === "arrest")) return arrestCall();
+        return { role: "assistant", content: defending ? "Off you go." : "Explain yourself." };
+      },
+    },
+  } });
+  await runtime.checkedTalkToCharacter(guard, "Hello.");
+  defending = true;
+  await runtime.checkedTalkToCharacter(guard, "The king invited me here.");
+  assert.deepEqual(rolls.map(roll => roll.skill), ["deception"]);
+  assert.equal(runtime.snapshot().jail, undefined);
+  assert.equal(runtime.snapshot().arrestChallenges?.[guard], undefined);
+});
