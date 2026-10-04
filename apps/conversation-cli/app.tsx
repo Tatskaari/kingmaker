@@ -1,3 +1,4 @@
+import type { ConversationStrategy } from "../../packages/conversation/src/phases.js";
 import { directConversationStrategy } from "../../packages/conversation/src/phases.js";
 import { traceCliDecisions, decisionCallLabel, type CliDecisionCall } from "./decision-calls.js";
 import { formatConversation, type MessageAnalysis } from "./analysis.js";
@@ -27,7 +28,7 @@ export interface ConversationResult {
 interface AppProps {
   input: ConversationInput;
   complete: Complete;
-  checks?: { services?: Partial<RuntimeServices>; ai: AiService; build: DndCharacter | undefined; beginTurn?: () => void };
+  checks?: { services?: Partial<RuntimeServices>; ai: AiService; build: DndCharacter | undefined; beginTurn?: () => void; beforeTurn?: () => Promise<DisclosureSession>; response?: (report: (event: import("../../packages/conversation/src/attention.js").AnalysisEvent) => void) => ConversationStrategy };
   disclosure?: DisclosureSession;
   copyText: (text: string) => Promise<string>;
   onFinish: (result: ConversationResult) => void;
@@ -99,8 +100,9 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
     const messageIndex = transcript.length;
     setAnalysis(previous => previous.filter(event => event.messageIndex < messageIndex));
     try {
+      if (checks?.beforeTurn) disclosure = await checks.beforeTurn();
       checks?.beginTurn?.();
-      const turnInput = { ...input, transcript, message };
+      const turnInput = { ...input, ...(checks?.services?.scenario ? { snapshot: { world: checks.services.scenario.snapshot() } } : {}), transcript, message };
       const trace = (round: DisclosureRound) => {
         timeline.record(`jev-${round.turn}-${round.round}`);
         if (round.answers) {
@@ -118,15 +120,16 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
         setDecisionCalls(previous => previous.some(item => item.id === call.id)
           ? previous.map(item => item.id === call.id ? call : item) : [...previous, call]);
       });
+      const report = (event: import("../../packages/conversation/src/attention.js").AnalysisEvent) => setAnalysis(previous => [...previous, { ...event, messageIndex: messageIndex + (event.subject === "character" ? 1 : 0) }]);
       const strategies = disclosure && checks
         ? conversationStrategy(disclosure, tracedAi!, checks.build, message, requestRoll, trace, turn => {
           timeline.record(`gm-${gmCount.current++}`);
           setGmTurns(previous => [...previous, turn]);
         }, {}, {}, checks.services ? { services: checks.services, characterId: input.characterId } : undefined,
-        event => setAnalysis(previous => [...previous, { ...event, messageIndex: messageIndex + (event.subject === "character" ? 1 : 0) }]))
+        report, checks.response?.(report))
         : disclosure ? disclosure.strategy(trace) : directConversationStrategy;
       const runtime = new ConversationRuntime({
-        services: { character: { respond: async (request, signal) => {
+        services: { ...checks?.services, ...(tracedAi ? { ai: tracedAi } : {}), debug: { record: () => {} }, character: { respond: async (request, signal) => {
           const response = await complete(request, signal);
           signal?.throwIfAborted();
           // Stamp the reply before post-reply analysis starts, not when it finishes.

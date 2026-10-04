@@ -14,7 +14,7 @@ export type RequestRoll = (check: ManualRoll, signal: AbortSignal) => Promise<nu
 
 /** Finish disclosure before classifying checks; resolve checks once per player turn. */
 export function conversationStrategy(disclosure: DisclosureSession, ai: AiService, build: DndCharacter | undefined,
-  playerTurn: string, requestRoll: RequestRoll, trace: (round: DisclosureRound) => void, debug: (turn: LlmTurn) => void, presentation: Partial<PresentationService> = {}, character: Partial<CharacterMechanics> = {}, gm?: { services: Partial<RuntimeServices>; characterId: string }, report: (event: AnalysisEvent) => void = () => {}) {
+  playerTurn: string, requestRoll: RequestRoll, trace: (round: DisclosureRound) => void, debug: (turn: LlmTurn) => void, presentation: Partial<PresentationService> = {}, character: Partial<CharacterMechanics> = {}, gm?: { services: Partial<RuntimeServices>; characterId: string }, report: (event: AnalysisEvent) => void = () => {}, response?: ConversationStrategy) {
   const runtime = new ConversationRuntime({ services: {
     ...gm?.services,
     ai: { ...ai, decisions: async (...args) => {
@@ -43,7 +43,7 @@ export function conversationStrategy(disclosure: DisclosureSession, ai: AiServic
       signal.throwIfAborted();
       await checks.resolve(context, labels, signal);
       signal.throwIfAborted();
-      return attentionResponseStrategy(report).respond({ request: context.request, maxPasses }, signal, { ...services, ai });
+      return (response ?? attentionResponseStrategy(report)).respond({ request: context.request, maxPasses }, signal, { ...services, ai });
     },
   } satisfies ConversationStrategy;
 }
