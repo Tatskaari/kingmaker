@@ -193,7 +193,12 @@ export class WorldGameRuntime extends WorldHost {
   override resetCharacters() { super.resetCharacters(); this.stopConversations(); this.traces.clearDocumentWrites(); }
   recentTranscripts() { return this.traces.recent(); }
   transcriptRuns() { return this.traces.runs(); }
-  debugDocuments() { return { docs: this.world().docs, history: this.traces.documentWrites(), scenario: this.world().scenario }; }
+  debugDocuments() {
+    const world = this.world();
+    const paths = [...world.characters, ...(world.player ? [world.player] : [])];
+    return { docs: world.docs, history: this.traces.documentWrites(), scenario: world.scenario,
+      characterPaths: Object.fromEntries(paths.map(path => [characterId(path, world), path])) };
+  }
   startPlanningSession(id: string) { return this.traces.start("npc_goal", id); }
   endPlanningSession(key: string, stopped: boolean, error?: unknown) {
     if (error) this.traces.fail(key, error); else if (stopped) this.traces.stop(key); else this.traces.finish(key);
