@@ -12,18 +12,18 @@ room("corvin_chamber", "Corvin's Chamber", [
 room("royal_bedchamber", "Royal Bedchamber", [
   { x: 59, y: 3, width: 6, height: 5 },
   { x: 61, y: 8, width: 2, height: 1 },
-], ["king"]);
-room("garran_chamber", "Garran's Chamber", [
+], ["aldren"]);
+room("garran_chamber", "Holt's Chamber", [
   { x: 70, y: 3, width: 5, height: 5 },
   { x: 71, y: 8, width: 2, height: 1 },
-], ["garran"]);
+], ["holt"]);
 room("north_corridor", "Royal Back Hall", [
   { x: 49, y: 11, width: 26, height: 3 },
   { x: 51, y: 9, width: 2, height: 2 },
   { x: 61, y: 9, width: 2, height: 2 },
   { x: 71, y: 9, width: 2, height: 2 },
   { x: 51, y: 14, width: 2, height: 2 },
-], ["corvin", "king", "garran"]);
+], ["corvin", "aldren", "holt"]);
 room("royal_council_chamber", "Royal Council Chamber", [
   { x: 48, y: 17, width: 6, height: 4 },
   { x: 54, y: 18, width: 1, height: 2 },
@@ -38,7 +38,7 @@ room("great_hall", "Great Hall", [
 ], []);
 room("guest_chamber", "Nobles' Parlour", [
   { x: 48, y: 24, width: 6, height: 9 },
-], ["player", "corvin", "garran", "king", "mara", "hadrik", "tessa", "elinor", "oswin", "rowan", "lucan", "sabine", "rook"]);
+], ["player", "corvin", "holt", "aldren", "gurt", "klog", "bran", "elinor", "oswin", "rowan", "peregrine", "cressida", "abel"]);
 room("entrance_hall", "Entrance Hall", [
   { x: 58, y: 33, width: 8, height: 5 },
   { x: 61, y: 32, width: 2, height: 1 },
@@ -64,18 +64,18 @@ room("west_wing", "West Wing", [
 /** A public receiving room buffers each private corridor from the wing.
  * Mirroring the complete suite keeps thresholds outside bedroom rectangles. */
 function delegation(wing: "west" | "east", y: number, id: string, publicId: string,
-  title: string, members: string[]) {
+  title: string, members: [room: string, resident: string][]) {
   const region = (x: number, dy: number, width: number, height: number): Region => ({
     x: wing === "west" ? 78 - x - width : x + 46, y: y + dy, width, height,
   });
   room(publicId, title, [region(37, 2, 9, 9), region(36, 8, 1, 2)]);
   room(`${id}_back_hall`, `${id[0]!.toUpperCase()}${id.slice(1)} Back Hall`, [
     region(46, 8, 29, 2), ...members.map((_, i) => region(52 + i * 10, 6, 2, 2)),
-  ], members);
-  members.forEach((member, i) => room(`${member}_chamber`,
-    `${member[0]!.toUpperCase()}${member.slice(1)}'s Chamber`, [region(50 + i * 10, 0, 7, 5), region(52 + i * 10, 5, 2, 1)], [member]));
+  ], members.map(([, resident]) => resident));
+  members.forEach(([slot, resident], i) => room(`${slot}_chamber`,
+    `${resident[0]!.toUpperCase()}${resident.slice(1)}'s Chamber`, [region(50 + i * 10, 0, 7, 5), region(52 + i * 10, 5, 2, 1)], [resident]));
 }
-delegation("west", 5, "ironmark", "ironmark_salon", "Ironmark Salon", ["mara", "hadrik", "tessa"]);
-delegation("west", 20, "greenweald", "greenweald_solar", "Greenweald Solar", ["elinor", "oswin", "rowan"]);
-delegation("east", 5, "saltmere", "saltmere_drawing_room", "Saltmere Drawing Room", ["lucan", "sabine", "rook"]);
+delegation("west", 5, "ironmark", "ironmark_salon", "Ironmark Salon", [["mara", "gurt"], ["hadrik", "klog"], ["tessa", "bran"]]);
+delegation("west", 20, "greenweald", "greenweald_solar", "Greenweald Solar", [["elinor", "elinor"], ["oswin", "oswin"], ["rowan", "rowan"]]);
+delegation("east", 5, "saltmere", "saltmere_drawing_room", "Saltmere Drawing Room", [["lucan", "peregrine"], ["sabine", "cressida"], ["rook", "abel"]]);
 room("dining_hall", "Long Dining Hall", [{ x: 83, y: 22, width: 40, height: 9 }]);
