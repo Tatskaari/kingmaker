@@ -5,24 +5,20 @@ import { WorldHeadlessGame } from "../packages/headless/src/world.js";
 import type { WorldOptions } from "../apps/web/src/world-runtime.js";
 import { loadPlayableWorld } from "./fixtures.js";
 
-function fixture(failure?: "classify" | "resolve" | "respond" | "cancel") {
+function fixture(failure?: "strategy" | "respond" | "cancel") {
   const order: string[] = [];
   const controller = new AbortController();
   const options: WorldOptions = {
     strategies: {
       conversation: {
-        classify: async (_context, signal) => {
-          order.push("classify");
+        respond: async (context, signal, services) => {
+          order.push("strategy");
           assert.equal(signal, controller.signal);
-          if (failure === "classify") throw new Error("Classification failed");
+          if (failure === "strategy") throw new Error("Strategy failed");
           if (failure === "cancel") controller.abort(new Error("Cancelled"));
-          return { docs: {} as never, checks: undefined };
-        },
-        resolve: async context => {
-          order.push("resolve");
-          if (failure === "resolve") throw new Error("Resolution failed");
+          signal.throwIfAborted();
           context.request.messages.push({ role: "system", content: "# Binding DM ruling\nThe persuasion failed." });
-          return { reclassify: false };
+          return services.character.respond(context.request, signal);
         },
       },
       review: {
@@ -51,18 +47,18 @@ test("v2 headless final messages are checked and answered before review, includi
   const { live, order, controller } = fixture();
   live.load(live.snapshot());
   const event = await live.endConversation("rowan", "Please help me. Goodbye.", controller.signal);
-  assert.deepEqual(order, ["classify", "resolve", "respond", "review"]);
+  assert.deepEqual(order, ["strategy", "respond", "review"]);
   assert.ok(event);
   assert.equal(live.snapshot().conversations.rowan, undefined);
 });
 
-for (const failure of ["classify", "resolve", "respond", "cancel"] as const) {
+for (const failure of ["strategy", "respond", "cancel"] as const) {
   test(`v2 headless final-message ${failure} failure prevents review and transcript changes`, async () => {
     const { live, order, controller } = fixture(failure);
     const before = live.snapshot().conversations;
     await assert.rejects(live.endConversation("rowan", "Please help me. Goodbye.", controller.signal),
-      /Classification failed|Resolution failed|Response failed|Cancelled/);
-    assert.ok(order.includes("classify"));
+      /Strategy failed|Response failed|Cancelled/);
+    assert.ok(order.includes("strategy"));
     assert.ok(!order.includes("review"));
     assert.deepEqual(live.snapshot().conversations, before);
   });

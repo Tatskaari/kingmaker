@@ -1,6 +1,6 @@
 import type { CharacterSources } from "./conversation.js";
 import type { AiService, LoreService } from "./services.js";
-import type { ConversationStrategy } from "./phases.js";
+import type { ConversationContext, ConversationStrategy } from "./phases.js";
 import { DisclosureTraversal, type DisclosureRound } from "./progressive-disclosure.js";
 export type { DisclosureRound, EvaluateLinks } from "./progressive-disclosure.js";
 
@@ -11,17 +11,27 @@ export class DisclosureSession {
     this.traversal = new DisclosureTraversal(lore, ai, threshold, maxCharacters);
   }
   get sources(): CharacterSources { return this.traversal.sources; }
-  strategy(trace: (round: DisclosureRound) => void): ConversationStrategy<DisclosureRound> {
+  async prepare(request: ConversationContext["request"], signal: AbortSignal, trace: (round: DisclosureRound) => void,
+    maxPasses: number): Promise<ConversationContext> {
+    const context: ConversationContext = { request, pass: 1, completed: new Set() };
     const rounds = this.traversal.rounds(trace);
-    return {
-      classify: (context, signal) => rounds.classify(context.request.messages, context.pass, signal),
-      resolve: async (context, labels, signal) => {
-        const offset = 1 + this.sources.length;
-        const messages = await rounds.resolve(context.request.messages, labels, signal);
-        context.request.messages.splice(offset, 0, ...messages);
-        return { reclassify: messages.length > 0 };
-      },
-    };
+    for (; context.pass <= maxPasses; context.pass++) {
+      signal.throwIfAborted();
+      const labels = await rounds.classify(context.request.messages, context.pass, signal);
+      signal.throwIfAborted();
+      const offset = 1 + this.sources.length;
+      const messages = await rounds.resolve(context.request.messages, labels, signal);
+      signal.throwIfAborted();
+      context.request.messages.splice(offset, 0, ...messages);
+      if (!messages.length) return context;
+    }
+    throw new Error("Conversation round limit reached; no dialogue generated.");
+  }
+  strategy(trace: (round: DisclosureRound) => void): ConversationStrategy {
+    return { respond: async ({ request, maxPasses }, signal, services) => {
+      const context = await this.prepare(request, signal, trace, maxPasses);
+      return services.character.respond(context.request, signal);
+    } };
   }
 }
 

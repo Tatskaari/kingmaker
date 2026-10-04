@@ -37,8 +37,7 @@ import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
 import { planWorldAction, type PlanningFeedback } from "./world-action.js";
 import { courtCharactersWithinEarshot, perceivesAt } from "./earshot.js";
 
-export type WorldTurnLabels = Awaited<ReturnType<ReturnType<typeof cliStrategy>["classify"]>>;
-export type WorldOptions = ConversationRuntimeOptions<WorldTurnLabels>;
+export type WorldOptions = ConversationRuntimeOptions;
 export { type WorldSnapshot } from "./world-host.js";
 
 export type ConversationStartResult = { ok: true; text: string } | ({ ok: false } & PlanningFeedback);
@@ -85,7 +84,7 @@ export class WorldGameRuntime extends WorldHost {
         ...(location ? { location: { x: location.x, y: location.y } } : {}),
       };
     }, (span, request, call) => this.traces.record(span.operation as ModelCallKind, span.characterId, request, call, runKey, span.characterId, span), kind);
-    return new ConversationRuntime<WorldTurnLabels>({ services: {
+    return new ConversationRuntime({ services: {
       ...this.options.services, ...extra.services,
       scenario,
       lore: documentLoreService(scenario, { ...this.options.services?.lore, ...extra.services?.lore }),
@@ -463,10 +462,7 @@ export class WorldGameRuntime extends WorldHost {
     const lore = await runtime.services.lore.forCharacter(id, signal);
     // Opening speech can disclose lore, but there is no player utterance to check.
     const disclosure = new DisclosureSession(lore, runtime.services.ai, 0.7).strategy(() => {});
-    runtime.strategies.conversation = this.options.strategies?.conversation ?? {
-      classify: async (...args) => ({ docs: await disclosure.classify(...args), checks: undefined }),
-      resolve: (context, labels, cancellation) => disclosure.resolve(context, labels.docs, cancellation),
-    };
+    runtime.strategies.conversation = this.options.strategies?.conversation ?? disclosure;
     let challenged = false;
     const granted = world.docs[characterIntent(world, id).entry]!.frontmatter?.conversation_actions;
     runtime.services.character.respond = Array.isArray(granted) && granted.includes("arrest")

@@ -1,6 +1,6 @@
 # Conversation debugger
 
-Conversation turns share a `classify → resolve → respond` handler in
+Conversation turns share a swappable `respond()` strategy, dispatched by
 `packages/conversation/src/phases.ts`. Hooks and conversation services are supplied
 to `ConversationRuntime`; the [runtime architecture](architecture.md) extends
 these boundaries to review, action planning, execution and resolution.

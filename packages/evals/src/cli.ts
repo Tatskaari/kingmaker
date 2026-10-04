@@ -18,7 +18,7 @@ const help = `Eval options:
   --help                   Show this help
 `;
 
-export async function runEvalCli<L, R>(experiments: readonly Experiment<L, R>[], options: {
+export async function runEvalCli<R>(experiments: readonly Experiment<R>[], options: {
   args?: string[]; secrets?: readonly string[]; print?: (text: string) => void;
 } = {}): Promise<{ trials: Trial[]; exitCode: number; directory?: string }> {
   const print = options.print ?? console.log;

@@ -1,9 +1,8 @@
 import type { JevQuestions } from "../../providers/src/jev.js";
 import type { Experiment, RunRecording, RuntimeConfig } from "./experiment.js";
 import type { AiService, RuntimeServices } from "../../conversation/src/services.js";
-import type { AnalysisEvent } from "../../conversation/src/attention.js";
-import { cliStrategy } from "../../conversation/src/cli-strategy.js";
-import { DisclosureSession } from "../../conversation/src/disclosure.js";
+import { analyzeAttention, type AnalysisEvent } from "../../conversation/src/attention.js";
+import { runConversation } from "../../conversation/src/phases.js";
 
 export interface AttentionCase {
   name: string;
@@ -22,13 +21,13 @@ function decisions(recording: RunRecording) {
   return event.decisions;
 }
 
-/** Freeze the observed dialogue and exercise the same post-reply hook used by the CLI. */
+/** Freeze the observed dialogue and exercise the same attention classifier used by the conversation strategy. */
 export function createAttentionExperiment(fixture: AttentionCase, createAi: () => AiService, variants: readonly { name: string; questions: JevQuestions }[] = []): Experiment {
   const config = (name: string, questions?: JevQuestions): RuntimeConfig => ({ name, configure() {
     let services: RuntimeServices;
     return { services: { ai: () => createAi(), debug: dependencies => { services = dependencies; return { record: () => {} }; } },
-      strategies: { conversation: { classify: async () => ({}), resolve: async () => ({ reclassify: false }),
-        analyze: async (context, reply, signal) => {
+      strategies: { conversation: { respond: async (context, signal) => {
+          const reply = { role: "assistant" as const, content: fixture.reply };
           const report = (event: AnalysisEvent) => {
             if (event.kind === "error") throw new Error(event.error);
             services.debug.record({ turn: 1, pass: 1, source: "attention", stage: "classify", status: "completed", output: event });
@@ -37,10 +36,10 @@ export function createAttentionExperiment(fixture: AttentionCase, createAi: () =
             const decisions = await services.ai.decisions({ messages: context.request.messages, characterReply: reply }, questions, signal, "conversation_attention");
             report({ kind: "labels", subject: "character", source: "attention", decisions });
           } else {
-            const disclosure = new DisclosureSession({ initial: [], links: () => [], open: async () => { throw new Error("Unexpected disclosure"); } }, services.ai);
-            await cliStrategy(disclosure, services.ai, undefined, fixture.player,
-              async () => { throw new Error("Unexpected roll"); }, () => {}, () => {}, {}, {}, undefined, report).analyze(context, reply, signal);
+            const decisions = await analyzeAttention(services.ai, context.request.messages, reply, signal);
+            report({ kind: "labels", subject: "character", source: "attention", decisions });
           }
+          return reply;
         },
       } },
     };
@@ -50,9 +49,9 @@ export function createAttentionExperiment(fixture: AttentionCase, createAi: () =
     getBaseline: () => config("game"),
     getVariants: () => variants.map(variant => config(variant.name, variant.questions)),
     async run(runtime, signal) {
-      await runtime.strategies.conversation.analyze!({ request: { model: "fixed-transcript", messages: [
+      await runConversation({ model: "fixed-transcript", messages: [
         { role: "system", content: fixture.context }, { role: "user", content: fixture.player },
-      ] }, pass: 1, completed: new Set() }, { role: "assistant", content: fixture.reply }, signal);
+      ] }, runtime, signal);
     },
     summarise(recording) {
       if (recording.error !== undefined) return "Attention analysis failed";

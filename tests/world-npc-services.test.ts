@@ -53,14 +53,16 @@ test("NPC opening speech runs conversation strategies and the character responde
       return { role: "assistant", content: "A word, please." };
     } },
   }, strategies: { conversation: {
-    classify: async () => { calls.push("classify"); return { docs: {} as never, checks: undefined }; },
-    resolve: async context => { calls.push("resolve"); context.request.messages.push({ role: "system", content: "Hook context" }); return { reclassify: context.pass === 1 }; },
+    respond: async (context, signal, services) => {
+      calls.push("strategy"); context.request.messages.push({ role: "system", content: "Hook context" });
+      return services.character.respond(context.request, signal);
+    },
   } } });
   actions[1]!.type = "move";
   assert.equal((await runtime.initiatePlayerConversation("rowan", "custom_player", map.revision, goal, signal)).ok, false);
   actions[1]!.type = "talk";
   assert.deepEqual(await runtime.initiatePlayerConversation("rowan", "custom_player", map.revision, goal, signal), { ok: true, text: "A word, please." });
-  assert.deepEqual(calls, ["classify", "resolve", "classify", "resolve", "respond"]);
+  assert.deepEqual(calls, ["strategy", "respond"]);
   assert.equal(runtime.snapshot().conversations.rowan!.filter(turn => (turn as { speakerId?: string }).speakerId !== "earshot").length, 1);
   const call = runtime.recentTranscripts().find(call => call.kind === "dialogue")!;
   assert.equal(call.characterId, "rowan");
@@ -153,7 +155,7 @@ test("conversation conflicts reach the next model decision without running a res
 test("a world change during opening speech returns a replan without publishing the stale opening", async () => {
   const { runtime, map, goal } = setup({ services: { disclosure: { disclose: async () => [] },
     character: { respond: async () => { map.revision++; return { role: "assistant", content: "Too late." }; } },
-  }, strategies: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }), resolve: async () => ({ reclassify: false }) } } });
+  }, strategies: { conversation: { respond: (context, signal, services) => services.character.respond(context.request, signal), } } });
   const before = runtime.snapshot();
   const result = await runtime.initiatePlayerConversation("rowan", "custom_player", map.revision, goal, signal);
   assert.equal(result.ok, false);

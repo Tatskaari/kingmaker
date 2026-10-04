@@ -21,7 +21,7 @@ test("v2 game reviews into documents, saves without v1 state, and subsequent dia
     assert.match(JSON.stringify(request), /PROMISESENTINEL/);
     assert.ok(!JSON.stringify(request).includes("ask_the_game_master"));
     return { role: "assistant", content: "I remember." };
-  } } }, strategies: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }), resolve: async () => ({ reclassify: false }) } } });
+  } } }, strategies: { conversation: { respond: (context, signal, services) => services.character.respond(context.request, signal), } } });
   assert.equal(runtime.view().phase, "conversations");
   runtime.endConversationAsPlayer("rowan", "Please go to the hall.");
   await runtime.endConversation("rowan");
@@ -90,7 +90,7 @@ test("conversation spans retain turn, retry, review and scenario context", async
     if (request.tools) return reviewReply;
     if (++attempts === 1) throw new TypeError("Temporary transport failure");
     return { role: "assistant", content: "Hello." };
-  } } }, strategies: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }), resolve: async () => ({ reclassify: false }) } } }, message => alerts.add("warning", message));
+  } } }, strategies: { conversation: { respond: (context, signal, services) => services.character.respond(context.request, signal), } } }, message => alerts.add("warning", message));
   await runtime.checkedTalkToCharacter("rowan", "Hello");
   assert.equal(alerts.severity, "warning");
   assert.equal(alerts.unread, 1);
@@ -114,7 +114,7 @@ test("conversation spans retain turn, retry, review and scenario context", async
 
 test("parallel characters and injected character responders remain separately traced", async () => {
   const runtime = game({ services: { character: { respond: async () => ({ role: "assistant", content: "Yes." }) } },
-    strategies: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }), resolve: async () => ({ reclassify: false }) } } });
+    strategies: { conversation: { respond: (context, signal, services) => services.character.respond(context.request, signal), } } });
   await Promise.all([runtime.checkedTalkToCharacter("rowan", "Hello"), runtime.checkedTalkToCharacter("corvin", "Hello")]);
   const calls = runtime.recentTranscripts();
   assert.equal(calls.length, 2);

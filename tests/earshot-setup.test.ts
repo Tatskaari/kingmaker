@@ -71,8 +71,7 @@ test("headless turns retain one audience note across reloads and only commit cha
   const counts: number[] = [];
   const game = new WorldHeadlessGame(world, "", {
     strategies: { conversation: {
-      classify: async () => ({ docs: {} as never, checks: undefined }),
-      resolve: async () => ({ reclassify: false }),
+      respond: (context, signal, services) => services.character.respond(context.request, signal),
     }, review: { resolve: async () => ({ summary: "Reviewed" }) } },
     services: { ai: { responses: async request => {
       counts.push(request.messages.filter(message => message.role === "system" && message.content?.startsWith("# Current conversation earshot")).length);

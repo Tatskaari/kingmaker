@@ -1,3 +1,4 @@
+import { directConversationStrategy } from "../../packages/conversation/src/phases.js";
 import { traceCliDecisions, decisionCallLabel, type CliDecisionCall } from "./decision-calls.js";
 import { formatConversation, type MessageAnalysis } from "./analysis.js";
 import type { AiService, RuntimeServices } from "../../packages/conversation/src/services.js";
@@ -123,7 +124,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
           setGmTurns(previous => [...previous, turn]);
         }, {}, {}, checks.services ? { services: checks.services, characterId: input.characterId } : undefined,
         event => setAnalysis(previous => [...previous, { ...event, messageIndex: messageIndex + (event.subject === "character" ? 1 : 0) }]))
-        : disclosure ? disclosure.strategy(trace) : { classify: async () => ({}), resolve: async () => ({ reclassify: false }) };
+        : disclosure ? disclosure.strategy(trace) : directConversationStrategy;
       const runtime = new ConversationRuntime({
         services: { character: { respond: async (request, signal) => {
           const response = await complete(request, signal);
@@ -133,7 +134,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
           setTurns(previous => [...previous.slice(0, index), { request, response }]);
           return response;
         } } },
-        strategies: { conversation: strategies as import("../../packages/conversation/src/phases.js").ConversationStrategy<unknown> },
+        strategies: { conversation: strategies },
       });
       const result = await converse({ ...turnInput, sources: disclosure?.sources ?? input.sources }, runtime, controller.current.signal,
         turn => {
