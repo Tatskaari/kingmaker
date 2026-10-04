@@ -7,7 +7,7 @@ const data = { scenario: "Scenes/scene.md", docs: {
   "index.md": { body: "Root" }, "Scenes/scene.md": { body: "# Court\n\n[[index|Home]]", frontmatter: { summary: "Court" } },
 }, history: [{ path: "Scenes/scene.md", updatedAt: "2026-10-03T12:00:00Z", toolCallId: "review",
   call: { id: 1, characterId: "rowan", kind: "conversation_review", status: "success", request: { messages: [{ role: "user", content: "Please remember." }] },
-    response: { tool_calls: [{ id: "review", function: { name: "commit_review", arguments: '{"summary":"Remember the promise","newNotes":["A promise"],"activeGoal":null}' } }] } } },
+    response: { tool_calls: [{ id: "review", function: { name: "set_activity", arguments: '{"summary":"Remember the promise","newNotes":["A promise"],"activeGoal":null}' } }] } } },
   { path: "index.md", call: { response: "UNRELATED" } }],
 };
 
@@ -20,7 +20,7 @@ test("explorer shows breadcrumbs, selected directory, rendered document and scop
   assert.match(html, /popover[^>]*role="dialog" aria-label="Recent document updates"/);
   assert.match(html, /History \(1\)/);
   assert.match(html, /Lord Rowan · conversation review/);
-  assert.match(html, /commit_review/);
+  assert.match(html, /set_activity/);
   assert.match(html, /Please remember/);
   assert.doesNotMatch(html, /Could not read structured review output/);
   assert.doesNotMatch(html, /UNRELATED/);

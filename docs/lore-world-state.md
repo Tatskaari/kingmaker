@@ -108,9 +108,9 @@ Each successful document write saves immediately, including when a later review
 step fails or is cancelled. Automatic access and link validation applies to every
 write. The GM must preserve who knows what and use appropriate access metadata.
 
-`commit_review` finishes the review: it appends deduplicated plain-prose notes and
-publishes staged activity/wait pointers in one SHA-checked batch.
-Its summary is returned to the caller. It does not publish or roll back preceding
+The GM finishes with a plain-text summary. The host then publishes staged
+activity/wait pointers in one SHA-checked batch and returns that summary.
+Memories are written exclusively through document edit tools. It does not publish or roll back preceding
 document-tool edits. An edit/read of the reviewed character refreshes the snapshot
 used by this final write, preserving edits made earlier in the tool loop.
 

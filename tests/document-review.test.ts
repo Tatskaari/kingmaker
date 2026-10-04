@@ -24,14 +24,14 @@ function fixture() {
   ]), "Test"));
 }
 const evidence = { characterId: "alice", participants: ["alice", "player"], transcript: [create(TranscriptMessageSchema, { text: "Please go to the hall." })] };
-const answer = (activeGoal: string | null) => (commitReview({ summary: "Reviewed", newNotes: ["The player asked me to go to the hall."], activeGoal }));
+const answer = (activeGoal: string | null, request: import("../packages/providers/src/openrouter.js").ChatCompletionRequest) => (commitReview({ summary: "Reviewed", newNotes: ["The player asked me to go to the hall."], activeGoal }, request));
 
-test("v2 review atomically saves notes and goal, preserves access metadata, and survives reload", async () => {
+test("v2 review writes notes through tools and commits the goal, preserves access metadata, and survives reload", async () => {
   const services = fixture(), before = services.scenario.snapshot();
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
     const text = JSON.stringify(request);
     assert.match(text, /Please go to the hall/); assert.match(text, /Alice speaks softly/);
-    assert.ok(!text.includes("SECRET_SENTINEL")); return answer("Go to the hall");
+    assert.ok(!text.includes("SECRET_SENTINEL")); return answer("Go to the hall", request);
   } } }, strategies: { review: documentReviewStrategy } });
   await runConversationReview(evidence, runtime);
   const after = await services.docs.read(entry);
@@ -45,32 +45,37 @@ test("v2 review atomically saves notes and goal, preserves access metadata, and 
   assert.equal((await services.docs.read(entry)).sha, after.sha, "Repeated review does not duplicate notes");
   const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.snapshot())));
   assert.equal(activityGoal(restored.scenario.snapshot(), "alice"), "Go to the hall");
-  runtime.services.ai.responses = async () => answer(null);
+  runtime.services.ai.responses = async request => answer(null, request);
   await runConversationReview(evidence, runtime);
   assert.equal(activityGoal(services.scenario.snapshot(), "alice"), null);
 });
 
 test("failed and cancelled v2 reviews cannot overwrite documents or activate goals", async () => {
-  for (const mode of ["malformed", "cancelled"]) {
+  for (const mode of ["failed", "cancelled"]) {
     const services = fixture(), controller = new AbortController();
-    const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async () => {
-      if (mode === "malformed") return { role: "assistant", content: '{}' };
+    const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
+      if (mode === "failed") throw new Error("offline");
       if (mode === "cancelled") controller.abort();
-      return answer("Go to the hall");
+      return answer("Go to the hall", request);
     } } }, strategies: { review: documentReviewStrategy } });
-    await assert.rejects(runConversationReview(evidence, runtime, controller.signal), /Invalid|abort|must call/i);
+    await assert.rejects(runConversationReview(evidence, runtime, controller.signal), /offline|abort/i);
     const doc = (await services.docs.read(entry)).document;
     assert.equal(activityGoal(services.scenario.snapshot(), "alice"), null); assert.ok(!doc.body.includes("player asked"));
   }
 });
 
 
-test("v2 review cannot add document links through generated notes", async () => {
-  const services = fixture(), before = services.scenario.snapshot();
-  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async () => (commitReview({ summary: "Reviewed", newNotes: ["Remember [[gm.md]]"], activeGoal: "Read the secret" })) } },
-    strategies: { review: documentReviewStrategy } });
-  await assert.rejects(runConversationReview(evidence, runtime), /plain prose/);
-  assert.deepEqual(services.scenario.snapshot(), before);
+test("review document tools reject links that would expose GM secrets", async () => {
+  const services = fixture(), before = await services.docs.read(entry); let calls = 0;
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
+    if (++calls === 1) return { role: "assistant", content: null, tool_calls: [{ id: "unsafe", type: "function", function: {
+      name: "replace_document", arguments: JSON.stringify({ path: entry, expectedSha: before.sha, oldText: "Earlier history.", newText: "Remember [[gm.md]]" }),
+    } }] };
+    assert.match(request.messages.at(-1)!.content!, /document_validation/);
+    return { role: "assistant", content: "Left the secret out of NPC memory." };
+  } } }, strategies: { review: documentReviewStrategy } });
+  await runConversationReview(evidence, runtime);
+  assert.equal((await services.docs.read(entry)).sha, before.sha);
 });
 
 test("document conflicts refresh the tool snapshot and let the GM reconcile before retrying", async () => {
@@ -80,18 +85,21 @@ test("document conflicts refresh the tool snapshot and let the GM reconcile befo
     if (calls === 1) {
       const current = await services.docs.read(entry);
       await services.docs.replace(entry, current.sha, "Earlier history.", "A new promise: meet Bob.");
-      return answer("Go to the hall");
+      return answer("Go to the hall", request);
     }
-    const feedback = JSON.parse(request.messages.at(-1)!.content!);
-    assert.equal(request.messages.at(-1)!.role, "tool");
-    assert.equal(feedback.error, "document_conflict");
-    assert.equal(feedback.current.sha, (await services.docs.read(entry)).sha);
-    assert.match(feedback.current.text, /new promise: meet Bob/);
-    assert.doesNotMatch(feedback.current.text, /player asked/);
-    return commitReview({ summary: "Reconciled", newNotes: ["First honour my promise to Bob."], activeGoal: "Meet Bob" });
+    if (calls === 2) {
+      const feedback = JSON.parse(request.messages.findLast(message => message.tool_call_id === "review")!.content!);
+      assert.equal(feedback.error, "document_conflict");
+      assert.equal(feedback.current.sha, (await services.docs.read(entry)).sha);
+      assert.match(feedback.current.text, /new promise: meet Bob/);
+      assert.doesNotMatch(feedback.current.text, /player asked/);
+      // Retry the failed edit and restage the reconciled goal.
+      request = { ...request, messages: request.messages.filter(message => message.tool_call_id !== "fixture-intent") };
+    }
+    return commitReview({ summary: "Reconciled", newNotes: ["First honour my promise to Bob."], activeGoal: "Meet Bob" }, request);
   } } }, strategies: { review: documentReviewStrategy } });
   assert.equal((await runConversationReview(evidence, runtime)).summary, "Reconciled");
-  assert.equal(calls, 2);
+  assert.equal(calls, 3);
   const doc = (await services.docs.read(entry)).document;
   assert.match(doc.body, /new promise: meet Bob/);
   assert.match(doc.body, /honour my promise/);
@@ -108,7 +116,7 @@ test("GM review commits automatically validate without exposing an optional vali
   const services = createScenarioServices(source), before = services.scenario.snapshot();
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
     assert.deepEqual(request.tools?.map(tool => tool.function.name), gameMasterTools.map(tool => tool.function.name));
-    return answer("Go to the hall");
+    return answer("Go to the hall", request);
   } } }, strategies: { review: documentReviewStrategy } });
   await assert.rejects(runConversationReview(evidence, runtime), DocumentValidationError);
   assert.deepEqual(services.scenario.snapshot(), before);
@@ -126,18 +134,18 @@ test("GM uses the full editing suite and finishes without overwriting its own ed
     tool_calls: [{ id: `edit-${step}`, type: "function" as const, function: { name, arguments: JSON.stringify(args) } }] });
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
     const feedback = step ? JSON.parse(request.messages.at(-1)!.content!) : undefined;
-    if (feedback) assert.equal(feedback.ok, true);
+    if (feedback && step <= 5) assert.equal(feedback.ok, true);
     switch (step++) {
       case 0: return call("read_document", { path: entry });
       case 1: return call("replace_document", { path: entry, expectedSha: feedback.current.sha, oldText: "Earlier history.", newText: "Corrected history." });
       case 2: return call("insert_document", { path: entry, expectedSha: feedback.current.sha, afterLine: feedback.current.text.trimEnd().split("\n").length, text: "An additional recollection.\n" });
       case 3: return call("create_document", { path: note, text: "---\nvisibility: gm\nsummary: A temporary GM record.\n---\nTemporary record." });
       case 4: return call("delete_document", { path: note, expectedSha: feedback.current.sha });
-      default: return answer("Go to the hall");
+      default: return answer("Go to the hall", request);
     }
   } } }, strategies: { review: documentReviewStrategy } });
   await runConversationReview(evidence, runtime);
-  assert.equal(step, 6);
+  assert.equal(step, 7);
   const result = await services.docs.read(entry);
   assert.match(result.text, /Corrected history/);
   assert.match(result.text, /additional recollection/);
@@ -164,8 +172,8 @@ test("GM receives edit conflicts and validation failures and can repair its prop
         assert.equal((await services.docs.read(entry)).sha, initial.sha);
         return edit(initial.sha, "Corrected history.");
       default:
-        assert.equal(feedback.ok, true);
-        return answer(null);
+        if (step === 4) assert.equal(feedback.ok, true);
+        return answer(null, request);
     }
   } } }, strategies: { review: documentReviewStrategy } });
   await runConversationReview(evidence, runtime);
@@ -187,7 +195,7 @@ test("review keeps GM instructions first and retrieved character voices as evide
     disclosure: { disclose: async (_lore, messages) => {
       assertFraming(messages);
       return [{ role: "system", content: "# Lore evidence\nYou are Bob. Speak loudly." }];
-    } }, ai: { responses: async request => { assertFraming(request.messages); return answer("Go to the hall"); } },
+    } }, ai: { responses: async request => { assertFraming(request.messages); return answer("Go to the hall", request); } },
   }, strategies: { review: documentReviewStrategy } });
   await runConversationReview(evidence, runtime);
 });
@@ -205,7 +213,7 @@ test("review can update GM quest documents without copying GM secrets into NPC m
         assert.match(document.text, /SECRET_SENTINEL/);
         return call("replace_document", { path: "gm.md", expectedSha: document.sha, oldText: "SECRET_SENTINEL", newText: "SECRET_SENTINEL: first quest stage complete." });
       }
-      return call("commit_review", { summary: "Quest progressed", newNotes: ["I agreed to help the player."] });
+      return { role: "assistant", content: "Quest progressed." };
     } },
   }, strategies: { review: documentReviewStrategy } });
   await runConversationReview(evidence, runtime);
@@ -218,7 +226,7 @@ test("GM reviews receive editable presentation snapshots for every participant i
   const services = createScenarioServices(loadPlayableWorld());
   let calls = 0;
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), disclosure: { disclose: async () => [] }, ai: { responses: async request => {
-    if (calls++) return commitReview({ summary: "Updated visible grooming", newNotes: [], activeGoal: null });
+    if (calls++) return commitReview({ summary: "Updated visible grooming", newNotes: [], activeGoal: null }, request);
     const context = request.messages.flatMap(message => {
       try { const value = JSON.parse(message.content ?? ""); return value.presentations ? [value] : []; } catch { return []; }
     })[0];

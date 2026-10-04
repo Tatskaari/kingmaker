@@ -5,7 +5,7 @@ import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { runConversation } from "../packages/conversation/src/phases.js";
 import { documentLoreService } from "../packages/conversation/src/document-lore.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
-import { loadPlayableWorld } from "./fixtures.js";
+import { commitReview, loadPlayableWorld } from "./fixtures.js";
 import type { OpenRouterMessage } from "../packages/providers/src/openrouter.js";
 
 const choice = (value: string) => ({ choice: value, probabilities: { [value]: 1 } });
@@ -30,9 +30,7 @@ function fixture(mode: "background" | "approve" | "deny" | "limit" | "error") {
     }, responses: async request => {
       if (request.response_format) return { role: "assistant", content: JSON.stringify({ allowed: mode === "approve", reason: "This bird belongs to another guest. Offer something else." }) };
       if (mode === "background") await gate;
-      return { role: "assistant", content: null, tool_calls: [{ id: "review", type: "function", function: {
-        name: "commit_review", arguments: JSON.stringify({ summary: "Recorded", newNotes: ["Promised the player a gift."] }),
-      } }] };
+      return commitReview({ summary: "Recorded", newNotes: ["Promised the player a gift."], activeGoal: null }, request);
     } },
   }, strategies: { conversation: liveConversationStrategy({ characterId: "corvin", reviews, maxDrafts: 2 }) } });
   return { runtime, reviews, before, backing, drafts, events, release };

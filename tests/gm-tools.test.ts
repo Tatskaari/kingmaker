@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createScenarioServices, DocumentConflictError } from "../packages/lore/src/services.js";
+import { createScenarioServices } from "../packages/lore/src/services.js";
 import { characterEntry } from "../packages/lore/src/active-goal.js";
 import { activityGoal } from "../packages/lore/src/activity.js";
 import { GameMasterTools, gameMasterTools } from "../packages/conversation/src/gm-tools.js";
@@ -30,21 +30,22 @@ test("GM tools edit other characters and quest documents, preserving SHA conflic
   assert.equal(services.scenario.snapshot().docs[path], undefined);
 });
 
-test("GM commits activities for multiple NPCs atomically with the reviewed memory", async () => {
+test("host commits staged activities while preserving GM document edits", async () => {
   const services = fixture(), gm = new GameMasterTools(services, "oswin");
   await gm.begin();
   for (const characterId of ["oswin", "corvin"]) await gm.call("set_activity", {
     characterId, name: "Meeting", status: "Promised", success_criteria: "Arrive in the parlour", current_goal: "Go to the parlour",
   });
   assert.equal(activityGoal(services.scenario.snapshot(), "corvin"), null);
-  await gm.call("commit_review", { summary: "Arrange meeting", newNotes: ["I promised to meet the player."] });
+  await writeMemory(services, gm, "oswin", "I promised to meet the player.");
+  await gm.commit();
   for (const id of ["oswin", "corvin"]) assert.equal(activityGoal(services.scenario.snapshot(), id), "Go to the parlour");
   assert.match((await services.docs.read(characterEntry(services.scenario.info(), "oswin"))).text, /promised to meet/);
   assert.doesNotMatch((await services.docs.read(characterEntry(services.scenario.info(), "corvin"))).text, /promised to meet/);
 });
 
 test("GM rulings and reviews expose the identical tool registry and execute document calls", async () => {
-  for (const requireCommit of [false, true]) {
+  for (const review of [false, true]) {
     const services = fixture(); let calls = 0;
     services.ai.responses = async request => {
       assert.deepEqual(request.tools, gameMasterTools);
@@ -53,11 +54,10 @@ test("GM rulings and reviews expose the identical tool registry and execute docu
         name: "read_document", arguments: JSON.stringify({ path: services.scenario.info().scenario }),
       } }] };
       assert.equal(request.messages.at(-1)!.role, "tool");
-      return requireCommit ? { role: "assistant", content: null, tool_calls: [{ id: "finish", type: "function", function: {
-        name: "commit_review", arguments: JSON.stringify({ summary: "Reviewed", newNotes: [] }),
-      } }] } : { role: "assistant", content: '{"direction":"Honour the agreement."}' };
+      assert.ok(!request.tools?.some(tool => tool.function.name === "commit_review"));
+      return { role: "assistant", content: "Reviewed." };
     };
-    await runGameMaster({ model: "test", messages: [] }, services, new AbortController().signal, { characterId: "oswin", requireCommit });
+    await runGameMaster({ model: "test", messages: [] }, services, new AbortController().signal, { characterId: "oswin", review });
     assert.equal(calls, 2);
   }
 });
@@ -69,7 +69,8 @@ test("GM assignments to two guard bodies share memories but keep separate activi
   for (const [characterId, goal] of [["palace-guard-1", "Watch the west door"], ["palace-guard-2", "Watch the east door"]]) {
     await gm.call("set_activity", { characterId, name: goal, status: "Assigned", success_criteria: goal, current_goal: goal });
   }
-  await gm.call("commit_review", { summary: "Assign posts", newNotes: ["We agreed to watch the doors."] });
+  await writeMemory(services, gm, "palace-guard", "We agreed to watch the doors.");
+  await gm.commit();
   assert.equal(activityGoal(services.scenario.snapshot(), "palace-guard-1"), "Watch the west door");
   assert.equal(activityGoal(services.scenario.snapshot(), "palace-guard-2"), "Watch the east door");
   assert.equal(activityGoal(services.scenario.snapshot(), "palace-guard-3"), untouched);
@@ -81,22 +82,20 @@ test("GM assignments to two guard bodies share memories but keep separate activi
 const toolReply = (name: string, input: unknown) => ({ role: "assistant" as const, content: null,
   tool_calls: [{ id: crypto.randomUUID(), type: "function" as const, function: { name, arguments: JSON.stringify(input) } }] });
 
-test("review corrects the dump's extra commit characterId without publishing rejected notes", async () => {
-  const services = fixture(), path = characterEntry(services.scenario.info(), "oswin");
-  const before = await services.docs.read(path); let calls = 0;
-  services.ai.responses = async request => {
-    if (++calls === 1) return toolReply("commit_review", { characterId: "corvin", summary: "Reviewed", newNotes: ["Rejected note."] });
-    assert.equal((await services.docs.read(path)).sha, before.sha);
-    assert.match(request.messages.at(-1)!.content!, /invalid_tool_arguments.*Do not include characterId/);
-    return toolReply("commit_review", { summary: "Corrected", newNotes: ["Corrected note."] });
+test("host commits only after the GM finishes and does not append its final reply as memory", async () => {
+  const services = fixture(), path = characterEntry(services.scenario.info(), "oswin"); let calls = 0;
+  services.ai.responses = async () => {
+    assert.equal(activityGoal(services.scenario.snapshot(), "oswin"), null);
+    if (++calls === 1) return toolReply("set_activity", { name: "Meeting", status: "Pending", success_criteria: "Arrive", current_goal: "Go to the hall" });
+    return { role: "assistant", content: "A final summary, not a memory." };
   };
-  await runGameMaster({ model: "test", messages: [] }, services, new AbortController().signal, { characterId: "oswin", requireCommit: true });
-  assert.equal(calls, 2);
-  const after = await services.docs.read(path);
-  assert.match(after.text, /Corrected note/); assert.doesNotMatch(after.text, /Rejected note/);
+  const reply = await runGameMaster({ model: "test", messages: [] }, services, new AbortController().signal, { characterId: "oswin", review: true });
+  assert.equal(reply.content, "A final summary, not a memory.");
+  assert.equal(activityGoal(services.scenario.snapshot(), "oswin"), "Go to the hall");
+  assert.doesNotMatch((await services.docs.read(path)).text, /A final summary/);
 });
 
-test("review recovers after a conflict followed by an uncommitted prose reply", async () => {
+test("host commit conflicts return to the GM for reconciliation", async () => {
   const services = fixture(), path = characterEntry(services.scenario.info(), "oswin"); let calls = 0;
   services.ai.responses = async request => {
     switch (++calls) {
@@ -104,28 +103,39 @@ test("review recovers after a conflict followed by an uncommitted prose reply", 
       case 2: {
         const current = await services.docs.read(path);
         await services.docs.commit([{ path, expectedSha: current.sha, text: current.text + "\nConcurrent memory.\n" }]);
-        return toolReply("commit_review", { summary: "Reviewed", newNotes: [] });
+        return { role: "assistant", content: "Reviewed." };
       }
       case 3:
+        assert.equal(request.messages.at(-1)!.role, "system");
         assert.match(request.messages.at(-1)!.content!, /document_conflict/);
-        return { role: "assistant", content: "I could not publish because the character document changed." };
-      case 4:
-        assert.match(request.messages.at(-1)!.content!, /No review was committed/);
         assert.equal(activityGoal(services.scenario.snapshot(), "oswin"), null);
         return toolReply("set_activity", { name: "New", status: "Pending", success_criteria: "Arrive", current_goal: "Reconciled goal" });
-      default: return toolReply("commit_review", { summary: "Reconciled", newNotes: ["Reconciled memory."] });
+      default: return { role: "assistant", content: "Reconciled." };
     }
   };
-  await runGameMaster({ model: "test", messages: [] }, services, new AbortController().signal, { characterId: "oswin", requireCommit: true });
-  assert.equal(calls, 5);
+  await runGameMaster({ model: "test", messages: [] }, services, new AbortController().signal, { characterId: "oswin", review: true });
+  assert.equal(calls, 4);
   assert.equal(activityGoal(services.scenario.snapshot(), "oswin"), "Reconciled goal");
-  assert.match((await services.docs.read(path)).text, /Concurrent memory[\s\S]*Reconciled memory/);
+  assert.match((await services.docs.read(path)).text, /Concurrent memory/);
 });
 
-test("review protocol correction is bounded and never treats prose as a commit", async () => {
-  const services = fixture(), before = services.scenario.snapshot(); let calls = 0;
-  services.ai.responses = async () => { calls++; return { role: "assistant", content: "Done." }; };
-  await assert.rejects(runGameMaster({ model: "test", messages: [] }, services, new AbortController().signal,
-    { characterId: "oswin", requireCommit: true }), /must call a tool/);
-  assert.equal(calls, 3); assert.deepEqual(services.scenario.snapshot(), before);
+test("failed or cancelled GM completion leaves staged activities uncommitted", async () => {
+  for (const cancelled of [false, true]) {
+    const services = fixture(), controller = new AbortController(); let calls = 0;
+    services.ai.responses = async () => {
+      if (++calls === 1) return toolReply("set_activity", { name: "Meeting", status: "Pending", success_criteria: "Arrive", current_goal: "Go to the hall" });
+      if (!cancelled) throw new Error("offline");
+      controller.abort();
+      return { role: "assistant", content: "Done." };
+    };
+    await assert.rejects(runGameMaster({ model: "test", messages: [] }, services, controller.signal,
+      { characterId: "oswin", review: true }), /offline|abort/i);
+    assert.equal(activityGoal(services.scenario.snapshot(), "oswin"), null);
+  }
 });
+
+async function writeMemory(services: ReturnType<typeof fixture>, gm: GameMasterTools, id: string, note: string) {
+  const before = await services.docs.read(characterEntry(services.scenario.info(), id));
+  await gm.call("replace_document", { path: before.path, expectedSha: before.sha, oldText: before.document.body,
+    newText: before.document.body + "\n" + note });
+}
