@@ -1,7 +1,6 @@
-import { gunzipSync } from "node:zlib";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { publishEvalHistory } from "../scripts/publish-eval-history.js";
@@ -14,7 +13,7 @@ test("history preserves prior commits, separates experiments and replaces reruns
   const write = (path: string, value: unknown) => writeFileSync(join(run, path), JSON.stringify(value));
   const rubric = [{ name: "accuracy", description: "Correctness" }];
   const trial = (experiment: string, score: number) => ({ experiment, variant: "game", baseline: true, repeat: 1,
-    summary: "evidence", recording: { calls: [], initialState: {}, finalState: {} }, gradingCalls: [],
+    summary: "evidence", recording: { calls: [], initialState: { large: "recording-only".repeat(10000) }, finalState: {} }, gradingCalls: [{ payload: "judge-recording-only" }],
     result: { criteria: { accuracy: { score, reason: "Partial credit", probabilities: { partial: 1 } } } } });
   try {
     write("results.json", {});
@@ -22,9 +21,12 @@ test("history preserves prior commits, separates experiments and replaces reruns
     write("0001.json", trial("one", 0.75)); write("0002.json", trial("two", 0.25));
     await publishEvalHistory(source, destination);
     const result = read(`one/${"a".repeat(40)}.json`);
+    assert.ok(readFileSync(join(destination, "one", `${"a".repeat(40)}.json`)).length < 5000);
     assert.equal(result.trials[0].recording, undefined);
     assert.equal(result.trials[0].gradingCalls, undefined);
-    assert.deepEqual(JSON.parse(gunzipSync(readFileSync(join(destination, "one", result.trials[0].evidence))).toString()), trial("one", 0.75));
+    assert.equal(result.trials[0].evidence, undefined);
+    assert.deepEqual(readdirSync(join(destination, "one")).sort(), [`${"a".repeat(40)}.json`, "index.json"]);
+    assert.deepEqual(JSON.parse(readFileSync(join(run, "0001.json"), "utf8")), trial("one", 0.75));
     assert.deepEqual(read("index.json"), ["one", "two"]);
     assert.equal(read(`one/${"a".repeat(40)}.json`).comparison[0].total, 0.75);
     assert.equal(read(`two/${"a".repeat(40)}.json`).trials[0].result.criteria.accuracy.reason, "Partial credit");
