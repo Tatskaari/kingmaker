@@ -49,7 +49,7 @@ export async function prepareConversation(input: ConversationInput, services: Pi
   signal: AbortSignal = new AbortController().signal): Promise<ChatCompletionRequest> {
   const request = conversationRequest(input, []);
   return { ...request, messages: await services.agents.prepare({ agent: "character", characterId: input.characterId,
-    messages: request.messages, sources: input.sources,
+    participantIds: [input.characterId, "player"], messages: request.messages, sources: input.sources,
   }, signal) };
 }
 

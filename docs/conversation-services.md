@@ -389,3 +389,11 @@ Their default hook resolves fresh scoped lore using `services.lore.forCharacter`
 (the Stranger supplies its GM-scoped source) and completes disclosure before
 execution. Review still refreshes character evidence between GM tool turns,
 keeping that evidence in user messages and preserving all custom system messages.
+
+The browser/headless host installs `setupWorldAgent` by default. For character
+replies, NPC openings and NPC exchanges, it reads the map and scenario services
+to add current bystanders grouped by Clear, Moderate and Distant earshot. Active
+participants are excluded; door obstruction and distinct body IDs follow the
+existing earshot rules. The warning is context for speech, not a perception event
+or a claim that anyone learned it. Override `hooks.setup` to replace this policy,
+or delegate to `setupWorldAgent` to retain the earshot warning.

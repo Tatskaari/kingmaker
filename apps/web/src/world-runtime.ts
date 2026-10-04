@@ -1,3 +1,4 @@
+import { setupWorldAgent } from "./agent-setup.js";
 import { arrestResponse } from "../../../packages/conversation/src/conversation-actions.js";
 import { decideWait, waitObservation } from "../../../packages/conversation/src/wait.js";
 import { characterIntent, routinePath, setIntent } from "../../../packages/lore/src/activity.js";
@@ -105,7 +106,7 @@ export class WorldGameRuntime extends WorldHost {
       random,
       debug: { record: () => {}, documentUpdated: event => this.traces.documentUpdated(event), ...this.options.services?.debug, ...extra.services?.debug },
       presentation: { renderMap: async () => {}, showRoll: async () => {}, setPortrait: async () => {}, ...this.options.services?.presentation, ...extra.services?.presentation },
-    }, hooks: { ...this.options.hooks, ...extra.hooks,
+    }, hooks: { setup: setupWorldAgent, ...this.options.hooks, ...extra.hooks,
       review: { ...documentReviewHooks, ...this.options.hooks?.review, ...extra.hooks?.review },
       actionExecution: { ...mapActionHooks, ...this.options.hooks?.actionExecution, ...extra.hooks?.actionExecution },
       action: { ...jevActionHooks, ...this.options.hooks?.action, ...extra.hooks?.action },

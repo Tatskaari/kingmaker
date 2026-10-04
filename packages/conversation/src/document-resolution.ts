@@ -7,9 +7,9 @@ import { reviewDocumentEvidence } from "./document-review.js";
 import type { ResolutionHooks } from "./resolution.js";
 import type { RuntimeServices } from "./services.js";
 
-async function speak(characterId: string, instruction: string, evidence: unknown, signal: AbortSignal, services: RuntimeServices) {
+async function speak(characterId: string, partnerId: string, instruction: string, evidence: unknown, signal: AbortSignal, services: RuntimeServices) {
   const response = await services.ai.responses({ model: "openai/gpt-6-luna", api: "responses", max_tokens: 1200,
-    messages: await disclosedContext("exchange", [{ role: "user", content: JSON.stringify({ instruction, evidence }) }], services, characterId, signal),
+    messages: await disclosedContext("exchange", [{ role: "user", content: JSON.stringify({ instruction, evidence }) }], services, characterId, signal, { participantIds: [characterId, partnerId] }),
   }, signal, { characterId, purpose: "dialogue" });
   signal.throwIfAborted();
   if (response.tool_calls?.length || !response.content?.trim()) throw new Error("Expected character speech.");
@@ -40,9 +40,9 @@ export const documentResolutionHooks: ResolutionHooks = {
       if (context.characterId === context.targetId) throw new Error("An exchange needs two different participants.");
       const participants = [context.characterId, context.targetId];
       // Each speaker gets only their own context and what the other actually said.
-      const opening = await speak(context.characterId, "Initiate a brief exchange to advance your goal.",
+      const opening = await speak(context.characterId, context.targetId, "Initiate a brief exchange to advance your goal.",
         { target: context.targetId, goal: context.goal }, signal, services);
-      const response = await speak(context.targetId, "Respond to the words spoken to you. You may refuse or negotiate.",
+      const response = await speak(context.targetId, context.characterId, "Respond to the words spoken to you. You may refuse or negotiate.",
         { speaker: context.characterId, words: opening.text }, signal, services);
       const transcript = [opening, response];
       for (const characterId of participants) {
