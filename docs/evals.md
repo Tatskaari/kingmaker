@@ -88,3 +88,18 @@ repeats and selected experiments, sorted by weighted total, with baseline deltas
 experiments must use identical rubrics. Execution failures score zero; missing judge results
 leave a variant unranked. Error counts remain visible. Nonzero exit means execution/judging
 failed; low rubric scores are comparison data, not an automatic CI failure threshold.
+
+## Published history
+
+The `Run evals` workflow runs `workspace:eval` on main pushes or manual dispatch.
+Set the repository secret `OPENROUTER_KEY`; CI maps it to `OPENROUTER_API_KEY`.
+Register new framework runners as uncached Moon tasks in `workspace:eval`'s dependencies.
+The legacy wait/handoff probes are not part of this suite.
+
+Completed trials are retained even when execution or judging fails. The publisher stores
+`evals/<experiment>/<commit>.json` (metadata, per-experiment comparison and full trials),
+`evals/<experiment>/index.json` (result filenames), and `evals/index.json` (experiment names)
+on the data branch `gh-pages`. Rerunning a commit replaces its result without duplicating
+its index entry. Deploy GitHub Pages includes this history alongside the game and previews;
+results are not committed to main. Concurrent preview writes are preserved by push retries.
+Recordings use the framework's credential redaction and are published as public site data.
