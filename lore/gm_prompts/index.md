@@ -21,14 +21,16 @@ Runtime code filters observations and lore permissions before supplying values. 
 - [[gm_prompts/attention-other-world-update|attention other world update]]
 - [[gm_prompts/attention-conversational-exchange|attention conversational exchange]]
 - [[gm_prompts/attention-relationship-or-knowledge-change|attention relationship or knowledge change]]
+- [[gm_prompts/attention-instructions|attention instructions]]
 - [[gm_prompts/attention-flagged|attention flagged]]
 - [[gm_prompts/attention-not-flagged|attention not flagged]]
-- [[gm_prompts/attention-instructions|attention instructions]]
+- [[gm_prompts/attention-feasibility|attention feasibility]]
 - [[gm_prompts/attention-possible|attention possible]]
 - [[gm_prompts/attention-gms-discretion|attention gms discretion]]
 - [[gm_prompts/attention-impossible|attention impossible]]
 - [[gm_prompts/attention-unknown|attention unknown]]
 - [[gm_prompts/attention-not-applicable|attention not applicable]]
+
 
 - [[gm_prompts/ability-checks-critical-failure|ability checks critical failure]]
 - [[gm_prompts/ability-checks-critical-success|ability checks critical success]]
