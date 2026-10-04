@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { fromJson } from "@bufbuild/protobuf";
+import { TranscriptMessageSchema } from "../packages/contracts/src/index.js";
 import { WorldGameRuntime, type WorldOptions } from "../apps/web/src/world-runtime.js";
 import { CheckDegree } from "../packages/core/src/ability-checks.js";
 import type { RollResult } from "../packages/conversation/src/services.js";
@@ -77,8 +79,9 @@ test("successive dialogue turns persist only new rulings, including identical re
       },
     },
   } });
-  const savedRulings = () => runtime.snapshot().conversations.rowan!.filter(turn =>
-    String(turn.text).startsWith("# Binding DM ruling"));
+  const savedRulings = () => runtime.snapshot().conversations.rowan!
+    .map(turn => fromJson(TranscriptMessageSchema, turn))
+    .filter(turn => turn.text.startsWith("# Binding DM ruling"));
   for (let turn = 0; turn < 8; turn++) {
     needsCheck = turn % 2 === 0;
     if (needsCheck) expectedRulings++;
