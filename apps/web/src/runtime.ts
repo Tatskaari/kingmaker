@@ -1,3 +1,4 @@
+import { createPhysicalEvent } from "./physical-event.js";
 import { aiService, decisionClient } from "../../../packages/conversation/src/adapters.js";
 import { checkMechanics } from "../../../packages/conversation/src/checks.js";
 import { classifyResolution, runResolution, type ResolutionContext } from "../../../packages/conversation/src/resolution.js";
@@ -1060,12 +1061,7 @@ export class BrowserGameRuntime {
   }
 
   worldEvent(kind: string, summary: string, participantIds: string[], details: EventDetails = {}): Event {
-    const scenario = this.#game.scenario();
-    const actor = scenario.world?.actors.find(candidate => candidate.characterId === participantIds[0]);
-    const event = create(EventSchema, { id: `event-${crypto.randomUUID()}`, day: scenario.world?.day ?? 0,
-      kind, summary, participantIds, position: actor?.position, details });
-    eventLog.info("World event created", { eventId: event.id, day: event.day, kind, summary, participantIds, position: event.position, details });
-    return event;
+    return createPhysicalEvent(this.#game.scenario().world, kind, summary, participantIds, details);
   }
 
   async assessWorldEvent(event: Event, signal: AbortSignal): Promise<{ reactions: PerceivedEvent[]; playerPerception?: string }> {

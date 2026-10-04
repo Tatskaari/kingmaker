@@ -1,5 +1,6 @@
+import { createPhysicalEvent } from "./physical-event.js";
 import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
-import { ScenarioSchema, TranscriptMessageSchema, TranscriptRole, TilePositionSchema, DndCharacterSchema, EventSchema, GamePhase, type Scenario, type Event } from "../../../packages/contracts/src/index.js";
+import { ScenarioSchema, TranscriptMessageSchema, TranscriptRole, TilePositionSchema, DndCharacterSchema, GamePhase, type Scenario, type Event } from "../../../packages/contracts/src/index.js";
 import { GenerationStore, generationIds, type Generations, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 import { fixtureActions, applyFixtureAction } from "../../../packages/core/src/fixtures.js";
 import { inventoryOwners, findItem, itemsFor } from "../../../packages/core/src/inventory.js";
@@ -9,7 +10,7 @@ import { courtAgentObservation, actionResourceIds } from "./court-agent.js";
 import { courtPath, courtRoomAt } from "./court-map.js";
 import type { Point } from "./navigation.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
-const npcLog = gameLogger("npc"), eventLog = gameLogger("events");
+const npcLog = gameLogger("npc");
 type JsonObject = Record<string, unknown>;
 type EventDetails = Record<string, JsonValue>;
 export interface NpcActivity {
@@ -106,12 +107,7 @@ export class PalaceMechanics {
   }
 
   worldEvent(kind: string, summary: string, participantIds: string[], details: EventDetails = {}): Event {
-    const scenario = this.#scenario;
-    const actor = scenario.world?.actors.find(candidate => candidate.characterId === participantIds[0]);
-    const event = create(EventSchema, { id: `event-${crypto.randomUUID()}`, day: scenario.world?.day ?? 0,
-      kind, summary, participantIds, position: actor?.position, details });
-    eventLog.info("World event created", { eventId: event.id, day: event.day, kind, summary, participantIds, position: event.position, details });
-    return event;
+    return createPhysicalEvent(this.#scenario.world, kind, summary, participantIds, details);
   }
 
   stepNpcAction(characterId: string, actionId: string, goal: string, expected?: ExpectedGenerations): { done: boolean; talkTarget?: string; worldEvent?: Event; generations: ExpectedGenerations } {
