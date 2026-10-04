@@ -17,9 +17,10 @@ OPENROUTER_API_KEY=… npm run eval:review -- --repeats 3
 
 `oswin-parlour` replays the transcript against fresh physical/document state using
 `game`, the default game strategy objects shared with the browser runtime.
-The temporary `deferred-promises` candidate changes only the GM commitment paragraph
-to distinguish immediate actions from future promises. Both cases compare this candidate
-with the unchanged baseline; use `--variants game` for baseline-only runs.
+Temporary review candidates compare promise framing, playable-world context, writable
+inventories and effect classification. See the [hypotheses](../evals/reviews/candidate-hypotheses.md)
+and [results](../evals/reviews/candidate-results.md). Use `--variants game` for baseline-only
+runs, or select a candidate with `--variants effect-ledger`; baseline is always included.
 Temporary variants can be added for a hypothesis-driven comparison, then removed
 when the supported change is promoted into the game baseline. The scenario and rubric
 remain as regression coverage; the framework still supports variant comparisons.
@@ -136,7 +137,7 @@ Chart points are keyboard accessible and select the same detail table as the com
 Missing scores create gaps; rubric changes break connecting lines. Scores JSON is linked from each commit. Download full recordings from the corresponding workflow run’s `eval-results` artifact. Until the first publication, the dashboard displays setup guidance.
 ## Gift review reproduction
 
-`OPENROUTER_API_KEY=… npm run eval:review:gift -- --repeats 3` runs the baseline-only
-`peregrine-gift` screenshot reconstruction. It adds an inventory ownership criterion to
+`OPENROUTER_API_KEY=… npm run eval:review:gift -- --repeats 3` runs the
+`peregrine-gift` screenshot reconstruction with baseline and registered candidates. It adds an inventory ownership criterion to
 the shared review rubric so a memory of giving a gift cannot substitute for a real item.
 See [fixture assumptions and criteria](../evals/reviews/peregrine-gift/README.md).
