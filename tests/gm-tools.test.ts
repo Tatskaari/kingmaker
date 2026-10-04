@@ -15,18 +15,18 @@ test("GM tools edit other characters and quest documents, preserving SHA conflic
   const services = fixture(), gm = new GameMasterTools(services, "oswin");
   const other = characterEntry(services.scenario.info(), "corvin");
   const before = await services.docs.read(other);
-  await gm.call("insert_document", { path: other, sha: before.sha, afterLine: before.text.trimEnd().split("\n").length, text: "\nThe player told me about the delay.\n" });
+  await gm.call("insert_document", { path: other, expectedSha: before.sha, afterLine: before.text.trimEnd().split("\n").length, text: "\nThe player told me about the delay.\n" });
   assert.match((await services.docs.read(other)).text, /told me about the delay/);
-  await assert.rejects(gm.call("replace_document", { path: other, sha: before.sha, oldText: "delay", newText: "meeting" }), DocumentConflictError);
+  assert.match(JSON.stringify(await gm.call("replace_document", { path: other, expectedSha: before.sha, oldText: "delay", newText: "meeting" })), /document_conflict/);
   const path = "Quests/review-test.md";
   await gm.call("create_document", { path, text: "---\nsummary: GM quest progress.\nvisibility: gm\n---\nPending." });
   const created = await services.docs.read(path);
-  await gm.call("replace_document", { path, sha: created.sha, oldText: "Pending.", newText: "The player accepted the quest." });
+  await gm.call("replace_document", { path, expectedSha: created.sha, oldText: "Pending.", newText: "The player accepted the quest." });
   const updated = await services.docs.read(path);
   assert.match(updated.text, /accepted the quest/);
-  const listed = await gm.call("list_documents", {});
+  const listed = await gm.call("list_documents", { prefix: "Quests/" });
   assert.ok(JSON.stringify(listed).includes(path));
-  await gm.call("delete_document", { path, sha: updated.sha });
+  await gm.call("delete_document", { path, expectedSha: updated.sha });
   assert.equal(services.scenario.snapshot().docs[path], undefined);
 });
 

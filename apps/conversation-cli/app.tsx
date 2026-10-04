@@ -1,4 +1,4 @@
-import type { AiService } from "../../packages/conversation/src/services.js";
+import type { AiService, RuntimeServices } from "../../packages/conversation/src/services.js";
 import type { DndCharacter } from "../../packages/contracts/src/index.js";
 import { cliHooks, type ManualRoll, type RequestRoll } from "../../packages/conversation/src/cli-hooks.js";
 import { useEffect, useRef, useState } from "react";
@@ -22,7 +22,7 @@ export interface ConversationResult {
 interface AppProps {
   input: ConversationInput;
   complete: Complete;
-  checks?: { ai: AiService; build: DndCharacter | undefined; beginTurn?: () => void };
+  checks?: { services?: Partial<RuntimeServices>; ai: AiService; build: DndCharacter | undefined; beginTurn?: () => void };
   disclosure?: DisclosureSession;
   copyText: (text: string) => Promise<string>;
   onFinish: (result: ConversationResult) => void;
@@ -102,7 +102,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
         ? cliHooks(disclosure, checks.ai, checks.build, message, requestRoll, trace, turn => {
           timeline.record(`gm-${gmCount.current++}`);
           setGmTurns(previous => [...previous, turn]);
-        })
+        }, {}, {}, checks.services ? { services: checks.services, characterId: input.characterId } : undefined)
         : disclosure ? disclosure.hooks(trace) : { classify: async () => ({}), resolve: async () => ({ reclassify: false }) };
       const runtime = new ConversationRuntime({
         services: { character: { respond: complete } },

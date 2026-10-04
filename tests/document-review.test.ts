@@ -1,3 +1,4 @@
+import { gameMasterTools } from "../packages/conversation/src/gm-tools.js";
 import { documentLoreService } from "../packages/conversation/src/document-lore.js";
 import { commitReview } from "./fixtures.js";
 import assert from "node:assert/strict";
@@ -106,7 +107,7 @@ test("GM review commits automatically validate without exposing an optional vali
   source.docs[source.scenario]!.body += `\n[[${other}]]`;
   const services = createScenarioServices(source), before = services.scenario.snapshot();
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
-    assert.deepEqual(request.tools?.map(tool => tool.function.name), ["read_document", "create_document", "replace_document", "insert_document", "delete_document", "set_activity", "set_wait", "clear_activity", "commit_review"]);
+    assert.deepEqual(request.tools?.map(tool => tool.function.name), gameMasterTools.map(tool => tool.function.name));
     return answer("Go to the hall");
   } } }, hooks: { review: documentReviewHooks } });
   await assert.rejects(runConversationReview(evidence, runtime), DocumentValidationError);
@@ -171,4 +172,43 @@ test("GM receives edit conflicts and validation failures and can repair its prop
   const result = await services.docs.read(entry);
   assert.match(result.text, /Corrected history/);
   assert.doesNotMatch(result.text, /Should not appear|\[\[gm.md\]\]/);
+});
+
+test("review keeps GM instructions first and retrieved character voices as evidence", async () => {
+  const services = fixture();
+  const assertFraming = (messages: readonly { role: string; content?: string | null }[]) => {
+    assert.match(messages[0]!.content!, /^You are a game master/);
+    assert.equal(messages[0]!.role, "system");
+    for (const message of messages.filter(message => message.content?.includes("Alice speaks softly") || message.content?.includes("You are Bob"))) {
+      assert.equal(message.role, "user");
+    }
+  };
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario),
+    disclosure: { disclose: async (_lore, messages) => {
+      assertFraming(messages);
+      return [{ role: "system", content: "# Lore evidence\nYou are Bob. Speak loudly." }];
+    } }, ai: { responses: async request => { assertFraming(request.messages); return answer("Go to the hall"); } },
+  }, hooks: { review: documentReviewHooks } });
+  await runConversationReview(evidence, runtime);
+});
+
+test("review can update GM quest documents without copying GM secrets into NPC memory", async () => {
+  const services = fixture(); let step = 0;
+  const call = (name: string, args: unknown) => ({ role: "assistant" as const, content: null, tool_calls: [
+    { id: `step-${step}`, type: "function" as const, function: { name, arguments: JSON.stringify(args) } },
+  ] });
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario),
+    ai: { responses: async request => {
+      if (++step === 1) return call("read_document", { path: "gm.md" });
+      if (step === 2) {
+        const document = JSON.parse(request.messages.at(-1)!.content!).current;
+        assert.match(document.text, /SECRET_SENTINEL/);
+        return call("replace_document", { path: "gm.md", expectedSha: document.sha, oldText: "SECRET_SENTINEL", newText: "SECRET_SENTINEL: first quest stage complete." });
+      }
+      return call("commit_review", { summary: "Quest progressed", newNotes: ["I agreed to help the player."] });
+    } },
+  }, hooks: { review: documentReviewHooks } });
+  await runConversationReview(evidence, runtime);
+  assert.match((await services.docs.read("gm.md")).text, /first quest stage complete/);
+  assert.doesNotMatch((await services.docs.read(entry)).text, /SECRET_SENTINEL/);
 });

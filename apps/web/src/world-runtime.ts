@@ -218,7 +218,7 @@ export class WorldGameRuntime extends WorldHost {
     const world = this.world(), build = world.player ? world.docs[world.player]?.characterProperties?.dnd : undefined;
     const hooks = cliHooks(disclosure, runtime.services.ai, build, message,
       async (_check, cancellation) => { cancellation.throwIfAborted(); return runtime.services.random.integer(1, 20); },
-      () => {}, () => {}, runtime.services.presentation, runtime.services.character);
+      () => {}, () => {}, runtime.services.presentation, runtime.services.character, { services: runtime.services, characterId: id });
     runtime.hooks.conversation = options.hooks?.conversation ?? this.options.hooks?.conversation ?? hooks;
     runtime.services.character.respond = (request, cancellation) => runtime.services.ai.responses(request, cancellation, onText ? { onText } : undefined);
     const transcript = previous.map(turn => fromJson(TranscriptMessageSchema, turn));

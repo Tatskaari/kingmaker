@@ -1,3 +1,4 @@
+import { runGameMaster } from "./game-master.js";
 import { classifyConversationTurn, type ConversationCheckClassification } from "../../providers/src/conversation-checks.js";
 import type { ConversationHooks } from "./phases.js";
 import type { ConversationRuntime } from "./runtime.js";
@@ -10,6 +11,7 @@ export function checkHooks(runtime: ConversationRuntime<CheckLabels>, options: {
   playerTurn: string;
   playerId: string;
   context?: unknown;
+  characterId?: string;
 }): ConversationHooks<CheckLabels> {
   return {
     classify: async (context, signal) => {
@@ -43,7 +45,7 @@ export function checkHooks(runtime: ConversationRuntime<CheckLabels>, options: {
         signal.throwIfAborted();
       }
       const ruling = await adjudicateResolvedChecks({ results, messages: context.request.messages,
-        complete: (request, cancellation) => runtime.services.ai.responses(request, cancellation),
+        complete: (request, cancellation) => runGameMaster(request, runtime.services, cancellation, options.characterId ? { characterId: options.characterId } : {}),
         present: (result, cancellation) => runtime.services.presentation.showRoll(result, cancellation),
         signal,
       });

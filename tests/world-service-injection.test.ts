@@ -109,3 +109,27 @@ test("v2 lore failures abort dialogue before AI or transcript publication", asyn
   await assert.rejects(runtime.checkedTalkToCharacter("rowan", "Hello"), /Lore unavailable/);
   assert.deepEqual(runtime.snapshot(), before);
 });
+
+test("live world roll rulings can edit another NPC through the shared GM tools", async () => {
+  let rounds = 0;
+  const target = "Scenarios/Centennial Assembly/Characters/corvin/character.md";
+  const runtime = game({ services: {
+    ai: { decisions, responses: async request => {
+      if (!(JSON.stringify(request.response_format) ?? "").includes("conversation_roll_ruling")) return { role: "assistant", content: "Agreed." };
+      assert.ok(request.tools?.some(tool => tool.function.name === "replace_document"));
+      assert.ok(request.tools?.some(tool => tool.function.name === "set_activity"));
+      const call = (name: string, args: unknown) => ({ role: "assistant" as const, content: null, tool_calls: [
+        { id: `gm-${rounds}`, type: "function" as const, function: { name, arguments: JSON.stringify(args) } },
+      ] });
+      if (++rounds === 1) return call("read_document", { path: target });
+      if (rounds === 2) {
+        const read = JSON.parse(request.messages.at(-1)!.content!).current;
+        return call("replace_document", { path: target, expectedSha: read.sha, oldText: read.text, newText: read.text + "\nA messenger reported the player's arrival.\n" });
+      }
+      return { role: "assistant", content: '{"direction":"Agree to help."}' };
+    } },
+  } });
+  await runtime.checkedTalkToCharacter("rowan", "Help me.");
+  assert.equal(rounds, 3);
+  assert.match(runtime.world().docs[target]!.body, /messenger reported/);
+});
