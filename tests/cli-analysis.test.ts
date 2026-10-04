@@ -9,20 +9,21 @@ import { DisclosureSession } from "../packages/conversation/src/disclosure.js";
 import type { AiService } from "../packages/conversation/src/services.js";
 
 const label = { choice: "not_flagged", probabilities: { flagged: 0.1, not_flagged: 0.9 }, confidence: 0.8 };
-test("inline analysis stays under its message and includes negative labels, probabilities and rolls", () => {
+test("inline analysis stays under its message and shows only flagged labels with probabilities and rolls", () => {
   const transcript = [create(TranscriptMessageSchema, { speakerId: "player", text: "Help me." }),
     create(TranscriptMessageSchema, { speakerId: "corvin", text: "I will help." })];
   const analysis: MessageAnalysis[] = [
-    { messageIndex: 0, subject: "player", kind: "labels", source: "skill_check", decisions: { persuasion: { ...label, choice: "needed" } } },
+    { messageIndex: 0, subject: "player", kind: "labels", source: "skill_check", decisions: { persuasion: { ...label, choice: "needed" }, deception: { ...label, choice: "not_needed" } } },
     { messageIndex: 0, subject: "player", kind: "roll", result: { characterId: "player", skill: "persuasion", difficulty: "normal", natural: 15, modifier: 2, total: 17, dc: 15, success: true, outcome: CheckDegree.MinorSuccess } },
-    { messageIndex: 1, subject: "character", kind: "labels", source: "attention", decisions: { immediate_commitment: label } },
+    { messageIndex: 1, subject: "character", kind: "labels", source: "attention", decisions: { immediate_commitment: label, general_commitment: { ...label, choice: "flagged" }, immediate_feasibility: { ...label, choice: "possible" } } },
   ];
   const output = formatConversation(transcript, "corvin", analysis);
   assert.match(output, /You: Help me\.\n  skill_check · persuasion: needed/);
   assert.match(output, /d20 15 \+ 2 = 17; normal, DC 15; success/);
-  assert.match(output, /corvin: I will help\.\n  attention · immediate_commitment: not_flagged/);
+  assert.match(output, /corvin: I will help\.\n  attention · general_commitment: flagged/);
   assert.match(output, /flagged 10.0%, not_flagged 90.0%/);
   assert.match(output, /confidence 80.0%/);
+  assert.doesNotMatch(output, /· deception:|· immediate_commitment:|· immediate_feasibility:/);
   assert.equal(formatConversation(transcript, "corvin", []), "You: Help me.\n\ncorvin: I will help.");
 });
 

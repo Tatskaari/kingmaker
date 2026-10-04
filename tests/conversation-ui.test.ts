@@ -151,8 +151,8 @@ test("CLI pauses for a manual d20, rejects invalid input, and shows the GM rulin
     assert.match(setup.captureCharFrame(), /skill_check · persuasion: needed/);
     assert.match(setup.captureCharFrame(), /skill_difficulty · persuasion: normal/);
     assert.match(setup.captureCharFrame(), /d20 20 \+ 0 = 20/);
-    assert.match(setup.captureCharFrame(), /attention · immediate_commitment: not_flagged/);
-    assert.match(setup.captureCharFrame(), /attention · immediate_feasibility: not_applicable/);
+    assert.doesNotMatch(setup.captureCharFrame(), /attention · immediate_commitment:/);
+    assert.doesNotMatch(setup.captureCharFrame(), /attention · immediate_feasibility:/);
     await step(() => setup.mockInput.pressKey("d", { ctrl: true }));
     assert.ok(exported?.analysis.some(event => event.messageIndex === 0 && event.kind === "roll"));
     assert.ok(exported?.analysis.some(event => event.messageIndex === 1 && event.kind === "labels" && event.source === "attention"));

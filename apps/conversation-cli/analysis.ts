@@ -9,7 +9,11 @@ export function formatAnalysis(event: AnalysisEvent): string {
     const roll = event.result;
     return `Roll · ${roll.skill ?? "check"}: d20 ${roll.natural} ${roll.modifier >= 0 ? "+" : "−"} ${Math.abs(roll.modifier)} = ${roll.total}; ${roll.difficulty}, DC ${roll.dc ?? "unknown"}; ${roll.success ? "success" : "failure"} (${roll.outcome})`;
   }
-  return Object.entries(event.decisions).map(([label, decision]) => {
+  return Object.entries(event.decisions).filter(([label, decision]) => {
+    if (["not_flagged", "not_needed", "not_applicable", "skip"].includes(decision.choice)) return false;
+    return event.source !== "attention" || label !== "immediate_feasibility"
+      || event.decisions.immediate_commitment?.choice === "flagged";
+  }).map(([label, decision]) => {
     const probabilities = Object.entries(decision.probabilities).map(([choice, value]) => `${choice} ${(value * 100).toFixed(1)}%`).join(", ");
     return `${event.source} · ${label}: ${decision.choice} [${probabilities}]${decision.confidence === undefined ? "" : `; confidence ${(decision.confidence * 100).toFixed(1)}%`}`;
   }).join("\n");
