@@ -19,7 +19,7 @@ test("review experiments replay real tools, record AI and docs, and grade state 
     const evidence = state as { changes: unknown[]; updates: unknown[]; contextDocuments: unknown[] };
     assert.ok(evidence.changes.length >= 2); assert.ok(evidence.updates.length >= 1); assert.ok(evidence.contextDocuments.length >= 2);
     assert.doesNotMatch(JSON.stringify(evidence), /"variant":|"candidate"/);
-    return Object.fromEntries(Object.keys(questions).map(key => [key, { choice: "pass", probabilities: { pass: 1, fail: 0, uncertain: 0 } }]));
+    return Object.fromEntries(Object.keys(questions).map(key => [key, { choice: "complete", probabilities: { complete: 1 } }]));
   } });
   assert.equal((await experiment.getBaseline().configure()).strategies!.setup, defaultWorldStrategies.setup);
   const trials = await runExperiment(experiment, { repeats: 1 });
