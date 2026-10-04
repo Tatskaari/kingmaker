@@ -104,9 +104,12 @@ Register new framework runners as uncached Moon tasks in `workspace:eval`'s depe
 The legacy wait/handoff probes are not part of this suite.
 
 Completed trials are retained even when execution or judging fails. The publisher stores
-`evals/<experiment>/<commit>.json` (metadata, per-experiment comparison and full trials),
+`evals/<experiment>/<commit>.json` (metadata, per-experiment comparison and trial scores),
 `evals/<experiment>/index.json` (result filenames), and `evals/index.json` (experiment names)
-on the data branch `gh-pages`. Rerunning a commit replaces its result without duplicating
+on the data branch `gh-pages`. Full trial recordings remain in the workflow's `eval-results`
+Actions artifact, subject to the repository's artifact retention policy. Pages JSON contains
+only metadata, trial scores and aggregate comparisons; it excludes service recordings,
+world snapshots and judge calls. Rerunning a commit replaces its result without duplicating
 its index entry. Deploy GitHub Pages includes this history alongside the game and previews;
 results are not committed to main. Concurrent preview writes are preserved by push retries.
 Recordings use the framework's credential redaction and are published as public site data.
@@ -114,5 +117,4 @@ Recordings use the framework's credential redaction and are published as public 
 Open `evals/index.html` on the published site to select an experiment, graph its weighted
 total or individual criteria across commits, and inspect a commit's variant breakdown.
 Chart points are keyboard accessible and select the same detail table as the commit picker.
-Missing scores create gaps; rubric changes break connecting lines. Full JSON is linked
-from each commit. Until the first publication, the dashboard displays setup guidance.
+Missing scores create gaps; rubric changes break connecting lines. Scores JSON is linked from each commit. Download full recordings from the corresponding workflow run’s `eval-results` artifact. Until the first publication, the dashboard displays setup guidance.
