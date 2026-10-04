@@ -555,7 +555,20 @@ function renderCreation() {
   if (!messages.length) {
     const choices = choosingPremade
       ? `<h2>Play a pre-made character</h2><p>Choose a traveller. The GM will write them into the story, then you’ll enter the hall.</p>${premadeCharacters.map(character => `<article class="panel"><h3>${escapeHtml(character.archetype)} · ${escapeHtml(character.name)}</h3><p>${escapeHtml(character.lore)}</p><p>Level 3 ${escapeHtml(character.build.classId)} · ${escapeHtml(character.gender)} · ${escapeHtml(character.homeland)}</p><button class="dialogue-option" data-premade="${character.id}" ${busy ? "disabled" : ""}>Play as ${escapeHtml(character.name)} →</button></article>`).join("")}<button data-creation-back ${busy ? "disabled" : ""}>Back</button>`
-      : `<h2>Welcome to Kingmaker</h2>${sandboxIntroduction.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join("")}<button class="dialogue-option" data-meet-stranger ${busy ? "disabled" : ""}>Create a custom character</button><p>OR</p><button class="dialogue-option" data-choose-premade ${busy ? "disabled" : ""}>Play a pre-made character</button>`;
+      : `<h2>Welcome to Kingmaker</h2>${sandboxIntroduction.map(paragraph => `<p>${escapeHtml(paragraph)}</p>`).join("")}<div class="creation-choices" role="group" aria-label="How would you like to begin?">
+        <button class="creation-choice" data-meet-stranger ${busy ? "disabled" : ""}>
+          <span class="creation-choice-kicker">A story of your own</span>
+          <span class="creation-choice-title">Create a custom character</span>
+          <span class="creation-choice-description">Invent your identity with the Stranger. Review your character before entering court.</span>
+          <span class="creation-choice-action">Meet the Stranger <span aria-hidden="true">→</span></span>
+        </button>
+        <button class="creation-choice" data-choose-premade ${busy ? "disabled" : ""}>
+          <span class="creation-choice-kicker">Straight to the intrigue</span>
+          <span class="creation-choice-title">Play a pre-made character</span>
+          <span class="creation-choice-description">Choose a ready-made traveller. The Stranger will weave you into the story.</span>
+          <span class="creation-choice-action">Choose your character <span aria-hidden="true">→</span></span>
+        </button>
+      </div>`;
     app.innerHTML = shell(`<section class="introduction" aria-label="Choose your character"><div class="eyebrow">A roleplaying sandbox · Tech demo</div>${choices}<p class="status ${notice.startsWith("Error") ? "error" : ""}" role="status">${escapeHtml(notice)}</p></section>`);
     bind(); return;
   }
