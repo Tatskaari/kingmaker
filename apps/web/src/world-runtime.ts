@@ -240,8 +240,21 @@ export class WorldGameRuntime extends WorldHost {
     const entry = characterIntent(world, id).entry;
     const granted = entry && world.docs[entry]!.frontmatter?.conversation_actions;
     let arrested = false, challenged = false;
+    const existingRulings = new Map<string, number>();
+    for (const turn of request.messages) {
+      if (turn.role === "system" && turn.content?.startsWith("# Binding DM ruling")) {
+        existingRulings.set(turn.content, (existingRulings.get(turn.content) ?? 0) + 1);
+      }
+    }
     const prepared = (request: import("../../../packages/providers/src/openrouter.js").ChatCompletionRequest) => {
-      for (const turn of request.messages) if (turn.role === "system" && turn.content?.startsWith("# Binding DM ruling")) rulings.push(turn.content);
+      // History is already saved. Count occurrences so a new, identical ruling is still retained.
+      const remaining = new Map(existingRulings);
+      for (const turn of request.messages) {
+        if (turn.role !== "system" || !turn.content?.startsWith("# Binding DM ruling")) continue;
+        const count = remaining.get(turn.content) ?? 0;
+        if (count) remaining.set(turn.content, count - 1);
+        else rulings.push(turn.content);
+      }
     };
     if (Array.isArray(granted) && granted.includes("arrest")) {
       const respond = arrestResponse(runtime.services.ai.responses, ruling => {

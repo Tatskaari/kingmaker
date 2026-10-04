@@ -55,6 +55,49 @@ test("v2 turn mechanics overrides preserve host character methods and propagate 
   assert.deepEqual(runtime.snapshot(), before);
 });
 
+test("successive dialogue turns persist only new rulings, including identical results after reload", async () => {
+  let needsCheck = true, expectedRulings = 0, failReply = false;
+  const runtime = game({ services: {
+    random: { integer: () => 10 },
+    ai: {
+      decisions: async (...args) => {
+        const answers = await decisions(...args);
+        if (!needsCheck && answers.persuasion) answers.persuasion.choice = "not_needed";
+        return answers;
+      },
+      responses: async request => {
+        if ((JSON.stringify(request.response_format) ?? "").includes("conversation_roll_ruling")) {
+          return { role: "assistant", content: '{"direction":"Consider the offer."}' };
+        }
+        if (request.tools) return commitReview({ summary: "Discussed the cart", newNotes: [], activeGoal: null });
+        assert.equal(request.messages.filter(message => message.role === "system"
+          && message.content?.startsWith("# Binding DM ruling")).length, expectedRulings);
+        if (failReply) throw new Error("Reply failed");
+        return { role: "assistant", content: "Tell me more about the cart." };
+      },
+    },
+  } });
+  const savedRulings = () => runtime.snapshot().conversations.rowan!.filter(turn =>
+    String(turn.text).startsWith("# Binding DM ruling"));
+  for (let turn = 0; turn < 8; turn++) {
+    needsCheck = turn % 2 === 0;
+    if (needsCheck) expectedRulings++;
+    await runtime.checkedTalkToCharacter("rowan", needsCheck ? "Buy my cart." : "It has four wheels.");
+    assert.equal(savedRulings().length, expectedRulings, `Saved rulings after turn ${turn + 1}`);
+    if (turn === 3) runtime.restore(JSON.parse(JSON.stringify(runtime.snapshot())));
+  }
+  assert.equal(new Set(savedRulings().map(turn => turn.text)).size, 1, "Identical new rulings remain distinct turns");
+  const before = runtime.snapshot().conversations.rowan;
+  needsCheck = true; expectedRulings++; failReply = true;
+  await assert.rejects(runtime.checkedTalkToCharacter("rowan", "One last offer."), /Reply failed/);
+  assert.deepEqual(runtime.snapshot().conversations.rowan, before, "Failed replies do not append rulings");
+  failReply = false;
+  await runtime.checkedTalkToCharacter("rowan", "One last offer.");
+  assert.equal(savedRulings().length, expectedRulings);
+  await runtime.endConversation("rowan");
+  assert.equal(runtime.snapshot().conversations.rowan, undefined, "Review can finish the conversation");
+});
+
 test("v2 dialogue honors scoped lore overrides, progressive disclosure and per-turn precedence", async () => {
   let opened = 0, linked = 0;
   const runtime = game({ services: {
