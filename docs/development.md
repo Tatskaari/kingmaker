@@ -175,7 +175,7 @@ proto run moon -- run workspace:check workspace:build
 ```
 
 The legacy Scenario-based eval harnesses and fixtures have been retired.
-Document-native evaluations will be designed separately; deterministic runtime
+Document-native strategy experiments use [the shared eval framework](evals.md); deterministic runtime
 and provider tests remain part of the checks above.
 
 The production site is built into `dist/web`. Merges to main deploy through
