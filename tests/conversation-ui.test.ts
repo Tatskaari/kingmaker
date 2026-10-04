@@ -159,5 +159,13 @@ test("CLI pauses for a manual d20, rejects invalid input, and shows the GM rulin
     const rowY = (id: string) => setup.renderer.root.findDescendantById(id)!.y;
     assert.ok(rowY("jev-1-1") < rowY("gm-0"));
     assert.ok(rowY("gm-0") < rowY("message-4"));
+    const attention = exported!.decisionCalls.find(call => call.purpose === "conversation_attention")!;
+    assert.equal(attention.status, "completed");
+    assert.equal(attention.answers?.immediate_commitment?.choice, "not_flagged");
+    assert.ok(rowY("message-4") < rowY(attention.id), "attention follows the character reply");
+    const attentionRow = setup.renderer.root.findDescendantById(attention.id)!;
+    await step(() => setup.mockMouse.click(attentionRow.x + 2, attentionRow.y));
+    assert.match(setup.captureCharFrame(), /Jev attention · completed/);
+    assert.match(setup.captureCharFrame(), /conversation_attention/);
   } finally { await act(() => setup.renderer.destroy()); }
 });
