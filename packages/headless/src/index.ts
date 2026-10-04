@@ -42,7 +42,7 @@ export class HeadlessGame {
 
   observe(characterId?: string) {
     const state = this.inspect();
-    return renderJevRoomView(state, this.#observation(characterId));
+    return renderJevRoomView(state.world!, state.characters, this.#observation(characterId));
   }
 
   actions() {
