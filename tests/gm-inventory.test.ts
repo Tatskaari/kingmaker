@@ -1,0 +1,44 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { clone, create, toJsonString } from "@bufbuild/protobuf";
+import { InventorySchema, ItemInstanceSchema } from "../packages/contracts/src/index.js";
+import { createScenarioServices } from "../packages/lore/src/services.js";
+import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
+import { GameMasterTools } from "../packages/conversation/src/gm-tools.js";
+import { loadPlayableWorld } from "./fixtures.js";
+
+const bird = () => create(ItemInstanceSchema, { id: "gift-wooden-bird", name: "Wooden bird", details: "Faded blue lacquer", quantity: 1 });
+test("GM inventory writes create one real gift and preserve unrelated properties", async () => {
+  const backing = createScenarioServices(loadPlayableWorld());
+  const path = backing.scenario.info().player!;
+  const before = await backing.docs.read(path);
+  const inventory = clone(InventorySchema, before.document.characterProperties!.inventory ?? create(InventorySchema));
+  inventory.items.push(bird());
+  const runtime = new ConversationRuntime({ services: backing });
+  const gm = new GameMasterTools(runtime.services, "peregrine");
+  await gm.begin();
+  await gm.call("update_inventories", { changes: [{ path, expectedSha: before.sha, inventoryJson: toJsonString(InventorySchema, inventory) }] });
+  const after = await backing.docs.read(path);
+  assert.equal(after.document.characterProperties!.inventory!.items.filter(item => item.id === bird().id).length, 1);
+  assert.deepEqual({ ...after.document.characterProperties, inventory: undefined }, { ...before.document.characterProperties, inventory: undefined });
+  assert.equal(after.document.body, before.document.body);
+  await assert.rejects(backing.inventory.commit([{ path, expectedSha: before.sha, inventory }]), /changed/);
+});
+
+test("inventory trades commit both owners together and reject duplicate ownership without partial writes", async () => {
+  const backing = createScenarioServices(loadPlayableWorld());
+  const player = backing.scenario.info().player!, giver = backing.scenario.snapshot().runtimeCharacters.peregrine!.document;
+  const before = await backing.docs.read(giver);
+  const inventory = clone(InventorySchema, before.document.characterProperties!.inventory ?? create(InventorySchema));
+  inventory.items.push(bird());
+  await backing.inventory.commit([{ path: giver, expectedSha: before.sha, inventory }]);
+  const source = await backing.docs.read(giver), target = await backing.docs.read(player);
+  const received = clone(InventorySchema, target.document.characterProperties!.inventory ?? create(InventorySchema)); received.items.push(bird());
+  const untouched = backing.scenario.snapshot();
+  await assert.rejects(backing.inventory.commit([{ path: player, expectedSha: target.sha, inventory: received }]), /Duplicate/);
+  assert.deepEqual(backing.scenario.snapshot(), untouched);
+  inventory.items = inventory.items.filter(item => item.id !== bird().id);
+  await backing.inventory.commit([{ path: giver, expectedSha: source.sha, inventory }, { path: player, expectedSha: target.sha, inventory: received }]);
+  assert.equal((await backing.docs.read(giver)).document.characterProperties!.inventory!.items.some(item => item.id === bird().id), false);
+  assert.equal((await backing.docs.read(player)).document.characterProperties!.inventory!.items.filter(item => item.id === bird().id).length, 1);
+});

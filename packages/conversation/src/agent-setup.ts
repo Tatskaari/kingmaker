@@ -8,6 +8,7 @@ export const CHARACTER_PROMPT = renderPrompt("agent-setup-character_prompt");
 
 export const GAME_MASTER_PROMPT = renderPrompt("agent-setup-game_master_prompt", { PRESENTATION_GUIDANCE: PRESENTATION_GUIDANCE });
 
+
 export function characterMessages(sources: CharacterSources): OpenRouterMessage[] {
   return [{ role: "system", content: CHARACTER_PROMPT },
     ...sources.map(doc => ({ role: "system" as const, content: renderPrompt("lore-context", { path: doc.path, markdown: doc.markdown }) }))];

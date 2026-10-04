@@ -1,3 +1,4 @@
+import type { Inventory } from "../../contracts/src/index.js";
 import type { Document, WorldState, CharacterProperties } from "../../contracts/src/v2.js";
 import type { ActorState, WorldState as MapState } from "../../contracts/src/index.js";
 
@@ -54,3 +55,7 @@ export class DocumentConflictError extends Error {
   }
 }
 
+
+export interface InventoryService {
+  commit(changes: readonly { path: string; expectedSha: string; inventory: Inventory }[]): Promise<void>;
+}

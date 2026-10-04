@@ -74,7 +74,7 @@ export function createReviewExperiment(testCase: ReviewCase, variants: readonly 
   judge: Pick<AiService, "decisions">): Experiment {
   const config = (variant: ReviewVariant): RuntimeConfig => ({ name: variant.name, configure() {
     const backing = createScenarioServices(clone(WorldStateSchema, testCase.loadWorld(variant.overlays ?? [])));
-    return { services: { docs: () => backing.docs, scenario: () => backing.scenario, ai: () => createAi(),
+    return { services: { inventory: () => backing.inventory, docs: () => backing.docs, scenario: () => backing.scenario, ai: () => createAi(),
       lore: services => documentLoreService(services.scenario), debug: () => ({ record: () => {} }) },
       strategies: { ...defaultWorldStrategies, ...variant.strategies,
         review: { ...defaultWorldStrategies.review, ...variant.strategies?.review } } };
