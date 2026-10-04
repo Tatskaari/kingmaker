@@ -48,11 +48,26 @@ export function documentChanges(recording: RunRecording) {
     .map(path => ({ path, before: before[path] ?? null, after: after[path] ?? null }));
 }
 
-/** Judge the conversation and original docs edit calls, including their results/errors. */
+/** Include each successfully touched file once, at its final state (null means deleted). */
+export function finalTouchedDocuments(recording: RunRecording) {
+  // Also capture typed inventory updates, which change documents outside the docs service.
+  const paths = new Set(documentChanges(recording).map(change => change.path));
+  for (const call of recording.calls) {
+    if (call.service !== "docs" || call.method === "read" || call.outcome?.status !== "returned") continue;
+    const args = call.args as unknown[];
+    if (call.method === "commit") {
+      for (const write of args[0] as { path: string }[]) paths.add(write.path);
+    } else if (typeof args[0] === "string") paths.add(args[0]);
+  }
+  const docs = (recording.finalState as WorldState | undefined)?.docs ?? {};
+  return [...paths].sort().map(path => ({ path, document: docs[path] ?? null }));
+}
+
+/** Judge final files, without intermediate versions, tool payloads or unrelated world state. */
 export function reviewEvidence(testCase: ReviewCase, recording: RunRecording) {
   return { transcript: testCase.transcript, participants: testCase.participants, characterId: testCase.characterId,
     expectations: testCase.expectations, error: recording.error,
-    updates: recording.getServiceRecord("docs").filter(call => call.method !== "read") };
+    documents: finalTouchedDocuments(recording) };
 }
 
 export function createReviewExperiment(testCase: ReviewCase, variants: readonly ReviewVariant[], createAi: () => AiService,

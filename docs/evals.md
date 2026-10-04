@@ -234,8 +234,9 @@ The mocked engine loop supplies recorded character drafts and binding dice rulin
 invokes the conversation strategy each turn, and calls the review strategy at the end.
 GM-refused drafts are regenerated through the character model. Queued GM reviews
 are drained before the final review and before scoring. Only docs-service calls are
-recorded; the judge receives the conversation, expectations and original docs edit
-calls with their results. Initial/final state supports the existing deterministic
+recorded; the judge receives the conversation, expectations and one final copy of
+each touched document (including typed properties), with deleted files represented
+as null. Intermediate edits and tool returns are excluded. Initial/final state supports the existing deterministic
 checks. There are no extra timing, release-order or live-effect criteria.
 
 Use `--repeats 1 --concurrency 1` for an initial comparison. The existing common

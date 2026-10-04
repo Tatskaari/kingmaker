@@ -8,7 +8,7 @@ import { defaultWorldStrategies } from "../apps/web/src/world-strategies.js";
 import { commitReview, loadPlayableWorld } from "./fixtures.js";
 import transcript from "../evals/reviews/oswin-parlour.json" with { type: "json" };
 
-test("review experiments replay real tools, record only docs, and grade edits without variant identity", async () => {
+test("review experiments replay real tools, record only docs, and grade final files without variant identity", async () => {
   const source = loadPlayableWorld();
   const experiment = createReviewExperiment({ name: "oswin", characterId: "oswin", participants: ["oswin", "player"],
     transcript: transcript.map(turn => fromJson(TranscriptMessageSchema, turn)), expectations: "Go to the parlour.", loadWorld: () => source,
@@ -16,8 +16,8 @@ test("review experiments replay real tools, record only docs, and grade edits wi
     responses: async () => commitReview({ summary: "Reviewed", newNotes: ["The player ordered me to the parlour."], activeGoal: "Go to the parlour." }),
     decisions: async (_state, questions) => Object.fromEntries(Object.keys(questions).map(key => [key, { choice: "skip", probabilities: { [key]: 0, skip: 1 } }])),
   }), { decisions: async (state, questions) => {
-    const evidence = state as { updates: unknown[] };
-    assert.ok(evidence.updates.length >= 1);
+    const evidence = state as { documents: unknown[] };
+    assert.ok(evidence.documents.length >= 1);
     assert.doesNotMatch(JSON.stringify(evidence), /"variant":|"candidate"/);
     return Object.fromEntries(Object.keys(questions).map(key => [key, { choice: "complete", probabilities: { complete: 1 } }]));
   } });
