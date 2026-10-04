@@ -25,7 +25,7 @@ test("CLI builds Markdown state, discloses edited documents and reloads independ
   const request = conversationRequest({ snapshot: { world: restored.scenario.snapshot() }, characterId: "corvin", sources: [...lore.initial, opened], transcript: [], message: "Hello" });
   assert.ok(request.messages.some(message => message.content?.includes("UPDATED_FACT")));
   assert.ok(request.messages.every(message => !message.content?.includes('"abilityScores"')));
-  await assert.rejects(documentLore(services.scenario, "missing"), /Unknown scenario character/);
+  await assert.rejects(documentLore(services.scenario, "missing"), /Unknown runtime character/);
   const changed = await services.docs.read(link.path);
   const text = changed.text.replace(/visibility: \w+/, "visibility: gm");
   if (text !== changed.text) {
