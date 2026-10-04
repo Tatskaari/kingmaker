@@ -89,3 +89,34 @@ test("background failures surface on drain and prevent later jobs from overtakin
   reviews.enqueue(async () => { assert.fail("Must not overtake failed review"); });
   await assert.rejects(reviews.drain(), /Review failed/);
 });
+
+test("the full conversation strategy does not reroll persuasion when the GM refuses a draft", async () => {
+  const { conversationStrategy } = await import("../packages/conversation/src/conversation-strategy.js");
+  const { DisclosureSession } = await import("../packages/conversation/src/disclosure.js");
+  const f = fixture("deny");
+  const original = f.runtime.services.ai.decisions;
+  let rolls = 0, skillClassifications = 0;
+  f.runtime.services.ai.decisions = async (...args) => {
+    if (args[3] === "skill_check") {
+      skillClassifications++;
+      return Object.fromEntries(Object.keys(args[1]).map(skill => [skill, choice(skill === "persuasion" ? "needed" : "not_needed")]));
+    }
+    if (args[3] === "skill_difficulty") return { persuasion: choice("normal") };
+    return original(...args);
+  };
+  const respond = f.runtime.services.ai.responses;
+  f.runtime.services.ai.responses = async (request, ...rest) => {
+    if ((request.response_format?.json_schema as { name?: string } | undefined)?.name === "conversation_roll_ruling") return { role: "assistant", content: JSON.stringify({ direction: "Agree to help; respect established ownership." }) };
+    return respond(request, ...rest);
+  };
+  const disclosure = new DisclosureSession({ initial: [], links: () => [], open: async () => { throw new Error("Unexpected disclosure"); } }, f.runtime.services.ai);
+  f.runtime.strategies.conversation = conversationStrategy(disclosure, f.runtime.services.ai, undefined, "Give me a bird.",
+    async () => { rolls++; return 20; }, () => {}, () => {}, {}, {}, { services: f.runtime.services, characterId: "corvin" },
+    () => {}, liveConversationStrategy({ characterId: "corvin", reviews: f.reviews }));
+  const reply = await runConversation({ ...request, messages: [request.messages[0]!] }, f.runtime);
+  assert.equal(reply.content, "I cannot give that away.");
+  assert.equal(rolls, 1); assert.equal(skillClassifications, 1);
+  assert.equal(f.drafts.length, 2);
+  assert.deepEqual(f.drafts[1]!.filter(message => message.content?.startsWith("# Binding DM ruling")),
+    f.drafts[0]!.filter(message => message.content?.startsWith("# Binding DM ruling")));
+});
