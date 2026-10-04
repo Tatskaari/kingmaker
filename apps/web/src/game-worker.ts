@@ -1,4 +1,6 @@
 /// <reference lib="webworker" />
+import { WaitScheduler } from "./wait-scheduler.js";
+import { characterIntent } from "../../../packages/lore/src/activity.js";
 import { characterCreationWorld } from "./playable-world.js";
 import { type TravellerIdentity } from "./introduction.js";
 import { type JsonValue } from "@bufbuild/protobuf";
@@ -41,6 +43,26 @@ const pendingNpcs: Array<{ id: string; handoffs: number }> = [];
 const conversationHolds = new Set<string>();
 const conversationReviews = new Set<string>();
 const pendingDice = new Map<string, { requestId: number; resolve: () => void; reject: (error: Error) => void }>();
+let waitsPaused = false;
+const waits = new WaitScheduler({
+  candidates: () => {
+    if (!runtime || waitsPaused || !runtime.world().player) return new Map();
+    const world = runtime.world();
+    return new Map(runtime.waitingCharacters().map(id => [id, characterIntent(world, id).wait ?? `review:${id}`]));
+  },
+  busy: id => conversationHolds.has(id) || conversationReviews.has(`${generation}:${id}`) || worldEvents.size > 0
+    || pendingNpcs.some(next => next.id === id) || [...background.values()].some(job => job.participants.includes(id)),
+  run: async (id, elapsed, signal) => {
+    const game = runtime;
+    if (!game) return;
+    await game.checkWait(id, elapsed, signal);
+    if (signal.aborted || runtime !== game) return;
+    publishNpc(`${id}: checked waiting conditions.`);
+    if (game.hasActiveObjective(id)) startBackground(id);
+  },
+  error: (id, error) => alertUser("error", `${id}: wait check: ${String(error)}`),
+});
+
 
 function alertUser(level: "warning" | "error", message: string) {
   const safe = (apiKey ? message.split(apiKey).join("[redacted]") : message).replace(/sk-[a-zA-Z0-9_-]+/g, "[redacted]");
@@ -53,6 +75,7 @@ function publishNpc(status: string, trace?: unknown, initiatedConversation?: str
     running: [...new Set([...background.values()].flatMap(job => job.participants))], status, ...(trace ? { trace } : {}), ...(initiatedConversation ? { initiatedConversation } : {}) });
 }
 function stopBackground(characterId?: string) {
+  if (characterId) waits.cancel(characterId);
   for (const [id, job] of background) {
     if (!characterId || job.participants.includes(characterId)) {
       job.controller.abort(); background.delete(id);
@@ -121,7 +144,7 @@ function scheduleWorldEvent(game: BrowserGameRuntime, event: Event, handoffs = 3
     }
     void handleWorldEvent(game, event, controller.signal, handoffs).catch(error => {
       if (!controller.signal.aborted) alertUser("error", `world event: ${error instanceof Error ? error.message : String(error)}`);
-    }).finally(() => worldEvents.delete(controller));
+    }).finally(() => { worldEvents.delete(controller); waits.sync(); });
   }, 0);
 }
 async function runBackground(next: { id: string; handoffs: number }) {
@@ -244,6 +267,7 @@ async function runBackground(next: { id: string; handoffs: number }) {
       background.delete(id); publishNpc(finalStatus);
       if (continueObjective && game.hasActiveObjective(id) && game.snapshot().npcActivities?.[id]?.status === "active") startBackground(id, handoffs);
       drainBackground();
+      waits.sync();
     }
   }
 }
@@ -339,6 +363,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
   if (["configure", "create_game", "create_development_game", "load_game", "delete_game", "reset", "reset_world", "reset_characters"].includes(type)) {
     for (const pending of pendingDice.values()) pending.reject(new Error("Game changed during a dice roll."));
     pendingDice.clear();
+    waits.stop(); waitsPaused = false;
     generation++; stopBackground(); stopWorldEvents(); conversationHolds.clear();
     if (runtime) attachPersistence(runtime);
   }
@@ -348,7 +373,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
   if (["start_npc", "pause_npc", "talk", "end_conversation"].includes(type) && conversationReviews.has(reviewKey)) {
     throw new Error("This character is still reviewing the conversation. Try again when the review finishes.");
   }
-  if (type === "start_npc") { const id = String(payload.characterId); conversationHolds.delete(id); startBackground(id); return {}; }
+  if (type === "start_npc") { waitsPaused = false; const id = String(payload.characterId); conversationHolds.delete(id); startBackground(id); return {}; }
   if (type === "pause_npc") { const id = String(payload.characterId); conversationHolds.add(id); stopBackground(id); publishNpc(`${id}: talking to you.`); void drainBackground(); return {}; }
   if (type === "configure") {
     apiKey = String(payload.apiKey || "").trim();
@@ -386,7 +411,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     }
     return { state: game.view(), saves: await listSaves(), activeSaveId: activeSave?.id };
   }
-  if (type === "cancel_npc") { stopBackground(); publishNpc("NPC activity paused."); return {}; }
+  if (type === "cancel_npc") { waitsPaused = true; waits.stop(); stopBackground(); publishNpc("NPC activity paused."); return {}; }
   if (type === "reset_world" || type === "reset_characters") {
     const game = requireRuntime(), before = structuredClone(game.snapshot()), savedBefore = activeSave;
     try {
@@ -507,7 +532,7 @@ worker.addEventListener("message", event => {
       if (error instanceof GenerationConflict) publishNpc("State changed. Review the updated palace and choose again.");
       alertUser(error instanceof GenerationConflict ? "warning" : "error", `${request.type}: ${error instanceof Error ? error.message : String(error)}`);
       worker.postMessage({ id: request.id, ok: false, error: error instanceof Error ? error.message : String(error) });
-    }
+    } finally { waits.sync(); }
   };
   // Background work and dialogue wait outside the mutation queue. Their results
   // rejoin it only to validate, merge and save, keeping player commands responsive.
