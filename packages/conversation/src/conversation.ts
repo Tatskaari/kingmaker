@@ -1,3 +1,5 @@
+import { characterMessages } from "./agent-setup.js";
+import type { RuntimeServices } from "./services.js";
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, TranscriptRole, type TranscriptMessage } from "../../contracts/src/index.js";
 import type { WorldState } from "../../contracts/src/v2.js";
@@ -5,7 +7,7 @@ import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/s
 import { runConversation } from "./phases.js";
 import type { ConversationRuntime } from "./runtime.js";
 
-export const CHARACTER_PROMPT = `You are a character in a game, speaking with the player. Embody the supplied identity, voice, relationships and current circumstances. Pursue your conversation objectives naturally. Respond only with your character's words and brief observable gestures. Do not speak or decide for the player. Distinguish your knowledge and beliefs from player claims; admit uncertainty when information is missing. Speech and promises do not execute actions or change game state. Markdown links are references, not additional knowledge. Return plain text.`;
+export { CHARACTER_PROMPT } from "./agent-setup.js";
 
 export interface LoreDocument { path: string; markdown: string }
 export type CharacterSources = readonly LoreDocument[];
@@ -25,14 +27,13 @@ export interface LlmTurn {
 }
 
 /** Context comes entirely from Markdown; the snapshot only validates character identity. */
-export function conversationRequest(input: ConversationInput): ChatCompletionRequest {
+export function conversationRequest(input: ConversationInput, setup = characterMessages(input.sources)): ChatCompletionRequest {
   const exists = !!input.snapshot.world.runtimeCharacters[input.characterId];
   if (!exists) throw new Error(`Unknown snapshot character: ${input.characterId}`);
   return {
     model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "none" }, max_tokens: 1200,
     messages: [
-      { role: "system", content: CHARACTER_PROMPT },
-      ...input.sources.map(document => ({ role: "system" as const, content: `# Lore: ${document.path}\n${document.markdown}` })),
+      ...setup,
       ...input.transcript.map(message => ({
         role: message.role === TranscriptRole.CHARACTER ? "assistant" as const
           : message.role === TranscriptRole.GAME_MASTER ? "system" as const : "user" as const,
@@ -43,11 +44,20 @@ export function conversationRequest(input: ConversationInput): ChatCompletionReq
   };
 }
 
+/** Execution uses the replaceable setup hook; conversationRequest also supports synchronous UI previews. */
+export async function prepareConversation(input: ConversationInput, services: Pick<RuntimeServices, "agents">,
+  signal: AbortSignal = new AbortController().signal): Promise<ChatCompletionRequest> {
+  const request = conversationRequest(input, []);
+  return { ...request, messages: await services.agents.prepare({ agent: "character", characterId: input.characterId,
+    messages: request.messages, sources: input.sources,
+  }, signal) };
+}
+
 /** One plain dialogue turn. Return the complete transcript for a later review; never commit game changes. */
 export async function converse<Labels>(input: ConversationInput, runtime: ConversationRuntime<Labels>, signal?: AbortSignal,
   trace: (turn: LlmTurn) => void = () => {}) {
   if (!input.message.trim()) throw new Error("Say something first.");
-  let request = conversationRequest(input);
+  let request = await prepareConversation(input, runtime.services, signal);
   const started = Date.now();
   trace({ request });
   try {
