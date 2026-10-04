@@ -1,3 +1,4 @@
+import type { AgentSetupContext } from "./agent-setup.js";
 import type { ProgressiveDisclosure } from "./progressive-disclosure.js";
 import type { MapService, MapObservation, MapResult } from "./map.js";
 import type { CharacterCreationService, DocsService, ScenarioService } from "../../lore/src/services.js";
@@ -89,6 +90,9 @@ export interface DocumentUpdate {
   toolCallId: string;
 }
 export interface RuntimeServices {
+  readonly agents: {
+    prepare(context: Readonly<AgentSetupContext>, signal: AbortSignal): Promise<OpenRouterMessage[]>;
+  };
   readonly map: MapService;
   readonly scenario: ScenarioService;
   readonly docs: DocsService;

@@ -364,3 +364,21 @@ and action execution happen after retrieval, outside its recursive loop.
 
 Disclosure decisions retain the `prog_disc` trace purpose and the requesting
 character's identity, including the recipient's calls during shared NPC exchanges.
+
+## Agent setup
+
+`hooks.setup(context, signal, services)` prepares an agent's messages before
+execution. Context identifies the agent role and character and carries task
+messages plus an optional already-scoped lore source or initial documents.
+The default `setupAgent` supplies character/GM instructions and can retrieve
+character lore and run disclosure through the injected services. A host can
+replace it or call `setupAgent` and extend its result.
+
+`services.agents.prepare` dispatches to this hook and checks cancellation before
+and after setup. This facade lets resolvers and nested GM calls use the host's
+policy without depending on a particular runtime instance. Supplying that service
+explicitly overrides dispatch; forwarding it to a nested runtime preserves the
+parent policy. Setup runs before model execution, not inside provider retries.
+Player dialogue retains its classify/resolve disclosure loop. The synchronous
+`conversationRequest` helper remains a default-policy preview for CLI displays;
+actual turns use `prepareConversation` and the setup hook.

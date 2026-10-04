@@ -1,3 +1,4 @@
+import { setupAgent, type AgentSetupHook } from "./agent-setup.js";
 import { ProgressiveDisclosure } from "./progressive-disclosure.js";
 import type { ActionExecutionHooks } from "./action-execution.js";
 import type { ResolutionHooks } from "./resolution.js";
@@ -8,7 +9,7 @@ import type { ConversationHooks } from "./phases.js";
 
 export interface ConversationRuntimeOptions<Labels = Record<string, never>, Review = ReviewLabels> {
   services?: { [Service in keyof RuntimeServices]?: Partial<RuntimeServices[Service]> };
-  hooks?: { conversation?: ConversationHooks<Labels>; review?: Partial<ConversationReviewHooks<Review>>; action?: Partial<ActionHooks>; actionExecution?: Partial<ActionExecutionHooks>; resolution?: Partial<ResolutionHooks> };
+  hooks?: { setup?: AgentSetupHook; conversation?: ConversationHooks<Labels>; review?: Partial<ConversationReviewHooks<Review>>; action?: Partial<ActionHooks>; actionExecution?: Partial<ActionExecutionHooks>; resolution?: Partial<ResolutionHooks> };
   maxPasses?: number;
 }
 
@@ -24,13 +25,13 @@ const unimplemented = (operation: string): never => { throw new UnimplementedSer
 /** Conversation, review and action dependencies and hooks, supplied by the host. */
 export class ConversationRuntime<Labels = Record<string, never>, Review = ReviewLabels> {
   readonly services: RuntimeServices;
-  readonly hooks: { conversation: ConversationHooks<Labels>; review: ConversationReviewHooks<Review>; action: ActionHooks; actionExecution: ActionExecutionHooks; resolution: ResolutionHooks };
+  readonly hooks: { setup: AgentSetupHook; conversation: ConversationHooks<Labels>; review: ConversationReviewHooks<Review>; action: ActionHooks; actionExecution: ActionExecutionHooks; resolution: ResolutionHooks };
   readonly maxPasses: number;
 
   constructor({ services = {}, hooks, maxPasses = 16 }: ConversationRuntimeOptions<Labels, Review> = {}) {
     if (!Number.isSafeInteger(maxPasses) || maxPasses < 1) throw new Error("maxPasses must be a positive integer.");
     this.maxPasses = maxPasses;
-    this.hooks = { conversation: hooks?.conversation ?? {
+    this.hooks = { setup: hooks?.setup ?? setupAgent, conversation: hooks?.conversation ?? {
       classify: async () => unimplemented("hooks.conversation.classify"),
       resolve: async () => unimplemented("hooks.conversation.resolve"),
     }, review: {
@@ -47,6 +48,14 @@ export class ConversationRuntime<Labels = Record<string, never>, Review = Review
       resolve: hooks?.action?.resolve ?? (async () => unimplemented("hooks.action.resolve")),
     } };
     this.services = {
+      agents: { prepare: async (context, signal) => {
+        signal.throwIfAborted();
+        const messages = await (services.agents?.prepare
+          ? services.agents.prepare(context, signal)
+          : this.hooks.setup({ ...context, messages: structuredClone(context.messages) }, signal, this.services));
+        signal.throwIfAborted();
+        return messages;
+      } },
       map: {
         layout: () => services.map?.layout ? services.map.layout() : unimplemented("map.layout"),
         observe: (...args) => services.map?.observe ? services.map.observe(...args) : unimplemented("map.observe"),
