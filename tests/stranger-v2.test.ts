@@ -114,3 +114,40 @@ test("invalid review keeps the draft and world intact", async () => {
   await assert.rejects(runtime.confirmPlayer(toJson(PlayerSetupSchema, draft)), /every court character/);
   assert.deepEqual(runtime.snapshot(), before);
 });
+
+import { premadeCharacters } from "../apps/web/src/premade-characters.js";
+for (const character of premadeCharacters) test(`pre-made ${character.id} calls the GM, preserves its build and enters court`, async () => {
+  const world = characterCreationWorld(loadPlayableWorld()); let calls = 0;
+  const runtime = new WorldGameRuntime(world, "", undefined, undefined, undefined, { services: { ai: ai(async request => {
+    calls++;
+    assert.match(JSON.stringify(request.messages), /do not interview/);
+    assert.deepEqual(request.tools?.map(tool => tool.function.name), ["create_player"]);
+    return { role: "assistant", content: null, tool_calls: [{ id: "draft", type: "function", function: {
+      name: "create_player", arguments: JSON.stringify({ ...creationInput(world), lore: "A newcomer arriving for the assembly." }),
+    } }] };
+  }) } });
+  await runtime.startPremadeCharacter(character.id);
+  assert.equal(calls, 1);
+  assert.equal(runtime.view().phase, "conversations");
+  assert.equal(runtime.view().playerDraft, null);
+  const player = runtime.world().docs[runtime.world().player!]!;
+  assert.equal(player.frontmatter!.name, character.name);
+  assert.equal(player.frontmatter!.sprite, character.sprite);
+  assert.equal(player.characterProperties!.dnd!.classes[0]!.classId, character.build.classId);
+  assert.notEqual(player.characterProperties!.dnd!.backgroundId, "kingmaker-dev-envoy");
+  assert.match(player.body, /newcomer arriving/);
+  for (const path of world.characters) assert.match(runtime.world().docs[path]!.body, /No prior acquaintance/);
+  const restored = new WorldGameRuntime(world, "", runtime.snapshot());
+  assert.equal(restored.view().phase, "conversations");
+  await assert.rejects(runtime.startPremadeCharacter(character.id), /Start a new game/);
+});
+test("failed pre-made generation leaves creation retryable and rejects unknown choices", async () => {
+  const world = characterCreationWorld(loadPlayableWorld());
+  const runtime = new WorldGameRuntime(world, "", undefined, undefined, undefined, { services: { ai: ai(async () => ({ role: "assistant", content: "What is your name?" })) } });
+  const before = runtime.snapshot();
+  await assert.rejects(runtime.startPremadeCharacter("missing"), /available pre-made/);
+  await assert.rejects(runtime.startPremadeCharacter("fighter"), /did not prepare/);
+  assert.deepEqual(runtime.snapshot(), before);
+  runtime.startIntroduction();
+  assert.equal((runtime.view().gmMessages as unknown[]).length, 1);
+});

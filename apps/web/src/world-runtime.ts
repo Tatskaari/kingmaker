@@ -3,6 +3,7 @@ import { retryResponses } from "../../../packages/conversation/src/ai.js";
 import { traceAiService } from "../../../packages/conversation/src/ai-tracing.js";
 import { createScenarioServices } from "../../../packages/lore/src/services.js";
 import { beginStranger, strangerTurn } from "./stranger-interview.js";
+import { premadeCharacter } from "./premade-characters.js";
 import { playerPublication } from "./stranger-draft.js";
 import { portraitExpressions, type PortraitExpression } from "../../../packages/providers/src/conversation-expression.js";
 import type { JsonValue } from "@bufbuild/protobuf";
@@ -118,6 +119,20 @@ export class WorldGameRuntime extends WorldHost {
     if (this.activity.stranger !== before) throw new Error("The interview changed; retry your reply.");
     this.activity.stranger = next;
     return next.history.at(-1)?.content ?? "";
+  }
+  async startPremadeCharacter(id: string) {
+    const character = premadeCharacter(id);
+    if (this.world().player || this.activity.stranger) throw new Error("Start a new game to choose a pre-made character.");
+    const before = this.snapshot();
+    try {
+      const next = await strangerTurn({ history: [] }, "Play this pre-made character and enter the hall.",
+        this.documents.scenario, this.runtime("gm", "game_master").services, undefined, undefined, character);
+      if (!next.draft) throw new Error("The GM did not prepare a character. Please try again.");
+      const draft = next.draft as { player: { sprite: number } };
+      draft.player.sprite = character.sprite;
+      this.activity.stranger = next;
+      await this.confirmPlayer(next.draft);
+    } catch (error) { this.restore(before); throw error; }
   }
   async confirmPlayer(value: JsonValue) {
     if (!this.activity.stranger?.draft) throw new Error("No character is awaiting review.");
