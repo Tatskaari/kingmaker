@@ -24,16 +24,16 @@ export interface ReviewVariant {
   strategies?: ConversationRuntimeOptions["strategies"];
 }
 const judgedCriteria: readonly Criterion[] = [
-  { name: "grounding", description: "New facts are supported by conversation or existing context; binding GM rulings are preserved." },
+  { name: "grounding", description: renderPrompt("review-experiment-description-1") },
   { name: "coverage", description: renderPrompt("review-experiment-memory") },
   { name: "knowledge", description: renderPrompt("review-experiment-knowledge") },
   { name: "intent", description: renderPrompt("review-experiment-activities") },
-  { name: "preservation", description: "Unrelated facts, characterization and permissions are preserved." },
-  { name: "restraint", description: "Changes are relevant and avoid redundant memories, unnecessary rewrites and invented consequences." },
+  { name: "preservation", description: renderPrompt("review-experiment-description-2") },
+  { name: "restraint", description: renderPrompt("review-experiment-description-3") },
 ];
 export const reviewRubric: readonly Criterion[] = [
   ...judgedCriteria.map(criterion => ({ ...criterion, levels: accuracyLevels })),
-  { name: "physical-state", description: "Review leaves the physical map unchanged (deterministic 0 or 1 invariant)." },
+  { name: "physical-state", description: renderPrompt("review-experiment-description-4") },
 ];
 
 export function documentChanges(recording: RunRecording) {

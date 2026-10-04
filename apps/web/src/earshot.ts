@@ -31,7 +31,7 @@ export const PLAYER_EARSHOT_DISTANCE = 15;
 export const PLAYER_PERCEPTION_CHANCES = { Clear: 1, Moderate: 0.9, Distant: 0.6 };
 // Address the speaking character directly, with names grouped beneath each warning.
 export const EARSHOT_DESCRIPTIONS = {
-  Clear: "These characters are right by you and will almost certainly hear what you say.",
+  Clear: renderPrompt("earshot-clear"),
   Moderate: renderPrompt("earshot-nearby"),
   Distant: renderPrompt("earshot-distant"),
 };

@@ -1,3 +1,4 @@
+import { renderPrompt } from "../../prompts/src/index.js";
 import { fromJson } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema } from "../../contracts/src/index.js";
 import type { WorldState } from "../../contracts/src/v2.js";
@@ -35,7 +36,7 @@ export function giftInventoryScore(world: WorldState | undefined) {
 
 export function createPeregrineGiftExperiment(createAi: () => AiService, judge: Pick<AiService, "decisions">) {
   const base = createReviewExperiment(peregrineGiftCase, [], createAi, judge);
-  return { ...base, rubric: [...base.rubric, { name: "gift-inventory", description: "Exactly one wooden bird in the player's typed inventory, with none remaining in Peregrine's." }],
+  return { ...base, rubric: [...base.rubric, { name: "gift-inventory", description: renderPrompt("peregrine-gift-case-description-1") }],
     async score(...args: Parameters<typeof base.score>) {
       const result = await base.score(...args);
       result.criteria["gift-inventory"] = giftInventoryScore(args[0].finalState as WorldState | undefined);

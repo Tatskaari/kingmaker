@@ -5,11 +5,11 @@ import { validateRubric, type Criterion, type ScoreLevel, type Result, type RunR
 
 /** Anchored quality ratings, not the judge's confidence or a binary pass rate. */
 export const accuracyLevels: Record<string, ScoreLevel> = {
-  incorrect: { score: 0, description: "0%: Required behavior is absent or fundamentally incorrect." },
-  limited: { score: 0.25, description: "25%: A small part is correct, but major errors or omissions dominate." },
-  partial: { score: 0.5, description: "50%: Substantial correct behavior, with equally substantial errors or omissions." },
-  mostly: { score: 0.75, description: "75%: Most required behavior is correct; limited errors or omissions remain." },
-  complete: { score: 1, description: "100%: All applicable requirements are accurately satisfied, with no material errors or omissions." },
+  incorrect: { score: 0, description: renderPrompt("jev-scorer-description-1") },
+  limited: { score: 0.25, description: renderPrompt("jev-scorer-description-2") },
+  partial: { score: 0.5, description: renderPrompt("jev-scorer-description-3") },
+  mostly: { score: 0.75, description: renderPrompt("jev-scorer-description-4") },
+  complete: { score: 1, description: renderPrompt("jev-scorer-description-5") },
 };
 
 /** A fixed judge sees evidence and rubric only; its AI calls have a separate recording. */

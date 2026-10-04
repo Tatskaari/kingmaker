@@ -26,7 +26,7 @@ export function actionCriteria(actions: readonly GameAction[]): Record<string, s
     ids.add(action.id);
   }
   return { ...Object.fromEntries(actions.map(action => [action.id,
-    renderPrompt("action-criterion", { description: action.description, legality: action.legality === "illegal" ? " This is illegal for this character." : "" })])), ...terminalActions };
+    renderPrompt("action-criterion", { description: action.description, illegal: action.legality === "illegal" })])), ...terminalActions };
 }
 export const jevActionStrategy: ActionStrategy = {
   async classify(context, signal, services) {
