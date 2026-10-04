@@ -253,16 +253,18 @@ test("main game releases the NPC to act on committed activity while live review 
       return reply;
     },
   } } });
+  await runtime.overrideActiveObjective("rowan", { currentGoal: "Go to the parlour" });
   assert.equal(await runtime.checkedTalkToCharacter("rowan", "Meet me in the hall."), "I will meet you in the great hall.");
   await ready;
   await assert.rejects(runtime.planNpc("rowan", new AbortController().signal), /paused for conversation/);
   await runtime.endConversation("rowan");
   assert.equal(liveFinished, false, "Ending the conversation must not wait for the GM");
   const plan = await runtime.planNpc("rowan", new AbortController().signal);
-  assert.equal(plan.goal, "Go to the great hall");
+  assert.equal(plan.goal, "Go to the parlour");
   release(); await done;
   assert.equal(liveFinished, true);
   assert.equal(activityGoal(runtime.world(), "rowan"), "Go to the great hall");
+  assert.equal((await runtime.planNpc("rowan", new AbortController().signal)).goal, "Go to the great hall");
   assert.equal(runtime.snapshot().conversations.rowan, undefined);
   assert.ok(runtime.recentTranscripts().some(call => call.kind === "conversation_review"
     && JSON.stringify(call.request).includes("newly accepted conversation turn")));

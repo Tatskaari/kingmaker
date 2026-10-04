@@ -29,6 +29,7 @@ function fixture(mode: "background" | "approve" | "deny" | "limit" | "error") {
         : { immediate_commitment: choice("flagged"), immediate_feasibility: choice(mode === "background" ? "possible" : "gms_discretion") };
     }, responses: async request => {
       if (request.response_format) return { role: "assistant", content: JSON.stringify({ allowed: mode === "approve", reason: "This bird belongs to another guest. Offer something else." }) };
+      assert.equal(request.reasoning?.effort, "high");
       if (mode === "background") await gate;
       return commitReview({ summary: "Recorded", newNotes: ["Promised the player a gift."], activeGoal: null }, request);
     } },

@@ -69,7 +69,8 @@ export function liveConversationStrategy(options: {
       const review = async (reviewSignal: AbortSignal) => {
         await reviewDocumentEvidence({ characterId: options.characterId, participants: [options.characterId, "player"], transcript },
           labels, reviewSignal, { ...services, ai: { ...services.ai,
-            responses: (request, signal, info) => services.ai.responses(request, signal, { ...info, purpose: "conversation_review" }),
+            responses: (request, signal, info) => services.ai.responses({ ...request, reasoning: { ...request.reasoning, effort: "high" } },
+              signal, { ...info, purpose: "conversation_review" }),
           } },
           "Review only this newly accepted conversation turn. Earlier turns have already been reviewed; do not repeat gifts or objectives. Preserve consequences in the world now, including inventory changes for agreed gifts/trades. Character movement is not executed by narration. Retain supported promises and player-led shared history as appropriate memories or beliefs.");
         record("resolve", "live-review", { mode: discretion ? "blocking" : "background" }, pass);

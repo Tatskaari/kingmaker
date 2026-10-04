@@ -63,7 +63,7 @@ private drafts or return a fixed response without calling that service.
 
 The main game supplies `liveConversationStrategy` as the response policy after
 those disclosure and dice steps. Jev classifies a private draft; ordinary flags
-queue a background GM review, while `gms_discretion` requires GM approval and
+queue a GM review using high reasoning, while `gms_discretion` requires GM approval and
 consequence updates before release. A refusal adds system guidance and regenerates
 the character reply without rerolling. Only the accepted reply is displayed.
 Each conversation owns a review queue. The host drains it before the next turn.
