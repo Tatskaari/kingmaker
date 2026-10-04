@@ -28,7 +28,7 @@ export function createLiveConversationExperiment(testCase: LiveConversationCase,
     const backing = createScenarioServices(clone(WorldStateSchema, testCase.loadWorld([])));
     const selected = variant?.strategy(testCase);
     let drafts: OpenRouterMessage[] = [];
-    return { services: { inventory: () => backing.inventory, docs: () => backing.docs, scenario: () => backing.scenario, ai: () => createAi(),
+    return { recordScenarioSnapshots: false, services: { inventory: () => backing.inventory, docs: () => backing.docs, scenario: () => backing.scenario, ai: () => createAi(),
       lore: services => documentLoreService(services.scenario), debug: () => ({ record: () => {} }),
       character: services => ({ respond: async (request, signal) => {
         const fixed = drafts.shift();

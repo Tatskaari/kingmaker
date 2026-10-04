@@ -16,7 +16,7 @@ export interface Result { criteria: Record<string, CriterionScore> }
 export class RunRecording {
   constructor(readonly calls: readonly ServiceCall[], readonly initialState: unknown, readonly finalState: unknown, readonly error?: unknown) {}
   getCalls() { return structuredClone(this.calls); }
-  getServiceRecord(name: string) { return this.getCalls().filter(call => call.service === name); }
+  getServiceRecord(name: string) { return structuredClone(this.calls.filter(call => call.service === name)); }
 }
 export interface ScoreContext { signal: AbortSignal; recording: Recording }
 export const evalTypes = ["conversation", "review", "jev-decision", "jev-action"] as const;

@@ -4,11 +4,11 @@ import type { Recording } from "../../service-tools/src/recording.js";
 
 /** Factories receive recorded dependencies. Use the supplied services instead of capturing raw peers. */
 export type ServiceFactories = { [K in keyof RuntimeServices]?: (services: RuntimeServices) => Partial<RuntimeServices[K]> };
-export interface EvalRuntimeOptions<R> extends Omit<ConversationRuntimeOptions<R>, "services"> { services?: ServiceFactories }
+export interface EvalRuntimeOptions<R> extends Omit<ConversationRuntimeOptions<R>, "services"> { services?: ServiceFactories; recordScenarioSnapshots?: boolean }
 
 /** Construct each dependency once per trial, recording it before any dependent factory can use it. */
 export function createRecordedRuntime<R>(options: EvalRuntimeOptions<R>, recording: Recording): ConversationRuntime<R> {
-  const { services: factories = {}, ...policy } = options;
+  const { services: factories = {}, recordScenarioSnapshots = true, ...policy } = options;
   const runtime = new ConversationRuntime<R>(policy);
   const defaults = { ...runtime.services }, cache = new Map<keyof RuntimeServices, object>(), constructing = new Set<string>();
   const resolve = <K extends keyof RuntimeServices>(name: K): RuntimeServices[K] => {
@@ -24,7 +24,9 @@ export function createRecordedRuntime<R>(options: EvalRuntimeOptions<R>, recordi
         const value: unknown = Reflect.get(source, key, source);
         return typeof value === "function" ? value.bind(source) : value;
       } });
-      const recorded = recording.wrap(name, merged);
+      const recorded = recording.wrap(name, merged, name === "scenario" && !recordScenarioSnapshots ? {
+        summarizeReturn: (method, value) => method === "snapshot" ? { omitted: "Repeated snapshot; see initialState, finalState and explicit turn observations" } : value,
+      } : undefined);
       cache.set(name, recorded);
       runtime.services[name] = recorded;
       return recorded;
