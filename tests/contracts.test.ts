@@ -620,12 +620,13 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
   assert.equal(resumed.state.player, null);
   assert.equal(resumed.state.gmMessages.length, 1);
 
-  await t.test("creation storage failures retain the resumable interview and draft", async t => {
+  await t.test("creation autosave failures retain accepted changes in memory", async t => {
     t.mock.method(JevClient.prototype, "evaluate", async (_state: unknown, questions: Record<string, unknown>) =>
       Object.fromEntries(Object.keys(questions).map(id => [id, { choice: "skip", probabilities: { [id]: 0, skip: 1 } }])));
     failNextWrite = true;
-    await assert.rejects(request("gm", { message: "Alex" }), /Test storage failure/);
-    assert.equal((await request("state")).state.gmMessages.length, 1);
+    await request("gm", { message: "Alex" });
+    assert.equal((await request("state")).state.gmMessages.length, 3);
+    assert.match(alerts.at(-1).message, /autosave failed/);
     const ids = world.characters.map(path => /\/Characters\/([^/]+)\//.exec(path)![1]!);
     const input = { name: "Alex", gender: "nonbinary", homeland: "Independent", embassyRole: "Visiting scholar",
       lore: "You serve the Stranger.", currentGoal: "Explore court",
@@ -638,27 +639,49 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     const review = await request("gm", { message: "Ready" });
     assert.equal(review.state.phase, "character_review");
     failNextWrite = true;
-    await assert.rejects(request("save_character", { draft: review.state.playerDraft }), /Test storage failure/);
-    const pendingReview = await request("state");
-    assert.equal(pendingReview.state.phase, "character_review");
-    assert.equal(pendingReview.state.player, null);
-    assert.equal(records.get(fresh.activeSaveId).snapshot.world.player, undefined);
     await request("save_character", { draft: review.state.playerDraft });
+    const pendingReview = await request("state");
+    assert.equal(pendingReview.state.phase, "conversations");
+    assert.equal(pendingReview.state.player.name, "Alex");
+    assert.equal(records.get(fresh.activeSaveId).snapshot.world.player, undefined);
+    await request("release_from_jail"); // Next successful autosave includes the accepted player.
     const reloaded = await request("load_game", { saveId: fresh.activeSaveId });
     assert.equal(reloaded.state.player.name, "Alex");
     assert.equal(reloaded.state.phase, "conversations");
   });
 
-  await t.test("jail release settles outside the worker queue and rolls back failed saves", async () => {
+  await t.test("jail release settles outside the worker queue and survives failed autosave", async () => {
     const created = await request("create_development_game");
     records.get(created.activeSaveId).snapshot.jail = { characterId: "palace-guard", message: "You're nicked." };
     const loaded = await request("load_game", { saveId: created.activeSaveId });
     assert.equal(loaded.state.jail.characterId, "palace-guard");
     failNextWrite = true;
-    await assert.rejects(request("release_from_jail"), /Test storage failure/);
-    assert.equal((await request("state")).state.jail.characterId, "palace-guard");
+    await request("release_from_jail");
+    assert.equal((await request("state")).state.jail, null);
+    assert.equal(records.get(created.activeSaveId).snapshot.jail.characterId, "palace-guard");
     assert.equal((await request("release_from_jail")).state.jail, null);
     assert.equal(records.get(created.activeSaveId).snapshot.jail, undefined);
+  });
+
+  await t.test("movement takes only the save snapshot, rejects invalid writes, and survives failed autosave", async t => {
+    const created = await request("create_development_game");
+    const before = structuredClone(records.get(created.activeSaveId).snapshot);
+    const snapshot = BrowserGameRuntime.prototype.snapshot;
+    let snapshots = 0;
+    t.mock.method(BrowserGameRuntime.prototype, "snapshot", function (this: BrowserGameRuntime) { snapshots++; return snapshot.call(this); });
+    t.mock.method(BrowserGameRuntime.prototype, "restore", () => { throw new Error("Unexpected world rollback"); });
+    await assert.rejects(request("move_player", { x: -1, y: -1 }), /not reachable/);
+    assert.equal(snapshots, 0, "Rejected writes do not take a rollback or save snapshot");
+    failNextWrite = true;
+    const moved = await request("move_player", { x: 61, y: 24 });
+    assert.deepEqual(moved.state.player.position, create(TilePositionSchema, { x: 61, y: 24 }));
+    assert.equal(snapshots, 1, "Only the actual autosave serializes a snapshot");
+    assert.deepEqual(records.get(created.activeSaveId).snapshot, before);
+    assert.match(alerts.at(-1).message, /only in memory/);
+    await request("move_player", { x: 61, y: 25 });
+    const saved = records.get(created.activeSaveId).snapshot;
+    assert.equal(saved.world.map.actors.find((actor: any) => actor.characterId === "player").position.y, 25);
+    assert.equal(snapshots, 2);
   });
 
   await t.test("physical interactions respond before background earshot assessment finishes", async t => {
@@ -890,9 +913,8 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
 
     t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => reviewResponse(input));
     failNextWrite = true;
-    await assert.rejects(request("end_conversation", { characterId: "gurt" }), /Test storage failure/);
-    assert.equal((await request("state")).state.conversations.gurt.length, 2, "Failed reviews retain their transcript for retry");
     await request("end_conversation", { characterId: "gurt" });
+    assert.match(alerts.at(-1).message, /autosave failed/);
     assert.equal((await request("state")).state.conversations.gurt, undefined);
   });
 });

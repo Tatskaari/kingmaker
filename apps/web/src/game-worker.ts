@@ -86,13 +86,22 @@ function stopWorldEvents() {
   for (const controller of worldEvents) controller.abort();
   worldEvents.clear();
 }
+/** The world service owns write validation; autosave failure never rewinds accepted writes. */
 async function commitMutation<T>(game: BrowserGameRuntime, work: () => T | Promise<T>): Promise<T> {
   return enqueue(async () => {
     if (runtime !== game) throw new Error("Game changed.");
-    const before = game.snapshot(), saveBefore = activeSave;
-    try { const result = await work(); await persist(); return result; }
-    catch (error) { game.restore(before); activeSave = saveBefore; throw error; }
+    const result = await work();
+    await autosave();
+    return result;
   });
+}
+async function autosave() {
+  try { await persist(); }
+  catch (error) { alertUser("error", `Your changes succeeded, but autosave failed. Your latest progress is only in memory; the next successful autosave will save it. ${String(error)}`); }
+}
+async function mutationResponse(game: BrowserGameRuntime) {
+  // A storage outage must not turn a successful action into a rejected UI move.
+  return { state: game.view(), saves: await listSaves().catch(() => undefined) };
 }
 async function reviewBackground(game: BrowserGameRuntime, id: string, signal: AbortSignal, allowNextGoal: boolean) {
   signal.throwIfAborted();
@@ -300,14 +309,15 @@ async function persist(): Promise<void> {
   const characterName = player?.name || identity?.name || activeSave.characterName;
   const now = new Date().toISOString();
   attachPersistence(runtime);
-  activeSave = {
+  const saved = {
     ...activeSave,
     characterName,
     normalizedName: characterName.trim().toLocaleLowerCase(),
     updatedAt: now,
     snapshot: runtime.snapshot(),
   };
-  await transaction("readwrite", store => store.put(activeSave!));
+  await transaction("readwrite", store => store.put(saved));
+  activeSave = saved;
 }
 
 async function createGame(development = false): Promise<Record<string, unknown>> {
@@ -383,43 +393,36 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
   if (type === "state") return { state: requireRuntime().view(), activeSaveId: activeSave?.id };
   if (type === "stranger_expression") return { expression: await requireRuntime().classifyStrangerExpression(payload.recentPortraits ?? []) };
   if (["start_introduction", "start_premade", "gm", "save_character"].includes(type)) {
-    const game = requireRuntime(), before = game.snapshot(), savedBefore = activeSave;
+    const game = requireRuntime();
     const version = generation;
-    try {
-      if (type === "start_introduction") game.startIntroduction();
-      if (type === "start_premade") await game.startPremadeCharacter(String(payload.characterId || ""));
-      if (type === "gm") await game.talkToGameMaster(String(payload.message || ""), text => {
-        if (generation === version && runtime === game) worker.postMessage({ type: "dialogue_stream", requestId, characterId: "gm", text });
-      });
-      if (type === "save_character") await game.confirmPlayer(payload.draft as JsonValue);
-      await persist();
-    } catch (error) {
-      game.restore(before); activeSave = savedBefore;
-      throw error;
-    }
-    return { state: game.view(), saves: await listSaves(), activeSaveId: activeSave?.id };
+    if (type === "start_introduction") game.startIntroduction();
+    if (type === "start_premade") await game.startPremadeCharacter(String(payload.characterId || ""));
+    if (type === "gm") await game.talkToGameMaster(String(payload.message || ""), text => {
+      if (generation === version && runtime === game) worker.postMessage({ type: "dialogue_stream", requestId, characterId: "gm", text });
+    });
+    if (type === "save_character") await game.confirmPlayer(payload.draft as JsonValue);
+    await autosave();
+    return { state: game.view(), saves: await listSaves().catch(() => undefined), activeSaveId: activeSave?.id };
   }
   if (type === "cancel_npc") { waitsPaused = true; waits.stop(); stopBackground(); publishNpc("NPC activity paused."); return {}; }
   if (type === "reset_world" || type === "reset_characters") {
-    const game = requireRuntime(), before = structuredClone(game.snapshot()), savedBefore = activeSave;
-    try {
-      if (type === "reset_world") game.resetWorld();
-      else game.resetCharacters();
-      await persist();
-    } catch (error) { game.restore(before); activeSave = savedBefore; throw error; }
-    return { state: game.view(), saves: await listSaves() };
+    const game = requireRuntime();
+    if (type === "reset_world") game.resetWorld();
+    else game.resetCharacters();
+    await autosave();
+    return mutationResponse(game);
   }
   if (type === "release_from_jail") {
     const game = requireRuntime();
     await commitMutation(game, () => game.releaseFromJail());
-    return { state: game.view(), saves: await listSaves() };
+    return mutationResponse(game);
   }
   if (type === "interact_fixture") {
     const game = requireRuntime();
     const result = await commitMutation(game, () => game.executeAction({ command: { kind: "fixture", id: String(payload.actionId || "") } }));
     if (result.worldEvent) scheduleWorldEvent(game, result.worldEvent);
     await game.presentMap("player", result).catch(error => providerWarning(String(error)));
-    return { state: game.view(), saves: await listSaves(), message: result.message };
+    return { ...await mutationResponse(game), message: result.message };
   }
   if (type === "set_door" || type === "move_player") {
     if (type === "set_door" && typeof payload.open !== "boolean") throw new Error("Door state must be open or closed.");
@@ -429,7 +432,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     const result = await commitMutation(game, () => game.executeAction({ command }));
     if (result.worldEvent) scheduleWorldEvent(game, result.worldEvent);
     await game.presentMap("player", result).catch(error => providerWarning(String(error)));
-    return { state: game.view(), saves: await listSaves() };
+    return mutationResponse(game);
   }
   if (type === "talk" || type === "end_conversation") {
     if (type === "end_conversation") conversationReviews.add(reviewKey);
@@ -469,28 +472,22 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
         if (game.hasActiveObjective(id)) startBackground(id);
         if (reply) scheduleWorldEvent(game, reply as Event);
       }
-      return { reply: type === "talk" ? reply : undefined, state: game.view(), saves: await listSaves(), activeSaveId: activeSave?.id };
+      return { reply: type === "talk" ? reply : undefined, state: game.view(), saves: await listSaves().catch(() => undefined), activeSaveId: activeSave?.id };
     } finally { if (type === "end_conversation") conversationReviews.delete(reviewKey); }
   }
   if (type === "reset") {
     requireRuntime().reset();
     if (activeSave) { activeSave.characterName = "New emissary"; activeSave.normalizedName = "new emissary"; }
-    await persist();
-    return { state: requireRuntime().view(), saves: await listSaves(), activeSaveId: activeSave?.id };
+    await autosave();
+    return { state: requireRuntime().view(), saves: await listSaves().catch(() => undefined), activeSaveId: activeSave?.id };
   }
   if (type === "debug_override_objective") {
     const game = requireRuntime(), id = String(payload.characterId || "");
-    const before = game.snapshot(), saveBefore = activeSave;
-    try {
-      await game.overrideActiveObjective(id, payload.objective);
-      stopBackground(id);
-      await persist();
-    } catch (error) {
-      game.restore(before); activeSave = saveBefore;
-      throw error;
-    }
+    await game.overrideActiveObjective(id, payload.objective);
+    stopBackground(id);
+    await autosave();
     publishNpc(`${id}: objective overridden. Ready to run the new goal.`);
-    return { state: game.view(), saves: await listSaves(), activeSaveId: activeSave?.id };
+    return { state: game.view(), saves: await listSaves().catch(() => undefined), activeSaveId: activeSave?.id };
   }
   if (type === "debug_transcripts") return { requests: requireRuntime().recentTranscripts(), agentRuns: requireRuntime().transcriptRuns() };
   if (type === "debug_documents") return requireRuntime().debugDocuments();
