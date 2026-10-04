@@ -1,4 +1,4 @@
-import { fromJson, toJson } from "@bufbuild/protobuf";
+import { fromJson } from "@bufbuild/protobuf";
 import { WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
 import { WorldGameRuntime, type WorldSnapshot, type WorldOptions } from "../../../apps/web/src/world-runtime.js";
 import { characterDocuments } from "../../lore/src/character-id.js";
@@ -22,11 +22,8 @@ export class WorldHeadlessGame {
   load(source: WorldState | WorldSnapshot) { this.runtime = this.create(source); }
   snapshot() { return this.runtime.snapshot(); }
   inspect() { return this.runtime.world(); }
-  edit(change: (state: WorldState) => void) {
-    const before = this.snapshot(), world = this.inspect();
-    change(world);
-    this.runtime.restore({ ...before, world: toJson(WorldStateSchema, world) });
-  }
+  /** Trusted console edits use live state; document tooling should use the CAS services. */
+  edit(change: (state: WorldState) => void) { change(this.inspect()); }
   private observation(id = "player") {
     const visible = this.runtime.map.observe(id), entries = characterDocuments(this.inspect());
     const entry = entries.find(entry => entry.id === id);

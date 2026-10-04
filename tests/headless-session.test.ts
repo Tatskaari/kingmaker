@@ -25,15 +25,17 @@ test("player actions use real door mechanics and Jev's room rendering", async ()
   assert.match(live.observe(), /^Great Hall/);
 });
 
-test("inspection is detached, live edits persist, failed edits leave state intact", () => {
+test("inspection and console edits use live state without rollback", () => {
   const live = game();
   live.inspect().map!.day = 99;
-  assert.notEqual(live.inspect().map!.day, 99);
+  assert.equal(live.inspect().map!.day, 99);
+  const saved = live.snapshot();
   live.edit(state => { state.map!.day = 7; });
   assert.equal(live.inspect().map!.day, 7);
   assert.throws(() => live.edit(state => { state.map!.day = 8; throw new Error("stop"); }), /stop/);
-  assert.equal(live.inspect().map!.day, 7);
-  assert.equal(new WorldHeadlessGame(live.snapshot()).inspect().map!.day, 7);
+  assert.equal(live.inspect().map!.day, 8);
+  assert.equal(new WorldHeadlessGame(saved).inspect().map!.day, 99);
+  assert.equal(new WorldHeadlessGame(live.snapshot()).inspect().map!.day, 8);
 });
 
 test("talk approaches a character and delegates to real player dialogue methods", async t => {
