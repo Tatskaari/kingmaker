@@ -229,7 +229,7 @@ test("GM reviews receive editable presentation snapshots for every participant i
       name: "replace_document", arguments: JSON.stringify({ path: player.path, expectedSha: player.sha,
         oldText: player.document.body, newText: "Their hair is smoothed flat and their coat brushed free of loose dust." }),
     } }] };
-  } } }, hooks: { review: documentReviewHooks } });
+  } } }, strategies: { review: documentReviewStrategy } });
   await runConversationReview({ characterId: "aldren", participants: ["aldren", "player"],
     transcript: [create(TranscriptMessageSchema, { text: "I smooth my hair and brush the dust off my coat." })] }, runtime);
   assert.match((await services.docs.read("Players/presentation.md")).document.body, /hair is smoothed flat/);
