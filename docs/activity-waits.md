@@ -1,6 +1,6 @@
 # Character activities and waits
 
-Each record in saved `world.runtimeCharacters`, keyed by runtime character or guard instance ID, owns optional vault-relative Markdown paths, `activity` and `wait`, plus an `intentRevision`. Scene creation copies authored `character.md` defaults into these fields once. Runtime character records also identify the shared character and its document; physical map actors do not store intent. Subsequent reviews change runtime fields, leaving the authored defaults unchanged. Bodies sharing one character document have independent pointers; a shared identity targets the nearest body, while an explicit instance ID targets that body. An activity takes precedence. Without an activity, a wait receives an independent Jev check every 12–18 seconds. Without either reference the character is idle. Saved-game format 4 requires a fresh game; older saves are not migrated.
+Each record in saved `world.runtimeCharacters`, keyed by runtime character or guard instance ID, owns optional vault-relative Markdown paths, `activity` and `wait`, plus an `intentRevision`. Scene creation copies authored `character.md` defaults into these fields once. Runtime character records also identify the shared character and its document; physical map actors do not store intent. Subsequent reviews change runtime fields, leaving the authored defaults unchanged. Bodies sharing one character document have independent pointers; a shared identity targets the nearest body, while an explicit instance ID targets that body. An activity takes precedence. Without an activity, a wait receives an independent Jev check every 12–18 seconds. Without either reference the character is idle. Saved-game format 5 requires a fresh game; older saves are not migrated.
 
 Activity documents retain the old objective's four fields in frontmatter:
 
@@ -39,7 +39,7 @@ Wait Jev receives the wait, elapsed time, permitted character context, and curre
 
 - `set_activity:<path>` for an entry in `activities`: activates that file and clears the wait, without an LLM call.
 - `continue`: retains the wait and sleeps until the next check.
-- `stop_waiting`: clears the wait, then calls the review LLM. Guard bodies still hold their posts: this storage change does not enable autonomous guard movement. Pending reconsideration is saved so a provider failure can be retried after reload.
+- `stop_waiting`: clears the wait, then calls the review LLM. Guard instances have individual post activities and routines and may leave their posts to respond to witnessed trouble. Pending reconsideration is saved so a provider failure can be retried after reload.
 
 Checks do not overlap for a character and are skipped during conversations and conflicting work. Game replacement and pause cancel outstanding checks. Changed observations or document hashes invalidate stale decisions. Timers start anew on load rather than replaying offline ticks.
 

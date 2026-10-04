@@ -8,6 +8,8 @@ export function assignGuardPosts(world: WorldState) {
     if (!Array.isArray(entry.frontmatter?.conversation_actions) || !entry.frontmatter.conversation_actions.includes("arrest")) continue;
     const actor = world.map!.actors.find(actor => actor.characterId === character.id);
     if (!actor?.position) continue;
+    // Palace guards may enter private rooms in the course of their duty.
+    for (const room of world.map!.rooms) if (room.private && !room.allowedCharacterIds.includes(character.id)) room.allowedCharacterIds.push(character.id);
     const room = world.map!.rooms.find(room => room.id === actor.roomId)!;
     const folder = character.document.replace(/character\.md$/, ""), activity = `${folder}activity-${character.id}.md`;
     const routine = `${folder}routine-${character.id}.md`;

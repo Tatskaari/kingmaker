@@ -22,7 +22,7 @@ export type WorldSnapshot = MechanicalActivity & {
   stranger?: StrangerState;
   jail?: { characterId: string; message: string };
   pendingWaitReviews?: Record<string, { instructions: string; observation: string }>;
-  version: 4; world: JsonValue;
+  version: 5; world: JsonValue;
   playerMessages: Array<{ id: string; day: number; message: string; createdAt: string }>;
 };
 
@@ -35,7 +35,7 @@ export class WorldHost {
   constructor(world: WorldState, saved?: WorldSnapshot) {
     this.initial = clone(WorldStateSchema, world);
     this.documents = createScenarioServices(world);
-    this.activity = { version: 4, conversations: {}, npcActivities: {}, playerMessages: [] };
+    this.activity = { version: 5, conversations: {}, npcActivities: {}, playerMessages: [] };
     if (saved) this.restore(saved);
     this.syncGoals();
   }
@@ -55,7 +55,7 @@ export class WorldHost {
     return structuredClone({ ...this.activity, world: toJson(WorldStateSchema, this.world()) });
   }
   restore(saved: WorldSnapshot): void {
-    if (saved.version !== 4 || !saved.world) throw new Error("This save uses an older world format. Start a fresh game.");
+    if (saved.version !== 5 || !saved.world) throw new Error("This save uses an older world format. Start a fresh game.");
     const { world, ...activity } = structuredClone(saved);
     const state = fromJson(WorldStateSchema, world);
     this.documents = createScenarioServices(state);
@@ -121,7 +121,7 @@ export class WorldHost {
         const world = this.world().map!, player = world.actors.find(actor => actor.characterId === "player")!;
         const room = world.rooms.find(room => room.id === player.roomId)!;
         if (before !== room.id && room.private && !room.allowedCharacterIds.includes("player")) {
-          worldEvent = this.worldEvent("entering private quarters", `The player entered ${room.name} without permission.`, ["player"]);
+          worldEvent = this.worldEvent(`entering ${room.name}`, `The player entered ${room.name} without permission.`, ["player"]);
         }
       }
       if (command.kind === "door") worldEvent = this.setDoor(command.id, command.open, expected);
@@ -149,7 +149,7 @@ export class WorldHost {
       id: event.id, day: event.day, message: perception, createdAt: new Date().toISOString(),
     });
   }
-  reset() { this.restore({ version: 4, world: toJson(WorldStateSchema, this.initial),
+  reset() { this.restore({ version: 5, world: toJson(WorldStateSchema, this.initial),
     conversations: {}, npcActivities: {}, playerMessages: [] }); }
   resetWorld() {
     const before = this.world();

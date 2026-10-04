@@ -10,6 +10,7 @@ test("each guard has its own duty and can approach a witnessed intruder", async 
   const guards = Object.values(world.runtimeCharacters).filter(character => character.characterId === "palace-guard");
   assert.equal(guards.length, 10);
   assert.equal(new Set(guards.map(character => character.activity)).size, 10);
+  world.map!.doors.filter(door => door.roomIds.includes("royal_bedchamber")).forEach(door => { door.open = true; });
   const game = new WorldGameRuntime(world, "");
   assert.ok(game.hasActiveObjective(guard));
   assert.ok(game.map.observe(guard).actions.some(action => action.type === "move"));

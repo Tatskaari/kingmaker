@@ -4,7 +4,7 @@ import { GamePhase, DndCharacterSchema, WorldStateSchema as MapSchema, type Worl
 import { CharacterPropertiesSchema, WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
 import { assignGuardPosts } from "./guard-duty.js";
 import { placeBackgroundCharacters } from "./background-characters.js";
-import { worldState } from "../../../packages/lore/src/world-state.js";
+import { worldState, refreshDocumentGraph } from "../../../packages/lore/src/world-state.js";
 import envoySheet from "../../../content/envoy-sheet.json" with { type: "json" };
 
 /** Explicit fresh-game palace baseline; not a saved-game conversion. */
@@ -25,7 +25,7 @@ export function playableWorld(baseline: PalaceMap, markdown: ReadonlyMap<string,
   }
   world.docs[player]!.characterProperties = create(CharacterPropertiesSchema, { dnd: fromJson(DndCharacterSchema, envoySheet) });
   assignGuardPosts(world);
-  return world;
+  return refreshDocumentGraph(world);
 }
 
 /** A normal fresh game starts before the interview; the development envoy remains an explicit shortcut. */
