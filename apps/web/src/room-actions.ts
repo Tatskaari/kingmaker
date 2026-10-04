@@ -1,5 +1,5 @@
-import { inventoryOwners, itemsFor } from "../../../packages/core/src/inventory.js";
-import type { Scenario } from "../../../packages/contracts/src/index.js";
+import { itemsFor, type InventoryOwner } from "../../../packages/core/src/inventory.js";
+import type { WorldState } from "../../../packages/contracts/src/index.js";
 import { doorActionLegality } from "../../../packages/core/src/access.js";
 import { fixtureActions } from "../../../packages/core/src/fixtures.js";
 import type { CourtAgentAction } from "./court-agent.js";
@@ -19,8 +19,8 @@ const neighbours = (point: Point): Point[] => [
 
 /** Room-scoped routes cannot take shortcuts through a third room. Door approaches
  * may occupy the adjoining room's threshold in the authored map. */
-export function roomAgentActions(scenario: Scenario, characterId: string, continuingActionId?: string): CourtAgentAction[] {
-  const world = scenario.world!, actor = world.actors.find(item => item.characterId === characterId)!;
+export function roomAgentActions(world: WorldState, characters: readonly { id: string; name: string }[], owners: readonly InventoryOwner[], characterId: string, continuingActionId?: string): CourtAgentAction[] {
+  const actor = world.actors.find(item => item.characterId === characterId)!;
   const start = actor.position!, room = world.rooms.find(item => item.id === actor.roomId)!;
   const physicalBlockers = courtDoorBlockers(world.doors, world.fixtures);
   const route = (end: Point, allowedRooms = [room.id], thresholds: Point[] = []) => {
@@ -53,11 +53,11 @@ export function roomAgentActions(scenario: Scenario, characterId: string, contin
         description: `${door.open ? "Close" : "Open"} ${door.name} (${path.length - 1} steps).` });
     }
   }
-  for (const action of fixtureActions(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), characterId)) {
+  for (const action of fixtureActions(world.fixtures, owners, characterId)) {
     const fixture = world.fixtures.find(item => item.id === action.target);
     if (action.target !== characterId && (!fixture?.position || fixture.roomId !== room.id)) continue;
     if (action.verb === "open" && fixture?.requiredKeyId
-      && !itemsFor(inventoryOwners(scenario.characters, scenario.world), characterId).some(item => item.id === fixture.requiredKeyId)) continue;
+      && !itemsFor(owners, characterId).some(item => item.id === fixture.requiredKeyId)) continue;
     const path = action.target === characterId ? [start] : shortest(
       (fixture!.interactionSpot ? [fixture!.interactionSpot] : neighbours(fixture!.position!)).map(point => route(point)));
     if (path) actions.push({ id: action.id, type: "fixture", target: action.target, path, legality: action.legality,
@@ -65,7 +65,7 @@ export function roomAgentActions(scenario: Scenario, characterId: string, contin
   }
   for (const other of world.actors) {
     if (other.characterId === characterId || other.roomId !== room.id || !other.awake || !other.position) continue;
-    const target = scenario.characters.find(item => item.id === other.characterId);
+    const target = characters.find(item => item.id === other.characterId);
     const path = shortest(neighbours(other.position).map(point => route(point)));
     if (target && path) {
       const existing = actions.findIndex(action => action.id === `talk_${target.id}`);

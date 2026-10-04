@@ -1,3 +1,4 @@
+import { inventoryOwners } from "../packages/core/src/inventory.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create, fromJson, toJson } from "@bufbuild/protobuf";
@@ -56,8 +57,8 @@ test("paired bodies offer independent talk actions, listeners and movement", asy
   const player = world.map!.actors.find(actor => actor.characterId === "player")!;
   player.position = { ...bodies[0]!.position!, x: 61 }; player.roomId = bodies[0]!.roomId;
   const scenario = projectWorld(world);
-  assert.equal(roomAgentActions(scenario, "player").filter(action => action.target.startsWith("test-guard-")).length, 2);
-  assert.ok(roomAgentActions(scenario, "test-guard-1").length > 0);
+  assert.equal(roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "player").filter(action => action.target.startsWith("test-guard-")).length, 2);
+  assert.ok(roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "test-guard-1").length > 0);
   assert.equal(courtCharactersWithinEarshot({ id: "player", name: "Player", position: player.position },
     bodies.map(body => ({ id: body.characterId, name: "Guard", position: body.position }))).length, 2);
   const before = stateResources(scenario, {}, {})["actor:test-guard-1"];

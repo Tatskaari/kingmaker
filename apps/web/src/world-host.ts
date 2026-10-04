@@ -5,7 +5,8 @@ import type { StrangerState } from "./stranger-interview.js";
 import { palaceMap } from "./palace-map.js";
 import { GamePhase, WorldMapSchema } from "../../../packages/contracts/src/index.js";
 import type { MapService } from "../../../packages/conversation/src/map.js";
-import { characterCourtObservation } from "./court-agent.js";
+import { roomAgentActions } from "./room-actions.js";
+import { foregroundBodies } from "./background-characters.js";
 import { worldForCharacter } from "../../../packages/core/src/physical-view.js";
 import { clone, create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import { ScenarioSchema, type Event } from "../../../packages/contracts/src/index.js";
@@ -15,7 +16,7 @@ import { activityGoal, characterIntent, formatActivity } from "../../../packages
 import { generationIds, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 import { PalaceMechanics, type MechanicalActivity } from "./palace-mechanics.js";
 import { projectWorld } from "./world-projection.js";
-import { characterId } from "../../../packages/lore/src/character-id.js";
+import { characterDocuments, characterId } from "../../../packages/lore/src/character-id.js";
 import type { Point } from "./navigation.js";
 
 export type WorldSnapshot = MechanicalActivity & {
@@ -109,9 +110,19 @@ export class WorldHost {
   readonly map: MapService = {
     layout: () => clone(WorldMapSchema, palaceMap),
     observe: id => {
-      const scenario = projectWorld(this.world(), id);
-      return { characterId: id, map: worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), id),
-        actions: characterCourtObservation(scenario, id).actions };
+      const world = this.world(), map = world.map;
+      if (!map) throw new Error("A physical map is required.");
+      const characters = characterDocuments(world).map(({ id, document }) => ({ id,
+        name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
+        inventory: document.characterProperties?.inventory }));
+      if (!characters.some(character => character.id === id) || !map.actors.some(actor => actor.characterId === id && actor.position)) {
+        throw new Error("Character is not placed in the palace.");
+      }
+      // Reorder this detached map only; repeated background bodies retain their IDs and positions.
+      map.actors = foregroundBodies(map.actors, map.actors.find(actor => actor.characterId === id)?.position);
+      const owners = inventoryOwners(characters, map);
+      return { characterId: id, map: worldForCharacter(map, owners, id),
+        actions: roomAgentActions(map, characters, owners, id) };
     },
     interact: (command, expected) => {
       if (command.kind === "step") return this.stepNpcAction(command.characterId, command.actionId, command.goal, expected);
