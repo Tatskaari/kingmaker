@@ -8,11 +8,11 @@ export function characterId(path: string, world: Pick<WorldState, "player">): st
   return id;
 }
 
-/** Active character entries, including the optional player; documents remain the authority. */
+/** Active runtime bodies share authored documents but retain independent identities. */
 export function characterDocuments(world: WorldState) {
-  return [...world.characters, ...(world.player ? [world.player] : [])].map(path => {
+  return Object.values(world.runtimeCharacters).map(({ id, document: path }) => {
     const document = world.docs[path];
     if (!document) throw new Error(`Missing character document: ${path}`);
-    return { id: characterId(path, world), path, document };
+    return { id, path, document };
   });
 }
