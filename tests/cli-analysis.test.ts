@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema } from "../packages/contracts/src/index.js";
 import { formatAnalysis, formatConversation, type MessageAnalysis } from "../apps/conversation-cli/analysis.js";
-import { cliStrategy } from "../packages/conversation/src/cli-strategy.js";
+import { conversationStrategy } from "../packages/conversation/src/conversation-strategy.js";
 import { DisclosureSession } from "../packages/conversation/src/disclosure.js";
 import type { AiService } from "../packages/conversation/src/services.js";
 
@@ -36,7 +36,7 @@ test("CLI reports failed attention analysis without losing reply and propagates 
   }, responses: async () => ({ role: "assistant", content: "Reply" }) };
   const disclosure = new DisclosureSession({ initial: [], links: () => [], open: async () => { throw Error("Unexpected open"); } }, ai);
   const events: unknown[] = [];
-  const strategy = cliStrategy(disclosure, ai, undefined, "Hello", async () => 10, () => {}, () => {}, {}, {}, undefined, event => events.push(event));
+  const strategy = conversationStrategy(disclosure, ai, undefined, "Hello", async () => 10, () => {}, () => {}, {}, {}, undefined, event => events.push(event));
   const request = { model: "test", messages: [] };
   const runtime = new ConversationRuntime({ strategies: { conversation: strategy }, services: { character: { respond: ai.responses } } });
   const reply = { role: "assistant" as const, content: "Reply" };

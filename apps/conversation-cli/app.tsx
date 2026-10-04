@@ -3,7 +3,7 @@ import { traceCliDecisions, decisionCallLabel, type CliDecisionCall } from "./de
 import { formatConversation, type MessageAnalysis } from "./analysis.js";
 import type { AiService, RuntimeServices } from "../../packages/conversation/src/services.js";
 import type { DndCharacter } from "../../packages/contracts/src/index.js";
-import { cliStrategy, type ManualRoll, type RequestRoll } from "../../packages/conversation/src/cli-strategy.js";
+import { conversationStrategy, type ManualRoll, type RequestRoll } from "../../packages/conversation/src/conversation-strategy.js";
 import { useEffect, useRef, useState } from "react";
 import { stripVTControlCharacters } from "node:util";
 import { createCliRenderer, createClipboard, createHostClipboard, createRendererClipboardAdapter,
@@ -119,7 +119,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
           ? previous.map(item => item.id === call.id ? call : item) : [...previous, call]);
       });
       const strategies = disclosure && checks
-        ? cliStrategy(disclosure, tracedAi!, checks.build, message, requestRoll, trace, turn => {
+        ? conversationStrategy(disclosure, tracedAi!, checks.build, message, requestRoll, trace, turn => {
           timeline.record(`gm-${gmCount.current++}`);
           setGmTurns(previous => [...previous, turn]);
         }, {}, {}, checks.services ? { services: checks.services, characterId: input.characterId } : undefined,

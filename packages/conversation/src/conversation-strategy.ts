@@ -13,7 +13,7 @@ export interface ManualRoll extends CheckPlan { modifier: number }
 export type RequestRoll = (check: ManualRoll, signal: AbortSignal) => Promise<number>;
 
 /** Finish disclosure before classifying checks; resolve checks once per player turn. */
-export function cliStrategy(disclosure: DisclosureSession, ai: AiService, build: DndCharacter | undefined,
+export function conversationStrategy(disclosure: DisclosureSession, ai: AiService, build: DndCharacter | undefined,
   playerTurn: string, requestRoll: RequestRoll, trace: (round: DisclosureRound) => void, debug: (turn: LlmTurn) => void, presentation: Partial<PresentationService> = {}, character: Partial<CharacterMechanics> = {}, gm?: { services: Partial<RuntimeServices>; characterId: string }, report: (event: AnalysisEvent) => void = () => {}) {
   const runtime = new ConversationRuntime({ services: {
     ...gm?.services,

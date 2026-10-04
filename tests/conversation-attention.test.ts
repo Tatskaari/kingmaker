@@ -1,4 +1,4 @@
-import { cliStrategy } from "../packages/conversation/src/cli-strategy.js";
+import { conversationStrategy } from "../packages/conversation/src/conversation-strategy.js";
 import { DisclosureSession } from "../packages/conversation/src/disclosure.js";
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
@@ -37,7 +37,7 @@ test("the shared response strategy analyzes a detached draft before returning it
   const disclosure = new DisclosureSession({ initial: [], links: () => [], open: async () => { throw new Error("Unexpected disclosure"); } }, ai);
   const runtime = new ConversationRuntime({ services: { character: { respond: async () => {
     order.push("respond"); return { role: "assistant", content: "Here is the seal." };
-  } } }, strategies: { conversation: cliStrategy(disclosure, ai, undefined, "The seal?",
+  } } }, strategies: { conversation: conversationStrategy(disclosure, ai, undefined, "The seal?",
     async () => { throw new Error("Unexpected roll"); }, () => {}, () => {}) } });
   const reply = await runConversation({ model: "test", messages: [{ role: "user", content: "The seal?" }] }, runtime);
   assert.deepEqual(order, ["respond", "analyze"]);

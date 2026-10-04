@@ -50,7 +50,7 @@ interface ConversationStrategy {
 }
 ```
 
-The existing `cliStrategy`, also used by browser and headless player dialogue,
+The existing `conversationStrategy`, also used by browser and headless player dialogue,
 finishes recursive lore disclosure, classifies and resolves skill checks once,
 adds the binding dice ruling, calls `services.character.respond`, and runs Jev
 attention analysis before returning the reply. Disclosure still enforces its pass

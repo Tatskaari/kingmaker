@@ -28,7 +28,7 @@ import { documentLoreService } from "../../../packages/conversation/src/document
 import { DisclosureSession } from "../../../packages/conversation/src/disclosure.js";
 import { runGameMaster } from "../../../packages/conversation/src/game-master.js";
 import { checkMechanics, adjudicateResolvedChecks } from "../../../packages/conversation/src/checks.js";
-import { cliStrategy } from "../../../packages/conversation/src/cli-strategy.js";
+import { conversationStrategy } from "../../../packages/conversation/src/conversation-strategy.js";
 import { aiService } from "../../../packages/conversation/src/adapters.js";
 import { OpenRouterClient, type TextProgress } from "../../../packages/providers/src/openrouter.js";
 import { JevClient } from "../../../packages/providers/src/jev.js";
@@ -227,7 +227,7 @@ export class WorldGameRuntime extends WorldHost {
     const lore = await runtime.services.lore.forCharacter(id, signal);
     const disclosure = new DisclosureSession(lore, runtime.services.ai, 0.7);
     const world = this.world(), build = world.player ? world.docs[world.player]?.characterProperties?.dnd : undefined;
-    const strategies = cliStrategy(disclosure, runtime.services.ai, build, message,
+    const strategies = conversationStrategy(disclosure, runtime.services.ai, build, message,
       async (_check, cancellation) => { cancellation.throwIfAborted(); return runtime.services.random.integer(1, 20); },
       () => {}, () => {}, runtime.services.presentation, runtime.services.character, { services: runtime.services, characterId: id });
     runtime.strategies.conversation = options.strategies?.conversation ?? this.options.strategies?.conversation ?? strategies;
