@@ -102,8 +102,12 @@ Artifacts under a unique `eval-output` subdirectory contain a manifest with sour
 and rubric, one JSON file per trial, and aggregate `results.json`. AI requests preserve model
 and generation settings. Columns are rubric criteria; rows aggregate each variant across
 repeats and selected experiments, sorted by weighted total, with baseline deltas. Combined
-experiments must use identical rubrics. Execution failures score zero; missing judge results
-leave a variant unranked. Error counts remain visible. Nonzero exit means execution/judging
+experiments must use identical rubrics. Execution failures receive a complete zero result without calling the judge; their
+recordings and execution errors remain available. Missing or unscorable judge answers
+are retained as null for that criterion, with valid answers preserved. Aggregates for
+fully scored criteria remain available, including zeroes for failed executions; a
+criterion missing any successful execution's score and the overall total stay unranked.
+No missing scores are imputed and incomplete repeats are not silently omitted. Error counts remain visible. Nonzero exit means execution/judging
 failed; low rubric scores are comparison data, not an automatic CI failure threshold.
 
 ## Published history

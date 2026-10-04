@@ -37,17 +37,21 @@ test("framework constructs isolated runtimes, records nested dependencies and em
   }
 });
 
-test("failed executions retain calls and are scored; judge failures stay distinct", async () => {
-  const experiment = fixture();
-  const run = experiment.run;
+test("failed executions retain evidence and populate zero results without judging", async () => {
+  const experiment = fixture(), run = experiment.run;
   experiment.run = async (...args) => { await run(...args); throw new Error("after write"); };
-  let trials = await runExperiment(experiment, { repeats: 1, variants: [] });
-  assert.match(JSON.stringify(trials[0]!.recording.error), /after write/);
-  assert.equal(trials[0]!.result?.criteria.quality?.score, 1);
+  experiment.score = async () => { throw new Error("judge must not run"); };
+  const [trial] = await runExperiment(experiment, { repeats: 1, variants: [] });
+  assert.match(JSON.stringify(trial!.recording.error), /after write/);
+  assert.equal(trial!.recording.getServiceRecord("ai").length, 1);
+  assert.equal(trial!.result?.criteria.quality?.score, 0);
+  assert.equal(trial!.scoringError, undefined);
+  assert.deepEqual(trial!.gradingCalls, []);
+  experiment.run = run;
   experiment.score = async () => { throw new Error("judge unavailable"); };
-  trials = await runExperiment(experiment, { repeats: 1, variants: [] });
-  assert.equal(trials[0]!.result, undefined);
-  assert.match(JSON.stringify(trials[0]!.scoringError), /judge unavailable/);
+  const [unscored] = await runExperiment(experiment, { repeats: 1, variants: [] });
+  assert.equal(unscored!.result, undefined);
+  assert.match(JSON.stringify(unscored!.scoringError), /judge unavailable/);
 });
 
 test("timeouts retain evidence, score errors are bounded, and invalid configs fail before running", async () => {
@@ -56,7 +60,11 @@ test("timeouts retain evidence, score errors are bounded, and invalid configs fa
   experiment.score = async () => new Promise(() => {});
   const trials = await runExperiment(experiment, { repeats: 1, variants: [], timeoutMs: 10 });
   assert.match(JSON.stringify(trials[0]!.recording.error), /timed out/);
-  assert.match(JSON.stringify(trials[0]!.scoringError), /timed out/);
+  assert.equal(trials[0]!.result?.criteria.quality?.score, 0);
+  assert.equal(trials[0]!.scoringError, undefined);
+  experiment.run = async () => {};
+  const [judgeTimeout] = await runExperiment(experiment, { repeats: 1, variants: [], timeoutMs: 10 });
+  assert.match(JSON.stringify(judgeTimeout!.scoringError), /timed out/);
   await assert.rejects(runExperiment(fixture(), { variants: ["typo"] }), /Unknown variant/);
   const bad = fixture(); bad.score = async () => ({ criteria: { quality: { score: NaN } } });
   assert.match(JSON.stringify((await runExperiment(bad, { repeats: 1, variants: [] }))[0]!.scoringError), /between 0 and 1/);
