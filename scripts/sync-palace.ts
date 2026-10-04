@@ -1,5 +1,6 @@
 import { fromJson, toJson } from "@bufbuild/protobuf";
 import { ScenarioSchema, MapFixtureSchema } from "../packages/contracts/src/index.js";
+import { inventoryOwners } from "../packages/core/src/inventory.js";
 import { palaceFurniture } from "../apps/web/src/palace-furniture.js";
 import { readFileSync, writeFileSync } from "node:fs";
 import { palaceLayout } from "../apps/web/src/palace-layout.js";
@@ -13,7 +14,9 @@ scenario.world.rooms = palaceLayout.worldRooms().map(room => ({
   ...scenario.world.rooms.find((existing: { id: string }) => existing.id === room.id), ...room,
 }));
 scenario.world.fixtures = scenario.world.fixtures.filter((fixture: { id: string }) => !fixture.id.startsWith("furn_"));
-const additions = palaceFurniture(fromJson(ScenarioSchema, scenario));
+const typed = fromJson(ScenarioSchema, scenario);
+const additions = palaceFurniture(typed.world!, inventoryOwners(typed.characters, typed.world),
+  typed.courtArrivalPlacements.flatMap(actor => actor.position ? [actor.position] : []));
 scenario.world.fixtures.push(...additions.map(fixture => toJson(MapFixtureSchema, fixture)));
 writeFileSync(path, JSON.stringify(scenario, null, 2) + "\n");
 console.log("Synchronized palace room ownership, access and exits.");

@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
-import { MapFixtureSchema, type MapFixture, type Scenario } from "../../../packages/contracts/src/index.js";
-import { inventoryOwners, locatedItems } from "../../../packages/core/src/inventory.js";
+import { MapFixtureSchema, type MapFixture, type WorldState } from "../../../packages/contracts/src/index.js";
+import { locatedItems, type InventoryOwner } from "../../../packages/core/src/inventory.js";
 import { type RoomBuilder } from "./room-builder.js";
 
 type Point = { x: number; y: number };
@@ -18,17 +18,17 @@ export class FurnitureBuilder {
   readonly #blocked = new Set<string>();
   readonly #reserved = new Set<string>();
   readonly #ids = new Set<string>();
-  constructor(readonly layout: RoomBuilder, scenario: Scenario, waypoints: readonly Point[] = []) {
-    for (const item of [...locatedItems(inventoryOwners(scenario.characters, scenario.world)), ...scenario.world!.fixtures]) this.#ids.add(item.id);
-    for (const fixture of scenario.world!.fixtures) {
+  constructor(readonly layout: RoomBuilder, world: WorldState, owners: readonly InventoryOwner[], waypoints: readonly Point[] = []) {
+    for (const item of [...locatedItems(owners), ...world.fixtures]) this.#ids.add(item.id);
+    for (const fixture of world.fixtures) {
       if (fixture.position) this.#blocked.add(key(fixture.position));
       if (fixture.interactionSpot) this.#reserved.add(key(fixture.interactionSpot));
     }
-    for (const door of scenario.world!.doors) for (const point of door.tiles) this.#blocked.add(key(point));
+    for (const door of world.doors) for (const point of door.tiles) this.#blocked.add(key(point));
     for (const point of [
-      ...scenario.world!.doors.flatMap(door => [...door.tiles, ...door.interactionSpots]),
-      ...scenario.world!.actors.flatMap(actor => actor.position ? [actor.position] : []),
-      ...scenario.courtArrivalPlacements.flatMap(actor => actor.position ? [actor.position] : []), ...waypoints,
+      ...world.doors.flatMap(door => [...door.tiles, ...door.interactionSpots]),
+      ...world.actors.flatMap(actor => actor.position ? [actor.position] : []),
+      ...waypoints,
     ]) this.#reserved.add(key(point));
   }
 
