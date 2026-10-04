@@ -6,6 +6,12 @@ Treat requests to implement, change, or fix repository code as requests to compl
 
 Push the first coherent, reviewable commit and open its PR early, before running lengthy local tests or builds. The user's GitHub Action provides QA, so publish and share the PR link while local validation continues. Mark validation as pending or in progress until results are known; keep pushing coherent follow-up commits and updating PR descriptions as fixes and feedback land. Early publication does not replace the required checks or mean the work is complete.
 
+## Follow existing patterns
+
+Before implementing a change, inspect comparable code and follow the repository's existing patterns as closely as possible. Reuse established architecture, abstractions, naming, data flow, UI conventions and testing approaches.
+
+Do not introduce a new pattern or evolve an existing one unless the design has already been agreed with the user. If an idea does not fit the current patterns, or you believe a pattern needs to change, stop implementation and discuss the mismatch, rationale and proposed design with the user. Resume implementation only once the user has agreed on the design.
+
 ## Worktrees
 
 Perform implementation work in a dedicated Git worktree for the task, not in the shared primary checkout. Create or use the task's worktree before editing files or switching implementation branches. Run stack commands, commits, and checks from that worktree. Leave unrelated worktrees and their changes untouched.
