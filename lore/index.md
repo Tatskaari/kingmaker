@@ -24,3 +24,5 @@ Open this `lore` folder as an Obsidian vault. No community plugins are required.
 - [[Scenarios/index|Scenarios]]
 - [[Sources/index|Sources]]
 - [[World/index|World]]
+
+- [[gm_prompts/index|Model prompts]]
