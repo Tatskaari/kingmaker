@@ -42,7 +42,7 @@ test("chat clears a provisional reply if the stream fails", async t => {
   assert.deepEqual(updates, ["", "unfinished", ""]);
 });
 
-test("runtime streams the Stranger and court replies before committing their transcripts", async t => {
+test("runtime streams the Stranger but publishes court replies only after committing", async t => {
   for (const court of [false, true]) {
     const world = loadPlayableWorld();
     if (!court) { delete world.docs[world.player!]; delete world.player; }
@@ -56,8 +56,9 @@ test("runtime streams the Stranger and court replies before committing their tra
     let finish!: () => void, started!: () => void;
     const gate = new Promise<void>(resolve => { finish = resolve; });
     const ready = new Promise<void>(resolve => { started = resolve; });
-    t.mock.method(OpenRouterClient.prototype, "complete", async (_request: unknown, _signal: unknown, _operation: unknown, onText: (text: string) => void) => {
-      onText("Hello"); started();
+    t.mock.method(OpenRouterClient.prototype, "complete", async (_request: unknown, _signal: unknown, _operation: unknown, onText?: (text: string) => void) => {
+      assert.equal(typeof onText, court ? "undefined" : "function");
+      onText?.("Hello"); started();
       await gate;
       return { role: "assistant", content: "Hello world" };
     });
@@ -65,10 +66,11 @@ test("runtime streams the Stranger and court replies before committing their tra
     const pending = court ? runtime.checkedTalkToCharacter("rowan", "Hi", undefined, {}, undefined, onText)
       : runtime.talkToGameMaster("Hi", onText);
     await ready;
-    assert.ok(updates.includes("Hello"));
+    assert.deepEqual(updates, court ? [] : ["Hello"]);
     assert.equal(JSON.stringify(runtime.snapshot()), before);
     finish();
     assert.equal(await pending, "Hello world");
+    if (court) assert.deepEqual(updates, ["Hello world"]);
     assert.ok(JSON.stringify(runtime.view()).includes("Hello world"));
     t.mock.restoreAll();
   }
