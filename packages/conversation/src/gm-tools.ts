@@ -14,14 +14,14 @@ function tool(name: string, description: string, properties: Record<string, unkn
   return { type: "function", function: { name, description, parameters: { type: "object", additionalProperties: false, properties, required } } };
 }
 export const gameMasterTools: OpenRouterTool[] = [
-  tool("list_documents", renderPrompt("gm-tools-1"), { prefix: text, offset: { type: "integer", minimum: 0 }, limit: { type: "integer", minimum: 1, maximum: 50 } }, []),
-  tool("list_characters", renderPrompt("gm-tools-2"), {}),
+  tool("list_documents", renderPrompt("gm-tools-list-documents"), { prefix: text, offset: { type: "integer", minimum: 0 }, limit: { type: "integer", minimum: 1, maximum: 50 } }, []),
+  tool("list_characters", renderPrompt("gm-tools-list-characters"), {}),
   ...documentTools,
   ...activityTools.map(item => ({ ...item, function: { ...item.function,
     parameters: { ...item.function.parameters, properties: { ...(item.function.parameters as { properties: object }).properties,
-      characterId: { type: "string", description: renderPrompt("gm-tools-3") } } },
+      characterId: { type: "string", description: renderPrompt("gm-tools-target-character") } } },
   } })),
-  tool("commit_review", renderPrompt("gm-tools-4"), {
+  tool("commit_review", renderPrompt("gm-tools-commit-review"), {
     summary: text, newNotes: { type: "array", items: text },
   }),
 ];
@@ -86,7 +86,7 @@ export class GameMasterTools {
     const changes = [...this.edits].sort(([a], [b]) => Number(a === this.characterId) - Number(b === this.characterId)).map(([id, { before, activity }]) => {
       const additions = id === this.characterId ? [...new Set<string>(notes)].map(note => note.trim().replace(/[\\`*_[\]<>#]/g, "\\$&"))
         .filter(note => !before.document.body.includes(note)) : [];
-      return activity.changes(before.document.body + (additions.length ? renderPrompt("gm-tools-5", { value1: additions.map(note => `- ${note}`).join("\n") }) : ""));
+      return activity.changes(before.document.body + (additions.length ? renderPrompt("gm-tools-memory", { notes: additions.map(note => `- ${note}`).join("\n") }) : ""));
     });
     const writes = new Map(changes.flatMap(change => change.writes).map(write => [write.path, write]));
     if (writes.size) await docs.commit([...writes.values()], changes.flatMap(change => change.intents));
@@ -103,6 +103,6 @@ export class GameMasterTools {
     this.pending = false;
     await this.begin();
     return { ok: false, error: "document_conflict", current: await this.services.docs.read(error.path),
-      instruction: renderPrompt("gm-tools-6") };
+      instruction: renderPrompt("gm-tools-conflict") };
   }
 }

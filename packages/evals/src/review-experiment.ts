@@ -25,9 +25,9 @@ export interface ReviewVariant {
 }
 const judgedCriteria: readonly Criterion[] = [
   { name: "grounding", description: "New facts are supported by conversation or existing context; binding GM rulings are preserved." },
-  { name: "coverage", description: renderPrompt("review-experiment-1") },
-  { name: "knowledge", description: renderPrompt("review-experiment-2") },
-  { name: "intent", description: renderPrompt("review-experiment-3") },
+  { name: "coverage", description: renderPrompt("review-experiment-memory") },
+  { name: "knowledge", description: renderPrompt("review-experiment-knowledge") },
+  { name: "intent", description: renderPrompt("review-experiment-activities") },
   { name: "preservation", description: "Unrelated facts, characterization and permissions are preserved." },
   { name: "restraint", description: "Changes are relevant and avoid redundant memories, unnecessary rewrites and invented consequences." },
 ];

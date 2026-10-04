@@ -10,15 +10,15 @@ import type { RuntimeServices } from "./services.js";
 
 const text = { type: "string", minLength: 1 };
 export const activityTools: OpenRouterTool[] = [
-  { type: "function", function: { name: "set_activity", description: renderPrompt("activity-tools-1"), parameters: {
+  { type: "function", function: { name: "set_activity", description: renderPrompt("activity-tools-set-activity"), parameters: {
     type: "object", additionalProperties: false, required: ["name", "status", "success_criteria", "current_goal"],
     properties: { name: text, status: text, success_criteria: text, current_goal: text, activate: { type: "boolean" } },
   } } },
-  { type: "function", function: { name: "set_wait", description: renderPrompt("activity-tools-2"), parameters: {
+  { type: "function", function: { name: "set_wait", description: renderPrompt("activity-tools-set-wait"), parameters: {
     type: "object", additionalProperties: false, required: ["name", "instructions", "activities"],
     properties: { name: text, instructions: text, activities: { type: "array", items: text }, routine: { type: "boolean" } },
   } } },
-  { type: "function", function: { name: "clear_activity", description: renderPrompt("activity-tools-3"), parameters: { type: "object", additionalProperties: false, properties: {} } } },
+  { type: "function", function: { name: "clear_activity", description: renderPrompt("activity-tools-clear-activity"), parameters: { type: "object", additionalProperties: false, properties: {} } } },
 ];
 
 /** Stage intent tools so a failed review cannot publish half an objective or its notes. */

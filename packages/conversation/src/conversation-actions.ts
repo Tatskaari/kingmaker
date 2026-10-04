@@ -4,7 +4,7 @@ import type { OpenRouterTool } from "../../providers/src/openrouter.js";
 
 const arrestTool: OpenRouterTool = { type: "function", function: {
   name: "arrest",
-  description: renderPrompt("conversation-actions-1"),
+  description: renderPrompt("conversation-actions-arrest-tool"),
   parameters: { type: "object", properties: {}, required: [], additionalProperties: false },
 } };
 
@@ -14,7 +14,7 @@ export function arrestResponse(respond: Complete, stageArrest: (ruling: string) 
   defense: { outcome: () => "unheard" | "passed" | "failed"; challenge: () => void }): Complete {
   return async (request, signal) => {
     if (defense.outcome() === "passed") return respond({ ...request, tools: [], messages: [...request.messages,
-      { role: "system", content: renderPrompt("conversation-actions-2") }] }, signal);
+      { role: "system", content: renderPrompt("conversation-actions-defense-passed") }] }, signal);
     const reply = await respond({ ...request, tools: [arrestTool] }, signal);
     signal?.throwIfAborted();
     if (!reply.tool_calls?.length) return reply;
@@ -26,7 +26,7 @@ export function arrestResponse(respond: Complete, stageArrest: (ruling: string) 
       defense.challenge();
       return respond({ ...request, tools: [], messages: [...request.messages, reply,
         { role: "tool", tool_call_id: call!.id, content: JSON.stringify({ arrested: false, defenseRequired: true }) },
-        { role: "system", content: renderPrompt("conversation-actions-3") },
+        { role: "system", content: renderPrompt("conversation-actions-challenge") },
       ] }, signal);
     }
     const ruling = renderPrompt("conversation-actions-ruling");

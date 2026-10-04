@@ -43,7 +43,7 @@ export { type WorldSnapshot } from "./world-host.js";
 
 export type ConversationStartResult = { ok: true; text: string } | ({ ok: false } & PlanningFeedback);
 const conversationChanged = (): ConversationStartResult => ({ ok: false, error: "conversation_changed",
-  instruction: renderPrompt("world-runtime-1") });
+  instruction: renderPrompt("world-runtime-retry-observation") });
 
 export class WorldGameRuntime extends WorldHost {
   private provider: AiService;
@@ -171,7 +171,7 @@ export class WorldGameRuntime extends WorldHost {
     if (history.at(-1)?.speakerId !== "gm") return;
     try {
       const result = await this.runtime("gm", "conversation_expression").services.ai.decisions({ characterId: "gm", history, recentPortraits: recentPortraits.slice(-5) },
-        { expression: { type: "choice", instructions: renderPrompt("world-runtime-2"), criteria: portraitExpressions } }, AbortSignal.timeout(30_000));
+        { expression: { type: "choice", instructions: renderPrompt("world-runtime-stranger-expression"), criteria: portraitExpressions } }, AbortSignal.timeout(30_000));
       const expression = result.expression?.choice;
       return expression && Object.hasOwn(portraitExpressions, expression) ? expression as PortraitExpression : undefined;
     } catch { return undefined; }
@@ -235,7 +235,7 @@ export class WorldGameRuntime extends WorldHost {
     runtime.services.character.respond = (request, cancellation) => runtime.services.ai.responses(request, cancellation, onText ? { onText } : undefined);
     const transcript = previous.map(turn => fromJson(TranscriptMessageSchema, turn));
     const request = await prepareConversation({ snapshot: { world }, characterId: id, sources: lore.initial, transcript, message }, runtime.services, signal);
-    if (defending) request.messages = [...request.messages, { role: "system", content: renderPrompt("world-runtime-3") }];
+    if (defending) request.messages = [...request.messages, { role: "system", content: renderPrompt("world-runtime-arrest-defense") }];
     thinking?.("Considering your words…");
     const rulings: string[] = [];
     const entry = characterIntent(world, id).entry;
@@ -473,7 +473,7 @@ export class WorldGameRuntime extends WorldHost {
       ? arrestResponse(runtime.services.ai.responses, () => { throw new Error("An opening cannot execute an arrest."); },
         { outcome: () => "unheard", challenge: () => { challenged = true; } }) : runtime.services.ai.responses;
     const request = await prepareConversation({ snapshot: { world }, characterId: id, sources: lore.initial, transcript: [],
-      message: renderPrompt("world-runtime-4", { goal: goal }) }, runtime.services, signal);
+      message: renderPrompt("world-runtime-npc-opening", { goal: goal }) }, runtime.services, signal);
     const actor = world.map!.actors.find(actor => actor.characterId === id)!;
     const room = world.map!.rooms.find(room => room.id === actor.roomId)!;
     const openingRequest = { ...request, messages: [...request.messages, { role: "user" as const, content: JSON.stringify({ currentObservation: JSON.parse(waitObservation(runtime.services, id)),

@@ -21,12 +21,12 @@ export function checkStrategy(runtime: ConversationRuntime<CheckLabels>, options
         { evaluate: (input, questions, cancellation) => runtime.services.ai.decisions(input, questions, cancellation, "skill_check") }, { playerTurn: options.playerTurn, messages: context.request.messages }, signal);
       if (!checks.checks.length) return { checks, plan: [] };
       const criteria = {
-        trivial: "Only natural 1 can fail.", very_easy: "DC 5", easy: "DC 10", normal: "DC 15",
-        hard: "DC 20", very_hard: "DC 25", impossible: "Only natural 20 can succeed.",
+        trivial: renderPrompt("difficulty-trivial"), very_easy: renderPrompt("difficulty-very_easy"), easy: renderPrompt("difficulty-easy"), normal: renderPrompt("difficulty-normal"),
+        hard: renderPrompt("difficulty-hard"), very_hard: renderPrompt("difficulty-very_hard"), impossible: renderPrompt("difficulty-impossible"),
       };
       const decisions = await runtime.services.ai.decisions(state, Object.fromEntries(checks.checks.map(skill => [skill, {
         type: "choice" as const,
-        instructions: renderPrompt("check-strategy-1", { skill: skill }),
+        instructions: renderPrompt("check-difficulty", { skill: skill }),
         criteria,
       }])), signal, "skill_difficulty");
       const plan = checks.checks.map(skill => {

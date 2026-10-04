@@ -23,12 +23,12 @@ export const documentResolutionStrategy: ResolutionStrategy = {
     if (context.kind !== "world_event") return {};
     const goal = activityGoal(services.scenario.snapshot(), context.characterId);
     const messages = await disclosedContext("attention", [{ role: "user", content: JSON.stringify({
-      task: renderPrompt("document-resolution-1"),
+      task: renderPrompt("document-resolution-attention-context"),
       goal, perception: context.perception,
     }) }], services, context.characterId, signal);
     const result = await services.ai.decisions({ messages, goal, perception: context.perception }, {
-      reaction: { type: "choice", instructions: renderPrompt("document-resolution-2"),
-        criteria: { process: renderPrompt("document-resolution-3"), ignore: renderPrompt("document-resolution-4") } },
+      reaction: { type: "choice", instructions: renderPrompt("document-resolution-attention"),
+        criteria: { process: renderPrompt("document-resolution-process"), ignore: renderPrompt("document-resolution-ignore") } },
     }, signal);
     const choice = result.reaction?.choice;
     if (choice !== "process" && choice !== "ignore") throw new Error("Invalid event reaction classification.");
@@ -41,22 +41,22 @@ export const documentResolutionStrategy: ResolutionStrategy = {
       if (context.characterId === context.targetId) throw new Error("An exchange needs two different participants.");
       const participants = [context.characterId, context.targetId];
       // Each speaker gets only their own context and what the other actually said.
-      const opening = await speak(context.characterId, context.targetId, renderPrompt("document-resolution-5"),
+      const opening = await speak(context.characterId, context.targetId, renderPrompt("document-resolution-open-exchange"),
         { target: context.targetId, goal: context.goal }, signal, services);
-      const response = await speak(context.targetId, context.characterId, renderPrompt("document-resolution-6"),
+      const response = await speak(context.targetId, context.characterId, renderPrompt("document-resolution-reply-exchange"),
         { speaker: context.characterId, words: opening.text }, signal, services);
       const transcript = [opening, response];
       for (const characterId of participants) {
         await reviewDocumentEvidence({ characterId, participants, transcript }, labels, signal, services,
-          renderPrompt("document-resolution-7"));
+          renderPrompt("document-resolution-review-exchange"));
       }
       return { summary: transcript.map(turn => `${turn.speakerId}: ${turn.text}`).join("\n") };
     }
     const purpose = context.kind === "wait_ended"
-      ? renderPrompt("document-resolution-8")
+      ? renderPrompt("document-resolution-review-wait")
       : context.kind === "world_event"
-      ? renderPrompt("document-resolution-9")
-      : renderPrompt("document-resolution-10");
+      ? renderPrompt("document-resolution-review-event")
+      : renderPrompt("document-resolution-review-action");
     const text = context.kind === "world_event" ? context.perception : JSON.stringify(context);
     return reviewDocumentEvidence({ characterId: context.characterId, participants: [context.characterId],
       transcript: [create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, speakerId: "observation", text })],

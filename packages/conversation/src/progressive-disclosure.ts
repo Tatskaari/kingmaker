@@ -82,8 +82,8 @@ export class DisclosureTraversal {
           if (state.length > this.maxCharacters) throw new Error("Disclosure context limit reached; disclosure incomplete.");
           if (!event.candidates.length) return event;
           const questions: JevQuestions = Object.fromEntries(event.candidates.map(link => [link.id, {
-            type: "choice", instructions: renderPrompt("progressive-disclosure-1"),
-            criteria: { [link.id]: renderPrompt("progressive-disclosure-2", { value1: link.summary ? `Document summary: ${JSON.stringify(link.summary)}\n\n` : "", value2: link.path, value3: link.from }), skip: renderPrompt("progressive-disclosure-3") },
+            type: "choice", instructions: renderPrompt("progressive-disclosure-instructions"),
+            criteria: { [link.id]: renderPrompt("progressive-disclosure-open", { summary: link.summary ? `Document summary: ${JSON.stringify(link.summary)}\n\n` : "", path: link.path, from: link.from }), skip: renderPrompt("progressive-disclosure-skip") },
           }]));
           if (state.length + JSON.stringify(questions).length > this.maxCharacters) throw new Error("Disclosure context limit reached; disclosure incomplete.");
           event.request = jevEvaluationRequest(state, questions);
@@ -108,7 +108,7 @@ export class DisclosureTraversal {
             .filter(link => event.answers![link.id]!.probabilities[link.id]! > this.threshold)
             .map(link => this.lore.open(link, signal)));
           signal.throwIfAborted();
-          const additions = opened.map(document => ({ role: "system" as const, content: renderPrompt("progressive-disclosure-4", { value1: document.path, value2: document.markdown }) }));
+          const additions = opened.map(document => ({ role: "system" as const, content: renderPrompt("progressive-disclosure-lore", { path: document.path, markdown: document.markdown }) }));
           const expanded = [...messages];
           expanded.push(...additions);
           if (expanded.map(message => `# ${message.role.toUpperCase()}\n${message.content ?? ""}`).join("\n\n").length > this.maxCharacters) {

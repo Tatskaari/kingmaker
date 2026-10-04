@@ -25,13 +25,13 @@ export async function decideWait(id: string, elapsedSeconds: number, services: R
   const character = await services.docs.read(intent.entry), wait = await services.docs.read(intent.wait);
   const doc = intentDocument(world, id, intent.wait), targets: DocumentSnapshot[] = [];
   const criteria: Record<string, string> = {
-    continue: renderPrompt("wait-1"),
-    stop_waiting: renderPrompt("wait-2"),
+    continue: renderPrompt("wait-continue"),
+    stop_waiting: renderPrompt("wait-stop"),
   };
   for (const path of waitActivities(doc)) {
     const activity = activityDefinition(intentDocument(world, id, path));
     targets.push(await services.docs.read(path));
-    criteria[`set_activity:${path}`] = renderPrompt("wait-3", { value1: JSON.stringify(activity) });
+    criteria[`set_activity:${path}`] = renderPrompt("wait-activate", { activity: JSON.stringify(activity) });
   }
   const observation = waitObservation(services, id);
   const messages = await disclosedContext("wait", [{ role: "user", content: JSON.stringify({
@@ -39,7 +39,7 @@ export async function decideWait(id: string, elapsedSeconds: number, services: R
     elapsedSeconds, observation: JSON.parse(observation),
   }) }], services, id, signal);
   const result = await services.ai.decisions({ messages }, { waiting: { type: "choice",
-    instructions: renderPrompt("wait-4"), criteria } }, signal);
+    instructions: renderPrompt("wait-instructions"), criteria } }, signal);
   signal.throwIfAborted();
   const choice = result.waiting?.choice;
   if (!choice || !Object.hasOwn(criteria, choice)) throw new Error("Jev returned an unavailable wait choice.");

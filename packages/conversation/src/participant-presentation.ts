@@ -34,5 +34,5 @@ export function participantPresentations(world: WorldState, observerId: string, 
     const appearance = presentation?.frontmatter?.visibility === "public" ? presentation.body : "Their appearance has not been described.";
     return [`Before you stands ${name}, ${identity}. ${relativePower(level(path), level(entry(observerId)))}\n\n${appearance}`];
   });
-  return descriptions.length ? [{ role: "system", content: renderPrompt("participant-presentation-1", { PRESENTATIONS_PREFIX: PRESENTATIONS_PREFIX, value2: descriptions.join("\n\n") }) }] : [];
+  return descriptions.length ? [{ role: "system", content: renderPrompt("participant-presentations", { PRESENTATIONS_PREFIX: PRESENTATIONS_PREFIX, appearances: descriptions.join("\n\n") }) }] : [];
 }

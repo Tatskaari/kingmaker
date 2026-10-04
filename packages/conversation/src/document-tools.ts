@@ -11,11 +11,11 @@ function tool(name: string, description: string, properties: Record<string, unkn
 }
 const version = { path: string, expectedSha: string };
 export const documentTools: OpenRouterTool[] = [
-  tool("read_document", renderPrompt("document-tools-1"), { path: string }),
-  tool("create_document", renderPrompt("document-tools-2"), { path: string, text: string }),
-  tool("replace_document", renderPrompt("document-tools-3"), { ...version, oldText: string, newText: string }),
-  tool("insert_document", renderPrompt("document-tools-4"), { ...version, afterLine: { type: "integer", minimum: 0 }, text: string }),
-  tool("delete_document", renderPrompt("document-tools-5"), version),
+  tool("read_document", renderPrompt("document-tools-read"), { path: string }),
+  tool("create_document", renderPrompt("document-tools-create"), { path: string, text: string }),
+  tool("replace_document", renderPrompt("document-tools-replace"), { ...version, oldText: string, newText: string }),
+  tool("insert_document", renderPrompt("document-tools-insert"), { ...version, afterLine: { type: "integer", minimum: 0 }, text: string }),
+  tool("delete_document", renderPrompt("document-tools-delete"), version),
 ];
 
 /** Model arguments are untrusted even when a provider accepts strict schemas. */
@@ -43,7 +43,7 @@ export async function callDocumentTool(docs: DocsService, name: string, input: R
     if (error instanceof Error && error.name === "AbortError") throw error;
     if (error instanceof DocumentConflictError) {
       return { ok: false, error: "document_conflict", current: await docs.read(error.path),
-        instruction: renderPrompt("document-tools-6") };
+        instruction: renderPrompt("document-tools-conflict") };
     }
     return { ok: false, error: error instanceof DocumentValidationError ? "document_validation" : "document_error",
       message: error instanceof Error ? error.message : String(error) };

@@ -14,13 +14,13 @@ export function assignGuardPosts(world: WorldState) {
     const room = world.map!.rooms.find(room => room.id === actor.roomId)!;
     const folder = character.document.replace(/character\.md$/, ""), activity = `${folder}activity-${character.id}.md`;
     const routine = `${folder}routine-${character.id}.md`;
-    const instruction = renderPrompt("guard-duty-instruction", { value1: room.name, value2: actor.position.x, value3: actor.position.y });
+    const instruction = renderPrompt("guard-duty-instruction", { room: room.name, x: actor.position.x, y: actor.position.y });
     const access = { visibility: "private", readers: [`character:${character.characterId}`] };
     world.docs[activity] = create(DocumentSchema, { frontmatter: { ...access, summary: `Guard duty at ${room.name}.`,
       name: `Guard ${room.name}`, status: "On duty at the assigned post.",
       success_criteria: "An observed disturbance has been dealt with and you have returned to your post.", current_goal: instruction } });
     world.docs[routine] = create(DocumentSchema, { frontmatter: { ...access, summary: `Wait on guard duty at ${room.name}.`, activities: [activity] },
-      body: renderPrompt("guard-duty-2", { instruction: instruction }) });
+      body: renderPrompt("guard-wait", { instruction: instruction }) });
     if (!character.activity && !character.wait) character.activity = activity;
   }
 }

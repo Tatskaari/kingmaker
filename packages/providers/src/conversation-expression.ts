@@ -2,11 +2,11 @@ import { renderPrompt } from "../../prompts/src/index.js";
 import { JevClient, type JevChoice } from "./jev.js";
 
 export const portraitExpressions = {
-  amused: "The character visibly finds the exchange funny, playful, or entertaining.",
-  angry: "The character shows irritation, indignation, frustration, or anger.",
-  scared: "The character shows fear, alarm, apprehension, or intimidation.",
-  serious: "The character is solemn, stern, focused, or grave without clear anger or fear.",
-  neutral: "No other expression is clearly supported; the character is calm or matter-of-fact.",
+  amused: renderPrompt("portrait-amused"),
+  angry: renderPrompt("portrait-angry"),
+  scared: renderPrompt("portrait-scared"),
+  serious: renderPrompt("portrait-serious"),
+  neutral: renderPrompt("portrait-neutral"),
 } as const;
 export type PortraitExpression = keyof typeof portraitExpressions;
 export interface ConversationExpressionInput {
@@ -24,7 +24,7 @@ export async function classifyConversationExpression(
     throw new Error("A character reply is required for expression classification.");
   }
   const decision = await client.choose(input,
-    renderPrompt("conversation-expression-1"),
+    renderPrompt("portrait-instructions"),
     portraitExpressions, signal, "conversation expression classification");
   return { expression: decision.choice as PortraitExpression, decision };
 }

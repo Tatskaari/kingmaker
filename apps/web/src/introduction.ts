@@ -39,5 +39,5 @@ export function validateIdentity(input: TravellerIdentity): TravellerIdentity {
 export const handoffPrefix = "[Crossroads character creation]";
 // Legacy handoff for callers with an identity chosen before the conversation.
 export function introductionHandoff(identity: TravellerIdentity) {
-  return renderPrompt("introduction-1", { handoffPrefix: handoffPrefix, value2: JSON.stringify(validateIdentity(identity)) });
+  return renderPrompt("character-handoff", { handoffPrefix: handoffPrefix, identity: JSON.stringify(validateIdentity(identity)) });
 }

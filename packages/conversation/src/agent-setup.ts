@@ -10,7 +10,7 @@ export const GAME_MASTER_PROMPT = renderPrompt("agent-setup-game_master_prompt",
 
 export function characterMessages(sources: CharacterSources): OpenRouterMessage[] {
   return [{ role: "system", content: CHARACTER_PROMPT },
-    ...sources.map(doc => ({ role: "system" as const, content: renderPrompt("agent-setup-3", { value1: doc.path, value2: doc.markdown }) }))];
+    ...sources.map(doc => ({ role: "system" as const, content: renderPrompt("lore-context", { path: doc.path, markdown: doc.markdown }) }))];
 }
 
 export interface AgentSetupContext {
@@ -33,11 +33,11 @@ export type AgentSetupHook = (context: Readonly<AgentSetupContext>, signal: Abor
 export const setupAgent: AgentSetupHook = async (context, signal, services) => {
   const prompt = context.agent === "character" ? CHARACTER_PROMPT
     : context.agent === "game_master" ? GAME_MASTER_PROMPT
-    : context.agent === "exchange" ? renderPrompt("agent-setup-4") : undefined;
+    : context.agent === "exchange" ? renderPrompt("exchange-system") : undefined;
   const task = [...(prompt ? [{ role: "system" as const, content: prompt }] : []), ...context.messages];
   const lore = context.lore ?? (!context.sources && context.characterId && context.agent !== "game_master"
     ? await services.lore.forCharacter(context.characterId, signal) : undefined);
-  const initial = (context.sources ?? lore?.initial)?.map(doc => ({ role: "system" as const, content: renderPrompt("agent-setup-5", { value1: doc.path, value2: doc.markdown }) })) ?? [];
+  const initial = (context.sources ?? lore?.initial)?.map(doc => ({ role: "system" as const, content: renderPrompt("lore-context", { path: doc.path, markdown: doc.markdown }) })) ?? [];
   const messages = context.agent === "character" ? [task[0]!, ...initial, ...task.slice(1)] : [...initial, ...task];
   const opened = lore && context.disclose
     ? await services.disclosure.disclose(lore, messages, signal, context.characterId ? { characterId: context.characterId } : {}) : [];

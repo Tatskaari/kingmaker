@@ -33,22 +33,20 @@ async function worldActionContext(world: WorldState, characterId: string, histor
   const visible = services.map.observe(characterId);
   const known = worldForCharacter(visible.map, inventoryOwners(characters, visible.map), characterId);
   const observation = physicalCharacterObservation(known, characterId, goal, visible.actions);
-  const state = [
-    `Who you are: ${characterId}`,
-    ...(feedback ? [`Previous action result:\n${JSON.stringify(feedback)}`] : []),
-    intentContext(world, characterId),
-    `Current execution task:\n${goal}`,
-    `World state:\n${renderJevRoomView(visible.map, characters, observation)}`,
-    `Action log (completed actions, oldest first):\n${history.join("\n") || "None yet."}`,
-  ].join("\n\n");
+  const state = renderPrompt("planner-context", {
+    characterId, feedback: feedback ? JSON.stringify(feedback) : "",
+    intent: intentContext(world, characterId), goal,
+    observedMap: renderJevRoomView(visible.map, characters, observation),
+    history: history.join("\n") || "None yet.",
+  });
   const instructions = renderPrompt("world-action-instructions");
   const messages = await disclosedContext("planner", [{ role: "system", content: instructions },
     { role: "user", content: state }], services, characterId, signal);
   const expanded = messages.map(message => message.content).join("\n\n");
   return { characterId, goal, revision: visible.map.revision, actions: observation.actions,
     request: jevRequest(expanded, instructions, { ...actionCriteria(observation.actions),
-      complete: "The activity success criteria have been met. End this activity and return to the routine.",
-      wait: renderPrompt("world-action-2"),
+      complete: renderPrompt("world-action-complete"),
+      wait: renderPrompt("world-action-wait"),
     }) };
 }
 

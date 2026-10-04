@@ -17,9 +17,9 @@ export function createJevScorer(rubric: readonly Criterion[], evidence: (recordi
   ai: Pick<AiService, "decisions">) {
   validateRubric(rubric);
   const questions: JevQuestions = Object.fromEntries(rubric.map((criterion, index) => [`criterion_${index}`, {
-    type: "choice", instructions: renderPrompt("jev-scorer-1", { value1: criterion.description }),
+    type: "choice", instructions: renderPrompt("jev-scorer-instructions", { criterion: criterion.description }),
     criteria: { ...Object.fromEntries(Object.entries(criterion.levels ?? accuracyLevels).map(([name, level]) => [name, level.description])),
-      unscorable: renderPrompt("jev-scorer-2") },
+      unscorable: renderPrompt("jev-scorer-unscorable") },
   }]));
   return async (recording: RunRecording, context: ScoreContext): Promise<Result> => {
     const answers = await context.recording.wrap("ai", ai).decisions(evidence(recording), questions, context.signal);

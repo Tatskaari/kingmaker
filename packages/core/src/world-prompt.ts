@@ -15,8 +15,8 @@ export function renderWorldPrompt(characters: readonly { id: string; name: strin
   const name = (id: string) => characters.find(item => item.id === id)?.name ?? id;
   const lines = [
     `Day ${view.day}; phase ${GamePhase[view.phase]}; revision ${view.revision}.`,
-    ...(characterId ? [renderPrompt("world-prompt-1", { value1: actor?.roomId || "Not placed" })] : []),
-    renderPrompt("world-prompt-2"),
+    ...(characterId ? [renderPrompt("world-prompt-current-room", { room: actor?.roomId || "Not placed" })] : []),
+    renderPrompt("world-prompt-map-boundary"),
     "Rooms (id, name, description, exits, privacy and access):",
     ...view.rooms.map(room => JSON.stringify({ id: room.id, name: room.name, description: room.description,
       exits: room.exitRoomIds, ...(room.private ? { private: true } : {}),
@@ -31,7 +31,7 @@ export function renderWorldPrompt(characters: readonly { id: string; name: strin
       ...(item.container ? { state: item.open ? "open" : "closed",
         ...(item.requiredKeyId ? { requiredKey: item.requiredKeyId } : {}),
         contentsKnown: !characterId || item.open || item.searchedBy.includes(characterId) } : {}) })),
-    renderPrompt("world-prompt-3"),
+    renderPrompt("world-prompt-known-items"),
     ...view.objects.map(item => JSON.stringify({ ...toJson(ItemInstanceSchema, item) as object, locationId: item.locationId })),
     `Established facts: ${JSON.stringify(view.facts ?? {})}`,
   ];

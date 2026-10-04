@@ -15,9 +15,9 @@ export interface ActionStrategy {
   resolve(context: Readonly<ActionContext>, labels: Readonly<JevChoice>, signal: AbortSignal, services: RuntimeServices): Promise<ActionResult>;
 }
 export const terminalActions = {
-  complete: renderPrompt("action-1"),
-  wait: renderPrompt("action-2"),
-  unable: renderPrompt("action-3"),
+  complete: renderPrompt("action-complete"),
+  wait: renderPrompt("action-wait"),
+  unable: renderPrompt("action-unable"),
 };
 export function actionCriteria(actions: readonly GameAction[]): Record<string, string> {
   const ids = new Set<string>();
@@ -26,7 +26,7 @@ export function actionCriteria(actions: readonly GameAction[]): Record<string, s
     ids.add(action.id);
   }
   return { ...Object.fromEntries(actions.map(action => [action.id,
-    renderPrompt("action-4", { value1: action.description, value2: action.legality === "illegal" ? " This is illegal for this character." : "" })])), ...terminalActions };
+    renderPrompt("action-criterion", { description: action.description, legality: action.legality === "illegal" ? " This is illegal for this character." : "" })])), ...terminalActions };
 }
 export const jevActionStrategy: ActionStrategy = {
   async classify(context, signal, services) {

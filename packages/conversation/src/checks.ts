@@ -80,13 +80,13 @@ export async function adjudicateResolvedChecks<Result extends RollResult | Conve
   };
   const prepareRuling = async () => {
     const ruling = parseModelObject((await complete({ ...REASONING_MODEL, messages: [
-      { role: "system", content: renderPrompt("checks-2", { ROLL_GUIDANCE: ROLL_GUIDANCE }) },
+      { role: "system", content: renderPrompt("checks-adjudicate", { ROLL_GUIDANCE: ROLL_GUIDANCE }) },
       { role: "user", content: JSON.stringify({ dialogue: options.messages, resolvedChecks: results }) },
     ], response_format: { type: "json_schema", json_schema: { name: "conversation_roll_ruling", strict: true, schema: {
       type: "object", additionalProperties: false, required: ["direction"], properties: { direction: { type: "string", maxLength: 3000 } },
     } } }, max_tokens: 2000 })).content, "GM roll ruling");
     if (typeof ruling.direction !== "string" || !ruling.direction.trim()) throw new Error("The GM returned no direction for the roll.");
-    return renderPrompt("checks-3", { ROLL_GUIDANCE: ROLL_GUIDANCE, value2: JSON.stringify(results), value3: ruling.direction.trim() });
+    return renderPrompt("checks-ruling", { ROLL_GUIDANCE: ROLL_GUIDANCE, results: JSON.stringify(results), direction: ruling.direction.trim() });
   };
   try {
     const [, ruling] = await Promise.all([

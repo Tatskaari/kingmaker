@@ -3,24 +3,24 @@ import { JevClient, type JevChoice, type JevChoiceQuestion } from "./jev.js";
 import type { OpenRouterMessage } from "./openrouter.js";
 
 const skills = {
-  persuasion: renderPrompt("conversation-checks-1"),
-  deception: renderPrompt("conversation-checks-2"),
-  intimidation: renderPrompt("conversation-checks-3"),
-  insight: renderPrompt("conversation-checks-4"),
-  performance: renderPrompt("conversation-checks-5"),
-  perception: renderPrompt("conversation-checks-6"),
-  investigation: renderPrompt("conversation-checks-7"),
-  sleight_of_hand: renderPrompt("conversation-checks-8"),
-  stealth: renderPrompt("conversation-checks-9"),
-  athletics: renderPrompt("conversation-checks-10"),
-  acrobatics: renderPrompt("conversation-checks-11"),
-  animal_handling: renderPrompt("conversation-checks-12"),
-  arcana: renderPrompt("conversation-checks-13"),
-  history: renderPrompt("conversation-checks-14"),
-  nature: renderPrompt("conversation-checks-15"),
-  religion: renderPrompt("conversation-checks-16"),
-  medicine: renderPrompt("conversation-checks-17"),
-  survival: renderPrompt("conversation-checks-18"),
+  persuasion: renderPrompt("conversation-checks-persuasion"),
+  deception: renderPrompt("conversation-checks-deception"),
+  intimidation: renderPrompt("conversation-checks-intimidation"),
+  insight: renderPrompt("conversation-checks-insight"),
+  performance: renderPrompt("conversation-checks-performance"),
+  perception: renderPrompt("conversation-checks-perception"),
+  investigation: renderPrompt("conversation-checks-investigation"),
+  sleight_of_hand: renderPrompt("conversation-checks-sleight-of-hand"),
+  stealth: renderPrompt("conversation-checks-stealth"),
+  athletics: renderPrompt("conversation-checks-athletics"),
+  acrobatics: renderPrompt("conversation-checks-acrobatics"),
+  animal_handling: renderPrompt("conversation-checks-animal-handling"),
+  arcana: renderPrompt("conversation-checks-arcana"),
+  history: renderPrompt("conversation-checks-history"),
+  nature: renderPrompt("conversation-checks-nature"),
+  religion: renderPrompt("conversation-checks-religion"),
+  medicine: renderPrompt("conversation-checks-medicine"),
+  survival: renderPrompt("conversation-checks-survival"),
 } as const;
 
 export type ConversationCheckSkill = keyof typeof skills;
@@ -51,10 +51,10 @@ type CheckClassifier = (client: Pick<JevClient, "evaluate">, input: Conversation
 const skillNames = Object.keys(skills) as ConversationCheckSkill[];
 function questionFor(skill: ConversationCheckSkill): JevChoiceQuestion {
   return {
-    type: "choice", instructions: renderPrompt("conversation-checks-20", { instructions: instructions, skill: skill, value3: skills[skill] }),
+    type: "choice", instructions: renderPrompt("conversation-checks-skill", { instructions: instructions, skill: skill, guidance: skills[skill] }),
     criteria: {
-      needed: renderPrompt("conversation-checks-21", { skill: skill }),
-      not_needed: renderPrompt("conversation-checks-22", { skill: skill }),
+      needed: renderPrompt("conversation-checks-needed", { skill: skill }),
+      not_needed: renderPrompt("conversation-checks-not-needed", { skill: skill }),
     },
   };
 }
@@ -67,7 +67,7 @@ function validateInput(input: ConversationCheckInput, signal: AbortSignal): void
 export const conversationCheckClassifiers: Readonly<Record<ConversationCheckSkill, CheckClassifier>> = Object.freeze(
   Object.fromEntries(skillNames.map(skill => [skill, async (client: Pick<JevClient, "evaluate">, input: ConversationCheckInput, signal: AbortSignal) => {
     validateInput(input, signal);
-    const answers = await client.evaluate(input, { [skill]: questionFor(skill) }, signal, renderPrompt("conversation-checks-23", { skill: skill }));
+    const answers = await client.evaluate(input, { [skill]: questionFor(skill) }, signal, renderPrompt("conversation-checks-operation", { skill: skill }));
     const decision = answers[skill]!;
     return { skill, needsCheck: decision.choice === "needed", decision };
   }])) as Record<ConversationCheckSkill, CheckClassifier>,

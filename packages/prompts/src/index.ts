@@ -16,7 +16,13 @@ class PromptContext extends Mustache.Context {
 
 /** Trusted templates; callers supply already permission-filtered evidence as plain text. */
 export function renderPrompt(id: PromptId, values: Record<string, unknown> = {}): string {
+  assertData(values);
   const entry = catalog[id];
   if (!entry) throw new Error(`Unknown prompt: ${id}`);
   return Mustache.render(entry.template.join("\n"), new PromptContext(values), undefined, { escape: value => value });
+}
+
+function assertData(value: unknown): void {
+  if (typeof value === "function") throw new Error("Prompt variables cannot execute functions");
+  if (value && typeof value === "object") for (const child of Object.values(value)) assertData(child);
 }

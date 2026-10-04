@@ -22,9 +22,9 @@ const classes = {
 
 export const playerBuildParameter = {
   type: "object", additionalProperties: false, required: ["classId", "abilityPriority", "skills"],
-  description: renderPrompt("player-build-1"),
+  description: renderPrompt("player-build-build"),
   properties: {
-    speciesId: { type: "string", description: renderPrompt("player-build-2") },
+    speciesId: { type: "string", description: renderPrompt("player-build-species") },
     classId: { type: "string", enum: Object.keys(classes) },
     abilityPriority: { type: "array", minItems: 6, maxItems: 6, uniqueItems: true, items: { type: "string", enum: abilities }, description: "All six abilities, strongest first. Receives final scores 15, 14, 13, 12, 10, 8 respectively." },
     skills: { type: "array", minItems: 4, maxItems: 4, uniqueItems: true, items: { type: "string", enum: skills }, description: "Four skills justified by the interview, strongest talents first." },
