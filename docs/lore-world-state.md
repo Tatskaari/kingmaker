@@ -109,7 +109,9 @@ step fails or is cancelled. Automatic access and link validation applies to ever
 write. The GM must preserve who knows what and use appropriate access metadata.
 
 `commit_review` finishes the review: it appends deduplicated plain-prose notes and
-sets or clears `active_goal` on the reviewed character in one SHA-checked write.
+publishes staged activity/wait pointers in one SHA-checked batch.
 Its summary is returned to the caller. It does not publish or roll back preceding
 document-tool edits. An edit/read of the reviewed character refreshes the snapshot
 used by this final write, preserving edits made earlier in the tool loop.
+
+See [Character activities and waits](activity-waits.md) for the document-backed intent contract and live treasury eval.

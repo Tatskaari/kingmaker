@@ -17,7 +17,8 @@
     "generate": "proto run moon -- run contracts:generate",
     "dev": "proto run moon -- run workspace:dev",
     "eval:checks": "tsx scripts/run-conversation-check-eval.ts",
-    "conversation": "node --experimental-ffi --import tsx scripts/conversation-cli.ts"
+    "conversation": "node --experimental-ffi --import tsx scripts/conversation-cli.ts",
+    "eval:wait": "tsx scripts/run-wait-eval.ts"
   },
   "dependencies": {
     "@bufbuild/protobuf": "2.15.0",
