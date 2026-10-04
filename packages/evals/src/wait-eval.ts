@@ -22,15 +22,14 @@ export async function runTreasuryWaitEval(source: WorldState, apiKey: string, op
       const plan = await game.planNpc(id, signal);
       trace.push(plan.decision.choice); progress(`Action: ${plan.decision.choice}`);
       if (!plan.action) {
-        game.finishNpcRun(id, plan.decision.choice as "complete" | "wait" | "unable", "Eval action result", plan.generations);
+        game.finishNpcRun(id, plan.decision.choice as "complete" | "wait" | "unable", "Eval action result");
         milestones.reachedTreasury = game.world().map!.actors.find(actor => actor.characterId === id)!.roomId === "treasury";
         await game.reviewNpcOutcome(id, true, signal);
         milestones.enteredWait = plan.decision.choice === "wait" && !!characterIntent(game.world(), id).wait && !activityGoal(game.world(), id);
         break;
       }
-      let expected = plan.generations;
       for (let step = 0; step < 300; step++) {
-        const result = game.stepNpcAction(id, plan.action.id, plan.goal, expected); expected = result.generations;
+        const result = game.stepNpcAction(id, plan.action.id, plan.goal);
         if (result.talkTarget) throw new Error("Character initiated a conversation instead of travelling to wait.");
         if (result.done) break;
         if (step === 299) throw new Error("Movement step limit exceeded.");
@@ -52,7 +51,7 @@ export async function runTreasuryWaitEval(source: WorldState, apiKey: string, op
     const plan = await game.planNpc(id, signal); trace.push(`awake:${plan.decision.choice}`);
     if (plan.action?.type !== "talk" || plan.action.target !== "player") throw new Error("Woke without choosing to greet the present player.");
     // Completion-to-routine is deterministic; no fabricated conversation is supplied to a model.
-    game.finishNpcRun(id, "complete", "Harness marks the greeting complete to verify routine fallback.", plan.generations);
+    game.finishNpcRun(id, "complete", "Harness marks the greeting complete to verify routine fallback.");
     await game.reviewNpcOutcome(id, true, signal);
     milestones.returnedToRoutine = characterIntent(game.world(), id).wait === routine && !activityGoal(game.world(), id);
   } catch (cause) { error = cause instanceof Error ? cause.message : String(cause); }

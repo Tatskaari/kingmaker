@@ -72,15 +72,15 @@ export class WorldHeadlessGame {
       if (!plan.action) {
         const reason = plan.decision.choice;
         if (reason !== "complete" && reason !== "wait" && reason !== "unable") throw new Error("Unexpected terminal action.");
-        this.runtime.finishNpcRun(id, reason, JSON.stringify(plan.decision), plan.generations);
+        this.runtime.finishNpcRun(id, reason, JSON.stringify(plan.decision));
         await this.runtime.reviewNpcOutcome(id, true, signal);
         break;
       }
-      let expected = plan.generations, done = false;
+      let done = false;
       for (let step = 0; step < 256 && !done; step++) {
         const result = await this.runtime.executeAction({ command: { kind: "step", characterId: id,
-          actionId: plan.action.id, goal: plan.goal }, expected }, signal);
-        expected = result.generations; done = result.done;
+          actionId: plan.action.id, goal: plan.goal } }, signal);
+        done = result.done;
         if (result.talkTarget) {
           const revision = this.inspect().map!.revision;
           if (result.talkTarget === "player") {
