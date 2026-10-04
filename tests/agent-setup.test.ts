@@ -18,7 +18,9 @@ test("character setup can replace the prompt using injected services without cha
   const input = { snapshot: { world: loadPlayableWorld() }, characterId: "corvin", sources: [], transcript: [], message: "Hello" };
   const before = structuredClone(input);
   const request = await prepareConversation(input, runtime.services);
-  assert.deepEqual(request.messages, [{ role: "system", content: "scenario.md" }, { role: "user", content: "Hello" }]);
+  assert.equal(request.messages[0]!.content, "scenario.md");
+  assert.match(request.messages[1]!.content!, /Before you stands Visiting Envoy/);
+  assert.deepEqual(request.messages.at(-1), { role: "user", content: "Hello" });
   assert.deepEqual(input, before);
 });
 
