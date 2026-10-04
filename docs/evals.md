@@ -138,31 +138,39 @@ Missing scores create gaps; rubric changes break connecting lines. Scores JSON i
 the shared review rubric so a memory of giving a gift cannot substitute for a real item.
 See [fixture assumptions and criteria](../evals/reviews/peregrine-gift/README.md).
 
-## Player-led shared-history acceptance
+## Responsive conversation attention
 
-`npm run eval:attention -- --repeats 3` runs the unchanged CLI post-reply analysis
-hook against fixed dialogue; `--list` requires no credentials. It is registered in
-`workspace:eval` for published history. This is a baseline-only reproduction, not a
-production classifier change or a proposed strategy.
+`npm run eval:attention -- --repeats 3` runs the CLI post-reply analysis hook against
+16 fixed interactions; `--list` requires no credentials. It is registered in
+`workspace:eval` for published history. The runner is baseline-only again after
+promoting the responsive-world prompts; the temporary candidate has been removed.
 
-The observed case transcribes the user's Corvin graduation screenshot. The original
-request/disclosed documents were unavailable: the minimal context is reconstructed
-from the exchange (Corvin's royal appointment and Nine Furrows contract), with shared
-attendance and graduation deliberately **not** established. This tests the analysis
-of the given reply, not the probability of generating that reply. No world state is
-mutated and no new dialogue is generated. Positive controls explicitly accept the
-player's claim; negative controls reject it, leave it unaddressed, or confirm it when
-already established in authoritative lore.
+Attention asks what the player expects the world to react to. Prompts cover immediate,
+future and general commitments, improvised details, plot progress, narrated world
+changes, conversational exchanges, relationship/knowledge changes and feasibility.
+Unsupported player details are flagged unless explicitly denied, including hedging or
+changing the subject. Focused GM guidance explains collaborative storytelling, continuity
+and follow-through. Flags request review: they do not establish truth, execute actions,
+transfer inventory or add objectives themselves.
 
-The user's expected policy treats Corvin's discussion of the graduation ceremony as
-possible adoption needing reconciliation, even though he hedges about friendship.
-The flag must not establish that the claim is true. The single binary `acceptance`
-criterion checks recorded hook output for a reconciliation flag (`improvised_detail`,
-`plot_progress`, `other_world_update`, or a future `accepted_player_detail`). Commitment
-and feasibility labels alone earn no credit. Negative cases require no reconciliation
-flag; execution errors score zero and remain visible. Deterministic grading avoids
-asking another model to decide whether a label was present; this is classification
-accuracy, not prose quality or committed-world-state grading.
+The graduation case transcribes the user's screenshot. Its original request/disclosed
+lore was unavailable, so minimal context is reconstructed without establishing shared
+attendance. Fixed replies test classification, not the probability of generating a
+reply. Other cases cover explicit denial, authoritative facts, indirect assent, future
+promises, gifts/refused trades, narrated travel, forgiveness, greetings and binding GM
+facts versus deception-induced belief. No world state is mutated.
+
+The deterministic `attention` rubric checks named expected label choices, averaging
+within each fixture. Missing optional labels count as unflagged. Execution errors score
+zero and remain visible. This is classification accuracy over the stated expectations,
+not prose quality, exhaustive false-positive measurement or world-update correctness.
+
+### Historical comparisons
+
+The first reproduction used a narrower acceptance rubric and treated noncommittal
+responses as negative controls. The user then explicitly chose to flag unsupported
+details unless denied. Expectations and rubric were updated for both configurations;
+old and revised aggregate scores are not comparable.
 
 Initial live baseline (2026-10-04, three repeats per case, Jev `typesafe/jev-1.13`):
 
@@ -179,22 +187,6 @@ The baseline missed reconciliation in all three observed-case trials, flagging o
 aggregate was 12/15 (80%), with zero execution or judging errors. This small sample
 reproduces the accommodation gap; it is not an estimate of general classifier accuracy.
 Local full recordings: `eval-output/2026-10-04T20-16-02.548Z-0a0312b1/`.
-
-### Responsive-world candidate
-
-The `responsive-world` variant broadens attention to developments the player expects
-the world to react to, with focused GM guidance. This is a comparison only; production
-prompts remain unchanged in this layer. It explicitly flags unsupported player details
-unless denied, including hedging and a noncommittal response, without making them true.
-The rubric and noncommittal expectation changed to match the user's clarified policy;
-rerun BOTH baseline and candidate rather than comparing with the older 80% result.
-
-The shared runner now scores expected individual label choices (`attention`), averaging
-within each fixture. New controls cover indirect assent, future/general commitments,
-gifts and refused trades, narrated travel, forgiveness, greetings, GM-established history,
-successful deception as belief, and a blocked promise. Missing optional labels count as
-unflagged. Exact-match scoring concerns these expected labels, not all possible flags.
-Run `npm run eval:attention -- --repeats 3`; both configurations use identical evidence.
 
 Comparison on 2026-10-04 (three repeats for 16 cases, 48 trials/configuration): the
 revised candidate scored 100% on expected choices versus 78.1% for unchanged `game`,
