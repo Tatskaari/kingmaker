@@ -169,7 +169,7 @@ test("conversation service failures remain errors", async () => {
 test("conversation feed links retain separate perceived histories across save and restore", () => {
   const runtime = new WorldGameRuntime(loadPlayableWorld(), "");
   const name = (runtime.view().characters as Array<{ id: string; name: string }>).find(character => character.id === "rowan")!.name;
-  for (const [id, perception] of [["first", "player: Hello.\nrowan: Welcome."], ["second", "You hear Rowan say goodbye."]]) {
+  for (const [id, perception] of [["first", "player: Hello.\nrowan: Welcome."], ["second", "You hear Rowan say goodbye."]] as const) {
     const event = create(EventSchema, { id, kind: "having a conversation", participantIds: ["rowan", "player"], summary: "Unperceived details" });
     runtime.recordPlayerPerception(event, perception!);
     runtime.recordPlayerPerception(event, perception!);
