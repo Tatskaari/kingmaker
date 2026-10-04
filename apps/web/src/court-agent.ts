@@ -32,7 +32,7 @@ export function characterCourtObservation(scenario: Scenario, characterId: strin
   const character = scenario.characters.find(item => item.id === characterId);
   const world = scenario.world, actor = world?.actors.find(item => item.characterId === characterId);
   if (!character || !world || !actor?.position) throw new Error("Character is not placed in the palace.");
-  const actions = roomAgentActions(scenario, characterId, continuingActionId);
+  const actions = roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), characterId, continuingActionId);
   const known = worldForCharacter(world, inventoryOwners(scenario.characters, world), characterId);
   return { ...physicalCharacterObservation(known, characterId, character.currentGoal, actions),
     characterContext: characterDecisionContext(scenario, characterId, character.currentGoal) };
