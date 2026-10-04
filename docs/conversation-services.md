@@ -231,7 +231,7 @@ is the stub; its default resolver passes labels and full evidence to the existin
 GM reconciliation via `services.ai.responses`. The current playable v1 host keeps
 its existing resource/staged writes; it does not yet author v2 documents. Inject
 `reviewOptions` when constructing `BrowserGameRuntime`, or the fourth argument of
-`HeadlessGame`; these dependencies survive forks and headless reloads. Either
+`WorldHeadlessGame`; these dependencies survive forks and headless reloads. Either
 phase can be overridden independently:
 
 ```ts

@@ -1,12 +1,8 @@
-import { readFileSync } from "node:fs";
-import { fromJsonString } from "@bufbuild/protobuf";
-import { ScenarioSchema } from "../packages/contracts/src/index.js";
-import { HeadlessGame } from "../packages/headless/src/index.js";
+import { loadPlayableWorld } from "./lib/playable-world.js";
+import { WorldHeadlessGame } from "../packages/headless/src/world.js";
 
-const game = new HeadlessGame(fromJsonString(ScenarioSchema,
-  readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")));
-game.runtime.createDevelopmentPlayer();
+const game = new WorldHeadlessGame(loadPlayableWorld());
 console.log(game.observe());
-game.act(game.actions().find(action => action.id.startsWith("open_treasury_door"))!.id);
-game.act("enter_treasury");
+await game.act(game.actions().find(action => action.id.startsWith("open_treasury_door"))!.id);
+await game.act("enter_treasury");
 console.log(game.observe());

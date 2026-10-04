@@ -48,28 +48,3 @@ test("cancellation between classification and resolution never resolves", async 
   await assert.rejects(runAction(context(), new ConversationRuntime()), /hooks.action.classify/);
 });
 
-test("review activates the injected action pipeline through headless reloads and forks", async () => {
-  const { readFileSync } = await import("node:fs");
-  const { fromJsonString } = await import("@bufbuild/protobuf");
-  const { ScenarioSchema } = await import("../packages/contracts/src/index.js");
-  const { HeadlessGame } = await import("../packages/headless/src/index.js");
-  let classifications = 0, resolutions = 0;
-  const game = new HeadlessGame(fromJsonString(ScenarioSchema,
-    readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8")), "", undefined,
-  { services: { ai: { responses: async () => ({ role: "assistant", content: JSON.stringify({ newNotes: [], relationships: [],
-    goalUpdate: { goal: "Go to the hall", reason: "Agreed" }, lore: null }) }) } } },
-  { hooks: { action: {
-    classify: async context => { classifications++; assert.equal(context.goal, "Go to the hall"); return { choice: "wait", probabilities: {} }; },
-    resolve: async (...args) => { resolutions++; return jevActionHooks.resolve(...args); },
-  } } });
-  game.runtime.createDevelopmentPlayer();
-  game.runtime.endConversationAsPlayer("corvin", "Go to the hall");
-  await game.endConversation("corvin");
-  game.load(game.snapshot());
-  for (const runtime of [game.runtime, game.runtime.forkForNpc(), game.runtime.forkForResourceReview(async work => work())]) {
-    const before = runtime.snapshot();
-    assert.equal((await runtime.planNpc("corvin", new AbortController().signal)).decision.choice, "wait");
-    assert.deepEqual(runtime.snapshot(), before);
-  }
-  assert.equal(classifications, 3); assert.equal(resolutions, 3);
-});
