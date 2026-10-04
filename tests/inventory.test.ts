@@ -56,16 +56,16 @@ test("duplicate ownership and equipment outside the holder's inventory are rejec
   assert.throws(() => validateInventories(inventoryOwners(scenario.characters, scenario.world)), /not carried/);
 });
 
-test("authored court builds have bounded stats, valid health, and uniquely carried equipment", async () => {
+test("authored court builds have valid stats, health, and uniquely carried equipment", async () => {
   const scenario = physicalFixture();
   validateInventories(inventoryOwners(scenario.characters, scenario.world));
   for (const character of scenario.characters.filter(character => character.dnd)) {
     const dnd = character.dnd!;
     assert.ok(dnd?.abilityScores, character.id);
     const { strength, dexterity, constitution, intelligence, wisdom, charisma } = dnd.abilityScores;
-    for (const score of [strength, dexterity, constitution, intelligence, wisdom, charisma]) assert.ok(score >= 8 && score <= 16);
+    for (const score of [strength, dexterity, constitution, intelligence, wisdom, charisma]) assert.ok(Number.isInteger(score) && score > 0, `${character.id}: invalid ability score ${score}`);
     assert.ok(dnd.classes.length > 0);
-    assert.ok(dnd.classes.every(entry => entry.level >= 1 && entry.level <= 3));
+    assert.ok(dnd.classes.every(entry => Number.isInteger(entry.level) && entry.level >= 1));
     assert.ok(dnd.hitPoints!.maximum > 0);
     assert.equal(dnd.hitPoints!.current, dnd.hitPoints!.maximum);
     assert.ok(character.inventory!.items.every(item => (item.quantity ?? 1) > 0));

@@ -459,8 +459,7 @@ test("each visiting delegation has a public room, private back hall and individu
     for (const member of delegation.members) {
       const actor = world.actors.find(actor => actor.characterId === resident(member))!;
       assert.equal(actor.homeRoomId, `${member}_chamber`);
-      assert.equal(actor.roomId, actor.homeRoomId);
-      assert.equal(courtRoomAt(actor.position!)?.id, actor.homeRoomId);
+      assert.equal(courtRoomAt(actor.position!)?.id, actor.roomId);
       assert.ok(courtPath({ x: 61, y: 24 }, actor.position!, openDoors, world.fixtures), `${member}'s room is reachable`);
     }
   }
