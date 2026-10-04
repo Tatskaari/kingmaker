@@ -1,22 +1,21 @@
-import { fromJson, toJson } from "@bufbuild/protobuf";
-import { ScenarioSchema, MapFixtureSchema } from "../packages/contracts/src/index.js";
+import { toJson, create } from "@bufbuild/protobuf";
+import { WorldStateSchema, RoomSchema } from "../packages/contracts/src/index.js";
 import { inventoryOwners } from "../packages/core/src/inventory.js";
+import { characterDocuments } from "../packages/lore/src/character-id.js";
+import { loadPlayableWorld } from "./lib/playable-world.js";
 import { palaceFurniture } from "../apps/web/src/palace-furniture.js";
-import { readFileSync, writeFileSync } from "node:fs";
+import { writeFileSync } from "node:fs";
 import { palaceLayout } from "../apps/web/src/palace-layout.js";
 
-// Preserve narrative/inventory content while deriving geometry-dependent access
-// and exits from the same room functions that build the playable map.
-const path = new URL("../content/scenarios/last-night.json", import.meta.url);
-const scenario = JSON.parse(readFileSync(path, "utf8"));
-palaceLayout.validateDoorBoundaries(scenario.world.doors);
-scenario.world.rooms = palaceLayout.worldRooms().map(room => ({
-  ...scenario.world.rooms.find((existing: { id: string }) => existing.id === room.id), ...room,
+const world = loadPlayableWorld(), map = world.map!;
+palaceLayout.validateDoorBoundaries(map.doors);
+map.rooms = palaceLayout.worldRooms().map(room => create(RoomSchema, {
+  ...map.rooms.find(existing => existing.id === room.id), ...room,
 }));
-scenario.world.fixtures = scenario.world.fixtures.filter((fixture: { id: string }) => !fixture.id.startsWith("furn_"));
-const typed = fromJson(ScenarioSchema, scenario);
-const additions = palaceFurniture(typed.world!, inventoryOwners(typed.characters, typed.world),
-  typed.courtArrivalPlacements.flatMap(actor => actor.position ? [actor.position] : []));
-scenario.world.fixtures.push(...additions.map(fixture => toJson(MapFixtureSchema, fixture)));
-writeFileSync(path, JSON.stringify(scenario, null, 2) + "\n");
-console.log("Synchronized palace room ownership, access and exits.");
+map.fixtures = map.fixtures.filter(fixture => !fixture.id.startsWith("furn_"));
+const characters = characterDocuments(world).map(({ id, document }) => ({ id, inventory: document.characterProperties?.inventory }));
+map.fixtures.push(...palaceFurniture(map, inventoryOwners(characters, map)));
+// Background bodies are placed from document metadata when a game starts.
+map.actors = map.actors.filter(actor => !actor.instanceId);
+writeFileSync(new URL("../content/palace-map.json", import.meta.url), JSON.stringify(toJson(WorldStateSchema, map), null, 2) + "\n");
+console.log("Synchronized palace room ownership, access, exits and furniture.");

@@ -16,15 +16,15 @@ export function palaceFurniture(map: WorldState, owners: readonly InventoryOwner
     put(room, x + 1, y, `${id}_bed_foot`, `${name}'s bed — blanket`, 80);
   };
   const guests = [
-    ["mara", "Mara", "Ironmark dress uniform", "A carefully folded formal uniform for the centennial assembly.", "Draft assembly address", "Mara's notes argue for lawful succession and disciplined conduct."],
-    ["hadrik", "Hadrik", "Campaign cloak", "A wool cloak patched after many wet nights on campaign.", "Campaign chess pieces", "A travel set with more replacement pawns than originals."],
-    ["tessa", "Tessa", "Riding gloves", "Practical gloves worn smooth at the reins.", "Route sketchbook", "Personal sketches of milestones and stopping places, with no confidential patrol figures."],
+    ["mara", "Gurt", "Ironmark dress uniform", "A carefully folded formal uniform for the centennial assembly.", "Draft assembly address", "Gurt's notes argue for lawful succession and disciplined conduct."],
+    ["hadrik", "Klog", "Campaign cloak", "A wool cloak patched after many wet nights on campaign.", "Campaign chess pieces", "A travel set with more replacement pawns than originals."],
+    ["tessa", "Bran", "Riding gloves", "Practical gloves worn smooth at the reins.", "Route sketchbook", "Personal sketches of milestones and stopping places, with no confidential patrol figures."],
     ["elinor", "Elinor", "Embroidered shawl", "A Greenweald shawl patterned with oak leaves.", "Assembly seating notes", "Draft notes balance rank, courtesy and rival delegations."],
     ["oswin", "Oswin", "Prayer beads", "Wooden beads polished by years of daily use.", "Book of stewardship", "Homilies about the duties rulers owe to those who cannot repay them."],
     ["rowan", "Rowan", "Trail cloak", "A travel cloak with burrs still caught along its hem.", "Pressed-leaf journal", "Leaves and brief recollections from the journey to Caerwyn."],
-    ["lucan", "Lucan", "Pearl cufflinks", "A matched pair chosen to impress at the assembly.", "Trade proposal drafts", "Negotiating positions for future tolls; these are proposals, not signed concessions."],
-    ["sabine", "Sabine", "Merchant's travel coat", "A hard-wearing coat with neatly repaired pockets.", "Abacus", "A small counting frame used to check ordinary household expenses."],
-    ["rook", "Rook", "Weathered satchel", "An empty courier's satchel, cleaned for the palace visit.", "Dice cup", "A leather cup and ordinary bone dice; none appears weighted."],
+    ["lucan", "Peregrine", "Pearl cufflinks", "A matched pair chosen to impress at the assembly.", "Trade proposal drafts", "Negotiating positions for future tolls; these are proposals, not signed concessions."],
+    ["sabine", "Cressida", "Merchant's travel coat", "A hard-wearing coat with neatly repaired pockets.", "Abacus", "A small counting frame used to check ordinary household expenses."],
+    ["rook", "Abel", "Weathered satchel", "An empty courier's satchel, cleaned for the palace visit.", "Dice cup", "A leather cup and ordinary bone dice; none appears weighted."],
   ] as const;
   for (const [id, name, clothing, clothingDetails, personal, personalDetails] of guests) {
     const room = `${id}_chamber`;
@@ -32,18 +32,18 @@ export function palaceFurniture(map: WorldState, owners: readonly InventoryOwner
     put(room, 6, 0, `${id}_wardrobe`, `${name}'s travel wardrobe`, 75, [item(`${id}_clothing`, clothing, clothingDetails)]);
     const deskItems = [item(`${id}_personal`, personal, personalDetails)];
     if (id === "sabine") deskItems.push(item("sabine_dispatch_ledger", "Saltmere dispatch ledger",
-      "Sabine's private register lists Saltmere caravan bookings, gates and escort arrangements. Tomorrow's west-gate departures contain no Grey Gull booking, escorted or otherwise. This register cannot establish whether an unregistered caravan exists. Marginal notes cross-reference rising losses with fewer royal patrol sightings; they do not give official patrol headcounts."));
+      "Cressida's private register lists Saltmere caravan bookings, gates and escort arrangements. Tomorrow's west-gate departures contain no Grey Gull booking, escorted or otherwise. This register cannot establish whether an unregistered caravan exists. Marginal notes cross-reference rising losses with fewer royal patrol sightings; they do not give official patrol headcounts."));
     put(room, 0, 3, `${id}_desk`, `${name}'s writing table`, 72, deskItems);
     put(room, 1, 3, `${id}_stool`, `${name}'s desk stool`, 73);
   }
   bed("corvin_chamber", 3, 3, "corvin", "Corvin");
-  bed("garran_chamber", 3, 0, "garran", "Garran");
+  bed("garran_chamber", 3, 0, "garran", "Holt");
   bed("royal_bedchamber", 4, 3, "king", "Aldren");
 
   const salons = [
-    ["ironmark_salon", "ironmark", "Campaign table", "mara", "Campaign map", "An old training map with wooden markers, not a record of current royal patrols."],
+    ["ironmark_salon", "ironmark", "Campaign table", "gurt", "Campaign map", "An old training map with wooden markers, not a record of current royal patrols."],
     ["greenweald_solar", "greenweald", "Tea table", "elinor", "Herbal tea tin", "Dried mint and meadow flowers from Greenweald."],
-    ["saltmere_drawing_room", "saltmere", "Chart table", "lucan", "Coastal chart", "A merchant's chart of familiar Saltmere harbours and safe anchorages."],
+    ["saltmere_drawing_room", "saltmere", "Chart table", "peregrine", "Coastal chart", "A merchant's chart of familiar Saltmere harbours and safe anchorages."],
   ] as const;
   for (const [room, id, table, owner, object, details] of salons) {
     put(room, 3, 3, `${id}_table`, table, 72, [item(`${id}_table_item`, object, details)], owner);
@@ -55,7 +55,7 @@ export function palaceFurniture(map: WorldState, owners: readonly InventoryOwner
     put(room, 0, 0, `${id}_books`, "Delegation bookcase", 63, [item(`${id}_protocol`, "Assembly protocol", "The public order of ceremonies and rules for formal petitions.")], owner);
   }
   put("royal_council_chamber", 1, 1, "council_table", "Council writing table", 72,
-    [item("council_agenda", "Council agenda", "Petitions, palace supplies and preparations for the centennial assembly.")], "king");
+    [item("council_agenda", "Council agenda", "Petitions, palace supplies and preparations for the centennial assembly.")], "aldren");
   put("royal_council_chamber", 4, 0, "council_archive", "Petition cabinet", 75,
     [item("blank_petition", "Blank petition forms", "Unused forms for bringing a matter before the council.")], "corvin");
 

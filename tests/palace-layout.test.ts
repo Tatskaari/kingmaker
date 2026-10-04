@@ -1,14 +1,11 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { loadPlayableWorld } from "./fixtures.js";
 import test from "node:test";
-import { fromJsonString } from "@bufbuild/protobuf";
-import { ScenarioSchema } from "../packages/contracts/src/index.js";
 import { palaceLayout } from "../apps/web/src/palace-layout.js";
 import { palaceNodes } from "../apps/web/src/palace-navigation.js";
 import { courtPath, courtRoomAt } from "../apps/web/src/court-map.js";
 
-const scenario = fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8"));
-const world = scenario.world!;
+const world = loadPlayableWorld().map!;
 
 test("generated floor ownership, access and exits match the authored world", () => {
   for (const room of palaceLayout.worldRooms()) {
