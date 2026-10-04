@@ -1,3 +1,4 @@
+import { participantPresentations, PRESENTATIONS_PREFIX } from "../../../packages/conversation/src/participant-presentation.js";
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, TranscriptRole, type TranscriptMessage } from "../../../packages/contracts/src/index.js";
 import type { OpenRouterMessage } from "../../../packages/providers/src/openrouter.js";
@@ -21,8 +22,13 @@ export const setupWorldAgent: AgentSetupHook = async (context, signal, services)
     return setupAgent(context, signal, services);
   }
   signal.throwIfAborted();
-  const { map } = services.map.observe(context.characterId);
-  const names = new Map(characterDocuments(services.scenario.snapshot()).map(({ id, document }) => [id,
+  const world = services.scenario.snapshot();
+  context = { ...context, messages: [
+    ...participantPresentations(world, context.characterId, context.participantIds ?? [context.characterId]),
+    ...context.messages.filter(message => !(message.role === "system" && message.content?.startsWith(PRESENTATIONS_PREFIX))),
+  ] };
+  const { map } = services.map.observe(context.characterId!);
+  const names = new Map(characterDocuments(world).map(({ id, document }) => [id,
     typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id]));
   const characters = map.actors.map(actor => ({ id: actor.instanceId || actor.characterId,
     name: names.get(actor.instanceId || actor.characterId) ?? actor.characterId, position: actor.position }));

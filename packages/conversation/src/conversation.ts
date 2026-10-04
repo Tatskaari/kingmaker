@@ -1,3 +1,4 @@
+import { participantPresentations } from "./participant-presentation.js";
 import { characterMessages } from "./agent-setup.js";
 import type { RuntimeServices } from "./services.js";
 import { create } from "@bufbuild/protobuf";
@@ -26,7 +27,7 @@ export interface LlmTurn {
   durationMs?: number;
 }
 
-/** Context comes entirely from Markdown; the snapshot only validates character identity. */
+/** Scoped lore plus a public participant impression; raw mechanics stay out of dialogue. */
 export function conversationRequest(input: ConversationInput, setup = characterMessages(input.sources)): ChatCompletionRequest {
   const exists = !!input.snapshot.world.runtimeCharacters[input.characterId];
   if (!exists) throw new Error(`Unknown snapshot character: ${input.characterId}`);
@@ -34,6 +35,7 @@ export function conversationRequest(input: ConversationInput, setup = characterM
     model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "none" }, max_tokens: 1200,
     messages: [
       ...setup,
+      ...participantPresentations(input.snapshot.world, input.characterId, ["player"]),
       ...input.transcript.map(message => ({
         role: message.role === TranscriptRole.CHARACTER ? "assistant" as const
           : message.role === TranscriptRole.GAME_MASTER ? "system" as const : "user" as const,
