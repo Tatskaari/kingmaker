@@ -67,5 +67,5 @@ test("injected lore is scoped separately for both exchange speakers and their re
     } },
   }, strategies: { resolution: documentResolutionStrategy } });
   await runResolution({ kind: "npc_exchange", characterId: "alice", targetId: "bob", goal: "Talk" }, runtime);
-  assert.deepEqual(scopes, ["alice", "bob", "alice", "bob"]);
+  assert.deepEqual(scopes, ["alice", "bob", "alice", "alice", "bob", "bob"]);
 });
