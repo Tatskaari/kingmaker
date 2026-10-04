@@ -38,6 +38,30 @@ export function createDocsService(store: WorldStore): DocsService {
     return result;
   }
   const docs: DocsService = {
+    async commit(changes) {
+      return store.write(async () => {
+        if (new Set(changes.map(change => change.path)).size !== changes.length) throw new Error("Duplicate document write.");
+        const expected = new Map<string, Document | undefined>();
+        for (const change of changes) {
+          if (change.expectedSha === null) {
+            if (store.state.docs[change.path]) throw new DocumentConflictError(change.path, "absent", (await read(change.path)).sha);
+            expected.set(change.path, undefined);
+          } else expected.set(change.path, (await checked(change.path, change.expectedSha)).document);
+        }
+        const draft = clone(WorldStateSchema, store.state);
+        for (const change of changes) {
+          if (JSON.stringify(canonical(store.state.docs[change.path])) !== JSON.stringify(canonical(expected.get(change.path)))) {
+            throw new DocumentConflictError(change.path, change.expectedSha ?? "absent", "changed");
+          }
+          const note = parseMarkdown(change.text);
+          if (note.error) throw new Error(`${change.path}: ${note.error}`);
+          const next = fromJson(DocumentSchema, { body: note.body, frontmatter: note.metadata as JsonObject });
+          next.characterProperties = draft.docs[change.path]?.characterProperties;
+          draft.docs[change.path] = next;
+        }
+        store.publishDocuments(draft);
+      });
+    },
     read,
     create: (path, text) => store.write(async () => {
       if (Object.hasOwn(store.state.docs, path)) throw new Error(`${path}: document already exists`);

@@ -8,7 +8,7 @@ import { DocumentSchema, WorldStateSchema } from "../packages/contracts/src/v2.j
 import { DocumentValidationError } from "../packages/lore/src/document-audit.js";
 import { createScenarioServices, DocumentConflictError } from "../packages/lore/src/services.js";
 import { worldState } from "../packages/lore/src/world-state.js";
-import { activeGoal } from "../packages/lore/src/active-goal.js";
+import { activityGoal } from "../packages/lore/src/activity.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { documentReviewHooks } from "../packages/conversation/src/document-review.js";
 import { runConversationReview } from "../packages/conversation/src/review.js";
@@ -34,7 +34,7 @@ test("v2 review atomically saves notes and goal, preserves access metadata, and 
   } } }, hooks: { review: documentReviewHooks } });
   await runConversationReview(evidence, runtime);
   const after = await services.docs.read(entry);
-  assert.equal(activeGoal(after.document), "Go to the hall");
+  assert.equal(activityGoal(services.scenario.snapshot(), "alice"), "Go to the hall");
   assert.match(after.document.body, /Earlier history/);
   assert.match(after.document.body, /player asked/);
   assert.deepEqual(after.document.frontmatter!.readers, before.docs[entry]!.frontmatter!.readers);
@@ -43,10 +43,10 @@ test("v2 review atomically saves notes and goal, preserves access metadata, and 
   await runConversationReview(evidence, runtime);
   assert.equal((await services.docs.read(entry)).sha, after.sha, "Repeated review does not duplicate notes");
   const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.snapshot())));
-  assert.equal(activeGoal((await restored.docs.read(entry)).document), "Go to the hall");
+  assert.equal(activityGoal(restored.scenario.snapshot(), "alice"), "Go to the hall");
   runtime.services.ai.responses = async () => answer(null);
   await runConversationReview(evidence, runtime);
-  assert.equal(activeGoal((await services.docs.read(entry)).document), null);
+  assert.equal(activityGoal(services.scenario.snapshot(), "alice"), null);
 });
 
 test("failed and cancelled v2 reviews cannot overwrite documents or activate goals", async () => {
@@ -59,7 +59,7 @@ test("failed and cancelled v2 reviews cannot overwrite documents or activate goa
     } } }, hooks: { review: documentReviewHooks } });
     await assert.rejects(runConversationReview(evidence, runtime, controller.signal), /Invalid|abort|must call/i);
     const doc = (await services.docs.read(entry)).document;
-    assert.equal(activeGoal(doc), null); assert.ok(!doc.body.includes("player asked"));
+    assert.equal(activityGoal(services.scenario.snapshot(), "alice"), null); assert.ok(!doc.body.includes("player asked"));
   }
 });
 
@@ -95,7 +95,7 @@ test("document conflicts refresh the tool snapshot and let the GM reconcile befo
   assert.match(doc.body, /new promise: meet Bob/);
   assert.match(doc.body, /honour my promise/);
   assert.doesNotMatch(doc.body, /player asked/);
-  assert.equal(activeGoal(doc), "Meet Bob");
+  assert.equal(activityGoal(services.scenario.snapshot(), "alice"), "Meet Bob");
 });
 
 
@@ -106,7 +106,7 @@ test("GM review commits automatically validate without exposing an optional vali
   source.docs[source.scenario]!.body += `\n[[${other}]]`;
   const services = createScenarioServices(source), before = services.scenario.snapshot();
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
-    assert.deepEqual(request.tools?.map(tool => tool.function.name), ["read_document", "create_document", "replace_document", "insert_document", "delete_document", "commit_review"]);
+    assert.deepEqual(request.tools?.map(tool => tool.function.name), ["read_document", "create_document", "replace_document", "insert_document", "delete_document", "set_activity", "set_wait", "clear_activity", "commit_review"]);
     return answer("Go to the hall");
   } } }, hooks: { review: documentReviewHooks } });
   await assert.rejects(runConversationReview(evidence, runtime), DocumentValidationError);
@@ -115,7 +115,7 @@ test("GM review commits automatically validate without exposing an optional vali
   const unsafe = await services.docs.read(other);
   await services.docs.replace(other, unsafe.sha, unsafe.text, "Bob knows no GM secrets.");
   await runConversationReview(evidence, runtime);
-  assert.equal(activeGoal((await services.docs.read(entry)).document), "Go to the hall");
+  assert.equal(activityGoal(services.scenario.snapshot(), "alice"), "Go to the hall");
 });
 
 test("GM uses the full editing suite and finishes without overwriting its own edits", async () => {
@@ -141,7 +141,7 @@ test("GM uses the full editing suite and finishes without overwriting its own ed
   assert.match(result.text, /Corrected history/);
   assert.match(result.text, /additional recollection/);
   assert.match(result.text, /player asked/);
-  assert.equal(activeGoal(result.document), "Go to the hall");
+  assert.equal(activityGoal(services.scenario.snapshot(), "alice"), "Go to the hall");
   await assert.rejects(services.docs.read(note), /not found/);
 });
 

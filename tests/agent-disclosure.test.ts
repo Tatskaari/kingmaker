@@ -15,14 +15,14 @@ import type { AiService } from "../packages/conversation/src/services.js";
 import { WorldGameRuntime } from "../apps/web/src/world-runtime.js";
 import { WorldHost } from "../apps/web/src/world-host.js";
 import { planWorldAction } from "../apps/web/src/world-action.js";
-import { loadPlayableWorld } from "./fixtures.js";
+import { loadPlayableWorld, assignActivity } from "./fixtures.js";
 
 const entry = (id: string) => `Scenarios/Test/Characters/${id}/character.md`;
 function fixture() {
   const notes = new Map([["Scenarios/Test/index.md", "Index"], ["Scenarios/Test/scenario.md", ["rowan", "corvin"].map(id => `[[${entry(id)}]]`).join("\n")], ["player.md", "Envoy"]]);
   for (const id of ["rowan", "corvin"]) {
     const access = `---\nvisibility: private\nreaders: ['character:${id}']\nsummary: ${id}'s task background.\n---\n`;
-    notes.set(entry(id), access.replace("summary:", "active_goal: Go to the hall\nsummary:") + `[[Cast/Test/${id}/private.md]] [[${id}-detail.md]]`);
+    notes.set(entry(id), access + `[[Cast/Test/${id}/private.md]] [[${id}-detail.md]]`);
     notes.set(`Cast/Test/${id}/private.md`, access + `${id} identity`);
     notes.set(`${id}-detail.md`, access + `[[${id}-nested.md]]`);
     notes.set(`${id}-nested.md`, access + `${id.toUpperCase()}_DEEP_KNOWLEDGE [[${entry(id)}]]`);
@@ -30,10 +30,12 @@ function fixture() {
   notes.set("gm.md", "---\nvisibility: gm\n---\nGM_SECRET");
   const map = loadPlayableWorld().map!;
   map.actors.find(actor => actor.characterId === "rowan")!.position = { ...map.actors.find(actor => actor.characterId === "player")!.position! };
-  return worldState(map, notes, "Test", "player.md");
+  const world = worldState(map, notes, "Test", "player.md");
+  for (const id of ["rowan", "corvin"]) assignActivity(world, id, "Go to the hall");
+  return world;
 }
 const review = { role: "assistant" as const, content: null, tool_calls: [{ id: "commit", type: "function" as const, function: { name: "commit_review",
-  arguments: JSON.stringify({ summary: "Reviewed", newNotes: [], activeGoal: null }) } }] };
+  arguments: JSON.stringify({ summary: "Reviewed", newNotes: [] }) } }] };
 function model(seen: string[]): AiService {
   return {
     decisions: async (state, questions, _signal, purpose, info) => {

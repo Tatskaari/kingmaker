@@ -1,7 +1,8 @@
+import { activityGoal, characterIntent } from "../packages/lore/src/activity.js";
 import { documentLoreService } from "../packages/conversation/src/document-lore.js";
 import { commitReview } from "./fixtures.js";
 import { WorldHost } from "../apps/web/src/world-host.js";
-import { loadPlayableWorld } from "./fixtures.js";
+import { loadPlayableWorld, assignActivity } from "./fixtures.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -20,7 +21,7 @@ import { planWorldAction, reviewAndPlanWorldAction } from "../apps/web/src/world
 function fixture(goal?: string) {
   const world = loadPlayableWorld();
   const entry = world.characters.find(path => path.includes("/corvin/"))!;
-  if (goal) world.docs[entry]!.frontmatter!.active_goal = goal;
+  if (goal) assignActivity(world, "corvin", goal);
   world.docs["secret.md"] = create(DocumentSchema, { body: "GM_SECRET_SENTINEL", frontmatter: { visibility: "gm" } });
   const other = world.characters.find(path => path.includes("/elinor/"))!;
   world.docs[other]!.body += "\nOTHER_PRIVATE_SENTINEL";
@@ -36,7 +37,7 @@ test("v2 review commits its goal before classify/resolve returns a real command 
       summary: "Agreed", newNotes: ["The player requested a visit to the hall."], activeGoal: "Go to the hall" }); },
     decisions: async (state, questions) => {
       order.push("classify");
-      assert.equal((await services.docs.read(characterEntry(services.scenario.info(), "corvin"))).document.frontmatter!.active_goal, "Go to the hall");
+      assert.equal(activityGoal(services.scenario.snapshot(), "corvin"), "Go to the hall");
       assert.match(String(state), /Go to the hall/);
       assert.ok(!String(state).includes("GM_SECRET_SENTINEL"));
       assert.ok(!String(state).includes("OTHER_PRIVATE_SENTINEL"));
@@ -73,8 +74,8 @@ test("v2 idle reviews skip Jev, failed reviews stop planning, and terminal resul
 test("planning tolerates document changes and still honours cancellation", async () => {
   const services = fixture("Go to the hall"), controller = new AbortController();
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { decisions: async () => {
-    const path = characterEntry(services.scenario.info(), "corvin"), doc = await services.docs.read(path);
-    await services.docs.replace(path, doc.sha, "Go to the hall", "Go to the kitchen");
+    const path = characterIntent(services.scenario.snapshot(), "corvin").activity!, doc = await services.docs.read(path);
+    await services.docs.replace(path, doc.sha, "current_goal: Go to the hall", "current_goal: Go to the kitchen");
     return { next: { choice: "complete", probabilities: {} } };
   } } }, hooks: { action: jevActionHooks } });
   assert.equal((await planWorldAction("corvin", runtime))!.decision.choice, "complete");

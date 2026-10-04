@@ -1,5 +1,5 @@
 import { summaryPreview } from "../../lore/src/markdown.js";
-import { activeGoal } from "../../lore/src/active-goal.js";
+import { characterIntent, intentContext } from "../../lore/src/activity.js";
 import type { ScenarioService } from "../../lore/src/services.js";
 import { permitted, labels } from "../../lore/src/access.js";
 import type { LoreService, RuntimeServices } from "./services.js";
@@ -19,8 +19,7 @@ export async function documentLore(scenario: ScenarioService, characterId: strin
   const read = async (path: string) => {
     const { document } = await scenario.getDocument(path);
     allowed(path, document);
-    const goal = path === entry ? activeGoal(document) : null;
-    return { path, markdown: document.body + (goal ? `\n\nCurrent active task: ${goal}` : "") };
+    return { path, markdown: document.body + (path === entry ? `\n\n${intentContext(scenario.snapshot(), characterId)}` : "") };
   };
   const character = await scenario.getDocument(entry);
   const identity = character.document.links.find(link => /^Cast\/.+\/private\.md$/.test(link.target));
@@ -29,7 +28,8 @@ export async function documentLore(scenario: ScenarioService, characterId: strin
     initial: [await read(identity.target), await read(entry)],
     links(opened) {
       const state = scenario.snapshot();
-      const seen = new Set(opened.map(doc => doc.path));
+      const intent = characterIntent(state, characterId);
+      const seen = new Set([...opened.map(doc => doc.path), intent.activity, intent.wait]);
       return opened.flatMap(source => (state.docs[source.path]?.links ?? []).flatMap(link => {
         if (seen.has(link.target)) return [];
         const target = state.docs[link.target];

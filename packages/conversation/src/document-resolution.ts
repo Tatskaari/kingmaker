@@ -1,7 +1,8 @@
 import { disclosedContext } from "./disclosed-context.js";
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, TranscriptRole } from "../../contracts/src/index.js";
-import { activeGoal, characterEntry } from "../../lore/src/active-goal.js";
+import { characterEntry } from "../../lore/src/active-goal.js";
+import { activityGoal, intentContext } from "../../lore/src/activity.js";
 import { reviewDocumentEvidence } from "./document-review.js";
 import type { ResolutionHooks } from "./resolution.js";
 import type { RuntimeServices } from "./services.js";
@@ -23,7 +24,7 @@ export const documentResolutionHooks: ResolutionHooks = {
     if (context.kind !== "world_event") return {};
     const lore = await services.lore.forCharacter(context.characterId, signal);
     const path = characterEntry(services.scenario.info(), context.characterId);
-    const goal = activeGoal((await services.docs.read(path)).document);
+    const goal = activityGoal(services.scenario.snapshot(), context.characterId);
     const messages = await disclosedContext(lore, [{ role: "user", content: JSON.stringify({
       task: "Decide whether this perceived event warrants attention based on your knowledge and motives. Do not infer unperceived details.",
       goal, perception: context.perception,

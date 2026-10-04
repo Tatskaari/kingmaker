@@ -11,7 +11,7 @@ import { clone, create, fromJson, toJson, type JsonValue } from "@bufbuild/proto
 import { ScenarioSchema, type Event } from "../../../packages/contracts/src/index.js";
 import { CharacterPropertiesSchema, WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
 import { createScenarioServices } from "../../../packages/lore/src/services.js";
-import { activeGoal } from "../../../packages/lore/src/active-goal.js";
+import { activityGoal, characterIntent, formatActivity } from "../../../packages/lore/src/activity.js";
 import { generationIds, type ExpectedGenerations } from "../../../packages/core/src/generations.js";
 import { PalaceMechanics, type MechanicalActivity } from "./palace-mechanics.js";
 import { projectWorld } from "./world-projection.js";
@@ -21,7 +21,7 @@ import type { Point } from "./navigation.js";
 export type WorldSnapshot = MechanicalActivity & {
   stranger?: StrangerState;
   jail?: { characterId: string; message: string };
-  version: 2; world: JsonValue;
+  version: 3; world: JsonValue;
   playerMessages: Array<{ id: string; day: number; message: string; createdAt: string }>;
 };
 
@@ -34,7 +34,7 @@ export class WorldHost {
   constructor(world: WorldState, saved?: WorldSnapshot) {
     this.initial = clone(WorldStateSchema, world);
     this.documents = createScenarioServices(world);
-    this.activity = { version: 2, conversations: {}, npcActivities: {}, playerMessages: [] };
+    this.activity = { version: 3, conversations: {}, npcActivities: {}, playerMessages: [] };
     if (saved) this.restore(saved);
     this.syncGoals();
   }
@@ -43,9 +43,10 @@ export class WorldHost {
     const world = this.world();
     const activities = this.activity.npcActivities ??= {};
     for (const path of world.characters) {
-      const id = characterId(path, world), goal = world.docs[path]!.frontmatter?.background === true ? "" : activeGoal(world.docs[path]!) ?? "", previous = activities[id];
-      if (previous?.goal === goal) continue;
-      activities[id] = { status: goal ? "active" : "idle", goal, history: [] };
+      const id = characterId(path, world), goal = world.docs[path]!.frontmatter?.background === true ? "" : activityGoal(world, id) ?? "", previous = activities[id];
+      const activityDocument = characterIntent(world, id).activity;
+      if (previous?.goal === goal && previous.activityDocument === activityDocument) continue;
+      activities[id] = { status: goal ? "active" : "idle", goal, activityDocument, history: [] };
     }
   }
   snapshot(): WorldSnapshot {
@@ -53,7 +54,7 @@ export class WorldHost {
     return structuredClone({ ...this.activity, world: toJson(WorldStateSchema, this.world()) });
   }
   restore(saved: WorldSnapshot): void {
-    if (saved.version !== 2 || !saved.world) throw new Error("This save uses an older world format. Start a fresh game.");
+    if (saved.version !== 3 || !saved.world) throw new Error("This save uses an older world format. Start a fresh game.");
     const { world, ...activity } = structuredClone(saved);
     const state = fromJson(WorldStateSchema, world);
     this.documents = createScenarioServices(state);
@@ -139,7 +140,7 @@ export class WorldHost {
       id: event.id, day: event.day, message: perception, createdAt: new Date().toISOString(),
     });
   }
-  reset() { this.restore({ version: 2, world: toJson(WorldStateSchema, this.initial),
+  reset() { this.restore({ version: 3, world: toJson(WorldStateSchema, this.initial),
     conversations: {}, npcActivities: {}, playerMessages: [] }); }
   resetWorld() {
     const before = this.world();
@@ -160,8 +161,16 @@ export class WorldHost {
     if (goal !== null && typeof goal !== "string") throw new Error("Expected currentGoal text.");
     const doc = await this.documents.docs.read(path);
     const { stringify } = await import("yaml");
-    const text = `---\n${stringify({ ...doc.document.frontmatter, active_goal: goal })}---\n${doc.document.body}`;
-    await this.documents.docs.replace(path, doc.sha, doc.text, text);
+    const activity = goal ? path.replace(/character\.md$/, `activity-${crypto.randomUUID()}.md`) : null;
+    const fields = objective as Record<string, unknown> | null;
+    const text = `---\n${stringify({ ...doc.document.frontmatter, activity, wait: null })}---\n${doc.document.body}`;
+    await this.documents.docs.commit([
+      ...(activity ? [{ path: activity, expectedSha: null, text: formatActivity(id, {
+        name: String(fields?.name ?? goal), status: String(fields?.status ?? "Assigned by the GM."),
+        success_criteria: String(fields?.success_criteria ?? fields?.successCriteria ?? goal), current_goal: goal!,
+      }) }] : []),
+      { path, expectedSha: doc.sha, text },
+    ]);
     this.syncGoals();
   }
 }
