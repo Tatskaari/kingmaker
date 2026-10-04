@@ -1,3 +1,4 @@
+import { movePlayer, setPlayerDoor } from "./physical-movement.js";
 import { worldView } from "./world-view.js";
 import { createPhysicalEvent } from "./physical-event.js";
 import { inventoryOwners } from "../../../packages/core/src/inventory.js";
@@ -143,8 +144,22 @@ export class WorldHost {
   hasActiveObjective(id: string) { this.syncGoals(); return this.activity.npcActivities?.[id]?.status === "active"; }
   protected assertPlayerFree() { if (this.activity.jail) throw new Error("You are in jail."); }
   releaseFromJail() { delete this.activity.jail; }
-  movePlayer(destination: Point) { this.assertPlayerFree(); return this.mutate(game => game.movePlayer(destination)); }
-  setDoor(id: string, open: boolean) { this.assertPlayerFree(); return this.mutate(game => game.setDoor(id, open)); }
+  movePlayer(destination: Point) {
+    this.assertPlayerFree();
+    const world = this.world();
+    if (!world.map) throw new Error("A physical map is required.");
+    movePlayer(world.map, world.player ? "player" : "", destination);
+    this.documents.mechanics.commit(world.map, {});
+  }
+  setDoor(id: string, open: boolean) {
+    this.assertPlayerFree();
+    const world = this.world();
+    if (!world.map) throw new Error("A physical map is required.");
+    const name = world.player ? world.docs[world.player]?.frontmatter?.name : undefined;
+    const event = setPlayerDoor(world.map, world.player ? "player" : "", typeof name === "string" ? name : "player", id, open);
+    this.documents.mechanics.commit(world.map, {});
+    return event;
+  }
   interactFixtureWithEvent(id: string) { this.assertPlayerFree(); return this.mutate(game => game.interactFixtureWithEvent(id)); }
   stepNpcAction(id: string, action: string, goal: string) {
     const result = this.mutate(game => game.stepNpcAction(id, action, goal));

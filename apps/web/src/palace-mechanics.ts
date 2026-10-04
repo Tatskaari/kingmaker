@@ -4,8 +4,7 @@ import { ScenarioSchema, TranscriptMessageSchema, TilePositionSchema, GamePhase,
 import { fixtureActions, applyFixtureAction } from "../../../packages/core/src/fixtures.js";
 import { inventoryOwners, findItem } from "../../../packages/core/src/inventory.js";
 import { courtAgentObservation } from "./court-agent.js";
-import { courtPath, courtRoomAt } from "./court-map.js";
-import type { Point } from "./navigation.js";
+import { courtRoomAt } from "./court-map.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
 const npcLog = gameLogger("npc");
 type EventDetails = Record<string, JsonValue>;
@@ -67,22 +66,6 @@ export class PalaceMechanics {
     return { scenario: toJson(ScenarioSchema, this.#scenario), npcActivities: this.#npcActivities };
   }
   #setScenario(scenario: Scenario) { this.#scenario = scenario; }
-  movePlayer(destination: Point): void {
-    const scenario = this.#scenario, world = scenario.world;
-    if (world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter the court before walking around.");
-    const player = scenario.characters.find(character => character.id === scenario.playerCharacterId);
-    const actor = world.actors.find(actor => actor.characterId === player?.id);
-    if (!player || !actor) throw new Error("Player is missing from the palace.");
-    const start = actor.position;
-    if (!start || !courtPath(start, destination, world.doors, world.fixtures)) throw new Error("That destination is not reachable.");
-    const room = courtRoomAt(destination);
-    if (!room) throw new Error("That destination is outside the palace.");
-    if (!world.rooms.some(existing => existing.id === room.id)) throw new Error("Destination room is missing from the authored world.");
-    actor.roomId = room.id; world.revision++;
-    actor.position = create(TilePositionSchema, destination);
-    this.#setScenario(scenario);
-  }
-
   worldEvent(kind: string, summary: string, participantIds: string[], details: EventDetails = {}): Event {
     return createPhysicalEvent(this.#scenario.world, kind, summary, participantIds, details);
   }
@@ -175,22 +158,6 @@ export class PalaceMechanics {
     const context = fixtureEventContext(scenario, actorId, actionId);
     const message = this.interactFixture(actionId);
     return { message, event: this.worldEvent("interacting with an object", context.describe?.(name, message) ?? `${name}: ${message}`, [actorId], context.details) };
-  }
-
-  setDoor(id: string, open: boolean): Event {
-    const scenario = this.#scenario, world = scenario.world;
-    if (world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter the court before using doors.");
-    const door = world.doors.find(door => door.id === id);
-    const player = world.actors.find(actor => actor.characterId === scenario.playerCharacterId);
-    if (!door || door.open === open || !player?.position || !door.interactionSpots.some(spot => spot.x === player.position!.x && spot.y === player.position!.y)) {
-      throw new Error("Walk to a door interaction spot before using it.");
-    }
-    if (!open && world.actors.some(actor => actor.position && door.tiles.some(tile => tile.x === actor.position!.x && tile.y === actor.position!.y))) {
-      throw new Error("Someone is standing in the doorway.");
-    }
-    door.open = open; world.revision++; this.#setScenario(scenario);
-    const playerName = scenario.characters.find(character => character.id === scenario.playerCharacterId)?.name ?? "The player";
-    return this.worldEvent("using a door", `${playerName} ${open ? "opened" : "closed"} ${door.name}.`, [scenario.playerCharacterId!]);
   }
 
 }
