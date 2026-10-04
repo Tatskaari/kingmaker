@@ -33,8 +33,7 @@ export async function decideWait(id: string, elapsedSeconds: number, services: R
     criteria[`set_activity:${path}`] = `Begin this activity when the wait's instructions warrant it: ${JSON.stringify(activity)}`;
   }
   const observation = waitObservation(services, id);
-  const lore = await services.lore.forCharacter(id, signal);
-  const messages = await disclosedContext(lore, [{ role: "user", content: JSON.stringify({
+  const messages = await disclosedContext("wait", [{ role: "user", content: JSON.stringify({
     wait: { path: wait.path, instructions: doc.body, properties: doc.frontmatter },
     elapsedSeconds, observation: JSON.parse(observation),
   }) }], services, id, signal);

@@ -8,10 +8,8 @@ import type { ResolutionHooks } from "./resolution.js";
 import type { RuntimeServices } from "./services.js";
 
 async function speak(characterId: string, instruction: string, evidence: unknown, signal: AbortSignal, services: RuntimeServices) {
-  const lore = await services.lore.forCharacter(characterId, signal);
   const response = await services.ai.responses({ model: "openai/gpt-6-luna", api: "responses", max_tokens: 1200,
-    messages: await disclosedContext(lore, [{ role: "system", content: "Speak only this character's words and observable gestures. Respect their motives and permitted knowledge. Do not invent the other speaker's agreement or any physical outcome. Do not request GM consultation." },
-      { role: "user", content: JSON.stringify({ instruction, evidence }) }], services, characterId, signal),
+    messages: await disclosedContext("exchange", [{ role: "user", content: JSON.stringify({ instruction, evidence }) }], services, characterId, signal),
   }, signal, { characterId, purpose: "dialogue" });
   signal.throwIfAborted();
   if (response.tool_calls?.length || !response.content?.trim()) throw new Error("Expected character speech.");
@@ -22,9 +20,8 @@ async function speak(characterId: string, instruction: string, evidence: unknown
 export const documentResolutionHooks: ResolutionHooks = {
   async classify(context, signal, services) {
     if (context.kind !== "world_event") return {};
-    const lore = await services.lore.forCharacter(context.characterId, signal);
     const goal = activityGoal(services.scenario.snapshot(), context.characterId);
-    const messages = await disclosedContext(lore, [{ role: "user", content: JSON.stringify({
+    const messages = await disclosedContext("attention", [{ role: "user", content: JSON.stringify({
       task: "Decide whether this perceived event warrants attention based on your knowledge and motives. Do not infer unperceived details.",
       goal, perception: context.perception,
     }) }], services, context.characterId, signal);

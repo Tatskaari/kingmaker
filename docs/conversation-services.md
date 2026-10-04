@@ -382,3 +382,10 @@ parent policy. Setup runs before model execution, not inside provider retries.
 Player dialogue retains its classify/resolve disclosure loop. The synchronous
 `conversationRequest` helper remains a default-policy preview for CLI displays;
 actual turns use `prepareConversation` and the setup hook.
+
+NPC exchange speakers, action planning, wait decisions, event attention and the
+Stranger interview also use this setup policy, with distinct `agent` values.
+Their default hook resolves fresh scoped lore using `services.lore.forCharacter`
+(the Stranger supplies its GM-scoped source) and completes disclosure before
+execution. Review still refreshes character evidence between GM tool turns,
+keeping that evidence in user messages and preserving all custom system messages.
