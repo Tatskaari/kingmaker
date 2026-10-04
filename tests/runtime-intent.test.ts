@@ -9,8 +9,9 @@ import { loadPlayableWorld } from "./fixtures.js";
 function fixture() {
   const world = loadPlayableWorld();
   for (const actor of world.map!.actors.filter(actor => actor.characterId !== "player")) {
-    seedRuntimeCharacter(world, actor.instanceId ?? actor.characterId, actor.characterId,
-      `Scenarios/Centennial Assembly/Characters/${actor.characterId}/character.md`);
+    const identity = world.runtimeCharacters[actor.characterId]?.characterId ?? actor.characterId;
+    seedRuntimeCharacter(world, actor.instanceId ?? actor.characterId, identity,
+      `Scenarios/Centennial Assembly/Characters/${identity}/character.md`);
   }
   return world;
 }

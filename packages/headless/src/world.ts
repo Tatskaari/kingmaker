@@ -46,6 +46,7 @@ export class WorldHeadlessGame {
   async move(x: number, y: number) {
     const result = await this.runtime.executeAction({ command: { kind: "move", destination: { x, y } } });
     await this.runtime.presentMap("player", result);
+    return result;
   }
   async talk(id: string, message: string) { await this.act(`talk_${id}`); return this.runtime.checkedTalkToCharacter(id, message); }
   async endConversation(id: string, message?: string, signal?: AbortSignal) {

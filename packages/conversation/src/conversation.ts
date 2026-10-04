@@ -27,7 +27,7 @@ export interface LlmTurn {
 /** Context comes entirely from Markdown; the snapshot only validates character identity. */
 export function conversationRequest(input: ConversationInput): ChatCompletionRequest {
   const exists = "world" in input.snapshot
-    ? input.snapshot.world.characters.some(path => path.endsWith(`/Characters/${input.characterId}/character.md`))
+    ? !!input.snapshot.world.runtimeCharacters[input.characterId]
     : fromJson(ScenarioSchema, input.snapshot.scenario).characters.some(item => item.id === input.characterId);
   if (!exists) throw new Error(`Unknown snapshot character: ${input.characterId}`);
   return {

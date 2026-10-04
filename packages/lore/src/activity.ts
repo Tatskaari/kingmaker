@@ -49,7 +49,10 @@ export function characterIntent(world: WorldState, id: string) {
   return { entry, activity, wait, actorId: actor.id, expectedRevision: actor.intentRevision };
 }
 export function routinePath(world: WorldState, id: string): string | null {
-  const path = characterIntent(world, id).entry.replace(/character\.md$/, "routine.md");
+  const intent = characterIntent(world, id), character = runtimeActor(world, id);
+  const individual = intent.entry.replace(/character\.md$/, `routine-${character.id}.md`);
+  const path = character.id !== character.characterId && world.docs[individual] ? individual
+    : intent.entry.replace(/character\.md$/, "routine.md");
   if (!world.docs[path]) return null;
   waitActivities(intentDocument(world, id, path));
   return path;

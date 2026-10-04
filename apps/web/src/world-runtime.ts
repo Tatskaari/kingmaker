@@ -197,7 +197,7 @@ export class WorldGameRuntime extends WorldHost {
     const world = this.world();
     const paths = [...world.characters, ...(world.player ? [world.player] : [])];
     return { docs: world.docs, history: this.traces.documentWrites(), scenario: world.scenario,
-      characterPaths: Object.fromEntries(paths.map(path => [characterId(path, world), path])) };
+      characterPaths: Object.fromEntries([...Object.values(world.runtimeCharacters).map(character => [character.id, character.document]), ...(world.player ? [["player", world.player]] : [])]) };
   }
   startPlanningSession(id: string) { return this.traces.start("npc_goal", id); }
   endPlanningSession(key: string, stopped: boolean, error?: unknown) {
@@ -230,7 +230,7 @@ export class WorldGameRuntime extends WorldHost {
     const request = conversationRequest({ snapshot: { world }, characterId: id, sources: lore.initial, transcript, message });
     thinking?.("Considering your words…");
     const rulings: string[] = [];
-    const entry = world.characters.find(path => path.endsWith(`/Characters/${id}/character.md`));
+    const entry = characterIntent(world, id).entry;
     const granted = entry && world.docs[entry]!.frontmatter?.conversation_actions;
     let arrested = false;
     const prepared = (request: import("../../../packages/providers/src/openrouter.js").ChatCompletionRequest) => {
@@ -344,8 +344,7 @@ export class WorldGameRuntime extends WorldHost {
   }
   waitingCharacters(): string[] {
     const world = this.world();
-    return world.characters.flatMap(path => {
-      const id = /\/Characters\/([^/]+)\/character\.md$/.exec(path)![1]!;
+    return Object.values(world.runtimeCharacters).filter(character => character.characterId !== "player").flatMap(({ id }) => {
       const intent = characterIntent(world, id);
       return (!intent.activity && intent.wait || this.activity.pendingWaitReviews?.[id]) ? [id] : [];
     });
@@ -384,10 +383,9 @@ export class WorldGameRuntime extends WorldHost {
     const world = this.world(), map = world.map;
     if (!map) throw new Error("A physical map is required.");
     // Perception needs identities and public names, not character lore or mechanics.
-    const names = new Map([...world.characters, ...(world.player ? [world.player] : [])].map(path => {
+    const names = new Map([...Object.values(world.runtimeCharacters).filter(character => character.characterId !== "player").map(character => ({ id: character.id, path: character.document })), ...(world.player ? [{ id: "player", path: world.player }] : [])].map(({ id, path }) => {
       const doc = world.docs[path];
       if (!doc) throw new Error(`Missing character document: ${path}`);
-      const id = characterId(path, world);
       return [id, typeof doc.frontmatter?.name === "string" ? doc.frontmatter.name : id];
     }));
     const random = this.random();
@@ -421,7 +419,10 @@ export class WorldGameRuntime extends WorldHost {
       classify: async (...args) => ({ docs: await disclosure.classify(...args), checks: undefined }),
       resolve: (context, labels, cancellation) => disclosure.resolve(context, labels.docs, cancellation),
     };
-    runtime.services.character.respond = runtime.services.ai.responses;
+    let arrested = false;
+    const granted = world.docs[characterIntent(world, id).entry]!.frontmatter?.conversation_actions;
+    runtime.services.character.respond = Array.isArray(granted) && granted.includes("arrest")
+      ? arrestResponse(runtime.services.ai.responses, () => { arrested = true; }) : runtime.services.ai.responses;
     const request = conversationRequest({ snapshot: { world }, characterId: id, sources: lore.initial, transcript: [],
       message: `Open a conversation with the player to advance this goal: ${goal}. Speak only your own opening words; do not invent the player's response or physical outcomes.` });
     const reply = await runConversation(request, runtime, signal);
@@ -429,6 +430,10 @@ export class WorldGameRuntime extends WorldHost {
     if (reply.tool_calls?.length || !reply.content?.trim()) throw new Error("Invalid conversation opening.");
     return this.commit((): ConversationStartResult => {
       if (!available()) return conversationChanged();
+      if (arrested) {
+        this.activity.jail = { characterId: id, message: reply.content! };
+        (this.activity.conversationEndRequested ??= {})[id] = true;
+      }
       this.activity.conversations[id] = [toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: id, text: reply.content! }))];
       (this.activity.npcActivities![id]!.actionIds ??= []).push(actionId);
       return { ok: true, text: reply.content! };

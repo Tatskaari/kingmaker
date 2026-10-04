@@ -2,6 +2,7 @@ import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import { clone } from "@bufbuild/protobuf";
 import { GamePhase, DndCharacterSchema, WorldStateSchema as MapSchema, type WorldState as PalaceMap } from "../../../packages/contracts/src/index.js";
 import { CharacterPropertiesSchema, WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
+import { assignGuardPosts } from "./guard-duty.js";
 import { placeBackgroundCharacters } from "./background-characters.js";
 import { worldState } from "../../../packages/lore/src/world-state.js";
 import envoySheet from "../../../content/envoy-sheet.json" with { type: "json" };
@@ -20,9 +21,10 @@ export function playableWorld(baseline: PalaceMap, markdown: ReadonlyMap<string,
     const heading = /^# (.+?)(?: —|\n|$)/m.exec(world.docs[path]!.body)?.[1];
     if (heading) (world.docs[path]!.frontmatter ??= {}).name = heading;
     const id = /\/Characters\/([^/]+)\//.exec(path)![1]!;
-    if (!world.map!.actors.some(actor => actor.characterId === id)) throw new Error(`Missing palace actor for ${id}`);
+    if (!world.map!.actors.some(actor => actor.characterId === id || world.runtimeCharacters[actor.characterId]?.characterId === id)) throw new Error(`Missing palace actor for ${id}`);
   }
   world.docs[player]!.characterProperties = create(CharacterPropertiesSchema, { dnd: fromJson(DndCharacterSchema, envoySheet) });
+  assignGuardPosts(world);
   return world;
 }
 
