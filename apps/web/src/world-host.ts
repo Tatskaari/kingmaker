@@ -24,7 +24,7 @@ export type WorldSnapshot = MechanicalActivity & {
   arrestChallenges?: Record<string, boolean>;
   pendingWaitReviews?: Record<string, { instructions: string; observation: string }>;
   version: 5; world: JsonValue;
-  playerMessages: Array<{ id: string; day: number; message: string; createdAt: string }>;
+  playerMessages: Array<{ id: string; day: number; message: string; createdAt: string; conversationTitle?: string }>;
 };
 
 /** Documents and mechanics have one authority. Palace mechanics are a disposable rules/view adapter. */
@@ -146,8 +146,14 @@ export class WorldHost {
   }
   worldEvent(kind: string, summary: string, participants: string[]) { return this.projection().worldEvent(kind, summary, participants); }
   recordPlayerPerception(event: Event, perception: string) {
+    const participants = event.participantIds.filter(id => id !== "player");
+    const characters = event.kind === "having a conversation" ? projectWorld(this.world()).characters : [];
+    const conversationTitle = event.kind === "having a conversation"
+      ? `Conversation with ${participants.map(id => characters.find(character => character.id === id)?.name ?? id).join(" and ") || "the court"}`
+      : undefined;
     if (!this.activity.playerMessages.some(message => message.id === event.id)) this.activity.playerMessages.push({
       id: event.id, day: event.day, message: perception, createdAt: new Date().toISOString(),
+      ...(conversationTitle ? { conversationTitle } : {}),
     });
   }
   reset() { this.restore({ version: 5, world: toJson(WorldStateSchema, this.initial),

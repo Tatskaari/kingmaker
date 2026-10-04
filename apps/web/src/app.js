@@ -15,6 +15,7 @@ import { sandboxIntroduction, handoffPrefix, courtAffiliations, characterSprites
 import { strangerPortrait } from "./stranger-portrait.js";
 import { courtCharactersWithinEarshot } from "./earshot.js";
 import { mountPlayerFeedDrag } from "./player-feed-drag.js";
+import { historyTurns } from "./conversation-history.js";
 import { formatElapsedTime } from "./relative-time.js";
 import devOpenRouterApiKey from "virtual:kingmaker-dev-openrouter-key";
 
@@ -265,9 +266,13 @@ function updatePlayerFeed() {
         if (!playerMessageReceivedAt.has(entry.id)) playerMessageReceivedAt.set(entry.id, now);
         const timestamp = Number.isNaN(parsedCreatedAt) ? playerMessageReceivedAt.get(entry.id) : parsedCreatedAt;
         const exactTime = Number.isNaN(parsedCreatedAt) ? "Received since opening this game" : new Date(parsedCreatedAt).toLocaleString();
-        return `<li><time class="eyebrow" data-received-at="${timestamp}" datetime="${escapeHtml(entry.createdAt || "")}" title="${escapeHtml(exactTime)}">${formatElapsedTime(timestamp, now)}</time><p>${escapeHtml(entry.message)}</p></li>`;
+        return `<li><time class="eyebrow" data-received-at="${timestamp}" datetime="${escapeHtml(entry.createdAt || "")}" title="${escapeHtml(exactTime)}">${formatElapsedTime(timestamp, now)}</time><p>${entry.conversationTitle ? `<button type="button" class="conversation-history-link" data-conversation-history="${escapeHtml(entry.id)}" aria-haspopup="dialog">[${escapeHtml(entry.conversationTitle)}]</button>` : escapeHtml(entry.message)}</p></li>`;
       }).join("")}</ol>`
       : `<p class="feed-empty">Events will appear here.</p>`}`;
+    feed.querySelectorAll("[data-conversation-history]").forEach(button => button.addEventListener("click", () => {
+      const entry = state.playerMessages.find(message => message.id === button.dataset.conversationHistory);
+      if (entry) showConversationHistory(entry);
+    }));
     feed.dataset.messages = signature;
     // Keep older entries in view while new events arrive above them.
     if (previousTop > 0) feed.scrollTop = previousTop + feed.scrollHeight - previousHeight;
@@ -278,6 +283,19 @@ function updatePlayerFeed() {
   }
 }
 globalThis.setInterval?.(updatePlayerFeed, 1000);
+
+function showConversationHistory(entry) {
+  const dialog = document.createElement("dialog");
+  dialog.className = "conversation-modal";
+  dialog.classList.add("conversation-history-modal");
+  dialog.dataset.conversationHistoryModal = entry.id;
+  dialog.setAttribute("aria-label", entry.conversationTitle);
+  dialog.innerHTML = `<section class="panel"><header class="conversation-head"><div><div class="eyebrow">Conversation history</div><h2>${escapeHtml(entry.conversationTitle)}</h2></div><button type="button" class="history-close" data-history-close aria-label="Close conversation history" title="Close (Esc)" autofocus><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"/></svg></button></header><div class="messages conversation-history-text">${historyTurns(entry.message, state.characters).map(turn => `<article class="history-turn ${turn.role}"><span class="speaker">${escapeHtml(turn.speaker)}</span><p>${escapeHtml(turn.text)}</p></article>`).join("")}</div></section>`;
+  dialog.querySelector("[data-history-close]").addEventListener("click", () => dialog.close());
+  dialog.addEventListener("close", () => dialog.remove());
+  app.append(dialog);
+  dialog.showModal();
+}
 
 function updateNpcPanel() {
   const panel = document.querySelector("[data-npc-panel]"); if (!panel) return;
@@ -618,6 +636,7 @@ function renderCharacterReview() {
 
 function renderDay(bindPage = true) {
   // Reattach synchronously so the canvas, camera, listeners and active walk survive UI renders.
+  const historyDialog = app.querySelector("[data-conversation-history-modal]");
   const previousMap = app.querySelector("[data-court-map]");
   const retainedMap = previousMap?.dataset.generation === String(gameViewGeneration) ? previousMap : null;
   const viewport = retainedMap?.querySelector(".court-map-scroll");
@@ -634,6 +653,13 @@ function renderDay(bindPage = true) {
   if (previousFeed) {
     app.querySelector("[data-player-feed]").replaceWith(previousFeed);
     previousFeed.scrollTop = feedScroll;
+  }
+  if (historyDialog && retainedMap && !activeCharacter && !sheetOpen && !debugOpen) {
+    const entry = state.playerMessages.find(message => message.id === historyDialog.dataset.conversationHistoryModal);
+    if (entry) {
+      showConversationHistory(entry);
+      app.querySelector("[data-conversation-history-modal] .messages").scrollTop = historyDialog.querySelector(".messages").scrollTop;
+    }
   }
   if (openPopover && !activeCharacter && !sheetOpen && !debugOpen) document.getElementById(openPopover)?.showPopover();
   if (!activeCharacter && notice && notice !== lastCourtNotice) recordCourtNotice(notice);
