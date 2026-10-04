@@ -37,7 +37,7 @@ test("movement during document hashing does not reject or undo the edit", async 
   });
   const write = services.docs.insert(doc.path, doc.sha, 1, "Reviewed.");
   await waiting;
-  services.mechanics.commit(create(MapSchema, { day: 2 }), {});
+  services.currentWorld().map!.day = 2;
   release(); await write;
   assert.equal(services.scenario.snapshot().map!.day, 2);
   assert.match((await services.docs.read(doc.path)).text, /Reviewed/);
@@ -66,4 +66,18 @@ test("a same-document property change during hashing still rejects a stale edit"
   const current = await services.docs.read(doc.path);
   assert.doesNotMatch(current.text, /Stale review/);
   assert.ok(current.document.characterProperties?.inventory);
+});
+
+test("mechanics retain live references and validate property targets before publishing", () => {
+  const services = createScenarioServices(worldState(create(MapSchema, { day: 1 }), new Map([
+    ["Scenarios/Test/scenario.md", "Briefing"], ["Scenarios/Test/index.md", "Index"],
+  ]), "Test"));
+  const world = services.currentWorld(), docs = world.docs, map = create(MapSchema, { day: 2 });
+  services.mechanics.commit(map, {});
+  assert.strictEqual(services.currentWorld(), world);
+  assert.strictEqual(world.map, map);
+  assert.strictEqual(world.docs, docs);
+  const next = create(MapSchema, { day: 3 });
+  assert.throws(() => services.mechanics.commit(next, { missing: {} as never }), /Unknown character/);
+  assert.strictEqual(world.map, map);
 });

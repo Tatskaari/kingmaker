@@ -4,7 +4,7 @@ import { courtPath, courtRoomAt } from "./court-map.js";
 import { createPhysicalEvent } from "./physical-event.js";
 import type { Point } from "./navigation.js";
 
-/** Apply validated player movement to a detached map. */
+/** Apply validated player movement to a live map. */
 export function movePlayer(map: WorldState, playerId: string, destination: Point): void {
   if (map.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter the court before walking around.");
   const actor = map.actors.find(actor => actor.characterId === playerId);

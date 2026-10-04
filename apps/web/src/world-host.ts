@@ -29,7 +29,7 @@ export type WorldSnapshot = MechanicalActivity & {
   playerMessages: Array<{ id: string; day: number; message: string; createdAt: string; conversationTitle?: string }>;
 };
 
-/** Documents and mechanics have one authority; actions commit detached mechanical state. */
+/** Documents and mechanics have one authority; synchronous actions operate on live mechanical state. */
 export class WorldHost {
   protected documents: ReturnType<typeof createScenarioServices>;
   protected activity: Omit<WorldSnapshot, "world">;
@@ -42,7 +42,8 @@ export class WorldHost {
     if (saved) this.restore(saved);
     this.syncGoals();
   }
-  world() { return this.documents.scenario.snapshot(); }
+  /** Live state for synchronous game operations. Use snapshot() for save/fork boundaries. */
+  world() { return this.documents.currentWorld(); }
   protected syncGoals() {
     const world = this.world();
     const activities = this.activity.npcActivities ??= {};
@@ -95,16 +96,15 @@ export class WorldHost {
   readonly map: MapService = {
     layout: () => clone(WorldMapSchema, palaceMap),
     observe: id => {
-      const world = this.world(), map = world.map;
-      if (!map) throw new Error("A physical map is required.");
+      const world = this.world(), physical = world.map;
+      if (!physical) throw new Error("A physical map is required.");
+      const map = { ...physical, actors: foregroundBodies(physical.actors, physical.actors.find(actor => actor.characterId === id)?.position) };
       const characters = characterDocuments(world).map(({ id, document }) => ({ id,
         name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
         inventory: document.characterProperties?.inventory }));
       if (!characters.some(character => character.id === id) || !map.actors.some(actor => actor.characterId === id && actor.position)) {
         throw new Error("Character is not placed in the palace.");
       }
-      // Reorder this detached map only; repeated background bodies retain their IDs and positions.
-      map.actors = foregroundBodies(map.actors, map.actors.find(actor => actor.characterId === id)?.position);
       const owners = inventoryOwners(characters, map);
       return { characterId: id, map: worldForCharacter(map, owners, id),
         actions: roomAgentActions(map, characters, owners, id) };
@@ -135,7 +135,6 @@ export class WorldHost {
     const world = this.world();
     if (!world.map) throw new Error("A physical map is required.");
     movePlayer(world.map, world.player ? "player" : "", destination);
-    this.documents.mechanics.commit(world.map, {});
   }
   setDoor(id: string, open: boolean) {
     this.assertPlayerFree();
@@ -143,7 +142,6 @@ export class WorldHost {
     if (!world.map) throw new Error("A physical map is required.");
     const name = world.player ? world.docs[world.player]?.frontmatter?.name : undefined;
     const event = setPlayerDoor(world.map, world.player ? "player" : "", typeof name === "string" ? name : "player", id, open);
-    this.documents.mechanics.commit(world.map, {});
     return event;
   }
   interactFixtureWithEvent(id: string) { this.assertPlayerFree(); return this.mutate(game => game.interactFixtureWithEvent(id)); }
@@ -161,7 +159,7 @@ export class WorldHost {
   }
   recordPlayerPerception(event: Event, perception: string) {
     const participants = event.participantIds.filter(id => id !== "player");
-    const characters = event.kind === "having a conversation" ? characterDocuments(this.world()).map(({ id, document }) => ({ id, name: document.frontmatter?.name })) : [];
+    const characters = event.kind === "having a conversation" ? characterDocuments(this.world()).map(({ id, document }) => ({ id, name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id })) : [];
     const conversationTitle = event.kind === "having a conversation"
       ? `Conversation with ${participants.map(id => characters.find(character => character.id === id)?.name ?? id).join(" and ") || "the court"}`
       : undefined;

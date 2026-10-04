@@ -11,6 +11,7 @@ export * from "./service-types.js";
 export function createScenarioServices(initial: WorldState) {
   const store = new WorldStore(initial);
   const docs = createDocsService(store);
-  return { docs, scenario: createScenarioService(store, docs),
+  // Trusted synchronous host code reads live state; document APIs retain CAS snapshots.
+  return { currentWorld: () => store.state, docs, scenario: createScenarioService(store, docs),
     character: createCharacterService(store), mechanics: createMechanicsService(store) };
 }
