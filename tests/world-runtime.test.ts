@@ -264,3 +264,22 @@ test("main game drains live reviews before final review and holds the NPC throug
   assert.ok(runtime.recentTranscripts().some(call => call.kind === "conversation_review"
     && JSON.stringify(call.request).includes("newly accepted conversation turn")));
 });
+
+test("main game completes GM-discretion edits before publishing the accepted reply", async () => {
+  const displayed: string[] = [];
+  const runtime = game({ services: { ai: {
+    decisions: async (_state, questions, _signal, purpose) => purpose === "conversation_attention"
+      ? { immediate_commitment: selected("flagged"), immediate_feasibility: selected("gms_discretion") } : noChecks(questions),
+    responses: async request => {
+      assert.deepEqual(displayed, []);
+      if (request.response_format) return { role: "assistant", content: '{"allowed":true,"reason":"The promise is possible."}' };
+      return request.tools ? reviewReply(request) : { role: "assistant", content: "I will meet you in the hall." };
+    },
+  } } });
+  await runtime.checkedTalkToCharacter("rowan", "Meet me in the hall.", undefined, {}, undefined, text => {
+    assert.equal(activityGoal(runtime.world(), "rowan"), "Go to the great hall");
+    displayed.push(text);
+  });
+  assert.deepEqual(displayed, ["I will meet you in the hall."]);
+  await assert.rejects(runtime.planNpc("rowan", new AbortController().signal), /paused for conversation/);
+});

@@ -61,9 +61,16 @@ NPC openings and the CLI without checks. `directConversationStrategy` delegates
 straight to the character service. A replacement strategy can generate multiple
 private drafts or return a fixed response without calling that service.
 
-This refactor does not yet add GM attention adjudication, regeneration, background
-review, or buffering of the browser's existing token stream. Attention remains
-diagnostic; a failed attention call reports an error without discarding the reply.
+The main game supplies `liveConversationStrategy` as the response policy after
+those disclosure and dice steps. Jev classifies a private draft; ordinary flags
+queue a background GM review, while `gms_discretion` requires GM approval and
+consequence updates before release. A refusal adds system guidance and regenerates
+the character reply without rerolling. Only the accepted reply is displayed.
+Each conversation owns a review queue. The host drains it before the next turn
+and before the final conversation review; the NPC remains held until the
+conversation ends. Reset/restore cancels that session. GM review calls appear in
+the model transcript panel. The strategy remains replaceable through the normal
+runtime options; the CLI and eval harness can select it independently.
 
 ## Injected services
 

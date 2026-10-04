@@ -287,11 +287,11 @@ export class WorldGameRuntime extends WorldHost {
           const ruling = await adjudicateResolvedChecks({ results: [result], messages: request.messages, signal: cancellation,
             complete: (request, cancellation) => runGameMaster(request, runtime.services, cancellation, { characterId: id }),
             present: runtime.services.presentation.showRoll });
-          if (ruling) {
-            rulings.push(ruling);
-            request = { ...request, messages: [...request.messages, { role: "system", content: ruling }] };
-          }
+          if (ruling) rulings.push(ruling);
         }
+        if (rulings.length) request = { ...request, messages: [...request.messages,
+          ...rulings.map(content => ({ role: "system" as const, content })),
+        ] };
         return respond(request, cancellation);
       };
     }
@@ -324,6 +324,8 @@ export class WorldGameRuntime extends WorldHost {
     (this.activity.conversationEndRequested ??= {})[id] = true;
   }
   async endConversation(id: string, signal = new AbortController().signal) {
+    const reviews = this.liveConversations.get(id)?.reviews;
+    if (reviews) signal = AbortSignal.any([signal, reviews.signal]);
     const persist = this.persistChange;
     const previous = structuredClone(this.activity.conversations[id] ?? []);
     const transcript = previous.map(turn => fromJson(TranscriptMessageSchema, turn));
@@ -340,7 +342,7 @@ export class WorldGameRuntime extends WorldHost {
     }, signal, persist);
     await this.presentMap().catch(error => this.warning(String(error)));
     const key = this.conversationRun(id);
-    await this.liveConversations.get(id)?.reviews.drain();
+    await reviews?.drain();
     signal.throwIfAborted();
     await runConversationReview({ characterId: id, participants: [id, "player"], transcript }, this.runtime(id, "conversation_review", {}, key, signal, [id, "player"]), signal);
     await this.commit(() => {
