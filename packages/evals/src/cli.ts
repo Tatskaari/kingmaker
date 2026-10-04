@@ -34,6 +34,15 @@ export async function runEvalCli<L, R>(experiments: readonly Experiment<L, R>[],
   for (const name of names ?? []) if (!experiments.some(experiment => experiment.name === name)) throw new Error(`Unknown experiment: ${name}`);
   const selected = experiments.filter(experiment => !names || names.includes(experiment.name));
   if (!selected.length) throw new Error("No experiments selected.");
+  const configurations = selected.map(experiment => {
+    const baseline = experiment.getBaseline(), variants = experiment.getVariants();
+    const available = [baseline.name, ...variants.map(variant => variant.name)];
+    for (const name of values.variants?.split(",") ?? []) if (!available.includes(name)) throw new Error(`Unknown variant in ${experiment.name}: ${name}`);
+    return { baseline: baseline.name, names: available.filter(name => name === baseline.name || !values.variants || values.variants.split(",").includes(name)).sort() };
+  });
+  if (configurations.some(config => JSON.stringify(config) !== JSON.stringify(configurations[0]))) {
+    throw new Error("Combined experiments must compare the same selected configurations and baseline.");
+  }
   const rubric = selected[0]!.rubric;
   if (selected.some(experiment => JSON.stringify(experiment.rubric) !== JSON.stringify(rubric))) throw new Error("Combined experiments must use the same rubric.");
   const directory = resolve(values.output, `${new Date().toISOString().replaceAll(":", "-")}-${randomUUID().slice(0, 8)}`);

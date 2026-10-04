@@ -55,3 +55,13 @@ test("CLI saves each trial and an aggregate table; list never constructs service
     assert.match(lines.join("\n"), /Experiment: fixture/);
   } finally { rmSync(output, { recursive: true, force: true }); }
 });
+
+
+test("CLI rejects unequal comparison populations before constructing any runtimes", async () => {
+  const baseline = { name: "base", configure: () => { throw new Error("Must not construct"); } };
+  const experiment: Experiment = { name: "first", rubric, getBaseline: () => baseline, getVariants: () => [],
+    run: async () => {}, summarise: () => "", score: async () => ({ criteria: {} }),
+  };
+  await assert.rejects(runEvalCli([experiment, { ...experiment, name: "second",
+    getVariants: () => [{ ...baseline, name: "candidate" }] }], { args: [], print: () => {} }), /same selected configurations/);
+});
