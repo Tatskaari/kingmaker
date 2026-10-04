@@ -1,7 +1,7 @@
 import { stringify } from "yaml";
 import type { Document, WorldState } from "../../contracts/src/v2.js";
 import { labels, permitted } from "./access.js";
-import { runtimeActor, actorId } from "./runtime-actor.js";
+import { runtimeActor } from "./runtime-actor.js";
 import { characterEntry } from "./active-goal.js";
 import type { DocsService, DocumentSnapshot, ScenarioService } from "./services.js";
 
@@ -34,7 +34,7 @@ export function waitActivities(document: Document): string[] {
 /** References never confer permission to read their targets. */
 export function intentDocument(world: WorldState, id: string, path: string): Document {
   documentReference(path);
-  id = world.map?.actors.find(actor => actor.instanceId === id)?.characterId ?? id;
+  id = world.runtimeCharacters[id]?.characterId ?? id;
   const entry = characterEntry(world, id), character = world.docs[entry]!;
   const doc = world.docs[path];
   if (!doc) throw new Error(`Missing intent document: ${path}`);
@@ -44,9 +44,9 @@ export function intentDocument(world: WorldState, id: string, path: string): Doc
   return doc;
 }
 export function characterIntent(world: WorldState, id: string) {
-  const actor = runtimeActor(world, id), entry = characterEntry(world, actor.characterId);
+  const actor = runtimeActor(world, id), entry = actor.document;
   const activity = documentReference(actor.activity), wait = documentReference(actor.wait);
-  return { entry, activity, wait, actorId: actorId(actor), expectedRevision: actor.intentRevision };
+  return { entry, activity, wait, actorId: actor.id, expectedRevision: actor.intentRevision };
 }
 export function routinePath(world: WorldState, id: string): string | null {
   const path = characterIntent(world, id).entry.replace(/character\.md$/, "routine.md");

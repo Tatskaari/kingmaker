@@ -1,4 +1,4 @@
-import { seedActorIntent } from "../../../packages/lore/src/runtime-actor.js";
+import { seedRuntimeCharacter } from "../../../packages/lore/src/runtime-actor.js";
 import { create } from "@bufbuild/protobuf";
 import { ActorStateSchema, type ActorState } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
@@ -27,7 +27,8 @@ export function placeBackgroundCharacters(world: WorldState) {
       occupied.add(pointKey(position));
       const actor = create(ActorStateSchema, { characterId: id, instanceId: `${id}-${index + 1}`,
         position, roomId: room.id, homeRoomId: room.id, awake: true });
-      seedActorIntent(actor, metadata);
+      seedRuntimeCharacter(world, actor.instanceId!, id, path);
+      delete world.runtimeCharacters[id];
       map.actors.push(actor);
     }
   }

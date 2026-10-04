@@ -152,9 +152,9 @@ export class WorldHost {
   resetCharacters() {
     const current = this.world();
     for (const path of current.characters) current.docs[path] = clone(WorldStateSchema, this.initial).docs[path]!;
-    for (const actor of current.map!.actors) {
-      const initial = this.initial.map!.actors.find(other => (other.instanceId ?? other.characterId) === (actor.instanceId ?? actor.characterId));
-      actor.activity = initial?.activity; actor.wait = initial?.wait; actor.intentRevision++;
+    for (const [id, character] of Object.entries(current.runtimeCharacters)) {
+      const initial = this.initial.runtimeCharacters[id];
+      character.activity = initial?.activity; character.wait = initial?.wait; character.intentRevision++;
     }
     this.restore({ ...this.snapshot(), world: toJson(WorldStateSchema, current), npcActivities: {}, conversations: {} });
   }

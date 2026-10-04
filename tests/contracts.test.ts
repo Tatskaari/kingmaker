@@ -2187,7 +2187,8 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
           const task = path.replace("character.md", "task.md");
           saved.snapshot.world.docs[task] = { frontmatter: { visibility: "private", readers: [`character:${characterId}`],
             name: activity.goal, status: "Assigned", success_criteria: activity.goal, current_goal: activity.goal }, body: "" };
-          saved.snapshot.world.map.actors.find((actor: { characterId: string }) => actor.characterId === characterId).activity = activity.goal ? task : undefined;
+          if (activity.goal) saved.snapshot.world.runtimeCharacters[characterId].activity = task;
+          else delete saved.snapshot.world.runtimeCharacters[characterId].activity;
         }
       }
     }
