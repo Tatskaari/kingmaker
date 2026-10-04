@@ -42,10 +42,19 @@ test("CLI reports failed attention analysis without losing reply and propagates 
 });
 
 
-test("CLI shows GM discretion alongside an immediate commitment", () => {
+test("CLI shows GM discretion alongside an immediate commitment or agreed exchange", () => {
   const text = formatAnalysis({ kind: "labels", subject: "character", source: "attention", decisions: {
     immediate_commitment: { choice: "flagged", probabilities: { flagged: 1, not_flagged: 0 } },
     immediate_feasibility: { choice: "gms_discretion", probabilities: { gms_discretion: 0.9, impossible: 0.1 } },
   } });
   assert.match(text, /immediate_feasibility: gms_discretion/);
+});
+
+
+test("an agreed exchange retains GM discretion even when the commitment classifier disagrees", () => {
+  assert.match(formatAnalysis({ kind: "labels", subject: "character", source: "attention", decisions: {
+    immediate_commitment: { choice: "not_flagged", probabilities: {} },
+    conversational_exchange: { choice: "flagged", probabilities: {} },
+    immediate_feasibility: { choice: "gms_discretion", probabilities: { gms_discretion: 1 } },
+  } }), /immediate_feasibility: gms_discretion/);
 });
