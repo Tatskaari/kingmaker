@@ -4,6 +4,8 @@ Use the official GitHub Stacks CLI extension for related pull requests. Keep eac
 
 Treat requests to implement, change, or fix repository code as requests to complete the delivery workflow: make the change, commit it, push it, and open or update the pull request unless the user explicitly asks for local-only work or no PR. Use one layer for a small cohesive change. For sizeable work, split the review into the smallest coherent stack layers practical, aiming for roughly 100–200 changed lines per PR while preserving buildable, independently reviewable layers.
 
+Push the first coherent, reviewable commit and open its PR early, before running lengthy local tests or builds. The user's GitHub Action provides QA, so publish and share the PR link while local validation continues. Mark validation as pending or in progress until results are known; keep pushing coherent follow-up commits and updating PR descriptions as fixes and feedback land. Early publication does not replace the required checks or mean the work is complete.
+
 ## Worktrees
 
 Perform implementation work in a dedicated Git worktree for the task, not in the shared primary checkout. Create or use the task's worktree before editing files or switching implementation branches. Run stack commands, commits, and checks from that worktree. Leave unrelated worktrees and their changes untouched.
@@ -36,12 +38,12 @@ The local OpenRouter development key is stored as a plain key in `~/secrets/king
 
 1. Update `main` from `origin/main` and begin from a clean working tree.
 2. Start the bottom layer with `gh stack init <branch>`.
-3. Implement and commit that layer.
-4. Add each dependent layer with `gh stack add <branch>`, then implement and commit it.
-5. Run `proto run moon -- run workspace:check workspace:build` from the top branch.
-6. Submit or update the complete stack with `gh stack submit --auto --open`.
-7. Replace generated PR bodies with concise problem, resulting behavior, validation, actionable QA criteria, and stack-order details. Use `gh pr edit <number> --body-file <file>`.
-8. Verify the stack with `gh stack view` and confirm each PR's base and head using `gh pr view`.
+3. Implement and commit the first coherent, reviewable version of that layer.
+4. Immediately publish it with `gh stack submit --auto --open`, before lengthy local validation. Replace generated PR bodies with concise problem, resulting behavior, validation status, actionable QA criteria, and stack-order details using `gh pr edit <number> --body-file <file>`. Mark checks not yet run as pending and share the PR link with the user.
+5. Add each dependent layer with `gh stack add <branch>`, then implement, commit and submit it as soon as it is reviewable; do not wait for the entire stack to be finished before publishing.
+6. Run `proto run moon -- run workspace:check workspace:build` from the top branch while GitHub QA and the user's review can proceed.
+7. Fix any failures, commit and submit follow-up changes, and re-run affected checks. Refresh PR descriptions with actual validation results and current QA criteria.
+8. Verify the stack with `gh stack view` and confirm each PR's base and head using `gh pr view` before reporting completion.
 
 ## PR QA criteria
 
@@ -55,8 +57,8 @@ For backend or tooling changes without a visible UI, say so and provide a specif
 2. Amend or commit the lower-layer change.
 3. Run `gh stack rebase --upstack --no-trunk` to cascade it through dependent branches.
 4. Resolve conflicts by retaining the intended behavior from both layers, stage the resolution, and run `gh stack rebase --continue`.
-5. Re-run the full checks from the top branch.
-6. Publish the rewritten stack with `gh stack submit --auto --open` and refresh affected PR descriptions.
+5. Publish the rewritten stack with `gh stack submit --auto --open` before lengthy local validation and refresh affected PR descriptions, marking checks as pending or in progress.
+6. Re-run the full checks from the top branch while GitHub QA proceeds. Fix and publish any follow-up changes, re-run affected checks, and update the PR descriptions with actual results before reporting completion.
 
 ## After merge
 
