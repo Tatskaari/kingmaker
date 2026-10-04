@@ -5,7 +5,7 @@ import { inventoryOwners, itemsFor } from "../../../packages/core/src/inventory.
 import { fixtureActions } from "../../../packages/core/src/fixtures.js";
 import { worldForCharacter } from "../../../packages/core/src/physical-view.js";
 import { characterDocuments } from "../../../packages/lore/src/character-id.js";
-import { activeGoal } from "../../../packages/lore/src/active-goal.js";
+import { activityGoal } from "../../../packages/lore/src/activity.js";
 import { foregroundBodies } from "./background-characters.js";
 import type { MechanicalActivity } from "./palace-mechanics.js";
 
@@ -16,7 +16,7 @@ export function worldView(world: WorldState, activity: MechanicalActivity) {
   const characters = characterDocuments(world).map(({ id, document }) => ({ id, document,
     name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
     sprite: typeof document.frontmatter?.sprite === "number" ? document.frontmatter.sprite : undefined,
-    currentGoal: document.frontmatter?.background === true ? "" : activeGoal(document) ?? "",
+    currentGoal: activityGoal(world, id) ?? "",
     inventory: document.characterProperties?.inventory }));
   const player = characters.find(character => character.id === "player"), playerId = player?.id ?? "";
   const actors = foregroundBodies(map.actors, map.actors.find(actor => actor.characterId === playerId)?.position);
