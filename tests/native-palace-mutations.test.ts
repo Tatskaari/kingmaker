@@ -30,7 +30,8 @@ test("NPC mechanics use document goals and inventory without loading narrative p
   document.frontmatter!.active_goal = "Inspect the key.";
   const fixture = world.map!.fixtures.find(item => item.id === "palace_corvin_drawers")!;
   fixture.open = true;
-  world.map!.actors.find(actor => actor.characterId === "rowan")!.position = fixture.interactionSpot;
+  const actor = world.map!.actors.find(actor => actor.characterId === "rowan")!;
+  actor.position = fixture.interactionSpot; actor.roomId = fixture.roomId;
   for (const doc of Object.values(world.docs)) Object.defineProperty(doc, "body", { get() { throw new Error("Unexpected prose read"); } });
   const mechanics = new PalaceMechanics(world, { conversations: {}, npcActivities: {
     rowan: { status: "active", goal: "Inspect the key.", history: [] },
