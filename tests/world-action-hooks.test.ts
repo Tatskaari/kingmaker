@@ -1,21 +1,18 @@
+import { create } from "@bufbuild/protobuf";
 import { activityGoal, characterIntent } from "../packages/lore/src/activity.js";
 import { documentLoreService } from "../packages/conversation/src/document-lore.js";
-import { commitReview } from "./fixtures.js";
 import { WorldHost } from "../apps/web/src/world-host.js";
-import { loadPlayableWorld, assignActivity } from "./fixtures.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
-import { create, fromJsonString } from "@bufbuild/protobuf";
-import { ScenarioSchema, TranscriptMessageSchema } from "../packages/contracts/src/index.js";
+import { planWorldAction,reviewAndPlanWorldAction } from "../apps/web/src/world-action.js";
+import { TranscriptMessageSchema } from "../packages/contracts/src/index.js";
 import { DocumentSchema } from "../packages/contracts/src/v2.js";
-import { createScenarioServices } from "../packages/lore/src/services.js";
-import { characterEntry } from "../packages/lore/src/active-goal.js";
-import { loadConversationWorld } from "../scripts/lib/conversation-world.js";
-import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { jevActionHooks } from "../packages/conversation/src/action.js";
 import { documentReviewHooks } from "../packages/conversation/src/document-review.js";
-import { planWorldAction, reviewAndPlanWorldAction } from "../apps/web/src/world-action.js";
+import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
+import { characterEntry } from "../packages/lore/src/active-goal.js";
+import { createScenarioServices } from "../packages/lore/src/services.js";
+import { commitReview, loadPlayableWorld, assignActivity } from "./fixtures.js";
 
 function fixture(goal?: string) {
   const world = loadPlayableWorld();

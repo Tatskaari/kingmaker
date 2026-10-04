@@ -1,32 +1,32 @@
-import { inventoryOwners } from "../packages/core/src/inventory.js";
+import { create } from "@bufbuild/protobuf";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
 import test from "node:test";
-import { create, fromJsonString } from "@bufbuild/protobuf";
-import { ScenarioSchema, TilePositionSchema, type Scenario } from "../packages/contracts/src/index.js";
-import { roomAgentActions } from "../apps/web/src/room-actions.js";
 import { courtRoomAt } from "../apps/web/src/court-map.js";
 import { palaceNodes } from "../apps/web/src/palace-navigation.js";
+import { roomAgentActions } from "../apps/web/src/room-actions.js";
+import { TilePositionSchema } from "../packages/contracts/src/index.js";
 import { applyFixtureAction } from "../packages/core/src/fixtures.js";
+import { inventoryOwners } from "../packages/core/src/inventory.js";
+import { physicalFixture } from "./fixtures.js";
 
-const load = () => fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8"));
+const load = physicalFixture;
 test("Sabine must visit and open her writing table to check the dispatch ledger", () => {
-  const scenario = load(), actor = scenario.world!.actors.find(item => item.characterId === "sabine")!;
+  const scenario = load(), actor = scenario.world!.actors.find(item => item.characterId === "cressida")!;
   const inspect = "inspect_item_furn_sabine_dispatch_ledger";
   actor.roomId = "great_hall";
-  actor.position = create(TilePositionSchema, scenario.courtArrivalPlacements.find(item => item.characterId === "sabine")!.position!);
-  assert.ok(!roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "sabine").some(action => action.id === inspect));
+  actor.position = create(TilePositionSchema, { x: 61, y: 24 });
+  assert.ok(!roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "cressida").some(action => action.id === inspect));
   actor.roomId = "sabine_chamber";
   actor.position = create(TilePositionSchema, scenario.world!.fixtures.find(item => item.id === "furn_sabine_desk")!.interactionSpot!);
-  assert.ok(!roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "sabine").some(action => action.id === inspect));
-  const open = roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "sabine").find(action => action.id === "open_furn_sabine_desk")!;
+  assert.ok(!roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "cressida").some(action => action.id === inspect));
+  const open = roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "cressida").find(action => action.id === "open_furn_sabine_desk")!;
   assert.equal(open.legality, "normal");
-  applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "sabine", open.id);
-  assert.ok(roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "sabine").some(action => action.id === inspect));
-  assert.match(applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "sabine", inspect), /no Grey Gull booking/);
+  applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "cressida", open.id);
+  assert.ok(roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "cressida").some(action => action.id === inspect));
+  assert.match(applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "cressida", inspect), /no Grey Gull booking/);
 });
 
-function place(scenario: Scenario, roomId: string) {
+function place(scenario: ReturnType<typeof load>, roomId: string) {
   const actor = scenario.world!.actors.find(item => item.characterId === "corvin")!;
   actor.roomId = roomId;
   actor.position = create(TilePositionSchema, palaceNodes.find(node => courtRoomAt(node)?.id === roomId)!);
@@ -37,11 +37,11 @@ test("room actions offer adjacent travel and local interactions, even with every
   const scenario = load(), world = scenario.world!;
   place(scenario, "great_hall");
   for (const door of world.doors) door.open = true;
-  const king = world.actors.find(actor => actor.characterId === "king")!;
+  const king = world.actors.find(actor => actor.characterId === "aldren")!;
   king.roomId = "great_hall"; king.awake = true; king.position = create(TilePositionSchema, { x: 62, y: 23 });
   const actions = roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "corvin");
-  assert.ok(actions.some(action => action.id === "talk_king"));
-  assert.ok(!actions.some(action => action.id === "talk_garran"));
+  assert.ok(actions.some(action => action.id === "talk_aldren"));
+  assert.ok(!actions.some(action => action.id === "talk_holt"));
   assert.ok(!actions.some(action => action.target === "palace_corvin_drawers" || action.target === "corvin_door"));
   assert.equal(actions.find(action => action.id === "open_palace_hall_cabinet")?.legality, "illegal");
   assert.equal(actions.find(action => action.id === "inspect_palace_hall_cabinet")?.legality, "normal");

@@ -5,7 +5,7 @@ import { create, fromJson, toJson } from "@bufbuild/protobuf";
 import { DocumentSchema, WorldStateSchema } from "../packages/contracts/src/v2.js";
 import { loadPlayableWorld } from "./fixtures.js";
 import { placeBackgroundCharacters } from "../apps/web/src/background-characters.js";
-import { projectWorld } from "./legacy-world-fixture.js";
+import { physicalFixture } from "./fixtures.js";
 import { WorldHost } from "../apps/web/src/world-host.js";
 import { courtMarkers } from "../apps/web/src/court-map.js";
 
@@ -35,7 +35,7 @@ test("background bodies share lore, survive saves and keep independent runtime i
   assert.equal(game.hasActiveObjective("test-guard"), false);
   const player = world.map!.actors.find(actor => actor.characterId === "player")!;
   player.position!.x = 44; player.position!.y = 35;
-  assert.equal(projectWorld(world).world!.actors.find(actor => actor.characterId === "test-guard-2")!.position!.x, 44);
+  assert.equal(physicalFixture(world).world!.actors.find(actor => actor.characterId === "test-guard-2")!.position!.x, 44);
   assert.equal(world.map!.actors.find(actor => actor.characterId.startsWith("test-guard-"))!.instanceId, "test-guard-1");
 });
 
@@ -55,7 +55,7 @@ test("paired bodies offer independent talk actions, listeners and movement", asy
   bodies[1]!.position = { ...bodies[0]!.position!, x: 60 }; bodies[1]!.roomId = bodies[0]!.roomId;
   const player = world.map!.actors.find(actor => actor.characterId === "player")!;
   player.position = { ...bodies[0]!.position!, x: 61 }; player.roomId = bodies[0]!.roomId;
-  const scenario = projectWorld(world);
+  const scenario = physicalFixture(world);
   assert.equal(roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "player").filter(action => action.target.startsWith("test-guard-")).length, 2);
   assert.ok(roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "test-guard-1").length > 0);
   assert.equal(courtCharactersWithinEarshot({ id: "player", name: "Player", position: player.position },

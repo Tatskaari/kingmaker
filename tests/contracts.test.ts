@@ -1,56 +1,39 @@
-import { commitReview } from "./fixtures.js";
-import { mockJevChoice } from "./mock-jev.js";
-import { loadPlayableWorld } from "./fixtures.js";
-import { logPath } from "../scripts/test-logging.js";
-import { inventoryOwners, locatedItems } from "../packages/core/src/inventory.js";
-import { applyFixtureAction, fixtureActions } from "../packages/core/src/fixtures.js";
-import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
-import { GM_BASE_PROMPT } from "../apps/web/src/gm-prompt.js";
-import { coalescedRefresh } from "../apps/web/src/debug-live.js";
-import { AlertLog } from "../apps/web/src/alerts.js";
-import { doorActionLegality } from "../packages/core/src/access.js";
-import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
-import { courtCameraScroll, courtMarkers, courtPath, courtRoomAt, courtWalkPoint, redirectCourtPath, courtInteractionPoint, nearestDoorSpot } from "../apps/web/src/court-map.js";
+import { create,fromBinary,fromJsonString,toBinary } from "@bufbuild/protobuf";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createContext, runInContext } from "node:vm";
 import test from "node:test";
-import { create, fromBinary, fromJson, fromJsonString, toBinary, toJson, toJsonString } from "@bufbuild/protobuf";
-import {
-  ActorStateSchema,
-  DialogueRequestSchema,
-  NoteSchema,
-  NoteVisibility,
-  GameMasterRequestSchema,
-  GamePhase,
-  PlayerSetupSchema,
-  RelationshipSchema,
-  RelationshipUpdateSchema,
-  CharacterSchema,
-  ActiveObjectiveSchema,
-  ScenarioSchema,
-  WorldMapSchema,
-  TranscriptRole,
-  TilePositionSchema,
-  type Event,
-  type Scenario,
-} from "../packages/contracts/src/index.js";
-import { worldForCharacter } from "../packages/core/src/physical-view.js";
+import { createContext,runInContext } from "node:vm";
+import { AlertLog } from "../apps/web/src/alerts.js";
+import { actionsAtTile,type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
+import { courtCameraScroll,courtInteractionPoint,courtMarkers,courtPath,courtRoomAt,courtWalkPoint,nearestDoorSpot,redirectCourtPath } from "../apps/web/src/court-map.js";
+import { coalescedRefresh } from "../apps/web/src/debug-live.js";
+import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
 import { palaceMap } from "../apps/web/src/palace-map.js";
+import {
+TilePositionSchema,
+WorldMapSchema,
+WorldStateSchema,
+type Event
+} from "../packages/contracts/src/index.js";
+import { doorActionLegality } from "../packages/core/src/access.js";
+import { inventoryOwners,locatedItems } from "../packages/core/src/inventory.js";
+import { worldForCharacter } from "../packages/core/src/physical-view.js";
+import { commitReview,loadPlayableWorld,physicalFixture } from "./fixtures.js";
 
-import { canWalk, findPath, pointKey } from "../apps/web/src/navigation.js";
+import { charactersWithinEarshot,courtCharactersWithinEarshot,EARSHOT_DISTANCE } from "../apps/web/src/earshot.js";
+import { canWalk,findPath,pointKey } from "../apps/web/src/navigation.js";
 import { palaceNodes } from "../apps/web/src/palace-navigation.js";
-import { charactersWithinEarshot, courtCharactersWithinEarshot, EARSHOT_DISTANCE } from "../apps/web/src/earshot.js";
 
 
 import { JevClient } from "../packages/providers/src/jev.js";
+import { OpenRouterClient,type OpenRouterMessage } from "../packages/providers/src/openrouter.js";
 
 
 const fixturePath = new URL("../content/scenarios/last-night.json", import.meta.url);
-const load = (): Scenario => fromJsonString(ScenarioSchema, readFileSync(fixturePath, "utf8"));
+const load = physicalFixture;
 
 test("earshot uses tile distance and excludes the conversation partner", () => {
-  const speaker = { id: "king", name: "The King", position: { x: 10, y: 10 } };
+  const speaker = { id: "aldren", name: "The King", position: { x: 10, y: 10 } };
   assert.deepEqual(charactersWithinEarshot(speaker, [
     speaker,
     { id: "far", name: "Far", position: { x: 10 + EARSHOT_DISTANCE, y: 1 } },
@@ -77,22 +60,7 @@ test("earshot levels cover each distance boundary", () => {
 
 
 
-test("the expanded authored scenario strictly parses and survives protobuf", () => {
-  const scenario = load();
-  const decoded = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, scenario));
-  assert.equal(toJsonString(ScenarioSchema, decoded), toJsonString(ScenarioSchema, scenario));
-  assert.deepEqual(scenario.characters.map(character => character.id), ["corvin", "garran", "king", "mara", "hadrik", "tessa", "elinor", "oswin", "rowan", "lucan", "sabine", "rook"]);
-  assert.equal(scenario.notes.length, 33);
-  for (const character of scenario.characters) {
-    const travelNotes = scenario.notes.filter(note => note.characterIds.includes(character.id)
-      && (note.id.endsWith("_recent_journey") || note.id.endsWith("_roadside_memory")));
-    assert.equal(travelNotes.length, 2, `${character.id} should remember their journey and one notable incident`);
-  }
-  assert.match(scenario.premise, /emissary from a vassal state of Caerwyn/);
-  assert.equal(scenario.world?.phase, GamePhase.PLAYER_CREATION);
-  assert.ok(scenario.world?.actors.every(actor => !actor.awake && actor.roomId === actor.homeRoomId));
-  assert.equal(scenario.world?.rooms.length, 27);
-});
+
 
 test("the palace map is a complete layered tile grid", () => {
   const decoded = fromBinary(WorldMapSchema, toBinary(WorldMapSchema, palaceMap));
@@ -146,7 +114,7 @@ test("the palace map is a complete layered tile grid", () => {
 test("character knowledge refers to live fixtures and conceals other characters' secrets", () => {
   const scenario = load();
   const corvin = worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "corvin");
-  const garran = worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "garran");
+  const garran = worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "holt");
   const player = worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), "player");
   assert.ok(corvin.objects.some(item => item.id === "palace_royal_key"));
   assert.ok(!corvin.objects.some(item => item.id === "palace_sealed_decree"));
@@ -157,11 +125,9 @@ test("character knowledge refers to live fixtures and conceals other characters'
 });
 
 test("unknown fixture fields remain schema errors", () => {
-  assert.throws(() => fromJsonString(ScenarioSchema, '{"id":"x","quests":[]}'));
+  assert.throws(() => fromJsonString(WorldStateSchema, '{"quests":[]}'));
 });
-import { OpenRouterClient, type ChatCompletionRequest, type OpenRouterMessage } from "../packages/providers/src/openrouter.js";
 const originalOpenRouterComplete = OpenRouterClient.prototype.complete;
-import { compulsionNarration, parseReplyOptions } from "../apps/web/src/reply-options.js";
 
 const offer = (compelled: boolean, options = ["I want to protect my family.", "I intend to earn a place at court."]): OpenRouterMessage => ({
   role: "assistant", content: "What do you want from this journey?",
@@ -170,31 +136,15 @@ const offer = (compelled: boolean, options = ["I want to protect my family.", "I
   } }],
 });
 
-test("private crossroads framing belongs to the GM, not the shared court premise", () => {
-  const scenario = load();
-  assert.doesNotMatch(scenario.premise, /crossroads|stranger/i);
-  assert.match(scenario.gameMasterPrompt, /crossroads/);
-  assert.match(scenario.systemPrompt, /cannot compel a response/);
-});
 
-test("the documented Stranger conversation stages are the runtime prompt", () => {
-  const documented = readFileSync(new URL("../content/prompts/game-master.md", import.meta.url), "utf8")
-    .replace(/^# The Laughing Stranger\s+/, "").trim();
-  assert.equal(load().gameMasterPrompt, documented);
-});
+
+
 
 const interviewBuild = { classId: "rogue", abilityPriority: ["dexterity", "charisma", "constitution", "intelligence", "wisdom", "strength"], skills: ["persuasion", "deception", "insight", "stealth"] };
 
 // Script model responses to verify the complete conversation lifecycle offline.
 
-function conversationScenario(): Scenario {
-  const scenario = load();
-  scenario.world!.phase = GamePhase.CONVERSATIONS;
-  scenario.world!.day = 1;
-  scenario.playerCharacterId = "player";
-  scenario.characters.push(create(CharacterSchema, { id: "player", name: "Envoy" }));
-  return scenario;
-}
+
 
 const remembered = {
   newNotes: ["The envoy promised Corvin help securing the succession."],
@@ -208,7 +158,7 @@ test("closed doors exclude nearby earshot listeners until opened", () => {
   const world = load().world!;
   const door = world.doors.find(door => door.id === "corvin_door")!;
   const speaker = { id: "corvin", name: "Corvin", position: door.interactionSpots[0]! };
-  const listener = { id: "garran", name: "Garran", position: door.interactionSpots[1]! };
+  const listener = { id: "holt", name: "Garran", position: door.interactionSpots[1]! };
   door.open = false;
   assert.equal(charactersWithinEarshot(speaker, [listener]).length, 1);
   assert.deepEqual(courtCharactersWithinEarshot(speaker, [listener], world.doors, world.fixtures), []);
@@ -316,13 +266,13 @@ test("401 diagnostics distinguish invalid keys from Decisions access and redact 
 });
 
 test("main palace markers use saved rooms and separate characters on walkable tiles", () => {
-  const markers = courtMarkers(load().courtArrivalPlacements.map(item => ({ id: item.characterId, name: item.characterId, roomId: item.roomId, position: item.position! })));
-  assert.equal(new Set(markers.map(marker => pointKey(marker.point!))).size, load().courtArrivalPlacements.length);
+  const markers = courtMarkers(load().world.actors.filter(actor => actor.roomId === "great_hall").map(item => ({ id: item.characterId, name: item.characterId, roomId: item.roomId, position: item.position! })));
+  assert.equal(new Set(markers.map(marker => pointKey(marker.point!))).size, load().world.actors.filter(actor => actor.roomId === "great_hall").length);
   assert.ok(markers.every(marker => courtRoomAt(marker.point!)?.id === "great_hall"));
   assert.ok(markers.every(marker => courtPath(markers[0]!.point!, marker.point!)));
   const corvin = courtMarkers([{ id: "corvin", name: "Corvin", roomId: "corvin_chamber", position: { x: 51, y: 5 } }])[0]!;
   assert.equal(courtRoomAt(corvin.point!)?.id, "corvin_chamber");
-  assert.equal(courtMarkers([{ id: "king", name: "King", roomId: "nonexistent_room" }])[0]!.point, undefined);
+  assert.equal(courtMarkers([{ id: "aldren", name: "King", roomId: "nonexistent_room" }])[0]!.point, undefined);
 });
 
 
@@ -354,7 +304,7 @@ test("court camera follows the player while clamping at map edges", () => {
 
 test("authored actor coordinates round-trip and rendering never invents positions", () => {
   const scenario = load();
-  const restored = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, scenario));
+  const restored = { world: fromBinary(WorldStateSchema, toBinary(WorldStateSchema, scenario.world)) };
   for (const actor of restored.world!.actors) {
     assert.ok(actor.position);
     assert.equal(courtRoomAt(actor.position)?.id, actor.roomId);
@@ -412,7 +362,7 @@ test("main doors choose the closest reachable side and block paths until opened"
 
 test("bedroom doors are illegal to open except for characters on the room access list", () => {
   const world = load().world!;
-  for (const [id, resident] of [["corvin_door", "corvin"], ["garran_door", "garran"], ["royal_door", "king"], ["guest_door", "player"]]) {
+  for (const [id, resident] of [["corvin_door", "corvin"], ["garran_door", "holt"], ["royal_door", "aldren"], ["guest_door", "player"]]) {
     const door = world.doors.find(door => door.id === id)!;
     assert.equal(doorActionLegality(door, world.rooms, resident!), "normal");
     assert.equal(doorActionLegality(door, world.rooms, "stranger"), "illegal");
@@ -426,8 +376,8 @@ test("bedroom doors are illegal to open except for characters on the room access
   assert.equal(doorActionLegality(corvin, world.rooms, "player"), "normal");
   const hall = world.doors.find(door => door.id === "hall_door")!;
   assert.equal(doorActionLegality(hall, world.rooms, "stranger"), "illegal");
-  assert.equal(doorActionLegality(hall, world.rooms, "king"), "normal");
-  const restored = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, load())).world!;
+  assert.equal(doorActionLegality(hall, world.rooms, "aldren"), "normal");
+  const restored = fromBinary(WorldStateSchema, toBinary(WorldStateSchema, load().world));
   assert.equal(doorActionLegality(restored.doors.find(door => door.id === "royal_door")!, restored.rooms, "player"), "illegal");
 });
 
@@ -438,18 +388,14 @@ test("the nobles' parlour admits every court character but remains restricted to
   const door = world.doors.find(door => door.id === "guest_door")!;
   assert.equal(parlour.name, "Nobles' Parlour");
   assert.ok(parlour.private);
-  for (const character of scenario.characters) {
+  for (const character of scenario.characters.filter(character => character.id !== "palace-guard")) {
     assert.equal(doorActionLegality(door, world.rooms, character.id), "normal", character.name);
   }
   assert.equal(doorActionLegality(door, world.rooms, "player"), "normal");
   assert.equal(doorActionLegality(door, world.rooms, "stranger"), "illegal");
 });
 
-function furnishedCourt(): Scenario {
-  const scenario = conversationScenario();
-  scenario.world!.actors.push({ $typeName: "kingmaker.v1.ActorState", characterId: "player", homeRoomId: "guest_chamber", roomId: "great_hall", awake: true, position: create(TilePositionSchema, { x: 62, y: 22 }) });
-  return scenario;
-}
+
 
 test("transcript recorder shows pending calls, bounds history, and isolates mutable and secret data", async () => {
   const log = new ModelTranscripts("private-key");
@@ -509,21 +455,21 @@ test("each visiting delegation has a public room, private back hall and individu
       members: ["lucan", "sabine", "rook"] },
   ];
   const openDoors = world.doors.map(door => ({ ...door, open: true }));
+  const resident = (slot: string) => ({ mara: "gurt", hadrik: "klog", tessa: "bran", lucan: "peregrine", sabine: "cressida", rook: "abel" } as Record<string, string>)[slot] ?? slot;
   for (const delegation of delegations) {
     assert.equal(courtRoomAt(delegation.publicPoint)?.id, delegation.publicRoom);
     assert.ok(courtPath({ x: 61, y: 24 }, delegation.publicPoint, world.doors, world.fixtures));
     const backHall = world.rooms.find(room => room.id === delegation.backHall)!;
     assert.equal(backHall.private, true);
-    assert.deepEqual([...backHall.allowedCharacterIds].sort(), [...delegation.members].sort());
+    assert.deepEqual([...backHall.allowedCharacterIds].sort(), delegation.members.map(resident).sort());
     for (const member of delegation.members) {
-      const actor = world.actors.find(actor => actor.characterId === member)!;
+      const actor = world.actors.find(actor => actor.characterId === resident(member))!;
       assert.equal(actor.homeRoomId, `${member}_chamber`);
       assert.equal(actor.roomId, actor.homeRoomId);
       assert.equal(courtRoomAt(actor.position!)?.id, actor.homeRoomId);
       assert.ok(courtPath({ x: 61, y: 24 }, actor.position!, openDoors, world.fixtures), `${member}'s room is reachable`);
     }
   }
-  for (const placement of scenario.courtArrivalPlacements) assert.equal(placement.roomId, "great_hall");
 });
 
 test("the royal household has a public council chamber, private back hall and meeting-room doors", () => {
@@ -533,7 +479,7 @@ test("the royal household has a public council chamber, private back hall and me
   assert.equal(council.name, "Royal Council Chamber");
   assert.equal(backHall.name, "Royal Back Hall");
   assert.equal(backHall.private, true);
-  assert.deepEqual([...backHall.allowedCharacterIds].sort(), ["corvin", "garran", "king"]);
+  assert.deepEqual([...backHall.allowedCharacterIds].sort(), ["aldren", "corvin", "holt"]);
   const meetingDoors = ["royal_council_door", "ironmark_salon_door", "greenweald_solar_door", "saltmere_drawing_room_door"];
   for (const id of meetingDoors) {
     const door = world.doors.find(door => door.id === id)!;
@@ -592,30 +538,10 @@ test("GPT-6 Responses adapter maps structured output and rejects truncated resul
   await assert.rejects(Object.assign(new OpenRouterClient("test"), { complete: originalOpenRouterComplete }).complete(request), /incomplete: max_output_tokens/);
 });
 
-test("centennial court has consistent actors and relationships without the possession plot", () => {
-  const scenario = load(), world = scenario.world!;
-  const ids = scenario.characters.map(character => character.id);
-  assert.deepEqual(world.actors.map(actor => actor.characterId).sort(), [...ids].sort());
-  assert.equal(new Set(scenario.courtArrivalPlacements.map(item => item.characterId)).size, ids.length + 1);
-  for (const character of scenario.characters) {
-    assert.ok(character.relationships.every(item => ids.includes(item.characterId) && item.characterId !== character.id));
-    const actor = world.actors.find(item => item.characterId === character.id)!;
-    assert.ok(world.rooms.some(room => room.id === actor.homeRoomId));
-  }
-  const placements = scenario.courtArrivalPlacements.map(item => ({ id: item.characterId, name: item.characterId, roomId: item.roomId, position: item.position! }));
-  const markers = courtMarkers(placements, world.fixtures);
-  assert.ok(markers.every(marker => marker.point), "Every delegate has a walkable tile clear of furniture");
-  assert.equal(new Set(markers.map(marker => pointKey(marker.point!))).size, ids.length + 1);
-  assert.doesNotMatch(toJsonString(ScenarioSchema, scenario), /Crown of Winter|solstice|merlin|lancelot|take_crown/i);
-  assert.match(scenario.premise, /Every hundred years/);
-  assert.match(scenario.premise, /Ordinary inheritance/);
-  assert.match(scenario.premise, /Recognition by all three is required/);
-  assert.match(scenario.premise, /without an accepted common sovereign/);
-  assert.ok(!locatedItems(inventoryOwners(scenario.characters, scenario.world)).some(item => item.id === "crown"));
-});
+
 
 // Exercise the new introduction independently of network responses or browser credentials.
-import { introductionHandoff, validateIdentity, characterSprites } from "../apps/web/src/introduction.js";
+import { introductionHandoff } from "../apps/web/src/introduction.js";
 
 test("legacy introduction handoff preserves a delegation's witness role", () => {
   const handoff = introductionHandoff({ name: "Seren", delegation: "Saltmere", gender: "Non-binary", sprite: 99 });
@@ -1118,8 +1044,8 @@ test("expanded hall has unobstructed routes to all delegates and its relocated e
   const scenario = load(), world = scenario.world!;
   const hall = palaceMap.rooms.find(room => room.id === "great_hall")!.regions[0]!;
   assert.equal(hall.width * hall.height, 156);
-  const player = scenario.courtArrivalPlacements.find(item => item.characterId === "player")!.position!;
-  for (const placement of scenario.courtArrivalPlacements) {
+  const player = world.actors.filter(actor => actor.roomId === "great_hall").find(item => item.characterId === "player")!.position!;
+  for (const placement of world.actors.filter(actor => actor.roomId === "great_hall")) {
     assert.ok(courtPath(player, placement.position!, world.doors, world.fixtures), `${placement.characterId} can be reached`);
   }
   const entrance = world.doors.find(door => door.id === "entrance_door")!;

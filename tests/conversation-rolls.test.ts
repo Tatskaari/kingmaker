@@ -1,12 +1,7 @@
-import { retryResponses } from "../packages/conversation/src/ai.js";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
-import { fromJsonString } from "@bufbuild/protobuf";
-import { ScenarioSchema } from "../packages/contracts/src/index.js";
-import { JevClient, type JevQuestions } from "../packages/providers/src/jev.js";
-import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
-import { adjudicateConversationChecks, resolvePlannedCheck } from "../packages/conversation/src/checks.js";
+import { retryResponses } from "../packages/conversation/src/ai.js";
+import { adjudicateConversationChecks,resolvePlannedCheck } from "../packages/conversation/src/checks.js";
 const reply = (content: unknown) => ({ role: "assistant" as const, content: JSON.stringify(content) });
 
 test("all dice are resolved before presentation and one GM direction covers the actual results", async () => {

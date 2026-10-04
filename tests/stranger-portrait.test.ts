@@ -1,16 +1,11 @@
-import { mockJevChoice } from "./mock-jev.js";
 import assert from "node:assert/strict";
-import { readFileSync, existsSync } from "node:fs";
-import { createContext, runInContext } from "node:vm";
+import { existsSync,readFileSync } from "node:fs";
 import test from "node:test";
-import { fromJsonString } from "@bufbuild/protobuf";
-import { ScenarioSchema } from "../packages/contracts/src/index.js";
-import { JevClient } from "../packages/providers/src/jev.js";
-import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
-import { portraitExpressions, type PortraitExpression } from "../packages/providers/src/conversation-expression.js";
-import { strangerPortrait } from "../apps/web/src/stranger-portrait.js";
-import { coalescedRefresh } from "../apps/web/src/debug-live.js";
+import { createContext,runInContext } from "node:vm";
 import { AlertLog } from "../apps/web/src/alerts.js";
+import { coalescedRefresh } from "../apps/web/src/debug-live.js";
+import { strangerPortrait } from "../apps/web/src/stranger-portrait.js";
+import { portraitExpressions,type PortraitExpression } from "../packages/providers/src/conversation-expression.js";
 
 test("every classified expression has a portrait and fear displays amusement", () => {
   for (const expression of Object.keys(portraitExpressions) as PortraitExpression[]) {

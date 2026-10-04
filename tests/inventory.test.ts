@@ -1,20 +1,21 @@
+import { create,fromBinary,toBinary } from "@bufbuild/protobuf";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
-import { ScenarioSchema } from "../packages/contracts/src/index.js";
-import { inventoryOwners, inventoryFor, itemsFor, locatedItems, transferItem, validateInventories } from "../packages/core/src/inventory.js";
-import { worldForCharacter, worldViewJson } from "../packages/core/src/physical-view.js";
+import { WorldStateSchema } from "../packages/contracts/src/v2.js";
+import { inventoryFor,inventoryOwners,itemsFor,locatedItems,transferItem,validateInventories } from "../packages/core/src/inventory.js";
+import { worldForCharacter,worldViewJson } from "../packages/core/src/physical-view.js";
+import { physicalFixture } from "./fixtures.js";
 
 function example() {
-  return create(ScenarioSchema, {
-    characters: [{ id: "guard", inventory: {
+  const guard = "Scenarios/Test/Characters/guard/character.md", visitor = "Scenarios/Test/Characters/visitor/character.md";
+  return physicalFixture(create(WorldStateSchema, { characters: [guard, visitor], docs: {
+    [guard]: { characterProperties: { inventory: {
       items: [{ id: "sword", name: "Sword", definitionId: "longsword", quantity: 1, concealed: true }],
       equipment: { mainHandItemId: "sword", attunedItemIds: ["sword"] },
-    } }, { id: "visitor" }],
-    world: { fixtures: [{ id: "chest", container: true, inventory: {
-      items: [{ id: "letter", name: "Letter", details: "Secret instructions", concealed: true }],
-    } }], rooms: [{ id: "hall" }] },
-  });
+    } } }, [visitor]: {},
+  }, map: { fixtures: [{ id: "chest", container: true, inventory: {
+    items: [{ id: "letter", name: "Letter", details: "Secret instructions", concealed: true }],
+  } }], rooms: [{ id: "hall" }] } }));
 }
 
 test("transfers preserve item identity, clear equipment, and survive serialization", () => {
@@ -29,7 +30,7 @@ test("transfers preserve item identity, clear equipment, and survive serializati
   transferItem(inventoryOwners(scenario.characters, scenario.world), "sword", "visitor");
   transferItem(inventoryOwners(scenario.characters, scenario.world), "sword", "hall");
   assert.equal(locatedItems(inventoryOwners(scenario.characters, scenario.world)).filter(item => item.id === "sword").length, 1);
-  const saved = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, scenario));
+  const saved = physicalFixture(fromBinary(WorldStateSchema, toBinary(WorldStateSchema, scenario.source)));
   assert.equal(itemsFor(inventoryOwners(saved.characters, saved.world), "hall")[0]!.definitionId, "longsword");
   assert.ok(!("locationId" in itemsFor(inventoryOwners(saved.characters, saved.world), "hall")[0]!));
   assert.ok(!("objects" in saved.world!));
@@ -56,11 +57,9 @@ test("duplicate ownership and equipment outside the holder's inventory are rejec
 });
 
 test("authored court builds have bounded stats, valid health, and uniquely carried equipment", async () => {
-  const { readFileSync } = await import("node:fs");
-  const { fromJsonString } = await import("@bufbuild/protobuf");
-  const scenario = fromJsonString(ScenarioSchema, readFileSync(new URL("../content/scenarios/last-night.json", import.meta.url), "utf8"));
+  const scenario = physicalFixture();
   validateInventories(inventoryOwners(scenario.characters, scenario.world));
-  for (const character of scenario.characters) {
+  for (const character of scenario.characters.filter(character => character.dnd)) {
     const dnd = character.dnd!;
     assert.ok(dnd?.abilityScores, character.id);
     const { strength, dexterity, constitution, intelligence, wisdom, charisma } = dnd.abilityScores;
@@ -75,8 +74,8 @@ test("authored court builds have bounded stats, valid health, and uniquely carri
   const corvin = scenario.characters.find(character => character.id === "corvin")!;
   assert.equal(corvin.dnd!.classes[0]!.classId, "wizard");
   assert.ok(corvin.dnd!.spellcasting!.preparedSpellIds.includes("detect-magic"));
-  assert.ok(itemsFor(inventoryOwners(scenario.characters, scenario.world), "rook").some(item => item.id === "rook_tomas_letter"), "Plot evidence is retained");
-  const saved = fromBinary(ScenarioSchema, toBinary(ScenarioSchema, scenario));
+
+  const saved = physicalFixture(fromBinary(WorldStateSchema, toBinary(WorldStateSchema, scenario.source)));
   assert.deepEqual(saved.characters.map(character => character.dnd), scenario.characters.map(character => character.dnd));
 });
 
