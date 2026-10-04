@@ -1,3 +1,4 @@
+import { sharedHistoryCase, refusedGiftCase } from "../packages/evals/src/live-conversation-cases.js";
 import { ConversationReviews, liveConversationStrategy } from "../packages/conversation/src/live-conversation-strategy.js";
 import { aiService } from "../packages/conversation/src/adapters.js";
 import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
@@ -10,7 +11,7 @@ import { runEvalCli } from "../packages/evals/src/cli.js";
 const key = process.env.OPENROUTER_API_KEY?.trim() ?? "";
 if (!key && !process.argv.some(arg => arg === "--list" || arg === "--help")) throw new Error("Set OPENROUTER_API_KEY.");
 const createAi = () => aiService(new OpenRouterClient(key), new JevClient(key));
-const result = await runEvalCli([oswinParlourCase, oswinKoboldCase, peregrineGiftCase]
+const result = await runEvalCli([oswinParlourCase, oswinKoboldCase, peregrineGiftCase, sharedHistoryCase, refusedGiftCase]
   .map(testCase => createLiveConversationExperiment(testCase, createAi, createAi(), [{ name: "live-review", strategy(testCase) {
     const reviews = new ConversationReviews();
     return { strategy: liveConversationStrategy({ characterId: testCase.characterId, reviews }), drain: () => reviews.drain() };

@@ -238,3 +238,16 @@ inventory when the gift reply is released. Per-reply state and accepted transcri
 are recorded. The suite uses the common framework and registered `evalConversation`
 Moon task, so main-branch CI uploads its artifacts and publishes history alongside
 the existing suites. Local runs write artifacts only.
+
+The live suite also reuses the observed Corvin graduation exchange from the
+attention fixtures. A counterfactual Peregrine case adds a GM-only custody fact
+to the scenario: the bird is Abel's loan and cannot be gifted. That case requires
+a refusal, a different accepted reply, and unchanged typed inventories. The
+original gift case retains its original permissive preconditions.
+
+`review-order` checks one completed review per accepted flagged draft, before
+release for discretion and after release for background work. Rejected drafts
+are excluded from the accepted transcript used for grading. The judge receives
+the accepted conversation, case expectations, and recorded docs-service edit calls
+with their original arguments and results. No extra document copies or world
+snapshots are added to the judge input. State-based assertions run locally.

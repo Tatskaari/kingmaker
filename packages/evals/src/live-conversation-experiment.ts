@@ -1,3 +1,5 @@
+import { isDeepStrictEqual } from "node:util";
+import { createJevScorer } from "./jev-scorer.js";
 import { clone, create } from "@bufbuild/protobuf";
 import { WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
 import { TranscriptMessageSchema, TranscriptRole } from "../../contracts/src/index.js";
@@ -9,16 +11,17 @@ import { runConversation, type ConversationStrategy } from "../../conversation/s
 import { documentLoreService } from "../../conversation/src/document-lore.js";
 import type { AiService } from "../../conversation/src/services.js";
 import { createScenarioServices } from "../../lore/src/services.js";
-import { createReviewExperiment, documentChanges, type ReviewCase } from "./review-experiment.js";
+import { createReviewExperiment, documentChanges, reviewRubric, type ReviewCase } from "./review-experiment.js";
 import { giftInventoryScore } from "./peregrine-gift-case.js";
 import type { Experiment, RuntimeConfig } from "./experiment.js";
 
 /** Freeze only the original draft and resolved dice; inspect effects before conversation end. */
+export interface LiveConversationCase extends ReviewCase { expected?: "refusal" }
 export interface LiveConversationVariant {
   name: string;
   strategy(testCase: ReviewCase): { strategy: ConversationStrategy; drain(): Promise<void> };
 }
-export function createLiveConversationExperiment(testCase: ReviewCase, createAi: () => AiService,
+export function createLiveConversationExperiment(testCase: LiveConversationCase, createAi: () => AiService,
   judge: Pick<AiService, "decisions">, variants: readonly LiveConversationVariant[] = []): Experiment {
   const review = createReviewExperiment(testCase, [], createAi, judge);
   const config = (variant?: LiveConversationVariant): RuntimeConfig => ({ name: variant?.name ?? "game", configure() {
@@ -51,7 +54,7 @@ export function createLiveConversationExperiment(testCase: ReviewCase, createAi:
           strategies: { conversation: selected?.strategy ?? baseline } }), signal);
         accepted.push(create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: testCase.characterId, text: reply.content ?? "" }));
         services.debug.record({ turn: playerIndex, pass: 1, source: "released", stage: "respond", status: "completed",
-          output: { reply, world: services.scenario.snapshot() } });
+          output: { reply, gift: giftInventoryScore(services.scenario.snapshot()) } });
         await selected?.drain();
       }
       services.debug.record({ turn: 0, pass: 1, source: "accepted-transcript", stage: "respond", status: "completed", output: accepted });
@@ -59,18 +62,42 @@ export function createLiveConversationExperiment(testCase: ReviewCase, createAi:
     } } } };
   } });
   return { ...review, name: `live-${testCase.name}`, getBaseline: () => config(), getVariants: () => variants.map(config),
-    rubric: [...review.rubric, { name: "live-effect", description: "The expected world effect exists without ending the conversation; gifts exist before the response is released." }],
+    rubric: [...review.rubric, { name: "live-effect", description: "The expected world effect exists without ending the conversation; gifts exist before the response is released." }, { name: "review-order", description: "Every accepted flagged draft has exactly one review; blocking reviews finish before release, background reviews finish afterwards." }],
     async run(runtime, signal) { await runConversation({ model: "replay", messages: [] }, runtime, signal); },
     async score(recording, context) {
-      const result = await review.score(recording, context);
+      const events = recording.getServiceRecord("debug").map(call => (call.args as [{ source?: string; output?: unknown }])[0]);
+      const accepted = events.find(event => event?.source === "accepted-transcript")?.output as typeof testCase.transcript | undefined;
+      const scoreReview = createJevScorer(reviewRubric.slice(0, -1), recording => ({
+        transcript: accepted ?? testCase.transcript,
+        participants: testCase.participants,
+        characterId: testCase.characterId,
+        expectations: testCase.expectations,
+        error: recording.error,
+        updates: recording.getServiceRecord("docs").filter(call => call.method !== "read"),
+      }), judge);
+      const result = await scoreReview(recording, context);
+      result.criteria["physical-state"] = { score: isDeepStrictEqual((recording.initialState as WorldState)?.map, (recording.finalState as WorldState)?.map) ? 1 : 0 };
       const world = recording.finalState as WorldState | undefined;
-      const releases = recording.getServiceRecord("debug").map(call => (call.args as [{ source?: string; output?: { world?: WorldState } }])[0])
+      const releases = recording.getServiceRecord("debug").map(call => (call.args as [{ source?: string; output?: { gift?: { score: number } } }])[0])
         .filter(event => event?.source === "released");
-      const score = testCase.characterId === "peregrine"
-        ? giftInventoryScore(releases.at(-1)?.output?.world).score
+      let score = testCase.characterId === "peregrine"
+        ? releases.at(-1)?.output?.gift?.score ?? 0
         : world && (documentChanges(recording).length > 0 || JSON.stringify(world.runtimeCharacters) !== JSON.stringify((recording.initialState as WorldState)?.runtimeCharacters)) ? 1 : 0;
+      if (testCase.expected === "refusal") {
+        const refused = events.some(event => event.source === "gm-approval" && (event.output as { allowed?: boolean })?.allowed === false);
+        const before = recording.initialState as WorldState;
+        const unchanged = Object.entries(before.docs).every(([path, doc]) => isDeepStrictEqual(doc.characterProperties?.inventory, world?.docs[path]?.characterProperties?.inventory));
+        score = Number(refused && unchanged && !!accepted?.length && accepted.at(-1)?.text !== testCase.transcript.at(-1)?.text);
+      }
       result.criteria["live-effect"] = { score: recording.error ? 0 : score,
         reason: testCase.characterId === "peregrine" ? "The gift must be in inventory at reply release." : "The NPC must have a recorded consequence before conversation end." };
+      const calls = recording.getServiceRecord("debug").map(call => ({ id: call.id, event: (call.args as [{ source?: string; turn?: number; output?: { mode?: string } }])[0] }));
+      const acceptedTurns = calls.filter(call => call.event.source === "live-accepted" && call.event.output?.mode !== "none");
+      const ordered = acceptedTurns.length > 0 && acceptedTurns.every(turn => {
+        const reviews = calls.filter(call => call.event.source === "live-review" && call.event.turn === turn.event.turn);
+        return reviews.length === 1 && (turn.event.output?.mode === "blocking" ? reviews[0]!.id < turn.id : reviews[0]!.id > turn.id);
+      });
+      result.criteria["review-order"] = { score: recording.error ? 0 : Number(ordered) };
       return result;
     },
   };
