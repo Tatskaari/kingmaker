@@ -5,16 +5,17 @@ import { checkMechanics, type CheckPlan } from "./checks.js";
 import type { LlmTurn } from "./conversation.js";
 import type { DisclosureRound, DisclosureSession } from "./disclosure.js";
 import { ConversationRuntime } from "./runtime.js";
-import type { AiService, CharacterMechanics, PresentationService } from "./services.js";
+import type { AiService, CharacterMechanics, PresentationService, RuntimeServices } from "./services.js";
 
 export interface ManualRoll extends CheckPlan { modifier: number }
 export type RequestRoll = (check: ManualRoll, signal: AbortSignal) => Promise<number>;
 
 /** Finish disclosure before classifying checks; resolve checks once per player turn. */
 export function cliHooks(disclosure: DisclosureSession, ai: AiService, build: DndCharacter | undefined,
-  playerTurn: string, requestRoll: RequestRoll, trace: (round: DisclosureRound) => void, debug: (turn: LlmTurn) => void, presentation: Partial<PresentationService> = {}, character: Partial<CharacterMechanics> = {}) {
+  playerTurn: string, requestRoll: RequestRoll, trace: (round: DisclosureRound) => void, debug: (turn: LlmTurn) => void, presentation: Partial<PresentationService> = {}, character: Partial<CharacterMechanics> = {}, gm?: { services: Partial<RuntimeServices>; characterId: string }) {
   const documents = disclosure.hooks(trace);
   const runtime = new ConversationRuntime<CheckLabels>({ services: {
+    ...gm?.services,
     ai: { ...ai, responses: async (request, signal) => {
       const started = Date.now();
       try {
@@ -26,7 +27,7 @@ export function cliHooks(disclosure: DisclosureSession, ai: AiService, build: Dn
     character: { rollCheck: checkMechanics(build, (check, signal) => requestRoll({ ...check, modifier: skillModifier(build, check.skill) }, signal)), ...character },
     presentation: { showRoll: async () => {}, ...presentation },
   } });
-  const checks = checkHooks(runtime, { playerTurn, playerId: "player" });
+  const checks = checkHooks(runtime, { playerTurn, playerId: "player", ...(gm ? { characterId: gm.characterId } : {}) });
   return {
     classify: async (...args: Parameters<typeof documents.classify>) => {
       const docs = await documents.classify(...args);

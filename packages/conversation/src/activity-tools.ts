@@ -9,7 +9,7 @@ import type { RuntimeServices } from "./services.js";
 
 const text = { type: "string", minLength: 1 };
 export const activityTools: OpenRouterTool[] = [
-  { type: "function", function: { name: "set_activity", description: "Stage a character-private activity document using the old objective fields. Activates it by default and clears the wait. Set activate:false to define an activity option for a wait; the result gives its Markdown path. Nothing publishes until commit_review.", parameters: {
+  { type: "function", function: { name: "set_activity", description: "Stage a character-private activity document with name, status, success_criteria and current_goal. Activates it by default and clears the wait. Set activate:false to define an activity option for a wait; the result gives its Markdown path. Nothing publishes until commit_review.", parameters: {
     type: "object", additionalProperties: false, required: ["name", "status", "success_criteria", "current_goal"],
     properties: { name: text, status: text, success_criteria: text, current_goal: text, activate: { type: "boolean" } },
   } } },

@@ -62,7 +62,7 @@ test("concurrent reviews update separate live documents while player movement su
   const ready = new Promise<void>(resolve => { started = resolve; });
   const gate = new Promise<void>(resolve => { release = resolve; });
   const runtime = game({ services: { ai: { responses: async request => {
-    const id = JSON.parse(request.messages.find(message => message.role === "user")!.content!).characterId;
+    const id = JSON.parse(request.messages.find(message => message.role === "user" && message.content?.startsWith('{"characterId"'))!.content!).characterId;
     if (++calls === 2) started();
     await gate;
     return commitReview({ summary: "Reviewed", newNotes: [`${id} remembered this exchange.`], activeGoal: null });
@@ -123,7 +123,7 @@ test("parallel characters and injected character responders remain separately tr
 
 test("document tool history identifies concurrent reviews and remains session-only", async () => {
   const runtime = game({ services: { ai: { responses: async request => {
-    const { characterId } = JSON.parse(request.messages.find(message => message.role === "user")!.content!);
+    const { characterId } = JSON.parse(request.messages.find(message => message.role === "user" && message.content?.startsWith('{"characterId"'))!.content!);
     return commitReview({ summary: `${characterId} review`, newNotes: [`${characterId} remembers.`], activeGoal: null });
   } } } });
   for (const id of ["rowan", "corvin"]) runtime.endConversationAsPlayer(id, "Goodbye.");

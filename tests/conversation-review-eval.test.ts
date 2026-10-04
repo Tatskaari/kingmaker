@@ -10,6 +10,8 @@ for (const mode of ["travel", "wait", "unrelated", "error"] as const) {
       disclosure: { disclose: async () => [] }, ai: {
         responses: async request => {
           calls++;
+          assert.match(request.messages[0]!.content!, /^You are a game master/);
+          assert.match(JSON.stringify(request), /physicalState.*great_hall/);
           assert.match(JSON.stringify(request), /I hurry off/);
           if (mode === "error") throw new Error("Provider unavailable");
           if (mode === "wait" && calls === 1) return { role: "assistant", content: null, tool_calls: [

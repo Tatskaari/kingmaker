@@ -55,7 +55,7 @@ const input: ConversationInput = {
 conversationRequest(input); // Validate the snapshot and selected character before entering the terminal UI.
 const player = services.scenario.info().player;
 const build = player ? (await services.scenario.getDocument(player)).document.characterProperties?.dnd : undefined;
-const result = await runConversationCli(input, ai.responses, disclosure, { ai, build, beginTurn: () => { turnId = crypto.randomUUID(); } });
+const result = await runConversationCli(input, ai.responses, disclosure, { ai, build, services: { docs: services.docs, scenario: services.scenario }, beginTurn: () => { turnId = crypto.randomUUID(); } });
 traces.finish(conversationId);
 const output = resolve(options.get("--output") ?? `test-output/conversation-${Date.now()}.json`);
 mkdirSync(dirname(output), { recursive: true });

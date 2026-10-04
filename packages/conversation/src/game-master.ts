@@ -20,7 +20,7 @@ export async function runGameMaster(request: ChatCompletionRequest, services: Ru
   options: { characterId?: string; requireCommit?: boolean; prepare?: (messages: OpenRouterMessage[]) => Promise<OpenRouterMessage[]> } = {}) {
   const messages: OpenRouterMessage[] = [{ role: "system", content: GAME_MASTER_PROMPT }, ...request.messages];
   const session = new GameMasterTools(services, options.characterId);
-  await session.begin();
+  if (options.requireCommit) await session.begin();
   for (let turn = 0; turn < 16; turn++) {
     signal.throwIfAborted();
     const response = await services.ai.responses({ ...request, tools: gameMasterTools,
