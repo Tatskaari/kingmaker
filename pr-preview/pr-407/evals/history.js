@@ -105,7 +105,7 @@ try {
   $('eval').replaceChildren(...names.map(name => option(name, name)));
   $('eval').disabled = !names.length;
   if (names.length) await loadEval();
-  else $('status').textContent = 'No eval results published yet. Run the Run evals workflow after setting OPENROUTER_KEY.';
+  else $('status').textContent = 'No eval results published yet. Run the Run evals workflow after setting OPENROUTER_EVAL_KEY.';
 } catch {
   $('status').textContent = 'Eval history is not available yet. After the first Run evals workflow and Pages deployment, refresh this page.';
 }
