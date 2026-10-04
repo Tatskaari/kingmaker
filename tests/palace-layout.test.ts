@@ -12,7 +12,7 @@ test("generated floor ownership, access and exits match the authored world", () 
     const authored = world.rooms.find(candidate => candidate.id === room.id)!;
     assert.equal(authored.name, room.name);
     assert.equal(authored.private, room.private);
-    assert.deepEqual(authored.allowedCharacterIds, [...room.allowedCharacterIds, ...world.actors.filter(actor => actor.characterId.startsWith("palace-guard-")).map(actor => actor.characterId)]);
+    assert.deepEqual(authored.allowedCharacterIds, [...room.allowedCharacterIds, ...(room.private ? world.actors.filter(actor => actor.characterId.startsWith("palace-guard-")).map(actor => actor.characterId) : [])]);
     assert.deepEqual(authored.exitRoomIds, room.exitRoomIds);
   }
   for (const actor of world.actors) assert.equal(courtRoomAt(actor.position!)?.id, actor.roomId, actor.characterId);
