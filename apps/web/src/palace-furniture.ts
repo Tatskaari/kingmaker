@@ -5,8 +5,8 @@ import { palaceLayout } from "./palace-layout.js";
 import { palaceNodes } from "./palace-navigation.js";
 
 /** Canonical additions; the original 26 fixtures and their evidence stay intact. */
-export function palaceFurniture(map: WorldState, owners: readonly InventoryOwner[]) {
-  const builder = new FurnitureBuilder(palaceLayout, map, owners, palaceNodes);
+export function palaceFurniture(map: WorldState, owners: readonly InventoryOwner[], reserved: readonly { x: number; y: number }[] = []) {
+  const builder = new FurnitureBuilder(palaceLayout, map, owners, [...palaceNodes, ...reserved]);
   const item = (id: string, name: string, details: string) => ({ id: `furn_${id}`, name, details });
   const put = (room: string, x: number, y: number, id: string, name: string, sprite: number,
     items: ReturnType<typeof item>[] = [], owner?: string, approach?: { x: number; y: number }) =>
