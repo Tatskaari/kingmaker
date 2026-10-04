@@ -28,6 +28,7 @@ import { documentLoreService } from "../../../packages/conversation/src/document
 import { DisclosureSession } from "../../../packages/conversation/src/disclosure.js";
 import { runGameMaster } from "../../../packages/conversation/src/game-master.js";
 import { checkMechanics, adjudicateResolvedChecks } from "../../../packages/conversation/src/checks.js";
+import { ConversationReviews, liveConversationStrategy } from "../../../packages/conversation/src/live-conversation-strategy.js";
 import { conversationStrategy } from "../../../packages/conversation/src/conversation-strategy.js";
 import { aiService } from "../../../packages/conversation/src/adapters.js";
 import { OpenRouterClient, type TextProgress } from "../../../packages/providers/src/openrouter.js";
@@ -48,6 +49,8 @@ export class WorldGameRuntime extends WorldHost {
   private provider: AiService;
   private traces: ModelTranscripts;
   private conversationRuns = new Map<string, string>();
+  private liveConversations = new Map<string, { reviews: ConversationReviews; response: ReturnType<typeof liveConversationStrategy>; reviewedLive: boolean }>();
+  private finishingReviews = new Set<ConversationReviews>();
   private persistChange: <T>(work: () => T | Promise<T>) => Promise<T> = async work => work();
   setPersistence(commit: <T>(work: () => T | Promise<T>) => Promise<T>) { this.persistChange = commit; }
   private commit<T>(work: () => T | Promise<T>, signal?: AbortSignal, persist = this.persistChange): Promise<T> {
@@ -186,8 +189,16 @@ export class WorldGameRuntime extends WorldHost {
     await services.presentation.renderMap(services.map.observe(id), result);
   }
   private stopConversations() {
+    for (const { reviews } of this.liveConversations.values()) reviews.cancel();
+    this.liveConversations.clear();
+    for (const reviews of this.finishingReviews) reviews.cancel();
+    this.finishingReviews.clear();
     for (const key of this.conversationRuns.values()) this.traces.stop(key);
     this.conversationRuns.clear();
+  }
+  override restore(saved: WorldSnapshot) {
+    if (this.conversationRuns) this.stopConversations();
+    super.restore(saved);
   }
   override reset() { super.reset(); this.stopConversations(); this.traces.clearDocumentWrites(); }
   override resetCharacters() { super.resetCharacters(); this.stopConversations(); this.traces.clearDocumentWrites(); }
@@ -216,6 +227,17 @@ export class WorldGameRuntime extends WorldHost {
     this.assertPlayerFree();
     if (!message.trim()) throw new Error("Say something first.");
     if (this.activity.conversationEndRequested?.[id]) throw new Error("Finish the conversation review first.");
+    let session = this.liveConversations.get(id);
+    if (!session) {
+      const reviews = new ConversationReviews();
+      session = { reviews, response: liveConversationStrategy({ characterId: id, reviews }), reviewedLive: true };
+      this.liveConversations.set(id, session);
+    }
+    await session.reviews.drain();
+    const strategyOverride = options.strategies?.conversation ?? this.options.strategies?.conversation;
+    if (strategyOverride) session.reviewedLive = false;
+    else signal = AbortSignal.any([signal, session.reviews.signal]);
+    signal.throwIfAborted();
     const previous = structuredClone(this.activity.conversations[id] ?? []);
     const runtime = this.runtime(id, "dialogue", options, this.conversationRun(id), signal, [id, "player"]);
     const defending = !!this.activity.arrestChallenges?.[id], defenseRolls: RollResult[] = [];
@@ -230,14 +252,14 @@ export class WorldGameRuntime extends WorldHost {
     const world = this.world(), build = world.player ? world.docs[world.player]?.characterProperties?.dnd : undefined;
     const strategies = conversationStrategy(disclosure, runtime.services.ai, build, message,
       async (_check, cancellation) => { cancellation.throwIfAborted(); return runtime.services.random.integer(1, 20); },
-      () => {}, () => {}, runtime.services.presentation, runtime.services.character, { services: runtime.services, characterId: id });
-    runtime.strategies.conversation = options.strategies?.conversation ?? this.options.strategies?.conversation ?? strategies;
-    runtime.services.character.respond = (request, cancellation) => runtime.services.ai.responses(request, cancellation, onText ? { onText } : undefined);
+      () => {}, () => {}, runtime.services.presentation, runtime.services.character, { services: runtime.services, characterId: id }, () => {}, session.response);
+    runtime.strategies.conversation = strategyOverride ?? strategies;
+    runtime.services.character.respond = (request, cancellation) => runtime.services.ai.responses(request, cancellation);
     const transcript = previous.map(turn => fromJson(TranscriptMessageSchema, turn));
     const request = await prepareConversation({ snapshot: { world }, characterId: id, sources: lore.initial, transcript, message }, runtime.services, signal);
     if (defending) request.messages = [...request.messages, { role: "system", content: renderPrompt("world-runtime-arrest-defense") }];
     thinking?.("Considering your words…");
-    const rulings: string[] = [];
+    const rulings: string[] = [], preparedRulings: string[] = [], arrestRulings: string[] = [];
     const entry = characterIntent(world, id).entry;
     const granted = entry && world.docs[entry]!.frontmatter?.conversation_actions;
     let arrested = false, challenged = false;
@@ -249,30 +271,32 @@ export class WorldGameRuntime extends WorldHost {
     }
     const prepared = (request: import("../../../packages/providers/src/openrouter.js").ChatCompletionRequest) => {
       // History is already saved. Count occurrences so a new, identical ruling is still retained.
+      preparedRulings.length = 0;
       const remaining = new Map(existingRulings);
       for (const turn of request.messages) {
         if (turn.role !== "system" || !turn.content?.startsWith("# Binding DM ruling")) continue;
         const count = remaining.get(turn.content) ?? 0;
         if (count) remaining.set(turn.content, count - 1);
-        else rulings.push(turn.content);
+        else preparedRulings.push(turn.content);
       }
     };
     if (Array.isArray(granted) && granted.includes("arrest")) {
       const respond = arrestResponse(runtime.services.ai.responses, ruling => {
-        arrested = true; rulings.push(ruling);
+        arrested = true; arrestRulings.push(ruling);
       }, { outcome: () => !defending || !defenseRolls.length ? "unheard" : defenseRolls.some(roll => roll.success) ? "passed" : "failed",
         challenge: () => { challenged = true; } });
       runtime.services.character.respond = async (request, cancellation = signal) => {
+        arrested = false; challenged = false; arrestRulings.length = 0;
         if (defending && !defenseRolls.length) {
           const result = await runtime.services.character.rollCheck({ characterId: "player", skill: "persuasion", difficulty: "normal" }, cancellation);
           const ruling = await adjudicateResolvedChecks({ results: [result], messages: request.messages, signal: cancellation,
             complete: (request, cancellation) => runGameMaster(request, runtime.services, cancellation, { characterId: id }),
             present: runtime.services.presentation.showRoll });
-          if (ruling) {
-            rulings.push(ruling);
-            request = { ...request, messages: [...request.messages, { role: "system", content: ruling }] };
-          }
+          if (ruling) rulings.push(ruling);
         }
+        if (rulings.length) request = { ...request, messages: [...request.messages,
+          ...rulings.map(content => ({ role: "system" as const, content })),
+        ] };
         return respond(request, cancellation);
       };
     }
@@ -291,19 +315,24 @@ export class WorldGameRuntime extends WorldHost {
       this.activity.conversations[id] = [...previous,
         ...earshotNotes(request.messages, transcript).map(turn => toJson(TranscriptMessageSchema, turn)),
         toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: message })),
-        ...rulings.map(text => toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, speakerId: "GM", text }))),
+        ...[...preparedRulings, ...rulings, ...arrestRulings].map(text => toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, speakerId: "GM", text }))),
         toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: id, text: reply.content! })),
       ];
     }, signal, persist);
+    onText?.(reply.content!);
     return reply.content;
   }
   endConversationAsPlayer(id: string, message: string) {
     if (!message.trim()) throw new Error("Say something first.");
+    const session = this.liveConversations.get(id);
+    if (session) session.reviewedLive = false;
     (this.activity.conversations[id] ??= []).push(toJson(TranscriptMessageSchema,
       create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: message })));
     (this.activity.conversationEndRequested ??= {})[id] = true;
   }
   async endConversation(id: string, signal = new AbortController().signal) {
+    const session = this.liveConversations.get(id), reviews = session?.reviews;
+    if (reviews) signal = AbortSignal.any([signal, reviews.signal]);
     const persist = this.persistChange;
     const previous = structuredClone(this.activity.conversations[id] ?? []);
     const transcript = previous.map(turn => fromJson(TranscriptMessageSchema, turn));
@@ -320,15 +349,27 @@ export class WorldGameRuntime extends WorldHost {
     }, signal, persist);
     await this.presentMap().catch(error => this.warning(String(error)));
     const key = this.conversationRun(id);
-    await runConversationReview({ characterId: id, participants: [id, "player"], transcript }, this.runtime(id, "conversation_review", {}, key, signal, [id, "player"]), signal);
+    signal.throwIfAborted();
+    if (!session?.reviewedLive) {
+      await reviews?.drain();
+      await runConversationReview({ characterId: id, participants: [id, "player"], transcript }, this.runtime(id, "conversation_review", {}, key, signal, [id, "player"]), signal);
+    }
     await this.commit(() => {
       if (JSON.stringify(previous) !== JSON.stringify(this.activity.conversations[id] ?? [])) throw new Error("Conversation changed.");
       delete this.activity.conversations[id]; delete this.activity.conversationEndRequested?.[id]; delete this.activity.conversationReplyOptions?.[id];
       this.syncGoals();
       delete this.activity.pendingConversationEvents?.[id];
     }, signal, persist);
-    this.traces.finish(key, { participants: [id, "player"], messages: transcript });
+    const finishTrace = () => this.traces.finish(key, { participants: [id, "player"], messages: transcript });
+    if (reviews && session?.reviewedLive) {
+      this.finishingReviews.add(reviews);
+      void reviews.drain().then(finishTrace, error => {
+        if (reviews.signal.aborted) this.traces.stop(key);
+        else { this.traces.fail(key, error); this.warning(`${id}: live conversation review: ${String(error)}`); }
+      }).finally(() => { this.finishingReviews.delete(reviews); });
+    } else finishTrace();
     this.conversationRuns.delete(id);
+    this.liveConversations.delete(id);
     return event;
   }
   async planNpc(id: string, signal: AbortSignal, conflict?: PlanningFeedback, runKey?: string) {

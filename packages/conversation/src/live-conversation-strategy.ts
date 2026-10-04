@@ -17,6 +17,7 @@ export class ConversationReviews {
   private tail: Promise<void> = Promise.resolve();
   private failure: unknown;
   private readonly lifetime = new AbortController();
+  get signal(): AbortSignal { return this.lifetime.signal; }
   enqueue(work: (signal: AbortSignal) => Promise<void>): void {
     this.tail = this.tail.then(async () => {
       if (this.failure) return;
@@ -67,7 +68,10 @@ export function liveConversationStrategy(options: {
       const transcript = turnEvidence(messages.slice(playerIndex), reply, options.characterId);
       const review = async (reviewSignal: AbortSignal) => {
         await reviewDocumentEvidence({ characterId: options.characterId, participants: [options.characterId, "player"], transcript },
-          labels, reviewSignal, services,
+          labels, reviewSignal, { ...services, ai: { ...services.ai,
+            responses: (request, signal, info) => services.ai.responses({ ...request, reasoning: { ...request.reasoning, effort: "high" } },
+              signal, { ...info, purpose: "conversation_review" }),
+          } },
           "Review only this newly accepted conversation turn. Earlier turns have already been reviewed; do not repeat gifts or objectives. Preserve consequences in the world now, including inventory changes for agreed gifts/trades. Character movement is not executed by narration. Retain supported promises and player-led shared history as appropriate memories or beliefs.");
         record("resolve", "live-review", { mode: discretion ? "blocking" : "background" }, pass);
       };

@@ -206,3 +206,85 @@ test("conversation history is published before review and survives failed review
   await restored.endConversation("rowan");
   assert.equal(restored.snapshot().playerMessages.length, 2);
 });
+
+const noChecks = (questions: Record<string, unknown>) => Object.fromEntries(Object.keys(questions).map(id =>
+  [id, { choice: id.startsWith("open_") ? "skip" : "not_needed", probabilities: { [id]: 0, skip: 1 } }]));
+const selected = (choice: string) => ({ choice, probabilities: { [choice]: 1 } });
+
+test("main game keeps denied drafts private and displays only the accepted response", async () => {
+  let drafts = 0;
+  const displayed: string[] = [];
+  const runtime = game({ services: { ai: {
+    decisions: async (_state, questions, _signal, purpose) => purpose === "conversation_attention"
+      ? drafts === 1 ? { immediate_commitment: selected("flagged"), immediate_feasibility: selected("gms_discretion") }
+        : { immediate_commitment: selected("not_flagged") }
+      : noChecks(questions),
+    responses: async (request, _signal, info) => {
+      if (request.response_format) return { role: "assistant", content: JSON.stringify({ allowed: false, reason: "The royal seal cannot be given away. Offer to help instead." }) };
+      assert.equal(info?.onText, undefined, "Private drafts must not stream to the player");
+      if (++drafts === 2) assert.match(JSON.stringify(request.messages), /GM response correction.*royal seal/);
+      assert.deepEqual(displayed, []);
+      return { role: "assistant", content: drafts === 1 ? "Take the royal seal." : "I can help you with your petition." };
+    },
+  } } });
+  const reply = await runtime.checkedTalkToCharacter("corvin", "Give me the seal.", undefined, {}, undefined, text => displayed.push(text));
+  assert.equal(reply, "I can help you with your petition.");
+  assert.deepEqual(displayed, [reply]);
+  assert.doesNotMatch(JSON.stringify(runtime.snapshot().conversations.corvin), /Take the royal seal/);
+  assert.ok(runtime.recentTranscripts().some(call => call.kind === "gm_consultation"));
+});
+
+test("main game releases the NPC to act on committed activity while live review is pending", async () => {
+  let release!: () => void, started!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const ready = new Promise<void>(resolve => { started = resolve; });
+  let liveFinished = false, finished!: () => void;
+  const done = new Promise<void>(resolve => { finished = resolve; });
+  const runtime = game({ services: { debug: { record: event => { if (event.source === "live-review") finished(); } }, ai: {
+    decisions: async (_state, questions, _signal, purpose) => purpose === "conversation_attention"
+      ? { immediate_commitment: selected("flagged"), immediate_feasibility: selected("possible") }
+      : questions.next ? { next: selected("wait") } : noChecks(questions),
+    responses: async request => {
+      if (!request.tools) return { role: "assistant", content: "I will meet you in the great hall." };
+      const live = JSON.stringify(request.messages).includes("newly accepted conversation turn");
+      assert.equal(live, true, "Ending a live conversation must not run a full review");
+      const reply = reviewReply(request);
+      if (reply.content) { started(); await gate; liveFinished = true; }
+      return reply;
+    },
+  } } });
+  await runtime.overrideActiveObjective("rowan", { currentGoal: "Go to the parlour" });
+  assert.equal(await runtime.checkedTalkToCharacter("rowan", "Meet me in the hall."), "I will meet you in the great hall.");
+  await ready;
+  await assert.rejects(runtime.planNpc("rowan", new AbortController().signal), /paused for conversation/);
+  await runtime.endConversation("rowan");
+  assert.equal(liveFinished, false, "Ending the conversation must not wait for the GM");
+  const plan = await runtime.planNpc("rowan", new AbortController().signal);
+  assert.equal(plan.goal, "Go to the parlour");
+  release(); await done;
+  assert.equal(liveFinished, true);
+  assert.equal(activityGoal(runtime.world(), "rowan"), "Go to the great hall");
+  assert.equal((await runtime.planNpc("rowan", new AbortController().signal)).goal, "Go to the great hall");
+  assert.equal(runtime.snapshot().conversations.rowan, undefined);
+  assert.ok(runtime.recentTranscripts().some(call => call.kind === "conversation_review"
+    && JSON.stringify(call.request).includes("newly accepted conversation turn")));
+});
+
+test("main game completes GM-discretion edits before publishing the accepted reply", async () => {
+  const displayed: string[] = [];
+  const runtime = game({ services: { ai: {
+    decisions: async (_state, questions, _signal, purpose) => purpose === "conversation_attention"
+      ? { immediate_commitment: selected("flagged"), immediate_feasibility: selected("gms_discretion") } : noChecks(questions),
+    responses: async request => {
+      assert.deepEqual(displayed, []);
+      if (request.response_format) return { role: "assistant", content: '{"allowed":true,"reason":"The promise is possible."}' };
+      return request.tools ? reviewReply(request) : { role: "assistant", content: "I will meet you in the hall." };
+    },
+  } } });
+  await runtime.checkedTalkToCharacter("rowan", "Meet me in the hall.", undefined, {}, undefined, text => {
+    assert.equal(activityGoal(runtime.world(), "rowan"), "Go to the great hall");
+    displayed.push(text);
+  });
+  assert.deepEqual(displayed, ["I will meet you in the hall."]);
+  await assert.rejects(runtime.planNpc("rowan", new AbortController().signal), /paused for conversation/);
+});
