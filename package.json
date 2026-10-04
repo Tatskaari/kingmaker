@@ -18,6 +18,7 @@
     "dev": "proto run moon -- run workspace:dev",
     "eval:checks": "tsx scripts/run-conversation-check-eval.ts",
     "conversation": "node --experimental-ffi --import tsx scripts/conversation-cli.ts",
+    "eval:review": "tsx scripts/run-conversation-review-eval.ts",
     "eval:wait": "tsx scripts/run-wait-eval.ts"
   },
   "dependencies": {
