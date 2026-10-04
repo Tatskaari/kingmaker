@@ -1,6 +1,6 @@
 ---
 name: kingmaker-eval-workflow
-description: Reproduce Kingmaker game behavior in an eval, test a causal hypothesis with a temporary strategy against the game baseline, and promote a supported improvement through three reviewable PRs. Use for investigating game dumps, prompt or strategy regressions, and eval-driven engine changes.
+description: Reproduce Kingmaker game behavior in an eval, develop a causal hypothesis with the user, compare a temporary strategy against the game baseline, and promote a supported improvement through three reviewable PRs. Use for investigating game dumps, prompt or strategy regressions, and eval-driven engine changes.
 ---
 
 # Kingmaker eval workflow
@@ -44,12 +44,20 @@ Record baseline results, repeats, errors and artifact locations. A stochastic pr
 not fail every time; report its observed frequency rather than claiming a reliable repro.
 Publish this scenario PR with concrete reproduction and QA steps before starting the fix.
 
-## 3. Form a causal hypothesis
+## 3. Develop a causal hypothesis with the user
 
 Inspect the recorded inputs, model calls, document operations and resulting state. Separate
-observations from explanations. State the suspected cause, the smallest proposed change,
-and which rubric criteria or observable behavior should improve if the hypothesis is right.
-Do not infer a cause solely from the final score.
+observations from explanations. Present the evidence and plausible explanations to the user,
+ask for their interpretation, and discuss the cause together. Suggestions are discussion
+starters, not a diagnosis chosen on the user's behalf. Do not infer a cause solely from
+the final score.
+
+Agree with the user on the hypothesis, the smallest candidate change, and which rubric
+criteria or observable behavior should improve before creating or running a candidate
+strategy in PR 2. Wait for their response; a reproduction request alone does not authorize
+choosing a hypothesis and proceeding to a fix. Continue independent evidence gathering
+while discussing it. If the user has already selected a hypothesis and experiment, use
+that agreement without asking again.
 
 ## 4. PR 2: compare a temporary strategy with the unchanged baseline
 
@@ -65,7 +73,7 @@ with `--concurrency`; keep comparisons under equivalent conditions.
 
 Report the hypothesis, candidate change, per-criterion comparison and remaining uncertainty
 in PR 2. A single successful run or tied scores do not establish an improvement. If the
-evidence does not support the change, refine the hypothesis or report that outcome instead
+evidence does not support the change, discuss revisions to the hypothesis with the user or report that outcome instead
 of promoting it. If the rubric itself needs correction, rerun both sides under the revised
 rubric rather than comparing incompatible scores.
 
