@@ -163,3 +163,19 @@ and feasibility labels alone earn no credit. Negative cases require no reconcili
 flag; execution errors score zero and remain visible. Deterministic grading avoids
 asking another model to decide whether a label was present; this is classification
 accuracy, not prose quality or committed-world-state grading.
+
+Initial live baseline (2026-10-04, three repeats per case, Jev `typesafe/jev-1.13`):
+
+| Case | Correct decisions |
+| --- | --- |
+| Observed graduation accommodation | 0/3 |
+| Explicit acceptance | 3/3 |
+| Rejected claim | 3/3 |
+| Noncommittal reply | 3/3 |
+| Lore-supported history | 3/3 |
+
+The baseline missed reconciliation in all three observed-case trials, flagging only
+`deferred_commitment`. It detected explicit acceptance via `improvised_detail`. The
+aggregate was 12/15 (80%), with zero execution or judging errors. This small sample
+reproduces the accommodation gap; it is not an estimate of general classifier accuracy.
+Local full recordings: `eval-output/2026-10-04T20-16-02.548Z-0a0312b1/`.
