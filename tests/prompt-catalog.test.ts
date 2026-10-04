@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import Mustache from "mustache";
-import catalog from "../lore/gm_prompts/catalog.json" with { type: "json" };
+import catalog from "../packages/prompts/src/catalog.js";
 import { renderPrompt } from "../packages/prompts/src/index.js";
 
 test("all authored templates parse and contain prompt text", () => {
   for (const [id, entry] of Object.entries(catalog)) {
-    assert.ok(entry.template.join("\n").trim(), id);
-    assert.doesNotThrow(() => Mustache.parse(entry.template.join("\n")), id);
+    assert.ok(entry.trim(), id);
+    assert.doesNotThrow(() => Mustache.parse(entry), id);
   }
 });
 

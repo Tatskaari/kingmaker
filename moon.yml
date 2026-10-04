@@ -31,7 +31,7 @@ tasks:
     deps: [contracts:generate]
     inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'evals/**/*', 'scripts/**/*', 'content/**/*', 'lore/**/*', 'package.json', 'package-lock.json']
   compile:
-    command: npx --no-install tsc --outDir dist
+    command: npx --no-install tsx scripts/compile.ts
     deps: [contracts:generate]
     inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'evals/**/*', 'scripts/**/*', 'lore/gm_prompts/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
     outputs: [dist]

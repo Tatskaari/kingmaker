@@ -1,5 +1,5 @@
 import Mustache from "mustache";
-import catalog from "../../../lore/gm_prompts/catalog.json" with { type: "json" };
+import catalog from "./catalog.js";
 
 export type PromptId = keyof typeof catalog;
 
@@ -19,7 +19,7 @@ export function renderPrompt(id: PromptId, values: Record<string, unknown> = {})
   assertData(values);
   const entry = catalog[id];
   if (!entry) throw new Error(`Unknown prompt: ${id}`);
-  return Mustache.render(entry.template.join("\n"), new PromptContext(values), undefined, { escape: value => value });
+  return Mustache.render(entry, new PromptContext(values), undefined, { escape: value => value });
 }
 
 function assertData(value: unknown): void {
