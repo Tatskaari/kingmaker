@@ -1,0 +1,17 @@
+Generated with the built-in image_gen tool.
+
+Use case: infographic-diagram
+Asset type: illustrated explanatory diagram for the Kingmaker fantasy roleplaying game's GitHub README.
+Primary request: Show how editable Obsidian lore becomes character knowledge and how the GM updates memories after conversations. A polished, inviting fantasy storybook infographic, parchment paper, ink drawings of linked notes, a small faceted decision crystal, a courtier speaking, and a game master's quill. Clear typography, highly readable at GitHub README width, restrained decoration. Landscape composition, four stages in a clockwise loop: upper left author notes; upper right relevance selection; lower right character conversation; lower left GM review. Directional arrows strictly follow 1 -> 2 -> 3 -> 4 -> 1. Generous spacing, no overlapping lines.
+Text verbatim:
+Title: "A character's mind, written in notes"
+Stage 1 heading: "1. Obsidian lore"
+Stage 1 caption: "You write their history, personality and beliefs."
+Stage 2 heading: "2. Jev selects"
+Stage 2 caption: "Decision mode finds relevant lore they can know."
+Stage 3 heading: "3. Characters respond"
+Stage 3 caption: "They speak and act from their own perspective."
+Stage 4 heading: "4. The GM remembers"
+Stage 4 caption: "Reviews conversations and updates in-game notes."
+Small footer: "Authored lore starts the world. Play changes its memories."
+Constraints: Every stage appears exactly once. Diagram must distinguish authored Obsidian lore from in-game notes; the return arrow from stage 4 to stage 1 is labeled "Evolving in-game knowledge" and must not imply writing back to the author's vault. No extra text, logos or watermarks. Crisp legible labels are more important than ornaments.
