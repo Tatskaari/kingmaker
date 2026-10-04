@@ -20,10 +20,11 @@ const flags = {
 };
 export const attentionQuestions: JevQuestions = {
   ...Object.fromEntries(Object.entries(flags).map(([id, criterion]) => [id, {
-    type: "choice" as const, instructions,
-    criteria: { flagged: criterion, not_flagged: `The latest reply does not meet this criterion: ${criterion}` },
+    type: "choice" as const,
+    instructions: `${instructions}\nEvaluate ONLY the ${id} category: ${criterion}\nChoose flagged only for evidence of this exact category. Other categories being present does not qualify.`,
+    criteria: { flagged: `The latest reply meets the ${id} criterion.`, not_flagged: `The latest reply does not meet the ${id} criterion.` },
   }])),
-  immediate_feasibility: { type: "choice", instructions, criteria: {
+  immediate_feasibility: { type: "choice", instructions: `${instructions}\nEvaluate ONLY feasibility of a specific action the character commits to perform now. First check whether the reply contains such an immediate commitment. Broad support, completed actions and future plans require not_applicable, regardless of what actions the character could theoretically perform.`, criteria: {
     possible: "There is an immediate commitment and all its immediate actions are supported as possible by the visible scenario or a binding GM ruling.",
     impossible: "At least one immediately committed action is explicitly blocked by the supplied scenario, with no binding ruling overriding that obstacle.",
     unknown: "There is an immediate commitment but insufficient evidence to establish feasibility for all its immediate actions, and no explicit obstacle establishes impossibility.",
