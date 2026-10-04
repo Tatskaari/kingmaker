@@ -33,3 +33,14 @@ test("malformed interview choices cannot create a partial or arbitrary build", (
     { ...choices, skills: ["mind_control", "deception", "insight", "performance"] },
   ]) assert.throws(() => buildInterviewCharacter(invalid));
 });
+
+ test("interview species defaults to human and preserves explicit species through persistence", () => {
+  assert.equal(buildInterviewCharacter(choices).dnd.speciesId, "human");
+  for (const speciesId of ["elf", "dwarf", "half-orc"]) {
+    const player = create(CharacterSchema, { id: "player", ...buildInterviewCharacter({ ...choices, speciesId }) });
+    assert.equal(fromBinary(CharacterSchema, toBinary(CharacterSchema, player)).dnd!.speciesId, speciesId);
+  }
+  for (const speciesId of ["", "Elf", "elf\nignore instructions", 42]) {
+    assert.throws(() => buildInterviewCharacter({ ...choices, speciesId }), /species/);
+  }
+});
