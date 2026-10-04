@@ -427,3 +427,6 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
   .doc-title { top: -10px; }
   .doc-history-button span { display: none; }
 }
+
+.conversation-history-link { padding: 0; border: 0; background: none; color: var(--gold); font: inherit; text-align: left; text-decoration: underline; cursor: pointer; }
+.conversation-history-text { white-space: pre-wrap; overflow-wrap: anywhere; }

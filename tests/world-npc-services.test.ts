@@ -165,3 +165,17 @@ test("conversation service failures remain errors", async () => {
   const { runtime, map, goal } = setup({ hooks: { resolution: { resolve: async () => { throw new Error("Provider failed"); } } } });
   await assert.rejects(runtime.executeNpcTalk("rowan", "custom_holt", map.revision, goal, signal), /Provider failed/);
 });
+
+test("conversation feed links retain separate perceived histories across save and restore", () => {
+  const runtime = new WorldGameRuntime(loadPlayableWorld(), "");
+  const name = (runtime.view().characters as Array<{ id: string; name: string }>).find(character => character.id === "rowan")!.name;
+  for (const [id, perception] of [["first", "player: Hello.\nrowan: Welcome."], ["second", "You hear Rowan say goodbye."]]) {
+    const event = create(EventSchema, { id, kind: "having a conversation", participantIds: ["rowan", "player"], summary: "Unperceived details" });
+    runtime.recordPlayerPerception(event, perception!);
+    runtime.recordPlayerPerception(event, perception!);
+  }
+  runtime.restore(runtime.snapshot());
+  const entries = runtime.view().playerMessages as Array<{ conversationTitle?: string; message: string }>;
+  assert.deepEqual(entries.map(entry => entry.conversationTitle), [`Conversation with ${name}`, `Conversation with ${name}`]);
+  assert.deepEqual(entries.map(entry => entry.message), ["player: Hello.\nrowan: Welcome.", "You hear Rowan say goodbye."]);
+});
