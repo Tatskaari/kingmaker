@@ -1,3 +1,4 @@
+import { worldView } from "./world-view.js";
 import { createPhysicalEvent } from "./physical-event.js";
 import { inventoryOwners } from "../../../packages/core/src/inventory.js";
 import { strangerEntry } from "./stranger-lore.js";
@@ -86,7 +87,8 @@ export class WorldHost {
     return result;
   }
   view(): Record<string, unknown> {
-    const game = this.projection(), view = game.view(); this.remember(game);
+    this.syncGoals();
+    const view = worldView(this.world(), this.activity);
     return { ...view, jail: structuredClone(this.activity.jail ?? null),
       phase: this.world().player ? "conversations" : this.activity.stranger?.draft ? "character_review" : "player_creation",
       playerDraft: structuredClone(this.activity.stranger?.draft ?? null),

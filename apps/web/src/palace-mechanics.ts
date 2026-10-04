@@ -1,15 +1,13 @@
 import { createPhysicalEvent } from "./physical-event.js";
 import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
-import { ScenarioSchema, TranscriptMessageSchema, TranscriptRole, TilePositionSchema, DndCharacterSchema, GamePhase, type Scenario, type Event } from "../../../packages/contracts/src/index.js";
+import { ScenarioSchema, TranscriptMessageSchema, TilePositionSchema, GamePhase, type Scenario, type Event } from "../../../packages/contracts/src/index.js";
 import { fixtureActions, applyFixtureAction } from "../../../packages/core/src/fixtures.js";
-import { inventoryOwners, findItem, itemsFor } from "../../../packages/core/src/inventory.js";
-import { worldForCharacter } from "../../../packages/core/src/physical-view.js";
+import { inventoryOwners, findItem } from "../../../packages/core/src/inventory.js";
 import { courtAgentObservation } from "./court-agent.js";
 import { courtPath, courtRoomAt } from "./court-map.js";
 import type { Point } from "./navigation.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
 const npcLog = gameLogger("npc");
-type JsonObject = Record<string, unknown>;
 type EventDetails = Record<string, JsonValue>;
 export interface NpcActivity {
   activityDocument?: string | null;
@@ -193,44 +191,6 @@ export class PalaceMechanics {
     door.open = open; world.revision++; this.#setScenario(scenario);
     const playerName = scenario.characters.find(character => character.id === scenario.playerCharacterId)?.name ?? "The player";
     return this.worldEvent("using a door", `${playerName} ${open ? "opened" : "closed"} ${door.name}.`, [scenario.playerCharacterId!]);
-  }
-
-  view(): JsonObject {
-    const scenario = this.#scenario;
-    const world = scenario.world;
-    const player = scenario.characters.find(character => character.id === scenario.playerCharacterId);
-    return {
-      playerMessages: scenario.notes.filter(note => note.details?.kind === "player_message" && note.characterIds.includes(scenario.playerCharacterId ?? ""))
-        .map(({ id, day, text, details }) => ({ id, day, message: text,
-          ...(typeof details?.createdAt === "string" ? { createdAt: details.createdAt } : {}) })),
-      revision: world?.revision ?? 0,
-      npcActivities: Object.fromEntries(scenario.characters.filter(item => item.id !== scenario.playerCharacterId).map(item => [item.id, this.#npcActivities[item.id] ?? { status: "idle", goal: item.currentGoal, history: [] }])),
-      phase: "conversations",
-      day: world?.day || 0,
-      doors: world?.doors ?? [],
-      fixtures: world ? worldForCharacter(scenario.world!, inventoryOwners(scenario.characters, scenario.world), scenario.playerCharacterId ?? "").fixtures : [],
-      fixtureActions: fixtureActions(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), scenario.playerCharacterId ?? ""),
-      inventory: itemsFor(inventoryOwners(scenario.characters, scenario.world), scenario.playerCharacterId ?? "").map(({ id, name, details }) => ({ id, name, details })),
-      roomAccess: world?.rooms.map(({ id, private: restricted, allowedCharacterIds }) => ({ id, private: restricted, allowedCharacterIds })) ?? [],
-      location: world?.rooms.find(room => room.id === world.actors.find(actor => actor.characterId === player?.id)?.roomId)?.name || "Great Hall",
-      premise: scenario.premise,
-      player: player ? {
-        dnd: player.dnd ? toJson(DndCharacterSchema, player.dnd, { alwaysEmitImplicit: true }) : null,
-        id: player.id, name: player.name, gender: player.gender, delegation: player.delegation, sprite: player.sprite, position: world?.actors.find(actor => actor.characterId === player.id)?.position, roomId: world?.actors.find(actor => actor.characterId === player.id)?.roomId, lore: player.lore, currentGoal: player.currentGoal,
-        relationships: player.relationships.map(relationship => ({
-          characterId: relationship.characterId,
-          characterName: scenario.characters.find(character => character.id === relationship.characterId)?.name || relationship.characterId,
-          description: relationship.description,
-        })),
-      } : null,
-      characters: scenario.characters.filter(character => character.id !== "player").flatMap(character =>
-        (world?.actors.filter(actor => actor.characterId === character.id) ?? []).map(actor => ({ id: character.id, instanceId: actor.instanceId || character.id, name: character.name, sprite: character.sprite, dialogueObjectives: character.dialogueObjectives, activeObjective: character.activeObjective, currentGoal: character.currentGoal, position: actor.position, roomId: actor.roomId }))),
-      conversationReplyOptions: this.#conversationReplyOptions,
-      conversationEndRequested: this.#conversationEndRequested,
-      conversations: Object.fromEntries([...this.#conversations].map(([id, transcript]) => [id, transcript.filter(message => message.role !== TranscriptRole.GAME_MASTER).map(message => ({
-        role: message.role === TranscriptRole.CHARACTER ? "character" : "player", text: message.text,
-      }))])),
-    };
   }
 
 }
