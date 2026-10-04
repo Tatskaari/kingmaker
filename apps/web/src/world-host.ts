@@ -11,13 +11,12 @@ import type { MapService } from "../../../packages/conversation/src/map.js";
 import { roomAgentActions } from "./room-actions.js";
 import { foregroundBodies } from "./background-characters.js";
 import { worldForCharacter } from "../../../packages/core/src/physical-view.js";
-import { clone, create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
-import { ScenarioSchema, type Event } from "../../../packages/contracts/src/index.js";
-import { CharacterPropertiesSchema, WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
+import { clone, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
+import { type Event } from "../../../packages/contracts/src/index.js";
+import { WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
 import { createScenarioServices } from "../../../packages/lore/src/services.js";
 import { activityGoal, characterIntent, formatActivity } from "../../../packages/lore/src/activity.js";
 import { PalaceMechanics, type MechanicalActivity } from "./palace-mechanics.js";
-import { projectWorld } from "./world-projection.js";
 import { characterDocuments, characterId } from "../../../packages/lore/src/character-id.js";
 import type { Point } from "./navigation.js";
 
@@ -30,7 +29,7 @@ export type WorldSnapshot = MechanicalActivity & {
   playerMessages: Array<{ id: string; day: number; message: string; createdAt: string }>;
 };
 
-/** Documents and mechanics have one authority. Palace mechanics are a disposable rules/view adapter. */
+/** Documents and mechanics have one authority; actions commit detached mechanical state. */
 export class WorldHost {
   protected documents: ReturnType<typeof createScenarioServices>;
   protected activity: Omit<WorldSnapshot, "world">;
@@ -65,26 +64,13 @@ export class WorldHost {
     this.documents = createScenarioServices(state);
     this.activity = activity;
   }
-  protected projection() {
-    this.syncGoals();
-    const scenario = projectWorld(this.world());
-    return new PalaceMechanics(scenario, this.activity);
-  }
-  private remember(game: PalaceMechanics) {
-    const { scenario: _scenario, ...activity } = game.snapshot();
-    this.activity = { ...this.activity, ...activity };
-  }
   protected mutate<T>(operation: (game: PalaceMechanics) => T): T {
-    const before = this.world(), game = this.projection();
+    this.syncGoals();
+    const game = new PalaceMechanics(this.world(), this.activity);
     const result = operation(game);
-    const next = fromJson(ScenarioSchema, game.snapshot().scenario);
-    const properties = Object.fromEntries([...before.characters, ...(before.player ? [before.player] : [])].map(path => {
-      const character = next.characters.find(item => item.id === characterId(path, before) || before.runtimeCharacters[item.id]?.document === path)!;
-      return [path, create(CharacterPropertiesSchema, { ...(character.dnd ? { dnd: character.dnd } : {}),
-        ...(character.inventory ? { inventory: character.inventory } : {}) })];
-    }));
-    this.documents.mechanics.commit(next.world!, properties);
-    this.remember(game);
+    const { map, properties, npcActivities } = game.snapshot();
+    this.documents.mechanics.commit(map, properties);
+    this.activity.npcActivities = npcActivities;
     return result;
   }
   view(): Record<string, unknown> {

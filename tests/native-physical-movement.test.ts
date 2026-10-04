@@ -10,7 +10,7 @@ test("player movement and doors commit native map state without rebuilding chara
   player.position = { ...door.interactionSpots[0]! };
   door.open = false;
   const host = new WorldHost(world), before = host.world();
-  t.mock.method(host as any, "projection", () => { throw new Error("Unexpected legacy projection"); });
+  assert.ok(!("projection" in host));
   const event = host.setDoor(door.id, true);
   assert.match(event.summary, /opened/);
   assert.equal(host.world().map!.doors.find(item => item.id === door.id)!.open, true);
