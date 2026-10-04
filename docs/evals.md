@@ -1,5 +1,8 @@
 # Engine experiments
 
+Follow the [Kingmaker eval workflow skill](../.agents/skills/kingmaker-eval-workflow/SKILL.md)
+for scenario reproduction, temporary strategy comparisons and promotion into the baseline.
+
 An experiment supplies baseline and variant runtime configurations, `run(runtime, signal)`,
 `summarise(recording)` and `score(recording, context)`. A strategy groups policy hooks;
 a variant selects strategies and service factories. The framework constructs a fresh
