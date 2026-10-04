@@ -14,7 +14,7 @@ test("browser view reads document presentation and preserves physical bodies and
     toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role, text: String(role) })));
   host.restore(saved);
   const before = host.snapshot();
-  t.mock.method(host as any, "projection", () => { throw new Error("Unexpected legacy projection"); });
+  assert.ok(!("projection" in host));
   const view = host.view() as any;
   assert.equal(view.player.lore, "Player biography.");
   assert.equal(view.characters.find((character: any) => character.id === "rowan").name, "Renamed Rowan");

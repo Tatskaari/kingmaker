@@ -5,7 +5,7 @@ import { create, fromJson, toJson } from "@bufbuild/protobuf";
 import { DocumentSchema, WorldStateSchema } from "../packages/contracts/src/v2.js";
 import { loadPlayableWorld } from "./fixtures.js";
 import { placeBackgroundCharacters } from "../apps/web/src/background-characters.js";
-import { projectWorld } from "../apps/web/src/world-projection.js";
+import { projectWorld } from "./legacy-world-fixture.js";
 import { WorldHost } from "../apps/web/src/world-host.js";
 import { courtMarkers } from "../apps/web/src/court-map.js";
 

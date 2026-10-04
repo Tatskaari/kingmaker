@@ -8,7 +8,7 @@ export function assignActivity(world: WorldState, id: string, goal: string) {
   world.runtimeCharacters[id]!.activity = activity;
 }
 import { loadPlayableWorld } from "../scripts/lib/playable-world.js";
-import { projectWorld } from "../apps/web/src/world-projection.js";
+import { projectWorld } from "./legacy-world-fixture.js";
 export { loadPlayableWorld };
 export const physicalFixture = () => projectWorld(loadPlayableWorld());
 

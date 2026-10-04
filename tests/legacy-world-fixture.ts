@@ -1,11 +1,11 @@
-import { foregroundBodies } from "./background-characters.js";
-import { characterId } from "../../../packages/lore/src/character-id.js";
+import { foregroundBodies } from "../apps/web/src/background-characters.js";
+import { characterId } from "../packages/lore/src/character-id.js";
 import { clone, create } from "@bufbuild/protobuf";
-import { CharacterSchema, ScenarioSchema, WorldStateSchema as MapSchema } from "../../../packages/contracts/src/index.js";
-import type { WorldState } from "../../../packages/contracts/src/v2.js";
-import { activityGoal, intentContext } from "../../../packages/lore/src/activity.js";
+import { CharacterSchema, ScenarioSchema, WorldStateSchema as MapSchema } from "../packages/contracts/src/index.js";
+import type { WorldState } from "../packages/contracts/src/v2.js";
+import { activityGoal, intentContext } from "../packages/lore/src/activity.js";
 
-/** Disposable adapter for existing palace rules and views. Never a saved authority. */
+/** Test-only fixture for consumers of the legacy Scenario runtime. */
 export function projectWorld(world: WorldState, observerId = "player") {
   if (!world.map) throw new Error("A physical map is required.");
   const entries = Object.values(world.runtimeCharacters).filter(character => character.characterId !== "player")
