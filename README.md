@@ -156,59 +156,6 @@ the matching `checks`, and all per-skill `decisions` with probabilities and
 confidence when supplied. Calls share the conversation's run ID. Classification
 failures are logged without interrupting dialogue; results do not change game state.
 
-### Jev world-state evals
-
-The headless Jev eval runner creates a fresh runtime for every run, assigns one
-physical goal, applies production movement and interactions, and evaluates the
-resulting typed scenario. Eval definitions are TypeScript in `evals/jev/`, so
-setup and success criteria can use normal domain helpers instead of a JSON
-assertion language. Run the default scenarios with:
-
-```sh
-OPENROUTER_API_KEY=... npm run eval:jev
-```
-
-Each scenario runs ten times by default. The CLI reports success rate and the
-average number of Jev decisions for successful and failed runs. Every run is
-written immediately to `eval-output/jev/` with the invocation date, scenario
-name and run number. These gitignored JSON artifacts contain the Jev request and
-response transcripts, action trace, outcome and final runtime snapshot.
-
-The guest-invitation eval supplies `mockTalk`: after the king approaches a
-guest, the harness records the talk target and feeds the mock response back to
-Jev's action history. Success requires calls to all nine visiting delegates;
-recipients remain in place and no dialogue model runs. Artifacts include these
-`talkCalls`. The scarf delivery eval stops at the conversation boundary and
-succeeds when the king calls the talk action targeting Rowan. Run either by name, for example
-`npm run eval:jev -- guest` or `npm run eval:jev -- scarf`.
-
-`npm run eval:jev -- "royal seal"` runs the longer dependency-and-cleanup task:
-fetch Corvin's key, open the royal lockbox, take the seal, close the lockbox and
-both bedroom doors, then talk to Rowan. At that conversation boundary the eval
-checks the king carries the seal and all three closures are complete. It uses
-the same authored world, production prompts, and 24-decision budget.
-
-Add `--minimal` to pin each run's room-scoped text interface to context
-level 1 (scene plus active objective) and the completed action log enabled:
-`npm run eval:jev -- "royal seal" --minimal`. Artifacts record `minimal: true`.
-This uses per-runtime overrides and does not change the game's default flags.
-
-Runs also report earned/possible points, a percentage, and a milestone breakdown,
-saved with each transcript. The repeated-run score is total earned points divided
-by total possible points; full-success rate and turn averages remain separate.
-The royal-seal rubric is 11 points: 2 each for retrieving the key, opening the
-lockbox, collecting the seal, and reaching Rowan with it; 1 each for closing
-Corvin's door behind you, closing the lockbox after collecting the seal, and
-closing the royal door behind you. Completed-action IDs establish retrieval and
-opening; final state establishes retained items and closures. Untouched closed
-doors earn no points. Guest invitations earn one point per distinct guest.
-Scenarios without milestones retain a one-point completion score.
-
-The separate unknown-location variant keeps the same world and scoring but tells
-the king only that the spare key is somewhere in Corvin's room:
-`npm run eval:jev -- "unknown key location" --minimal`.
-The original royal-seal scenario still specifies the chest of drawers.
-
 ## Reset while developing
 
 With a loaded character, use the browser console:
@@ -349,73 +296,9 @@ the compiled interfaces and v2 host take precedence over older v1 examples.
 proto run moon -- run workspace:check workspace:build
 ```
 
-Unit eval scenarios live in `evals/`. Each scenario names a generation model,
-a transcript fixture, optional toolset, repeated-run settings and a weighted rubric. The runner
-sends the transcript to the named model, captures its response, then asks Jev to
-score every criterion in one judgment. By default, the runner executes the
-king-accusation eval:
-
-Transcript fixtures are declarative. A `character_conversation_sys_prompt` step
-loads an editable character fixture and expands it with the production
-`FullContextBuilder`; ordinary dialogue steps then append messages:
-
-```json
-{
-  "transcript": [
-    { "type": "character_conversation_sys_prompt", "character": "../characters/king.json" },
-    { "type": "user_message", "value": "I know about the boy." }
-  ]
-}
-```
-
-The character fixture selects the source scenario and character. Its
-`within_earshot` array is currently the only synthetic world-state override, so
-evals can control conversation privacy without artificial actor coordinates.
-This fixture is the extension point for other character-local world state when
-an eval eventually needs it.
-
-The same character fixture can optionally contain `patch`, an RFC 6902 JSON
-Patch applied to a context document containing the scenario's selected
-`character` and `notes`. This lets one patch change character fields and add or
-remove private facts. When the patch contains an operation, the runner evaluates
-the untouched scenario context as the baseline and then the patched context,
-reporting score deltas. Without it, the eval runs once.
-
-```sh
-OPENROUTER_API_KEY=... npm run eval:unit
-```
-
-The equivalent Moon task is `proto run moon -- run workspace:unitEval`. Pass one
-or more scenario paths after `--` to run only those fixtures, for example:
-
-```sh
-proto run moon -- run workspace:unitEval -- evals/king-accusation-response.json
-```
-
-To replay the Sabine plan-disclosure report:
-
-```sh
-OPENROUTER_API_KEY=... npm run eval:unit -- evals/rook-sabine-plan-disclosure.json
-```
-
-This fixture freezes request 56 from `kingmaker-issue-report-2026-10-01T23-47-08-090Z.zip`,
-including its messages, tools, response schema and reasoning settings. The report
-title names Holt, but Rook speaks the Grey Gull ruse with Sabine a clear listener
-three tiles away. The rubric requires keeping the ruse secret until privacy is
-actually established. Ten generations measure how often the issue recurs.
-Captured transcripts use a top-level `request` instead of declarative `transcript`
-steps; the scenario model must match the capture. `source` and `observed_response`
-retain provenance and the original failure, but are not sent to generation or scoring.
-This is a frozen reproduction, so subsequent production prompt changes do not
-automatically update it.
-
-The tested privacy-instruction variant is `evals/rook-sabine-private-plan.json`.
-It adds explicit listener warnings and requires Rook to move somewhere private
-before discussing the ruse. Run both fixtures with:
-
-```sh
-OPENROUTER_API_KEY=... npm run eval:unit -- evals/rook-sabine-plan-disclosure.json evals/rook-sabine-private-plan.json
-```
+The legacy Scenario-based eval harnesses and fixtures have been retired.
+Document-native evaluations will be designed separately; deterministic runtime
+and provider tests remain part of the checks above.
 
 The production site is built into `dist/web`. Merges to main deploy through
 `.github/workflows/pages.yml`. Relative asset URLs support GitHub Pages paths.
@@ -453,11 +336,10 @@ Each test process gets its own timestamp/PID file, with its test filename in the
 first record. Tests run without Moon caching so each invocation produces fresh logs.
 Set `KINGMAKER_LOG_DIR` to override the directory. Files accumulate across runs;
 remove `test-output/logs/` when no longer needed. Logs are ignored by Git.
-For a focused test or eval with file logging:
+For a focused test with file logging:
 
 ```sh
 node --import tsx --import ./scripts/test-logging.ts --test tests/contracts.test.ts
-node --import tsx --import ./scripts/test-logging.ts scripts/run-jev-world-eval.ts
 ```
 
 Shared code uses `gameLogger(component)`; entry points choose the sink with
@@ -563,55 +445,6 @@ This is trusted local code execution, not a sandbox. The socket is user-only
 (mode 0600); do not expose it to untrusted clients. Only explicit requests advance
 the game: browser background NPC scheduling and automatic event reactions are
 not started by this console.
-
-### Conversation dice-check evals
-
-`npm run eval:checks -- --preview` renders scenario-backed character inputs to
-`eval-output/jev-conversation-checks` without an API key or model calls. The
-starter cases use Aldren from `last-night.json` via `evals/characters/king.json`,
-including his actual lore, notes, objectives, world context, and nearby listeners.
-They reuse the dialogue eval's `character_conversation_sys_prompt` builder.
-
-To create a case, copy `evals/jev/king-threat.json`, select a character fixture
-(`scenario`, `character`, `within_earshot`), and author conversation steps using
-`user_message` and `assistant_message`. The final user message is the current
-attempt; preceding turns are history. Character facts come from the scenario.
-The starter cases have no expected labels: review them before deciding which
-checks belong. Set `"expected": []` for no roll, or e.g.
-`"expected": ["intimidation"]` for an agreed skill set. Omitted labels remain
-REVIEW results and never count as passing or failing accuracy measurements.
-
-`OPENROUTER_API_KEY=... npm run eval:checks` runs the starter, Rook, and Holt cases. Pass JSON
-paths to run other cases. Runs repeat three times; override with
-`JEV_EVAL_REPEATS`. Artifacts retain rendered inputs, requests, decisions, labels,
-and errors after every run; set `JEV_EVAL_OUTPUT_DIR` to change their location.
-Labeled cases report exact skills, roll/no-roll accuracy, precision, and recall.
-Any mismatch or provider error exits nonzero. Labels are never sent to Jev.
-
-Recorded game regressions can use `capturedInput` instead of `transcript`: a
-relative path to the exact `{ playerTurn, messages }` from a `conversation_check`
-request in an issue dump. This preserves the scenario context as Jev saw it at
-that moment, without rebuilding it from the later saved world state or including
-subsequent GM rulings. The Rook voyage/favor cases replay requests 4 and 7 from
-the October 1, 23:06 dump. Both are labeled deception: claiming shared history
-absent from established lore is a lie under the intended game rule. Their
-recorded no-check results are failures. The classifier now uses established lore,
-recorded events, and explicit GM rulings to assess truth; repeated claims and
-polite NPC acknowledgments do not establish history. The recorded Rook greeting
-and a supported voyage statement provide no-check controls.
-
-`npm run eval:checks -- evals/jev/holt-private-invitation.json` replays Holt's
-private-conversation invitation from request 50 in the October 1, 23:21 dump.
-Under the agreed comfort-boundary rule it expects no roll: the captured context
-shows receptiveness and no established cost or discomfort in a quiet conversation. The input is captured before his reply and subsequent
-GM ruling; neither the expected label nor that later acceptance reaches Jev.
-
-Persuasion depends on a request crossing the listener's established interests,
-comfort, or willingness; lack of prior agreement alone is insufficient.
-`holt-security-advice.json` and `holt-patrol-disclosure.json` are explicitly
-authored controls using the same captured character context. The first asks for
-advice Holt's lore says he offers (no roll); the second asks him to publicly name
-Aldren despite his established reluctance out of loyalty (persuasion).
 
 ## Lore authoring
 
