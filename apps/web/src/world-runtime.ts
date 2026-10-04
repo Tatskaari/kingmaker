@@ -231,7 +231,8 @@ export class WorldGameRuntime extends WorldHost {
       this.liveConversations.set(id, session);
     }
     await session.reviews.drain();
-    signal = AbortSignal.any([signal, session.reviews.signal]);
+    const strategyOverride = options.strategies?.conversation ?? this.options.strategies?.conversation;
+    if (!strategyOverride) signal = AbortSignal.any([signal, session.reviews.signal]);
     signal.throwIfAborted();
     const previous = structuredClone(this.activity.conversations[id] ?? []);
     const runtime = this.runtime(id, "dialogue", options, this.conversationRun(id), signal, [id, "player"]);
@@ -248,7 +249,7 @@ export class WorldGameRuntime extends WorldHost {
     const strategies = conversationStrategy(disclosure, runtime.services.ai, build, message,
       async (_check, cancellation) => { cancellation.throwIfAborted(); return runtime.services.random.integer(1, 20); },
       () => {}, () => {}, runtime.services.presentation, runtime.services.character, { services: runtime.services, characterId: id }, () => {}, session.response);
-    runtime.strategies.conversation = options.strategies?.conversation ?? this.options.strategies?.conversation ?? strategies;
+    runtime.strategies.conversation = strategyOverride ?? strategies;
     runtime.services.character.respond = (request, cancellation) => runtime.services.ai.responses(request, cancellation);
     const transcript = previous.map(turn => fromJson(TranscriptMessageSchema, turn));
     const request = await prepareConversation({ snapshot: { world }, characterId: id, sources: lore.initial, transcript, message }, runtime.services, signal);
