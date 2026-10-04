@@ -16,7 +16,8 @@ test("review experiments replay real tools, record AI and docs, and grade state 
     responses: async () => commitReview({ summary: "Reviewed", newNotes: ["The player ordered me to the parlour."], activeGoal: "Go to the parlour." }),
     decisions: async (_state, questions) => Object.fromEntries(Object.keys(questions).map(key => [key, { choice: "skip", probabilities: { [key]: 0, skip: 1 } }])),
   }), { decisions: async (state, questions) => {
-    const evidence = state as { changes: unknown[]; updates: unknown[]; contextDocuments: unknown[] };
+    const evidence = state as { changes: unknown[]; updates: unknown[]; contextDocuments: unknown[]; reviewedCharacterIntent: { activity: unknown } };
+    assert.ok(evidence.reviewedCharacterIntent.activity);
     assert.ok(evidence.changes.length >= 2); assert.ok(evidence.updates.length >= 1); assert.ok(evidence.contextDocuments.length >= 2);
     assert.doesNotMatch(JSON.stringify(evidence), /"variant":|"candidate"/);
     return Object.fromEntries(Object.keys(questions).map(key => [key, { choice: "complete", probabilities: { complete: 1 } }]));
