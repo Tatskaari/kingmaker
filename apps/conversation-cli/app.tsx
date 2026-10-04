@@ -1,6 +1,6 @@
 import type { AiService, RuntimeServices } from "../../packages/conversation/src/services.js";
 import type { DndCharacter } from "../../packages/contracts/src/index.js";
-import { cliHooks, type ManualRoll, type RequestRoll } from "../../packages/conversation/src/cli-hooks.js";
+import { cliStrategy, type ManualRoll, type RequestRoll } from "../../packages/conversation/src/cli-strategy.js";
 import { useEffect, useRef, useState } from "react";
 import { stripVTControlCharacters } from "node:util";
 import { createCliRenderer, createClipboard, createHostClipboard, createRendererClipboardAdapter,
@@ -98,15 +98,15 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
           return index < 0 ? [...previous, round] : previous.map((item, i) => i === index ? round : item);
         });
       };
-      const hooks = disclosure && checks
-        ? cliHooks(disclosure, checks.ai, checks.build, message, requestRoll, trace, turn => {
+      const strategies = disclosure && checks
+        ? cliStrategy(disclosure, checks.ai, checks.build, message, requestRoll, trace, turn => {
           timeline.record(`gm-${gmCount.current++}`);
           setGmTurns(previous => [...previous, turn]);
         }, {}, {}, checks.services ? { services: checks.services, characterId: input.characterId } : undefined)
-        : disclosure ? disclosure.hooks(trace) : { classify: async () => ({}), resolve: async () => ({ reclassify: false }) };
+        : disclosure ? disclosure.strategy(trace) : { classify: async () => ({}), resolve: async () => ({ reclassify: false }) };
       const runtime = new ConversationRuntime({
         services: { character: { respond: complete } },
-        hooks: { conversation: hooks as import("../../packages/conversation/src/phases.js").ConversationHooks<unknown> },
+        strategies: { conversation: strategies as import("../../packages/conversation/src/phases.js").ConversationStrategy<unknown> },
       });
       const result = await converse({ ...turnInput, sources: disclosure?.sources ?? input.sources }, runtime, controller.current.signal,
         turn => {
