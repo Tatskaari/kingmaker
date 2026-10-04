@@ -5,7 +5,6 @@ import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 import { JevClient } from "../packages/providers/src/jev.js";
 import { loadPlayableWorld } from "./lib/playable-world.js";
 import { createReviewExperiment } from "../packages/evals/src/review-experiment.js";
-import { reviewVariants } from "../packages/evals/src/review-variants.js";
 import { runEvalCli } from "../packages/evals/src/cli.js";
 import transcript from "../evals/reviews/oswin-parlour.json" with { type: "json" };
 
@@ -26,6 +25,6 @@ const experiment = createReviewExperiment({ name: "oswin-parlour", characterId: 
     world.runtimeCharacters.oswin!.wait = undefined;
     return world;
   },
-}, reviewVariants, createAi, createAi());
+}, [], createAi, createAi());
 const result = await runEvalCli([experiment], { secrets: [key] });
 process.exitCode = result.exitCode;
