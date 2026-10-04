@@ -4,7 +4,7 @@ import "./dice-roll.css";
 import { installDicePreview, showDiceRoll } from "./dice-roll.js";
 
 installDicePreview();
-import { debugOverview, debugSections, characterTranscripts, recentTranscriptsView } from "./debug-view.js";
+import { characterTranscripts, recentTranscriptsView } from "./debug-view.js";
 import { coalescedRefresh, updateTranscriptPanel } from "./debug-live.js";
 import { documentExplorer } from "./document-explorer.js";
 import { documentAnchor } from "./document-markdown.js";
@@ -34,8 +34,7 @@ let courtNotices = [];
 let lastCourtNotice = "";
 let sheetOpen = false;
 let debugOpen = false;
-let debugTab = "overview";
-let debugSection = "";
+let debugTab = "documents";
 let transcriptRoute = {};
 let documentRoute = {};
 let debugReadSequence = 0;
@@ -447,13 +446,11 @@ function debugInspector() {
   const content = debugTab === "alerts" ? alertsView() : debugError
     ? `<p class="debug-error">${escapeHtml(debugError)}</p>`
     : debugData
-      ? debugTab === "overview" ? debugOverview(debugRequest.type, debugData, debugSection) : debugTab === "transcripts" ? transcriptView() : debugTab === "documents" ? documentsView() : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
+      ? debugTab === "activity" ? '<section class="debug-card npc-planner" data-npc-panel></section>'  : debugTab === "transcripts" ? transcriptView() : debugTab === "documents" ? documentsView() : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
       : `<p class="debug-loading">Reading worker state…</p>`;
-  const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${[["overview", "Browse"], ["documents", "Documents"], ["json", "Raw JSON"], ["transcripts", "Agent runs & requests"], ["alerts", "Session warnings & errors"]].map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
+  const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${[["documents", "Documents"], ["activity", "Activity"], ["json", "Raw JSON"], ["transcripts", "Agent runs & requests"], ["alerts", "Session warnings & errors"]].map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
   const isCharacter = debugRequest.type === "debug_character";
-  const sectionTitle = debugSections[debugRequest.type]?.[debugSection];
-  const breadcrumbs = `<nav class="debug-breadcrumbs" aria-label="Debug navigation"><button data-debug-home ${debugRequest.type === "debug" && !debugSection ? 'aria-current="page"' : ""}>Overall debug</button>${isCharacter ? '<span>/</span><button data-debug-characters>Characters</button>' : ""}${debugRequest.type !== "debug" ? `<span>/</span><button data-debug-section="" ${!sectionTitle ? 'aria-current="page"' : ""}>${escapeHtml(debugTitle)}</button>` : ""}${sectionTitle ? `<span>/</span><span aria-current="page">${escapeHtml(sectionTitle)}</span>` : ""}</nav>`;
-  return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}" ${debugOpen ? "" : "inert"}><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTab === "documents" ? "Documents" : debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header>${debugTab === "documents" ? "" : breadcrumbs}<p class="debug-note">${debugTab === "documents" ? "Live documents for the whole game. Select a file to read it and inspect recent tool updates." : isCharacter ? "Character knowledge and visible notes. Agent runs are filtered to this character." : "Authoritative world state and live activity. Select a section to explore."} API keys are excluded.</p>${tabs}<div id="debug-panel" class="debug-panel ${debugTab === "documents" ? "documents-panel" : ""}" role="tabpanel" aria-labelledby="debug-tab-${debugTab}" tabindex="0">${content}</div></aside>`;
+  return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}" ${debugOpen ? "" : "inert"}><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTab === "documents" ? "Documents" : debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">${debugTab === "documents" ? "Live documents for the whole game. Select a file to read it and inspect recent tool updates." : isCharacter ? "Agent runs are filtered to this character." : "Authoritative world state and live activity."} API keys are excluded.</p>${tabs}<div id="debug-panel" class="debug-panel ${debugTab === "documents" ? "documents-panel" : ""}" role="tabpanel" aria-labelledby="debug-tab-${debugTab}" tabindex="0">${content}</div></aside>`;
 }
 
 function documentsView() {
@@ -500,7 +497,8 @@ const refreshDebugTranscripts = coalescedRefresh(async () => {
 async function openDebug(request = debugRequest, title = debugTitle) {
   if (debugOpen && debugTab === "alerts" && request === debugRequest) { alerts.acknowledge(); render(); return; }
   const readSequence = ++debugReadSequence;
-  if (!debugOpen || request.type !== debugRequest.type || request.payload.characterId !== debugRequest.payload.characterId) { debugTab = "overview"; debugSection = ""; transcriptRoute = {}; }
+  const changedTarget = !debugOpen || request !== debugRequest || request.type !== debugRequest.type || request.payload.characterId !== debugRequest.payload.characterId;
+  if (changedTarget) { debugTab = "documents"; transcriptRoute = {}; documentRoute = {}; }
   debugOpen = true;
   sheetOpen = false;
   debugRequest = request;
@@ -511,6 +509,9 @@ async function openDebug(request = debugRequest, title = debugTitle) {
   try {
     const data = await rpc(debugTab === "documents" ? "debug_documents" : debugTab === "transcripts" ? "debug_transcripts" : request.type, request.payload);
     if (readSequence !== debugReadSequence) return;
+    if (debugTab === "documents" && changedTarget) documentRoute = {
+      path: request.type === "debug_character" ? data.characterPaths?.[request.payload.characterId] ?? "" : data.scenario,
+    };
     debugData = debugTab === "transcripts" && request.type === "debug_character" ? characterTranscripts(data, request.payload.characterId) : data;
   }
   catch (error) {
@@ -792,7 +793,7 @@ function bind() {
   document.querySelector("[data-report-issue]")?.addEventListener("click", openIssueReporter);
   document.querySelector("[data-sheet-open]")?.addEventListener("click", () => { sheetOpen = true; debugOpen = false; render(); });
   document.querySelectorAll("[data-sheet-close]").forEach(button => button.addEventListener("click", () => { sheetOpen = false; render(); }));
-  document.querySelector("[data-debug-open]")?.addEventListener("click", () => { debugSection = ""; debugTab = "overview"; openDebug({ type: "debug", payload: {} }, "Overall debug"); });
+  document.querySelector("[data-debug-open]")?.addEventListener("click", () => { debugTab = "documents"; documentRoute = {}; openDebug({ type: "debug", payload: {} }, "Overall debug"); });
   const debugButton = document.querySelector("[data-debug-open]");
   if (debugButton) debugButton.insertAdjacentHTML("beforebegin", alertBell());
   bindAlertBell();
@@ -802,21 +803,6 @@ function bind() {
     const character = state.characters.find(item => item.id === activeCharacter);
     openDebug({ type: "debug_character", payload: { characterId: activeCharacter } }, `${character?.name || activeCharacter} Debug`);
   });
-  const debugHome = async (section = "") => {
-    debugTab = "overview";
-    await openDebug({ type: "debug", payload: {} }, "Overall debug");
-    debugSection = section; render();
-    document.querySelector("#debug-panel")?.focus();
-  };
-  document.querySelector("[data-debug-home]")?.addEventListener("click", () => debugHome());
-  document.querySelector("[data-debug-characters]")?.addEventListener("click", () => debugHome("characters"));
-  document.querySelectorAll("[data-debug-section]").forEach(button => button.addEventListener("click", async () => {
-    debugSection = button.dataset.debugSection;
-    const reload = debugTab !== "overview";
-    debugTab = "overview";
-    if (reload) await openDebug(); else render();
-    document.querySelector("#debug-panel")?.focus();
-  }));
   document.querySelectorAll("[data-debug-character]").forEach(button => button.addEventListener("click", async () => {
     const id = button.dataset.debugCharacter;
     await openDebug({ type: "debug_character", payload: { characterId: id } }, state.characters.find(item => item.id === id)?.name || id);
@@ -854,7 +840,7 @@ function bind() {
     button.addEventListener("keydown", event => {
       if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
       event.preventDefault();
-      const tabs = ["overview", "documents", "json", "transcripts", "alerts"];
+      const tabs = ["documents", "activity", "json", "transcripts", "alerts"];
       const index = tabs.indexOf(debugTab);
       select(event.key === "Home" ? tabs[0] : event.key === "End" ? tabs[tabs.length - 1] : tabs[(index + (event.key === "ArrowRight" ? 1 : tabs.length - 1)) % tabs.length]);
     });
