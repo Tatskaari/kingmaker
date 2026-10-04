@@ -1,0 +1,74 @@
+{
+  "revision": "b7817d871928f2b50c22828e72c303edba496ed3",
+  "rubric": [
+    {
+      "name": "attention",
+      "description": "Identify developments the player expects the world to react to. Flag unestablished details unless explicitly denied; distinguish commitments, actual consequences, exchanges and changes in knowledge or relationships. Respect lore and binding rulings."
+    }
+  ],
+  "concurrency": 4,
+  "experiments": [
+    "reaction-general-support"
+  ],
+  "repeats": 3,
+  "timeoutMs": 180000,
+  "publishedAt": "2026-10-04T21:09:27.752Z",
+  "comparison": [
+    {
+      "variant": "game",
+      "baseline": true,
+      "runs": 3,
+      "executionErrors": 0,
+      "scoringErrors": 0,
+      "criteria": {
+        "attention": 1
+      },
+      "total": 1,
+      "delta": 0
+    }
+  ],
+  "trials": [
+    {
+      "experiment": "reaction-general-support",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 2,
+      "result": {
+        "criteria": {
+          "attention": {
+            "score": 1,
+            "reason": "Broad support matters but must not become an invented task. general_commitment: expected flagged, got flagged; immediate_commitment: expected not_flagged, got not_flagged; deferred_commitment: expected not_flagged, got not_flagged"
+          }
+        }
+      }
+    },
+    {
+      "experiment": "reaction-general-support",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 3,
+      "result": {
+        "criteria": {
+          "attention": {
+            "score": 1,
+            "reason": "Broad support matters but must not become an invented task. general_commitment: expected flagged, got flagged; immediate_commitment: expected not_flagged, got not_flagged; deferred_commitment: expected not_flagged, got not_flagged"
+          }
+        }
+      }
+    },
+    {
+      "experiment": "reaction-general-support",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 1,
+      "result": {
+        "criteria": {
+          "attention": {
+            "score": 1,
+            "reason": "Broad support matters but must not become an invented task. general_commitment: expected flagged, got flagged; immediate_commitment: expected not_flagged, got not_flagged; deferred_commitment: expected not_flagged, got not_flagged"
+          }
+        }
+      }
+    }
+  ]
+}

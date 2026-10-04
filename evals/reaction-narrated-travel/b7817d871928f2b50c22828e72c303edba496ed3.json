@@ -1,0 +1,74 @@
+{
+  "revision": "b7817d871928f2b50c22828e72c303edba496ed3",
+  "rubric": [
+    {
+      "name": "attention",
+      "description": "Identify developments the player expects the world to react to. Flag unestablished details unless explicitly denied; distinguish commitments, actual consequences, exchanges and changes in knowledge or relationships. Respect lore and binding rulings."
+    }
+  ],
+  "concurrency": 4,
+  "experiments": [
+    "reaction-narrated-travel"
+  ],
+  "repeats": 3,
+  "timeoutMs": 180000,
+  "publishedAt": "2026-10-04T21:09:27.753Z",
+  "comparison": [
+    {
+      "variant": "game",
+      "baseline": true,
+      "runs": 3,
+      "executionErrors": 0,
+      "scoringErrors": 0,
+      "criteria": {
+        "attention": 1
+      },
+      "total": 1,
+      "delta": 0
+    }
+  ],
+  "trials": [
+    {
+      "experiment": "reaction-narrated-travel",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 1,
+      "result": {
+        "criteria": {
+          "attention": {
+            "score": 1,
+            "reason": "The player expects narrated travel to be reconciled with actual location. other_world_update: expected flagged, got flagged"
+          }
+        }
+      }
+    },
+    {
+      "experiment": "reaction-narrated-travel",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 3,
+      "result": {
+        "criteria": {
+          "attention": {
+            "score": 1,
+            "reason": "The player expects narrated travel to be reconciled with actual location. other_world_update: expected flagged, got flagged"
+          }
+        }
+      }
+    },
+    {
+      "experiment": "reaction-narrated-travel",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 2,
+      "result": {
+        "criteria": {
+          "attention": {
+            "score": 1,
+            "reason": "The player expects narrated travel to be reconciled with actual location. other_world_update: expected flagged, got flagged"
+          }
+        }
+      }
+    }
+  ]
+}

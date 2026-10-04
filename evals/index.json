@@ -1,5 +1,23 @@
 [
+  "graduation-established-history",
+  "graduation-explicit-acceptance",
+  "graduation-noncommittal-reply",
+  "graduation-observed-accommodation",
+  "graduation-rejected-claim",
   "oswin-kobold-city",
   "oswin-parlour",
-  "peregrine-gift"
+  "peregrine-gift",
+  "reaction-blocked-promise",
+  "reaction-established-key-transfer",
+  "reaction-forgiveness",
+  "reaction-future-promise",
+  "reaction-general-support",
+  "reaction-gift",
+  "reaction-gm-deception-belief",
+  "reaction-gm-established-history",
+  "reaction-greeting",
+  "reaction-improvised-bird",
+  "reaction-lead-on",
+  "reaction-narrated-travel",
+  "reaction-refused-trade"
 ]
