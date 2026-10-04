@@ -64,5 +64,17 @@
     "player": "Can you open the sealed gate now?", "reply": "I will open it right now.",
     "expected": { "immediate_commitment": "flagged", "immediate_feasibility": "impossible" },
     "reason": "A blocked commitment still creates a follow-up need; flag the obstacle too."
+  },
+  {
+    "name": "reaction-improvised-bird", "context": "Peregrine and the player are together. No wooden bird is recorded in either starting inventory. No fact establishes that Peregrine cannot have an unrecorded harmless curio.",
+    "player": "Would you give me a small curio from your travels? Nothing valuable.", "reply": "Gladly. I will give you this carved wooden bird right now. It has faded blue lacquer on its wings—a keepsake from the East.",
+    "expected": { "immediate_commitment": "flagged", "conversational_exchange": "flagged", "improvised_detail": "flagged", "immediate_feasibility": "gms_discretion" },
+    "reason": "An improvised harmless gift needs GM inventory reconciliation, not a claim that the absent inventory entry makes the gift impossible."
+  },
+  {
+    "name": "reaction-established-key-transfer", "context": "Corvin owns and holds a brass key. The player is beside him. There is no obstacle to handing it over; both inventories can record the transfer.",
+    "player": "Will you give me your key?", "reply": "Yes, I will give you this key right now.",
+    "expected": { "immediate_commitment": "flagged", "conversational_exchange": "flagged", "immediate_feasibility": "possible" },
+    "reason": "An ordinary transfer of an established item is already possible; inventory bookkeeping alone does not require a discretionary decision."
   }
 ]

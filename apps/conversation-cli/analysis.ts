@@ -12,7 +12,8 @@ export function formatAnalysis(event: AnalysisEvent): string {
   return Object.entries(event.decisions).filter(([label, decision]) => {
     if (["not_flagged", "not_needed", "not_applicable", "skip"].includes(decision.choice)) return false;
     return event.source !== "attention" || label !== "immediate_feasibility"
-      || event.decisions.immediate_commitment?.choice === "flagged";
+      || event.decisions.immediate_commitment?.choice === "flagged"
+      || (decision.choice === "gms_discretion" && event.decisions.conversational_exchange?.choice === "flagged");
   }).map(([label, decision]) => {
     const probabilities = Object.entries(decision.probabilities).map(([choice, value]) => `${choice} ${(value * 100).toFixed(1)}%`).join(", ");
     return `${event.source} · ${label}: ${decision.choice} [${probabilities}]${decision.confidence === undefined ? "" : `; confidence ${(decision.confidence * 100).toFixed(1)}%`}`;
