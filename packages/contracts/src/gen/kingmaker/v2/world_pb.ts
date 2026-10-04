@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file kingmaker/v2/world.proto.
  */
 export const file_kingmaker_v2_world: GenFile = /*@__PURE__*/
-  fileDesc("ChhraW5nbWFrZXIvdjIvd29ybGQucHJvdG8SDGtpbmdtYWtlci52MiIuCgxEb2N1bWVudExpbmsSDgoGdGFyZ2V0GAEgASgJEg4KBnNvdXJjZRgCIAEoCSJqChNDaGFyYWN0ZXJQcm9wZXJ0aWVzEicKA2RuZBgBIAEoCzIaLmtpbmdtYWtlci52MS5EbmRDaGFyYWN0ZXISKgoJaW52ZW50b3J5GAIgASgLMhcua2luZ21ha2VyLnYxLkludmVudG9yeSKyAQoIRG9jdW1lbnQSLAoLZnJvbnRtYXR0ZXIYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EgwKBGJvZHkYAiABKAkSKQoFbGlua3MYAyADKAsyGi5raW5nbWFrZXIudjIuRG9jdW1lbnRMaW5rEj8KFGNoYXJhY3Rlcl9wcm9wZXJ0aWVzGAQgASgLMiEua2luZ21ha2VyLnYyLkNoYXJhY3RlclByb3BlcnRpZXMiiAIKCldvcmxkU3RhdGUSMAoEZG9jcxgBIAMoCzIiLmtpbmdtYWtlci52Mi5Xb3JsZFN0YXRlLkRvY3NFbnRyeRISCgpjaGFyYWN0ZXJzGAIgAygJEhAKCHNjZW5hcmlvGAMgASgJEiUKA21hcBgEIAEoCzIYLmtpbmdtYWtlci52MS5Xb3JsZFN0YXRlEhYKDnNjZW5hcmlvX2luZGV4GAUgASgJEhMKBnBsYXllchgGIAEoCUgAiAEBGkMKCURvY3NFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5raW5nbWFrZXIudjIuRG9jdW1lbnQ6AjgBQgkKB19wbGF5ZXJiBnByb3RvMw", [file_google_protobuf_struct, file_kingmaker_v1_game]);
+  fileDesc("ChhraW5nbWFrZXIvdjIvd29ybGQucHJvdG8SDGtpbmdtYWtlci52MiIuCgxEb2N1bWVudExpbmsSDgoGdGFyZ2V0GAEgASgJEg4KBnNvdXJjZRgCIAEoCSJqChNDaGFyYWN0ZXJQcm9wZXJ0aWVzEicKA2RuZBgBIAEoCzIaLmtpbmdtYWtlci52MS5EbmRDaGFyYWN0ZXISKgoJaW52ZW50b3J5GAIgASgLMhcua2luZ21ha2VyLnYxLkludmVudG9yeSKyAQoIRG9jdW1lbnQSLAoLZnJvbnRtYXR0ZXIYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EgwKBGJvZHkYAiABKAkSKQoFbGlua3MYAyADKAsyGi5raW5nbWFrZXIudjIuRG9jdW1lbnRMaW5rEj8KFGNoYXJhY3Rlcl9wcm9wZXJ0aWVzGAQgASgLMiEua2luZ21ha2VyLnYyLkNoYXJhY3RlclByb3BlcnRpZXMinwEKEFJ1bnRpbWVDaGFyYWN0ZXISCgoCaWQYASABKAkSFAoMY2hhcmFjdGVyX2lkGAIgASgJEhAKCGRvY3VtZW50GAMgASgJEhUKCGFjdGl2aXR5GAQgASgJSACIAQESEQoEd2FpdBgFIAEoCUgBiAEBEhcKD2ludGVudF9yZXZpc2lvbhgGIAEoDUILCglfYWN0aXZpdHlCBwoFX3dhaXQirwMKCldvcmxkU3RhdGUSMAoEZG9jcxgBIAMoCzIiLmtpbmdtYWtlci52Mi5Xb3JsZFN0YXRlLkRvY3NFbnRyeRISCgpjaGFyYWN0ZXJzGAIgAygJEhAKCHNjZW5hcmlvGAMgASgJEiUKA21hcBgEIAEoCzIYLmtpbmdtYWtlci52MS5Xb3JsZFN0YXRlEhYKDnNjZW5hcmlvX2luZGV4GAUgASgJEhMKBnBsYXllchgGIAEoCUgAiAEBEksKEnJ1bnRpbWVfY2hhcmFjdGVycxgHIAMoCzIvLmtpbmdtYWtlci52Mi5Xb3JsZFN0YXRlLlJ1bnRpbWVDaGFyYWN0ZXJzRW50cnkaQwoJRG9jc0VudHJ5EgsKA2tleRgBIAEoCRIlCgV2YWx1ZRgCIAEoCzIWLmtpbmdtYWtlci52Mi5Eb2N1bWVudDoCOAEaWAoWUnVudGltZUNoYXJhY3RlcnNFbnRyeRILCgNrZXkYASABKAkSLQoFdmFsdWUYAiABKAsyHi5raW5nbWFrZXIudjIuUnVudGltZUNoYXJhY3RlcjoCOAFCCQoHX3BsYXllcmIGcHJvdG8z", [file_google_protobuf_struct, file_kingmaker_v1_game]);
 
 /**
  * A document reference, resolved without loading the target's contents.
@@ -104,6 +104,50 @@ export const DocumentSchema: GenMessage<Document> = /*@__PURE__*/
   messageDesc(file_kingmaker_v2_world, 2);
 
 /**
+ * Per-instance playthrough state, separate from shared lore and physical placement.
+ *
+ * @generated from message kingmaker.v2.RuntimeCharacter
+ */
+export type RuntimeCharacter = Message<"kingmaker.v2.RuntimeCharacter"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string character_id = 2;
+   */
+  characterId: string;
+
+  /**
+   * @generated from field: string document = 3;
+   */
+  document: string;
+
+  /**
+   * @generated from field: optional string activity = 4;
+   */
+  activity?: string | undefined;
+
+  /**
+   * @generated from field: optional string wait = 5;
+   */
+  wait?: string | undefined;
+
+  /**
+   * @generated from field: uint32 intent_revision = 6;
+   */
+  intentRevision: number;
+};
+
+/**
+ * Describes the message kingmaker.v2.RuntimeCharacter.
+ * Use `create(RuntimeCharacterSchema)` to create a new message.
+ */
+export const RuntimeCharacterSchema: GenMessage<RuntimeCharacter> = /*@__PURE__*/
+  messageDesc(file_kingmaker_v2_world, 3);
+
+/**
  * Authoritative GM state, not a character prompt or a grant to read every doc.
  *
  * @generated from message kingmaker.v2.WorldState
@@ -146,6 +190,11 @@ export type WorldState = Message<"kingmaker.v2.WorldState"> & {
    * @generated from field: optional string player = 6;
    */
   player?: string | undefined;
+
+  /**
+   * @generated from field: map<string, kingmaker.v2.RuntimeCharacter> runtime_characters = 7;
+   */
+  runtimeCharacters: { [key: string]: RuntimeCharacter };
 };
 
 /**
@@ -153,5 +202,5 @@ export type WorldState = Message<"kingmaker.v2.WorldState"> & {
  * Use `create(WorldStateSchema)` to create a new message.
  */
 export const WorldStateSchema: GenMessage<WorldState> = /*@__PURE__*/
-  messageDesc(file_kingmaker_v2_world, 3);
+  messageDesc(file_kingmaker_v2_world, 4);
 

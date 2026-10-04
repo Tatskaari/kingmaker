@@ -3,6 +3,8 @@ import { DocumentSchema, WorldStateSchema, type Document } from "../../contracts
 import { parseMarkdown } from "./markdown.js";
 import { canonical, snapshot } from "./document-snapshot.js";
 import { DocumentConflictError, type DocsService, type DocumentSnapshot } from "./service-types.js";
+import { runtimeActor } from "./runtime-actor.js";
+import { activityDefinition, intentDocument, waitActivities } from "./activity.js";
 import type { WorldStore } from "./world-store.js";
 
 export function createDocsService(store: WorldStore): DocsService {
@@ -38,7 +40,7 @@ export function createDocsService(store: WorldStore): DocsService {
     return result;
   }
   const docs: DocsService = {
-    async commit(changes) {
+    async commit(changes, intents = []) {
       return store.write(async () => {
         if (new Set(changes.map(change => change.path)).size !== changes.length) throw new Error("Duplicate document write.");
         const expected = new Map<string, Document | undefined>();
@@ -58,6 +60,21 @@ export function createDocsService(store: WorldStore): DocsService {
           const next = fromJson(DocumentSchema, { body: note.body, frontmatter: note.metadata as JsonObject });
           next.characterProperties = draft.docs[change.path]?.characterProperties;
           draft.docs[change.path] = next;
+        }
+        if (new Set(intents.map(intent => intent.actorId)).size !== intents.length) throw new Error("Duplicate intent write.");
+        for (const intent of intents) {
+          const actor = runtimeActor(draft, intent.actorId);
+          if (actor.intentRevision !== intent.expectedRevision) {
+            const entry = draft.characters.find(path => path.endsWith(`/Characters/${actor.characterId}/character.md`))!;
+            throw new DocumentConflictError(entry, String(intent.expectedRevision), String(actor.intentRevision));
+          }
+          if (intent.activity) activityDefinition(intentDocument(draft, actor.characterId, intent.activity));
+          if (intent.wait) for (const path of waitActivities(intentDocument(draft, actor.characterId, intent.wait))) {
+            activityDefinition(intentDocument(draft, actor.characterId, path));
+          }
+          actor.activity = intent.activity ?? undefined;
+          actor.wait = intent.wait ?? undefined;
+          actor.intentRevision++;
         }
         store.publishDocuments(draft);
       });
