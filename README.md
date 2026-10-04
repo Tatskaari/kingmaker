@@ -373,13 +373,17 @@ npm run headless -- exec --code 'await game.endConversation("rowan");'
 ```
 
 Set `OPENROUTER_API_KEY` on the **server** for dialogue and reviews. `--dev-player`
-uses the existing development envoy, whose speech can directly command NPCs. To
-try normal roleplay, change its delegation through `game.edit(...)`, or load a
-normal player save. Without this flag, an authored scenario starts in player
-creation; the normal setup methods remain accessible through `game.runtime`.
+uses the existing development envoy and skips character creation. Without this
+flag, a fresh authored scenario starts in player creation. Use
+`game.runtime.startIntroduction()` and `game.runtime.talkToGameMaster(...)` for
+the interview, or `await game.runtime.startPremadeCharacter("bard")` to enter as
+a pre-made character. Dialogue and pre-made character setup require the server's
+OpenRouter key. Player observations and actions become available after setup.
 
 Use `--world path.json` to load document-backed v2 WorldState JSON or a current WorldSnapshot JSON, and
-`--socket path` on both commands to select a separate game. The default socket is
+`--socket path` on both commands to select a separate game.
+`--dev-player` only affects fresh games; `--world` always preserves the supplied
+world or snapshot's player and creation state. The default socket is
 `/tmp/kingmaker-<uid>/game.sock` (under the system temp directory). Existing sockets
 are never removed on startup: stop the previous server, or remove a stale socket
 only after confirming its process is gone.
