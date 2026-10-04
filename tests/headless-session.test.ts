@@ -38,10 +38,33 @@ test("inspection and console edits use live state without rollback", () => {
   assert.equal(new WorldHeadlessGame(live.snapshot()).inspect().map!.day, 8);
 });
 
+test("enter actions return trespass events for explicit guard perception", async () => {
+  const live = game();
+  assert.deepEqual(await live.act("enter_royal_council_chamber"), { done: true });
+  await live.act(live.actions().find(action => action.id.startsWith("open_hall_door"))!.id);
+  const hall = await live.act("enter_north_corridor");
+  assert.ok("worldEvent" in hall && hall.worldEvent);
+  assert.equal(hall.worldEvent.kind, "entering Royal Back Hall");
+  await live.act(live.actions().find(action => action.id.startsWith("open_royal_door"))!.id);
+  const bedroom = await live.act("enter_royal_bedchamber");
+  assert.ok("worldEvent" in bedroom && bedroom.worldEvent);
+  assert.equal(bedroom.done, true);
+  assert.equal(bedroom.worldEvent.summary, "The player entered Royal Bedchamber without permission.");
+  assert.deepEqual(bedroom.worldEvent.participantIds, ["player"]);
+  assert.deepEqual(bedroom.worldEvent.position, live.inspect().map!.actors.find(actor => actor.characterId === "player")!.position);
+
+  // Make distant hearing deterministic; no model or seeded arrest is needed.
+  live.runtime.options.services = { random: { integer: min => min } };
+  const perception = await live.runtime.assessWorldEvent(bedroom.worldEvent, new AbortController().signal);
+  assert.ok(perception.reactions.some(reaction => reaction.characterId === "palace-guard-9"));
+  assert.equal(perception.playerPerception, bedroom.worldEvent.summary);
+});
+
 test("talk approaches a character and delegates to real player dialogue methods", async t => {
   const live = game();
   const talk = t.mock.method(live.runtime, "checkedTalkToCharacter", async () => "Welcome, envoy.");
   const end = t.mock.method(live.runtime, "endConversation", async () => undefined);
+  assert.deepEqual(await live.act("talk_rowan"), { characterId: "rowan" });
   assert.equal(await live.talk("rowan", "Hello"), "Welcome, envoy.");
   assert.deepEqual(talk.mock.calls[0]!.arguments, ["rowan", "Hello"]);
   await live.endConversation("rowan");

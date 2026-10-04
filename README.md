@@ -354,7 +354,11 @@ session, including conversations. `overview()` returns the browser view as an ob
 Run `npx tsx scripts/play-headless.ts` for an offline example. There are no eval
 criteria, terminal choices, or turn limits. Dialogue requires an OpenRouter key
 passed to the constructor. Background NPC scheduling is not automatically started;
-actions return world events for explicit processing through the runtime.
+actions return world events for explicit processing through the runtime. An
+`act("enter_...")` call returns the same movement result as `move(x, y)`, including
+`worldEvent` when entering private quarters without permission. Pass that event
+to `runtime.assessWorldEvent`, then process its reactions with
+`runtime.processPerceivedEvent` to drive NPC responses.
 
 ### Persistent TypeScript socket console
 
