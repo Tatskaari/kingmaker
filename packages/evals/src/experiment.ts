@@ -1,3 +1,4 @@
+import { availableParallelism } from "node:os";
 import { type ConversationRuntime } from "../../conversation/src/runtime.js";
 import type { ReviewLabels } from "../../conversation/src/review.js";
 import { createRecordedRuntime, type EvalRuntimeOptions } from "./runtime.js";
@@ -40,6 +41,7 @@ export interface Trial {
 }
 export interface RunOptions {
   repeats?: number;
+  concurrency?: number;
   variants?: readonly string[];
   timeoutMs?: number;
   signal?: AbortSignal;
@@ -86,6 +88,8 @@ export async function runExperiment<L, R>(experiment: Experiment<L, R>, options:
   const repeats = options.repeats ?? 3, timeoutMs = options.timeoutMs ?? 180_000;
   if (!Number.isSafeInteger(repeats) || repeats < 1 || repeats > 100) throw new Error("repeats must be between 1 and 100");
   if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1) throw new Error("timeoutMs must be positive");
+  const concurrency = options.concurrency ?? availableParallelism();
+  if (!Number.isSafeInteger(concurrency) || concurrency < 1) throw new Error("concurrency must be a positive integer");
   validateRubric(experiment.rubric);
   const baseline = experiment.getBaseline(), configs = [baseline, ...experiment.getVariants()];
   if (configs.some(config => !config.name.trim()) || new Set(configs.map(config => config.name)).size !== configs.length) {
@@ -93,8 +97,9 @@ export async function runExperiment<L, R>(experiment: Experiment<L, R>, options:
   }
   for (const name of options.variants ?? []) if (!configs.some(config => config.name === name)) throw new Error(`Unknown variant: ${name}`);
   const selected = configs.filter(config => config === baseline || !options.variants || options.variants.includes(config.name));
-  const trials: Trial[] = [];
-  for (let repeat = 1; repeat <= repeats; repeat++) for (const config of selected) {
+  const jobs = Array.from({ length: repeats }, (_, index) => selected.map(config => ({ repeat: index + 1, config }))).flat();
+  const trials: Trial[] = new Array(jobs.length);
+  const runTrial = async ({ repeat, config }: (typeof jobs)[number]): Promise<Trial> => {
     options.signal?.throwIfAborted();
     const recording = new Recording(options.secrets), grading = new Recording(options.secrets);
     let initialState: unknown, finalState: unknown, error: unknown;
@@ -122,9 +127,23 @@ export async function runExperiment<L, R>(experiment: Experiment<L, R>, options:
       trial.result = grading.snapshot(trial.result) as Result;
     } catch (cause) { delete trial.result; trial.scoringError = grading.snapshot(cause); }
     trial.gradingCalls = grading.getCalls();
-    trials.push(trial);
     await options.onTrial?.(trial);
     options.signal?.throwIfAborted();
-  }
+    return trial;
+  };
+  let next = 0, stopped = false;
+  const worker = async () => {
+    try {
+      while (!stopped && next < jobs.length) {
+        options.signal?.throwIfAborted();
+        const index = next++;
+        trials[index] = await runTrial(jobs[index]!);
+      }
+    } catch (error) { stopped = true; throw error; }
+  };
+  // Drain in-flight trials before returning or rejecting, so artifact writes cannot race CLI finalization.
+  const workers = await Promise.allSettled(Array.from({ length: Math.min(concurrency, jobs.length) }, worker));
+  const failure = workers.find(result => result.status === "rejected");
+  if (failure?.status === "rejected") throw failure.reason;
   return trials;
 }

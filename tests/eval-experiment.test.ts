@@ -1,3 +1,5 @@
+import { availableParallelism } from "node:os";
+import { setImmediate } from "node:timers/promises";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { runExperiment, type Experiment, type RuntimeConfig } from "../packages/evals/src/experiment.js";
@@ -24,7 +26,7 @@ function fixture(): Experiment {
 
 test("framework constructs isolated runtimes, records nested dependencies and emits each trial", async () => {
   const emitted: string[] = [];
-  const trials = await runExperiment(fixture(), { repeats: 2, onTrial: trial => { emitted.push(trial.variant); } });
+  const trials = await runExperiment(fixture(), { repeats: 2, concurrency: 1, onTrial: trial => { emitted.push(trial.variant); } });
   assert.equal(trials.length, 4);
   assert.deepEqual(emitted, ["baseline", "candidate", "baseline", "candidate"]);
   for (const trial of trials) {
@@ -69,4 +71,45 @@ test("service factories reject dependency cycles before executing a trial", asyn
   } }) });
   const trials = await runExperiment(experiment, { repeats: 1, variants: [] });
   assert.match(JSON.stringify(trials[0]!.recording.error), /Circular service dependency/);
+});
+
+
+for (const concurrency of [1, 2, undefined]) {
+  test(`parallel trials bound the entire lifecycle and keep isolated evidence (concurrency=${concurrency ?? "CPU count"})`, async () => {
+    const experiment = fixture(), run = experiment.run, score = experiment.score;
+    let active = 0, peak = 0;
+    experiment.run = async (...args) => { peak = Math.max(peak, ++active); await run(...args); };
+    experiment.score = async (...args) => { await setImmediate(); return score(...args); };
+    const trials = await runExperiment(experiment, { repeats: 3, ...(concurrency === undefined ? {} : { concurrency }),
+      async onTrial() { await setImmediate(); active--; },
+    });
+    assert.equal(peak, Math.min(concurrency ?? availableParallelism(), 6));
+    assert.equal(active, 0);
+    assert.deepEqual(trials.map(trial => [trial.repeat, trial.variant]), [
+      [1, "baseline"], [1, "candidate"], [2, "baseline"], [2, "candidate"], [3, "baseline"], [3, "candidate"],
+    ]);
+    for (const trial of trials) {
+      assert.equal(trial.result!.criteria.quality!.score, 1);
+      assert.equal(trial.recording.getServiceRecord("ai").length, 1);
+    }
+  });
+}
+
+test("cancellation stops queued trials and drains in-flight artifact callbacks before rejection", async () => {
+  const controller = new AbortController(), experiment = fixture();
+  let started = 0, published = 0;
+  experiment.run = async () => { started++; await setImmediate(); };
+  await assert.rejects(runExperiment(experiment, { repeats: 4, concurrency: 2, signal: controller.signal,
+    async onTrial() {
+      controller.abort(new Error("cancelled"));
+      await setImmediate(); published++;
+    },
+  }), /cancelled/);
+  assert.equal(started, 2); assert.equal(published, 2);
+});
+
+test("invalid concurrency is rejected before constructing services", async () => {
+  for (const concurrency of [0, -1, 1.5, NaN, Infinity]) {
+    await assert.rejects(runExperiment(fixture(), { concurrency }), /concurrency must be a positive integer/);
+  }
 });

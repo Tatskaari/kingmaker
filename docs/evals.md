@@ -24,7 +24,13 @@ The old physical travel probe remains `npm run eval:review:handoff`; its existin
 `REVIEW_EVAL_REPEATS` and `REVIEW_EVAL_OUTPUT_DIR` settings apply only to that command.
 
 The common CLI accepts `--experiments`, `--variants`, `--repeats`, `--timeout-ms`,
-`--output`, `--list` and `--help`. Runs are sequential and interleave variants per repeat.
+`--output`, `--concurrency`, `--list` and `--help`. Concurrency defaults to Node’s
+available CPU count (`os.availableParallelism()`); `--concurrency 1` restores serial runs.
+Each experiment queues variants interleaved per repeat and runs up to that many complete
+trials (execution, grading and artifact publication) concurrently. Experiments run in
+sequence, so the limit is shared across the suite. Summaries and numbered artifacts
+appear in completion order; each retains its variant and repeat. The library returns
+trials in queue order. Recordings and services remain isolated per trial.
 Listing/help make no model calls. SIGINT cancels the current phase and retains completed
 artifacts. Hooks should honor the supplied abort signal; a timeout cannot forcibly stop
 arbitrary JavaScript that ignores cancellation.
