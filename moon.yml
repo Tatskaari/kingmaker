@@ -11,13 +11,18 @@ tasks:
     deps: [contracts:generate]
     options:
       cache: false
+  evalConversation:
+    command: npx --no-install tsx scripts/run-live-conversation-eval.ts
+    deps: [contracts:generate]
+    options:
+      cache: false
   evalAttention:
     command: npx --no-install tsx scripts/run-attention-eval.ts
     deps: [contracts:generate]
     options:
       cache: false
   eval:
-    deps: [evalReview, evalGift, evalAttention]
+    deps: [evalReview, evalGift, evalAttention, evalConversation]
     options:
       cache: false
   typecheck:

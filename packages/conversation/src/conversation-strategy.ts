@@ -43,11 +43,19 @@ export function conversationStrategy(disclosure: DisclosureSession, ai: AiServic
       signal.throwIfAborted();
       await checks.resolve(context, labels, signal);
       signal.throwIfAborted();
-      const reply = await services.character.respond(context.request, signal);
+      return attentionResponseStrategy(report).respond({ request: context.request, maxPasses }, signal, { ...services, ai });
+    },
+  } satisfies ConversationStrategy;
+}
+
+/** Shared response boundary after disclosure and dice have already been resolved. */
+export function attentionResponseStrategy(report: (event: AnalysisEvent) => void = () => {}): ConversationStrategy {
+  return { respond: async ({ request }, signal, services) => {
+      const reply = await services.character.respond(request, signal);
       signal.throwIfAborted();
       if (reply.role === "assistant" && reply.content?.trim() && !reply.tool_calls?.length) {
         try {
-          const decisions = await analyzeAttention(ai, structuredClone(context.request.messages), structuredClone(reply), signal);
+          const decisions = await analyzeAttention(services.ai, structuredClone(request.messages), structuredClone(reply), signal);
           report({ kind: "labels", subject: "character", source: "attention", decisions });
         } catch (error) {
           signal.throwIfAborted();
@@ -56,6 +64,5 @@ export function conversationStrategy(disclosure: DisclosureSession, ai: AiServic
         }
       }
       return reply;
-    },
-  } satisfies ConversationStrategy;
+  } };
 }
