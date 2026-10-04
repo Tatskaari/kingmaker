@@ -92,7 +92,7 @@ failed; low rubric scores are comparison data, not an automatic CI failure thres
 ## Published history
 
 The `Run evals` workflow runs `workspace:eval` on main pushes or manual dispatch.
-Set the repository secret `OPENROUTER_KEY`; CI maps it to `OPENROUTER_API_KEY`.
+Set the repository secret `OPENROUTER_EVAL_KEY`; CI maps it to `OPENROUTER_API_KEY`.
 Register new framework runners as uncached Moon tasks in `workspace:eval`'s dependencies.
 The legacy wait/handoff probes are not part of this suite.
 
