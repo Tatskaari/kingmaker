@@ -223,31 +223,21 @@ per-experiment results include a top-level `type`; `evals/types.json` maps exper
 names to types for the dashboard's Type filter. Existing result URLs and indexes stay
 unchanged. Publication backfills missing types for experiments in that run, preserving
 scores, dates and existing classifications. Unknown historical cases stay unclassified.
-## Live conversation boundary
 
-`npm run eval:conversation -- --repeats 3` reuses the Oswin parlour, off-map
-Kobold City and Peregrine gift fixtures. It replays each recorded character draft
-through the production response boundary after disclosure/dice preparation. Existing
-GM rulings are input evidence, never rerolled. This isolates response review from
-stochastic changes to the original conversation; replacement drafts use the live
-character model. It does not invoke end-conversation review.
+## Conversation strategy comparison
 
-The existing world-state rubric is retained. A new live-effect criterion checks
-that consequences exist during the conversation, and the bird is in the player's
-inventory when the gift reply is released. Per-reply state and accepted transcripts
-are recorded. The suite uses the common framework and registered `evalConversation`
-Moon task, so main-branch CI uploads its artifacts and publishes history alongside
-the existing suites. Local runs write artifacts only.
+The existing `npm run eval:review` and `npm run eval:review:gift` commands compare
+`game` (post-conversation review) with `live-review` (per-turn review, followed by
+post-conversation review). Both use the original fixtures, expectations and rubrics.
 
-The live suite also reuses the observed Corvin graduation exchange from the
-attention fixtures. A counterfactual Peregrine case adds a GM-only custody fact
-to the scenario: the bird is Abel's loan and cannot be gifted. That case requires
-a refusal, a different accepted reply, and unchanged typed inventories. The
-original gift case retains its original permissive preconditions.
+The mocked engine loop supplies recorded character drafts and binding dice rulings,
+invokes the conversation strategy each turn, and calls the review strategy at the end.
+GM-refused drafts are regenerated through the character model. Queued GM reviews
+are drained before the final review and before scoring. Only docs-service calls are
+recorded; the judge receives the conversation, expectations and one final copy of
+each touched document (including typed properties), with deleted files represented
+as null. Intermediate edits and tool returns are excluded. Initial/final state supports the existing deterministic
+checks. There are no extra timing, release-order or live-effect criteria.
 
-`review-order` checks one completed review per accepted flagged draft, before
-release for discretion and after release for background work. Rejected drafts
-are excluded from the accepted transcript used for grading. The judge receives
-the accepted conversation, case expectations, and recorded docs-service edit calls
-with their original arguments and results. No extra document copies or world
-snapshots are added to the judge input. State-based assertions run locally.
+Use `--repeats 1 --concurrency 1` for an initial comparison. The existing common
+runner, artifact output and CI upload workflow are unchanged.
