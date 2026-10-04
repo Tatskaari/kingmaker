@@ -4,17 +4,17 @@ tasks:
   typecheck:
     command: npx --no-install tsc --noEmit
     deps: [contracts:generate]
-    inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'evals/**/*', 'scripts/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
+    inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'scripts/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
   test:
     command: node --experimental-ffi --import tsx --import ./scripts/test-logging.ts --test tests/*.test.ts
     options:
       cache: false
     deps: [contracts:generate]
-    inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'evals/**/*', 'scripts/**/*', 'content/**/*', 'lore/**/*', 'package.json', 'package-lock.json']
+    inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'scripts/**/*', 'content/**/*', 'lore/**/*', 'package.json', 'package-lock.json']
   compile:
     command: npx --no-install tsc --outDir dist
     deps: [contracts:generate]
-    inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'evals/**/*', 'scripts/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
+    inputs: ['packages/**/*', 'apps/**/*', 'tests/**/*', 'scripts/**/*', 'tsconfig.json', 'package.json', 'package-lock.json']
     outputs: [dist]
   webBuild:
     deps: [contracts:generate]
@@ -29,18 +29,6 @@ tasks:
     command: npx --no-install tsx scripts/render-dialogue-contexts.ts /tmp/kingmaker-openrouter-contexts
     deps: [contracts:generate]
     inputs: ['scripts/**/*', 'content/**/*', 'packages/core/**/*', 'packages/contracts/**/*']
-    options:
-      cache: false
-  unitEval:
-    command: npx --no-install tsx scripts/run-unit-eval.ts
-    deps: [contracts:generate]
-    inputs: ['evals/**/*', 'scripts/run-unit-eval.ts', 'packages/evals/**/*', 'packages/providers/**/*', 'apps/web/src/resource-review.ts', 'apps/web/src/objectives.ts']
-    options:
-      cache: false
-  jevEval:
-    command: npx --no-install tsx scripts/run-jev-world-eval.ts
-    deps: [contracts:generate]
-    inputs: ['evals/jev/**/*', 'scripts/run-jev-world-eval.ts', 'packages/evals/**/*', 'packages/providers/**/*', 'packages/core/**/*', 'apps/web/src/runtime.ts', 'apps/web/src/court-agent.ts']
     options:
       cache: false
   dev:
