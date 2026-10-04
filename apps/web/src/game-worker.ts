@@ -140,7 +140,7 @@ async function handleWorldEvent(game: BrowserGameRuntime, event: Event, signal: 
     publishNpc(`${reaction.characterId}: processing a perceived event…`);
     await game.processPerceivedEvent(reaction.characterId, event, reaction.perception, signal);
     publishNpc(`${reaction.characterId}: processed a perceived event.`);
-    if (handoffs > 0 && game.snapshot().npcActivities?.[reaction.characterId]?.status === "active") startBackground(reaction.characterId, handoffs - 1);
+    if (handoffs > 0 && game.hasActiveObjective(reaction.characterId)) startBackground(reaction.characterId, handoffs - 1);
   }));
 }
 function scheduleWorldEvent(game: BrowserGameRuntime, event: Event, handoffs = 3) {
@@ -165,8 +165,8 @@ async function runBackground(next: { id: string; handoffs: number }) {
   const valid = () => !signal.aborted && runtime === game && background.get(id) === job && !conversationHolds.has(id);
   try {
     for (let round = 0; round < 3 && valid(); round++) {
-      if (game.snapshot().npcActivities?.[id]?.reviewPending) await reviewBackground(game, id, signal, true);
-      if (game.snapshot().npcActivities?.[id]?.status !== "active") break;
+      if (game.needsNpcReview(id)) await reviewBackground(game, id, signal, true);
+      if (!game.hasActiveObjective(id)) break;
       const planningSession = game.startPlanningSession(id);
       let planningError: unknown;
       try {
@@ -234,8 +234,8 @@ async function runBackground(next: { id: string; handoffs: number }) {
               if (valid()) publishNpc(conflict ? `${id}: conversation changed; choosing again.` : `${id}: conversation finished.`);
             }
             if (!valid()) return;
-            if (handoffs > 0 && game.snapshot().npcActivities?.[target]?.status === "active") startBackground(target, handoffs - 1);
-            if (game.snapshot().npcActivities?.[id]?.status !== "active") return;
+            if (handoffs > 0 && game.hasActiveObjective(target)) startBackground(target, handoffs - 1);
+            if (!game.hasActiveObjective(id)) return;
           }
         }
         if (!valid()) return;
@@ -257,14 +257,14 @@ async function runBackground(next: { id: string; handoffs: number }) {
       return;
     }
     if (valid()) {
-      if (game.snapshot().npcActivities?.[id]?.status === "active") await commitMutation(game, () => { signal.throwIfAborted(); game.finishNpcRun(id, "error", String(error)); }).catch(() => {});
+      if (game.hasActiveObjective(id)) await commitMutation(game, () => { signal.throwIfAborted(); game.finishNpcRun(id, "error", String(error)); }).catch(() => {});
       finalStatus = `${id}: ${error instanceof Error ? error.message : String(error)}`;
       alertUser("error", finalStatus);
     }
   } finally {
     if (background.get(id) === job) {
       background.delete(id); publishNpc(finalStatus);
-      if (continueObjective && game.hasActiveObjective(id) && game.snapshot().npcActivities?.[id]?.status === "active") startBackground(id, handoffs);
+      if (continueObjective && game.hasActiveObjective(id)) startBackground(id, handoffs);
       drainBackground();
       waits.sync();
     }

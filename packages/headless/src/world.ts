@@ -83,14 +83,14 @@ export class WorldHeadlessGame {
           const revision = this.inspect().map!.revision;
           if (result.talkTarget === "player") {
             const opening = await this.runtime.initiatePlayerConversation(id, plan.action.id, revision, plan.goal, signal);
-            return { actions, opening, jail: this.snapshot().jail };
+            return { actions, opening, jail: this.runtime.jail() };
           }
           await this.runtime.executeNpcTalk(id, plan.action.id, revision, plan.goal, signal);
         }
       }
       if (!done) throw new Error("NPC movement step limit reached.");
     }
-    return { actions, jail: this.snapshot().jail };
+    return { actions, jail: this.runtime.jail() };
   }
   async endConversation(id: string, message?: string, signal?: AbortSignal) {
     if (message !== undefined) await this.runtime.checkedTalkToCharacter(id, message, undefined, {}, signal);

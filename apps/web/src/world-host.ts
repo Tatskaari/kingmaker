@@ -1,3 +1,4 @@
+import { validateDocuments } from "../../../packages/lore/src/document-audit.js";
 import { movePlayer, setPlayerDoor } from "./physical-movement.js";
 import { worldView } from "./world-view.js";
 import { createPhysicalEvent } from "./physical-event.js";
@@ -13,7 +14,7 @@ import { foregroundBodies } from "./background-characters.js";
 import { worldForCharacter } from "../../../packages/core/src/physical-view.js";
 import { clone, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import { type Event } from "../../../packages/contracts/src/index.js";
-import { WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
+import { DocumentSchema, WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
 import { createScenarioServices } from "../../../packages/lore/src/services.js";
 import { activityGoal, characterIntent, formatActivity } from "../../../packages/lore/src/activity.js";
 import { PalaceMechanics, type MechanicalActivity } from "./palace-mechanics.js";
@@ -43,7 +44,7 @@ export class WorldHost {
     if (saved) this.restore(saved);
     this.syncGoals();
   }
-  /** Live state for synchronous game operations. Use snapshot() for save/fork boundaries. */
+  /** Live state for synchronous game operations. Never serialize a save to read or update game state. */
   world() { return this.documents.currentWorld(); }
   protected syncGoals() {
     const world = this.world();
@@ -55,16 +56,17 @@ export class WorldHost {
       activities[id] = { status: goal ? "active" : "idle", goal, activityDocument, history: [] };
     }
   }
+  /** Detached save data, exclusively for persistence and saved-game exports. */
   snapshot(): WorldSnapshot {
     this.syncGoals();
-    return structuredClone({ ...this.activity, world: toJson(WorldStateSchema, this.world()) });
+    return { ...structuredClone(this.activity), world: toJson(WorldStateSchema, this.world()) };
   }
   restore(saved: WorldSnapshot): void {
     if (saved.version !== 5 || !saved.world) throw new Error("This save uses an older world format. Start a fresh game.");
-    const { world, ...activity } = structuredClone(saved);
+    const { world, ...activity } = saved;
     const state = fromJson(WorldStateSchema, world);
     this.documents = createScenarioServices(state);
-    this.activity = activity;
+    this.activity = structuredClone(activity);
   }
   protected mutate<T>(operation: (game: PalaceMechanics) => T): T {
     this.syncGoals();
@@ -129,6 +131,8 @@ export class WorldHost {
     },
   };
   hasActiveObjective(id: string) { this.syncGoals(); return this.activity.npcActivities?.[id]?.status === "active"; }
+  needsNpcReview(id: string) { this.syncGoals(); return this.activity.npcActivities?.[id]?.reviewPending === true; }
+  jail() { return this.activity.jail && { ...this.activity.jail }; }
   protected assertPlayerFree() { if (this.activity.jail) throw new Error("You are in jail."); }
   releaseFromJail() { delete this.activity.jail; }
   movePlayer(destination: Point) {
@@ -169,8 +173,11 @@ export class WorldHost {
       ...(conversationTitle ? { conversationTitle } : {}),
     });
   }
-  reset() { this.restore({ version: 5, world: toJson(WorldStateSchema, this.initial),
-    conversations: {}, npcActivities: {}, playerMessages: [] }); }
+  reset() {
+    this.documents = createScenarioServices(this.initial);
+    this.activity = { version: 5, conversations: {}, npcActivities: {}, playerMessages: [] };
+    this.syncGoals();
+  }
   resetWorld() {
     const before = this.world();
     const map = structuredClone(this.initial.map!);
@@ -179,12 +186,23 @@ export class WorldHost {
   }
   resetCharacters() {
     const current = this.world();
-    for (const path of current.characters) current.docs[path] = clone(WorldStateSchema, this.initial).docs[path]!;
+    const docs = { ...current.docs }, runtimeCharacters = { ...current.runtimeCharacters };
+    for (const path of current.characters) {
+      const initial = this.initial.docs[path];
+      if (!initial) throw new Error(`No initial character document: ${path}`);
+      docs[path] = clone(DocumentSchema, initial);
+    }
     for (const [id, character] of Object.entries(current.runtimeCharacters)) {
       const initial = this.initial.runtimeCharacters[id];
-      character.activity = initial?.activity; character.wait = initial?.wait; character.intentRevision++;
+      runtimeCharacters[id] = { ...character, activity: initial?.activity, wait: initial?.wait,
+        intentRevision: character.intentRevision + 1 };
     }
-    this.restore({ ...this.snapshot(), world: toJson(WorldStateSchema, current), npcActivities: {}, conversations: {} });
+    validateDocuments({ ...current, docs, runtimeCharacters });
+    current.docs = docs;
+    current.runtimeCharacters = runtimeCharacters;
+    this.activity.npcActivities = {};
+    this.activity.conversations = {};
+    this.syncGoals();
   }
   async overrideActiveObjective(id: string, objective: unknown) {
     const path = characterIntent(this.world(), id).entry;
