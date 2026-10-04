@@ -37,7 +37,7 @@ export async function runGameMaster(request: ChatCompletionRequest, services: Ru
       if (call.function.name === "commit_review" && index !== response.tool_calls.length - 1) throw new Error("commit_review must be the final tool call.");
       const input = parseModelObject(call.function.arguments, "Game master tool");
       try {
-        const result = await session.call(call.function.name, input);
+        const result = await session.call(call.function.name, input, { response, toolCallId: call.id });
         messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
         if (call.function.name === "commit_review" && options.requireCommit) return { role: "assistant" as const, content: JSON.stringify(result) };
       } catch (error) {

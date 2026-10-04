@@ -1,6 +1,6 @@
 import { documentTools, callDocumentTool } from "./document-tools.js";
 import type { OpenRouterTool } from "../../providers/src/openrouter.js";
-import type { RuntimeServices } from "./services.js";
+import type { RuntimeServices, DocumentUpdate } from "./services.js";
 import { ActivityEdits, activityTools } from "./activity-tools.js";
 import { characterEntry } from "../../lore/src/active-goal.js";
 import { DocumentConflictError, type DocumentSnapshot } from "../../lore/src/services.js";
@@ -35,7 +35,7 @@ export class GameMasterTools {
     return this.edits.get(id)!;
   }
   async begin() { if (this.characterId) await this.target(this.characterId); }
-  async call(name: string, input: Record<string, unknown>) {
+  async call(name: string, input: Record<string, unknown>, trace?: Pick<DocumentUpdate, "response" | "toolCallId">) {
     const string = (key: string) => { if (typeof input[key] !== "string") throw new Error(`Expected ${key}.`); return input[key] as string; };
     const docs = this.services.docs;
     if (name === "list_documents") {
@@ -76,7 +76,7 @@ export class GameMasterTools {
     if (writes.length) await docs.commit(writes);
     for (const { before } of this.edits.values()) {
       const after = await docs.read(before.path);
-      this.services.debug.documentUpdated?.({ path: before.path, before: before.text, after: after.text, summary });
+      if (trace) this.services.debug.documentUpdated?.({ path: before.path, beforeSha: before.sha, afterSha: after.sha, ...trace });
     }
     this.edits.clear();
     this.pending = false;
