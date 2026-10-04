@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { WorldGameRuntime } from "../apps/web/src/world-runtime.js";
 import { loadPlayableWorld } from "./fixtures.js";
-import { mapActionHooks } from "../packages/conversation/src/action-execution.js";
+import { mapActionStrategy } from "../packages/conversation/src/action-execution.js";
 
-test("action hooks use injected map services; presentation follows the committed result", async () => {
+test("action strategies use injected map services; presentation follows the committed result", async () => {
   const calls: string[] = [];
   const world = loadPlayableWorld();
   const runtime = new WorldGameRuntime(world, "", undefined, undefined, undefined, {
@@ -12,9 +12,9 @@ test("action hooks use injected map services; presentation follows the committed
       observe: id => { calls.push("observe"); return { characterId: id, map: world.map!, actions: [] }; },
       interact: command => { if (command.kind === "move") assert.equal(command.destination.x, 1); calls.push(command.kind); return { done: true }; },
     }, presentation: { renderMap: async (_view, result) => { assert.equal(result?.done, true); calls.push("render"); } } },
-    hooks: { actionExecution: {
+    strategies: { actionExecution: {
       classify: async context => { calls.push("classify"); if (context.command.kind === "move") context.command.destination.x = 999; return {}; },
-      resolve: async (...args) => { calls.push("resolve"); return mapActionHooks.resolve(...args); },
+      resolve: async (...args) => { calls.push("resolve"); return mapActionStrategy.resolve(...args); },
     } },
   });
   const before = runtime.snapshot();

@@ -7,8 +7,8 @@ import test from "node:test";
 import { planWorldAction,reviewAndPlanWorldAction } from "../apps/web/src/world-action.js";
 import { TranscriptMessageSchema } from "../packages/contracts/src/index.js";
 import { DocumentSchema } from "../packages/contracts/src/v2.js";
-import { jevActionHooks } from "../packages/conversation/src/action.js";
-import { documentReviewHooks } from "../packages/conversation/src/document-review.js";
+import { jevActionStrategy } from "../packages/conversation/src/action.js";
+import { documentReviewStrategy } from "../packages/conversation/src/document-review.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { characterEntry } from "../packages/lore/src/active-goal.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
@@ -41,8 +41,8 @@ test("v2 review commits its goal before classify/resolve returns a real command 
       const choice = Object.keys(questions.next!.criteria).find(id => id.startsWith("enter_"))!;
       assert.ok(choice); return { next: { choice, probabilities: { [choice]: 1 } } };
     },
-  } }, hooks: { review: documentReviewHooks, action: { ...jevActionHooks,
-    resolve: async (...args) => { order.push("resolve"); return jevActionHooks.resolve(...args); },
+  } }, strategies: { review: documentReviewStrategy, action: { ...jevActionStrategy,
+    resolve: async (...args) => { order.push("resolve"); return jevActionStrategy.resolve(...args); },
   } } });
   const result = await reviewAndPlanWorldAction(evidence, runtime);
   assert.deepEqual(order, ["review", "classify", "resolve"]);
@@ -56,12 +56,12 @@ test("v2 idle reviews skip Jev, failed reviews stop planning, and terminal resul
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: {
     responses: async () => (commitReview({ summary: "No task", newNotes: [], activeGoal: null })),
     decisions: async () => { calls++; return { next: { choice: "wait", probabilities: {} } }; },
-  } }, hooks: { review: documentReviewHooks, action: jevActionHooks } });
+  } }, strategies: { review: documentReviewStrategy, action: jevActionStrategy } });
   assert.equal((await reviewAndPlanWorldAction(evidence, runtime)).plan, undefined); assert.equal(calls, 0);
   runtime.services.ai.responses = async () => { throw new Error("review failed"); };
   await assert.rejects(reviewAndPlanWorldAction(evidence, runtime), /review failed/); assert.equal(calls, 0);
   const active = fixture("Go to the hall");
-  const activeRuntime = new ConversationRuntime({ services: { ...active, lore: documentLoreService(active.scenario), ai: runtime.services.ai }, hooks: { action: jevActionHooks } });
+  const activeRuntime = new ConversationRuntime({ services: { ...active, lore: documentLoreService(active.scenario), ai: runtime.services.ai }, strategies: { action: jevActionStrategy } });
   assert.equal((await planWorldAction("corvin", activeRuntime))!.action, undefined); assert.equal(calls, 1);
   await assert.rejects(planWorldAction("corvin", activeRuntime, undefined, Array(24).fill("open_door")), /limit/);
   assert.equal(calls, 1);
@@ -73,7 +73,7 @@ test("planning tolerates document changes and still honours cancellation", async
     const path = characterIntent(services.scenario.snapshot(), "corvin").activity!, doc = await services.docs.read(path);
     await services.docs.replace(path, doc.sha, "current_goal: Go to the hall", "current_goal: Go to the kitchen");
     return { next: { choice: "complete", probabilities: {} } };
-  } } }, hooks: { action: jevActionHooks } });
+  } } }, strategies: { action: jevActionStrategy } });
   assert.equal((await planWorldAction("corvin", runtime))!.decision.choice, "complete");
   controller.abort();
   await assert.rejects(planWorldAction("corvin", runtime, controller.signal), /abort/i);

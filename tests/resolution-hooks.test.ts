@@ -8,7 +8,7 @@ test("resolution isolates classification evidence, forwards labels/services and 
   for (const abort of [false, true]) {
     const controller = new AbortController();
     let resolved = false;
-    const runtime = new ConversationRuntime({ hooks: { resolution: {
+    const runtime = new ConversationRuntime({ strategies: { resolution: {
       classify: async (context, signal, services) => {
         assert.equal(signal, controller.signal); assert.equal(services, runtime.services);
         (context as { perception: string }).perception = "Invented secret";

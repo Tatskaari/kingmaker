@@ -5,7 +5,7 @@ Conversation turns share a `classify → resolve → respond` handler in
 to `ConversationRuntime`; the [runtime architecture](architecture.md) extends
 these boundaries to review, action planning, execution and resolution.
 The CLI uses disclosure hooks, while browser and headless player conversations
-use the existing skill-check policy through check hooks. Resolution can request
+use the existing skill-check policy through check strategies. Resolution can request
 another classification pass after adding information. Only resolution changes
 the prepared context; classification receives a detached view.
 

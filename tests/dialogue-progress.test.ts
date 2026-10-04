@@ -48,7 +48,7 @@ test("runtime streams the Stranger and court replies before committing their tra
     if (!court) { delete world.docs[world.player!]; delete world.player; }
     const runtime = new WorldGameRuntime(world, "test", undefined, undefined, undefined, {
       services: { disclosure: { disclose: async () => [] } },
-      hooks: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }), resolve: async () => ({ reclassify: false }) } },
+      strategies: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }), resolve: async () => ({ reclassify: false }) } },
     });
     if (!court) runtime.startIntroduction();
     const before = JSON.stringify(runtime.snapshot());

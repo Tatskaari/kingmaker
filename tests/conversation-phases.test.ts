@@ -9,7 +9,7 @@ test("classifiers return shared labels, resolvers update context, then one reply
     order.push("respond");
     assert.deepEqual(prepared.messages.map(message => message.content), ["Hello", "Opened lore", "Resolved check"]);
     return { role: "assistant", content: "Reply" };
-  } } }, hooks: { conversation: {
+  } } }, strategies: { conversation: {
     classify: async context => {
       order.push(`classify ${context.pass}`);
       const labels = { open: context.pass === 1, check: context.request.messages.length > 1 };
@@ -39,7 +39,7 @@ test("errors, cancellation and pass limits cannot fall through to dialogue", asy
     const controller = new AbortController();
     const runtime = new ConversationRuntime({ maxPasses: 2, services: { character: {
       respond: async () => { assert.fail("No reply allowed"); },
-    } }, hooks: { conversation: {
+    } }, strategies: { conversation: {
       classify: async () => {
         if (mode === "classify") throw new Error("classification failed");
         if (mode === "cancel") controller.abort();

@@ -19,12 +19,12 @@ test("review passes labels and unmodified evidence to a resolver using the share
     order.push("gm");
     assert.match(request.messages[0]!.content!, /promise/);
     return { role: "assistant", content: "Agreed to help." };
-  } } }, hooks: { review: { classify: async context => {
+  } } }, strategies: { review: { classify: async context => {
     order.push("classify");
     context.transcript[0]!.text = "Accidental mutation";
     return { promise: true };
   } } } });
-  runtime.hooks.review.resolve = async (context, labels, signal, injected) => {
+  runtime.strategies.review.resolve = async (context, labels, signal, injected) => {
     order.push("resolve");
     assert.equal(context.transcript[0]!.text, "I promise to help.");
     assert.deepEqual(labels, { promise: true });
@@ -47,7 +47,7 @@ test("stub classification still resolves; errors and cancellation stop the pipel
   for (const mode of ["success", "before", "classify", "between", "resolve", "after"]) {
     const controller = new AbortController();
     let resolves = 0;
-    const runtime = new ConversationRuntime({ hooks: { review: {
+    const runtime = new ConversationRuntime({ strategies: { review: {
       classify: async (context, signal) => {
         if (mode === "classify") throw new Error("classification failed");
         const labels = await classifyConversationReview(context, signal);

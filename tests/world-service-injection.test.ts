@@ -14,7 +14,7 @@ const decisions: NonNullable<NonNullable<WorldOptions["services"]>["ai"]>["decis
     probabilities: { [id]: 0 },
   }]));
 
-test("v2 check hooks use injected mechanics once and preserve their result through presentation and narration", async () => {
+test("v2 check strategies use injected mechanics once and preserve their result through presentation and narration", async () => {
   const result: RollResult = { characterId: "player", skill: "persuasion", difficulty: "normal",
     natural: 2, modifier: 40, total: 42, success: false, outcome: CheckDegree.MinorFailure };
   let rolls = 0, shown = 0, rulings = 0, replies = 0;

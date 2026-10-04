@@ -7,11 +7,11 @@ import { TranscriptMessageSchema } from "../packages/contracts/src/index.js";
 import { worldState } from "../packages/lore/src/world-state.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
-import { documentReviewHooks } from "../packages/conversation/src/document-review.js";
-import { documentResolutionHooks } from "../packages/conversation/src/document-resolution.js";
+import { documentReviewStrategy } from "../packages/conversation/src/document-review.js";
+import { documentResolutionStrategy } from "../packages/conversation/src/document-resolution.js";
 import { runConversationReview } from "../packages/conversation/src/review.js";
 import { runResolution } from "../packages/conversation/src/resolution.js";
-import { jevActionHooks } from "../packages/conversation/src/action.js";
+import { jevActionStrategy } from "../packages/conversation/src/action.js";
 import type { AiService } from "../packages/conversation/src/services.js";
 import { WorldGameRuntime } from "../apps/web/src/world-runtime.js";
 import { WorldHost } from "../apps/web/src/world-host.js";
@@ -64,10 +64,10 @@ function model(seen: string[]): AiService {
 test("planning, reviews, events and both NPC speakers retrieve nested knowledge independently", async () => {
   const world = fixture(), documents = createScenarioServices(world), seen: string[] = [], setups: string[] = [];
   const runtime = new ConversationRuntime({ services: { ...documents, lore: documentLoreService(documents.scenario), ai: model(seen), map: new WorldHost(world).map },
-    hooks: { setup: async (context, signal, services) => {
+    strategies: { setup: { prepare: async (context, signal, services) => {
       setups.push(`${context.agent}:${context.characterId}`);
       return setupAgent(context, signal, services);
-    }, review: documentReviewHooks, resolution: documentResolutionHooks, action: jevActionHooks } });
+    } }, review: documentReviewStrategy, resolution: documentResolutionStrategy, action: jevActionStrategy } });
   await planWorldAction("rowan", runtime);
   await runConversationReview({ characterId: "rowan", participants: ["rowan", "player"],
     transcript: [create(TranscriptMessageSchema, { text: "Remember the plan." })] }, runtime);
@@ -96,7 +96,7 @@ test("disclosure failure prevents review writes and model responses", async () =
   const runtime = new ConversationRuntime({ services: { ...documents, lore: documentLoreService(documents.scenario), ai: {
     decisions: async () => { throw new Error("Retrieval failed"); },
     responses: async () => { assert.fail("Must not respond with incomplete knowledge"); },
-  } }, hooks: { review: documentReviewHooks } });
+  } }, strategies: { review: documentReviewStrategy } });
   await assert.rejects(runConversationReview({ characterId: "rowan", participants: ["rowan"], transcript: [] }, runtime), /Retrieval failed/);
   assert.deepEqual(documents.scenario.snapshot(), before);
 });
@@ -118,7 +118,7 @@ test("injected lore feeds progressive disclosure for both review and planning", 
     }, responses: async request => {
       assert.match(JSON.stringify(request), /INJECTED_DETAIL/); seen.push("review"); return review;
     } },
-  }, hooks: { review: documentReviewHooks, action: jevActionHooks } });
+  }, strategies: { review: documentReviewStrategy, action: jevActionStrategy } });
   await planWorldAction("rowan", runtime);
   await runConversationReview({ characterId: "rowan", participants: ["rowan"], transcript: [] }, runtime);
   assert.deepEqual(scopes, ["rowan", "rowan"]);

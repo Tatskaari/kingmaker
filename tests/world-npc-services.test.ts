@@ -26,7 +26,7 @@ test("NPC planning, exchanges and outcome reviews use replacement map observatio
   const contexts: unknown[] = [];
   const { runtime, map } = setup({ services: { disclosure: { disclose: async () => [] }, ai: { decisions: async () => ({
     next: { choice: "custom_holt", probabilities: {} },
-  }) } }, hooks: { resolution: { resolve: async context => { contexts.push(context); return { summary: "Agreed" }; } } } });
+  }) } }, strategies: { resolution: { resolve: async context => { contexts.push(context); return { summary: "Agreed" }; } } } });
   const goal = "Speak to Holt";
   await runtime.overrideActiveObjective("rowan", { currentGoal: goal });
   const plan = await runtime.planNpc("rowan", signal);
@@ -43,7 +43,7 @@ test("NPC planning, exchanges and outcome reviews use replacement map observatio
   assert.equal((contexts[1] as { observation: { room: string } }).observation.room, "Replacement hall");
 });
 
-test("NPC opening speech runs conversation hooks and the character responder", async () => {
+test("NPC opening speech runs conversation strategies and the character responder", async () => {
   const calls: string[] = [];
   const { runtime, map, actions, goal } = setup({ services: {
     ai: { responses: async () => { throw new Error("Bypassed character service"); } },
@@ -52,7 +52,7 @@ test("NPC opening speech runs conversation hooks and the character responder", a
       assert.ok(request.messages.some(message => message.content === "Hook context"));
       return { role: "assistant", content: "A word, please." };
     } },
-  }, hooks: { conversation: {
+  }, strategies: { conversation: {
     classify: async () => { calls.push("classify"); return { docs: {} as never, checks: undefined }; },
     resolve: async context => { calls.push("resolve"); context.request.messages.push({ role: "system", content: "Hook context" }); return { reclassify: context.pass === 1 }; },
   } } });
@@ -139,7 +139,7 @@ test("conversation conflicts reach the next model decision without running a res
   let state = "", resolutions = 0;
   const { runtime, map } = setup({ services: { disclosure: { disclose: async () => [] },
     ai: { decisions: async observation => { state = String(observation); return { next: { choice: "wait", probabilities: {} } }; } } },
-    hooks: { resolution: { resolve: async () => { resolutions++; return { summary: "Unexpected" }; } } } });
+    strategies: { resolution: { resolve: async () => { resolutions++; return { summary: "Unexpected" }; } } } });
   await runtime.overrideActiveObjective("rowan", { currentGoal: "Speak to Holt" });
   const result = await runtime.executeNpcTalk("rowan", "custom_holt", map.revision - 1, "Speak to Holt", signal);
   assert.equal(result.ok, false);
@@ -153,7 +153,7 @@ test("conversation conflicts reach the next model decision without running a res
 test("a world change during opening speech returns a replan without publishing the stale opening", async () => {
   const { runtime, map, goal } = setup({ services: { disclosure: { disclose: async () => [] },
     character: { respond: async () => { map.revision++; return { role: "assistant", content: "Too late." }; } },
-  }, hooks: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }), resolve: async () => ({ reclassify: false }) } } });
+  }, strategies: { conversation: { classify: async () => ({ docs: {} as never, checks: undefined }), resolve: async () => ({ reclassify: false }) } } });
   const before = runtime.snapshot();
   const result = await runtime.initiatePlayerConversation("rowan", "custom_player", map.revision, goal, signal);
   assert.equal(result.ok, false);
@@ -162,7 +162,7 @@ test("a world change during opening speech returns a replan without publishing t
 });
 
 test("conversation service failures remain errors", async () => {
-  const { runtime, map, goal } = setup({ hooks: { resolution: { resolve: async () => { throw new Error("Provider failed"); } } } });
+  const { runtime, map, goal } = setup({ strategies: { resolution: { resolve: async () => { throw new Error("Provider failed"); } } } });
   await assert.rejects(runtime.executeNpcTalk("rowan", "custom_holt", map.revision, goal, signal), /Provider failed/);
 });
 

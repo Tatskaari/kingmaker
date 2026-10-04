@@ -22,7 +22,7 @@ class DisclosureSession extends Session {
   async disclose(input: ConversationInput, signal: AbortSignal, trace: (event: DisclosureRound) => void) {
     const runtime = new ConversationRuntime({ maxPasses: this.maxPasses,
       services: { character: { respond: async () => ({ role: "assistant", content: "done" }) } },
-      hooks: { conversation: this.hooks(trace) },
+      strategies: { conversation: this.strategy(trace) },
     });
     await runConversation(conversationRequest({ ...input, sources: this.sources }), runtime, signal);
     return this.sources;
@@ -83,7 +83,7 @@ test("injected notes and previously opened notes cannot be offered or reopened b
         }
         return { role: "assistant", content: "done" };
       } } },
-      hooks: { conversation: session.hooks(event => trace.push(event)) },
+      strategies: { conversation: session.strategy(event => trace.push(event)) },
     });
     await runConversation(conversationRequest({ ...input, sources: session.sources }), runtime, new AbortController().signal);
   }

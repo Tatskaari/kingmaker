@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { actionCriteria, jevActionHooks, runAction, type ActionContext } from "../packages/conversation/src/action.js";
+import { actionCriteria, jevActionStrategy, runAction, type ActionContext } from "../packages/conversation/src/action.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { jevRequest } from "../packages/providers/src/jev.js";
 
@@ -10,17 +10,17 @@ function context(): ActionContext {
     request: jevRequest("In the bedroom", "Choose next action", actionCriteria(actions)) };
 }
 
-test("action hooks classify then resolve a detached command without executing it", async () => {
+test("action strategies classify then resolve a detached command without executing it", async () => {
   const input = context(), order: string[] = [];
   const runtime = new ConversationRuntime({ services: { ai: { decisions: async (state, questions) => {
     order.push("decisions"); assert.equal(state, input.request.state);
     assert.ok(questions.next!.criteria.enter_hall);
     return { next: { choice: "enter_hall", probabilities: { enter_hall: 1 } } };
-  } } }, hooks: { action: { ...jevActionHooks, classify: async (view, signal, services) => {
+  } } }, strategies: { action: { ...jevActionStrategy, classify: async (view, signal, services) => {
     order.push("classify");
     view.actions[0]!.target = "accidental mutation";
-    return jevActionHooks.classify(view, signal, services);
-  }, resolve: async (...args) => { order.push("resolve"); return jevActionHooks.resolve(...args); } } } });
+    return jevActionStrategy.classify(view, signal, services);
+  }, resolve: async (...args) => { order.push("resolve"); return jevActionStrategy.resolve(...args); } } } });
   const result = await runAction(input, runtime);
   assert.deepEqual(order, ["classify", "decisions", "resolve"]);
   assert.deepEqual(result.action, input.actions[0]);
@@ -30,7 +30,7 @@ test("action hooks classify then resolve a detached command without executing it
 
 test("terminal judgments return no command; invalid choices and idle goals fail", async () => {
   for (const choice of ["complete", "wait", "unable", "invented"]) {
-    const runtime = new ConversationRuntime({ hooks: { action: { ...jevActionHooks,
+    const runtime = new ConversationRuntime({ strategies: { action: { ...jevActionStrategy,
       classify: async () => ({ choice, probabilities: {} }) } } });
     if (choice === "invented") await assert.rejects(runAction(context(), runtime), /unavailable/);
     else assert.equal((await runAction(context(), runtime)).action, undefined);
@@ -40,10 +40,10 @@ test("terminal judgments return no command; invalid choices and idle goals fail"
 
 test("cancellation between classification and resolution never resolves", async () => {
   const controller = new AbortController();
-  const runtime = new ConversationRuntime({ hooks: { action: {
+  const runtime = new ConversationRuntime({ strategies: { action: {
     classify: async () => { controller.abort(); return { choice: "complete", probabilities: {} }; },
     resolve: async () => assert.fail("Cancelled decision must not resolve"),
   } } });
   await assert.rejects(runAction(context(), runtime, controller.signal), /abort/i);
-  await assert.rejects(runAction(context(), new ConversationRuntime()), /hooks.action.classify/);
+  await assert.rejects(runAction(context(), new ConversationRuntime()), /strategies.action.classify/);
 });

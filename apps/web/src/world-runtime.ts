@@ -11,7 +11,7 @@ import { premadeCharacter } from "./premade-characters.js";
 import { playerPublication } from "./stranger-draft.js";
 import { portraitExpressions, type PortraitExpression } from "../../../packages/providers/src/conversation-expression.js";
 import type { JsonValue } from "@bufbuild/protobuf";
-import { mapActionHooks, runActionExecution, type ActionExecutionContext } from "../../../packages/conversation/src/action-execution.js";
+import { mapActionStrategy, runActionExecution, type ActionExecutionContext } from "../../../packages/conversation/src/action-execution.js";
 import { create, fromJson, toJson } from "@bufbuild/protobuf";
 import { GamePhase, TranscriptMessageSchema, TranscriptRole, type Event } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
@@ -22,14 +22,14 @@ import { prepareConversation } from "../../../packages/conversation/src/conversa
 import { runConversation } from "../../../packages/conversation/src/phases.js";
 import { runConversationReview } from "../../../packages/conversation/src/review.js";
 import { runResolution, type ResolutionContext } from "../../../packages/conversation/src/resolution.js";
-import { documentResolutionHooks } from "../../../packages/conversation/src/document-resolution.js";
-import { documentReviewHooks } from "../../../packages/conversation/src/document-review.js";
-import { jevActionHooks } from "../../../packages/conversation/src/action.js";
+import { documentResolutionStrategy } from "../../../packages/conversation/src/document-resolution.js";
+import { documentReviewStrategy } from "../../../packages/conversation/src/document-review.js";
+import { jevActionStrategy } from "../../../packages/conversation/src/action.js";
 import { documentLoreService } from "../../../packages/conversation/src/document-lore.js";
 import { DisclosureSession } from "../../../packages/conversation/src/disclosure.js";
 import { runGameMaster } from "../../../packages/conversation/src/game-master.js";
 import { checkMechanics, adjudicateResolvedChecks } from "../../../packages/conversation/src/checks.js";
-import { cliHooks } from "../../../packages/conversation/src/cli-hooks.js";
+import { cliStrategy } from "../../../packages/conversation/src/cli-strategy.js";
 import { aiService } from "../../../packages/conversation/src/adapters.js";
 import { OpenRouterClient, type TextProgress } from "../../../packages/providers/src/openrouter.js";
 import { JevClient } from "../../../packages/providers/src/jev.js";
@@ -38,7 +38,7 @@ import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
 import { planWorldAction, type PlanningFeedback } from "./world-action.js";
 import { courtCharactersWithinEarshot, perceivesAt } from "./earshot.js";
 
-export type WorldTurnLabels = Awaited<ReturnType<ReturnType<typeof cliHooks>["classify"]>>;
+export type WorldTurnLabels = Awaited<ReturnType<ReturnType<typeof cliStrategy>["classify"]>>;
 export type WorldOptions = ConversationRuntimeOptions<WorldTurnLabels>;
 export { type WorldSnapshot } from "./world-host.js";
 
@@ -106,11 +106,11 @@ export class WorldGameRuntime extends WorldHost {
       random,
       debug: { record: () => {}, documentUpdated: event => this.traces.documentUpdated(event), ...this.options.services?.debug, ...extra.services?.debug },
       presentation: { renderMap: async () => {}, showRoll: async () => {}, setPortrait: async () => {}, ...this.options.services?.presentation, ...extra.services?.presentation },
-    }, hooks: { setup: setupWorldAgent, ...this.options.hooks, ...extra.hooks,
-      review: { ...documentReviewHooks, ...this.options.hooks?.review, ...extra.hooks?.review },
-      actionExecution: { ...mapActionHooks, ...this.options.hooks?.actionExecution, ...extra.hooks?.actionExecution },
-      action: { ...jevActionHooks, ...this.options.hooks?.action, ...extra.hooks?.action },
-      resolution: { ...documentResolutionHooks, ...this.options.hooks?.resolution, ...extra.hooks?.resolution },
+    }, strategies: { setup: { prepare: setupWorldAgent }, ...this.options.strategies, ...extra.strategies,
+      review: { ...documentReviewStrategy, ...this.options.strategies?.review, ...extra.strategies?.review },
+      actionExecution: { ...mapActionStrategy, ...this.options.strategies?.actionExecution, ...extra.strategies?.actionExecution },
+      action: { ...jevActionStrategy, ...this.options.strategies?.action, ...extra.strategies?.action },
+      resolution: { ...documentResolutionStrategy, ...this.options.strategies?.resolution, ...extra.strategies?.resolution },
     } });
   }
   startIntroduction() {
@@ -229,10 +229,10 @@ export class WorldGameRuntime extends WorldHost {
     const lore = await runtime.services.lore.forCharacter(id, signal);
     const disclosure = new DisclosureSession(lore, runtime.services.ai, 0.7);
     const world = this.world(), build = world.player ? world.docs[world.player]?.characterProperties?.dnd : undefined;
-    const hooks = cliHooks(disclosure, runtime.services.ai, build, message,
+    const strategies = cliStrategy(disclosure, runtime.services.ai, build, message,
       async (_check, cancellation) => { cancellation.throwIfAborted(); return runtime.services.random.integer(1, 20); },
       () => {}, () => {}, runtime.services.presentation, runtime.services.character, { services: runtime.services, characterId: id });
-    runtime.hooks.conversation = options.hooks?.conversation ?? this.options.hooks?.conversation ?? hooks;
+    runtime.strategies.conversation = options.strategies?.conversation ?? this.options.strategies?.conversation ?? strategies;
     runtime.services.character.respond = (request, cancellation) => runtime.services.ai.responses(request, cancellation, onText ? { onText } : undefined);
     const transcript = previous.map(turn => fromJson(TranscriptMessageSchema, turn));
     const request = await prepareConversation({ snapshot: { world }, characterId: id, sources: lore.initial, transcript, message }, runtime.services, signal);
@@ -440,8 +440,8 @@ export class WorldGameRuntime extends WorldHost {
     const runtime = this.runtime(id, "dialogue", {}, this.conversationRun(id), signal, [id, "player"]);
     const lore = await runtime.services.lore.forCharacter(id, signal);
     // Opening speech can disclose lore, but there is no player utterance to check.
-    const disclosure = new DisclosureSession(lore, runtime.services.ai, 0.7).hooks(() => {});
-    runtime.hooks.conversation = this.options.hooks?.conversation ?? {
+    const disclosure = new DisclosureSession(lore, runtime.services.ai, 0.7).strategy(() => {});
+    runtime.strategies.conversation = this.options.strategies?.conversation ?? {
       classify: async (...args) => ({ docs: await disclosure.classify(...args), checks: undefined }),
       resolve: (context, labels, cancellation) => disclosure.resolve(context, labels.docs, cancellation),
     };

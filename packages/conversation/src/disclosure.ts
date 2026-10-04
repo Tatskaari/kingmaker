@@ -1,6 +1,6 @@
 import type { CharacterSources } from "./conversation.js";
 import type { AiService, LoreService } from "./services.js";
-import type { ConversationHooks } from "./phases.js";
+import type { ConversationStrategy } from "./phases.js";
 import { DisclosureTraversal, type DisclosureRound } from "./progressive-disclosure.js";
 export type { DisclosureRound, EvaluateLinks } from "./progressive-disclosure.js";
 
@@ -11,7 +11,7 @@ export class DisclosureSession {
     this.traversal = new DisclosureTraversal(lore, ai, threshold, maxCharacters);
   }
   get sources(): CharacterSources { return this.traversal.sources; }
-  hooks(trace: (round: DisclosureRound) => void): ConversationHooks<DisclosureRound> {
+  strategy(trace: (round: DisclosureRound) => void): ConversationStrategy<DisclosureRound> {
     const rounds = this.traversal.rounds(trace);
     return {
       classify: (context, signal) => rounds.classify(context.request.messages, context.pass, signal),

@@ -9,12 +9,12 @@ import { loadPlayableWorld } from "./fixtures.js";
 const signal = () => new AbortController().signal;
 test("character setup can replace the prompt using injected services without changing caller evidence", async () => {
   const runtime = new ConversationRuntime({ services: { scenario: { info: () => ({ scenario: "scenario.md", scenarioIndex: "index.md", characters: [] }) } },
-    hooks: { setup: async (context, cancellation, services) => {
+    strategies: { setup: { prepare: async (context, cancellation, services) => {
       assert.equal(context.agent, "character");
       assert.equal(context.characterId, "corvin");
       cancellation.throwIfAborted();
       return [{ role: "system", content: services.scenario.info().scenario }, ...context.messages];
-    } } });
+    } } } });
   const input = { snapshot: { world: loadPlayableWorld() }, characterId: "corvin", sources: [], transcript: [], message: "Hello" };
   const before = structuredClone(input);
   const request = await prepareConversation(input, runtime.services);
@@ -39,11 +39,11 @@ test("default setup resolves character lore and completes disclosure through ser
 
 test("GM setup runs once before tool execution and can delegate to default policy", async () => {
   let setups = 0;
-  const runtime = new ConversationRuntime({ hooks: { setup: async (...args) => {
+  const runtime = new ConversationRuntime({ strategies: { setup: { prepare: async (...args) => {
     setups++;
     const messages = await setupAgent(...args);
     return [{ role: "system", content: "Custom GM" }, ...messages];
-  } }, services: { ai: { responses: async request => {
+  } } }, services: { ai: { responses: async request => {
     assert.equal(request.messages[0]!.content, "Custom GM");
     assert.match(request.messages[1]!.content!, /You are a game master/);
     return { role: "assistant", content: "A ruling" };
@@ -55,10 +55,10 @@ test("GM setup runs once before tool execution and can delegate to default polic
 test("setup failures and cancellation prevent model execution", async () => {
   let calls = 0;
   const controller = new AbortController();
-  const runtime = new ConversationRuntime({ hooks: { setup: async () => { controller.abort(); return []; } },
+  const runtime = new ConversationRuntime({ strategies: { setup: { prepare: async () => { controller.abort(); return []; } } },
     services: { ai: { responses: async () => { calls++; return { role: "assistant", content: "Unexpected" }; } } } });
   await assert.rejects(runGameMaster({ model: "test", messages: [] }, runtime.services, controller.signal), /abort/i);
-  runtime.hooks.setup = async () => { throw new Error("Setup failed"); };
+  runtime.strategies.setup.prepare = async () => { throw new Error("Setup failed"); };
   await assert.rejects(runGameMaster({ model: "test", messages: [] }, runtime.services, signal()), /Setup failed/);
   assert.equal(calls, 0);
 });
