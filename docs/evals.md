@@ -106,3 +106,9 @@ on the data branch `gh-pages`. Rerunning a commit replaces its result without du
 its index entry. Deploy GitHub Pages includes this history alongside the game and previews;
 results are not committed to main. Concurrent preview writes are preserved by push retries.
 Recordings use the framework's credential redaction and are published as public site data.
+
+Open `evals/index.html` on the published site to select an experiment, graph its weighted
+total or individual criteria across commits, and inspect a commit's variant breakdown.
+Chart points are keyboard accessible and select the same detail table as the commit picker.
+Missing scores create gaps; rubric changes break connecting lines. Full JSON is linked
+from each commit. Until the first publication, the dashboard displays setup guidance.
