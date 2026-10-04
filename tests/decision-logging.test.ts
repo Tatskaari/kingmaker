@@ -5,7 +5,6 @@ import { OpenRouterClient } from "../packages/providers/src/openrouter.js";
 import { classifyConversationTurn } from "../packages/providers/src/conversation-checks.js";
 import { JevClient } from "../packages/providers/src/jev.js";
 import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
-import { runResourceReview } from "../apps/web/src/resource-review.js";
 import { logPath } from "../scripts/test-logging.js";
 
 const records = () => readFileSync(logPath, "utf8").trim().split("\n").map(line => JSON.parse(line));
@@ -52,22 +51,6 @@ test("provider logs identify operations and distinguish JEV from LLM calls", asy
   assert.equal(logs[3].properties.response.tool_calls[0].function.name, "finish_review");
   assert.equal(logs[5].properties.response.next.choice, "ignore");
   assert.equal(logs[7].properties.error, "network failure [redacted]");
-});
-
-test("review logs rejected writes and the final successful finish", async () => {
-  const transcripts = new ModelTranscripts("tool-test-secret");
-  let round = 0;
-  await runResourceReview({ model: "test", messages: [] }, [], {
-    read: async () => ({}), write: async () => ({ commit_result: "error", reason: "stale tool-test-secret" }),
-    finish: async () => {}, toolResult: (call, result) => transcripts.toolResult(call, result),
-    complete: async () => ({ role: "assistant", content: null, tool_calls: [{ id: `review-${++round}`, type: "function",
-      function: round === 1 ? { name: "update_character", arguments: '{}' } : { name: "finish_review", arguments: '{"summary":"done"}' } }] }),
-  });
-  const logs = records().filter(record => record.message === "LLM tool result");
-  assert.equal(logs.length, 2);
-  assert.equal(logs[0].properties.result.commit_result, "error");
-  assert.equal(logs[0].properties.result.reason, "stale [redacted]");
-  assert.equal(logs[1].properties.result.commit_result, "success");
 });
 
 test("conversation classifier labels JEV requests and failures at the provider", async () => {

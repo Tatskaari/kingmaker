@@ -271,9 +271,9 @@ the compiled interfaces and v2 host take precedence over older v1 examples.
 - `apps/web/src/world-host.ts`: authoritative v2 state and physical mechanics adapter.
 - `apps/web/src/world-runtime.ts`: service injection and game policy composition.
 - `packages/conversation/src/runtime.ts`: shared hook and service contracts.
-- `apps/web/src/court-agent.ts`: grounded actions and planner observations.
+- `apps/web/src/world-action.ts`: document-native planner observations.
 - `apps/web/src/court-map.ts`: map rendering, walking and interaction menus.
-- `packages/core/src/context.ts`: character knowledge and dialogue context.
+- `packages/conversation/src/disclosed-context.ts`: permitted document context.
 - `packages/contracts/proto/kingmaker/v2/world.proto`: document-backed world contract.
 - [Architecture](docs/architecture.md), [navigation](docs/navigation.md),
   [autotiling](docs/autotiling.md), [cleanup audit](docs/cleanup-audit.md).
