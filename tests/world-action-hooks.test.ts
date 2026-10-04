@@ -15,7 +15,6 @@ import { loadConversationWorld } from "../scripts/lib/conversation-world.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { jevActionHooks } from "../packages/conversation/src/action.js";
 import { documentReviewHooks } from "../packages/conversation/src/document-review.js";
-import { BrowserGameRuntime } from "../apps/web/src/runtime.js";
 import { planWorldAction, reviewAndPlanWorldAction } from "../apps/web/src/world-action.js";
 
 function fixture(goal?: string) {

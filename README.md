@@ -100,20 +100,6 @@ the engine. No scenario premise or hidden character context is appended. The API
 still receives the short execution instructions and selectable choice criteria.
 Event-reaction Jev, dialogue, and GM context are unaffected by these settings.
 
-Evals can override both settings per runtime:
-`new BrowserGameRuntime(scenario, key, snapshot, undefined, undefined, Math.random, { level: 1, includeRecentResults: true })`.
-Configuration follows
-runtime forks and is not saved as game state. The debug inspector displays the
-same text `state` supplied to the action planner.
-
-Render all three tiers through the production action-planning path without an
-API key or model call:
-`proto run node -- node_modules/tsx/dist/cli.mjs scripts/render-jev-contexts.ts /tmp/kingmaker-jev-contexts king`.
-This writes court-arrival and authored-initial examples. Each `*-state.txt` is the
-exact text sent in `state`; `*-request.txt` also includes every execution
-instruction and selectable choice. Action logs are enabled and initially empty in these
-samples, and the output README records the activation/placement assumptions.
-
 The debug inspector shows world state, character context and recent transcripts:
 requests, responses, summaries, duration and errors for the latest 50 calls.
 These logs survive rollback but are not saved across reloads. NPC conversations

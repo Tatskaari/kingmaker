@@ -1,7 +1,7 @@
 import type { OpenRouterToolCall, OpenRouterTool, OpenRouterMessage, ChatCompletionRequest } from "../../../packages/providers/src/openrouter.js";
 import { parseModelObject } from "../../../packages/providers/src/structured-output.js";
 import type { VersionedState } from "../../../packages/core/src/generations.js";
-import type { ReviewKind } from "./character-review.js";
+type ReviewKind = "conversation_review" | "npc_resolution" | "outcome_review" | "world_event";
 import { ACTIVE_OBJECTIVE_GUIDANCE } from "./objectives.js";
 
 export interface ResourceReviewContext {
