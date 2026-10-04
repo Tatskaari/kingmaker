@@ -33,6 +33,8 @@ test("review experiments replay real tools, record AI and docs, and grade state 
     assert.equal(trial.gradingCalls.filter(call => call.service === "ai").length, 1);
     assert.ok(documentChanges(trial.recording).some(change => change.after?.body.includes("ordered me")));
   }
-  assert.deepEqual(documentChanges(trials[0]!.recording), documentChanges(trials[1]!.recording));
+  assert.deepEqual(trials[0]!.recording.initialState, trials[1]!.recording.initialState);
+  assert.notEqual(documentChanges(trials[0]!.recording).find(change => !change.before)!.path,
+    documentChanges(trials[1]!.recording).find(change => !change.before)!.path, "Each run creates its own activity document");
   assert.ok(!Object.values(source.docs).some(doc => doc.body.includes("The player ordered me to the parlour.")));
 });
