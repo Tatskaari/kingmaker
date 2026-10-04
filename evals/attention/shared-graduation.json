@@ -4,39 +4,49 @@
     "context": "Corvin is keeper of the royal seal and formerly held a contract at Nine Furrows university. No shared university attendance, graduation, friendship or prior meeting with the player is established in the supplied lore.",
     "player": "Corvin, my good friend. How have you been since the graduation ceremony all those years back? Have you seen... what's his face? The short one with the penchant for setting things on fire with spells.",
     "reply": "*I incline my head, though the word ‘friend’ seems to require a moment’s careful consideration.*\n\nWell enough, thank you. The royal appointment has proved rather more durable than my contract at Nine Furrows—though I would not call the graduation ceremony the cause of either.\n\nAs for ‘the short one’: that description is insufficient to identify a person, and setting things alight is not a unique credential among spellcasters. Give me a name, or at least the school he attended, and I may answer accurately.",
-    "expectedFlag": true,
-    "reason": "The reply accommodates the player's shared-graduation premise by discussing that ceremony as a real reference point. Flag this possible adoption for reconciliation, without asserting that the friendship or unnamed third person has been confirmed."
+    "reason": "The reply accommodates the player's shared-graduation premise by discussing that ceremony as a real reference point. Flag this possible adoption for reconciliation, without asserting that the friendship or unnamed third person has been confirmed.",
+    "expected": {
+      "improvised_detail": "flagged"
+    }
   },
   {
     "name": "graduation-explicit-acceptance",
     "context": "Corvin formerly held a contract at Nine Furrows university. No shared university attendance, graduation or prior meeting with the player is established.",
     "player": "We studied together at Nine Furrows and attended graduation together. Remember?",
     "reply": "Of course I remember. We stood beside each other at graduation at Nine Furrows.",
-    "expectedFlag": true,
-    "reason": "The character explicitly adopts unsupported player-supplied shared history."
+    "reason": "The character explicitly adopts unsupported player-supplied shared history.",
+    "expected": {
+      "improvised_detail": "flagged"
+    }
   },
   {
     "name": "graduation-rejected-claim",
     "context": "Corvin formerly held a contract at Nine Furrows university. No shared university attendance, graduation or prior meeting with the player is established.",
     "player": "We studied together at Nine Furrows and attended graduation together. Remember?",
     "reply": "No. I do not recognize you and cannot confirm that story. You may have mistaken me for someone else.",
-    "expectedFlag": false,
-    "reason": "The player made the claim, but the character rejected it; there is no adopted detail to reconcile."
+    "reason": "The player made the claim, but the character rejected it; there is no adopted detail to reconcile.",
+    "expected": {
+      "improvised_detail": "not_flagged"
+    }
   },
   {
     "name": "graduation-noncommittal-reply",
     "context": "Corvin formerly held a contract at Nine Furrows university. No shared university attendance, graduation or prior meeting with the player is established.",
     "player": "We studied together at Nine Furrows and attended graduation together. Remember?",
     "reply": "Good evening. What brings you to court?",
-    "expectedFlag": false,
-    "reason": "Politeness and failure to challenge a claim alone are not evidence of acceptance."
+    "reason": "An unsupported player detail that is not explicitly denied needs GM review, even when the character changes the subject. This flags an unresolved claim, not established truth.",
+    "expected": {
+      "improvised_detail": "flagged"
+    }
   },
   {
     "name": "graduation-established-history",
     "context": "Authoritative lore: Corvin and the player studied together at Nine Furrows and stood beside each other at their graduation ceremony. Both remember this shared history.",
     "player": "We studied together at Nine Furrows and attended graduation together. Remember?",
     "reply": "Of course I remember. We stood beside each other at graduation at Nine Furrows.",
-    "expectedFlag": false,
-    "reason": "Repeating a fact already supported by authoritative lore does not introduce a detail needing reconciliation."
+    "reason": "Repeating a fact already supported by authoritative lore does not introduce a detail needing reconciliation.",
+    "expected": {
+      "improvised_detail": "not_flagged"
+    }
   }
 ]

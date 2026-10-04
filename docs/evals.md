@@ -179,3 +179,19 @@ The baseline missed reconciliation in all three observed-case trials, flagging o
 aggregate was 12/15 (80%), with zero execution or judging errors. This small sample
 reproduces the accommodation gap; it is not an estimate of general classifier accuracy.
 Local full recordings: `eval-output/2026-10-04T20-16-02.548Z-0a0312b1/`.
+
+### Responsive-world candidate
+
+The `responsive-world` variant broadens attention to developments the player expects
+the world to react to, with focused GM guidance. This is a comparison only; production
+prompts remain unchanged in this layer. It explicitly flags unsupported player details
+unless denied, including hedging and a noncommittal response, without making them true.
+The rubric and noncommittal expectation changed to match the user's clarified policy;
+rerun BOTH baseline and candidate rather than comparing with the older 80% result.
+
+The shared runner now scores expected individual label choices (`attention`), averaging
+within each fixture. New controls cover indirect assent, future/general commitments,
+gifts and refused trades, narrated travel, forgiveness, greetings, GM-established history,
+successful deception as belief, and a blocked promise. Missing optional labels count as
+unflagged. Exact-match scoring concerns these expected labels, not all possible flags.
+Run `npm run eval:attention -- --repeats 3`; both configurations use identical evidence.
