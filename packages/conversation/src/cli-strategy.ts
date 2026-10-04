@@ -1,3 +1,5 @@
+import { analyzeAttention, type AnalysisEvent } from "./attention.js";
+import type { ConversationStrategy } from "./phases.js";
 import type { DndCharacter } from "../../contracts/src/index.js";
 import { skillModifier } from "../../core/src/ability-checks.js";
 import { checkStrategy, type CheckLabels } from "./check-strategy.js";
@@ -12,11 +14,15 @@ export type RequestRoll = (check: ManualRoll, signal: AbortSignal) => Promise<nu
 
 /** Finish disclosure before classifying checks; resolve checks once per player turn. */
 export function cliStrategy(disclosure: DisclosureSession, ai: AiService, build: DndCharacter | undefined,
-  playerTurn: string, requestRoll: RequestRoll, trace: (round: DisclosureRound) => void, debug: (turn: LlmTurn) => void, presentation: Partial<PresentationService> = {}, character: Partial<CharacterMechanics> = {}, gm?: { services: Partial<RuntimeServices>; characterId: string }) {
+  playerTurn: string, requestRoll: RequestRoll, trace: (round: DisclosureRound) => void, debug: (turn: LlmTurn) => void, presentation: Partial<PresentationService> = {}, character: Partial<CharacterMechanics> = {}, gm?: { services: Partial<RuntimeServices>; characterId: string }, report: (event: AnalysisEvent) => void = () => {}) {
   const documents = disclosure.strategy(trace);
   const runtime = new ConversationRuntime<CheckLabels>({ services: {
     ...gm?.services,
-    ai: { ...ai, responses: async (request, signal) => {
+    ai: { ...ai, decisions: async (...args) => {
+      const decisions = await ai.decisions(...args);
+      report({ kind: "labels", subject: "player", source: args[3] ?? "checks", decisions });
+      return decisions;
+    }, responses: async (request, signal) => {
       const started = Date.now();
       try {
         const response = await ai.responses(request, signal, { purpose: "gm_consultation" });
@@ -25,10 +31,23 @@ export function cliStrategy(disclosure: DisclosureSession, ai: AiService, build:
       } catch (error) { debug({ request, error: String(error) }); throw error; }
     } },
     character: { rollCheck: checkMechanics(build, (check, signal) => requestRoll({ ...check, modifier: skillModifier(build, check.skill) }, signal)), ...character },
-    presentation: { showRoll: async () => {}, ...presentation },
+    presentation: { ...presentation, showRoll: async (result, signal) => {
+      report({ kind: "roll", subject: "player", result });
+      await presentation.showRoll?.(result, signal);
+    } },
   } });
   const checks = checkStrategy(runtime, { playerTurn, playerId: "player", ...(gm ? { characterId: gm.characterId } : {}) });
   return {
+    analyze: async (context, reply, signal) => {
+      try {
+        const decisions = await analyzeAttention(ai, context.request.messages, reply, signal);
+        report({ kind: "labels", subject: "character", source: "attention", decisions });
+      } catch (error) {
+        signal.throwIfAborted();
+        // A diagnostic failure must not discard an otherwise valid character reply.
+        report({ kind: "error", subject: "character", error: String(error) });
+      }
+    },
     classify: async (...args: Parameters<typeof documents.classify>) => {
       const docs = await documents.classify(...args);
       const expanding = docs.candidates.some(link => (docs.answers?.[link.id]?.probabilities[link.id] ?? 0) > disclosure.threshold);
@@ -39,5 +58,5 @@ export function cliStrategy(disclosure: DisclosureSession, ai: AiService, build:
       if (!result.reclassify && labels.checks) await checks.resolve(context, labels.checks, signal);
       return result;
     },
-  };
+  } satisfies ConversationStrategy<{ docs: DisclosureRound; checks: CheckLabels | undefined }>;
 }

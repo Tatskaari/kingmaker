@@ -8,6 +8,8 @@ export interface ConversationContext {
   completed: Set<string>;
 }
 export interface ConversationStrategy<Labels = Record<string, never>> {
+  /** Inspect a completed reply without changing the dialogue or world. */
+  analyze?(context: Readonly<ConversationContext>, reply: Readonly<OpenRouterMessage>, signal: AbortSignal): Promise<void>;
   classify(context: Readonly<ConversationContext>, signal: AbortSignal): Promise<Labels>;
   resolve(context: ConversationContext, labels: Readonly<Labels>, signal: AbortSignal): Promise<{ reclassify: boolean }>;
 }
@@ -28,6 +30,10 @@ export async function runConversation<Labels>(request: ChatCompletionRequest, ru
     onRespond(context.request);
     const reply = await runtime.services.character.respond(context.request, signal);
     signal.throwIfAborted();
+    if (reply.role === "assistant" && reply.content?.trim() && !reply.tool_calls?.length) {
+      await runtime.strategies.conversation.analyze?.(structuredClone(context), structuredClone(reply), signal);
+      signal.throwIfAborted();
+    }
     return reply;
   }
   throw new Error("Conversation round limit reached; no dialogue generated.");
