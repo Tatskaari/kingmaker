@@ -36,9 +36,9 @@ test("event perception reads document names without reconstructing character lor
   assert.match((await runtime.assessWorldEvent(event, signal)).reactions[0]!.perception, /rowan and unknown/);
 });
 
-test("event perception keeps multiple bodies but rolls and reacts once per character", async () => {
+test("event perception rolls and reacts independently for guard instances", async () => {
   const { world, event } = eventWorld();
-  const guards = loadPlayableWorld().map!.actors.filter(actor => actor.characterId === "palace-guard").slice(0, 2);
+  const guards = loadPlayableWorld().map!.actors.filter(actor => actor.characterId.startsWith("palace-guard-")).slice(0, 2);
   guards.forEach((actor, index) => { actor.position = { ...event.position!, x: 59 + index }; });
   world.map!.actors.push(...guards);
   // An unregistered body is not promoted to a character by observation.
@@ -47,8 +47,8 @@ test("event perception keeps multiple bodies but rolls and reacts once per chara
   const runtime = new WorldGameRuntime(world, "", undefined, undefined, undefined, { services: { random: { integer: () => { rolls++; return 1; } } } });
   const before = runtime.snapshot();
   const result = await runtime.assessWorldEvent(event, signal);
-  assert.equal(rolls, 2);
-  assert.deepEqual(result.reactions.map(reaction => reaction.characterId), ["palace-guard", "holt"]);
+  assert.equal(rolls, 3);
+  assert.deepEqual(result.reactions.map(reaction => reaction.characterId), ["palace-guard-1", "palace-guard-2", "holt"]);
   assert.equal(result.reactions[0]!.perception, event.summary);
   assert.deepEqual(runtime.snapshot(), before);
 });

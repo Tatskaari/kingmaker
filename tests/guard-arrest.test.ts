@@ -3,7 +3,7 @@ import test from "node:test";
 import { loadPlayableWorld, commitReview } from "./fixtures.js";
 import { WorldGameRuntime, type WorldOptions } from "../apps/web/src/world-runtime.js";
 
-const guard = "palace-guard";
+const guard = "palace-guard-1";
 const arrestCall = (name = "arrest", args = "{}") => ({ role: "assistant" as const, content: null,
   tool_calls: [{ id: "arrest-1", type: "function" as const, function: { name, arguments: args } }] });
 function game(choice = "arrest", response = "You're nicked, mate.", extra: WorldOptions = {}) {
@@ -74,13 +74,13 @@ test("a conversation remembered at one post is available to the brothers at anot
   const saved = runtime.snapshot();
   const world = runtime.world();
   const player = world.map!.actors.find(actor => actor.characterId === "player")!;
-  const brother = world.map!.actors.filter(actor => actor.characterId === guard).at(-1)!;
+  const brother = world.map!.actors.filter(actor => actor.instanceId?.startsWith("palace-guard-")).at(-1)!;
   player.position = { ...brother.position!, y: brother.position!.y + 1 };
   const { toJson } = await import("@bufbuild/protobuf");
   const { WorldStateSchema } = await import("../packages/contracts/src/v2.js");
   runtime.restore({ ...saved, world: toJson(WorldStateSchema, world) });
   remembered = true;
-  await runtime.checkedTalkToCharacter(guard, "What is the password?");
+  await runtime.checkedTalkToCharacter(brother.characterId, "What is the password?");
 });
 
 

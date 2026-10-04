@@ -21,7 +21,6 @@ const neighbours = (point: Point): Point[] => [
  * may occupy the adjoining room's threshold in the authored map. */
 export function roomAgentActions(scenario: Scenario, characterId: string, continuingActionId?: string): CourtAgentAction[] {
   const world = scenario.world!, actor = world.actors.find(item => item.characterId === characterId)!;
-  if (actor.instanceId) return []; // Background bodies hold their posts; conversation actions are separate.
   const start = actor.position!, room = world.rooms.find(item => item.id === actor.roomId)!;
   const physicalBlockers = courtDoorBlockers(world.doors, world.fixtures);
   const route = (end: Point, allowedRooms = [room.id], thresholds: Point[] = []) => {

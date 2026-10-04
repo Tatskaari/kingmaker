@@ -8,16 +8,17 @@ import { activityGoal, intentContext } from "../../../packages/lore/src/activity
 /** Disposable adapter for existing palace rules and views. Never a saved authority. */
 export function projectWorld(world: WorldState, observerId = "player") {
   if (!world.map) throw new Error("A physical map is required.");
-  const paths = [...world.characters, ...(world.player ? [world.player] : [])];
-  const characters = paths.map(path => {
+  const entries = Object.values(world.runtimeCharacters).filter(character => character.characterId !== "player")
+    .map(character => ({ id: character.id, path: character.document }));
+  if (world.player) entries.push({ id: "player", path: world.player });
+  const characters = entries.map(({ id, path }) => {
     const doc = world.docs[path];
     if (!doc) throw new Error(`Missing character document: ${path}`);
-    const id = characterId(path, world);
     return create(CharacterSchema, { id, name: typeof doc.frontmatter?.name === "string" ? doc.frontmatter.name : id,
       gender: typeof doc.frontmatter?.gender === "string" ? doc.frontmatter.gender : "",
       delegation: typeof doc.frontmatter?.delegation === "string" ? doc.frontmatter.delegation : "",
       ...(typeof doc.frontmatter?.sprite === "number" ? { sprite: doc.frontmatter.sprite } : {}),
-      lore: doc.body, currentGoal: id === "player" || doc.frontmatter?.background === true ? "" : activityGoal(world, id) ?? "", inventory: doc.characterProperties?.inventory, dnd: doc.characterProperties?.dnd });
+      lore: doc.body, currentGoal: id === "player" ? "" : activityGoal(world, id) ?? "", inventory: doc.characterProperties?.inventory, dnd: doc.characterProperties?.dnd });
   });
   const map = clone(MapSchema, world.map);
   map.actors = foregroundBodies(map.actors, map.actors.find(actor => actor.characterId === observerId)?.position);

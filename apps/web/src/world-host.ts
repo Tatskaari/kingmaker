@@ -22,7 +22,7 @@ export type WorldSnapshot = MechanicalActivity & {
   stranger?: StrangerState;
   jail?: { characterId: string; message: string };
   pendingWaitReviews?: Record<string, { instructions: string; observation: string }>;
-  version: 4; world: JsonValue;
+  version: 5; world: JsonValue;
   playerMessages: Array<{ id: string; day: number; message: string; createdAt: string }>;
 };
 
@@ -35,7 +35,7 @@ export class WorldHost {
   constructor(world: WorldState, saved?: WorldSnapshot) {
     this.initial = clone(WorldStateSchema, world);
     this.documents = createScenarioServices(world);
-    this.activity = { version: 4, conversations: {}, npcActivities: {}, playerMessages: [] };
+    this.activity = { version: 5, conversations: {}, npcActivities: {}, playerMessages: [] };
     if (saved) this.restore(saved);
     this.syncGoals();
   }
@@ -43,8 +43,8 @@ export class WorldHost {
   protected syncGoals() {
     const world = this.world();
     const activities = this.activity.npcActivities ??= {};
-    for (const path of world.characters) {
-      const id = characterId(path, world), goal = world.docs[path]!.frontmatter?.background === true ? "" : activityGoal(world, id) ?? "", previous = activities[id];
+    for (const character of Object.values(world.runtimeCharacters).filter(character => character.characterId !== "player")) {
+      const id = character.id, goal = activityGoal(world, id) ?? "", previous = activities[id];
       const activityDocument = characterIntent(world, id).activity;
       if (previous?.goal === goal && previous.activityDocument === activityDocument) continue;
       activities[id] = { status: goal ? "active" : "idle", goal, activityDocument, history: [] };
@@ -55,7 +55,7 @@ export class WorldHost {
     return structuredClone({ ...this.activity, world: toJson(WorldStateSchema, this.world()) });
   }
   restore(saved: WorldSnapshot): void {
-    if (saved.version !== 4 || !saved.world) throw new Error("This save uses an older world format. Start a fresh game.");
+    if (saved.version !== 5 || !saved.world) throw new Error("This save uses an older world format. Start a fresh game.");
     const { world, ...activity } = structuredClone(saved);
     const state = fromJson(WorldStateSchema, world);
     this.documents = createScenarioServices(state);
@@ -75,7 +75,7 @@ export class WorldHost {
     const result = operation(game);
     const next = fromJson(ScenarioSchema, game.snapshot().scenario);
     const properties = Object.fromEntries([...before.characters, ...(before.player ? [before.player] : [])].map(path => {
-      const character = next.characters.find(item => item.id === characterId(path, before))!;
+      const character = next.characters.find(item => item.id === characterId(path, before) || before.runtimeCharacters[item.id]?.document === path)!;
       return [path, create(CharacterPropertiesSchema, { ...(character.dnd ? { dnd: character.dnd } : {}),
         ...(character.inventory ? { inventory: character.inventory } : {}) })];
     }));
@@ -115,7 +115,15 @@ export class WorldHost {
     interact: (command, expected) => {
       if (command.kind === "step") return this.stepNpcAction(command.characterId, command.actionId, command.goal, expected);
       let worldEvent: Event | undefined, message: string | undefined;
-      if (command.kind === "move") this.movePlayer(command.destination, expected);
+      if (command.kind === "move") {
+        const before = this.world().map!.actors.find(actor => actor.characterId === "player")!.roomId;
+        this.movePlayer(command.destination, expected);
+        const world = this.world().map!, player = world.actors.find(actor => actor.characterId === "player")!;
+        const room = world.rooms.find(room => room.id === player.roomId)!;
+        if (before !== room.id && room.private && !room.allowedCharacterIds.includes("player")) {
+          worldEvent = this.worldEvent(`entering ${room.name}`, `The player entered ${room.name} without permission.`, ["player"]);
+        }
+      }
       if (command.kind === "door") worldEvent = this.setDoor(command.id, command.open, expected);
       if (command.kind === "fixture") { const result = this.interactFixtureWithEvent(command.id, expected); worldEvent = result.event; message = result.message; }
       return { done: true, generations: generationIds(this.readResources()),
@@ -141,7 +149,7 @@ export class WorldHost {
       id: event.id, day: event.day, message: perception, createdAt: new Date().toISOString(),
     });
   }
-  reset() { this.restore({ version: 4, world: toJson(WorldStateSchema, this.initial),
+  reset() { this.restore({ version: 5, world: toJson(WorldStateSchema, this.initial),
     conversations: {}, npcActivities: {}, playerMessages: [] }); }
   resetWorld() {
     const before = this.world();
@@ -159,7 +167,7 @@ export class WorldHost {
     this.restore({ ...this.snapshot(), world: toJson(WorldStateSchema, current), npcActivities: {}, conversations: {} });
   }
   async overrideActiveObjective(id: string, objective: unknown) {
-    const path = this.world().characters.find(path => characterId(path, this.world()) === id);
+    const path = characterIntent(this.world(), id).entry;
     if (!path) throw new Error("Unknown character.");
     const goal = objective && typeof objective === "object"
       ? ("current_goal" in objective ? objective.current_goal : "currentGoal" in objective ? objective.currentGoal : null) : null;

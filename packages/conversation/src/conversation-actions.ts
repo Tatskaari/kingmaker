@@ -3,7 +3,7 @@ import type { OpenRouterTool } from "../../providers/src/openrouter.js";
 
 const arrestTool: OpenRouterTool = { type: "function", function: {
   name: "arrest",
-  description: "Arrest the player now, ending this conversation and placing them in jail. Use for a credible threat of violence, an admitted serious palace crime, or clear ongoing trouble after a warning. Respect binding check rulings. Confusion, cheek, questions about identical brothers and fourth-wall jokes are not crimes. Threats or mentions of jail alone do not execute an arrest.",
+  description: "Arrest the player now, ending this conversation and placing them in jail. Use for a credible threat of violence, an admitted serious palace crime, a witnessed break-in to restricted palace quarters, or clear ongoing trouble after a warning. Respect binding check rulings. Confusion, cheek, questions about identical brothers and fourth-wall jokes are not crimes. Threats or mentions of jail alone do not execute an arrest.",
   parameters: { type: "object", properties: {}, required: [], additionalProperties: false },
 } };
 

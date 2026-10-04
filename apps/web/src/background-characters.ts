@@ -15,7 +15,7 @@ export function placeBackgroundCharacters(world: WorldState) {
     const metadata = world.docs[path]!.frontmatter;
     if (metadata?.background !== true) continue;
     const id = /\/Characters\/([^/]+)\/character\.md$/.exec(path)![1]!;
-    if (!Array.isArray(metadata.placements) || !metadata.placements.length || map.actors.some(actor => actor.characterId === id)) {
+    if (!Array.isArray(metadata.placements) || !metadata.placements.length || map.actors.some(actor => actor.characterId === id || world.runtimeCharacters[actor.characterId]?.characterId === id)) {
       throw new Error(`Invalid background placements: ${id}`);
     }
     for (const [index, placement] of metadata.placements.entries()) {
@@ -25,7 +25,7 @@ export function placeBackgroundCharacters(world: WorldState) {
       const position = { x: placement.x, y: placement.y }, room = courtRoomAt(position);
       if (!room || !canWalk(palaceMap, position, blocked) || occupied.has(pointKey(position))) throw new Error(`Blocked background position: ${id}`);
       occupied.add(pointKey(position));
-      const actor = create(ActorStateSchema, { characterId: id, instanceId: `${id}-${index + 1}`,
+      const actor = create(ActorStateSchema, { characterId: `${id}-${index + 1}`, instanceId: `${id}-${index + 1}`,
         position, roomId: room.id, homeRoomId: room.id, awake: true });
       seedRuntimeCharacter(world, actor.instanceId!, id, path);
       delete world.runtimeCharacters[id];

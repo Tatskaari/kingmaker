@@ -23,7 +23,6 @@ export const documentResolutionHooks: ResolutionHooks = {
   async classify(context, signal, services) {
     if (context.kind !== "world_event") return {};
     const lore = await services.lore.forCharacter(context.characterId, signal);
-    const path = characterEntry(services.scenario.info(), context.characterId);
     const goal = activityGoal(services.scenario.snapshot(), context.characterId);
     const messages = await disclosedContext(lore, [{ role: "user", content: JSON.stringify({
       task: "Decide whether this perceived event warrants attention based on your knowledge and motives. Do not infer unperceived details.",

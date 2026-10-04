@@ -3,7 +3,7 @@ import type { RuntimeServices } from "../../../packages/conversation/src/service
 import { create } from "@bufbuild/protobuf";
 import { CharacterSchema, ScenarioSchema } from "../../../packages/contracts/src/index.js";
 import { type WorldState } from "../../../packages/contracts/src/v2.js";
-import { characterEntry } from "../../../packages/lore/src/active-goal.js";
+
 import { activityGoal, intentContext } from "../../../packages/lore/src/activity.js";
 import { actionCriteria, runAction, type ActionResult } from "../../../packages/conversation/src/action.js";
 import { runConversationReview, type ConversationReviewContext } from "../../../packages/conversation/src/review.js";
@@ -22,14 +22,11 @@ export interface WorldActionPlan extends ActionResult {
 
 /** Read-only adapter to the existing palace mechanics, not a v1 save or migration. */
 async function worldActionContext(world: WorldState, characterId: string, history: readonly string[], services: RuntimeServices, signal: AbortSignal, feedback?: PlanningFeedback) {
-  const entry = characterEntry(services.scenario.info(), characterId);
   const goal = activityGoal(world, characterId);
   if (!goal) return;
   if (!world.map) throw new Error("Action planning requires a physical map.");
   const lore = await services.lore.forCharacter(characterId, signal);
-  const characters = world.characters.map(path => {
-    const id = /\/Characters\/([^/]+)\/character\.md$/.exec(path)?.[1];
-    if (!id) throw new Error(`Invalid character entrypoint: ${path}`);
+  const characters = Object.values(world.runtimeCharacters).filter(character => character.characterId !== "player").map(({ id, document: path }) => {
     return create(CharacterSchema, { id, name: id, inventory: world.docs[path]?.characterProperties?.inventory,
       currentGoal: id === characterId ? goal : "" });
   });
