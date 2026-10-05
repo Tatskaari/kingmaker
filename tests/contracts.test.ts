@@ -60,14 +60,20 @@ test("the palace map is a complete layered tile grid", () => {
   const decoded = fromBinary(WorldMapSchema, toBinary(WorldMapSchema, palaceMap));
   assert.equal(decoded.tiles.length, decoded.width * decoded.height);
   assert.equal(decoded.rooms.length, 27);
-  assert.ok(decoded.tiles.some(tile => tile.layers.length > 1));
-  assert.ok(decoded.tiles.flatMap(tile => tile.layers).some(layer => layer.solid && layer.bounds));
-
-  const solidTileIds = new Set(decoded.tiles.flatMap(tile => tile.layers)
-    .filter(layer => layer.solid)
-    .map(layer => layer.tileId));
-  assert.ok([2, 26].every(tileId => solidTileIds.has(tileId)), "horizontal wall sprites are used");
-  assert.ok([13, 15].every(tileId => solidTileIds.has(tileId)), "vertical wall sprites are used");
+  const artwork = decoded.tilesets.find(tileset => tileset.id === "palace-illustration-a")!;
+  assert.ok(artwork);
+  const png = readFileSync(new URL("../apps/web/public/assets/palace-illustration-a.png", import.meta.url));
+  assert.equal(png.readUInt32BE(16), artwork.columns * artwork.tileWidth);
+  assert.equal(png.readUInt32BE(20), decoded.height * artwork.tileHeight);
+  assert.equal(artwork.tileCount, decoded.tiles.length);
+  for (const [index, tile] of decoded.tiles.entries()) {
+    assert.equal(tile.layers[0]!.tilesetId, artwork.id);
+    assert.equal(tile.layers[0]!.tileId, index);
+    const x = index % decoded.width, y = Math.floor(index / decoded.width);
+    const floor = decoded.rooms.some(room => room.regions.some(region => x >= region.x && y >= region.y
+      && x < region.x + region.width && y < region.y + region.height));
+    assert.equal(canWalk(decoded, { x, y }, new Set()), floor, `collision at ${x},${y}`);
+  }
 
   const passable = (x: number, y: number): boolean => {
     if (x < 0 || y < 0 || x >= decoded.width || y >= decoded.height) return false;
