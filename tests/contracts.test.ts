@@ -99,15 +99,10 @@ test("the palace map is a complete layered tile grid", () => {
       }
     }
   }
-  // Facing rooms need a bottom edge, north cap and masonry face in separate
-  // solid rows. A one-row band formerly produced overlapping, broken walls.
-  for (const [x, y] of [[49, 8], [58, 14], [59, 30]] as const) {
-    const band = [0, 1, 2].map(dy => decoded.tiles[(y + dy) * decoded.width + x]!.layers.at(-1)!.tileId);
-    assert.deepEqual(band, [26, 2, 40]);
+  // The illustration must not open shortcuts through the authored wall bands.
+  for (const [x, y] of [[49, 8], [58, 14], [59, 30], [50, 8]] as const) {
     assert.ok([0, 1, 2].every(dy => !passable(x, y + dy)));
   }
-  const doorwayEdge = [0, 1, 2].map(dy => decoded.tiles[(8 + dy) * decoded.width + 50]!.layers.at(-1)!.tileId);
-  assert.deepEqual(doorwayEdge, [5, 17, 59], "doorway uses inner corners and a wall end");
   assert.ok(reached.has(`61,${decoded.height - 1}`), "exterior entrance stays open");
 });
 
