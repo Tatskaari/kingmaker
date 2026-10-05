@@ -93,7 +93,16 @@ export class GameMasterTools {
         afterSha: "current" in result && result.current ? result.current.sha : "", ...trace });
       return result;
     }
-    if (activityTools.some(tool => tool.function.name === name)) {
+    const activityTool = activityTools.find(tool => tool.function.name === name);
+    if (activityTool) {
+      const schema = activityTool.function.parameters as { required?: string[]; properties: Record<string, { type: string }> };
+      for (const [key, property] of Object.entries(schema.properties)) {
+        const value = input[key];
+        if (value === undefined && !schema.required?.includes(key)) continue;
+        const valid = property.type === "array" ? Array.isArray(value) && value.every(item => typeof item === "string" && item.trim())
+          : property.type === "string" ? typeof value === "string" && value.trim() : typeof value === property.type;
+        if (!valid) throw new InvalidReviewError(`Invalid ${name} argument: ${key}. Expected ${property.type === "array" ? "an array of nonempty activity paths (use [] for no activities)" : property.type}.`);
+      }
       const id = input.characterId === undefined ? this.characterId : string("characterId");
       if (!id) throw new Error("Supply characterId for the target NPC.");
       const edit = await this.target(id);

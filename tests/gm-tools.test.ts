@@ -3,7 +3,7 @@ import test from "node:test";
 import { createScenarioServices } from "../packages/lore/src/services.js";
 import { characterEntry } from "../packages/lore/src/active-goal.js";
 import { activityGoal } from "../packages/lore/src/activity.js";
-import { GameMasterTools, gameMasterTools } from "../packages/conversation/src/gm-tools.js";
+import { GameMasterTools, gameMasterTools, InvalidReviewError } from "../packages/conversation/src/gm-tools.js";
 import { runGameMaster } from "../packages/conversation/src/game-master.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { loadPlayableWorld } from "./fixtures.js";
@@ -139,3 +139,55 @@ async function writeMemory(services: ReturnType<typeof fixture>, gm: GameMasterT
   await gm.call("replace_document", { path: before.path, expectedSha: before.sha, oldText: before.document.body,
     newText: before.document.body + "\n" + note });
 }
+
+
+test("GM repairs missing or mistyped wait activities before committing", async () => {
+  for (const activities of [undefined, null, "activity.md", [null], [42], [""]]) {
+    const services = fixture(), world = services.scenario.snapshot();
+    const beforePaths = Object.keys(world.docs), beforeWait = world.runtimeCharacters.oswin!.wait;
+    let calls = 0;
+    services.ai.responses = async request => {
+      assert.deepEqual(Object.keys(services.scenario.snapshot().docs), beforePaths);
+      assert.equal(services.scenario.snapshot().runtimeCharacters.oswin!.wait, beforeWait);
+      if (++calls === 1) return toolReply("set_wait", { name: "Wait", instructions: "Wait for the player.", activities });
+      if (calls === 2) {
+        const reply = request.messages.at(-1)!;
+        assert.equal(reply.role, "tool");
+        assert.equal(reply.tool_call_id, request.messages.at(-2)!.tool_calls![0]!.id);
+        const result = JSON.parse(reply.content!);
+        assert.equal(result.error, "invalid_tool_arguments");
+        assert.match(result.instruction, /activities.*array/);
+        return toolReply("set_wait", { name: "Wait", instructions: "Wait for the player.", activities: [] });
+      }
+      return { role: "assistant", content: "Reviewed." };
+    };
+    await runGameMaster({ model: "test", messages: [] }, services, new AbortController().signal,
+      { characterId: "oswin", review: true });
+    assert.equal(calls, 3);
+    const wait = services.scenario.snapshot().runtimeCharacters.oswin!.wait!;
+    assert.deepEqual((await services.docs.read(wait)).document.frontmatter?.activities, []);
+  }
+});
+
+test("GM activity argument validation preserves the existing correction limit", async () => {
+  const services = fixture(); let calls = 0;
+  services.ai.responses = async () => {
+    calls++;
+    return toolReply("set_wait", { name: "Wait", instructions: "Wait for the player." });
+  };
+  await assert.rejects(runGameMaster({ model: "test", messages: [] }, services, new AbortController().signal,
+    { characterId: "oswin", review: true }), InvalidReviewError);
+  assert.equal(calls, 3);
+});
+
+test("GM rejects malformed activity text and optional flags before staging", async () => {
+  const gm = new GameMasterTools(fixture(), "oswin");
+  const activity = { name: "Travel", status: "Promised", success_criteria: "Arrive", current_goal: "Go to the parlour" };
+  for (const input of [{ ...activity, name: null }, { ...activity, status: " " }, { ...activity, current_goal: undefined },
+    { ...activity, activate: "false" }]) {
+    await assert.rejects(gm.call("set_activity", input), InvalidReviewError);
+    assert.equal(gm.pending, false);
+  }
+  await assert.rejects(gm.call("set_wait", { name: "Wait", instructions: 42, activities: [] }), InvalidReviewError);
+  await assert.rejects(gm.call("set_wait", { name: "Wait", instructions: "Wait here", activities: [], routine: "false" }), InvalidReviewError);
+});
