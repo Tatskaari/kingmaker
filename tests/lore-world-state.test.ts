@@ -14,7 +14,7 @@ const character = "Scenarios/Test/Characters/alice/character.md";
 const index = "Scenarios/Test/index.md";
 const note = (body: string, metadata = {}) => `---\n${JSON.stringify(metadata)}\n---\n${body}`;
 
-test("builds independent, serializable documents and scenario entrypoints without expanding lore", () => {
+test("builds serializable documents and adopts the supplied fresh physical map", () => {
   const body = "[[Secrets#Truth|Read later]] [self](#opening) [web](https://example.com) `[[Ignored]]`";
   const lore = new Map([
     [index, note("Scenario navigation")],
@@ -37,8 +37,9 @@ test("builds independent, serializable documents and scenario entrypoints withou
   state.simulation!.map!.facts!.test = false;
   state.docs[character]!.frontmatter!.visibility = "public";
   state.docs[character]!.body = "Edited by GM";
-  assert.equal(map.day, 2);
-  assert.equal(map.facts!.test, true);
+  assert.strictEqual(state.simulation!.map, map);
+  assert.equal(map.day, 9);
+  assert.equal(map.facts!.test, false);
   assert.ok(lore.get(character)!.includes('"visibility":"private"'));
   assert.equal(worldState(map, lore, "Test").docs[character]!.body, body);
   assert.equal(worldState(map, lore, "Test").player, undefined);

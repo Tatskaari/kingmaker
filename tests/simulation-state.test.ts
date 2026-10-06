@@ -8,10 +8,10 @@ import { loadPlayableWorld } from "./fixtures.js";
 test("simulation can serialize independently of the AI document world", () => {
   const world = loadPlayableWorld(), simulation = world.simulation!;
   const restored = fromBinary(SimulationStateSchema, toBinary(SimulationStateSchema, simulation));
-  assert.deepEqual(restored, simulation);
+  assert.deepEqual(toJson(SimulationStateSchema, restored), toJson(SimulationStateSchema, simulation));
   assert.ok(restored.map!.actors.some(actor => actor.characterId === "player"));
   assert.ok(Object.keys(restored.runtimeCharacters).length > 0);
-  assert.equal("docs" in toJson(SimulationStateSchema, restored)!, false);
+  assert.equal("docs" in (toJson(SimulationStateSchema, restored) as object), false);
 });
 
 test("pre-simulation saves require a fresh game", () => {

@@ -613,7 +613,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
   await request("configure", { apiKey: "test" });
   const fresh = await request("create_game");
   assert.equal(fresh.state.phase, "player_creation");
-  assert.equal(records.get(fresh.activeSaveId).snapshot.version, 5);
+  assert.equal(records.get(fresh.activeSaveId).snapshot.version, 6);
   assert.equal(records.get(fresh.activeSaveId).snapshot.scenario, undefined);
   await request("start_introduction");
   const resumed = await request("load_game", { saveId: fresh.activeSaveId });
