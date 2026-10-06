@@ -12,12 +12,12 @@ import { roomAgentActions } from "./room-actions.js";
 import { courtRoomAt } from "./court-map.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
 function mechanicalCharacters(world: WorldState) {
-  return characterDocuments(world).map(({ id, path, document }) => ({ id, path,
+  return characterDocuments(world).map(({ id, path, document, character }) => ({ id, path,
     name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
     currentGoal: id === "player" ? "" : activityGoal(world, id) ?? "",
-    get properties() { return document.characterProperties; },
-    get inventory() { return document.characterProperties?.inventory; },
-    set inventory(value) { (document.characterProperties ??= create(CharacterPropertiesSchema)).inventory = value; },
+    get character() { return character; },
+    get inventory() { return character.inventory; },
+    set inventory(value) { character.inventory = value; },
   }));
 }
 const npcLog = gameLogger("npc");
@@ -78,8 +78,7 @@ export class PalaceMechanics {
     this.#conversations = activity.conversations;
   }
   snapshot() {
-    return { map: this.#world, properties: Object.fromEntries(this.#characters.map(character => [character.path,
-      character.properties ?? create(CharacterPropertiesSchema)])),
+    return { map: this.#world, characters: Object.fromEntries(this.#characters.map(character => [character.id, character.character])),
       npcActivities: this.#npcActivities };
   }
   private observe(characterId: string, continuingActionId: string) {

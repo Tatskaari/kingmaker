@@ -12,7 +12,10 @@ export function loadConversationWorld(root: string, scenario: string, player?: s
   const state = worldState(create(MapSchema), markdown, scenario, player);
   for (const entry of new Set([...state.characters, ...(state.player ? [state.player] : [])])) {
     const path = join(root, dirname(entry), "properties.json");
-    if (existsSync(path)) state.docs[entry]!.characterProperties = fromJson(CharacterPropertiesSchema, JSON.parse(readFileSync(path, "utf8")));
+    if (existsSync(path)) for (const actor of Object.values(state.simulation!.runtimeCharacters).filter(actor => actor.document === entry)) {
+      const properties = fromJson(CharacterPropertiesSchema, JSON.parse(readFileSync(path, "utf8")));
+      actor.dnd = properties.dnd; actor.inventory = properties.inventory;
+    }
   }
   return state;
 }

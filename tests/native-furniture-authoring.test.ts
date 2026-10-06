@@ -9,6 +9,6 @@ test("regenerating furniture preserves live document owners, names and stable fi
   const world = loadPlayableWorld(), map = world.simulation!.map!;
   const existing = map.fixtures.filter(fixture => fixture.id.startsWith("furn_"));
   map.fixtures = map.fixtures.filter(fixture => !fixture.id.startsWith("furn_"));
-  const characters = characterDocuments(world).map(({ id, document }) => ({ id, inventory: document.characterProperties?.inventory }));
+  const characters = characterDocuments(world).map(({ id, document, character }) => ({ id, inventory: character.inventory }));
   assert.deepEqual(palaceFurniture(map, inventoryOwners(characters, map)), existing);
 });

@@ -28,9 +28,9 @@ export class WorldHeadlessGame {
     const visible = this.runtime.map.observe(id), entries = characterDocuments(this.inspect());
     const entry = entries.find(entry => entry.id === id);
     if (!entry) throw new Error("Character is not placed in the palace.");
-    const characters = entries.map(({ id, document }) => ({ id,
+    const characters = entries.map(({ id, document, character }) => ({ id,
       name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
-      inventory: document.characterProperties?.inventory }));
+      inventory: character.inventory }));
     const known = worldForCharacter(visible.map, inventoryOwners(characters, visible.map), id);
     const goal = id === "player" ? "" : activityGoal(this.inspect(), id) ?? "";
     return { ...physicalCharacterObservation(known, id, goal, visible.actions), map: visible.map, characters };

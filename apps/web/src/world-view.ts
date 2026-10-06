@@ -13,11 +13,11 @@ import type { MechanicalActivity } from "./palace-mechanics.js";
 export function worldView(world: WorldState, activity: MechanicalActivity) {
   const map = world.simulation!.map;
   if (!map) throw new Error("A physical map is required.");
-  const characters = characterDocuments(world).map(({ id, document }) => ({ id, document,
+  const characters = characterDocuments(world).map(({ id, document, character }) => ({ id, document, character,
     name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
     sprite: typeof document.frontmatter?.sprite === "number" ? document.frontmatter.sprite : undefined,
     currentGoal: id === "player" ? "" : activityGoal(world, id) ?? "",
-    inventory: document.characterProperties?.inventory }));
+    inventory: character.inventory }));
   const player = characters.find(character => character.id === "player"), playerId = player?.id ?? "";
   const actors = foregroundBodies(map.actors, map.actors.find(actor => actor.characterId === playerId)?.position);
   const actor = actors.find(actor => actor.characterId === playerId);
@@ -37,7 +37,7 @@ export function worldView(world: WorldState, activity: MechanicalActivity) {
       id: player.id, name: player.name, sprite: player.sprite,
       gender: typeof player.document.frontmatter?.gender === "string" ? player.document.frontmatter.gender : "",
       delegation: typeof player.document.frontmatter?.delegation === "string" ? player.document.frontmatter.delegation : "",
-      dnd: player.document.characterProperties?.dnd ? toJson(DndCharacterSchema, player.document.characterProperties.dnd, { alwaysEmitImplicit: true }) : null,
+      dnd: player.character.dnd ? toJson(DndCharacterSchema, player.character.dnd, { alwaysEmitImplicit: true }) : null,
       position: actor?.position, roomId: actor?.roomId, lore: player.document.body, currentGoal: player.currentGoal,
       relationships: [],
     } : null,

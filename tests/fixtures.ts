@@ -13,10 +13,9 @@ import { CharacterPropertiesSchema } from "../packages/contracts/src/v2.js";
 import { characterDocuments } from "../packages/lore/src/character-id.js";
 export { loadPlayableWorld };
 export function physicalFixture(source: WorldState = loadPlayableWorld()) {
-  return { source, world: source.simulation!.map!, characters: characterDocuments(source).map(({ id, document }) => {
-    const properties = document.characterProperties ??= create(CharacterPropertiesSchema);
+  return { source, world: source.simulation!.map!, characters: characterDocuments(source).map(({ id, document, character }) => {
     return { id, name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
-      inventory: properties.inventory ??= create(InventorySchema), dnd: properties.dnd };
+      inventory: character.inventory ??= create(InventorySchema), dnd: character.dnd };
   }) };
 }
 

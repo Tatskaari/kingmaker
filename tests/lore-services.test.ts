@@ -14,7 +14,6 @@ function fixture() {
     [entry, "Briefing"], [index, "Navigation"], [actor, "Alice"],
     ["note.md", "---\nvisibility: gm\n---\nFirst\nSecond\n"],
   ]), "Test", actor);
-  state.docs[actor]!.characterProperties = create(CharacterPropertiesSchema);
   return state;
 }
 
@@ -38,13 +37,14 @@ test("scenario and document reads are detached; SHA includes frontmatter and sur
   await assert.rejects(docs.read("missing.md"), /not found/);
 });
 
-test("create, replace, insert and delete preserve properties and rebuild scenario references", async () => {
+test("create, replace, insert and delete preserve simulation and rebuild scenario references", async () => {
   const { scenario, docs } = createScenarioServices(fixture());
   const added = await docs.create("new.md", "---\nvisibility: public\n---\nSecret");
   added.document.body = "external edit";
+  const simulationBefore = scenario.snapshot().simulation;
   const actorBefore = await docs.read(actor);
   const actorAfter = await docs.replace(actor, actorBefore.sha, "Alice", "Alice [[new]]");
-  assert.deepEqual(actorAfter.document.characterProperties, actorBefore.document.characterProperties);
+  assert.deepEqual(scenario.snapshot().simulation, simulationBefore);
   assert.equal(actorAfter.document.links[0]!.target, "new.md");
   await docs.insert(entry, (await docs.read(entry)).sha, 1, `[[${actor}]]`);
   assert.deepEqual(scenario.info().characters, [actor]);

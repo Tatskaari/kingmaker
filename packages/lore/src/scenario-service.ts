@@ -10,8 +10,8 @@ export function createScenarioService(store: WorldStore, docs: DocsService): Sce
     getDocument: docs.read,
     setPlayer: path => store.write(async () => {
       if (store.state.player) throw new Error("The player already exists.");
-      if (!store.state.docs[path]?.characterProperties || store.state.characters.includes(path)) throw new Error("Expected a created player character document.");
-      const draft = clone(WorldStateSchema, store.state);
+      if (!Object.values(store.state.simulation!.runtimeCharacters).some(actor => actor.characterId === "player" && actor.document === path) || store.state.characters.includes(path)) throw new Error("Expected a created player character document.");
+      const draft = { ...store.state, docs: { ...store.state.docs } };
       draft.player = path;
       store.publishDocuments(draft);
     }),

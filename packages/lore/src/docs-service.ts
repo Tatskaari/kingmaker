@@ -1,5 +1,5 @@
 import { clone, fromJson, toJson, type JsonObject } from "@bufbuild/protobuf";
-import { DocumentSchema, WorldStateSchema, type Document } from "../../contracts/src/v2.js";
+import { DocumentSchema, type Document } from "../../contracts/src/v2.js";
 import { parseMarkdown } from "./markdown.js";
 import { canonical, snapshot } from "./document-snapshot.js";
 import { DocumentConflictError, type DocsService, type DocumentSnapshot } from "./service-types.js";
@@ -21,9 +21,8 @@ export function createDocsService(store: WorldStore): DocsService {
   async function publish(path: string, text: string, expected?: DocumentSnapshot): Promise<DocumentSnapshot> {
     const note = parseMarkdown(text);
     if (note.error) throw new Error(`${path}: ${note.error}`);
-    const draft = clone(WorldStateSchema, store.state);
+    const draft = { ...store.state, docs: { ...store.state.docs } };
     const next = fromJson(DocumentSchema, { body: note.body, frontmatter: note.metadata as JsonObject });
-    next.characterProperties = draft.docs[path]?.characterProperties;
     draft.docs[path] = next;
     const graph = store.prepareDocuments(draft);
     const result = await snapshot(path, clone(DocumentSchema, draft.docs[path]!));
@@ -34,7 +33,7 @@ export function createDocsService(store: WorldStore): DocsService {
       const actual = live ? (await read(path)).sha : "deleted";
       throw new DocumentConflictError(path, expected?.sha ?? "absent", actual);
     }
-    const current = clone(WorldStateSchema, store.state);
+    const current = { ...store.state, docs: { ...store.state.docs } };
     current.docs[path] = next;
     store.publishDocuments(current, graph);
     return result;
@@ -50,7 +49,7 @@ export function createDocsService(store: WorldStore): DocsService {
             expected.set(change.path, undefined);
           } else expected.set(change.path, (await checked(change.path, change.expectedSha)).document);
         }
-        const draft = clone(WorldStateSchema, store.state);
+        const draft = { ...store.state, docs: { ...store.state.docs } };
         for (const change of changes) {
           if (JSON.stringify(canonical(store.state.docs[change.path])) !== JSON.stringify(canonical(expected.get(change.path)))) {
             throw new DocumentConflictError(change.path, change.expectedSha ?? "absent", "changed");
@@ -58,12 +57,13 @@ export function createDocsService(store: WorldStore): DocsService {
           const note = parseMarkdown(change.text);
           if (note.error) throw new Error(`${change.path}: ${note.error}`);
           const next = fromJson(DocumentSchema, { body: note.body, frontmatter: note.metadata as JsonObject });
-          next.characterProperties = draft.docs[change.path]?.characterProperties;
           draft.docs[change.path] = next;
         }
         if (new Set(intents.map(intent => intent.actorId)).size !== intents.length) throw new Error("Duplicate intent write.");
+        if (intents.length) draft.simulation = { ...draft.simulation!, runtimeCharacters: { ...draft.simulation!.runtimeCharacters } };
         for (const intent of intents) {
-          const actor = runtimeActor(draft, intent.actorId);
+          const actor = { ...runtimeActor(draft, intent.actorId) };
+          draft.simulation!.runtimeCharacters[actor.id] = actor;
           if (actor.intentRevision !== intent.expectedRevision) {
             const entry = draft.characters.find(path => path.endsWith(`/Characters/${actor.characterId}/character.md`))!;
             throw new DocumentConflictError(entry, String(intent.expectedRevision), String(actor.intentRevision));
@@ -106,7 +106,7 @@ export function createDocsService(store: WorldStore): DocsService {
       if (JSON.stringify(canonical(current && toJson(DocumentSchema, current))) !== JSON.stringify(canonical(toJson(DocumentSchema, expected.document)))) {
         throw new DocumentConflictError(path, sha, current ? (await read(path)).sha : "deleted");
       }
-      const draft = clone(WorldStateSchema, store.state);
+      const draft = { ...store.state, docs: { ...store.state.docs } };
       delete draft.docs[path];
       store.publishDocuments(draft);
     }),

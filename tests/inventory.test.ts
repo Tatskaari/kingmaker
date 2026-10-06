@@ -9,16 +9,14 @@ import { physicalFixture } from "./fixtures.js";
 function example() {
   const guard = "Scenarios/Test/Characters/guard/character.md", visitor = "Scenarios/Test/Characters/visitor/character.md";
   return physicalFixture(create(WorldStateSchema, { characters: [guard, visitor], simulation: { runtimeCharacters: {
-    guard: { id: "guard", characterId: "guard", document: guard },
+    guard: { id: "guard", characterId: "guard", document: guard, inventory: {
+      items: [{ id: "sword", name: "Sword", definitionId: "longsword", quantity: 1, concealed: true }],
+      equipment: { mainHandItemId: "sword", attunedItemIds: ["sword"] },
+    } },
     visitor: { id: "visitor", characterId: "visitor", document: visitor },
   }, map: { fixtures: [{ id: "chest", container: true, inventory: {
     items: [{ id: "letter", name: "Letter", details: "Secret instructions", concealed: true }],
-  } }], rooms: [{ id: "hall" }] } }, docs: {
-    [guard]: { characterProperties: { inventory: {
-      items: [{ id: "sword", name: "Sword", definitionId: "longsword", quantity: 1, concealed: true }],
-      equipment: { mainHandItemId: "sword", attunedItemIds: ["sword"] },
-    } } }, [visitor]: {},
-  } }));
+  } }], rooms: [{ id: "hall" }] } }, docs: { [guard]: {}, [visitor]: {} } }));
 }
 
 test("transfers preserve item identity, clear equipment, and survive serialization", () => {

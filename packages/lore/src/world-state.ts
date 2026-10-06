@@ -32,6 +32,7 @@ export function worldState(map: MapState, markdown: ReadonlyMap<string, string>,
     const bodies = world.simulation!.map!.actors.filter(actor => actor.characterId === id);
     for (const key of bodies.length ? bodies.map(actor => actor.instanceId ?? actor.characterId) : [id]) seedRuntimeCharacter(world, key, id, path);
   }
+  if (player) seedRuntimeCharacter(world, "player", "player", player);
   return world;
 }
 

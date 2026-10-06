@@ -91,7 +91,7 @@ export class WorldGameRuntime extends WorldHost {
       ...this.options.services, ...extra.services,
       scenario,
       lore: documentLoreService(scenario, { ...this.options.services?.lore, ...extra.services?.lore }),
-      inventory: { commit: changes => this.commit(() => this.documents.inventory.commit(changes), signal, persist), ...this.options.services?.inventory, ...extra.services?.inventory },
+      inventory: { read: id => this.documents.inventory.read(id), commit: changes => this.commit(() => this.documents.inventory.commit(changes), signal, persist), ...this.options.services?.inventory, ...extra.services?.inventory },
       docs: {
         commit: (writes, intents) => this.commit(() => this.documents.docs.commit(writes, intents), signal, persist),
         read: path => this.documents.docs.read(path),
@@ -101,7 +101,7 @@ export class WorldGameRuntime extends WorldHost {
         delete: (...args) => this.commit(() => this.documents.docs.delete(...args), signal, persist),
         ...this.options.services?.docs, ...extra.services?.docs,
       },
-      character: { create: input => this.commit(() => this.documents.character.create(input), signal, persist), rollCheck: checkMechanics(world.player ? world.docs[world.player]?.characterProperties?.dnd : undefined,
+      character: { create: input => this.commit(() => this.documents.character.create(input), signal, persist), rollCheck: checkMechanics(world.simulation!.runtimeCharacters.player?.dnd,
         () => random.integer(1, 20)), ...this.options.services?.character, ...extra.services?.character },
       map: { ...this.map, ...this.options.services?.map, ...extra.services?.map },
       ai: { ...traced, responses: retryResponses(traced.responses, this.warning) },
@@ -251,7 +251,7 @@ export class WorldGameRuntime extends WorldHost {
     };
     const lore = await runtime.services.lore.forCharacter(id, signal);
     const disclosure = new DisclosureSession(lore, runtime.services.ai, 0.7);
-    const world = this.world(), build = world.player ? world.docs[world.player]?.characterProperties?.dnd : undefined;
+    const world = this.world(), build = world.simulation!.runtimeCharacters.player?.dnd;
     const strategies = conversationStrategy(disclosure, runtime.services.ai, build, message,
       async (_check, cancellation) => { cancellation.throwIfAborted(); return runtime.services.random.integer(1, 20); },
       () => {}, () => {}, runtime.services.presentation, runtime.services.character, { services: runtime.services, characterId: id }, () => {}, session.response);
