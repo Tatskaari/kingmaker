@@ -48,3 +48,32 @@ test("inventory trades commit both owners together and reject duplicate ownershi
   assert.equal((await backing.inventory.read(giver)).inventory!.items.some(item => item.id === bird().id), false);
   assert.equal((await backing.inventory.read(player)).inventory!.items.filter(item => item.id === bird().id).length, 1);
 });
+
+test("inventory versions ignore document edits and cover physical inventory mutations", async () => {
+  const backing = createScenarioServices(loadPlayableWorld());
+  const gm = new GameMasterTools(new ConversationRuntime({ services: backing }).services);
+  const before = await backing.inventory.read("player");
+  assert.deepEqual(await gm.call("read_inventory", { actorId: "player" }), before);
+  const doc = await backing.docs.read(backing.scenario.info().player!);
+  await backing.docs.replace(doc.path, doc.sha, doc.document.body, doc.document.body + "\nA new memory.");
+  assert.equal((await backing.inventory.read("player")).sha, before.sha);
+  const inventory = create(InventorySchema, { items: [bird()] });
+  await backing.inventory.commit([{ actorId: "player", expectedSha: before.sha, inventory }]);
+  const read = await backing.inventory.read("player");
+  backing.currentWorld().simulation!.runtimeCharacters.player!.inventory!.items[0]!.quantity = 2;
+  const result = await gm.call("update_inventories", { changes: [{ actorId: "player", expectedSha: read.sha,
+    inventoryJson: toJsonString(InventorySchema, inventory) }] });
+  assert.equal((result as { error: string }).error, "inventory_conflict");
+  assert.equal((await backing.inventory.read("player")).inventory!.items[0]!.quantity, 2);
+});
+
+test("GM inventories cannot duplicate items already held by a fixture", async () => {
+  const backing = createScenarioServices(loadPlayableWorld());
+  const before = await backing.inventory.read("player");
+  const key = backing.currentWorld().simulation!.map!.fixtures.flatMap(fixture => fixture.inventory?.items ?? [])
+    .find(item => item.id === "palace_royal_key")!;
+  assert.ok(key);
+  await assert.rejects(backing.inventory.commit([{ actorId: "player", expectedSha: before.sha,
+    inventory: create(InventorySchema, { items: [key] }) }]), /Duplicate/);
+  assert.deepEqual(await backing.inventory.read("player"), before);
+});

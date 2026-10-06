@@ -19,3 +19,19 @@ test("pre-simulation saves require a fresh game", () => {
   const saved = host.snapshot();
   assert.throws(() => host.restore({ ...saved, version: 5 } as unknown as typeof saved), /Start a fresh game/);
 });
+
+test("characters sharing AI lore own independent sheets and inventories", () => {
+  const world = loadPlayableWorld();
+  const guards = Object.values(world.simulation!.runtimeCharacters).filter(actor => actor.characterId === "palace-guard");
+  const first = guards[0]!, second = guards[1]!;
+  assert.equal(first.document, second.document);
+  assert.ok(first.dnd && first.inventory && second.dnd && second.inventory);
+  assert.notStrictEqual(first.dnd, second.dnd);
+  assert.notStrictEqual(first.inventory, second.inventory);
+  const health = second.dnd.hitPoints!.current, count = second.inventory.items.length;
+  first.dnd.hitPoints!.current = 0;
+  first.inventory.items.length = 0;
+  assert.equal(second.dnd.hitPoints!.current, health);
+  assert.equal(second.inventory.items.length, count);
+  assert.ok(Object.values(world.docs).every(document => !("characterProperties" in document)));
+});

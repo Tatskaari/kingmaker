@@ -9,7 +9,7 @@ import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 
 function fixture() {
   const world = loadPlayableWorld();
-  delete world.docs[world.player!]; delete world.player;
+  delete world.docs[world.player!]; delete world.player; delete world.simulation!.runtimeCharacters.player;
   return createScenarioServices(world);
 }
 const text = '---\nname: Alex\nsummary: Alex’s private identity.\nvisibility: private\nreaders: ["character:player"]\n---\nYou serve the Stranger.';
