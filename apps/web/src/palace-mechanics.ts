@@ -3,7 +3,7 @@ import { create, type JsonValue } from "@bufbuild/protobuf";
 import { TilePositionSchema, GamePhase, type WorldState as PhysicalMap, type Event } from "../../../packages/contracts/src/index.js";
 import { fixtureActions, applyFixtureAction } from "../../../packages/core/src/fixtures.js";
 import { inventoryOwners, findItem } from "../../../packages/core/src/inventory.js";
-import { type WorldState } from "../../../packages/contracts/src/v2.js";
+import { type WorldState, type SimulationState } from "../../../packages/contracts/src/v2.js";
 import { characterDocuments } from "../../../packages/lore/src/character-id.js";
 import { activityGoal } from "../../../packages/lore/src/activity.js";
 import { foregroundBodies } from "./background-characters.js";
@@ -17,7 +17,6 @@ function mechanicalCharacters(world: WorldState) {
     currentGoal: id === "player" ? "" : activityGoal(world, id) ?? "",
     get character() { return character; },
     get inventory() { return character.inventory; },
-    set inventory(value) { character.inventory = value; },
   }));
 }
 const npcLog = gameLogger("npc");
@@ -65,6 +64,7 @@ function fixtureEventContext(world: PhysicalMap, characters: ReturnType<typeof m
 /** Synchronous rules over a live document world's mechanical state. */
 export class PalaceMechanics {
   #world: PhysicalMap;
+  #simulation: SimulationState;
   #characters;
   #playerId: string;
   #npcActivities: Record<string, NpcActivity>;
@@ -72,6 +72,7 @@ export class PalaceMechanics {
   constructor(world: WorldState, activity: MechanicalActivity) {
     if (!world.simulation!.map) throw new Error("A physical map is required.");
     this.#world = { ...world.simulation!.map, actors: foregroundBodies(world.simulation!.map.actors) };
+    this.#simulation = { ...world.simulation!, map: this.#world };
     this.#characters = mechanicalCharacters(world);
     this.#playerId = world.player ? "player" : "";
     this.#npcActivities = activity.npcActivities ??= {};
@@ -131,7 +132,7 @@ export class PalaceMechanics {
     actor.roomId = courtRoomAt(destination)?.id ?? actor.roomId;
     let message = action.description;
     if (action.type === "door") world.doors.find(door => door.id === action.target)!.open = action.open!;
-    if (action.type === "fixture") message = applyFixtureAction(world.fixtures, inventoryOwners(characters, world), characterId, action.id);
+    if (action.type === "fixture") message = applyFixtureAction(this.#simulation, characterId, action.id);
     world.revision++;
     activity.history.push(message);
     (activity.actionIds ??= []).push(action.id);
@@ -158,7 +159,7 @@ export class PalaceMechanics {
     const fixture = world.fixtures.find(item => item.id === action.target);
     const position = world.actors.find(actor => actor.characterId === actorId)?.position;
     if (action?.target === actorId && action.itemId) {
-      const result = applyFixtureAction(world.fixtures, inventoryOwners(characters, world), actorId, actionId);
+      const result = applyFixtureAction(this.#simulation, actorId, actionId);
       world.revision++;
       return result;
     }
@@ -168,7 +169,7 @@ export class PalaceMechanics {
       : Math.abs(position.x - fixture.position.x) + Math.abs(position.y - fixture.position.y) !== 1) {
       throw new Error("Walk to the furniture's interaction spot first.");
     }
-    const result = applyFixtureAction(world.fixtures, inventoryOwners(characters, world), actorId, actionId);
+    const result = applyFixtureAction(this.#simulation, actorId, actionId);
     world.revision++;
     return result;
   }

@@ -1,6 +1,6 @@
 import { clone, toJson } from "@bufbuild/protobuf";
 import { InventorySchema } from "../../contracts/src/index.js";
-import { inventoryOwners, validateInventories } from "../../core/src/inventory.js";
+import { replaceInventories } from "../../core/src/simulation-inventory.js";
 import { InventoryConflictError, type InventoryService } from "./service-types.js";
 import { canonical, documentSha } from "./document-snapshot.js";
 import type { WorldStore } from "./world-store.js";
@@ -31,11 +31,7 @@ export function createInventoryService(store: WorldStore): InventoryService {
       }
       // Mechanics can run while hashes await. Recheck before publishing any inventory.
       for (const [id, before] of expected) if (version(id) !== before) throw new InventoryConflictError(id);
-      const replacements = new Map(changes.map(change => [change.actorId, clone(InventorySchema, change.inventory)]));
-      const simulation = store.state.simulation!;
-      validateInventories(inventoryOwners(Object.values(simulation.runtimeCharacters).map(actor => ({ id: actor.id,
-        inventory: replacements.get(actor.id) ?? actor.inventory })), simulation.map));
-      for (const [id, inventory] of replacements) character(id).inventory = inventory;
+      replaceInventories(store.state.simulation!, changes.map(change => ({ ownerId: change.actorId, inventory: change.inventory })));
     }),
   };
 }
