@@ -1,6 +1,6 @@
 import { clone, toJson } from "@bufbuild/protobuf";
-import { InventorySchema } from "../../contracts/src/index.js";
-import { replaceInventories } from "../../core/src/simulation-inventory.js";
+import { InventorySchema, ItemInstanceSchema } from "../../contracts/src/index.js";
+import { addToInventory, removeFromInventory, transferBetweenInventories, replaceInventories } from "../../core/src/simulation-inventory.js";
 import { InventoryConflictError, type InventoryService } from "./service-types.js";
 import { canonical, documentSha } from "./document-snapshot.js";
 import type { WorldStore } from "./world-store.js";
@@ -15,6 +15,12 @@ export function createInventoryService(store: WorldStore): InventoryService {
   const version = (id: string) => JSON.stringify(canonical(character(id).inventory
     ? toJson(InventorySchema, character(id).inventory!) : null));
   return {
+    addToInventory: (id, item) => {
+      const input = clone(ItemInstanceSchema, item);
+      return store.write(async () => addToInventory(store.state.simulation!, id, input));
+    },
+    removeFromInventory: (id, itemId) => store.write(async () => removeFromInventory(store.state.simulation!, id, itemId)),
+    transferBetweenInventories: (from, to, itemId) => store.write(async () => transferBetweenInventories(store.state.simulation!, from, to, itemId)),
     async read(actorId) {
       const inventory = character(actorId).inventory;
       const snapshot = inventory && clone(InventorySchema, inventory);

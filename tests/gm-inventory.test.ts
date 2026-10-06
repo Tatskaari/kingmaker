@@ -77,3 +77,18 @@ test("GM inventories cannot duplicate items already held by a fixture", async ()
     inventory: create(InventorySchema, { items: [key] }) }]), /Duplicate/);
   assert.deepEqual(await backing.inventory.read("player"), before);
 });
+
+test("inventory service commands update versions and return detached reads", async () => {
+  const backing = createScenarioServices(loadPlayableWorld());
+  const before = await backing.inventory.read("player");
+  await backing.inventory.addToInventory("player", bird());
+  const added = await backing.inventory.read("player");
+  assert.notEqual(added.sha, before.sha);
+  added.inventory!.items.length = 0;
+  assert.ok((await backing.inventory.read("player")).inventory!.items.some(item => item.id === bird().id));
+  const room = backing.currentWorld().simulation!.map!.rooms[0]!.id;
+  await backing.inventory.transferBetweenInventories("player", room, bird().id);
+  assert.ok(!((await backing.inventory.read("player")).inventory?.items ?? []).some(item => item.id === bird().id));
+  await backing.inventory.removeFromInventory(room, bird().id);
+  assert.ok(!backing.currentWorld().simulation!.map!.rooms[0]!.inventory!.items.some(item => item.id === bird().id));
+});
