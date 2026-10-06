@@ -1,3 +1,4 @@
+import { executeLocalMove } from "../packages/core/src/local-move-executor.js";
 import { transferBetweenInventories } from "../packages/core/src/simulation-inventory.js";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import assert from "node:assert/strict";
@@ -22,14 +23,14 @@ function example() {
 
 test("transfers preserve item identity, clear equipment, and survive serialization", () => {
   const scenario = example(), sword = itemsFor(inventoryOwners(scenario.characters, scenario.world), "guard")[0]!;
-  assert.throws(() => transferBetweenInventories(scenario.source.simulation!, "guard", "missing", "sword"), /inventory owner/);
+  assert.throws(() => executeLocalMove(scenario.source.simulation!, transferBetweenInventories, "guard", "missing", "sword"), /Invalid simulation move/);
   assert.deepEqual(itemsFor(inventoryOwners(scenario.characters, scenario.world), "guard")[0], sword);
-  transferBetweenInventories(scenario.source.simulation!, "guard", "chest", "sword");
+  scenario.source.simulation = executeLocalMove(scenario.source.simulation!, transferBetweenInventories, "guard", "chest", "sword");
   assert.equal(itemsFor(inventoryOwners(scenario.characters, scenario.world), "guard").length, 0);
   assert.equal(inventoryFor(inventoryOwners(scenario.characters, scenario.world), "guard").equipment!.mainHandItemId, "");
   assert.deepEqual(inventoryFor(inventoryOwners(scenario.characters, scenario.world), "guard").equipment!.attunedItemIds, []);
-  transferBetweenInventories(scenario.source.simulation!, "chest", "visitor", "sword");
-  transferBetweenInventories(scenario.source.simulation!, "visitor", "hall", "sword");
+  scenario.source.simulation = executeLocalMove(scenario.source.simulation!, transferBetweenInventories, "chest", "visitor", "sword");
+  scenario.source.simulation = executeLocalMove(scenario.source.simulation!, transferBetweenInventories, "visitor", "hall", "sword");
   assert.equal(locatedItems(inventoryOwners(scenario.characters, scenario.world)).filter(item => item.id === "sword").length, 1);
   const saved = physicalFixture(fromBinary(WorldStateSchema, toBinary(WorldStateSchema, scenario.source)));
   assert.equal(itemsFor(inventoryOwners(saved.characters, saved.world), "hall")[0]!.definitionId, "longsword");
