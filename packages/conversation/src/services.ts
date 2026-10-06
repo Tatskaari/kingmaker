@@ -1,7 +1,8 @@
+import type { InventoryService } from "../../core/src/inventory-service.js";
 import type { AgentSetupContext } from "./agent-setup.js";
 import type { ProgressiveDisclosure } from "./progressive-disclosure.js";
 import type { MapService, MapObservation, MapResult } from "./map.js";
-import type { InventoryService, CharacterCreationService, DocsService, ScenarioService } from "../../lore/src/services.js";
+import type { CharacterCreationService, DocsService, ScenarioService } from "../../lore/src/services.js";
 import type { CheckDegree, CheckSkill, skillAbilities } from "../../core/src/ability-checks.js";
 import type { PortraitExpression } from "../../providers/src/conversation-expression.js";
 import type { JevChoice, JevQuestions } from "../../providers/src/jev.js";

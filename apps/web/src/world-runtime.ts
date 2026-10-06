@@ -73,9 +73,9 @@ export class WorldGameRuntime extends WorldHost {
     const random = { ...this.random(), ...extra.services?.random };
     const ai = { ...this.provider, ...this.options.services?.ai, ...extra.services?.ai };
     const scenario = {
-      setPlayer: (path: string) => this.commit(() => this.documents.scenario.setPlayer(path), signal, persist),
-      info: () => this.documents.scenario.info(), snapshot: () => this.documents.scenario.snapshot(),
-      getDocument: (path: string) => this.documents.scenario.getDocument(path),
+      setPlayer: (path: string) => this.commit(() => this.worldServices.scenario.setPlayer(path), signal, persist),
+      info: () => this.worldServices.scenario.info(), snapshot: () => this.worldServices.scenario.snapshot(),
+      getDocument: (path: string) => this.worldServices.scenario.getDocument(path),
       ...this.options.services?.scenario, ...extra.services?.scenario,
     };
     const respond = extra.services?.character?.respond ?? this.options.services?.character?.respond;
@@ -92,20 +92,20 @@ export class WorldGameRuntime extends WorldHost {
       scenario,
       lore: documentLoreService(scenario, { ...this.options.services?.lore, ...extra.services?.lore }),
       inventory: {
-        addToInventory: (...args) => this.commit(() => this.documents.inventory.addToInventory(...args), signal, persist),
-        removeFromInventory: (...args) => this.commit(() => this.documents.inventory.removeFromInventory(...args), signal, persist),
-        transferBetweenInventories: (...args) => this.commit(() => this.documents.inventory.transferBetweenInventories(...args), signal, persist),
-        read: id => this.documents.inventory.read(id), commit: changes => this.commit(() => this.documents.inventory.commit(changes), signal, persist), ...this.options.services?.inventory, ...extra.services?.inventory },
+        addToInventory: (...args) => this.commit(() => this.worldServices.inventory.addToInventory(...args), signal, persist),
+        removeFromInventory: (...args) => this.commit(() => this.worldServices.inventory.removeFromInventory(...args), signal, persist),
+        transferBetweenInventories: (...args) => this.commit(() => this.worldServices.inventory.transferBetweenInventories(...args), signal, persist),
+        read: id => this.worldServices.inventory.read(id), commit: changes => this.commit(() => this.worldServices.inventory.commit(changes), signal, persist), ...this.options.services?.inventory, ...extra.services?.inventory },
       docs: {
-        commit: (writes, intents) => this.commit(() => this.documents.docs.commit(writes, intents), signal, persist),
-        read: path => this.documents.docs.read(path),
-        create: (...args) => this.commit(() => this.documents.docs.create(...args), signal, persist),
-        replace: (...args) => this.commit(() => this.documents.docs.replace(...args), signal, persist),
-        insert: (...args) => this.commit(() => this.documents.docs.insert(...args), signal, persist),
-        delete: (...args) => this.commit(() => this.documents.docs.delete(...args), signal, persist),
+        commit: (writes, intents) => this.commit(() => this.worldServices.docs.commit(writes, intents), signal, persist),
+        read: path => this.worldServices.docs.read(path),
+        create: (...args) => this.commit(() => this.worldServices.docs.create(...args), signal, persist),
+        replace: (...args) => this.commit(() => this.worldServices.docs.replace(...args), signal, persist),
+        insert: (...args) => this.commit(() => this.worldServices.docs.insert(...args), signal, persist),
+        delete: (...args) => this.commit(() => this.worldServices.docs.delete(...args), signal, persist),
         ...this.options.services?.docs, ...extra.services?.docs,
       },
-      character: { create: input => this.commit(() => this.documents.character.create(input), signal, persist), rollCheck: checkMechanics(world.simulation!.runtimeCharacters.player?.dnd,
+      character: { create: input => this.commit(() => this.worldServices.character.create(input), signal, persist), rollCheck: checkMechanics(world.simulation!.runtimeCharacters.player?.dnd,
         () => random.integer(1, 20)), ...this.options.services?.character, ...extra.services?.character },
       map: { ...this.map, ...this.options.services?.map, ...extra.services?.map },
       ai: { ...traced, responses: retryResponses(traced.responses, this.warning) },
@@ -126,7 +126,7 @@ export class WorldGameRuntime extends WorldHost {
   async talkToGameMaster(message: string, onText?: TextProgress) {
     if (!this.activity.stranger) throw new Error("Meet the Stranger first.");
     const before = this.activity.stranger;
-    const next = await strangerTurn(before, message, this.documents.scenario, this.runtime("gm", "game_master").services, undefined, onText);
+    const next = await strangerTurn(before, message, this.worldServices.scenario, this.runtime("gm", "game_master").services, undefined, onText);
     if (this.activity.stranger !== before) throw new Error("The interview changed; retry your reply.");
     this.activity.stranger = next;
     return next.history.at(-1)?.content ?? "";
@@ -134,13 +134,13 @@ export class WorldGameRuntime extends WorldHost {
   async startPremadeCharacter(id: string) {
     const character = premadeCharacter(id);
     if (this.world().player || this.activity.stranger) throw new Error("Start a new game to choose a pre-made character.");
-    const before = this.documents;
+    const before = this.worldServices;
     const next = await strangerTurn({ history: [] }, "Play this pre-made character and enter the hall.",
-      this.documents.scenario, this.runtime("gm", "game_master").services, undefined, undefined, character);
+      this.worldServices.scenario, this.runtime("gm", "game_master").services, undefined, undefined, character);
     if (!next.draft) throw new Error("The GM did not prepare a character. Please try again.");
     const draft = next.draft as { player: { sprite: number } };
     draft.player.sprite = character.sprite;
-    if (this.documents !== before || this.activity.stranger || this.world().player) throw new Error("Character creation changed; retry saving.");
+    if (this.worldServices !== before || this.activity.stranger || this.world().player) throw new Error("Character creation changed; retry saving.");
     await this.publishPlayer(next.draft, next);
     this.activity.stranger = next;
   }
@@ -151,7 +151,7 @@ export class WorldGameRuntime extends WorldHost {
   private async publishPlayer(value: JsonValue, stranger: StrangerState) {
     // Creation is single-threaded. Stage the workflow privately so failed document
     // writes cannot leave a half-created player or partially informed court.
-    const before = this.documents;
+    const before = this.worldServices;
     const { impressions, ...character } = playerPublication(value, stranger.draft!, this.world());
     const staged = createScenarioServices(this.world());
     await staged.character.create(character);
@@ -167,8 +167,8 @@ export class WorldGameRuntime extends WorldHost {
     map.phase = GamePhase.CONVERSATIONS;
     map.day = 1;
     staged.mechanics.commit(map, {});
-    if (this.documents !== before) throw new Error("Character creation changed; retry saving.");
-    this.documents = staged;
+    if (this.worldServices !== before) throw new Error("Character creation changed; retry saving.");
+    this.worldServices = staged;
     delete stranger.draft;
     delete stranger.replies;
   }
@@ -425,8 +425,8 @@ export class WorldGameRuntime extends WorldHost {
     if (activity.result.reason === "complete") {
       await this.commit(async () => {
         const world = this.world(), intent = characterIntent(world, id);
-        const before = await this.documents.docs.read(intent.entry);
-        await setIntent(this.documents, before, { activity: null, wait: routinePath(world, id) }, before.document.body, intent);
+        const before = await this.worldServices.docs.read(intent.entry);
+        await setIntent(this.worldServices, before, { activity: null, wait: routinePath(world, id) }, before.document.body, intent);
         this.syncGoals();
         const next = this.activity.npcActivities![id]!;
         next.reviewPending = false; next.history = []; next.actionIds = [];
@@ -457,7 +457,7 @@ export class WorldGameRuntime extends WorldHost {
       if (intent.actorId !== decision.intent.actorId || intent.activity || intent.wait !== decision.wait.path) return;
       const next = decision.choice.startsWith("set_activity:") ? decision.choice.slice("set_activity:".length) : null;
 
-      await this.documents.docs.commit([
+      await this.worldServices.docs.commit([
         ...[decision.wait, ...decision.targets].map(doc => ({ path: doc.path, expectedSha: doc.sha, text: doc.text })),
         { path: decision.character.path, expectedSha: decision.character.sha,
           text: decision.character.text },

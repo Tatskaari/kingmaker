@@ -1,7 +1,8 @@
 import { clone, fromJson, toJson, type JsonObject } from "@bufbuild/protobuf";
 import { DocumentSchema, type Document } from "../../contracts/src/v2.js";
 import { parseMarkdown } from "./markdown.js";
-import { canonical, snapshot } from "./document-snapshot.js";
+import { snapshot } from "./document-snapshot.js";
+import { canonical } from "../../core/src/state-version.js";
 import { DocumentConflictError, type DocsService, type DocumentSnapshot } from "./service-types.js";
 import { runtimeActor } from "./runtime-actor.js";
 import { activityDefinition, intentDocument, waitActivities } from "./activity.js";
