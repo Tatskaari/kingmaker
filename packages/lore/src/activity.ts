@@ -34,7 +34,7 @@ export function waitActivities(document: Document): string[] {
 /** References never confer permission to read their targets. */
 export function intentDocument(world: WorldState, id: string, path: string): Document {
   documentReference(path);
-  id = world.runtimeCharacters[id]?.characterId ?? id;
+  id = world.simulation!.runtimeCharacters[id]?.characterId ?? id;
   const entry = characterEntry(world, id), character = world.docs[entry]!;
   const doc = world.docs[path];
   if (!doc) throw new Error(`Missing intent document: ${path}`);

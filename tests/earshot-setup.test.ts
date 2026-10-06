@@ -5,7 +5,7 @@ import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { loadPlayableWorld } from "./fixtures.js";
 
 function fixture() {
-  const world = loadPlayableWorld(), map = world.map!;
+  const world = loadPlayableWorld(), map = world.simulation!.map!;
   map.actors = map.actors.filter(actor => ["rowan", "corvin", "holt", "player"].includes(actor.characterId));
   const actor = (id: string) => map.actors.find(actor => actor.characterId === id)!;
   for (const [id, x] of [["rowan", 58], ["player", 59], ["corvin", 62], ["holt", 60]] as const) {
@@ -83,10 +83,10 @@ test("headless turns retain one audience note across reloads and only commit cha
   await game.talk("rowan", "Hello");
   assert.equal(notes().length, 1);
   game.load(game.snapshot());
-  game.edit(state => { state.map!.actors.find(actor => actor.characterId === "holt")!.position!.x = 61; });
+  game.edit(state => { state.simulation!.map!.actors.find(actor => actor.characterId === "holt")!.position!.x = 61; });
   await game.talk("rowan", "Still here");
   assert.equal(notes().length, 1, "Movement within the same hearing level does not add a note");
-  game.edit(state => { state.map!.actors.find(actor => actor.characterId === "holt")!.position!.x = 66; });
+  game.edit(state => { state.simulation!.map!.actors.find(actor => actor.characterId === "holt")!.position!.x = 66; });
   fail = true;
   await assert.rejects(game.talk("rowan", "A failed turn"), /Intentional response failure/);
   assert.equal(notes().length, 1);

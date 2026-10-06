@@ -27,7 +27,7 @@ function fixture(goal?: string) {
 const evidence = { characterId: "corvin", participants: ["corvin", "player"], transcript: [create(TranscriptMessageSchema, { text: "Please go to the hall." })] };
 
 test("v2 review commits its goal before classify/resolve returns a real command without moving anyone", async () => {
-  const services = fixture(), beforeMap = services.scenario.snapshot().map, order: string[] = [];
+  const services = fixture(), beforeMap = services.scenario.snapshot().simulation!.map, order: string[] = [];
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: {
     responses: async request => { order.push("review"); return commitReview({
       summary: "Agreed", newNotes: ["The player requested a visit to the hall."], activeGoal: "Go to the hall" }, request); },
@@ -47,7 +47,7 @@ test("v2 review commits its goal before classify/resolve returns a real command 
   const result = await reviewAndPlanWorldAction(evidence, runtime);
   assert.deepEqual(order, ["review", "review", "classify", "resolve"]);
   assert.equal(result.plan!.action!.type, "move"); assert.ok(result.plan!.action!.path.length);
-  assert.deepEqual(services.scenario.snapshot().map, beforeMap);
+  assert.deepEqual(services.scenario.snapshot().simulation!.map, beforeMap);
 
 });
 

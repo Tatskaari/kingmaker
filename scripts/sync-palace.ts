@@ -7,7 +7,7 @@ import { palaceFurniture } from "../apps/web/src/palace-furniture.js";
 import { writeFileSync } from "node:fs";
 import { palaceLayout } from "../apps/web/src/palace-layout.js";
 
-const world = loadPlayableWorld(), map = world.map!;
+const world = loadPlayableWorld(), map = world.simulation!.map!;
 palaceLayout.validateDoorBoundaries(map.doors);
 map.rooms = palaceLayout.worldRooms().map(room => Object.assign(create(RoomSchema),
   map.rooms.find(existing => existing.id === room.id), room));

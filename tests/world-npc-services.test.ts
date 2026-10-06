@@ -8,7 +8,7 @@ import { loadPlayableWorld } from "./fixtures.js";
 
 const signal = new AbortController().signal;
 function setup(options: WorldOptions = {}) {
-  const world = loadPlayableWorld(), map = structuredClone(world.map!);
+  const world = loadPlayableWorld(), map = structuredClone(world.simulation!.map!);
   map.revision += 100;
   const actor = map.actors.find(actor => actor.characterId === "rowan")!;
   actor.roomId = "great_hall";
@@ -83,8 +83,8 @@ test("NPC opening speech uses disclosure and AI defaults and honors cancellation
 
 test("world event perception uses injected rolls at the moderate hearing boundary", async () => {
   const world = loadPlayableWorld();
-  const source = world.map!.actors.find(actor => actor.characterId === "rowan")!;
-  const listener = world.map!.actors.find(actor => actor.characterId === "holt")!;
+  const source = world.simulation!.map!.actors.find(actor => actor.characterId === "rowan")!;
+  const listener = world.simulation!.map!.actors.find(actor => actor.characterId === "holt")!;
   // Keep the listeners in the same open palace room, four tiles apart.
   source.position = { $typeName: "kingmaker.v1.TilePosition", x: 58, y: 24 };
   listener.position = { ...source.position, x: 62 };
@@ -105,10 +105,10 @@ test("world event perception uses injected rolls at the moderate hearing boundar
 
 test("player perceives nearby physical events more reliably and clearly than NPCs", async () => {
   const world = loadPlayableWorld();
-  const source = world.map!.actors.find(actor => actor.characterId === "rowan")!;
+  const source = world.simulation!.map!.actors.find(actor => actor.characterId === "rowan")!;
   source.position = { $typeName: "kingmaker.v1.TilePosition", x: 58, y: 24 };
   for (const id of ["player", "holt"]) {
-    world.map!.actors.find(actor => actor.characterId === id)!.position = { ...source.position, x: 62 };
+    world.simulation!.map!.actors.find(actor => actor.characterId === id)!.position = { ...source.position, x: 62 };
   }
   const runtime = new WorldGameRuntime(world, "", undefined, undefined, undefined, {
     services: { random: { integer: () => 100 } },

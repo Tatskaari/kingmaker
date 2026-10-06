@@ -8,7 +8,7 @@ export function createMechanicsService(store: WorldStore): MechanicsStateService
         if (!store.state.docs[path]) throw new Error(`Unknown character document: ${path}`);
       }
       // Mechanics are synchronous. Publish live references without copying the document world.
-      store.state.map = map;
+      store.state.simulation!.map = map;
       for (const [path, value] of Object.entries(properties)) store.state.docs[path]!.characterProperties = value;
     },
   };

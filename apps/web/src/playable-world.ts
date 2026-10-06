@@ -22,7 +22,7 @@ export function playableWorld(baseline: PalaceMap, markdown: ReadonlyMap<string,
     const heading = /^# (.+?)(?: —|\n|$)/m.exec(world.docs[path]!.body)?.[1];
     if (heading) (world.docs[path]!.frontmatter ??= {}).name = heading;
     const id = /\/Characters\/([^/]+)\//.exec(path)![1]!;
-    if (!world.map!.actors.some(actor => actor.characterId === id || world.runtimeCharacters[actor.characterId]?.characterId === id)) throw new Error(`Missing palace actor for ${id}`);
+    if (!world.simulation!.map!.actors.some(actor => actor.characterId === id || world.simulation!.runtimeCharacters[actor.characterId]?.characterId === id)) throw new Error(`Missing palace actor for ${id}`);
   }
   world.docs[player]!.characterProperties = create(CharacterPropertiesSchema, { dnd: fromJson(DndCharacterSchema, envoySheet) });
   for (const path of [...world.characters, player]) seedPresentation(world, path);
@@ -38,7 +38,7 @@ export function characterCreationWorld(baseline: WorldState): WorldState {
     delete world.docs[world.player];
   }
   delete world.player;
-  world.map!.phase = GamePhase.PLAYER_CREATION;
-  world.map!.day = 0;
+  world.simulation!.map!.phase = GamePhase.PLAYER_CREATION;
+  world.simulation!.map!.day = 0;
   return world;
 }

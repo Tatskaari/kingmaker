@@ -70,7 +70,7 @@ export class GameMasterTools {
       }
       return { ok: true, current };
     }
-    if (name === "list_characters") return { characters: Object.values(this.services.scenario.snapshot().runtimeCharacters)
+    if (name === "list_characters") return { characters: Object.values(this.services.scenario.snapshot().simulation!.runtimeCharacters)
       .filter(character => character.characterId !== "player").map(({ id, characterId, document, activity, wait }) =>
         ({ id, characterId, document, activity: activity ?? null, wait: wait ?? null })) };
     if (name === "list_documents") {

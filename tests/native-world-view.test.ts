@@ -19,7 +19,7 @@ test("browser view reads document presentation and preserves physical bodies and
   assert.equal(view.player.lore, "Player biography.");
   assert.equal(view.characters.find((character: any) => character.id === "rowan").name, "Renamed Rowan");
   assert.equal(view.characters.filter((character: any) => character.id.startsWith("palace-guard-")).length,
-    world.map!.actors.filter(actor => actor.characterId.startsWith("palace-guard-")).length);
+    world.simulation!.map!.actors.filter(actor => actor.characterId.startsWith("palace-guard-")).length);
   assert.deepEqual(view.conversations.rowan.map((message: any) => message.role), ["player", "character"]);
   assert.deepEqual(host.snapshot(), before);
 });

@@ -23,7 +23,7 @@ export async function runTreasuryWaitEval(source: WorldState, apiKey: string, op
       trace.push(plan.decision.choice); progress(`Action: ${plan.decision.choice}`);
       if (!plan.action) {
         game.finishNpcRun(id, plan.decision.choice as "complete" | "wait" | "unable", "Eval action result");
-        milestones.reachedTreasury = game.world().map!.actors.find(actor => actor.characterId === id)!.roomId === "treasury";
+        milestones.reachedTreasury = game.world().simulation!.map!.actors.find(actor => actor.characterId === id)!.roomId === "treasury";
         await game.reviewNpcOutcome(id, true, signal);
         milestones.enteredWait = plan.decision.choice === "wait" && !!characterIntent(game.world(), id).wait && !activityGoal(game.world(), id);
         break;

@@ -13,7 +13,7 @@ function fixture() {
   const { entry, activity } = characterIntent(world, id), wait = entry.replace("character.md", "routine.md");
   world.docs[wait] = create(DocumentSchema, { frontmatter: { visibility: "private", readers: [`character:${id}`], activities: [activity!] },
     body: "When you see the player, stop_waiting to decide what to do. Otherwise continue." });
-  Object.assign(world.runtimeCharacters[id]!, { activity: undefined, wait });
+  Object.assign(world.simulation!.runtimeCharacters[id]!, { activity: undefined, wait });
   return { world, entry, activity, wait };
 }
 
@@ -49,8 +49,8 @@ test("wait checks omit remote actors and reject stale decisions when the player 
       const text = JSON.stringify(state);
       assert.doesNotMatch(text, /"id":"player"/);
       const snapshot = game.snapshot(), next = fromJson(WorldStateSchema, snapshot.world);
-      const actor = next.map!.actors.find(actor => actor.characterId === id)!;
-      Object.assign(next.map!.actors.find(actor => actor.characterId === "player")!, { roomId: actor.roomId, position: { ...actor.position! } });
+      const actor = next.simulation!.map!.actors.find(actor => actor.characterId === id)!;
+      Object.assign(next.simulation!.map!.actors.find(actor => actor.characterId === "player")!, { roomId: actor.roomId, position: { ...actor.position! } });
       snapshot.world = toJson(WorldStateSchema, next); game.restore(snapshot);
       return { waiting: { choice: "stop_waiting", probabilities: {} } };
     }, responses: async request => assert.fail("Stale observation must not wake the LLM") },
@@ -61,7 +61,7 @@ test("wait checks omit remote actors and reject stale decisions when the player 
 
 test("completion returns to routine; failed wake reviews survive reload and retry without another Jev decision", async () => {
   const { world, activity, entry, wait } = fixture();
-  world.runtimeCharacters[id]!.activity = activity!;
+  world.simulation!.runtimeCharacters[id]!.activity = activity!;
   let fail = true, decisions = 0;
   const options = { services: { disclosure: { disclose: async () => [] }, ai: {
     decisions: async () => { decisions++; return { waiting: { choice: "stop_waiting", probabilities: {} } }; },

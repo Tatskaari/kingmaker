@@ -70,8 +70,8 @@ export class PalaceMechanics {
   #npcActivities: Record<string, NpcActivity>;
   #conversations: MechanicalActivity["conversations"];
   constructor(world: WorldState, activity: MechanicalActivity) {
-    if (!world.map) throw new Error("A physical map is required.");
-    this.#world = { ...world.map, actors: foregroundBodies(world.map.actors) };
+    if (!world.simulation!.map) throw new Error("A physical map is required.");
+    this.#world = { ...world.simulation!.map, actors: foregroundBodies(world.simulation!.map.actors) };
     this.#characters = mechanicalCharacters(world);
     this.#playerId = world.player ? "player" : "";
     this.#npcActivities = activity.npcActivities ??= {};

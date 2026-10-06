@@ -53,7 +53,7 @@ test("create, replace, insert and delete preserve properties and rebuild scenari
   await docs.replace(actor, actorAfter.sha, " [[new]]", "");
   await docs.delete("new.md", edited.sha);
   await assert.rejects(docs.read("new.md"), /not found/);
-  assert.equal(scenario.snapshot().map!.day, 3);
+  assert.equal(scenario.snapshot().simulation!.map!.day, 3);
 });
 
 test("concurrent edits using the same SHA have exactly one winner; failure does not block writes", async () => {

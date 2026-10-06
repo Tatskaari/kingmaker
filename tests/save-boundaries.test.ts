@@ -26,23 +26,23 @@ test("status reads, headless advancement and resets never export or reload a sav
 
 test("character reset stages changes and preserves unrelated live references", () => {
   const world = loadPlayableWorld(), runtime = new WorldGameRuntime(world, "");
-  const current = runtime.world(), map = current.map!, player = current.docs[current.player!]!;
+  const current = runtime.world(), map = current.simulation!.map!, player = current.docs[current.player!]!;
   const entry = current.characters.find(path => path.endsWith("/rowan/character.md"))!;
   current.docs[entry]!.body += "\nA new memory.";
-  const revision = current.runtimeCharacters.rowan!.intentRevision;
+  const revision = current.simulation!.runtimeCharacters.rowan!.intentRevision;
   runtime.resetCharacters();
   assert.equal(runtime.world(), current);
-  assert.equal(current.map, map);
+  assert.equal(current.simulation!.map, map);
   assert.equal(current.docs[current.player!], player);
   assert.equal(current.docs[entry]!.body, world.docs[entry]!.body);
-  assert.equal(current.runtimeCharacters.rowan!.intentRevision, revision + 1);
+  assert.equal(current.simulation!.runtimeCharacters.rowan!.intentRevision, revision + 1);
   // A reset that would restore a now-missing lore reference must publish nothing.
   const target = current.docs[entry]!.links[0]!.target;
   delete current.docs[target];
-  const docs = current.docs, actors = current.runtimeCharacters;
+  const docs = current.docs, actors = current.simulation!.runtimeCharacters;
   assert.throws(() => runtime.resetCharacters());
   assert.equal(current.docs, docs);
-  assert.equal(current.runtimeCharacters, actors);
+  assert.equal(current.simulation!.runtimeCharacters, actors);
 });
 
 test("saved games detach nested world metadata and activity on both export and load", () => {

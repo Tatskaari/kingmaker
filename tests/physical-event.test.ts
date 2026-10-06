@@ -19,8 +19,8 @@ test("physical events retain actor position, day, participants and details witho
 });
 
 test("document-world event creation does not inspect lore and uses the participating guard body", t => {
-  const world = loadPlayableWorld(), bodies = world.map!.actors.filter(actor => actor.characterId.startsWith("palace-guard-"));
-  world.map!.actors.find(actor => actor.characterId === "player")!.position = { ...bodies.at(-1)!.position! };
+  const world = loadPlayableWorld(), bodies = world.simulation!.map!.actors.filter(actor => actor.characterId.startsWith("palace-guard-"));
+  world.simulation!.map!.actors.find(actor => actor.characterId === "player")!.position = { ...bodies.at(-1)!.position! };
   const host = new WorldHost(world), before = host.snapshot();
   const event = host.worldEvent("speaking", "The guard spoke", [bodies.at(-1)!.characterId]);
   assert.deepEqual(event.position, bodies.at(-1)!.position);

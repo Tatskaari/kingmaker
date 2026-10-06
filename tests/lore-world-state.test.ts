@@ -33,8 +33,8 @@ test("builds independent, serializable documents and scenario entrypoints withou
   assert.deepEqual(state.docs[character]!.links.map(link => [link.target, link.source]),
     [["Secrets.md", "Secrets#Truth"], [character, "#opening"]]);
   assert.deepEqual(fromJson(WorldStateSchema, toJson(WorldStateSchema, state)), state);
-  state.map!.day = 9;
-  state.map!.facts!.test = false;
+  state.simulation!.map!.day = 9;
+  state.simulation!.map!.facts!.test = false;
   state.docs[character]!.frontmatter!.visibility = "public";
   state.docs[character]!.body = "Edited by GM";
   assert.equal(map.day, 2);

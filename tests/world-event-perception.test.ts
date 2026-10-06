@@ -7,7 +7,7 @@ import { loadPlayableWorld } from "./fixtures.js";
 
 const signal = new AbortController().signal;
 function eventWorld() {
-  const world = loadPlayableWorld(), map = world.map!;
+  const world = loadPlayableWorld(), map = world.simulation!.map!;
   // A clear source and moderate listener in the same unobstructed hall.
   map.actors = map.actors.filter(actor => ["rowan", "holt"].includes(actor.characterId));
   map.actors.find(actor => actor.characterId === "rowan")!.position = { $typeName: "kingmaker.v1.TilePosition", x: 58, y: 24 };
@@ -38,11 +38,11 @@ test("event perception reads document names without reconstructing character lor
 
 test("event perception rolls and reacts independently for guard instances", async () => {
   const { world, event } = eventWorld();
-  const guards = loadPlayableWorld().map!.actors.filter(actor => actor.characterId.startsWith("palace-guard-")).slice(0, 2);
+  const guards = loadPlayableWorld().simulation!.map!.actors.filter(actor => actor.characterId.startsWith("palace-guard-")).slice(0, 2);
   guards.forEach((actor, index) => { actor.position = { ...event.position!, x: 59 + index }; });
-  world.map!.actors.push(...guards);
+  world.simulation!.map!.actors.push(...guards);
   // An unregistered body is not promoted to a character by observation.
-  world.map!.actors.push({ ...guards[0]!, characterId: "unregistered", instanceId: "orphan" });
+  world.simulation!.map!.actors.push({ ...guards[0]!, characterId: "unregistered", instanceId: "orphan" });
   let rolls = 0;
   const runtime = new WorldGameRuntime(world, "", undefined, undefined, undefined, { services: { random: { integer: () => { rolls++; return 1; } } } });
   const before = runtime.snapshot();

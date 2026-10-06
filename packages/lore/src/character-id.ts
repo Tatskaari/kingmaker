@@ -10,7 +10,7 @@ export function characterId(path: string, world: Pick<WorldState, "player">): st
 
 /** Active runtime bodies share authored documents but retain independent identities. */
 export function characterDocuments(world: WorldState) {
-  const entries = Object.values(world.runtimeCharacters).filter(actor => actor.characterId !== "player")
+  const entries = Object.values(world.simulation!.runtimeCharacters).filter(actor => actor.characterId !== "player")
     .map(({ id, document: path }) => ({ id, path }));
   if (world.player) entries.push({ id: "player", path: world.player });
   return entries.map(({ id, path }) => {

@@ -39,7 +39,7 @@ test("v2 review writes notes through tools and commits the goal, preserves acces
   assert.match(after.document.body, /Earlier history/);
   assert.match(after.document.body, /player asked/);
   assert.deepEqual(after.document.frontmatter!.readers, before.docs[entry]!.frontmatter!.readers);
-  assert.deepEqual(services.scenario.snapshot().map, before.map);
+  assert.deepEqual(services.scenario.snapshot().simulation!.map, before.simulation!.map);
   assert.deepEqual(services.scenario.snapshot().docs[identity], before.docs[identity]);
   await runConversationReview(evidence, runtime);
   assert.equal((await services.docs.read(entry)).sha, after.sha, "Repeated review does not duplicate notes");

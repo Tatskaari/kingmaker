@@ -16,7 +16,7 @@ test("map commits preserve document updates without a whole-world guard", async 
   const current = services.scenario.snapshot();
   services.mechanics.commit(create(MapSchema, { day: 2 }), {});
   const after = services.scenario.snapshot();
-  assert.equal(after.map!.day, 2);
+  assert.equal(after.simulation!.map!.day, 2);
   assert.match(after.docs[doc.path]!.body, /changed circumstance/);
   services.mechanics.commit(create(MapSchema, { day: 3 }), {});
   assert.match(services.scenario.snapshot().docs[doc.path]!.body, /changed circumstance/);
@@ -37,9 +37,9 @@ test("movement during document hashing does not reject or undo the edit", async 
   });
   const write = services.docs.insert(doc.path, doc.sha, 1, "Reviewed.");
   await waiting;
-  services.currentWorld().map!.day = 2;
+  services.currentWorld().simulation!.map!.day = 2;
   release(); await write;
-  assert.equal(services.scenario.snapshot().map!.day, 2);
+  assert.equal(services.scenario.snapshot().simulation!.map!.day, 2);
   assert.match((await services.docs.read(doc.path)).text, /Reviewed/);
 });
 
@@ -75,9 +75,9 @@ test("mechanics retain live references and validate property targets before publ
   const world = services.currentWorld(), docs = world.docs, map = create(MapSchema, { day: 2 });
   services.mechanics.commit(map, {});
   assert.strictEqual(services.currentWorld(), world);
-  assert.strictEqual(world.map, map);
+  assert.strictEqual(world.simulation!.map, map);
   assert.strictEqual(world.docs, docs);
   const next = create(MapSchema, { day: 3 });
   assert.throws(() => services.mechanics.commit(next, { missing: {} as never }), /Unknown character/);
-  assert.strictEqual(world.map, map);
+  assert.strictEqual(world.simulation!.map, map);
 });

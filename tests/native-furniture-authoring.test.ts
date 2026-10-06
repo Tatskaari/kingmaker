@@ -6,7 +6,7 @@ import { characterDocuments } from "../packages/lore/src/character-id.js";
 import { loadPlayableWorld } from "./fixtures.js";
 
 test("regenerating furniture preserves live document owners, names and stable fixture IDs", () => {
-  const world = loadPlayableWorld(), map = world.map!;
+  const world = loadPlayableWorld(), map = world.simulation!.map!;
   const existing = map.fixtures.filter(fixture => fixture.id.startsWith("furn_"));
   map.fixtures = map.fixtures.filter(fixture => !fixture.id.startsWith("furn_"));
   const characters = characterDocuments(world).map(({ id, document }) => ({ id, inventory: document.characterProperties?.inventory }));

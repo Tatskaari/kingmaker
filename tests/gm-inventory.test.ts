@@ -31,7 +31,7 @@ test("GM inventory writes create one real gift and preserve unrelated properties
 
 test("inventory trades commit both owners together and reject duplicate ownership without partial writes", async () => {
   const backing = createScenarioServices(loadPlayableWorld());
-  const player = backing.scenario.info().player!, giver = backing.scenario.snapshot().runtimeCharacters.peregrine!.document;
+  const player = backing.scenario.info().player!, giver = backing.scenario.snapshot().simulation!.runtimeCharacters.peregrine!.document;
   const before = await backing.docs.read(giver);
   const inventory = clone(InventorySchema, before.document.characterProperties!.inventory ?? create(InventorySchema));
   inventory.items.push(bird());

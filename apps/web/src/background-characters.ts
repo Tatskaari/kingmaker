@@ -8,14 +8,14 @@ import { palaceMap } from "./palace-map.js";
 
 /** A background entry is one reusable mind with several stationary map bodies. */
 export function placeBackgroundCharacters(world: WorldState) {
-  const map = world.map!;
+  const map = world.simulation!.map!;
   const occupied = new Set(map.actors.flatMap(actor => actor.position ? [pointKey(actor.position)] : []));
   const blocked = courtDoorBlockers(map.doors, map.fixtures);
   for (const path of world.characters) {
     const metadata = world.docs[path]!.frontmatter;
     if (metadata?.background !== true) continue;
     const id = /\/Characters\/([^/]+)\/character\.md$/.exec(path)![1]!;
-    if (!Array.isArray(metadata.placements) || !metadata.placements.length || map.actors.some(actor => actor.characterId === id || world.runtimeCharacters[actor.characterId]?.characterId === id)) {
+    if (!Array.isArray(metadata.placements) || !metadata.placements.length || map.actors.some(actor => actor.characterId === id || world.simulation!.runtimeCharacters[actor.characterId]?.characterId === id)) {
       throw new Error(`Invalid background placements: ${id}`);
     }
     for (const [index, placement] of metadata.placements.entries()) {
@@ -28,7 +28,7 @@ export function placeBackgroundCharacters(world: WorldState) {
       const actor = create(ActorStateSchema, { characterId: `${id}-${index + 1}`, instanceId: `${id}-${index + 1}`,
         position, roomId: room.id, homeRoomId: room.id, awake: true });
       seedRuntimeCharacter(world, actor.instanceId!, id, path);
-      delete world.runtimeCharacters[id];
+      delete world.simulation!.runtimeCharacters[id];
       map.actors.push(actor);
     }
   }

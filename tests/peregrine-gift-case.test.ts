@@ -8,7 +8,7 @@ test("Peregrine gift fixture leaves ownership for review to establish", () => {
   const world = peregrineGiftCase.loadWorld([]);
   assert.equal(peregrineGiftCase.transcript.length, 6);
   assert.equal(giftInventoryScore(world).score, 0);
-  assert.equal(world.runtimeCharacters.peregrine!.activity, undefined);
+  assert.equal(world.simulation!.runtimeCharacters.peregrine!.activity, undefined);
   assert.ok(world.docs[world.player!], "player document exists even if inventory is initially absent");
   world.docs[world.player!]!.body += "\nPeregrine gave me a wooden bird.";
   assert.equal(giftInventoryScore(world).score, 0, "a prose-only gift must not pass");
@@ -28,6 +28,6 @@ test("gift scoring requires one player-owned bird and rejects duplicate possessi
   bird.quantity = 2;
   assert.equal(giftInventoryScore(world).score, 0);
   bird.quantity = 1;
-  world.docs[world.runtimeCharacters.peregrine!.document]!.characterProperties!.inventory!.items.push(bird);
+  world.docs[world.simulation!.runtimeCharacters.peregrine!.document]!.characterProperties!.inventory!.items.push(bird);
   assert.equal(giftInventoryScore(world).score, 0);
 });

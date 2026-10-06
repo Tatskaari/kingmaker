@@ -5,7 +5,7 @@ import { palaceLayout } from "../apps/web/src/palace-layout.js";
 import { palaceNodes } from "../apps/web/src/palace-navigation.js";
 import { courtPath, courtRoomAt } from "../apps/web/src/court-map.js";
 
-const world = loadPlayableWorld().map!;
+const world = loadPlayableWorld().simulation!.map!;
 
 test("generated floor ownership, access and exits match the authored world", () => {
   for (const room of palaceLayout.worldRooms()) {

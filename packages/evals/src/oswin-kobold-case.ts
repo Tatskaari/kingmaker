@@ -18,11 +18,11 @@ export const oswinKoboldCase: ReviewCase = {
     if (world.player && world.player !== fixture.playerDocument) delete world.docs[world.player];
     world.player = fixture.playerDocument;
     for (const [id, position] of Object.entries(fixture.positions)) {
-      const actor = world.map!.actors.find(actor => actor.characterId === id)!;
+      const actor = world.simulation!.map!.actors.find(actor => actor.characterId === id)!;
       actor.roomId = "great_hall";
       Object.assign(actor.position!, position);
     }
-    const oswin = world.runtimeCharacters.oswin!;
+    const oswin = world.simulation!.runtimeCharacters.oswin!;
     oswin.activity = undefined; oswin.wait = undefined; oswin.intentRevision = 0;
     return refreshDocumentGraph(world);
   },

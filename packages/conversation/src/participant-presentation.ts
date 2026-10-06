@@ -18,7 +18,7 @@ export function relativePower(subjectLevel: number, observerLevel: number): stri
 
 /** Only explicitly public appearance crosses the participant boundary; never private lore. */
 export function participantPresentations(world: WorldState, observerId: string, participantIds: readonly string[]): OpenRouterMessage[] {
-  const entry = (id: string) => id === "player" ? world.player : world.runtimeCharacters[id]?.document;
+  const entry = (id: string) => id === "player" ? world.player : world.simulation!.runtimeCharacters[id]?.document;
   const observer = world.docs[entry(observerId) ?? ""];
   const level = (path: string | undefined) => world.docs[path ?? ""]?.characterProperties?.dnd?.classes.reduce((sum, item) => sum + item.level, 0) ?? 0;
   if (!observer) return [];

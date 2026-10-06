@@ -83,12 +83,12 @@ test("creation resumes after reload; explicit save publishes reviewed identity, 
   draft.player!.name = "Alexandra"; draft.player!.sprite = 84;
   draft.player!.dnd!.hitPoints!.maximum = 50;
   draft.player!.dnd!.hitPoints!.current = 50;
-  const positions = runtime.world().map!.actors;
+  const positions = runtime.world().simulation!.map!.actors;
   await restored.confirmPlayer(toJson(PlayerSetupSchema, draft));
   assert.equal(restored.view().phase, "conversations");
   assert.equal((restored.view().player as { name: string }).name, "Alexandra");
   assert.equal((restored.view().player as { sprite: number }).sprite, 84);
-  assert.deepEqual(restored.world().map!.actors, positions);
+  assert.deepEqual(restored.world().simulation!.map!.actors, positions);
   const player = restored.world().docs[restored.world().player!]!;
   assert.equal(player.characterProperties!.dnd!.hitPoints!.maximum, 50);
   assert.ok(player.characterProperties!.inventory?.items.length);
@@ -101,7 +101,7 @@ test("creation resumes after reload; explicit save publishes reviewed identity, 
   assert.match(JSON.stringify(npcLore.initial), /No prior acquaintance/);
   await assert.rejects(restored.confirmPlayer(toJson(PlayerSetupSchema, draft)), /awaiting review/);
   restored.resetWorld();
-  assert.equal(restored.world().map!.phase, GamePhase.CONVERSATIONS);
+  assert.equal(restored.world().simulation!.map!.phase, GamePhase.CONVERSATIONS);
   assert.equal(restored.world().player, "Players/player.md");
   restored.reset();
   assert.equal(restored.view().phase, "player_creation");

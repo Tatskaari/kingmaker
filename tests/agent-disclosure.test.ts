@@ -29,7 +29,7 @@ function fixture() {
     notes.set(`${id}-nested.md`, access + `${id.toUpperCase()}_DEEP_KNOWLEDGE [[${entry(id)}]]`);
   }
   notes.set("gm.md", "---\nvisibility: gm\n---\nGM_SECRET");
-  const map = loadPlayableWorld().map!;
+  const map = loadPlayableWorld().simulation!.map!;
   map.actors.find(actor => actor.characterId === "rowan")!.position = { ...map.actors.find(actor => actor.characterId === "player")!.position! };
   const world = worldState(map, notes, "Test", "player.md");
   for (const id of ["rowan", "corvin"]) assignActivity(world, id, "Go to the hall");
@@ -83,7 +83,7 @@ test("NPC opening lines retrieve knowledge in the same traced turn as their spee
   const action = game.map.observe("rowan").actions.find(action => action.id === "talk_player")!;
   assert.ok(action);
   await game.overrideActiveObjective("rowan", { currentGoal: "Discuss the plan" });
-  await game.initiatePlayerConversation("rowan", action.id, game.world().map!.revision, "Discuss the plan", new AbortController().signal);
+  await game.initiatePlayerConversation("rowan", action.id, game.world().simulation!.map!.revision, "Discuss the plan", new AbortController().signal);
   assert.deepEqual(seen, ["speech:rowan"]);
   const calls = Object.values(game.transcriptRuns()).flatMap(run => run.calls);
   assert.deepEqual(calls.map(call => call.kind), ["prog_disc", "prog_disc", "dialogue"]);

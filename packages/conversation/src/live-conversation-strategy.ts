@@ -94,11 +94,11 @@ function turnEvidence(messages: readonly OpenRouterMessage[], reply: OpenRouterM
 async function approveDraft(messages: readonly OpenRouterMessage[], reply: OpenRouterMessage, labels: Record<string, JevChoice>,
   characterId: string, services: RuntimeServices, signal: AbortSignal) {
   const world = services.scenario.snapshot();
-  const paths = [world.player, world.runtimeCharacters[characterId]?.document, services.scenario.info().scenario];
+  const paths = [world.player, world.simulation!.runtimeCharacters[characterId]?.document, services.scenario.info().scenario];
   const documents = await Promise.all(paths.filter((path): path is string => !!path).map(path => services.docs.read(path)));
   const prepared = await services.agents.prepare({ agent: "game_master", characterId, messages: [
     { role: "system", content: adjudication },
-    { role: "user", content: JSON.stringify({ messages, draft: reply, labels, documents, physicalState: world.map }) },
+    { role: "user", content: JSON.stringify({ messages, draft: reply, labels, documents, physicalState: world.simulation!.map }) },
   ] }, signal);
   const answer = await services.ai.responses({ model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "low" },
     messages: [...prepared, { role: "system", content: "Read-only adjudication: do not edit or commit anything. Return only the requested approval JSON." }],

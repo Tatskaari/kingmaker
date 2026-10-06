@@ -56,7 +56,7 @@ export class DocumentGraph {
     const prefix = state.scenario.slice(0, state.scenario.lastIndexOf("/") + 1) + "Characters/";
     state.characters = [...new Set(state.docs[state.scenario]!.links.map(link => link.target)
       .filter(target => target.startsWith(prefix) && /^[^/]+\/character\.md$/.test(target.slice(prefix.length))))];
-    for (const actor of Object.values(state.runtimeCharacters)) for (const path of [actor.document, actor.activity, actor.wait]) {
+    for (const actor of Object.values(state.simulation!.runtimeCharacters)) for (const path of [actor.document, actor.activity, actor.wait]) {
       if (path !== undefined && !notes.has(path)) throw new Error(`Missing intent document: ${path}`);
     }
     return new DocumentGraph(sources);

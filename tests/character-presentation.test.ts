@@ -69,7 +69,7 @@ test("participant descriptions include identity and public prose, never private 
 test("dialogue previews, live turns and NPC exchanges get current participant presentations", async () => {
   const world = loadPlayableWorld(), services = createScenarioServices(world);
   const runtime = new ConversationRuntime({ services: { ...services,
-    map: { observe: characterId => ({ characterId, map: world.map!, actions: [] }) },
+    map: { observe: characterId => ({ characterId, map: world.simulation!.map!, actions: [] }) },
     lore: { forCharacter: async () => ({ initial: [], links: () => [], open: async () => { throw new Error("unused"); } }) },
   }, strategies: { setup: { prepare: setupWorldAgent } } });
   const input = { snapshot: { world }, characterId: "aldren", sources: [], transcript: [], message: "Hello" };

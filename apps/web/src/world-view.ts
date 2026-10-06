@@ -11,7 +11,7 @@ import type { MechanicalActivity } from "./palace-mechanics.js";
 
 /** Browser presentation reads document entries and physical state directly. */
 export function worldView(world: WorldState, activity: MechanicalActivity) {
-  const map = world.map;
+  const map = world.simulation!.map;
   if (!map) throw new Error("A physical map is required.");
   const characters = characterDocuments(world).map(({ id, document }) => ({ id, document,
     name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,

@@ -10,14 +10,14 @@ import { loadPlayableWorld } from "./fixtures.js";
 
 function furnishedWorld() {
   const world = loadPlayableWorld();
-  const fixture = world.map!.fixtures.find(item => item.id === "palace_corvin_drawers")!;
+  const fixture = world.simulation!.map!.fixtures.find(item => item.id === "palace_corvin_drawers")!;
   fixture.open = true;
-  world.map!.actors.find(actor => actor.characterId === "player")!.position = fixture.interactionSpot;
+  world.simulation!.map!.actors.find(actor => actor.characterId === "player")!.position = fixture.interactionSpot;
   return world;
 }
 
 test("queued furniture choices reject removed actions and items moved to the player", () => {
-  const world = furnishedWorld(), map = world.map!;
+  const world = furnishedWorld(), map = world.simulation!.map!;
   const owners = inventoryOwners([{ id: "player", inventory: world.docs[world.player!]!.characterProperties?.inventory }], map);
   const choices = fixtureActions(map.fixtures, owners, "player");
   const take = choices.find(action => action.id === "take_palace_royal_key")!;
