@@ -1,3 +1,5 @@
+import { executeLocalMove } from "../../core/src/local-move-executor.js";
+import type { SimulationMove } from "../../core/src/simulation-move.js";
 import { clone } from "@bufbuild/protobuf";
 import { WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
 import { DocumentGraph } from "./document-graph.js";
@@ -16,6 +18,9 @@ export class WorldStore {
     const result = this.writes.then(action);
     this.writes = result.catch(() => undefined);
     return result;
+  }
+  executeMove<Args extends unknown[]>(move: SimulationMove<Args>, ...args: Args): void {
+    this.state.simulation = executeLocalMove(this.state.simulation!, move, ...args);
   }
   prepareDocuments(draft: WorldState): DocumentGraph { return this.graph.update(draft); }
   publishDocuments(draft: WorldState, prepared = this.graph): void {

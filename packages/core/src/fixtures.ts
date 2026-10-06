@@ -1,3 +1,4 @@
+import { INVALID_MOVE } from "boardgame.io/core";
 import type { SimulationState } from "../../contracts/src/v2.js";
 import { transferBetweenInventories } from "./simulation-inventory.js";
 import { findItem, itemsFor, inventoryOwners, type InventoryOwner } from "./inventory.js";
@@ -39,7 +40,7 @@ export function fixtureActions(fixtures: readonly MapFixture[] | undefined, owne
   return actions;
 }
 
-/** Caller validates the physical approach before applying the action. */
+/** Caller supplies a draft and validates the physical approach before applying the action. */
 export function applyFixtureAction(G: SimulationState, actorId: string, actionId: string): string {
   const fixtures = G.map?.fixtures, owners = inventoryOwners(Object.values(G.runtimeCharacters), G.map);
   const action = fixtureActions(fixtures, owners, actorId).find(candidate => candidate.id === actionId);
@@ -66,6 +67,8 @@ export function applyFixtureAction(G: SimulationState, actorId: string, actionId
   }
   if (action.verb === "close") { fixture.open = false; return `${fixtureName(fixture, actorId)} closed.`; }
   const item = findItem(owners, action.itemId!)!;
-  transferBetweenInventories(G, fixture.id, actorId, item.id, { reveal: true });
+  if (transferBetweenInventories({ G }, fixture.id, actorId, item.id, { reveal: true }) === INVALID_MOVE) {
+    throw new Error("That inventory transfer is no longer available.");
+  }
   return `Picked up ${item.name}.`;
 }

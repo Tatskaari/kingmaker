@@ -1,3 +1,4 @@
+import { executeLocalMove } from "../../../packages/core/src/local-move-executor.js";
 import { createPhysicalEvent } from "./physical-event.js";
 import { create, type JsonValue } from "@bufbuild/protobuf";
 import { TilePositionSchema, GamePhase, type WorldState as PhysicalMap, type Event } from "../../../packages/contracts/src/index.js";
@@ -11,12 +12,12 @@ import { roomAgentActions } from "./room-actions.js";
 
 import { courtRoomAt } from "./court-map.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
-function mechanicalCharacters(world: WorldState) {
-  return characterDocuments(world).map(({ id, path, document, character }) => ({ id, path,
+function mechanicalCharacters(world: WorldState, simulation: () => SimulationState) {
+  return characterDocuments(world).map(({ id, path, document }) => ({ id, path,
     name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
     currentGoal: id === "player" ? "" : activityGoal(world, id) ?? "",
-    get character() { return character; },
-    get inventory() { return character.inventory; },
+    get character() { return simulation().runtimeCharacters[id]!; },
+    get inventory() { return simulation().runtimeCharacters[id]!.inventory; },
   }));
 }
 const npcLog = gameLogger("npc");
@@ -63,7 +64,7 @@ function fixtureEventContext(world: PhysicalMap, characters: ReturnType<typeof m
 }
 /** Synchronous rules over a live document world's mechanical state. */
 export class PalaceMechanics {
-  #world: PhysicalMap;
+  get #world(): PhysicalMap { return this.#simulation.map!; }
   #simulation: SimulationState;
   #characters;
   #playerId: string;
@@ -71,9 +72,8 @@ export class PalaceMechanics {
   #conversations: MechanicalActivity["conversations"];
   constructor(world: WorldState, activity: MechanicalActivity) {
     if (!world.simulation!.map) throw new Error("A physical map is required.");
-    this.#world = { ...world.simulation!.map, actors: foregroundBodies(world.simulation!.map.actors) };
-    this.#simulation = { ...world.simulation!, map: this.#world };
-    this.#characters = mechanicalCharacters(world);
+    this.#simulation = { ...world.simulation!, map: { ...world.simulation!.map, actors: foregroundBodies(world.simulation!.map.actors) } };
+    this.#characters = mechanicalCharacters(world, () => this.#simulation);
     this.#playerId = world.player ? "player" : "";
     this.#npcActivities = activity.npcActivities ??= {};
     this.#conversations = activity.conversations;
@@ -81,6 +81,13 @@ export class PalaceMechanics {
   snapshot() {
     return { map: this.#world, characters: Object.fromEntries(this.#characters.map(character => [character.id, character.character])),
       npcActivities: this.#npcActivities };
+  }
+  private applyFixture(actorId: string, actionId: string): string {
+    let message = "";
+    this.#simulation = executeLocalMove(this.#simulation, ({ G }) => {
+      message = applyFixtureAction(G, actorId, actionId);
+    });
+    return message;
   }
   private observe(characterId: string, continuingActionId: string) {
     if (characterId === this.#playerId) throw new Error("NPC observation requires an NPC.");
@@ -110,7 +117,7 @@ export class PalaceMechanics {
     if (next) {
       const actor = world.actors.find(a => a.characterId === characterId)!;
       actor.position = create(TilePositionSchema, next); actor.roomId = courtRoomAt(next)?.id ?? actor.roomId;
-      world.revision++;
+      this.#world.revision++;
     }
     return { ...(action.type === "talk" && action.path.length <= 2 ? { done: true, talkTarget: action.target } : { done: false }) };
   }
@@ -132,11 +139,11 @@ export class PalaceMechanics {
     actor.roomId = courtRoomAt(destination)?.id ?? actor.roomId;
     let message = action.description;
     if (action.type === "door") world.doors.find(door => door.id === action.target)!.open = action.open!;
-    if (action.type === "fixture") message = applyFixtureAction(this.#simulation, characterId, action.id);
-    world.revision++;
+    if (action.type === "fixture") message = this.applyFixture( characterId, action.id);
+    this.#world.revision++;
     activity.history.push(message);
     (activity.actionIds ??= []).push(action.id);
-    npcLog.info("NPC action executed", { characterId, actionId, goal, message, revision: world.revision });
+    npcLog.info("NPC action executed", { characterId, actionId, goal, message, revision: this.#world.revision });
     return message;
   }
 
@@ -159,8 +166,8 @@ export class PalaceMechanics {
     const fixture = world.fixtures.find(item => item.id === action.target);
     const position = world.actors.find(actor => actor.characterId === actorId)?.position;
     if (action?.target === actorId && action.itemId) {
-      const result = applyFixtureAction(this.#simulation, actorId, actionId);
-      world.revision++;
+      const result = this.applyFixture( actorId, actionId);
+      this.#world.revision++;
       return result;
     }
     if (!fixture?.position || !position) throw new Error("Unknown furniture interaction.");
@@ -169,8 +176,8 @@ export class PalaceMechanics {
       : Math.abs(position.x - fixture.position.x) + Math.abs(position.y - fixture.position.y) !== 1) {
       throw new Error("Walk to the furniture's interaction spot first.");
     }
-    const result = applyFixtureAction(this.#simulation, actorId, actionId);
-    world.revision++;
+    const result = this.applyFixture( actorId, actionId);
+    this.#world.revision++;
     return result;
   }
 
