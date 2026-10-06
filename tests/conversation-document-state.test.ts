@@ -13,7 +13,7 @@ test("CLI builds Markdown state, discloses edited documents and reloads independ
   const lore = await documentLore(services.scenario, "corvin");
   assert.equal(lore.initial.length, 2);
   const entry = services.scenario.info().characters.find(path => path.includes("/corvin/"))!;
-  assert.ok(services.scenario.snapshot().simulation!.runtimeCharacters.oswin?.dnd);
+  assert.ok(services.scenario.snapshot().simulation!.runtimeCharacters.corvin?.dnd);
   const link = lore.links(lore.initial)[0]!;
   const original = await services.docs.read(link.path);
   await services.docs.insert(link.path, original.sha, original.text.trimEnd().split("\n").length, "\nUPDATED_FACT");

@@ -3,7 +3,7 @@ import { create, type JsonValue } from "@bufbuild/protobuf";
 import { TilePositionSchema, GamePhase, type WorldState as PhysicalMap, type Event } from "../../../packages/contracts/src/index.js";
 import { fixtureActions, applyFixtureAction } from "../../../packages/core/src/fixtures.js";
 import { inventoryOwners, findItem } from "../../../packages/core/src/inventory.js";
-import { CharacterPropertiesSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
+import { type WorldState } from "../../../packages/contracts/src/v2.js";
 import { characterDocuments } from "../../../packages/lore/src/character-id.js";
 import { activityGoal } from "../../../packages/lore/src/activity.js";
 import { foregroundBodies } from "./background-characters.js";

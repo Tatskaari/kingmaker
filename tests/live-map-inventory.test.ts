@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { create } from "@bufbuild/protobuf";
-import { RuntimeCharacterSchema } from "../packages/contracts/src/v2.js";
 import { WorldHost } from "../apps/web/src/world-host.js";
 import { loadPlayableWorld } from "./fixtures.js";
 

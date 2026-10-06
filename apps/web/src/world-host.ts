@@ -195,8 +195,9 @@ export class WorldHost {
     }
     for (const [id, character] of Object.entries(current.simulation!.runtimeCharacters)) {
       const initial = this.initial.simulation!.runtimeCharacters[id];
-      runtimeCharacters[id] = { ...character, dnd: initial?.dnd ? clone(RuntimeCharacterSchema, initial).dnd : undefined,
-        inventory: initial?.inventory ? clone(RuntimeCharacterSchema, initial).inventory : undefined, activity: initial?.activity, wait: initial?.wait,
+      const mechanics = character.characterId === "player" ? character : initial && clone(RuntimeCharacterSchema, initial);
+      runtimeCharacters[id] = { ...character, dnd: mechanics?.dnd, inventory: mechanics?.inventory,
+        activity: initial?.activity, wait: initial?.wait,
         intentRevision: character.intentRevision + 1 };
     }
     const draft = refreshDocumentGraph({ ...current, docs, simulation: { ...current.simulation!, runtimeCharacters } });
