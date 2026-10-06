@@ -17,10 +17,10 @@ export function createInventoryService(store: WorldStore): InventoryService {
   return {
     addToInventory: (id, item) => {
       const input = clone(ItemInstanceSchema, item);
-      return store.write(async () => addToInventory(store.state.simulation!, id, input));
+      return store.write(async () => store.executeMove(addToInventory, id, input));
     },
-    removeFromInventory: (id, itemId) => store.write(async () => removeFromInventory(store.state.simulation!, id, itemId)),
-    transferBetweenInventories: (from, to, itemId) => store.write(async () => transferBetweenInventories(store.state.simulation!, from, to, itemId)),
+    removeFromInventory: (id, itemId) => store.write(async () => store.executeMove(removeFromInventory, id, itemId)),
+    transferBetweenInventories: (from, to, itemId) => store.write(async () => store.executeMove(transferBetweenInventories, from, to, itemId)),
     async read(actorId) {
       const inventory = character(actorId).inventory;
       const snapshot = inventory && clone(InventorySchema, inventory);
@@ -37,7 +37,7 @@ export function createInventoryService(store: WorldStore): InventoryService {
       }
       // Mechanics can run while hashes await. Recheck before publishing any inventory.
       for (const [id, before] of expected) if (version(id) !== before) throw new InventoryConflictError(id);
-      replaceInventories(store.state.simulation!, changes.map(change => ({ ownerId: change.actorId, inventory: change.inventory })));
+      store.executeMove(replaceInventories, changes.map(change => ({ ownerId: change.actorId, inventory: change.inventory })));
     }),
   };
 }

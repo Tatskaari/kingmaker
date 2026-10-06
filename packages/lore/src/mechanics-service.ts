@@ -7,9 +7,9 @@ export function createMechanicsService(store: WorldStore): MechanicsStateService
       for (const id of Object.keys(characters)) {
         if (!store.state.simulation!.runtimeCharacters[id]) throw new Error(`Unknown character: ${id}`);
       }
-      // Mechanics are synchronous. Publish live references without copying the document world.
-      store.state.simulation!.map = map;
-      for (const [id, value] of Object.entries(characters)) store.state.simulation!.runtimeCharacters[id] = value;
+      // Publish the current mechanical records without mutating an older simulation root.
+      store.state.simulation = { ...store.state.simulation!, map,
+        runtimeCharacters: { ...store.state.simulation!.runtimeCharacters, ...characters } };
     },
   };
 }

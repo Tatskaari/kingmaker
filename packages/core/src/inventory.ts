@@ -32,24 +32,29 @@ export function findItem(owners: readonly InventoryOwner[], itemId: string): Ite
   return item && clone(ItemInstanceSchema, item);
 }
 
-export function validateInventories(owners: readonly InventoryOwner[]): void {
+export function inventoryError(owners: readonly InventoryOwner[]): string | undefined {
   const ids = new Set<string>();
   for (const owner of owners) {
     const inventory = owner.inventory;
     if (!inventory) continue;
     for (const item of inventory.items) {
-      if (!item.id || ids.has(item.id)) throw new Error(`Duplicate or empty item ID: ${item.id}`);
+      if (!item.id || ids.has(item.id)) return `Duplicate or empty item ID: ${item.id}`;
       ids.add(item.id);
-      if (item.quantity !== undefined && item.quantity < 1) throw new Error(`Invalid quantity for ${item.id}`);
+      if (item.quantity !== undefined && item.quantity < 1) return `Invalid quantity for ${item.id}`;
     }
     const equipment = inventory.equipment;
     if (!equipment) continue;
     for (const id of [equipment.mainHandItemId, equipment.offHandItemId, equipment.armorItemId,
       equipment.shieldItemId, ...equipment.attunedItemIds].filter(Boolean)) {
-      if (!inventory.items.some(item => item.id === id)) throw new Error(`Equipment ${id} is not carried by ${owner.id}`);
+      if (!inventory.items.some(item => item.id === id)) return `Equipment ${id} is not carried by ${owner.id}`;
     }
     if (new Set(equipment.attunedItemIds).size !== equipment.attunedItemIds.length || equipment.attunedItemIds.length > 3) {
-      throw new Error(`Invalid attunement for ${owner.id}`);
+      return `Invalid attunement for ${owner.id}`;
     }
   }
+}
+
+export function validateInventories(owners: readonly InventoryOwner[]): void {
+  const error = inventoryError(owners);
+  if (error) throw new Error(error);
 }
