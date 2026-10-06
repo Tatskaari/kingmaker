@@ -41,7 +41,7 @@ test("inventory trades commit both owners together and reject duplicate ownershi
   const source = await backing.inventory.read(giver), target = await backing.inventory.read(player);
   const received = clone(InventorySchema, target.inventory ?? create(InventorySchema)); received.items.push(bird());
   const untouched = backing.scenario.snapshot();
-  await assert.rejects(backing.inventory.commit([{ actorId: player, expectedSha: target.sha, inventory: received }]), /Duplicate/);
+  await assert.rejects(backing.inventory.commit([{ actorId: player, expectedSha: target.sha, inventory: received }]), /Invalid simulation move/);
   assert.deepEqual(backing.scenario.snapshot(), untouched);
   inventory.items = inventory.items.filter(item => item.id !== bird().id);
   await backing.inventory.commit([{ actorId: giver, expectedSha: source.sha, inventory }, { actorId: player, expectedSha: target.sha, inventory: received }]);
@@ -74,6 +74,21 @@ test("GM inventories cannot duplicate items already held by a fixture", async ()
     .find(item => item.id === "palace_royal_key")!;
   assert.ok(key);
   await assert.rejects(backing.inventory.commit([{ actorId: "player", expectedSha: before.sha,
-    inventory: create(InventorySchema, { items: [key] }) }]), /Duplicate/);
+    inventory: create(InventorySchema, { items: [key] }) }]), /Invalid simulation move/);
   assert.deepEqual(await backing.inventory.read("player"), before);
+});
+
+test("inventory service commands update versions and return detached reads", async () => {
+  const backing = createScenarioServices(loadPlayableWorld());
+  const before = await backing.inventory.read("player");
+  await backing.inventory.addToInventory("player", bird());
+  const added = await backing.inventory.read("player");
+  assert.notEqual(added.sha, before.sha);
+  added.inventory!.items.length = 0;
+  assert.ok((await backing.inventory.read("player")).inventory!.items.some(item => item.id === bird().id));
+  const room = backing.currentWorld().simulation!.map!.rooms[0]!.id;
+  await backing.inventory.transferBetweenInventories("player", room, bird().id);
+  assert.ok(!((await backing.inventory.read("player")).inventory?.items ?? []).some(item => item.id === bird().id));
+  await backing.inventory.removeFromInventory(room, bird().id);
+  assert.ok(!backing.currentWorld().simulation!.map!.rooms[0]!.inventory!.items.some(item => item.id === bird().id));
 });

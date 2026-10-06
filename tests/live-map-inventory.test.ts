@@ -15,8 +15,9 @@ test("fixture transfers update live simulation inventories without replacing unr
   host.interactFixtureWithEvent("take_palace_royal_key");
   assert.strictEqual(host.world(), world);
   assert.strictEqual(host.world().docs[world.player!], doc);
-  assert.strictEqual(world.simulation!.runtimeCharacters.player, properties);
-  assert.ok(properties.inventory!.items.some(item => item.id === "palace_royal_key"));
+  assert.notStrictEqual(world.simulation!.runtimeCharacters.player, properties);
+  assert.equal(properties.inventory, undefined);
+  assert.ok(world.simulation!.runtimeCharacters.player!.inventory!.items.some(item => item.id === "palace_royal_key"));
   assert.ok(!world.simulation!.map!.fixtures.find(item => item.id === fixture.id)!.inventory!.items.some(item => item.id === "palace_royal_key"));
   const before = host.snapshot();
   assert.throws(() => host.interactFixtureWithEvent("take_palace_royal_key"), /no longer available/);

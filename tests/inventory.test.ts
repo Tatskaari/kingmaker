@@ -1,8 +1,10 @@
+import { executeLocalMove } from "../packages/core/src/local-move-executor.js";
+import { transferBetweenInventories } from "../packages/core/src/simulation-inventory.js";
 import { create, fromBinary, toBinary } from "@bufbuild/protobuf";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { WorldStateSchema } from "../packages/contracts/src/v2.js";
-import { inventoryFor, inventoryOwners, itemsFor, locatedItems, transferItem, validateInventories } from "../packages/core/src/inventory.js";
+import { inventoryFor, inventoryOwners, itemsFor, locatedItems, findItem, validateInventories } from "../packages/core/src/inventory.js";
 import { worldForCharacter, worldViewJson } from "../packages/core/src/physical-view.js";
 import { physicalFixture } from "./fixtures.js";
 
@@ -21,15 +23,14 @@ function example() {
 
 test("transfers preserve item identity, clear equipment, and survive serialization", () => {
   const scenario = example(), sword = itemsFor(inventoryOwners(scenario.characters, scenario.world), "guard")[0]!;
-  assert.throws(() => transferItem(inventoryOwners(scenario.characters, scenario.world), "sword", "missing"), /Unknown inventory owner/);
-  assert.equal(itemsFor(inventoryOwners(scenario.characters, scenario.world), "guard")[0], sword);
-  assert.equal(transferItem(inventoryOwners(scenario.characters, scenario.world), "sword", "chest"), sword);
+  assert.throws(() => executeLocalMove(scenario.source.simulation!, transferBetweenInventories, "guard", "missing", "sword"), /Invalid simulation move/);
+  assert.deepEqual(itemsFor(inventoryOwners(scenario.characters, scenario.world), "guard")[0], sword);
+  scenario.source.simulation = executeLocalMove(scenario.source.simulation!, transferBetweenInventories, "guard", "chest", "sword");
   assert.equal(itemsFor(inventoryOwners(scenario.characters, scenario.world), "guard").length, 0);
   assert.equal(inventoryFor(inventoryOwners(scenario.characters, scenario.world), "guard").equipment!.mainHandItemId, "");
   assert.deepEqual(inventoryFor(inventoryOwners(scenario.characters, scenario.world), "guard").equipment!.attunedItemIds, []);
-  transferItem(inventoryOwners(scenario.characters, scenario.world), "sword", "visitor");
-  transferItem(inventoryOwners(scenario.characters, scenario.world), "sword", "visitor");
-  transferItem(inventoryOwners(scenario.characters, scenario.world), "sword", "hall");
+  scenario.source.simulation = executeLocalMove(scenario.source.simulation!, transferBetweenInventories, "chest", "visitor", "sword");
+  scenario.source.simulation = executeLocalMove(scenario.source.simulation!, transferBetweenInventories, "visitor", "hall", "sword");
   assert.equal(locatedItems(inventoryOwners(scenario.characters, scenario.world)).filter(item => item.id === "sword").length, 1);
   const saved = physicalFixture(fromBinary(WorldStateSchema, toBinary(WorldStateSchema, scenario.source)));
   assert.equal(itemsFor(inventoryOwners(saved.characters, saved.world), "hall")[0]!.definitionId, "longsword");
@@ -50,10 +51,10 @@ test("private inventories and unopened contents stay out of every world projecti
 
 test("duplicate ownership and equipment outside the holder's inventory are rejected", () => {
   const scenario = example();
-  inventoryFor(inventoryOwners(scenario.characters, scenario.world), "visitor").items.push(itemsFor(inventoryOwners(scenario.characters, scenario.world), "guard")[0]!);
+  scenario.source.simulation!.runtimeCharacters.visitor!.inventory!.items.push(itemsFor(inventoryOwners(scenario.characters, scenario.world), "guard")[0]!);
   assert.throws(() => validateInventories(inventoryOwners(scenario.characters, scenario.world)), /Duplicate/);
-  inventoryFor(inventoryOwners(scenario.characters, scenario.world), "visitor").items = [];
-  inventoryFor(inventoryOwners(scenario.characters, scenario.world), "guard").equipment!.armorItemId = "letter";
+  scenario.source.simulation!.runtimeCharacters.visitor!.inventory!.items = [];
+  scenario.source.simulation!.runtimeCharacters.guard!.inventory!.equipment!.armorItemId = "letter";
   assert.throws(() => validateInventories(inventoryOwners(scenario.characters, scenario.world)), /not carried/);
 });
 
@@ -79,17 +80,20 @@ test("authored court builds have valid stats, health, and uniquely carried equip
   assert.deepEqual(saved.characters.map(character => character.dnd), scenario.characters.map(character => character.dnd));
 });
 
-test("inventory operations accept plain owners without a scenario or character proto", async () => {
-  const { InventorySchema } = await import("../packages/contracts/src/index.js");
-  const owners: import("../packages/core/src/inventory.js").InventoryOwner[] = [
-    { id: "traveller", inventory: create(InventorySchema, { items: [{ id: "coin", name: "Coin" }] }) },
-    { id: "recipient" },
-  ];
-  const coin = itemsFor(owners, "traveller")[0]!;
-  transferItem(owners, "coin", "recipient");
-  assert.equal(owners[1]!.inventory!.items[0], coin);
-  assert.equal(itemsFor(owners, "traveller").length, 0);
-  assert.deepEqual(locatedItems(owners).map(({ id, locationId }) => ({ id, locationId })),
-    [{ id: "coin", locationId: "recipient" }]);
-  validateInventories(owners);
+test("inventory reads cannot mutate live owners or allocate missing inventories", () => {
+  const scenario = example(), G = scenario.source.simulation!;
+  const live = Object.values(G.runtimeCharacters);
+  const owners = inventoryOwners(live, G.map);
+  owners[0]!.inventory!.items.length = 0;
+  inventoryFor(live, "guard").equipment!.attunedItemIds.length = 0;
+  itemsFor(live, "guard")[0]!.name = "Changed";
+  findItem(live, "sword")!.name = "Changed";
+  locatedItems(live)[0]!.name = "Changed";
+  assert.equal(G.runtimeCharacters.guard!.inventory!.items[0]!.name, "Sword");
+  assert.deepEqual(G.runtimeCharacters.guard!.inventory!.equipment!.attunedItemIds, ["sword"]);
+  inventoryFor(G.map!.rooms, "hall").items.push(itemsFor(live, "guard")[0]!);
+  assert.equal(G.map!.rooms[0]!.inventory, undefined);
+  const view = worldForCharacter(G.map!, inventoryOwners(live, G.map), "guard");
+  view.fixtures[0]!.inventory!.items.length = 0;
+  assert.equal(G.map!.fixtures[0]!.inventory!.items.length, 1);
 });
