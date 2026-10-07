@@ -20,7 +20,7 @@ const state = worldState(existingMapState, markdown, "Example", "Players/player.
 const json = toJson(WorldStateSchema, state);
 ```
 
-The map input is the existing `kingmaker.v1.WorldState` physical simulation state,
+The map input is the `kingmaker.v1.MapState` physical simulation state,
 adopted as `state.simulation.map`. Pass a fresh map owned by this playthrough. This does not regenerate geometry or reconcile old actor IDs
 with the selected scenario's cast. The caller supplies the desired map baseline.
 
@@ -135,3 +135,5 @@ Saved-game format 6 requires a fresh game. There are no old-save migrations. Thi
 is a state ownership change; boardgame.io and simulation move functions are not
 introduced here. Host conversation/jail state still awaits the subsequent mutation
 API work.
+
+`WorldState.simulation.map.layout` owns the authored tile grid (`WorldMap`), including dimensions, layers, solidity, and room regions. Fresh-game creation supplies it; saves retain it and the map service reads it from the current simulation. AI physical summaries omit the tile grid.

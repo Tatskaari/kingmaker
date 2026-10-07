@@ -1,10 +1,10 @@
 import type { PhysicalCharacterObservation } from "./physical-observation.js";
-import type { WorldState } from "../../../packages/contracts/src/index.js";
+import type { MapState } from "../../../packages/contracts/src/index.js";
 import type { GameAction as CourtAgentAction } from "../../../packages/core/src/actions.js";
 const steps = (count: number) => `${count} ${count === 1 ? "step" : "steps"}`;
 
 /** This text is the world interface sent to Jev, not a separate debug summary. */
-export function renderJevRoomView(world: WorldState, characters: readonly { id: string; name: string }[], observation: PhysicalCharacterObservation): string {
+export function renderJevRoomView(world: MapState, characters: readonly { id: string; name: string }[], observation: PhysicalCharacterObservation): string {
   const roomId = observation.world.location.roomId;
   const room = world.rooms.find(item => item.id === roomId)!;
   const nameOfRoom = (id: string) => world.rooms.find(item => item.id === id)?.name ?? id;

@@ -1,5 +1,5 @@
 import { toJson, create } from "@bufbuild/protobuf";
-import { WorldStateSchema, RoomSchema } from "../packages/contracts/src/index.js";
+import { MapStateSchema, RoomSchema } from "../packages/contracts/src/index.js";
 import { inventoryOwners } from "../packages/core/src/inventory.js";
 import { characterDocuments } from "../packages/lore/src/character-id.js";
 import { loadPlayableWorld } from "./lib/playable-world.js";
@@ -14,7 +14,8 @@ map.rooms = palaceLayout.worldRooms().map(room => Object.assign(create(RoomSchem
 map.fixtures = map.fixtures.filter(fixture => !fixture.id.startsWith("furn_"));
 const characters = characterDocuments(world).map(({ id, document, character }) => ({ id, inventory: character.inventory }));
 map.fixtures.push(...palaceFurniture(map, inventoryOwners(characters, map)));
+// The authored tile layout is compiled on fresh-game creation, not duplicated in this source file.
 // Background bodies are placed from document metadata when a game starts.
 map.actors = map.actors.filter(actor => !actor.instanceId);
-writeFileSync(new URL("../content/palace-map.json", import.meta.url), JSON.stringify(toJson(WorldStateSchema, map), null, 2) + "\n");
+writeFileSync(new URL("../content/palace-map.json", import.meta.url), JSON.stringify(toJson(MapStateSchema, { ...map, layout: undefined }), null, 2) + "\n");
 console.log("Synchronized palace room ownership, access, exits and furniture.");

@@ -1,5 +1,5 @@
 import { create, fromJson, type JsonObject } from "@bufbuild/protobuf";
-import { type WorldState as MapState } from "../../contracts/src/index.js";
+import { type MapState } from "../../contracts/src/index.js";
 import { DocumentSchema, WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
 import { parseMarkdown } from "./markdown.js";
 

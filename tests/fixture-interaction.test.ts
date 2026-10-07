@@ -1,4 +1,4 @@
-import { WorldStateSchema as PhysicalWorldStateSchema } from "../packages/contracts/src/index.js";
+import { MapStateSchema as PhysicalWorldStateSchema } from "../packages/contracts/src/index.js";
 import { SimulationStateSchema } from "../packages/contracts/src/v2.js";
 import assert from "node:assert/strict";
 import test from "node:test";

@@ -1,7 +1,7 @@
 /// <reference lib="webworker" />
 import "./logging.js";
 import { fromJsonString, type JsonValue } from "@bufbuild/protobuf";
-import { WorldStateSchema } from "../../../packages/contracts/src/index.js";
+import { MapStateSchema } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
 import { playableWorld } from "./playable-world.js";
 import { startGameWorker } from "./game-worker.js";
@@ -13,7 +13,7 @@ const scenarioPromise: Promise<WorldState> = fetch(scenarioUrl).then(async respo
   if (!response.ok) throw new Error(`Could not load scenario (${response.status})`);
   const markdown = new Map(Object.entries(vault).map(([path, text]) => [path.replace("../../../lore/", ""), text]));
   const sidecars = new Map(Object.entries(properties).map(([path, text]) => [path.replace("../../../lore/", ""), JSON.parse(text) as JsonValue]));
-  return playableWorld(fromJsonString(WorldStateSchema, await response.text()), markdown, sidecars);
+  return playableWorld(fromJsonString(MapStateSchema, await response.text()), markdown, sidecars);
 });
 
 

@@ -4,7 +4,7 @@ import { fromBinary, fromJson, toBinary, toJson } from "@bufbuild/protobuf";
 import { SimulationStateSchema } from "../packages/contracts/src/v2.js";
 import { WorldHost } from "../apps/web/src/world-host.js";
 import { loadPlayableWorld } from "./fixtures.js";
-import { WorldStateSchema as MapSchema } from "../packages/contracts/src/index.js";
+import { MapStateSchema as MapSchema } from "../packages/contracts/src/index.js";
 import { playableWorld } from "../apps/web/src/playable-world.js";
 import { loadDocumentLayers } from "../packages/service-tools/src/layered-docs.js";
 import palace from "../content/palace-map.json" with { type: "json" };

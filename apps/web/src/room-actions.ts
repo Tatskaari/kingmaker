@@ -1,5 +1,5 @@
 import { itemsFor, type InventoryOwner } from "../../../packages/core/src/inventory.js";
-import type { WorldState } from "../../../packages/contracts/src/index.js";
+import type { MapState } from "../../../packages/contracts/src/index.js";
 import { doorActionLegality } from "../../../packages/core/src/access.js";
 import { fixtureActions } from "../../../packages/core/src/fixtures.js";
 import type { GameAction as CourtAgentAction } from "../../../packages/core/src/actions.js";
@@ -14,7 +14,7 @@ const neighbours = (point: Point): Point[] => [
 
 /** Room-scoped routes cannot take shortcuts through a third room. Door approaches
  * may occupy the adjoining room's threshold in the authored map. */
-export function roomAgentActions(world: WorldState, characters: readonly { id: string; name: string }[], owners: readonly InventoryOwner[], characterId: string, continuingActionId?: string): CourtAgentAction[] {
+export function roomAgentActions(world: MapState, characters: readonly { id: string; name: string }[], owners: readonly InventoryOwner[], characterId: string, continuingActionId?: string): CourtAgentAction[] {
   const actor = world.actors.find(item => item.characterId === characterId)!;
   const start = actor.position!, room = world.rooms.find(item => item.id === actor.roomId)!;
   const route = (end: Point, allowedRoomIds = [room.id], thresholds: Point[] = []) =>

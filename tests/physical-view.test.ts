@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { clone, create } from "@bufbuild/protobuf";
-import { InventorySchema, WorldStateSchema } from "../packages/contracts/src/index.js";
+import { InventorySchema, MapStateSchema } from "../packages/contracts/src/index.js";
 import { inventoryOwners } from "../packages/core/src/inventory.js";
 import { worldForCharacter, worldViewJson } from "../packages/core/src/physical-view.js";
 import { renderWorldPrompt } from "../packages/core/src/world-prompt.js";
 
 function physicalState() {
-  const map = create(WorldStateSchema, {
+  const map = create(MapStateSchema, {
     actors: [{ characterId: "visitor", roomId: "hall" }, { characterId: "guard", roomId: "hall" }],
     rooms: [{ id: "hall", name: "Hall", inventory: { items: [{ id: "hidden", name: "Hidden", concealed: true }] } }],
     fixtures: [{ id: "chest", name: "Chest", revealedName: "Secret chest", requiredKeyId: "key",
@@ -20,7 +20,7 @@ function physicalState() {
 
 test("physical views filter ownership and discovery without character or scenario protos", () => {
   const { map, owners } = physicalState();
-  const before = clone(WorldStateSchema, map);
+  const before = clone(MapStateSchema, map);
   const visitor = worldForCharacter(map, owners, "visitor");
   assert.doesNotMatch(JSON.stringify(worldViewJson(visitor)), /sword|Secret instructions|Secret chest|hidden/);
   assert.equal(visitor.fixtures[0]!.requiredKeyId, "");

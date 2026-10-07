@@ -1,7 +1,7 @@
 import { executeLocalMove } from "../../../packages/core/src/local-move-executor.js";
 import { createPhysicalEvent } from "./physical-event.js";
 import { create, type JsonValue } from "@bufbuild/protobuf";
-import { TilePositionSchema, GamePhase, type WorldState as PhysicalMap, type Event } from "../../../packages/contracts/src/index.js";
+import { TilePositionSchema, GamePhase, type MapState as PhysicalMap, type Event } from "../../../packages/contracts/src/index.js";
 import { fixtureActions, applyFixtureAction } from "../../../packages/core/src/fixtures.js";
 import { inventoryOwners, findItem } from "../../../packages/core/src/inventory.js";
 import { type WorldState, type SimulationState } from "../../../packages/contracts/src/v2.js";

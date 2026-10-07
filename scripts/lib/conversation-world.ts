@@ -1,7 +1,7 @@
 import { readFileSync, existsSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { create, fromJson } from "@bufbuild/protobuf";
-import { WorldStateSchema as MapSchema } from "../../packages/contracts/src/index.js";
+import { MapStateSchema as MapSchema } from "../../packages/contracts/src/index.js";
 import { CharacterPropertiesSchema } from "../../packages/contracts/src/v2.js";
 import { worldState } from "../../packages/lore/src/world-state.js";
 import { readVault } from "./lore-access.js";

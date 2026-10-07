@@ -1,9 +1,9 @@
 import { renderPrompt } from "../../prompts/src/index.js";
 import { toJson } from "@bufbuild/protobuf";
-import { GamePhase, ItemInstanceSchema, type WorldState } from "../../contracts/src/index.js";
+import { GamePhase, ItemInstanceSchema, type MapState } from "../../contracts/src/index.js";
 import type { locatedItems } from "./inventory.js";
 
-type WorldView = WorldState & { objects: ReturnType<typeof locatedItems> };
+type WorldView = MapState & { objects: ReturnType<typeof locatedItems> };
 
 /** A narrative view, not an executable map or replacement save. Callers must apply
  * character visibility before rendering; omitting characterId is for the GM only. */

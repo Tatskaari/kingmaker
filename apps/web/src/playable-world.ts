@@ -1,7 +1,8 @@
+import { palaceMap } from "./palace-map.js";
 import { seedPresentation, presentationPath } from "../../../packages/lore/src/presentation.js";
 import { fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import { clone } from "@bufbuild/protobuf";
-import { GamePhase, DndCharacterSchema, WorldStateSchema as MapSchema, type WorldState as PalaceMap } from "../../../packages/contracts/src/index.js";
+import { GamePhase, DndCharacterSchema, WorldMapSchema, MapStateSchema as MapSchema, type MapState as PalaceMap } from "../../../packages/contracts/src/index.js";
 import { CharacterPropertiesSchema, WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
 import { assignGuardPosts } from "./guard-duty.js";
 import { placeBackgroundCharacters } from "./background-characters.js";
@@ -11,6 +12,7 @@ import envoySheet from "../../../content/envoy-sheet.json" with { type: "json" }
 /** Explicit fresh-game palace baseline; not a saved-game conversion. */
 export function playableWorld(baseline: PalaceMap, markdown: ReadonlyMap<string, string>, sidecars: ReadonlyMap<string, JsonValue> = new Map()) {
   const map = clone(MapSchema, baseline);
+  map.layout = clone(WorldMapSchema, baseline.layout ?? palaceMap);
   const player = "Players/envoy.md";
   const notes = new Map(markdown);
   notes.set(player, "---\nname: Visiting Envoy\nvisibility: private\nsummary: A visiting envoy attending the Centennial Assembly.\nreaders: [\"character:player\"]\n---\nYou are a visiting envoy attending the Centennial Assembly.");

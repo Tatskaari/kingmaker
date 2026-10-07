@@ -1,5 +1,5 @@
 import type { Document, WorldState, CharacterProperties, RuntimeCharacter } from "../../contracts/src/v2.js";
-import type { ActorState, WorldState as MapState } from "../../contracts/src/index.js";
+import type { ActorState, MapState } from "../../contracts/src/index.js";
 
 export interface DocumentSnapshot {
   path: string;
