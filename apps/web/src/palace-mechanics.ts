@@ -1,10 +1,11 @@
+import { interactWithFixture } from "../../../packages/core/src/simulation-fixtures.js";
 import { doorError, setDoor } from "../../../packages/core/src/simulation-doors.js";
 import { actorPosition, mapAtTime } from "../../../packages/core/src/simulation-movement.js";
 import { executeLocalMove } from "../../../packages/core/src/local-move-executor.js";
 import { createPhysicalEvent } from "./physical-event.js";
 import { create, type JsonValue } from "@bufbuild/protobuf";
 import { GamePhase, type MapState as PhysicalMap, type Event } from "../../../packages/contracts/src/index.js";
-import { fixtureActions, applyFixtureAction } from "../../../packages/core/src/fixtures.js";
+import { fixtureActions, fixtureActionMessage } from "../../../packages/core/src/fixtures.js";
 import { inventoryOwners, findItem } from "../../../packages/core/src/inventory.js";
 import { type WorldState, type SimulationState } from "../../../packages/contracts/src/v2.js";
 import { characterDocuments } from "../../../packages/lore/src/character-id.js";
@@ -84,10 +85,8 @@ export class PalaceMechanics {
       npcActivities: this.#npcActivities };
   }
   private applyFixture(actorId: string, actionId: string): string {
-    let message = "";
-    this.#simulation = executeLocalMove(this.#simulation, ({ G }) => {
-      message = applyFixtureAction(G, actorId, actionId);
-    });
+    const message = fixtureActionMessage(this.#simulation, actorId, actionId);
+    this.#simulation = executeLocalMove(this.#simulation, interactWithFixture, actorId, actionId, this.now());
     return message;
   }
   private observe(characterId: string, continuingActionId: string) {
@@ -139,7 +138,7 @@ export class PalaceMechanics {
       this.#simulation = executeLocalMove(this.#simulation, setDoor, characterId, action.target, action.open!, atMs);
     } else {
       if (action.type === "fixture") message = this.applyFixture(characterId, action.id);
-      this.#world.revision++;
+      if (action.type !== "fixture") this.#world.revision++;
     }
     activity.history.push(message);
     (activity.actionIds ??= []).push(action.id);
@@ -167,7 +166,6 @@ export class PalaceMechanics {
     const position = actorPosition(world.actors.find(actor => actor.characterId === actorId), this.now());
     if (action?.target === actorId && action.itemId) {
       const result = this.applyFixture( actorId, actionId);
-      this.#world.revision++;
       return result;
     }
     if (!fixture?.position || !position) throw new Error("Unknown furniture interaction.");
@@ -177,7 +175,6 @@ export class PalaceMechanics {
       throw new Error("Walk to the furniture's interaction spot first.");
     }
     const result = this.applyFixture( actorId, actionId);
-    this.#world.revision++;
     return result;
   }
 
