@@ -110,13 +110,17 @@ test("door approaches on adjoining threshold tiles remain executable", () => {
   }
 });
 
-test("action discovery never reads tile geometry or claims route distances", () => {
+test("action discovery estimates Manhattan distances without reading tiles", () => {
   const scenario = load(), world = scenario.world!;
   place(scenario, "great_hall");
-  Object.defineProperty(world, "layout", { get() { throw new Error("Discovery must not pathfind"); } });
+  Object.defineProperty(world.layout!, "tiles", { get() { throw new Error("Discovery must not pathfind"); } });
   const actions = roomAgentActions(world, scenario.characters, inventoryOwners(scenario.characters, world), "corvin");
   assert.ok(actions.some(action => action.type === "talk"));
   assert.ok(actions.some(action => action.type === "fixture"));
   assert.ok(actions.some(action => action.type === "door"));
-  assert.ok(actions.every(action => action.path.length === 0 && !action.description.includes("steps")));
+  assert.ok(actions.every(action => action.path.length === 0 && Number.isFinite(action.estimatedSteps)));
+  const actor = world.actors.find(item => item.characterId === "corvin")!;
+  const king = world.actors.find(item => item.characterId === "aldren")!;
+  const distance = Math.abs(actor.position!.x - king.position!.x) + Math.abs(actor.position!.y - king.position!.y);
+  assert.equal(actions.find(action => action.id === "talk_aldren")!.estimatedSteps, Math.max(0, distance - 1));
 });
