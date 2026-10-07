@@ -1,3 +1,4 @@
+import { publishSimulationChanges } from "../../core/src/simulation-publication.js";
 import { executeLocalMove } from "../../core/src/local-move-executor.js";
 import type { SimulationMove } from "../../core/src/simulation-move.js";
 import { clone } from "@bufbuild/protobuf";
@@ -26,7 +27,16 @@ export class WorldStore {
   publishDocuments(draft: WorldState, prepared = this.graph): void {
     const graph = prepared.update(draft);
     validateDocuments(draft);
+    const before = this.state.simulation!, next = draft.simulation!;
+    if (next !== before) {
+      const characters = Object.fromEntries(Object.entries(next.runtimeCharacters)
+        .filter(([id, actor]) => actor !== before.runtimeCharacters[id]));
+      if (Object.keys(before.runtimeCharacters).some(id => !next.runtimeCharacters[id])) throw new Error("Document updates cannot remove runtime characters.");
+      if (next.map !== before.map || Object.keys(characters).length) {
+        this.executeMove(publishSimulationChanges, { ...(next.map !== before.map ? { map: next.map } : {}), characters });
+      }
+    }
     this.graph = graph;
-    this.state = draft;
+    this.state = { ...draft, simulation: this.state.simulation };
   }
 }
