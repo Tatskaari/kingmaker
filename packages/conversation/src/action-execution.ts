@@ -12,7 +12,7 @@ export const mapActionStrategy: ActionExecutionStrategy = {
   classify: async () => ({}),
   async resolve(context, _labels, signal, services) {
     signal.throwIfAborted();
-    return services.map.interact(context.command);
+    return services.map.interact(context.command, signal);
   },
 };
 export async function runActionExecution(context: ActionExecutionContext,

@@ -29,7 +29,7 @@ export async function runTreasuryWaitEval(source: WorldState, apiKey: string, op
         break;
       }
       for (let step = 0; step < 300; step++) {
-        const result = game.stepNpcAction(id, plan.action.id, plan.goal);
+        const result = await game.stepNpcAction(id, plan.action.id, plan.goal);
         if (result.talkTarget) throw new Error("Character initiated a conversation instead of travelling to wait.");
         if (result.done) break;
         if (step === 299) throw new Error("Movement step limit exceeded.");

@@ -185,12 +185,11 @@ async function runBackground(next: { id: string; handoffs: number }) {
           let result: { done: boolean; talkTarget?: string; worldEvent?: Event } | undefined;
           try {
             while (valid()) {
-              result = await commitMutation(game, () => { signal.throwIfAborted(); return game.executeAction({ command: { kind: "step", characterId: id, actionId: plan.action!.id, goal: plan.goal } }, signal); });
+              result = await game.executeAction({ command: { kind: "step", characterId: id, actionId: plan.action!.id, goal: plan.goal } }, signal);
               await game.presentMap("player", result).catch(error => providerWarning(String(error)));
               if (!valid()) return;
               publishNpc(`${id}: ${plan.action.description}`);
               if (result.done) break;
-              await new Promise(resolve => setTimeout(resolve, 100));
             }
           } catch (error) {
             if (!valid()) return;

@@ -48,7 +48,7 @@ test("v2 planning and physical execution use the live state", async () => {
   const signal = new AbortController().signal;
   const plan = await runtime.planNpc("rowan", signal);
   assert.ok(plan.action);
-  const result = runtime.stepNpcAction("rowan", plan.action.id, plan.goal);
+  const result = await runtime.stepNpcAction("rowan", plan.action.id, plan.goal);
   assert.equal(typeof result.done, "boolean");
   assert.ok(!("generations" in plan));
   assert.ok(!("generations" in result));

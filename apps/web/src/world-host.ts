@@ -129,12 +129,12 @@ export class WorldHost {
       return { characterId: id, map: worldForCharacter(map, owners, id),
         actions: roomAgentActions(map, characters, owners, id) };
     },
-    interact: async (command) => {
-      if (command.kind === "step") return this.stepNpcAction(command.characterId, command.actionId, command.goal);
+    interact: async (command, signal) => {
+      if (command.kind === "step") return this.stepNpcAction(command.characterId, command.actionId, command.goal, signal);
       let worldEvent: Event | undefined, message: string | undefined;
       if (command.kind === "move") {
         const before = this.world().simulation!.map!.actors.find(actor => actor.characterId === "player")!.roomId;
-        const outcome = await this.movePlayer(command.destination);
+        const outcome = await this.movePlayer(command.destination, signal);
         if (outcome !== "arrived") return { done: false, movementOutcome: outcome };
         const world = this.world().simulation!.map!, player = world.actors.find(actor => actor.characterId === "player")!;
         const room = world.rooms.find(room => room.id === player.roomId)!;
@@ -153,18 +153,18 @@ export class WorldHost {
   jail() { return this.activity.jail && { ...this.activity.jail }; }
   protected assertPlayerFree() { if (this.activity.jail) throw new Error("You are in jail."); }
   releaseFromJail() { delete this.activity.jail; }
-  async movePlayer(destination: Point) {
+  async movePlayer(destination: Point, signal?: AbortSignal) {
     this.assertPlayerFree();
     const G = this.world().simulation!, map = G.map;
     if (!map?.layout || map.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter the court before walking around.");
     const room = roomAt(map.layout, destination);
     if (!room || !map.rooms.some(existing => existing.id === room.id)) throw new Error("That destination is outside the palace.");
-    const current = getActorPosition(G, "player", Date.now());
+    const current = getActorPosition(G, "player", this.movement.now());
     if (current?.x === destination.x && current.y === destination.y) {
       if (map.actors.find(actor => actor.characterId === "player")?.movement) await this.movement.cancel("player");
       return "arrived" as const;
     }
-    return this.movement.move("player", { id: crypto.randomUUID(), to: destination, msPerTile: 100 });
+    return this.movement.move("player", { id: crypto.randomUUID(), to: destination, msPerTile: 100 }, signal);
   }
   setDoor(id: string, open: boolean) {
     this.assertPlayerFree();
@@ -175,9 +175,19 @@ export class WorldHost {
     return event;
   }
   interactFixtureWithEvent(id: string) { this.assertPlayerFree(); return this.mutate(game => game.interactFixtureWithEvent(id)); }
-  stepNpcAction(id: string, action: string, goal: string) {
-    const result = this.mutate(game => game.stepNpcAction(id, action, goal));
-    return result;
+  async stepNpcAction(id: string, actionId: string, goal: string, signal?: AbortSignal): Promise<import("../../../packages/conversation/src/map.js").MapResult> {
+    signal?.throwIfAborted();
+    const prepared = this.mutate(game => game.prepareNpcAction(id, actionId, goal));
+    const { action, actorId, roomId } = prepared;
+    if (action.path.length > 1) {
+      const door = action.type === "door" ? this.world().simulation!.map!.doors.find(door => door.id === action.target) : undefined;
+      const outcome = await this.movement.move(actorId, { id: crypto.randomUUID(), to: action.path.at(-1)!, path: action.path,
+        msPerTile: 100, allowedRoomIds: action.type === "move" ? [roomId, action.target] : [roomId],
+        ...(door ? { thresholds: [...door.tiles, ...door.interactionSpots] } : {}) }, signal);
+      signal?.throwIfAborted();
+      if (outcome !== "arrived") return { done: false, movementOutcome: outcome };
+    }
+    return this.writeSimulation(() => { signal?.throwIfAborted(); return this.mutate(game => game.stepNpcAction(id, actionId, goal)); });
   }
   finishNpcRun(id: string, reason: Parameters<PalaceMechanics["finishNpcRun"]>[1], detail: string) {
     this.mutate(game => game.finishNpcRun(id, reason, detail));

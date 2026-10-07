@@ -59,10 +59,20 @@ export function createMovementService(authority: MovementAuthority, clock: Movem
       job.stop = clock.schedule(() => void tick(), Math.max(0, movement.startedAtMs + movement.durationMs - clock.now()));
     });
   }
+  async function cancel(actorId: string, expectedId?: string) {
+    await authority.write(() => {
+      const key = keyFor(actorId), movement = movementActor(authority.currentSimulation(), key)?.movement;
+      if (!movement || (expectedId && movement.id !== expectedId)) return;
+      authority.executeMove(cancelMove, key, movement.id, clock.now());
+      discard(key, "cancelled");
+    });
+    authority.changed();
+  }
   return {
-    async move(actorId: string, request: Omit<StartMovement, "startedAtMs">): Promise<MovementOutcome> {
+    async move(actorId: string, request: Omit<StartMovement, "startedAtMs">, signal?: AbortSignal): Promise<MovementOutcome> {
       let completion: Promise<MovementOutcome> | undefined;
       await authority.write(() => {
+        signal?.throwIfAborted();
         const key = keyFor(actorId);
         authority.executeMove(startMove, key, { ...request, startedAtMs: clock.now() });
         discard(key, "superseded");
@@ -71,17 +81,14 @@ export function createMovementService(authority: MovementAuthority, clock: Movem
         void completion.catch(() => {});
       });
       authority.changed();
-      return completion!;
+      const abort = () => { void cancel(actorId, request.id).catch(authority.error); };
+      signal?.addEventListener("abort", abort, { once: true });
+      if (signal?.aborted) abort();
+      try { return await completion!; }
+      finally { signal?.removeEventListener("abort", abort); }
     },
-    async cancel(actorId: string) {
-      await authority.write(() => {
-        const key = keyFor(actorId), movement = movementActor(authority.currentSimulation(), key)?.movement;
-        if (!movement) return;
-        authority.executeMove(cancelMove, key, movement.id, clock.now());
-        discard(key, "cancelled");
-      });
-      authority.changed();
-    },
+    cancel,
+    now: () => clock.now(),
     /** Load starts fresh timers; pending interaction callbacks are intentionally not saved. */
     resume() {
       for (const actor of authority.currentSimulation().map?.actors ?? []) {

@@ -16,7 +16,7 @@ test("each guard has its own duty and can approach a witnessed intruder", async 
   assert.ok(game.map.observe(guard).actions.some(action => action.type === "move"));
   const before = game.world().simulation!.map!.actors.find(actor => actor.characterId === "palace-guard-10")!.position;
   const move = game.map.observe(guard).actions.find(action => action.type === "move")!;
-  game.stepNpcAction(guard, move.id, activityGoal(world, guard)!);
+  await game.stepNpcAction(guard, move.id, activityGoal(world, guard)!);
   assert.deepEqual(game.world().simulation!.map!.actors.find(actor => actor.characterId === "palace-guard-10")!.position, before);
 });
 
