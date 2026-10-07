@@ -96,6 +96,12 @@ export const palaceMap: WorldMap = create(WorldMapSchema, {
   }, {
     id: "palace-furnishings", imagePath: "./assets/caerwyn-furnishings.png",
     tileWidth: 256, tileHeight: 256, columns: 4, tileCount: 16,
+  }, {
+    id: "palace-sketchbook", imagePath: "./assets/caerwyn-sketchbook.png",
+    tileWidth: 256, tileHeight: 256, columns: 4, tileCount: 16,
+  }, {
+    id: "sketchbook-masonry", imagePath: "./assets/caerwyn-sketchbook-walls.png",
+    tileWidth: 256, tileHeight: 256, columns: 2, tileCount: 4,
   }],
   tiles: tiles as Tile[],
   rooms,

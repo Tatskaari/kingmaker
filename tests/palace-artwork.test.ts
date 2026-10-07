@@ -14,3 +14,12 @@ test("all delegation reception rooms receive wood and their own rug, including t
     assert.ok(painted.some(p => p.sprite === rug && p.x === r.x + 1 && p.y === r.y + 1), `${id} has its delegation rug`);
   }
 });
+
+test("parchment draws a separate room and masonry atlas rather than filtering the furnished art", () => {
+  const atlases = new Set<string>();
+  const renderer = { drawSprite: (atlas: string) => atlases.add(atlas) };
+  drawPalaceInteriors(renderer as unknown as CanvasMapRenderer, palaceMap, "parchment");
+  assert.ok(atlases.has("palace-sketchbook"));
+  assert.ok(atlases.has("sketchbook-masonry"));
+  assert.ok(!atlases.has("palace-furnishings"));
+});

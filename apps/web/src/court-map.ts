@@ -1,4 +1,4 @@
-import { drawPalaceInteriors, furnishingSprites, mapArtwork, mapArtworkFilter } from "./palace-artwork.js";
+import { drawPalaceInteriors, furnishingSprites, mapArtwork, furnishingAtlas } from "./palace-artwork.js";
 import { actorPosition, actorTile } from "../../../packages/core/src/simulation-movement.js";
 import { courtRoomAt, courtDoorBlockers, courtInteractionPoint, nearestDoorSpot } from "./court-navigation.js";
 import { doorActionLegality, type RoomAccess } from "../../../packages/core/src/access.js";
@@ -45,10 +45,7 @@ export async function captureCourtMap(root: HTMLElement | null): Promise<Blob | 
       const bounds = sprite.getBoundingClientRect();
       const x = (bounds.left - stageRect.left) * scaleX, y = (bounds.top - stageRect.top) * scaleY;
       const width = bounds.width * scaleX, height = bounds.height * scaleY;
-      context.save();
-      context.filter = getComputedStyle(sprite).filter;
       context.drawImage(sprites, spriteId % 12 * cellWidth, Math.floor(spriteId / 12) * cellHeight, cellWidth, cellHeight, x, y, width, height);
-      context.restore();
       if (!label?.textContent) continue;
       const text = label.textContent;
       context.font = `${Math.max(9, Math.round(13 * scaleY))}px Georgia, serif`;
@@ -241,16 +238,13 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   let drawnArtwork = "";
   const draw = () => {
     drawnArtwork = artworkKey();
-    const artworkContext = canvas.getContext("2d")!;
-    artworkContext.save();
-    artworkContext.filter = mapArtworkFilter();
-    stage.style.setProperty("--map-artwork-filter", artworkContext.filter);
+    stage.dataset.artwork = mapArtwork();
     renderer.render();
     const furnished = mapArtwork() !== "pencil";
     if (furnished) drawPalaceInteriors(renderer, palaceMap);
     for (const item of fixtures) if (item.position) {
       const furnishing = furnished ? (item.sprite === 72 && item.roomId === "dining_hall" ? 8 : furnishingSprites[item.sprite]) : undefined;
-      renderer.drawSprite(furnishing === undefined ? "tiny-dungeon" : "palace-furnishings", furnishing ?? item.sprite, item.position.x, item.position.y);
+      renderer.drawSprite(furnishing === undefined ? "tiny-dungeon" : furnishingAtlas(), furnishing ?? item.sprite, item.position.x, item.position.y);
       if (item.open) {
         const context = canvas.getContext("2d")!;
         context.save(); context.fillStyle = "#f5dc9a";
@@ -269,7 +263,6 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       });
       context.stroke();
     }
-    artworkContext.restore();
   };
   draw();
   root.addEventListener("court-artwork", () => { closeMenu(); draw(); }, { signal: listeners.signal });

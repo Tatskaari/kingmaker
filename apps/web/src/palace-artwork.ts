@@ -15,23 +15,23 @@ export function selectMapArtwork(value: string): void {
   try { localStorage.setItem(storageKey, selected); } catch {}
 }
 
-// A flat print treatment, applied equally to scenery and portrait counters.
-export function mapArtworkFilter(): string {
-  return mapArtwork() === "parchment" ? "grayscale(1) sepia(.45) contrast(.9)" : "none";
+export function furnishingAtlas(artwork: MapArtwork = mapArtwork()): string {
+  return artwork === "parchment" ? "palace-sketchbook" : "palace-furnishings";
 }
 
 export const furnishingSprites: Readonly<Record<number, number>> = { 63: 10, 73: 9, 75: 11, 79: 12, 80: 13, 90: 14 };
 
 /** Artwork only: all floor ownership, fixture footprints and doorway access stay authored. */
-export function drawPalaceInteriors(renderer: CanvasMapRenderer, map: WorldMap): void {
+export function drawPalaceInteriors(renderer: CanvasMapRenderer, map: WorldMap, artwork: MapArtwork = mapArtwork()): void {
   if (map.id !== "caerwyn-palace") return;
   const sprite = (id: number, x: number, y: number, width = 1, height = 1, inset = 0) =>
-    renderer.drawSprite("palace-furnishings", id, x, y, width, height, inset);
+    renderer.drawSprite(furnishingAtlas(artwork), id, x, y, width, height, inset);
   // Paper outside the cutaway; stone in corridors and wood in inhabited rooms.
   map.tiles.forEach((tile, index) => {
     const x = index % map.width, y = Math.floor(index / map.width);
     if (tile.layers.length === 1 && tile.layers[0]?.solid) sprite(2, x, y, 1, 1, .12);
     else if (!tile.layers.some(layer => layer.solid)) sprite(1, x, y, 1, 1, .12);
+    else if (artwork === "parchment") renderer.drawSprite("sketchbook-masonry", (x + y * 3) % 4, x, y);
   });
   for (const room of map.rooms) {
     const r = room.regions[0];
