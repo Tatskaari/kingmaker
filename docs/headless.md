@@ -54,7 +54,7 @@ TypeScript syntax requiring transformation, such as enums, is unsupported. Each
 snippet has fresh local variables but acts on the same persistent game. Requests
 from all clients execute sequentially. There is no execution timeout; trusted
 snippets that loop forever require restarting the process. Errors retain earlier
-mutations, and disconnecting does not cancel or safely retry execution.
+accepted commands, and disconnecting does not cancel or safely retry execution.
 
 Save a full session with:
 
@@ -62,14 +62,19 @@ Save a full session with:
 npm run --silent headless -- exec --code 'return game.snapshot();' > /tmp/palace-save.json
 ```
 
-Inspect or edit only what you need:
+Inspect only what you need; apply changes through services:
 
 ```ts
-return game.inspect().characters.find(c => c.id === "rowan").currentGoal;
+return game.inspect().simulation.runtimeCharacters.rowan.activity;
 // Or, in another snippet:
-game.edit(state => { state.world.day = 2; });
+const map = game.inspect().simulation.map;
+game.services.mechanics.commit({ ...map, day: 2 }, {});
 return game.overview();
 ```
+
+Simulation state returned by `inspect()` is frozen. Use `game.services` for
+validated document, inventory and mechanics updates, or `game.move()` / `game.act()`
+for gameplay. Direct assignment is rejected; `game.edit()` is no longer provided.
 
 The socket speaks newline-delimited JSON-RPC 2.0. `game.execute` params/results
 use ProtoJSON for `ExecuteRequest`/`ExecuteResponse`, defined in

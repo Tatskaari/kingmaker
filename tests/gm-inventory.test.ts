@@ -60,7 +60,8 @@ test("inventory versions ignore document edits and cover physical inventory muta
   const inventory = create(InventorySchema, { items: [bird()] });
   await backing.inventory.commit([{ actorId: "player", expectedSha: before.sha, inventory }]);
   const read = await backing.inventory.read("player");
-  backing.currentWorld().simulation!.runtimeCharacters.player!.inventory!.items[0]!.quantity = 2;
+  const changed = create(InventorySchema, { items: [{ ...bird(), quantity: 2 }] });
+  await backing.inventory.commit([{ actorId: "player", expectedSha: read.sha, inventory: changed }]);
   const result = await gm.call("update_inventories", { changes: [{ actorId: "player", expectedSha: read.sha,
     inventoryJson: toJsonString(InventorySchema, inventory) }] });
   assert.equal((result as { error: string }).error, "inventory_conflict");

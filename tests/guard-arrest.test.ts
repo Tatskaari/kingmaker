@@ -80,7 +80,9 @@ test("a conversation remembered at one post is available to the brothers at anot
   const world = runtime.world();
   const player = world.simulation!.map!.actors.find(actor => actor.characterId === "player")!;
   const brother = world.simulation!.map!.actors.filter(actor => actor.instanceId?.startsWith("palace-guard-")).at(-1)!;
-  player.position = { ...brother.position!, y: brother.position!.y + 1 };
+  const map = world.simulation!.map!;
+  runtime.services.mechanics.commit({ ...map, actors: map.actors.map(actor => actor === player
+    ? { ...actor, position: { ...brother.position!, y: brother.position!.y + 1 } } : actor) }, {});
   const { toJson } = await import("@bufbuild/protobuf");
   const { WorldStateSchema } = await import("../packages/contracts/src/v2.js");
   runtime.restore({ ...saved, world: toJson(WorldStateSchema, world) });

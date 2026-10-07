@@ -11,7 +11,7 @@ const request = (code: string, id: string | number = 1) => ({ jsonrpc: "2.0", id
 
 test("protobuf JSON-RPC executes TypeScript, awaits promises and preserves live state", async () => {
   const dispatch = dispatcher();
-  assert.deepEqual(await dispatch(request('const day: number = 7; await Promise.resolve(); game.edit(s => { s.simulation!.map.day = day; }); console.log("day", day); return day;', "first")),
+  assert.deepEqual(await dispatch(request('const day: number = 7; await Promise.resolve(); game.services.mechanics.commit({ ...game.inspect().simulation!.map, day: day }, {}); console.log("day", day); return day;', "first")),
     { jsonrpc: "2.0", id: "first", result: { value: 7, logs: ["day 7"] } });
   assert.deepEqual(await dispatch(request("return game.inspect().simulation!.map.day;")),
     { jsonrpc: "2.0", id: 1, result: { value: 7, logs: [] } });
@@ -25,11 +25,14 @@ test("protocol validation, notifications, batches and execution errors", async (
     [{ ...request("return 1;"), params: { code: 42 } }, -32602], [request(""), -32602]] as const) {
     assert.equal((await dispatch(input) as any).error.code, code);
   }
-  const notification = { jsonrpc: "2.0", method: "game.execute", params: { code: "game.edit(s => { s.simulation!.map.day = 9; });" } };
+  const notification = { jsonrpc: "2.0", method: "game.execute", params: { code: "game.services.mechanics.commit({ ...game.inspect().simulation!.map, day: 9 }, {});" } };
   assert.equal(await dispatch(notification), undefined);
   const batch = await dispatch([notification, request("return game.inspect().simulation!.map.day;")]) as any[];
   assert.equal(batch.length, 1);
   assert.equal(batch[0].result.value, 9);
+  const direct = await dispatch(request("game.inspect().simulation!.map.day = 99;")) as any;
+  assert.equal(direct.error.code, -32000);
+  assert.equal((await dispatch(request("return game.inspect().simulation!.map.day;")) as any).result.value, 9);
   const failed = await dispatch(request('console.log("before"); throw new Error("oops");')) as any;
   assert.equal(failed.error.code, -32000);
   assert.deepEqual(failed.error.data.logs, ["before"]);
