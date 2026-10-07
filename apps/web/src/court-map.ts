@@ -231,6 +231,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   const artworkKey = () => JSON.stringify([
     doors.map(door => [door.tiles, door.open]),
     fixtures.map(item => [item.position, item.sprite, item.open]),
+    markers.find(marker => marker.id === player?.id)?.movement?.id,
   ]);
   let drawnArtwork = "";
   const draw = () => {
@@ -246,6 +247,16 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       }
     }
     drawDoors(canvas.getContext("2d")!, doors);
+    const path = markers.find(marker => marker.id === player?.id)?.movement?.path;
+    if (path?.length) {
+      const context = canvas.getContext("2d")!;
+      context.beginPath(); context.strokeStyle = "#fff0aa"; context.lineWidth = 2;
+      path.forEach((point, index) => {
+        const x = (point.x + 0.5) * palaceMap.tileWidth, y = (point.y + 0.5) * palaceMap.tileHeight;
+        if (index) context.lineTo(x, y); else context.moveTo(x, y);
+      });
+      context.stroke();
+    }
   };
   draw();
   visualPosition = position;
@@ -299,7 +310,10 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     for (const marker of markers) {
       const point = actorPosition(marker, now);
       if (!point) continue;
-      if (marker.id === player?.id) { place(point); position = point; }
+      if (marker.id === player?.id) {
+        if (visualPosition?.x !== point.x || visualPosition?.y !== point.y) place(point);
+        position = point;
+      }
       else {
         const control = stage.querySelector<HTMLElement>(`[data-instance-id="${CSS.escape(marker.instanceId ?? marker.id)}"]`);
         if (control) {

@@ -36,7 +36,7 @@ export const setupWorldAgent: AgentSetupHook = async (context, signal, services)
   const speaker = characters.find(character => character.id === context.characterId);
   if (!speaker?.position) return setupAgent(context, signal, services);
   const participants = new Set(context.participantIds ?? [context.characterId]);
-  const listeners = courtCharactersWithinEarshot(speaker, characters.filter(character => !participants.has(character.id)), map.doors, map.fixtures);
+  const listeners = courtCharactersWithinEarshot(speaker, characters.filter(character => !participants.has(character.id)), map.doors, map.fixtures, map.layout);
   const groups = (Object.keys(EARSHOT_DESCRIPTIONS) as Array<keyof typeof EARSHOT_DESCRIPTIONS>).flatMap(level => {
     const nearby = listeners.filter(listener => listener.level === level).sort((a, b) => a.id.localeCompare(b.id));
     return nearby.length ? [`${level}: ${EARSHOT_DESCRIPTIONS[level]}\n${nearby.map(listener => `- ${listener.name} (${listener.id})`).join("\n")}`] : [];
