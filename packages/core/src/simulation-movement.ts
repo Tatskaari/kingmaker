@@ -50,7 +50,9 @@ export function startMove({ G }: SimulationMoveContext, actorId: string, request
   const from = getActorPosition(G, actorId, request.startedAtMs);
   if (!from) return INVALID_MOVE;
   const path = createPathfindingService(map.layout).findPath(from, request.to, {
-    doors: map.doors, fixtures: map.fixtures, allowedRoomIds: request.allowedRoomIds, thresholds: request.thresholds,
+    doors: map.doors, fixtures: map.fixtures,
+    ...(request.allowedRoomIds ? { allowedRoomIds: request.allowedRoomIds } : {}),
+    ...(request.thresholds ? { thresholds: request.thresholds } : {}),
   });
   if (!path || path.length < 2) return INVALID_MOVE;
   actor.position = create(TilePositionSchema, from);
