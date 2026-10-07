@@ -290,10 +290,21 @@ message Room {
   repeated string allowed_character_ids = 7;
 }
 
-// Integer tile coordinates on the palace map.
+// Grid coordinates in tile units, with integer coordinates at tile centres.
+// Actors stopped during movement may have fractional coordinates.
 message TilePosition {
-  uint32 x = 1;
-  uint32 y = 2;
+  double x = 1;
+  double y = 2;
+}
+
+// A calculated route and its timing. Presentation interpolates this path;
+// completion callbacks and pending interactions live outside simulation state.
+message ActorMovement {
+  string id = 1;
+  repeated TilePosition path = 2;
+  // Authority clock values supplied to deterministic moves, in milliseconds.
+  double started_at_ms = 3;
+  double duration_ms = 4;
 }
 
 // Authored placement for a scenario transition, such as entering court.
@@ -311,6 +322,7 @@ message ActorState {
   string room_id = 3;
   bool awake = 4;
   TilePosition position = 5;
+  ActorMovement movement = 7;
 }
 
 // The authoritative state contains every room, fixture and object. Before model
