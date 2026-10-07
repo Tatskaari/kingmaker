@@ -239,7 +239,6 @@ export class WorldGameRuntime extends WorldHost {
       session = { reviews, response: liveConversationStrategy({ characterId: id, reviews }), reviewedLive: true };
       this.liveConversations.set(id, session);
     }
-    await session.reviews.drain();
     const strategyOverride = options.strategies?.conversation ?? this.options.strategies?.conversation;
     if (strategyOverride) session.reviewedLive = false;
     else signal = AbortSignal.any([signal, session.reviews.signal]);

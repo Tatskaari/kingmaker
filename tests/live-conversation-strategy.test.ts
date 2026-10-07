@@ -9,7 +9,7 @@ import { commitReview, loadPlayableWorld } from "./fixtures.js";
 import type { OpenRouterMessage } from "../packages/providers/src/openrouter.js";
 
 const choice = (value: string) => ({ choice: value, probabilities: { [value]: 1 } });
-function fixture(mode: "background" | "approve" | "deny" | "limit" | "error") {
+function fixture(mode: "background" | "discretion" | "error") {
   const backing = createScenarioServices(loadPlayableWorld());
   const before = backing.scenario.snapshot();
   const reviews = new ConversationReviews();
@@ -25,15 +25,14 @@ function fixture(mode: "background" | "approve" | "deny" | "limit" | "error") {
     ai: { decisions: async (_state, questions, _signal, purpose) => {
       if (purpose === "prog_disc") return Object.fromEntries(Object.keys(questions).map(id => [id, { choice: "skip", probabilities: { skip: 1, [id]: 0 } }]));
       if (mode === "error") throw new Error("Jev unavailable");
-      return mode === "deny" && drafts.length > 1 ? { immediate_commitment: choice("not_flagged") }
-        : { immediate_commitment: choice("flagged"), immediate_feasibility: choice(mode === "background" ? "possible" : "gms_discretion") };
+      return { immediate_commitment: choice("flagged"), immediate_feasibility: choice(mode === "background" ? "possible" : "gms_discretion") };
     }, responses: async request => {
-      if (request.response_format) return { role: "assistant", content: JSON.stringify({ allowed: mode === "approve", reason: "This bird belongs to another guest. Offer something else." }) };
+      assert.equal(request.response_format, undefined, "No blocking GM approval");
       assert.equal(request.reasoning?.effort, "high");
-      if (mode === "background") await gate;
+      await gate;
       return commitReview({ summary: "Recorded", newNotes: ["Promised the player a gift."], activeGoal: null }, request);
     } },
-  }, strategies: { conversation: liveConversationStrategy({ characterId: "corvin", reviews, maxDrafts: 2 }) } });
+  }, strategies: { conversation: liveConversationStrategy({ characterId: "corvin", reviews }) } });
   return { runtime, reviews, before, backing, drafts, events, release };
 }
 const request = { model: "test", messages: [{ role: "user" as const, content: "Give me a bird." },
@@ -50,36 +49,26 @@ test("ordinary flags release a response while GM review remains pending", async 
   assert.notDeepEqual(f.backing.scenario.snapshot(), f.before);
 });
 
-test("GM discretion commits its approved consequences before returning", async () => {
-  const f = fixture("approve");
-  await runConversation(request, f.runtime);
-  assert.notDeepEqual(f.backing.scenario.snapshot(), f.before);
-  assert.ok(f.events.indexOf("live-review") < f.events.indexOf("live-accepted"));
-  const after = f.backing.scenario.snapshot();
-  await f.reviews.drain();
-  assert.deepEqual(f.backing.scenario.snapshot(), after);
-});
-
-test("refusal regenerates with a system correction, preserves the dice ruling and writes nothing", async () => {
-  const f = fixture("deny");
-  const reply = await runConversation(request, f.runtime);
-  assert.equal(reply.content, "I cannot give that away.");
-  assert.equal(f.drafts.length, 2);
-  assert.match(f.drafts[1]![1]!.content!, /This bird belongs/);
-  assert.equal(f.drafts[1]![1]!.role, "system");
-  assert.deepEqual(f.drafts[1]!.at(-1), request.messages[1]);
-  assert.ok(!f.drafts[1]!.some(message => message.role === "assistant"));
-  await f.reviews.drain();
-  assert.deepEqual(f.backing.scenario.snapshot(), f.before);
-});
-
-test("repeated refusals and classifier errors fail closed without world effects", async () => {
-  for (const mode of ["limit", "error"] as const) {
-    const f = fixture(mode);
-    await assert.rejects(runConversation(request, f.runtime), /refused every draft|Jev unavailable/);
+test("GM discretion releases successive replies while its ordered reviews are pending", { timeout: 5000 }, async () => {
+  const f = fixture("discretion");
+  try {
+    const first = await runConversation(request, f.runtime);
+    assert.equal(first.content, "I will give you a bird.");
+    const second = await runConversation(request, f.runtime);
+    assert.equal(second.content, "I cannot give that away.");
     assert.deepEqual(f.backing.scenario.snapshot(), f.before);
-    assert.ok(!f.events.includes("live-accepted"));
-  }
+    assert.equal(f.events.filter(event => event === "live-accepted").length, 2);
+    assert.ok(!f.events.includes("live-review"));
+  } finally { f.release(); await f.reviews.drain(); }
+  assert.equal(f.events.filter(event => event === "live-review").length, 2);
+  assert.notDeepEqual(f.backing.scenario.snapshot(), f.before);
+});
+
+test("classifier errors fail closed without world effects", async () => {
+  const f = fixture("error");
+  await assert.rejects(runConversation(request, f.runtime), /Jev unavailable/);
+  assert.deepEqual(f.backing.scenario.snapshot(), f.before);
+  assert.ok(!f.events.includes("live-accepted"));
 });
 
 test("background failures surface on drain and prevent later jobs from overtaking them", async () => {
@@ -89,10 +78,10 @@ test("background failures surface on drain and prevent later jobs from overtakin
   await assert.rejects(reviews.drain(), /Review failed/);
 });
 
-test("the full conversation strategy does not reroll persuasion when the GM refuses a draft", async () => {
+test("the full conversation strategy retains dice adjudication before background review", async () => {
   const { conversationStrategy } = await import("../packages/conversation/src/conversation-strategy.js");
   const { DisclosureSession } = await import("../packages/conversation/src/disclosure.js");
-  const f = fixture("deny");
+  const f = fixture("discretion");
   const original = f.runtime.services.ai.decisions;
   let rolls = 0, skillClassifications = 0;
   f.runtime.services.ai.decisions = async (...args) => {
@@ -113,9 +102,9 @@ test("the full conversation strategy does not reroll persuasion when the GM refu
     async () => { rolls++; return 20; }, () => {}, () => {}, {}, {}, { services: f.runtime.services, characterId: "corvin" },
     () => {}, liveConversationStrategy({ characterId: "corvin", reviews: f.reviews }));
   const reply = await runConversation({ ...request, messages: [request.messages[0]!] }, f.runtime);
-  assert.equal(reply.content, "I cannot give that away.");
+  assert.equal(reply.content, "I will give you a bird.");
   assert.equal(rolls, 1); assert.equal(skillClassifications, 1);
-  assert.equal(f.drafts.length, 2);
-  assert.deepEqual(f.drafts[1]!.filter(message => message.content?.startsWith("# Binding DM ruling")),
-    f.drafts[0]!.filter(message => message.content?.startsWith("# Binding DM ruling")));
+  assert.equal(f.drafts.length, 1);
+  assert.ok(f.drafts[0]!.some(message => message.content?.startsWith("# Binding DM ruling")));
+  f.release(); await f.reviews.drain();
 });
