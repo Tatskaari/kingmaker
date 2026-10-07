@@ -27,7 +27,7 @@ export type WorldSnapshot = MechanicalActivity & {
   arrestChallenges?: Record<string, boolean>;
   pendingConversationEvents?: Record<string, JsonValue>;
   pendingWaitReviews?: Record<string, { instructions: string; observation: string }>;
-  version: 7; world: JsonValue;
+  version: 8; world: JsonValue;
   playerMessages: Array<{ id: string; day: number; message: string; createdAt: string; conversationTitle?: string }>;
 };
 
@@ -40,7 +40,7 @@ export class WorldHost {
   constructor(world: WorldState, saved?: WorldSnapshot) {
     this.initial = clone(WorldStateSchema, world);
     this.worldServices = createScenarioServices(world);
-    this.activity = { version: 7, conversations: {}, npcActivities: {}, playerMessages: [] };
+    this.activity = { version: 8, conversations: {}, npcActivities: {}, playerMessages: [] };
     if (saved) this.restore(saved);
     this.syncGoals();
   }
@@ -62,7 +62,7 @@ export class WorldHost {
     return { ...structuredClone(this.activity), world: toJson(WorldStateSchema, this.world()) };
   }
   restore(saved: WorldSnapshot): void {
-    if (saved.version !== 7 || !saved.world) throw new Error("This save uses an older world format. Start a fresh game.");
+    if (saved.version !== 8 || !saved.world) throw new Error("This save uses an older world format. Start a fresh game.");
     const { world, ...activity } = saved;
     const state = fromJson(WorldStateSchema, world);
     this.worldServices = createScenarioServices(state);
@@ -179,7 +179,7 @@ export class WorldHost {
   }
   reset() {
     this.worldServices = createScenarioServices(this.initial);
-    this.activity = { version: 7, conversations: {}, npcActivities: {}, playerMessages: [] };
+    this.activity = { version: 8, conversations: {}, npcActivities: {}, playerMessages: [] };
     this.syncGoals();
   }
   resetWorld() {
