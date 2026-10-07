@@ -10,6 +10,7 @@ export interface DocumentSnapshot {
 }
 /** Trusted mechanics publish physical results, never narrative documents. */
 export interface MechanicsStateService {
+  executeMove<Args extends unknown[]>(move: import("../../core/src/simulation-move.js").SimulationMove<Args>, ...args: Args): void;
   commit(map: MapState, characters: Readonly<Record<string, RuntimeCharacter>>): void;
 }
 export interface CharacterCreation {

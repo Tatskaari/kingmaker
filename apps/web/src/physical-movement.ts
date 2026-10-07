@@ -1,22 +1,5 @@
-import { create } from "@bufbuild/protobuf";
-import { GamePhase, TilePositionSchema, type MapState } from "../../../packages/contracts/src/index.js";
-import { courtPath, courtRoomAt } from "./court-navigation.js";
+import { GamePhase, type MapState } from "../../../packages/contracts/src/index.js";
 import { createPhysicalEvent } from "./physical-event.js";
-import type { Point } from "../../../packages/core/src/navigation.js";
-
-/** Apply validated player movement to a live map. */
-export function movePlayer(map: MapState, playerId: string, destination: Point): void {
-  if (map.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter the court before walking around.");
-  const actor = map.actors.find(actor => actor.characterId === playerId);
-  if (!actor) throw new Error("Player is missing from the palace.");
-  if (!actor.position || !courtPath(actor.position, destination, map.doors, map.fixtures)) throw new Error("That destination is not reachable.");
-  const room = courtRoomAt(destination);
-  if (!room) throw new Error("That destination is outside the palace.");
-  if (!map.rooms.some(existing => existing.id === room.id)) throw new Error("Destination room is missing from the authored world.");
-  actor.roomId = room.id;
-  actor.position = create(TilePositionSchema, destination);
-  map.revision++;
-}
 
 export function setPlayerDoor(map: MapState, playerId: string, playerName: string, id: string, open: boolean) {
   if (map.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter the court before using doors.");

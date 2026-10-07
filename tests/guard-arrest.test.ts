@@ -37,7 +37,7 @@ test("guards offer a defense before arrest; a failed roll permits jail and its r
   assert.match(JSON.stringify(saved.conversations[guard]), /Your arrest action succeeds/);
   const restored = game(); restored.restore(saved);
   assert.deepEqual(restored.view().jail, saved.jail);
-  assert.throws(() => restored.movePlayer({ x: 61, y: 35 }), /in jail/);
+  await assert.rejects(restored.movePlayer({ x: 61, y: 35 }), /in jail/);
   assert.throws(() => restored.setDoor("any", true), /in jail/);
   assert.throws(() => restored.interactFixtureWithEvent("any"), /in jail/);
   await assert.rejects(restored.checkedTalkToCharacter("corvin", "Hello"), /in jail/);

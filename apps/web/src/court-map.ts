@@ -1,14 +1,15 @@
-import { courtRoomAt, courtDoorBlockers, courtPath, courtInteractionPoint, nearestDoorSpot } from "./court-navigation.js";
+import { actorPosition, actorTile } from "../../../packages/core/src/simulation-movement.js";
+import { courtRoomAt, courtDoorBlockers, courtInteractionPoint, nearestDoorSpot } from "./court-navigation.js";
 import { doorActionLegality, type RoomAccess } from "../../../packages/core/src/access.js";
 import type { FixtureAction } from "../../../packages/core/src/fixtures.js";
-import type { DoorState, MapFixture } from "../../../packages/contracts/src/index.js";
+import type { DoorState, MapFixture, ActorMovement } from "../../../packages/contracts/src/index.js";
 import { drawDoors } from "./draw-doors.js";
 import { actionsAtTile, requireCurrentFixtureAction, type CourtInteractionLayer } from "./court-interactions.js";
 import { CanvasMapRenderer } from "./map-renderer.js";
 import { palaceMap } from "./palace-map.js";
 import { canWalk, pointKey, type Point } from "../../../packages/core/src/navigation.js";
 
-export interface CourtCharacter { id: string; instanceId?: string; name: string; roomId?: string; position?: Point; sprite?: number }
+export interface CourtCharacter { id: string; instanceId?: string; name: string; roomId?: string; position?: Point; movement?: ActorMovement; sprite?: number }
 export interface CourtMarker extends CourtCharacter { point?: Point; roomName: string; sprite: number }
 
 function canvasBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -63,16 +64,10 @@ export function courtMarkers(characters: readonly CourtCharacter[], fixtures: re
     const room = palaceMap.rooms.find(room => room.id === character.roomId);
     const sprite = character.sprite ?? (character.id === "corvin" ? 84 : character.id === "garran" ? 96 : character.id === "king" ? 85 : 98);
     const point = character.position;
-    const valid = point && canWalk(palaceMap, point, courtDoorBlockers([], fixtures)) && courtRoomAt(point)?.id === room?.id;
+    const valid = point && canWalk(palaceMap, actorTile(point), courtDoorBlockers([], fixtures)) && (character.movement || courtRoomAt(actorTile(point))?.id === room?.id);
     return { ...character, roomName: room?.name ?? character.roomId ?? "Location unknown", sprite,
       ...(valid ? { point } : {}) };
   });
-}
-
-export function courtWalkPoint(path: readonly Point[], progress: number): Point {
-  const offset = Math.max(0, Math.min(progress, path.length - 1));
-  const index = Math.floor(offset), from = path[index]!, to = path[Math.min(index + 1, path.length - 1)]!;
-  return { x: from.x + (to.x - from.x) * (offset - index), y: from.y + (to.y - from.y) * (offset - index) };
 }
 
 export function courtCameraScroll(point: Point, stageWidth: number, stageHeight: number,
@@ -84,19 +79,8 @@ export function courtCameraScroll(point: Point, stageWidth: number, stageHeight:
     y: Math.max(0, Math.min(centreY - viewportHeight / 2, stageHeight - viewportHeight)),
   };
 }
-/** Finish the current partial tile step, then follow the replacement A* route. */
-export function redirectCourtPath(path: readonly Point[], progress: number, destination: Point, doors: readonly DoorState[] = [], fixtures: readonly MapFixture[] = []): Point[] | undefined {
-  const offset = Math.max(0, Math.min(progress, path.length - 1));
-  const pivot = path[Math.ceil(offset)]!;
-  const route = courtPath(pivot, destination, doors, fixtures);
-  if (!route) return undefined;
-  const visual = courtWalkPoint(path, offset);
-  return visual.x === pivot.x && visual.y === pivot.y ? route : [visual, ...route];
-}
-
-/** Mount inside the court screen; native buttons retain keyboard and touch access. */
 export async function mountCourtMap(root: HTMLElement, characters: readonly CourtCharacter[], player: CourtCharacter | null,
-  selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<void>, doors: DoorState[] = [], changeDoor?: (id: string, open: boolean) => Promise<DoorState[]>, rooms: readonly RoomAccess[] = [], fixtures: readonly MapFixture[] = [], fixtureChoices: readonly FixtureAction[] = [], interactFixture?: (actionId: string) => Promise<void>, pauseCharacter?: (id: string) => Promise<void>, debugCharacter?: (id: string) => Promise<void>, layout = palaceMap, reportStatus: (message: string) => void = () => {}): Promise<void> {
+  selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<"arrived" | "cancelled" | "superseded">, doors: DoorState[] = [], changeDoor?: (id: string, open: boolean) => Promise<DoorState[]>, rooms: readonly RoomAccess[] = [], fixtures: readonly MapFixture[] = [], fixtureChoices: readonly FixtureAction[] = [], interactFixture?: (actionId: string) => Promise<void>, pauseCharacter?: (id: string) => Promise<void>, debugCharacter?: (id: string) => Promise<void>, layout = palaceMap, reportStatus: (message: string) => void = () => {}): Promise<void> {
   const palaceMap = layout;
   const viewport = document.createElement("div"); viewport.className = "court-map-scroll";
   const stage = document.createElement("div"); stage.className = "court-map-stage";
@@ -106,7 +90,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   stage.append(canvas); viewport.append(stage); root.append(viewport);
   reportStatus("Left-click to walk; click again to change destination. Right-click a tile or character for actions.");
   let moving = false;
-  let redirect: ((destination: Point) => boolean) | undefined;
+  let walkRequest = 0;
   let playerControl: HTMLElement | undefined;
   let visualPosition: Point | undefined;
   const menu = document.createElement("div"); menu.className = "court-interaction-menu";
@@ -126,7 +110,6 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     if (!root.isConnected) { listeners.abort(); resizeObserver.disconnect(); cleanup.disconnect(); }
   });
   cleanup.observe(document.body, { childList: true, subtree: true });
-  let pendingInteraction: (() => void | Promise<void>) | undefined;
   let walkTo: (point: Point, interaction?: () => void | Promise<void>) => Promise<void> = async () => {};
   const approach = (target: Point, authored?: Point) => visualPosition && courtInteractionPoint(
     { x: Math.round(visualPosition.x), y: Math.round(visualPosition.y) }, target, authored, doors, fixtures);
@@ -143,7 +126,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     for (const item of fixtures) if (item.position) layers.push({ id: item.id, position: item.position, order: 20,
       actions: fixtureChoices.filter(action => action.target === item.id).map(action => ({ ...action, type: "fixture" })) });
     for (const marker of markers) {
-      const point = marker.id === player?.id ? visualPosition ?? marker.point : marker.point;
+      const point = actorPosition(marker, Date.now()) ?? marker.point;
       if (!point) continue;
       layers.push({ id: marker.instanceId ?? marker.id, position: { x: Math.round(point.x), y: Math.round(point.y) }, order: 30,
         actions: marker.id === player?.id ? [] : [
@@ -158,7 +141,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       const button = document.createElement("button"); button.type = "button";
       button.className = `court-menu-action court-action-${action.legality}`;
       button.textContent = action.label + (action.legality === "illegal" ? " · Illegal" : "");
-      button.disabled = action.type !== "debug" && (!movePlayer || !visualPosition || (moving && !redirect));
+      button.disabled = action.type !== "debug" && (!movePlayer || !visualPosition);
       button.addEventListener("click", async () => {
         closeMenu();
         if (action.type === "debug") await debugCharacter?.(action.target);
@@ -300,7 +283,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       }
       const control = stage.querySelector<HTMLElement>(`[data-instance-id="${CSS.escape(marker.instanceId ?? marker.id)}"]`);
       if (control && marker.point) {
-        control.style.transition = "left 100ms linear, top 100ms linear";
+        control.style.transition = "none";
         control.style.left = `${(marker.point.x + 0.5) / palaceMap.width * 100}%`;
         control.style.top = `${(marker.point.y + 0.5) / palaceMap.height * 100}%`;
         control.setAttribute("aria-label", `Walk to ${marker.name} · ${marker.roomName}`);
@@ -308,75 +291,38 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     }
     if (artworkKey() !== drawnArtwork) draw();
   }, { signal: listeners.signal });
+  // Every actor is drawn from the same authority-supplied movement record.
+  const animateActors = () => {
+    if (!root.isConnected) return;
+    const now = Date.now();
+    for (const marker of markers) {
+      const point = actorPosition(marker, now);
+      if (!point) continue;
+      if (marker.id === player?.id) { place(point); position = point; }
+      else {
+        const control = stage.querySelector<HTMLElement>(`[data-instance-id="${CSS.escape(marker.instanceId ?? marker.id)}"]`);
+        if (control) {
+          control.style.left = `${(point.x + 0.5) / palaceMap.width * 100}%`;
+          control.style.top = `${(point.y + 0.5) / palaceMap.height * 100}%`;
+        }
+      }
+    }
+    window.setTimeout(animateActors, 16);
+  };
+  window.setTimeout(animateActors, 16);
   walkTo = async (target, interaction) => {
     if (disabled || !position || !movePlayer) return;
-    if (moving) {
-      if (redirect) {
-        const changed = redirect(target);
-        pendingInteraction = changed ? interaction : undefined;
-        if (!changed) reportStatus("That tile is blocked; continuing to your previous destination.");
-      }
-      return;
-    }
-    let path = courtPath(position, target, doors, fixtures);
-    pendingInteraction = path ? interaction : undefined;
-    if (!path) { reportStatus("You cannot walk there. Choose a clear floor tile."); return; }
-    if (path.length < 2) {
-      const action = pendingInteraction; pendingInteraction = undefined; moving = true;
-      try { await action?.(); } catch (error) { reportStatus(error instanceof Error ? error.message : "Interaction failed."); }
-      finally { moving = false; }
-      return;
-    }
+    const request = ++walkRequest;
     moving = true;
-
-    const start = position;
-    let destination = path[path.length - 1]!;
-    const context = canvas.getContext("2d")!;
-    const drawRoute = () => {
-      draw();
-      context.beginPath(); context.strokeStyle = "#fff0aa"; context.lineWidth = 2;
-      path!.forEach((point, index) => { if (!index) context.moveTo(point.x * 16 + 8, point.y * 16 + 8); else context.lineTo(point.x * 16 + 8, point.y * 16 + 8); }); context.stroke();
-    };
-    drawRoute();
-    let started = performance.now();
-    redirect = target => {
-      const now = performance.now();
-      const replacement = redirectCourtPath(path!, (now - started) / 100, target, doors, fixtures);
-      if (!replacement) return false;
-      path = replacement; started = now; destination = target;
-      place(path[0]!); drawRoute();
-      return true;
-    };
-    const arrived = await new Promise<boolean>(resolve => {
-      const animate = (time: number) => {
-        if (!root.isConnected) { resolve(false); return; }
-        const progress = Math.min((time - started) / 100, path!.length - 1);
-        if (!canWalk(palaceMap, path![Math.ceil(progress)]!, courtDoorBlockers(doors, fixtures))) {
-          reportStatus("The route changed. Choose another destination.");
-          resolve(false); return;
-        }
-        place(courtWalkPoint(path!, progress));
-        if (progress === path!.length - 1) resolve(true); else window.setTimeout(() => animate(performance.now()), 16);
-      };
-      // The embedded browser can throttle requestAnimationFrame even while the
-      // map is visible. Use elapsed time so animation continues between renders.
-      window.setTimeout(() => animate(performance.now()), 16);
-    });
-    redirect = undefined;
-    if (!arrived) { moving = false; pendingInteraction = undefined; place(start); draw(); return; }
-    let committed = false;
     try {
-      await movePlayer(destination); position = destination; committed = true;
-      const action = pendingInteraction; pendingInteraction = undefined;
-      if (root.isConnected) await action?.();
+      const outcome = await movePlayer(target);
+      if (request === walkRequest && outcome === "arrived" && root.isConnected) await interaction?.();
     } catch (error) {
-      pendingInteraction = undefined;
-      if (!committed) place(start); reportStatus(error instanceof Error ? error.message : "Could not save your move.");
+      if (request === walkRequest) reportStatus(error instanceof Error ? error.message : "Could not move.");
     } finally {
-      moving = false; draw();
-
+      if (request === walkRequest) { moving = false; draw(); }
     }
-   };
+  };
   canvas.addEventListener("click", event => {
     closeMenu(); const hit = renderer.hit(event.clientX, event.clientY);
     if (hit) void walkTo({ x: hit.tileX, y: hit.tileY });

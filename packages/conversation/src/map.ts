@@ -14,6 +14,7 @@ export type MapCommand =
   | { kind: "step"; characterId: string; actionId: string; goal: string };
 export interface MapResult {
   done: boolean;
+  movementOutcome?: import("../../core/src/movement-service.js").MovementOutcome;
   talkTarget?: string;
   worldEvent?: Event;
   message?: string;
@@ -22,5 +23,5 @@ export interface MapService {
   layout(): WorldMap;
   observe(characterId: string): MapObservation;
   /** Validate and commit against current state. A step advances at most one tile. */
-  interact(command: Readonly<MapCommand>): MapResult;
+  interact(command: Readonly<MapCommand>): MapResult | Promise<MapResult>;
 }

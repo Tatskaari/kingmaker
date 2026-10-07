@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { INVALID_MOVE } from "boardgame.io/core";
 import { isDraft, original } from "immer/dist/index.js";
-import { ActorMovementSchema, TilePositionSchema } from "../../contracts/src/index.js";
+import { ActorMovementSchema, TilePositionSchema, type ActorState } from "../../contracts/src/index.js";
 import type { SimulationState } from "../../contracts/src/v2.js";
 import type { Point } from "./navigation.js";
 import { createPathfindingService, roomAt, type RouteConstraints } from "./pathfinding.js";
@@ -18,7 +18,9 @@ export const pathDistance = (path: readonly Point[]) => path.slice(1).reduce((su
 
 /** Grid coordinates; integer positions are tile centres. Never performs pathfinding. */
 export function getActorPosition(G: SimulationState, actorId: string, atMs: number): Point | undefined {
-  const actor = movementActor(G, actorId);
+  return actorPosition(movementActor(G, actorId), atMs);
+}
+export function actorPosition(actor: { position?: Point | undefined; movement?: ActorState["movement"] } | undefined, atMs: number): Point | undefined {
   if (!actor?.position) return;
   const movement = actor.movement;
   if (!movement?.path.length) return { x: actor.position.x, y: actor.position.y };
