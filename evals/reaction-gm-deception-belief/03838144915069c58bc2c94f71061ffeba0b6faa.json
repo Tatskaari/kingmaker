@@ -1,0 +1,95 @@
+{
+  "revision": "03838144915069c58bc2c94f71061ffeba0b6faa",
+  "rubric": [
+    {
+      "name": "attention",
+      "description": "Identify developments the player expects the world to react to. Flag unestablished details unless explicitly denied; distinguish commitments, actual consequences, exchanges and changes in knowledge or relationships. Respect lore and binding rulings."
+    }
+  ],
+  "concurrency": 4,
+  "experimentTypes": {
+    "graduation-observed-accommodation": "jev-decision",
+    "graduation-explicit-acceptance": "jev-decision",
+    "graduation-rejected-claim": "jev-decision",
+    "graduation-noncommittal-reply": "jev-decision",
+    "graduation-established-history": "jev-decision",
+    "reaction-lead-on": "jev-decision",
+    "reaction-future-promise": "jev-decision",
+    "reaction-general-support": "jev-decision",
+    "reaction-gift": "jev-decision",
+    "reaction-refused-trade": "jev-decision",
+    "reaction-narrated-travel": "jev-decision",
+    "reaction-forgiveness": "jev-decision",
+    "reaction-greeting": "jev-decision",
+    "reaction-gm-established-history": "jev-decision",
+    "reaction-gm-deception-belief": "jev-decision",
+    "reaction-blocked-promise": "jev-decision",
+    "reaction-improvised-bird": "jev-decision",
+    "reaction-established-key-transfer": "jev-decision"
+  },
+  "experiments": [
+    "reaction-gm-deception-belief"
+  ],
+  "repeats": 3,
+  "timeoutMs": 180000,
+  "type": "jev-decision",
+  "publishedAt": "2026-10-07T00:12:32.430Z",
+  "comparison": [
+    {
+      "variant": "game",
+      "baseline": true,
+      "runs": 3,
+      "executionErrors": 0,
+      "scoringErrors": 0,
+      "criteria": {
+        "attention": 1
+      },
+      "total": 1,
+      "delta": 0
+    }
+  ],
+  "trials": [
+    {
+      "experiment": "reaction-gm-deception-belief",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 2,
+      "result": {
+        "criteria": {
+          "attention": {
+            "score": 1,
+            "reason": "Successful deception creates a belief worth recording, not retroactive world truth. improvised_detail: expected flagged, got flagged"
+          }
+        }
+      }
+    },
+    {
+      "experiment": "reaction-gm-deception-belief",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 1,
+      "result": {
+        "criteria": {
+          "attention": {
+            "score": 1,
+            "reason": "Successful deception creates a belief worth recording, not retroactive world truth. improvised_detail: expected flagged, got flagged"
+          }
+        }
+      }
+    },
+    {
+      "experiment": "reaction-gm-deception-belief",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 3,
+      "result": {
+        "criteria": {
+          "attention": {
+            "score": 1,
+            "reason": "Successful deception creates a belief worth recording, not retroactive world truth. improvised_detail: expected flagged, got flagged"
+          }
+        }
+      }
+    }
+  ]
+}

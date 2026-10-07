@@ -1,0 +1,727 @@
+{
+  "revision": "03838144915069c58bc2c94f71061ffeba0b6faa",
+  "rubric": [
+    {
+      "name": "grounding",
+      "description": "New facts are supported by conversation or existing context; binding GM rulings are preserved.",
+      "levels": {
+        "incorrect": {
+          "score": 0,
+          "description": "0%: Required behavior is absent or fundamentally incorrect."
+        },
+        "limited": {
+          "score": 0.25,
+          "description": "25%: A small part is correct, but major errors or omissions dominate."
+        },
+        "partial": {
+          "score": 0.5,
+          "description": "50%: Substantial correct behavior, with equally substantial errors or omissions."
+        },
+        "mostly": {
+          "score": 0.75,
+          "description": "75%: Most required behavior is correct; limited errors or omissions remain."
+        },
+        "complete": {
+          "score": 1,
+          "description": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions."
+        }
+      }
+    },
+    {
+      "name": "coverage",
+      "description": "Consequential promises, revelations and outcomes in the case expectations are retained in appropriate documents.",
+      "levels": {
+        "incorrect": {
+          "score": 0,
+          "description": "0%: Required behavior is absent or fundamentally incorrect."
+        },
+        "limited": {
+          "score": 0.25,
+          "description": "25%: A small part is correct, but major errors or omissions dominate."
+        },
+        "partial": {
+          "score": 0.5,
+          "description": "50%: Substantial correct behavior, with equally substantial errors or omissions."
+        },
+        "mostly": {
+          "score": 0.75,
+          "description": "75%: Most required behavior is correct; limited errors or omissions remain."
+        },
+        "complete": {
+          "score": 1,
+          "description": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions."
+        }
+      }
+    },
+    {
+      "name": "knowledge",
+      "description": "Each character learns only what they could know; private beliefs and GM truth retain the correct audience.",
+      "levels": {
+        "incorrect": {
+          "score": 0,
+          "description": "0%: Required behavior is absent or fundamentally incorrect."
+        },
+        "limited": {
+          "score": 0.25,
+          "description": "25%: A small part is correct, but major errors or omissions dominate."
+        },
+        "partial": {
+          "score": 0.5,
+          "description": "50%: Substantial correct behavior, with equally substantial errors or omissions."
+        },
+        "mostly": {
+          "score": 0.75,
+          "description": "75%: Most required behavior is correct; limited errors or omissions remain."
+        },
+        "complete": {
+          "score": 1,
+          "description": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions."
+        }
+      }
+    },
+    {
+      "name": "intent",
+      "description": "Every activated activity, including its success_criteria and all steps of current_goal, is executable under the case expectations and current map. If the case identifies an unsupported destination, FAIL an active activity that requires setting out, travelling to, or reaching it, even if the goal starts with preparation or coordination. A purely local next step or explicit deferral until a supported route exists can PASS. Preserve the promise without claiming completed travel.",
+      "levels": {
+        "incorrect": {
+          "score": 0,
+          "description": "0%: Required behavior is absent or fundamentally incorrect."
+        },
+        "limited": {
+          "score": 0.25,
+          "description": "25%: A small part is correct, but major errors or omissions dominate."
+        },
+        "partial": {
+          "score": 0.5,
+          "description": "50%: Substantial correct behavior, with equally substantial errors or omissions."
+        },
+        "mostly": {
+          "score": 0.75,
+          "description": "75%: Most required behavior is correct; limited errors or omissions remain."
+        },
+        "complete": {
+          "score": 1,
+          "description": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions."
+        }
+      }
+    },
+    {
+      "name": "preservation",
+      "description": "Unrelated facts, characterization and permissions are preserved.",
+      "levels": {
+        "incorrect": {
+          "score": 0,
+          "description": "0%: Required behavior is absent or fundamentally incorrect."
+        },
+        "limited": {
+          "score": 0.25,
+          "description": "25%: A small part is correct, but major errors or omissions dominate."
+        },
+        "partial": {
+          "score": 0.5,
+          "description": "50%: Substantial correct behavior, with equally substantial errors or omissions."
+        },
+        "mostly": {
+          "score": 0.75,
+          "description": "75%: Most required behavior is correct; limited errors or omissions remain."
+        },
+        "complete": {
+          "score": 1,
+          "description": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions."
+        }
+      }
+    },
+    {
+      "name": "restraint",
+      "description": "Changes are relevant and avoid redundant memories, unnecessary rewrites and invented consequences.",
+      "levels": {
+        "incorrect": {
+          "score": 0,
+          "description": "0%: Required behavior is absent or fundamentally incorrect."
+        },
+        "limited": {
+          "score": 0.25,
+          "description": "25%: A small part is correct, but major errors or omissions dominate."
+        },
+        "partial": {
+          "score": 0.5,
+          "description": "50%: Substantial correct behavior, with equally substantial errors or omissions."
+        },
+        "mostly": {
+          "score": 0.75,
+          "description": "75%: Most required behavior is correct; limited errors or omissions remain."
+        },
+        "complete": {
+          "score": 1,
+          "description": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions."
+        }
+      }
+    },
+    {
+      "name": "physical-state",
+      "description": "Review leaves the physical map unchanged (deterministic 0 or 1 invariant)."
+    }
+  ],
+  "concurrency": 4,
+  "experimentTypes": {
+    "oswin-parlour": "review",
+    "oswin-kobold-city": "review"
+  },
+  "experiments": [
+    "oswin-parlour"
+  ],
+  "repeats": 3,
+  "timeoutMs": 180000,
+  "type": "review",
+  "publishedAt": "2026-10-07T00:12:32.571Z",
+  "comparison": [
+    {
+      "variant": "game",
+      "baseline": true,
+      "runs": 3,
+      "executionErrors": 0,
+      "scoringErrors": 0,
+      "criteria": {
+        "grounding": 1,
+        "coverage": 1,
+        "knowledge": 1,
+        "intent": 1,
+        "preservation": 1,
+        "restraint": 1,
+        "physical-state": 1
+      },
+      "total": 1,
+      "delta": 0
+    },
+    {
+      "variant": "live-review",
+      "baseline": false,
+      "runs": 3,
+      "executionErrors": 0,
+      "scoringErrors": 0,
+      "criteria": {
+        "grounding": 1,
+        "coverage": 1,
+        "knowledge": 1,
+        "intent": 1,
+        "preservation": 1,
+        "restraint": 1,
+        "physical-state": 1
+      },
+      "total": 1,
+      "delta": 0
+    }
+  ],
+  "trials": [
+    {
+      "experiment": "oswin-parlour",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 1,
+      "result": {
+        "criteria": {
+          "grounding": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "mostly": 0.18,
+              "incorrect": 0.07,
+              "complete": 0.56,
+              "limited": 0.03,
+              "unscorable": 0.01,
+              "partial": 0.15
+            }
+          },
+          "coverage": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "unscorable": 0,
+              "incorrect": 0.03,
+              "limited": 0.02,
+              "complete": 0.71,
+              "mostly": 0.14,
+              "partial": 0.1
+            }
+          },
+          "knowledge": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "unscorable": 0.01,
+              "incorrect": 0.1,
+              "limited": 0.03,
+              "complete": 0.58,
+              "mostly": 0.16,
+              "partial": 0.12
+            }
+          },
+          "intent": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "unscorable": 0.04,
+              "incorrect": 0.2,
+              "limited": 0.05,
+              "complete": 0.53,
+              "mostly": 0.09,
+              "partial": 0.09
+            }
+          },
+          "preservation": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "unscorable": 0.01,
+              "incorrect": 0.07,
+              "limited": 0.05,
+              "complete": 0.58,
+              "mostly": 0.16,
+              "partial": 0.13
+            }
+          },
+          "restraint": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "unscorable": 0.01,
+              "incorrect": 0.09,
+              "limited": 0.05,
+              "complete": 0.5599999999999999,
+              "mostly": 0.16,
+              "partial": 0.13
+            }
+          },
+          "physical-state": {
+            "score": 1
+          }
+        }
+      }
+    },
+    {
+      "experiment": "oswin-parlour",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 2,
+      "result": {
+        "criteria": {
+          "grounding": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "complete": 0.58,
+              "mostly": 0.19,
+              "limited": 0.02,
+              "incorrect": 0.07,
+              "unscorable": 0.01,
+              "partial": 0.13
+            }
+          },
+          "coverage": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "complete": 0.8,
+              "mostly": 0.09,
+              "limited": 0.01,
+              "incorrect": 0.03,
+              "unscorable": 0,
+              "partial": 0.07
+            }
+          },
+          "knowledge": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "mostly": 0.18,
+              "partial": 0.14,
+              "limited": 0.03,
+              "complete": 0.54,
+              "unscorable": 0.01,
+              "incorrect": 0.1
+            }
+          },
+          "intent": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "mostly": 0.09,
+              "partial": 0.08,
+              "limited": 0.05,
+              "complete": 0.53,
+              "unscorable": 0.06,
+              "incorrect": 0.19
+            }
+          },
+          "preservation": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "partial": 0.12,
+              "complete": 0.61,
+              "limited": 0.04,
+              "mostly": 0.15,
+              "unscorable": 0.01,
+              "incorrect": 0.07
+            }
+          },
+          "restraint": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "mostly": 0.21,
+              "partial": 0.13,
+              "limited": 0.05,
+              "complete": 0.48,
+              "unscorable": 0.01,
+              "incorrect": 0.12
+            }
+          },
+          "physical-state": {
+            "score": 1
+          }
+        }
+      }
+    },
+    {
+      "experiment": "oswin-parlour",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 3,
+      "result": {
+        "criteria": {
+          "grounding": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "unscorable": 0.01,
+              "mostly": 0.12,
+              "incorrect": 0.06,
+              "limited": 0.02,
+              "partial": 0.09,
+              "complete": 0.7
+            }
+          },
+          "coverage": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "unscorable": 0,
+              "mostly": 0.12,
+              "partial": 0.05,
+              "complete": 0.8,
+              "incorrect": 0.02,
+              "limited": 0.01
+            }
+          },
+          "knowledge": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "unscorable": 0.01,
+              "mostly": 0.11,
+              "partial": 0.09,
+              "complete": 0.68,
+              "incorrect": 0.09,
+              "limited": 0.02
+            }
+          },
+          "intent": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "unscorable": 0.07,
+              "mostly": 0.09,
+              "partial": 0.11,
+              "complete": 0.45999999999999996,
+              "incorrect": 0.19,
+              "limited": 0.08
+            }
+          },
+          "preservation": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "unscorable": 0.02,
+              "mostly": 0.19,
+              "incorrect": 0.07,
+              "limited": 0.04,
+              "partial": 0.15,
+              "complete": 0.53
+            }
+          },
+          "restraint": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "unscorable": 0.01,
+              "mostly": 0.09,
+              "partial": 0.06,
+              "complete": 0.75,
+              "incorrect": 0.07,
+              "limited": 0.02
+            }
+          },
+          "physical-state": {
+            "score": 1
+          }
+        }
+      }
+    },
+    {
+      "experiment": "oswin-parlour",
+      "variant": "live-review",
+      "baseline": false,
+      "repeat": 2,
+      "result": {
+        "criteria": {
+          "grounding": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.08,
+              "limited": 0.03,
+              "partial": 0.15,
+              "mostly": 0.17,
+              "complete": 0.5599999999999999,
+              "unscorable": 0.01
+            }
+          },
+          "coverage": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.04,
+              "limited": 0.02,
+              "partial": 0.12,
+              "mostly": 0.15,
+              "complete": 0.66,
+              "unscorable": 0.01
+            }
+          },
+          "knowledge": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.08,
+              "limited": 0.03,
+              "partial": 0.1,
+              "mostly": 0.14,
+              "complete": 0.64,
+              "unscorable": 0.01
+            }
+          },
+          "intent": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.24,
+              "limited": 0.07,
+              "partial": 0.1,
+              "mostly": 0.08,
+              "complete": 0.46,
+              "unscorable": 0.05
+            }
+          },
+          "preservation": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.07,
+              "limited": 0.04,
+              "partial": 0.13,
+              "mostly": 0.16,
+              "complete": 0.59,
+              "unscorable": 0.01
+            }
+          },
+          "restraint": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.11,
+              "limited": 0.06,
+              "partial": 0.15,
+              "mostly": 0.17,
+              "complete": 0.5,
+              "unscorable": 0.01
+            }
+          },
+          "physical-state": {
+            "score": 1
+          }
+        }
+      }
+    },
+    {
+      "experiment": "oswin-parlour",
+      "variant": "live-review",
+      "baseline": false,
+      "repeat": 1,
+      "result": {
+        "criteria": {
+          "grounding": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "complete": 0.79,
+              "limited": 0.02,
+              "mostly": 0.07,
+              "unscorable": 0.01,
+              "partial": 0.06,
+              "incorrect": 0.05
+            }
+          },
+          "coverage": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "complete": 0.85,
+              "limited": 0.01,
+              "mostly": 0.06,
+              "unscorable": 0.01,
+              "partial": 0.04,
+              "incorrect": 0.03
+            }
+          },
+          "knowledge": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "partial": 0.09,
+              "limited": 0.03,
+              "mostly": 0.12,
+              "incorrect": 0.1,
+              "unscorable": 0.01,
+              "complete": 0.65
+            }
+          },
+          "intent": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "partial": 0.07,
+              "limited": 0.06,
+              "mostly": 0.08,
+              "incorrect": 0.16,
+              "unscorable": 0.07,
+              "complete": 0.55
+            }
+          },
+          "preservation": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "complete": 0.57,
+              "limited": 0.03,
+              "mostly": 0.18,
+              "incorrect": 0.08,
+              "unscorable": 0.01,
+              "partial": 0.13
+            }
+          },
+          "restraint": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "complete": 0.48,
+              "limited": 0.05,
+              "mostly": 0.18,
+              "unscorable": 0.01,
+              "partial": 0.19,
+              "incorrect": 0.09
+            }
+          },
+          "physical-state": {
+            "score": 1
+          }
+        }
+      }
+    },
+    {
+      "experiment": "oswin-parlour",
+      "variant": "live-review",
+      "baseline": false,
+      "repeat": 3,
+      "result": {
+        "criteria": {
+          "grounding": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "limited": 0.03,
+              "unscorable": 0.01,
+              "mostly": 0.15,
+              "complete": 0.59,
+              "incorrect": 0.09,
+              "partial": 0.13
+            }
+          },
+          "coverage": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "limited": 0.01,
+              "unscorable": 0,
+              "complete": 0.81,
+              "mostly": 0.08,
+              "incorrect": 0.03,
+              "partial": 0.06
+            }
+          },
+          "knowledge": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "limited": 0.03,
+              "unscorable": 0.01,
+              "mostly": 0.14,
+              "complete": 0.6,
+              "incorrect": 0.09,
+              "partial": 0.13
+            }
+          },
+          "intent": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "limited": 0.05,
+              "unscorable": 0.09,
+              "mostly": 0.09,
+              "complete": 0.52,
+              "incorrect": 0.17,
+              "partial": 0.08
+            }
+          },
+          "preservation": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "limited": 0.03,
+              "unscorable": 0.01,
+              "complete": 0.61,
+              "mostly": 0.15,
+              "incorrect": 0.08,
+              "partial": 0.12
+            }
+          },
+          "restraint": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "limited": 0.03,
+              "unscorable": 0.01,
+              "mostly": 0.1,
+              "complete": 0.69,
+              "incorrect": 0.1,
+              "partial": 0.07
+            }
+          },
+          "physical-state": {
+            "score": 1
+          }
+        }
+      }
+    }
+  ]
+}
