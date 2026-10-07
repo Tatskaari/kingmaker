@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { INVALID_MOVE } from "boardgame.io/core";
-import { isDraft, original } from "immer";
+import { isDraft, original } from "immer/dist/index.js";
 import { ActorMovementSchema, TilePositionSchema } from "../../contracts/src/index.js";
 import type { SimulationState } from "../../contracts/src/v2.js";
 import type { Point } from "./navigation.js";

@@ -1,5 +1,5 @@
 import { INVALID_MOVE } from "boardgame.io/core";
-import { Immer } from "immer";
+import { Immer } from "immer/dist/index.js";
 import type { SimulationState } from "../../contracts/src/v2.js";
 import type { SimulationMove } from "./simulation-move.js";
 
