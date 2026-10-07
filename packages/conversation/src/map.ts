@@ -21,7 +21,8 @@ export interface MapResult {
 }
 export interface MapService {
   layout(): WorldMap;
-  observe(characterId: string): MapObservation;
+  /** Discovery does not pathfind. An explicit selected action ID requests its executable route. */
+  observe(characterId: string, selectedActionId?: string): MapObservation;
   /** Validate and commit against current state. Movement resolves on arrival; a step then revalidates its interaction. */
   interact(command: Readonly<MapCommand>, signal?: AbortSignal): MapResult | Promise<MapResult>;
 }

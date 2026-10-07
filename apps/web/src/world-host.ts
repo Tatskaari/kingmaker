@@ -115,7 +115,7 @@ export class WorldHost {
       if (!layout) throw new Error("A map layout is required.");
       return clone(WorldMapSchema, layout);
     },
-    observe: id => {
+    observe: (id, selectedActionId) => {
       const world = this.world(), physical = world.simulation!.map;
       if (!physical) throw new Error("A physical map is required.");
       const projected = mapAtTime(physical, this.movement.now());
@@ -128,7 +128,7 @@ export class WorldHost {
       }
       const owners = inventoryOwners(characters, map);
       return { characterId: id, map: worldForCharacter(map, owners, id),
-        actions: roomAgentActions(map, characters, owners, id) };
+        actions: roomAgentActions(map, characters, owners, id, selectedActionId) };
     },
     interact: async (command, signal) => {
       if (command.kind === "step") return this.stepNpcAction(command.characterId, command.actionId, command.goal, signal);

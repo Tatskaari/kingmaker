@@ -13,7 +13,7 @@ export function renderJevRoomView(world: MapState, characters: readonly { id: st
     let label = action.description.replace(/ \(\d+ steps\)\.$/, "");
     if (label.endsWith(` ${name}`)) label = label.slice(0, -name.length - 1);
     return `    - ${label}${action.legality === "illegal" ? " (illegal)" : ""}`
-      + (distance === action.path.length - 1 ? "" : ` — ${steps(action.path.length - 1)}`) + ` [${action.id}]`;
+      + (!action.path.length || distance === action.path.length - 1 ? "" : ` — ${steps(action.path.length - 1)}`) + ` [${action.id}]`;
   });
   const entities = [
     ...observation.world.nearbyCharacters.filter(item => item.characterId !== observation.characterId)
@@ -27,8 +27,8 @@ export function renderJevRoomView(world: MapState, characters: readonly { id: st
     .sort((a, b) => Math.min(...a.actions.map(action => action.path.length)) - Math.min(...b.actions.map(action => action.path.length)) || a.id.localeCompare(b.id));
   const lines = [`${room.name} (current room) [${room.id}]:`];
   for (const entity of entities) {
-    const distance = Math.min(...entity.actions.map(action => action.path.length - 1));
-    lines.push(`  ${Number.isFinite(distance) ? distance === 0 ? "Within reach" : steps(distance) + " away" : "No available actions"}: ${entity.name} [${entity.id}]`,
+    const distance = Math.min(...entity.actions.filter(action => action.path.length).map(action => action.path.length - 1));
+    lines.push(`  ${Number.isFinite(distance) ? distance === 0 ? "Within reach" : steps(distance) + " away" : entity.actions.length ? "Nearby" : "No available actions"}: ${entity.name} [${entity.id}]`,
       ...entity.details.map(detail => `    ${detail}`), ...renderActions(entity.actions, entity.name, distance));
   }
   if (!entities.length) lines.push("  No other characters or furniture.");
