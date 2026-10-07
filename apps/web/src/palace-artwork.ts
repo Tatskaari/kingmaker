@@ -31,7 +31,7 @@ export function drawPalaceInteriors(renderer: CanvasMapRenderer, map: WorldMap):
   for (const room of map.rooms) {
     const r = room.regions[0];
     if (!r) continue;
-    const corridor = /hall|wing|corridor/.test(room.id) && !["great_hall", "dining_hall"].includes(room.id);
+    const corridor = room.id.endsWith("_back_hall") || ["north_corridor", "west_wing", "entrance_hall"].includes(room.id);
     if (!corridor && room.id !== "treasury") {
       for (let y = r.y; y < r.y + r.height; y++) for (let x = r.x; x < r.x + r.width; x++) sprite(0, x, y, 1, 1, .12);
     }
