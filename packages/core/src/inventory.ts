@@ -1,5 +1,5 @@
 import { clone, create } from "@bufbuild/protobuf";
-import { InventorySchema, ItemInstanceSchema, type Inventory, type ItemInstance, type WorldState } from "../../contracts/src/index.js";
+import { InventorySchema, ItemInstanceSchema, type Inventory, type ItemInstance, type MapState } from "../../contracts/src/index.js";
 
 export interface InventoryOwner {
   id: string;
@@ -7,7 +7,7 @@ export interface InventoryOwner {
 }
 
 /** Inventories own items. Location is computed only for read models and guards. */
-export function inventoryOwners(characters: readonly InventoryOwner[], map?: Pick<WorldState, "fixtures" | "rooms">) {
+export function inventoryOwners(characters: readonly InventoryOwner[], map?: Pick<MapState, "fixtures" | "rooms">) {
   return [...characters, ...(map?.fixtures ?? []), ...(map?.rooms ?? [])].map(owner => ({
     id: owner.id, inventory: owner.inventory && clone(InventorySchema, owner.inventory),
   }));

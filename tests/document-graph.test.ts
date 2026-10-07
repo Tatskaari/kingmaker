@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { WorldStateSchema as MapSchema } from "../packages/contracts/src/index.js";
+import { MapStateSchema as MapSchema } from "../packages/contracts/src/index.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
 import { DocumentGraph } from "../packages/lore/src/document-graph.js";
 import { refreshDocumentGraph, worldState } from "../packages/lore/src/world-state.js";

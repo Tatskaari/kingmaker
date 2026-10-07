@@ -1,10 +1,10 @@
-import type { Event, WorldState, WorldMap } from "../../contracts/src/index.js";
+import type { Event, MapState, WorldMap } from "../../contracts/src/index.js";
 import type { GameAction } from "../../core/src/actions.js";
 
 export interface MapObservation {
   characterId: string;
   /** Detached observer-visible physical data; no character documents. */
-  map: WorldState;
+  map: MapState;
   actions: readonly GameAction[];
 }
 export type MapCommand =

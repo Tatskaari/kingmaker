@@ -66,7 +66,7 @@ test("active runtime paths prevent deleting their target documents", async () =>
 
 test("fresh scene defaults seed runtime characters once, including unplaced CLI characters", async () => {
   const { create } = await import("@bufbuild/protobuf");
-  const { WorldStateSchema: MapSchema } = await import("../packages/contracts/src/index.js");
+  const { MapStateSchema: MapSchema } = await import("../packages/contracts/src/index.js");
   const { worldState } = await import("../packages/lore/src/world-state.js");
   const entry = "Scenarios/Test/Characters/palace-guard/character.md";
   const world = worldState(create(MapSchema), new Map([

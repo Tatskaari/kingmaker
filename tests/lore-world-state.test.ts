@@ -4,7 +4,7 @@ import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { create, fromJson, toJson } from "@bufbuild/protobuf";
-import { WorldStateSchema as MapSchema } from "../packages/contracts/src/index.js";
+import { MapStateSchema as MapSchema } from "../packages/contracts/src/index.js";
 import { WorldStateSchema } from "../packages/contracts/src/v2.js";
 import { readVault } from "../scripts/lib/lore-access.js";
 import { worldState } from "../packages/lore/src/world-state.js";

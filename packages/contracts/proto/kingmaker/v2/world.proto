@@ -42,7 +42,7 @@ message RuntimeCharacter {
 
 // Physical simulation state, independent of the AI service's document contents.
 message SimulationState {
-  kingmaker.v1.WorldState map = 1;
+  kingmaker.v1.MapState map = 1;
   map<string, RuntimeCharacter> runtime_characters = 2;
 }
 

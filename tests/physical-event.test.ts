@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { WorldStateSchema } from "../packages/contracts/src/index.js";
+import { MapStateSchema } from "../packages/contracts/src/index.js";
 import { createPhysicalEvent } from "../apps/web/src/physical-event.js";
 import { WorldHost } from "../apps/web/src/world-host.js";
 import { loadPlayableWorld } from "./fixtures.js";
 
 test("physical events retain actor position, day, participants and details without character state", () => {
-  const map = create(WorldStateSchema, { day: 7, actors: [{ characterId: "visitor", position: { x: 3, y: 4 } }] });
+  const map = create(MapStateSchema, { day: 7, actors: [{ characterId: "visitor", position: { x: 3, y: 4 } }] });
   const event = createPhysicalEvent(map, "opening", "Opened the chest", ["visitor"], { fixtureId: "chest" });
   assert.match(event.id, /^event-/);
   assert.equal(event.day, 7);

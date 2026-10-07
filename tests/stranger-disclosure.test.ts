@@ -2,7 +2,7 @@ import { setupAgent } from "../packages/conversation/src/agent-setup.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { WorldStateSchema as MapSchema } from "../packages/contracts/src/index.js";
+import { MapStateSchema as MapSchema } from "../packages/contracts/src/index.js";
 import { worldState } from "../packages/lore/src/world-state.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";

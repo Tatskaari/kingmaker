@@ -10,7 +10,7 @@ import { courtInteractionPoint, courtPath, courtRoomAt, nearestDoorSpot } from "
 import { coalescedRefresh } from "../apps/web/src/debug-live.js";
 import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
 import { palaceMap } from "../apps/web/src/palace-map.js";
-import { TilePositionSchema, WorldMapSchema, WorldStateSchema, type Event } from "../packages/contracts/src/index.js";
+import { TilePositionSchema, WorldMapSchema, MapStateSchema, type Event } from "../packages/contracts/src/index.js";
 import { doorActionLegality } from "../packages/core/src/access.js";
 import { inventoryOwners, locatedItems } from "../packages/core/src/inventory.js";
 import { worldForCharacter } from "../packages/core/src/physical-view.js";
@@ -120,7 +120,7 @@ test("character knowledge refers to live fixtures and conceals other characters'
 });
 
 test("unknown fixture fields remain schema errors", () => {
-  assert.throws(() => fromJsonString(WorldStateSchema, '{"quests":[]}'));
+  assert.throws(() => fromJsonString(MapStateSchema, '{"quests":[]}'));
 });
 const originalOpenRouterComplete = OpenRouterClient.prototype.complete;
 
@@ -299,7 +299,7 @@ test("court camera follows the player while clamping at map edges", () => {
 
 test("authored actor coordinates round-trip and rendering never invents positions", () => {
   const scenario = load();
-  const restored = { world: fromBinary(WorldStateSchema, toBinary(WorldStateSchema, scenario.world)) };
+  const restored = { world: fromBinary(MapStateSchema, toBinary(MapStateSchema, scenario.world)) };
   for (const actor of restored.world!.actors) {
     assert.ok(actor.position);
     assert.equal(courtRoomAt(actor.position)?.id, actor.roomId);
@@ -372,7 +372,7 @@ test("bedroom doors are illegal to open except for characters on the room access
   const hall = world.doors.find(door => door.id === "hall_door")!;
   assert.equal(doorActionLegality(hall, world.rooms, "stranger"), "illegal");
   assert.equal(doorActionLegality(hall, world.rooms, "aldren"), "normal");
-  const restored = fromBinary(WorldStateSchema, toBinary(WorldStateSchema, load().world));
+  const restored = fromBinary(MapStateSchema, toBinary(MapStateSchema, load().world));
   assert.equal(doorActionLegality(restored.doors.find(door => door.id === "royal_door")!, restored.rooms, "player"), "illegal");
 });
 
@@ -614,7 +614,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
   await request("configure", { apiKey: "test" });
   const fresh = await request("create_game");
   assert.equal(fresh.state.phase, "player_creation");
-  assert.equal(records.get(fresh.activeSaveId).snapshot.version, 6);
+  assert.equal(records.get(fresh.activeSaveId).snapshot.version, 7);
   assert.equal(records.get(fresh.activeSaveId).snapshot.scenario, undefined);
   await request("start_introduction");
   const resumed = await request("load_game", { saveId: fresh.activeSaveId });

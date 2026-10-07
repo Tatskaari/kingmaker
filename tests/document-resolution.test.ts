@@ -3,7 +3,7 @@ import { commitReview } from "./fixtures.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { WorldStateSchema } from "../packages/contracts/src/index.js";
+import { MapStateSchema } from "../packages/contracts/src/index.js";
 import { worldState } from "../packages/lore/src/world-state.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
@@ -18,7 +18,7 @@ function fixture() {
     notes.set(entry(id), access + `[[Cast/Test/${id}/private.md]]`);
     notes.set(`Cast/Test/${id}/private.md`, access + `${id.toUpperCase()}_PRIVATE`);
   }
-  return createScenarioServices(worldState(create(WorldStateSchema), notes, "Test"));
+  return createScenarioServices(worldState(create(MapStateSchema), notes, "Test"));
 }
 test("v2 exchange isolates speakers and reviews each participant through document writes", async () => {
   const services = fixture(); let calls = 0;

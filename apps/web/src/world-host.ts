@@ -7,7 +7,6 @@ import { inventoryOwners } from "../../../packages/core/src/inventory.js";
 import { strangerEntry } from "./stranger-lore.js";
 import { creationAffiliations } from "./stranger-draft.js";
 import type { StrangerState } from "./stranger-interview.js";
-import { palaceMap } from "./palace-map.js";
 import { GamePhase, WorldMapSchema } from "../../../packages/contracts/src/index.js";
 import type { MapService } from "../../../packages/conversation/src/map.js";
 import { roomAgentActions } from "./room-actions.js";
@@ -28,7 +27,7 @@ export type WorldSnapshot = MechanicalActivity & {
   arrestChallenges?: Record<string, boolean>;
   pendingConversationEvents?: Record<string, JsonValue>;
   pendingWaitReviews?: Record<string, { instructions: string; observation: string }>;
-  version: 6; world: JsonValue;
+  version: 7; world: JsonValue;
   playerMessages: Array<{ id: string; day: number; message: string; createdAt: string; conversationTitle?: string }>;
 };
 
@@ -41,7 +40,7 @@ export class WorldHost {
   constructor(world: WorldState, saved?: WorldSnapshot) {
     this.initial = clone(WorldStateSchema, world);
     this.worldServices = createScenarioServices(world);
-    this.activity = { version: 6, conversations: {}, npcActivities: {}, playerMessages: [] };
+    this.activity = { version: 7, conversations: {}, npcActivities: {}, playerMessages: [] };
     if (saved) this.restore(saved);
     this.syncGoals();
   }
@@ -63,7 +62,7 @@ export class WorldHost {
     return { ...structuredClone(this.activity), world: toJson(WorldStateSchema, this.world()) };
   }
   restore(saved: WorldSnapshot): void {
-    if (saved.version !== 6 || !saved.world) throw new Error("This save uses an older world format. Start a fresh game.");
+    if (saved.version !== 7 || !saved.world) throw new Error("This save uses an older world format. Start a fresh game.");
     const { world, ...activity } = saved;
     const state = fromJson(WorldStateSchema, world);
     this.worldServices = createScenarioServices(state);
@@ -98,7 +97,11 @@ export class WorldHost {
     traceNote: "Model requests are available in the transcript inspector.",
   }; }
   readonly map: MapService = {
-    layout: () => clone(WorldMapSchema, palaceMap),
+    layout: () => {
+      const layout = this.world().simulation!.map?.layout;
+      if (!layout) throw new Error("A map layout is required.");
+      return clone(WorldMapSchema, layout);
+    },
     observe: id => {
       const world = this.world(), physical = world.simulation!.map;
       if (!physical) throw new Error("A physical map is required.");
@@ -176,7 +179,7 @@ export class WorldHost {
   }
   reset() {
     this.worldServices = createScenarioServices(this.initial);
-    this.activity = { version: 6, conversations: {}, npcActivities: {}, playerMessages: [] };
+    this.activity = { version: 7, conversations: {}, npcActivities: {}, playerMessages: [] };
     this.syncGoals();
   }
   resetWorld() {

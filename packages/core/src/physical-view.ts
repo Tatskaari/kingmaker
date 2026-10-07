@@ -1,10 +1,10 @@
 import { clone, toJson } from "@bufbuild/protobuf";
-import { WorldStateSchema, InventorySchema, ItemInstanceSchema, type WorldState } from "../../contracts/src/index.js";
+import { MapStateSchema, InventorySchema, ItemInstanceSchema, type MapState } from "../../contracts/src/index.js";
 import { locatedItems, type InventoryOwner } from "./inventory.js";
 
 /** Removes concealed container contents and undiscovered fixture details. The game master sees
  * the authoritative world; character models see only this projection. */
-export function worldForCharacter(map: WorldState, owners: readonly InventoryOwner[], characterId: string) {
+export function worldForCharacter(map: MapState, owners: readonly InventoryOwner[], characterId: string) {
   // Build only the redacted fields. Unchanged physical records remain shared with the live map.
   const view = { ...map, objects: locatedItems(owners),
     fixtures: map.fixtures.map(fixture => ({ ...fixture,
@@ -35,7 +35,7 @@ export function worldForCharacter(map: WorldState, owners: readonly InventoryOwn
 
 /** Flattened prompt/debug projection only; never persisted as authoritative ownership. */
 export function worldViewJson(view: ReturnType<typeof worldForCharacter>) {
-  return { ...toJson(WorldStateSchema, view, { alwaysEmitImplicit: true }) as object,
+  return { ...toJson(MapStateSchema, { ...view, layout: undefined }, { alwaysEmitImplicit: true }) as object,
     objects: view.objects.map(item => ({ ...toJson(ItemInstanceSchema, item) as object, locationId: item.locationId })) };
 }
 

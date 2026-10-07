@@ -4,7 +4,7 @@ import { commitReview } from "./fixtures.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create, fromJson, toJson } from "@bufbuild/protobuf";
-import { TranscriptMessageSchema, WorldStateSchema as MapSchema } from "../packages/contracts/src/index.js";
+import { TranscriptMessageSchema, MapStateSchema as MapSchema } from "../packages/contracts/src/index.js";
 import { DocumentSchema, WorldStateSchema } from "../packages/contracts/src/v2.js";
 import { DocumentValidationError } from "../packages/lore/src/document-audit.js";
 import { createScenarioServices, DocumentConflictError } from "../packages/lore/src/services.js";

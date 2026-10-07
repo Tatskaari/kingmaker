@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { create } from "@bufbuild/protobuf";
-import { WorldStateSchema as MapSchema } from "../packages/contracts/src/index.js";
+import { MapStateSchema as MapSchema } from "../packages/contracts/src/index.js";
 import { worldState } from "../packages/lore/src/world-state.js";
 import { createLayeredDocumentServices, loadDocumentLayers } from "../packages/service-tools/src/layered-docs.js";
 

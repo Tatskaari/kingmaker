@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { TranscriptMessageSchema, WorldStateSchema } from "../packages/contracts/src/index.js";
+import { TranscriptMessageSchema, MapStateSchema } from "../packages/contracts/src/index.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { classifyConversationReview, runConversationReview } from "../packages/conversation/src/review.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
@@ -12,7 +12,7 @@ const evidence = () => ({ characterId: "alice", participants: ["alice", "player"
 
 test("review passes labels and unmodified evidence to a resolver using the shared services", async () => {
   const order: string[] = [];
-  const services = createScenarioServices(worldState(create(WorldStateSchema), new Map([
+  const services = createScenarioServices(worldState(create(MapStateSchema), new Map([
     ["Scenarios/Test/scenario.md", "Briefing"], ["Scenarios/Test/index.md", "Index"], ["memory.md", "Memories"],
   ]), "Test"));
   const runtime = new ConversationRuntime({ services: { ...services, ai: { responses: async request => {

@@ -1,11 +1,11 @@
 import type { InventoryOwner } from "../../../packages/core/src/inventory.js";
-import type { WorldState } from "../../../packages/contracts/src/index.js";
+import type { MapState } from "../../../packages/contracts/src/index.js";
 import { FurnitureBuilder } from "./furniture-builder.js";
 import { palaceLayout } from "./palace-layout.js";
 import { palaceNodes } from "./palace-navigation.js";
 
 /** Canonical additions; the original 26 fixtures and their evidence stay intact. */
-export function palaceFurniture(map: WorldState, owners: readonly InventoryOwner[], reserved: readonly { x: number; y: number }[] = []) {
+export function palaceFurniture(map: MapState, owners: readonly InventoryOwner[], reserved: readonly { x: number; y: number }[] = []) {
   const builder = new FurnitureBuilder(palaceLayout, map, owners, [...palaceNodes, ...reserved]);
   const item = (id: string, name: string, details: string) => ({ id: `furn_${id}`, name, details });
   const put = (room: string, x: number, y: number, id: string, name: string, sprite: number,

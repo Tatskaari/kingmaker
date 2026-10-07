@@ -1,5 +1,5 @@
 import { create } from "@bufbuild/protobuf";
-import { MapFixtureSchema, type MapFixture, type WorldState } from "../../../packages/contracts/src/index.js";
+import { MapFixtureSchema, type MapFixture, type MapState } from "../../../packages/contracts/src/index.js";
 import { locatedItems, type InventoryOwner } from "../../../packages/core/src/inventory.js";
 import { type RoomBuilder } from "./room-builder.js";
 
@@ -18,7 +18,7 @@ export class FurnitureBuilder {
   readonly #blocked = new Set<string>();
   readonly #reserved = new Set<string>();
   readonly #ids = new Set<string>();
-  constructor(readonly layout: RoomBuilder, world: WorldState, owners: readonly InventoryOwner[], waypoints: readonly Point[] = []) {
+  constructor(readonly layout: RoomBuilder, world: MapState, owners: readonly InventoryOwner[], waypoints: readonly Point[] = []) {
     for (const item of [...locatedItems(owners), ...world.fixtures]) this.#ids.add(item.id);
     for (const fixture of world.fixtures) {
       if (fixture.position) this.#blocked.add(key(fixture.position));

@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { WorldStateSchema } from "../packages/contracts/src/index.js";
+import { MapStateSchema } from "../packages/contracts/src/index.js";
 import { RoomBuilder } from "../apps/web/src/room-builder.js";
 import { FurnitureBuilder } from "../apps/web/src/furniture-builder.js";
 
 function builder() {
   const layout = new RoomBuilder(10, 10);
   layout.room({ id: "bedroom", name: "Bedroom", residents: ["mara"], regions: [{ x: 1, y: 1, width: 6, height: 6 }] });
-  const world = create(WorldStateSchema, { doors: [{ tiles: [{ x: 3, y: 6 }], interactionSpots: [{ x: 3, y: 5 }] }] });
+  const world = create(MapStateSchema, { doors: [{ tiles: [{ x: 3, y: 6 }], interactionSpots: [{ x: 3, y: 5 }] }] });
   return new FurnitureBuilder(layout, world, [], [{ x: 4, y: 4 }]);
 }
 const chest = { id: "chest", name: "Travel chest", sprite: 90,

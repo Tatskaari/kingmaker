@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create, fromJson, toJson } from "@bufbuild/protobuf";
-import { WorldStateSchema as MapSchema } from "../packages/contracts/src/index.js";
+import { MapStateSchema as MapSchema } from "../packages/contracts/src/index.js";
 import { WorldStateSchema } from "../packages/contracts/src/v2.js";
 import { createScenarioServices, DocumentConflictError } from "../packages/lore/src/services.js";
 import { worldState } from "../packages/lore/src/world-state.js";

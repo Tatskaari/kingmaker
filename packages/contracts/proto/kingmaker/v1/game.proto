@@ -343,7 +343,8 @@ message MapFixture {
   Inventory inventory = 14;
 }
 
-message WorldState {
+message MapState {
+  WorldMap layout = 11;
   uint32 revision = 1;
   uint32 day = 2;
   reserved 3;
