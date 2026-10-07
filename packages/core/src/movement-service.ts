@@ -9,7 +9,7 @@ export interface MovementClock {
 }
 export const movementClock: MovementClock = {
   now: () => Date.now(),
-  schedule(callback, delayMs) { const timer = setTimeout(callback, delayMs); return () => clearTimeout(timer); },
+  schedule(callback, delayMs) { const timer = setTimeout(callback, Math.min(delayMs, 2_147_483_647)); return () => clearTimeout(timer); },
 };
 export interface MovementAuthority {
   currentSimulation(): SimulationState;
@@ -40,6 +40,7 @@ export function createMovementService(authority: MovementAuthority, clock: Movem
       jobs.set(key, job);
       const tick = async () => {
         try {
+          let completed = false;
           await authority.write(() => {
             if (jobs.get(key) !== job) return;
             const current = movementActor(authority.currentSimulation(), key)?.movement;
@@ -47,9 +48,9 @@ export function createMovementService(authority: MovementAuthority, clock: Movem
             const remaining = current.startedAtMs + current.durationMs - clock.now();
             if (remaining > 0) { job.stop = clock.schedule(() => void tick(), remaining); return; }
             authority.executeMove(completeMove, key, job.id, clock.now());
-            jobs.delete(key);
+            completed = true;
           });
-          if (!jobs.has(key)) { authority.changed(); settle("arrived"); }
+          if (completed && jobs.get(key) === job) { jobs.delete(key); authority.changed(); settle("arrived"); }
         } catch (error) {
           if (jobs.get(key) === job) jobs.delete(key);
           fail(error);

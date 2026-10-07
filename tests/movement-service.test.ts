@@ -5,7 +5,8 @@ import { SimulationStateSchema } from "../packages/contracts/src/v2.js";
 import { executeLocalMove } from "../packages/core/src/local-move-executor.js";
 import { createMovementService, type MovementClock } from "../packages/core/src/movement-service.js";
 
-function fixture() {
+function fixture(afterWrite: (count: number) => Promise<void> = async () => {}) {
+  let writes = 0;
   let now = 1000, G = create(SimulationStateSchema, { map: {
     layout: { width: 4, height: 1, tileWidth: 16, tileHeight: 16,
       tiles: Array.from({ length: 4 }, () => ({ layers: [{ solid: false }] })) },
@@ -18,7 +19,7 @@ function fixture() {
   const errors: unknown[] = [];
   const service = createMovementService({ currentSimulation: () => G,
     executeMove: (move, ...args) => { G = executeLocalMove(G, move, ...args); },
-    write: async work => work(), changed: () => {}, error: error => errors.push(error),
+    write: async work => { const result = work(); await afterWrite(++writes); return result; }, changed: () => {}, error: error => errors.push(error),
   }, clock);
   return { service, state: () => G, jobs, errors, async advance(ms: number) {
     now += ms;
@@ -67,4 +68,18 @@ test("resume completes saved movement without resurrecting its old continuation"
   assert.equal(f.state().map!.actors[0]!.position!.x, 3);
   assert.equal(f.state().map!.actors[0]!.movement, undefined);
   assert.deepEqual(f.errors, []);
+});
+
+test("a new move during completion persistence settles the old request instead of stranding it", async () => {
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const f = fixture(count => count === 2 ? gate : Promise.resolve());
+  const first = f.service.move("player", request);
+  await f.advance(300);
+  const next = f.service.move("player", { ...request, id: "next", to: { x: 0, y: 0 } });
+  assert.equal(await first, "superseded");
+  release();
+  await f.advance(300);
+  assert.equal(await next, "arrived");
+  assert.equal(f.jobs.size, 0);
 });
