@@ -62,7 +62,9 @@ test("headless cancellation suppresses a fixture continuation and preserves frac
   const taking = live.act("take_palace_royal_key");
   await f.flush(); await f.advance(50);
   await live.runtime.movement.cancel("player");
-  assert.equal((await taking).done, false);
+  const cancelled = await taking;
+  assert.ok("done" in cancelled);
+  assert.equal(cancelled.done, false);
   const G = live.inspect().simulation!;
   assert.equal(G.map!.actors[0]!.position!.x, 0.5);
   assert.ok(!G.runtimeCharacters.player!.inventory?.items.some(item => item.id === "palace_royal_key"));
@@ -81,5 +83,19 @@ test("headless save/load rebuilds completion timers and leaves live position anc
   await f.advance(175);
   assert.equal(live.inspect().simulation!.map!.actors[0]!.position!.x, 3);
   assert.equal(live.inspect().simulation!.map!.actors[0]!.movement, undefined);
+  assert.equal(f.jobs.size, 0);
+});
+
+test("aborting a headless NPC walk cancels its animation and does not take the item", async () => {
+  const f = fixture(), controller = new AbortController();
+  const taking = f.live.runtime.stepNpcAction("rowan", "take_palace_royal_key", "Take the key.", controller.signal);
+  const rejected = assert.rejects(taking, /abort/i);
+  await f.flush(); await f.advance(50);
+  controller.abort(); await f.flush(); await rejected;
+  const G = f.live.inspect().simulation!;
+  const actor = G.map!.actors.find(actor => actor.characterId === "rowan")!;
+  assert.equal(actor.position!.x, 0.5);
+  assert.equal(actor.movement, undefined);
+  assert.ok(G.map!.fixtures[0]!.inventory!.items.some(item => item.id === "palace_royal_key"));
   assert.equal(f.jobs.size, 0);
 });
