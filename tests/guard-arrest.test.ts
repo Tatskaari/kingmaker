@@ -78,8 +78,8 @@ test("a conversation remembered at one post is available to the brothers at anot
   await runtime.endConversation(guard);
   const saved = runtime.snapshot();
   const world = runtime.world();
-  const player = world.map!.actors.find(actor => actor.characterId === "player")!;
-  const brother = world.map!.actors.filter(actor => actor.instanceId?.startsWith("palace-guard-")).at(-1)!;
+  const player = world.simulation!.map!.actors.find(actor => actor.characterId === "player")!;
+  const brother = world.simulation!.map!.actors.filter(actor => actor.instanceId?.startsWith("palace-guard-")).at(-1)!;
   player.position = { ...brother.position!, y: brother.position!.y + 1 };
   const { toJson } = await import("@bufbuild/protobuf");
   const { WorldStateSchema } = await import("../packages/contracts/src/v2.js");

@@ -1,5 +1,5 @@
-import { clone, create, fromJson, type JsonObject } from "@bufbuild/protobuf";
-import { WorldStateSchema as MapSchema, type WorldState as MapState } from "../../contracts/src/index.js";
+import { create, fromJson, type JsonObject } from "@bufbuild/protobuf";
+import { type WorldState as MapState } from "../../contracts/src/index.js";
 import { DocumentSchema, WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
 import { parseMarkdown } from "./markdown.js";
 
@@ -26,10 +26,10 @@ export function worldState(map: MapState, markdown: ReadonlyMap<string, string>,
       throw new Error(`${name}: ${String(error)}`, { cause: error });
     }
   }));
-  const world = refreshDocumentGraph(create(WorldStateSchema, { docs, scenario, scenarioIndex, ...(player === undefined ? {} : { player }), map: clone(MapSchema, map) }));
+  const world = refreshDocumentGraph(create(WorldStateSchema, { docs, scenario, scenarioIndex, ...(player === undefined ? {} : { player }), simulation: { map } }));
   for (const path of world.characters) {
     const id = /\/Characters\/([^/]+)\/character\.md$/.exec(path)![1]!;
-    const bodies = world.map!.actors.filter(actor => actor.characterId === id);
+    const bodies = world.simulation!.map!.actors.filter(actor => actor.characterId === id);
     for (const key of bodies.length ? bodies.map(actor => actor.instanceId ?? actor.characterId) : [id]) seedRuntimeCharacter(world, key, id, path);
   }
   return world;

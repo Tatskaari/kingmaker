@@ -11,11 +11,11 @@ import { loadPlayableWorld } from "./fixtures.js";
 test("review judge receives final touched files once, excluding intermediate and failed writes", async () => {
   const world = loadPlayableWorld();
   const final = clone(WorldStateSchema, world);
-  const path = world.runtimeCharacters.oswin!.document;
+  const path = world.simulation!.runtimeCharacters.oswin!.document;
   final.docs[path]!.body += "\nFINAL MEMORY";
   const deleted = "deleted.md";
   world.docs[deleted] = structuredClone(world.docs[path]!);
-  const untouchedWrite = world.runtimeCharacters.peregrine!.document;
+  const untouchedWrite = world.simulation!.runtimeCharacters.peregrine!.document;
   const edits: ServiceCall[] = [{ id: 2, service: "docs", method: "replace", args: [path, "sha", "old", "INTERMEDIATE MEMORY"],
     startedAt: "test", outcome: { status: "returned", value: { path: "note.md", sha: "updated", text: "INTERMEDIATE MEMORY" } } },
   { id: 3, service: "docs", method: "commit", args: [[{ path: "activity.md", expectedSha: null, text: "Activity" }]],

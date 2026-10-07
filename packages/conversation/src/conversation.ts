@@ -29,7 +29,7 @@ export interface LlmTurn {
 
 /** Scoped lore plus a public participant impression; raw mechanics stay out of dialogue. */
 export function conversationRequest(input: ConversationInput, setup = characterMessages(input.sources)): ChatCompletionRequest {
-  const exists = !!input.snapshot.world.runtimeCharacters[input.characterId];
+  const exists = !!input.snapshot.world.simulation!.runtimeCharacters[input.characterId];
   if (!exists) throw new Error(`Unknown snapshot character: ${input.characterId}`);
   return {
     model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "none" }, max_tokens: 1200,

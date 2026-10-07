@@ -17,10 +17,10 @@ export function createCharacterService(store: WorldStore): CharacterCreationServ
         throw new Error("NPC entry must use its scenario character path.");
       }
       if (input.id === "player" && (store.state.player || input.path !== "Players/player.md")) throw new Error("Invalid or existing player character.");
-      const existing = store.state.map?.actors.find(actor => actor.characterId === input.id);
-      if (!store.state.map || (!existing && !input.actor)) throw new Error("A character needs a map actor.");
+      const existing = store.state.simulation!.map?.actors.find(actor => actor.characterId === input.id);
+      if (!store.state.simulation!.map || (!existing && !input.actor)) throw new Error("A character needs a map actor.");
       if (input.actor && (existing || input.actor.characterId !== input.id
-        || !store.state.map.rooms.some(room => room.id === input.actor!.roomId) || !input.actor.position)) {
+        || !store.state.simulation!.map.rooms.some(room => room.id === input.actor!.roomId) || !input.actor.position)) {
         throw new Error("Invalid or duplicate character actor.");
       }
       const parsed = parseMarkdown(input.text);
@@ -29,10 +29,10 @@ export function createCharacterService(store: WorldStore): CharacterCreationServ
       draft.docs[input.path] = fromJson(DocumentSchema, { body: parsed.body, frontmatter: parsed.metadata as JsonObject });
       draft.docs[input.path]!.characterProperties = structuredClone(input.properties);
       seedPresentation(draft, input.path, input.presentation);
-      if (input.actor) draft.map!.actors.push(clone(ActorStateSchema, input.actor));
+      if (input.actor) draft.simulation!.map!.actors.push(clone(ActorStateSchema, input.actor));
       seedRuntimeCharacter(draft, input.actor?.instanceId ?? input.id, input.id, input.path);
       if (input.id !== "player") draft.docs[draft.scenario]!.body += `\n- [[${input.path}]]\n`;
-      draft.map!.revision++;
+      draft.simulation!.map!.revision++;
       store.publishDocuments(draft);
     }),
   };

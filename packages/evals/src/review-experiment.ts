@@ -78,7 +78,7 @@ export function createReviewExperiment(testCase: ReviewCase, variants: readonly 
     const replay: ReviewConversation = { ...conversation };
     conversations.set(conversation.strategy, replay);
     return { recordServices: ["docs"], services: { inventory: () => backing.inventory, docs: () => backing.docs, scenario: () => backing.scenario, ai: () => createAi(),
-      map: services => ({ observe: characterId => ({ characterId, map: services.scenario.snapshot().map!, actions: [] }) }),
+      map: services => ({ observe: characterId => ({ characterId, map: services.scenario.snapshot().simulation!.map!, actions: [] }) }),
       character: services => ({ respond: async (request, signal) => {
         const draft = replay.draft;
         delete replay.draft;
@@ -109,7 +109,7 @@ export function createReviewExperiment(testCase: ReviewCase, variants: readonly 
     async score(recording, context) {
       const result = await score(recording, context);
       const before = recording.initialState as WorldState | undefined, after = recording.finalState as WorldState | undefined;
-      result.criteria["physical-state"] = { score: before && after && isDeepStrictEqual(before.map, after.map) ? 1 : 0 };
+      result.criteria["physical-state"] = { score: before && after && isDeepStrictEqual(before.simulation!.map, after.simulation!.map) ? 1 : 0 };
       return result;
     },
   };

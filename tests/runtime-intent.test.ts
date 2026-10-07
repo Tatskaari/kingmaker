@@ -8,8 +8,8 @@ import { runtimeActor, seedRuntimeCharacter } from "../packages/lore/src/runtime
 import { loadPlayableWorld } from "./fixtures.js";
 function fixture() {
   const world = loadPlayableWorld();
-  for (const actor of world.map!.actors.filter(actor => actor.characterId !== "player")) {
-    const identity = world.runtimeCharacters[actor.characterId]?.characterId ?? actor.characterId;
+  for (const actor of world.simulation!.map!.actors.filter(actor => actor.characterId !== "player")) {
+    const identity = world.simulation!.runtimeCharacters[actor.characterId]?.characterId ?? actor.characterId;
     seedRuntimeCharacter(world, actor.instanceId ?? actor.characterId, identity,
       `Scenarios/Centennial Assembly/Characters/${identity}/character.md`);
   }
@@ -73,11 +73,11 @@ test("fresh scene defaults seed runtime characters once, including unplaced CLI 
     ["Scenarios/Test/scenario.md", `[[${entry}]]`], ["Scenarios/Test/index.md", "Index"],
     [entry, `---\nactivity: ${task}\n---\nGuard`], [task, text],
   ]), "Test");
-  assert.equal(world.runtimeCharacters["palace-guard"]!.activity, task);
+  assert.equal(world.simulation!.runtimeCharacters["palace-guard"]!.activity, task);
   const services = createScenarioServices(world);
   await services.docs.commit([], [{ actorId: "palace-guard", expectedRevision: 0, activity: null, wait: null }]);
   const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.snapshot())));
-  assert.equal(restored.scenario.snapshot().runtimeCharacters["palace-guard"]!.activity, undefined);
+  assert.equal(restored.scenario.snapshot().simulation!.runtimeCharacters["palace-guard"]!.activity, undefined);
   assert.equal(restored.scenario.snapshot().docs[entry]!.frontmatter!.activity, task);
-  assert.deepEqual(restored.scenario.snapshot().map, world.map);
+  assert.deepEqual(restored.scenario.snapshot().simulation!.map, world.simulation!.map);
 });

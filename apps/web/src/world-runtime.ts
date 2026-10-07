@@ -81,7 +81,7 @@ export class WorldGameRuntime extends WorldHost {
     const respond = extra.services?.character?.respond ?? this.options.services?.character?.respond;
     if (kind === "dialogue" && respond) ai.responses = respond;
     const traced = traceAiService(ai, (subject = id) => {
-      const location = this.world().map?.actors.find(actor => actor.characterId === subject)?.position;
+      const location = this.world().simulation!.map?.actors.find(actor => actor.characterId === subject)?.position;
       return { characterId: subject, participantIds, conversationId, turnId,
         scenario: scenario.info().scenario,
         ...(location ? { location: { x: location.x, y: location.y } } : {}),
@@ -159,7 +159,7 @@ export class WorldGameRuntime extends WorldHost {
     }
     await staged.docs.commit(impressionWrites);
     await staged.scenario.setPlayer(character.path);
-    const map = staged.currentWorld().map!;
+    const map = staged.currentWorld().simulation!.map!;
     map.phase = GamePhase.CONVERSATIONS;
     map.day = 1;
     staged.mechanics.commit(map, {});
@@ -210,7 +210,7 @@ export class WorldGameRuntime extends WorldHost {
     const world = this.world();
     const paths = [...world.characters, ...(world.player ? [world.player] : [])];
     return { docs: world.docs, history: this.traces.documentWrites(), scenario: world.scenario,
-      characterPaths: Object.fromEntries([...Object.values(world.runtimeCharacters).map(character => [character.id, character.document]), ...(world.player ? [["player", world.player]] : [])]) };
+      characterPaths: Object.fromEntries([...Object.values(world.simulation!.runtimeCharacters).map(character => [character.id, character.document]), ...(world.player ? [["player", world.player]] : [])]) };
   }
   startPlanningSession(id: string) { return this.traces.start("npc_goal", id); }
   endPlanningSession(key: string, stopped: boolean, error?: unknown) {
@@ -435,7 +435,7 @@ export class WorldGameRuntime extends WorldHost {
   }
   waitingCharacters(): string[] {
     const world = this.world();
-    return Object.values(world.runtimeCharacters).filter(character => character.characterId !== "player").flatMap(({ id }) => {
+    return Object.values(world.simulation!.runtimeCharacters).filter(character => character.characterId !== "player").flatMap(({ id }) => {
       const intent = characterIntent(world, id);
       return (!intent.activity && intent.wait || this.activity.pendingWaitReviews?.[id]) ? [id] : [];
     });
@@ -471,10 +471,10 @@ export class WorldGameRuntime extends WorldHost {
   }
   async assessWorldEvent(event: Event, signal: AbortSignal) {
     signal.throwIfAborted();
-    const world = this.world(), map = world.map;
+    const world = this.world(), map = world.simulation!.map;
     if (!map) throw new Error("A physical map is required.");
     // Perception needs identities and public names, not character lore or mechanics.
-    const names = new Map([...Object.values(world.runtimeCharacters).filter(character => character.characterId !== "player").map(character => ({ id: character.id, path: character.document })), ...(world.player ? [{ id: "player", path: world.player }] : [])].map(({ id, path }) => {
+    const names = new Map([...Object.values(world.simulation!.runtimeCharacters).filter(character => character.characterId !== "player").map(character => ({ id: character.id, path: character.document })), ...(world.player ? [{ id: "player", path: world.player }] : [])].map(({ id, path }) => {
       const doc = world.docs[path];
       if (!doc) throw new Error(`Missing character document: ${path}`);
       return [id, typeof doc.frontmatter?.name === "string" ? doc.frontmatter.name : id];
@@ -514,8 +514,8 @@ export class WorldGameRuntime extends WorldHost {
         { outcome: () => "unheard", challenge: () => { challenged = true; } }) : runtime.services.ai.responses;
     const request = await prepareConversation({ snapshot: { world }, characterId: id, sources: lore.initial, transcript: [],
       message: renderPrompt("world-runtime-npc-opening", { goal: goal }) }, runtime.services, signal);
-    const actor = world.map!.actors.find(actor => actor.characterId === id)!;
-    const room = world.map!.rooms.find(room => room.id === actor.roomId)!;
+    const actor = world.simulation!.map!.actors.find(actor => actor.characterId === id)!;
+    const room = world.simulation!.map!.rooms.find(room => room.id === actor.roomId)!;
     const openingRequest = { ...request, messages: [...request.messages, { role: "user" as const, content: JSON.stringify({ currentObservation: JSON.parse(waitObservation(runtime.services, id)),
       roomAccess: { private: room.private, playerAuthorized: !room.private || room.allowedCharacterIds.includes("player") } }) }] };
     const reply = await runConversation(openingRequest, runtime, signal);

@@ -6,16 +6,16 @@ import { loadPlayableWorld, assignActivity } from "./fixtures.js";
 
 test("taking an item creates the document inventory and preserves prose and stats", () => {
   const world = loadPlayableWorld(), doc = world.docs[world.player!]!;
-  const fixture = world.map!.fixtures.find(item => item.id === "palace_corvin_drawers")!;
+  const fixture = world.simulation!.map!.fixtures.find(item => item.id === "palace_corvin_drawers")!;
   fixture.open = true;
-  world.map!.actors.find(actor => actor.characterId === "player")!.position = fixture.interactionSpot;
+  world.simulation!.map!.actors.find(actor => actor.characterId === "player")!.position = fixture.interactionSpot;
   delete doc.characterProperties!.inventory;
   const host = new WorldHost(world);
   const result = host.interactFixtureWithEvent("take_palace_royal_key");
   assert.match(result.message, /Picked up/);
   const current = host.world(), player = current.docs[current.player!]!;
   assert.ok(player.characterProperties!.inventory!.items.some(item => item.id === "palace_royal_key"));
-  assert.ok(!current.map!.fixtures.find(item => item.id === fixture.id)!.inventory!.items.some(item => item.id === "palace_royal_key"));
+  assert.ok(!current.simulation!.map!.fixtures.find(item => item.id === fixture.id)!.inventory!.items.some(item => item.id === "palace_royal_key"));
   assert.deepEqual(player.characterProperties!.dnd, doc.characterProperties!.dnd);
   assert.deepEqual(player.frontmatter, doc.frontmatter);
   assert.equal(player.body, doc.body);
@@ -28,9 +28,9 @@ test("NPC mechanics use document goals and inventory without loading narrative p
   const world = loadPlayableWorld(), entry = world.characters.find(path => path.includes("/rowan/"))!;
   const document = world.docs[entry]!;
   assignActivity(world, "rowan", "Inspect the key.");
-  const fixture = world.map!.fixtures.find(item => item.id === "palace_corvin_drawers")!;
+  const fixture = world.simulation!.map!.fixtures.find(item => item.id === "palace_corvin_drawers")!;
   fixture.open = true;
-  const actor = world.map!.actors.find(actor => actor.characterId === "rowan")!;
+  const actor = world.simulation!.map!.actors.find(actor => actor.characterId === "rowan")!;
   actor.position = fixture.interactionSpot; actor.roomId = fixture.roomId;
   for (const doc of world.characters.map(path => world.docs[path]!)) Object.defineProperty(doc, "body", { get() { throw new Error("Unexpected prose read"); } });
   const mechanics = new PalaceMechanics(world, { conversations: {}, npcActivities: {

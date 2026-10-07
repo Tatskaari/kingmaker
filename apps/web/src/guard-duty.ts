@@ -4,14 +4,14 @@ import { DocumentSchema, type WorldState } from "../../../packages/contracts/src
 
 /** Post assignments belong to this playthrough and body, while guard lore stays shared. */
 export function assignGuardPosts(world: WorldState) {
-  for (const character of Object.values(world.runtimeCharacters)) {
+  for (const character of Object.values(world.simulation!.runtimeCharacters)) {
     const entry = world.docs[character.document]!;
     if (!Array.isArray(entry.frontmatter?.conversation_actions) || !entry.frontmatter.conversation_actions.includes("arrest")) continue;
-    const actor = world.map!.actors.find(actor => actor.characterId === character.id);
+    const actor = world.simulation!.map!.actors.find(actor => actor.characterId === character.id);
     if (!actor?.position) continue;
     // Palace guards may enter private rooms in the course of their duty.
-    for (const room of world.map!.rooms) if (room.private && !room.allowedCharacterIds.includes(character.id)) room.allowedCharacterIds.push(character.id);
-    const room = world.map!.rooms.find(room => room.id === actor.roomId)!;
+    for (const room of world.simulation!.map!.rooms) if (room.private && !room.allowedCharacterIds.includes(character.id)) room.allowedCharacterIds.push(character.id);
+    const room = world.simulation!.map!.rooms.find(room => room.id === actor.roomId)!;
     const folder = character.document.replace(/character\.md$/, ""), activity = `${folder}activity-${character.id}.md`;
     const routine = `${folder}routine-${character.id}.md`;
     const instruction = renderPrompt("guard-duty-instruction", { room: room.name, x: actor.position.x, y: actor.position.y });

@@ -20,10 +20,10 @@ test("player has greater perception range and chances without changing NPC odds"
 
 test("player perception still respects closed doors", () => {
   const world = loadPlayableWorld();
-  const door = world.map!.doors.find(door => door.interactionSpots.length >= 2)!;
+  const door = world.simulation!.map!.doors.find(door => door.interactionSpots.length >= 2)!;
   const source = { id: "rowan", name: "Rowan", position: door.interactionSpots[0]! };
   const player = { id: "player", name: "Player", position: door.interactionSpots[1]! };
-  const doors = world.map!.doors.map(item => ({ ...item, open: item.id === door.id }));
+  const doors = world.simulation!.map!.doors.map(item => ({ ...item, open: item.id === door.id }));
   assert.equal(courtCharactersWithinEarshot(source, [player], doors).length, 1);
   assert.equal(courtCharactersWithinEarshot(source, [player], doors.map(item => ({ ...item, open: false }))).length, 0);
 });

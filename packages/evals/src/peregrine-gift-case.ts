@@ -14,11 +14,11 @@ export const peregrineGiftCase: ReviewCase = {
   loadWorld(overlays) {
     const world = loadPlayableWorld(undefined, overlays);
     for (const [id, y] of [["peregrine", 26], ["player", 27]] as const) {
-      const actor = world.map!.actors.find(actor => actor.characterId === id)!;
+      const actor = world.simulation!.map!.actors.find(actor => actor.characterId === id)!;
       actor.roomId = "great_hall";
       Object.assign(actor.position!, { x: 62, y });
     }
-    const actor = world.runtimeCharacters.peregrine!;
+    const actor = world.simulation!.runtimeCharacters.peregrine!;
     actor.activity = undefined; actor.wait = undefined; actor.intentRevision = 0;
     return world;
   },
@@ -29,7 +29,7 @@ export function giftInventoryScore(world: WorldState | undefined) {
   const count = (path?: string) => (path ? world?.docs[path]?.characterProperties?.inventory?.items ?? [] : [])
     .filter(item => /\bbird\b/i.test(`${item.name} ${item.details}`) && /\bwood(?:en)?\b/i.test(`${item.name} ${item.details}`))
     .reduce((total, item) => total + (item.quantity ?? 1), 0);
-  const player = count(world?.player), giver = count(world?.runtimeCharacters.peregrine?.document);
+  const player = count(world?.player), giver = count(world?.simulation!.runtimeCharacters.peregrine?.document);
   return { score: player === 1 && giver === 0 ? 1 : 0,
     reason: `Matching wooden birds: player=${player}, Peregrine=${giver}; expected 1 and 0.` };
 }

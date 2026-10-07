@@ -26,7 +26,7 @@ export interface WorldActionPlan extends ActionResult {
 async function worldActionContext(world: WorldState, characterId: string, history: readonly string[], services: RuntimeServices, signal: AbortSignal, feedback?: PlanningFeedback) {
   const goal = activityGoal(world, characterId);
   if (!goal) return;
-  if (!world.map) throw new Error("Action planning requires a physical map.");
+  if (!world.simulation!.map) throw new Error("Action planning requires a physical map.");
   // Preserve stable-ID labels in planner context; narrative names come through disclosure.
   const characters = characterDocuments(world).map(({ id, document }) => ({ id, name: id,
     inventory: document.characterProperties?.inventory }));

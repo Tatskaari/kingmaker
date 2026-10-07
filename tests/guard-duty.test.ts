@@ -7,25 +7,25 @@ import { activityGoal } from "../packages/lore/src/activity.js";
 const guard = "palace-guard-9";
 test("each guard has its own duty and can approach a witnessed intruder", async () => {
   const world = loadPlayableWorld();
-  const guards = Object.values(world.runtimeCharacters).filter(character => character.characterId === "palace-guard");
+  const guards = Object.values(world.simulation!.runtimeCharacters).filter(character => character.characterId === "palace-guard");
   assert.equal(guards.length, 10);
   assert.equal(new Set(guards.map(character => character.activity)).size, 10);
-  world.map!.doors.filter(door => door.roomIds.includes("royal_bedchamber")).forEach(door => { door.open = true; });
+  world.simulation!.map!.doors.filter(door => door.roomIds.includes("royal_bedchamber")).forEach(door => { door.open = true; });
   const game = new WorldGameRuntime(world, "");
   assert.ok(game.hasActiveObjective(guard));
   assert.ok(game.map.observe(guard).actions.some(action => action.type === "move"));
-  const before = game.world().map!.actors.find(actor => actor.characterId === "palace-guard-10")!.position;
+  const before = game.world().simulation!.map!.actors.find(actor => actor.characterId === "palace-guard-10")!.position;
   const move = game.map.observe(guard).actions.find(action => action.type === "move")!;
   game.stepNpcAction(guard, move.id, activityGoal(world, guard)!);
-  assert.deepEqual(game.world().map!.actors.find(actor => actor.characterId === "palace-guard-10")!.position, before);
+  assert.deepEqual(game.world().simulation!.map!.actors.find(actor => actor.characterId === "palace-guard-10")!.position, before);
 });
 
 test("private room entry emits evidence, while permitted entry does not", async () => {
   for (const permitted of [false, true]) {
-    const world = loadPlayableWorld(), player = world.map!.actors.find(actor => actor.characterId === "player")!;
+    const world = loadPlayableWorld(), player = world.simulation!.map!.actors.find(actor => actor.characterId === "player")!;
     player.position = { ...player.position!, x: 62, y: 11 }; player.roomId = "north_corridor";
-    world.map!.doors.filter(door => door.roomIds.includes("royal_bedchamber")).forEach(door => { door.open = true; });
-    if (permitted) world.map!.rooms.find(room => room.id === "royal_bedchamber")!.allowedCharacterIds.push("player");
+    world.simulation!.map!.doors.filter(door => door.roomIds.includes("royal_bedchamber")).forEach(door => { door.open = true; });
+    if (permitted) world.simulation!.map!.rooms.find(room => room.id === "royal_bedchamber")!.allowedCharacterIds.push("player");
     const game = new WorldGameRuntime(world, "");
     const result = await game.executeAction({ command: { kind: "move", destination: { x: 62, y: 8 } } });
     assert.equal(!!result.worldEvent, !permitted);
@@ -34,7 +34,7 @@ test("private room entry emits evidence, while permitted entry does not", async 
 });
 
 test("a guard opening challenges the player instead of arresting without a defense", async () => {
-  const world = loadPlayableWorld(), player = world.map!.actors.find(actor => actor.characterId === "player")!;
+  const world = loadPlayableWorld(), player = world.simulation!.map!.actors.find(actor => actor.characterId === "player")!;
   player.position = { ...player.position!, x: 61, y: 11 }; player.roomId = "north_corridor";
   const game = new WorldGameRuntime(world, "", undefined, undefined, undefined, {
     strategies: { conversation: { respond: (context, signal, services) => services.character.respond(context.request, signal), } },
@@ -42,7 +42,7 @@ test("a guard opening challenges the player instead of arresting without a defen
       ? { role: "assistant", content: null, tool_calls: [{ id: "arrest", type: "function", function: { name: "arrest", arguments: "{}" } }] }
       : { role: "assistant", content: "You're in the royal bedchamber. Explain yourself." } } },
   });
-  const result = await game.initiatePlayerConversation(guard, "talk_player", world.map!.revision, activityGoal(world, guard)!, new AbortController().signal);
+  const result = await game.initiatePlayerConversation(guard, "talk_player", world.simulation!.map!.revision, activityGoal(world, guard)!, new AbortController().signal);
   assert.equal(result.ok, true);
   assert.equal(game.snapshot().jail, undefined);
   assert.equal(game.snapshot().arrestChallenges?.[guard], true);

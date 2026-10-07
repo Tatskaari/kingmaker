@@ -79,7 +79,7 @@ test("concurrent reviews update separate live documents while player movement su
     assert.match(runtime.world().docs[`Scenarios/Centennial Assembly/Characters/${id}/character.md`]!.body, new RegExp(`${id} remembered`));
     assert.equal(runtime.snapshot().conversations[id], undefined);
   }
-  const position = runtime.world().map!.actors.find(actor => actor.characterId === "player")!.position!;
+  const position = runtime.world().simulation!.map!.actors.find(actor => actor.characterId === "player")!.position!;
   assert.equal(position.x, destination.x); assert.equal(position.y, destination.y);
 });
 

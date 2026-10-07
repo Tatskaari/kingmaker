@@ -3,12 +3,12 @@ import { RuntimeCharacterSchema, type RuntimeCharacter, type WorldState } from "
 
 /** Explicit instance IDs are stable. A shared identity addresses the nearby interlocutor. */
 export function runtimeActor(world: WorldState, id: string): RuntimeCharacter {
-  const exact = world.runtimeCharacters[id];
+  const exact = world.simulation!.runtimeCharacters[id];
   if (exact) return exact;
-  const characters = Object.values(world.runtimeCharacters).filter(character => character.characterId === id);
-  const player = world.map?.actors.find(actor => actor.characterId === "player")?.position;
+  const characters = Object.values(world.simulation!.runtimeCharacters).filter(character => character.characterId === id);
+  const player = world.simulation!.map?.actors.find(actor => actor.characterId === "player")?.position;
   const distance = (character: RuntimeCharacter) => {
-    const position = world.map?.actors.find(actor => (actor.instanceId ?? actor.characterId) === character.id)?.position;
+    const position = world.simulation!.map?.actors.find(actor => (actor.instanceId ?? actor.characterId) === character.id)?.position;
     return player && position ? Math.abs(position.x - player.x) + Math.abs(position.y - player.y) : Infinity;
   };
   characters.sort((a, b) => distance(a) - distance(b));
@@ -25,6 +25,6 @@ export function seedRuntimeCharacter(world: WorldState, id: string, characterId:
       || value.split("/").some(part => !part || part === "." || part === "..")) throw new Error("Expected a vault-relative Markdown path.");
     return value;
   };
-  world.runtimeCharacters[id] = create(RuntimeCharacterSchema, { id, characterId, document,
+  world.simulation!.runtimeCharacters[id] = create(RuntimeCharacterSchema, { id, characterId, document,
     activity: path(metadata.activity), wait: path(metadata.wait) });
 }

@@ -73,7 +73,7 @@ test("v2 headless review without a final message does not generate another turn"
 });
 
 test("headless observations render the supplied map and actions directly", () => {
-  const world = loadPlayableWorld(), map = world.map!;
+  const world = loadPlayableWorld(), map = world.simulation!.map!;
   const player = map.actors.find(actor => actor.characterId === "player")!;
   const room = map.rooms.find(room => room.id === player.roomId)!;
   room.name = "Injected observation room";

@@ -9,7 +9,7 @@ test("action strategies use injected map services; presentation follows the comm
   const world = loadPlayableWorld();
   const runtime = new WorldGameRuntime(world, "", undefined, undefined, undefined, {
     services: { map: {
-      observe: id => { calls.push("observe"); return { characterId: id, map: world.map!, actions: [] }; },
+      observe: id => { calls.push("observe"); return { characterId: id, map: world.simulation!.map!, actions: [] }; },
       interact: command => { if (command.kind === "move") assert.equal(command.destination.x, 1); calls.push(command.kind); return { done: true }; },
     }, presentation: { renderMap: async (_view, result) => { assert.equal(result?.done, true); calls.push("render"); } } },
     strategies: { actionExecution: {
@@ -30,7 +30,7 @@ test("map actions validate current state without generation IDs and retain headl
   const observation = runtime.map.observe("player");
   const action = observation.actions.find(action => action.path.length > 1)!;
   const result = await runtime.executeAction({ command: { kind: "move", destination: action.path[1]! } });
-  assert.deepEqual(runtime.world().map!.actors.find(actor => actor.characterId === "player")!.position, { ...runtime.world().map!.actors.find(actor => actor.characterId === "player")!.position, ...action.path[1] });
+  assert.deepEqual(runtime.world().simulation!.map!.actors.find(actor => actor.characterId === "player")!.position, { ...runtime.world().simulation!.map!.actors.find(actor => actor.characterId === "player")!.position, ...action.path[1] });
   await runtime.presentMap("player", result);
   await runtime.executeAction({ command: { kind: "move", destination: action.path[0]! } });
   assert.ok(!("generations" in result));
@@ -39,7 +39,7 @@ test("map actions validate current state without generation IDs and retain headl
   await assert.rejects(runtime.executeAction({ command: { kind: "move", destination: { x: 0, y: 0 } } }), /not reachable|outside/);
   assert.deepEqual(runtime.snapshot(), unchanged);
   observation.map.actors.length = 0;
-  assert.ok(runtime.world().map!.actors.length);
+  assert.ok(runtime.world().simulation!.map!.actors.length);
   const cancelled = new AbortController(); cancelled.abort();
   const before = runtime.snapshot();
   await assert.rejects(runtime.executeAction({ command: { kind: "move", destination: action.path[0]! } }, cancelled.signal), /abort/i);

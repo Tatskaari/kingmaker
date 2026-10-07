@@ -80,7 +80,7 @@ export class WorldHeadlessGame {
           actionId: plan.action.id, goal: plan.goal } }, signal);
         done = result.done;
         if (result.talkTarget) {
-          const revision = this.inspect().map!.revision;
+          const revision = this.inspect().simulation!.map!.revision;
           if (result.talkTarget === "player") {
             const opening = await this.runtime.initiatePlayerConversation(id, plan.action.id, revision, plan.goal, signal);
             return { actions, opening, jail: this.runtime.jail() };

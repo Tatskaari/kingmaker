@@ -10,12 +10,12 @@ export const oswinParlourCase: ReviewCase = { name: "oswin-parlour", characterId
   loadWorld(overlays) {
     const world = loadPlayableWorld(undefined, overlays);
     for (const [id, y] of [["oswin", 26], ["player", 27]] as const) {
-      const actor = world.map!.actors.find(actor => actor.characterId === id)!;
+      const actor = world.simulation!.map!.actors.find(actor => actor.characterId === id)!;
       actor.roomId = "great_hall";
       Object.assign(actor.position!, { x: 62, y });
     }
-    world.runtimeCharacters.oswin!.activity = undefined;
-    world.runtimeCharacters.oswin!.wait = undefined;
+    world.simulation!.runtimeCharacters.oswin!.activity = undefined;
+    world.simulation!.runtimeCharacters.oswin!.wait = undefined;
     return world;
   },
 };

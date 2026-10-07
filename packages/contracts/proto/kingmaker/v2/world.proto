@@ -38,17 +38,23 @@ message RuntimeCharacter {
   uint32 intent_revision = 6;
 }
 
+// Physical simulation state, independent of the AI service's document contents.
+message SimulationState {
+  kingmaker.v1.WorldState map = 1;
+  map<string, RuntimeCharacter> runtime_characters = 2;
+}
+
 // Authoritative GM state, not a character prompt or a grant to read every doc.
 message WorldState {
   // Keys and references are case-sensitive, vault-relative Markdown paths.
   map<string, Document> docs = 1;
   repeated string characters = 2;
   string scenario = 3;
-  // Preserve the existing physical simulation state without changing its schema.
-  kingmaker.v1.WorldState map = 4;
+  reserved 4, 7;
+  reserved "map", "runtime_characters";
+  SimulationState simulation = 8;
   // Author/GM navigation, separate from the scenario briefing entrypoint.
   string scenario_index = 5;
   // Player's Markdown entrypoint; absent until the player has been created.
   optional string player = 6;
-  map<string, RuntimeCharacter> runtime_characters = 7;
 }

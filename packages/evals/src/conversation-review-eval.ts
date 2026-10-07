@@ -9,17 +9,17 @@ import transcript from "../../../evals/reviews/oswin-parlour.json" with { type: 
 export async function runConversationReviewEval(source: WorldState, apiKey: string, options: WorldOptions = {}) {
   const world = clone(WorldStateSchema, source), id = "oswin";
   for (const [characterId, y] of [[id, 26], ["player", 27]] as const) {
-    const actor = world.map!.actors.find(actor => actor.characterId === characterId)!;
+    const actor = world.simulation!.map!.actors.find(actor => actor.characterId === characterId)!;
     actor.roomId = "great_hall";
     Object.assign(actor.position!, { x: 62, y });
   }
   const intent = characterIntent(world, id);
-  const character = world.runtimeCharacters[id]!;
+  const character = world.simulation!.runtimeCharacters[id]!;
   character.activity = undefined; character.wait = undefined;
   const game = new WorldGameRuntime(world, apiKey, undefined, undefined, undefined, options);
   const before = game.snapshot();
   game.restore({ ...before, conversations: { [id]: transcript } });
-  const initialMap = game.world().map;
+  const initialMap = game.world().simulation!.map;
   const milestones = { reviewCommitted: false, activityAssigned: false, noPrematureWait: false, mapUnchanged: false, plansParlourTravel: false };
   let error: string | undefined, nextChoice: string | undefined;
   const signal = AbortSignal.timeout(180_000);
@@ -28,7 +28,7 @@ export async function runConversationReviewEval(source: WorldState, apiKey: stri
     milestones.reviewCommitted = !game.snapshot().conversations[id]?.length;
     milestones.activityAssigned = !!activityGoal(game.world(), id);
     milestones.noPrematureWait = !characterIntent(game.world(), id).wait;
-    milestones.mapUnchanged = isDeepStrictEqual(game.world().map, initialMap);
+    milestones.mapUnchanged = isDeepStrictEqual(game.world().simulation!.map, initialMap);
     if (milestones.activityAssigned && milestones.noPrematureWait) {
       // Read-only planner probe: test executable travel intent, without a brittle prose matcher.
       nextChoice = (await game.planNpc(id, signal)).decision.choice;

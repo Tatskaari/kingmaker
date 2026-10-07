@@ -6,7 +6,7 @@ import { loadPlayableWorld } from "./fixtures.js";
 test("map observation uses physical state and document names without reading prose or goals", t => {
   const host = new WorldHost(loadPlayableWorld()), world = host.world();
   for (const [id, x] of [["player", 58], ["rowan", 59]] as const) {
-    const actor = world.map!.actors.find(actor => actor.characterId === id)!;
+    const actor = world.simulation!.map!.actors.find(actor => actor.characterId === id)!;
     actor.roomId = "great_hall";
     actor.position = { $typeName: "kingmaker.v1.TilePosition", x, y: 24 };
   }
@@ -23,7 +23,7 @@ test("map observation uses physical state and document names without reading pro
 });
 
 test("native map observations retain background bodies and choose the nearby interlocutor without changing state", () => {
-  const world = loadPlayableWorld(), map = world.map!;
+  const world = loadPlayableWorld(), map = world.simulation!.map!;
   const bodies = map.actors.filter(actor => actor.characterId.startsWith("palace-guard-"));
   const player = map.actors.find(actor => actor.characterId === "player")!;
   // A later body is deliberately nearest; the saved array order must remain intact.

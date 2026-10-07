@@ -8,7 +8,7 @@ import type { LoreService, RuntimeServices } from "./services.js";
 export async function documentLore(scenario: ScenarioService, characterId: string): Promise<LoreService> {
   const intent = characterIntent(scenario.snapshot(), characterId), entry = intent.entry;
   characterId = intent.actorId;
-  const audienceId = scenario.snapshot().runtimeCharacters[characterId]!.characterId;
+  const audienceId = scenario.snapshot().simulation!.runtimeCharacters[characterId]!.characterId;
   const allowed = (path: string, document: { body: string; frontmatter?: Record<string, unknown> | undefined }) => {
     if (!permitted(path, { body: document.body, metadata: document.frontmatter ?? {} }, entry, {
       character: audienceId, labels: labels(scenario.snapshot().docs[entry]?.frontmatter?.labels),
