@@ -193,7 +193,7 @@ export class WorldGameRuntime extends WorldHost {
     const id = context.command.kind === "step" ? context.command.characterId : "player";
     return runActionExecution(context, this.runtime(id, "npc_request"), signal);
   }
-  /** Called after persistence; presentation failure must not roll back a committed action. */
+  /** Presentation failure must not roll back an accepted action. */
   async presentMap(id = "player", result?: import("../../../packages/conversation/src/map.js").MapResult) {
     const { services } = this.runtime(id, "npc_request");
     await services.presentation.renderMap(services.map.observe(id), result);

@@ -36,7 +36,7 @@ test("live transcript events update the panel without rendering and discard stal
   let refresh!: () => Promise<void>;
   const panel = {};
   const context = createContext({
-    URL, AlertLog, installDicePreview() {}, window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}),
+    URL, AlertLog, installDicePreview() {}, window: { addEventListener() {} }, devOpenRouterApiKey: "", newTraveller: () => ({}),
     coalescedRefresh(callback: () => Promise<void>) { refresh = callback; return callback; },
     updateTranscriptPanel(target: unknown, html: unknown) { assert.equal(target, panel); updates.push(html); },
     recentTranscriptsView(requests: unknown) { return requests; },

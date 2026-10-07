@@ -613,8 +613,9 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
       Object.fromEntries(Object.keys(questions).map(id => [id, { choice: "skip", probabilities: { [id]: 0, skip: 1 } }])));
     failNextWrite = true;
     await request("gm", { message: "Alex" });
+    await assert.rejects(request("save_game"), /storage failure/);
     assert.equal((await request("state")).state.gmMessages.length, 3);
-    assert.match(alerts.at(-1).message, /autosave failed/);
+    assert.match(alerts.at(-1).message, /storage failure/);
     const ids = world.characters.map(path => /\/Characters\/([^/]+)\//.exec(path)![1]!);
     const input = { presentation: "A scholar in travel-worn clothes.", name: "Alex", gender: "nonbinary", homeland: "Independent", embassyRole: "Visiting scholar",
       lore: "You serve the Stranger.", currentGoal: "Explore court",
@@ -628,6 +629,7 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     assert.equal(review.state.phase, "character_review");
     failNextWrite = true;
     await request("save_character", { draft: review.state.playerDraft });
+    await assert.rejects(request("save_game"), /storage failure/);
     const pendingReview = await request("state");
     assert.equal(pendingReview.state.phase, "conversations");
     assert.equal(pendingReview.state.player.name, "Alex");
@@ -645,32 +647,33 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     assert.equal(loaded.state.jail.characterId, "palace-guard");
     failNextWrite = true;
     await request("release_from_jail");
+    await assert.rejects(request("save_game"), /storage failure/);
     assert.equal((await request("state")).state.jail, null);
     assert.equal(records.get(created.activeSaveId).snapshot.jail.characterId, "palace-guard");
     assert.equal((await request("release_from_jail")).state.jail, null);
+    await request("save_game");
     assert.equal(records.get(created.activeSaveId).snapshot.jail, undefined);
   });
 
-  await t.test("movement takes only the save snapshot, rejects invalid writes, and survives failed autosave", async t => {
+  await t.test("movement never waits for storage; explicit saves coalesce transitions and retain failed writes", async t => {
     const created = await request("create_development_game");
     const before = structuredClone(records.get(created.activeSaveId).snapshot);
     const snapshot = BrowserGameRuntime.prototype.snapshot;
     let snapshots = 0;
     t.mock.method(BrowserGameRuntime.prototype, "snapshot", function (this: BrowserGameRuntime) { snapshots++; return snapshot.call(this); });
-    t.mock.method(BrowserGameRuntime.prototype, "restore", () => { throw new Error("Unexpected world rollback"); });
     await assert.rejects(request("move_player", { x: -1, y: -1 }), /not reachable|outside/);
-    assert.equal(snapshots, 0, "Rejected writes do not take a rollback or save snapshot");
-    failNextWrite = true; failNextRead = true;
+    failNextWrite = true;
     const moved = await request("move_player", { x: 61, y: 24 });
     assert.deepEqual(moved.state.player.position, create(TilePositionSchema, { x: 61, y: 24 }));
-    assert.equal(snapshots, 2, "Start and completion each take only their actual autosave snapshot");
-    assert.equal(moved.saves, undefined, "Unavailable save metadata does not reject an accepted move");
-    assert.equal(records.get(created.activeSaveId).snapshot.world.simulation.map.actors.find((actor: any) => actor.characterId === "player").position.y, 24);
-    assert.match(alerts.at(-1).message, /only in memory/);
+    assert.equal(snapshots, 0, "Movement does not serialize a save");
+    assert.deepEqual(records.get(created.activeSaveId).snapshot, before);
+    await assert.rejects(request("save_game"), /storage failure/);
+    assert.equal(snapshots, 1);
     await request("move_player", { x: 61, y: 25 });
-    const saved = records.get(created.activeSaveId).snapshot;
-    assert.equal(saved.world.simulation!.map.actors.find((actor: any) => actor.characterId === "player").position.y, 25);
-    assert.equal(snapshots, 4);
+    assert.equal(snapshots, 1, "Further movement remains independent of failed storage");
+    await request("save_game");
+    assert.equal(records.get(created.activeSaveId).snapshot.world.simulation.map.actors.find((actor: any) => actor.characterId === "player").position.y, 25);
+    assert.equal(snapshots, 2);
   });
 
   await t.test("physical interactions respond before background earshot assessment finishes", async t => {
@@ -899,13 +902,15 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     assert.deepEqual(result.state.player.position, create(TilePositionSchema, destination));
     assert.equal(result.state.conversations.corvin, undefined);
     assert.equal(result.state.conversations.gurt.length, 2);
+    await request("save_game");
     const saved = records.get(result.activeSaveId).snapshot;
     assert.match(saved.world.docs["Scenarios/Centennial Assembly/Characters/corvin/character.md"].body, /envoy said goodbye/);
 
     t.mock.method(OpenRouterClient.prototype, "complete", async (input: any) => reviewResponse(input));
     failNextWrite = true;
     await request("end_conversation", { characterId: "gurt" });
-    assert.match(alerts.at(-1).message, /autosave failed/);
+    await assert.rejects(request("save_game"), /storage failure/);
+    assert.match(alerts.at(-1).message, /storage failure/);
     assert.equal((await request("state")).state.conversations.gurt, undefined);
   });
 });
@@ -916,12 +921,13 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
   let endDialogue!: () => void;
   let finishDice!: (completed: boolean) => void;
   let diceSignal: AbortSignal | undefined;
+  const lifecycle = new Map<string, () => void>();
   const context = createContext({
-    URL, AbortController, AlertLog, coalescedRefresh, installDicePreview() {}, showDiceRoll: ({ signal }: { signal: AbortSignal }) => new Promise<boolean>(resolve => { diceSignal = signal; finishDice = resolve; }), window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
+    URL, AbortController, AlertLog, coalescedRefresh, installDicePreview() {}, showDiceRoll: ({ signal }: { signal: AbortSignal }) => new Promise<boolean>(resolve => { diceSignal = signal; finishDice = resolve; }), window: { addEventListener(type: string, handler: () => void) { lifecycle.set(type, handler); } }, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
     document: {
       querySelector: (selector: string) => selector === "[data-end-conversation]"
         ? { addEventListener: (_type: string, callback: () => void) => { endDialogue = callback; } } : null,
-      querySelectorAll: () => [], addEventListener() {},
+      querySelectorAll: () => [], addEventListener(type: string, handler: () => void) { lifecycle.set(type, handler); },
     },
     Worker: class {
       addEventListener(_type: string, callback: typeof receive) { receive = callback; }
@@ -995,6 +1001,18 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(runInContext("state.revision", context), 99);
   assert.equal(sent.filter(message => message.type === "start_npc").length, 1);
+  runInContext("activeSaveId = 'current'; document.visibilityState = 'hidden'", context);
+  lifecycle.get("visibilitychange")!();
+  assert.equal(sent.at(-1).type, "save_game");
+  receive({ data: { id: sent.at(-1).id, ok: true, value: {} } });
+  lifecycle.get("pagehide")!();
+  assert.equal(sent.at(-1).type, "save_game");
+  receive({ data: { id: sent.at(-1).id, ok: true, value: {} } });
+  const count = sent.length;
+  runInContext("document.visibilityState = 'visible'", context);
+  lifecycle.get("visibilitychange")!();
+  assert.equal(sent.length, count);
+
 });
 
 test("dialogue composer sends on Enter and submits a final response with the leave action", () => {
@@ -1011,7 +1029,7 @@ test("dialogue composer sends on Enter and submits a final response with the lea
   };
   const sent: any[] = [];
   const context = createContext({
-    URL, AlertLog, coalescedRefresh, installDicePreview() {}, window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
+    URL, AlertLog, coalescedRefresh, installDicePreview() {}, window: { addEventListener() {} }, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
     FormData: class { get() { return "Farewell."; } },
     document: {
       querySelector: (selector: string) => selector === "[data-talk-form]" ? form : null,

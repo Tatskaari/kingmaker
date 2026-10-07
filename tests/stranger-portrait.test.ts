@@ -33,7 +33,7 @@ test("portrait updates ignore old replies and replaced games without re-renderin
   const requests: any[] = [], image = { src: "", alt: "" };
   let receive!: (event: any) => void;
   const context = createContext({
-    URL, AlertLog, coalescedRefresh, strangerPortrait, installDicePreview() {}, devOpenRouterApiKey: "", window: {},
+    URL, AlertLog, coalescedRefresh, strangerPortrait, installDicePreview() {}, devOpenRouterApiKey: "", window: { addEventListener() {} },
     document: { querySelector: (selector: string) => selector === "[data-stranger-portrait]" ? image : null, addEventListener() {} },
     Worker: class {
       addEventListener(_type: string, callback: typeof receive) { receive = callback; }
