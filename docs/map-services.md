@@ -8,7 +8,7 @@ The runtime injects a `map` service alongside documents, AI and presentation.
 
 Planning (`strategies.action`) chooses an action using observations from the map service. Execution (`strategies.actionExecution`) has its own classify/resolve pair: classification is currently an empty stub; the default resolver calls the map service. A talk result hands off to the existing conversation/resolution flow. Outcome review continues to update documents through its existing strategies.
 
-`presentation.renderMap` is invoked after the worker persists a successful action. The browser publishes an updated view; headless defaults to no rendering. Browser layout data is supplied by the map service. Presentation failures do not roll back persisted world changes.
+`presentation.renderMap` follows an accepted action. The browser also publishes each accepted mutation immediately; headless defaults to no rendering. Browser layout data is supplied by the map service. Presentation failures do not roll back persisted world changes.
 
 `PalaceMechanics` is an internal implementation of the current map rules, not a service exposed to strategies. The existing palace renderer remains the built-in presentation implementation.
 
