@@ -1,3 +1,4 @@
+import { Autosave } from "./autosave.js";
 /// <reference lib="webworker" />
 import { WaitScheduler } from "./wait-scheduler.js";
 import { characterIntent } from "../../../packages/lore/src/activity.js";
@@ -31,7 +32,7 @@ let runtime: BrowserGameRuntime | undefined;
 let activeSave: Omit<SaveRecord, "snapshot"> | undefined;
 let generation = 0;
 
-// Network waits never hold this queue; only validated mutations and saves do.
+// Only validated mutations hold this queue. Network waits and autosave run outside it.
 let requests: Promise<unknown> = Promise.resolve();
 function enqueue<T>(work: () => Promise<T>): Promise<T> {
   const result = requests.then(work); requests = result.catch(() => {}); return result;
@@ -93,17 +94,16 @@ async function commitMutation<T>(game: BrowserGameRuntime, work: () => T | Promi
     const result = await work();
     // Clients render accepted state immediately; autosave must not delay animation.
     publishNpc("");
-    await autosave();
+    autosave.markDirty();
     return result;
   });
 }
-async function autosave() {
-  try { await persist(); }
-  catch (error) { alertUser("error", `Your changes succeeded, but autosave failed. Your latest progress is only in memory; the next successful autosave will save it. ${String(error)}`); }
-}
+const autosave = new Autosave({ save: () => persist(), error: error => {
+  alertUser("error", `Autosave failed. Your latest progress is still in memory; autosave will retry. ${String(error)}`);
+} });
 async function mutationResponse(game: BrowserGameRuntime) {
   // A storage outage must not turn a successful action into a rejected UI move.
-  return { state: game.view(), saves: await listSaves().catch(() => undefined) };
+  return { state: game.view() };
 }
 async function reviewBackground(game: BrowserGameRuntime, id: string, signal: AbortSignal, allowNextGoal: boolean) {
   signal.throwIfAborted();
@@ -309,7 +309,7 @@ async function persist(): Promise<void> {
   const identity = view.travellerIdentity as TravellerIdentity | null;
   const characterName = player?.name || identity?.name || activeSave.characterName;
   const now = new Date().toISOString();
-  attachPersistence(runtime);
+  const game = runtime;
   const saved = {
     ...activeSave,
     characterName,
@@ -318,7 +318,7 @@ async function persist(): Promise<void> {
     snapshot: runtime.snapshot(),
   };
   await transaction("readwrite", store => store.put(saved));
-  activeSave = saved;
+  if (runtime === game && activeSave?.id === saved.id) activeSave = saved;
 }
 
 async function createGame(development = false): Promise<Record<string, unknown>> {
@@ -334,13 +334,13 @@ async function createGame(development = false): Promise<Record<string, unknown>>
     createdAt: now,
     updatedAt: now,
   };
+  attachPersistence(runtime);
   await persist();
   return { mapLayout: runtime.map.layout(), state: runtime.view(), activeSaveId: activeSave.id, saves: await listSaves() };
 }
 
 async function createDevelopmentGame(): Promise<Record<string, unknown>> {
   await createGame(true);
-  await persist();
   return { mapLayout: runtime!.map.layout(), state: runtime!.view(), activeSaveId: activeSave!.id, saves: await listSaves() };
 }
 
@@ -364,6 +364,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     for (const pending of pendingDice.values()) pending.reject(new Error("Game changed during a dice roll."));
     pendingDice.clear();
     waits.stop(); waitsPaused = false;
+    await autosave.flush();
     if (["configure", "create_game", "create_development_game", "load_game", "delete_game"].includes(type)) runtime?.movement.dispose();
     generation++; stopBackground(); stopWorldEvents(); conversationHolds.clear();
     if (runtime) attachPersistence(runtime);
@@ -393,6 +394,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     if (activeSave?.id === saveId) { activeSave = undefined; runtime = undefined; }
     return { saves: await listSaves() };
   }
+  if (type === "save_game") { await autosave.flush(); return {}; }
   if (type === "state") return { state: requireRuntime().view(), activeSaveId: activeSave?.id };
   if (type === "stranger_expression") return { expression: await requireRuntime().classifyStrangerExpression(payload.recentPortraits ?? []) };
   if (["start_introduction", "start_premade", "gm", "save_character"].includes(type)) {
@@ -404,15 +406,15 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
       if (generation === version && runtime === game) worker.postMessage({ type: "dialogue_stream", requestId, characterId: "gm", text });
     });
     if (type === "save_character") await game.confirmPlayer(payload.draft as JsonValue);
-    await autosave();
-    return { state: game.view(), saves: await listSaves().catch(() => undefined), activeSaveId: activeSave?.id };
+    autosave.markDirty();
+    return { state: game.view(), activeSaveId: activeSave?.id };
   }
   if (type === "cancel_npc") { waitsPaused = true; waits.stop(); stopBackground(); publishNpc("NPC activity paused."); return {}; }
   if (type === "reset_world" || type === "reset_characters") {
     const game = requireRuntime();
     if (type === "reset_world") game.resetWorld();
     else game.resetCharacters();
-    await autosave();
+    autosave.markDirty();
     return mutationResponse(game);
   }
   if (type === "release_from_jail") {
@@ -474,22 +476,22 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
         if (game.hasActiveObjective(id)) startBackground(id);
         if (reply) scheduleWorldEvent(game, reply as Event);
       }
-      return { reply: type === "talk" ? reply : undefined, state: game.view(), saves: await listSaves().catch(() => undefined), activeSaveId: activeSave?.id };
+      return { reply: type === "talk" ? reply : undefined, state: game.view(), activeSaveId: activeSave?.id };
     } finally { if (type === "end_conversation") conversationReviews.delete(reviewKey); }
   }
   if (type === "reset") {
     requireRuntime().reset();
     if (activeSave) { activeSave.characterName = "New emissary"; activeSave.normalizedName = "new emissary"; }
-    await autosave();
-    return { state: requireRuntime().view(), saves: await listSaves().catch(() => undefined), activeSaveId: activeSave?.id };
+    autosave.markDirty();
+    return { state: requireRuntime().view(), activeSaveId: activeSave?.id };
   }
   if (type === "debug_override_objective") {
     const game = requireRuntime(), id = String(payload.characterId || "");
     await game.overrideActiveObjective(id, payload.objective);
     stopBackground(id);
-    await autosave();
+    autosave.markDirty();
     publishNpc(`${id}: objective overridden. Ready to run the new goal.`);
-    return { state: game.view(), saves: await listSaves().catch(() => undefined), activeSaveId: activeSave?.id };
+    return { state: game.view(), activeSaveId: activeSave?.id };
   }
   if (type === "debug_transcripts") return { requests: requireRuntime().recentTranscripts(), agentRuns: requireRuntime().transcriptRuns() };
   if (type === "debug_documents") return requireRuntime().debugDocuments();
@@ -522,7 +524,7 @@ worker.addEventListener("message", event => {
   };
   // Background work and dialogue wait outside the mutation queue. Their results
   // rejoin it only to validate, merge and save, keeping player commands responsive.
-  if (request.type === "release_from_jail" || request.type === "stranger_expression" || request.type === "cancel_npc" || request.type === "debug_transcripts" || request.type === "issue_report" || request.type === "start_npc" || request.type === "pause_npc" || request.type === "talk" || request.type === "end_conversation" || request.type === "interact_fixture" || request.type === "set_door" || request.type === "move_player") void process();
+  if (request.type === "save_game" || request.type === "release_from_jail" || request.type === "stranger_expression" || request.type === "cancel_npc" || request.type === "debug_transcripts" || request.type === "issue_report" || request.type === "start_npc" || request.type === "pause_npc" || request.type === "talk" || request.type === "end_conversation" || request.type === "interact_fixture" || request.type === "set_door" || request.type === "move_player") void process();
   else void enqueue(process);
 });
 
