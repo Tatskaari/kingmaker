@@ -1,14 +1,33 @@
 import { clone, toJson } from "@bufbuild/protobuf";
-import { InventorySchema, ItemInstanceSchema } from "../../contracts/src/index.js";
-import { addToInventory, removeFromInventory, transferBetweenInventories, replaceInventories } from "../../core/src/simulation-inventory.js";
-import { InventoryConflictError, type InventoryService } from "./service-types.js";
-import { canonical, documentSha } from "./document-snapshot.js";
-import type { WorldStore } from "./world-store.js";
+import { InventorySchema, ItemInstanceSchema, type Inventory, type ItemInstance } from "../../contracts/src/index.js";
+import { addToInventory, removeFromInventory, transferBetweenInventories, replaceInventories } from "./simulation-inventory.js";
+import { canonical, sha256 } from "./state-version.js";
+import type { SimulationState } from "../../contracts/src/v2.js";
+import type { SimulationMove } from "./simulation-move.js";
+
+export interface InventorySnapshot { actorId: string; sha: string; inventory: Inventory | undefined }
+export class InventoryConflictError extends Error {
+  constructor(readonly actorId: string) { super(`${actorId}: inventory changed; read it again before editing`); }
+}
+export interface InventoryService {
+  addToInventory(ownerId: string, item: ItemInstance): Promise<void>;
+  removeFromInventory(ownerId: string, itemId: string): Promise<void>;
+  transferBetweenInventories(from: string, to: string, itemId: string): Promise<void>;
+  read(actorId: string): Promise<InventorySnapshot>;
+  commit(changes: readonly { actorId: string; expectedSha: string; inventory: Inventory }[]): Promise<void>;
+}
+
+/** Inventory operations need simulation access and execution, never AI documents. */
+interface InventoryHost {
+  currentSimulation(): SimulationState;
+  write<T>(action: () => Promise<T>): Promise<T>;
+  executeMove<Args extends unknown[]>(move: SimulationMove<Args>, ...args: Args): void;
+}
 
 /** Character inventories are simulation state; document edits never change their versions. */
-export function createInventoryService(store: WorldStore): InventoryService {
+export function createInventoryService(store: InventoryHost): InventoryService {
   const character = (id: string) => {
-    const actor = store.state.simulation!.runtimeCharacters[id];
+    const actor = store.currentSimulation().runtimeCharacters[id];
     if (!actor) throw new Error(`Unknown runtime character: ${id}`);
     return actor;
   };
@@ -24,7 +43,7 @@ export function createInventoryService(store: WorldStore): InventoryService {
     async read(actorId) {
       const inventory = character(actorId).inventory;
       const snapshot = inventory && clone(InventorySchema, inventory);
-      const sha = await documentSha(version(actorId));
+      const sha = await sha256(version(actorId));
       return { actorId, sha, inventory: snapshot };
     },
     commit: changes => store.write(async () => {
@@ -32,7 +51,7 @@ export function createInventoryService(store: WorldStore): InventoryService {
       const expected = new Map<string, string>();
       for (const change of changes) {
         const current = version(change.actorId);
-        if (await documentSha(current) !== change.expectedSha) throw new InventoryConflictError(change.actorId);
+        if (await sha256(current) !== change.expectedSha) throw new InventoryConflictError(change.actorId);
         expected.set(change.actorId, current);
       }
       // Mechanics can run while hashes await. Recheck before publishing any inventory.

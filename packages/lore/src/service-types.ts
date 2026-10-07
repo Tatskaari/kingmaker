@@ -1,4 +1,3 @@
-import type { Inventory, ItemInstance } from "../../contracts/src/index.js";
 import type { Document, WorldState, CharacterProperties, RuntimeCharacter } from "../../contracts/src/v2.js";
 import type { ActorState, WorldState as MapState } from "../../contracts/src/index.js";
 
@@ -53,17 +52,4 @@ export class DocumentConflictError extends Error {
     super(`${path}: document changed; read it again before editing`);
     this.name = "DocumentConflictError";
   }
-}
-
-
-export interface InventorySnapshot { actorId: string; sha: string; inventory: Inventory | undefined }
-export class InventoryConflictError extends Error {
-  constructor(readonly actorId: string) { super(`${actorId}: inventory changed; read it again before editing`); }
-}
-export interface InventoryService {
-  addToInventory(ownerId: string, item: ItemInstance): Promise<void>;
-  removeFromInventory(ownerId: string, itemId: string): Promise<void>;
-  transferBetweenInventories(from: string, to: string, itemId: string): Promise<void>;
-  read(actorId: string): Promise<InventorySnapshot>;
-  commit(changes: readonly { actorId: string; expectedSha: string; inventory: Inventory }[]): Promise<void>;
 }

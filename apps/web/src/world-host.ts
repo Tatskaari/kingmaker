@@ -34,19 +34,19 @@ export type WorldSnapshot = MechanicalActivity & {
 
 /** Documents and mechanics have one authority; synchronous actions operate on live mechanical state. */
 export class WorldHost {
-  protected documents: ReturnType<typeof createScenarioServices>;
+  protected worldServices: ReturnType<typeof createScenarioServices>;
   protected activity: Omit<WorldSnapshot, "world">;
   protected readonly initial: WorldState;
 
   constructor(world: WorldState, saved?: WorldSnapshot) {
     this.initial = clone(WorldStateSchema, world);
-    this.documents = createScenarioServices(world);
+    this.worldServices = createScenarioServices(world);
     this.activity = { version: 6, conversations: {}, npcActivities: {}, playerMessages: [] };
     if (saved) this.restore(saved);
     this.syncGoals();
   }
   /** Live state for synchronous game operations. Never serialize a save to read or update game state. */
-  world() { return this.documents.currentWorld(); }
+  world() { return this.worldServices.currentWorld(); }
   protected syncGoals() {
     const world = this.world();
     const activities = this.activity.npcActivities ??= {};
@@ -66,7 +66,7 @@ export class WorldHost {
     if (saved.version !== 6 || !saved.world) throw new Error("This save uses an older world format. Start a fresh game.");
     const { world, ...activity } = saved;
     const state = fromJson(WorldStateSchema, world);
-    this.documents = createScenarioServices(state);
+    this.worldServices = createScenarioServices(state);
     this.activity = structuredClone(activity);
   }
   protected mutate<T>(operation: (game: PalaceMechanics) => T): T {
@@ -74,7 +74,7 @@ export class WorldHost {
     const game = new PalaceMechanics(this.world(), this.activity);
     const result = operation(game);
     const { map, characters, npcActivities } = game.snapshot();
-    this.documents.mechanics.commit(map, characters);
+    this.worldServices.mechanics.commit(map, characters);
     this.activity.npcActivities = npcActivities;
     return result;
   }
@@ -175,7 +175,7 @@ export class WorldHost {
     });
   }
   reset() {
-    this.documents = createScenarioServices(this.initial);
+    this.worldServices = createScenarioServices(this.initial);
     this.activity = { version: 6, conversations: {}, npcActivities: {}, playerMessages: [] };
     this.syncGoals();
   }
@@ -183,7 +183,7 @@ export class WorldHost {
     const before = this.world();
     const map = structuredClone(this.initial.simulation!.map!);
     if (before.player) { map.phase = GamePhase.CONVERSATIONS; map.day = 1; }
-    this.documents.mechanics.commit(map, {});
+    this.worldServices.mechanics.commit(map, {});
   }
   resetCharacters() {
     const current = this.world();
@@ -214,11 +214,11 @@ export class WorldHost {
     const goal = objective && typeof objective === "object"
       ? ("current_goal" in objective ? objective.current_goal : "currentGoal" in objective ? objective.currentGoal : null) : null;
     if (goal !== null && typeof goal !== "string") throw new Error("Expected currentGoal text.");
-    const doc = await this.documents.docs.read(path);
+    const doc = await this.worldServices.docs.read(path);
     const activity = goal ? path.replace(/character\.md$/, `activity-${crypto.randomUUID()}.md`) : null;
     const fields = objective as Record<string, unknown> | null;
     const expected = characterIntent(this.world(), id);
-    await this.documents.docs.commit([
+    await this.worldServices.docs.commit([
       ...(activity ? [{ path: activity, expectedSha: null, text: formatActivity(id, {
         name: String(fields?.name ?? goal), status: String(fields?.status ?? "Assigned by the GM."),
         success_criteria: String(fields?.success_criteria ?? fields?.successCriteria ?? goal), current_goal: goal!,

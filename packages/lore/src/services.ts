@@ -1,4 +1,4 @@
-import { createInventoryService } from "./inventory-service.js";
+import { createInventoryService } from "../../core/src/inventory-service.js";
 import type { WorldState } from "../../contracts/src/v2.js";
 import { WorldStore } from "./world-store.js";
 import { createDocsService } from "./docs-service.js";
@@ -8,11 +8,16 @@ import { createScenarioService } from "./scenario-service.js";
 
 export * from "./service-types.js";
 
-/** Services share one owned state and serialized document writes. */
+/** World services share one authority and write queue across documents and simulation. */
 export function createScenarioServices(initial: WorldState) {
   const store = new WorldStore(initial);
   const docs = createDocsService(store);
   // Trusted synchronous host code reads live state; document APIs retain CAS snapshots.
-  return { inventory: createInventoryService(store), currentWorld: () => store.state, docs, scenario: createScenarioService(store, docs),
+  const inventory = createInventoryService({
+    currentSimulation: () => store.state.simulation!,
+    write: action => store.write(action),
+    executeMove: (move, ...args) => store.executeMove(move, ...args),
+  });
+  return { inventory, currentWorld: () => store.state, docs, scenario: createScenarioService(store, docs),
     character: createCharacterService(store), mechanics: createMechanicsService(store) };
 }

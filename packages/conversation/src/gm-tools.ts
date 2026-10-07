@@ -1,3 +1,4 @@
+import { InventoryConflictError } from "../../core/src/inventory-service.js";
 import { renderPrompt } from "../../prompts/src/index.js";
 import { fromJsonString } from "@bufbuild/protobuf";
 import { InventorySchema } from "../../contracts/src/index.js";
@@ -7,7 +8,7 @@ import type { OpenRouterTool } from "../../providers/src/openrouter.js";
 import type { RuntimeServices, DocumentUpdate } from "./services.js";
 import { ActivityEdits, activityTools } from "./activity-tools.js";
 import { characterIntent } from "../../lore/src/activity.js";
-import { DocumentConflictError, InventoryConflictError, type DocumentSnapshot } from "../../lore/src/services.js";
+import { DocumentConflictError, type DocumentSnapshot } from "../../lore/src/services.js";
 
 export class InvalidReviewError extends Error {}
 
