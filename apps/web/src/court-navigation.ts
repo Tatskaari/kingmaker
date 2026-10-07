@@ -22,4 +22,3 @@ export function nearestDoorSpot(start: Point, door: DoorState, doors: readonly D
   return door.interactionSpots.map(point => ({ point, path: courtPath(start, point, doors, fixtures) }))
     .filter(candidate => candidate.path).sort((a, b) => a.path!.length - b.path!.length)[0]?.point;
 }
-
