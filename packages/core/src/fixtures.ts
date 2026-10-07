@@ -42,33 +42,49 @@ export function fixtureActions(fixtures: readonly MapFixture[] | undefined, owne
 
 /** Caller supplies a draft and validates the physical approach before applying the action. */
 export function applyFixtureAction(G: SimulationState, actorId: string, actionId: string): string {
+  const message = fixtureActionMessage(G, actorId, actionId);
   const fixtures = G.map?.fixtures, owners = inventoryOwners(Object.values(G.runtimeCharacters), G.map);
   const action = fixtureActions(fixtures, owners, actorId).find(candidate => candidate.id === actionId);
   if (!action) throw new Error("That container action is no longer available.");
   if (action.verb === "inspect" && action.itemId) {
-    const item = findItem(owners, action.itemId!)!;
-    return `${item.name}: ${item.details || "No further details are recorded."}`;
+    return message;
   }
   const fixture = fixtures!.find(item => item.id === action.target)!;
   const remember = () => { if (!fixture.examinedBy.includes(actorId)) fixture.examinedBy.push(actorId); };
   if (action.verb === "inspect") {
     remember();
-    return `${fixtureName(fixture, actorId)}${fixture.container ? fixture.open ? " is open." : fixture.requiredKeyId ? " is locked. A matching key is needed." : " is closed." : "."}`;
+    return message;
   }
   if (action.verb === "open") {
     remember();
     if (fixture.requiredKeyId && !itemsFor(owners, actorId).some(item => item.id === fixture.requiredKeyId)) {
-      return `${fixtureName(fixture, actorId)} is locked. You need the matching key.`;
+      return message;
     }
     fixture.open = true;
     if (!fixture.searchedBy.includes(actorId)) fixture.searchedBy.push(actorId);
-    const contents = itemsFor(owners, fixture.id);
-    return `${fixtureName(fixture, actorId)} opened. ${contents.length ? contents.map(item => item.name).join(", ") : "It is empty."}`;
+    return message;
   }
-  if (action.verb === "close") { fixture.open = false; return `${fixtureName(fixture, actorId)} closed.`; }
+  if (action.verb === "close") { fixture.open = false; return message; }
   const item = findItem(owners, action.itemId!)!;
   if (transferBetweenInventories({ G }, fixture.id, actorId, item.id, { reveal: true }) === INVALID_MOVE) {
     throw new Error("That inventory transfer is no longer available.");
   }
-  return `Picked up ${item.name}.`;
+  return message;
+}
+
+/** Render the interaction result without changing state or executing the move twice. */
+export function fixtureActionMessage(G: SimulationState, actorId: string, actionId: string): string {
+  const owners = inventoryOwners(Object.values(G.runtimeCharacters), G.map);
+  const action = fixtureActions(G.map?.fixtures, owners, actorId).find(candidate => candidate.id === actionId);
+  if (!action) throw new Error("That container action is no longer available.");
+  const item = action.itemId ? findItem(owners, action.itemId)! : undefined;
+  if (action.verb === "inspect" && item) return `${item.name}: ${item.details || "No further details are recorded."}`;
+  if (action.verb === "take") return `Picked up ${item!.name}.`;
+  const fixture = G.map!.fixtures.find(item => item.id === action.target)!;
+  const name = action.verb === "inspect" || action.verb === "open" ? fixture.revealedName || fixture.name : fixtureName(fixture, actorId);
+  if (action.verb === "inspect") return `${name}${fixture.container ? fixture.open ? " is open." : fixture.requiredKeyId ? " is locked. A matching key is needed." : " is closed." : "."}`;
+  if (action.verb === "close") return `${name} closed.`;
+  if (fixture.requiredKeyId && !itemsFor(owners, actorId).some(item => item.id === fixture.requiredKeyId)) return `${name} is locked. You need the matching key.`;
+  const contents = itemsFor(owners, fixture.id);
+  return `${name} opened. ${contents.length ? contents.map(item => item.name).join(", ") : "It is empty."}`;
 }
