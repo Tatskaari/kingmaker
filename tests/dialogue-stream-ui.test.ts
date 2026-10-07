@@ -19,7 +19,7 @@ test("worker text updates display incrementally, coalesce frames, and discard st
     scrollTo() {}, scrollHeight: 100,
   };
   const context = createContext({
-    URL, AlertLog, installDicePreview() {}, window: {}, devOpenRouterApiKey: "", newTraveller: () => ({}),
+    URL, AlertLog, installDicePreview() {}, window: { addEventListener() {} }, devOpenRouterApiKey: "", newTraveller: () => ({}),
     coalescedRefresh: () => () => {}, patronName: "The Stranger",
     escapeHtml: (value: string) => value.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;"),
     requestAnimationFrame: (callback: () => void) => frames.push(callback),
