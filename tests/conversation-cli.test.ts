@@ -72,5 +72,5 @@ test("lore starts with private identity and scenario entry; knowledge stays unop
   const knowledge = lore.read(candidates.find(link => link.path.endsWith("Lady Elinor Ash.md"))!.path);
   assert.equal(knowledge.markdown.trim(), "This is a stub.");
   assert.throws(() => lore.read("Cast/Caerwyn/Magister Corvin/gm.md"), /No read access/);
-  assert.throws(() => conversationRequest({ ...input(), characterId: "missing" }), /Unknown snapshot character/);
+  assert.throws(() => conversationRequest({ ...input(), characterId: "missing" }), /Unknown character/);
 });
