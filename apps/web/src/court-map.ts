@@ -1,3 +1,4 @@
+import { courtRoomAt, courtDoorBlockers, courtPath, courtInteractionPoint, nearestDoorSpot } from "./court-navigation.js";
 import { doorActionLegality, type RoomAccess } from "../../../packages/core/src/access.js";
 import type { FixtureAction } from "../../../packages/core/src/fixtures.js";
 import type { DoorState, MapFixture } from "../../../packages/contracts/src/index.js";
@@ -5,7 +6,7 @@ import { drawDoors } from "./draw-doors.js";
 import { actionsAtTile, requireCurrentFixtureAction, type CourtInteractionLayer } from "./court-interactions.js";
 import { CanvasMapRenderer } from "./map-renderer.js";
 import { palaceMap } from "./palace-map.js";
-import { canWalk, findPath, pointKey, type Point } from "../../../packages/core/src/navigation.js";
+import { canWalk, pointKey, type Point } from "../../../packages/core/src/navigation.js";
 
 export interface CourtCharacter { id: string; instanceId?: string; name: string; roomId?: string; position?: Point; sprite?: number }
 export interface CourtMarker extends CourtCharacter { point?: Point; roomName: string; sprite: number }
@@ -66,29 +67,6 @@ export function courtMarkers(characters: readonly CourtCharacter[], fixtures: re
     return { ...character, roomName: room?.name ?? character.roomId ?? "Location unknown", sprite,
       ...(valid ? { point } : {}) };
   });
-}
-
-export function courtRoomAt(point: Point) {
-  return palaceMap.rooms.find(room => room.regions.some(region => point.x >= region.x && point.y >= region.y
-    && point.x < region.x + region.width && point.y < region.y + region.height));
-}
-export function courtDoorBlockers(doors: readonly DoorState[], fixtures: readonly MapFixture[] = []): Set<string> {
-  return new Set([...fixtures.flatMap(item => item.position ? [pointKey(item.position)] : []), ...doors.filter(door => !door.open).flatMap(door => door.tiles.map(pointKey))]);
-}
-export function courtPath(start: Point, end: Point, doors: readonly DoorState[] = [], fixtures: readonly MapFixture[] = []): Point[] | undefined {
-  return findPath(palaceMap, start, end, courtDoorBlockers(doors, fixtures));
-}
-
-export function courtInteractionPoint(start: Point, target: Point, authored?: Point, doors: readonly DoorState[] = [], fixtures: readonly MapFixture[] = []): Point | undefined {
-  const candidates = authored ? [authored] : [{ x: target.x, y: target.y + 1 }, { x: target.x - 1, y: target.y },
-    { x: target.x + 1, y: target.y }, { x: target.x, y: target.y - 1 }];
-  return candidates.map(point => ({ point, path: courtPath(start, point, doors, fixtures) })).filter(candidate => candidate.path)
-    .sort((a, b) => a.path!.length - b.path!.length)[0]?.point;
-}
-
-export function nearestDoorSpot(start: Point, door: DoorState, doors: readonly DoorState[], fixtures: readonly MapFixture[] = []): Point | undefined {
-  return door.interactionSpots.map(point => ({ point, path: courtPath(start, point, doors, fixtures) }))
-    .filter(candidate => candidate.path).sort((a, b) => a.path!.length - b.path!.length)[0]?.point;
 }
 
 export function courtWalkPoint(path: readonly Point[], progress: number): Point {

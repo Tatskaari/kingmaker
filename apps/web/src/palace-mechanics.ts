@@ -10,7 +10,7 @@ import { activityGoal } from "../../../packages/lore/src/activity.js";
 import { foregroundBodies } from "./background-characters.js";
 import { roomAgentActions } from "./room-actions.js";
 
-import { courtRoomAt } from "./court-map.js";
+import { courtRoomAt } from "./court-navigation.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
 function mechanicalCharacters(world: WorldState, simulation: () => SimulationState) {
   return characterDocuments(world).map(({ id, path, document }) => ({ id, path,

@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { courtPath, courtRoomAt } from "../apps/web/src/court-map.js";
+import { courtPath, courtRoomAt } from "../apps/web/src/court-navigation.js";
 import { WorldHost } from "../apps/web/src/world-host.js";
 import { loadPlayableWorld } from "./fixtures.js";
 
