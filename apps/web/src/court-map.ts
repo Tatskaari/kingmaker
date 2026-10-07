@@ -5,7 +5,7 @@ import { drawDoors } from "./draw-doors.js";
 import { actionsAtTile, requireCurrentFixtureAction, type CourtInteractionLayer } from "./court-interactions.js";
 import { CanvasMapRenderer } from "./map-renderer.js";
 import { palaceMap } from "./palace-map.js";
-import { canWalk, findPath, pointKey, type Point } from "./navigation.js";
+import { canWalk, findPath, pointKey, type Point } from "../../../packages/core/src/navigation.js";
 
 export interface CourtCharacter { id: string; instanceId?: string; name: string; roomId?: string; position?: Point; sprite?: number }
 export interface CourtMarker extends CourtCharacter { point?: Point; roomName: string; sprite: number }

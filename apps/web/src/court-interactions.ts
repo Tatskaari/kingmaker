@@ -1,5 +1,5 @@
 import type { FixtureAction } from "../../../packages/core/src/fixtures.js";
-import type { Point } from "./navigation.js";
+import type { Point } from "../../../packages/core/src/navigation.js";
 
 export interface CourtAction {
   id: string;

@@ -2,7 +2,7 @@ import { create } from "@bufbuild/protobuf";
 import { GamePhase, TilePositionSchema, type WorldState } from "../../../packages/contracts/src/index.js";
 import { courtPath, courtRoomAt } from "./court-map.js";
 import { createPhysicalEvent } from "./physical-event.js";
-import type { Point } from "./navigation.js";
+import type { Point } from "../../../packages/core/src/navigation.js";
 
 /** Apply validated player movement to a live map. */
 export function movePlayer(map: WorldState, playerId: string, destination: Point): void {

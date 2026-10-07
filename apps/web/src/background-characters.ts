@@ -2,7 +2,7 @@ import { seedRuntimeCharacter } from "../../../packages/lore/src/runtime-actor.j
 import { create } from "@bufbuild/protobuf";
 import { ActorStateSchema, type ActorState } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
-import { canWalk, pointKey } from "./navigation.js";
+import { canWalk, pointKey } from "../../../packages/core/src/navigation.js";
 import { courtDoorBlockers, courtRoomAt } from "./court-map.js";
 import { palaceMap } from "./palace-map.js";
 
