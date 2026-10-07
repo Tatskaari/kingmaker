@@ -18,7 +18,13 @@ export function canWalk(map: WorldMap, point: Point, blocked: ReadonlySet<string
 }
 
 export function findPath(map: WorldMap, start: Point, goal: Point, blocked: ReadonlySet<string> = new Set()): Point[] | undefined {
-  if (!canWalk(map, start, blocked) || !canWalk(map, goal, blocked)) return undefined;
+  // A cancelled walk can start between two tile centres. Connect that point to
+  // both ends of its cardinal edge, preserving true distance and allowing reversal.
+  const fractional = !Number.isInteger(start.x) || !Number.isInteger(start.y);
+  const anchors = Number.isInteger(start.y)
+    ? [{ x: Math.floor(start.x), y: start.y }, { x: Math.ceil(start.x), y: start.y }]
+    : [{ x: start.x, y: Math.floor(start.y) }, { x: start.x, y: Math.ceil(start.y) }];
+  if (!anchors.every(point => canWalk(map, point, blocked)) || !canWalk(map, goal, blocked)) return undefined;
   const open = new Map([[pointKey(start), start]]);
   const costs = new Map([[pointKey(start), 0]]);
   const parents = new Map<string, Point>();
@@ -33,10 +39,11 @@ export function findPath(map: WorldMap, start: Point, goal: Point, blocked: Read
       return path;
     }
     open.delete(key);
-    for (const [dx, dy] of [[0, -1], [1, 0], [0, 1], [-1, 0]] as const) {
-      const next = { x: current.x + dx, y: current.y + dy };
+    const neighbours = fractional && key === pointKey(start) ? anchors
+      : [[0, -1], [1, 0], [0, 1], [-1, 0]].map(([dx, dy]) => ({ x: current.x + dx!, y: current.y + dy! }));
+    for (const next of neighbours) {
       const nextKey = pointKey(next);
-      const cost = costs.get(key)! + 1;
+      const cost = costs.get(key)! + distance(current, next);
       if (!canWalk(map, next, blocked) || cost >= (costs.get(nextKey) ?? Infinity)) continue;
       costs.set(nextKey, cost); parents.set(nextKey, current); open.set(nextKey, next);
     }
