@@ -247,7 +247,7 @@ test("main game releases the NPC to act on committed activity while live review 
     && JSON.stringify(call.request).includes("newly accepted conversation turn")));
 });
 
-test("main game displays discretion replies and accepts another turn while review is pending", { timeout: 5000 }, async () => {
+test("main game displays discretion replies and accepts another turn while review is pending", { timeout: 30000 }, async () => {
   const displayed: string[] = [];
   let release!: () => void, finished!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });

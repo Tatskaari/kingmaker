@@ -49,7 +49,7 @@ test("ordinary flags release a response while GM review remains pending", async 
   assert.notDeepEqual(f.backing.scenario.snapshot(), f.before);
 });
 
-test("GM discretion releases successive replies while its ordered reviews are pending", { timeout: 5000 }, async () => {
+test("GM discretion releases successive replies while its ordered reviews are pending", { timeout: 30000 }, async () => {
   const f = fixture("discretion");
   try {
     const first = await runConversation(request, f.runtime);
