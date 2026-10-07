@@ -17,7 +17,7 @@ export function selectMapArtwork(value: string): void {
 
 // A flat print treatment, applied equally to scenery and portrait counters.
 export function mapArtworkFilter(): string {
-  return mapArtwork() === "parchment" ? "grayscale(1) sepia(.65) contrast(.8) brightness(1.18)" : "none";
+  return mapArtwork() === "parchment" ? "grayscale(1) sepia(.45) contrast(.9)" : "none";
 }
 
 export const furnishingSprites: Readonly<Record<number, number>> = { 63: 10, 73: 9, 75: 11, 79: 12, 80: 13, 90: 14 };
