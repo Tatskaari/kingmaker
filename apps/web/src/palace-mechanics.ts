@@ -1,7 +1,8 @@
+import { actorPosition, actorTile, mapAtTime } from "../../../packages/core/src/simulation-movement.js";
 import { executeLocalMove } from "../../../packages/core/src/local-move-executor.js";
 import { createPhysicalEvent } from "./physical-event.js";
 import { create, type JsonValue } from "@bufbuild/protobuf";
-import { TilePositionSchema, GamePhase, type MapState as PhysicalMap, type Event } from "../../../packages/contracts/src/index.js";
+import { GamePhase, type MapState as PhysicalMap, type Event } from "../../../packages/contracts/src/index.js";
 import { fixtureActions, applyFixtureAction } from "../../../packages/core/src/fixtures.js";
 import { inventoryOwners, findItem } from "../../../packages/core/src/inventory.js";
 import { type WorldState, type SimulationState } from "../../../packages/contracts/src/v2.js";
@@ -10,7 +11,6 @@ import { activityGoal } from "../../../packages/lore/src/activity.js";
 import { foregroundBodies } from "./background-characters.js";
 import { roomAgentActions } from "./room-actions.js";
 
-import { courtRoomAt } from "./court-navigation.js";
 import { gameLogger } from "../../../packages/observability/src/logging.js";
 function mechanicalCharacters(world: WorldState, simulation: () => SimulationState) {
   return characterDocuments(world).map(({ id, path, document }) => ({ id, path,
@@ -70,7 +70,7 @@ export class PalaceMechanics {
   #playerId: string;
   #npcActivities: Record<string, NpcActivity>;
   #conversations: MechanicalActivity["conversations"];
-  constructor(world: WorldState, activity: MechanicalActivity) {
+  constructor(world: WorldState, activity: MechanicalActivity, private readonly now = () => Date.now()) {
     if (!world.simulation!.map) throw new Error("A physical map is required.");
     this.#simulation = { ...world.simulation!, map: { ...world.simulation!.map, actors: foregroundBodies(world.simulation!.map.actors) } };
     this.#characters = mechanicalCharacters(world, () => this.#simulation);
@@ -94,10 +94,10 @@ export class PalaceMechanics {
     const character = this.#characters.find(character => character.id === characterId);
     if (!character || !this.#world.actors.some(actor => actor.characterId === characterId && actor.position)) throw new Error("Character is not placed in the palace.");
     return { goal: character.currentGoal, revision: this.#world.revision,
-      actions: roomAgentActions(this.#world, this.#characters, inventoryOwners(this.#characters, this.#world), characterId, continuingActionId) };
+      actions: roomAgentActions(mapAtTime(this.#world, this.now()), this.#characters, inventoryOwners(this.#characters, this.#world), characterId, continuingActionId) };
   }
   worldEvent(kind: string, summary: string, participantIds: string[], details: EventDetails = {}): Event {
-    return createPhysicalEvent(this.#world, kind, summary, participantIds, details);
+    return createPhysicalEvent(mapAtTime(this.#world, this.now()), kind, summary, participantIds, details);
   }
 
   prepareNpcAction(characterId: string, actionId: string, goal: string) {
@@ -130,9 +130,8 @@ export class PalaceMechanics {
     const action = observation.actions.find(item => item.id === actionId);
     if (!action) throw new Error("That NPC action is no longer available.");
     if (action.type === "talk") throw new Error("Talk requires conversation resolution.");
-    const actor = world.actors.find(actor => actor.characterId === characterId)!;
     if (action.path.length > 1) throw new Error("Actor has not arrived; replan.");
-    if (action.type === "door" && !action.open && world.actors.some(other => other.characterId !== characterId && other.position && world.doors.find(door => door.id === action.target)!.tiles.some(tile => tile.x === other.position!.x && tile.y === other.position!.y))) throw new Error("Someone is standing in the doorway.");
+    if (action.type === "door" && !action.open && world.actors.some(other => { const position = actorPosition(other, this.now()); return other.characterId !== characterId && position && world.doors.find(door => door.id === action.target)!.tiles.some(tile => tile.x === actorTile(position).x && tile.y === actorTile(position).y); })) throw new Error("Someone is standing in the doorway.");
     let message = action.description;
     if (action.type === "door") world.doors.find(door => door.id === action.target)!.open = action.open!;
     if (action.type === "fixture") message = this.applyFixture( characterId, action.id);
@@ -160,7 +159,7 @@ export class PalaceMechanics {
     const action = fixtureActions(world.fixtures, inventoryOwners(characters, world), actorId).find(item => item.id === actionId);
     if (!action) throw new Error("That furniture action is no longer available. Open the action menu again.");
     const fixture = world.fixtures.find(item => item.id === action.target);
-    const position = world.actors.find(actor => actor.characterId === actorId)?.position;
+    const position = actorPosition(world.actors.find(actor => actor.characterId === actorId), this.now());
     if (action?.target === actorId && action.itemId) {
       const result = this.applyFixture( actorId, actionId);
       this.#world.revision++;

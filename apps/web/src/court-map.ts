@@ -59,12 +59,12 @@ export async function captureCourtMap(root: HTMLElement | null): Promise<Blob | 
   return canvasBlob(output);
 }
 
-export function courtMarkers(characters: readonly CourtCharacter[], fixtures: readonly MapFixture[] = []): CourtMarker[] {
+export function courtMarkers(characters: readonly CourtCharacter[], fixtures: readonly MapFixture[] = [], layout = palaceMap): CourtMarker[] {
   return characters.map(character => {
-    const room = palaceMap.rooms.find(room => room.id === character.roomId);
+    const room = layout.rooms.find(room => room.id === character.roomId);
     const sprite = character.sprite ?? (character.id === "corvin" ? 84 : character.id === "garran" ? 96 : character.id === "king" ? 85 : 98);
     const point = character.position;
-    const valid = point && canWalk(palaceMap, actorTile(point), courtDoorBlockers([], fixtures)) && (character.movement || courtRoomAt(actorTile(point))?.id === room?.id);
+    const valid = point && canWalk(layout, actorTile(point), courtDoorBlockers([], fixtures)) && (character.movement || courtRoomAt(actorTile(point), layout)?.id === room?.id);
     return { ...character, roomName: room?.name ?? character.roomId ?? "Location unknown", sprite,
       ...(valid ? { point } : {}) };
   });
@@ -112,7 +112,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   cleanup.observe(document.body, { childList: true, subtree: true });
   let walkTo: (point: Point, interaction?: () => void | Promise<void>) => Promise<void> = async () => {};
   const approach = (target: Point, authored?: Point) => visualPosition && courtInteractionPoint(
-    { x: Math.round(visualPosition.x), y: Math.round(visualPosition.y) }, target, authored, doors, fixtures);
+    { x: Math.round(visualPosition.x), y: Math.round(visualPosition.y) }, target, authored, doors, fixtures, layout);
   const showMenu = (tile: Point, x: number, y: number) => {
     if (disabled) return;
     if (!menu.hidden && menuTile === pointKey(tile)) { closeMenu(); return; }
@@ -148,7 +148,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
         else if (action.type === "walk") void walkTo(tile);
         else if (action.type === "door") {
           const door = doors.find(door => door.id === action.target);
-          const spot = door && visualPosition && nearestDoorSpot({ x: Math.round(visualPosition.x), y: Math.round(visualPosition.y) }, door, doors, fixtures);
+          const spot = door && visualPosition && nearestDoorSpot({ x: Math.round(visualPosition.x), y: Math.round(visualPosition.y) }, door, doors, fixtures, layout);
           if (!door || !spot || !changeDoor) { reportStatus("No reachable interaction spot for this door."); return; }
           const open = !door.open;
           void walkTo(spot, async () => {
@@ -168,7 +168,8 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
           if (!character) return;
           try { await pauseCharacter?.(character.id); }
           catch { reportStatus("Could not pause this character. Try again."); return; }
-          const spot = character?.point && approach(character.point);
+          const target = actorPosition(character, Date.now());
+          const spot = target && approach(actorTile(target));
           if (!spot) { reportStatus("There is no reachable interaction spot for that character."); return; }
           void walkTo(spot, () => selectCharacter(character.id));
         }
@@ -182,7 +183,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     menu.style.top = `${Math.max(8, Math.min(y, window.innerHeight - bounds.height - 8))}px`;
     menu.querySelector<HTMLButtonElement>("button:not(:disabled)")?.focus();
   };
-  const markers = courtMarkers([...characters, ...(player ? [player] : [])], fixtures);
+  const markers = courtMarkers([...characters, ...(player ? [player] : [])], fixtures, layout);
   for (const marker of markers) {
     const isPlayer = marker.id === player?.id;
     const control = document.createElement(isPlayer ? "div" : "button");
@@ -271,7 +272,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     }
     if (JSON.stringify(fixtureChoices) !== JSON.stringify(next.fixtureActions)) closeMenu();
     doors = next.doors; fixtures = next.fixtures; fixtureChoices = next.fixtureActions; rooms = next.roomAccess;
-    const updated = courtMarkers([...next.characters, next.player], fixtures);
+    const updated = courtMarkers([...next.characters, next.player], fixtures, layout);
     for (const marker of markers) {
       const current = updated.find(item => (item.instanceId ?? item.id) === (marker.instanceId ?? marker.id)); if (!current) continue;
       Object.assign(marker, current);

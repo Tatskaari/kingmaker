@@ -1,13 +1,16 @@
 import { renderPrompt } from "../../../packages/prompts/src/index.js";
-import { courtPath } from "./court-navigation.js";
+import { createPathfindingService } from "../../../packages/core/src/pathfinding.js";
+import { actorTile } from "../../../packages/core/src/simulation-movement.js";
+import { palaceMap } from "./palace-map.js";
 import type { DoorState, MapFixture } from "../../../packages/contracts/src/index.js";
 
 
 
-export function courtCharactersWithinEarshot(speaker: PositionedCharacter, characters: readonly PositionedCharacter[], doors: readonly DoorState[] = [], fixtures: readonly MapFixture[] = []) {
+export function courtCharactersWithinEarshot(speaker: PositionedCharacter, characters: readonly PositionedCharacter[], doors: readonly DoorState[] = [], fixtures: readonly MapFixture[] = [], layout = palaceMap) {
+  const routing = createPathfindingService(layout);
   const heard = new Set<string>();
   return charactersWithinEarshot(speaker, characters).filter(listener => {
-    if (heard.has(listener.id) || !courtPath(speaker.position!, listener.position!, doors, fixtures)) return false;
+    if (heard.has(listener.id) || !routing.findPath(actorTile(speaker.position!), actorTile(listener.position!), { doors, fixtures })) return false;
     heard.add(listener.id); return true;
   });
 }
