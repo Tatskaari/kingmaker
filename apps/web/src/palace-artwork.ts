@@ -1,7 +1,7 @@
 import type { WorldMap } from "../../../packages/contracts/src/index.js";
 import type { CanvasMapRenderer } from "./map-renderer.js";
 
-export const mapArtworks = [{ id: "pencil", name: "Pencil & stone" }, { id: "furnished", name: "Furnished palace" }] as const;
+export const mapArtworks = [{ id: "pencil", name: "Pencil & stone" }, { id: "furnished", name: "Furnished palace" }, { id: "parchment", name: "Ink on parchment" }] as const;
 export type MapArtwork = typeof mapArtworks[number]["id"];
 const storageKey = "kingmaker-map-artwork";
 let selected: MapArtwork = "furnished";
@@ -13,6 +13,11 @@ export function selectMapArtwork(value: string): void {
   if (!mapArtworks.some(option => option.id === value)) return;
   selected = value as MapArtwork;
   try { localStorage.setItem(storageKey, selected); } catch {}
+}
+
+// A flat print treatment, applied equally to scenery and portrait counters.
+export function mapArtworkFilter(): string {
+  return mapArtwork() === "parchment" ? "grayscale(1) sepia(.65) contrast(.8) brightness(1.18)" : "none";
 }
 
 export const furnishingSprites: Readonly<Record<number, number>> = { 63: 10, 73: 9, 75: 11, 79: 12, 80: 13, 90: 14 };

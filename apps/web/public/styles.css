@@ -445,3 +445,5 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 .history-turn.scene { border-color: var(--line); font-style: italic; }
 
 .map-artwork-choice { display: grid; gap: 8px; margin-top: 20px; color: var(--dim); }
+
+.court-map-stage .court-sprite { filter: var(--map-artwork-filter, none); }
