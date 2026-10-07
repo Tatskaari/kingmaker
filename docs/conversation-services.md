@@ -62,11 +62,12 @@ straight to the character service. A replacement strategy can generate multiple
 private drafts or return a fixed response without calling that service.
 
 The main game supplies `liveConversationStrategy` as the response policy after
-those disclosure and dice steps. Jev classifies a private draft; ordinary flags
-queue a GM review using high reasoning, while `gms_discretion` requires GM approval and
-consequence updates before release. A refusal adds system guidance and regenerates
-the character reply without rerolling. Only the accepted reply is displayed.
-Each conversation owns a review queue. The host drains it before the next turn.
+those disclosure and dice steps. Jev classifies the character reply; flags including
+`gms_discretion` queue a GM review using high reasoning. The reply is released
+without a separate GM approval or waiting for consequence updates.
+Each conversation owns an ordered review queue. Subsequent turns continue without
+waiting for reviews; lore and world updates become available after they commit.
+Review failures surface when the queue is drained at conversation end.
 Ending a live conversation releases the NPC to act on committed activity immediately,
 without waiting for remaining reviews or running another full review. Pending
 reviews continue in the background; later activity changes use the existing replan path. Conversations using a replacement strategy or with no live session still

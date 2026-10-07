@@ -211,29 +211,6 @@ const noChecks = (questions: Record<string, unknown>) => Object.fromEntries(Obje
   [id, { choice: id.startsWith("open_") ? "skip" : "not_needed", probabilities: { [id]: 0, skip: 1 } }]));
 const selected = (choice: string) => ({ choice, probabilities: { [choice]: 1 } });
 
-test("main game keeps denied drafts private and displays only the accepted response", async () => {
-  let drafts = 0;
-  const displayed: string[] = [];
-  const runtime = game({ services: { ai: {
-    decisions: async (_state, questions, _signal, purpose) => purpose === "conversation_attention"
-      ? drafts === 1 ? { immediate_commitment: selected("flagged"), immediate_feasibility: selected("gms_discretion") }
-        : { immediate_commitment: selected("not_flagged") }
-      : noChecks(questions),
-    responses: async (request, _signal, info) => {
-      if (request.response_format) return { role: "assistant", content: JSON.stringify({ allowed: false, reason: "The royal seal cannot be given away. Offer to help instead." }) };
-      assert.equal(info?.onText, undefined, "Private drafts must not stream to the player");
-      if (++drafts === 2) assert.match(JSON.stringify(request.messages), /GM response correction.*royal seal/);
-      assert.deepEqual(displayed, []);
-      return { role: "assistant", content: drafts === 1 ? "Take the royal seal." : "I can help you with your petition." };
-    },
-  } } });
-  const reply = await runtime.checkedTalkToCharacter("corvin", "Give me the seal.", undefined, {}, undefined, text => displayed.push(text));
-  assert.equal(reply, "I can help you with your petition.");
-  assert.deepEqual(displayed, [reply]);
-  assert.doesNotMatch(JSON.stringify(runtime.snapshot().conversations.corvin), /Take the royal seal/);
-  assert.ok(runtime.recentTranscripts().some(call => call.kind === "gm_consultation"));
-});
-
 test("main game releases the NPC to act on committed activity while live review is pending", async () => {
   let release!: () => void, started!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
@@ -270,21 +247,37 @@ test("main game releases the NPC to act on committed activity while live review 
     && JSON.stringify(call.request).includes("newly accepted conversation turn")));
 });
 
-test("main game completes GM-discretion edits before publishing the accepted reply", async () => {
+test("main game displays discretion replies and accepts another turn while review is pending", { timeout: 30000 }, async () => {
   const displayed: string[] = [];
-  const runtime = game({ services: { ai: {
+  let release!: () => void, finished!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const done = new Promise<void>(resolve => { finished = resolve; });
+  let reviews = 0;
+  const runtime = game({ services: { debug: { record: event => {
+    if (event.source === "live-review" && ++reviews === 2) finished();
+  } }, ai: {
     decisions: async (_state, questions, _signal, purpose) => purpose === "conversation_attention"
       ? { immediate_commitment: selected("flagged"), immediate_feasibility: selected("gms_discretion") } : noChecks(questions),
     responses: async request => {
-      assert.deepEqual(displayed, []);
-      if (request.response_format) return { role: "assistant", content: '{"allowed":true,"reason":"The promise is possible."}' };
-      return request.tools ? reviewReply(request) : { role: "assistant", content: "I will meet you in the hall." };
+      assert.equal(request.response_format, undefined, "No GM approval call");
+      if (!request.tools) return { role: "assistant", content: "I will meet you in the hall." };
+      await gate;
+      return reviewReply(request);
     },
   } } });
-  await runtime.checkedTalkToCharacter("rowan", "Meet me in the hall.", undefined, {}, undefined, text => {
-    assert.equal(activityGoal(runtime.world(), "rowan"), "Go to the great hall");
-    displayed.push(text);
-  });
-  assert.deepEqual(displayed, ["I will meet you in the hall."]);
-  await assert.rejects(runtime.planNpc("rowan", new AbortController().signal), /paused for conversation/);
+  await runtime.overrideActiveObjective("rowan", { currentGoal: "Go to the parlour" });
+  try {
+    for (const message of ["Meet me in the hall.", "See you there."]) {
+      await runtime.checkedTalkToCharacter("rowan", message, undefined, {}, undefined, text => {
+        assert.equal(activityGoal(runtime.world(), "rowan"), "Go to the parlour");
+        displayed.push(text);
+      });
+    }
+    assert.deepEqual(displayed, ["I will meet you in the hall.", "I will meet you in the hall."]);
+    assert.equal(reviews, 0);
+    await runtime.endConversation("rowan");
+  } finally { release(); }
+  await done;
+  assert.equal(activityGoal(runtime.world(), "rowan"), "Go to the great hall");
+  assert.ok(!runtime.recentTranscripts().some(call => call.kind === "gm_consultation"));
 });
