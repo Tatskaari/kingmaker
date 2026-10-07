@@ -61,7 +61,7 @@ this builder does not implement runtime retrieval or grant access through links.
 of injectable interfaces sharing an owned, deep copy of the playthrough state:
 
 - `scenario.info()` returns scenario, index, player and character references.
-- `scenario.snapshot()` returns a deep copy of the full state for saving.
+- `scenario.read()` returns live authority state for trusted reads, without copying. Callers must publish changes through the owning services. Save serialization belongs to the game host.
 - `scenario.getDocument(path)` and `docs.read(path)` return detached snapshots
   containing `path`, `sha`, canonical Markdown `text` and the protobuf `document`.
   Reads take no expected SHA and return the state captured when the read starts.
@@ -75,7 +75,7 @@ of injectable interfaces sharing an owned, deep copy of the playthrough state:
 const { scenario, docs } = createScenarioServices(state);
 const current = await docs.read("Scenarios/Example/scenario.md");
 const edited = await docs.replace(current.path, current.sha, "This is a stub.", "The gates open.");
-const save = toJson(WorldStateSchema, scenario.snapshot());
+const currentWorld = scenario.read(); // read-only use; no whole-world copy
 ```
 
 Every command returns a promise; create, replace and insert return the new
