@@ -39,8 +39,8 @@ test("NPC mechanics use document goals and inventory without loading narrative p
   assert.throws(() => mechanics.stepNpcAction("rowan", "take_palace_royal_key", "Old goal"), /changed; replan/);
   const result = mechanics.stepNpcAction("rowan", "take_palace_royal_key", "Inspect the key.");
   assert.equal(result.done, true);
-  assert.ok(mechanics.snapshot().characters.rowan!.inventory!.items.some(item => item.id === "palace_royal_key"));
-  assert.deepEqual(mechanics.snapshot().npcActivities.rowan!.actionIds, ["take_palace_royal_key"]);
+  assert.ok(mechanics.result().characters.rowan!.inventory!.items.some(item => item.id === "palace_royal_key"));
+  assert.deepEqual(mechanics.result().npcActivities.rowan!.actionIds, ["take_palace_royal_key"]);
   mechanics.finishNpcRun("rowan", "complete", "Done.");
-  assert.equal(mechanics.snapshot().npcActivities.rowan!.reviewPending, true);
+  assert.equal(mechanics.result().npcActivities.rowan!.reviewPending, true);
 });

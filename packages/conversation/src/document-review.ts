@@ -16,9 +16,9 @@ export const documentReviewStrategy: ConversationReviewStrategy = {
 export async function reviewDocumentEvidence(context: Readonly<ConversationReviewContext>, labels: Readonly<ReviewLabels>,
   signal: AbortSignal, services: RuntimeServices, purpose = renderPrompt("review-conversation")) {
   signal.throwIfAborted();
-  const intent = characterIntent(services.scenario.snapshot(), context.characterId), path = intent.entry;
+  const intent = characterIntent(services.scenario.read(), context.characterId), path = intent.entry;
   if (!context.participants.includes(context.characterId)) throw new Error("Review character must be a participant.");
-  const before = await services.docs.read(path), world = services.scenario.snapshot();
+  const before = await services.docs.read(path), world = services.scenario.read();
   const presentations = await Promise.all([...new Set(context.participants)].flatMap(id => {
     const entry = id === "player" ? world.player : world.simulation!.runtimeCharacters[id]?.document;
     const path = entry && presentationPath(entry);

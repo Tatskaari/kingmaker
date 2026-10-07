@@ -15,7 +15,7 @@ test("character setup can replace the prompt using injected services without cha
       cancellation.throwIfAborted();
       return [{ role: "system", content: services.scenario.info().scenario }, ...context.messages];
     } } } });
-  const input = { snapshot: { world: loadPlayableWorld() }, characterId: "corvin", sources: [], transcript: [], message: "Hello" };
+  const input = { world: loadPlayableWorld(), characterId: "corvin", sources: [], transcript: [], message: "Hello" };
   const before = structuredClone(input);
   const request = await prepareConversation(input, runtime.services);
   assert.equal(request.messages[0]!.content, "scenario.md");

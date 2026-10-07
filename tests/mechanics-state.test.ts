@@ -9,17 +9,17 @@ test("map commits preserve document updates without a whole-world guard", async 
   const services = createScenarioServices(worldState(create(MapSchema, { day: 1 }), new Map([
     ["Scenarios/Test/scenario.md", "Briefing"], ["Scenarios/Test/index.md", "Index"],
   ]), "Test"));
-  const before = services.scenario.snapshot();
+  const before = services.scenario.read();
   const doc = await services.docs.read("Scenarios/Test/scenario.md");
   await services.docs.insert(doc.path, doc.sha, 1, "A changed circumstance.");
 
-  const current = services.scenario.snapshot();
+  const current = services.scenario.read();
   services.mechanics.commit(create(MapSchema, { day: 2 }), {});
-  const after = services.scenario.snapshot();
+  const after = services.scenario.read();
   assert.equal(after.simulation!.map!.day, 2);
   assert.match(after.docs[doc.path]!.body, /changed circumstance/);
   services.mechanics.commit(create(MapSchema, { day: 3 }), {});
-  assert.match(services.scenario.snapshot().docs[doc.path]!.body, /changed circumstance/);
+  assert.match(services.scenario.read().docs[doc.path]!.body, /changed circumstance/);
 });
 
 test("movement during document hashing does not reject or undo the edit", async t => {
@@ -39,7 +39,7 @@ test("movement during document hashing does not reject or undo the edit", async 
   await waiting;
   services.currentWorld().simulation!.map!.day = 2;
   release(); await write;
-  assert.equal(services.scenario.snapshot().simulation!.map!.day, 2);
+  assert.equal(services.scenario.read().simulation!.map!.day, 2);
   assert.match((await services.docs.read(doc.path)).text, /Reviewed/);
 });
 

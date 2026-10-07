@@ -11,7 +11,7 @@ import type { OpenRouterMessage } from "../packages/providers/src/openrouter.js"
 const choice = (value: string) => ({ choice: value, probabilities: { [value]: 1 } });
 function fixture(mode: "background" | "discretion" | "error") {
   const backing = createScenarioServices(loadPlayableWorld());
-  const before = backing.scenario.snapshot();
+  const before = backing.scenario.read();
   const reviews = new ConversationReviews();
   const drafts: OpenRouterMessage[][] = [], events: string[] = [];
   let release: () => void = () => {};
@@ -42,11 +42,11 @@ test("ordinary flags release a response while GM review remains pending", async 
   const f = fixture("background");
   const reply = await runConversation(request, f.runtime);
   assert.equal(reply.content, "I will give you a bird.");
-  assert.deepEqual(f.backing.scenario.snapshot(), f.before);
+  assert.deepEqual(f.backing.scenario.read(), f.before);
   assert.ok(!f.events.includes("live-review"));
   f.release(); await f.reviews.drain();
   assert.ok(f.events.includes("live-review"));
-  assert.notDeepEqual(f.backing.scenario.snapshot(), f.before);
+  assert.notDeepEqual(f.backing.scenario.read(), f.before);
 });
 
 test("GM discretion releases successive replies while its ordered reviews are pending", { timeout: 30000 }, async () => {
@@ -56,18 +56,18 @@ test("GM discretion releases successive replies while its ordered reviews are pe
     assert.equal(first.content, "I will give you a bird.");
     const second = await runConversation(request, f.runtime);
     assert.equal(second.content, "I cannot give that away.");
-    assert.deepEqual(f.backing.scenario.snapshot(), f.before);
+    assert.deepEqual(f.backing.scenario.read(), f.before);
     assert.equal(f.events.filter(event => event === "live-accepted").length, 2);
     assert.ok(!f.events.includes("live-review"));
   } finally { f.release(); await f.reviews.drain(); }
   assert.equal(f.events.filter(event => event === "live-review").length, 2);
-  assert.notDeepEqual(f.backing.scenario.snapshot(), f.before);
+  assert.notDeepEqual(f.backing.scenario.read(), f.before);
 });
 
 test("classifier errors fail closed without world effects", async () => {
   const f = fixture("error");
   await assert.rejects(runConversation(request, f.runtime), /Jev unavailable/);
-  assert.deepEqual(f.backing.scenario.snapshot(), f.before);
+  assert.deepEqual(f.backing.scenario.read(), f.before);
   assert.ok(!f.events.includes("live-accepted"));
 });
 

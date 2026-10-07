@@ -66,7 +66,7 @@ export class ConversationRuntime<Review = ReviewLabels> {
       scenario: {
         setPlayer: async path => services.scenario?.setPlayer ? services.scenario.setPlayer(path) : unimplemented("scenario.setPlayer"),
         info: () => services.scenario?.info ? services.scenario.info() : unimplemented("scenario.info"),
-        snapshot: () => services.scenario?.snapshot ? services.scenario.snapshot() : unimplemented("scenario.snapshot"),
+        read: () => services.scenario?.read ? services.scenario.read() : unimplemented("scenario.read"),
         getDocument: async path => services.scenario?.getDocument
           ? services.scenario.getDocument(path) : unimplemented("scenario.getDocument"),
       },

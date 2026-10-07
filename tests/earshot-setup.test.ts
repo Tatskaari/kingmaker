@@ -13,7 +13,7 @@ function fixture() {
   }
   let observations = 0;
   const runtime = new ConversationRuntime({ strategies: { setup: { prepare: setupWorldAgent } }, services: {
-    scenario: { snapshot: () => world }, map: { observe: id => {
+    scenario: { read: () => world }, map: { observe: id => {
       observations++; assert.equal(id, "rowan"); return { characterId: id, map, actions: [] };
     } },
   } });

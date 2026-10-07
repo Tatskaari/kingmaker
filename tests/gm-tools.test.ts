@@ -27,7 +27,7 @@ test("GM tools edit other characters and quest documents, preserving SHA conflic
   const listed = await gm.call("list_documents", { prefix: "Quests/" });
   assert.ok(JSON.stringify(listed).includes(path));
   await gm.call("delete_document", { path, expectedSha: updated.sha });
-  assert.equal(services.scenario.snapshot().docs[path], undefined);
+  assert.equal(services.scenario.read().docs[path], undefined);
 });
 
 test("host commits staged activities while preserving GM document edits", async () => {
@@ -36,10 +36,10 @@ test("host commits staged activities while preserving GM document edits", async 
   for (const characterId of ["oswin", "corvin"]) await gm.call("set_activity", {
     characterId, name: "Meeting", status: "Promised", success_criteria: "Arrive in the parlour", current_goal: "Go to the parlour",
   });
-  assert.equal(activityGoal(services.scenario.snapshot(), "corvin"), null);
+  assert.equal(activityGoal(services.scenario.read(), "corvin"), null);
   await writeMemory(services, gm, "oswin", "I promised to meet the player.");
   await gm.commit();
-  for (const id of ["oswin", "corvin"]) assert.equal(activityGoal(services.scenario.snapshot(), id), "Go to the parlour");
+  for (const id of ["oswin", "corvin"]) assert.equal(activityGoal(services.scenario.read(), id), "Go to the parlour");
   assert.match((await services.docs.read(characterEntry(services.scenario.info(), "oswin"))).text, /promised to meet/);
   assert.doesNotMatch((await services.docs.read(characterEntry(services.scenario.info(), "corvin"))).text, /promised to meet/);
 });
@@ -65,15 +65,15 @@ test("GM rulings and reviews expose the identical tool registry and execute docu
 test("GM assignments to two guard bodies share memories but keep separate activity pointers", async () => {
   const services = fixture(), gm = new GameMasterTools(services, "palace-guard-1");
   await gm.begin();
-  const untouched = activityGoal(services.scenario.snapshot(), "palace-guard-3");
+  const untouched = activityGoal(services.scenario.read(), "palace-guard-3");
   for (const [characterId, goal] of [["palace-guard-1", "Watch the west door"], ["palace-guard-2", "Watch the east door"]]) {
     await gm.call("set_activity", { characterId, name: goal, status: "Assigned", success_criteria: goal, current_goal: goal });
   }
   await writeMemory(services, gm, "palace-guard", "We agreed to watch the doors.");
   await gm.commit();
-  assert.equal(activityGoal(services.scenario.snapshot(), "palace-guard-1"), "Watch the west door");
-  assert.equal(activityGoal(services.scenario.snapshot(), "palace-guard-2"), "Watch the east door");
-  assert.equal(activityGoal(services.scenario.snapshot(), "palace-guard-3"), untouched);
+  assert.equal(activityGoal(services.scenario.read(), "palace-guard-1"), "Watch the west door");
+  assert.equal(activityGoal(services.scenario.read(), "palace-guard-2"), "Watch the east door");
+  assert.equal(activityGoal(services.scenario.read(), "palace-guard-3"), untouched);
   const doc = await services.docs.read(characterEntry(services.scenario.info(), "palace-guard"));
   assert.match(doc.document.body, /We agreed to watch the doors/);
   assert.equal(doc.document.frontmatter?.activity, undefined);
@@ -85,13 +85,13 @@ const toolReply = (name: string, input: unknown) => ({ role: "assistant" as cons
 test("host commits only after the GM finishes and does not append its final reply as memory", async () => {
   const services = fixture(), path = characterEntry(services.scenario.info(), "oswin"); let calls = 0;
   services.ai.responses = async () => {
-    assert.equal(activityGoal(services.scenario.snapshot(), "oswin"), null);
+    assert.equal(activityGoal(services.scenario.read(), "oswin"), null);
     if (++calls === 1) return toolReply("set_activity", { name: "Meeting", status: "Pending", success_criteria: "Arrive", current_goal: "Go to the hall" });
     return { role: "assistant", content: "A final summary, not a memory." };
   };
   const reply = await runGameMaster({ model: "test", messages: [] }, services, new AbortController().signal, { characterId: "oswin", review: true });
   assert.equal(reply.content, "A final summary, not a memory.");
-  assert.equal(activityGoal(services.scenario.snapshot(), "oswin"), "Go to the hall");
+  assert.equal(activityGoal(services.scenario.read(), "oswin"), "Go to the hall");
   assert.doesNotMatch((await services.docs.read(path)).text, /A final summary/);
 });
 
@@ -108,14 +108,14 @@ test("host commit conflicts return to the GM for reconciliation", async () => {
       case 3:
         assert.equal(request.messages.at(-1)!.role, "system");
         assert.match(request.messages.at(-1)!.content!, /document_conflict/);
-        assert.equal(activityGoal(services.scenario.snapshot(), "oswin"), null);
+        assert.equal(activityGoal(services.scenario.read(), "oswin"), null);
         return toolReply("set_activity", { name: "New", status: "Pending", success_criteria: "Arrive", current_goal: "Reconciled goal" });
       default: return { role: "assistant", content: "Reconciled." };
     }
   };
   await runGameMaster({ model: "test", messages: [] }, services, new AbortController().signal, { characterId: "oswin", review: true });
   assert.equal(calls, 4);
-  assert.equal(activityGoal(services.scenario.snapshot(), "oswin"), "Reconciled goal");
+  assert.equal(activityGoal(services.scenario.read(), "oswin"), "Reconciled goal");
   assert.match((await services.docs.read(path)).text, /Concurrent memory/);
 });
 
@@ -130,7 +130,7 @@ test("failed or cancelled GM completion leaves staged activities uncommitted", a
     };
     await assert.rejects(runGameMaster({ model: "test", messages: [] }, services, controller.signal,
       { characterId: "oswin", review: true }), /offline|abort/i);
-    assert.equal(activityGoal(services.scenario.snapshot(), "oswin"), null);
+    assert.equal(activityGoal(services.scenario.read(), "oswin"), null);
   }
 });
 

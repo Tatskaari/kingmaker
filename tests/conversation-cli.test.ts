@@ -14,7 +14,7 @@ const converse = (input: ConversationInput, complete: Complete, signal?: AbortSi
   } } }), signal, trace);
 
 const input = (): ConversationInput => ({
-  snapshot: { world: loadPlayableWorld() },
+  world: loadPlayableWorld(),
   characterId: "corvin", sources: [{ path: "private.md", markdown: "A precise legal scholar." }, { path: "knowledge.md", markdown: "You believe the king avoids difficult decisions." }, { path: "character.md", markdown: "Ask the visitor about the seal." }],
   transcript: [], message: "Who are you?",
 });

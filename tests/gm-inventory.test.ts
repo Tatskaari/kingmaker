@@ -40,9 +40,9 @@ test("inventory trades commit both owners together and reject duplicate ownershi
   await backing.inventory.commit([{ actorId: giver, expectedSha: before.sha, inventory }]);
   const source = await backing.inventory.read(giver), target = await backing.inventory.read(player);
   const received = clone(InventorySchema, target.inventory ?? create(InventorySchema)); received.items.push(bird());
-  const untouched = backing.scenario.snapshot();
+  const untouched = backing.scenario.read();
   await assert.rejects(backing.inventory.commit([{ actorId: player, expectedSha: target.sha, inventory: received }]), /Invalid simulation move/);
-  assert.deepEqual(backing.scenario.snapshot(), untouched);
+  assert.deepEqual(backing.scenario.read(), untouched);
   inventory.items = inventory.items.filter(item => item.id !== bird().id);
   await backing.inventory.commit([{ actorId: giver, expectedSha: source.sha, inventory }, { actorId: player, expectedSha: target.sha, inventory: received }]);
   assert.equal((await backing.inventory.read(giver)).inventory!.items.some(item => item.id === bird().id), false);

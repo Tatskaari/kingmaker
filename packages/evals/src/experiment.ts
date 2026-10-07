@@ -114,7 +114,7 @@ export async function runExperiment<R>(experiment: Experiment<R>, options: RunOp
         const setup = await config.configure();
         signal.throwIfAborted();
         const runtime = createRecordedRuntime(setup, recording);
-        if (setup.services?.scenario) snapshot = () => runtime.services.scenario.snapshot();
+        if (setup.services?.scenario) snapshot = () => runtime.services.scenario.read();
         initialState = recording.snapshot(snapshot?.());
         await experiment.run(runtime, signal);
       }, timeoutMs, options.signal);

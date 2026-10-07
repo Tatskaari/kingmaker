@@ -20,7 +20,7 @@ export function waitObservation(services: RuntimeServices, id: string): string {
   });
 }
 export async function decideWait(id: string, elapsedSeconds: number, services: RuntimeServices, signal: AbortSignal): Promise<WaitDecision | undefined> {
-  const world = services.scenario.snapshot(), intent = characterIntent(world, id);
+  const world = services.scenario.read(), intent = characterIntent(world, id);
   if (intent.activity || !intent.wait) return;
   const character = await services.docs.read(intent.entry), wait = await services.docs.read(intent.wait);
   const doc = intentDocument(world, id, intent.wait), targets: DocumentSnapshot[] = [];

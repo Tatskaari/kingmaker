@@ -51,13 +51,13 @@ const ai = { ...traced, responses: retryResponses(traced.responses) };
 const disclosure = new DisclosureSession(lore, ai,
   Number(options.get("--threshold") ?? "0.7"));
 const input: ConversationInput = {
-  snapshot: { world: services.scenario.snapshot() }, characterId: options.get("--character") ?? "corvin",
+  world: services.scenario.read(), characterId: options.get("--character") ?? "corvin",
   sources: disclosure.sources,
   transcript: [], message: "",
 };
 conversationRequest(input); // Validate the snapshot and selected character before entering the terminal UI.
 const player = services.scenario.info().player;
-const build = services.scenario.snapshot().simulation!.runtimeCharacters.player?.dnd;
+const build = services.scenario.read().simulation!.runtimeCharacters.player?.dnd;
 const strategyName = options.get("--strategy") ?? "game";
 if (!["game", "live-review"].includes(strategyName)) throw new Error("Unknown conversation strategy");
 const reviews = new ConversationReviews();
@@ -71,5 +71,5 @@ await reviews.drain();
 traces.finish(conversationId);
 const output = resolve(options.get("--output") ?? `test-output/conversation-${Date.now()}.json`);
 mkdirSync(dirname(output), { recursive: true });
-writeFileSync(output, JSON.stringify({ ...result, requests: traces.recent(), agentRuns: traces.runs(), world: toJson(WorldStateSchema, services.scenario.snapshot()), transcript: result.transcript.map(message => toJson(TranscriptMessageSchema, message)) }, null, 2));
+writeFileSync(output, JSON.stringify({ ...result, requests: traces.recent(), agentRuns: traces.runs(), world: toJson(WorldStateSchema, services.scenario.read()), transcript: result.transcript.map(message => toJson(TranscriptMessageSchema, message)) }, null, 2));
 console.log(`Conversation ready for review: ${output}`);

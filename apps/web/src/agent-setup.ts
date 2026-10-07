@@ -23,7 +23,7 @@ export const setupWorldAgent: AgentSetupHook = async (context, signal, services)
     return setupAgent(context, signal, services);
   }
   signal.throwIfAborted();
-  const world = services.scenario.snapshot();
+  const world = services.scenario.read();
   context = { ...context, messages: [
     ...participantPresentations(world, context.characterId, context.participantIds ?? [context.characterId]),
     ...context.messages.filter(message => !(message.role === "system" && message.content?.startsWith(PRESENTATIONS_PREFIX))),

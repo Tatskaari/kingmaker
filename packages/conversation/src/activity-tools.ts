@@ -1,7 +1,7 @@
 import { renderPrompt } from "../../prompts/src/index.js";
 import { stringify } from "yaml";
-import { create, clone } from "@bufbuild/protobuf";
-import { DocumentSchema, WorldStateSchema } from "../../contracts/src/v2.js";
+import { create } from "@bufbuild/protobuf";
+import { DocumentSchema } from "../../contracts/src/v2.js";
 import { activityDefinition, characterIntent, formatActivity, formatWait, intentDocument, waitActivities, routinePath, type ActivityDefinition, type WaitDefinition } from "../../lore/src/activity.js";
 import { parseMarkdown } from "../../lore/src/markdown.js";
 import type { DocumentSnapshot, DocumentWrite } from "../../lore/src/services.js";
@@ -27,7 +27,7 @@ export class ActivityEdits {
   private intent: { activity: string | null; wait: string | null } | undefined;
   private expected;
   constructor(private services: RuntimeServices, private id: string, private before: DocumentSnapshot) {
-    this.expected = characterIntent(services.scenario.snapshot(), id);
+    this.expected = characterIntent(services.scenario.read(), id);
     this.id = this.expected.actorId;
   }
   get pending() { return this.writes.size > 0 || this.intent !== undefined; }
@@ -59,7 +59,8 @@ export class ActivityEdits {
     return { staged: true, path };
   }
   private draft() {
-    const world = clone(WorldStateSchema, this.services.scenario.snapshot());
+    const current = this.services.scenario.read();
+    const world = { ...current, docs: { ...current.docs } };
     for (const write of this.writes.values()) {
       const note = parseMarkdown(write.text);
       world.docs[write.path] = create(DocumentSchema, { frontmatter: note.metadata as Record<string, string>, body: note.body });

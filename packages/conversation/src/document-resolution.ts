@@ -21,7 +21,7 @@ async function speak(characterId: string, partnerId: string, instruction: string
 export const documentResolutionStrategy: ResolutionStrategy = {
   async classify(context, signal, services) {
     if (context.kind !== "world_event") return {};
-    const goal = activityGoal(services.scenario.snapshot(), context.characterId);
+    const goal = activityGoal(services.scenario.read(), context.characterId);
     const messages = await disclosedContext("attention", [{ role: "user", content: JSON.stringify({
       task: renderPrompt("document-resolution-attention-context"),
       goal, perception: context.perception,

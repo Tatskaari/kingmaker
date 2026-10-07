@@ -85,7 +85,7 @@ export class WorldHost {
     this.syncGoals();
     const game = new PalaceMechanics(this.world(), this.activity, () => this.movement.now());
     const result = operation(game);
-    const { map, characters, npcActivities } = game.snapshot();
+    const { map, characters, npcActivities } = game.result();
     this.worldServices.mechanics.commit(map, characters);
     this.activity.npcActivities = npcActivities;
     return result;

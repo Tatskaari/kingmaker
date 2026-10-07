@@ -38,19 +38,19 @@ export class GameMasterTools {
   pending = false;
   private edits = new Map<string, { before: DocumentSnapshot; activity: ActivityEdits; trace?: Pick<DocumentUpdate, "response" | "toolCallId"> }>();
   constructor(private services: RuntimeServices, private characterId?: string) {
-    if (characterId) this.characterId = characterIntent(services.scenario.snapshot(), characterId).actorId;
+    if (characterId) this.characterId = characterIntent(services.scenario.read(), characterId).actorId;
   }
   private async target(id: string) {
-    id = characterIntent(this.services.scenario.snapshot(), id).actorId;
+    id = characterIntent(this.services.scenario.read(), id).actorId;
     if (!this.edits.has(id)) {
-      const before = await this.services.docs.read(characterIntent(this.services.scenario.snapshot(), id).entry);
+      const before = await this.services.docs.read(characterIntent(this.services.scenario.read(), id).entry);
       this.edits.set(id, { before, activity: new ActivityEdits(this.services, id, before) });
     }
     return this.edits.get(id)!;
   }
   async begin() {
     if (this.characterId) {
-      this.characterId = characterIntent(this.services.scenario.snapshot(), this.characterId).actorId;
+      this.characterId = characterIntent(this.services.scenario.read(), this.characterId).actorId;
       await this.target(this.characterId);
     }
   }
@@ -74,13 +74,13 @@ export class GameMasterTools {
           instruction: "Read the current inventories and retry without overwriting unrelated changes." };
       }
     }
-    if (name === "list_characters") return { characters: Object.values(this.services.scenario.snapshot().simulation!.runtimeCharacters)
+    if (name === "list_characters") return { characters: Object.values(this.services.scenario.read().simulation!.runtimeCharacters)
       .filter(character => character.characterId !== "player").map(({ id, characterId, document, activity, wait }) =>
         ({ id, characterId, document, activity: activity ?? null, wait: wait ?? null })) };
     if (name === "list_documents") {
       const prefix = input.prefix === undefined ? "" : string("prefix"), offset = input.offset ?? 0, limit = input.limit ?? 25;
       if (!Number.isInteger(offset) || Number(offset) < 0 || !Number.isInteger(limit) || Number(limit) < 1 || Number(limit) > 50) throw new Error("Invalid document pagination.");
-      const entries = Object.entries(this.services.scenario.snapshot().docs).filter(([path]) => path.startsWith(prefix)).sort(([a], [b]) => a.localeCompare(b));
+      const entries = Object.entries(this.services.scenario.read().docs).filter(([path]) => path.startsWith(prefix)).sort(([a], [b]) => a.localeCompare(b));
       const end = Number(offset) + Number(limit);
       return { documents: entries.slice(Number(offset), end).map(([path, doc]) => ({ path, summary: doc.frontmatter?.summary ?? "" })),
         total: entries.length, nextOffset: end < entries.length ? end : null };

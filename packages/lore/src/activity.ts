@@ -81,7 +81,7 @@ export function formatWait(id: string, definition: WaitDefinition): string {
 /** Publish runtime intent and memory notes in one checked transaction. */
 export async function setIntent(services: IntentServices, before: DocumentSnapshot,
   intent: { activity: string | null; wait: string | null }, body = before.document.body,
-  expected = characterIntent(services.scenario.snapshot(), /\/Characters\/([^/]+)\/character\.md$/.exec(before.path)![1]!)) {
+  expected = characterIntent(services.scenario.read(), /\/Characters\/([^/]+)\/character\.md$/.exec(before.path)![1]!)) {
   const text = `---\n${stringify(before.document.frontmatter ?? {})}---\n${body}`;
   await services.docs.commit([{ path: before.path, expectedSha: before.sha, text }], [{ ...expected, ...intent }]);
 }

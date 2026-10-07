@@ -15,10 +15,10 @@ function fixture() {
 const text = '---\nname: Alex\nsummary: Alex’s private identity.\nvisibility: private\nreaders: ["character:player"]\n---\nYou serve the Stranger.';
 const player = { id: "player", path: "Players/player.md", text, properties: create(CharacterPropertiesSchema) };
 test("character creation and player designation are separate from knowledge and introduction state", async () => {
-  const services = fixture(), before = services.scenario.snapshot();
+  const services = fixture(), before = services.scenario.read();
   const runtime = new ConversationRuntime({ services });
   await runtime.character.create(player);
-  const created = services.scenario.snapshot();
+  const created = services.scenario.read();
   assert.equal(created.player, undefined);
   assert.deepEqual(created.simulation!.map!.actors, before.simulation!.map!.actors);
   assert.equal(created.simulation!.map!.phase, before.simulation!.map!.phase);
@@ -29,11 +29,11 @@ test("character creation and player designation are separate from knowledge and 
   await assert.rejects(runtime.character.create(player), /already exists/);
 });
 test("NPC creation adds a scenario link and actor without notifying other characters", async () => {
-  const services = fixture(), before = services.scenario.snapshot();
+  const services = fixture(), before = services.scenario.read();
   const path = "Scenarios/Centennial Assembly/Characters/visitor/character.md";
   const actor = create(ActorStateSchema, { ...before.simulation!.map!.actors[0]!, characterId: "visitor" });
   await services.character.create({ id: "visitor", path, text: "A visiting scholar.", properties: create(CharacterPropertiesSchema), actor });
-  const after = services.scenario.snapshot();
+  const after = services.scenario.read();
   assert.ok(after.characters.includes(path));
   assert.equal(after.simulation!.map!.actors.filter(item => item.characterId === "visitor").length, 1);
   assert.equal(after.player, undefined);
@@ -42,15 +42,15 @@ test("NPC creation adds a scenario link and actor without notifying other charac
   assert.ok(restored.scenario.info().characters.includes(path));
 });
 test("invalid character creation publishes no documents, actor or scenario links", async () => {
-  const services = fixture(), before = toJson(WorldStateSchema, services.scenario.snapshot());
+  const services = fixture(), before = toJson(WorldStateSchema, services.scenario.read());
   await assert.rejects(services.character.create({ ...player, text: text + "\n[[missing]]" }), /Missing|resolve|not found/i);
   await assert.rejects(services.character.create({ ...player, id: "visitor" }), /scenario character path/);
   await assert.rejects(services.scenario.setPlayer("missing.md"), /created player/);
-  assert.deepEqual(toJson(WorldStateSchema, services.scenario.snapshot()), before);
+  assert.deepEqual(toJson(WorldStateSchema, services.scenario.read()), before);
 });
 
 test("character creation validates private links before publishing documents or actors", async () => {
-  const services = fixture(), before = services.scenario.snapshot();
+  const services = fixture(), before = services.scenario.read();
   const secret = Object.keys(before.docs).find(path => path.endsWith("/gm.md"))!;
   const unsafe = `${text}\n[[${secret}]]`;
   await assert.rejects(services.character.create({ ...player, text: unsafe }), /denied/);
@@ -58,5 +58,5 @@ test("character creation validates private links before publishing documents or 
   const actor = create(ActorStateSchema, { ...before.simulation!.map!.actors[0]!, characterId: "visitor" });
   await assert.rejects(services.character.create({ id: "visitor", path, text: `[[${secret}]]`,
     properties: create(CharacterPropertiesSchema), actor }), /denied/);
-  assert.deepEqual(services.scenario.snapshot(), before);
+  assert.deepEqual(services.scenario.read(), before);
 });

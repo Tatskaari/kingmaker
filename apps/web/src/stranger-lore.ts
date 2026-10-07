@@ -19,12 +19,12 @@ export function strangerConfiguration(world: WorldState) {
 
 /** Explicit GM audience for creation; ordinary character loaders retain their access checks. */
 export async function strangerLore(scenario: ScenarioService): Promise<LoreService> {
-  const entry = strangerEntry(scenario.snapshot());
+  const entry = strangerEntry(scenario.read());
   const read = async (path: string) => ({ path, markdown: (await scenario.getDocument(path)).document.body });
   return {
     initial: [await read(entry)],
     links(opened) {
-      const world = scenario.snapshot(), seen = new Set(opened.map(doc => doc.path));
+      const world = scenario.read(), seen = new Set(opened.map(doc => doc.path));
       return opened.flatMap(source => (world.docs[source.path]?.links ?? []).flatMap(link => {
         if (seen.has(link.target)) return [];
         const target = world.docs[link.target];
