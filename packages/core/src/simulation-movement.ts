@@ -39,6 +39,8 @@ export const actorTile = (point: Point): Point => ({ x: Math.round(point.x), y: 
 export interface StartMovement {
   id: string;
   to: Point;
+  /** Optional route already selected by an action planner. Validated, never recalculated. */
+  path?: readonly Point[];
   startedAtMs: number;
   msPerTile: number;
   allowedRoomIds?: RouteConstraints["allowedRoomIds"];
@@ -54,14 +56,15 @@ export function startMove({ G }: SimulationMoveContext, actorId: string, request
   if (!from) return INVALID_MOVE;
   // Movement never edits tile geometry. Read it directly without drafting the map.
   const layout = isDraft(map.layout) ? original(map.layout)! : map.layout;
-  const path = createPathfindingService(layout).findPath(from, request.to, {
-    doors: map.doors, fixtures: map.fixtures,
+  const routing = createPathfindingService(layout);
+  const constraints = { doors: map.doors, fixtures: map.fixtures,
     ...(request.allowedRoomIds ? { allowedRoomIds: request.allowedRoomIds } : {}),
-    ...(request.thresholds ? { thresholds: request.thresholds } : {}),
-  });
-  if (!path || path.length < 2) return INVALID_MOVE;
+    ...(request.thresholds ? { thresholds: request.thresholds } : {}) };
+  const path = request.path ?? routing.findPath(from, request.to, constraints);
+  if (!path || path.length < 2 || path[0]!.x !== from.x || path[0]!.y !== from.y
+    || path.at(-1)!.x !== request.to.x || path.at(-1)!.y !== request.to.y || !routing.accepts(path, constraints)) return INVALID_MOVE;
   actor.position = create(TilePositionSchema, from);
-  actor.movement = create(ActorMovementSchema, { id: request.id, path, startedAtMs: request.startedAtMs,
+  actor.movement = create(ActorMovementSchema, { id: request.id, path: path.map(({ x, y }) => ({ x, y })), startedAtMs: request.startedAtMs,
     durationMs: pathDistance(path) * request.msPerTile });
   map.revision++;
 }

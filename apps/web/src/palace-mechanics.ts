@@ -100,26 +100,24 @@ export class PalaceMechanics {
     return createPhysicalEvent(this.#world, kind, summary, participantIds, details);
   }
 
-  stepNpcAction(characterId: string, actionId: string, goal: string): { done: boolean; talkTarget?: string; worldEvent?: Event } {
-    const world = this.#world, characters = this.#characters, activity = this.#npcActivities[characterId];
+  prepareNpcAction(characterId: string, actionId: string, goal: string) {
+    const activity = this.#npcActivities[characterId];
     if (activity?.status !== "active" || activity.reviewPending || this.#conversations[characterId]?.length) throw new Error("NPC paused for conversation.");
     const observation = this.observe(characterId, actionId);
     const action = observation.actions.find(item => item.id === actionId);
     if (observation.goal !== goal || !action) throw new Error("Action changed; replan.");
-    if (action.path.length <= 2 && action.type !== "talk") {
-      const context = action.type === "fixture" ? fixtureEventContext(world, characters, characterId, actionId) : { details: {} as EventDetails };
-      const message = this.executeNpcAction(characterId, actionId, observation.revision, goal);
-      const name = characters.find(character => character.id === characterId)?.name ?? characterId;
-      return { done: true,
-        worldEvent: this.worldEvent(action.type, context.describe?.(name, message) ?? `${name}: ${message}`, [characterId], context.details) };
-    }
-    const next = action.path[1];
-    if (next) {
-      const actor = world.actors.find(a => a.characterId === characterId)!;
-      actor.position = create(TilePositionSchema, next); actor.roomId = courtRoomAt(next)?.id ?? actor.roomId;
-      this.#world.revision++;
-    }
-    return { ...(action.type === "talk" && action.path.length <= 2 ? { done: true, talkTarget: action.target } : { done: false }) };
+    const actor = this.#world.actors.find(actor => actor.characterId === characterId)!;
+    return { action, actorId: actor.instanceId || characterId, roomId: actor.roomId };
+  }
+
+  stepNpcAction(characterId: string, actionId: string, goal: string): { done: boolean; talkTarget?: string; worldEvent?: Event } {
+    const { action } = this.prepareNpcAction(characterId, actionId, goal);
+    if (action.path.length > 1) throw new Error("Actor has not arrived; replan.");
+    if (action.type === "talk") return { done: true, talkTarget: action.target };
+    const context = action.type === "fixture" ? fixtureEventContext(this.#world, this.#characters, characterId, actionId) : { details: {} as EventDetails };
+    const message = this.executeNpcAction(characterId, actionId, this.#world.revision, goal);
+    const name = this.#characters.find(character => character.id === characterId)?.name ?? characterId;
+    return { done: true, worldEvent: this.worldEvent(action.type, context.describe?.(name, message) ?? `${name}: ${message}`, [characterId], context.details) };
   }
 
   executeNpcAction(characterId: string, actionId: string, revision: number, goal: string): string {
@@ -133,10 +131,8 @@ export class PalaceMechanics {
     if (!action) throw new Error("That NPC action is no longer available.");
     if (action.type === "talk") throw new Error("Talk requires conversation resolution.");
     const actor = world.actors.find(actor => actor.characterId === characterId)!;
-    const destination = action.path.at(-1)!;
+    if (action.path.length > 1) throw new Error("Actor has not arrived; replan.");
     if (action.type === "door" && !action.open && world.actors.some(other => other.characterId !== characterId && other.position && world.doors.find(door => door.id === action.target)!.tiles.some(tile => tile.x === other.position!.x && tile.y === other.position!.y))) throw new Error("Someone is standing in the doorway.");
-    actor.position = create(TilePositionSchema, destination);
-    actor.roomId = courtRoomAt(destination)?.id ?? actor.roomId;
     let message = action.description;
     if (action.type === "door") world.doors.find(door => door.id === action.target)!.open = action.open!;
     if (action.type === "fixture") message = this.applyFixture( characterId, action.id);
