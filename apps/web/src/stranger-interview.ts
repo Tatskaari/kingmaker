@@ -46,7 +46,7 @@ export async function strangerTurn(previous: StrangerState, text: string,
   const state = structuredClone(previous);
   delete state.replies;
   state.history.push({ role: "user", content: text });
-  const world = scenario.snapshot();
+  const world = scenario.read();
   const lore = await strangerLore(scenario);
   const cast = world.characters.map(path => ({ id: characterId(path, world), path }));
   const context = await disclosedContext("stranger", [

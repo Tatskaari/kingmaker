@@ -17,14 +17,15 @@ function fixture() {
   return state;
 }
 
-test("scenario and document reads are detached; SHA includes frontmatter and survives serialization", async () => {
+test("scenario reads are live and document reads are detached; SHA includes frontmatter and survives serialization", async () => {
   const input = fixture();
-  const { scenario, docs } = createScenarioServices(input);
+  const { scenario, docs, currentWorld } = createScenarioServices(input);
   input.docs["note.md"]!.body = "external edit";
   const first = await scenario.getDocument("note.md");
   assert.match(first.sha, /^[a-f0-9]{64}$/);
   first.document.frontmatter!.visibility = "public";
-  scenario.snapshot().docs["note.md"]!.body = "external edit";
+  assert.strictEqual(scenario.read(), currentWorld());
+  assert.strictEqual(scenario.read().simulation, currentWorld().simulation);
   scenario.info().characters.push("external.md");
   const reread = await docs.read("note.md");
   assert.equal(reread.document.frontmatter!.visibility, "gm");
@@ -32,7 +33,7 @@ test("scenario and document reads are detached; SHA includes frontmatter and sur
   assert.deepEqual(scenario.info(), { scenario: entry, scenarioIndex: index, player: actor, characters: [] });
   const changed = await docs.replace("note.md", first.sha, "visibility: gm", "visibility: private");
   assert.notEqual(changed.sha, first.sha);
-  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, scenario.snapshot())));
+  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, scenario.read())));
   assert.equal((await restored.docs.read("note.md")).sha, changed.sha);
   await assert.rejects(docs.read("missing.md"), /not found/);
 });
@@ -41,10 +42,10 @@ test("create, replace, insert and delete preserve simulation and rebuild scenari
   const { scenario, docs } = createScenarioServices(fixture());
   const added = await docs.create("new.md", "---\nvisibility: public\n---\nSecret");
   added.document.body = "external edit";
-  const simulationBefore = scenario.snapshot().simulation;
+  const simulationBefore = scenario.read().simulation;
   const actorBefore = await docs.read(actor);
   const actorAfter = await docs.replace(actor, actorBefore.sha, "Alice", "Alice [[new]]");
-  assert.deepEqual(scenario.snapshot().simulation, simulationBefore);
+  assert.deepEqual(scenario.read().simulation, simulationBefore);
   assert.equal(actorAfter.document.links[0]!.target, "new.md");
   await docs.insert(entry, (await docs.read(entry)).sha, 1, `[[${actor}]]`);
   assert.deepEqual(scenario.info().characters, [actor]);
@@ -53,7 +54,7 @@ test("create, replace, insert and delete preserve simulation and rebuild scenari
   await docs.replace(actor, actorAfter.sha, " [[new]]", "");
   await docs.delete("new.md", edited.sha);
   await assert.rejects(docs.read("new.md"), /not found/);
-  assert.equal(scenario.snapshot().simulation!.map!.day, 3);
+  assert.equal(scenario.read().simulation!.map!.day, 3);
 });
 
 test("concurrent edits using the same SHA have exactly one winner; failure does not block writes", async () => {
@@ -76,7 +77,7 @@ test("invalid graph, protected references and malformed edits fail without mutat
   const { scenario, docs } = createScenarioServices(fixture());
   await docs.create("A/Secret.md", "Secret");
   await docs.create("reader.md", "[[Secret]]");
-  const before = scenario.snapshot();
+  const before = scenario.read();
   const note = await docs.read("note.md");
   const failures = [
     () => docs.create("B/Secret.md", "Ambiguous"),
@@ -93,7 +94,7 @@ test("invalid graph, protected references and malformed edits fail without mutat
   ];
   for (const operation of failures) {
     await assert.rejects(operation());
-    assert.deepEqual(scenario.snapshot(), before);
+    assert.deepEqual(scenario.read(), before);
   }
 });
 
@@ -110,4 +111,12 @@ test("insert handles empty documents, final newlines and SHA ignores object key 
   const separator = await docs.create("separator.md", "---\n{}\n---\n---\nBody");
   const changed = await docs.replace("separator.md", separator.sha, "Body", "Edited");
   assert.equal(changed.document.body, "---\nEdited");
+});
+
+test("scenario reads never traverse simulation data", () => {
+  const { scenario, currentWorld } = createScenarioServices(fixture());
+  const live = currentWorld();
+  Object.defineProperty(live, "simulation", { get() { throw new Error("Unexpected world copy"); } });
+  assert.strictEqual(scenario.read(), live);
+  assert.equal(scenario.read().scenario, entry);
 });

@@ -13,16 +13,16 @@ test("CLI builds Markdown state, discloses edited documents and reloads independ
   const lore = await documentLore(services.scenario, "corvin");
   assert.equal(lore.initial.length, 2);
   const entry = services.scenario.info().characters.find(path => path.includes("/corvin/"))!;
-  assert.ok(services.scenario.snapshot().simulation!.runtimeCharacters.corvin?.dnd);
+  assert.ok(services.scenario.read().simulation!.runtimeCharacters.corvin?.dnd);
   const link = lore.links(lore.initial)[0]!;
   const original = await services.docs.read(link.path);
   await services.docs.insert(link.path, original.sha, original.text.trimEnd().split("\n").length, "\nUPDATED_FACT");
   const opened = await lore.open(link, new AbortController().signal);
   assert.match(opened.markdown, /UPDATED_FACT/);
-  const saved = toJson(WorldStateSchema, services.scenario.snapshot());
+  const saved = toJson(WorldStateSchema, services.scenario.read());
   const restored = createScenarioServices(fromJson(WorldStateSchema, saved));
   assert.match((await restored.docs.read(link.path)).text, /UPDATED_FACT/);
-  const request = conversationRequest({ snapshot: { world: restored.scenario.snapshot() }, characterId: "corvin", sources: [...lore.initial, opened], transcript: [], message: "Hello" });
+  const request = conversationRequest({ world: restored.scenario.read(), characterId: "corvin", sources: [...lore.initial, opened], transcript: [], message: "Hello" });
   assert.ok(request.messages.some(message => message.content?.includes("UPDATED_FACT")));
   assert.ok(request.messages.every(message => !message.content?.includes('"abilityScores"')));
   await assert.rejects(documentLore(services.scenario, "missing"), /Unknown runtime character/);
@@ -46,7 +46,7 @@ test("saved document labels authorize retrieval and unsafe revocation is rejecte
   const detail = await services.docs.read(link.path);
   const shared = "---\nvisibility: private\nreaders: ['label:test-court']\n---\nShared court facts.";
   await services.docs.replace(link.path, detail.sha, detail.text, shared);
-  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.snapshot())));
+  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.read())));
   const lore = await documentLore(restored.scenario, "corvin");
   assert.ok(lore.links(lore.initial).some(candidate => candidate.path === link.path));
   assert.equal((await lore.open(link, new AbortController().signal)).markdown, "Shared court facts.");
@@ -64,7 +64,7 @@ test("saved-world candidate previews use current summaries and check access firs
   const text = `---\n${stringify({ ...original.document.frontmatter, summary: "Court delegations, including wizards." })}---\n${original.document.body}`;
   await services.docs.replace(link.path, original.sha, original.text, text);
   assert.equal(lore.links(lore.initial).find(candidate => candidate.path === link.path)?.summary, "Court delegations, including wizards.");
-  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.snapshot())));
+  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.read())));
   const reloaded = await documentLore(restored.scenario, "aldren");
   assert.equal(reloaded.links(reloaded.initial).find(candidate => candidate.path === link.path)?.summary, "Court delegations, including wizards.");
   const current = await restored.docs.read(link.path);
@@ -72,7 +72,7 @@ test("saved-world candidate previews use current summaries and check access firs
   const forbidden = `---\n${stringify({ ...current.document.frontmatter, visibility: "gm", summary: ["secret"] })}---\n${current.document.body}`;
   await assert.rejects(restored.docs.replace(link.path, current.sha, current.text, forbidden), /denied/);
   // Read-time checks remain a second defence against malformed imported state.
-  const unsafe = restored.scenario.snapshot();
+  const unsafe = restored.scenario.read();
   unsafe.docs[link.path]!.frontmatter = { visibility: "gm", summary: ["secret"] };
   const protectedLore = await documentLore(createScenarioServices(unsafe).scenario, "aldren");
   assert.throws(() => protectedLore.links(protectedLore.initial), /No read access/);
@@ -89,7 +89,7 @@ test("saved-world faction grants use current entry membership and reject unsafe 
   await services.docs.replace(entry, member.sha, member.text, member.text + "\n[[Academic]]");
   const first = await documentLore(services.scenario, "aldren");
   const link = first.links(first.initial).find(link => link.path === "Academic.md")!;
-  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.snapshot())));
+  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.read())));
   const lore = await documentLore(restored.scenario, "aldren");
   assert.equal(lore.links(lore.initial).find(candidate => candidate.path === link.path)?.summary, "Private academic history.");
   assert.equal((await lore.open(link, new AbortController().signal)).markdown, "ACADEMIC_FACT");

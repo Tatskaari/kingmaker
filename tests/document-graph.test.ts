@@ -14,7 +14,7 @@ function fixture() {
   ]), "Test"));
 }
 function matchesFreshGraph(services: ReturnType<typeof fixture>) {
-  assert.deepEqual(services.scenario.snapshot(), refreshDocumentGraph(services.scenario.snapshot()));
+  assert.deepEqual(services.scenario.read(), refreshDocumentGraph(services.scenario.read()));
 }
 
 test("adding and removing names re-resolves cached shorthand links and updates reader SHAs", async () => {
@@ -41,10 +41,10 @@ test("adding and removing names re-resolves cached shorthand links and updates r
 
 test("dangling deletions and ambiguous additions are atomic and do not poison cached links", async () => {
   const services = fixture(), { docs, scenario } = services;
-  const before = scenario.snapshot(), original = await docs.read("A/Shared.md");
+  const before = scenario.read(), original = await docs.read("A/Shared.md");
   await assert.rejects(docs.delete(original.path, original.sha), /No matching vault note/);
   await assert.rejects(docs.create("B/Shared.md", "Ambiguous"), /Matches/);
-  assert.deepEqual(scenario.snapshot(), before);
+  assert.deepEqual(scenario.read(), before);
   // Remove the inbound link, then delete and recreate the formerly referenced file.
   const reader = await docs.read("Readers/reader.md");
   await docs.replace(reader.path, reader.sha, "[[Shared#intro|Briefing]]", "No briefing");
@@ -56,9 +56,9 @@ test("dangling deletions and ambiguous additions are atomic and do not poison ca
 
 test("failed edits leave the published cache intact and new bodies remove obsolete links", async () => {
   const services = fixture(), { docs, scenario } = services;
-  const reader = await docs.read("Readers/reader.md"), before = scenario.snapshot();
+  const reader = await docs.read("Readers/reader.md"), before = scenario.read();
   await assert.rejects(docs.replace(reader.path, reader.sha, "[[Shared#intro|Briefing]]", "[[Missing]]"), /No matching/);
-  assert.deepEqual(scenario.snapshot(), before);
+  assert.deepEqual(scenario.read(), before);
   const updated = await docs.replace(reader.path, reader.sha, "[[Shared#intro|Briefing]]", `[index](../${index})`);
   assert.equal(updated.document.links[0]!.target, index);
   const original = await docs.read("A/Shared.md");
@@ -77,9 +77,9 @@ test("namespace changes still reject redirects into inaccessible documents", asy
     [entry, `[[${actor}]]`], [index, "Index"], [actor, "[[Shared]]"],
     ["A/Shared.md", "---\nvisibility: public\n---\nPublic history"],
   ]), "Test"));
-  const before = scenario.snapshot();
+  const before = scenario.read();
   await assert.rejects(docs.create("Shared.md", "---\nvisibility: gm\n---\nPrivate history"), /Document validation failed/);
-  assert.deepEqual(scenario.snapshot(), before);
+  assert.deepEqual(scenario.read(), before);
   await docs.create("Shared.md", "---\nvisibility: public\n---\nPublic replacement");
   assert.equal((await docs.read(actor)).document.links[0]!.target, "Shared.md");
 });
@@ -87,11 +87,11 @@ test("namespace changes still reject redirects into inaccessible documents", asy
 test("physical commits never rebuild the document graph and failed commits remain atomic", t => {
   const { mechanics, scenario } = fixture();
   const graphUpdates = t.mock.method(DocumentGraph.prototype, "update");
-  const before = scenario.snapshot();
+  const before = scenario.read();
   mechanics.commit(create(MapSchema, { day: 2 }), {});
-  assert.deepEqual(scenario.snapshot().docs, before.docs);
+  assert.deepEqual(scenario.read().docs, before.docs);
   assert.equal(graphUpdates.mock.callCount(), 0);
-  const committed = scenario.snapshot();
+  const committed = scenario.read();
   assert.throws(() => mechanics.commit(create(MapSchema, { day: 3 }), { "missing.md": {} as never }), /Unknown character/);
-  assert.deepEqual(scenario.snapshot(), committed);
+  assert.deepEqual(scenario.read(), committed);
 });

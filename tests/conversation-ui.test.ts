@@ -11,7 +11,7 @@ test("OpenTUI scrolls and copies pane-local text while preserving message clicks
   const copied: string[] = [];
   const setup = await testRender(createElement(ConversationApp, {
     input: {
-      snapshot: { world: loadPlayableWorld() },
+      world: loadPlayableWorld(),
       characterId: "corvin", transcript: [], message: "",
       sources: [{ path: "private.md", markdown: Array.from({ length: 100 }, (_, i) => `Lore line ${i + 1}`).join("\n") }, { path: "knowledge.md", markdown: "Known things" }, { path: "character.md", markdown: "Scenario" }],
     },
@@ -62,7 +62,7 @@ test("Jev rounds and opened Markdown can be inspected and exported alongside mod
   ])) });
   let exported: ConversationResult | undefined;
   const setup = await testRender(createElement(ConversationApp, {
-    input: { snapshot: { world: loadPlayableWorld() },
+    input: { world: loadPlayableWorld(),
       characterId: "corvin", sources: initial, transcript: [], message: "" },
     disclosure,
     complete: async request => {
@@ -119,7 +119,7 @@ test("CLI pauses for a manual d20, rejects invalid input, and shows the GM rulin
   const initial = [{ path: "character.md", markdown: "A cautious envoy." }];
   const disclosure = new DisclosureSession({ initial, links: () => [], open: async () => { throw new Error("unused"); } }, ai);
   const setup = await testRender(createElement(ConversationApp, {
-    input: { snapshot: { world: loadPlayableWorld() },
+    input: { world: loadPlayableWorld(),
       characterId: "corvin", sources: initial, transcript: [], message: "" },
     disclosure, checks: { ai, build: undefined },
     complete: async request => {
@@ -183,7 +183,7 @@ test("CLI shows approval and pending background GM review transcripts in the RHS
   };
   const disclosure = new DisclosureSession({ initial: [], links: () => [], open: async () => { throw new Error("Unexpected open"); } }, ai);
   const setup = await testRender(createElement(ConversationApp, {
-    input: { snapshot: { world: loadPlayableWorld() }, characterId: "corvin", sources: [], transcript: [], message: "" },
+    input: { world: loadPlayableWorld(), characterId: "corvin", sources: [], transcript: [], message: "" },
     disclosure, checks: { ai, build: undefined, response: () => ({ respond: async (context, signal, services) => {
       await services.ai.responses({ model: "test", messages: [{ role: "user", content: "APPROVAL_REQUEST" }],
         response_format: { type: "json_schema", json_schema: { name: "conversation_approval" } } }, signal);

@@ -28,15 +28,15 @@ test("shared guard lore retains independent, saved body intent and rejects stale
     { actorId: "palace-guard-1", expectedRevision: 0, activity: task, wait: null },
   ]);
   assert.equal((await services.docs.read(entry)).sha, before.sha);
-  const saved = fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.snapshot()));
+  const saved = fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.read()));
   assert.equal(runtimeActor(saved, "palace-guard-1").activity, task);
   assert.equal(runtimeActor(saved, "palace-guard-2").activity, undefined);
   const failedTask = task.replace("task.md", "failed.md");
   await assert.rejects(services.docs.commit([{ path: failedTask, expectedSha: null, text }], [
     { actorId: "palace-guard-1", expectedRevision: 0, activity: failedTask, wait: null },
   ]), /document changed/);
-  assert.equal(services.scenario.snapshot().docs[failedTask], undefined);
-  assert.equal(runtimeActor(services.scenario.snapshot(), "palace-guard-1").activity, task);
+  assert.equal(services.scenario.read().docs[failedTask], undefined);
+  assert.equal(runtimeActor(services.scenario.read(), "palace-guard-1").activity, task);
 });
 
 test("scene defaults seed independent actor fields and intent permissions still apply", async () => {
@@ -76,8 +76,8 @@ test("fresh scene defaults seed runtime characters once, including unplaced CLI 
   assert.equal(world.simulation!.runtimeCharacters["palace-guard"]!.activity, task);
   const services = createScenarioServices(world);
   await services.docs.commit([], [{ actorId: "palace-guard", expectedRevision: 0, activity: null, wait: null }]);
-  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.snapshot())));
-  assert.equal(restored.scenario.snapshot().simulation!.runtimeCharacters["palace-guard"]!.activity, undefined);
-  assert.equal(restored.scenario.snapshot().docs[entry]!.frontmatter!.activity, task);
-  assert.deepEqual(restored.scenario.snapshot().simulation!.map, world.simulation!.map);
+  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.read())));
+  assert.equal(restored.scenario.read().simulation!.runtimeCharacters["palace-guard"]!.activity, undefined);
+  assert.equal(restored.scenario.read().docs[entry]!.frontmatter!.activity, task);
+  assert.deepEqual(restored.scenario.read().simulation!.map, world.simulation!.map);
 });

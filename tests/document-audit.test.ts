@@ -18,7 +18,7 @@ function fixture() {
 }
 
 test("every create, replace, insert and delete validates atomically without an explicit audit", async () => {
-  const { docs, scenario } = fixture(), before = scenario.snapshot();
+  const { docs, scenario } = fixture(), before = scenario.read();
   const note = await docs.read("Shared.md"), character = await docs.read(entry);
   for (const operation of [
     () => docs.create("unused.md", "---\nreaders: {character: alice}\n---\n"),
@@ -30,7 +30,7 @@ test("every create, replace, insert and delete validates atomically without an e
     () => docs.delete(note.path, note.sha),
   ]) {
     await assert.rejects(operation());
-    assert.deepEqual(scenario.snapshot(), before);
+    assert.deepEqual(scenario.read(), before);
   }
   await assert.rejects(docs.replace(note.path, note.sha, "Public history.", "[[GM]]"), error => {
     assert.ok(error instanceof DocumentValidationError);
@@ -53,11 +53,11 @@ test("revoking access requires removing the link first", async () => {
 });
 
 test("existing defects cannot bypass validation on unrelated edits", async () => {
-  const source = fixture().scenario.snapshot();
+  const source = fixture().scenario.read();
   source.docs["Shared.md"]!.body += " [[GM]]";
-  const { docs, scenario } = createScenarioServices(source), before = scenario.snapshot();
+  const { docs, scenario } = createScenarioServices(source), before = scenario.read();
   await assert.rejects(docs.create("unrelated.md", "A new note."), DocumentValidationError);
-  assert.deepEqual(scenario.snapshot(), before);
+  assert.deepEqual(scenario.read(), before);
   const note = await docs.read("Shared.md");
   await docs.replace(note.path, note.sha, " [[GM]]", "");
   await docs.create("unrelated.md", "A new note.");

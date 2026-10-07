@@ -42,7 +42,7 @@ function fixture(t: { after(fn: () => void): void }) {
   write(`${folder}/b.md`, `B_BODY\n[[${folder}/c|C]]`);
   write(`${folder}/c.md`, "C_BODY\n[Cycle](character.md)");
   const lore = loadCharacterLore(root, "Demo", "corvin");
-  const input: ConversationInput = { snapshot: { world: loadPlayableWorld() },
+  const input: ConversationInput = { world: loadPlayableWorld(),
     characterId: "corvin", sources: lore.initial, transcript: [], message: "Tell me about A and B." };
   return { root, folder, write, lore, input };
 }

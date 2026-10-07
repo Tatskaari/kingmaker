@@ -13,7 +13,7 @@ export { CHARACTER_PROMPT } from "./agent-setup.js";
 export interface LoreDocument { path: string; markdown: string }
 export type CharacterSources = readonly LoreDocument[];
 export interface ConversationInput {
-  snapshot: { world: WorldState };
+  world: WorldState;
   characterId: string;
   sources: CharacterSources;
   transcript: readonly TranscriptMessage[];
@@ -29,13 +29,13 @@ export interface LlmTurn {
 
 /** Scoped lore plus a public participant impression; raw mechanics stay out of dialogue. */
 export function conversationRequest(input: ConversationInput, setup = characterMessages(input.sources)): ChatCompletionRequest {
-  const exists = !!input.snapshot.world.simulation!.runtimeCharacters[input.characterId];
-  if (!exists) throw new Error(`Unknown snapshot character: ${input.characterId}`);
+  const exists = !!input.world.simulation!.runtimeCharacters[input.characterId];
+  if (!exists) throw new Error(`Unknown character: ${input.characterId}`);
   return {
     model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "none" }, max_tokens: 1200,
     messages: [
       ...setup,
-      ...participantPresentations(input.snapshot.world, input.characterId, ["player"]),
+      ...participantPresentations(input.world, input.characterId, ["player"]),
       ...input.transcript.map(message => ({
         role: message.role === TranscriptRole.CHARACTER ? "assistant" as const
           : message.role === TranscriptRole.GAME_MASTER ? "system" as const : "user" as const,

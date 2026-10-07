@@ -32,7 +32,7 @@ test("GM presentation edits survive saving without being regenerated", async () 
   const world = loadPlayableWorld(), entry = world.characters[0]!, path = presentationPath(entry);
   const services = createScenarioServices(world), before = await services.docs.read(path);
   await services.docs.replace(path, before.sha, before.document.body, "A tattered coat and matted hair look out of place at court.");
-  const restored = fromBinary(WorldStateSchema, toBinary(WorldStateSchema, services.scenario.snapshot()));
+  const restored = fromBinary(WorldStateSchema, toBinary(WorldStateSchema, services.scenario.read()));
   seedPresentation(restored, entry);
   assert.equal(restored.docs[path]!.body.trim(), "A tattered coat and matted hair look out of place at court.");
 });
@@ -73,7 +73,7 @@ test("dialogue previews, live turns and NPC exchanges get current participant pr
     map: { observe: characterId => ({ characterId, map: world.simulation!.map!, actions: [] }) },
     lore: { forCharacter: async () => ({ initial: [], links: () => [], open: async () => { throw new Error("unused"); } }) },
   }, strategies: { setup: { prepare: setupWorldAgent } } });
-  const input = { snapshot: { world }, characterId: "aldren", sources: [], transcript: [], message: "Hello" };
+  const input = { world, characterId: "aldren", sources: [], transcript: [], message: "Hello" };
   assert.match(conversationRequest(input).messages.map(item => item.content).join("\n"), /Before you stands Visiting Envoy/);
   const path = presentationPath(world.player!), before = await services.docs.read(path);
   await services.docs.replace(path, before.sha, before.document.body, "A freshly mended coat.");

@@ -91,18 +91,18 @@ test("NPC opening lines retrieve knowledge in the same traced turn as their spee
 });
 
 test("disclosure failure prevents review writes and model responses", async () => {
-  const documents = createScenarioServices(fixture()), before = documents.scenario.snapshot();
+  const documents = createScenarioServices(fixture()), before = documents.scenario.read();
   const runtime = new ConversationRuntime({ services: { ...documents, lore: documentLoreService(documents.scenario), ai: {
     decisions: async () => { throw new Error("Retrieval failed"); },
     responses: async () => { assert.fail("Must not respond with incomplete knowledge"); },
   } }, strategies: { review: documentReviewStrategy } });
   await assert.rejects(runConversationReview({ characterId: "rowan", participants: ["rowan"], transcript: [] }, runtime), /Retrieval failed/);
-  assert.deepEqual(documents.scenario.snapshot(), before);
+  assert.deepEqual(documents.scenario.read(), before);
 });
 
 test("injected lore feeds progressive disclosure for both review and planning", async () => {
   const documents = createScenarioServices(fixture()), scopes: string[] = [], seen: string[] = [];
-  const runtime = new ConversationRuntime({ services: { ...documents, map: new WorldHost(documents.scenario.snapshot()).map,
+  const runtime = new ConversationRuntime({ services: { ...documents, map: new WorldHost(documents.scenario.read()).map,
     scenario: { ...documents.scenario, getDocument: async () => assert.fail("Must use the injected lore source") },
     lore: { forCharacter: async id => {
       scopes.push(id);

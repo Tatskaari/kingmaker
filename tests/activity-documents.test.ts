@@ -15,17 +15,17 @@ test("document activities preserve objective fields, enforce permission and publ
   await services.docs.create(activity, formatActivity("corvin", { name: "Meet the player", status: "The player has not arrived.",
     success_criteria: "Meet the player in the treasury.", current_goal: "Go to the treasury and wait for the player." }));
   await services.docs.create(wait, formatWait("corvin", { name: "Watch for the player", instructions: "Continue until you see the player.", activities: [activity] }));
-  const expected = characterIntent(services.scenario.snapshot(), "corvin");
+  const expected = characterIntent(services.scenario.read(), "corvin");
   await setIntent(services, before, { activity, wait });
-  assert.equal(activityGoal(services.scenario.snapshot(), "corvin"), "Go to the treasury and wait for the player.");
-  assert.match(intentContext(services.scenario.snapshot(), "corvin"), /success_criteria: Meet the player/);
+  assert.equal(activityGoal(services.scenario.read(), "corvin"), "Go to the treasury and wait for the player.");
+  assert.match(intentContext(services.scenario.read(), "corvin"), /success_criteria: Meet the player/);
   await assert.rejects(setIntent(services, before, { activity: null, wait }, before.document.body, expected), /document changed/);
   const fresh = await services.docs.read(entry);
   await setIntent(services, fresh, { activity: null, wait });
-  assert.equal(activityGoal(services.scenario.snapshot(), "corvin"), null);
-  assert.equal(characterIntent(services.scenario.snapshot(), "corvin").wait, wait);
-  const restored = createScenarioServices(services.scenario.snapshot());
-  assert.equal(characterIntent(restored.scenario.snapshot(), "corvin").wait, wait);
+  assert.equal(activityGoal(services.scenario.read(), "corvin"), null);
+  assert.equal(characterIntent(services.scenario.read(), "corvin").wait, wait);
+  const restored = createScenarioServices(services.scenario.read());
+  assert.equal(characterIntent(restored.scenario.read(), "corvin").wait, wait);
 });
 
 test("intent references cannot expose other characters or GM documents", async () => {

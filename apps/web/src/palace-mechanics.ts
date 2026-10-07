@@ -78,7 +78,7 @@ export class PalaceMechanics {
     this.#npcActivities = activity.npcActivities ??= {};
     this.#conversations = activity.conversations;
   }
-  snapshot() {
+  result() {
     return { map: this.#world, characters: Object.fromEntries(this.#characters.map(character => [character.id, character.character])),
       npcActivities: this.#npcActivities };
   }

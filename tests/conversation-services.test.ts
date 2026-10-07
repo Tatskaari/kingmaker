@@ -11,7 +11,7 @@ test("unused runtime constructs headlessly and every default service fails expli
     difficulty: "impossible", success: true, outcome: CheckDegree.CriticalSuccess };
   const calls: Array<[string, () => unknown]> = [
     ["scenario.info", () => services.scenario.info()],
-    ["scenario.snapshot", () => services.scenario.snapshot()],
+    ["scenario.read", () => services.scenario.read()],
     ["scenario.getDocument", () => services.scenario.getDocument("note.md")],
     ["docs.read", () => services.docs.read("note.md")],
     ["docs.create", () => services.docs.create("note.md", "Note")],

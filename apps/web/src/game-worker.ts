@@ -495,7 +495,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
   }
   if (type === "debug_transcripts") return { requests: requireRuntime().recentTranscripts(), agentRuns: requireRuntime().transcriptRuns() };
   if (type === "debug_documents") return requireRuntime().debugDocuments();
-  if (type === "issue_report") return { worldState: requireRuntime().snapshot(), requests: requireRuntime().recentTranscripts(), agentRuns: requireRuntime().transcriptRuns() };
+  if (type === "issue_report") return { worldState: requireRuntime().world(), requests: requireRuntime().recentTranscripts(), agentRuns: requireRuntime().transcriptRuns() };
   if (type === "debug_gm") return requireRuntime().debugGameMaster();
   if (type === "debug") return requireRuntime().debug();
   if (type === "debug_character") return requireRuntime().debugCharacter(String(payload.characterId || ""));

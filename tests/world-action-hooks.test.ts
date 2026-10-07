@@ -22,18 +22,18 @@ function fixture(goal?: string) {
   const other = world.characters.find(path => path.includes("/elinor/"))!;
   world.docs[other]!.body += "\nOTHER_PRIVATE_SENTINEL";
   const services = createScenarioServices(world);
-  return { ...services, disclosure: { disclose: async () => [] }, map: { observe: (id: string) => new WorldHost(services.scenario.snapshot()).map.observe(id) } };
+  return { ...services, disclosure: { disclose: async () => [] }, map: { observe: (id: string) => new WorldHost(services.scenario.read()).map.observe(id) } };
 }
 const evidence = { characterId: "corvin", participants: ["corvin", "player"], transcript: [create(TranscriptMessageSchema, { text: "Please go to the hall." })] };
 
 test("v2 review commits its goal before classify/resolve returns a real command without moving anyone", async () => {
-  const services = fixture(), beforeMap = services.scenario.snapshot().simulation!.map, order: string[] = [];
+  const services = fixture(), beforeMap = services.scenario.read().simulation!.map, order: string[] = [];
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: {
     responses: async request => { order.push("review"); return commitReview({
       summary: "Agreed", newNotes: ["The player requested a visit to the hall."], activeGoal: "Go to the hall" }, request); },
     decisions: async (state, questions) => {
       order.push("classify");
-      assert.equal(activityGoal(services.scenario.snapshot(), "corvin"), "Go to the hall");
+      assert.equal(activityGoal(services.scenario.read(), "corvin"), "Go to the hall");
       assert.match(String(state), /Go to the hall/);
       assert.ok(!String(state).includes("GM_SECRET_SENTINEL"));
       assert.ok(!String(state).includes("OTHER_PRIVATE_SENTINEL"));
@@ -47,7 +47,7 @@ test("v2 review commits its goal before classify/resolve returns a real command 
   const result = await reviewAndPlanWorldAction(evidence, runtime);
   assert.deepEqual(order, ["review", "review", "classify", "resolve"]);
   assert.equal(result.plan!.action!.type, "move"); assert.equal(result.plan!.action!.path.length, 0, "choosing an action does not plan its route before execution");
-  assert.deepEqual(services.scenario.snapshot().simulation!.map, beforeMap);
+  assert.deepEqual(services.scenario.read().simulation!.map, beforeMap);
 
 });
 
@@ -70,7 +70,7 @@ test("v2 idle reviews skip Jev, failed reviews stop planning, and terminal resul
 test("planning tolerates document changes and still honours cancellation", async () => {
   const services = fixture("Go to the hall"), controller = new AbortController();
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { decisions: async () => {
-    const path = characterIntent(services.scenario.snapshot(), "corvin").activity!, doc = await services.docs.read(path);
+    const path = characterIntent(services.scenario.read(), "corvin").activity!, doc = await services.docs.read(path);
     await services.docs.replace(path, doc.sha, "current_goal: Go to the hall", "current_goal: Go to the kitchen");
     return { next: { choice: "complete", probabilities: {} } };
   } } }, strategies: { action: jevActionStrategy } });

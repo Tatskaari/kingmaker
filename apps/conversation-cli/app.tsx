@@ -103,7 +103,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
     try {
       if (checks?.beforeTurn) disclosure = await checks.beforeTurn();
       checks?.beginTurn?.();
-      const turnInput = { ...input, ...(checks?.services?.scenario ? { snapshot: { world: checks.services.scenario.snapshot() } } : {}), transcript, message };
+      const turnInput = { ...input, ...(checks?.services?.scenario ? { world: checks.services.scenario.read() } : {}), transcript, message };
       const trace = (round: DisclosureRound) => {
         timeline.record(`jev-${round.turn}-${round.round}`);
         if (round.answers) {

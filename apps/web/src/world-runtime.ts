@@ -78,7 +78,7 @@ export class WorldGameRuntime extends WorldHost {
     const ai = { ...this.provider, ...this.options.services?.ai, ...extra.services?.ai };
     const scenario = {
       setPlayer: (path: string) => this.commit(() => this.worldServices.scenario.setPlayer(path), signal, persist),
-      info: () => this.worldServices.scenario.info(), snapshot: () => this.worldServices.scenario.snapshot(),
+      info: () => this.worldServices.scenario.info(), read: () => this.worldServices.scenario.read(),
       getDocument: (path: string) => this.worldServices.scenario.getDocument(path),
       ...this.options.services?.scenario, ...extra.services?.scenario,
     };
@@ -265,7 +265,7 @@ export class WorldGameRuntime extends WorldHost {
     runtime.strategies.conversation = strategyOverride ?? strategies;
     runtime.services.character.respond = (request, cancellation) => runtime.services.ai.responses(request, cancellation);
     const transcript = previous.map(turn => fromJson(TranscriptMessageSchema, turn));
-    const request = await prepareConversation({ snapshot: { world }, characterId: id, sources: lore.initial, transcript, message }, runtime.services, signal);
+    const request = await prepareConversation({ world, characterId: id, sources: lore.initial, transcript, message }, runtime.services, signal);
     if (defending) request.messages = [...request.messages, { role: "system", content: renderPrompt("world-runtime-arrest-defense") }];
     thinking?.("Considering your words…");
     const rulings: string[] = [], preparedRulings: string[] = [], arrestRulings: string[] = [];
@@ -519,7 +519,7 @@ export class WorldGameRuntime extends WorldHost {
     runtime.services.character.respond = Array.isArray(granted) && granted.includes("arrest")
       ? arrestResponse(runtime.services.ai.responses, () => { throw new Error("An opening cannot execute an arrest."); },
         { outcome: () => "unheard", challenge: () => { challenged = true; } }) : runtime.services.ai.responses;
-    const request = await prepareConversation({ snapshot: { world }, characterId: id, sources: lore.initial, transcript: [],
+    const request = await prepareConversation({ world, characterId: id, sources: lore.initial, transcript: [],
       message: renderPrompt("world-runtime-npc-opening", { goal: goal }) }, runtime.services, signal);
     const actor = world.simulation!.map!.actors.find(actor => actor.characterId === id)!;
     const room = world.simulation!.map!.rooms.find(room => room.id === actor.roomId)!;

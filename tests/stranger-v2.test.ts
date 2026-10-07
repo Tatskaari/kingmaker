@@ -22,7 +22,7 @@ export const ai = (responses: AiService["responses"]): AiService => ({ responses
 const interviewAi = (responses: AiService["responses"]) => new ConversationRuntime({ services: { ai: ai(responses) } }).services;
 test("v2 Stranger keeps the opening and prepares a detached editable draft from live cast IDs", async () => {
   const world = creationWorld(), { scenario } = createScenarioServices(world);
-  const start = beginStranger(scenario.snapshot());
+  const start = beginStranger(scenario.read());
   assert.equal(start.history[0]!.content, strangerOpening);
   const next = await strangerTurn(start, "Ready", scenario, interviewAi(async request => {
     assert.match(JSON.stringify(request), /Peregrine|peregrine/);
@@ -32,11 +32,11 @@ test("v2 Stranger keeps the opening and prepares a detached editable draft from 
   assert.ok(next.draft);
   assert.equal(start.history.length, 1);
   assert.equal(scenario.info().player, undefined);
-  assert.deepEqual(scenario.snapshot(), world);
+  assert.deepEqual(scenario.read(), world);
 });
 test("v2 Stranger retries invalid relationships without another readiness question", async () => {
   const world = creationWorld(), { scenario } = createScenarioServices(world); let calls = 0;
-  const next = await strangerTurn(beginStranger(scenario.snapshot()), "Ready", scenario, interviewAi(async request => {
+  const next = await strangerTurn(beginStranger(scenario.read()), "Ready", scenario, interviewAi(async request => {
     if (calls) assert.match(JSON.stringify(request.messages.at(-1)), /every court character/);
     const input = creationInput(world);
     if (!calls++) input.npcViews.pop();
@@ -45,7 +45,7 @@ test("v2 Stranger retries invalid relationships without another readiness questi
   assert.equal(calls, 2); assert.ok(next.draft);
 });
 test("failed model turns preserve the original interview; suggestions do not select an answer", async () => {
-  const { scenario } = createScenarioServices(creationWorld()), start = beginStranger(scenario.snapshot());
+  const { scenario } = createScenarioServices(creationWorld()), start = beginStranger(scenario.read());
   await assert.rejects(strangerTurn(start, "Alex", scenario, interviewAi(async () => { throw new Error("offline"); })), /offline/);
   assert.equal(start.history.length, 1);
   const next = await strangerTurn(start, "Alex", scenario, interviewAi(async () => ({ role: "assistant", content: "How do you get your way?", tool_calls: [

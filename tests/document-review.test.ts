@@ -27,7 +27,7 @@ const evidence = { characterId: "alice", participants: ["alice", "player"], tran
 const answer = (activeGoal: string | null, request: import("../packages/providers/src/openrouter.js").ChatCompletionRequest) => (commitReview({ summary: "Reviewed", newNotes: ["The player asked me to go to the hall."], activeGoal }, request));
 
 test("v2 review writes notes through tools and commits the goal, preserves access metadata, and survives reload", async () => {
-  const services = fixture(), before = services.scenario.snapshot();
+  const services = fixture(), before = services.scenario.read();
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
     const text = JSON.stringify(request);
     assert.match(text, /Please go to the hall/); assert.match(text, /Alice speaks softly/);
@@ -35,19 +35,19 @@ test("v2 review writes notes through tools and commits the goal, preserves acces
   } } }, strategies: { review: documentReviewStrategy } });
   await runConversationReview(evidence, runtime);
   const after = await services.docs.read(entry);
-  assert.equal(activityGoal(services.scenario.snapshot(), "alice"), "Go to the hall");
+  assert.equal(activityGoal(services.scenario.read(), "alice"), "Go to the hall");
   assert.match(after.document.body, /Earlier history/);
   assert.match(after.document.body, /player asked/);
   assert.deepEqual(after.document.frontmatter!.readers, before.docs[entry]!.frontmatter!.readers);
-  assert.deepEqual(services.scenario.snapshot().simulation!.map, before.simulation!.map);
-  assert.deepEqual(services.scenario.snapshot().docs[identity], before.docs[identity]);
+  assert.deepEqual(services.scenario.read().simulation!.map, before.simulation!.map);
+  assert.deepEqual(services.scenario.read().docs[identity], before.docs[identity]);
   await runConversationReview(evidence, runtime);
   assert.equal((await services.docs.read(entry)).sha, after.sha, "Repeated review does not duplicate notes");
-  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.snapshot())));
-  assert.equal(activityGoal(restored.scenario.snapshot(), "alice"), "Go to the hall");
+  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.read())));
+  assert.equal(activityGoal(restored.scenario.read(), "alice"), "Go to the hall");
   runtime.services.ai.responses = async request => answer(null, request);
   await runConversationReview(evidence, runtime);
-  assert.equal(activityGoal(services.scenario.snapshot(), "alice"), null);
+  assert.equal(activityGoal(services.scenario.read(), "alice"), null);
 });
 
 test("failed and cancelled v2 reviews cannot overwrite documents or activate goals", async () => {
@@ -60,7 +60,7 @@ test("failed and cancelled v2 reviews cannot overwrite documents or activate goa
     } } }, strategies: { review: documentReviewStrategy } });
     await assert.rejects(runConversationReview(evidence, runtime, controller.signal), /offline|abort/i);
     const doc = (await services.docs.read(entry)).document;
-    assert.equal(activityGoal(services.scenario.snapshot(), "alice"), null); assert.ok(!doc.body.includes("player asked"));
+    assert.equal(activityGoal(services.scenario.read(), "alice"), null); assert.ok(!doc.body.includes("player asked"));
   }
 });
 
@@ -104,27 +104,27 @@ test("document conflicts refresh the tool snapshot and let the GM reconcile befo
   assert.match(doc.body, /new promise: meet Bob/);
   assert.match(doc.body, /honour my promise/);
   assert.doesNotMatch(doc.body, /player asked/);
-  assert.equal(activityGoal(services.scenario.snapshot(), "alice"), "Meet Bob");
+  assert.equal(activityGoal(services.scenario.read(), "alice"), "Meet Bob");
 });
 
 
 test("GM review commits automatically validate without exposing an optional validation tool", async () => {
-  const source = fixture().scenario.snapshot();
+  const source = fixture().scenario.read();
   const other = "Scenarios/Test/Characters/bob/character.md";
   source.docs[other] = create(DocumentSchema, { body: "[[gm]]" });
   source.docs[source.scenario]!.body += `\n[[${other}]]`;
-  const services = createScenarioServices(source), before = services.scenario.snapshot();
+  const services = createScenarioServices(source), before = services.scenario.read();
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
     assert.deepEqual(request.tools?.map(tool => tool.function.name), gameMasterTools.map(tool => tool.function.name));
     return answer("Go to the hall", request);
   } } }, strategies: { review: documentReviewStrategy } });
   await assert.rejects(runConversationReview(evidence, runtime), DocumentValidationError);
-  assert.deepEqual(services.scenario.snapshot(), before);
+  assert.deepEqual(services.scenario.read(), before);
   // Repair the offending graph, then the same review can publish normally.
   const unsafe = await services.docs.read(other);
   await services.docs.replace(other, unsafe.sha, unsafe.text, "Bob knows no GM secrets.");
   await runConversationReview(evidence, runtime);
-  assert.equal(activityGoal(services.scenario.snapshot(), "alice"), "Go to the hall");
+  assert.equal(activityGoal(services.scenario.read(), "alice"), "Go to the hall");
 });
 
 test("GM uses the full editing suite and finishes without overwriting its own edits", async () => {
@@ -150,7 +150,7 @@ test("GM uses the full editing suite and finishes without overwriting its own ed
   assert.match(result.text, /Corrected history/);
   assert.match(result.text, /additional recollection/);
   assert.match(result.text, /player asked/);
-  assert.equal(activityGoal(services.scenario.snapshot(), "alice"), "Go to the hall");
+  assert.equal(activityGoal(services.scenario.read(), "alice"), "Go to the hall");
   await assert.rejects(services.docs.read(note), /not found/);
 });
 

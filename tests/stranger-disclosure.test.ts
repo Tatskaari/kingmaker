@@ -49,7 +49,7 @@ test("Stranger uses shared multi-round disclosure with GM access and summary pre
       return { role: "assistant", content: "What are you good at?" };
     },
   } } }).services;
-  const initial = beginStranger(scenario.snapshot());
+  const initial = beginStranger(scenario.read());
   assert.equal(initial.history[0]!.content, "What is your name, traveller?");
   const next = await strangerTurn(initial, "Tell me about the institutions", scenario, services);
   assert.equal(rounds, 3); assert.equal(replies, 1);
@@ -59,7 +59,7 @@ test("Stranger uses shared multi-round disclosure with GM access and summary pre
 });
 
 test("injected disclosure is honoured and its failure prevents speaking or draft mutation", async () => {
-  const { scenario } = fixture(), before = beginStranger(scenario.snapshot()); let calls = 0;
+  const { scenario } = fixture(), before = beginStranger(scenario.read()); let calls = 0;
   const services = new ConversationRuntime({ services: {
     disclosure: { disclose: async (lore, context, _signal, options) => {
       calls++;

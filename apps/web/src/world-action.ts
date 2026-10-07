@@ -54,7 +54,7 @@ async function worldActionContext(world: WorldState, characterId: string, histor
 export async function planWorldAction<Review>(characterId: string, runtime: ConversationRuntime<Review>,
   signal: AbortSignal = new AbortController().signal, history: readonly string[] = [], feedback?: PlanningFeedback): Promise<WorldActionPlan | undefined> {
   signal.throwIfAborted();
-  const world = runtime.services.scenario.snapshot();
+  const world = runtime.services.scenario.read();
   if (history.length >= 24) throw new Error("NPC action limit reached.");
   const context = await worldActionContext(world, characterId, history, runtime.services, signal, feedback);
   signal.throwIfAborted();

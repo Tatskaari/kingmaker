@@ -32,7 +32,7 @@ export async function replayConversation(testCase: ReviewCase, conversation: Rev
     if (playerIndex < 0) throw new Error("Replay needs a player turn");
     const services = runtime.services;
     const lore = await services.lore.forCharacter(testCase.characterId, signal);
-    const request = await prepareConversation({ snapshot: { world: services.scenario.snapshot() },
+    const request = await prepareConversation({ world: services.scenario.read(),
       characterId: testCase.characterId, sources: lore.initial, transcript: accepted.slice(0, playerIndex),
       message: accepted[playerIndex]!.text }, services, signal);
     request.messages = [...request.messages, ...accepted.slice(playerIndex + 1).map(item => ({ role: "system" as const, content: item.text }))];

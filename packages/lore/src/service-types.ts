@@ -29,7 +29,8 @@ export interface ScenarioInfo { scenario: string; scenarioIndex: string; player?
 export interface ScenarioService {
   info(): ScenarioInfo;
   setPlayer(path: string): Promise<void>;
-  snapshot(): WorldState;
+  /** Live authority state for trusted reads. Mutations must use the owning services. */
+  read(): WorldState;
   getDocument(path: string): Promise<DocumentSnapshot>;
 }
 export interface DocumentWrite { path: string; expectedSha: string | null; text: string }
