@@ -26,8 +26,10 @@ conflict publishes none of the staged changes, refreshes the affected document,
 and returns control to the GM to reconcile. The tool loop is bounded at sixteen
 model calls. Earlier successful document edits remain saved.
 
-The worker serializes individual mutations and their IndexedDB saves. Models run
-outside that queue, as does time spent travelling. Saving failure does not rewind
+The worker serializes individual mutations and publishes accepted state immediately.
+Models, time spent travelling, and IndexedDB writes run outside that queue. Dirty
+state is saved every five seconds, with no writes during clean periods. Changes
+accepted while a save is running remain dirty for the next save. Saving failure does not rewind
 accepted writes; the next successful autosave saves the current state. The docs
 service merges each document write into the current state, preserving map changes
 made while hashing the document.
@@ -44,8 +46,8 @@ so the same functions can be registered as boardgame.io moves. They never read a
 clock or schedule a callback. `executeLocalMove` is the temporary local Immer
 adapter used by the authority; multiplayer hosting is not introduced here.
 
-The movement service supplies time, schedules completion, and persists start and
-completion separately. Actor jobs run concurrently. A new movement supersedes
+The movement service supplies time and schedules completion. Start and completion
+are separate simulation updates; periodic autosave stores the latest state. Actor jobs run concurrently. A new movement supersedes
 the previous request; cancellation commits the interpolated position. Only an
 `arrived` result may continue an interaction. Loading rebuilds timers from saved
 movement records, but does not restore unsaved interaction callbacks.
@@ -55,3 +57,8 @@ stored route in grid coordinates without pathfinding. `actorTile` rounds to the
 occupied tile. The renderer converts grid coordinates to pixels. Rules can use
 `mapAtTime` for an ephemeral observation; never commit that projection as state.
 Closing a door across the remaining route is still tracked in issue #460.
+
+The browser requests an immediate flush when the page becomes hidden or receives
+`pagehide`. These are best-effort lifecycle saves: refresh/back can terminate the
+worker before IndexedDB finishes. The in-app Saved games action and game switches
+explicitly await a flush. Periodic saving remains the fallback for abrupt exits.

@@ -847,7 +847,7 @@ function bind() {
   document.querySelectorAll("[data-save-delete]").forEach(button => button.addEventListener("click", () => run(async () => {
     const result = await rpc("delete_game", { saveId: button.dataset.saveDelete }); saves = result.saves ?? saves;
   })));
-  document.querySelector("[data-games]")?.addEventListener("click", () => run(async () => { await rpc("save_game"); state = null; activeSaveId = null; activeCharacter = null; screen = "saves"; render(); }));
+  document.querySelector("[data-games]")?.addEventListener("click", () => run(async () => { await rpc("save_game"); saves = (await rpc("list_saves")).saves; state = null; activeSaveId = null; activeCharacter = null; screen = "saves"; render(); }));
   document.querySelectorAll("[data-report-issue]").forEach(button => button.addEventListener("click", openIssueReporter));
   document.querySelector("[data-sheet-open]")?.addEventListener("click", () => { sheetOpen = true; debugOpen = false; render(); });
   document.querySelectorAll("[data-sheet-close]").forEach(button => button.addEventListener("click", () => { sheetOpen = false; render(); }));

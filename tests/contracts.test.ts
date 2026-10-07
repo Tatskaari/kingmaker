@@ -921,12 +921,13 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
   let endDialogue!: () => void;
   let finishDice!: (completed: boolean) => void;
   let diceSignal: AbortSignal | undefined;
+  const lifecycle = new Map<string, () => void>();
   const context = createContext({
-    URL, AbortController, AlertLog, coalescedRefresh, installDicePreview() {}, showDiceRoll: ({ signal }: { signal: AbortSignal }) => new Promise<boolean>(resolve => { diceSignal = signal; finishDice = resolve; }), window: { addEventListener() {} }, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
+    URL, AbortController, AlertLog, coalescedRefresh, installDicePreview() {}, showDiceRoll: ({ signal }: { signal: AbortSignal }) => new Promise<boolean>(resolve => { diceSignal = signal; finishDice = resolve; }), window: { addEventListener(type: string, handler: () => void) { lifecycle.set(type, handler); } }, devOpenRouterApiKey: "", newTraveller: () => ({}), updateCourtMap() {},
     document: {
       querySelector: (selector: string) => selector === "[data-end-conversation]"
         ? { addEventListener: (_type: string, callback: () => void) => { endDialogue = callback; } } : null,
-      querySelectorAll: () => [], addEventListener() {},
+      querySelectorAll: () => [], addEventListener(type: string, handler: () => void) { lifecycle.set(type, handler); },
     },
     Worker: class {
       addEventListener(_type: string, callback: typeof receive) { receive = callback; }
@@ -1000,6 +1001,18 @@ test("dialogue UI releases the screen before review and ignores replaced-game re
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(runInContext("state.revision", context), 99);
   assert.equal(sent.filter(message => message.type === "start_npc").length, 1);
+  runInContext("activeSaveId = 'current'; document.visibilityState = 'hidden'", context);
+  lifecycle.get("visibilitychange")!();
+  assert.equal(sent.at(-1).type, "save_game");
+  receive({ data: { id: sent.at(-1).id, ok: true, value: {} } });
+  lifecycle.get("pagehide")!();
+  assert.equal(sent.at(-1).type, "save_game");
+  receive({ data: { id: sent.at(-1).id, ok: true, value: {} } });
+  const count = sent.length;
+  runInContext("document.visibilityState = 'visible'", context);
+  lifecycle.get("visibilitychange")!();
+  assert.equal(sent.length, count);
+
 });
 
 test("dialogue composer sends on Enter and submits a final response with the leave action", () => {
