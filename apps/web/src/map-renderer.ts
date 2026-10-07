@@ -17,9 +17,11 @@ export class CanvasMapRenderer {
     this.#canvas = canvas;
     this.#context = context;
     this.#map = map;
-    canvas.width = map.width * map.tileWidth;
-    canvas.height = map.height * map.tileHeight;
-    context.imageSmoothingEnabled = false;
+    canvas.width = map.width * map.tileWidth * 2;
+    canvas.height = map.height * map.tileHeight * 2;
+    // Keep game coordinates intact while drawing the illustrated atlas at 2× resolution.
+    context.scale(2, 2);
+    context.imageSmoothingEnabled = true;
   }
 
   async load(): Promise<void> {
@@ -59,8 +61,8 @@ export class CanvasMapRenderer {
 
   hit(clientX: number, clientY: number): MapHit | undefined {
     const rect = this.#canvas.getBoundingClientRect();
-    const worldX = (clientX - rect.left) * this.#canvas.width / rect.width;
-    const worldY = (clientY - rect.top) * this.#canvas.height / rect.height;
+    const worldX = (clientX - rect.left) * this.#map.width * this.#map.tileWidth / rect.width;
+    const worldY = (clientY - rect.top) * this.#map.height * this.#map.tileHeight / rect.height;
     const tileX = Math.floor(worldX / this.#map.tileWidth);
     const tileY = Math.floor(worldY / this.#map.tileHeight);
     if (tileX < 0 || tileY < 0 || tileX >= this.#map.width || tileY >= this.#map.height) return undefined;

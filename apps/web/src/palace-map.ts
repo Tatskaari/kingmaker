@@ -88,9 +88,9 @@ export const palaceMap: WorldMap = create(WorldMapSchema, {
   tileHeight: TILE_SIZE,
   tilesets: [{
     id: "tiny-dungeon",
-    imagePath: "./assets/kenney-tiny-dungeon.png",
-    tileWidth: TILE_SIZE,
-    tileHeight: TILE_SIZE,
+    imagePath: "./assets/caerwyn-tabletop.svg",
+    tileWidth: 64,
+    tileHeight: 64,
     columns: 12,
     tileCount: 132,
   }],

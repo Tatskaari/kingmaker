@@ -207,12 +207,12 @@ button:focus-visible, .identity-field input:focus-visible { outline: 2px solid #
 .court-panel { padding: 22px; }
 .court-map-scroll { overflow: hidden; height: min(70vh, 720px); border: 1px solid var(--line); background: #100e0b; }
 .court-map-stage { position: relative; min-width: 100%; max-width: none; }
-.court-map-stage canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
+.court-map-stage canvas { display: block; width: 100%; height: auto; image-rendering: auto; }
 .court-character { position: absolute; transform: translate(-50%, -22px); display: grid; justify-items: center; gap: 3px; padding: 3px 6px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: #fff1ce; z-index: 1; }
 button.court-character:focus-visible { border-color: #ffe2a0; background: #241b12c9; outline: 2px solid #ffe2a0; outline-offset: 2px; z-index: 2; }
 .court-character:disabled { opacity: .5; cursor: wait; }
 .court-character-name { padding: 2px 5px; border-radius: 3px; background: #171009e8; font-size: .85rem; line-height: 1.2; max-width: 110px; text-align: center; }
-.court-sprite { width: 32px; height: 32px; background-image: url('./assets/kenney-tiny-dungeon.png'); background-size: 384px 352px; image-rendering: pixelated; }
+.court-sprite { width: 32px; height: 32px; background-image: url('./assets/caerwyn-tabletop.svg'); background-size: 384px 352px; image-rendering: auto; }
 .court-player { pointer-events: none; }
 .court-player .court-character-name { color: #afe1cf; }
 .court-off-map { position: static; transform: none; display: inline-grid; margin: 12px; }
