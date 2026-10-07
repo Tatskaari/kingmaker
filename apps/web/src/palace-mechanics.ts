@@ -10,7 +10,7 @@ import { inventoryOwners, findItem } from "../../../packages/core/src/inventory.
 import { type WorldState, type SimulationState } from "../../../packages/contracts/src/v2.js";
 import { characterDocuments } from "../../../packages/lore/src/character-id.js";
 import { activityGoal } from "../../../packages/lore/src/activity.js";
-import { foregroundBodies } from "./background-characters.js";
+import type { SimulationMove } from "../../../packages/core/src/simulation-move.js";
 import { roomAgentActions } from "./room-actions.js";
 
 import { gameLogger } from "../../../packages/observability/src/logging.js";
@@ -72,9 +72,13 @@ export class PalaceMechanics {
   #playerId: string;
   #npcActivities: Record<string, NpcActivity>;
   #conversations: MechanicalActivity["conversations"];
-  constructor(world: WorldState, activity: MechanicalActivity, private readonly now = () => Date.now()) {
+  constructor(world: WorldState, activity: MechanicalActivity, private readonly now = () => Date.now(),
+    private readonly authority?: {
+      currentSimulation(): SimulationState;
+      executeMove<Args extends unknown[]>(move: SimulationMove<Args>, ...args: Args): void;
+    }) {
     if (!world.simulation!.map) throw new Error("A physical map is required.");
-    this.#simulation = { ...world.simulation!, map: { ...world.simulation!.map, actors: foregroundBodies(world.simulation!.map.actors, undefined, this.now()) } };
+    this.#simulation = world.simulation!;
     this.#characters = mechanicalCharacters(world, () => this.#simulation);
     this.#playerId = world.player ? "player" : "";
     this.#npcActivities = activity.npcActivities ??= {};
@@ -84,9 +88,15 @@ export class PalaceMechanics {
     return { map: this.#world, characters: Object.fromEntries(this.#characters.map(character => [character.id, character.character])),
       npcActivities: this.#npcActivities };
   }
+  private executeMove<Args extends unknown[]>(move: SimulationMove<Args>, ...args: Args) {
+    if (this.authority) {
+      this.authority.executeMove(move, ...args);
+      this.#simulation = this.authority.currentSimulation();
+    } else this.#simulation = executeLocalMove(this.#simulation, move, ...args);
+  }
   private applyFixture(actorId: string, actionId: string): string {
     const message = fixtureActionMessage(this.#simulation, actorId, actionId);
-    this.#simulation = executeLocalMove(this.#simulation, interactWithFixture, actorId, actionId, this.now());
+    this.executeMove(interactWithFixture, actorId, actionId, this.now());
     return message;
   }
   private observe(characterId: string, continuingActionId: string) {
@@ -135,10 +145,9 @@ export class PalaceMechanics {
     if (action.type === "door") {
       const atMs = this.now(), error = doorError(this.#simulation, characterId, action.target, action.open!, atMs);
       if (error) throw new Error(error);
-      this.#simulation = executeLocalMove(this.#simulation, setDoor, characterId, action.target, action.open!, atMs);
+      this.executeMove(setDoor, characterId, action.target, action.open!, atMs);
     } else {
       if (action.type === "fixture") message = this.applyFixture(characterId, action.id);
-      if (action.type !== "fixture") this.#world.revision++;
     }
     activity.history.push(message);
     (activity.actionIds ??= []).push(action.id);
