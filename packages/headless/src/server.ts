@@ -42,7 +42,7 @@ export function createDispatcher(game: WorldHeadlessGame) {
       logBytes += size; logs.push(line);
     };
     try {
-      const source = stripTypeScriptTypes(`(async function () {\n${code}\n})`, { mode: "strip" });
+      const source = stripTypeScriptTypes(`(async function () {\n"use strict";\n${code}\n})`, { mode: "strip" });
       const execute = runInNewContext(source, { game, console: { log, info: log, warn: log, error: log, debug: log },
         setTimeout, clearTimeout }, { filename: "headless-snippet.ts" }) as () => Promise<unknown>;
       const value = await execute();

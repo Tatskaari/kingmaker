@@ -83,10 +83,18 @@ test("headless turns retain one audience note across reloads and only commit cha
   await game.talk("rowan", "Hello");
   assert.equal(notes().length, 1);
   game.load(game.snapshot());
-  game.edit(state => { state.simulation!.map!.actors.find(actor => actor.characterId === "holt")!.position!.x = 61; });
+  {
+    const map = game.inspect().simulation!.map!;
+    game.services.mechanics.commit({ ...map, actors: map.actors.map(actor => actor.characterId === "holt"
+      ? { ...actor, position: { ...actor.position!, x: 61 } } : actor) }, {});
+  }
   await game.talk("rowan", "Still here");
   assert.equal(notes().length, 1, "Movement within the same hearing level does not add a note");
-  game.edit(state => { state.simulation!.map!.actors.find(actor => actor.characterId === "holt")!.position!.x = 66; });
+  {
+    const map = game.inspect().simulation!.map!;
+    game.services.mechanics.commit({ ...map, actors: map.actors.map(actor => actor.characterId === "holt"
+      ? { ...actor, position: { ...actor.position!, x: 66 } } : actor) }, {});
+  }
   fail = true;
   await assert.rejects(game.talk("rowan", "A failed turn"), /Intentional response failure/);
   assert.equal(notes().length, 1);

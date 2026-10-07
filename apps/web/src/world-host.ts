@@ -57,6 +57,8 @@ export class WorldHost {
   }
   /** Live state for synchronous game operations. Never serialize a save to read or update game state. */
   world() { return this.worldServices.currentWorld(); }
+  /** Trusted host services, including the headless console. Reads are not mutation APIs. */
+  get services() { return this.worldServices; }
   protected syncGoals() {
     const world = this.world();
     const activities = this.activity.npcActivities ??= {};

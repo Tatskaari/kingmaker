@@ -29,9 +29,12 @@ test("character reset stages changes and preserves unrelated live references", (
   const current = runtime.world(), map = current.simulation!.map!, player = current.docs[current.player!]!;
   const entry = current.characters.find(path => path.endsWith("/rowan/character.md"))!;
   current.docs[entry]!.body += "\nA new memory.";
+  const changed = Object.fromEntries(["player", "rowan"].map(id => {
+    const actor = current.simulation!.runtimeCharacters[id]!;
+    return [id, { ...actor, dnd: { ...actor.dnd!, hitPoints: { ...actor.dnd!.hitPoints!, current: id === "player" ? 1 : 0 } } }];
+  }));
+  runtime.services.mechanics.commit(map, changed);
   const playerSheet = current.simulation!.runtimeCharacters.player!.dnd!;
-  playerSheet.hitPoints!.current = 1;
-  current.simulation!.runtimeCharacters.rowan!.dnd!.hitPoints!.current = 0;
   const revision = current.simulation!.runtimeCharacters.rowan!.intentRevision;
   runtime.resetCharacters();
   assert.equal(runtime.world(), current);

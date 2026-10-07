@@ -15,8 +15,8 @@ test("socket persists across clients, serializes async edits, and preserves logs
   const server = await startConsole(game, path);
   t.after(async () => { await new Promise<void>(resolve => server.close(() => resolve())); rmSync(directory, { recursive: true, force: true }); });
   assert.equal(statSync(path).mode & 0o777, 0o600);
-  await execute(path, "game.edit(s => { s.simulation!.map.day = 1; });");
-  const code = 'const day: number = game.inspect().simulation!.map.day; await new Promise(r => setTimeout(r, 20)); game.edit(s => { s.simulation!.map.day = day + 1; }); return game.inspect().simulation!.map.day;';
+  await execute(path, "game.services.mechanics.commit({ ...game.inspect().simulation!.map, day: 1 }, {});");
+  const code = 'const day: number = game.inspect().simulation!.map.day; await new Promise(r => setTimeout(r, 20)); game.services.mechanics.commit({ ...game.inspect().simulation!.map, day: day + 1 }, {}); return game.inspect().simulation!.map.day;';
   const responses = await Promise.all([execute(path, code), execute(path, code)]);
   assert.deepEqual(responses.map(reply => reply.value).sort(), [2, 3]);
   assert.equal((await execute(path, "return game.inspect().simulation!.map.day;")).value, 3);

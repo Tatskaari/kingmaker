@@ -25,17 +25,16 @@ test("player actions use real door mechanics and Jev's room rendering", async ()
   assert.match(live.observe(), /^Great Hall/);
 });
 
-test("inspection and console edits use live state without rollback", () => {
-  const live = game();
-  live.inspect().simulation!.map!.day = 99;
-  assert.equal(live.inspect().simulation!.map!.day, 99);
+test("inspection is immutable and console services publish saved state", () => {
+  const live = game(), before = live.inspect().simulation!;
+  assert.throws(() => { before.map!.day = 99; }, TypeError);
+  live.services.mechanics.commit({ ...before.map!, day: 7 }, {});
   const saved = live.snapshot();
-  live.edit(state => { state.simulation!.map!.day = 7; });
   assert.equal(live.inspect().simulation!.map!.day, 7);
-  assert.throws(() => live.edit(state => { state.simulation!.map!.day = 8; throw new Error("stop"); }), /stop/);
-  assert.equal(live.inspect().simulation!.map!.day, 8);
-  assert.equal(new WorldHeadlessGame(saved).inspect().simulation!.map!.day, 99);
-  assert.equal(new WorldHeadlessGame(live.snapshot()).inspect().simulation!.map!.day, 8);
+  assert.equal(before.map!.day, 1);
+  assert.throws(() => live.services.mechanics.commit({ ...before.map!, day: 8 }, { missing: {} as never }), /Unknown character/);
+  assert.equal(live.inspect().simulation!.map!.day, 7);
+  assert.equal(new WorldHeadlessGame(saved).inspect().simulation!.map!.day, 7);
 });
 
 test("enter actions return trespass events for explicit guard perception", async () => {

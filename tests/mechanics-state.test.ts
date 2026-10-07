@@ -37,7 +37,7 @@ test("movement during document hashing does not reject or undo the edit", async 
   });
   const write = services.docs.insert(doc.path, doc.sha, 1, "Reviewed.");
   await waiting;
-  services.currentWorld().simulation!.map!.day = 2;
+  services.mechanics.commit({ ...services.currentWorld().simulation!.map!, day: 2 }, {});
   release(); await write;
   assert.equal(services.scenario.read().simulation!.map!.day, 2);
   assert.match((await services.docs.read(doc.path)).text, /Reviewed/);
@@ -58,9 +58,10 @@ test("document edits preserve concurrent simulation inventory changes", async t 
   });
   const write = services.docs.insert(doc.path, doc.sha, doc.text.trimEnd().split("\n").length, "Reviewed.");
   await waiting;
-  const simulation = services.currentWorld().simulation!;
+  const before = services.currentWorld().simulation!;
   const inventory = create(InventorySchema, { items: [{ id: "received", name: "Received item" }] });
-  simulation.runtimeCharacters.player!.inventory = inventory;
+  services.mechanics.commit(before.map!, { player: { ...before.runtimeCharacters.player!, inventory } });
+  const simulation = services.currentWorld().simulation!;
   release(); await write;
   assert.match((await services.docs.read(doc.path)).text, /Reviewed/);
   assert.strictEqual(services.currentWorld().simulation, simulation);

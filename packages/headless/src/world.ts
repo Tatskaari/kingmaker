@@ -22,8 +22,8 @@ export class WorldHeadlessGame {
   load(source: WorldState | WorldSnapshot) { this.runtime.movement.dispose(); this.runtime = this.create(source); }
   snapshot() { return this.runtime.snapshot(); }
   inspect() { return this.runtime.world(); }
-  /** Trusted console edits use live state; document tooling should use the CAS services. */
-  edit(change: (state: WorldState) => void) { change(this.inspect()); }
+  /** Simulation reads are immutable; commands use the same services as the game. */
+  get services() { return this.runtime.services; }
   private observation(id = "player", selectedActionId?: string) {
     const visible = this.runtime.map.observe(id, selectedActionId), entries = characterDocuments(this.inspect());
     const entry = entries.find(entry => entry.id === id);

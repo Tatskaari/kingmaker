@@ -4,12 +4,13 @@ import { WorldHost } from "../apps/web/src/world-host.js";
 import { loadPlayableWorld } from "./fixtures.js";
 
 test("map observation uses physical state and document names without reading prose or goals", t => {
-  const host = new WorldHost(loadPlayableWorld()), world = host.world();
+  const source = loadPlayableWorld();
   for (const [id, x] of [["player", 58], ["rowan", 59]] as const) {
-    const actor = world.simulation!.map!.actors.find(actor => actor.characterId === id)!;
+    const actor = source.simulation!.map!.actors.find(actor => actor.characterId === id)!;
     actor.roomId = "great_hall";
     actor.position = { $typeName: "kingmaker.v1.TilePosition", x, y: 24 };
   }
+  const host = new WorldHost(source), world = host.world();
   world.docs[world.characters.find(path => path.includes("/rowan/"))!]!.frontmatter!.name = "Custom Rowan";
   for (const document of Object.values(world.docs)) {
     Object.defineProperty(document, "body", { get() { throw new Error("Unexpected prose read"); } });
