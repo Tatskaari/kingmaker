@@ -167,9 +167,7 @@ export class WorldGameRuntime extends WorldHost {
     }
     await staged.docs.commit(impressionWrites);
     await staged.scenario.setPlayer(character.path);
-    const map = staged.currentWorld().simulation!.map!;
-    map.phase = GamePhase.CONVERSATIONS;
-    map.day = 1;
+    const map = { ...staged.currentWorld().simulation!.map!, phase: GamePhase.CONVERSATIONS, day: 1 };
     staged.mechanics.commit(map, {});
     if (this.worldServices !== before) throw new Error("Character creation changed; retry saving.");
     this.worldServices = staged;

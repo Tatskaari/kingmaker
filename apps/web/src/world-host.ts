@@ -245,7 +245,7 @@ export class WorldHost {
     const draft = refreshDocumentGraph({ ...current, docs, simulation: { ...current.simulation!, runtimeCharacters } });
     validateDocuments(draft);
     current.docs = docs;
-    current.simulation!.runtimeCharacters = runtimeCharacters;
+    this.worldServices.mechanics.commit(current.simulation!.map!, runtimeCharacters);
     this.activity.npcActivities = {};
     this.activity.conversations = {};
     this.syncGoals();

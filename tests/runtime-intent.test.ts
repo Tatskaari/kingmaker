@@ -24,9 +24,14 @@ test("shared guard lore retains independent, saved body intent and rejects stale
   const services = createScenarioServices(fixture());
   const entry = "Scenarios/Centennial Assembly/Characters/palace-guard/character.md";
   const before = await services.docs.read(entry);
+  const simulationBefore = services.scenario.read().simulation!;
   await services.docs.commit([{ path: task, expectedSha: null, text }], [
     { actorId: "palace-guard-1", expectedRevision: 0, activity: task, wait: null },
   ]);
+  const simulationAfter = services.scenario.read().simulation!;
+  assert.equal(simulationAfter.map, simulationBefore.map);
+  assert.equal(simulationBefore.runtimeCharacters["palace-guard-1"]!.activity, undefined);
+  assert.equal(simulationAfter.runtimeCharacters["palace-guard-2"], simulationBefore.runtimeCharacters["palace-guard-2"]);
   assert.equal((await services.docs.read(entry)).sha, before.sha);
   const saved = fromJson(WorldStateSchema, toJson(WorldStateSchema, services.scenario.read()));
   assert.equal(runtimeActor(saved, "palace-guard-1").activity, task);
@@ -35,6 +40,7 @@ test("shared guard lore retains independent, saved body intent and rejects stale
   await assert.rejects(services.docs.commit([{ path: failedTask, expectedSha: null, text }], [
     { actorId: "palace-guard-1", expectedRevision: 0, activity: failedTask, wait: null },
   ]), /document changed/);
+  assert.equal(services.scenario.read().simulation, simulationAfter);
   assert.equal(services.scenario.read().docs[failedTask], undefined);
   assert.equal(runtimeActor(services.scenario.read(), "palace-guard-1").activity, task);
 });
