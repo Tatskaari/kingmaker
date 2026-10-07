@@ -83,11 +83,12 @@ export class WorldHost {
   }
   protected mutate<T>(operation: (game: PalaceMechanics) => T): T {
     this.syncGoals();
-    const game = new PalaceMechanics(this.world(), this.activity, () => this.movement.now());
+    const game = new PalaceMechanics(this.world(), this.activity, () => this.movement.now(), {
+      currentSimulation: () => this.world().simulation!,
+      executeMove: (move, ...args) => this.worldServices.mechanics.executeMove(move, ...args),
+    });
     const result = operation(game);
-    const { map, characters, npcActivities } = game.result();
-    this.worldServices.mechanics.commit(map, characters);
-    this.activity.npcActivities = npcActivities;
+    this.activity.npcActivities = game.result().npcActivities;
     return result;
   }
   view(): Record<string, unknown> {
