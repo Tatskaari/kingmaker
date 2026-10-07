@@ -3,7 +3,7 @@ import { getActorPosition, mapAtTime } from "../../../packages/core/src/simulati
 import { roomAt } from "../../../packages/core/src/pathfinding.js";
 import { refreshDocumentGraph } from "../../../packages/lore/src/world-state.js";
 import { validateDocuments } from "../../../packages/lore/src/document-audit.js";
-import { setPlayerDoor } from "./physical-movement.js";
+import { doorError, setDoor } from "../../../packages/core/src/simulation-doors.js";
 import { worldView } from "./world-view.js";
 import { createPhysicalEvent } from "./physical-event.js";
 import { inventoryOwners } from "../../../packages/core/src/inventory.js";
@@ -172,8 +172,12 @@ export class WorldHost {
     const world = this.world();
     if (!world.simulation!.map) throw new Error("A physical map is required.");
     const name = world.player ? world.docs[world.player]?.frontmatter?.name : undefined;
-    const event = setPlayerDoor(world.simulation!.map, world.player ? "player" : "", typeof name === "string" ? name : "player", id, open, this.movement.now());
-    return event;
+    const actorId = world.player ? "player" : "", atMs = this.movement.now();
+    const error = doorError(world.simulation!, actorId, id, open, atMs);
+    if (error) throw new Error(error);
+    this.worldServices.mechanics.executeMove(setDoor, actorId, id, open, atMs);
+    const door = this.world().simulation!.map!.doors.find(door => door.id === id)!;
+    return this.worldEvent("using a door", `${typeof name === "string" ? name : "player"} ${open ? "opened" : "closed"} ${door.name}.`, [actorId]);
   }
   interactFixtureWithEvent(id: string) { this.assertPlayerFree(); return this.mutate(game => game.interactFixtureWithEvent(id)); }
   async stepNpcAction(id: string, actionId: string, goal: string, signal?: AbortSignal): Promise<import("../../../packages/conversation/src/map.js").MapResult> {

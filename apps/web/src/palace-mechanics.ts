@@ -1,4 +1,5 @@
-import { actorPosition, actorTile, mapAtTime } from "../../../packages/core/src/simulation-movement.js";
+import { doorError, setDoor } from "../../../packages/core/src/simulation-doors.js";
+import { actorPosition, mapAtTime } from "../../../packages/core/src/simulation-movement.js";
 import { executeLocalMove } from "../../../packages/core/src/local-move-executor.js";
 import { createPhysicalEvent } from "./physical-event.js";
 import { create, type JsonValue } from "@bufbuild/protobuf";
@@ -131,11 +132,15 @@ export class PalaceMechanics {
     if (!action) throw new Error("That NPC action is no longer available.");
     if (action.type === "talk") throw new Error("Talk requires conversation resolution.");
     if (action.path.length > 1) throw new Error("Actor has not arrived; replan.");
-    if (action.type === "door" && !action.open && world.actors.some(other => { const position = actorPosition(other, this.now()); return other.characterId !== characterId && position && world.doors.find(door => door.id === action.target)!.tiles.some(tile => tile.x === actorTile(position).x && tile.y === actorTile(position).y); })) throw new Error("Someone is standing in the doorway.");
     let message = action.description;
-    if (action.type === "door") world.doors.find(door => door.id === action.target)!.open = action.open!;
-    if (action.type === "fixture") message = this.applyFixture( characterId, action.id);
-    this.#world.revision++;
+    if (action.type === "door") {
+      const atMs = this.now(), error = doorError(this.#simulation, characterId, action.target, action.open!, atMs);
+      if (error) throw new Error(error);
+      this.#simulation = executeLocalMove(this.#simulation, setDoor, characterId, action.target, action.open!, atMs);
+    } else {
+      if (action.type === "fixture") message = this.applyFixture(characterId, action.id);
+      this.#world.revision++;
+    }
     activity.history.push(message);
     (activity.actionIds ??= []).push(action.id);
     npcLog.info("NPC action executed", { characterId, actionId, goal, message, revision: this.#world.revision });
