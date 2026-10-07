@@ -1,5 +1,5 @@
 import { actorPosition, actorTile } from "../../../packages/core/src/simulation-movement.js";
-import { courtRoomAt, courtDoorBlockers, courtPath, courtInteractionPoint, nearestDoorSpot } from "./court-navigation.js";
+import { courtRoomAt, courtDoorBlockers, courtInteractionPoint, nearestDoorSpot } from "./court-navigation.js";
 import { doorActionLegality, type RoomAccess } from "../../../packages/core/src/access.js";
 import type { FixtureAction } from "../../../packages/core/src/fixtures.js";
 import type { DoorState, MapFixture, ActorMovement } from "../../../packages/contracts/src/index.js";
@@ -70,12 +70,6 @@ export function courtMarkers(characters: readonly CourtCharacter[], fixtures: re
   });
 }
 
-export function courtWalkPoint(path: readonly Point[], progress: number): Point {
-  const offset = Math.max(0, Math.min(progress, path.length - 1));
-  const index = Math.floor(offset), from = path[index]!, to = path[Math.min(index + 1, path.length - 1)]!;
-  return { x: from.x + (to.x - from.x) * (offset - index), y: from.y + (to.y - from.y) * (offset - index) };
-}
-
 export function courtCameraScroll(point: Point, stageWidth: number, stageHeight: number,
   viewportWidth: number, viewportHeight: number): Point {
   const centreX = (point.x + 0.5) / palaceMap.width * stageWidth;
@@ -85,17 +79,6 @@ export function courtCameraScroll(point: Point, stageWidth: number, stageHeight:
     y: Math.max(0, Math.min(centreY - viewportHeight / 2, stageHeight - viewportHeight)),
   };
 }
-/** Finish the current partial tile step, then follow the replacement A* route. */
-export function redirectCourtPath(path: readonly Point[], progress: number, destination: Point, doors: readonly DoorState[] = [], fixtures: readonly MapFixture[] = []): Point[] | undefined {
-  const offset = Math.max(0, Math.min(progress, path.length - 1));
-  const pivot = path[Math.ceil(offset)]!;
-  const route = courtPath(pivot, destination, doors, fixtures);
-  if (!route) return undefined;
-  const visual = courtWalkPoint(path, offset);
-  return visual.x === pivot.x && visual.y === pivot.y ? route : [visual, ...route];
-}
-
-/** Mount inside the court screen; native buttons retain keyboard and touch access. */
 export async function mountCourtMap(root: HTMLElement, characters: readonly CourtCharacter[], player: CourtCharacter | null,
   selectCharacter: (id: string) => void, disabled = false, movePlayer?: (point: Point) => Promise<"arrived" | "cancelled" | "superseded">, doors: DoorState[] = [], changeDoor?: (id: string, open: boolean) => Promise<DoorState[]>, rooms: readonly RoomAccess[] = [], fixtures: readonly MapFixture[] = [], fixtureChoices: readonly FixtureAction[] = [], interactFixture?: (actionId: string) => Promise<void>, pauseCharacter?: (id: string) => Promise<void>, debugCharacter?: (id: string) => Promise<void>, layout = palaceMap, reportStatus: (message: string) => void = () => {}): Promise<void> {
   const palaceMap = layout;

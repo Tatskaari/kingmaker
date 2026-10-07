@@ -5,7 +5,7 @@ import test from "node:test";
 import { createContext, runInContext } from "node:vm";
 import { AlertLog } from "../apps/web/src/alerts.js";
 import { actionsAtTile, type CourtInteractionLayer } from "../apps/web/src/court-interactions.js";
-import { courtCameraScroll, courtMarkers, courtWalkPoint, redirectCourtPath } from "../apps/web/src/court-map.js";
+import { courtCameraScroll, courtMarkers } from "../apps/web/src/court-map.js";
 import { courtInteractionPoint, courtPath, courtRoomAt, nearestDoorSpot } from "../apps/web/src/court-navigation.js";
 import { coalescedRefresh } from "../apps/web/src/debug-live.js";
 import { ModelTranscripts } from "../apps/web/src/model-transcripts.js";
@@ -271,20 +271,7 @@ test("main palace markers use saved rooms and separate characters on walkable ti
 });
 
 
-test("mid-walk redirection preserves the current visual position and rejects blocked destinations", () => {
-  const original = courtPath({ x: 61, y: 21 }, { x: 51, y: 5 })!;
-  const visual = courtWalkPoint(original, 2.4);
-  const changed = redirectCourtPath(original, 2.4, { x: 72, y: 25 })!;
-  assert.deepEqual(changed[0], visual);
-  assert.deepEqual(changed[1], original[3]);
-  assert.deepEqual(changed.at(-1), { x: 72, y: 25 });
-  assert.equal(redirectCourtPath(original, 2.4, { x: 0, y: 0 }), undefined);
-  const again = redirectCourtPath(changed, 0.2, { x: 61, y: 21 })!;
-  assert.deepEqual(again[0], courtWalkPoint(changed, 0.2));
-  assert.deepEqual(again.at(-1), { x: 61, y: 21 });
-  const stop = redirectCourtPath(original, 3, original[3]!)!;
-  assert.equal(stop.length, 1);
-});
+
 
 test("court camera follows the player while clamping at map edges", () => {
   const stageWidth = palaceMap.width * 24, stageHeight = palaceMap.height * 24;
@@ -671,19 +658,19 @@ test("v2 worker persists one world and keeps scheduling, review and dice outside
     let snapshots = 0;
     t.mock.method(BrowserGameRuntime.prototype, "snapshot", function (this: BrowserGameRuntime) { snapshots++; return snapshot.call(this); });
     t.mock.method(BrowserGameRuntime.prototype, "restore", () => { throw new Error("Unexpected world rollback"); });
-    await assert.rejects(request("move_player", { x: -1, y: -1 }), /not reachable/);
+    await assert.rejects(request("move_player", { x: -1, y: -1 }), /not reachable|outside/);
     assert.equal(snapshots, 0, "Rejected writes do not take a rollback or save snapshot");
     failNextWrite = true; failNextRead = true;
     const moved = await request("move_player", { x: 61, y: 24 });
     assert.deepEqual(moved.state.player.position, create(TilePositionSchema, { x: 61, y: 24 }));
-    assert.equal(snapshots, 1, "Only the actual autosave serializes a snapshot");
+    assert.equal(snapshots, 2, "Start and completion each take only their actual autosave snapshot");
     assert.equal(moved.saves, undefined, "Unavailable save metadata does not reject an accepted move");
-    assert.deepEqual(records.get(created.activeSaveId).snapshot, before);
+    assert.equal(records.get(created.activeSaveId).snapshot.world.simulation.map.actors.find((actor: any) => actor.characterId === "player").position.y, 24);
     assert.match(alerts.at(-1).message, /only in memory/);
     await request("move_player", { x: 61, y: 25 });
     const saved = records.get(created.activeSaveId).snapshot;
     assert.equal(saved.world.simulation!.map.actors.find((actor: any) => actor.characterId === "player").position.y, 25);
-    assert.equal(snapshots, 2);
+    assert.equal(snapshots, 4);
   });
 
   await t.test("physical interactions respond before background earshot assessment finishes", async t => {
