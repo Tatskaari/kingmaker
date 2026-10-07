@@ -66,7 +66,6 @@ export class WorldGameRuntime extends WorldHost {
     this.movement.resume();
   }
   protected override writeSimulation<T>(work: () => T): Promise<T> { return this.commit(work); }
-  protected override movementChanged() { void this.presentMap().catch(error => this.warning(String(error))); }
   protected override movementError(error: unknown) { this.warning(String(error)); }
   private random() {
     return { integer: (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1)), ...this.options.services?.random };

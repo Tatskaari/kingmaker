@@ -91,6 +91,8 @@ async function commitMutation<T>(game: BrowserGameRuntime, work: () => T | Promi
   return enqueue(async () => {
     if (runtime !== game) throw new Error("Game changed.");
     const result = await work();
+    // Clients render accepted state immediately; autosave must not delay animation.
+    publishNpc("");
     await autosave();
     return result;
   });
@@ -422,7 +424,6 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     const game = requireRuntime();
     const result = await commitMutation(game, () => game.executeAction({ command: { kind: "fixture", id: String(payload.actionId || "") } }));
     if (result.worldEvent) scheduleWorldEvent(game, result.worldEvent);
-    await game.presentMap("player", result).catch(error => providerWarning(String(error)));
     return { ...await mutationResponse(game), message: result.message };
   }
   if (type === "set_door" || type === "move_player") {
@@ -433,7 +434,6 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     const result = command.kind === "move" ? await game.executeAction({ command })
       : await commitMutation(game, () => game.executeAction({ command }));
     if (result.worldEvent) scheduleWorldEvent(game, result.worldEvent);
-    await game.presentMap("player", result).catch(error => providerWarning(String(error)));
     return { ...await mutationResponse(game), movementOutcome: result.movementOutcome ?? "arrived" };
   }
   if (type === "talk" || type === "end_conversation") {

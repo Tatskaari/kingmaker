@@ -330,7 +330,9 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     const request = ++walkRequest;
     moving = true;
     try {
-      const outcome = await movePlayer(target);
+      const actor = markers.find(marker => marker.id === player?.id);
+      const alreadyThere = !actor?.movement && position.x === target.x && position.y === target.y;
+      const outcome = alreadyThere ? "arrived" : await movePlayer(target);
       if (request === walkRequest && outcome === "arrived" && root.isConnected) await interaction?.();
     } catch (error) {
       if (request === walkRequest) reportStatus(error instanceof Error ? error.message : "Could not move.");
