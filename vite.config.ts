@@ -38,7 +38,12 @@ export default defineConfig(({ command }) => ({
     load(id) { if (id === `\0${devKeyModule}`) return `export default ${JSON.stringify(developmentOpenRouterKey(command))};`; },
   }],
   // Markdown entity decoding must work in workers, where there is no document.
-  resolve: { alias: { "decode-named-character-reference": `${repositoryRoot}/node_modules/decode-named-character-reference/index.js` } },
+  resolve: { alias: [
+    { find: "decode-named-character-reference", replacement: `${repositoryRoot}/node_modules/decode-named-character-reference/index.js` },
+    // Immer 9's ESM and CJS builds use different private draft field names.
+    // Rules calling original() must use the same build as boardgame.io's producer.
+    { find: /^immer$/, replacement: `${repositoryRoot}/node_modules/immer/dist/index.js` },
+  ] },
   root: "apps/web",
   publicDir: "public",
   base: "./",
