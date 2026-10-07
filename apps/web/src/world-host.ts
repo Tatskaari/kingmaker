@@ -20,7 +20,7 @@ import { createScenarioServices } from "../../../packages/lore/src/services.js";
 import { activityGoal, characterIntent, formatActivity } from "../../../packages/lore/src/activity.js";
 import { PalaceMechanics, type MechanicalActivity } from "./palace-mechanics.js";
 import { characterDocuments, characterId } from "../../../packages/lore/src/character-id.js";
-import type { Point } from "./navigation.js";
+import type { Point } from "../../../packages/core/src/navigation.js";
 
 export type WorldSnapshot = MechanicalActivity & {
   stranger?: StrangerState;

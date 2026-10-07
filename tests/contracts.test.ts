@@ -16,7 +16,7 @@ import { worldForCharacter } from "../packages/core/src/physical-view.js";
 import { commitReview, loadPlayableWorld, physicalFixture } from "./fixtures.js";
 
 import { charactersWithinEarshot, courtCharactersWithinEarshot, EARSHOT_DISTANCE } from "../apps/web/src/earshot.js";
-import { canWalk, findPath, pointKey } from "../apps/web/src/navigation.js";
+import { canWalk, findPath, pointKey } from "../packages/core/src/navigation.js";
 import { palaceNodes } from "../apps/web/src/palace-navigation.js";
 
 

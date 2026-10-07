@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { drawDoors } from "../apps/web/src/draw-doors.js";
-import type { Point } from "../apps/web/src/navigation.js";
+import type { Point } from "../packages/core/src/navigation.js";
 
 function drawing(tiles: Point[], open: boolean): unknown[][] {
   const calls: unknown[][] = [];

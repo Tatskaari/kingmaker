@@ -1,4 +1,4 @@
-import type { NavNode } from "./navigation.js";
+import type { NavNode } from "../../../packages/core/src/navigation.js";
 
 export const palaceNodes: NavNode[] = [
   { id: "great_hall", name: "Great Hall", x: 61, y: 24 },

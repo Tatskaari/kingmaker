@@ -1,4 +1,4 @@
-import type { WorldMap } from "../../../packages/contracts/src/index.js";
+import type { WorldMap } from "../../contracts/src/index.js";
 
 export interface Point { x: number; y: number }
 export interface NavNode extends Point { id: string; name: string }

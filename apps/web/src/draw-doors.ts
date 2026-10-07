@@ -1,4 +1,4 @@
-import type { Point } from "./navigation.js";
+import type { Point } from "../../../packages/core/src/navigation.js";
 
 export function drawDoors(context: CanvasRenderingContext2D, doors: readonly { tiles: readonly Point[]; open: boolean }[]): void {
   for (const door of doors) {

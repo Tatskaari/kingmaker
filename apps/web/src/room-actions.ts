@@ -6,7 +6,7 @@ import type { GameAction as CourtAgentAction } from "../../../packages/core/src/
 import { courtDoorBlockers, courtRoomAt } from "./court-map.js";
 import { palaceMap } from "./palace-map.js";
 import { palaceNodes } from "./palace-navigation.js";
-import { findPath, pointKey, type Point } from "./navigation.js";
+import { findPath, pointKey, type Point } from "../../../packages/core/src/navigation.js";
 
 const roomTiles = palaceMap.tiles.map((_, index) => {
   const point = { x: index % palaceMap.width, y: Math.floor(index / palaceMap.width) };
