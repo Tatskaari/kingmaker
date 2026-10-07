@@ -428,10 +428,11 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     const game = requireRuntime();
     const command = type === "set_door" ? { kind: "door" as const, id: String(payload.id), open: payload.open as boolean }
       : { kind: "move" as const, destination: { x: Number(payload.x), y: Number(payload.y) } };
-    const result = await commitMutation(game, () => game.executeAction({ command }));
+    const result = command.kind === "move" ? await game.executeAction({ command })
+      : await commitMutation(game, () => game.executeAction({ command }));
     if (result.worldEvent) scheduleWorldEvent(game, result.worldEvent);
     await game.presentMap("player", result).catch(error => providerWarning(String(error)));
-    return mutationResponse(game);
+    return { ...await mutationResponse(game), movementOutcome: result.movementOutcome ?? "arrived" };
   }
   if (type === "talk" || type === "end_conversation") {
     if (type === "end_conversation") conversationReviews.add(reviewKey);

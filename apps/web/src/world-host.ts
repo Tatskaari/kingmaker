@@ -1,6 +1,9 @@
+import { createMovementService, type MovementClock } from "../../../packages/core/src/movement-service.js";
+import { getActorPosition } from "../../../packages/core/src/simulation-movement.js";
+import { roomAt } from "../../../packages/core/src/pathfinding.js";
 import { refreshDocumentGraph } from "../../../packages/lore/src/world-state.js";
 import { validateDocuments } from "../../../packages/lore/src/document-audit.js";
-import { movePlayer, setPlayerDoor } from "./physical-movement.js";
+import { setPlayerDoor } from "./physical-movement.js";
 import { worldView } from "./world-view.js";
 import { createPhysicalEvent } from "./physical-event.js";
 import { inventoryOwners } from "../../../packages/core/src/inventory.js";
@@ -37,12 +40,20 @@ export class WorldHost {
   protected activity: Omit<WorldSnapshot, "world">;
   protected readonly initial: WorldState;
 
-  constructor(world: WorldState, saved?: WorldSnapshot) {
+  readonly movement: ReturnType<typeof createMovementService>;
+  protected writeSimulation<T>(work: () => T): Promise<T> { return Promise.resolve().then(work); }
+  protected movementChanged() {}
+  protected movementError(error: unknown) { console.error(error); }
+  constructor(world: WorldState, saved?: WorldSnapshot, clock?: MovementClock) {
     this.initial = clone(WorldStateSchema, world);
     this.worldServices = createScenarioServices(world);
     this.activity = { version: 8, conversations: {}, npcActivities: {}, playerMessages: [] };
     if (saved) this.restore(saved);
     this.syncGoals();
+    this.movement = createMovementService({ currentSimulation: () => this.world().simulation!,
+      executeMove: (move, ...args) => this.worldServices.mechanics.executeMove(move, ...args),
+      write: work => this.writeSimulation(work), changed: () => this.movementChanged(), error: error => this.movementError(error),
+    }, clock);
   }
   /** Live state for synchronous game operations. Never serialize a save to read or update game state. */
   world() { return this.worldServices.currentWorld(); }
@@ -63,10 +74,12 @@ export class WorldHost {
   }
   restore(saved: WorldSnapshot): void {
     if (saved.version !== 8 || !saved.world) throw new Error("This save uses an older world format. Start a fresh game.");
+    this.movement?.dispose();
     const { world, ...activity } = saved;
     const state = fromJson(WorldStateSchema, world);
     this.worldServices = createScenarioServices(state);
     this.activity = structuredClone(activity);
+    this.movement?.resume();
   }
   protected mutate<T>(operation: (game: PalaceMechanics) => T): T {
     this.syncGoals();
@@ -116,12 +129,13 @@ export class WorldHost {
       return { characterId: id, map: worldForCharacter(map, owners, id),
         actions: roomAgentActions(map, characters, owners, id) };
     },
-    interact: (command) => {
+    interact: async (command) => {
       if (command.kind === "step") return this.stepNpcAction(command.characterId, command.actionId, command.goal);
       let worldEvent: Event | undefined, message: string | undefined;
       if (command.kind === "move") {
         const before = this.world().simulation!.map!.actors.find(actor => actor.characterId === "player")!.roomId;
-        this.movePlayer(command.destination);
+        const outcome = await this.movePlayer(command.destination);
+        if (outcome !== "arrived") return { done: false, movementOutcome: outcome };
         const world = this.world().simulation!.map!, player = world.actors.find(actor => actor.characterId === "player")!;
         const room = world.rooms.find(room => room.id === player.roomId)!;
         if (before !== room.id && room.private && !room.allowedCharacterIds.includes("player")) {
@@ -139,11 +153,18 @@ export class WorldHost {
   jail() { return this.activity.jail && { ...this.activity.jail }; }
   protected assertPlayerFree() { if (this.activity.jail) throw new Error("You are in jail."); }
   releaseFromJail() { delete this.activity.jail; }
-  movePlayer(destination: Point) {
+  async movePlayer(destination: Point) {
     this.assertPlayerFree();
-    const world = this.world();
-    if (!world.simulation!.map) throw new Error("A physical map is required.");
-    movePlayer(world.simulation!.map, world.player ? "player" : "", destination);
+    const G = this.world().simulation!, map = G.map;
+    if (!map?.layout || map.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter the court before walking around.");
+    const room = roomAt(map.layout, destination);
+    if (!room || !map.rooms.some(existing => existing.id === room.id)) throw new Error("That destination is outside the palace.");
+    const current = getActorPosition(G, "player", Date.now());
+    if (current?.x === destination.x && current.y === destination.y) {
+      if (map.actors.find(actor => actor.characterId === "player")?.movement) await this.movement.cancel("player");
+      return "arrived" as const;
+    }
+    return this.movement.move("player", { id: crypto.randomUUID(), to: destination, msPerTile: 100 });
   }
   setDoor(id: string, open: boolean) {
     this.assertPlayerFree();
@@ -178,11 +199,13 @@ export class WorldHost {
     });
   }
   reset() {
+    this.movement.dispose();
     this.worldServices = createScenarioServices(this.initial);
     this.activity = { version: 8, conversations: {}, npcActivities: {}, playerMessages: [] };
     this.syncGoals();
   }
   resetWorld() {
+    this.movement.dispose();
     const before = this.world();
     const map = structuredClone(this.initial.simulation!.map!);
     if (before.player) { map.phase = GamePhase.CONVERSATIONS; map.day = 1; }

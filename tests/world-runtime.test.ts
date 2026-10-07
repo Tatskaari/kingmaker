@@ -73,7 +73,7 @@ test("concurrent reviews update separate live documents while player movement su
   const reviews = Promise.all([runtime.endConversation("corvin"), runtime.endConversation("aldren")]);
   await ready;
   const destination = runtime.map.observe("player").actions.find(action => action.path.length > 1)!.path[1]!;
-  runtime.movePlayer(destination);
+  await runtime.movePlayer(destination);
   release(); await reviews;
   for (const id of ["corvin", "aldren"]) {
     assert.match(runtime.world().docs[`Scenarios/Centennial Assembly/Characters/${id}/character.md`]!.body, new RegExp(`${id} remembered`));

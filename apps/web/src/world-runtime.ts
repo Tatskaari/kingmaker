@@ -38,7 +38,7 @@ import { ModelTranscripts, type ModelCallKind } from "./model-transcripts.js";
 import { planWorldAction, type PlanningFeedback } from "./world-action.js";
 import { courtCharactersWithinEarshot, perceivesAt } from "./earshot.js";
 
-export type WorldOptions = ConversationRuntimeOptions;
+export type WorldOptions = ConversationRuntimeOptions & { movementClock?: import("../../../packages/core/src/movement-service.js").MovementClock };
 export { type WorldSnapshot } from "./world-host.js";
 
 export type ConversationStartResult = { ok: true; text: string } | ({ ok: false } & PlanningFeedback);
@@ -58,11 +58,15 @@ export class WorldGameRuntime extends WorldHost {
   }
   constructor(world: WorldState, apiKey: string, saved?: WorldSnapshot, changed = () => {}, private readonly warning = (_message: string) => {},
     readonly options: WorldOptions = {}) {
-    super(world, saved);
+    super(world, saved, options.movementClock);
     Object.assign(this.map, options.services?.map);
     this.provider = aiService(new OpenRouterClient(apiKey, 60_000, globalThis.location?.origin || "http://localhost", warning), new JevClient(apiKey, undefined, undefined, warning), false);
     this.traces = new ModelTranscripts(apiKey, changed);
+    this.movement.resume();
   }
+  protected override writeSimulation<T>(work: () => T): Promise<T> { return this.commit(work); }
+  protected override movementChanged() { void this.presentMap().catch(error => this.warning(String(error))); }
+  protected override movementError(error: unknown) { this.warning(String(error)); }
   private random() {
     return { integer: (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1)), ...this.options.services?.random };
   }

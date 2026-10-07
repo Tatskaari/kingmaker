@@ -4,7 +4,7 @@ import { courtPath, courtRoomAt } from "../apps/web/src/court-navigation.js";
 import { WorldHost } from "../apps/web/src/world-host.js";
 import { loadPlayableWorld } from "./fixtures.js";
 
-test("player movement and doors commit native map state without rebuilding character documents", t => {
+test("player movement and doors commit native map state without rebuilding character documents", async t => {
   const world = loadPlayableWorld(), door = world.simulation!.map!.doors.find(door => door.interactionSpots.length)!;
   const player = world.simulation!.map!.actors.find(actor => actor.characterId === "player")!;
   player.position = { ...door.interactionSpots[0]! };
@@ -22,30 +22,30 @@ test("player movement and doors commit native map state without rebuilding chara
   const destination = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([x, y]) => ({ x: position.x + x!, y: position.y + y! }))
     .find(point => courtRoomAt(point) && courtPath(position, point, map.doors, map.fixtures))!;
   assert.ok(destination);
-  host.movePlayer(destination);
-  assert.equal(host.world().simulation!.map!.revision, revision + 2);
+  await host.movePlayer(destination);
+  assert.equal(host.world().simulation!.map!.revision, revision + 3);
   assert.strictEqual(host.world().docs, documents);
   assert.strictEqual(host.world().simulation!.runtimeCharacters.player, properties);
 });
 
-test("occupied doors and unreachable destinations fail without changing the native world", () => {
+test("occupied doors and unreachable destinations fail without changing the native world", async () => {
   const world = loadPlayableWorld(), door = world.simulation!.map!.doors.find(door => door.interactionSpots.length)!;
   world.simulation!.map!.actors.find(actor => actor.characterId === "player")!.position = { ...door.interactionSpots[0]! };
   world.simulation!.map!.actors.find(actor => actor.characterId === "rowan")!.position = { ...door.tiles[0]! };
   door.open = true;
   const host = new WorldHost(world), before = host.snapshot();
   assert.throws(() => host.setDoor(door.id, false), /standing in the doorway/);
-  assert.throws(() => host.movePlayer({ x: 0, y: 0 }), /not reachable|outside/);
+  await assert.rejects(host.movePlayer({ x: 0, y: 0 }), /not reachable|outside|Invalid/);
   assert.deepEqual(host.snapshot(), before);
 });
 
-test("moving does not traverse or copy document bodies", () => {
+test("moving does not traverse or copy document bodies", async () => {
   const host = new WorldHost(loadPlayableWorld());
   const world = host.world(), map = world.simulation!.map!, player = map.actors.find(actor => actor.characterId === "player")!;
   for (const document of Object.values(world.docs)) Object.defineProperty(document, "body", {
     get() { throw new Error("Movement must not read document bodies"); },
   });
-  host.movePlayer({ x: player.position!.x, y: player.position!.y });
+  await host.movePlayer({ x: player.position!.x, y: player.position!.y });
   assert.strictEqual(host.world(), world);
   assert.strictEqual(host.world().simulation!.map, map);
 });
