@@ -54,8 +54,10 @@ export class CanvasMapRenderer {
     const tileset = this.#map.tilesets.find(candidate => candidate.id === tilesetId);
     const image = this.#images.get(tilesetId);
     if (!tileset || !image) return;
-    this.#context.drawImage(image, tileId % tileset.columns * tileset.tileWidth,
-      Math.floor(tileId / tileset.columns) * tileset.tileHeight, tileset.tileWidth, tileset.tileHeight,
+    const width = image.naturalWidth / tileset.columns;
+    const height = image.naturalHeight / Math.ceil(tileset.tileCount / tileset.columns);
+    this.#context.drawImage(image, tileId % tileset.columns * width,
+      Math.floor(tileId / tileset.columns) * height, width, height,
       x * this.#map.tileWidth, y * this.#map.tileHeight, this.#map.tileWidth, this.#map.tileHeight);
   }
 
@@ -74,14 +76,17 @@ export class CanvasMapRenderer {
     const tileset = this.#map.tilesets.find(candidate => candidate.id === layer.tilesetId);
     const image = this.#images.get(layer.tilesetId);
     if (!tileset || !image || !layer.bounds) return;
-    const sourceX = (layer.tileId % tileset.columns) * tileset.tileWidth;
-    const sourceY = Math.floor(layer.tileId / tileset.columns) * tileset.tileHeight;
+    // The illustration can have a different pixel density from the logical atlas.
+    const width = image.naturalWidth / tileset.columns;
+    const height = image.naturalHeight / Math.ceil(tileset.tileCount / tileset.columns);
+    const sourceX = (layer.tileId % tileset.columns) * width;
+    const sourceY = Math.floor(layer.tileId / tileset.columns) * height;
     this.#context.drawImage(
       image,
       sourceX,
       sourceY,
-      tileset.tileWidth,
-      tileset.tileHeight,
+      width,
+      height,
       tileX * this.#map.tileWidth + layer.bounds.x,
       tileY * this.#map.tileHeight + layer.bounds.y,
       layer.bounds.width,

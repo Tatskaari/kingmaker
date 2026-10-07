@@ -35,7 +35,7 @@ export async function captureCourtMap(root: HTMLElement | null): Promise<Blob | 
     const sprites = new Image(); sprites.src = imageUrl;
     await sprites.decode();
     context.imageSmoothingEnabled = true;
-    const cell = sprites.naturalWidth / 12;
+    const cellWidth = sprites.naturalWidth / 12, cellHeight = sprites.naturalHeight / 11;
     for (const character of stage.querySelectorAll<HTMLElement>("[data-character-sprite]")) {
       const spriteId = Number(character.dataset.characterSprite);
       const sprite = character.querySelector<HTMLElement>(".court-sprite");
@@ -44,7 +44,7 @@ export async function captureCourtMap(root: HTMLElement | null): Promise<Blob | 
       const bounds = sprite.getBoundingClientRect();
       const x = (bounds.left - stageRect.left) * scaleX, y = (bounds.top - stageRect.top) * scaleY;
       const width = bounds.width * scaleX, height = bounds.height * scaleY;
-      context.drawImage(sprites, spriteId % 12 * cell, Math.floor(spriteId / 12) * cell, cell, cell, x, y, width, height);
+      context.drawImage(sprites, spriteId % 12 * cellWidth, Math.floor(spriteId / 12) * cellHeight, cellWidth, cellHeight, x, y, width, height);
       if (!label?.textContent) continue;
       const text = label.textContent;
       context.font = `${Math.max(9, Math.round(13 * scaleY))}px Georgia, serif`;
