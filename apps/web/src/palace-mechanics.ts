@@ -72,7 +72,7 @@ export class PalaceMechanics {
   #conversations: MechanicalActivity["conversations"];
   constructor(world: WorldState, activity: MechanicalActivity, private readonly now = () => Date.now()) {
     if (!world.simulation!.map) throw new Error("A physical map is required.");
-    this.#simulation = { ...world.simulation!, map: { ...world.simulation!.map, actors: foregroundBodies(world.simulation!.map.actors) } };
+    this.#simulation = { ...world.simulation!, map: { ...world.simulation!.map, actors: foregroundBodies(world.simulation!.map.actors, undefined, this.now()) } };
     this.#characters = mechanicalCharacters(world, () => this.#simulation);
     this.#playerId = world.player ? "player" : "";
     this.#npcActivities = activity.npcActivities ??= {};

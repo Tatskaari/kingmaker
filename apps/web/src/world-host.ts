@@ -92,7 +92,7 @@ export class WorldHost {
   }
   view(): Record<string, unknown> {
     this.syncGoals();
-    const view = worldView(this.world(), this.activity);
+    const view = worldView(this.world(), this.activity, this.movement.now());
     return { ...view, jail: structuredClone(this.activity.jail ?? null),
       phase: this.world().player ? "conversations" : this.activity.stranger?.draft ? "character_review" : "player_creation",
       playerDraft: structuredClone(this.activity.stranger?.draft ?? null),
@@ -119,7 +119,7 @@ export class WorldHost {
       const world = this.world(), physical = world.simulation!.map;
       if (!physical) throw new Error("A physical map is required.");
       const projected = mapAtTime(physical, this.movement.now());
-      const map = { ...projected, actors: foregroundBodies(projected.actors, projected.actors.find(actor => actor.characterId === id)?.position) };
+      const map = { ...projected, actors: foregroundBodies(projected.actors, projected.actors.find(actor => actor.characterId === id)?.position, this.movement.now()) };
       const characters = characterDocuments(world).map(({ id, document, character }) => ({ id,
         name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
         inventory: character.inventory }));
@@ -196,7 +196,7 @@ export class WorldHost {
   worldEvent(kind: string, summary: string, participants: string[]) {
     const map = this.world().simulation!.map;
     if (!map) throw new Error("A physical map is required.");
-    return createPhysicalEvent({ day: map.day, actors: foregroundBodies(mapAtTime(map, this.movement.now()).actors) }, kind, summary, participants);
+    return createPhysicalEvent({ day: map.day, actors: foregroundBodies(mapAtTime(map, this.movement.now()).actors, undefined, this.movement.now()) }, kind, summary, participants);
   }
   recordPlayerPerception(event: Event, perception: string) {
     const participants = event.participantIds.filter(id => id !== "player");

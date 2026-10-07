@@ -1,3 +1,4 @@
+import { actorPosition } from "../../../packages/core/src/simulation-movement.js";
 import { fromJson, toJson } from "@bufbuild/protobuf";
 import { DndCharacterSchema, TranscriptMessageSchema, TranscriptRole } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
@@ -10,7 +11,7 @@ import { foregroundBodies } from "./background-characters.js";
 import type { MechanicalActivity } from "./palace-mechanics.js";
 
 /** Browser presentation reads document entries and physical state directly. */
-export function worldView(world: WorldState, activity: MechanicalActivity) {
+export function worldView(world: WorldState, activity: MechanicalActivity, atMs = Date.now()) {
   const map = world.simulation!.map;
   if (!map) throw new Error("A physical map is required.");
   const characters = characterDocuments(world).map(({ id, document, character }) => ({ id, document, character,
@@ -19,7 +20,7 @@ export function worldView(world: WorldState, activity: MechanicalActivity) {
     currentGoal: id === "player" ? "" : activityGoal(world, id) ?? "",
     inventory: character.inventory }));
   const player = characters.find(character => character.id === "player"), playerId = player?.id ?? "";
-  const actors = foregroundBodies(map.actors, map.actors.find(actor => actor.characterId === playerId)?.position);
+  const actors = foregroundBodies(map.actors, actorPosition(map.actors.find(actor => actor.characterId === playerId), atMs), atMs);
   const actor = actors.find(actor => actor.characterId === playerId);
   const owners = inventoryOwners(characters, map);
   return {
