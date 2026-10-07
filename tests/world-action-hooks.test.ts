@@ -46,7 +46,7 @@ test("v2 review commits its goal before classify/resolve returns a real command 
   } } });
   const result = await reviewAndPlanWorldAction(evidence, runtime);
   assert.deepEqual(order, ["review", "review", "classify", "resolve"]);
-  assert.equal(result.plan!.action!.type, "move"); assert.ok(result.plan!.action!.path.length);
+  assert.equal(result.plan!.action!.type, "move"); assert.equal(result.plan!.action!.path.length, 0, "choosing an action does not plan its route before execution");
   assert.deepEqual(services.scenario.snapshot().simulation!.map, beforeMap);
 
 });

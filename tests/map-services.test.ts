@@ -27,7 +27,7 @@ test("action strategies use injected map services; presentation follows the comm
 
 test("map actions validate current state without generation IDs and retain headless no-op presentation", async () => {
   const runtime = new WorldGameRuntime(loadPlayableWorld(), "");
-  const observation = runtime.map.observe("player");
+  const observation = runtime.map.observe("player", "inspect_palace_hall_cabinet");
   const action = observation.actions.find(action => action.path.length > 1)!;
   const result = await runtime.executeAction({ command: { kind: "move", destination: action.path[1]! } });
   assert.deepEqual(runtime.world().simulation!.map!.actors.find(actor => actor.characterId === "player")!.position, { ...runtime.world().simulation!.map!.actors.find(actor => actor.characterId === "player")!.position, ...action.path[1] });

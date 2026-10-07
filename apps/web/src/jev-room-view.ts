@@ -3,6 +3,8 @@ import type { MapState } from "../../../packages/contracts/src/index.js";
 import type { GameAction as CourtAgentAction } from "../../../packages/core/src/actions.js";
 const steps = (count: number) => `${count} ${count === 1 ? "step" : "steps"}`;
 
+const stepCount = (action: CourtAgentAction) => action.estimatedSteps ?? action.path.length - 1;
+
 /** This text is the world interface sent to Jev, not a separate debug summary. */
 export function renderJevRoomView(world: MapState, characters: readonly { id: string; name: string }[], observation: PhysicalCharacterObservation): string {
   const roomId = observation.world.location.roomId;
@@ -13,7 +15,7 @@ export function renderJevRoomView(world: MapState, characters: readonly { id: st
     let label = action.description.replace(/ \(\d+ steps\)\.$/, "");
     if (label.endsWith(` ${name}`)) label = label.slice(0, -name.length - 1);
     return `    - ${label}${action.legality === "illegal" ? " (illegal)" : ""}`
-      + (distance === action.path.length - 1 ? "" : ` — ${steps(action.path.length - 1)}`) + ` [${action.id}]`;
+      + (distance === stepCount(action) ? "" : ` — ${steps(stepCount(action))}`) + ` [${action.id}]`;
   });
   const entities = [
     ...observation.world.nearbyCharacters.filter(item => item.characterId !== observation.characterId)
@@ -24,10 +26,10 @@ export function renderJevRoomView(world: MapState, characters: readonly { id: st
         `Contents: ${typeof item.contents === "string" ? item.contents : item.contents?.map(content => content.name).join(", ") || "empty"}`,
       ] : [] })),
   ].map(entity => ({ ...entity, actions: actionsFor(entity.id) }))
-    .sort((a, b) => Math.min(...a.actions.map(action => action.path.length)) - Math.min(...b.actions.map(action => action.path.length)) || a.id.localeCompare(b.id));
+    .sort((a, b) => Math.min(...a.actions.map(stepCount)) - Math.min(...b.actions.map(stepCount)) || a.id.localeCompare(b.id));
   const lines = [`${room.name} (current room) [${room.id}]:`];
   for (const entity of entities) {
-    const distance = Math.min(...entity.actions.map(action => action.path.length - 1));
+    const distance = Math.min(...entity.actions.map(action => stepCount(action)));
     lines.push(`  ${Number.isFinite(distance) ? distance === 0 ? "Within reach" : steps(distance) + " away" : "No available actions"}: ${entity.name} [${entity.id}]`,
       ...entity.details.map(detail => `    ${detail}`), ...renderActions(entity.actions, entity.name, distance));
   }

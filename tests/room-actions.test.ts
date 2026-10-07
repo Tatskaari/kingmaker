@@ -49,7 +49,11 @@ test("room actions offer adjacent travel and local interactions, even with every
   assert.equal(actions.find(action => action.id === "inspect_palace_hall_cabinet")?.legality, "normal");
   const moves = actions.filter(action => action.type === "move");
   assert.deepEqual(moves.map(action => action.target).sort(), [...world.rooms.find(room => room.id === "great_hall")!.exitRoomIds].sort());
-  for (const action of moves) assert.ok(action.path.every(point => ["great_hall", action.target].includes(courtRoomAt(point)!.id)));
+  for (const choice of moves) {
+    const action = roomAgentActions(world, scenario.characters, inventoryOwners(scenario.characters, world), "corvin", choice.id)[0]!;
+    assert.ok(action.path.length);
+    assert.ok(action.path.every(point => ["great_hall", action.target].includes(courtRoomAt(point)!.id)));
+  }
 });
 
 test("every authored adjacent room remains reachable through repeated tile steps", () => {
@@ -59,7 +63,7 @@ test("every authored adjacent room remains reachable through repeated tile steps
     const actor = place(scenario, room.id), id = `enter_${nextRoom}`;
     let arrived = false;
     for (let tick = 0; tick < 200; tick++) {
-      const action = roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "corvin", tick ? id : undefined).find(action => action.id === id);
+      const action = roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "corvin", id).find(action => action.id === id);
       assert.ok(action, `${room.id} → ${nextRoom} lost its action at ${JSON.stringify(actor.position)}`);
       const next = action.path[1] ?? action.path[0]!;
       actor.position = create(TilePositionSchema, next); actor.roomId = courtRoomAt(next)!.id;
@@ -104,4 +108,19 @@ test("door approaches on adjoining threshold tiles remain executable", () => {
       assert.ok(tick < 199, `${id} did not finish`);
     }
   }
+});
+
+test("action discovery estimates Manhattan distances without reading tiles", () => {
+  const scenario = load(), world = scenario.world!;
+  place(scenario, "great_hall");
+  Object.defineProperty(world.layout!, "tiles", { get() { throw new Error("Discovery must not pathfind"); } });
+  const actions = roomAgentActions(world, scenario.characters, inventoryOwners(scenario.characters, world), "corvin");
+  assert.ok(actions.some(action => action.type === "talk"));
+  assert.ok(actions.some(action => action.type === "fixture"));
+  assert.ok(actions.some(action => action.type === "door"));
+  assert.ok(actions.every(action => action.path.length === 0 && Number.isFinite(action.estimatedSteps)));
+  const actor = world.actors.find(item => item.characterId === "corvin")!;
+  const king = world.actors.find(item => item.characterId === "aldren")!;
+  const distance = Math.abs(actor.position!.x - king.position!.x) + Math.abs(actor.position!.y - king.position!.y);
+  assert.equal(actions.find(action => action.id === "talk_aldren")!.estimatedSteps, Math.max(0, distance - 1));
 });

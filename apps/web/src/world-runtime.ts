@@ -410,7 +410,7 @@ export class WorldGameRuntime extends WorldHost {
   }
   async executeNpcTalk(id: string, actionId: string, revision: number, goal: string, signal: AbortSignal): Promise<ConversationStartResult> {
     signal.throwIfAborted();
-    const observation = this.map.observe(id);
+    const observation = this.map.observe(id, actionId);
     const action = observation.actions.find(action => action.id === actionId && action.type === "talk");
     if (!action || action.path.length > 2 || revision !== observation.map.revision || this.activity.conversations[id]?.length
       || this.activity.conversations[action.target]?.length || this.activity.npcActivities?.[id]?.goal !== goal) return conversationChanged();
@@ -503,7 +503,7 @@ export class WorldGameRuntime extends WorldHost {
     const persist = this.persistChange;
     const world = this.world();
     const available = () => {
-      const current = this.map.observe(id);
+      const current = this.map.observe(id, actionId);
       const talk = current.actions.find(action => action.id === actionId && action.type === "talk" && action.target === "player");
       return talk && talk.path.length <= 2 && current.map.revision === revision
         && this.activity.npcActivities?.[id]?.goal === goal && !Object.values(this.activity.conversations).some(turns => turns.length);

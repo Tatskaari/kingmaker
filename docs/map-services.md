@@ -3,7 +3,7 @@
 The runtime injects a `map` service alongside documents, AI and presentation.
 
 - `map.layout()` supplies detached tile and room geometry.
-- `map.observe(characterId)` supplies observer-visible physical state and available actions.
+- `map.observe(characterId)` supplies observer-visible physical state and available actions without pathfinding. Discovery paths are empty; step counts use a Manhattan estimate to the nearest interaction candidate, ignoring obstacles. Passing a selected action ID as the second argument plans only that action. Until [flood-fill reachability](https://github.com/Tatskaari/kingmaker/issues/473) is implemented, discovery assumes authored local targets are reachable; known closed exits and door sides still use authored topology, and execution validates the actual route.
 - `map.interact(command, signal?)` validates and commits movement or door/furniture interactions. Movement resolves on arrival; an NPC action then revalidates its interaction. Results carry events, conversation handoffs and movement outcomes (`arrived`, `cancelled`, `superseded`). Narrative documents are not included in observations.
 
 Planning (`strategies.action`) chooses an action using observations from the map service. Execution (`strategies.actionExecution`) has its own classify/resolve pair: classification is currently an empty stub; the default resolver calls the map service. A talk result hands off to the existing conversation/resolution flow. Outcome review continues to update documents through its existing strategies.

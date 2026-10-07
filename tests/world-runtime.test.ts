@@ -72,7 +72,7 @@ test("concurrent reviews update separate live documents while player movement su
   runtime.endConversationAsPlayer("aldren", "Goodbye.");
   const reviews = Promise.all([runtime.endConversation("corvin"), runtime.endConversation("aldren")]);
   await ready;
-  const destination = runtime.map.observe("player").actions.find(action => action.path.length > 1)!.path[1]!;
+  const destination = runtime.map.observe("player", "inspect_palace_hall_cabinet").actions.find(action => action.path.length > 1)!.path[1]!;
   await runtime.movePlayer(destination);
   release(); await reviews;
   for (const id of ["corvin", "aldren"]) {

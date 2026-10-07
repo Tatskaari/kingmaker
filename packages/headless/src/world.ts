@@ -24,8 +24,8 @@ export class WorldHeadlessGame {
   inspect() { return this.runtime.world(); }
   /** Trusted console edits use live state; document tooling should use the CAS services. */
   edit(change: (state: WorldState) => void) { change(this.inspect()); }
-  private observation(id = "player") {
-    const visible = this.runtime.map.observe(id), entries = characterDocuments(this.inspect());
+  private observation(id = "player", selectedActionId?: string) {
+    const visible = this.runtime.map.observe(id, selectedActionId), entries = characterDocuments(this.inspect());
     const entry = entries.find(entry => entry.id === id);
     if (!entry) throw new Error("Character is not placed in the palace.");
     const characters = entries.map(({ id, document, character }) => ({ id,
@@ -42,7 +42,7 @@ export class WorldHeadlessGame {
   actions() { return this.observation().actions.map(({ id, description, type, legality }) => ({ id, description, type, legality })); }
   overview() { return this.runtime.view(); }
   async act(id: string) {
-    const action = this.observation().actions.find(action => action.id === id);
+    const action = this.observation("player", id).actions.find(action => action.id === id);
     if (!action) throw new Error(`Unavailable player action: ${id}`);
     const movement = await this.move(action.path.at(-1)!.x, action.path.at(-1)!.y);
     if (!movement.done || action.type === "move") return movement;
