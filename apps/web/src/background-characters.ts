@@ -3,7 +3,7 @@ import { create } from "@bufbuild/protobuf";
 import { ActorStateSchema, type ActorState } from "../../../packages/contracts/src/index.js";
 import type { WorldState } from "../../../packages/contracts/src/v2.js";
 import { canWalk, pointKey } from "../../../packages/core/src/navigation.js";
-import { courtDoorBlockers, courtRoomAt } from "./court-map.js";
+import { courtDoorBlockers, courtRoomAt } from "./court-navigation.js";
 import { palaceMap } from "./palace-map.js";
 
 /** A background entry is one reusable mind with several stationary map bodies. */

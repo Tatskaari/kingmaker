@@ -1,5 +1,5 @@
 import { renderPrompt } from "../../../packages/prompts/src/index.js";
-import { courtPath } from "./court-map.js";
+import { courtPath } from "./court-navigation.js";
 import type { DoorState, MapFixture } from "../../../packages/contracts/src/index.js";
 
 

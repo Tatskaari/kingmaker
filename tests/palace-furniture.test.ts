@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { courtRoomAt } from "../apps/web/src/court-map.js";
+import { courtRoomAt } from "../apps/web/src/court-navigation.js";
 import { palaceLayout } from "../apps/web/src/palace-layout.js";
 import { palaceNodes } from "../apps/web/src/palace-navigation.js";
 import { inventoryOwners, locatedItems, validateInventories } from "../packages/core/src/inventory.js";

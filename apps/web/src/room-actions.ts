@@ -3,15 +3,10 @@ import type { WorldState } from "../../../packages/contracts/src/index.js";
 import { doorActionLegality } from "../../../packages/core/src/access.js";
 import { fixtureActions } from "../../../packages/core/src/fixtures.js";
 import type { GameAction as CourtAgentAction } from "../../../packages/core/src/actions.js";
-import { courtDoorBlockers, courtRoomAt } from "./court-map.js";
-import { palaceMap } from "./palace-map.js";
+import { courtPathfinding, courtRoomAt } from "./court-navigation.js";
 import { palaceNodes } from "./palace-navigation.js";
-import { findPath, pointKey, type Point } from "../../../packages/core/src/navigation.js";
+import { pointKey, type Point } from "../../../packages/core/src/navigation.js";
 
-const roomTiles = palaceMap.tiles.map((_, index) => {
-  const point = { x: index % palaceMap.width, y: Math.floor(index / palaceMap.width) };
-  return { key: pointKey(point), roomId: courtRoomAt(point)?.id };
-});
 const neighbours = (point: Point): Point[] => [
   { x: point.x - 1, y: point.y }, { x: point.x + 1, y: point.y },
   { x: point.x, y: point.y - 1 }, { x: point.x, y: point.y + 1 },
@@ -22,13 +17,8 @@ const neighbours = (point: Point): Point[] => [
 export function roomAgentActions(world: WorldState, characters: readonly { id: string; name: string }[], owners: readonly InventoryOwner[], characterId: string, continuingActionId?: string): CourtAgentAction[] {
   const actor = world.actors.find(item => item.characterId === characterId)!;
   const start = actor.position!, room = world.rooms.find(item => item.id === actor.roomId)!;
-  const physicalBlockers = courtDoorBlockers(world.doors, world.fixtures);
-  const route = (end: Point, allowedRooms = [room.id], thresholds: Point[] = []) => {
-    const exceptions = new Set(thresholds.map(pointKey));
-    const blocked = new Set([...physicalBlockers, ...roomTiles.filter(tile =>
-      !allowedRooms.includes(tile.roomId ?? "") && !exceptions.has(tile.key)).map(tile => tile.key)]);
-    return findPath(palaceMap, start, end, blocked);
-  };
+  const route = (end: Point, allowedRoomIds = [room.id], thresholds: Point[] = []) =>
+    courtPathfinding.findPath(start, end, { doors: world.doors, fixtures: world.fixtures, allowedRoomIds, thresholds });
   const shortest = (paths: (Point[] | undefined)[]) => paths.filter((path): path is Point[] => !!path)
     .sort((a, b) => a.length - b.length)[0];
   const actions: CourtAgentAction[] = [];
