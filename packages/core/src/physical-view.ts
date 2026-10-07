@@ -1,5 +1,5 @@
-import { toJson } from "@bufbuild/protobuf";
-import { WorldStateSchema, ItemInstanceSchema, type WorldState } from "../../contracts/src/index.js";
+import { clone, toJson } from "@bufbuild/protobuf";
+import { WorldStateSchema, InventorySchema, ItemInstanceSchema, type WorldState } from "../../contracts/src/index.js";
 import { locatedItems, type InventoryOwner } from "./inventory.js";
 
 /** Removes concealed container contents and undiscovered fixture details. The game master sees
@@ -8,9 +8,9 @@ export function worldForCharacter(map: WorldState, owners: readonly InventoryOwn
   // Build only the redacted fields. Unchanged physical records remain shared with the live map.
   const view = { ...map, objects: locatedItems(owners),
     fixtures: map.fixtures.map(fixture => ({ ...fixture,
-      ...(fixture.inventory ? { inventory: { ...fixture.inventory, items: fixture.inventory.items } } : {}) })),
+      ...(fixture.inventory ? { inventory: clone(InventorySchema, fixture.inventory) } : {}) })),
     rooms: map.rooms.map(room => ({ ...room,
-      ...(room.inventory ? { inventory: { ...room.inventory, items: room.inventory.items } } : {}) })),
+      ...(room.inventory ? { inventory: clone(InventorySchema, room.inventory) } : {}) })),
   };
   const visibleObjectIds = new Set<string>();
 

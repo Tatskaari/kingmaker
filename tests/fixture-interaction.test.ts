@@ -1,8 +1,10 @@
+import { WorldStateSchema as PhysicalWorldStateSchema } from "../packages/contracts/src/index.js";
+import { SimulationStateSchema } from "../packages/contracts/src/v2.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create } from "@bufbuild/protobuf";
 import { InventorySchema, MapFixtureSchema } from "../packages/contracts/src/index.js";
-import { inventoryOwners, itemsFor, type InventoryOwner } from "../packages/core/src/inventory.js";
+import { inventoryOwners, itemsFor } from "../packages/core/src/inventory.js";
 import { applyFixtureAction, fixtureActions } from "../packages/core/src/fixtures.js";
 import { requireCurrentFixtureAction } from "../apps/web/src/court-interactions.js";
 import { WorldGameRuntime } from "../apps/web/src/world-runtime.js";
@@ -49,17 +51,20 @@ test("repeating a completed furniture action reports an unavailable choice witho
 test("fixture rules operate directly on physical fixtures and inventory owners", () => {
   const chest = create(MapFixtureSchema, { id: "chest", name: "Chest", ownerCharacterId: "guard",
     container: true, requiredKeyId: "key", inventory: { items: [{ id: "letter", name: "Letter", concealed: true }] } });
-  const visitor: InventoryOwner = { id: "visitor" };
+  const G = create(SimulationStateSchema, { runtimeCharacters: { visitor: { id: "visitor" } } });
+  G.map = create(PhysicalWorldStateSchema, { fixtures: [] });
+  G.map.fixtures.push(chest);
+  const visitor = G.runtimeCharacters.visitor!;
   const owners = [visitor, chest], fixtures = [chest];
   assert.ok(!fixtureActions(fixtures, owners, visitor.id).some(action => action.id === "take_letter"));
-  assert.match(applyFixtureAction(fixtures, owners, visitor.id, "open_chest"), /matching key/);
+  assert.match(applyFixtureAction(G, visitor.id, "open_chest"), /matching key/);
   assert.equal(chest.open, false);
   visitor.inventory = create(InventorySchema, { items: [{ id: "key", name: "Key" }] });
-  applyFixtureAction(fixtures, owners, visitor.id, "open_chest");
+  applyFixtureAction(G, visitor.id, "open_chest");
   assert.equal(fixtureActions(fixtures, owners, visitor.id).find(action => action.id === "take_letter")!.legality, "illegal");
-  applyFixtureAction(fixtures, owners, visitor.id, "take_letter");
+  applyFixtureAction(G, visitor.id, "take_letter");
   assert.deepEqual(itemsFor(owners, visitor.id).map(item => item.id), ["key", "letter"]);
   assert.equal(chest.inventory!.items.length, 0);
   assert.equal(itemsFor(owners, visitor.id)[1]!.concealed, false);
-  assert.throws(() => applyFixtureAction(fixtures, owners, visitor.id, "take_letter"), /no longer available/);
+  assert.throws(() => applyFixtureAction(G, visitor.id, "take_letter"), /no longer available/);
 });

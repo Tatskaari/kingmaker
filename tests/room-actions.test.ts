@@ -21,9 +21,9 @@ test("Sabine must visit and open her writing table to check the dispatch ledger"
   assert.ok(!roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "cressida").some(action => action.id === inspect));
   const open = roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "cressida").find(action => action.id === "open_furn_sabine_desk")!;
   assert.equal(open.legality, "normal");
-  applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "cressida", open.id);
+  applyFixtureAction(scenario.source.simulation!, "cressida", open.id);
   assert.ok(roomAgentActions(scenario.world!, scenario.characters, inventoryOwners(scenario.characters, scenario.world), "cressida").some(action => action.id === inspect));
-  assert.match(applyFixtureAction(scenario.world?.fixtures, inventoryOwners(scenario.characters, scenario.world), "cressida", inspect), /no Grey Gull booking/);
+  assert.match(applyFixtureAction(scenario.source.simulation!, "cressida", inspect), /no Grey Gull booking/);
 });
 
 function place(scenario: ReturnType<typeof load>, roomId: string) {

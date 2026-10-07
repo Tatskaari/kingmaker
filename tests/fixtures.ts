@@ -12,9 +12,10 @@ import { InventorySchema } from "../packages/contracts/src/index.js";
 import { characterDocuments } from "../packages/lore/src/character-id.js";
 export { loadPlayableWorld };
 export function physicalFixture(source: WorldState = loadPlayableWorld()) {
-  return { source, world: source.simulation!.map!, characters: characterDocuments(source).map(({ id, document, character }) => {
+  return { source, get world() { return source.simulation!.map!; }, characters: characterDocuments(source).map(({ id, document, character }) => {
+    character.inventory ??= create(InventorySchema);
     return { id, name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
-      inventory: character.inventory ??= create(InventorySchema), dnd: character.dnd };
+      get inventory() { return source.simulation!.runtimeCharacters[id]!.inventory!; }, dnd: character.dnd };
   }) };
 }
 
