@@ -15,7 +15,7 @@ import { foregroundBodies } from "./background-characters.js";
 import { worldForCharacter } from "../../../packages/core/src/physical-view.js";
 import { clone, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import { type Event } from "../../../packages/contracts/src/index.js";
-import { DocumentSchema, WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
+import { DocumentSchema, RuntimeCharacterSchema, WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
 import { createScenarioServices } from "../../../packages/lore/src/services.js";
 import { activityGoal, characterIntent, formatActivity } from "../../../packages/lore/src/activity.js";
 import { PalaceMechanics, type MechanicalActivity } from "./palace-mechanics.js";
@@ -73,8 +73,8 @@ export class WorldHost {
     this.syncGoals();
     const game = new PalaceMechanics(this.world(), this.activity);
     const result = operation(game);
-    const { map, properties, npcActivities } = game.snapshot();
-    this.documents.mechanics.commit(map, properties);
+    const { map, characters, npcActivities } = game.snapshot();
+    this.documents.mechanics.commit(map, characters);
     this.activity.npcActivities = npcActivities;
     return result;
   }
@@ -103,9 +103,9 @@ export class WorldHost {
       const world = this.world(), physical = world.simulation!.map;
       if (!physical) throw new Error("A physical map is required.");
       const map = { ...physical, actors: foregroundBodies(physical.actors, physical.actors.find(actor => actor.characterId === id)?.position) };
-      const characters = characterDocuments(world).map(({ id, document }) => ({ id,
+      const characters = characterDocuments(world).map(({ id, document, character }) => ({ id,
         name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
-        inventory: document.characterProperties?.inventory }));
+        inventory: character.inventory }));
       if (!characters.some(character => character.id === id) || !map.actors.some(actor => actor.characterId === id && actor.position)) {
         throw new Error("Character is not placed in the palace.");
       }
@@ -165,7 +165,7 @@ export class WorldHost {
   }
   recordPlayerPerception(event: Event, perception: string) {
     const participants = event.participantIds.filter(id => id !== "player");
-    const characters = event.kind === "having a conversation" ? characterDocuments(this.world()).map(({ id, document }) => ({ id, name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id })) : [];
+    const characters = event.kind === "having a conversation" ? characterDocuments(this.world()).map(({ id, document, character }) => ({ id, name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id })) : [];
     const conversationTitle = event.kind === "having a conversation"
       ? `Conversation with ${participants.map(id => characters.find(character => character.id === id)?.name ?? id).join(" and ") || "the court"}`
       : undefined;
@@ -195,7 +195,9 @@ export class WorldHost {
     }
     for (const [id, character] of Object.entries(current.simulation!.runtimeCharacters)) {
       const initial = this.initial.simulation!.runtimeCharacters[id];
-      runtimeCharacters[id] = { ...character, activity: initial?.activity, wait: initial?.wait,
+      const mechanics = character.characterId === "player" ? character : initial && clone(RuntimeCharacterSchema, initial);
+      runtimeCharacters[id] = { ...character, dnd: mechanics?.dnd, inventory: mechanics?.inventory,
+        activity: initial?.activity, wait: initial?.wait,
         intentRevision: character.intentRevision + 1 };
     }
     const draft = refreshDocumentGraph({ ...current, docs, simulation: { ...current.simulation!, runtimeCharacters } });

@@ -108,135 +108,6 @@
         ],
         "name": "Professor Oswin",
         "summary": "Your Centennial Assembly entry as Professor Oswin, linking private characterization, shared court knowledge and scoped supporting notes. Your current situation and objectives remain unwritten."
-      },
-      "characterProperties": {
-        "dnd": {
-          "rulesetId": "srd-5.2.1",
-          "speciesId": "human",
-          "backgroundId": "acolyte",
-          "classes": [
-            {
-              "classId": "cleric",
-              "subclassId": "life-domain",
-              "level": 3,
-              "hitDiceRemaining": 3
-            }
-          ],
-          "featIds": [],
-          "proficiencies": [
-            {
-              "kind": 1,
-              "targetId": "religion",
-              "rank": 2,
-              "sourceId": "kingmaker-role"
-            },
-            {
-              "kind": 1,
-              "targetId": "history",
-              "rank": 1,
-              "sourceId": "kingmaker-role"
-            },
-            {
-              "kind": 1,
-              "targetId": "medicine",
-              "rank": 1,
-              "sourceId": "kingmaker-role"
-            },
-            {
-              "kind": 1,
-              "targetId": "insight",
-              "rank": 1,
-              "sourceId": "kingmaker-role"
-            }
-          ],
-          "choices": [],
-          "experience": 0,
-          "exhaustion": 0,
-          "heroicInspiration": false,
-          "resources": [],
-          "conditions": [],
-          "weaponMasteryIds": [],
-          "abilityScores": {
-            "strength": 10,
-            "dexterity": 10,
-            "constitution": 12,
-            "intelligence": 14,
-            "wisdom": 16,
-            "charisma": 12
-          },
-          "hitPoints": {
-            "current": 21,
-            "maximum": 21,
-            "temporary": 0,
-            "maximumBonus": 0
-          },
-          "spellcasting": {
-            "knownSpellIds": [
-              "guidance",
-              "light",
-              "sacred-flame"
-            ],
-            "preparedSpellIds": [
-              "bless",
-              "cure-wounds",
-              "healing-word",
-              "detect-magic",
-              "command",
-              "lesser-restoration"
-            ],
-            "slotsUsed": {},
-            "pactSlotsUsed": 0,
-            "usedFreeCastSpellIds": [],
-            "concentrationEffectId": ""
-          }
-        },
-        "inventory": {
-          "items": [
-            {
-              "id": "oswin_clothes_travelers",
-              "name": "Travel clothes",
-              "details": "Ordinary well-maintained clothing for the assembly.",
-              "concealed": false,
-              "definitionId": "clothes-travelers",
-              "identifiedByCharacterIds": [],
-              "quantity": 1
-            },
-            {
-              "id": "oswin_quarterstaff",
-              "name": "Walking staff",
-              "details": "A sturdy, unenchanted walking staff.",
-              "concealed": false,
-              "definitionId": "quarterstaff",
-              "identifiedByCharacterIds": [],
-              "quantity": 1
-            },
-            {
-              "id": "oswin_holy_symbol_amulet",
-              "name": "Ritual amulet",
-              "details": "An ordinary spellcasting focus, not a key to any particular granary ward.",
-              "concealed": false,
-              "definitionId": "holy-symbol-amulet",
-              "identifiedByCharacterIds": [],
-              "quantity": 1
-            },
-            {
-              "id": "oswin_herbalism_kit",
-              "name": "Herbalism kit",
-              "details": "Common samples and preparation tools; no unique ritual ingredients.",
-              "concealed": false,
-              "definitionId": "herbalism-kit",
-              "identifiedByCharacterIds": [],
-              "quantity": 1
-            }
-          ],
-          "equipment": {
-            "mainHandItemId": "oswin_quarterstaff",
-            "offHandItemId": "",
-            "armorItemId": "",
-            "shieldItemId": "",
-            "attunedItemIds": []
-          }
-        }
       }
     },
     "Scenarios/Centennial Assembly/Characters/oswin/presentation.md": {
@@ -258,89 +129,7 @@
           "character:player"
         ]
       },
-      "body": "# Your character\nBerz is a kobold who has snuck a bit. He does not understand why humans call taking things breaking rules, having seen market men take little round gold things from people all day. Berz is trying not to steal during this visit, though he worries he always messes up. He knows nobody at court yet.\n\n## Public role\nA kobold guest at the Centennial Assembly, invited by a noble who finds Berz amusing and offers him food.\n\n## Relationships\n- aldren: Berz does not know Aldren.\n- corvin: Berz does not know Corvin.\n- holt: Berz does not know Holt.\n- elinor: Berz does not know Elinor.\n- oswin: Berz does not know Oswin.\n- rowan: Berz does not know Rowan.\n- gurt: Berz does not know Gurt.\n- klog: Berz does not know Klog.\n- bran: Berz does not know Bran.\n- peregrine: Berz does not know Peregrine.\n- cressida: Berz does not know Cressida.\n- abel: Berz does not know Abel.\n- palace-guard: Berz does not know the palace guard.\n",
-      "characterProperties": {
-        "dnd": {
-          "rulesetId": "srd-5.2.1",
-          "speciesId": "kobold",
-          "backgroundId": "kingmaker-traveller",
-          "abilityScores": {
-            "strength": 8,
-            "dexterity": 15,
-            "constitution": 12,
-            "intelligence": 10,
-            "wisdom": 14,
-            "charisma": 13
-          },
-          "classes": [
-            {
-              "classId": "rogue",
-              "subclassId": "thief",
-              "level": 3,
-              "hitDiceRemaining": 3
-            }
-          ],
-          "proficiencies": [
-            {
-              "kind": "PROFICIENCY_KIND_SKILL",
-              "targetId": "sleight_of_hand",
-              "rank": "PROFICIENCY_RANK_EXPERTISE",
-              "sourceId": "kingmaker-traveller"
-            },
-            {
-              "kind": "PROFICIENCY_KIND_SKILL",
-              "targetId": "stealth",
-              "rank": "PROFICIENCY_RANK_EXPERTISE",
-              "sourceId": "kingmaker-traveller"
-            },
-            {
-              "kind": "PROFICIENCY_KIND_SKILL",
-              "targetId": "perception",
-              "rank": "PROFICIENCY_RANK_PROFICIENT",
-              "sourceId": "kingmaker-traveller"
-            },
-            {
-              "kind": "PROFICIENCY_KIND_SKILL",
-              "targetId": "insight",
-              "rank": "PROFICIENCY_RANK_PROFICIENT",
-              "sourceId": "kingmaker-traveller"
-            },
-            {
-              "kind": "PROFICIENCY_KIND_SAVING_THROW",
-              "targetId": "dexterity",
-              "rank": "PROFICIENCY_RANK_PROFICIENT",
-              "sourceId": "rogue"
-            },
-            {
-              "kind": "PROFICIENCY_KIND_SAVING_THROW",
-              "targetId": "intelligence",
-              "rank": "PROFICIENCY_RANK_PROFICIENT",
-              "sourceId": "rogue"
-            }
-          ],
-          "hitPoints": {
-            "current": 21,
-            "maximum": 21
-          },
-          "experience": 900
-        },
-        "inventory": {
-          "items": [
-            {
-              "id": "player_clothes",
-              "name": "Traveller's clothes",
-              "definitionId": "fine-clothes",
-              "quantity": 1
-            },
-            {
-              "id": "player_dagger",
-              "name": "Dagger",
-              "definitionId": "dagger",
-              "quantity": 1
-            }
-          ]
-        }
-      }
+      "body": "# Your character\nBerz is a kobold who has snuck a bit. He does not understand why humans call taking things breaking rules, having seen market men take little round gold things from people all day. Berz is trying not to steal during this visit, though he worries he always messes up. He knows nobody at court yet.\n\n## Public role\nA kobold guest at the Centennial Assembly, invited by a noble who finds Berz amusing and offers him food.\n\n## Relationships\n- aldren: Berz does not know Aldren.\n- corvin: Berz does not know Corvin.\n- holt: Berz does not know Holt.\n- elinor: Berz does not know Elinor.\n- oswin: Berz does not know Oswin.\n- rowan: Berz does not know Rowan.\n- gurt: Berz does not know Gurt.\n- klog: Berz does not know Klog.\n- bran: Berz does not know Bran.\n- peregrine: Berz does not know Peregrine.\n- cressida: Berz does not know Cressida.\n- abel: Berz does not know Abel.\n- palace-guard: Berz does not know the palace guard.\n"
     }
   },
   "positions": {
@@ -353,5 +142,218 @@
       "y": 21
     }
   },
-  "playerDocument": "Players/player.md"
+  "playerDocument": "Players/player.md",
+  "characterMechanics": {
+    "oswin": {
+      "dnd": {
+        "rulesetId": "srd-5.2.1",
+        "speciesId": "human",
+        "backgroundId": "acolyte",
+        "classes": [
+          {
+            "classId": "cleric",
+            "subclassId": "life-domain",
+            "level": 3,
+            "hitDiceRemaining": 3
+          }
+        ],
+        "featIds": [],
+        "proficiencies": [
+          {
+            "kind": 1,
+            "targetId": "religion",
+            "rank": 2,
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": 1,
+            "targetId": "history",
+            "rank": 1,
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": 1,
+            "targetId": "medicine",
+            "rank": 1,
+            "sourceId": "kingmaker-role"
+          },
+          {
+            "kind": 1,
+            "targetId": "insight",
+            "rank": 1,
+            "sourceId": "kingmaker-role"
+          }
+        ],
+        "choices": [],
+        "experience": 0,
+        "exhaustion": 0,
+        "heroicInspiration": false,
+        "resources": [],
+        "conditions": [],
+        "weaponMasteryIds": [],
+        "abilityScores": {
+          "strength": 10,
+          "dexterity": 10,
+          "constitution": 12,
+          "intelligence": 14,
+          "wisdom": 16,
+          "charisma": 12
+        },
+        "hitPoints": {
+          "current": 21,
+          "maximum": 21,
+          "temporary": 0,
+          "maximumBonus": 0
+        },
+        "spellcasting": {
+          "knownSpellIds": [
+            "guidance",
+            "light",
+            "sacred-flame"
+          ],
+          "preparedSpellIds": [
+            "bless",
+            "cure-wounds",
+            "healing-word",
+            "detect-magic",
+            "command",
+            "lesser-restoration"
+          ],
+          "slotsUsed": {},
+          "pactSlotsUsed": 0,
+          "usedFreeCastSpellIds": [],
+          "concentrationEffectId": ""
+        }
+      },
+      "inventory": {
+        "items": [
+          {
+            "id": "oswin_clothes_travelers",
+            "name": "Travel clothes",
+            "details": "Ordinary well-maintained clothing for the assembly.",
+            "concealed": false,
+            "definitionId": "clothes-travelers",
+            "identifiedByCharacterIds": [],
+            "quantity": 1
+          },
+          {
+            "id": "oswin_quarterstaff",
+            "name": "Walking staff",
+            "details": "A sturdy, unenchanted walking staff.",
+            "concealed": false,
+            "definitionId": "quarterstaff",
+            "identifiedByCharacterIds": [],
+            "quantity": 1
+          },
+          {
+            "id": "oswin_holy_symbol_amulet",
+            "name": "Ritual amulet",
+            "details": "An ordinary spellcasting focus, not a key to any particular granary ward.",
+            "concealed": false,
+            "definitionId": "holy-symbol-amulet",
+            "identifiedByCharacterIds": [],
+            "quantity": 1
+          },
+          {
+            "id": "oswin_herbalism_kit",
+            "name": "Herbalism kit",
+            "details": "Common samples and preparation tools; no unique ritual ingredients.",
+            "concealed": false,
+            "definitionId": "herbalism-kit",
+            "identifiedByCharacterIds": [],
+            "quantity": 1
+          }
+        ],
+        "equipment": {
+          "mainHandItemId": "oswin_quarterstaff",
+          "offHandItemId": "",
+          "armorItemId": "",
+          "shieldItemId": "",
+          "attunedItemIds": []
+        }
+      }
+    },
+    "player": {
+      "dnd": {
+        "rulesetId": "srd-5.2.1",
+        "speciesId": "kobold",
+        "backgroundId": "kingmaker-traveller",
+        "abilityScores": {
+          "strength": 8,
+          "dexterity": 15,
+          "constitution": 12,
+          "intelligence": 10,
+          "wisdom": 14,
+          "charisma": 13
+        },
+        "classes": [
+          {
+            "classId": "rogue",
+            "subclassId": "thief",
+            "level": 3,
+            "hitDiceRemaining": 3
+          }
+        ],
+        "proficiencies": [
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "sleight_of_hand",
+            "rank": "PROFICIENCY_RANK_EXPERTISE",
+            "sourceId": "kingmaker-traveller"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "stealth",
+            "rank": "PROFICIENCY_RANK_EXPERTISE",
+            "sourceId": "kingmaker-traveller"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "perception",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-traveller"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SKILL",
+            "targetId": "insight",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "kingmaker-traveller"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SAVING_THROW",
+            "targetId": "dexterity",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "rogue"
+          },
+          {
+            "kind": "PROFICIENCY_KIND_SAVING_THROW",
+            "targetId": "intelligence",
+            "rank": "PROFICIENCY_RANK_PROFICIENT",
+            "sourceId": "rogue"
+          }
+        ],
+        "hitPoints": {
+          "current": 21,
+          "maximum": 21
+        },
+        "experience": 900
+      },
+      "inventory": {
+        "items": [
+          {
+            "id": "player_clothes",
+            "name": "Traveller's clothes",
+            "definitionId": "fine-clothes",
+            "quantity": 1
+          },
+          {
+            "id": "player_dagger",
+            "name": "Dagger",
+            "definitionId": "dagger",
+            "quantity": 1
+          }
+        ]
+      }
+    }
+  }
 }

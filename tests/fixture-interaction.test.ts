@@ -18,7 +18,7 @@ function furnishedWorld() {
 
 test("queued furniture choices reject removed actions and items moved to the player", () => {
   const world = furnishedWorld(), map = world.simulation!.map!;
-  const owners = inventoryOwners([{ id: "player", inventory: world.docs[world.player!]!.characterProperties?.inventory }], map);
+  const owners = inventoryOwners([{ id: "player", inventory: world.simulation!.runtimeCharacters.player?.inventory }], map);
   const choices = fixtureActions(map.fixtures, owners, "player");
   const take = choices.find(action => action.id === "take_palace_royal_key")!;
   const inspect = choices.find(action => action.id === "inspect_item_palace_royal_key")!;

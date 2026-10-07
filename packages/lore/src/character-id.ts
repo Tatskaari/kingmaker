@@ -16,6 +16,6 @@ export function characterDocuments(world: WorldState) {
   return entries.map(({ id, path }) => {
     const document = world.docs[path];
     if (!document) throw new Error(`Missing character document: ${path}`);
-    return { id, path, document };
+    return { id, path, document, character: world.simulation!.runtimeCharacters[id]! };
   });
 }

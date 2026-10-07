@@ -1,5 +1,5 @@
 import type { Inventory } from "../../contracts/src/index.js";
-import type { Document, WorldState, CharacterProperties } from "../../contracts/src/v2.js";
+import type { Document, WorldState, CharacterProperties, RuntimeCharacter } from "../../contracts/src/v2.js";
 import type { ActorState, WorldState as MapState } from "../../contracts/src/index.js";
 
 export interface DocumentSnapshot {
@@ -11,7 +11,7 @@ export interface DocumentSnapshot {
 }
 /** Trusted mechanics publish physical results, never narrative documents. */
 export interface MechanicsStateService {
-  commit(map: MapState, properties: Readonly<Record<string, CharacterProperties>>): void;
+  commit(map: MapState, characters: Readonly<Record<string, RuntimeCharacter>>): void;
 }
 export interface CharacterCreation {
   id: string;
@@ -56,6 +56,11 @@ export class DocumentConflictError extends Error {
 }
 
 
+export interface InventorySnapshot { actorId: string; sha: string; inventory: Inventory | undefined }
+export class InventoryConflictError extends Error {
+  constructor(readonly actorId: string) { super(`${actorId}: inventory changed; read it again before editing`); }
+}
 export interface InventoryService {
-  commit(changes: readonly { path: string; expectedSha: string; inventory: Inventory }[]): Promise<void>;
+  read(actorId: string): Promise<InventorySnapshot>;
+  commit(changes: readonly { actorId: string; expectedSha: string; inventory: Inventory }[]): Promise<void>;
 }

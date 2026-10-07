@@ -90,9 +90,9 @@ test("creation resumes after reload; explicit save publishes reviewed identity, 
   assert.equal((restored.view().player as { sprite: number }).sprite, 84);
   assert.deepEqual(restored.world().simulation!.map!.actors, positions);
   const player = restored.world().docs[restored.world().player!]!;
-  assert.equal(player.characterProperties!.dnd!.hitPoints!.maximum, 50);
-  assert.ok(player.characterProperties!.inventory?.items.length);
-  assert.equal(player.characterProperties!.dnd!.speciesId, "elf");
+  assert.equal(restored.world().simulation!.runtimeCharacters.player!.dnd!.hitPoints!.maximum, 50);
+  assert.ok(restored.world().simulation!.runtimeCharacters.player!.inventory?.items.length);
+  assert.equal(restored.world().simulation!.runtimeCharacters.player!.dnd!.speciesId, "elf");
   assert.equal(restored.world().docs["Players/presentation.md"]!.body, draft.presentation);
   assert.equal(restored.world().docs["Players/presentation.md"]!.frontmatter!.visibility, "public");
   const services = createScenarioServices(restored.world());
@@ -140,8 +140,8 @@ for (const character of premadeCharacters) test(`pre-made ${character.id} calls 
   const player = runtime.world().docs[runtime.world().player!]!;
   assert.equal(player.frontmatter!.name, character.name);
   assert.equal(player.frontmatter!.sprite, character.sprite);
-  assert.equal(player.characterProperties!.dnd!.classes[0]!.classId, character.build.classId);
-  assert.notEqual(player.characterProperties!.dnd!.backgroundId, "kingmaker-dev-envoy");
+  assert.equal(runtime.world().simulation!.runtimeCharacters.player!.dnd!.classes[0]!.classId, character.build.classId);
+  assert.notEqual(runtime.world().simulation!.runtimeCharacters.player!.dnd!.backgroundId, "kingmaker-dev-envoy");
   assert.match(player.body, /newcomer arriving/);
   for (const path of world.characters) assert.match(runtime.world().docs[path]!.body, /No prior acquaintance/);
   const restored = new WorldGameRuntime(world, "", runtime.snapshot());

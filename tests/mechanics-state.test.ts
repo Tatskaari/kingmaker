@@ -43,13 +43,11 @@ test("movement during document hashing does not reject or undo the edit", async 
   assert.match((await services.docs.read(doc.path)).text, /Reviewed/);
 });
 
-test("a same-document property change during hashing still rejects a stale edit", async t => {
-  const { CharacterPropertiesSchema } = await import("../packages/contracts/src/v2.js");
-  const { DocumentConflictError } = await import("../packages/lore/src/services.js");
-  const services = createScenarioServices(worldState(create(MapSchema), new Map([
-    ["Scenarios/Test/scenario.md", "Briefing"], ["Scenarios/Test/index.md", "Index"],
-  ]), "Test"));
-  const doc = await services.docs.read("Scenarios/Test/scenario.md");
+test("document edits preserve concurrent simulation inventory changes", async t => {
+  const { loadPlayableWorld } = await import("./fixtures.js");
+  const { InventorySchema } = await import("../packages/contracts/src/index.js");
+  const services = createScenarioServices(loadPlayableWorld());
+  const doc = await services.docs.read(services.scenario.info().player!);
   const digest = crypto.subtle.digest.bind(crypto.subtle);
   let release!: () => void, started!: () => void, calls = 0;
   const waiting = new Promise<void>(resolve => { started = resolve; });
@@ -58,14 +56,15 @@ test("a same-document property change during hashing still rejects a stale edit"
     if (++calls === 2) { started(); await gate; }
     return digest(...args);
   });
-  const write = services.docs.insert(doc.path, doc.sha, 1, "Stale review.");
-  const rejected = assert.rejects(write, DocumentConflictError);
+  const write = services.docs.insert(doc.path, doc.sha, doc.text.trimEnd().split("\n").length, "Reviewed.");
   await waiting;
-  services.mechanics.commit(create(MapSchema), { [doc.path]: create(CharacterPropertiesSchema, { inventory: { items: [] } }) });
-  release(); await rejected;
-  const current = await services.docs.read(doc.path);
-  assert.doesNotMatch(current.text, /Stale review/);
-  assert.ok(current.document.characterProperties?.inventory);
+  const simulation = services.currentWorld().simulation!;
+  const inventory = create(InventorySchema, { items: [{ id: "received", name: "Received item" }] });
+  simulation.runtimeCharacters.player!.inventory = inventory;
+  release(); await write;
+  assert.match((await services.docs.read(doc.path)).text, /Reviewed/);
+  assert.strictEqual(services.currentWorld().simulation, simulation);
+  assert.strictEqual(simulation.runtimeCharacters.player!.inventory, inventory);
 });
 
 test("mechanics retain live references and validate property targets before publishing", () => {

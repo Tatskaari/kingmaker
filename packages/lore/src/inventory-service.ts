@@ -1,31 +1,41 @@
-import { clone } from "@bufbuild/protobuf";
+import { clone, toJson } from "@bufbuild/protobuf";
 import { InventorySchema } from "../../contracts/src/index.js";
-import { validateInventories } from "../../core/src/inventory.js";
-import { DocumentConflictError, type InventoryService } from "./service-types.js";
-import { documentSha, documentVersion } from "./document-snapshot.js";
+import { inventoryOwners, validateInventories } from "../../core/src/inventory.js";
+import { InventoryConflictError, type InventoryService } from "./service-types.js";
+import { canonical, documentSha } from "./document-snapshot.js";
 import type { WorldStore } from "./world-store.js";
 
-/** Update all owners of a trade atomically; preserve everything outside their inventories. */
+/** Character inventories are simulation state; document edits never change their versions. */
 export function createInventoryService(store: WorldStore): InventoryService {
-  return { commit: changes => store.write(async () => {
-    if (!changes.length || new Set(changes.map(change => change.path)).size !== changes.length) throw new Error("Inventory updates require distinct owners");
-    const expected = new Map<string, string>();
-    for (const change of changes) {
-      const document = store.state.docs[change.path];
-      if (!document?.characterProperties) throw new Error(`Not a character inventory: ${change.path}`);
-      const version = documentVersion(document);
-      const sha = await documentSha(version);
-      if (sha !== change.expectedSha) throw new DocumentConflictError(change.path, change.expectedSha, sha);
-      expected.set(change.path, version);
-    }
-    // Compare synchronously after hashing; mechanics can run while hashes await.
-    for (const [path, document] of expected) {
-      if (!store.state.docs[path] || documentVersion(store.state.docs[path]!) !== document) throw new DocumentConflictError(path, "read version", "changed");
-    }
-    // Stage only replacement inventories. All validation precedes synchronous mutation.
-    const replacements = new Map(changes.map(change => [change.path, clone(InventorySchema, change.inventory)]));
-    validateInventories(Object.entries(store.state.docs).flatMap(([id, doc]) => doc.characterProperties
-      ? [{ id, inventory: replacements.get(id) ?? doc.characterProperties.inventory }] : []));
-    for (const [path, inventory] of replacements) store.state.docs[path]!.characterProperties!.inventory = inventory;
-  }) };
+  const character = (id: string) => {
+    const actor = store.state.simulation!.runtimeCharacters[id];
+    if (!actor) throw new Error(`Unknown runtime character: ${id}`);
+    return actor;
+  };
+  const version = (id: string) => JSON.stringify(canonical(character(id).inventory
+    ? toJson(InventorySchema, character(id).inventory!) : null));
+  return {
+    async read(actorId) {
+      const inventory = character(actorId).inventory;
+      const snapshot = inventory && clone(InventorySchema, inventory);
+      const sha = await documentSha(version(actorId));
+      return { actorId, sha, inventory: snapshot };
+    },
+    commit: changes => store.write(async () => {
+      if (!changes.length || new Set(changes.map(change => change.actorId)).size !== changes.length) throw new Error("Inventory updates require distinct owners");
+      const expected = new Map<string, string>();
+      for (const change of changes) {
+        const current = version(change.actorId);
+        if (await documentSha(current) !== change.expectedSha) throw new InventoryConflictError(change.actorId);
+        expected.set(change.actorId, current);
+      }
+      // Mechanics can run while hashes await. Recheck before publishing any inventory.
+      for (const [id, before] of expected) if (version(id) !== before) throw new InventoryConflictError(id);
+      const replacements = new Map(changes.map(change => [change.actorId, clone(InventorySchema, change.inventory)]));
+      const simulation = store.state.simulation!;
+      validateInventories(inventoryOwners(Object.values(simulation.runtimeCharacters).map(actor => ({ id: actor.id,
+        inventory: replacements.get(actor.id) ?? actor.inventory })), simulation.map));
+      for (const [id, inventory] of replacements) character(id).inventory = inventory;
+    }),
+  };
 }

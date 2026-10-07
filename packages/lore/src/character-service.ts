@@ -1,7 +1,7 @@
 import { seedPresentation } from "./presentation.js";
 import { clone, fromJson, type JsonObject } from "@bufbuild/protobuf";
 import { ActorStateSchema } from "../../contracts/src/index.js";
-import { DocumentSchema, WorldStateSchema } from "../../contracts/src/v2.js";
+import { DocumentSchema, CharacterPropertiesSchema } from "../../contracts/src/v2.js";
 import { seedRuntimeCharacter } from "./runtime-actor.js";
 import { parseMarkdown } from "./markdown.js";
 import type { CharacterCreationService } from "./service-types.js";
@@ -25,13 +25,21 @@ export function createCharacterService(store: WorldStore): CharacterCreationServ
       }
       const parsed = parseMarkdown(input.text);
       if (parsed.error) throw new Error(parsed.error);
-      const draft = clone(WorldStateSchema, store.state);
+      const draft = { ...store.state, docs: { ...store.state.docs }, simulation: { ...store.state.simulation!,
+        map: { ...store.state.simulation!.map!, actors: [...store.state.simulation!.map!.actors] },
+        runtimeCharacters: { ...store.state.simulation!.runtimeCharacters } } };
       draft.docs[input.path] = fromJson(DocumentSchema, { body: parsed.body, frontmatter: parsed.metadata as JsonObject });
-      draft.docs[input.path]!.characterProperties = structuredClone(input.properties);
-      seedPresentation(draft, input.path, input.presentation);
+
       if (input.actor) draft.simulation!.map!.actors.push(clone(ActorStateSchema, input.actor));
-      seedRuntimeCharacter(draft, input.actor?.instanceId ?? input.id, input.id, input.path);
-      if (input.id !== "player") draft.docs[draft.scenario]!.body += `\n- [[${input.path}]]\n`;
+      const id = input.actor?.instanceId ?? input.id;
+      seedRuntimeCharacter(draft, id, input.id, input.path);
+      const character = draft.simulation!.runtimeCharacters[id]!;
+      const properties = clone(CharacterPropertiesSchema, input.properties);
+      character.dnd = properties.dnd;
+      character.inventory = properties.inventory;
+      seedPresentation(draft, input.path, input.presentation);
+      if (input.id !== "player") draft.docs[draft.scenario] = { ...draft.docs[draft.scenario]!,
+        body: draft.docs[draft.scenario]!.body + `\n- [[${input.path}]]\n` };
       draft.simulation!.map!.revision++;
       store.publishDocuments(draft);
     }),

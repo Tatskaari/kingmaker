@@ -1,8 +1,9 @@
 # Document-based world state
 
 `kingmaker.v2.WorldState` is a mutable, protobuf-serializable document graph for a
-playthrough. It is separate from the v1 character/prompt API; the existing game
-loader is not switched over yet.
+playthrough. It contains AI-owned documents alongside a separate `SimulationState` protobuf.
+The simulation owns the physical map and runtime characters; documents contain no
+character sheets or inventories.
 
 ```ts
 import { toJson } from "@bufbuild/protobuf";
@@ -20,7 +21,7 @@ const json = toJson(WorldStateSchema, state);
 ```
 
 The map input is the existing `kingmaker.v1.WorldState` physical simulation state,
-copied unchanged. This does not regenerate geometry or reconcile old actor IDs
+adopted as `state.simulation.map`. Pass a fresh map owned by this playthrough. This does not regenerate geometry or reconcile old actor IDs
 with the selected scenario's cast. The caller supplies the desired map baseline.
 
 `docs` maps vault-relative Markdown paths to bodies, parsed frontmatter and resolved
@@ -39,8 +40,9 @@ Construction is synchronous and has no filesystem or runtime-service dependency.
 The caller supplies raw Markdown; loading files, reading stat-sheet sidecars,
 retrieving documents and applying GM edits belong to the runtime services.
 `CharacterProperties` remains available in the API for typed D&D/inventory data,
-but this Markdown constructor does not populate it. Those properties are GM-only
-and must not be exposed merely because a document body is readable.
+as authored creation input. Loaders assign its D&D sheet and inventory to each
+`state.simulation.runtimeCharacters[id]`, independently for bodies sharing lore.
+Those mechanics are not part of a document or its SHA.
 
 Link bodies retain their original Markdown, including labels and embeds. Link
 records preserve the original destination (including heading fragments) and the
@@ -77,7 +79,7 @@ const save = toJson(WorldStateSchema, scenario.snapshot());
 ```
 
 Every command returns a promise; create, replace and insert return the new
-snapshot. SHA-256 covers the full document, including frontmatter, GM properties
+snapshot. SHA-256 covers the full document, including frontmatter
 and derived links, with stable object-key ordering. This is a content revision,
 not an edit counter. Equivalent contents have the same SHA. Frontmatter is
 rendered as canonical YAML; original YAML formatting and comments are not retained
@@ -88,8 +90,7 @@ private draft before publishing it. Stale edits throw `DocumentConflictError`
 with expected and actual hashes; the caller must reread and reconsider the edit.
 Invalid edits leave state unchanged. All links and scenario character references
 are rebuilt, catching missing or ambiguous targets even in other documents.
-Scenario, index and player documents cannot be deleted while referenced. Typed
-GM character properties and physical map data survive Markdown edits unchanged.
+Scenario, index and player documents cannot be deleted while referenced. Simulation character mechanics and physical map data survive Markdown edits unchanged.
 
 These are GM services, with no character visibility filtering, filesystem writes
 or model calls. Runtime wiring and GM tool adapters are separate work. Save and
@@ -115,3 +116,22 @@ document-tool edits. An edit/read of the reviewed character refreshes the snapsh
 used by this final write, preserving edits made earlier in the tool loop.
 
 See [Character activities and waits](activity-waits.md) for the document-backed intent contract and live treasury eval.
+
+## Simulation ownership
+
+`SimulationState` contains `map` (the existing physical map protobuf) and
+`runtimeCharacters`. Each runtime character owns its `dnd` sheet and `inventory`,
+alongside its identity and document/intent references. The references are opaque
+paths: document bodies, frontmatter and links stay in the AI document world.
+Room and fixture inventories remain on their physical owners under `map`.
+
+The GM calls `read_inventory(actorId)` to obtain an inventory and its SHA, then
+`update_inventories` with `{ actorId, expectedSha, inventoryJson }` changes. A
+transfer commits all affected owners together. Inventory versions are independent
+of document versions; document edits neither overwrite nor invalidate mechanics.
+Duplicate item ownership is validated across runtime characters, rooms and fixtures.
+
+Saved-game format 6 requires a fresh game. There are no old-save migrations. This
+is a state ownership change; boardgame.io and simulation move functions are not
+introduced here. Host conversation/jail state still awaits the subsequent mutation
+API work.

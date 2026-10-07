@@ -1,5 +1,5 @@
 import { seedPresentation, presentationPath } from "../../../packages/lore/src/presentation.js";
-import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
+import { fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import { clone } from "@bufbuild/protobuf";
 import { GamePhase, DndCharacterSchema, WorldStateSchema as MapSchema, type WorldState as PalaceMap } from "../../../packages/contracts/src/index.js";
 import { CharacterPropertiesSchema, WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
@@ -18,13 +18,16 @@ export function playableWorld(baseline: PalaceMap, markdown: ReadonlyMap<string,
   placeBackgroundCharacters(world);
   for (const path of world.characters) {
     const properties = sidecars.get(path.replace(/character\.md$/, "properties.json"));
-    if (properties) world.docs[path]!.characterProperties = fromJson(CharacterPropertiesSchema, properties);
+    if (properties) for (const actor of Object.values(world.simulation!.runtimeCharacters).filter(actor => actor.document === path)) {
+      const authored = fromJson(CharacterPropertiesSchema, properties);
+      actor.dnd = authored.dnd; actor.inventory = authored.inventory;
+    }
     const heading = /^# (.+?)(?: —|\n|$)/m.exec(world.docs[path]!.body)?.[1];
     if (heading) (world.docs[path]!.frontmatter ??= {}).name = heading;
     const id = /\/Characters\/([^/]+)\//.exec(path)![1]!;
     if (!world.simulation!.map!.actors.some(actor => actor.characterId === id || world.simulation!.runtimeCharacters[actor.characterId]?.characterId === id)) throw new Error(`Missing palace actor for ${id}`);
   }
-  world.docs[player]!.characterProperties = create(CharacterPropertiesSchema, { dnd: fromJson(DndCharacterSchema, envoySheet) });
+  world.simulation!.runtimeCharacters.player!.dnd = fromJson(DndCharacterSchema, envoySheet);
   for (const path of [...world.characters, player]) seedPresentation(world, path);
   assignGuardPosts(world);
   return refreshDocumentGraph(world);
@@ -37,6 +40,7 @@ export function characterCreationWorld(baseline: WorldState): WorldState {
     delete world.docs[presentationPath(world.player)];
     delete world.docs[world.player];
   }
+  delete world.simulation!.runtimeCharacters.player;
   delete world.player;
   world.simulation!.map!.phase = GamePhase.PLAYER_CREATION;
   world.simulation!.map!.day = 0;

@@ -28,8 +28,8 @@ async function worldActionContext(world: WorldState, characterId: string, histor
   if (!goal) return;
   if (!world.simulation!.map) throw new Error("Action planning requires a physical map.");
   // Preserve stable-ID labels in planner context; narrative names come through disclosure.
-  const characters = characterDocuments(world).map(({ id, document }) => ({ id, name: id,
-    inventory: document.characterProperties?.inventory }));
+  const characters = characterDocuments(world).map(({ id, document, character }) => ({ id, name: id,
+    inventory: character.inventory }));
   const visible = services.map.observe(characterId);
   const known = worldForCharacter(visible.map, inventoryOwners(characters, visible.map), characterId);
   const observation = physicalCharacterObservation(known, characterId, goal, visible.actions);

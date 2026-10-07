@@ -13,7 +13,7 @@ import type { JsonObject, Message } from "@bufbuild/protobuf";
  * Describes the file kingmaker/v2/world.proto.
  */
 export const file_kingmaker_v2_world: GenFile = /*@__PURE__*/
-  fileDesc("ChhraW5nbWFrZXIvdjIvd29ybGQucHJvdG8SDGtpbmdtYWtlci52MiIuCgxEb2N1bWVudExpbmsSDgoGdGFyZ2V0GAEgASgJEg4KBnNvdXJjZRgCIAEoCSJqChNDaGFyYWN0ZXJQcm9wZXJ0aWVzEicKA2RuZBgBIAEoCzIaLmtpbmdtYWtlci52MS5EbmRDaGFyYWN0ZXISKgoJaW52ZW50b3J5GAIgASgLMhcua2luZ21ha2VyLnYxLkludmVudG9yeSKyAQoIRG9jdW1lbnQSLAoLZnJvbnRtYXR0ZXIYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EgwKBGJvZHkYAiABKAkSKQoFbGlua3MYAyADKAsyGi5raW5nbWFrZXIudjIuRG9jdW1lbnRMaW5rEj8KFGNoYXJhY3Rlcl9wcm9wZXJ0aWVzGAQgASgLMiEua2luZ21ha2VyLnYyLkNoYXJhY3RlclByb3BlcnRpZXMinwEKEFJ1bnRpbWVDaGFyYWN0ZXISCgoCaWQYASABKAkSFAoMY2hhcmFjdGVyX2lkGAIgASgJEhAKCGRvY3VtZW50GAMgASgJEhUKCGFjdGl2aXR5GAQgASgJSACIAQESEQoEd2FpdBgFIAEoCUgBiAEBEhcKD2ludGVudF9yZXZpc2lvbhgGIAEoDUILCglfYWN0aXZpdHlCBwoFX3dhaXQi5AEKD1NpbXVsYXRpb25TdGF0ZRIlCgNtYXAYASABKAsyGC5raW5nbWFrZXIudjEuV29ybGRTdGF0ZRJQChJydW50aW1lX2NoYXJhY3RlcnMYAiADKAsyNC5raW5nbWFrZXIudjIuU2ltdWxhdGlvblN0YXRlLlJ1bnRpbWVDaGFyYWN0ZXJzRW50cnkaWAoWUnVudGltZUNoYXJhY3RlcnNFbnRyeRILCgNrZXkYASABKAkSLQoFdmFsdWUYAiABKAsyHi5raW5nbWFrZXIudjIuUnVudGltZUNoYXJhY3RlcjoCOAEiuQIKCldvcmxkU3RhdGUSMAoEZG9jcxgBIAMoCzIiLmtpbmdtYWtlci52Mi5Xb3JsZFN0YXRlLkRvY3NFbnRyeRISCgpjaGFyYWN0ZXJzGAIgAygJEhAKCHNjZW5hcmlvGAMgASgJEjEKCnNpbXVsYXRpb24YCCABKAsyHS5raW5nbWFrZXIudjIuU2ltdWxhdGlvblN0YXRlEhYKDnNjZW5hcmlvX2luZGV4GAUgASgJEhMKBnBsYXllchgGIAEoCUgAiAEBGkMKCURvY3NFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5raW5nbWFrZXIudjIuRG9jdW1lbnQ6AjgBQgkKB19wbGF5ZXJKBAgEEAVKBAgHEAhSA21hcFIScnVudGltZV9jaGFyYWN0ZXJzYgZwcm90bzM", [file_google_protobuf_struct, file_kingmaker_v1_game]);
+  fileDesc("ChhraW5nbWFrZXIvdjIvd29ybGQucHJvdG8SDGtpbmdtYWtlci52MiIuCgxEb2N1bWVudExpbmsSDgoGdGFyZ2V0GAEgASgJEg4KBnNvdXJjZRgCIAEoCSJqChNDaGFyYWN0ZXJQcm9wZXJ0aWVzEicKA2RuZBgBIAEoCzIaLmtpbmdtYWtlci52MS5EbmRDaGFyYWN0ZXISKgoJaW52ZW50b3J5GAIgASgLMhcua2luZ21ha2VyLnYxLkludmVudG9yeSKNAQoIRG9jdW1lbnQSLAoLZnJvbnRtYXR0ZXIYASABKAsyFy5nb29nbGUucHJvdG9idWYuU3RydWN0EgwKBGJvZHkYAiABKAkSKQoFbGlua3MYAyADKAsyGi5raW5nbWFrZXIudjIuRG9jdW1lbnRMaW5rSgQIBBAFUhRjaGFyYWN0ZXJfcHJvcGVydGllcyL0AQoQUnVudGltZUNoYXJhY3RlchIKCgJpZBgBIAEoCRIUCgxjaGFyYWN0ZXJfaWQYAiABKAkSEAoIZG9jdW1lbnQYAyABKAkSFQoIYWN0aXZpdHkYBCABKAlIAIgBARIRCgR3YWl0GAUgASgJSAGIAQESFwoPaW50ZW50X3JldmlzaW9uGAYgASgNEicKA2RuZBgHIAEoCzIaLmtpbmdtYWtlci52MS5EbmRDaGFyYWN0ZXISKgoJaW52ZW50b3J5GAggASgLMhcua2luZ21ha2VyLnYxLkludmVudG9yeUILCglfYWN0aXZpdHlCBwoFX3dhaXQi5AEKD1NpbXVsYXRpb25TdGF0ZRIlCgNtYXAYASABKAsyGC5raW5nbWFrZXIudjEuV29ybGRTdGF0ZRJQChJydW50aW1lX2NoYXJhY3RlcnMYAiADKAsyNC5raW5nbWFrZXIudjIuU2ltdWxhdGlvblN0YXRlLlJ1bnRpbWVDaGFyYWN0ZXJzRW50cnkaWAoWUnVudGltZUNoYXJhY3RlcnNFbnRyeRILCgNrZXkYASABKAkSLQoFdmFsdWUYAiABKAsyHi5raW5nbWFrZXIudjIuUnVudGltZUNoYXJhY3RlcjoCOAEiuQIKCldvcmxkU3RhdGUSMAoEZG9jcxgBIAMoCzIiLmtpbmdtYWtlci52Mi5Xb3JsZFN0YXRlLkRvY3NFbnRyeRISCgpjaGFyYWN0ZXJzGAIgAygJEhAKCHNjZW5hcmlvGAMgASgJEjEKCnNpbXVsYXRpb24YCCABKAsyHS5raW5nbWFrZXIudjIuU2ltdWxhdGlvblN0YXRlEhYKDnNjZW5hcmlvX2luZGV4GAUgASgJEhMKBnBsYXllchgGIAEoCUgAiAEBGkMKCURvY3NFbnRyeRILCgNrZXkYASABKAkSJQoFdmFsdWUYAiABKAsyFi5raW5nbWFrZXIudjIuRG9jdW1lbnQ6AjgBQgkKB19wbGF5ZXJKBAgEEAVKBAgHEAhSA21hcFIScnVudGltZV9jaGFyYWN0ZXJzYgZwcm90bzM", [file_google_protobuf_struct, file_kingmaker_v1_game]);
 
 /**
  * A document reference, resolved without loading the target's contents.
@@ -42,7 +42,7 @@ export const DocumentLinkSchema: GenMessage<DocumentLink> = /*@__PURE__*/
   messageDesc(file_kingmaker_v2_world, 0);
 
 /**
- * Authored scenario mechanics. Absent fields mean not authored, not empty state.
+ * Authored mechanical inputs used when creating a runtime character.
  *
  * @generated from message kingmaker.v2.CharacterProperties
  */
@@ -87,13 +87,6 @@ export type Document = Message<"kingmaker.v2.Document"> & {
    * @generated from field: repeated kingmaker.v2.DocumentLink links = 3;
    */
   links: DocumentLink[];
-
-  /**
-   * GM-only sidecar data; never exposed merely because the body is readable.
-   *
-   * @generated from field: kingmaker.v2.CharacterProperties character_properties = 4;
-   */
-  characterProperties?: CharacterProperties | undefined;
 };
 
 /**
@@ -138,6 +131,16 @@ export type RuntimeCharacter = Message<"kingmaker.v2.RuntimeCharacter"> & {
    * @generated from field: uint32 intent_revision = 6;
    */
   intentRevision: number;
+
+  /**
+   * @generated from field: kingmaker.v1.DndCharacter dnd = 7;
+   */
+  dnd?: DndCharacter | undefined;
+
+  /**
+   * @generated from field: kingmaker.v1.Inventory inventory = 8;
+   */
+  inventory?: Inventory | undefined;
 };
 
 /**

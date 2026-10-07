@@ -16,12 +16,13 @@ test("fresh games seed public presentations for all characters without copying s
     assert.ok(doc.body);
   }
   const entry = world.characters[0]!;
+  const character = Object.values(world.simulation!.runtimeCharacters).find(actor => actor.document === entry)!;
   delete world.docs[presentationPath(entry)];
   world.docs[entry]!.body = "Secret allegiance to the Stranger.";
-  world.docs[entry]!.characterProperties!.inventory!.items.push({
-    ...world.docs[entry]!.characterProperties!.inventory!.items[0]!, name: "Secret poison", concealed: true,
+  character.inventory!.items.push({
+    ...character.inventory!.items[0]!, name: "Secret poison", concealed: true,
   });
-  world.docs[entry]!.characterProperties!.inventory!.items[0]!.details = "SECRET ITEM MECHANICS";
+  character.inventory!.items[0]!.details = "SECRET ITEM MECHANICS";
   seedPresentation(world, entry);
   assert.doesNotMatch(world.docs[presentationPath(entry)]!.body, /Secret|Stranger|SECRET ITEM MECHANICS/);
   assert.equal(characterCreationWorld(world).docs[presentationPath(world.player!)], undefined);
@@ -54,7 +55,7 @@ test("relative power compares total levels without exposing exact numbers", () =
 test("participant descriptions include identity and public prose, never private stats or lore", () => {
   const world = loadPlayableWorld(), player = world.docs[world.player!]!;
   player.body = "SECRET BIOGRAPHY";
-  player.characterProperties!.dnd!.speciesId = "elf";
+  world.simulation!.runtimeCharacters.player!.dnd!.speciesId = "elf";
   world.docs[presentationPath(world.player!)]!.body = "A tattered coat and shaggy hair.";
   const messages = participantPresentations(world, "aldren", ["aldren", "player", "player"]);
   assert.equal(messages.length, 1);

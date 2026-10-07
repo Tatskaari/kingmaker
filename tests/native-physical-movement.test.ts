@@ -11,13 +11,13 @@ test("player movement and doors commit native map state without rebuilding chara
   door.open = false;
   const host = new WorldHost(world), before = host.world(), revision = before.simulation!.map!.revision;
   assert.strictEqual(host.world(), before);
-  const documents = before.docs, properties = documents[before.player!]!.characterProperties;
+  const documents = before.docs, properties = before.simulation!.runtimeCharacters.player;
   assert.ok(!("projection" in host));
   const event = host.setDoor(door.id, true);
   assert.match(event.summary, /opened/);
   assert.equal(host.world().simulation!.map!.doors.find(item => item.id === door.id)!.open, true);
   assert.strictEqual(host.world().docs, documents);
-  assert.strictEqual(host.world().docs[before.player!]!.characterProperties, properties);
+  assert.strictEqual(host.world().simulation!.runtimeCharacters.player, properties);
   const map = host.world().simulation!.map!, position = player.position!;
   const destination = [[1, 0], [-1, 0], [0, 1], [0, -1]].map(([x, y]) => ({ x: position.x + x!, y: position.y + y! }))
     .find(point => courtRoomAt(point) && courtPath(position, point, map.doors, map.fixtures))!;
@@ -25,7 +25,7 @@ test("player movement and doors commit native map state without rebuilding chara
   host.movePlayer(destination);
   assert.equal(host.world().simulation!.map!.revision, revision + 2);
   assert.strictEqual(host.world().docs, documents);
-  assert.strictEqual(host.world().docs[before.player!]!.characterProperties, properties);
+  assert.strictEqual(host.world().simulation!.runtimeCharacters.player, properties);
 });
 
 test("occupied doors and unreachable destinations fail without changing the native world", () => {

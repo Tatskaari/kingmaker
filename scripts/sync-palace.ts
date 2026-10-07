@@ -12,7 +12,7 @@ palaceLayout.validateDoorBoundaries(map.doors);
 map.rooms = palaceLayout.worldRooms().map(room => Object.assign(create(RoomSchema),
   map.rooms.find(existing => existing.id === room.id), room));
 map.fixtures = map.fixtures.filter(fixture => !fixture.id.startsWith("furn_"));
-const characters = characterDocuments(world).map(({ id, document }) => ({ id, inventory: document.characterProperties?.inventory }));
+const characters = characterDocuments(world).map(({ id, document, character }) => ({ id, inventory: character.inventory }));
 map.fixtures.push(...palaceFurniture(map, inventoryOwners(characters, map)));
 // Background bodies are placed from document metadata when a game starts.
 map.actors = map.actors.filter(actor => !actor.instanceId);

@@ -3,13 +3,13 @@ import type { WorldStore } from "./world-store.js";
 
 export function createMechanicsService(store: WorldStore): MechanicsStateService {
   return {
-    commit(map, properties) {
-      for (const path of Object.keys(properties)) {
-        if (!store.state.docs[path]) throw new Error(`Unknown character document: ${path}`);
+    commit(map, characters) {
+      for (const id of Object.keys(characters)) {
+        if (!store.state.simulation!.runtimeCharacters[id]) throw new Error(`Unknown character: ${id}`);
       }
       // Mechanics are synchronous. Publish live references without copying the document world.
       store.state.simulation!.map = map;
-      for (const [path, value] of Object.entries(properties)) store.state.docs[path]!.characterProperties = value;
+      for (const [id, value] of Object.entries(characters)) store.state.simulation!.runtimeCharacters[id] = value;
     },
   };
 }

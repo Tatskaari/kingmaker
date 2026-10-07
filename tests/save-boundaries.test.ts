@@ -29,11 +29,17 @@ test("character reset stages changes and preserves unrelated live references", (
   const current = runtime.world(), map = current.simulation!.map!, player = current.docs[current.player!]!;
   const entry = current.characters.find(path => path.endsWith("/rowan/character.md"))!;
   current.docs[entry]!.body += "\nA new memory.";
+  const playerSheet = current.simulation!.runtimeCharacters.player!.dnd!;
+  playerSheet.hitPoints!.current = 1;
+  current.simulation!.runtimeCharacters.rowan!.dnd!.hitPoints!.current = 0;
   const revision = current.simulation!.runtimeCharacters.rowan!.intentRevision;
   runtime.resetCharacters();
   assert.equal(runtime.world(), current);
   assert.equal(current.simulation!.map, map);
   assert.equal(current.docs[current.player!], player);
+  assert.strictEqual(current.simulation!.runtimeCharacters.player!.dnd, playerSheet);
+  assert.equal(playerSheet.hitPoints!.current, 1);
+  assert.deepEqual(current.simulation!.runtimeCharacters.rowan!.dnd, world.simulation!.runtimeCharacters.rowan!.dnd);
   assert.equal(current.docs[entry]!.body, world.docs[entry]!.body);
   assert.equal(current.simulation!.runtimeCharacters.rowan!.intentRevision, revision + 1);
   // A reset that would restore a now-missing lore reference must publish nothing.

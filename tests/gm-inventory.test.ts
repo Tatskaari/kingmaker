@@ -10,39 +10,70 @@ import { loadPlayableWorld } from "./fixtures.js";
 const bird = () => create(ItemInstanceSchema, { id: "gift-wooden-bird", name: "Wooden bird", details: "Faded blue lacquer", quantity: 1 });
 test("GM inventory writes create one real gift and preserve unrelated properties", async () => {
   const backing = createScenarioServices(loadPlayableWorld());
-  const path = backing.scenario.info().player!;
+  const actorId = "player";
+  const documentBefore = await backing.docs.read(backing.scenario.info().player!);
+  const sheet = backing.currentWorld().simulation!.runtimeCharacters.player!.dnd;
   const live = backing.currentWorld();
   const unchanged = live.docs[live.scenario];
-  const before = await backing.docs.read(path);
-  const inventory = clone(InventorySchema, before.document.characterProperties!.inventory ?? create(InventorySchema));
+  const before = await backing.inventory.read(actorId);
+  const inventory = clone(InventorySchema, before.inventory ?? create(InventorySchema));
   inventory.items.push(bird());
   const runtime = new ConversationRuntime({ services: backing });
   const gm = new GameMasterTools(runtime.services, "peregrine");
   await gm.begin();
-  await gm.call("update_inventories", { changes: [{ path, expectedSha: before.sha, inventoryJson: toJsonString(InventorySchema, inventory) }] });
+  await gm.call("update_inventories", { changes: [{ actorId, expectedSha: before.sha, inventoryJson: toJsonString(InventorySchema, inventory) }] });
   assert.equal(backing.currentWorld(), live);
   assert.equal(backing.currentWorld().docs[live.scenario], unchanged);
-  const after = await backing.docs.read(path);
-  assert.equal(after.document.characterProperties!.inventory!.items.filter(item => item.id === bird().id).length, 1);
-  assert.deepEqual({ ...after.document.characterProperties, inventory: undefined }, { ...before.document.characterProperties, inventory: undefined });
-  assert.equal(after.document.body, before.document.body);
-  await assert.rejects(backing.inventory.commit([{ path, expectedSha: before.sha, inventory }]), /changed/);
+  const after = await backing.inventory.read(actorId);
+  assert.equal(after.inventory!.items.filter(item => item.id === bird().id).length, 1);
+  assert.strictEqual(backing.currentWorld().simulation!.runtimeCharacters.player!.dnd, sheet);
+  assert.deepEqual(await backing.docs.read(documentBefore.path), documentBefore);
+  await assert.rejects(backing.inventory.commit([{ actorId, expectedSha: before.sha, inventory }]), /changed/);
 });
 
 test("inventory trades commit both owners together and reject duplicate ownership without partial writes", async () => {
   const backing = createScenarioServices(loadPlayableWorld());
-  const player = backing.scenario.info().player!, giver = backing.scenario.snapshot().simulation!.runtimeCharacters.peregrine!.document;
-  const before = await backing.docs.read(giver);
-  const inventory = clone(InventorySchema, before.document.characterProperties!.inventory ?? create(InventorySchema));
+  const player = "player", giver = "peregrine";
+  const before = await backing.inventory.read(giver);
+  const inventory = clone(InventorySchema, before.inventory ?? create(InventorySchema));
   inventory.items.push(bird());
-  await backing.inventory.commit([{ path: giver, expectedSha: before.sha, inventory }]);
-  const source = await backing.docs.read(giver), target = await backing.docs.read(player);
-  const received = clone(InventorySchema, target.document.characterProperties!.inventory ?? create(InventorySchema)); received.items.push(bird());
+  await backing.inventory.commit([{ actorId: giver, expectedSha: before.sha, inventory }]);
+  const source = await backing.inventory.read(giver), target = await backing.inventory.read(player);
+  const received = clone(InventorySchema, target.inventory ?? create(InventorySchema)); received.items.push(bird());
   const untouched = backing.scenario.snapshot();
-  await assert.rejects(backing.inventory.commit([{ path: player, expectedSha: target.sha, inventory: received }]), /Duplicate/);
+  await assert.rejects(backing.inventory.commit([{ actorId: player, expectedSha: target.sha, inventory: received }]), /Duplicate/);
   assert.deepEqual(backing.scenario.snapshot(), untouched);
   inventory.items = inventory.items.filter(item => item.id !== bird().id);
-  await backing.inventory.commit([{ path: giver, expectedSha: source.sha, inventory }, { path: player, expectedSha: target.sha, inventory: received }]);
-  assert.equal((await backing.docs.read(giver)).document.characterProperties!.inventory!.items.some(item => item.id === bird().id), false);
-  assert.equal((await backing.docs.read(player)).document.characterProperties!.inventory!.items.filter(item => item.id === bird().id).length, 1);
+  await backing.inventory.commit([{ actorId: giver, expectedSha: source.sha, inventory }, { actorId: player, expectedSha: target.sha, inventory: received }]);
+  assert.equal((await backing.inventory.read(giver)).inventory!.items.some(item => item.id === bird().id), false);
+  assert.equal((await backing.inventory.read(player)).inventory!.items.filter(item => item.id === bird().id).length, 1);
+});
+
+test("inventory versions ignore document edits and cover physical inventory mutations", async () => {
+  const backing = createScenarioServices(loadPlayableWorld());
+  const gm = new GameMasterTools(new ConversationRuntime({ services: backing }).services);
+  const before = await backing.inventory.read("player");
+  assert.deepEqual(await gm.call("read_inventory", { actorId: "player" }), before);
+  const doc = await backing.docs.read(backing.scenario.info().player!);
+  await backing.docs.replace(doc.path, doc.sha, doc.document.body, doc.document.body + "\nA new memory.");
+  assert.equal((await backing.inventory.read("player")).sha, before.sha);
+  const inventory = create(InventorySchema, { items: [bird()] });
+  await backing.inventory.commit([{ actorId: "player", expectedSha: before.sha, inventory }]);
+  const read = await backing.inventory.read("player");
+  backing.currentWorld().simulation!.runtimeCharacters.player!.inventory!.items[0]!.quantity = 2;
+  const result = await gm.call("update_inventories", { changes: [{ actorId: "player", expectedSha: read.sha,
+    inventoryJson: toJsonString(InventorySchema, inventory) }] });
+  assert.equal((result as { error: string }).error, "inventory_conflict");
+  assert.equal((await backing.inventory.read("player")).inventory!.items[0]!.quantity, 2);
+});
+
+test("GM inventories cannot duplicate items already held by a fixture", async () => {
+  const backing = createScenarioServices(loadPlayableWorld());
+  const before = await backing.inventory.read("player");
+  const key = backing.currentWorld().simulation!.map!.fixtures.flatMap(fixture => fixture.inventory?.items ?? [])
+    .find(item => item.id === "palace_royal_key")!;
+  assert.ok(key);
+  await assert.rejects(backing.inventory.commit([{ actorId: "player", expectedSha: before.sha,
+    inventory: create(InventorySchema, { items: [key] }) }]), /Duplicate/);
+  assert.deepEqual(await backing.inventory.read("player"), before);
 });

@@ -1,6 +1,6 @@
 import { fromJson } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema } from "../../contracts/src/index.js";
-import { DocumentSchema } from "../../contracts/src/v2.js";
+import { DocumentSchema, CharacterPropertiesSchema } from "../../contracts/src/v2.js";
 import { refreshDocumentGraph } from "../../lore/src/world-state.js";
 import { loadPlayableWorld } from "../../../scripts/lib/playable-world.js";
 import type { ReviewCase } from "./review-experiment.js";
@@ -17,6 +17,11 @@ export const oswinKoboldCase: ReviewCase = {
     for (const [path, document] of Object.entries(fixture.documents)) world.docs[path] = fromJson(DocumentSchema, document);
     if (world.player && world.player !== fixture.playerDocument) delete world.docs[world.player];
     world.player = fixture.playerDocument;
+    world.simulation!.runtimeCharacters.player!.document = fixture.playerDocument;
+    for (const [id, value] of Object.entries(fixture.characterMechanics)) {
+      const properties = fromJson(CharacterPropertiesSchema, value);
+      Object.assign(world.simulation!.runtimeCharacters[id]!, { dnd: properties.dnd, inventory: properties.inventory });
+    }
     for (const [id, position] of Object.entries(fixture.positions)) {
       const actor = world.simulation!.map!.actors.find(actor => actor.characterId === id)!;
       actor.roomId = "great_hall";

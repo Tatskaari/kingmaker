@@ -19,7 +19,7 @@ test("gift scoring requires one player-owned bird and rejects duplicate possessi
   const world = peregrineGiftCase.loadWorld([]);
   const bird = create(InventorySchema, { items: [{ id: "gift-bird", name: "Carved wooden bird", quantity: 1,
     details: "Wings picked out in faded blue lacquer." }] }).items[0]!;
-  const properties = world.docs[world.player!]!.characterProperties!;
+  const properties = world.simulation!.runtimeCharacters.player!;
   const playerItems = (properties.inventory ??= create(InventorySchema)).items;
   playerItems.push(bird);
   assert.equal(giftInventoryScore(world).score, 1);
@@ -28,6 +28,6 @@ test("gift scoring requires one player-owned bird and rejects duplicate possessi
   bird.quantity = 2;
   assert.equal(giftInventoryScore(world).score, 0);
   bird.quantity = 1;
-  world.docs[world.simulation!.runtimeCharacters.peregrine!.document]!.characterProperties!.inventory!.items.push(bird);
+  world.simulation!.runtimeCharacters.peregrine!.inventory!.items.push(bird);
   assert.equal(giftInventoryScore(world).score, 0);
 });

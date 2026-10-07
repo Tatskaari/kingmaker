@@ -92,6 +92,6 @@ test("physical commits never rebuild the document graph and failed commits remai
   assert.deepEqual(scenario.snapshot().docs, before.docs);
   assert.equal(graphUpdates.mock.callCount(), 0);
   const committed = scenario.snapshot();
-  assert.throws(() => mechanics.commit(create(MapSchema, { day: 3 }), { "missing.md": {} as never }), /Unknown character document/);
+  assert.throws(() => mechanics.commit(create(MapSchema, { day: 3 }), { "missing.md": {} as never }), /Unknown character/);
   assert.deepEqual(scenario.snapshot(), committed);
 });

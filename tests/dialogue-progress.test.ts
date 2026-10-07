@@ -45,7 +45,7 @@ test("chat clears a provisional reply if the stream fails", async t => {
 test("runtime streams the Stranger but publishes court replies only after committing", async t => {
   for (const court of [false, true]) {
     const world = loadPlayableWorld();
-    if (!court) { delete world.docs[world.player!]; delete world.player; }
+    if (!court) { delete world.docs[world.player!]; delete world.player; delete world.simulation!.runtimeCharacters.player; }
     const runtime = new WorldGameRuntime(world, "test", undefined, undefined, undefined, {
       services: { disclosure: { disclose: async () => [] } },
       strategies: { conversation: { respond: (context, signal, services) => services.character.respond(context.request, signal), } },

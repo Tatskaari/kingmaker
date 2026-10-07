@@ -26,10 +26,10 @@ export const peregrineGiftCase: ReviewCase = {
 
 /** Typed possessions are authoritative; prose claiming a gift is insufficient. */
 export function giftInventoryScore(world: WorldState | undefined) {
-  const count = (path?: string) => (path ? world?.docs[path]?.characterProperties?.inventory?.items ?? [] : [])
+  const count = (id: string) => (world?.simulation?.runtimeCharacters[id]?.inventory?.items ?? [])
     .filter(item => /\bbird\b/i.test(`${item.name} ${item.details}`) && /\bwood(?:en)?\b/i.test(`${item.name} ${item.details}`))
     .reduce((total, item) => total + (item.quantity ?? 1), 0);
-  const player = count(world?.player), giver = count(world?.simulation!.runtimeCharacters.peregrine?.document);
+  const player = count("player"), giver = count("peregrine");
   return { score: player === 1 && giver === 0 ? 1 : 0,
     reason: `Matching wooden birds: player=${player}, Peregrine=${giver}; expected 1 and 0.` };
 }

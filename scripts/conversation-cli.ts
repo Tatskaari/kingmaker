@@ -57,7 +57,7 @@ const input: ConversationInput = {
 };
 conversationRequest(input); // Validate the snapshot and selected character before entering the terminal UI.
 const player = services.scenario.info().player;
-const build = player ? (await services.scenario.getDocument(player)).document.characterProperties?.dnd : undefined;
+const build = services.scenario.snapshot().simulation!.runtimeCharacters.player?.dnd;
 const strategyName = options.get("--strategy") ?? "game";
 if (!["game", "live-review"].includes(strategyName)) throw new Error("Unknown conversation strategy");
 const reviews = new ConversationReviews();
