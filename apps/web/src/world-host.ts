@@ -1,5 +1,5 @@
 import { createMovementService, type MovementClock } from "../../../packages/core/src/movement-service.js";
-import { getActorPosition } from "../../../packages/core/src/simulation-movement.js";
+import { getActorPosition, mapAtTime } from "../../../packages/core/src/simulation-movement.js";
 import { roomAt } from "../../../packages/core/src/pathfinding.js";
 import { refreshDocumentGraph } from "../../../packages/lore/src/world-state.js";
 import { validateDocuments } from "../../../packages/lore/src/document-audit.js";
@@ -83,7 +83,7 @@ export class WorldHost {
   }
   protected mutate<T>(operation: (game: PalaceMechanics) => T): T {
     this.syncGoals();
-    const game = new PalaceMechanics(this.world(), this.activity);
+    const game = new PalaceMechanics(this.world(), this.activity, () => this.movement.now());
     const result = operation(game);
     const { map, characters, npcActivities } = game.snapshot();
     this.worldServices.mechanics.commit(map, characters);
@@ -92,7 +92,7 @@ export class WorldHost {
   }
   view(): Record<string, unknown> {
     this.syncGoals();
-    const view = worldView(this.world(), this.activity);
+    const view = worldView(this.world(), this.activity, this.movement.now());
     return { ...view, jail: structuredClone(this.activity.jail ?? null),
       phase: this.world().player ? "conversations" : this.activity.stranger?.draft ? "character_review" : "player_creation",
       playerDraft: structuredClone(this.activity.stranger?.draft ?? null),
@@ -118,7 +118,8 @@ export class WorldHost {
     observe: id => {
       const world = this.world(), physical = world.simulation!.map;
       if (!physical) throw new Error("A physical map is required.");
-      const map = { ...physical, actors: foregroundBodies(physical.actors, physical.actors.find(actor => actor.characterId === id)?.position) };
+      const projected = mapAtTime(physical, this.movement.now());
+      const map = { ...projected, actors: foregroundBodies(projected.actors, projected.actors.find(actor => actor.characterId === id)?.position, this.movement.now()) };
       const characters = characterDocuments(world).map(({ id, document, character }) => ({ id,
         name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
         inventory: character.inventory }));
@@ -171,7 +172,7 @@ export class WorldHost {
     const world = this.world();
     if (!world.simulation!.map) throw new Error("A physical map is required.");
     const name = world.player ? world.docs[world.player]?.frontmatter?.name : undefined;
-    const event = setPlayerDoor(world.simulation!.map, world.player ? "player" : "", typeof name === "string" ? name : "player", id, open);
+    const event = setPlayerDoor(world.simulation!.map, world.player ? "player" : "", typeof name === "string" ? name : "player", id, open, this.movement.now());
     return event;
   }
   interactFixtureWithEvent(id: string) { this.assertPlayerFree(); return this.mutate(game => game.interactFixtureWithEvent(id)); }
@@ -195,7 +196,7 @@ export class WorldHost {
   worldEvent(kind: string, summary: string, participants: string[]) {
     const map = this.world().simulation!.map;
     if (!map) throw new Error("A physical map is required.");
-    return createPhysicalEvent({ day: map.day, actors: foregroundBodies(map.actors) }, kind, summary, participants);
+    return createPhysicalEvent({ day: map.day, actors: foregroundBodies(mapAtTime(map, this.movement.now()).actors, undefined, this.movement.now()) }, kind, summary, participants);
   }
   recordPlayerPerception(event: Event, perception: string) {
     const participants = event.participantIds.filter(id => id !== "player");

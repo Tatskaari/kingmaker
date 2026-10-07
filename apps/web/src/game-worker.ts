@@ -91,6 +91,8 @@ async function commitMutation<T>(game: BrowserGameRuntime, work: () => T | Promi
   return enqueue(async () => {
     if (runtime !== game) throw new Error("Game changed.");
     const result = await work();
+    // Clients render accepted state immediately; autosave must not delay animation.
+    publishNpc("");
     await autosave();
     return result;
   });
@@ -362,6 +364,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     for (const pending of pendingDice.values()) pending.reject(new Error("Game changed during a dice roll."));
     pendingDice.clear();
     waits.stop(); waitsPaused = false;
+    if (["configure", "create_game", "create_development_game", "load_game", "delete_game"].includes(type)) runtime?.movement.dispose();
     generation++; stopBackground(); stopWorldEvents(); conversationHolds.clear();
     if (runtime) attachPersistence(runtime);
   }
@@ -370,7 +373,9 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     throw new Error("This character is still reviewing the conversation. Try again when the review finishes.");
   }
   if (type === "start_npc") { waitsPaused = false; const id = String(payload.characterId); conversationHolds.delete(id); startBackground(id); return {}; }
-  if (type === "pause_npc") { const id = String(payload.characterId); conversationHolds.add(id); stopBackground(id); publishNpc(`${id}: talking to you.`); void drainBackground(); return {}; }
+  if (type === "pause_npc") { const id = String(payload.characterId); conversationHolds.add(id); stopBackground(id);
+    for (const actor of requireRuntime().world().simulation!.map!.actors.filter(actor => actor.characterId === id)) await requireRuntime().movement.cancel(actor.instanceId || id);
+    publishNpc(`${id}: talking to you.`); void drainBackground(); return {}; }
   if (type === "configure") {
     apiKey = String(payload.apiKey || "").trim();
     if (!apiKey) throw new Error("Enter an OpenRouter key first");
@@ -419,7 +424,6 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     const game = requireRuntime();
     const result = await commitMutation(game, () => game.executeAction({ command: { kind: "fixture", id: String(payload.actionId || "") } }));
     if (result.worldEvent) scheduleWorldEvent(game, result.worldEvent);
-    await game.presentMap("player", result).catch(error => providerWarning(String(error)));
     return { ...await mutationResponse(game), message: result.message };
   }
   if (type === "set_door" || type === "move_player") {
@@ -430,7 +434,6 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     const result = command.kind === "move" ? await game.executeAction({ command })
       : await commitMutation(game, () => game.executeAction({ command }));
     if (result.worldEvent) scheduleWorldEvent(game, result.worldEvent);
-    await game.presentMap("player", result).catch(error => providerWarning(String(error)));
     return { ...await mutationResponse(game), movementOutcome: result.movementOutcome ?? "arrived" };
   }
   if (type === "talk" || type === "end_conversation") {

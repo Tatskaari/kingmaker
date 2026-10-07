@@ -5,7 +5,7 @@ import { SimulationStateSchema } from "../packages/contracts/src/v2.js";
 import { executeLocalMove } from "../packages/core/src/local-move-executor.js";
 import { createMovementService, type MovementClock } from "../packages/core/src/movement-service.js";
 
-function fixture(afterWrite: (count: number) => Promise<void> = async () => {}) {
+function fixture(afterWrite: (count: number) => Promise<void> = async () => {}, changed = () => {}) {
   let writes = 0;
   let now = 1000, G = create(SimulationStateSchema, { map: {
     layout: { width: 4, height: 1, tileWidth: 16, tileHeight: 16,
@@ -19,7 +19,7 @@ function fixture(afterWrite: (count: number) => Promise<void> = async () => {}) 
   const errors: unknown[] = [];
   const service = createMovementService({ currentSimulation: () => G,
     executeMove: (move, ...args) => { G = executeLocalMove(G, move, ...args); },
-    write: async work => { const result = work(); await afterWrite(++writes); return result; }, changed: () => {}, error: error => errors.push(error),
+    write: async work => { const result = work(); await afterWrite(++writes); return result; }, changed, error: error => errors.push(error),
   }, clock);
   return { service, state: () => G, jobs, errors, async advance(ms: number) {
     now += ms;
@@ -82,4 +82,17 @@ test("a new move during completion persistence settles the old request instead o
   await f.advance(300);
   assert.equal(await next, "arrived");
   assert.equal(f.jobs.size, 0);
+});
+
+test("accepted movement is published before slow persistence finishes", async () => {
+  let release!: () => void, published = 0;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const f = fixture(count => count === 1 ? gate : Promise.resolve(), () => { published++; });
+  const moving = f.service.move("player", request);
+  assert.equal(published, 1, "The client receives the start without awaiting storage");
+  assert.equal(f.state().map!.actors[0]!.movement!.startedAtMs, 1000);
+  release();
+  await f.advance(300);
+  assert.equal(await moving, "arrived");
+  assert.equal(published, 2);
 });

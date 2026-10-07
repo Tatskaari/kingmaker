@@ -1,3 +1,4 @@
+import { actorPosition } from "../../../packages/core/src/simulation-movement.js";
 import { seedRuntimeCharacter } from "../../../packages/lore/src/runtime-actor.js";
 import { create } from "@bufbuild/protobuf";
 import { ActorStateSchema, type ActorState } from "../../../packages/contracts/src/index.js";
@@ -36,10 +37,11 @@ export function placeBackgroundCharacters(world: WorldState) {
 
 /** Existing single-character mechanics use the body nearest the player as the interlocutor.
  * Body IDs remain stable; reordering never moves or merges a physical body. */
-export function foregroundBodies(actors: readonly ActorState[], player = actors.find(actor => actor.characterId === "player")?.position): ActorState[] {
+export function foregroundBodies(actors: readonly ActorState[], player?: { x: number; y: number }, atMs = Date.now()): ActorState[] {
+  player ??= actorPosition(actors.find(actor => actor.characterId === "player"), atMs);
   if (!player) return [...actors];
-  const distance = (actor: ActorState) => actor.position
-    ? Math.abs(actor.position.x - player.x) + Math.abs(actor.position.y - player.y) : Infinity;
+  const distance = (actor: ActorState) => { const position = actorPosition(actor, atMs);
+    return position ? Math.abs(position.x - player!.x) + Math.abs(position.y - player!.y) : Infinity; };
   const ordered = [...actors];
   const ids = new Set(actors.filter(actor => actor.instanceId).map(actor => actor.characterId));
   for (const id of ids) {

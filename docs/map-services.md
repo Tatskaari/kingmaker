@@ -4,7 +4,7 @@ The runtime injects a `map` service alongside documents, AI and presentation.
 
 - `map.layout()` supplies detached tile and room geometry.
 - `map.observe(characterId)` supplies observer-visible physical state and available actions.
-- `map.interact(command, expected)` validates and commits movement, door/furniture interactions, or one NPC action step. It returns events, conversation handoffs and fresh generation tokens. Narrative documents are not included in observations.
+- `map.interact(command, signal?)` validates and commits movement or door/furniture interactions. Movement resolves on arrival; an NPC action then revalidates its interaction. Results carry events, conversation handoffs and movement outcomes (`arrived`, `cancelled`, `superseded`). Narrative documents are not included in observations.
 
 Planning (`strategies.action`) chooses an action using observations from the map service. Execution (`strategies.actionExecution`) has its own classify/resolve pair: classification is currently an empty stub; the default resolver calls the map service. A talk result hands off to the existing conversation/resolution flow. Outcome review continues to update documents through its existing strategies.
 
@@ -27,7 +27,31 @@ and returns control to the GM to reconcile. The tool loop is bounded at sixteen
 model calls. Earlier successful document edits remain saved.
 
 The worker serializes individual mutations and their IndexedDB saves. Models run
-outside that queue. Saving failure still restores the state immediately before
-that mutation; saving is not the mechanism for merging model work. The docs
+outside that queue, as does time spent travelling. Saving failure does not rewind
+accepted writes; the next successful autosave saves the current state. The docs
 service merges each document write into the current state, preserving map changes
 made while hashing the document.
+
+## Timed movement
+
+`SimulationState.map` owns the layout, physical actors, doors and fixtures. Actor
+positions are grid coordinates: integers are tile centres. An active movement
+stores its ID, route, authority start timestamp and duration. The route is
+calculated once; an NPC can submit its already selected route for validation.
+
+`startMove`, `completeMove` and `cancelMove` accept `{ G }` and explicit arguments,
+so the same functions can be registered as boardgame.io moves. They never read a
+clock or schedule a callback. `executeLocalMove` is the temporary local Immer
+adapter used by the authority; multiplayer hosting is not introduced here.
+
+The movement service supplies time, schedules completion, and persists start and
+completion separately. Actor jobs run concurrently. A new movement supersedes
+the previous request; cancellation commits the interpolated position. Only an
+`arrived` result may continue an interaction. Loading rebuilds timers from saved
+movement records, but does not restore unsaved interaction callbacks.
+
+Presentation uses `actorPosition` / `getActorPosition`, which interpolate the
+stored route in grid coordinates without pathfinding. `actorTile` rounds to the
+occupied tile. The renderer converts grid coordinates to pixels. Rules can use
+`mapAtTime` for an ephemeral observation; never commit that projection as state.
+Closing a door across the remaining route is still tracked in issue #460.

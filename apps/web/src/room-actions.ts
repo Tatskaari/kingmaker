@@ -1,3 +1,4 @@
+import { actorTile } from "../../../packages/core/src/simulation-movement.js";
 import { itemsFor, type InventoryOwner } from "../../../packages/core/src/inventory.js";
 import type { MapState } from "../../../packages/contracts/src/index.js";
 import { doorActionLegality } from "../../../packages/core/src/access.js";
@@ -57,7 +58,7 @@ export function roomAgentActions(world: MapState, characters: readonly { id: str
   for (const other of world.actors) {
     if (other.characterId === characterId || other.roomId !== room.id || !other.awake || !other.position) continue;
     const target = characters.find(item => item.id === other.characterId);
-    const path = shortest(neighbours(other.position).map(point => route(point)));
+    const path = shortest(neighbours(actorTile(other.position)).map(point => route(point)));
     if (target && path) {
       const existing = actions.findIndex(action => action.id === `talk_${target.id}`);
       if (existing >= 0 && actions[existing]!.path.length <= path.length) continue;

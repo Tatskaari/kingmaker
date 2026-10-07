@@ -28,6 +28,7 @@ export function createMovementService(authority: MovementAuthority, clock: Movem
     if (!actor) throw new Error("Actor is missing or ambiguous.");
     return actor.instanceId || actor.characterId;
   };
+  const publish = () => { try { authority.changed(); } catch (error) { authority.error(error); } };
   function discard(key: string, outcome: MovementOutcome) {
     const job = jobs.get(key);
     if (job) { jobs.delete(key); job.stop(); job.settle(outcome); }
@@ -49,8 +50,9 @@ export function createMovementService(authority: MovementAuthority, clock: Movem
             if (remaining > 0) { job.stop = clock.schedule(() => void tick(), remaining); return; }
             authority.executeMove(completeMove, key, job.id, clock.now());
             completed = true;
+            publish();
           });
-          if (completed && jobs.get(key) === job) { jobs.delete(key); authority.changed(); settle("arrived"); }
+          if (completed && jobs.get(key) === job) { jobs.delete(key); settle("arrived"); }
         } catch (error) {
           if (jobs.get(key) === job) jobs.delete(key);
           fail(error);
@@ -65,8 +67,8 @@ export function createMovementService(authority: MovementAuthority, clock: Movem
       if (!movement || (expectedId && movement.id !== expectedId)) return;
       authority.executeMove(cancelMove, key, movement.id, clock.now());
       discard(key, "cancelled");
+      publish();
     });
-    authority.changed();
   }
   return {
     async move(actorId: string, request: Omit<StartMovement, "startedAtMs">, signal?: AbortSignal): Promise<MovementOutcome> {
@@ -79,8 +81,9 @@ export function createMovementService(authority: MovementAuthority, clock: Movem
         completion = watch(key);
         // Attach immediately, including if persistence yields before we return it.
         void completion.catch(() => {});
+        // Publish the accepted state before write() awaits durable storage.
+        publish();
       });
-      authority.changed();
       const abort = () => { void cancel(actorId, request.id).catch(authority.error); };
       signal?.addEventListener("abort", abort, { once: true });
       if (signal?.aborted) abort();

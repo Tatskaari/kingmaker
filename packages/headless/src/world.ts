@@ -19,7 +19,7 @@ export class WorldHeadlessGame {
       ? new WorldGameRuntime(fromJson(WorldStateSchema, source.world), this.apiKey, source, undefined, undefined, this.options)
       : new WorldGameRuntime(source, this.apiKey, undefined, undefined, undefined, this.options);
   }
-  load(source: WorldState | WorldSnapshot) { this.runtime = this.create(source); }
+  load(source: WorldState | WorldSnapshot) { this.runtime.movement.dispose(); this.runtime = this.create(source); }
   snapshot() { return this.runtime.snapshot(); }
   inspect() { return this.runtime.world(); }
   /** Trusted console edits use live state; document tooling should use the CAS services. */
@@ -45,7 +45,7 @@ export class WorldHeadlessGame {
     const action = this.observation().actions.find(action => action.id === id);
     if (!action) throw new Error(`Unavailable player action: ${id}`);
     const movement = await this.move(action.path.at(-1)!.x, action.path.at(-1)!.y);
-    if (action.type === "move") return movement;
+    if (!movement.done || action.type === "move") return movement;
     if (action.type === "door" || action.type === "fixture") {
       const command = action.type === "door" ? { kind: "door" as const, id: action.target, open: action.open! } : { kind: "fixture" as const, id };
       const result = await this.runtime.executeAction({ command });

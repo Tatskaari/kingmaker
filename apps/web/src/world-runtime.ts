@@ -1,3 +1,4 @@
+import { actorPosition } from "../../../packages/core/src/simulation-movement.js";
 import { renderPrompt } from "../../../packages/prompts/src/index.js";
 import { earshotNotes } from "./agent-setup.js";
 import { arrestResponse } from "../../../packages/conversation/src/conversation-actions.js";
@@ -65,7 +66,6 @@ export class WorldGameRuntime extends WorldHost {
     this.movement.resume();
   }
   protected override writeSimulation<T>(work: () => T): Promise<T> { return this.commit(work); }
-  protected override movementChanged() { void this.presentMap().catch(error => this.warning(String(error))); }
   protected override movementError(error: unknown) { this.warning(String(error)); }
   private random() {
     return { integer: (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1)), ...this.options.services?.random };
@@ -85,7 +85,7 @@ export class WorldGameRuntime extends WorldHost {
     const respond = extra.services?.character?.respond ?? this.options.services?.character?.respond;
     if (kind === "dialogue" && respond) ai.responses = respond;
     const traced = traceAiService(ai, (subject = id) => {
-      const location = this.world().simulation!.map?.actors.find(actor => actor.characterId === subject)?.position;
+      const location = actorPosition(this.world().simulation!.map?.actors.find(actor => actor.characterId === subject), this.movement.now());
       return { characterId: subject, participantIds, conversationId, turnId,
         scenario: scenario.info().scenario,
         ...(location ? { location: { x: location.x, y: location.y } } : {}),
@@ -438,7 +438,7 @@ export class WorldGameRuntime extends WorldHost {
     }
     const { map } = this.map.observe(id), actor = map.actors.find(actor => actor.characterId === id);
     await this.resolve({ kind: "task_outcome", characterId: id, goal: activity.goal, actions: activity.history, result: activity.result,
-      observation: { roomId: actor?.roomId, room: map.rooms.find(room => room.id === actor?.roomId)?.name, position: actor?.position } }, signal);
+      observation: { roomId: actor?.roomId, room: map.rooms.find(room => room.id === actor?.roomId)?.name, position: actorPosition(actor, this.movement.now()) } }, signal);
   }
   waitingCharacters(): string[] {
     const world = this.world();
@@ -491,7 +491,7 @@ export class WorldGameRuntime extends WorldHost {
     if (!event.position) return { reactions: [], ...(ownEvent ? { playerPerception: event.summary } : {}) };
     const source = { id: event.participantIds[0] ?? event.id, name: event.kind, position: event.position };
     const listeners = courtCharactersWithinEarshot(source, [...names].filter(([id]) => !event.participantIds.includes(id)).flatMap(([id, name]) => map.actors.filter(actor => actor.characterId === id)
-      .map(actor => ({ id, name, position: actor.position }))), map.doors, map.fixtures).filter(listener => perceivesAt(listener.level, () => (random.integer(1, 100) - 1) / 100, listener.id === "player"));
+      .map(actor => ({ id, name, position: actorPosition(actor, this.movement.now()) }))), map.doors, map.fixtures, map.layout).filter(listener => perceivesAt(listener.level, () => (random.integer(1, 100) - 1) / 100, listener.id === "player"));
     const perceptions = listeners.map(listener => ({ characterId: listener.id, level: listener.level,
       perception: listener.level === "Clear" ? event.summary : `You notice ${event.participantIds.map(id => names.get(id) ?? id).join(" and ")} ${event.kind}, but cannot make out the details.` }));
     const player = perceptions.find(p => p.characterId === "player");

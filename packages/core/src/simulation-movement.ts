@@ -1,7 +1,7 @@
 import { create } from "@bufbuild/protobuf";
 import { INVALID_MOVE } from "boardgame.io/core";
 import { isDraft, original } from "immer/dist/index.js";
-import { ActorMovementSchema, TilePositionSchema, type ActorState } from "../../contracts/src/index.js";
+import { ActorMovementSchema, TilePositionSchema, type ActorState, type MapState } from "../../contracts/src/index.js";
 import type { SimulationState } from "../../contracts/src/v2.js";
 import type { Point } from "./navigation.js";
 import { createPathfindingService, roomAt, type RouteConstraints } from "./pathfinding.js";
@@ -63,9 +63,11 @@ export function startMove({ G }: SimulationMoveContext, actorId: string, request
   const path = request.path ?? routing.findPath(from, request.to, constraints);
   if (!path || path.length < 2 || path[0]!.x !== from.x || path[0]!.y !== from.y
     || path.at(-1)!.x !== request.to.x || path.at(-1)!.y !== request.to.y || !routing.accepts(path, constraints)) return INVALID_MOVE;
+  const durationMs = pathDistance(path) * request.msPerTile;
+  if (!Number.isFinite(durationMs) || durationMs <= 0) return INVALID_MOVE;
   actor.position = create(TilePositionSchema, from);
   actor.movement = create(ActorMovementSchema, { id: request.id, path: path.map(({ x, y }) => ({ x, y })), startedAtMs: request.startedAtMs,
-    durationMs: pathDistance(path) * request.msPerTile });
+    durationMs });
   map.revision++;
 }
 
@@ -84,4 +86,14 @@ export function completeMove({ G }: SimulationMoveContext, actorId: string, id: 
 }
 export function cancelMove({ G }: SimulationMoveContext, actorId: string, id: string, cancelledAtMs: number) {
   return finish(G, actorId, id, cancelledAtMs, false);
+}
+
+/** Ephemeral observation only. Never publish this interpolated projection as simulation state. */
+export function mapAtTime(map: MapState, atMs: number): MapState {
+  return { ...map, actors: map.actors.map(actor => {
+    if (!actor.movement) return actor;
+    const position = actorPosition(actor, atMs)!;
+    return { ...actor, position: create(TilePositionSchema, position),
+      roomId: map.layout ? roomAt(map.layout, actorTile(position))?.id ?? actor.roomId : actor.roomId };
+  }) };
 }
