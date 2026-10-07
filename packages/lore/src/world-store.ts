@@ -1,5 +1,5 @@
 import { publishSimulationChanges } from "../../core/src/simulation-publication.js";
-import { executeLocalMove } from "../../core/src/local-move-executor.js";
+import { createSimulationAuthority } from "../../core/src/simulation-authority.js";
 import type { SimulationMove } from "../../core/src/simulation-move.js";
 import { clone } from "@bufbuild/protobuf";
 import { WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
@@ -11,9 +11,12 @@ export class WorldStore {
   state: WorldState;
   private writes: Promise<unknown> = Promise.resolve();
   private graph: DocumentGraph;
+  private simulation: ReturnType<typeof createSimulationAuthority>;
   constructor(initial: WorldState) {
     this.state = clone(WorldStateSchema, initial);
     this.graph = DocumentGraph.build(this.state);
+    this.simulation = createSimulationAuthority(this.state.simulation!);
+    this.state.simulation = this.simulation.read();
   }
   write<T>(action: () => Promise<T>): Promise<T> {
     const result = this.writes.then(action);
@@ -21,7 +24,8 @@ export class WorldStore {
     return result;
   }
   executeMove<Args extends unknown[]>(move: SimulationMove<Args>, ...args: Args): void {
-    this.state.simulation = executeLocalMove(this.state.simulation!, move, ...args);
+    this.simulation.executeMove(move, ...args);
+    this.state.simulation = this.simulation.read();
   }
   prepareDocuments(draft: WorldState): DocumentGraph { return this.graph.update(draft); }
   publishDocuments(draft: WorldState, prepared = this.graph): void {
