@@ -1,5 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { INVALID_MOVE } from "boardgame.io/core";
+import { isDraft, original } from "immer";
 import { ActorMovementSchema, TilePositionSchema } from "../../contracts/src/index.js";
 import type { SimulationState } from "../../contracts/src/v2.js";
 import type { Point } from "./navigation.js";
@@ -49,7 +50,9 @@ export function startMove({ G }: SimulationMoveContext, actorId: string, request
     || (actor.movement && request.startedAtMs < actor.movement.startedAtMs)) return INVALID_MOVE;
   const from = getActorPosition(G, actorId, request.startedAtMs);
   if (!from) return INVALID_MOVE;
-  const path = createPathfindingService(map.layout).findPath(from, request.to, {
+  // Movement never edits tile geometry. Read it directly without drafting the map.
+  const layout = isDraft(map.layout) ? original(map.layout)! : map.layout;
+  const path = createPathfindingService(layout).findPath(from, request.to, {
     doors: map.doors, fixtures: map.fixtures,
     ...(request.allowedRoomIds ? { allowedRoomIds: request.allowedRoomIds } : {}),
     ...(request.thresholds ? { thresholds: request.thresholds } : {}),
