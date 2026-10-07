@@ -93,6 +93,9 @@ export const palaceMap: WorldMap = create(WorldMapSchema, {
     tileHeight: 64,
     columns: 12,
     tileCount: 132,
+  }, {
+    id: "palace-furnishings", imagePath: "./assets/caerwyn-furnishings.png",
+    tileWidth: 256, tileHeight: 256, columns: 4, tileCount: 16,
   }],
   tiles: tiles as Tile[],
   rooms,

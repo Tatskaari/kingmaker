@@ -50,15 +50,15 @@ export class CanvasMapRenderer {
 
   }
 
-  drawSprite(tilesetId: string, tileId: number, x: number, y: number): void {
+  drawSprite(tilesetId: string, tileId: number, x: number, y: number, columns = 1, rows = 1, inset = 0): void {
     const tileset = this.#map.tilesets.find(candidate => candidate.id === tilesetId);
     const image = this.#images.get(tilesetId);
     if (!tileset || !image) return;
     const width = image.naturalWidth / tileset.columns;
     const height = image.naturalHeight / Math.ceil(tileset.tileCount / tileset.columns);
-    this.#context.drawImage(image, tileId % tileset.columns * width,
-      Math.floor(tileId / tileset.columns) * height, width, height,
-      x * this.#map.tileWidth, y * this.#map.tileHeight, this.#map.tileWidth, this.#map.tileHeight);
+    this.#context.drawImage(image, (tileId % tileset.columns + inset) * width,
+      (Math.floor(tileId / tileset.columns) + inset) * height, width * (1 - 2 * inset), height * (1 - 2 * inset),
+      x * this.#map.tileWidth, y * this.#map.tileHeight, columns * this.#map.tileWidth, rows * this.#map.tileHeight);
   }
 
   hit(clientX: number, clientY: number): MapHit | undefined {

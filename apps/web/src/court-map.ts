@@ -1,3 +1,4 @@
+import { drawPalaceInteriors, furnishingSprites, mapArtwork } from "./palace-artwork.js";
 import { actorPosition, actorTile } from "../../../packages/core/src/simulation-movement.js";
 import { courtRoomAt, courtDoorBlockers, courtInteractionPoint, nearestDoorSpot } from "./court-navigation.js";
 import { doorActionLegality, type RoomAccess } from "../../../packages/core/src/access.js";
@@ -86,7 +87,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   const viewport = document.createElement("div"); viewport.className = "court-map-scroll";
   const stage = document.createElement("div"); stage.className = "court-map-stage";
   stage.style.aspectRatio = `${palaceMap.width} / ${palaceMap.height}`;
-  stage.style.width = `${palaceMap.width * 24}px`;
+  stage.style.width = `${palaceMap.width * 36}px`;
   const canvas = document.createElement("canvas"); canvas.setAttribute("aria-label", "Palace of Caerwyn");
   stage.append(canvas); viewport.append(stage); root.append(viewport);
   reportStatus("Left-click to walk; click again to change destination. Right-click a tile or character for actions.");
@@ -238,8 +239,11 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   const draw = () => {
     drawnArtwork = artworkKey();
     renderer.render();
+    const furnished = mapArtwork() !== "pencil";
+    if (furnished) drawPalaceInteriors(renderer, palaceMap);
     for (const item of fixtures) if (item.position) {
-      renderer.drawSprite("tiny-dungeon", item.sprite, item.position.x, item.position.y);
+      const furnishing = furnished ? (item.sprite === 72 && item.roomId === "dining_hall" ? 8 : furnishingSprites[item.sprite]) : undefined;
+      renderer.drawSprite(furnishing === undefined ? "tiny-dungeon" : "palace-furnishings", furnishing ?? item.sprite, item.position.x, item.position.y);
       if (item.open) {
         const context = canvas.getContext("2d")!;
         context.save(); context.fillStyle = "#f5dc9a";
@@ -260,6 +264,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     }
   };
   draw();
+  root.addEventListener("court-artwork", () => { closeMenu(); draw(); }, { signal: listeners.signal });
   visualPosition = position;
   const centreOnPlayer = (point: Point) => {
     const scroll = courtCameraScroll(point, stage.offsetWidth, stage.offsetHeight, viewport.clientWidth, viewport.clientHeight);

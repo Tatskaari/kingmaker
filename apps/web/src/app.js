@@ -1,3 +1,4 @@
+import { mapArtworks, mapArtwork, selectMapArtwork } from "./palace-artwork.js";
 import { premadeCharacters } from "./premade-characters.js";
 import "./logging.js";
 import "./dice-roll.css";
@@ -390,7 +391,7 @@ function shell(content, inCourt = false) {
       <button popovertarget="court-menu">☰ <span>Menu</span></button>
       ${sheetButton}<button class="debug-button" data-debug-open aria-label="Open debug inspector">⌘ <span>Debug</span></button>
     </nav><aside class="player-event-feed" data-player-feed aria-label="Events" tabindex="0"></aside></div>
-    ${popover("court-menu", "Game menu", `<div class="eyebrow">Palace of Caerwyn</div><h2>Kingmaker</h2><p>Welcome to court, ${escapeHtml(state.player?.name || "Emissary")}.</p><p>Left-click to walk. Right-click characters and objects for actions.</p><div class="court-menu-controls">${gameControls}${keyControl}</div><p class="map-credit">Caerwyn tabletop artwork · Kingmaker</p>`)}
+    ${popover("court-menu", "Game menu", `<div class="eyebrow">Palace of Caerwyn</div><h2>Kingmaker</h2><p>Welcome to court, ${escapeHtml(state.player?.name || "Emissary")}.</p><p>Left-click to walk. Right-click characters and objects for actions.</p><div class="court-menu-controls">${gameControls}${keyControl}</div><label class="map-artwork-choice">Map artwork<select data-map-artwork>${mapArtworks.map(option => `<option value="${option.id}" ${mapArtwork() === option.id ? "selected" : ""}>${option.name}</option>`).join("")}</select></label><p class="map-credit">Caerwyn tabletop artwork · Kingmaker</p>`)}
     ${sheet}${debugInspector()}`;
   }
   return `${state ? `<button class="debug-button" data-debug-open aria-label="Open debug inspector">⌘ <span>Debug</span></button>` : ""}${sheetButton}<div class="shell"><header class="masthead"><div class="eyebrow">An improvised political cRPG</div><h1>Kingmaker</h1><div class="rule"></div><p class="subtitle">Four kingdoms. A century’s mandate. A peace coming undone.</p></header>${content}<div class="footer">${gameControls}${keyControl}</div></div>${sheet}${debugInspector()}`;
@@ -823,6 +824,10 @@ async function run(action) {
 }
 
 function bind() {
+  document.querySelector("[data-map-artwork]")?.addEventListener("change", event => {
+    selectMapArtwork(event.target.value);
+    document.querySelector("[data-court-map]")?.dispatchEvent(new CustomEvent("court-artwork"));
+  });
   document.querySelector("[data-key-form]")?.addEventListener("submit", event => {
     event.preventDefault();
     if (busy) return;

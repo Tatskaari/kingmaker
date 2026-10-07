@@ -443,3 +443,5 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 .history-turn.player .speaker, .history-turn.scene .speaker { color: #b6ab98; }
 .history-turn p { margin: 0; white-space: pre-wrap; font-size: 1.15rem; line-height: 1.6; color: #f2e6cf; }
 .history-turn.scene { border-color: var(--line); font-style: italic; }
+
+.map-artwork-choice { display: grid; gap: 8px; margin-top: 20px; color: var(--dim); }
