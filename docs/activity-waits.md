@@ -66,4 +66,3 @@ original activity returns to ordinary planning; stop_waiting requests reconsider
 Movement pauses during the check and conversations. Pause, game replacement and changed
 intent cancel pursuit. Saved waits resume with fresh timers on load. This action is
 available to NPC planners, including when the followed character is the player.
-
