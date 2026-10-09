@@ -73,6 +73,12 @@ export class ModelTranscripts {
   }
   recent(): ModelTranscript[] { return structuredClone([...this.#entries].reverse()); }
   runs(): Record<string, ModelTranscriptRun> { return structuredClone(this.#runs); }
+  /** Public activity only: never expose requests, dialogue or review contents on the map. */
+  speechBubbles(): { characterId: string; participantIds: string[] }[] {
+    return Object.values(this.#runs).filter(run => run.status === "pending").flatMap(run =>
+      run.calls.filter(call => call.kind === "dialogue" && call.status === "pending")
+        .map(call => ({ characterId: call.characterId, participantIds: [...call.participantIds] })));
+  }
   documentWrites(): DocumentWrite[] { return structuredClone([...this.#documentWrites].reverse()); }
   clearDocumentWrites(): void { this.#documentWrites = []; }
   documentUpdated({ response, ...update }: DocumentUpdate): void {

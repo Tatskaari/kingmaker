@@ -233,6 +233,8 @@ export class WorldGameRuntime extends WorldHost {
   }
   override reset() { super.reset(); this.stopConversations(); this.traces.clearDocumentWrites(); }
   override resetCharacters() { super.resetCharacters(); this.stopConversations(); this.traces.clearDocumentWrites(); }
+  speechBubbles() { return this.traces.speechBubbles(); }
+  override view(): Record<string, unknown> { return { ...super.view(), speechBubbles: this.speechBubbles() }; }
   recentTranscripts() { return this.traces.recent(); }
   transcriptRuns() { return this.traces.runs(); }
   debugDocuments() {
