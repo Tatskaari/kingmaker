@@ -25,6 +25,7 @@
     "@bufbuild/protobuf": "2.15.0",
     "@logtape/logtape": "2.3.10",
     "boardgame.io": "0.50.2",
+    "diff": "^9.0.0",
     "fflate": "0.8.2",
     "immer": "9.0.21",
     "mustache": "^4.2.0"
