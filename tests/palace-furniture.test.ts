@@ -23,10 +23,14 @@ test("furnished rooms keep every free tile and fixture approach reachable withou
     }
     for (const [key, owner] of palaceLayout.owners) if (owner === room.id && !blocked.has(key)) {
       // The delivery queue outside the wedged cart is deliberately cut off.
-      if (room.id === "entrance_hall" && Number(key.split(",")[1]) > 38) continue;
+      if (room.id === "entrance_hall" && Number(key.split(",")[1]) > 37) continue;
       assert.ok(reached.has(key), `${room.id}: stranded ${key}`);
     }
     for (const fixture of world.fixtures.filter(f => f.roomId === room.id && f.interactionSpot)) {
+      if (fixture.id.startsWith("furn_delivery_")) {
+        assert.ok(courtPath({ x: 61, y: 48 }, fixture.interactionSpot!, world.doors, world.fixtures), fixture.id);
+        continue;
+      }
       assert.ok(reached.has(`${fixture.interactionSpot!.x},${fixture.interactionSpot!.y}`), fixture.id);
     }
   }
@@ -40,6 +44,23 @@ test("the gift-tree cart blocks the service entrance while both sides can be exa
   assert.equal(courtPath(inside, outside, world.doors, world.fixtures), undefined);
   for (const cart of carts) assert.ok(courtPath(inside, cart.interactionSpot!, world.doors, world.fixtures));
   assert.ok(courtPath(inside, outside, world.doors, world.fixtures.filter(f => !carts.includes(f))));
+});
+
+test("the opening scene puts Rowan beside the cart and servants with the delayed goods outside", () => {
+  const world = load().world!;
+  const cart = world.fixtures.find(f => f.id === "furn_cart_left")!.position!;
+  const rowan = world.actors.find(actor => actor.characterId === "rowan")!;
+  assert.equal(rowan.roomId, "entrance_hall");
+  assert.equal(Math.abs(rowan.position!.x - cart.x) + Math.abs(rowan.position!.y - cart.y), 1);
+  const servants = world.actors.filter(actor => actor.characterId.startsWith("court-servant-"));
+  const deliveries = world.fixtures.filter(f => f.id.startsWith("furn_delivery_"));
+  assert.equal(servants.length, 2); assert.equal(deliveries.length, 2);
+  for (const servant of servants) {
+    assert.ok(servant.position!.y > cart.y);
+    assert.ok(deliveries.some(f => Math.abs(f.position!.x - servant.position!.x) + Math.abs(f.position!.y - servant.position!.y) === 1));
+    assert.equal(courtPath(rowan.position!, servant.position!, world.doors, world.fixtures), undefined);
+  }
+  assert.equal(world.actors.find(actor => actor.characterId === "oswin")!.roomId, "great_hall");
 });
 
 test("bedrooms have beds and personal belongings while original evidence stays in place", () => {

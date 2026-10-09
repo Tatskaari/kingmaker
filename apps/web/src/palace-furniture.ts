@@ -16,8 +16,15 @@ export function palaceFurniture(map: MapState, owners: readonly InventoryOwner[]
     put(room, x + 1, y, `${id}_bed_foot`, `${name}'s bed — blanket`, 80);
   };
   // Two occupied tiles span the service passage; both approaches stay inside.
-  put("entrance_hall", 3, 5, "cart_left", "Wedged self-guiding cart — chassis", 72, [], "rowan", { x: 3, y: 4 });
-  put("entrance_hall", 4, 5, "cart_right", "Wedged self-guiding cart — gift tree", 72, [], "rowan", { x: 4, y: 4 });
+  put("entrance_hall", 3, 4, "cart_left", "Wedged self-guiding cart — chassis", 72, [], "rowan", { x: 2, y: 4 });
+  put("entrance_hall", 4, 4, "cart_right", "Wedged self-guiding cart — gift tree", 72, [], "rowan", { x: 5, y: 4 });
+  put("entrance_hall", 4, 7, "delivery_cushions", "Aldren's delayed cushion delivery", 75, [
+    item("assembly_cushions", "Assembly seat cushions", "The cushions ordered for the assembly guests, still waiting outside the blocked entrance."),
+  ], undefined, { x: 4, y: 8 });
+  put("entrance_hall", 3, 9, "delivery_supplies", "Queued household supplies", 75, [
+    item("delivery_linen", "Folded table linen", "Clean linen awaiting delivery to the hall."),
+    item("delivery_crockery", "Packed crockery", "Household serving dishes packed for carrying into the palace."),
+  ], undefined, { x: 3, y: 10 });
   const guests = [
     ["mara", "Gurt", "Ironmark dress uniform", "A carefully folded formal uniform for the centennial assembly.", "Draft assembly address", "Gurt's notes argue for lawful succession and disciplined conduct."],
     ["hadrik", "Klog", "Campaign cloak", "A wool cloak patched after many wet nights on campaign.", "Campaign chess pieces", "A travel set with more replacement pawns than originals."],

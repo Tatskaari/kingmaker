@@ -4,7 +4,7 @@ import { doorActionLegality, type RoomAccess } from "../../../packages/core/src/
 import type { FixtureAction } from "../../../packages/core/src/fixtures.js";
 import type { DoorState, MapFixture, ActorMovement } from "../../../packages/contracts/src/index.js";
 import { drawDoors } from "./draw-doors.js";
-import { cartRattle, drawEntranceCart, isEntranceCart } from "./entrance-cart.js";
+import { cartRattle, drawEntranceCart, drawEntranceDelivery, isEntranceCart } from "./entrance-cart.js";
 import { actionsAtTile, requireCurrentFixtureAction, type CourtInteractionLayer } from "./court-interactions.js";
 import { CanvasMapRenderer } from "./map-renderer.js";
 import { palaceMap } from "./palace-map.js";
@@ -282,6 +282,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     renderer.render();
     for (const item of fixtures) if (item.position) {
       if (isEntranceCart(item)) continue;
+      if (drawEntranceDelivery(context, item)) continue;
       renderer.drawSprite("tiny-dungeon", item.sprite, item.position.x, item.position.y);
       if (item.open) {
         const context = canvas.getContext("2d")!;
