@@ -4,8 +4,9 @@ Conversation turns share a swappable `respond()` strategy, dispatched by
 `packages/conversation/src/phases.ts`. Hooks and conversation services are supplied
 to `ConversationRuntime`; the [runtime architecture](architecture.md) extends
 these boundaries to review, action planning, execution and resolution.
-The CLI uses disclosure hooks, while browser and headless player conversations
-use the existing skill-check policy through check strategies. Resolution can request
+The CLI, browser and headless player conversations use progressive lore disclosure,
+the existing skill-check policy and live conversation review. The CLI defaults to
+`--strategy game`; `--strategy live-review` selects the same policy. Resolution can request
 another classification pass after adding information. Only resolution changes
 the prepared context; classification receives a detached view.
 
@@ -24,7 +25,8 @@ once. A truncated response retries with twice the output-token budget. Cancellat
 and non-retryable provider errors stop immediately. Dice stay resolved and the
 popup remains open during a retry; exhausted failures cancel the paired operation.
 
-Run `proto install` to install the pinned Node 26 runtime, then
+Run `proto install` to install the pinned Node 26 runtime and `npm ci` to install
+the locked dependencies (repeat after pulling dependency changes), then
 `OPENROUTER_API_KEY=… npm run conversation -- --character corvin` in an
 interactive terminal. OpenTUI renders React components directly in the terminal.
 The conversation takes 80% of the width; individual model
@@ -58,9 +60,9 @@ selected Cast `private.md` and scenario `character.md`. Before each reply, Jev
 independently scores every permitted unopened link in the current context. Notes
 whose opening probability exceeds `--threshold` (default `0.7`) are added together;
 Jev runs again with the expanded context and newly discovered links. The loop
-stops when nothing passes or no unopened links remain. Opened notes stay available
-throughout the conversation; skipped links are reconsidered on later rounds and
-player turns. Links in player speech are not retrieval candidates.
+stops when nothing passes or no unopened links remain. Before each player turn,
+the CLI waits for pending reviews and rebuilds disclosure from the current world,
+so reviewed document changes are available to the next reply. Links in player speech are not retrieval candidates.
 
 The RHS includes selectable `Jev <turn>.<round>` entries with exact input context,
 questions, returned choices/probabilities, threshold and stop/error status. Each
@@ -68,7 +70,7 @@ opened file also gets an entry showing the Markdown supplied to the character.
 These are actual model outputs, not an invented explanation of Jev's reasoning.
 
 The loader applies the vault's existing visibility rules before offering or
-opening a link. Notes are pinned for the session; restart to pick up lore edits.
+opening a link. The source vault is loaded at startup; restart to pick up external lore edits.
 Missing/ambiguous links, provider failures, or the per-turn limits (16 rounds and
 120,000 context characters) stop that reply with a debug error instead of silently
 claiming sufficient context. Snapshot relationships, goals, objectives and notes
@@ -82,7 +84,10 @@ ruling** in the sidebar and in the review export. Ctrl+D cancels a pending roll.
 
 See [local setup and validation](development.md) for prerequisites and checks.
 
-With `--strategy live-review`, the RHS also shows GM approval and review calls.
+The RHS shows GM review calls by default. Flagged replies queue background
+review to persist supported consequences in the in-memory world. Review triggering
+is model-dependent; an unflagged reply does not produce a review call. The CLI
+drains outstanding reviews before exporting the final world.
 Each call appears while pending and updates to completed or failed in place.
 Select it to inspect the full request, response/tool calls or error and duration;
 later tool-loop requests include earlier tool results. Background review entries
