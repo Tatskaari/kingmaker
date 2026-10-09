@@ -4,6 +4,29 @@ import type { Point } from "../../../packages/core/src/navigation.js";
 export const isEntranceCart = (fixture: MapFixture) => fixture.id === "furn_cart_left" || fixture.id === "furn_cart_right";
 const rattling = (now: number) => now % 3200 < 720;
 
+/** The delayed necessities sit with the servants, on the outside of the cart. */
+export function drawEntranceDelivery(context: CanvasRenderingContext2D, fixture: MapFixture): boolean {
+  if (!fixture.position || !["furn_delivery_cushions", "furn_delivery_supplies"].includes(fixture.id)) return false;
+  context.save(); context.translate(fixture.position.x * 16, fixture.position.y * 16);
+  context.fillStyle = "#51341f"; context.fillRect(0, 4, 16, 12);
+  context.fillStyle = "#c39054"; context.fillRect(1, 5, 14, 9);
+  context.fillStyle = "#77532f"; context.fillRect(1, 8, 14, 1); context.fillRect(1, 12, 14, 1);
+  if (fixture.id === "furn_delivery_cushions") {
+    for (const y of [6, 2, -2]) {
+      context.fillStyle = "#613857"; context.fillRect(2, y, 12, 5);
+      context.fillStyle = "#bd718b"; context.fillRect(3, y, 10, 3);
+      context.fillStyle = "#eed29a"; context.fillRect(2, y + 2, 1, 1); context.fillRect(13, y + 2, 1, 1);
+    }
+  } else {
+    context.fillStyle = "#e0d5ad"; context.fillRect(2, 0, 10, 6);
+    context.fillStyle = "#a59b83"; context.fillRect(2, 2, 10, 1); context.fillRect(2, 5, 10, 1);
+    context.fillStyle = "#f7eac9"; context.fillRect(7, -2, 6, 3);
+    context.fillStyle = "#72553a"; context.fillRect(5, 0, 2, 16);
+  }
+  if (fixture.open) { context.fillStyle = "#f5dc9a"; context.fillRect(4, 13, 8, 2); }
+  context.restore(); return true;
+}
+
 /** Pixel art, split across the two physical fixture tiles, like the palace beds. */
 export function drawEntranceCart(context: CanvasRenderingContext2D, fixtures: readonly MapFixture[], now: number): void {
   const shake = rattling(now) ? Math.round(Math.sin(now / 23)) : 0;
