@@ -16,8 +16,9 @@ test("review experiments replay real tools, record only docs, and grade final fi
   }, [{ name: "candidate" }], () => ({
     responses: async request => commitReview({ summary: "Reviewed", newNotes: ["The player ordered me to the parlour."], activeGoal: "Go to the parlour." }, request),
     decisions: async (_state, questions) => {
-      attentionCalls++;
-      return Object.fromEntries(Object.keys(questions).map(key => [key, { choice: "flagged", probabilities: { flagged: 1 } }]));
+      const choice = "immediate_commitment" in questions ? "flagged" : "skip";
+      if (choice === "flagged") attentionCalls++;
+      return Object.fromEntries(Object.keys(questions).map(key => [key, { choice, probabilities: { [key]: 0, [choice]: 1 } }]));
     },
   }), { decisions: async (state, questions) => {
     const evidence = state as { documents: unknown[] };
