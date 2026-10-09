@@ -1,3 +1,4 @@
+import { seedMemories } from "./memories.js";
 import { seedPresentation } from "./presentation.js";
 import { clone, fromJson, type JsonObject } from "@bufbuild/protobuf";
 import { ActorStateSchema } from "../../contracts/src/index.js";
@@ -38,6 +39,7 @@ export function createCharacterService(store: WorldStore): CharacterCreationServ
       character.dnd = properties.dnd;
       character.inventory = properties.inventory;
       seedPresentation(draft, input.path, input.presentation);
+      seedMemories(draft, input.path, input.id);
       if (input.id !== "player") draft.docs[draft.scenario] = { ...draft.docs[draft.scenario]!,
         body: draft.docs[draft.scenario]!.body + `\n- [[${input.path}]]\n` };
       draft.simulation!.map!.revision++;

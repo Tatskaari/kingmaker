@@ -1,3 +1,4 @@
+import { memoryIndexPath } from "../../lore/src/memories.js";
 import { summaryPreview } from "../../lore/src/markdown.js";
 import { characterIntent, intentContext } from "../../lore/src/activity.js";
 import type { ScenarioService } from "../../lore/src/services.js";
@@ -26,7 +27,7 @@ export async function documentLore(scenario: ScenarioService, characterId: strin
   const identity = character.document.links.find(link => /^Cast\/.+\/private\.md$/.test(link.target));
   if (!identity) throw new Error(`No private Cast reference in ${entry}`);
   return {
-    initial: [await read(identity.target), await read(entry)],
+    initial: [await read(identity.target), await read(entry), await read(memoryIndexPath(entry))],
     links(opened) {
       const state = scenario.read();
       const intent = characterIntent(state, characterId);

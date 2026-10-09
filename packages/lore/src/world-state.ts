@@ -1,3 +1,4 @@
+import { seedMemories } from "./memories.js";
 import { create, fromJson, type JsonObject } from "@bufbuild/protobuf";
 import { type MapState } from "../../contracts/src/index.js";
 import { DocumentSchema, WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
@@ -33,7 +34,8 @@ export function worldState(map: MapState, markdown: ReadonlyMap<string, string>,
     for (const key of bodies.length ? bodies.map(actor => actor.instanceId ?? actor.characterId) : [id]) seedRuntimeCharacter(world, key, id, path);
   }
   if (player) seedRuntimeCharacter(world, "player", "player", player);
-  return world;
+  for (const actor of Object.values(world.simulation!.runtimeCharacters)) seedMemories(world, actor.document, actor.characterId);
+  return refreshDocumentGraph(world);
 }
 
 /** Rebuild on initial load; live document services retain an incremental graph. */
