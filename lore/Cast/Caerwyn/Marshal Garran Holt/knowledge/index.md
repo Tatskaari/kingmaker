@@ -23,3 +23,5 @@ Author navigation only. Each note is private to `holt`, not the person described
 Parent: [[Cast/Caerwyn/Marshal Garran Holt/index|Marshal Garran Holt]].
 
 - [[Cast/Caerwyn/Marshal Garran Holt/knowledge/Palace Guards|Palace Guards]]
+
+- [[Cast/Caerwyn/Marshal Garran Holt/knowledge/Court Servants|Court Servants]]

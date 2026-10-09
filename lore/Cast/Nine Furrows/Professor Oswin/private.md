@@ -40,3 +40,5 @@ Use the following guidance for your voice. The example lines illustrate delivery
 - [[Cast/Nine Furrows/Professor Oswin/knowledge/Abel Keel|Abel Keel]]
 
 - [[Cast/Nine Furrows/Professor Oswin/knowledge/Palace Guards|Palace Guards — unwritten knowledge]]
+
+- [[Cast/Nine Furrows/Professor Oswin/knowledge/Court Servants|Court Servants]]

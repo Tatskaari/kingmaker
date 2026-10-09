@@ -38,3 +38,5 @@ The linked notes below are your own knowledge or beliefs. Unwritten entries esta
 - [[Cast/Caerwyn/Palace Guards/knowledge/Prince Peregrine Vane|Prince Peregrine Vane]]
 - [[Cast/Caerwyn/Palace Guards/knowledge/Lady Cressida Pinchbeck|Lady Cressida Pinchbeck]]
 - [[Cast/Caerwyn/Palace Guards/knowledge/Abel Keel|Abel Keel]]
+
+- [[Cast/Caerwyn/Palace Guards/knowledge/Court Servants|Court Servants]]

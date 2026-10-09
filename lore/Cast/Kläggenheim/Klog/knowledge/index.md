@@ -23,3 +23,5 @@ Author navigation only. Each note is private to `klog`, not the person described
 Parent: [[Cast/Kläggenheim/Klog/index|Klog]].
 
 - [[Cast/Kläggenheim/Klog/knowledge/Palace Guards|Palace Guards]]
+
+- [[Cast/Kläggenheim/Klog/knowledge/Court Servants|Court Servants]]

@@ -23,3 +23,5 @@ Author navigation only. Each note is private to `corvin`, not the person describ
 Parent: [[Cast/Caerwyn/Magister Corvin/index|Magister Corvin]].
 
 - [[Cast/Caerwyn/Magister Corvin/knowledge/Palace Guards|Palace Guards]]
+
+- [[Cast/Caerwyn/Magister Corvin/knowledge/Court Servants|Court Servants]]

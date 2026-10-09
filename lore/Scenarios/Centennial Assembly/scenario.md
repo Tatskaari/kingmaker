@@ -41,3 +41,5 @@ Author truth, a character's belief, and publicly established facts are distinct.
 ## Background characters
 
 - [[Scenarios/Centennial Assembly/Characters/palace-guard/character|Palace Guards]] — ten identical brothers at separate posts, with one shared identity and memory.
+
+- [[Scenarios/Centennial Assembly/Characters/court-servant/character|Court Servants]] — waiting outside the blocked service entrance with cushions and supplies.

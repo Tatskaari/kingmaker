@@ -23,3 +23,5 @@ Author navigation only. Each note is private to `gurt`, not the person described
 Parent: [[Cast/Kläggenheim/King Gurt/index|King Gurt]].
 
 - [[Cast/Kläggenheim/King Gurt/knowledge/Palace Guards|Palace Guards]]
+
+- [[Cast/Kläggenheim/King Gurt/knowledge/Court Servants|Court Servants]]

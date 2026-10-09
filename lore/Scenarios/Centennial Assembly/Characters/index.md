@@ -61,3 +61,5 @@ Equipment is ordinary and scenario-local. Weapons are sheathed unless named as h
 | Abel | Human thief rogue 3; 24 HP | Adapts Rook's experienced sailor baseline toward navigation and practical protection: Dexterity 16, Perception/Survival expertise and lock tools. Rook's intercepted letter and other old-scenario secrets are not carried across. |
 
 - [[Scenarios/Centennial Assembly/Characters/palace-guard/index|Palace Guards — background decuplets]]
+
+- [[Scenarios/Centennial Assembly/Characters/court-servant/index|Court Servants — waiting deliveries]]

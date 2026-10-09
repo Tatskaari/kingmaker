@@ -38,3 +38,5 @@ If asked about a connection between Nine Furrows and your house, volunteer Corvi
 - [[Cast/Caerwyn/King Aldren/knowledge/Tomas Vey|Tomas Vey]]
 
 - [[Cast/Caerwyn/King Aldren/knowledge/Palace Guards|Palace Guards — unwritten knowledge]]
+
+- [[Cast/Caerwyn/King Aldren/knowledge/Court Servants|Court Servants]]

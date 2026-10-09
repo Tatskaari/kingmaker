@@ -17,3 +17,5 @@ Author navigation index. Agent context starts at `scenario.md` or `character.md`
 Parent: [[Cast/index|Cast]].
 
 - [[Cast/Caerwyn/Palace Guards/index|Palace Guards]]
+
+- [[Cast/Caerwyn/Court Servants/index|Court Servants]]

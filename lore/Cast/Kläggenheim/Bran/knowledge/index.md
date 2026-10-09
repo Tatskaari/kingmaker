@@ -23,3 +23,5 @@ Author navigation only. Each note is private to `bran`, not the person described
 Parent: [[Cast/Kläggenheim/Bran/index|Bran]].
 
 - [[Cast/Kläggenheim/Bran/knowledge/Palace Guards|Palace Guards]]
+
+- [[Cast/Kläggenheim/Bran/knowledge/Court Servants|Court Servants]]

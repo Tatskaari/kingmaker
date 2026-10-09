@@ -18,3 +18,5 @@ summary: "Author navigation for the palace guards’ unwritten private knowledge
 - [[Cast/Caerwyn/Palace Guards/knowledge/Abel Keel|Abel Keel]]
 
 Parent: [[Cast/Caerwyn/Palace Guards/index|Palace Guards]].
+
+- [[Cast/Caerwyn/Palace Guards/knowledge/Court Servants|Court Servants]]

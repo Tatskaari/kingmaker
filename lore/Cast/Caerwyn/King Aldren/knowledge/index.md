@@ -23,3 +23,5 @@ Author navigation only. Each note is private to `aldren`, not the person describ
 Parent: [[Cast/Caerwyn/King Aldren/index|King Aldren]].
 
 - [[Cast/Caerwyn/King Aldren/knowledge/Palace Guards|Palace Guards]]
+
+- [[Cast/Caerwyn/King Aldren/knowledge/Court Servants|Court Servants]]
