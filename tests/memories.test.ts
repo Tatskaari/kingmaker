@@ -62,3 +62,14 @@ test("simultaneous saves conflict atomically instead of losing an index entry", 
   assert.equal(Object.keys(services.scenario.read().docs).length, count + 1);
   assert.equal((await services.docs.read(memoryIndexPath(entry("alice")))).document.links.length, 1);
 });
+
+
+test("automatically loaded memory indexes remain audited when their entry link is removed", async () => {
+  const services = fixture();
+  const before = await services.docs.read(entry("alice"));
+  await services.docs.replace(before.path, before.sha, "[Memories](memories/index.md)", "");
+  await assert.rejects(saveMemory(services, "alice", { ...memory, content: "[[gm.md]]" }), /validation/i);
+  const index = await services.docs.read(memoryIndexPath(before.path));
+  await assert.rejects(services.docs.replace(index.path, index.sha, "visibility: private", "visibility: gm"), /validation/i);
+  assert.equal((await services.docs.read(index.path)).sha, index.sha);
+});
