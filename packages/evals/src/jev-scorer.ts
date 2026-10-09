@@ -1,4 +1,4 @@
-import { renderPrompt } from "../../prompts/src/index.js";
+import { renderPrompt } from "./prompts.js";
 import type { AiService } from "../../conversation/src/services.js";
 import type { JevQuestions } from "../../providers/src/jev.js";
 import { validateRubric, type Criterion, type ScoreLevel, type Result, type RunRecording, type ScoreContext } from "./experiment.js";

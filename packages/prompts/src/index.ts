@@ -16,6 +16,11 @@ class PromptContext extends Mustache.Context {
 
 /** Trusted templates; callers supply already permission-filtered evidence as plain text. */
 export function renderPrompt(id: PromptId, values: Record<string, unknown> = {}): string {
+  return renderCatalogPrompt(catalog, id, values);
+}
+
+/** Render a template from a caller-owned catalog using the same validation rules. */
+export function renderCatalogPrompt(catalog: Record<string, string>, id: string, values: Record<string, unknown> = {}): string {
   assertData(values);
   const entry = catalog[id];
   if (!entry) throw new Error(`Unknown prompt: ${id}`);

@@ -1,4 +1,4 @@
-import { renderPrompt } from "../../prompts/src/index.js";
+import { renderPrompt } from "./prompts.js";
 import { isDeepStrictEqual } from "node:util";
 import type { WorldState } from "../../contracts/src/v2.js";
 import type { ConversationReviewContext } from "../../conversation/src/review.js";
