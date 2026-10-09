@@ -44,7 +44,7 @@ export function worldView(world: WorldState, activity: MechanicalActivity, atMs 
     } : null,
     characters: characters.filter(character => character.id !== "player").flatMap(character =>
       actors.filter(actor => actor.characterId === character.id).map(actor => ({ id: character.id,
-        instanceId: actor.instanceId || character.id, name: character.name, sprite: character.sprite,
+        instanceId: actor.instanceId || character.id, name: character.name, sprite: character.sprite, physicalForm: actor.physicalForm,
         dialogueObjectives: [], activeObjective: undefined, currentGoal: character.currentGoal,
         position: actor.position, movement: actor.movement, roomId: actor.roomId }))),
     conversationReplyOptions: activity.conversationReplyOptions ?? {},

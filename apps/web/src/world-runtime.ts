@@ -565,10 +565,11 @@ export class WorldGameRuntime extends WorldHost {
     const ownEvent = event.participantIds.includes("player");
     if (!event.position) return { reactions: [], ...(ownEvent ? { playerPerception: event.summary } : {}) };
     const source = { id: event.participantIds[0] ?? event.id, name: event.kind, position: event.position };
+    const transformation = event.kind === "changing form" && event.participantIds[0] === "cressida";
     const listeners = courtCharactersWithinEarshot(source, [...names].filter(([id]) => !event.participantIds.includes(id)).flatMap(([id, name]) => map.actors.filter(actor => actor.characterId === id)
-      .map(actor => ({ id, name, position: actorPosition(actor, atMs) }))), map.doors, map.fixtures, map.layout).filter(listener => perceivesAt(listener.level, () => (random.integer(1, 100) - 1) / 100, listener.id === "player"));
+      .map(actor => ({ id, name, position: actorPosition(actor, atMs) }))), map.doors, map.fixtures, map.layout).filter(listener => transformation || perceivesAt(listener.level, () => (random.integer(1, 100) - 1) / 100, listener.id === "player"));
     const perceptions = listeners.map(listener => ({ characterId: listener.id, level: listener.level,
-      perception: listener.level === "Clear" ? event.summary : `You notice ${event.participantIds.map(id => names.get(id) ?? id).join(" and ")} ${event.kind}, but cannot make out the details.` }));
+      perception: transformation || listener.level === "Clear" ? event.summary : `You notice ${event.participantIds.map(id => names.get(id) ?? id).join(" and ")} ${event.kind}, but cannot make out the details.` }));
     const player = perceptions.find(p => p.characterId === "player");
     return { reactions: perceptions.filter(p => p.characterId !== "player"), ...(ownEvent ? { playerPerception: event.summary } : player ? { playerPerception: player.perception } : {}) };
   }

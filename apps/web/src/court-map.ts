@@ -10,7 +10,7 @@ import { CanvasMapRenderer } from "./map-renderer.js";
 import { palaceMap } from "./palace-map.js";
 import { canWalk, pointKey, type Point } from "../../../packages/core/src/navigation.js";
 
-export interface CourtCharacter { id: string; instanceId?: string; name: string; roomId?: string; position?: Point; movement?: ActorMovement; sprite?: number }
+export interface CourtCharacter { id: string; instanceId?: string; name: string; roomId?: string; position?: Point; movement?: ActorMovement; sprite?: number; physicalForm?: string }
 export interface CourtSpeech { characterId: string; participantIds: string[] }
 
 /** Reconcile bubbles in place so movement and unrelated renders do not restart the animation. */
@@ -60,7 +60,7 @@ export async function captureCourtMap(root: HTMLElement | null): Promise<Blob | 
 
   const stageRect = stage.getBoundingClientRect();
   const scaleX = output.width / stageRect.width, scaleY = output.height / stageRect.height;
-  const sample = stage.querySelector<HTMLElement>(".court-sprite");
+  const sample = stage.querySelector<HTMLElement>(".court-sprite:not([data-cow])");
   const imageUrl = sample && getComputedStyle(sample).backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1];
   if (imageUrl) {
     const sprites = new Image(); sprites.src = imageUrl;
@@ -74,7 +74,10 @@ export async function captureCourtMap(root: HTMLElement | null): Promise<Blob | 
       const bounds = sprite.getBoundingClientRect();
       const x = (bounds.left - stageRect.left) * scaleX, y = (bounds.top - stageRect.top) * scaleY;
       const width = bounds.width * scaleX, height = bounds.height * scaleY;
-      context.drawImage(sprites, spriteId % 12 * 32, Math.floor(spriteId / 12) * 32, 32, 32, x, y, width, height);
+      if (sprite.dataset.cow) {
+        context.font = `${height}px sans-serif`; context.textAlign = "left"; context.textBaseline = "top";
+        context.fillText("🐄", x, y);
+      } else context.drawImage(sprites, spriteId % 12 * 32, Math.floor(spriteId / 12) * 32, 32, 32, x, y, width, height);
       if (!label?.textContent) continue;
       const text = label.textContent;
       context.font = `${Math.max(9, Math.round(13 * scaleY))}px Georgia, serif`;
@@ -239,6 +242,13 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       });
     }
     const sprite = document.createElement("span"); sprite.className = "court-sprite"; sprite.setAttribute("aria-hidden", "true");
+    if (marker.physicalForm === "cow") {
+      sprite.dataset.cow = "true";
+      sprite.textContent = "🐄";
+      sprite.style.backgroundImage = "none";
+      sprite.style.fontSize = "30px";
+      control.setAttribute("aria-description", "Currently a cow");
+    }
     sprite.style.backgroundPosition = `${-(marker.sprite % 12) * 32}px ${-Math.floor(marker.sprite / 12) * 32}px`;
     const label = document.createElement("span"); label.className = "court-character-name";
     label.textContent = `${marker.name}${isPlayer ? " (you)" : ""}`;

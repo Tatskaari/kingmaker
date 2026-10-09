@@ -323,6 +323,8 @@ message ActorState {
   bool awake = 4;
   TilePosition position = 5;
   ActorMovement movement = 7;
+  // Current observable body, distinct from identity and permanent species.
+  optional string physical_form = 8;
 }
 
 // The authoritative state contains every room, fixture and object. Before model
