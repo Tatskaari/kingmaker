@@ -190,7 +190,7 @@ test("insight observations reach the player and character, survive reload, and c
       decisions: async (...args) => {
         const answers = await decisions(...args);
         if (answers.persuasion) answers.persuasion.choice = "not_needed";
-        if (answers.insight) answers.insight.choice = needsCheck ? "needed" : "not_needed";
+        if (answers.insight && "needed" in args[1].insight!.criteria) answers.insight.choice = needsCheck ? "needed" : "not_needed";
         return answers;
       },
       responses: async request => {
