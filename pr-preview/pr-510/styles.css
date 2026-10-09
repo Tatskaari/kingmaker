@@ -458,14 +458,3 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 .doc-diff-line code { white-space: pre-wrap; overflow-wrap: anywhere; padding-right: 10px; }
 .doc-diff-add { background: #163d28; color: #b3f1c4; }
 .doc-diff-remove { background: #482324; color: #ffc2bd; }
-
-/* Speech stays attached to the moving actor without covering adjacent tile controls. */
-.court-character.court-speaking { z-index: 3; }
-.court-speech { position: absolute; bottom: calc(100% + 7px); left: 50%; transform: translateX(-50%); display: flex; justify-content: center; gap: 2px; min-width: 32px; padding: 0 5px 3px; border: 1px solid #a77a42; border-radius: 9px; background: #fff1ce; color: #382719; font: bold 22px/18px Georgia, serif; box-shadow: 0 2px 5px #17100955; pointer-events: none; animation: court-speech-appear 160ms ease-out; }
-.court-speech::after { content: ""; position: absolute; left: calc(50% - 3px); bottom: -4px; width: 6px; height: 6px; background: #fff1ce; border-right: 1px solid #a77a42; border-bottom: 1px solid #a77a42; transform: rotate(45deg); }
-.court-speech span { animation: court-speech-dot 1.2s ease-in-out infinite; }
-.court-speech span:nth-child(2) { animation-delay: 160ms; }
-.court-speech span:nth-child(3) { animation-delay: 320ms; }
-@keyframes court-speech-appear { from { opacity: 0; translate: 0 4px; } to { opacity: 1; translate: 0 0; } }
-@keyframes court-speech-dot { 0%, 60%, 100% { opacity: .45; } 30% { opacity: 1; } }
-@media (prefers-reduced-motion: reduce) { .court-speech, .court-speech span { animation: none; } }
