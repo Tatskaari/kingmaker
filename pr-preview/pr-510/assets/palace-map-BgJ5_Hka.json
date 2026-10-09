@@ -1685,7 +1685,7 @@
     },
     {
       "id": "furn_cart_left",
-      "name": "Wedged self-guiding cart — chassis",
+      "name": "Wedged self-guiding cart \u2014 chassis",
       "roomId": "entrance_hall",
       "position": {
         "x": 61,
@@ -1700,7 +1700,7 @@
     },
     {
       "id": "furn_cart_right",
-      "name": "Wedged self-guiding cart — gift tree",
+      "name": "Wedged self-guiding cart \u2014 gift tree",
       "roomId": "entrance_hall",
       "position": {
         "x": 62,
@@ -1715,7 +1715,7 @@
     },
     {
       "id": "furn_mara_bed_head",
-      "name": "Gurt's bed — pillow",
+      "name": "Gurt's bed \u2014 pillow",
       "roomId": "mara_chamber",
       "position": {
         "x": 21,
@@ -1730,7 +1730,7 @@
     },
     {
       "id": "furn_mara_bed_foot",
-      "name": "Gurt's bed — blanket",
+      "name": "Gurt's bed \u2014 blanket",
       "roomId": "mara_chamber",
       "position": {
         "x": 22,
@@ -1814,7 +1814,7 @@
     },
     {
       "id": "furn_hadrik_bed_head",
-      "name": "Klog's bed — pillow",
+      "name": "Klog's bed \u2014 pillow",
       "roomId": "hadrik_chamber",
       "position": {
         "x": 11,
@@ -1829,7 +1829,7 @@
     },
     {
       "id": "furn_hadrik_bed_foot",
-      "name": "Klog's bed — blanket",
+      "name": "Klog's bed \u2014 blanket",
       "roomId": "hadrik_chamber",
       "position": {
         "x": 12,
@@ -1913,7 +1913,7 @@
     },
     {
       "id": "furn_tessa_bed_head",
-      "name": "Bran's bed — pillow",
+      "name": "Bran's bed \u2014 pillow",
       "roomId": "tessa_chamber",
       "position": {
         "x": 1,
@@ -1928,7 +1928,7 @@
     },
     {
       "id": "furn_tessa_bed_foot",
-      "name": "Bran's bed — blanket",
+      "name": "Bran's bed \u2014 blanket",
       "roomId": "tessa_chamber",
       "position": {
         "x": 2,
@@ -2012,7 +2012,7 @@
     },
     {
       "id": "furn_elinor_bed_head",
-      "name": "Elinor's bed — pillow",
+      "name": "Elinor's bed \u2014 pillow",
       "roomId": "elinor_chamber",
       "position": {
         "x": 21,
@@ -2027,7 +2027,7 @@
     },
     {
       "id": "furn_elinor_bed_foot",
-      "name": "Elinor's bed — blanket",
+      "name": "Elinor's bed \u2014 blanket",
       "roomId": "elinor_chamber",
       "position": {
         "x": 22,
@@ -2111,7 +2111,7 @@
     },
     {
       "id": "furn_oswin_bed_head",
-      "name": "Oswin's bed — pillow",
+      "name": "Oswin's bed \u2014 pillow",
       "roomId": "oswin_chamber",
       "position": {
         "x": 11,
@@ -2126,7 +2126,7 @@
     },
     {
       "id": "furn_oswin_bed_foot",
-      "name": "Oswin's bed — blanket",
+      "name": "Oswin's bed \u2014 blanket",
       "roomId": "oswin_chamber",
       "position": {
         "x": 12,
@@ -2210,7 +2210,7 @@
     },
     {
       "id": "furn_rowan_bed_head",
-      "name": "Rowan's bed — pillow",
+      "name": "Rowan's bed \u2014 pillow",
       "roomId": "rowan_chamber",
       "position": {
         "x": 1,
@@ -2225,7 +2225,7 @@
     },
     {
       "id": "furn_rowan_bed_foot",
-      "name": "Rowan's bed — blanket",
+      "name": "Rowan's bed \u2014 blanket",
       "roomId": "rowan_chamber",
       "position": {
         "x": 2,
@@ -2309,7 +2309,7 @@
     },
     {
       "id": "furn_lucan_bed_head",
-      "name": "Peregrine's bed — pillow",
+      "name": "Peregrine's bed \u2014 pillow",
       "roomId": "lucan_chamber",
       "position": {
         "x": 96,
@@ -2324,7 +2324,7 @@
     },
     {
       "id": "furn_lucan_bed_foot",
-      "name": "Peregrine's bed — blanket",
+      "name": "Peregrine's bed \u2014 blanket",
       "roomId": "lucan_chamber",
       "position": {
         "x": 97,
@@ -2408,7 +2408,7 @@
     },
     {
       "id": "furn_sabine_bed_head",
-      "name": "Cressida's bed — pillow",
+      "name": "Cressida's bed \u2014 pillow",
       "roomId": "sabine_chamber",
       "position": {
         "x": 106,
@@ -2423,7 +2423,7 @@
     },
     {
       "id": "furn_sabine_bed_foot",
-      "name": "Cressida's bed — blanket",
+      "name": "Cressida's bed \u2014 blanket",
       "roomId": "sabine_chamber",
       "position": {
         "x": 107,
@@ -2514,7 +2514,7 @@
     },
     {
       "id": "furn_rook_bed_head",
-      "name": "Abel's bed — pillow",
+      "name": "Abel's bed \u2014 pillow",
       "roomId": "rook_chamber",
       "position": {
         "x": 116,
@@ -2529,7 +2529,7 @@
     },
     {
       "id": "furn_rook_bed_foot",
-      "name": "Abel's bed — blanket",
+      "name": "Abel's bed \u2014 blanket",
       "roomId": "rook_chamber",
       "position": {
         "x": 117,
@@ -2613,7 +2613,7 @@
     },
     {
       "id": "furn_corvin_bed_head",
-      "name": "Corvin's bed — pillow",
+      "name": "Corvin's bed \u2014 pillow",
       "roomId": "corvin_chamber",
       "position": {
         "x": 52,
@@ -2628,7 +2628,7 @@
     },
     {
       "id": "furn_corvin_bed_foot",
-      "name": "Corvin's bed — blanket",
+      "name": "Corvin's bed \u2014 blanket",
       "roomId": "corvin_chamber",
       "position": {
         "x": 53,
@@ -2643,7 +2643,7 @@
     },
     {
       "id": "furn_garran_bed_head",
-      "name": "Holt's bed — pillow",
+      "name": "Holt's bed \u2014 pillow",
       "roomId": "garran_chamber",
       "position": {
         "x": 73,
@@ -2658,7 +2658,7 @@
     },
     {
       "id": "furn_garran_bed_foot",
-      "name": "Holt's bed — blanket",
+      "name": "Holt's bed \u2014 blanket",
       "roomId": "garran_chamber",
       "position": {
         "x": 74,
@@ -2673,7 +2673,7 @@
     },
     {
       "id": "furn_king_bed_head",
-      "name": "Aldren's bed — pillow",
+      "name": "Aldren's bed \u2014 pillow",
       "roomId": "royal_bedchamber",
       "position": {
         "x": 63,
@@ -2688,7 +2688,7 @@
     },
     {
       "id": "furn_king_bed_foot",
-      "name": "Aldren's bed — blanket",
+      "name": "Aldren's bed \u2014 blanket",
       "roomId": "royal_bedchamber",
       "position": {
         "x": 64,
