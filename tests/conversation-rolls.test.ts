@@ -102,10 +102,36 @@ test("insight requires an observation and only publishes it after dice acknowled
         return reply({ direction: "Keep your motives guarded.", observation });
       },
     });
-    const result = observation ? pending : assert.rejects(pending, /no insight observation/);
+    const result = observation ? pending : assert.rejects(pending, /no check observation/);
     await new Promise(resolve => setImmediate(resolve));
     assert.deepEqual(received, []);
     acknowledge(); await result;
     assert.deepEqual(received, observation ? [observation] : []);
   }
+});
+
+
+test("mixed discovery checks share one observation after all rolls, while social checks need none", async () => {
+  const observed: string[] = [], shown: string[] = [];
+  const observation = "You spot a faded sigil, but cannot recall its religious meaning.";
+  await adjudicateConversationChecks({ plan: [
+    { skill: "perception", difficulty: "easy" }, { skill: "religion", difficulty: "hard" },
+    { skill: "persuasion", difficulty: "normal" },
+  ], build: undefined, messages: [], roll: check => check.skill === "religion" ? 3 : 18,
+    complete: async request => {
+      const results = JSON.parse(request.messages.at(-1)!.content!).resolvedChecks;
+      assert.deepEqual(results.map((result: { success: boolean }) => result.success), [true, false, true]);
+      return reply({ direction: "Respond to the appeal without explaining the sigil.", observation });
+    },
+    present: async result => { shown.push(result.skill); },
+    observation: text => { assert.deepEqual(shown, ["perception", "religion", "persuasion"]); observed.push(text); },
+  });
+  assert.deepEqual(observed, [observation]);
+  await adjudicateConversationChecks({ plan: [{ skill: "persuasion", difficulty: "normal" }],
+    build: undefined, messages: [], roll: () => 18, present: async () => {},
+    complete: async request => {
+      assert.ok(!JSON.stringify(request.response_format).includes("observation"));
+      return reply({ direction: "Accept the appeal." });
+    }, observation: () => assert.fail("Social checks do not emit discovery observations"),
+  });
 });

@@ -3,7 +3,7 @@ import { runGameMaster } from "./game-master.js";
 import { classifyConversationTurn, type ConversationCheckClassification } from "../../providers/src/conversation-checks.js";
 import type { ConversationContext } from "./phases.js";
 import type { ConversationRuntime } from "./runtime.js";
-import { adjudicateResolvedChecks, PLAYER_INSIGHT_PREFIX, type CheckPlan } from "./checks.js";
+import { adjudicateResolvedChecks, PLAYER_OBSERVATION_PREFIX, type CheckPlan } from "./checks.js";
 
 export interface CheckLabels { checks: ConversationCheckClassification; plan?: CheckPlan[] }
 
@@ -48,7 +48,7 @@ export function checkStrategy(runtime: ConversationRuntime, options: {
       const ruling = await adjudicateResolvedChecks({ results, messages: context.request.messages,
         complete: (request, cancellation) => runGameMaster(request, runtime.services, cancellation, options.characterId ? { characterId: options.characterId } : {}),
         present: (result, cancellation) => runtime.services.presentation.showRoll(result, cancellation),
-        observation: text => context.request.messages.push({ role: "system", content: PLAYER_INSIGHT_PREFIX + text }),
+        observation: text => context.request.messages.push({ role: "system", content: PLAYER_OBSERVATION_PREFIX + text }),
         signal,
       });
       if (ruling) context.request.messages.push({ role: "system", content: ruling });

@@ -181,7 +181,8 @@ test("live world roll rulings can edit another NPC through the shared GM tools",
 });
 
 
-test("insight observations reach the player and character, survive reload, and commit only with a reply", async () => {
+for (const skill of ["insight", "investigation", "perception", "arcana", "history", "religion", "nature", "medicine", "survival"] as const) {
+test(`${skill} observations reach the player and character, survive reload, and commit only with a reply`, async () => {
   const observation = "You notice Rowan hesitate before answering about the cart.";
   let failReply = false, needsCheck = true, expected = 1;
   const runtime = game({ services: {
@@ -190,15 +191,15 @@ test("insight observations reach the player and character, survive reload, and c
       decisions: async (...args) => {
         const answers = await decisions(...args);
         if (answers.persuasion) answers.persuasion.choice = "not_needed";
-        if (answers.insight && "needed" in args[1].insight!.criteria) answers.insight.choice = needsCheck ? "needed" : "not_needed";
+        if (answers[skill] && "needed" in args[1][skill]!.criteria) answers[skill].choice = needsCheck ? "needed" : "not_needed";
         return answers;
       },
       responses: async request => {
         if ((JSON.stringify(request.response_format) ?? "").includes("conversation_roll_ruling")) {
-          assert.equal(JSON.parse(request.messages.at(-1)!.content!).resolvedChecks[0].skill, "insight");
+          assert.equal(JSON.parse(request.messages.at(-1)!.content!).resolvedChecks[0].skill, skill);
           return { role: "assistant", content: JSON.stringify({ direction: "Hesitate over the cart. PRIVATE_DIRECTION", observation }) };
         }
-        assert.equal(request.messages.filter(message => message.role === "system" && message.content === "# Player insight\n" + observation).length, expected);
+        assert.equal(request.messages.filter(message => message.role === "system" && message.content === "# Player observation\n" + observation).length, expected);
         if (failReply) throw new Error("Reply failed");
         return { role: "assistant", content: "The cart? Well…" };
       },
@@ -221,3 +222,4 @@ test("insight observations reach the player and character, survive reload, and c
   await runtime.checkedTalkToCharacter("rowan", "I watch him again.");
   assert.equal(visible().filter(message => message.role === "gm").length, 2);
 });
+}

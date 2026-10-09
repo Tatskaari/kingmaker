@@ -6,7 +6,9 @@ import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/s
 import { parseModelObject } from "../../providers/src/structured-output.js";
 const REASONING_MODEL = { model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "none" } } as const;
 
-export const PLAYER_INSIGHT_PREFIX = "# Player insight\n";
+const observationSkills: readonly CheckSkill[] = ["insight", "investigation", "perception", "arcana", "history", "religion", "nature", "medicine", "survival"];
+
+export const PLAYER_OBSERVATION_PREFIX = "# Player observation\n";
 
 export interface ConversationRoll {
   skill: CheckSkill;
@@ -76,7 +78,7 @@ export async function adjudicateResolvedChecks<Result extends RollResult | Conve
   const signal = AbortSignal.any([options.signal, controller.signal]);
   signal.throwIfAborted();
   const results = options.results;
-  const insight = results.some(result => result.skill === "insight");
+  const needsObservation = results.some(result => result.skill && observationSkills.includes(result.skill));
   const complete = async (request: ChatCompletionRequest) => {
     signal.throwIfAborted();
     const result = await options.complete(request, signal);
@@ -88,12 +90,12 @@ export async function adjudicateResolvedChecks<Result extends RollResult | Conve
       { role: "system", content: renderPrompt("checks-adjudicate", { ROLL_GUIDANCE: ROLL_GUIDANCE }) },
       { role: "user", content: JSON.stringify({ dialogue: options.messages, resolvedChecks: results }) },
     ], response_format: { type: "json_schema", json_schema: { name: "conversation_roll_ruling", strict: true, schema: {
-      type: "object", additionalProperties: false, required: insight ? ["direction", "observation"] : ["direction"], properties: { direction: { type: "string", maxLength: 3000 },
-        ...(insight ? { observation: { type: "string", minLength: 1, maxLength: 1500 } } : {}), },
+      type: "object", additionalProperties: false, required: needsObservation ? ["direction", "observation"] : ["direction"], properties: { direction: { type: "string", maxLength: 3000 },
+        ...(needsObservation ? { observation: { type: "string", minLength: 1, maxLength: 1500 } } : {}), },
     } } } })).content, "GM roll ruling");
     if (typeof ruling.direction !== "string" || !ruling.direction.trim()) throw new Error("The GM returned no direction for the roll.");
-    if (insight && (typeof ruling.observation !== "string" || !ruling.observation.trim())) throw new Error("The GM returned no insight observation.");
-    return { observation: insight ? (ruling.observation as string).trim() : undefined, direction: renderPrompt("checks-ruling", { ROLL_GUIDANCE: ROLL_GUIDANCE, results: JSON.stringify(results), direction: ruling.direction.trim() }) };
+    if (needsObservation && (typeof ruling.observation !== "string" || !ruling.observation.trim())) throw new Error("The GM returned no check observation.");
+    return { observation: needsObservation ? (ruling.observation as string).trim() : undefined, direction: renderPrompt("checks-ruling", { ROLL_GUIDANCE: ROLL_GUIDANCE, results: JSON.stringify(results), direction: ruling.direction.trim() }) };
   };
   try {
     const [, ruling] = await Promise.all([
