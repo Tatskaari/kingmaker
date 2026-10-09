@@ -31,6 +31,7 @@ function fixture() {
   notes.set("gm.md", "---\nvisibility: gm\n---\nGM_SECRET");
   const map = loadPlayableWorld().simulation!.map!;
   map.actors.find(actor => actor.characterId === "rowan")!.position = { ...map.actors.find(actor => actor.characterId === "player")!.position! };
+  map.actors.find(actor => actor.characterId === "rowan")!.roomId = "great_hall";
   const world = worldState(map, notes, "Test", "player.md");
   for (const id of ["rowan", "corvin"]) assignActivity(world, id, "Go to the hall");
   return world;

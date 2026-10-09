@@ -61,6 +61,7 @@ test("enter actions return trespass events for explicit guard perception", async
 
 test("talk approaches a character and delegates to real player dialogue methods", async t => {
   const live = game();
+  await live.act("enter_entrance_hall");
   const talk = t.mock.method(live.runtime, "checkedTalkToCharacter", async () => "Welcome, envoy.");
   const end = t.mock.method(live.runtime, "endConversation", async () => undefined);
   assert.deepEqual(await live.act("talk_rowan"), { characterId: "rowan" });

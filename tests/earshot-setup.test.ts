@@ -10,6 +10,7 @@ function fixture() {
   const actor = (id: string) => map.actors.find(actor => actor.characterId === id)!;
   for (const [id, x] of [["rowan", 58], ["player", 59], ["corvin", 62], ["holt", 60]] as const) {
     actor(id).position = { $typeName: "kingmaker.v1.TilePosition", x, y: 24 };
+    actor(id).roomId = "great_hall";
   }
   let observations = 0;
   const runtime = new ConversationRuntime({ strategies: { setup: { prepare: setupWorldAgent } }, services: {

@@ -58,7 +58,7 @@ test("headless CLI starts a normal fresh game at character creation", async t =>
 test("headless CLI --dev-player starts the playable development envoy", async t => {
   const run = await start(t, ["--dev-player"]);
   assert.deepEqual(await run(`return { phase: game.overview().phase, player: game.inspect().player,
-    day: game.inspect().simulation!.map.day, canTalk: game.actions().some(a => a.id === "talk_rowan") };`), {
+    day: game.inspect().simulation!.map.day, canTalk: game.actions().some(a => a.id === "talk_corvin") };`), {
     phase: "conversations", player: "Players/envoy.md", day: 1, canTalk: true,
   });
   assert.match(String(await run("return game.observe();")), /^Great Hall/);
