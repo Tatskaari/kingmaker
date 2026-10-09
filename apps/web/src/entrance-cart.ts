@@ -13,7 +13,7 @@ function drawGiftTree(context: CanvasRenderingContext2D) {
     context.fillStyle = "#a4b967"; context.fillRect(12, -15, 4, 3);
 }
 
-const rattling = (now: number) => now % 3200 < 720;
+const rattling = (now: number) => now % 3200 < 2400;
 
 /** Entrance goods and the surviving tree use the same fixture renderer. */
 export function drawEntranceScenery(context: CanvasRenderingContext2D, fixture: MapFixture): boolean {
@@ -43,38 +43,40 @@ export function drawEntranceScenery(context: CanvasRenderingContext2D, fixture: 
   context.restore(); return true;
 }
 
-/** Pixel art, split across the two physical fixture tiles, like the palace beds. */
+/** Both fixture tiles move as one bucking, jammed cart. */
 export function drawEntranceCart(context: CanvasRenderingContext2D, fixtures: readonly MapFixture[], now: number): void {
-  const shake = rattling(now) ? Math.round(Math.sin(now / 23)) : 0;
-  for (const fixture of fixtures.filter(isEntranceCart)) {
-    if (!fixture.position) continue;
-    const right = fixture.id === "furn_cart_right";
-    context.save();
-    context.translate(fixture.position.x * 16 + shake, fixture.position.y * 16);
-    context.beginPath(); context.rect(0, -20, 16, 40); context.clip();
-    if (right) context.translate(-16, 0);
-    // Four iron-bound wheels, slatted bed and crooked shafts.
-    context.fillStyle = "#211b1b";
-    for (const x of [2, 25]) for (const y of [-2, 10]) context.fillRect(x, y, 5, 7);
-    context.fillStyle = "#92918b";
-    for (const x of [3, 26]) for (const y of [-1, 11]) context.fillRect(x, y, 2, 4);
-    context.fillStyle = "#4c2d20"; context.fillRect(0, 2, 32, 11);
-    context.fillStyle = "#bd864c";
-    for (const y of [3, 7, 11]) context.fillRect(1, y, 30, 2);
-    context.fillStyle = "#64462e"; context.fillRect(3, 14, 2, 6); context.fillRect(27, 14, 2, 6);
-    context.fillStyle = "#ded0a0"; context.fillRect(2, 4, 2, 8); context.fillRect(28, 4, 2, 8);
-    drawGiftTree(context);
-    context.restore();
-  }
+  const cart = fixtures.find(fixture => fixture.id === "furn_cart_left");
+  if (!cart?.position) return;
+  const active = rattling(now);
+  const shakeX = active ? Math.sin(now / 19) * 5 + Math.sin(now / 7) * 2 : 0;
+  const shakeY = active ? -Math.abs(Math.sin(now / 47)) * 7 + Math.sin(now / 11) * 2 : 0;
+  const tilt = active ? Math.sin(now / 31) * 0.25 + Math.sin(now / 13) * 0.12 : 0;
+  context.save();
+  context.translate(cart.position.x * 16 + 16 + shakeX, cart.position.y * 16 + 5 + shakeY);
+  context.rotate(tilt);
+  context.translate(-16, -5);
+  // Four iron-bound wheels, slatted bed and crooked shafts.
+  context.fillStyle = "#211b1b";
+  for (const x of [2, 25]) for (const y of [-2, 10]) context.fillRect(x, y, 5, 7);
+  context.fillStyle = "#92918b";
+  for (const x of [3, 26]) for (const y of [-1, 11]) context.fillRect(x, y, 2, 4);
+  context.fillStyle = "#4c2d20"; context.fillRect(0, 2, 32, 11);
+  context.fillStyle = "#bd864c";
+  for (const y of [3, 7, 11]) context.fillRect(1, y, 30, 2);
+  context.fillStyle = "#64462e"; context.fillRect(3, 14, 2, 6); context.fillRect(27, 14, 2, 6);
+  context.fillStyle = "#ded0a0"; context.fillRect(2, 4, 2, 8); context.fillRect(28, 4, 2, 8);
+  drawGiftTree(context);
+  context.restore();
 }
 
-/** Local, gesture-gated foley. Kenney Impact Sounds is CC0; see the bundled license. */
+/** Local, gesture-gated ragdoll audio; see the bundled source note. */
 export function cartRattle(root: HTMLElement, signal: AbortSignal) {
-  const sounds = ["impactWood_heavy_000", "impactMetal_light_000"].map(name => new Audio(`./assets/${name}.ogg`));
+  const sound = new Audio("./assets/cart-ragdoll.ogg");
+  sound.preload = "auto";
   const button = document.createElement("button"); button.type = "button"; button.className = "court-cart-sound";
   button.textContent = "Mute cart"; button.setAttribute("aria-pressed", "false"); button.hidden = true; root.append(button);
-  let enabled = true, unlocked = false, nextImpact = 0, sample = 0;
-  const silence = () => { for (const sound of sounds) { sound.pause(); sound.currentTime = 0; } };
+  let enabled = true, unlocked = false, playing = false;
+  const silence = () => { sound.pause(); sound.currentTime = 0; playing = false; };
   root.addEventListener("pointerdown", () => { unlocked = true; }, { signal });
   root.addEventListener("keydown", () => { unlocked = true; }, { signal });
   button.addEventListener("click", () => {
@@ -88,11 +90,12 @@ export function cartRattle(root: HTMLElement, signal: AbortSignal) {
     const cart = fixtures.find(isEntranceCart)?.position;
     const distance = cart && player ? Math.hypot(cart.x - player.x, cart.y - player.y) : Infinity;
     button.hidden = distance > 9;
-    if (!enabled || !unlocked || document.hidden || distance > 9) { silence(); return; }
-    if (!rattling(now) || now < nextImpact) return;
-    nextImpact = now + 130; const sound = sounds[sample++ % sounds.length]!;
+    if (!enabled || !unlocked || document.hidden || distance > 9 || !rattling(now)) { silence(); return; }
     sound.volume = Math.max(0, 0.35 * (1 - distance / 10));
-    sound.playbackRate = sample % 2 ? 0.85 : 1.15; sound.currentTime = 0;
-    void sound.play().catch(() => { /* Browser autoplay restrictions must not interrupt the map. */ });
+    if (playing) return;
+    playing = true;
+    // Join the current burst if the player walks into earshot partway through it.
+    sound.currentTime = (now % 3200) / 1000;
+    void sound.play().catch(() => { playing = false; /* Retry after the next user gesture. */ });
   };
 }

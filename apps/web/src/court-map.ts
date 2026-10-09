@@ -272,10 +272,10 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   const paintCart = () => {
     // Restore only the small animated area, keeping the palace raster cached.
     for (const item of fixtures.filter(isEntranceCart)) if (item.position) {
-      const x = item.position.x * 16 - 2, y = item.position.y * 16 - 20;
-      context.drawImage(backdrop, x, y, 20, 42, x, y, 20, 42);
+      const x = item.position.x * 16 - 24, y = item.position.y * 16 - 40;
+      context.drawImage(backdrop, x, y, 64, 80, x, y, 64, 80);
     }
-    drawEntranceCart(context, fixtures, reducedMotion.matches ? 1000 : Date.now());
+    drawEntranceCart(context, fixtures, reducedMotion.matches ? 2800 : Date.now());
   };
   const draw = () => {
     drawnArtwork = artworkKey();
