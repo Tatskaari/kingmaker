@@ -1,3 +1,4 @@
+import { roomDepartures, type RoomDeparture } from "./room-departures.js";
 import type { SimulationState } from "../../contracts/src/v2.js";
 import type { SimulationMove } from "./simulation-move.js";
 import { cancelMove, completeMove, movementActor, startMove, type StartMovement } from "./simulation-movement.js";
@@ -17,12 +18,13 @@ export interface MovementAuthority {
   /** Serialize/persist only the update, never the time spent travelling. */
   write<T>(work: () => T): Promise<T>;
   changed(): void;
+  departed?(event: RoomDeparture): void;
   error(error: unknown): void;
 }
 
 /** Authority-side timing. Clients only need the persisted movement and position reader. */
 export function createMovementService(authority: MovementAuthority, clock: MovementClock = movementClock) {
-  const jobs = new Map<string, { id: string; stop(): void; settle(outcome: MovementOutcome): void; fail(error: unknown): void }>();
+  const jobs = new Map<string, { id: string; report(): void; stop(): void; settle(outcome: MovementOutcome): void; fail(error: unknown): void }>();
   const keyFor = (actorId: string) => {
     const actor = movementActor(authority.currentSimulation(), actorId);
     if (!actor) throw new Error("Actor is missing or ambiguous.");
@@ -33,11 +35,18 @@ export function createMovementService(authority: MovementAuthority, clock: Movem
     const job = jobs.get(key);
     if (job) { jobs.delete(key); job.stop(); job.settle(outcome); }
   }
-  function watch(key: string): Promise<MovementOutcome> {
+  function watch(key: string, resumed = false): Promise<MovementOutcome> {
     const movement = movementActor(authority.currentSimulation(), key)?.movement;
     if (!movement) return Promise.resolve("arrived");
     return new Promise((settle, fail) => {
-      const job = { id: movement.id, stop: () => {}, settle, fail };
+      const departures = authority.departed ? roomDepartures(authority.currentSimulation().map!, key, movement)
+        .filter(event => !resumed || event.atMs > clock.now()) : [];
+      const report = () => {
+        while (departures[0] && departures[0].atMs <= clock.now()) authority.departed!(departures.shift()!);
+      };
+      const delay = () => Math.max(0, Math.min(departures[0]?.atMs ?? Infinity,
+        movement.startedAtMs + movement.durationMs) - clock.now());
+      const job = { id: movement.id, report, stop: () => {}, settle, fail };
       jobs.set(key, job);
       const tick = async () => {
         try {
@@ -46,8 +55,9 @@ export function createMovementService(authority: MovementAuthority, clock: Movem
             if (jobs.get(key) !== job) return;
             const current = movementActor(authority.currentSimulation(), key)?.movement;
             if (current?.id !== job.id) { discard(key, "superseded"); return; }
+            report();
             const remaining = current.startedAtMs + current.durationMs - clock.now();
-            if (remaining > 0) { job.stop = clock.schedule(() => void tick(), remaining); return; }
+            if (remaining > 0) { job.stop = clock.schedule(() => void tick(), delay()); return; }
             authority.executeMove(completeMove, key, job.id, clock.now());
             completed = true;
             publish();
@@ -58,13 +68,14 @@ export function createMovementService(authority: MovementAuthority, clock: Movem
           fail(error);
         }
       };
-      job.stop = clock.schedule(() => void tick(), Math.max(0, movement.startedAtMs + movement.durationMs - clock.now()));
+      job.stop = clock.schedule(() => void tick(), delay());
     });
   }
   async function cancel(actorId: string, expectedId?: string) {
     await authority.write(() => {
       const key = keyFor(actorId), movement = movementActor(authority.currentSimulation(), key)?.movement;
       if (!movement || (expectedId && movement.id !== expectedId)) return;
+      jobs.get(key)?.report();
       authority.executeMove(cancelMove, key, movement.id, clock.now());
       discard(key, "cancelled");
       publish();
@@ -76,6 +87,7 @@ export function createMovementService(authority: MovementAuthority, clock: Movem
       await authority.write(() => {
         signal?.throwIfAborted();
         const key = keyFor(actorId);
+        jobs.get(key)?.report();
         authority.executeMove(startMove, key, { ...request, startedAtMs: clock.now() });
         discard(key, "superseded");
         completion = watch(key);
@@ -96,7 +108,7 @@ export function createMovementService(authority: MovementAuthority, clock: Movem
     resume() {
       for (const actor of authority.currentSimulation().map?.actors ?? []) {
         const key = actor.instanceId || actor.characterId;
-        if (actor.movement && !jobs.has(key)) void watch(key).catch(authority.error);
+        if (actor.movement && !jobs.has(key)) void watch(key, true).catch(authority.error);
       }
     },
     dispose() { for (const key of jobs.keys()) discard(key, "cancelled"); },
