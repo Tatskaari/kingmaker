@@ -9,7 +9,7 @@ import type { ResolutionStrategy } from "./resolution.js";
 import type { RuntimeServices } from "./services.js";
 
 async function speak(characterId: string, partnerId: string, instruction: string, evidence: unknown, signal: AbortSignal, services: RuntimeServices) {
-  const response = await services.ai.responses({ model: "openai/gpt-6-luna", api: "responses", max_tokens: 1200,
+  const response = await services.ai.responses({ model: "openai/gpt-6-luna", api: "responses",
     messages: await disclosedContext("exchange", [{ role: "user", content: JSON.stringify({ instruction, evidence }) }], services, characterId, signal, { participantIds: [characterId, partnerId] }),
   }, signal, { characterId, purpose: "dialogue" });
   signal.throwIfAborted();

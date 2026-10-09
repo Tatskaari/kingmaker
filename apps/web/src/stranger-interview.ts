@@ -56,7 +56,7 @@ export async function strangerTurn(previous: StrangerState, text: string,
   ], services, "gm", signal, { lore });
   const initialHistoryLength = state.history.length;
   for (let pass = 0; pass < 5; pass++) {
-    const reply = await services.ai.responses({ ...REASONING_MODEL, max_tokens: 8000,
+    const reply = await services.ai.responses({ ...REASONING_MODEL,
       messages: [...context, ...state.history.slice(initialHistoryLength)],
       tools: tools(cast.map(item => item.id), strangerConfiguration(world).affiliations).filter(tool => !premade || tool.function.name === "create_player"),
     }, signal, onText ? { onText } : undefined);

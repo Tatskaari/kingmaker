@@ -26,7 +26,7 @@ export async function reviewDocumentEvidence(context: Readonly<ConversationRevie
   }));
   const actor = world.simulation!.map?.actors.find(actor => (actor.instanceId ?? actor.characterId) === intent.actorId);
   let opened: OpenRouterMessage[] | undefined;
-  const reply = await runGameMaster({ model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "low" }, max_tokens: 4000,
+  const reply = await runGameMaster({ model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "low" },
     messages: [{ role: "system", content: purpose }, { role: "user", content: JSON.stringify({
       characterId: context.characterId, participants: context.participants, document: before, presentations,
       intent: intentContext(world, intent.actorId), transcript: context.transcript, labels,

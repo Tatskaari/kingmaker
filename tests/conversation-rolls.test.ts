@@ -31,14 +31,14 @@ test("trivial and impossible retain their natural-roll rules at extreme modifier
   }
 });
 
-test("truncated GM output retries without rerolling or replaying presentation", async () => {
-  const { OutputTokenLimitError } = await import("../packages/providers/src/openrouter.js");
+test("transient GM failure retries without rerolling or replaying presentation", async () => {
+  const { ProviderResponseError } = await import("../packages/providers/src/openrouter.js");
   let calls = 0, rolls = 0, presentations = 0;
   await adjudicateConversationChecks({ plan: [{ skill: "intimidation", difficulty: "hard" }], build: undefined, messages: [],
     complete: retryResponses(async request => {
       calls++;
-      if (calls === 1) throw new OutputTokenLimitError();
-      assert.equal(request.max_tokens, 4000);
+      if (calls === 1) throw new ProviderResponseError("unavailable", true);
+      assert.equal(request.max_tokens, undefined);
       return reply({ direction: "Reveal what you know." });
     }),
     roll: () => { rolls++; return 20; }, present: async () => { presentations++; },
