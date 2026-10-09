@@ -34,7 +34,9 @@ export async function reviewDocumentEvidence(context: Readonly<ConversationRevie
         roomName: world.simulation!.map?.rooms.find(room => room.id === actor.roomId)?.name, position: actor.position } : null,
       scenarioDocument: services.scenario.info().scenario,
     }) }],
-  }, services, signal, { characterId: intent.actorId, review: true, prepare: async messages => {
+  }, services, signal, { characterId: intent.actorId, review: true,
+    // Single-character reviews contain synthetic observations, not a conversation.
+    ...(context.participants.length > 1 ? { activityOrigin: context } : {}), prepare: async messages => {
     const lore = await services.lore.forCharacter(intent.actorId, signal);
     const current = await services.docs.read(path);
     const initial: OpenRouterMessage[] = lore.initial.map(doc => ({ role: "user", content: `# Character evidence: ${doc.path}\n${doc.path === path ? current.document.body : doc.markdown}` }));
