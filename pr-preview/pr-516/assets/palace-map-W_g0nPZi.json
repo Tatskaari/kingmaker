@@ -1,0 +1,4025 @@
+{
+  "revision": 1,
+  "day": 1,
+  "rooms": [
+    {
+      "id": "corvin_chamber",
+      "name": "Corvin's Chamber",
+      "exitRoomIds": [
+        "north_corridor"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "corvin"
+      ]
+    },
+    {
+      "id": "royal_bedchamber",
+      "name": "Royal Bedchamber",
+      "exitRoomIds": [
+        "north_corridor"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "aldren"
+      ]
+    },
+    {
+      "id": "garran_chamber",
+      "name": "Holt's Chamber",
+      "exitRoomIds": [
+        "north_corridor"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "holt"
+      ]
+    },
+    {
+      "id": "north_corridor",
+      "name": "Royal Back Hall",
+      "exitRoomIds": [
+        "corvin_chamber",
+        "garran_chamber",
+        "royal_bedchamber",
+        "royal_council_chamber"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "corvin",
+        "aldren",
+        "holt"
+      ]
+    },
+    {
+      "id": "royal_council_chamber",
+      "name": "Royal Council Chamber",
+      "exitRoomIds": [
+        "great_hall",
+        "north_corridor"
+      ]
+    },
+    {
+      "id": "great_hall",
+      "name": "Great Hall",
+      "exitRoomIds": [
+        "entrance_hall",
+        "guest_chamber",
+        "palace_back_hall",
+        "royal_council_chamber",
+        "treasury"
+      ]
+    },
+    {
+      "id": "guest_chamber",
+      "name": "Nobles' Parlour",
+      "exitRoomIds": [
+        "great_hall"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "player",
+        "corvin",
+        "holt",
+        "aldren",
+        "gurt",
+        "klog",
+        "bran",
+        "elinor",
+        "oswin",
+        "rowan",
+        "peregrine",
+        "cressida",
+        "abel"
+      ]
+    },
+    {
+      "id": "entrance_hall",
+      "name": "Entrance Hall",
+      "exitRoomIds": [
+        "great_hall",
+        "west_wing"
+      ]
+    },
+    {
+      "id": "treasury",
+      "name": "Treasury",
+      "exitRoomIds": [
+        "great_hall"
+      ]
+    },
+    {
+      "id": "palace_back_hall",
+      "name": "East Wing",
+      "exitRoomIds": [
+        "dining_hall",
+        "great_hall",
+        "saltmere_drawing_room"
+      ]
+    },
+    {
+      "id": "west_wing",
+      "name": "West Wing",
+      "exitRoomIds": [
+        "entrance_hall",
+        "greenweald_solar",
+        "ironmark_salon"
+      ]
+    },
+    {
+      "id": "ironmark_salon",
+      "name": "Ironmark Salon",
+      "exitRoomIds": [
+        "ironmark_back_hall",
+        "west_wing"
+      ]
+    },
+    {
+      "id": "ironmark_back_hall",
+      "name": "Ironmark Back Hall",
+      "exitRoomIds": [
+        "hadrik_chamber",
+        "ironmark_salon",
+        "mara_chamber",
+        "tessa_chamber"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "gurt",
+        "klog",
+        "bran"
+      ]
+    },
+    {
+      "id": "mara_chamber",
+      "name": "Gurt's Chamber",
+      "exitRoomIds": [
+        "ironmark_back_hall"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "gurt"
+      ]
+    },
+    {
+      "id": "hadrik_chamber",
+      "name": "Klog's Chamber",
+      "exitRoomIds": [
+        "ironmark_back_hall"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "klog"
+      ]
+    },
+    {
+      "id": "tessa_chamber",
+      "name": "Bran's Chamber",
+      "exitRoomIds": [
+        "ironmark_back_hall"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "bran"
+      ]
+    },
+    {
+      "id": "greenweald_solar",
+      "name": "Greenweald Solar",
+      "exitRoomIds": [
+        "greenweald_back_hall",
+        "west_wing"
+      ]
+    },
+    {
+      "id": "greenweald_back_hall",
+      "name": "Greenweald Back Hall",
+      "exitRoomIds": [
+        "elinor_chamber",
+        "greenweald_solar",
+        "oswin_chamber",
+        "rowan_chamber"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "elinor",
+        "oswin",
+        "rowan"
+      ]
+    },
+    {
+      "id": "elinor_chamber",
+      "name": "Elinor's Chamber",
+      "exitRoomIds": [
+        "greenweald_back_hall"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "elinor"
+      ]
+    },
+    {
+      "id": "oswin_chamber",
+      "name": "Oswin's Chamber",
+      "exitRoomIds": [
+        "greenweald_back_hall"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "oswin"
+      ]
+    },
+    {
+      "id": "rowan_chamber",
+      "name": "Rowan's Chamber",
+      "exitRoomIds": [
+        "greenweald_back_hall"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "rowan"
+      ]
+    },
+    {
+      "id": "saltmere_drawing_room",
+      "name": "Saltmere Drawing Room",
+      "exitRoomIds": [
+        "palace_back_hall",
+        "saltmere_back_hall"
+      ]
+    },
+    {
+      "id": "saltmere_back_hall",
+      "name": "Saltmere Back Hall",
+      "exitRoomIds": [
+        "lucan_chamber",
+        "rook_chamber",
+        "sabine_chamber",
+        "saltmere_drawing_room"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "peregrine",
+        "cressida",
+        "abel"
+      ]
+    },
+    {
+      "id": "lucan_chamber",
+      "name": "Peregrine's Chamber",
+      "exitRoomIds": [
+        "saltmere_back_hall"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "peregrine"
+      ]
+    },
+    {
+      "id": "sabine_chamber",
+      "name": "Cressida's Chamber",
+      "exitRoomIds": [
+        "saltmere_back_hall"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "cressida"
+      ]
+    },
+    {
+      "id": "rook_chamber",
+      "name": "Abel's Chamber",
+      "exitRoomIds": [
+        "saltmere_back_hall"
+      ],
+      "private": true,
+      "allowedCharacterIds": [
+        "abel"
+      ]
+    },
+    {
+      "id": "dining_hall",
+      "name": "Long Dining Hall",
+      "exitRoomIds": [
+        "palace_back_hall"
+      ]
+    }
+  ],
+  "actors": [
+    {
+      "characterId": "corvin",
+      "homeRoomId": "corvin_chamber",
+      "roomId": "great_hall",
+      "awake": true,
+      "position": {
+        "x": 58,
+        "y": 20
+      }
+    },
+    {
+      "characterId": "holt",
+      "homeRoomId": "garran_chamber",
+      "roomId": "entrance_hall",
+      "awake": true,
+      "position": {
+        "x": 64,
+        "y": 35
+      }
+    },
+    {
+      "characterId": "aldren",
+      "homeRoomId": "royal_bedchamber",
+      "roomId": "great_hall",
+      "awake": true,
+      "position": {
+        "x": 62,
+        "y": 18
+      }
+    },
+    {
+      "characterId": "gurt",
+      "homeRoomId": "mara_chamber",
+      "roomId": "great_hall",
+      "awake": true,
+      "position": {
+        "x": 57,
+        "y": 22
+      }
+    },
+    {
+      "characterId": "klog",
+      "homeRoomId": "hadrik_chamber",
+      "roomId": "great_hall",
+      "awake": true,
+      "position": {
+        "x": 57,
+        "y": 25
+      }
+    },
+    {
+      "characterId": "bran",
+      "homeRoomId": "tessa_chamber",
+      "roomId": "great_hall",
+      "awake": true,
+      "position": {
+        "x": 57,
+        "y": 28
+      }
+    },
+    {
+      "characterId": "elinor",
+      "homeRoomId": "elinor_chamber",
+      "roomId": "great_hall",
+      "awake": true,
+      "position": {
+        "x": 62,
+        "y": 23
+      }
+    },
+    {
+      "characterId": "oswin",
+      "homeRoomId": "oswin_chamber",
+      "roomId": "great_hall",
+      "awake": true,
+      "position": {
+        "x": 62,
+        "y": 26
+      }
+    },
+    {
+      "characterId": "rowan",
+      "homeRoomId": "rowan_chamber",
+      "roomId": "entrance_hall",
+      "awake": true,
+      "position": {
+        "x": 60,
+        "y": 37
+      }
+    },
+    {
+      "characterId": "peregrine",
+      "homeRoomId": "lucan_chamber",
+      "roomId": "great_hall",
+      "awake": true,
+      "position": {
+        "x": 67,
+        "y": 22
+      }
+    },
+    {
+      "characterId": "cressida",
+      "homeRoomId": "sabine_chamber",
+      "roomId": "great_hall",
+      "awake": true,
+      "position": {
+        "x": 67,
+        "y": 25
+      }
+    },
+    {
+      "characterId": "abel",
+      "homeRoomId": "rook_chamber",
+      "roomId": "great_hall",
+      "awake": true,
+      "position": {
+        "x": 67,
+        "y": 28
+      }
+    },
+    {
+      "characterId": "player",
+      "homeRoomId": "guest_chamber",
+      "roomId": "great_hall",
+      "awake": true,
+      "position": {
+        "x": 62,
+        "y": 30
+      }
+    }
+  ],
+  "phase": "GAME_PHASE_CONVERSATIONS",
+  "doors": [
+    {
+      "id": "corvin_door",
+      "name": "Corvin's door",
+      "tiles": [
+        {
+          "x": 51,
+          "y": 9
+        },
+        {
+          "x": 52,
+          "y": 9
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 51,
+          "y": 10
+        },
+        {
+          "x": 51,
+          "y": 8
+        }
+      ],
+      "roomIds": [
+        "north_corridor",
+        "corvin_chamber"
+      ]
+    },
+    {
+      "id": "royal_door",
+      "name": "Royal door",
+      "tiles": [
+        {
+          "x": 61,
+          "y": 9
+        },
+        {
+          "x": 62,
+          "y": 9
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 61,
+          "y": 10
+        },
+        {
+          "x": 61,
+          "y": 8
+        }
+      ],
+      "roomIds": [
+        "north_corridor",
+        "royal_bedchamber"
+      ]
+    },
+    {
+      "id": "garran_door",
+      "name": "Holt's door",
+      "tiles": [
+        {
+          "x": 71,
+          "y": 9
+        },
+        {
+          "x": 72,
+          "y": 9
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 71,
+          "y": 10
+        },
+        {
+          "x": 71,
+          "y": 8
+        }
+      ],
+      "roomIds": [
+        "north_corridor",
+        "garran_chamber"
+      ]
+    },
+    {
+      "id": "hall_door",
+      "name": "Royal quarters door",
+      "tiles": [
+        {
+          "x": 51,
+          "y": 15
+        },
+        {
+          "x": 52,
+          "y": 15
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 51,
+          "y": 16
+        },
+        {
+          "x": 51,
+          "y": 14
+        }
+      ],
+      "roomIds": [
+        "royal_council_chamber",
+        "north_corridor"
+      ]
+    },
+    {
+      "id": "royal_council_door",
+      "name": "Royal Council Chamber door",
+      "tiles": [
+        {
+          "x": 54,
+          "y": 18
+        },
+        {
+          "x": 54,
+          "y": 19
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 53,
+          "y": 18
+        },
+        {
+          "x": 55,
+          "y": 18
+        }
+      ],
+      "roomIds": [
+        "royal_council_chamber",
+        "great_hall"
+      ],
+      "open": true
+    },
+    {
+      "id": "entrance_door",
+      "name": "Entrance Hall door",
+      "tiles": [
+        {
+          "x": 61,
+          "y": 31
+        },
+        {
+          "x": 62,
+          "y": 31
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 61,
+          "y": 32
+        },
+        {
+          "x": 61,
+          "y": 30
+        }
+      ],
+      "roomIds": [
+        "entrance_hall",
+        "great_hall"
+      ],
+      "open": true
+    },
+    {
+      "id": "guest_door",
+      "name": "Parlour door",
+      "tiles": [
+        {
+          "x": 54,
+          "y": 25
+        },
+        {
+          "x": 54,
+          "y": 26
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 53,
+          "y": 25
+        },
+        {
+          "x": 55,
+          "y": 25
+        }
+      ],
+      "roomIds": [
+        "guest_chamber",
+        "great_hall"
+      ]
+    },
+    {
+      "id": "treasury_door",
+      "name": "Treasury door",
+      "tiles": [
+        {
+          "x": 69,
+          "y": 22
+        },
+        {
+          "x": 69,
+          "y": 23
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 68,
+          "y": 22
+        },
+        {
+          "x": 70,
+          "y": 22
+        }
+      ],
+      "roomIds": [
+        "great_hall",
+        "treasury"
+      ]
+    },
+    {
+      "id": "ironmark_salon_door",
+      "name": "Ironmark Salon door",
+      "tiles": [
+        {
+          "x": 42,
+          "y": 13
+        },
+        {
+          "x": 42,
+          "y": 14
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 43,
+          "y": 13
+        },
+        {
+          "x": 41,
+          "y": 13
+        }
+      ],
+      "roomIds": [
+        "west_wing",
+        "ironmark_salon"
+      ],
+      "open": true
+    },
+    {
+      "id": "ironmark_quarters_door",
+      "name": "Ironmark quarters door",
+      "tiles": [
+        {
+          "x": 31,
+          "y": 13
+        },
+        {
+          "x": 31,
+          "y": 14
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 32,
+          "y": 13
+        },
+        {
+          "x": 30,
+          "y": 13
+        }
+      ],
+      "roomIds": [
+        "ironmark_salon",
+        "ironmark_back_hall"
+      ]
+    },
+    {
+      "id": "mara_door",
+      "name": "Gurt's door",
+      "tiles": [
+        {
+          "x": 25,
+          "y": 11
+        },
+        {
+          "x": 24,
+          "y": 11
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 25,
+          "y": 10
+        },
+        {
+          "x": 25,
+          "y": 12
+        }
+      ],
+      "roomIds": [
+        "mara_chamber",
+        "ironmark_back_hall"
+      ]
+    },
+    {
+      "id": "hadrik_door",
+      "name": "Klog's door",
+      "tiles": [
+        {
+          "x": 15,
+          "y": 11
+        },
+        {
+          "x": 14,
+          "y": 11
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 15,
+          "y": 10
+        },
+        {
+          "x": 15,
+          "y": 12
+        }
+      ],
+      "roomIds": [
+        "hadrik_chamber",
+        "ironmark_back_hall"
+      ]
+    },
+    {
+      "id": "tessa_door",
+      "name": "Bran's door",
+      "tiles": [
+        {
+          "x": 5,
+          "y": 11
+        },
+        {
+          "x": 4,
+          "y": 11
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 5,
+          "y": 10
+        },
+        {
+          "x": 5,
+          "y": 12
+        }
+      ],
+      "roomIds": [
+        "tessa_chamber",
+        "ironmark_back_hall"
+      ]
+    },
+    {
+      "id": "greenweald_solar_door",
+      "name": "Greenweald Solar door",
+      "tiles": [
+        {
+          "x": 42,
+          "y": 28
+        },
+        {
+          "x": 42,
+          "y": 29
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 43,
+          "y": 28
+        },
+        {
+          "x": 41,
+          "y": 28
+        }
+      ],
+      "roomIds": [
+        "west_wing",
+        "greenweald_solar"
+      ],
+      "open": true
+    },
+    {
+      "id": "greenweald_quarters_door",
+      "name": "Greenweald quarters door",
+      "tiles": [
+        {
+          "x": 31,
+          "y": 28
+        },
+        {
+          "x": 31,
+          "y": 29
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 32,
+          "y": 28
+        },
+        {
+          "x": 30,
+          "y": 28
+        }
+      ],
+      "roomIds": [
+        "greenweald_solar",
+        "greenweald_back_hall"
+      ]
+    },
+    {
+      "id": "elinor_door",
+      "name": "Elinor's door",
+      "tiles": [
+        {
+          "x": 25,
+          "y": 26
+        },
+        {
+          "x": 24,
+          "y": 26
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 25,
+          "y": 25
+        },
+        {
+          "x": 25,
+          "y": 27
+        }
+      ],
+      "roomIds": [
+        "elinor_chamber",
+        "greenweald_back_hall"
+      ]
+    },
+    {
+      "id": "oswin_door",
+      "name": "Oswin's door",
+      "tiles": [
+        {
+          "x": 15,
+          "y": 26
+        },
+        {
+          "x": 14,
+          "y": 26
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 15,
+          "y": 25
+        },
+        {
+          "x": 15,
+          "y": 27
+        }
+      ],
+      "roomIds": [
+        "oswin_chamber",
+        "greenweald_back_hall"
+      ]
+    },
+    {
+      "id": "rowan_door",
+      "name": "Rowan's door",
+      "tiles": [
+        {
+          "x": 5,
+          "y": 26
+        },
+        {
+          "x": 4,
+          "y": 26
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 5,
+          "y": 25
+        },
+        {
+          "x": 5,
+          "y": 27
+        }
+      ],
+      "roomIds": [
+        "rowan_chamber",
+        "greenweald_back_hall"
+      ]
+    },
+    {
+      "id": "saltmere_drawing_room_door",
+      "name": "Saltmere Drawing Room door",
+      "tiles": [
+        {
+          "x": 81,
+          "y": 13
+        },
+        {
+          "x": 81,
+          "y": 14
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 80,
+          "y": 13
+        },
+        {
+          "x": 82,
+          "y": 13
+        }
+      ],
+      "roomIds": [
+        "palace_back_hall",
+        "saltmere_drawing_room"
+      ],
+      "open": true
+    },
+    {
+      "id": "saltmere_quarters_door",
+      "name": "Saltmere quarters door",
+      "tiles": [
+        {
+          "x": 92,
+          "y": 13
+        },
+        {
+          "x": 92,
+          "y": 14
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 91,
+          "y": 13
+        },
+        {
+          "x": 93,
+          "y": 13
+        }
+      ],
+      "roomIds": [
+        "saltmere_drawing_room",
+        "saltmere_back_hall"
+      ]
+    },
+    {
+      "id": "lucan_door",
+      "name": "Peregrine's door",
+      "tiles": [
+        {
+          "x": 98,
+          "y": 11
+        },
+        {
+          "x": 99,
+          "y": 11
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 98,
+          "y": 10
+        },
+        {
+          "x": 98,
+          "y": 12
+        }
+      ],
+      "roomIds": [
+        "lucan_chamber",
+        "saltmere_back_hall"
+      ]
+    },
+    {
+      "id": "sabine_door",
+      "name": "Cressida's door",
+      "tiles": [
+        {
+          "x": 108,
+          "y": 11
+        },
+        {
+          "x": 109,
+          "y": 11
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 108,
+          "y": 10
+        },
+        {
+          "x": 108,
+          "y": 12
+        }
+      ],
+      "roomIds": [
+        "sabine_chamber",
+        "saltmere_back_hall"
+      ]
+    },
+    {
+      "id": "rook_door",
+      "name": "Abel's door",
+      "tiles": [
+        {
+          "x": 118,
+          "y": 11
+        },
+        {
+          "x": 119,
+          "y": 11
+        }
+      ],
+      "interactionSpots": [
+        {
+          "x": 118,
+          "y": 10
+        },
+        {
+          "x": 118,
+          "y": 12
+        }
+      ],
+      "roomIds": [
+        "rook_chamber",
+        "saltmere_back_hall"
+      ]
+    }
+  ],
+  "fixtures": [
+    {
+      "id": "palace_corvin_drawers",
+      "name": "Corvin's chest of drawers",
+      "roomId": "corvin_chamber",
+      "position": {
+        "x": 52,
+        "y": 4
+      },
+      "interactionSpot": {
+        "x": 52,
+        "y": 5
+      },
+      "sprite": 75,
+      "container": true,
+      "searchedBy": [
+        "corvin"
+      ],
+      "ownerCharacterId": "corvin",
+      "inventory": {
+        "items": [
+          {
+            "id": "palace_royal_key",
+            "name": "Royal lockbox key",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "palace_coffer_03",
+      "name": "Carved wooden coffer",
+      "roomId": "royal_bedchamber",
+      "position": {
+        "x": 63,
+        "y": 4
+      },
+      "interactionSpot": {
+        "x": 63,
+        "y": 5
+      },
+      "sprite": 90,
+      "container": true,
+      "requiredKeyId": "palace_royal_key",
+      "revealedName": "King's lockbox",
+      "examinedBy": [
+        "holt"
+      ],
+      "searchedBy": [
+        "holt"
+      ],
+      "ownerCharacterId": "aldren",
+      "inventory": {
+        "items": [
+          {
+            "id": "palace_royal_seal",
+            "name": "Royal signet seal",
+            "details": "Aldren's official signet. Corvin can authenticate its impression on royal orders; possession alone does not prove who used it.",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "palace_sealed_decree",
+            "name": "Sealed patrol levy decree",
+            "details": "A decree bearing Aldren's seal directs the treasurer to move money from the Concord road levy into royal household and assembly accounts, while continuing to certify the full required patrol complement. It is strong evidence of knowing diversion if the seal and accounts are authenticated.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "palace_corvin_books",
+      "name": "Corvin's bookcase",
+      "roomId": "corvin_chamber",
+      "position": {
+        "x": 49,
+        "y": 3
+      },
+      "interactionSpot": {
+        "x": 50,
+        "y": 3
+      },
+      "sprite": 63,
+      "container": true,
+      "ownerCharacterId": "corvin",
+      "inventory": {
+        "items": [
+          {
+            "id": "palace_star_chart",
+            "name": "Star chart",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "palace_spell_notes",
+            "name": "Loose spell notes",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "corvin_concord_copy",
+            "name": "Annotated copy of Edric's Concord",
+            "details": "Corvin's annotations mark the road-protection levy and the forfeiture clause: a sovereign who knowingly certifies the required common patrols while diverting their protected funds must abdicate once the three mandated kingdoms authenticate the breach.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "palace_corvin_desk",
+      "name": "Writing desk",
+      "roomId": "corvin_chamber",
+      "position": {
+        "x": 49,
+        "y": 6
+      },
+      "interactionSpot": {
+        "x": 49,
+        "y": 5
+      },
+      "sprite": 72,
+      "container": true,
+      "ownerCharacterId": "corvin",
+      "inventory": {
+        "items": [
+          {
+            "id": "palace_quill",
+            "name": "Silver quill",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "palace_blue_ink",
+            "name": "Bottle of blue ink",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "palace_corvin_stool",
+      "name": "Desk stool",
+      "roomId": "corvin_chamber",
+      "position": {
+        "x": 50,
+        "y": 6
+      },
+      "sprite": 73,
+      "ownerCharacterId": "corvin"
+    },
+    {
+      "id": "palace_royal_cabinet",
+      "name": "Wardrobe",
+      "roomId": "royal_bedchamber",
+      "position": {
+        "x": 64,
+        "y": 3
+      },
+      "interactionSpot": {
+        "x": 64,
+        "y": 4
+      },
+      "sprite": 75,
+      "container": true,
+      "ownerCharacterId": "aldren",
+      "inventory": {
+        "items": [
+          {
+            "id": "palace_velvet_gloves",
+            "name": "Velvet gloves",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "palace_silk_sash",
+            "name": "Silk sash",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "palace_royal_table",
+      "name": "Royal table",
+      "roomId": "royal_bedchamber",
+      "position": {
+        "x": 59,
+        "y": 6
+      },
+      "sprite": 72,
+      "ownerCharacterId": "aldren"
+    },
+    {
+      "id": "palace_royal_stool",
+      "name": "Royal stool",
+      "roomId": "royal_bedchamber",
+      "position": {
+        "x": 60,
+        "y": 6
+      },
+      "sprite": 73,
+      "ownerCharacterId": "aldren"
+    },
+    {
+      "id": "palace_garran_books",
+      "name": "Holt's bookcase",
+      "roomId": "garran_chamber",
+      "position": {
+        "x": 70,
+        "y": 3
+      },
+      "interactionSpot": {
+        "x": 71,
+        "y": 3
+      },
+      "sprite": 63,
+      "container": true,
+      "ownerCharacterId": "holt",
+      "inventory": {
+        "items": [
+          {
+            "id": "palace_drill_manual",
+            "name": "Sword drill manual",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "palace_old_letter",
+            "name": "Old letter",
+            "details": "A cautious letter from Aldren thanks Holt for keeping Tomas Vey's home in Dunmere out of court gossip. It shows Holt knows the king's illegitimate adult son, but says nothing about the patrol levy.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "palace_garran_table",
+      "name": "Holt's desk",
+      "roomId": "garran_chamber",
+      "position": {
+        "x": 73,
+        "y": 6
+      },
+      "interactionSpot": {
+        "x": 73,
+        "y": 5
+      },
+      "sprite": 72,
+      "container": true,
+      "ownerCharacterId": "holt",
+      "inventory": {
+        "items": [
+          {
+            "id": "palace_patrol_roster",
+            "name": "Royal road patrol roster",
+            "details": "The household guard's working roster lists substantially fewer staffed road patrols than the crown's published Concord return. Holt's corrections and casualty notes show the shortfall is current, not a clerical relic.",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "palace_whetstone",
+            "name": "Whetstone",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "palace_leather_strap",
+            "name": "Leather strap",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "palace_garran_stool",
+      "name": "Holt's stool",
+      "roomId": "garran_chamber",
+      "position": {
+        "x": 72,
+        "y": 6
+      },
+      "sprite": 73,
+      "ownerCharacterId": "holt"
+    },
+    {
+      "id": "palace_guest_table",
+      "name": "Parlour table",
+      "roomId": "guest_chamber",
+      "position": {
+        "x": 49,
+        "y": 25
+      },
+      "sprite": 72,
+      "ownerCharacterId": "player"
+    },
+    {
+      "id": "palace_guest_stool",
+      "name": "Parlour stool",
+      "roomId": "guest_chamber",
+      "position": {
+        "x": 50,
+        "y": 25
+      },
+      "sprite": 73,
+      "ownerCharacterId": "player"
+    },
+    {
+      "id": "palace_guest_cabinet",
+      "name": "Parlour cabinet",
+      "roomId": "guest_chamber",
+      "position": {
+        "x": 52,
+        "y": 31
+      },
+      "interactionSpot": {
+        "x": 51,
+        "y": 31
+      },
+      "sprite": 75,
+      "container": true,
+      "ownerCharacterId": "player",
+      "inventory": {
+        "items": [
+          {
+            "id": "palace_brass_key",
+            "name": "Small brass key",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "palace_travel_cloak",
+            "name": "Travel cloak",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "palace_parlour_wine",
+            "name": "Dusty Caerwyn wine",
+            "details": "A strong old red and two travelling cups. Sharing it may support a private drinking scene in the Nobles' Parlour, but alcohol never compels disclosure or agreement.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "palace_treasury_barrel",
+      "name": "West storage barrel",
+      "roomId": "treasury",
+      "position": {
+        "x": 71,
+        "y": 21
+      },
+      "interactionSpot": {
+        "x": 72,
+        "y": 21
+      },
+      "sprite": 82,
+      "container": true,
+      "ownerCharacterId": "aldren",
+      "inventory": {
+        "items": [
+          {
+            "id": "palace_copper_coins",
+            "name": "Pouch of copper coins",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "palace_tally_sticks",
+            "name": "Bundle of tally sticks",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "palace_treasury_barrel_2",
+      "name": "East storage barrel",
+      "roomId": "treasury",
+      "position": {
+        "x": 74,
+        "y": 27
+      },
+      "interactionSpot": {
+        "x": 73,
+        "y": 27
+      },
+      "sprite": 82,
+      "container": true,
+      "ownerCharacterId": "aldren"
+    },
+    {
+      "id": "palace_treasury_shelf",
+      "name": "Treasury shelves",
+      "roomId": "treasury",
+      "position": {
+        "x": 75,
+        "y": 22
+      },
+      "interactionSpot": {
+        "x": 74,
+        "y": 22
+      },
+      "sprite": 63,
+      "container": true,
+      "ownerCharacterId": "aldren",
+      "inventory": {
+        "items": [
+          {
+            "id": "palace_account_book",
+            "name": "Treasury account book",
+            "details": "The road levy is recorded as fully spent on patrols, but cross-references lead to royal household and assembly expense folios. The book proves a discrepancy, not by itself who ordered it.",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "palace_wax_sticks",
+            "name": "Sealing wax sticks",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "palace_hall_table_west",
+      "name": "Hall table",
+      "roomId": "great_hall",
+      "position": {
+        "x": 58,
+        "y": 18
+      },
+      "sprite": 72,
+      "ownerCharacterId": "aldren"
+    },
+    {
+      "id": "palace_hall_stool_west",
+      "name": "Hall stool",
+      "roomId": "great_hall",
+      "position": {
+        "x": 58,
+        "y": 19
+      },
+      "sprite": 73,
+      "ownerCharacterId": "aldren"
+    },
+    {
+      "id": "palace_hall_table_east",
+      "name": "Hall table",
+      "roomId": "great_hall",
+      "position": {
+        "x": 65,
+        "y": 18
+      },
+      "sprite": 72,
+      "ownerCharacterId": "aldren"
+    },
+    {
+      "id": "palace_hall_stool_east",
+      "name": "Hall stool",
+      "roomId": "great_hall",
+      "position": {
+        "x": 65,
+        "y": 19
+      },
+      "sprite": 73,
+      "ownerCharacterId": "aldren"
+    },
+    {
+      "id": "palace_entrance_table",
+      "name": "Entrance table",
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 58,
+        "y": 34
+      },
+      "sprite": 72,
+      "ownerCharacterId": "aldren"
+    },
+    {
+      "id": "palace_hall_cabinet",
+      "name": "Hall sideboard",
+      "roomId": "great_hall",
+      "position": {
+        "x": 66,
+        "y": 22
+      },
+      "interactionSpot": {
+        "x": 66,
+        "y": 21
+      },
+      "sprite": 75,
+      "container": true,
+      "ownerCharacterId": "aldren",
+      "inventory": {
+        "items": [
+          {
+            "id": "palace_iron_key",
+            "name": "Iron storeroom key",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "palace_silver_spoon",
+            "name": "Silver spoon",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "palace_coffer_01",
+      "name": "Iron-banded coffer",
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 59,
+        "y": 36
+      },
+      "interactionSpot": {
+        "x": 59,
+        "y": 35
+      },
+      "sprite": 90,
+      "container": true,
+      "requiredKeyId": "palace_iron_key",
+      "revealedName": "Gatekeeper's strongbox",
+      "ownerCharacterId": "aldren",
+      "inventory": {
+        "items": [
+          {
+            "id": "palace_gate_ledger",
+            "name": "Gatekeeper's ledger",
+            "details": "Dates, caravan arrivals and reported attacks can be compared with Cressida's commercial tallies. The pattern shows attacks rising while fewer royal patrols enter or leave the capital.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "palace_coffer_02",
+      "name": "Polished wooden coffer",
+      "roomId": "royal_bedchamber",
+      "position": {
+        "x": 60,
+        "y": 3
+      },
+      "interactionSpot": {
+        "x": 60,
+        "y": 4
+      },
+      "sprite": 90,
+      "container": true,
+      "requiredKeyId": "palace_brass_key",
+      "revealedName": "Jewellery box",
+      "ownerCharacterId": "aldren",
+      "inventory": {
+        "items": [
+          {
+            "id": "palace_pearl_brooch",
+            "name": "Pearl brooch",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "palace_ribbon",
+            "name": "Blue ribbon",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "palace_entrance_table_2",
+      "name": "Entrance table",
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 64,
+        "y": 34
+      },
+      "sprite": 72,
+      "ownerCharacterId": "aldren"
+    },
+    {
+      "id": "furn_cart_left",
+      "name": "Wedged self-guiding cart \u2014 chassis",
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 61,
+        "y": 37
+      },
+      "interactionSpot": {
+        "x": 60,
+        "y": 37
+      },
+      "sprite": 72,
+      "ownerCharacterId": "rowan"
+    },
+    {
+      "id": "furn_cart_right",
+      "name": "Wedged self-guiding cart \u2014 gift tree",
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 62,
+        "y": 37
+      },
+      "interactionSpot": {
+        "x": 63,
+        "y": 37
+      },
+      "sprite": 72,
+      "ownerCharacterId": "rowan"
+    },
+    {
+      "id": "furn_delivery_cushions",
+      "name": "Aldren's delayed cushion delivery",
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 62,
+        "y": 40
+      },
+      "interactionSpot": {
+        "x": 62,
+        "y": 41
+      },
+      "sprite": 75,
+      "container": true,
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_assembly_cushions",
+            "name": "Assembly seat cushions",
+            "details": "The cushions ordered for the assembly guests, still waiting outside the blocked entrance.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_delivery_supplies",
+      "name": "Queued household supplies",
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 61,
+        "y": 42
+      },
+      "interactionSpot": {
+        "x": 61,
+        "y": 43
+      },
+      "sprite": 75,
+      "container": true,
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_delivery_linen",
+            "name": "Folded table linen",
+            "details": "Clean linen awaiting delivery to the hall.",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "furn_delivery_crockery",
+            "name": "Packed crockery",
+            "details": "Household serving dishes packed for carrying into the palace.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_mara_bed_head",
+      "name": "Gurt's bed \u2014 pillow",
+      "roomId": "mara_chamber",
+      "position": {
+        "x": 21,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 21,
+        "y": 6
+      },
+      "sprite": 79,
+      "ownerCharacterId": "gurt"
+    },
+    {
+      "id": "furn_mara_bed_foot",
+      "name": "Gurt's bed \u2014 blanket",
+      "roomId": "mara_chamber",
+      "position": {
+        "x": 22,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 22,
+        "y": 6
+      },
+      "sprite": 80,
+      "ownerCharacterId": "gurt"
+    },
+    {
+      "id": "furn_mara_wardrobe",
+      "name": "Gurt's travel wardrobe",
+      "roomId": "mara_chamber",
+      "position": {
+        "x": 27,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 27,
+        "y": 6
+      },
+      "sprite": 75,
+      "container": true,
+      "ownerCharacterId": "gurt",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_mara_clothing",
+            "name": "Ironmark dress uniform",
+            "details": "A carefully folded formal uniform for the centennial assembly.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_mara_desk",
+      "name": "Gurt's writing table",
+      "roomId": "mara_chamber",
+      "position": {
+        "x": 21,
+        "y": 8
+      },
+      "interactionSpot": {
+        "x": 21,
+        "y": 9
+      },
+      "sprite": 72,
+      "container": true,
+      "ownerCharacterId": "gurt",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_mara_personal",
+            "name": "Draft assembly address",
+            "details": "Gurt's notes argue for lawful succession and disciplined conduct.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_mara_stool",
+      "name": "Gurt's desk stool",
+      "roomId": "mara_chamber",
+      "position": {
+        "x": 22,
+        "y": 8
+      },
+      "interactionSpot": {
+        "x": 22,
+        "y": 9
+      },
+      "sprite": 73,
+      "ownerCharacterId": "gurt"
+    },
+    {
+      "id": "furn_hadrik_bed_head",
+      "name": "Klog's bed \u2014 pillow",
+      "roomId": "hadrik_chamber",
+      "position": {
+        "x": 11,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 11,
+        "y": 6
+      },
+      "sprite": 79,
+      "ownerCharacterId": "klog"
+    },
+    {
+      "id": "furn_hadrik_bed_foot",
+      "name": "Klog's bed \u2014 blanket",
+      "roomId": "hadrik_chamber",
+      "position": {
+        "x": 12,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 12,
+        "y": 6
+      },
+      "sprite": 80,
+      "ownerCharacterId": "klog"
+    },
+    {
+      "id": "furn_hadrik_wardrobe",
+      "name": "Klog's travel wardrobe",
+      "roomId": "hadrik_chamber",
+      "position": {
+        "x": 17,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 17,
+        "y": 6
+      },
+      "sprite": 75,
+      "container": true,
+      "ownerCharacterId": "klog",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_hadrik_clothing",
+            "name": "Campaign cloak",
+            "details": "A wool cloak patched after many wet nights on campaign.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_hadrik_desk",
+      "name": "Klog's writing table",
+      "roomId": "hadrik_chamber",
+      "position": {
+        "x": 11,
+        "y": 8
+      },
+      "interactionSpot": {
+        "x": 11,
+        "y": 9
+      },
+      "sprite": 72,
+      "container": true,
+      "ownerCharacterId": "klog",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_hadrik_personal",
+            "name": "Campaign chess pieces",
+            "details": "A travel set with more replacement pawns than originals.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_hadrik_stool",
+      "name": "Klog's desk stool",
+      "roomId": "hadrik_chamber",
+      "position": {
+        "x": 12,
+        "y": 8
+      },
+      "interactionSpot": {
+        "x": 12,
+        "y": 9
+      },
+      "sprite": 73,
+      "ownerCharacterId": "klog"
+    },
+    {
+      "id": "furn_tessa_bed_head",
+      "name": "Bran's bed \u2014 pillow",
+      "roomId": "tessa_chamber",
+      "position": {
+        "x": 1,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 1,
+        "y": 6
+      },
+      "sprite": 79,
+      "ownerCharacterId": "bran"
+    },
+    {
+      "id": "furn_tessa_bed_foot",
+      "name": "Bran's bed \u2014 blanket",
+      "roomId": "tessa_chamber",
+      "position": {
+        "x": 2,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 2,
+        "y": 6
+      },
+      "sprite": 80,
+      "ownerCharacterId": "bran"
+    },
+    {
+      "id": "furn_tessa_wardrobe",
+      "name": "Bran's travel wardrobe",
+      "roomId": "tessa_chamber",
+      "position": {
+        "x": 7,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 7,
+        "y": 6
+      },
+      "sprite": 75,
+      "container": true,
+      "ownerCharacterId": "bran",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_tessa_clothing",
+            "name": "Riding gloves",
+            "details": "Practical gloves worn smooth at the reins.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_tessa_desk",
+      "name": "Bran's writing table",
+      "roomId": "tessa_chamber",
+      "position": {
+        "x": 1,
+        "y": 8
+      },
+      "interactionSpot": {
+        "x": 1,
+        "y": 9
+      },
+      "sprite": 72,
+      "container": true,
+      "ownerCharacterId": "bran",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_tessa_personal",
+            "name": "Route sketchbook",
+            "details": "Personal sketches of milestones and stopping places, with no confidential patrol figures.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_tessa_stool",
+      "name": "Bran's desk stool",
+      "roomId": "tessa_chamber",
+      "position": {
+        "x": 2,
+        "y": 8
+      },
+      "interactionSpot": {
+        "x": 2,
+        "y": 9
+      },
+      "sprite": 73,
+      "ownerCharacterId": "bran"
+    },
+    {
+      "id": "furn_elinor_bed_head",
+      "name": "Elinor's bed \u2014 pillow",
+      "roomId": "elinor_chamber",
+      "position": {
+        "x": 21,
+        "y": 20
+      },
+      "interactionSpot": {
+        "x": 21,
+        "y": 21
+      },
+      "sprite": 79,
+      "ownerCharacterId": "elinor"
+    },
+    {
+      "id": "furn_elinor_bed_foot",
+      "name": "Elinor's bed \u2014 blanket",
+      "roomId": "elinor_chamber",
+      "position": {
+        "x": 22,
+        "y": 20
+      },
+      "interactionSpot": {
+        "x": 22,
+        "y": 21
+      },
+      "sprite": 80,
+      "ownerCharacterId": "elinor"
+    },
+    {
+      "id": "furn_elinor_wardrobe",
+      "name": "Elinor's travel wardrobe",
+      "roomId": "elinor_chamber",
+      "position": {
+        "x": 27,
+        "y": 20
+      },
+      "interactionSpot": {
+        "x": 27,
+        "y": 21
+      },
+      "sprite": 75,
+      "container": true,
+      "ownerCharacterId": "elinor",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_elinor_clothing",
+            "name": "Embroidered shawl",
+            "details": "A Greenweald shawl patterned with oak leaves.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_elinor_desk",
+      "name": "Elinor's writing table",
+      "roomId": "elinor_chamber",
+      "position": {
+        "x": 21,
+        "y": 23
+      },
+      "interactionSpot": {
+        "x": 21,
+        "y": 24
+      },
+      "sprite": 72,
+      "container": true,
+      "ownerCharacterId": "elinor",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_elinor_personal",
+            "name": "Assembly seating notes",
+            "details": "Draft notes balance rank, courtesy and rival delegations.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_elinor_stool",
+      "name": "Elinor's desk stool",
+      "roomId": "elinor_chamber",
+      "position": {
+        "x": 22,
+        "y": 23
+      },
+      "interactionSpot": {
+        "x": 22,
+        "y": 24
+      },
+      "sprite": 73,
+      "ownerCharacterId": "elinor"
+    },
+    {
+      "id": "furn_oswin_bed_head",
+      "name": "Oswin's bed \u2014 pillow",
+      "roomId": "oswin_chamber",
+      "position": {
+        "x": 11,
+        "y": 20
+      },
+      "interactionSpot": {
+        "x": 11,
+        "y": 21
+      },
+      "sprite": 79,
+      "ownerCharacterId": "oswin"
+    },
+    {
+      "id": "furn_oswin_bed_foot",
+      "name": "Oswin's bed \u2014 blanket",
+      "roomId": "oswin_chamber",
+      "position": {
+        "x": 12,
+        "y": 20
+      },
+      "interactionSpot": {
+        "x": 12,
+        "y": 21
+      },
+      "sprite": 80,
+      "ownerCharacterId": "oswin"
+    },
+    {
+      "id": "furn_oswin_wardrobe",
+      "name": "Oswin's travel wardrobe",
+      "roomId": "oswin_chamber",
+      "position": {
+        "x": 17,
+        "y": 20
+      },
+      "interactionSpot": {
+        "x": 17,
+        "y": 21
+      },
+      "sprite": 75,
+      "container": true,
+      "ownerCharacterId": "oswin",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_oswin_clothing",
+            "name": "Prayer beads",
+            "details": "Wooden beads polished by years of daily use.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_oswin_desk",
+      "name": "Oswin's writing table",
+      "roomId": "oswin_chamber",
+      "position": {
+        "x": 11,
+        "y": 23
+      },
+      "interactionSpot": {
+        "x": 11,
+        "y": 24
+      },
+      "sprite": 72,
+      "container": true,
+      "ownerCharacterId": "oswin",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_oswin_personal",
+            "name": "Book of stewardship",
+            "details": "Homilies about the duties rulers owe to those who cannot repay them.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_oswin_stool",
+      "name": "Oswin's desk stool",
+      "roomId": "oswin_chamber",
+      "position": {
+        "x": 12,
+        "y": 23
+      },
+      "interactionSpot": {
+        "x": 12,
+        "y": 24
+      },
+      "sprite": 73,
+      "ownerCharacterId": "oswin"
+    },
+    {
+      "id": "furn_rowan_bed_head",
+      "name": "Rowan's bed \u2014 pillow",
+      "roomId": "rowan_chamber",
+      "position": {
+        "x": 1,
+        "y": 20
+      },
+      "interactionSpot": {
+        "x": 1,
+        "y": 21
+      },
+      "sprite": 79,
+      "ownerCharacterId": "rowan"
+    },
+    {
+      "id": "furn_rowan_bed_foot",
+      "name": "Rowan's bed \u2014 blanket",
+      "roomId": "rowan_chamber",
+      "position": {
+        "x": 2,
+        "y": 20
+      },
+      "interactionSpot": {
+        "x": 2,
+        "y": 21
+      },
+      "sprite": 80,
+      "ownerCharacterId": "rowan"
+    },
+    {
+      "id": "furn_rowan_wardrobe",
+      "name": "Rowan's travel wardrobe",
+      "roomId": "rowan_chamber",
+      "position": {
+        "x": 7,
+        "y": 20
+      },
+      "interactionSpot": {
+        "x": 7,
+        "y": 21
+      },
+      "sprite": 75,
+      "container": true,
+      "ownerCharacterId": "rowan",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_rowan_clothing",
+            "name": "Trail cloak",
+            "details": "A travel cloak with burrs still caught along its hem.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_rowan_desk",
+      "name": "Rowan's writing table",
+      "roomId": "rowan_chamber",
+      "position": {
+        "x": 1,
+        "y": 23
+      },
+      "interactionSpot": {
+        "x": 1,
+        "y": 24
+      },
+      "sprite": 72,
+      "container": true,
+      "ownerCharacterId": "rowan",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_rowan_personal",
+            "name": "Pressed-leaf journal",
+            "details": "Leaves and brief recollections from the journey to Caerwyn.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_rowan_stool",
+      "name": "Rowan's desk stool",
+      "roomId": "rowan_chamber",
+      "position": {
+        "x": 2,
+        "y": 23
+      },
+      "interactionSpot": {
+        "x": 2,
+        "y": 24
+      },
+      "sprite": 73,
+      "ownerCharacterId": "rowan"
+    },
+    {
+      "id": "furn_lucan_bed_head",
+      "name": "Peregrine's bed \u2014 pillow",
+      "roomId": "lucan_chamber",
+      "position": {
+        "x": 96,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 96,
+        "y": 6
+      },
+      "sprite": 79,
+      "ownerCharacterId": "peregrine"
+    },
+    {
+      "id": "furn_lucan_bed_foot",
+      "name": "Peregrine's bed \u2014 blanket",
+      "roomId": "lucan_chamber",
+      "position": {
+        "x": 97,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 97,
+        "y": 6
+      },
+      "sprite": 80,
+      "ownerCharacterId": "peregrine"
+    },
+    {
+      "id": "furn_lucan_wardrobe",
+      "name": "Peregrine's travel wardrobe",
+      "roomId": "lucan_chamber",
+      "position": {
+        "x": 102,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 102,
+        "y": 6
+      },
+      "sprite": 75,
+      "container": true,
+      "ownerCharacterId": "peregrine",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_lucan_clothing",
+            "name": "Pearl cufflinks",
+            "details": "A matched pair chosen to impress at the assembly.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_lucan_desk",
+      "name": "Peregrine's writing table",
+      "roomId": "lucan_chamber",
+      "position": {
+        "x": 96,
+        "y": 8
+      },
+      "interactionSpot": {
+        "x": 96,
+        "y": 9
+      },
+      "sprite": 72,
+      "container": true,
+      "ownerCharacterId": "peregrine",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_lucan_personal",
+            "name": "Trade proposal drafts",
+            "details": "Negotiating positions for future tolls; these are proposals, not signed concessions.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_lucan_stool",
+      "name": "Peregrine's desk stool",
+      "roomId": "lucan_chamber",
+      "position": {
+        "x": 97,
+        "y": 8
+      },
+      "interactionSpot": {
+        "x": 97,
+        "y": 9
+      },
+      "sprite": 73,
+      "ownerCharacterId": "peregrine"
+    },
+    {
+      "id": "furn_sabine_bed_head",
+      "name": "Cressida's bed \u2014 pillow",
+      "roomId": "sabine_chamber",
+      "position": {
+        "x": 106,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 106,
+        "y": 6
+      },
+      "sprite": 79,
+      "ownerCharacterId": "cressida"
+    },
+    {
+      "id": "furn_sabine_bed_foot",
+      "name": "Cressida's bed \u2014 blanket",
+      "roomId": "sabine_chamber",
+      "position": {
+        "x": 107,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 107,
+        "y": 6
+      },
+      "sprite": 80,
+      "ownerCharacterId": "cressida"
+    },
+    {
+      "id": "furn_sabine_wardrobe",
+      "name": "Cressida's travel wardrobe",
+      "roomId": "sabine_chamber",
+      "position": {
+        "x": 112,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 112,
+        "y": 6
+      },
+      "sprite": 75,
+      "container": true,
+      "ownerCharacterId": "cressida",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_sabine_clothing",
+            "name": "Merchant's travel coat",
+            "details": "A hard-wearing coat with neatly repaired pockets.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_sabine_desk",
+      "name": "Cressida's writing table",
+      "roomId": "sabine_chamber",
+      "position": {
+        "x": 106,
+        "y": 8
+      },
+      "interactionSpot": {
+        "x": 106,
+        "y": 9
+      },
+      "sprite": 72,
+      "container": true,
+      "ownerCharacterId": "cressida",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_sabine_personal",
+            "name": "Abacus",
+            "details": "A small counting frame used to check ordinary household expenses.",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "furn_sabine_dispatch_ledger",
+            "name": "Saltmere dispatch ledger",
+            "details": "Cressida's private register lists Saltmere caravan bookings, gates and escort arrangements. Tomorrow's west-gate departures contain no Grey Gull booking, escorted or otherwise. This register cannot establish whether an unregistered caravan exists. Marginal notes cross-reference rising losses with fewer royal patrol sightings; they do not give official patrol headcounts.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_sabine_stool",
+      "name": "Cressida's desk stool",
+      "roomId": "sabine_chamber",
+      "position": {
+        "x": 107,
+        "y": 8
+      },
+      "interactionSpot": {
+        "x": 107,
+        "y": 9
+      },
+      "sprite": 73,
+      "ownerCharacterId": "cressida"
+    },
+    {
+      "id": "furn_rook_bed_head",
+      "name": "Abel's bed \u2014 pillow",
+      "roomId": "rook_chamber",
+      "position": {
+        "x": 116,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 116,
+        "y": 6
+      },
+      "sprite": 79,
+      "ownerCharacterId": "abel"
+    },
+    {
+      "id": "furn_rook_bed_foot",
+      "name": "Abel's bed \u2014 blanket",
+      "roomId": "rook_chamber",
+      "position": {
+        "x": 117,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 117,
+        "y": 6
+      },
+      "sprite": 80,
+      "ownerCharacterId": "abel"
+    },
+    {
+      "id": "furn_rook_wardrobe",
+      "name": "Abel's travel wardrobe",
+      "roomId": "rook_chamber",
+      "position": {
+        "x": 122,
+        "y": 5
+      },
+      "interactionSpot": {
+        "x": 122,
+        "y": 6
+      },
+      "sprite": 75,
+      "container": true,
+      "ownerCharacterId": "abel",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_rook_clothing",
+            "name": "Weathered satchel",
+            "details": "An empty courier's satchel, cleaned for the palace visit.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_rook_desk",
+      "name": "Abel's writing table",
+      "roomId": "rook_chamber",
+      "position": {
+        "x": 116,
+        "y": 8
+      },
+      "interactionSpot": {
+        "x": 116,
+        "y": 9
+      },
+      "sprite": 72,
+      "container": true,
+      "ownerCharacterId": "abel",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_rook_personal",
+            "name": "Dice cup",
+            "details": "A leather cup and ordinary bone dice; none appears weighted.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_rook_stool",
+      "name": "Abel's desk stool",
+      "roomId": "rook_chamber",
+      "position": {
+        "x": 117,
+        "y": 8
+      },
+      "interactionSpot": {
+        "x": 117,
+        "y": 9
+      },
+      "sprite": 73,
+      "ownerCharacterId": "abel"
+    },
+    {
+      "id": "furn_corvin_bed_head",
+      "name": "Corvin's bed \u2014 pillow",
+      "roomId": "corvin_chamber",
+      "position": {
+        "x": 52,
+        "y": 6
+      },
+      "interactionSpot": {
+        "x": 52,
+        "y": 7
+      },
+      "sprite": 79,
+      "ownerCharacterId": "corvin"
+    },
+    {
+      "id": "furn_corvin_bed_foot",
+      "name": "Corvin's bed \u2014 blanket",
+      "roomId": "corvin_chamber",
+      "position": {
+        "x": 53,
+        "y": 6
+      },
+      "interactionSpot": {
+        "x": 53,
+        "y": 7
+      },
+      "sprite": 80,
+      "ownerCharacterId": "corvin"
+    },
+    {
+      "id": "furn_garran_bed_head",
+      "name": "Holt's bed \u2014 pillow",
+      "roomId": "garran_chamber",
+      "position": {
+        "x": 73,
+        "y": 3
+      },
+      "interactionSpot": {
+        "x": 73,
+        "y": 4
+      },
+      "sprite": 79,
+      "ownerCharacterId": "holt"
+    },
+    {
+      "id": "furn_garran_bed_foot",
+      "name": "Holt's bed \u2014 blanket",
+      "roomId": "garran_chamber",
+      "position": {
+        "x": 74,
+        "y": 3
+      },
+      "interactionSpot": {
+        "x": 74,
+        "y": 4
+      },
+      "sprite": 80,
+      "ownerCharacterId": "holt"
+    },
+    {
+      "id": "furn_king_bed_head",
+      "name": "Aldren's bed \u2014 pillow",
+      "roomId": "royal_bedchamber",
+      "position": {
+        "x": 63,
+        "y": 6
+      },
+      "interactionSpot": {
+        "x": 63,
+        "y": 7
+      },
+      "sprite": 79,
+      "ownerCharacterId": "aldren"
+    },
+    {
+      "id": "furn_king_bed_foot",
+      "name": "Aldren's bed \u2014 blanket",
+      "roomId": "royal_bedchamber",
+      "position": {
+        "x": 64,
+        "y": 6
+      },
+      "interactionSpot": {
+        "x": 64,
+        "y": 7
+      },
+      "sprite": 80,
+      "ownerCharacterId": "aldren"
+    },
+    {
+      "id": "furn_ironmark_table",
+      "name": "Campaign table",
+      "roomId": "ironmark_salon",
+      "position": {
+        "x": 35,
+        "y": 10
+      },
+      "interactionSpot": {
+        "x": 35,
+        "y": 11
+      },
+      "sprite": 72,
+      "container": true,
+      "ownerCharacterId": "gurt",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_ironmark_table_item",
+            "name": "Campaign map",
+            "details": "An old training map with wooden markers, not a record of current royal patrols.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_ironmark_seat",
+      "name": "Guest stool",
+      "roomId": "ironmark_salon",
+      "position": {
+        "x": 34,
+        "y": 10
+      },
+      "interactionSpot": {
+        "x": 34,
+        "y": 11
+      },
+      "sprite": 73
+    },
+    {
+      "id": "furn_ironmark_sideboard",
+      "name": "Hospitality sideboard",
+      "roomId": "ironmark_salon",
+      "position": {
+        "x": 39,
+        "y": 7
+      },
+      "interactionSpot": {
+        "x": 39,
+        "y": 8
+      },
+      "sprite": 75,
+      "container": true,
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_ironmark_cups",
+            "name": "Guest cups",
+            "details": "Clean cups set aside for visitors to this delegation.",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "furn_ironmark_biscuits",
+            "name": "Oat biscuits",
+            "details": "A small tin of biscuits for receiving guests.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_ironmark_books",
+      "name": "Delegation bookcase",
+      "roomId": "ironmark_salon",
+      "position": {
+        "x": 32,
+        "y": 7
+      },
+      "interactionSpot": {
+        "x": 32,
+        "y": 8
+      },
+      "sprite": 63,
+      "container": true,
+      "ownerCharacterId": "gurt",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_ironmark_protocol",
+            "name": "Assembly protocol",
+            "details": "The public order of ceremonies and rules for formal petitions.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_greenweald_table",
+      "name": "Tea table",
+      "roomId": "greenweald_solar",
+      "position": {
+        "x": 35,
+        "y": 25
+      },
+      "interactionSpot": {
+        "x": 35,
+        "y": 26
+      },
+      "sprite": 72,
+      "container": true,
+      "ownerCharacterId": "elinor",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_greenweald_table_item",
+            "name": "Herbal tea tin",
+            "details": "Dried mint and meadow flowers from Greenweald.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_greenweald_seat",
+      "name": "Guest stool",
+      "roomId": "greenweald_solar",
+      "position": {
+        "x": 34,
+        "y": 25
+      },
+      "interactionSpot": {
+        "x": 34,
+        "y": 26
+      },
+      "sprite": 73
+    },
+    {
+      "id": "furn_greenweald_sideboard",
+      "name": "Hospitality sideboard",
+      "roomId": "greenweald_solar",
+      "position": {
+        "x": 39,
+        "y": 22
+      },
+      "interactionSpot": {
+        "x": 39,
+        "y": 23
+      },
+      "sprite": 75,
+      "container": true,
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_greenweald_cups",
+            "name": "Guest cups",
+            "details": "Clean cups set aside for visitors to this delegation.",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "furn_greenweald_biscuits",
+            "name": "Oat biscuits",
+            "details": "A small tin of biscuits for receiving guests.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_greenweald_books",
+      "name": "Delegation bookcase",
+      "roomId": "greenweald_solar",
+      "position": {
+        "x": 32,
+        "y": 22
+      },
+      "interactionSpot": {
+        "x": 32,
+        "y": 23
+      },
+      "sprite": 63,
+      "container": true,
+      "ownerCharacterId": "elinor",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_greenweald_protocol",
+            "name": "Assembly protocol",
+            "details": "The public order of ceremonies and rules for formal petitions.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_saltmere_table",
+      "name": "Chart table",
+      "roomId": "saltmere_drawing_room",
+      "position": {
+        "x": 86,
+        "y": 10
+      },
+      "interactionSpot": {
+        "x": 86,
+        "y": 11
+      },
+      "sprite": 72,
+      "container": true,
+      "ownerCharacterId": "peregrine",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_saltmere_table_item",
+            "name": "Coastal chart",
+            "details": "A merchant's chart of familiar Saltmere harbours and safe anchorages.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_saltmere_seat",
+      "name": "Guest stool",
+      "roomId": "saltmere_drawing_room",
+      "position": {
+        "x": 85,
+        "y": 10
+      },
+      "interactionSpot": {
+        "x": 85,
+        "y": 11
+      },
+      "sprite": 73
+    },
+    {
+      "id": "furn_saltmere_sideboard",
+      "name": "Hospitality sideboard",
+      "roomId": "saltmere_drawing_room",
+      "position": {
+        "x": 90,
+        "y": 7
+      },
+      "interactionSpot": {
+        "x": 90,
+        "y": 8
+      },
+      "sprite": 75,
+      "container": true,
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_saltmere_cups",
+            "name": "Guest cups",
+            "details": "Clean cups set aside for visitors to this delegation.",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "furn_saltmere_biscuits",
+            "name": "Oat biscuits",
+            "details": "A small tin of biscuits for receiving guests.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_saltmere_books",
+      "name": "Delegation bookcase",
+      "roomId": "saltmere_drawing_room",
+      "position": {
+        "x": 83,
+        "y": 7
+      },
+      "interactionSpot": {
+        "x": 83,
+        "y": 8
+      },
+      "sprite": 63,
+      "container": true,
+      "ownerCharacterId": "peregrine",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_saltmere_protocol",
+            "name": "Assembly protocol",
+            "details": "The public order of ceremonies and rules for formal petitions.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_council_table",
+      "name": "Council writing table",
+      "roomId": "royal_council_chamber",
+      "position": {
+        "x": 49,
+        "y": 18
+      },
+      "interactionSpot": {
+        "x": 49,
+        "y": 19
+      },
+      "sprite": 72,
+      "container": true,
+      "ownerCharacterId": "aldren",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_council_agenda",
+            "name": "Council agenda",
+            "details": "Petitions, palace supplies and preparations for the centennial assembly.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_council_archive",
+      "name": "Petition cabinet",
+      "roomId": "royal_council_chamber",
+      "position": {
+        "x": 52,
+        "y": 17
+      },
+      "interactionSpot": {
+        "x": 52,
+        "y": 18
+      },
+      "sprite": 75,
+      "container": true,
+      "ownerCharacterId": "corvin",
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_blank_petition",
+            "name": "Blank petition forms",
+            "details": "Unused forms for bringing a matter before the council.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_banquet_2_8",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 91,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 91,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_9",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 92,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 92,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_10",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 93,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 93,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_11",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 94,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 94,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_12",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 95,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 95,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_13",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 96,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 96,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_14",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 97,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 97,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_15",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 98,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 98,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_16",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 99,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 99,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_17",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 100,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 100,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_18",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 101,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 101,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_19",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 102,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 102,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_20",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 103,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 103,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_21",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 104,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 104,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_22",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 105,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 105,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_23",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 106,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 106,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_24",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 107,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 107,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_25",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 108,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 108,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_26",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 109,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 109,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_27",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 110,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 110,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_28",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 111,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 111,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_29",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 112,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 112,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_2_30",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 113,
+        "y": 24
+      },
+      "interactionSpot": {
+        "x": 113,
+        "y": 25
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_8",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 91,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 91,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_9",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 92,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 92,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_10",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 93,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 93,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_11",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 94,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 94,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_12",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 95,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 95,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_13",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 96,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 96,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_14",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 97,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 97,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_15",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 98,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 98,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_16",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 99,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 99,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_17",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 100,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 100,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_18",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 101,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 101,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_19",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 102,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 102,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_20",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 103,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 103,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_21",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 104,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 104,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_22",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 105,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 105,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_23",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 106,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 106,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_24",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 107,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 107,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_25",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 108,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 108,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_26",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 109,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 109,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_27",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 110,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 110,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_28",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 111,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 111,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_29",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 112,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 112,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_6_30",
+      "name": "Banquet table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 113,
+        "y": 28
+      },
+      "interactionSpot": {
+        "x": 113,
+        "y": 27
+      },
+      "sprite": 72
+    },
+    {
+      "id": "furn_banquet_north_seat_8",
+      "name": "Dining stool",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 91,
+        "y": 23
+      },
+      "interactionSpot": {
+        "x": 91,
+        "y": 22
+      },
+      "sprite": 73
+    },
+    {
+      "id": "furn_banquet_south_seat_8",
+      "name": "Dining stool",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 91,
+        "y": 29
+      },
+      "interactionSpot": {
+        "x": 91,
+        "y": 30
+      },
+      "sprite": 73
+    },
+    {
+      "id": "furn_banquet_north_seat_12",
+      "name": "Dining stool",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 95,
+        "y": 23
+      },
+      "interactionSpot": {
+        "x": 95,
+        "y": 22
+      },
+      "sprite": 73
+    },
+    {
+      "id": "furn_banquet_south_seat_12",
+      "name": "Dining stool",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 95,
+        "y": 29
+      },
+      "interactionSpot": {
+        "x": 95,
+        "y": 30
+      },
+      "sprite": 73
+    },
+    {
+      "id": "furn_banquet_north_seat_16",
+      "name": "Dining stool",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 99,
+        "y": 23
+      },
+      "interactionSpot": {
+        "x": 99,
+        "y": 22
+      },
+      "sprite": 73
+    },
+    {
+      "id": "furn_banquet_south_seat_16",
+      "name": "Dining stool",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 99,
+        "y": 29
+      },
+      "interactionSpot": {
+        "x": 99,
+        "y": 30
+      },
+      "sprite": 73
+    },
+    {
+      "id": "furn_banquet_north_seat_20",
+      "name": "Dining stool",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 103,
+        "y": 23
+      },
+      "interactionSpot": {
+        "x": 103,
+        "y": 22
+      },
+      "sprite": 73
+    },
+    {
+      "id": "furn_banquet_south_seat_20",
+      "name": "Dining stool",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 103,
+        "y": 29
+      },
+      "interactionSpot": {
+        "x": 103,
+        "y": 30
+      },
+      "sprite": 73
+    },
+    {
+      "id": "furn_banquet_north_seat_24",
+      "name": "Dining stool",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 107,
+        "y": 23
+      },
+      "interactionSpot": {
+        "x": 107,
+        "y": 22
+      },
+      "sprite": 73
+    },
+    {
+      "id": "furn_banquet_south_seat_24",
+      "name": "Dining stool",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 107,
+        "y": 29
+      },
+      "interactionSpot": {
+        "x": 107,
+        "y": 30
+      },
+      "sprite": 73
+    },
+    {
+      "id": "furn_banquet_north_seat_28",
+      "name": "Dining stool",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 111,
+        "y": 23
+      },
+      "interactionSpot": {
+        "x": 111,
+        "y": 22
+      },
+      "sprite": 73
+    },
+    {
+      "id": "furn_banquet_south_seat_28",
+      "name": "Dining stool",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 111,
+        "y": 29
+      },
+      "interactionSpot": {
+        "x": 111,
+        "y": 30
+      },
+      "sprite": 73
+    },
+    {
+      "id": "furn_dining_sideboard",
+      "name": "Dining silver sideboard",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 84,
+        "y": 22
+      },
+      "interactionSpot": {
+        "x": 84,
+        "y": 23
+      },
+      "sprite": 75,
+      "container": true,
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_dining_goblets",
+            "name": "Pewter goblets",
+            "details": "Sturdy goblets engraved with the Caerwyn crest.",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "furn_dining_linen",
+            "name": "Clean table linen",
+            "details": "Fresh linen folded ready for the evening banquet.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_dining_bread",
+      "name": "Bread and cheese serving table",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 119,
+        "y": 22
+      },
+      "interactionSpot": {
+        "x": 119,
+        "y": 23
+      },
+      "sprite": 72,
+      "container": true,
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_bread",
+            "name": "Round loaf",
+            "details": "A fresh loaf from the palace kitchen.",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "furn_cheese",
+            "name": "Farmhouse cheese",
+            "details": "A wrapped wedge of mild cheese supplied for the guests.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_dining_water",
+      "name": "Drinking-water barrel",
+      "roomId": "dining_hall",
+      "position": {
+        "x": 121,
+        "y": 22
+      },
+      "interactionSpot": {
+        "x": 121,
+        "y": 23
+      },
+      "sprite": 82,
+      "container": true,
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_water_pitcher",
+            "name": "Filled water pitcher",
+            "details": "Clean drinking water for the dining tables.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    }
+  ]
+}
