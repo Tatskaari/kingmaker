@@ -1,5 +1,5 @@
 import { defineConfig, type Plugin } from "vite";
-import { readPromptCatalog } from "./packages/prompts/src/catalog.js";
+import { listPromptFiles, readPromptCatalog } from "./packages/prompts/src/catalog.js";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { fileURLToPath } from "node:url";
@@ -24,7 +24,7 @@ function markdownPrompts(): Plugin {
       if (id !== `${repositoryRoot}packages/prompts/src/catalog.ts`) return;
       const directory = new URL("./lore/gm_prompts/", import.meta.url);
       const catalog = readPromptCatalog(directory);
-      for (const name of Object.keys(catalog)) this.addWatchFile(fileURLToPath(new URL(`${name}.md`, directory)));
+      for (const path of listPromptFiles(directory)) this.addWatchFile(fileURLToPath(new URL(path, directory)));
       return `export default ${JSON.stringify(catalog)};`;
     },
   };
