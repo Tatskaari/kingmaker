@@ -5,7 +5,7 @@ import { WorldHost } from "../apps/web/src/world-host.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { planWorldAction,reviewAndPlanWorldAction } from "../apps/web/src/world-action.js";
-import { TranscriptMessageSchema } from "../packages/contracts/src/index.js";
+import { TranscriptMessageSchema, TranscriptRole } from "../packages/contracts/src/index.js";
 import { DocumentSchema } from "../packages/contracts/src/v2.js";
 import { jevActionStrategy } from "../packages/conversation/src/action.js";
 import { documentReviewStrategy } from "../packages/conversation/src/document-review.js";
@@ -77,4 +77,37 @@ test("planning tolerates document changes and still honours cancellation", async
   assert.equal((await planWorldAction("corvin", runtime))!.decision.choice, "complete");
   controller.abort();
   await assert.rejects(planWorldAction("corvin", runtime, controller.signal), /abort/i);
+});
+
+
+test("originating dialogue and rulings reach disclosure and Jev after the review has ended", async () => {
+  const services = fixture();
+  const transcript = [
+    create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: "Go confront those Nine Furrows delegates." }),
+    create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, speakerId: "gm", text: "The persuasion succeeds; confront them without treating the report as verified." }),
+    create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: "corvin", text: "I will ask what they said." }),
+  ];
+  let decisions = 0, disclosures = 0;
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario),
+    disclosure: { disclose: async (_lore, messages) => {
+      if (messages.some(message => message.content?.includes("Current execution task:"))) {
+        disclosures++;
+        assert.match(JSON.stringify(messages), /Go confront those Nine Furrows delegates/);
+      }
+      return [];
+    } }, ai: {
+      responses: async request => commitReview({ summary: "Agreed", newNotes: [], activeGoal: "Confront Nine Furrows" }, request),
+      decisions: async state => {
+        decisions++;
+        for (const turn of transcript) assert.ok(String(state).includes(turn.text));
+        assert.match(String(state), /Originating conversation \(historical evidence\)/);
+        assert.match(String(state), /GAME_MASTER/);
+        return { next: { choice: "unable", probabilities: { unable: 1 } } };
+      },
+    } }, strategies: { review: documentReviewStrategy, action: jevActionStrategy } });
+  await reviewAndPlanWorldAction({ characterId: "corvin", participants: ["corvin", "player"], transcript }, runtime);
+  // A later planning pass has no conversation argument or live conversation buffer.
+  await planWorldAction("corvin", runtime);
+  assert.equal(decisions, 2);
+  assert.equal(disclosures, 2);
 });

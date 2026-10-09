@@ -1,3 +1,5 @@
+import { TranscriptRole } from "../../contracts/src/index.js";
+import type { ConversationReviewContext } from "./review.js";
 import { InventoryConflictError } from "../../core/src/inventory-service.js";
 import { renderPrompt } from "../../prompts/src/index.js";
 import { fromJsonString } from "@bufbuild/protobuf";
@@ -37,14 +39,20 @@ export const gameMasterTools: OpenRouterTool[] = [
 export class GameMasterTools {
   pending = false;
   private edits = new Map<string, { before: DocumentSnapshot; activity: ActivityEdits; trace?: Pick<DocumentUpdate, "response" | "toolCallId"> }>();
-  constructor(private services: RuntimeServices, private characterId?: string) {
+  constructor(private services: RuntimeServices, private characterId?: string, private activityOrigin?: Readonly<ConversationReviewContext>) {
     if (characterId) this.characterId = characterIntent(services.scenario.read(), characterId).actorId;
   }
   private async target(id: string) {
     id = characterIntent(this.services.scenario.read(), id).actorId;
     if (!this.edits.has(id)) {
       const before = await this.services.docs.read(characterIntent(this.services.scenario.read(), id).entry);
-      this.edits.set(id, { before, activity: new ActivityEdits(this.services, id, before) });
+      const origin = this.activityOrigin;
+      // A GM may assign work to outsiders; they must not inherit a private conversation.
+      const transcript = origin?.participants.includes(id) ? origin.transcript.map(turn => ({
+        role: TranscriptRole[turn.role], speakerId: turn.speakerId, text: turn.text,
+      })) : [];
+      const body = transcript.length ? `# Originating conversation (historical evidence)\n\n\`\`\`json\n${JSON.stringify(transcript, null, 2)}\n\`\`\`\n` : "";
+      this.edits.set(id, { before, activity: new ActivityEdits(this.services, id, before, body) });
     }
     return this.edits.get(id)!;
   }
