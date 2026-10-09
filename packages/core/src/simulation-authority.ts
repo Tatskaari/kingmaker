@@ -1,3 +1,4 @@
+import { transformCressida } from "./cressida-transformation.js";
 import { Client } from "boardgame.io/client";
 import type { SimulationState } from "../../contracts/src/v2.js";
 import type { SimulationMove } from "./simulation-move.js";
@@ -7,7 +8,7 @@ import { interactWithFixture } from "./simulation-fixtures.js";
 import { addToInventory, removeFromInventory, transferBetweenInventories, replaceInventories } from "./simulation-inventory.js";
 import { publishSimulationChanges } from "./simulation-publication.js";
 
-const moves = { startMove, completeMove, cancelMove, setDoor, interactWithFixture,
+const moves = { transformCressida, startMove, completeMove, cancelMove, setDoor, interactWithFixture,
   addToInventory, removeFromInventory, transferBetweenInventories, replaceInventories, publishSimulationChanges };
 
 /** Trusted host executor. The browser sends service requests, never arbitrary moves. */
