@@ -11,7 +11,8 @@ import { conversationRequest } from "../packages/conversation/src/conversation.j
 test("CLI builds Markdown state, discloses edited documents and reloads independently of the vault", async () => {
   const services = createScenarioServices(loadConversationWorld("lore", "Centennial Assembly"));
   const lore = await documentLore(services.scenario, "corvin");
-  assert.equal(lore.initial.length, 2);
+  assert.equal(lore.initial.length, 3);
+  assert.ok(lore.initial.at(-1)!.path.endsWith("/memories/index.md"));
   const entry = services.scenario.info().characters.find(path => path.includes("/corvin/"))!;
   assert.ok(services.scenario.read().simulation!.runtimeCharacters.corvin?.dnd);
   const link = lore.links(lore.initial)[0]!;
