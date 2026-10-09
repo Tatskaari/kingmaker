@@ -1,4 +1,5 @@
 import { createMovementService, type MovementClock } from "../../../packages/core/src/movement-service.js";
+import type { RoomDeparture } from "../../../packages/core/src/room-departures.js";
 import { getActorPosition, mapAtTime } from "../../../packages/core/src/simulation-movement.js";
 import { roomAt } from "../../../packages/core/src/pathfinding.js";
 import { refreshDocumentGraph } from "../../../packages/lore/src/world-state.js";
@@ -43,6 +44,7 @@ export class WorldHost {
   readonly movement: ReturnType<typeof createMovementService>;
   protected writeSimulation<T>(work: () => T): Promise<T> { return Promise.resolve().then(work); }
   protected movementChanged() {}
+  protected movementDeparted(_departure: RoomDeparture) {}
   protected movementError(error: unknown) { console.error(error); }
   constructor(world: WorldState, saved?: WorldSnapshot, clock?: MovementClock) {
     this.initial = clone(WorldStateSchema, world);
@@ -53,6 +55,7 @@ export class WorldHost {
     this.movement = createMovementService({ currentSimulation: () => this.world().simulation!,
       executeMove: (move, ...args) => this.worldServices.mechanics.executeMove(move, ...args),
       write: work => this.writeSimulation(work), changed: () => this.movementChanged(), error: error => this.movementError(error),
+      departed: departure => this.movementDeparted(departure),
     }, clock);
   }
   /** Live state for synchronous game operations. Never serialize a save to read or update game state. */
