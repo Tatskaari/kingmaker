@@ -1,3 +1,4 @@
+import { PLAYER_INSIGHT_PREFIX } from "../../../packages/conversation/src/checks.js";
 import { actorPosition } from "../../../packages/core/src/simulation-movement.js";
 import { fromJson, toJson } from "@bufbuild/protobuf";
 import { DndCharacterSchema, TranscriptMessageSchema, TranscriptRole } from "../../../packages/contracts/src/index.js";
@@ -50,7 +51,8 @@ export function worldView(world: WorldState, activity: MechanicalActivity, atMs 
     conversationReplyOptions: activity.conversationReplyOptions ?? {},
     conversationEndRequested: activity.conversationEndRequested ?? {},
     conversations: Object.fromEntries(Object.entries(activity.conversations).map(([id, turns]) => [id,
-      turns.map(turn => fromJson(TranscriptMessageSchema, turn)).filter(message => message.role !== TranscriptRole.GAME_MASTER)
-        .map(message => ({ role: message.role === TranscriptRole.CHARACTER ? "character" : "player", text: message.text }))])),
+      turns.map(turn => fromJson(TranscriptMessageSchema, turn)).filter(message => message.role !== TranscriptRole.GAME_MASTER || message.text.startsWith(PLAYER_INSIGHT_PREFIX))
+        .map(message => ({ role: message.role === TranscriptRole.GAME_MASTER ? "gm" : message.role === TranscriptRole.CHARACTER ? "character" : "player",
+          text: message.role === TranscriptRole.GAME_MASTER ? message.text.slice(PLAYER_INSIGHT_PREFIX.length) : message.text }))])),
   };
 }

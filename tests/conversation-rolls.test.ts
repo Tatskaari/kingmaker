@@ -64,7 +64,7 @@ test("finishing presentation first still waits for the GM", async () => {
   let release!: () => void, finished = false;
   const gate = new Promise<void>(resolve => { release = resolve; });
   const pending = adjudicateConversationChecks({ plan: [{ skill: "insight", difficulty: "normal" }], build: undefined, messages: [],
-    present: async () => {}, complete: async () => { await gate; return reply({ direction: "Notice the lie." }); },
+    present: async () => {}, complete: async () => { await gate; return reply({ direction: "Notice the lie.", observation: "You notice an inconsistency." }); },
   }).then(result => { finished = true; return result; });
   await new Promise(resolve => setImmediate(resolve));
   assert.equal(finished, false);
@@ -86,4 +86,26 @@ test("cancelling asynchronous manual dice prevents GM and presentation calls", a
   assert.equal(requested, true);
   controller.abort(new Error("Player cancelled"));
   await assert.rejects(task, /Player cancelled/);
+});
+
+
+test("insight requires an observation and only publishes it after dice acknowledgement", async () => {
+  for (const observation of [undefined, "", "You cannot tell what lies behind their pause."]) {
+    let acknowledge!: () => void;
+    const gate = new Promise<void>(resolve => { acknowledge = resolve; });
+    const received: string[] = [];
+    const pending = adjudicateConversationChecks({ plan: [{ skill: "insight", difficulty: "normal" }],
+      build: undefined, messages: [], roll: () => 3,
+      present: async () => gate, observation: text => received.push(text),
+      complete: async request => {
+        assert.match(JSON.stringify(request.response_format), /observation/);
+        return reply({ direction: "Keep your motives guarded.", observation });
+      },
+    });
+    const result = observation ? pending : assert.rejects(pending, /no insight observation/);
+    await new Promise(resolve => setImmediate(resolve));
+    assert.deepEqual(received, []);
+    acknowledge(); await result;
+    assert.deepEqual(received, observation ? [observation] : []);
+  }
 });

@@ -574,7 +574,7 @@ function messageList(messages, assistantName) {
   if (!messages.length) return "";
   return messages.map(message => {
     const isAssistant = message.role === "assistant" || message.role === "character";
-    return `<div class="message ${escapeHtml(message.role)}"><span class="speaker">${isAssistant ? escapeHtml(assistantName) : "You"}</span>${escapeHtml(message.text)}</div>`;
+    return `<div class="message ${escapeHtml(message.role)}"><span class="speaker">${message.role === "gm" ? "GM · Insight" : isAssistant ? escapeHtml(assistantName) : "You"}</span>${escapeHtml(message.text)}</div>`;
   }).join("");
 }
 

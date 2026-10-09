@@ -6,6 +6,8 @@ import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/s
 import { parseModelObject } from "../../providers/src/structured-output.js";
 const REASONING_MODEL = { model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "none" } } as const;
 
+export const PLAYER_INSIGHT_PREFIX = "# Player insight\n";
+
 export interface ConversationRoll {
   skill: CheckSkill;
   difficulty: Difficulty;
@@ -45,6 +47,7 @@ export const ROLL_GUIDANCE = renderPrompt("checks-roll_guidance", { value1: JSON
 export async function adjudicateConversationChecks(options: {
   plan: CheckPlan[]; messages: readonly OpenRouterMessage[]; build: DndCharacter | undefined;
   complete: (request: ChatCompletionRequest, signal: AbortSignal) => Promise<OpenRouterMessage>;
+  observation?: (text: string) => void;
   present: PresentRoll; roll?: (check: CheckPlan, signal: AbortSignal) => number | Promise<number>; signal?: AbortSignal;
 }): Promise<string | undefined> {
   if (!options.plan.length) return undefined;
@@ -63,6 +66,7 @@ export async function adjudicateConversationChecks(options: {
 
 /** Narrate and present authoritative outcomes without performing mechanics. */
 export async function adjudicateResolvedChecks<Result extends RollResult | ConversationRoll>(options: {
+  observation?: (text: string) => void;
   results: readonly Result[]; messages: readonly OpenRouterMessage[];
   complete: (request: ChatCompletionRequest, signal: AbortSignal) => Promise<OpenRouterMessage>;
   present: (result: Result, signal: AbortSignal) => Promise<void>; signal: AbortSignal;
@@ -72,6 +76,7 @@ export async function adjudicateResolvedChecks<Result extends RollResult | Conve
   const signal = AbortSignal.any([options.signal, controller.signal]);
   signal.throwIfAborted();
   const results = options.results;
+  const insight = results.some(result => result.skill === "insight");
   const complete = async (request: ChatCompletionRequest) => {
     signal.throwIfAborted();
     const result = await options.complete(request, signal);
@@ -83,10 +88,12 @@ export async function adjudicateResolvedChecks<Result extends RollResult | Conve
       { role: "system", content: renderPrompt("checks-adjudicate", { ROLL_GUIDANCE: ROLL_GUIDANCE }) },
       { role: "user", content: JSON.stringify({ dialogue: options.messages, resolvedChecks: results }) },
     ], response_format: { type: "json_schema", json_schema: { name: "conversation_roll_ruling", strict: true, schema: {
-      type: "object", additionalProperties: false, required: ["direction"], properties: { direction: { type: "string", maxLength: 3000 } },
+      type: "object", additionalProperties: false, required: insight ? ["direction", "observation"] : ["direction"], properties: { direction: { type: "string", maxLength: 3000 },
+        ...(insight ? { observation: { type: "string", minLength: 1, maxLength: 1500 } } : {}), },
     } } } })).content, "GM roll ruling");
     if (typeof ruling.direction !== "string" || !ruling.direction.trim()) throw new Error("The GM returned no direction for the roll.");
-    return renderPrompt("checks-ruling", { ROLL_GUIDANCE: ROLL_GUIDANCE, results: JSON.stringify(results), direction: ruling.direction.trim() });
+    if (insight && (typeof ruling.observation !== "string" || !ruling.observation.trim())) throw new Error("The GM returned no insight observation.");
+    return { observation: insight ? (ruling.observation as string).trim() : undefined, direction: renderPrompt("checks-ruling", { ROLL_GUIDANCE: ROLL_GUIDANCE, results: JSON.stringify(results), direction: ruling.direction.trim() }) };
   };
   try {
     const [, ruling] = await Promise.all([
@@ -94,6 +101,7 @@ export async function adjudicateResolvedChecks<Result extends RollResult | Conve
       prepareRuling(),
     ]);
     signal.throwIfAborted();
-    return ruling;
+    if (ruling.observation) options.observation?.(ruling.observation);
+    return ruling.direction;
   } catch (error) { controller.abort(error); throw error; }
 }
