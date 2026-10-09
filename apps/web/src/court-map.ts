@@ -10,6 +10,36 @@ import { palaceMap } from "./palace-map.js";
 import { canWalk, pointKey, type Point } from "../../../packages/core/src/navigation.js";
 
 export interface CourtCharacter { id: string; instanceId?: string; name: string; roomId?: string; position?: Point; movement?: ActorMovement; sprite?: number }
+export interface CourtSpeech { characterId: string; participantIds: string[] }
+
+/** Reconcile bubbles in place so movement and unrelated renders do not restart the animation. */
+export function updateCourtSpeech(root: HTMLElement | null, speech: readonly CourtSpeech[] = [], characters: readonly CourtCharacter[] = []): void {
+  if (!root) return;
+  for (const control of root.querySelectorAll<HTMLElement>(".court-character")) {
+    const active = speech.find(item => item.characterId === control.dataset.characterId);
+    let bubble = control.querySelector<HTMLElement>(".court-speech");
+    if (!active || control.classList.contains("court-off-map")) {
+      bubble?.remove(); control.classList.remove("court-speaking");
+      control.removeAttribute("aria-description"); control.removeAttribute("title");
+      continue;
+    }
+    const partners = active.participantIds.filter(id => id !== active.characterId)
+      .map(id => id === "player" ? "you" : characters.find(character => character.id === id)?.name ?? id);
+    const description = partners.length ? `Talking to ${partners.join(", ")}` : "Talking";
+    if (!bubble) {
+      bubble = document.createElement("span"); bubble.className = "court-speech";
+      bubble.setAttribute("aria-hidden", "true");
+      for (let i = 0; i < 3; i++) {
+        const dot = document.createElement("span"); dot.textContent = "·"; bubble.append(dot);
+      }
+      control.append(bubble);
+    }
+    control.title = description;
+    control.setAttribute("aria-description", description);
+    control.classList.add("court-speaking");
+  }
+}
+
 export interface CourtMarker extends CourtCharacter { point?: Point; roomName: string; sprite: number }
 
 function canvasBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -275,7 +305,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   if (position) requestAnimationFrame(() => centreOnPlayer(position!));
   root.addEventListener("court-state", event => {
     const next = (event as CustomEvent<{ characters: CourtCharacter[]; player: CourtCharacter; doors: DoorState[];
-      fixtures: MapFixture[]; fixtureActions: FixtureAction[]; roomAccess: RoomAccess[]; disabled?: boolean }>).detail;
+      fixtures: MapFixture[]; fixtureActions: FixtureAction[]; roomAccess: RoomAccess[]; speechBubbles?: CourtSpeech[]; disabled?: boolean }>).detail;
     if (next.disabled !== undefined) {
       disabled = next.disabled;
       for (const button of root.querySelectorAll<HTMLButtonElement>("button.court-character")) button.disabled = disabled;
@@ -301,6 +331,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
         control.setAttribute("aria-label", `Walk to ${marker.name} · ${marker.roomName}`);
       }
     }
+    updateCourtSpeech(root, next.speechBubbles, next.characters);
     if (artworkKey() !== drawnArtwork) draw();
   }, { signal: listeners.signal });
   // Every actor is drawn from the same authority-supplied movement record.

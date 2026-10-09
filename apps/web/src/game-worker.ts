@@ -347,7 +347,7 @@ async function createGame(development = false): Promise<Record<string, unknown>>
   const baseline = await scenarioPromise;
   const scenario = development ? baseline : characterCreationWorld(baseline);
   const now = new Date().toISOString();
-  runtime = new BrowserGameRuntime(scenario, apiKey, undefined, () => worker.postMessage({ type: "transcripts_changed" }), providerWarning, { services: { presentation: { renderMap: async () => publishNpc("") } } });
+  runtime = new BrowserGameRuntime(scenario, apiKey, undefined, () => worker.postMessage({ type: "transcripts_changed", activeSaveId: activeSave?.id, speechBubbles: runtime?.speechBubbles() ?? [] }), providerWarning, { services: { presentation: { renderMap: async () => publishNpc("") } } });
   activeSave = {
     id: crypto.randomUUID(),
     characterName: "New emissary",
@@ -369,7 +369,7 @@ async function loadGame(saveId: string): Promise<Record<string, unknown>> {
   if (!apiKey) throw new Error("Enter an OpenRouter key first");
   const saved = await transaction<SaveRecord | undefined>("readonly", store => store.get(saveId));
   if (!saved) throw new Error("That saved game no longer exists");
-  runtime = new BrowserGameRuntime(await scenarioPromise, apiKey, saved.snapshot, () => worker.postMessage({ type: "transcripts_changed" }), providerWarning, { services: { presentation: { renderMap: async () => publishNpc("") } } });
+  runtime = new BrowserGameRuntime(await scenarioPromise, apiKey, saved.snapshot, () => worker.postMessage({ type: "transcripts_changed", activeSaveId: activeSave?.id, speechBubbles: runtime?.speechBubbles() ?? [] }), providerWarning, { services: { presentation: { renderMap: async () => publishNpc("") } } });
   attachPersistence(runtime);
   activeSave = saved;
   return { mapLayout: runtime.map.layout(), state: runtime.view(), activeSaveId: saved.id, saves: await listSaves() };

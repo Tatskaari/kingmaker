@@ -9,7 +9,7 @@ import { coalescedRefresh, updateTranscriptPanel } from "./debug-live.js";
 import { documentExplorer } from "./document-explorer.js";
 import { documentAnchor } from "./document-markdown.js";
 import { AlertLog } from "./alerts.js";
-import { captureCourtMap, mountCourtMap, updateCourtMap } from "./court-map.js";
+import { captureCourtMap, mountCourtMap, updateCourtMap, updateCourtSpeech } from "./court-map.js";
 import { buildIssueReport, issuePageUrl, issueReportFilename } from "./issue-report.js";
 import { sandboxIntroduction, handoffPrefix, courtAffiliations, characterSprites, patronName } from "./introduction.js";
 import { strangerPortrait } from "./stranger-portrait.js";
@@ -162,6 +162,10 @@ gameWorker.addEventListener("message", event => {
     return;
   }
   if (event.data.type === "transcripts_changed") {
+    if (state && event.data.activeSaveId === activeSaveId) {
+      state.speechBubbles = event.data.speechBubbles;
+      updateCourtSpeech(document.querySelector("[data-court-map]"), state.speechBubbles, state.characters);
+    }
     if (debugOpen && ["transcripts", "documents"].includes(debugTab)) refreshDebugTranscripts();
     return;
   }
