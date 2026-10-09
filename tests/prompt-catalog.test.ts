@@ -1,8 +1,12 @@
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import assert from "node:assert/strict";
 import { test } from "node:test";
 import Mustache from "mustache";
 import catalog from "../packages/prompts/src/catalog.js";
-import { readPromptCatalog } from "../packages/prompts/src/catalog.js";
+import { listPromptFiles, readPromptCatalog } from "../packages/prompts/src/catalog.js";
 import { renderPrompt as renderEvalPrompt } from "../packages/evals/src/prompts.js";
 import { renderPrompt } from "../packages/prompts/src/index.js";
 
@@ -39,4 +43,19 @@ test("eval templates load separately from the game catalog", () => {
   }
   assert.ok(renderEvalPrompt("jev-scorer-instructions", { criterion: "Keep facts grounded" }).includes("Keep facts grounded"));
   assert.throws(() => renderEvalPrompt("jev-scorer-instructions"), /Missing prompt variable: criterion/);
+});
+
+test("nested prompt catalogs preserve IDs, skip indexes and reject duplicate filenames", t => {
+  const directory = mkdtempSync(join(tmpdir(), "kingmaker-prompts-"));
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  const url = pathToFileURL(`${directory}/`);
+  mkdirSync(join(directory, "conversation/review/tools"), { recursive: true });
+  const body = '---\nsummary: "Test prompt."\nvisibility: gm\n---\nHello {{{name}}}\n';
+  writeFileSync(join(directory, "conversation/review/tools/read.md"), body);
+  writeFileSync(join(directory, "index.md"), "Author navigation");
+  writeFileSync(join(directory, "conversation/review/index.md"), "Author navigation");
+  assert.deepEqual(listPromptFiles(url), ["conversation/review/tools/read.md"]);
+  assert.deepEqual(readPromptCatalog(url), { read: "Hello {{{name}}}" });
+  writeFileSync(join(directory, "read.md"), body);
+  assert.throws(() => readPromptCatalog(url), /Duplicate prompt ID: read/);
 });
