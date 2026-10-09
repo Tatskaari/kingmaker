@@ -4,8 +4,7 @@ import type { WorldState } from "../../contracts/src/v2.js";
 import type { ConversationReviewContext } from "../../conversation/src/review.js";
 import { runConversationReview } from "../../conversation/src/review.js";
 import { documentLoreService } from "../../conversation/src/document-lore.js";
-import { replayConversation, type ReviewConversation, type ReviewConversationFactory } from "./review-conversation.js";
-import { directConversationStrategy } from "../../conversation/src/phases.js";
+import { gameReviewConversation, replayConversation, type ReviewConversation, type ReviewConversationFactory } from "./review-conversation.js";
 import type { ConversationStrategy } from "../../conversation/src/phases.js";
 import type { AiService } from "../../conversation/src/services.js";
 import { createScenarioServices } from "../../lore/src/services.js";
@@ -74,7 +73,9 @@ export function createReviewExperiment(testCase: ReviewCase, variants: readonly 
   const conversations = new WeakMap<ConversationStrategy, ReviewConversation>();
   const config = (variant: ReviewVariant): RuntimeConfig => ({ name: variant.name, configure() {
     const backing = createScenarioServices(testCase.loadWorld(variant.overlays ?? []));
-    const conversation = variant.conversation?.(testCase) ?? { strategy: { ...(variant.strategies?.conversation ?? directConversationStrategy) }, drain: async () => {} };
+    const conversation = variant.conversation?.(testCase) ?? (variant.strategies?.conversation
+      ? { strategy: { ...variant.strategies.conversation }, drain: async () => {} }
+      : gameReviewConversation(testCase));
     const replay: ReviewConversation = { ...conversation };
     conversations.set(conversation.strategy, replay);
     return { recordServices: ["docs"], services: { inventory: () => backing.inventory, docs: () => backing.docs, scenario: () => backing.scenario, ai: () => createAi(),
@@ -96,7 +97,7 @@ export function createReviewExperiment(testCase: ReviewCase, variants: readonly 
       try {
         const transcript = await replayConversation(testCase, conversation, runtime, signal);
         await conversation.drain();
-        await runConversationReview({ characterId: testCase.characterId, participants: testCase.participants,
+        if (!conversation.reviewedLive) await runConversationReview({ characterId: testCase.characterId, participants: testCase.participants,
           transcript }, runtime, signal);
       } finally {
         await conversation.drain();

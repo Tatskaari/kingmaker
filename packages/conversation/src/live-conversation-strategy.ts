@@ -21,7 +21,7 @@ export class ConversationReviews {
   cancel(): void { this.lifetime.abort(); }
 }
 
-/** Candidate response policy; preparation/dice remain outside this response boundary. */
+/** Game response policy; preparation/dice remain outside this response boundary. */
 export function liveConversationStrategy(options: {
   characterId: string;
   reviews: ConversationReviews;

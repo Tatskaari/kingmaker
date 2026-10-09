@@ -10,11 +10,16 @@ import transcript from "../evals/reviews/oswin-parlour.json" with { type: "json"
 
 test("review experiments replay real tools, record only docs, and grade final files without variant identity", async () => {
   const source = loadPlayableWorld();
+  let attentionCalls = 0;
   const experiment = createReviewExperiment({ name: "oswin", characterId: "oswin", participants: ["oswin", "player"],
-    transcript: transcript.map(turn => fromJson(TranscriptMessageSchema, turn)), expectations: "Go to the parlour.", loadWorld: () => source,
+    transcript: transcript.map(turn => fromJson(TranscriptMessageSchema, turn)), expectations: "Go to the parlour.", loadWorld: () => loadPlayableWorld(),
   }, [{ name: "candidate" }], () => ({
     responses: async request => commitReview({ summary: "Reviewed", newNotes: ["The player ordered me to the parlour."], activeGoal: "Go to the parlour." }, request),
-    decisions: async (_state, questions) => Object.fromEntries(Object.keys(questions).map(key => [key, { choice: "skip", probabilities: { [key]: 0, skip: 1 } }])),
+    decisions: async (_state, questions) => {
+      const choice = "immediate_commitment" in questions ? "flagged" : "skip";
+      if (choice === "flagged") attentionCalls++;
+      return Object.fromEntries(Object.keys(questions).map(key => [key, { choice, probabilities: { [key]: 0, [choice]: 1 } }]));
+    },
   }), { decisions: async (state, questions) => {
     const evidence = state as { documents: unknown[] };
     assert.ok(evidence.documents.length >= 1);
@@ -23,6 +28,7 @@ test("review experiments replay real tools, record only docs, and grade final fi
   } });
   assert.equal((await experiment.getBaseline().configure()).strategies!.setup, defaultWorldStrategies.setup);
   const trials = await runExperiment(experiment, { repeats: 1 });
+  assert.equal(attentionCalls, 2, "Each trial reviews its accepted turn without a duplicate final review");
   for (const trial of trials) {
     assert.equal(trial.recording.error, undefined, JSON.stringify(trial.recording.error));
     assert.equal(trial.scoringError, undefined, JSON.stringify(trial.scoringError));

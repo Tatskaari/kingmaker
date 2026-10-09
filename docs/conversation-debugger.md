@@ -6,7 +6,7 @@ to `ConversationRuntime`; the [runtime architecture](architecture.md) extends
 these boundaries to review, action planning, execution and resolution.
 The CLI, browser and headless player conversations use progressive lore disclosure,
 the existing skill-check policy and live conversation review. The CLI defaults to
-`--strategy game`; `--strategy live-review` selects the same policy. Resolution can request
+`--strategy game`, the shared game policy. Resolution can request
 another classification pass after adding information. Only resolution changes
 the prepared context; classification receives a detached view.
 

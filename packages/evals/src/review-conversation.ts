@@ -5,19 +5,20 @@ import { prepareConversation } from "../../conversation/src/conversation.js";
 import { ConversationReviews, liveConversationStrategy } from "../../conversation/src/live-conversation-strategy.js";
 import { runConversation, type ConversationStrategy } from "../../conversation/src/phases.js";
 import type { ConversationRuntime } from "../../conversation/src/runtime.js";
-import type { ReviewCase, ReviewVariant } from "./review-experiment.js";
+import type { ReviewCase } from "./review-experiment.js";
 
 export interface ReviewConversation {
   strategy: ConversationStrategy;
   draft?: OpenRouterMessage;
+  reviewedLive?: boolean;
   drain(): Promise<void>;
 }
 export type ReviewConversationFactory = (testCase: ReviewCase) => Omit<ReviewConversation, "draft">;
 
-export const liveReviewVariant: ReviewVariant = { name: "live-review", conversation(testCase) {
+export const gameReviewConversation: ReviewConversationFactory = testCase => {
   const reviews = new ConversationReviews();
-  return { strategy: liveConversationStrategy({ characterId: testCase.characterId, reviews }), drain: () => reviews.drain() };
-} };
+  return { reviewedLive: true, strategy: liveConversationStrategy({ characterId: testCase.characterId, reviews }), drain: () => reviews.drain() };
+};
 
 /** Mock the engine's turn loop using the existing dialogue and already-resolved dice. */
 export async function replayConversation(testCase: ReviewCase, conversation: ReviewConversation,

@@ -22,7 +22,7 @@ import { runConversationCli } from "../apps/conversation-cli/app.js";
 
 const args = process.argv.slice(2);
 const options = new Map<string, string>();
-const usage = "npm run conversation -- [--character corvin] [--scenario 'Centennial Assembly'] [--snapshot path] [--player document.md] [--output path] [--threshold 0.7] [--strategy game|live-review]";
+const usage = "npm run conversation -- [--character corvin] [--scenario 'Centennial Assembly'] [--snapshot path] [--player document.md] [--output path] [--threshold 0.7] [--strategy game]";
 if (args.includes("--help")) { console.log(usage); process.exit(0); }
 for (let index = 0; index < args.length; index += 2) {
   const name = args[index]!, value = args[index + 1];
@@ -59,7 +59,7 @@ conversationRequest(input); // Validate the snapshot and selected character befo
 const player = services.scenario.info().player;
 const build = services.scenario.read().simulation!.runtimeCharacters.player?.dnd;
 const strategyName = options.get("--strategy") ?? "game";
-if (!["game", "live-review"].includes(strategyName)) throw new Error("Unknown conversation strategy");
+if (strategyName !== "game") throw new Error("Unknown conversation strategy");
 const reviews = new ConversationReviews();
 const result = await runConversationCli(input, ai.responses, disclosure, { ai, build,
   services: new ConversationRuntime({ services: { inventory: services.inventory, docs: services.docs, scenario: services.scenario, lore: documentLoreService(services.scenario) } }).services,
