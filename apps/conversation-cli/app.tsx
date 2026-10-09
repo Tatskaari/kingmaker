@@ -1,3 +1,4 @@
+import { memoryResponse } from "../../packages/conversation/src/memory-tool.js";
 import { traceCliGmCalls, gmCallLabel, type CliGmCall } from "./gm-calls.js";
 import type { ConversationStrategy } from "../../packages/conversation/src/phases.js";
 import { directConversationStrategy } from "../../packages/conversation/src/phases.js";
@@ -130,9 +131,12 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
         ? conversationStrategy(disclosure, tracedAi!, checks.build, message, requestRoll, trace, () => {}, {}, {}, checks.services ? { services: checks.services, characterId: input.characterId } : undefined,
         report, checks.response?.(report))
         : disclosure ? disclosure.strategy(trace) : directConversationStrategy;
+      const respond = checks?.services?.docs && checks.services.scenario
+        ? memoryResponse(complete, { docs: checks.services.docs, scenario: checks.services.scenario, debug: checks.services.debug ?? { record: () => {} } }, input.characterId)
+        : complete;
       const runtime = new ConversationRuntime({
         services: { ...checks?.services, ...(tracedAi ? { ai: tracedAi } : {}), debug: { record: () => {} }, character: { respond: async (request, signal) => {
-          const response = await complete(request, signal);
+          const response = await respond(request, signal);
           signal?.throwIfAborted();
           // Stamp the reply before post-reply analysis starts, not when it finishes.
           timeline.recordMessages([...request.messages, response]);
