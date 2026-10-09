@@ -236,20 +236,21 @@ are excluded and visible in the Evals coverage column. Lines break when contribu
 evals or rubrics change. Baseline deltas average the paired deltas for each variant's
 own contributing evals. Individual eval selection retains the original detailed view.
 
-## Conversation strategy comparison
+## Conversation review regression evals
 
-The existing `npm run eval:review` and `npm run eval:review:gift` commands compare
-`game` (post-conversation review) with `live-review` (per-turn review, followed by
-post-conversation review). Both use the original fixtures, expectations and rubrics.
+The `npm run eval:review` and `npm run eval:review:gift` commands run the `game`
+baseline using the shared live conversation review policy. The temporary `live-review`
+variant has been removed; the original fixtures, expectations and rubrics remain.
 
 The mocked engine loop supplies recorded character drafts and binding dice rulings,
-invokes the conversation strategy each turn, and calls the review strategy at the end.
+invokes the conversation strategy each turn, and drains pending reviews before scoring.
+As in the game, live-reviewed conversations do not receive a second end-of-conversation
+review. Custom conversation strategies retain the end-of-conversation review fallback.
 Flagged replies, including GM-discretion cases, queue background reviews without
-blocking approval or regeneration. Queued GM reviews are drained before the final
-review and before scoring. Only docs-service calls are recorded; the judge receives the conversation, expectations and one final copy of
+blocking approval or regeneration. Queued GM reviews are drained before the next turn and before scoring. Only docs-service calls are recorded; the judge receives the conversation, expectations and one final copy of
 each touched document (including typed properties), with deleted files represented
 as null. Intermediate edits and tool returns are excluded. Initial/final state supports the existing deterministic
 checks. There are no extra timing, release-order or live-effect criteria.
 
-Use `--repeats 1 --concurrency 1` for an initial comparison. The existing common
+Use `--repeats 1 --concurrency 1` for an initial run. The existing common
 runner, artifact output and CI upload workflow are unchanged.
