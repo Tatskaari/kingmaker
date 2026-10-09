@@ -177,7 +177,7 @@ test("CLI shows approval and pending background GM review transcripts in the RHS
   const ai: import("../packages/conversation/src/services.js").AiService = {
     decisions: async (_state, questions) => Object.fromEntries(Object.keys(questions).map(id => [id, { choice: "not_needed", probabilities: { not_needed: 1 } }])),
     responses: async request => {
-      if (request.tools) { await reviewReady; return { role: "assistant", content: "REVIEW_COMPLETE" }; }
+      if (request.tools?.some(tool => tool.function.name === "set_activity")) { await reviewReady; return { role: "assistant", content: "REVIEW_COMPLETE" }; }
       return { role: "assistant", content: '{"allowed":true,"reason":"APPROVED_GIFT"}' };
     },
   };

@@ -112,12 +112,12 @@ test("arrest tool exchange is traced and only granted to guards", async () => {
   assert.equal(calls.length, 2);
   const finalRequest = calls[0]!.request as { messages: { role: string; tool_call_id?: string }[]; tools: unknown[] };
   assert.ok(finalRequest.messages.some(message => message.role === "tool" && message.tool_call_id === "arrest-1"));
-  assert.deepEqual(finalRequest.tools, []);
+  assert.deepEqual((finalRequest.tools as { function: { name: string } }[]).map(tool => tool.function.name), ["save_memory"]);
   const ordinary = game();
   await ordinary.checkedTalkToCharacter("corvin", "Arrest me");
   assert.equal(ordinary.snapshot().jail, undefined);
   assert.equal(ordinary.recentTranscripts().length, 1);
-  assert.equal((ordinary.recentTranscripts()[0]!.request as { tools?: unknown }).tools, undefined);
+  assert.deepEqual((ordinary.recentTranscripts()[0]!.request as { tools: { function: { name: string } }[] }).tools.map(tool => tool.function.name), ["save_memory"]);
 });
 
 test("malformed, duplicate and repeated arrest tool calls cannot commit", async () => {
