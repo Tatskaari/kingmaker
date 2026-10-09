@@ -48,6 +48,13 @@ export function characterIntent(world: WorldState, id: string) {
   const activity = documentReference(actor.activity), wait = documentReference(actor.wait);
   return { entry, activity, wait, actorId: actor.id, expectedRevision: actor.intentRevision };
 }
+/** Following is a saved wait, with the original activity available when it ends. */
+export function followingTarget(world: WorldState, id: string): string | undefined {
+  const intent = characterIntent(world, id);
+  if (intent.activity || !intent.wait) return;
+  const target = intentDocument(world, id, intent.wait).frontmatter?.follow_target;
+  return typeof target === "string" && target.trim() ? target : undefined;
+}
 export function routinePath(world: WorldState, id: string): string | null {
   const intent = characterIntent(world, id), character = runtimeActor(world, id);
   const individual = intent.entry.replace(/character\.md$/, `routine-${character.id}.md`);

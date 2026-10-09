@@ -1,7 +1,7 @@
 import { Autosave } from "./autosave.js";
 /// <reference lib="webworker" />
 import { WaitScheduler } from "./wait-scheduler.js";
-import { characterIntent } from "../../../packages/lore/src/activity.js";
+import { characterIntent, followingTarget } from "../../../packages/lore/src/activity.js";
 import { characterCreationWorld } from "./playable-world.js";
 import { type TravellerIdentity } from "./introduction.js";
 import { type JsonValue } from "@bufbuild/protobuf";
@@ -44,7 +44,17 @@ const conversationHolds = new Set<string>();
 const conversationReviews = new Set<string>();
 const pendingDice = new Map<string, { requestId: number; resolve: () => void; reject: (error: Error) => void }>();
 let waitsPaused = false;
+const checkingWaits = new Set<string>();
+const followers = new WaitScheduler({
+  candidates: () => !runtime || waitsPaused ? new Map() : runtime.followingCharacters(),
+  delayMs: () => 100,
+  busy: id => checkingWaits.has(id) || conversationHolds.has(id) || conversationReviews.has(`${generation}:${id}`),
+  run: async (id, _elapsed, signal) => { await runtime?.moveFollower(id, signal); },
+  error: (id, error) => alertUser("error", `${id}: following: ${String(error)}`),
+});
+function syncWaits() { waits.sync(); followers.sync(); }
 const waits = new WaitScheduler({
+  delayMs: id => runtime && followingTarget(runtime.world(), id) ? 15_000 : 12_000 + Math.random() * 6_000,
   candidates: () => {
     if (!runtime || waitsPaused || !runtime.world().player) return new Map();
     const world = runtime.world();
@@ -55,7 +65,12 @@ const waits = new WaitScheduler({
   run: async (id, elapsed, signal) => {
     const game = runtime;
     if (!game) return;
-    await game.checkWait(id, elapsed, signal);
+    checkingWaits.add(id);
+    try {
+      followers.cancel(id);
+      await game.movement.cancel(id);
+      await game.checkWait(id, elapsed, signal);
+    } finally { checkingWaits.delete(id); followers.sync(); }
     if (signal.aborted || runtime !== game) return;
     publishNpc(`${id}: checked waiting conditions.`);
     if (game.hasActiveObjective(id)) startBackground(id);
@@ -75,7 +90,7 @@ function publishNpc(status: string, trace?: unknown, initiatedConversation?: str
     running: [...new Set([...background.values()].flatMap(job => job.participants))], status, ...(trace ? { trace } : {}), ...(initiatedConversation ? { initiatedConversation } : {}) });
 }
 function stopBackground(characterId?: string) {
-  if (characterId) waits.cancel(characterId);
+  if (characterId) { waits.cancel(characterId); followers.cancel(characterId); }
   for (const [id, job] of background) {
     if (!characterId || job.participants.includes(characterId)) {
       job.controller.abort(); background.delete(id);
@@ -154,7 +169,7 @@ function scheduleWorldEvent(game: BrowserGameRuntime, event: Event, handoffs = 3
     }
     void handleWorldEvent(game, event, controller.signal, handoffs).catch(error => {
       if (!controller.signal.aborted) alertUser("error", `world event: ${error instanceof Error ? error.message : String(error)}`);
-    }).finally(() => { worldEvents.delete(controller); waits.sync(); });
+    }).finally(() => { worldEvents.delete(controller); syncWaits(); });
   }, 0);
 }
 async function runBackground(next: { id: string; handoffs: number }) {
@@ -184,6 +199,11 @@ async function runBackground(next: { id: string; handoffs: number }) {
             reason = plan.decision.choice; detail = JSON.stringify(plan.decision); break;
           }
           if (!plan.action) throw new Error("Jev returned an unavailable action.");
+          if (plan.action.type === "follow") {
+            await game.beginFollowing(id, plan.action.id, plan.goal, signal);
+            finalStatus = `${id}: following ${plan.action.target}.`;
+            return;
+          }
           let result: { done: boolean; talkTarget?: string; worldEvent?: Event } | undefined;
           try {
             while (valid()) {
@@ -267,7 +287,7 @@ async function runBackground(next: { id: string; handoffs: number }) {
       background.delete(id); publishNpc(finalStatus);
       if (continueObjective && game.hasActiveObjective(id)) startBackground(id, handoffs);
       drainBackground();
-      waits.sync();
+      syncWaits();
     }
   }
 }
@@ -363,7 +383,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
   if (["configure", "create_game", "create_development_game", "load_game", "delete_game", "reset", "reset_world", "reset_characters"].includes(type)) {
     for (const pending of pendingDice.values()) pending.reject(new Error("Game changed during a dice roll."));
     pendingDice.clear();
-    waits.stop(); waitsPaused = false;
+    waits.stop(); followers.stop(); waitsPaused = false;
     await autosave.flush();
     if (["configure", "create_game", "create_development_game", "load_game", "delete_game"].includes(type)) runtime?.movement.dispose();
     generation++; stopBackground(); stopWorldEvents(); conversationHolds.clear();
@@ -409,7 +429,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     autosave.markDirty();
     return { state: game.view(), activeSaveId: activeSave?.id };
   }
-  if (type === "cancel_npc") { waitsPaused = true; waits.stop(); stopBackground(); publishNpc("NPC activity paused."); return {}; }
+  if (type === "cancel_npc") { waitsPaused = true; waits.stop(); followers.stop(); stopBackground(); publishNpc("NPC activity paused."); return {}; }
   if (type === "reset_world" || type === "reset_characters") {
     const game = requireRuntime();
     if (type === "reset_world") game.resetWorld();
@@ -520,7 +540,7 @@ worker.addEventListener("message", event => {
     } catch (error) {
       alertUser("error", `${request.type}: ${error instanceof Error ? error.message : String(error)}`);
       worker.postMessage({ id: request.id, ok: false, error: error instanceof Error ? error.message : String(error) });
-    } finally { waits.sync(); }
+    } finally { syncWaits(); }
   };
   // Background work and dialogue wait outside the mutation queue. Their results
   // rejoin it only to validate, merge and save, keeping player commands responsive.

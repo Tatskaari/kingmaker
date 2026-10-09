@@ -1,6 +1,6 @@
 /** A concrete command returned to the game; selecting one does not execute it. */
 export interface GameAction {
-  id: string; type: "move" | "door" | "fixture" | "talk"; target: string;
+  id: string; type: "move" | "door" | "fixture" | "talk" | "follow"; target: string;
   description: string;
   /** Manhattan distance to the nearest interaction candidate; ignores obstacles. */
   estimatedSteps?: number;

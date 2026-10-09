@@ -1,3 +1,5 @@
+import { followingTarget, activityDefinition } from "../../../packages/lore/src/activity.js";
+import { followRoute } from "../../../packages/core/src/follow.js";
 import { actorPosition } from "../../../packages/core/src/simulation-movement.js";
 import { renderPrompt } from "../../../packages/prompts/src/index.js";
 import { earshotNotes } from "./agent-setup.js";
@@ -437,6 +439,49 @@ export class WorldGameRuntime extends WorldHost {
     const { map } = this.map.observe(id), actor = map.actors.find(actor => actor.characterId === id);
     await this.resolve({ kind: "task_outcome", characterId: id, goal: activity.goal, actions: activity.history, result: activity.result,
       observation: { roomId: actor?.roomId, room: map.rooms.find(room => room.id === actor?.roomId)?.name, position: actorPosition(actor, this.movement.now()) } }, signal);
+  }
+  override async stepNpcAction(id: string, actionId: string, goal: string, signal = new AbortController().signal) {
+    if (!actionId.startsWith("follow_")) return super.stepNpcAction(id, actionId, goal, signal);
+    await this.beginFollowing(id, actionId, goal, signal);
+    return { done: true };
+  }
+  async beginFollowing(id: string, actionId: string, goal: string, signal: AbortSignal) {
+    await this.commit(async () => {
+      const { action } = this.mutate(game => game.prepareNpcAction(id, actionId, goal));
+      if (action.type !== "follow") throw new Error("Follow action changed; replan.");
+      const world = this.world(), intent = characterIntent(world, id);
+      if (!intent.activity) throw new Error("Activity changed; replan.");
+      const activity = await this.worldServices.docs.read(intent.activity);
+      const definition = activityDefinition(activity.document);
+      const path = intent.entry.replace(/[^/]+$/, `follow-${crypto.randomUUID()}.md`);
+      const text = `---\n${stringify({ summary: `Follow ${action.target} while pursuing ${definition.name}.`,
+        visibility: "private", readers: [`character:${world.simulation!.runtimeCharacters[id]!.characterId}`],
+        follow_target: action.target, activities: [intent.activity] })}---\n`
+        + `Follow ${action.target}. The game moves you beside them while this wait continues.\n`
+        + `Current undertaking: ${JSON.stringify(definition)}\n`
+        + `Every 15 seconds, reconsider using current observations. Continue while accompanying this person is useful. `
+        + `Resume the activity when it is time for another action or to assess completion. `
+        + `Stop waiting to reconsider if following is no longer appropriate or the target cannot be reached.\n`;
+      signal.throwIfAborted();
+      await this.worldServices.docs.commit([{ path, expectedSha: null, text },
+        { path: activity.path, expectedSha: activity.sha, text: activity.text }], [{ ...intent, activity: null, wait: path }]);
+    }, signal);
+  }
+  followingCharacters() {
+    return new Map(this.waitingCharacters().flatMap(id => {
+      const target = followingTarget(this.world(), id);
+      return target ? [[id, `${characterIntent(this.world(), id).wait}:${target}`] as const] : [];
+    }));
+  }
+  async moveFollower(id: string, signal: AbortSignal) {
+    const world = this.world(), target = followingTarget(world, id);
+    if (!target || this.activity.conversations[id]?.length) return;
+    const route = followRoute(world.simulation!, id, target, this.movement.now());
+    if (!route || route.path.length < 2) return;
+    // Short segments let a moving target, a changed intent, or a closed door interrupt pursuit.
+    const path = route.path.slice(0, 4);
+    await this.movement.move(id, { id: crypto.randomUUID(), path, to: path.at(-1)!,
+      msPerTile: 100, allowedRoomIds: route.allowedRoomIds }, signal);
   }
   waitingCharacters(): string[] {
     const world = this.world();
