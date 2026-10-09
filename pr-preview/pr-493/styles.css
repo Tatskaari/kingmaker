@@ -415,7 +415,7 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 .doc-metadata { padding-bottom: 18px; border-bottom: 1px solid #393b32; color: var(--dim); }
 .doc-metadata summary, .doc-history summary { cursor: pointer; }
 .doc-unresolved { text-decoration: underline dotted; color: var(--dim); }
-.doc-history { width: min(780px, calc(100vw - 48px)); max-height: 75vh; overflow: auto; padding: 24px; color: #ede2ca; background: #151813; border: 1px solid #81745f; box-shadow: 0 20px 80px #000; }
+.doc-history { width: min(1000px, calc(100vw - 48px)); max-height: 85vh; overflow: auto; padding: 24px; color: #ede2ca; background: #151813; border: 1px solid #81745f; box-shadow: 0 20px 80px #000; }
 .doc-history::backdrop { background: #0008; }
 .doc-history header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
 .doc-history h3, .doc-history h4 { margin: 0; }
@@ -443,3 +443,16 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 .history-turn.player .speaker, .history-turn.scene .speaker { color: #b6ab98; }
 .history-turn p { margin: 0; white-space: pre-wrap; font-size: 1.15rem; line-height: 1.6; color: #f2e6cf; }
 .history-turn.scene { border-color: var(--line); font-style: italic; }
+
+.doc-edit-group { border-top: 1px solid #393b32; padding: 16px 0; }
+.doc-edit-group > summary { line-height: 1.6; }
+.doc-edit-counts, .doc-edit-group > summary > .debug-meta { display: block; margin-left: 18px; }
+.doc-edit-counts { color: #cfbb94; font-size: .9rem; }
+.doc-write h4 a { color: var(--gold); overflow-wrap: anywhere; }
+.doc-history .doc-diff { border: 1px solid #393b32; background: #10130f; padding: 0; line-height: 1.6; }
+.doc-diff-hunk { display: block; padding: 5px 12px; color: #a4b5cf; background: #202734; }
+.doc-diff-line { display: grid; grid-template-columns: 3em 3em minmax(0, 1fr); }
+.doc-diff-number { color: #9aa398; text-align: right; padding-right: .8em; user-select: none; }
+.doc-diff-line code { white-space: pre-wrap; overflow-wrap: anywhere; padding-right: 10px; }
+.doc-diff-add { background: #163d28; color: #b3f1c4; }
+.doc-diff-remove { background: #482324; color: #ffc2bd; }
