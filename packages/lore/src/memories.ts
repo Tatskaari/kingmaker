@@ -41,5 +41,5 @@ export async function saveMemory(services: { docs: DocsService; scenario: Scenar
     { path, expectedSha: null, text: `---\n${stringify(metadata)}---\n${input.content}\n` },
     { path: index.path, expectedSha: index.sha, text: `${index.text.trimEnd()}\n\n- [${escape(title)}](${filename}) — ${escape(context)}\n` },
   ]);
-  return { path, index: index.path };
+  return { path, index: index.path, beforeIndex: index };
 }
