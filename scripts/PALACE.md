@@ -30,3 +30,23 @@ hovering a fixture reveals its authored contents for inspection.
 Room and fixture IDs are stable layout keys; resident/owner IDs refer to the
 document roster. A bedroom can retain its historical room ID while housing a
 character with a different ID.
+
+AI battle-map reference
+----------------------
+
+Run `node --import tsx scripts/palace-art-reference.ts /tmp/palace-reference`
+(with ImageMagick's `magick` installed) to export a full-level control image for
+an image-editing model. `reference.png` includes the authoritative grid, distinct
+room colours and room IDs, letters for every furnishing, doorway footprints,
+coordinate ticks and an external legend. `map-only.png` has the identical grid
+without the surrounding key. Editable SVG copies are included.
+
+Use both images with `image-edit-prompt.txt`; `legend.json` records exact room
+polygons, wall cells, object coordinates and the map crop rectangle. The prompt
+requests one continuous hand-drawn PNG, flat lighting, no labels or grid, and
+clear thresholds for runtime doors. Colours identify rooms rather than prescribe
+floor finishes. Adjacent H/F cells form one bed; adjacent T cells form one table.
+The generator fails on unknown furniture types instead of silently omitting them.
+Inspect the result against the control grid before wiring it into the game:
+image generation cannot guarantee that collision boundaries stay pixel-aligned.
+This exporter does not change the game's renderer or saved-world state.
