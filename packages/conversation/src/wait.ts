@@ -10,10 +10,10 @@ export interface WaitDecision {
 }
 /** Deliberately excludes remote actors, their documents and unobserved world events. */
 export function waitObservation(services: RuntimeServices, id: string): string {
-  const { map } = services.map.observe(id), actor = map.actors.find(actor => actor.characterId === id);
+  const { map, recentHistory } = services.map.observe(id), actor = map.actors.find(actor => actor.characterId === id);
   if (!actor?.position) throw new Error("Waiting character is not placed.");
   return JSON.stringify({ room: map.rooms.find(room => room.id === actor.roomId)?.name, roomId: actor.roomId,
-    position: actor.position,
+    position: actor.position, recentHistory: recentHistory ?? [],
     visibleCharacters: map.actors.filter(other => other.characterId !== id && other.roomId === actor.roomId)
       .map(other => ({ id: other.characterId, position: other.position, awake: other.awake })),
     doors: map.doors.filter(door => door.roomIds.includes(actor.roomId)).map(door => ({ id: door.id, open: door.open })),

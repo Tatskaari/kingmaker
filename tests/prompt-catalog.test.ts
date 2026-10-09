@@ -22,7 +22,7 @@ test("runtime evidence is plain text and is never evaluated as another template"
 
 test("planner template receives the observed map and optional action feedback", () => {
   const values = { characterId: "guard", feedback: "", intent: "Duty", goal: "Watch", observedMap: "Visible room only", history: "None yet." };
-  const expected = "Who you are: guard\n\nDuty\n\nCurrent execution task:\nWatch\n\nWorld state:\nVisible room only\n\nAction log (completed actions, oldest first):\nNone yet.";
+  const expected = "Who you are: guard\n\nDuty\n\nCurrent execution task:\nWatch\n\nWorld state:\nVisible room only\n\nRecent history (completed actions and events you perceived, oldest first):\nNone yet.";
   assert.equal(renderPrompt("planner-context", values), expected);
   assert.equal(renderPrompt("planner-context", { ...values, feedback: "Door blocked" }), expected.replace("guard\n\n", "guard\n\nPrevious action result:\nDoor blocked\n\n"));
 });
