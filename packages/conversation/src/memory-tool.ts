@@ -1,5 +1,4 @@
-import { memoryIndexPath, saveMemory, type MemoryInput } from "../../lore/src/memories.js";
-import { characterIntent } from "../../lore/src/activity.js";
+import { saveMemory, type MemoryInput } from "../../lore/src/memories.js";
 import { DocumentConflictError } from "../../lore/src/services.js";
 import type { OpenRouterTool } from "../../providers/src/openrouter.js";
 import type { DocumentUpdate, RuntimeServices } from "./services.js";
@@ -21,15 +20,14 @@ export async function callMemoryTool(services: Pick<RuntimeServices, "docs" | "s
   try {
     const { characterId = defaultCharacterId, ...memory } = input;
     if (typeof characterId !== "string" || !characterId.trim()) throw new Error("Supply characterId for the memory's owner.");
-    const { entry } = characterIntent(services.scenario.read(), characterId);
-    const before = await services.docs.read(memoryIndexPath(entry));
     const saved = await saveMemory(services, characterId, memory as unknown as MemoryInput);
+    const before = saved.beforeIndex;
     if (trace) for (const path of [saved.path, saved.index]) {
       const after = await services.docs.read(path);
       services.debug.documentUpdated?.({ path, beforeSha: path === before.path ? before.sha : "", afterSha: after.sha,
         beforeText: path === before.path ? before.text : "", afterText: after.text, ...trace });
     }
-    return { ok: true, ...saved };
+    return { ok: true, path: saved.path, index: saved.index };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw error;
     return { ok: false, error: error instanceof DocumentConflictError ? "document_conflict" : "memory_error",
