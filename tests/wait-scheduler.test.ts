@@ -43,3 +43,15 @@ test("replacing a wait or cancelling the game aborts stale calls and resets elap
   candidates.clear(); scheduler.stop(); await flush();
   assert.equal(signals[1]!.aborted, true);
 });
+
+test("follow checks use an exact 15 second cadence and stop with their wait", async t => {
+  t.mock.timers.enable({ apis: ["setTimeout"] });
+  const candidates = new Map([["rowan", "follow.md"]]);
+  let calls = 0;
+  const scheduler = new WaitScheduler({ candidates: () => candidates, busy: () => false,
+    delayMs: () => 15_000, error: () => assert.fail(), run: async () => { calls++; } });
+  scheduler.sync(); t.mock.timers.tick(14_999); await flush(); assert.equal(calls, 0);
+  t.mock.timers.tick(1); await flush(); assert.equal(calls, 1);
+  t.mock.timers.tick(15_000); await flush(); assert.equal(calls, 2);
+  candidates.clear(); scheduler.sync(); t.mock.timers.tick(15_000); await flush(); assert.equal(calls, 2);
+});
