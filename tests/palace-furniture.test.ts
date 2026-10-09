@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { courtRoomAt } from "../apps/web/src/court-navigation.js";
+import { courtPath, courtRoomAt } from "../apps/web/src/court-navigation.js";
 import { palaceLayout } from "../apps/web/src/palace-layout.js";
 import { palaceNodes } from "../apps/web/src/palace-navigation.js";
 import { inventoryOwners, locatedItems, validateInventories } from "../packages/core/src/inventory.js";
@@ -21,11 +21,25 @@ test("furnished rooms keep every free tile and fixture approach reachable withou
       const [x, y] = key.split(",").map(Number) as [number, number];
       pending.push(`${x - 1},${y}`, `${x + 1},${y}`, `${x},${y - 1}`, `${x},${y + 1}`);
     }
-    for (const [key, owner] of palaceLayout.owners) if (owner === room.id && !blocked.has(key)) assert.ok(reached.has(key), `${room.id}: stranded ${key}`);
+    for (const [key, owner] of palaceLayout.owners) if (owner === room.id && !blocked.has(key)) {
+      // The delivery queue outside the wedged cart is deliberately cut off.
+      if (room.id === "entrance_hall" && Number(key.split(",")[1]) > 38) continue;
+      assert.ok(reached.has(key), `${room.id}: stranded ${key}`);
+    }
     for (const fixture of world.fixtures.filter(f => f.roomId === room.id && f.interactionSpot)) {
       assert.ok(reached.has(`${fixture.interactionSpot!.x},${fixture.interactionSpot!.y}`), fixture.id);
     }
   }
+});
+
+test("the gift-tree cart blocks the service entrance while both sides can be examined from inside", () => {
+  const world = load().world!;
+  const carts = world.fixtures.filter(f => f.id === "furn_cart_left" || f.id === "furn_cart_right");
+  assert.equal(carts.length, 2);
+  const inside = { x: 61, y: 35 }, outside = { x: 61, y: 40 };
+  assert.equal(courtPath(inside, outside, world.doors, world.fixtures), undefined);
+  for (const cart of carts) assert.ok(courtPath(inside, cart.interactionSpot!, world.doors, world.fixtures));
+  assert.ok(courtPath(inside, outside, world.doors, world.fixtures.filter(f => !carts.includes(f))));
 });
 
 test("bedrooms have beds and personal belongings while original evidence stays in place", () => {
