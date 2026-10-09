@@ -224,7 +224,7 @@ test("terminal conversation view executes save_memory before displaying the char
   let calls = 0;
   const setup = await testRender(createElement(ConversationApp, {
     input: { world: services.scenario.read(), characterId: "corvin", sources: lore.initial, transcript: [], message: "" },
-    checks: { services, build: undefined, ai: { decisions: async () => assert.fail("No checks requested"), responses: async () => assert.fail("Use character responder") } },
+    checks: { services: { docs: services.docs, scenario: services.scenario }, build: undefined, ai: { decisions: async () => assert.fail("No checks requested"), responses: async () => assert.fail("Use character responder") } },
     complete: async request => {
       assert.ok(request.tools?.some(tool => tool.function.name === "save_memory"));
       if (++calls === 1) return { role: "assistant", content: null, tool_calls: [{ id: "remember", type: "function", function: {
@@ -237,7 +237,9 @@ test("terminal conversation view executes save_memory before displaying the char
   }), { width: 100, height: 30, exitOnCtrlC: false, autoFocus: false });
   try {
     await setup.flush();
-    await act(async () => { await setup.mockInput.typeText("Remember the blue seal."); await setup.mockInput.pressEnter(); });
+    await act(async () => { await setup.mockInput.typeText("Remember the blue seal."); });
+    await setup.flush();
+    await act(async () => { await setup.mockInput.pressEnter(); await new Promise(resolve => setTimeout(resolve, 60)); });
     await setup.waitForFrame(frame => frame.includes("I will remember the blue seal."));
     const fresh = await documentLore(services.scenario, "corvin");
     assert.ok(fresh.links(fresh.initial).some(link => link.summary?.includes("The blue seal")));
