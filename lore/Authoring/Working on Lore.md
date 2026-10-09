@@ -17,7 +17,6 @@ Use the latest explicit author decisions over older issue text. Preserve the ori
 | --- | --- | --- |
 | Factions, places, historical events and durable rules | `World/` | Setting shared across scenarios |
 | Identity, voice, enduring motives and relationships | `Cast/<faction>/<name>/private.md` | Character-private identity and voice; unknown truths and sources belong in `gm.md`, observer knowledge in `knowledge/` |
-| Dramatic conflicts and possible story arcs | `Plots/` | Direction without a predetermined outcome |
 | World summary, opening situation and invariant scenario rules | `Scenarios/<scenario>/scenario.md` | Compact initial GM context |
 | Cast reference, place, time, present objective, knowledge and scenario boundaries | `Characters/<name>/character.md` within a scenario | Compact initial conversation context, linked to the main cast entry |
 | Deeper personal context | That character's `background.md`, `situation.md`, `conversation.md` | Scoped detail to retrieve when relevant |

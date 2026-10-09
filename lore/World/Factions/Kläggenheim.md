@@ -6,7 +6,7 @@ status: draft
 ---
 # Kläggenheim
 
-GM reference. Use this as setting or plot context; it does not grant characters knowledge of every fact below.
+GM reference. Use this as setting context; it does not grant characters knowledge of every fact below.
 
 Dwarven mining, manufacturing and military power with inadequate farmland. Depends on foreign grain; machinery links it to Nine Furrows.
 

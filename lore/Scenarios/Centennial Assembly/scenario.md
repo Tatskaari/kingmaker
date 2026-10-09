@@ -11,14 +11,13 @@ This is a stub.
 
 ## Read when relevant
 - [[World/index|World Overview]] — enduring setting, factions, places, history and law.
-- [[Plots/index|Plot Index]] — overarching story threads; possible directions are not predetermined outcomes.
 - [[Assembly Map]] — current places, tiles, occupants, access and inventories.
 - [[Assembly Programme]], [[Minutes and Titles]], [[Patrol Inquiry]], [[Grain Settlement]], [[Affection at a Cost]], [[Recognition Hearing]] — possible events, prerequisites and world-state changes.
 - [[Invitation Conversation]], [[Patrol Conversation]], [[Grain Conversation]], [[Private Dinner Conversation]] — full scene branches, including GM-only conditions and consequences.
 
 ## Shared court knowledge
 
-[[Scenarios/Centennial Assembly/court_briefing|Court briefing]] and its delegation overviews are baseline knowledge for the assembly characters labelled `court-informed`. Other setting and plot notes remain GM-only unless explicitly granted. This common background does not reveal private plans or events that have not happened.
+[[Scenarios/Centennial Assembly/court_briefing|Court briefing]] and its delegation overviews are baseline knowledge for the assembly characters labelled `court-informed`. Other setting and quest notes remain GM-only unless explicitly granted. This common background does not reveal private plans or events that have not happened.
 
 ## Character entry files
 Load a character's dossier when adjudicating their actions. Send only their own entry file to their conversation agent, with relevant facts from the current game state; do not send this GM briefing or the full cast.

@@ -6,7 +6,7 @@ status: draft
 ---
 # Royal Palace
 
-GM reference. Use this as setting or plot context; it does not grant characters knowledge of every fact below.
+GM reference. Use this as setting context; it does not grant characters knowledge of every fact below.
 
 Seat of Caerwyn's court and a meeting place for delegations. Public ceremony and private negotiation coexist with visible luxury amid hunger.
 
