@@ -1,7 +1,0 @@
-# Furnished palace artwork
-
-Generated with built-in ImageGen using the user's palace mockup as a style reference. Original PNG with real alpha. Four columns and four rows; `palace-artwork.ts` names the used cells. Diffuse, flat lighting: no candle flames, glows or cast shadows. Runtime floor sampling takes the opaque interior of texture cells; objects retain transparent surroundings.
-
-Prompt: Create a 4 × 4 game asset atlas in orthographic ink and coloured pencil, with muted natural colours, no margins, captions, perspective, directional highlights, glows, or cast shadows. Row 1: seamless oak planks, seamless pale limestone, warm ivory paper, burgundy Persian rug. Row 2: sage botanical rug, indigo rug, crimson heraldic rug, horizontal green corridor runner. Row 3: seamlessly adjoining banquet-table segment with linen, pewter plate, bread and goblet; sage armchair; bookcase; brass-fitted walnut wardrobe. Row 4: the left and right halves of a horizontal sage bed, travel chest, potted plant. Keep textures opaque and furniture/rug surroundings transparent.
-
-Final background-removal prompt: Remove the background. Make this an actual transparent PNG sprite sheet. The grey and white checkerboard is unwanted background: erase it to alpha=0 everywhere. Keep only the drawn furniture, rugs, wood square, stone square and cream paper square. Do not repaint or redraw anything; use background removal. No checkerboard pixels in output. No shadows. Exact same 4 by 4 arrangement and canvas dimensions.
