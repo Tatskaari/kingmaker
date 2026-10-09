@@ -23,3 +23,5 @@ Author navigation only. Each note is private to `elinor`, not the person describ
 Parent: [[Cast/Nine Furrows/Lady Elinor Ash/index|Lady Elinor Ash]].
 
 - [[Cast/Nine Furrows/Lady Elinor Ash/knowledge/Palace Guards|Palace Guards]]
+
+- [[Cast/Nine Furrows/Lady Elinor Ash/knowledge/Court Servants|Court Servants]]

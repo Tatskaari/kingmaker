@@ -23,3 +23,5 @@ Author navigation only. Each note is private to `abel`, not the person described
 Parent: [[Cast/Saltmere/Abel Keel/index|Abel Keel]].
 
 - [[Cast/Saltmere/Abel Keel/knowledge/Palace Guards|Palace Guards]]
+
+- [[Cast/Saltmere/Abel Keel/knowledge/Court Servants|Court Servants]]

@@ -23,3 +23,5 @@ Author navigation only. Each note is private to `rowan`, not the person describe
 Parent: [[Cast/Nine Furrows/Doctor Rowan Ash/index|Doctor Rowan Ash]].
 
 - [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Palace Guards|Palace Guards]]
+
+- [[Cast/Nine Furrows/Doctor Rowan Ash/knowledge/Court Servants|Court Servants]]

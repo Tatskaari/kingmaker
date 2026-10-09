@@ -40,3 +40,5 @@ Use the following guidance for your voice. The example lines illustrate delivery
 - [[Cast/Caerwyn/Tomas Vey/knowledge/Abel Keel|Abel Keel]]
 
 - [[Cast/Caerwyn/Tomas Vey/knowledge/Palace Guards|Palace Guards — unwritten knowledge]]
+
+- [[Cast/Caerwyn/Tomas Vey/knowledge/Court Servants|Court Servants]]

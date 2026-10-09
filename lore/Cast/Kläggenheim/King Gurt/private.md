@@ -40,3 +40,5 @@ Use the following guidance for your voice. The example lines illustrate delivery
 - [[Cast/Kläggenheim/King Gurt/knowledge/Abel Keel|Abel Keel]]
 
 - [[Cast/Kläggenheim/King Gurt/knowledge/Palace Guards|Palace Guards — unwritten knowledge]]
+
+- [[Cast/Kläggenheim/King Gurt/knowledge/Court Servants|Court Servants]]

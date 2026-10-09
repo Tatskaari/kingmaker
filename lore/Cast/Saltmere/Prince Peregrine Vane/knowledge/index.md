@@ -23,3 +23,5 @@ Author navigation only. Each note is private to `peregrine`, not the person desc
 Parent: [[Cast/Saltmere/Prince Peregrine Vane/index|Prince Peregrine Vane]].
 
 - [[Cast/Saltmere/Prince Peregrine Vane/knowledge/Palace Guards|Palace Guards]]
+
+- [[Cast/Saltmere/Prince Peregrine Vane/knowledge/Court Servants|Court Servants]]

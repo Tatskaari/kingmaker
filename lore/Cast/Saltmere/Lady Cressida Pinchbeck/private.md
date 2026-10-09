@@ -40,3 +40,5 @@ Use the following guidance for your voice. The example lines illustrate delivery
 - [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/Abel Keel|Abel Keel]]
 
 - [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/Palace Guards|Palace Guards — unwritten knowledge]]
+
+- [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/Court Servants|Court Servants]]
