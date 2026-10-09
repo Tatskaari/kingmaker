@@ -21,7 +21,7 @@ export const activityTools: OpenRouterTool[] = [
   { type: "function", function: { name: "clear_activity", description: renderPrompt("activity-tools-clear-activity"), parameters: { type: "object", additionalProperties: false, properties: {} } } },
 ];
 
-/** Stage intent tools so a failed review cannot publish half an objective or its notes. */
+/** Stage each intent update so its documents and pointer publish atomically. */
 export class ActivityEdits {
   private writes = new Map<string, DocumentWrite>();
   private intent: { activity: string | null; wait: string | null } | undefined;

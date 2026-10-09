@@ -30,13 +30,13 @@ test("GM tools edit other characters and quest documents, preserving SHA conflic
   assert.equal(services.scenario.read().docs[path], undefined);
 });
 
-test("host commits staged activities while preserving GM document edits", async () => {
+test("activity calls commit immediately while preserving GM document edits", async () => {
   const services = fixture(), gm = new GameMasterTools(services, "oswin");
   await gm.begin();
   for (const characterId of ["oswin", "corvin"]) await gm.call("set_activity", {
     characterId, name: "Meeting", status: "Promised", success_criteria: "Arrive in the parlour", current_goal: "Go to the parlour",
   });
-  assert.equal(activityGoal(services.scenario.read(), "corvin"), null);
+  assert.equal(activityGoal(services.scenario.read(), "corvin"), "Go to the parlour");
   await writeMemory(services, gm, "oswin", "I promised to meet the player.");
   await gm.commit();
   for (const id of ["oswin", "corvin"]) assert.equal(activityGoal(services.scenario.read(), id), "Go to the parlour");
@@ -82,10 +82,10 @@ test("GM assignments to two guard bodies share memories but keep separate activi
 const toolReply = (name: string, input: unknown) => ({ role: "assistant" as const, content: null,
   tool_calls: [{ id: crypto.randomUUID(), type: "function" as const, function: { name, arguments: JSON.stringify(input) } }] });
 
-test("host commits only after the GM finishes and does not append its final reply as memory", async () => {
+test("activity is committed before the GM finishes without appending its final reply as memory", async () => {
   const services = fixture(), path = characterEntry(services.scenario.info(), "oswin"); let calls = 0;
   services.ai.responses = async () => {
-    assert.equal(activityGoal(services.scenario.read(), "oswin"), null);
+    assert.equal(activityGoal(services.scenario.read(), "oswin"), calls === 0 ? null : "Go to the hall");
     if (++calls === 1) return toolReply("set_activity", { name: "Meeting", status: "Pending", success_criteria: "Arrive", current_goal: "Go to the hall" });
     return { role: "assistant", content: "A final summary, not a memory." };
   };
@@ -95,18 +95,23 @@ test("host commits only after the GM finishes and does not append its final repl
   assert.doesNotMatch((await services.docs.read(path)).text, /A final summary/);
 });
 
-test("host commit conflicts return to the GM for reconciliation", async () => {
+test("activity commit conflicts return to the GM for reconciliation", async () => {
   const services = fixture(), path = characterEntry(services.scenario.info(), "oswin"); let calls = 0;
+  const commit = services.docs.commit.bind(services.docs);
+  let conflict = true;
+  services.docs.commit = async (writes, intents) => {
+    if (conflict) {
+      conflict = false;
+      const current = await services.docs.read(path);
+      await commit([{ path, expectedSha: current.sha, text: current.text + "\nConcurrent memory.\n" }]);
+    }
+    return commit(writes, intents);
+  };
   services.ai.responses = async request => {
     switch (++calls) {
       case 1: return toolReply("set_activity", { name: "Old", status: "Pending", success_criteria: "Arrive", current_goal: "Old goal" });
-      case 2: {
-        const current = await services.docs.read(path);
-        await services.docs.commit([{ path, expectedSha: current.sha, text: current.text + "\nConcurrent memory.\n" }]);
-        return { role: "assistant", content: "Reviewed." };
-      }
-      case 3:
-        assert.equal(request.messages.at(-1)!.role, "system");
+      case 2:
+        assert.equal(request.messages.at(-1)!.role, "tool");
         assert.match(request.messages.at(-1)!.content!, /document_conflict/);
         assert.equal(activityGoal(services.scenario.read(), "oswin"), null);
         return toolReply("set_activity", { name: "New", status: "Pending", success_criteria: "Arrive", current_goal: "Reconciled goal" });
@@ -114,12 +119,12 @@ test("host commit conflicts return to the GM for reconciliation", async () => {
     }
   };
   await runGameMaster({ model: "test", messages: [] }, services, new AbortController().signal, { characterId: "oswin", review: true });
-  assert.equal(calls, 4);
+  assert.equal(calls, 3);
   assert.equal(activityGoal(services.scenario.read(), "oswin"), "Reconciled goal");
   assert.match((await services.docs.read(path)).text, /Concurrent memory/);
 });
 
-test("failed or cancelled GM completion leaves staged activities uncommitted", async () => {
+test("failed or cancelled GM completion preserves earlier committed activities", async () => {
   for (const cancelled of [false, true]) {
     const services = fixture(), controller = new AbortController(); let calls = 0;
     services.ai.responses = async () => {
@@ -130,7 +135,7 @@ test("failed or cancelled GM completion leaves staged activities uncommitted", a
     };
     await assert.rejects(runGameMaster({ model: "test", messages: [] }, services, controller.signal,
       { characterId: "oswin", review: true }), /offline|abort/i);
-    assert.equal(activityGoal(services.scenario.read(), "oswin"), null);
+    assert.equal(activityGoal(services.scenario.read(), "oswin"), "Go to the hall");
   }
 });
 
