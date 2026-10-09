@@ -4,10 +4,14 @@ import { DocumentSchema, type WorldState } from "../../contracts/src/v2.js";
 import { runtimeActor } from "./runtime-actor.js";
 import type { DocsService, ScenarioService } from "./service-types.js";
 
+// Match the document audit audience even when a player aliases a scenario entry.
+const memoryOwner = (entry: string, id: string) => /\/Characters\/([^/]+)\/character\.md$/.exec(entry)?.[1] ?? id;
+
 export const memoryIndexPath = (entry: string) => entry.slice(0, entry.lastIndexOf("/") + 1) + "memories/index.md";
 
 /** Fresh characters get a private index; saved worlds retain their authored documents. */
 export function seedMemories(world: WorldState, entry: string, characterId: string) {
+  characterId = memoryOwner(entry, characterId);
   const path = memoryIndexPath(entry);
   if (world.docs[path]) return;
   world.docs[path] = create(DocumentSchema, { frontmatter: { visibility: "private", readers: [`character:${characterId}`],
@@ -25,7 +29,7 @@ export async function saveMemory(services: { docs: DocsService; scenario: Scenar
   if (Object.keys(input).some(key => !["title", "context", "content"].includes(key))) throw new Error("Unexpected memory argument.");
   const actor = runtimeActor(services.scenario.read(), characterId);
   const index = await services.docs.read(memoryIndexPath(actor.document));
-  const readers = [`character:${actor.characterId}`];
+  const readers = [`character:${memoryOwner(actor.document, actor.characterId)}`];
   if (index.document.frontmatter?.visibility !== "private" || JSON.stringify(index.document.frontmatter.readers) !== JSON.stringify(readers)) {
     throw new Error("Memory index must be private to its character.");
   }

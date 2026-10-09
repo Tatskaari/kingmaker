@@ -29,9 +29,9 @@ test("builds serializable documents and adopts the supplied fresh physical map",
   assert.equal(state.scenario, entry);
   assert.equal(state.scenarioIndex, index);
   assert.equal(state.player, character);
-  assert.equal(state.docs[character]!.body, body);
+  assert.equal(state.docs[character]!.body, body + "\n[Memories](memories/index.md)\n");
   assert.deepEqual(state.docs[character]!.links.map(link => [link.target, link.source]),
-    [["Secrets.md", "Secrets#Truth"], [character, "#opening"]]);
+    [["Secrets.md", "Secrets#Truth"], [character, "#opening"], [character.replace("character.md", "memories/index.md"), "memories/index.md"]]);
   assert.deepEqual(fromJson(WorldStateSchema, toJson(WorldStateSchema, state)), state);
   state.simulation!.map!.day = 9;
   state.simulation!.map!.facts!.test = false;
@@ -41,7 +41,7 @@ test("builds serializable documents and adopts the supplied fresh physical map",
   assert.equal(map.day, 9);
   assert.equal(map.facts!.test, false);
   assert.ok(lore.get(character)!.includes('"visibility":"private"'));
-  assert.equal(worldState(map, lore, "Test").docs[character]!.body, body);
+  assert.equal(worldState(map, lore, "Test").docs[character]!.body, body + "\n[Memories](memories/index.md)\n");
   assert.equal(worldState(map, lore, "Test").player, undefined);
 });
 
@@ -62,7 +62,7 @@ test("builds the current Markdown vault including stubs", () => {
   const root = fileURLToPath(new URL("../lore/", import.meta.url));
   const lore = new Map([...readVault(root).keys()].map(name => [name, readFileSync(path.join(root, name), "utf8")]));
   const state = worldState(create(MapSchema), lore, "Centennial Assembly");
-  assert.equal(Object.keys(state.docs).length, lore.size);
+  assert.equal(Object.keys(state.docs).length, lore.size + state.characters.length);
   assert.equal(state.characters.length, 13);
   assert.equal(state.docs["Scenarios/Centennial Assembly/Map/Assembly Map.md"]!.body.trim(), "This is a stub.");
   assert.ok(state.characters.includes("Scenarios/Centennial Assembly/Characters/aldren/character.md"));
