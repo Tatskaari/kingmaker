@@ -17,6 +17,7 @@ export type MapCommand =
   | { kind: "step"; characterId: string; actionId: string; goal: string };
 export interface MapResult {
   done: boolean;
+  roll?: import("../../core/src/cart.js").CartStrengthCheck;
   movementOutcome?: import("../../core/src/movement-service.js").MovementOutcome;
   talkTarget?: string;
   worldEvent?: Event;

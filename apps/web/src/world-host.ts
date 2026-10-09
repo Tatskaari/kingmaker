@@ -12,7 +12,8 @@ import { strangerEntry } from "./stranger-lore.js";
 import { creationAffiliations } from "./stranger-draft.js";
 import type { StrangerState } from "./stranger-interview.js";
 import { GamePhase, WorldMapSchema } from "../../../packages/contracts/src/index.js";
-import type { MapService } from "../../../packages/conversation/src/map.js";
+import type { MapService, MapResult } from "../../../packages/conversation/src/map.js";
+import { rollD20 } from "../../../packages/core/src/ability-checks.js";
 import { roomAgentActions } from "./room-actions.js";
 import { foregroundBodies } from "./background-characters.js";
 import { worldForCharacter } from "../../../packages/core/src/physical-view.js";
@@ -46,6 +47,7 @@ export class WorldHost {
   protected movementChanged() {}
   protected movementDeparted(_departure: RoomDeparture) {}
   protected movementError(error: unknown) { console.error(error); }
+  protected rollFixtureDie() { return rollD20(); }
   constructor(world: WorldState, saved?: WorldSnapshot, clock?: MovementClock) {
     this.initial = clone(WorldStateSchema, world);
     this.worldServices = createScenarioServices(world);
@@ -91,7 +93,7 @@ export class WorldHost {
     const game = new PalaceMechanics(this.world(), this.activity, () => this.movement.now(), {
       currentSimulation: () => this.world().simulation!,
       executeMove: (move, ...args) => this.worldServices.mechanics.executeMove(move, ...args),
-    });
+    }, () => this.rollFixtureDie());
     const result = operation(game);
     this.activity.npcActivities = game.result().npcActivities;
     return result;
@@ -140,6 +142,7 @@ export class WorldHost {
     interact: async (command, signal) => {
       if (command.kind === "step") return this.stepNpcAction(command.characterId, command.actionId, command.goal, signal);
       let worldEvent: Event | undefined, message: string | undefined;
+      let roll: MapResult["roll"];
       if (command.kind === "move") {
         const before = this.world().simulation!.map!.actors.find(actor => actor.characterId === "player")!.roomId;
         const outcome = await this.movePlayer(command.destination, signal);
@@ -151,9 +154,9 @@ export class WorldHost {
         }
       }
       if (command.kind === "door") worldEvent = this.setDoor(command.id, command.open);
-      if (command.kind === "fixture") { const result = this.interactFixtureWithEvent(command.id); worldEvent = result.event; message = result.message; }
+      if (command.kind === "fixture") { const result = this.interactFixtureWithEvent(command.id); worldEvent = result.event; message = result.message; roll = result.roll; }
       return { done: true,
-        ...(worldEvent ? { worldEvent } : {}), ...(message ? { message } : {}) };
+        ...(worldEvent ? { worldEvent } : {}), ...(message ? { message } : {}), ...(roll ? { roll } : {}) };
     },
   };
   hasActiveObjective(id: string) { this.syncGoals(); return this.activity.npcActivities?.[id]?.status === "active"; }
