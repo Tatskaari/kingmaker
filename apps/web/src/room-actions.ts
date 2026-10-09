@@ -81,7 +81,7 @@ export function roomAgentActions(world: MapState, characters: readonly { id: str
             : `Follow ${target.name}: stay on a free adjacent tile as they move; reconsider every 15 seconds (${estimatedSteps} steps).` };
         if (existing >= 0) actions[existing] = action; else actions.push(action);
       }
-  }
+    }
   }
   return actions;
 }

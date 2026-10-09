@@ -65,3 +65,35 @@ test("a changed goal or absent target cannot start following", async () => {
   await assert.rejects(game.beginFollowing("corvin", "follow_missing", goal, new AbortController().signal), /changed/);
   assert.equal(followingTarget(game.world(), "corvin"), undefined);
 });
+
+test("automatic pursuit moves without AI and cancellation stops at the current position", async () => {
+  const { world, goal } = fixture();
+  let now = 0;
+  const timers = new Set<{ at: number; callback(): void }>();
+  const game = new WorldGameRuntime(world, "", undefined, undefined, undefined, {
+    movementClock: { now: () => now, schedule(callback, delay) {
+      const timer = { at: now + delay, callback }; timers.add(timer); return () => { timers.delete(timer); };
+    } },
+    services: { ai: { decisions: async () => assert.fail("Movement must not call Jev") } },
+  });
+  await game.beginFollowing("corvin", "follow_player", goal, new AbortController().signal);
+  const documents = game.world().docs, controller = new AbortController();
+  const moving = game.moveFollower("corvin", controller.signal);
+  await new Promise<void>(resolve => setImmediate(resolve));
+  const actor = () => game.world().simulation!.map!.actors.find(actor => actor.characterId === "corvin")!;
+  assert.ok(actor().movement);
+  const start = { x: actor().position!.x, y: actor().position!.y };
+  now = 50; controller.abort(); await moving;
+  assert.equal(actor().movement, undefined);
+  assert.notDeepEqual({ x: actor().position!.x, y: actor().position!.y }, start);
+  assert.strictEqual(game.world().docs, documents);
+  const next = game.moveFollower("corvin", new AbortController().signal);
+  await new Promise<void>(resolve => setImmediate(resolve));
+  now = 1000;
+  for (const timer of [...timers]) if (timer.at <= now) { timers.delete(timer); timer.callback(); }
+  await next;
+  const player = game.world().simulation!.map!.actors.find(actor => actor.characterId === "player")!;
+  assert.equal(Math.abs(actor().position!.x - player.position!.x) + Math.abs(actor().position!.y - player.position!.y), 1);
+  assert.equal(actor().movement, undefined);
+  assert.strictEqual(game.world().docs, documents);
+});
