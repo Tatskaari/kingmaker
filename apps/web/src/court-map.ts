@@ -230,7 +230,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     control.className = `court-character${isPlayer ? " court-player" : ""}`;
     if (control instanceof HTMLButtonElement) {
       control.type = "button"; control.disabled = disabled;
-      control.setAttribute("aria-label", `Walk to ${marker.name} · ${marker.roomName}`);
+      control.setAttribute("aria-label", `Walk to ${marker.name}${marker.physicalForm === "cow" ? " (cow)" : ""} · ${marker.roomName}`);
       control.addEventListener("click", () => { if (marker.point) { closeMenu(); const spot = approach(marker.point); if (spot) void walkTo(spot); } });
       control.addEventListener("contextmenu", event => {
         event.preventDefault(); event.stopPropagation();
@@ -352,10 +352,15 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       }
       const control = stage.querySelector<HTMLElement>(`[data-instance-id="${CSS.escape(marker.instanceId ?? marker.id)}"]`);
       if (control && marker.point) {
+        const sprite = control.querySelector<HTMLElement>(".court-sprite")!;
+        const cow = marker.physicalForm === "cow";
+        sprite.classList.toggle("court-cow", cow);
+        if (cow) sprite.dataset.cow = "true"; else delete sprite.dataset.cow;
+        sprite.style.backgroundPosition = cow ? "0 0" : `${-(marker.sprite % 12) * 32}px ${-Math.floor(marker.sprite / 12) * 32}px`;
         control.style.transition = "none";
         control.style.left = `${(marker.point.x + 0.5) / palaceMap.width * 100}%`;
         control.style.top = `${(marker.point.y + 0.5) / palaceMap.height * 100}%`;
-        control.setAttribute("aria-label", `Walk to ${marker.name} · ${marker.roomName}`);
+        control.setAttribute("aria-label", `Walk to ${marker.name}${marker.physicalForm === "cow" ? " (cow)" : ""} · ${marker.roomName}`);
       }
     }
     updateCourtSpeech(root, next.speechBubbles, next.characters);
