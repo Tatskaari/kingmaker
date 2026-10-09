@@ -1,7 +1,8 @@
 import { recordCharacterHistory } from "../../../packages/core/src/character-history.js";
 import { followingTarget, activityDefinition } from "../../../packages/lore/src/activity.js";
 import { followRoute } from "../../../packages/core/src/follow.js";
-import { actorPosition } from "../../../packages/core/src/simulation-movement.js";
+import { actorPosition, movementActor } from "../../../packages/core/src/simulation-movement.js";
+import type { RoomDeparture } from "../../../packages/core/src/room-departures.js";
 import { renderPrompt } from "../../../packages/prompts/src/index.js";
 import { earshotNotes } from "./agent-setup.js";
 import { arrestResponse } from "../../../packages/conversation/src/conversation-actions.js";
@@ -70,6 +71,25 @@ export class WorldGameRuntime extends WorldHost {
   }
   protected override writeSimulation<T>(work: () => T): Promise<T> { return this.commit(work); }
   protected override movementError(error: unknown) { this.warning(String(error)); }
+  protected override movementDeparted(departure: RoomDeparture) {
+    const world = this.world(), simulation = world.simulation!, map = simulation.map!;
+    const id = movementActor(simulation, departure.actorId)?.characterId;
+    if (!id) return;
+    const path = id === "player" ? world.player : simulation.runtimeCharacters[id]?.document;
+    const name = (path && world.docs[path]?.frontmatter?.name) || id;
+    const from = map.rooms.find(room => room.id === departure.fromRoomId), to = map.rooms.find(room => room.id === departure.toRoomId);
+    const door = map.doors.find(door => door.id === departure.doorId);
+    const exit = door?.name || `the passage at (${departure.position.x}, ${departure.position.y})`;
+    const route = `${from?.name || departure.fromRoomId} through ${exit} toward ${to?.name || departure.toRoomId}`;
+    const event = create(EventSchema, { id: departure.id, day: map.day, participantIds: [id], position: departure.position,
+      kind: `leaving ${route}`, summary: `${name} left ${route}.`,
+      details: { fromRoomId: departure.fromRoomId, toRoomId: departure.toRoomId, exitId: departure.doorId ?? "" } });
+    // Already inside the movement write: publish perceptions immediately, without waiting for a GM review.
+    const perceived = this.perceiveWorldEvent(event, departure.atMs);
+    for (const reaction of perceived.reactions) recordCharacterHistory(this.activity, reaction.characterId,
+      { kind: "event", id: event.id, text: reaction.perception });
+    if (id !== "player" && perceived.playerPerception) this.recordPlayerPerception(event, perceived.playerPerception);
+  }
   private random() {
     return { integer: (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1)), ...this.options.services?.random };
   }
@@ -527,6 +547,9 @@ export class WorldGameRuntime extends WorldHost {
   }
   async assessWorldEvent(event: Event, signal: AbortSignal) {
     signal.throwIfAborted();
+    return this.perceiveWorldEvent(event);
+  }
+  private perceiveWorldEvent(event: Event, atMs = this.movement.now()) {
     const world = this.world(), map = world.simulation!.map;
     if (!map) throw new Error("A physical map is required.");
     // Perception needs identities and public names, not character lore or mechanics.
@@ -540,7 +563,7 @@ export class WorldGameRuntime extends WorldHost {
     if (!event.position) return { reactions: [], ...(ownEvent ? { playerPerception: event.summary } : {}) };
     const source = { id: event.participantIds[0] ?? event.id, name: event.kind, position: event.position };
     const listeners = courtCharactersWithinEarshot(source, [...names].filter(([id]) => !event.participantIds.includes(id)).flatMap(([id, name]) => map.actors.filter(actor => actor.characterId === id)
-      .map(actor => ({ id, name, position: actorPosition(actor, this.movement.now()) }))), map.doors, map.fixtures, map.layout).filter(listener => perceivesAt(listener.level, () => (random.integer(1, 100) - 1) / 100, listener.id === "player"));
+      .map(actor => ({ id, name, position: actorPosition(actor, atMs) }))), map.doors, map.fixtures, map.layout).filter(listener => perceivesAt(listener.level, () => (random.integer(1, 100) - 1) / 100, listener.id === "player"));
     const perceptions = listeners.map(listener => ({ characterId: listener.id, level: listener.level,
       perception: listener.level === "Clear" ? event.summary : `You notice ${event.participantIds.map(id => names.get(id) ?? id).join(" and ")} ${event.kind}, but cannot make out the details.` }));
     const player = perceptions.find(p => p.characterId === "player");
