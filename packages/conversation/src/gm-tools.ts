@@ -86,6 +86,8 @@ export class GameMasterTools {
         total: entries.length, nextOffset: end < entries.length ? end : null };
     }
     if (documentTools.some(tool => tool.function.name === name)) {
+      const before = trace && name !== "read_document" && typeof input.path === "string" && this.services.scenario.read().docs[input.path]
+        ? await docs.read(input.path) : undefined;
       const result = await callDocumentTool(docs, name, input);
       if ("current" in result && result.current) {
         for (const [, edit] of this.edits) if (edit.before.path === result.current.path) {
@@ -94,6 +96,7 @@ export class GameMasterTools {
       }
       if (trace && result.ok && name !== "read_document") this.services.debug.documentUpdated?.({
         path: String(input.path), beforeSha: typeof input.expectedSha === "string" ? input.expectedSha : "",
+        beforeText: before?.text ?? "", afterText: "current" in result && result.current ? result.current.text : "",
         afterSha: "current" in result && result.current ? result.current.sha : "", ...trace });
       return result;
     }
@@ -118,7 +121,7 @@ export class GameMasterTools {
     for (const { before, trace, activity } of this.edits.values()) {
       if (!activity.pending) continue;
       const after = await this.services.docs.read(before.path);
-      if (trace) this.services.debug.documentUpdated?.({ path: before.path, beforeSha: before.sha, afterSha: after.sha, ...trace });
+      if (trace) this.services.debug.documentUpdated?.({ path: before.path, beforeSha: before.sha, afterSha: after.sha, beforeText: before.text, afterText: after.text, ...trace });
     }
     this.edits.clear();
     this.pending = false;

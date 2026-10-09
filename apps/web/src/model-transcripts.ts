@@ -79,7 +79,7 @@ export class ModelTranscripts {
     const call = this.#responses.get(response);
     if (!call || update.beforeSha === update.afterSha) return;
     // Keep the exact redacted call with its write even after ordinary runs expire.
-    this.#documentWrites.push({ ...update, updatedAt: new Date().toISOString(), call });
+    this.#documentWrites.push({ ...this.#clean(update) as typeof update, updatedAt: new Date().toISOString(), call });
     if (this.#documentWrites.length > 50) this.#documentWrites.shift();
     this.changed();
   }

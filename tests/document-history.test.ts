@@ -8,7 +8,7 @@ test("document history is bounded, redacted, and retains calls beyond the ordina
   for (let index = 0; index < 55; index++) {
     const response = commitReview({ summary: `Update ${index}`, newNotes: ["secret-key"], activeGoal: null });
     await traces.record("conversation_review", "rowan", { key: "secret-key" }, async () => response);
-    traces.documentUpdated({ path: `${index}.md`, beforeSha: "before", afterSha: "after", response, toolCallId: "review" });
+    traces.documentUpdated({ path: `${index}.md`, beforeSha: "before", afterSha: "after", beforeText: "Before secret-key", afterText: "After secret-key", response, toolCallId: "review" });
   }
   for (let index = 0; index < 55; index++) await traces.record("dialogue", "rowan", {}, async () => ({}));
   const history = traces.documentWrites();
@@ -18,6 +18,8 @@ test("document history is bounded, redacted, and retains calls beyond the ordina
   assert.equal(history[0]!.call.kind, "conversation_review");
   assert.match(JSON.stringify(history), /\[redacted\]/);
   assert.doesNotMatch(JSON.stringify(history), /secret-key/);
+  assert.equal(history[0]!.beforeText, "Before [redacted]");
+  assert.equal(history[0]!.afterText, "After [redacted]");
   history[0]!.path = "changed";
   assert.equal(traces.documentWrites()[0]!.path, "54.md");
 });
