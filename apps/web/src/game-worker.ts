@@ -447,7 +447,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     const game = requireRuntime();
     const result = await commitMutation(game, () => game.executeAction({ command: { kind: "fixture", id: String(payload.actionId || "") } }));
     if (result.worldEvent) scheduleWorldEvent(game, result.worldEvent);
-    return { ...await mutationResponse(game), message: result.message };
+    return { ...await mutationResponse(game), message: result.message, roll: result.roll };
   }
   if (type === "set_door" || type === "move_player") {
     if (type === "set_door" && typeof payload.open !== "boolean") throw new Error("Door state must be open or closed.");

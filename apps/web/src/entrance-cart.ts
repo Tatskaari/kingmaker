@@ -1,12 +1,28 @@
 import type { MapFixture } from "../../../packages/contracts/src/index.js";
 import type { Point } from "../../../packages/core/src/navigation.js";
 
-export const isEntranceCart = (fixture: MapFixture) => fixture.id === "furn_cart_left" || fixture.id === "furn_cart_right";
+import { isCartPart as isEntranceCart } from "../../../packages/core/src/cart.js";
+export { isEntranceCart };
+function drawGiftTree(context: CanvasRenderingContext2D) {
+    // A substantial terracotta pot and the Nine Furrows gift tree.
+    context.fillStyle = "#733c2d"; context.fillRect(10, -2, 13, 12);
+    context.fillStyle = "#ce895a"; context.fillRect(9, -3, 15, 3); context.fillRect(12, 0, 3, 8);
+    context.fillStyle = "#68492d"; context.fillRect(15, -13, 3, 12);
+    context.fillStyle = "#254e38"; context.fillRect(7, -15, 20, 9); context.fillRect(11, -19, 12, 15);
+    context.fillStyle = "#56834c"; context.fillRect(9, -15, 9, 6); context.fillRect(13, -18, 8, 5);
+    context.fillStyle = "#a4b967"; context.fillRect(12, -15, 4, 3);
+}
+
 const rattling = (now: number) => now % 3200 < 720;
 
-/** The delayed necessities sit with the servants, on the outside of the cart. */
-export function drawEntranceDelivery(context: CanvasRenderingContext2D, fixture: MapFixture): boolean {
-  if (!fixture.position || !["furn_delivery_cushions", "furn_delivery_supplies"].includes(fixture.id)) return false;
+/** Entrance goods and the surviving tree use the same fixture renderer. */
+export function drawEntranceScenery(context: CanvasRenderingContext2D, fixture: MapFixture): boolean {
+  if (!fixture.position) return false;
+  if (fixture.id === "furn_gift_tree") {
+    context.save(); context.translate(fixture.position.x * 16 - 8, fixture.position.y * 16);
+    drawGiftTree(context); context.restore(); return true;
+  }
+  if (!["furn_delivery_cushions", "furn_delivery_supplies"].includes(fixture.id)) return false;
   context.save(); context.translate(fixture.position.x * 16, fixture.position.y * 16);
   context.fillStyle = "#51341f"; context.fillRect(0, 4, 16, 12);
   context.fillStyle = "#c39054"; context.fillRect(1, 5, 14, 9);
@@ -47,13 +63,7 @@ export function drawEntranceCart(context: CanvasRenderingContext2D, fixtures: re
     for (const y of [3, 7, 11]) context.fillRect(1, y, 30, 2);
     context.fillStyle = "#64462e"; context.fillRect(3, 14, 2, 6); context.fillRect(27, 14, 2, 6);
     context.fillStyle = "#ded0a0"; context.fillRect(2, 4, 2, 8); context.fillRect(28, 4, 2, 8);
-    // A substantial terracotta pot and the Nine Furrows gift tree.
-    context.fillStyle = "#733c2d"; context.fillRect(10, -2, 13, 12);
-    context.fillStyle = "#ce895a"; context.fillRect(9, -3, 15, 3); context.fillRect(12, 0, 3, 8);
-    context.fillStyle = "#68492d"; context.fillRect(15, -13, 3, 12);
-    context.fillStyle = "#254e38"; context.fillRect(7, -15, 20, 9); context.fillRect(11, -19, 12, 15);
-    context.fillStyle = "#56834c"; context.fillRect(9, -15, 9, 6); context.fillRect(13, -18, 8, 5);
-    context.fillStyle = "#a4b967"; context.fillRect(12, -15, 4, 3);
+    drawGiftTree(context);
     context.restore();
   }
 }

@@ -696,10 +696,19 @@ function renderDay(bindPage = true) {
     updateCourtMap(mapRoot, state);
     return state.doors;
   }, state.roomAccess, state.fixtures, state.fixtureActions, async actionId => {
+    const generation = gameViewGeneration;
     const result = await rpc("interact_fixture", { actionId });
+    if (generation !== gameViewGeneration || !mapRoot.isConnected) return;
     state = result.state; saves = result.saves ?? saves;
     recordCourtNotice(result.message);
     updateCourtMap(mapRoot, state); updateNpcPanel(); updatePlayerFeed();
+    if (result.roll) {
+      const controller = new AbortController();
+      const cleanup = new MutationObserver(() => { if (!mapRoot.isConnected) controller.abort(); });
+      cleanup.observe(document.body, { childList: true, subtree: true });
+      try { await showDiceRoll({ ...result.roll, signal: controller.signal }); }
+      finally { cleanup.disconnect(); }
+    }
   }, async id => {
     if (conversationReviews.has(id)) throw new Error("Conversation review is pending.");
     await rpc("pause_npc", { characterId: id });

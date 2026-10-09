@@ -93,6 +93,7 @@ export class WorldGameRuntime extends WorldHost {
   private random() {
     return { integer: (min: number, max: number) => min + Math.floor(Math.random() * (max - min + 1)), ...this.options.services?.random };
   }
+  protected override rollFixtureDie() { return this.random().integer(1, 20); }
   private runtime(id: string, kind: ModelCallKind, extra: WorldOptions = {}, runKey?: string, signal?: AbortSignal, participantIds = [id]) {
     const turnId = crypto.randomUUID(), conversationId = runKey ?? crypto.randomUUID();
     const persist = this.persistChange;

@@ -15,6 +15,8 @@ import type { SimulationMove } from "../../../packages/core/src/simulation-move.
 import { roomAgentActions } from "./room-actions.js";
 
 import { gameLogger } from "../../../packages/observability/src/logging.js";
+import { rollD20 } from "../../../packages/core/src/ability-checks.js";
+import { cartStrengthCheck, type CartStrengthCheck } from "../../../packages/core/src/cart.js";
 function mechanicalCharacters(world: WorldState, simulation: () => SimulationState) {
   return characterDocuments(world).map(({ id, path, document }) => ({ id, path,
     name: typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id,
@@ -57,12 +59,14 @@ function fixtureEventContext(world: PhysicalMap, characters: ReturnType<typeof m
     ...(owner ? { ownerCharacterId: owner.id, ownerName: owner.name } : {}),
   };
   const describe = (actorName: string, fallback: string) => {
+    if (action.verb === "smash") return `${actorName}: ${fallback}${illegalDestruction()}`;
     if (action.legality !== "illegal" || !owner || !fixture) return `${actorName}: ${fallback}`;
     if (action.verb === "take" && item) return `${actorName} stole ${item.name} from ${owner.name}'s ${fixture.name}.`;
     if (action.verb === "open") return `${actorName} opened ${owner.name}'s ${fixture.name} without permission. ${fallback}`;
     if (action.verb === "inspect" && item) return `${actorName} inspected ${owner.name}'s ${item.name} without permission.`;
     return `${actorName} used ${owner.name}'s ${fixture.name} without permission.`;
   };
+  const illegalDestruction = () => action.legality === "illegal" && owner ? ` The cart belongs to ${owner.name}.` : "";
   return { details, describe };
 }
 /** Synchronous rules over a live document world's mechanical state. */
@@ -77,7 +81,7 @@ export class PalaceMechanics {
     private readonly authority?: {
       currentSimulation(): SimulationState;
       executeMove<Args extends unknown[]>(move: SimulationMove<Args>, ...args: Args): void;
-    }) {
+    }, private readonly rollFixtureDie = rollD20) {
     if (!world.simulation!.map) throw new Error("A physical map is required.");
     this.#simulation = world.simulation!;
     this.#characters = mechanicalCharacters(world, () => this.#simulation);
@@ -95,9 +99,9 @@ export class PalaceMechanics {
       this.#simulation = this.authority.currentSimulation();
     } else this.#simulation = executeLocalMove(this.#simulation, move, ...args);
   }
-  private applyFixture(actorId: string, actionId: string): string {
-    const message = fixtureActionMessage(this.#simulation, actorId, actionId);
-    this.executeMove(interactWithFixture, actorId, actionId, this.now());
+  private applyFixture(actorId: string, actionId: string, natural?: number): string {
+    const message = fixtureActionMessage(this.#simulation, actorId, actionId, natural);
+    this.executeMove(interactWithFixture, actorId, actionId, this.now(), natural);
     return message;
   }
   private observe(characterId: string, continuingActionId: string) {
@@ -167,7 +171,7 @@ export class PalaceMechanics {
     activity.reviewPending = true;
   }
 
-  interactFixture(actionId: string): string {
+  interactFixture(actionId: string): { message: string; roll?: CartStrengthCheck } {
     const world = this.#world, characters = this.#characters;
     if (world?.phase !== GamePhase.CONVERSATIONS) throw new Error("Enter court before interacting with furniture.");
     const actorId = this.#playerId;
@@ -177,7 +181,7 @@ export class PalaceMechanics {
     const position = actorPosition(world.actors.find(actor => actor.characterId === actorId), this.now());
     if (action?.target === actorId && action.itemId) {
       const result = this.applyFixture( actorId, actionId);
-      return result;
+      return { message: result };
     }
     if (!fixture?.position || !position) throw new Error("Unknown furniture interaction.");
     const spot = fixture.interactionSpot;
@@ -185,16 +189,18 @@ export class PalaceMechanics {
       : Math.abs(position.x - fixture.position.x) + Math.abs(position.y - fixture.position.y) !== 1) {
       throw new Error("Walk to the furniture's interaction spot first.");
     }
-    const result = this.applyFixture( actorId, actionId);
-    return result;
+    const roll = action.verb === "smash" ? cartStrengthCheck(this.#simulation.runtimeCharacters[actorId]?.dnd, this.rollFixtureDie()) : undefined;
+    const message = this.applyFixture(actorId, actionId, roll?.roll);
+    return { message, ...(roll ? { roll } : {}) };
   }
 
-  interactFixtureWithEvent(actionId: string): { message: string; event: Event } {
+  interactFixtureWithEvent(actionId: string): { message: string; event: Event; roll?: CartStrengthCheck } {
     const world = this.#world, characters = this.#characters, actorId = this.#playerId;
     const name = characters.find(character => character.id === actorId)?.name ?? actorId;
     const context = fixtureEventContext(world, characters, actorId, actionId);
-    const message = this.interactFixture(actionId);
-    return { message, event: this.worldEvent("interacting with an object", context.describe?.(name, message) ?? `${name}: ${message}`, [actorId], context.details) };
+    const result = this.interactFixture(actionId);
+    return { ...result, event: this.worldEvent("interacting with an object", context.describe?.(name, result.message) ?? `${name}: ${result.message}`, [actorId],
+      { ...context.details, ...(result.roll ? { strengthCheck: { ...result.roll } } : {}) }) };
   }
 
 }

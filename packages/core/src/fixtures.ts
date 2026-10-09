@@ -3,8 +3,9 @@ import type { SimulationState } from "../../contracts/src/v2.js";
 import { transferBetweenInventories } from "./simulation-inventory.js";
 import { findItem, itemsFor, inventoryOwners, type InventoryOwner } from "./inventory.js";
 import type { MapFixture } from "../../contracts/src/index.js";
+import { cartStrengthCheck, hasIntactCart, isCartPart } from "./cart.js";
 
-export type FixtureVerb = "inspect" | "open" | "close" | "take";
+export type FixtureVerb = "inspect" | "open" | "close" | "take" | "smash";
 export interface FixtureAction {
   id: string; label: string; target: string; verb: FixtureVerb; itemId?: string;
   order: number; legality: "normal" | "illegal";
@@ -19,6 +20,10 @@ export function fixtureActions(fixtures: readonly MapFixture[] | undefined, owne
     const name = fixtureName(fixture, actorId);
     const illegal = fixture.ownerCharacterId !== "" && fixture.ownerCharacterId !== actorId;
     const actions: FixtureAction[] = [{ id: `inspect_${fixture.id}`, target: fixture.id, verb: "inspect", label: `Inspect ${name}`, order: 20, legality: "normal" }];
+    if (actorId === "player" && isCartPart(fixture) && hasIntactCart(fixtures)) actions.push({
+      id: `smash_${fixture.id}`, target: fixture.id, verb: "smash", label: "Smash cart · Strength check (DC 15)",
+      order: 25, legality: illegal ? "illegal" : "normal",
+    });
     if (!fixture.container) return actions;
     if (fixture.open) {
       actions.push({ id: `close_${fixture.id}`, target: fixture.id, verb: "close", label: `Close ${name}`, order: 30, legality: "normal" });
@@ -41,8 +46,8 @@ export function fixtureActions(fixtures: readonly MapFixture[] | undefined, owne
 }
 
 /** Caller supplies a draft and validates the physical approach before applying the action. */
-export function applyFixtureAction(G: SimulationState, actorId: string, actionId: string): string {
-  const message = fixtureActionMessage(G, actorId, actionId);
+export function applyFixtureAction(G: SimulationState, actorId: string, actionId: string, natural?: number): string {
+  const message = fixtureActionMessage(G, actorId, actionId, natural);
   const fixtures = G.map?.fixtures, owners = inventoryOwners(Object.values(G.runtimeCharacters), G.map);
   const action = fixtureActions(fixtures, owners, actorId).find(candidate => candidate.id === actionId);
   if (!action) throw new Error("That container action is no longer available.");
@@ -50,6 +55,15 @@ export function applyFixtureAction(G: SimulationState, actorId: string, actionId
     return message;
   }
   const fixture = fixtures!.find(item => item.id === action.target)!;
+  if (action.verb === "smash") {
+    if (cartStrengthCheck(G.runtimeCharacters[actorId]?.dnd, natural!).success) {
+      // Leave the potted tree on the right-hand tile; the left lane becomes passable.
+      const tree = fixtures!.find(item => item.id === "furn_cart_right")!;
+      tree.id = "furn_gift_tree"; tree.name = "Potted gift tree beside the smashed cart";
+      G.map!.fixtures = fixtures!.filter(item => item.id !== "furn_cart_left");
+    }
+    return message;
+  }
   const remember = () => { if (!fixture.examinedBy.includes(actorId)) fixture.examinedBy.push(actorId); };
   if (action.verb === "inspect") {
     remember();
@@ -73,10 +87,16 @@ export function applyFixtureAction(G: SimulationState, actorId: string, actionId
 }
 
 /** Render the interaction result without changing state or executing the move twice. */
-export function fixtureActionMessage(G: SimulationState, actorId: string, actionId: string): string {
+export function fixtureActionMessage(G: SimulationState, actorId: string, actionId: string, natural?: number): string {
   const owners = inventoryOwners(Object.values(G.runtimeCharacters), G.map);
   const action = fixtureActions(G.map?.fixtures, owners, actorId).find(candidate => candidate.id === actionId);
   if (!action) throw new Error("That container action is no longer available.");
+  if (action.verb === "smash") {
+    const check = cartStrengthCheck(G.runtimeCharacters[actorId]?.dnd, natural!);
+    const outcome = check.success ? "You smash the cart's chassis apart, opening a way past the potted gift tree."
+      : "You strike the cart, but its chassis holds. The entrance is still blocked.";
+    return `Strength check: ${check.total} against DC ${check.dc}. ${outcome}`;
+  }
   const item = action.itemId ? findItem(owners, action.itemId)! : undefined;
   if (action.verb === "inspect" && item) return `${item.name}: ${item.details || "No further details are recorded."}`;
   if (action.verb === "take") return `Picked up ${item!.name}.`;
