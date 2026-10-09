@@ -9,7 +9,7 @@ The vault separates character-private knowledge from GM-only truth. The lore acc
 
 Write private characterization and scenario character notes directly to the character: “you want”, “you know” or “you believe”. Keep voice guidance actionable and examples clearly illustrative. Observer knowledge describes that observer's understanding, not unrestricted truth about the subject. Leave unwritten bodies as literal stubs.
 
-Write GM notes to the GM, distinguishing established truth, possible outcomes, disclosure conditions and unresolved author decisions. Setting and plot reference notes are GM-only unless deliberately scoped for characters. Keep source archives and author navigation addressed to the author. Do not copy editorial provenance or unknown truths into character-facing notes.
+Write GM notes to the GM, distinguishing established truth, possible outcomes, disclosure conditions and unresolved author decisions. Setting and quest reference notes are GM-only unless deliberately scoped for characters. Keep source archives and author navigation addressed to the author. Do not copy editorial provenance or unknown truths into character-facing notes.
 
 ## Initial context
 The GM begins at the scenario's `scenario.md` and can consult the full authored vault. A conversation begins at its own `Characters/<id>/character.md`, which links to its private cast note and scoped scenario detail. Retrieve permitted detail when relevant; do not recursively load the graph into a prompt.

@@ -6,7 +6,7 @@ status: draft
 ---
 # Caerwyn
 
-GM reference. Use this as setting or plot context; it does not grant characters knowledge of every fact below.
+GM reference. Use this as setting context; it does not grant characters knowledge of every fact below.
 
 Capital, central roads, royal courts and garrisons. Its power depends on cooperation. The king's avoidance, legal precision and military logistics have kept the system functioning while hiding its failures.
 

@@ -1,5 +1,5 @@
 ---
-summary: "Author entrypoint to the Kingmaker Obsidian vault, linking setting, cast, plots, scenario material, source decisions and authoring guidance."
+summary: "Author entrypoint to the Kingmaker Obsidian vault, linking setting, cast, quests, scenario material, source decisions and authoring guidance."
 ---
 # Kingmaker Lore
 
@@ -8,7 +8,6 @@ Open this `lore` folder as an Obsidian vault. No community plugins are required.
 ## Lore from the issues
 - [[World/index|World Overview]] — factions, places, events and rules.
 - [[Cast/index|Cast Index]] — reusable character identities and relationships.
-- [[Plots/index|Plot Index]] — the story threads described in the issues.
 - [[Sources and Decisions]] — source links and unresolved lore questions.
 
 ## Playable material to sketch
@@ -20,7 +19,6 @@ Open this `lore` folder as an Obsidian vault. No community plugins are required.
 
 - [[Authoring/index|Authoring]]
 - [[Cast/index|Cast]]
-- [[Plots/index|Plots]]
 - [[Scenarios/index|Scenarios]]
 - [[Sources/index|Sources]]
 - [[World/index|World]]

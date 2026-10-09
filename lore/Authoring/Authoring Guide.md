@@ -5,7 +5,7 @@ summary: "How to organize and author the lore vault, including audience boundari
 
 For the collaboration workflow and agent-context design, see [[Authoring/Working on Lore|Working on Lore]].
 
-World notes own factions, places, history and enduring rules. Cast folders, grouped by faction under `Cast/`, split each person into `private.md`, `gm.md` and observer-owned `knowledge/` notes. Each scenario character entry links to its own private cast note. Author references and unknown truths stay in GM notes; keep author indexes outside character-facing links. Plot notes collect the story threads. These are summaries of the sources, not newly settled canon.
+World notes own factions, places, history and enduring rules. Cast folders, grouped by faction under `Cast/`, split each person into `private.md`, `gm.md` and observer-owned `knowledge/` notes. Each scenario character entry links to its own private cast note. Author references and unknown truths stay in GM notes; keep author indexes outside character-facing links. Scenario quests hold possible events and their consequences.
 
 Each scenario has a GM-facing `scenario.md` and separate `Characters/<name>/character.md` conversation entries. Their scoped detail stubs place the cast character at a specific time and location with current wants, knowledge, actions and situational prompting. Enduring speech style stays in Cast; see [[Agent Disclosure]]. Quest stubs are for possible events and the world-state changes they cause. Conversation stubs are for dialogue branches to improvise around. The map stub is for a place at a point in time, including tiles, occupants and inventories.
 
