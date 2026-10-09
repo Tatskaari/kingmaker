@@ -31,6 +31,6 @@ export function documentExplorer(data = {}, route = {}, names = {}) {
   return `${breadcrumbs}<div class="doc-explorer" data-transcript-key="document-explorer" data-transcript-container>
     <nav class="doc-tree" aria-label="Document directory" data-transcript-key="directory">${tree()}</nav>
     <section class="doc-reader" data-transcript-key="${escape(path)}" data-transcript-container><header class="doc-title"><h2>${escape(label(path))}</h2>
-      ${`<button class="doc-history-button" popovertarget="document-history" aria-label="Recent edits across all documents" title="Recent edits">↶ <span>Recent edits</span></button>`}</header>
+      <button class="doc-history-button" popovertarget="document-history" aria-label="Recent edits across all documents" title="Recent edits">↶ <span>Recent edits</span></button></header>
       <article class="doc-content">${content}</article>${popup}</section></div>`;
 }

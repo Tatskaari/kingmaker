@@ -38,8 +38,8 @@ export function documentHistory(writes, name) {
       const kind = ({ replace_document: "replaces", insert_document: "adds", create_document: "adds", delete_document: "removals" })[toolFor(write)?.function.name] || "updates";
       counts[kind]++;
     }
-    const summary = Object.entries(counts).filter(([kind, count]) => kind !== "updates" || count).map(([kind, count]) => `${count} ${kind}`).join(", ");
-    return `<details class="doc-edit-group" data-transcript-key="${escape(key)}"><summary><strong>${escape(title)}</strong><span class="doc-edit-counts">${summary}</span><span class="debug-meta"><time>${escape(new Date(updates[0].updatedAt).toLocaleString())}</time> · ${new Set(updates.map(write => write.path)).size} documents · Turn ${escape(call.turnId.slice(0, 8))}</span></summary>
+    const summary = Object.entries(counts).filter(([kind, count]) => kind !== "updates" || count).map(([kind, count]) => `${count} ${count === 1 ? kind.slice(0, -1) : kind}`).join(", ");
+    return `<details class="doc-edit-group" data-transcript-key="${escape(key)}"><summary><strong>${escape(title)}</strong><span class="doc-edit-counts">${summary}</span><span class="debug-meta"><time>${escape(new Date(updates[0].updatedAt).toLocaleString())}</time> · ${new Set(updates.map(write => write.path)).size} document${new Set(updates.map(write => write.path)).size === 1 ? "" : "s"} · Turn ${escape(call.turnId.slice(0, 8))}</span></summary>
       ${[...updates].reverse().map(write => `<article class="doc-write"><h4>${documentLink(write.path, write.path)}</h4><p class="debug-meta">${escape(name(write.call.characterId))} · ${escape(toolFor(write)?.function.name || "Document update")}</p>${documentDiff(write)}<details><summary>View transcript</summary>${transcriptDetail(write.call, name)}</details></article>`).join("")}</details>`;
   }).join("");
   return `<div id="document-history" class="doc-history" popover data-transcript-key="history" data-transcript-container role="dialog" aria-label="Recent edits">

@@ -47,8 +47,8 @@ test("history groups multiple calls and documents by turn, escapes diffs and cou
     write("gone.md", "delete_document", "turn-1", "c"),
   ] });
   assert.equal((html.match(/class="doc-edit-group"/g) || []).length, 2);
-  assert.match(html, /1 replaces, 1 adds, 0 removals/);
-  assert.match(html, /0 replaces, 0 adds, 1 removals/);
+  assert.match(html, /1 replace, 1 add, 0 removals/);
+  assert.match(html, /0 replaces, 0 adds, 1 removal/);
   assert.match(html, /doc-diff-add/);
   assert.match(html, /doc-diff-remove/);
   assert.match(html, /&lt;script&gt;old/);
