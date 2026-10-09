@@ -237,7 +237,8 @@ test("main game releases the NPC to act on newly assigned activity while live re
   assert.equal(liveFinished, false, "Ending the conversation must not wait for the GM");
   const plan = await runtime.planNpc("rowan", new AbortController().signal);
   assert.equal(plan.goal, "Go to the great hall");
-  const action = runtime.map.observe("rowan").actions.find(action => action.path.length > 1);
+  const action = runtime.map.observe("rowan").actions.flatMap(candidate =>
+    runtime.map.observe("rowan", candidate.id).actions).find(action => action.path.length > 1);
   assert.ok(action, "The NPC has an action requiring movement");
   const walking = runtime.stepNpcAction("rowan", action.id, plan.goal);
   for (let i = 0; i < 5; i++) await new Promise<void>(resolve => setImmediate(resolve));
@@ -272,6 +273,7 @@ test("main game displays discretion replies and accepts another turn while revie
       return reviewReply(request);
     },
   } } });
+  await runtime.overrideActiveObjective("rowan", { currentGoal: "Go to the parlour" });
   try {
     for (const message of ["Meet me in the hall.", "See you there."]) {
       await runtime.checkedTalkToCharacter("rowan", message, undefined, {}, undefined, text => {
