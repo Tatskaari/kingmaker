@@ -41,6 +41,9 @@ test("event perception rolls and reacts independently for guard instances", asyn
   const guards = loadPlayableWorld().simulation!.map!.actors.filter(actor => actor.characterId.startsWith("palace-guard-")).slice(0, 2);
   guards.forEach((actor, index) => { actor.position = { ...event.position!, x: 59 + index }; });
   world.simulation!.map!.actors.push(...guards);
+  // A guard at the royal back post cannot perceive this Great Hall event.
+  const distantGuard = loadPlayableWorld().simulation!.map!.actors.find(actor => actor.characterId === "palace-guard-9")!;
+  world.simulation!.map!.actors.push(distantGuard);
   // An unregistered body is not promoted to a character by observation.
   world.simulation!.map!.actors.push({ ...guards[0]!, characterId: "unregistered", instanceId: "orphan" });
   let rolls = 0;
@@ -50,6 +53,8 @@ test("event perception rolls and reacts independently for guard instances", asyn
   assert.equal(rolls, 3);
   assert.deepEqual(result.reactions.map(reaction => reaction.characterId), ["palace-guard-1", "palace-guard-2", "holt"]);
   assert.equal(result.reactions[0]!.perception, event.summary);
+  assert.ok(!result.reactions.some(reaction => reaction.characterId === distantGuard.characterId));
+  assert.equal(runtime.hasActiveObjective(distantGuard.characterId), false);
   assert.deepEqual(runtime.snapshot(), before);
 });
 

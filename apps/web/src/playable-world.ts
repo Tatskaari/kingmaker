@@ -4,7 +4,7 @@ import { fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import { clone } from "@bufbuild/protobuf";
 import { GamePhase, DndCharacterSchema, WorldMapSchema, MapStateSchema as MapSchema, type MapState as PalaceMap } from "../../../packages/contracts/src/index.js";
 import { CharacterPropertiesSchema, WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
-import { assignGuardPosts } from "./guard-duty.js";
+import { grantGuardAccess } from "./guard-duty.js";
 import { placeBackgroundCharacters } from "./background-characters.js";
 import { worldState, refreshDocumentGraph } from "../../../packages/lore/src/world-state.js";
 import envoySheet from "../../../content/envoy-sheet.json" with { type: "json" };
@@ -31,7 +31,7 @@ export function playableWorld(baseline: PalaceMap, markdown: ReadonlyMap<string,
   }
   world.simulation!.runtimeCharacters.player!.dnd = fromJson(DndCharacterSchema, envoySheet);
   for (const path of [...world.characters, player]) seedPresentation(world, path);
-  assignGuardPosts(world);
+  grantGuardAccess(world);
   return refreshDocumentGraph(world);
 }
 

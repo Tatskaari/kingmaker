@@ -2,14 +2,38 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { loadPlayableWorld } from "./fixtures.js";
 import { WorldGameRuntime } from "../apps/web/src/world-runtime.js";
+import { create } from "@bufbuild/protobuf";
+import { DocumentSchema, type WorldState } from "../packages/contracts/src/v2.js";
 import { activityGoal } from "../packages/lore/src/activity.js";
 
 const guard = "palace-guard-9";
-test("each guard has its own duty and can approach a witnessed intruder", async () => {
+function assignInvestigation(world: WorldState) {
+  const character = world.simulation!.runtimeCharacters[guard]!;
+  character.activity = character.document.replace("character.md", "test-investigation.md");
+  world.docs[character.activity] = create(DocumentSchema, { frontmatter: {
+    visibility: "private", readers: ["character:palace-guard"], name: "Investigate intrusion",
+    status: "An intrusion was perceived.", success_criteria: "The intrusion has been investigated.",
+    current_goal: "Investigate the perceived intrusion into the royal bedchamber.",
+  } });
+}
+
+test("guards start idle without generated duty or wait documents", () => {
   const world = loadPlayableWorld();
   const guards = Object.values(world.simulation!.runtimeCharacters).filter(character => character.characterId === "palace-guard");
   assert.equal(guards.length, 10);
-  assert.equal(new Set(guards.map(character => character.activity)).size, 10);
+  const game = new WorldGameRuntime(world, "");
+  for (const character of guards) {
+    assert.equal(character.activity, undefined);
+    assert.equal(character.wait, undefined);
+    assert.equal(game.hasActiveObjective(character.id), false);
+  }
+  assert.ok(!game.waitingCharacters().some(id => id.startsWith("palace-guard-")));
+  assert.ok(!Object.keys(world.docs).some(path => /palace-guard\/(activity|routine)-/.test(path)));
+});
+
+test("a guard assigned an investigation can move independently", async () => {
+  const world = loadPlayableWorld();
+  assignInvestigation(world);
   world.simulation!.map!.doors.filter(door => door.roomIds.includes("royal_bedchamber")).forEach(door => { door.open = true; });
   const game = new WorldGameRuntime(world, "");
   assert.ok(game.hasActiveObjective(guard));
@@ -36,6 +60,7 @@ test("private room entry emits evidence, while permitted entry does not", async 
 test("a guard opening challenges the player instead of arresting without a defense", async () => {
   const world = loadPlayableWorld(), player = world.simulation!.map!.actors.find(actor => actor.characterId === "player")!;
   player.position = { ...player.position!, x: 61, y: 11 }; player.roomId = "north_corridor";
+  assignInvestigation(world);
   const game = new WorldGameRuntime(world, "", undefined, undefined, undefined, {
     strategies: { conversation: { respond: (context, signal, services) => services.character.respond(context.request, signal), } },
     services: { ai: { responses: async request => request.tools?.some(tool => tool.function.name === "arrest")
