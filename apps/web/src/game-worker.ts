@@ -67,8 +67,10 @@ const waits = new WaitScheduler({
     if (!game) return;
     checkingWaits.add(id);
     try {
-      followers.cancel(id);
-      await game.movement.cancel(id);
+      if (followingTarget(game.world(), id)) {
+        followers.cancel(id);
+        await game.movement.cancel(id);
+      }
       await game.checkWait(id, elapsed, signal);
     } finally { checkingWaits.delete(id); followers.sync(); }
     if (signal.aborted || runtime !== game) return;
@@ -199,11 +201,6 @@ async function runBackground(next: { id: string; handoffs: number }) {
             reason = plan.decision.choice; detail = JSON.stringify(plan.decision); break;
           }
           if (!plan.action) throw new Error("Jev returned an unavailable action.");
-          if (plan.action.type === "follow") {
-            await game.beginFollowing(id, plan.action.id, plan.goal, signal);
-            finalStatus = `${id}: following ${plan.action.target}.`;
-            return;
-          }
           let result: { done: boolean; talkTarget?: string; worldEvent?: Event } | undefined;
           try {
             while (valid()) {
@@ -220,6 +217,10 @@ async function runBackground(next: { id: string; handoffs: number }) {
             throw error;
           }
           if (!valid()) return;
+          if (plan.action.type === "follow") {
+            finalStatus = `${id}: following ${plan.action.target}.`;
+            return;
+          }
           if (result?.worldEvent) scheduleWorldEvent(game, result.worldEvent, handoffs);
           if (result?.talkTarget) {
             const target = result.talkTarget;

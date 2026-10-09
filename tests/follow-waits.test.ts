@@ -29,7 +29,7 @@ test("Follow is offered on visible characters and commits a saved wait without m
   const actions = game.map.observe("corvin").actions;
   assert.ok(actions.some(action => action.id === "follow_player"));
   assert.ok(!actions.some(action => action.id === "follow_corvin"));
-  await game.stepNpcAction("corvin", "follow_player", goal);
+  await game.executeAction({ command: { kind: "step", characterId: "corvin", actionId: "follow_player", goal } });
   assert.equal(decisions(), 0);
   assert.equal(game.hasActiveObjective("corvin"), false);
   const intent = characterIntent(game.world(), "corvin");
