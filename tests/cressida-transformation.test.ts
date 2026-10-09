@@ -57,3 +57,22 @@ test("three-minute cadence toggles both ways and cancellation stops future chang
   t.mock.timers.tick(180_000); await flush(); assert.equal(form(), "human");
   scheduler.stop(); t.mock.timers.tick(180_000); await flush(); assert.equal(form(), "human");
 });
+
+
+test("each Cressida dialogue and exchange receives the current form as a system message", async () => {
+  const { setupWorldAgent } = await import("../apps/web/src/agent-setup.js");
+  const { ConversationRuntime } = await import("../packages/conversation/src/runtime.js");
+  const world = loadPlayableWorld(), map = world.simulation!.map!;
+  const runtime = new ConversationRuntime({ strategies: { setup: { prepare: setupWorldAgent } }, services: {
+    scenario: { read: () => world }, map: { observe: id => ({ characterId: id, map, actions: [] }) },
+  } });
+  for (const form of [undefined, "cow", "human"]) {
+    map.actors.find(actor => actor.characterId === "cressida")!.physicalForm = form;
+    for (const agent of ["character", "exchange"] as const) {
+      const messages = await runtime.services.agents.prepare({ agent, characterId: "cressida", sources: [],
+        participantIds: ["cressida", "player"], messages: [{ role: "user", content: "Hello" }] }, signal);
+      assert.ok(messages.some(message => message.role === "system" && message.content?.startsWith(
+        `You are currently a ${form === "cow" ? "were-cow" : "human"}.`)));
+    }
+  }
+});

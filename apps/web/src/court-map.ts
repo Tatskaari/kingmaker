@@ -75,8 +75,10 @@ export async function captureCourtMap(root: HTMLElement | null): Promise<Blob | 
       const x = (bounds.left - stageRect.left) * scaleX, y = (bounds.top - stageRect.top) * scaleY;
       const width = bounds.width * scaleX, height = bounds.height * scaleY;
       if (sprite.dataset.cow) {
-        context.font = `${height}px sans-serif`; context.textAlign = "left"; context.textBaseline = "top";
-        context.fillText("🐄", x, y);
+        const cow = new Image();
+        cow.src = getComputedStyle(sprite).backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1] ?? "";
+        await cow.decode();
+        context.drawImage(cow, x, y, width, height);
       } else context.drawImage(sprites, spriteId % 12 * 32, Math.floor(spriteId / 12) * 32, 32, 32, x, y, width, height);
       if (!label?.textContent) continue;
       const text = label.textContent;
@@ -244,12 +246,10 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     const sprite = document.createElement("span"); sprite.className = "court-sprite"; sprite.setAttribute("aria-hidden", "true");
     if (marker.physicalForm === "cow") {
       sprite.dataset.cow = "true";
-      sprite.textContent = "🐄";
-      sprite.style.backgroundImage = "none";
-      sprite.style.fontSize = "30px";
+      sprite.classList.add("court-cow");
       control.setAttribute("aria-description", "Currently a cow");
     }
-    sprite.style.backgroundPosition = `${-(marker.sprite % 12) * 32}px ${-Math.floor(marker.sprite / 12) * 32}px`;
+    sprite.style.backgroundPosition = marker.physicalForm === "cow" ? "0 0" : `${-(marker.sprite % 12) * 32}px ${-Math.floor(marker.sprite / 12) * 32}px`;
     const label = document.createElement("span"); label.className = "court-character-name";
     label.textContent = `${marker.name}${isPlayer ? " (you)" : ""}`;
     // Adjacent identical bodies share a visible label, while each button remains named.
