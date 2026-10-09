@@ -21,10 +21,10 @@ Planning and dialogue likewise do not compare whole-world versions. Existing
 physical action validation and conversation-turn/lifecycle checks remain.
 
 The GM writes memories using document tools and finishes with a plain-text summary.
-The host then commits staged activity/wait changes through the docs service. A
-conflict publishes none of the staged changes, refreshes the affected document,
+Each activity/wait tool commits its changes through the docs service immediately,
+before the next model call. A conflict publishes none of that call’s changes, refreshes the affected document,
 and returns control to the GM to reconcile. The tool loop is bounded at sixteen
-model calls. Earlier successful document edits remain saved.
+model calls. Earlier successful document and activity edits remain saved.
 
 The worker serializes individual mutations and publishes accepted state immediately.
 Models, time spent travelling, and IndexedDB writes run outside that queue. Dirty

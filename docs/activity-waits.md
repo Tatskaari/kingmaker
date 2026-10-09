@@ -28,10 +28,10 @@ The body can say: “Remain in the treasury. Continue while the player is absent
 The review LLM has three intent tools:
 
 - `set_activity(name, status, success_criteria, current_goal, activate?)` saves an activity and normally activates it. `activate:false` defines a reusable option and returns its path without changing the current intent.
-- `set_wait(name, instructions, activities, routine?)` stages a wait and clears the activity. `routine:true` writes the character's sibling `routine.md`.
+- `set_wait(name, instructions, activities, routine?)` saves a wait and clears the activity. `routine:true` writes the character's sibling `routine.md`.
 - `clear_activity()` clears the activity and returns to the sibling routine, if present.
 
-These tools stage document writes. After the GM’s final response, the host publishes staged activity files and runtime pointers atomically with document SHA and actor intent-revision conflict checks. A conflict publishes nothing and requires restaging against the refreshed character document. Runtime files are part of the saved world, not edits to the author's vault.
+Each tool stages only its own document writes, then immediately publishes activity files and runtime pointers atomically with document SHA and actor intent-revision conflict checks. A conflict publishes nothing from that call and requires retrying against the refreshed character document. Earlier successful calls remain saved. Runtime files are part of the saved world, not edits to the author's vault.
 
 The action planner explicitly supplies the activity's full fields to Jev. `wait` sends the action outcome to the LLM to create a conditional wait. `complete` clears the activity and sets `wait` to the character's `routine.md`, or null if absent. Finishing travel is not completion of an explicit travel-and-wait instruction.
 
