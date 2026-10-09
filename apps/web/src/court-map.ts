@@ -232,7 +232,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   let position = markers.find(marker => marker.id === player?.id)?.point;
   const artworkKey = () => JSON.stringify([
     doors.map(door => [door.tiles, door.open]),
-    fixtures.map(item => [item.position, item.sprite, item.open]),
+    fixtures.map(item => [item.id, item.position, item.sprite, item.open]),
     markers.find(marker => marker.id === player?.id)?.movement?.id,
   ]);
   let drawnArtwork = "";
