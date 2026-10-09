@@ -105,14 +105,20 @@ test("cancellation after selecting arrest leaves the player free", async () => {
 });
 
 
-test("arrest tool exchange is traced and only granted to guards", async () => {
+test("arrest tools belong to DM decisions while guard speech has no tools or reasoning", async () => {
   const runtime = game();
   await runtime.checkedTalkToCharacter(guard, "A threat");
   const calls = runtime.recentTranscripts();
   assert.equal(calls.length, 2);
   const finalRequest = calls[0]!.request as { messages: { role: string; tool_call_id?: string }[]; tools: unknown[] };
-  assert.ok(finalRequest.messages.some(message => message.role === "tool" && message.tool_call_id === "arrest-1"));
-  assert.deepEqual(finalRequest.tools, []);
+  assert.ok(!finalRequest.messages.some(message => message.role === "tool"));
+  assert.equal(finalRequest.tools, undefined);
+  assert.deepEqual((calls[0]!.request as { reasoning: unknown }).reasoning, { effort: "none" });
+  assert.equal(calls[0]!.kind, "dialogue");
+  assert.equal(calls[1]!.kind, "gm_consultation");
+  const decision = calls[1]!.request as { messages: { content: string }[]; tools: { function: { name: string } }[] };
+  assert.match(decision.messages[0]!.content, /^You are a game master/);
+  assert.deepEqual(decision.tools.map(tool => tool.function.name), ["arrest"]);
   const ordinary = game();
   await ordinary.checkedTalkToCharacter("corvin", "Arrest me");
   assert.equal(ordinary.snapshot().jail, undefined);

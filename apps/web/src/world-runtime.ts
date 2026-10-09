@@ -288,7 +288,7 @@ export class WorldGameRuntime extends WorldHost {
       }
     };
     if (Array.isArray(granted) && granted.includes("arrest")) {
-      const respond = arrestResponse(runtime.services.ai.responses, ruling => {
+      const respond = arrestResponse(runtime.services, id, ruling => {
         arrested = true; arrestRulings.push(ruling);
       }, { outcome: () => !defending || !defenseRolls.length ? "unheard" : defenseRolls.some(roll => roll.success) ? "passed" : "failed",
         challenge: () => { challenged = true; } });
@@ -515,7 +515,7 @@ export class WorldGameRuntime extends WorldHost {
     let challenged = false;
     const granted = world.docs[characterIntent(world, id).entry]!.frontmatter?.conversation_actions;
     runtime.services.character.respond = Array.isArray(granted) && granted.includes("arrest")
-      ? arrestResponse(runtime.services.ai.responses, () => { throw new Error("An opening cannot execute an arrest."); },
+      ? arrestResponse(runtime.services, id, () => { throw new Error("An opening cannot execute an arrest."); },
         { outcome: () => "unheard", challenge: () => { challenged = true; } }) : runtime.services.ai.responses;
     const request = await prepareConversation({ world, characterId: id, sources: lore.initial, transcript: [],
       message: renderPrompt("world-runtime-npc-opening", { goal: goal }) }, runtime.services, signal);
