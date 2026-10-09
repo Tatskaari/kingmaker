@@ -205,7 +205,7 @@ test("insight observations reach the player and character, survive reload, and c
     },
   } });
   await runtime.checkedTalkToCharacter("rowan", "I study his reaction to the cart.");
-  const visible = () => runtime.view().conversations.rowan!;
+  const visible = () => (runtime.view().conversations as Record<string, { role: string; text: string }[]>).rowan!;
   assert.deepEqual(visible().map(message => message.role), ["player", "gm", "character"]);
   assert.equal(visible()[1]!.text, observation);
   assert.ok(!JSON.stringify(visible()).includes("PRIVATE_DIRECTION"));
