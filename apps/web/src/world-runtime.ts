@@ -1,3 +1,4 @@
+import { recordCharacterHistory } from "../../../packages/core/src/character-history.js";
 import { followingTarget, activityDefinition } from "../../../packages/lore/src/activity.js";
 import { followRoute } from "../../../packages/core/src/follow.js";
 import { actorPosition } from "../../../packages/core/src/simulation-movement.js";
@@ -402,7 +403,10 @@ export class WorldGameRuntime extends WorldHost {
           activity.reviewPending = false; activity.status = activity.goal ? "active" : "idle";
           activity.history = []; activity.actionIds = [];
         }
-        if (context.kind === "npc_exchange") (this.activity.npcActivities![context.characterId]!.actionIds ??= []).push(`talk_${context.targetId}`);
+        if (context.kind === "npc_exchange") {
+          (this.activity.npcActivities![context.characterId]!.actionIds ??= []).push(`talk_${context.targetId}`);
+          recordCharacterHistory(this.activity, context.characterId, { kind: "action", id: `talk_${context.targetId}`, text: `talk_${context.targetId}` });
+        }
       }, signal, persist);
       this.traces.finish(key);
       return result;
@@ -465,6 +469,7 @@ export class WorldGameRuntime extends WorldHost {
       signal.throwIfAborted();
       await this.worldServices.docs.commit([{ path, expectedSha: null, text },
         { path: activity.path, expectedSha: activity.sha, text: activity.text }], [{ ...intent, activity: null, wait: path }]);
+      recordCharacterHistory(this.activity, id, { kind: "action", id: action.id, text: `Started ${action.id}` });
     }, signal);
   }
   followingCharacters() {
@@ -517,6 +522,7 @@ export class WorldGameRuntime extends WorldHost {
     return decision.choice;
   }
   async processPerceivedEvent(id: string, event: Event, perception: string, signal = new AbortController().signal) {
+    await this.commit(() => recordCharacterHistory(this.activity, id, { kind: "event", id: event.id, text: perception }), signal);
     await this.resolve({ kind: "world_event", characterId: id, eventId: event.id, perception }, signal);
   }
   async assessWorldEvent(event: Event, signal: AbortSignal) {
@@ -576,6 +582,7 @@ export class WorldGameRuntime extends WorldHost {
       if (challenged) (this.activity.arrestChallenges ??= {})[id] = true;
       this.activity.conversations[id] = [...earshotNotes(request.messages).map(turn => toJson(TranscriptMessageSchema, turn)), toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: id, text: reply.content! }))];
       (this.activity.npcActivities![id]!.actionIds ??= []).push(actionId);
+      recordCharacterHistory(this.activity, id, { kind: "action", id: actionId, text: actionId });
       return { ok: true, text: reply.content! };
     }, signal, persist);
   }

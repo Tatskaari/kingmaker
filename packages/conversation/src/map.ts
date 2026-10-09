@@ -1,3 +1,4 @@
+import type { CharacterHistoryEntry } from "../../core/src/character-history.js";
 import type { Event, MapState, WorldMap } from "../../contracts/src/index.js";
 import type { GameAction } from "../../core/src/actions.js";
 
@@ -6,6 +7,8 @@ export interface MapObservation {
   /** Detached observer-visible physical data; no character documents. */
   map: MapState;
   actions: readonly GameAction[];
+  /** This character’s completed actions interleaved with their perceived events. */
+  recentHistory?: readonly CharacterHistoryEntry[];
 }
 export type MapCommand =
   | { kind: "move"; destination: { x: number; y: number } }

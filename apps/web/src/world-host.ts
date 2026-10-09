@@ -131,7 +131,8 @@ export class WorldHost {
       }
       const owners = inventoryOwners(characters, map);
       return { characterId: id, map: worldForCharacter(map, owners, id),
-        actions: roomAgentActions(map, characters, owners, id, selectedActionId) };
+        actions: roomAgentActions(map, characters, owners, id, selectedActionId),
+        recentHistory: (this.activity.characterHistory?.[id] ?? []).map(entry => ({ ...entry })) };
     },
     interact: async (command, signal) => {
       if (command.kind === "step") return this.stepNpcAction(command.characterId, command.actionId, command.goal, signal);
@@ -228,6 +229,7 @@ export class WorldHost {
     const map = structuredClone(this.initial.simulation!.map!);
     if (before.player) { map.phase = GamePhase.CONVERSATIONS; map.day = 1; }
     this.worldServices.mechanics.commit(map, {});
+    this.activity.characterHistory = {};
   }
   resetCharacters() {
     const current = this.world();
@@ -248,6 +250,7 @@ export class WorldHost {
     validateDocuments(draft);
     current.docs = docs;
     this.worldServices.mechanics.commit(current.simulation!.map!, runtimeCharacters);
+    this.activity.characterHistory = {};
     this.activity.npcActivities = {};
     this.activity.conversations = {};
     this.syncGoals();

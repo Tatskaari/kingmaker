@@ -15,5 +15,5 @@ Current execution task:
 World state:
 {{{observedMap}}}
 
-Action log (completed actions, oldest first):
+Recent history (completed actions and events you perceived, oldest first):
 {{{history}}}

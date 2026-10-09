@@ -1,3 +1,4 @@
+import { recordCharacterHistory, type CharacterHistory } from "../../../packages/core/src/character-history.js";
 import { interactWithFixture } from "../../../packages/core/src/simulation-fixtures.js";
 import { doorError, setDoor } from "../../../packages/core/src/simulation-doors.js";
 import { actorPosition, mapAtTime } from "../../../packages/core/src/simulation-movement.js";
@@ -35,7 +36,7 @@ export interface NpcActivity {
   reviewPending?: boolean;
 }
 
-export interface MechanicalActivity {
+export interface MechanicalActivity extends CharacterHistory {
   npcActivities?: Record<string, NpcActivity>;
   conversations: Record<string, JsonValue[]>;
   conversationReplyOptions?: Record<string, string[]>;
@@ -72,7 +73,7 @@ export class PalaceMechanics {
   #playerId: string;
   #npcActivities: Record<string, NpcActivity>;
   #conversations: MechanicalActivity["conversations"];
-  constructor(world: WorldState, activity: MechanicalActivity, private readonly now = () => Date.now(),
+  constructor(world: WorldState, private readonly activity: MechanicalActivity, private readonly now = () => Date.now(),
     private readonly authority?: {
       currentSimulation(): SimulationState;
       executeMove<Args extends unknown[]>(move: SimulationMove<Args>, ...args: Args): void;
@@ -149,6 +150,7 @@ export class PalaceMechanics {
     } else {
       if (action.type === "fixture") message = this.applyFixture(characterId, action.id);
     }
+    recordCharacterHistory(this.activity, characterId, { kind: "action", id: action.id, text: `${action.id}: ${message}` });
     activity.history.push(message);
     (activity.actionIds ??= []).push(action.id);
     npcLog.info("NPC action executed", { characterId, actionId, goal, message, revision: this.#world.revision });

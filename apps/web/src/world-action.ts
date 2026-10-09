@@ -1,3 +1,4 @@
+import { renderCharacterHistory } from "../../../packages/core/src/character-history.js";
 import { renderPrompt } from "../../../packages/prompts/src/index.js";
 import { disclosedContext } from "../../../packages/conversation/src/disclosed-context.js";
 import type { RuntimeServices } from "../../../packages/conversation/src/services.js";
@@ -37,7 +38,7 @@ async function worldActionContext(world: WorldState, characterId: string, histor
     characterId, feedback: feedback ? JSON.stringify(feedback) : "",
     intent: intentContext(world, characterId), goal,
     observedMap: renderJevRoomView(visible.map, characters, observation),
-    history: history.join("\n") || "None yet.",
+    history: visible.recentHistory?.length ? renderCharacterHistory(visible.recentHistory) : history.join("\n") || "None yet.",
   });
   const instructions = renderPrompt("world-action-instructions");
   const messages = await disclosedContext("planner", [{ role: "system", content: instructions },
