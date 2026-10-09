@@ -1,4 +1,3 @@
-import { memoryResponse } from "../../../packages/conversation/src/memory-tool.js";
 import { actorPosition } from "../../../packages/core/src/simulation-movement.js";
 import { renderPrompt } from "../../../packages/prompts/src/index.js";
 import { earshotNotes } from "./agent-setup.js";
@@ -262,8 +261,7 @@ export class WorldGameRuntime extends WorldHost {
       async (_check, cancellation) => { cancellation.throwIfAborted(); return runtime.services.random.integer(1, 20); },
       () => {}, () => {}, runtime.services.presentation, runtime.services.character, { services: runtime.services, characterId: id }, () => {}, session.response);
     runtime.strategies.conversation = strategyOverride ?? strategies;
-    const respondWithMemory = memoryResponse(runtime.services.ai.responses, runtime.services, id);
-    runtime.services.character.respond = respondWithMemory;
+    runtime.services.character.respond = (request, cancellation) => runtime.services.ai.responses(request, cancellation);
     const transcript = previous.map(turn => fromJson(TranscriptMessageSchema, turn));
     const request = await prepareConversation({ world, characterId: id, sources: lore.initial, transcript, message }, runtime.services, signal);
     if (defending) request.messages = [...request.messages, { role: "system", content: renderPrompt("world-runtime-arrest-defense") }];
@@ -290,7 +288,7 @@ export class WorldGameRuntime extends WorldHost {
       }
     };
     if (Array.isArray(granted) && granted.includes("arrest")) {
-      const respond = arrestResponse(respondWithMemory, ruling => {
+      const respond = arrestResponse(runtime.services.ai.responses, ruling => {
         arrested = true; arrestRulings.push(ruling);
       }, { outcome: () => !defending || !defenseRolls.length ? "unheard" : defenseRolls.some(roll => roll.success) ? "passed" : "failed",
         challenge: () => { challenged = true; } });
@@ -516,10 +514,9 @@ export class WorldGameRuntime extends WorldHost {
     runtime.strategies.conversation = this.options.strategies?.conversation ?? disclosure;
     let challenged = false;
     const granted = world.docs[characterIntent(world, id).entry]!.frontmatter?.conversation_actions;
-    const respondWithMemory = memoryResponse(runtime.services.ai.responses, runtime.services, id);
     runtime.services.character.respond = Array.isArray(granted) && granted.includes("arrest")
-      ? arrestResponse(respondWithMemory, () => { throw new Error("An opening cannot execute an arrest."); },
-        { outcome: () => "unheard", challenge: () => { challenged = true; } }) : respondWithMemory;
+      ? arrestResponse(runtime.services.ai.responses, () => { throw new Error("An opening cannot execute an arrest."); },
+        { outcome: () => "unheard", challenge: () => { challenged = true; } }) : runtime.services.ai.responses;
     const request = await prepareConversation({ world, characterId: id, sources: lore.initial, transcript: [],
       message: renderPrompt("world-runtime-npc-opening", { goal: goal }) }, runtime.services, signal);
     const actor = world.simulation!.map!.actors.find(actor => actor.characterId === id)!;

@@ -216,7 +216,7 @@ test("CLI shows approval and pending background GM review transcripts in the RHS
   } finally { finishReview(); await background; await act(() => setup.renderer.destroy()); }
 });
 
-test("terminal conversation view executes save_memory before displaying the character reply", async () => {
+test("terminal character responds without tools or reasoning while receiving the memory index", async () => {
   const { createScenarioServices } = await import("../packages/lore/src/services.js");
   const { documentLore } = await import("../packages/conversation/src/document-lore.js");
   const services = createScenarioServices(loadPlayableWorld());
@@ -226,11 +226,10 @@ test("terminal conversation view executes save_memory before displaying the char
     input: { world: services.scenario.read(), characterId: "corvin", sources: lore.initial, transcript: [], message: "" },
     checks: { services: { docs: services.docs, scenario: services.scenario }, build: undefined, ai: { decisions: async () => assert.fail("No checks requested"), responses: async () => assert.fail("Use character responder") } },
     complete: async request => {
-      assert.ok(request.tools?.some(tool => tool.function.name === "save_memory"));
-      if (++calls === 1) return { role: "assistant", content: null, tool_calls: [{ id: "remember", type: "function", function: {
-        name: "save_memory", arguments: JSON.stringify({ title: "The blue seal", context: "A conversation with the visitor.", content: "The visitor described a blue seal." }),
-      } }] };
-      assert.match(request.messages.at(-1)!.content!, /"ok":true/);
+      calls++;
+      assert.equal(request.tools, undefined);
+      assert.deepEqual(request.reasoning, { effort: "none" });
+      assert.ok(request.messages.some(message => message.content?.includes("/memories/index.md")));
       return { role: "assistant", content: "I will remember the blue seal." };
     },
     copyText: async () => "Copied", onFinish: () => {},
@@ -241,8 +240,6 @@ test("terminal conversation view executes save_memory before displaying the char
     await setup.flush();
     await act(async () => { await setup.mockInput.pressEnter(); await new Promise(resolve => setTimeout(resolve, 60)); });
     await setup.waitForFrame(frame => frame.includes("I will remember the blue seal."));
-    const fresh = await documentLore(services.scenario, "corvin");
-    assert.ok(fresh.links(fresh.initial).some(link => link.summary?.includes("The blue seal")));
-    assert.equal(calls, 2);
+    assert.equal(calls, 1);
   } finally { await act(() => setup.renderer.destroy()); }
 });

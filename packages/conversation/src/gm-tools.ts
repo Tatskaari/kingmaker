@@ -1,3 +1,4 @@
+import { callMemoryTool, memoryTool } from "./memory-tool.js";
 import { InventoryConflictError } from "../../core/src/inventory-service.js";
 import { renderPrompt } from "../../prompts/src/index.js";
 import { fromJsonString } from "@bufbuild/protobuf";
@@ -25,6 +26,7 @@ export const gameMasterTools: OpenRouterTool[] = [
       required: ["actorId", "expectedSha", "inventoryJson"], properties: { actorId: text, expectedSha: text, inventoryJson: text } } },
   }),
 
+  memoryTool,
   ...documentTools,
   ...activityTools.map(item => ({ ...item, function: { ...item.function,
     parameters: { ...item.function.parameters, properties: { ...(item.function.parameters as { properties: object }).properties,
@@ -57,6 +59,7 @@ export class GameMasterTools {
   async call(name: string, input: Record<string, unknown>, trace?: Pick<DocumentUpdate, "response" | "toolCallId">) {
     const string = (key: string) => { if (typeof input[key] !== "string") throw new Error(`Expected ${key}.`); return input[key] as string; };
     const docs = this.services.docs;
+    if (name === "save_memory") return callMemoryTool(this.services, this.characterId, input, trace);
     if (name === "read_inventory") return this.services.inventory.read(string("actorId"));
     if (name === "update_inventories") {
       if (!Array.isArray(input.changes) || !input.changes.length) throw new InvalidReviewError("Supply inventory changes");
@@ -111,7 +114,7 @@ export class GameMasterTools {
     }
     throw new InvalidReviewError(`Unknown GM tool: ${name}`);
   }
-  /** Host-only finalization. Memories are written exclusively through document tools. */
+  /** Host-only finalization. Memory saves and document edits commit directly through their tools. */
   async commit() {
     if (!this.pending) return;
     const changes = [...this.edits.values()].filter(edit => edit.activity.pending)
