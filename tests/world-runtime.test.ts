@@ -211,7 +211,7 @@ const noChecks = (questions: Record<string, unknown>) => Object.fromEntries(Obje
   [id, { choice: id.startsWith("open_") ? "skip" : "not_needed", probabilities: { [id]: 0, skip: 1 } }]));
 const selected = (choice: string) => ({ choice, probabilities: { [choice]: 1 } });
 
-test("main game releases the NPC to act on committed activity while live review is pending", async () => {
+test("main game releases the NPC to act on newly assigned activity while live review is pending", async () => {
   let release!: () => void, started!: () => void;
   const gate = new Promise<void>(resolve => { release = resolve; });
   const ready = new Promise<void>(resolve => { started = resolve; });
@@ -230,14 +230,21 @@ test("main game releases the NPC to act on committed activity while live review 
       return reply;
     },
   } } });
-  await runtime.overrideActiveObjective("rowan", { currentGoal: "Go to the parlour" });
   assert.equal(await runtime.checkedTalkToCharacter("rowan", "Meet me in the hall."), "I will meet you in the great hall.");
   await ready;
   await assert.rejects(runtime.planNpc("rowan", new AbortController().signal), /paused for conversation/);
   await runtime.endConversation("rowan");
   assert.equal(liveFinished, false, "Ending the conversation must not wait for the GM");
   const plan = await runtime.planNpc("rowan", new AbortController().signal);
-  assert.equal(plan.goal, "Go to the parlour");
+  assert.equal(plan.goal, "Go to the great hall");
+  const action = runtime.map.observe("rowan").actions.find(action => action.path.length > 1);
+  assert.ok(action, "The NPC has an action requiring movement");
+  const walking = runtime.stepNpcAction("rowan", action.id, plan.goal);
+  for (let i = 0; i < 5; i++) await new Promise<void>(resolve => setImmediate(resolve));
+  assert.ok(runtime.world().simulation!.map!.actors.find(actor => actor.characterId === "rowan")!.movement);
+  assert.equal(liveFinished, false, "Movement starts before the final GM response");
+  await runtime.movement.cancel("rowan");
+  await walking;
   release(); await done;
   assert.equal(liveFinished, true);
   assert.equal(activityGoal(runtime.world(), "rowan"), "Go to the great hall");
@@ -265,7 +272,6 @@ test("main game displays discretion replies and accepts another turn while revie
       return reviewReply(request);
     },
   } } });
-  await runtime.overrideActiveObjective("rowan", { currentGoal: "Go to the parlour" });
   try {
     for (const message of ["Meet me in the hall.", "See you there."]) {
       await runtime.checkedTalkToCharacter("rowan", message, undefined, {}, undefined, text => {

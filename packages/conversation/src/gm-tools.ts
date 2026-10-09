@@ -107,11 +107,12 @@ export class GameMasterTools {
       const result = await edit.activity.call(name, input);
       if (trace) edit.trace = trace;
       this.pending = true;
-      return result;
+      await this.commit();
+      return { ...result, staged: false, committed: true };
     }
     throw new InvalidReviewError(`Unknown GM tool: ${name}`);
   }
-  /** Host-only finalization. Memories are written exclusively through document tools. */
+  /** Publish each validated activity call before the GM continues reviewing. */
   async commit() {
     if (!this.pending) return;
     const changes = [...this.edits.values()].filter(edit => edit.activity.pending)
