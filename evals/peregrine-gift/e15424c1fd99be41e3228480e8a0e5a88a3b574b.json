@@ -1,0 +1,756 @@
+{
+  "revision": "e15424c1fd99be41e3228480e8a0e5a88a3b574b",
+  "rubric": [
+    {
+      "name": "grounding",
+      "description": "New facts are supported by conversation or existing context; binding GM rulings are preserved.",
+      "levels": {
+        "incorrect": {
+          "score": 0,
+          "description": "0%: Required behavior is absent or fundamentally incorrect."
+        },
+        "limited": {
+          "score": 0.25,
+          "description": "25%: A small part is correct, but major errors or omissions dominate."
+        },
+        "partial": {
+          "score": 0.5,
+          "description": "50%: Substantial correct behavior, with equally substantial errors or omissions."
+        },
+        "mostly": {
+          "score": 0.75,
+          "description": "75%: Most required behavior is correct; limited errors or omissions remain."
+        },
+        "complete": {
+          "score": 1,
+          "description": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions."
+        }
+      }
+    },
+    {
+      "name": "coverage",
+      "description": "Consequential promises, revelations and outcomes in the case expectations are retained in appropriate documents.",
+      "levels": {
+        "incorrect": {
+          "score": 0,
+          "description": "0%: Required behavior is absent or fundamentally incorrect."
+        },
+        "limited": {
+          "score": 0.25,
+          "description": "25%: A small part is correct, but major errors or omissions dominate."
+        },
+        "partial": {
+          "score": 0.5,
+          "description": "50%: Substantial correct behavior, with equally substantial errors or omissions."
+        },
+        "mostly": {
+          "score": 0.75,
+          "description": "75%: Most required behavior is correct; limited errors or omissions remain."
+        },
+        "complete": {
+          "score": 1,
+          "description": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions."
+        }
+      }
+    },
+    {
+      "name": "knowledge",
+      "description": "Each character learns only what they could know; private beliefs and GM truth retain the correct audience.",
+      "levels": {
+        "incorrect": {
+          "score": 0,
+          "description": "0%: Required behavior is absent or fundamentally incorrect."
+        },
+        "limited": {
+          "score": 0.25,
+          "description": "25%: A small part is correct, but major errors or omissions dominate."
+        },
+        "partial": {
+          "score": 0.5,
+          "description": "50%: Substantial correct behavior, with equally substantial errors or omissions."
+        },
+        "mostly": {
+          "score": 0.75,
+          "description": "75%: Most required behavior is correct; limited errors or omissions remain."
+        },
+        "complete": {
+          "score": 1,
+          "description": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions."
+        }
+      }
+    },
+    {
+      "name": "intent",
+      "description": "Every activated activity, including its success_criteria and all steps of current_goal, is executable under the case expectations and current map. If the case identifies an unsupported destination, FAIL an active activity that requires setting out, travelling to, or reaching it, even if the goal starts with preparation or coordination. A purely local next step or explicit deferral until a supported route exists can PASS. Preserve the promise without claiming completed travel.",
+      "levels": {
+        "incorrect": {
+          "score": 0,
+          "description": "0%: Required behavior is absent or fundamentally incorrect."
+        },
+        "limited": {
+          "score": 0.25,
+          "description": "25%: A small part is correct, but major errors or omissions dominate."
+        },
+        "partial": {
+          "score": 0.5,
+          "description": "50%: Substantial correct behavior, with equally substantial errors or omissions."
+        },
+        "mostly": {
+          "score": 0.75,
+          "description": "75%: Most required behavior is correct; limited errors or omissions remain."
+        },
+        "complete": {
+          "score": 1,
+          "description": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions."
+        }
+      }
+    },
+    {
+      "name": "preservation",
+      "description": "Unrelated facts, characterization and permissions are preserved.",
+      "levels": {
+        "incorrect": {
+          "score": 0,
+          "description": "0%: Required behavior is absent or fundamentally incorrect."
+        },
+        "limited": {
+          "score": 0.25,
+          "description": "25%: A small part is correct, but major errors or omissions dominate."
+        },
+        "partial": {
+          "score": 0.5,
+          "description": "50%: Substantial correct behavior, with equally substantial errors or omissions."
+        },
+        "mostly": {
+          "score": 0.75,
+          "description": "75%: Most required behavior is correct; limited errors or omissions remain."
+        },
+        "complete": {
+          "score": 1,
+          "description": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions."
+        }
+      }
+    },
+    {
+      "name": "restraint",
+      "description": "Changes are relevant and avoid redundant memories, unnecessary rewrites and invented consequences.",
+      "levels": {
+        "incorrect": {
+          "score": 0,
+          "description": "0%: Required behavior is absent or fundamentally incorrect."
+        },
+        "limited": {
+          "score": 0.25,
+          "description": "25%: A small part is correct, but major errors or omissions dominate."
+        },
+        "partial": {
+          "score": 0.5,
+          "description": "50%: Substantial correct behavior, with equally substantial errors or omissions."
+        },
+        "mostly": {
+          "score": 0.75,
+          "description": "75%: Most required behavior is correct; limited errors or omissions remain."
+        },
+        "complete": {
+          "score": 1,
+          "description": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions."
+        }
+      }
+    },
+    {
+      "name": "physical-state",
+      "description": "Review leaves the physical map unchanged (deterministic 0 or 1 invariant)."
+    },
+    {
+      "name": "gift-inventory",
+      "description": "Exactly one wooden bird in the player's typed inventory, with none remaining in Peregrine's."
+    }
+  ],
+  "concurrency": 4,
+  "experimentTypes": {
+    "peregrine-gift": "review"
+  },
+  "experiments": [
+    "peregrine-gift"
+  ],
+  "repeats": 3,
+  "timeoutMs": 180000,
+  "type": "review",
+  "publishedAt": "2026-10-09T18:47:34.798Z",
+  "comparison": [
+    {
+      "variant": "game",
+      "baseline": true,
+      "runs": 3,
+      "executionErrors": 0,
+      "scoringErrors": 0,
+      "criteria": {
+        "grounding": 0.8333333333333334,
+        "coverage": 0.5833333333333334,
+        "knowledge": 1,
+        "intent": 1,
+        "preservation": 1,
+        "restraint": 1,
+        "physical-state": 1,
+        "gift-inventory": 1
+      },
+      "total": 0.9270833333333334,
+      "delta": 0
+    },
+    {
+      "variant": "live-review",
+      "baseline": false,
+      "runs": 3,
+      "executionErrors": 0,
+      "scoringErrors": 0,
+      "criteria": {
+        "grounding": 0.8333333333333334,
+        "coverage": 0.5,
+        "knowledge": 1,
+        "intent": 1,
+        "preservation": 1,
+        "restraint": 0.8333333333333334,
+        "physical-state": 1,
+        "gift-inventory": 1
+      },
+      "total": 0.8958333333333334,
+      "delta": -0.03125
+    }
+  ],
+  "trials": [
+    {
+      "experiment": "peregrine-gift",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 2,
+      "result": {
+        "criteria": {
+          "grounding": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.18,
+              "limited": 0.1,
+              "partial": 0.21,
+              "mostly": 0.21,
+              "complete": 0.22,
+              "unscorable": 0.08
+            }
+          },
+          "coverage": {
+            "score": 0.5,
+            "reason": "50%: Substantial correct behavior, with equally substantial errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.19,
+              "limited": 0.14,
+              "partial": 0.26,
+              "mostly": 0.21,
+              "complete": 0.18,
+              "unscorable": 0.02
+            }
+          },
+          "knowledge": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.08,
+              "limited": 0.05,
+              "partial": 0.13,
+              "mostly": 0.26,
+              "complete": 0.41,
+              "unscorable": 0.07
+            }
+          },
+          "intent": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.15,
+              "limited": 0.05,
+              "partial": 0.12,
+              "mostly": 0.12,
+              "complete": 0.34,
+              "unscorable": 0.22
+            }
+          },
+          "preservation": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.14,
+              "limited": 0.06,
+              "partial": 0.14,
+              "mostly": 0.22,
+              "complete": 0.38,
+              "unscorable": 0.06
+            }
+          },
+          "restraint": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.21,
+              "limited": 0.11,
+              "partial": 0.17,
+              "mostly": 0.18,
+              "complete": 0.23,
+              "unscorable": 0.1
+            }
+          },
+          "physical-state": {
+            "score": 1
+          },
+          "gift-inventory": {
+            "score": 1,
+            "reason": "Matching wooden birds: player=1, Peregrine=0; expected 1 and 0."
+          }
+        }
+      }
+    },
+    {
+      "experiment": "peregrine-gift",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 1,
+      "result": {
+        "criteria": {
+          "grounding": {
+            "score": 0.75,
+            "reason": "75%: Most required behavior is correct; limited errors or omissions remain.",
+            "probabilities": {
+              "incorrect": 0.14,
+              "limited": 0.1,
+              "partial": 0.24,
+              "mostly": 0.25,
+              "complete": 0.25,
+              "unscorable": 0.02
+            }
+          },
+          "coverage": {
+            "score": 0.75,
+            "reason": "75%: Most required behavior is correct; limited errors or omissions remain.",
+            "probabilities": {
+              "incorrect": 0.12,
+              "limited": 0.11,
+              "partial": 0.27,
+              "mostly": 0.28,
+              "complete": 0.2,
+              "unscorable": 0.02
+            }
+          },
+          "knowledge": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.16,
+              "limited": 0.05,
+              "partial": 0.14,
+              "mostly": 0.24,
+              "complete": 0.36,
+              "unscorable": 0.05
+            }
+          },
+          "intent": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.14,
+              "limited": 0.05,
+              "partial": 0.11,
+              "mostly": 0.12,
+              "complete": 0.33999999999999997,
+              "unscorable": 0.24
+            }
+          },
+          "preservation": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.09,
+              "limited": 0.05,
+              "partial": 0.1,
+              "mostly": 0.22,
+              "complete": 0.48,
+              "unscorable": 0.06
+            }
+          },
+          "restraint": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.19,
+              "limited": 0.09,
+              "partial": 0.19,
+              "mostly": 0.24,
+              "complete": 0.26,
+              "unscorable": 0.03
+            }
+          },
+          "physical-state": {
+            "score": 1
+          },
+          "gift-inventory": {
+            "score": 1,
+            "reason": "Matching wooden birds: player=1, Peregrine=0; expected 1 and 0."
+          }
+        }
+      }
+    },
+    {
+      "experiment": "peregrine-gift",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 3,
+      "result": {
+        "criteria": {
+          "grounding": {
+            "score": 0.75,
+            "reason": "75%: Most required behavior is correct; limited errors or omissions remain.",
+            "probabilities": {
+              "incorrect": 0.18,
+              "limited": 0.09,
+              "partial": 0.21,
+              "mostly": 0.24,
+              "complete": 0.23,
+              "unscorable": 0.05
+            }
+          },
+          "coverage": {
+            "score": 0.5,
+            "reason": "50%: Substantial correct behavior, with equally substantial errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.17,
+              "limited": 0.15,
+              "partial": 0.27,
+              "mostly": 0.22,
+              "complete": 0.16,
+              "unscorable": 0.03
+            }
+          },
+          "knowledge": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.07,
+              "limited": 0.04,
+              "partial": 0.11,
+              "mostly": 0.21,
+              "complete": 0.47,
+              "unscorable": 0.1
+            }
+          },
+          "intent": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.14,
+              "limited": 0.04,
+              "partial": 0.11,
+              "mostly": 0.1,
+              "complete": 0.33999999999999997,
+              "unscorable": 0.27
+            }
+          },
+          "preservation": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.1,
+              "limited": 0.05,
+              "partial": 0.12,
+              "mostly": 0.24,
+              "complete": 0.44,
+              "unscorable": 0.05
+            }
+          },
+          "restraint": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.18,
+              "limited": 0.1,
+              "partial": 0.17,
+              "mostly": 0.21,
+              "complete": 0.24,
+              "unscorable": 0.1
+            }
+          },
+          "physical-state": {
+            "score": 1
+          },
+          "gift-inventory": {
+            "score": 1,
+            "reason": "Matching wooden birds: player=1, Peregrine=0; expected 1 and 0."
+          }
+        }
+      }
+    },
+    {
+      "experiment": "peregrine-gift",
+      "variant": "live-review",
+      "baseline": false,
+      "repeat": 2,
+      "result": {
+        "criteria": {
+          "grounding": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.13,
+              "limited": 0.09,
+              "partial": 0.23,
+              "mostly": 0.22,
+              "complete": 0.27,
+              "unscorable": 0.06
+            }
+          },
+          "coverage": {
+            "score": 0.5,
+            "reason": "50%: Substantial correct behavior, with equally substantial errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.13,
+              "limited": 0.12,
+              "partial": 0.25,
+              "mostly": 0.24,
+              "complete": 0.23,
+              "unscorable": 0.03
+            }
+          },
+          "knowledge": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.11,
+              "limited": 0.06,
+              "partial": 0.17,
+              "mostly": 0.23,
+              "complete": 0.37,
+              "unscorable": 0.06
+            }
+          },
+          "intent": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.14,
+              "limited": 0.04,
+              "partial": 0.09,
+              "mostly": 0.1,
+              "complete": 0.37,
+              "unscorable": 0.26
+            }
+          },
+          "preservation": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.12,
+              "limited": 0.05,
+              "partial": 0.14,
+              "mostly": 0.26,
+              "complete": 0.39,
+              "unscorable": 0.04
+            }
+          },
+          "restraint": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.16,
+              "limited": 0.1,
+              "partial": 0.17,
+              "mostly": 0.24,
+              "complete": 0.29,
+              "unscorable": 0.04
+            }
+          },
+          "physical-state": {
+            "score": 1
+          },
+          "gift-inventory": {
+            "score": 1,
+            "reason": "Matching wooden birds: player=1, Peregrine=0; expected 1 and 0."
+          }
+        }
+      }
+    },
+    {
+      "experiment": "peregrine-gift",
+      "variant": "live-review",
+      "baseline": false,
+      "repeat": 1,
+      "result": {
+        "criteria": {
+          "grounding": {
+            "score": 0.5,
+            "reason": "50%: Substantial correct behavior, with equally substantial errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.17,
+              "limited": 0.08,
+              "partial": 0.26,
+              "mostly": 0.22,
+              "complete": 0.24,
+              "unscorable": 0.03
+            }
+          },
+          "coverage": {
+            "score": 0.5,
+            "reason": "50%: Substantial correct behavior, with equally substantial errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.15,
+              "limited": 0.16,
+              "partial": 0.31,
+              "mostly": 0.23,
+              "complete": 0.13,
+              "unscorable": 0.02
+            }
+          },
+          "knowledge": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.11,
+              "limited": 0.05,
+              "partial": 0.15,
+              "mostly": 0.24,
+              "complete": 0.43,
+              "unscorable": 0.02
+            }
+          },
+          "intent": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.08,
+              "limited": 0.02,
+              "partial": 0.05,
+              "mostly": 0.06,
+              "complete": 0.73,
+              "unscorable": 0.06
+            }
+          },
+          "preservation": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.11,
+              "limited": 0.06,
+              "partial": 0.14,
+              "mostly": 0.28,
+              "complete": 0.38,
+              "unscorable": 0.03
+            }
+          },
+          "restraint": {
+            "score": 0.5,
+            "reason": "50%: Substantial correct behavior, with equally substantial errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.19,
+              "limited": 0.11,
+              "partial": 0.24,
+              "mostly": 0.23,
+              "complete": 0.2,
+              "unscorable": 0.03
+            }
+          },
+          "physical-state": {
+            "score": 1
+          },
+          "gift-inventory": {
+            "score": 1,
+            "reason": "Matching wooden birds: player=1, Peregrine=0; expected 1 and 0."
+          }
+        }
+      }
+    },
+    {
+      "experiment": "peregrine-gift",
+      "variant": "live-review",
+      "baseline": false,
+      "repeat": 3,
+      "result": {
+        "criteria": {
+          "grounding": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.17,
+              "limited": 0.06,
+              "partial": 0.15,
+              "mostly": 0.2,
+              "complete": 0.38,
+              "unscorable": 0.04
+            }
+          },
+          "coverage": {
+            "score": 0.5,
+            "reason": "50%: Substantial correct behavior, with equally substantial errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.12,
+              "limited": 0.13,
+              "partial": 0.34,
+              "mostly": 0.23,
+              "complete": 0.17,
+              "unscorable": 0.01
+            }
+          },
+          "knowledge": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.12,
+              "limited": 0.06,
+              "partial": 0.14,
+              "mostly": 0.23,
+              "complete": 0.41,
+              "unscorable": 0.04
+            }
+          },
+          "intent": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.13,
+              "limited": 0.04,
+              "partial": 0.08,
+              "mostly": 0.1,
+              "complete": 0.46,
+              "unscorable": 0.19
+            }
+          },
+          "preservation": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.11,
+              "limited": 0.04,
+              "partial": 0.11,
+              "mostly": 0.25,
+              "complete": 0.45,
+              "unscorable": 0.04
+            }
+          },
+          "restraint": {
+            "score": 1,
+            "reason": "100%: All applicable requirements are accurately satisfied, with no material errors or omissions.",
+            "probabilities": {
+              "incorrect": 0.16,
+              "limited": 0.07,
+              "partial": 0.16,
+              "mostly": 0.22,
+              "complete": 0.33,
+              "unscorable": 0.06
+            }
+          },
+          "physical-state": {
+            "score": 1
+          },
+          "gift-inventory": {
+            "score": 1,
+            "reason": "Matching wooden birds: player=1, Peregrine=0; expected 1 and 0."
+          }
+        }
+      }
+    }
+  ]
+}
