@@ -15,9 +15,13 @@ export function arrestResponse(services: Pick<RuntimeServices, "ai" | "agents">,
   stageArrest: (ruling: string) => void,
   defense: { outcome: () => "unheard" | "passed" | "failed"; challenge: () => void }): Complete {
   return async (request, signal = new AbortController().signal) => {
-    const speak = (ruling?: string) => services.ai.responses({ ...request, tools: undefined, reasoning: { effort: "none" },
-      messages: [...request.messages, ...(ruling ? [{ role: "system" as const, content: ruling }] : [])],
-    }, signal);
+    const speak = (ruling?: string) => {
+      const plain = { ...request };
+      delete plain.tools;
+      return services.ai.responses({ ...plain, reasoning: { effort: "none" },
+        messages: [...request.messages, ...(ruling ? [{ role: "system" as const, content: ruling }] : [])],
+      }, signal);
+    };
     if (defense.outcome() === "passed") return speak(renderPrompt("conversation-actions-defense-passed"));
     const messages = await services.agents.prepare({ agent: "game_master", characterId, participantIds: [characterId, "player"],
       messages: request.messages.filter(message => message.content !== CHARACTER_PROMPT),
