@@ -24,9 +24,11 @@ export async function callMemoryTool(services: Pick<RuntimeServices, "docs" | "s
     const { entry } = characterIntent(services.scenario.read(), characterId);
     const before = await services.docs.read(memoryIndexPath(entry));
     const saved = await saveMemory(services, characterId, memory as unknown as MemoryInput);
-    if (trace) for (const path of [saved.path, saved.index]) services.debug.documentUpdated?.({
-      path, beforeSha: path === before.path ? before.sha : "", afterSha: (await services.docs.read(path)).sha, ...trace,
-    });
+    if (trace) for (const path of [saved.path, saved.index]) {
+      const after = await services.docs.read(path);
+      services.debug.documentUpdated?.({ path, beforeSha: path === before.path ? before.sha : "", afterSha: after.sha,
+        beforeText: path === before.path ? before.text : "", afterText: after.text, ...trace });
+    }
     return { ok: true, ...saved };
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") throw error;

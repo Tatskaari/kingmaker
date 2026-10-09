@@ -72,3 +72,33 @@ test("game character responds once without tools or reasoning and receives DM me
   await runtime.checkedTalkToCharacter("corvin", "What did I promise?");
   assert.equal(calls, 1);
 });
+
+test("DM memory saves appear as one operation with two committed document diffs in Recent edits", async () => {
+  const { ModelTranscripts } = await import("../apps/web/src/model-transcripts.js");
+  // @ts-expect-error Browser renderer is JavaScript.
+  const { documentExplorer } = await import("../apps/web/src/document-explorer.js");
+  const services = fixture(), traces = new ModelTranscripts(""); let calls = 0;
+  services.debug.documentUpdated = event => traces.documentUpdated(event);
+  services.ai.responses = request => traces.record("conversation_review", "corvin", request, async () =>
+    ++calls === 1 ? call() : { role: "assistant" as const, content: "Recorded." });
+  const index = memoryIndexPath(services.scenario.read().simulation!.runtimeCharacters.corvin!.document);
+  const before = await services.docs.read(index);
+  await runGameMaster({ model: "test", messages: [] }, services, new AbortController().signal, { characterId: "corvin", review: true });
+  const history = traces.documentWrites();
+  assert.equal(history.length, 2);
+  const indexWrite = history.find(write => write.path === index)!, memoryWrite = history.find(write => write.path !== index)!;
+  assert.equal(indexWrite.beforeText, before.text);
+  assert.equal(indexWrite.beforeSha, before.sha);
+  assert.equal(indexWrite.afterText, (await services.docs.read(index)).text);
+  assert.equal(memoryWrite.beforeText, "");
+  assert.equal(memoryWrite.afterText, (await services.docs.read(memoryWrite.path)).text);
+  const html = documentExplorer({ docs: services.scenario.read().docs, history });
+  assert.match(html, /save_memory/);
+  assert.match(html, /0 replaces, 1 add, 0 removals/);
+  assert.match(html, /2 documents/);
+  assert.equal((html.match(/class="doc-edit-group"/g) ?? []).length, 1);
+  assert.equal((html.match(/aria-label="Document changes"/g) ?? []).length, 2);
+  assert.match(html, /doc-diff-add/);
+  assert.match(html, /title: A promised visit/);
+  assert.match(html, /View transcript/);
+});
