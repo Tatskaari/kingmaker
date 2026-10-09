@@ -1,4 +1,4 @@
-import { renderPrompt } from "../../prompts/src/index.js";
+import { renderPrompt } from "./prompts.js";
 import { fromJson } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema } from "../../contracts/src/index.js";
 import type { WorldState } from "../../contracts/src/v2.js";
