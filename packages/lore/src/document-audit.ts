@@ -1,3 +1,4 @@
+import { memoryIndexPath } from "./memories.js";
 import type { WorldState } from "../../contracts/src/v2.js";
 import { permitted } from "./access.js";
 import { auditNotes, type Finding } from "./audit.js";
@@ -31,7 +32,8 @@ function auditDocuments(state: WorldState): Finding[] {
     if (!(entry.startsWith(prefix) && /^[^/]+\/character\.md$/.test(entry.slice(prefix.length))) && entry !== state.player && entry !== "Players/player.md") continue;
     const character = entry.startsWith(prefix) ? entry.slice(prefix.length).split("/")[0]! : "player";
     const scoped = new Map(resolved);
-    scoped.set(entry, [...(resolved.get(entry) ?? []), ...Object.values(state.simulation!.runtimeCharacters)
+    const memoryIndex = memoryIndexPath(entry);
+    scoped.set(entry, [...(resolved.get(entry) ?? []), ...(notes.has(memoryIndex) ? [memoryIndex] : []), ...Object.values(state.simulation!.runtimeCharacters)
       .filter(actor => actor.characterId === character).flatMap(actor => [actor.activity, actor.wait].filter((path): path is string => path !== undefined))]);
     findings.push(...auditNotes(notes, entry, { character }, scoped));
   }
