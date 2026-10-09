@@ -17,7 +17,7 @@ test("v2 game reviews into documents, saves without v1 state, and subsequent dia
   let calls = 0;
   const runtime = game({ services: { ai: { responses: async request => {
     calls++;
-    if (request.tools) return reviewReply(request);
+    if (request.tools?.some(tool => tool.function.name === "set_activity")) return reviewReply(request);
     assert.match(JSON.stringify(request), /PROMISESENTINEL/);
     assert.ok(!JSON.stringify(request).includes("ask_the_game_master"));
     return { role: "assistant", content: "I remember." };
@@ -87,7 +87,7 @@ test("conversation spans retain turn, retry, review and scenario context", async
   let attempts = 0;
   const alerts = new AlertLog();
   const runtime = game({ services: { ai: { responses: async request => {
-    if (request.tools) return reviewReply(request);
+    if (request.tools?.some(tool => tool.function.name === "set_activity")) return reviewReply(request);
     if (++attempts === 1) throw new TypeError("Temporary transport failure");
     return { role: "assistant", content: "Hello." };
   } } }, strategies: { conversation: { respond: (context, signal, services) => services.character.respond(context.request, signal), } } }, message => alerts.add("warning", message));
@@ -222,7 +222,7 @@ test("main game releases the NPC to act on committed activity while live review 
       ? { immediate_commitment: selected("flagged"), immediate_feasibility: selected("possible") }
       : questions.next ? { next: selected("wait") } : noChecks(questions),
     responses: async request => {
-      if (!request.tools) return { role: "assistant", content: "I will meet you in the great hall." };
+      if (!request.tools?.some(tool => tool.function.name === "set_activity")) return { role: "assistant", content: "I will meet you in the great hall." };
       const live = JSON.stringify(request.messages).includes("newly accepted conversation turn");
       assert.equal(live, true, "Ending a live conversation must not run a full review");
       const reply = reviewReply(request);
@@ -260,7 +260,7 @@ test("main game displays discretion replies and accepts another turn while revie
       ? { immediate_commitment: selected("flagged"), immediate_feasibility: selected("gms_discretion") } : noChecks(questions),
     responses: async request => {
       assert.equal(request.response_format, undefined, "No GM approval call");
-      if (!request.tools) return { role: "assistant", content: "I will meet you in the hall." };
+      if (!request.tools?.some(tool => tool.function.name === "set_activity")) return { role: "assistant", content: "I will meet you in the hall." };
       await gate;
       return reviewReply(request);
     },
