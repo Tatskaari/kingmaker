@@ -11,9 +11,13 @@ export function updateTranscriptPanel(panel: HTMLElement, html: string): void {
   const anchorKey = anchor?.getAttribute("data-transcript-key");
   const anchorOffset = anchor ? anchor.getBoundingClientRect().top - top : 0;
   const scrollTop = panel.scrollTop;
+  const disclosures = (node: Element) => [
+    ...(node.matches("details") ? [node as HTMLDetailsElement] : []),
+    ...node.querySelectorAll("details"),
+  ];
   const normalized = (node: Element) => {
     const clone = node.cloneNode(true) as Element;
-    clone.querySelectorAll("details[open]").forEach(detail => detail.removeAttribute("open"));
+    disclosures(clone).forEach(detail => detail.removeAttribute("open"));
     return clone.outerHTML;
   };
   let cursor = panel.firstElementChild;
@@ -29,10 +33,10 @@ export function updateTranscriptPanel(panel: HTMLElement, html: string): void {
         node = previous;
       } else if (normalized(previous) === normalized(next)) node = previous;
       else {
-        const details = [...previous.querySelectorAll("details")];
+        const details = disclosures(previous);
         const focused = details.findIndex(detail => detail.querySelector("summary") === document.activeElement);
-        const replacements = [...next.querySelectorAll("details")];
-        details.forEach((detail, i) => { if (detail.open && replacements[i]) replacements[i]!.open = true; });
+        const replacements = disclosures(next);
+        details.forEach((detail, i) => { if (replacements[i]) replacements[i]!.open = detail.open; });
         previous.replaceWith(next);
         if (cursor === previous) cursor = next;
         if (focused >= 0) replacements[focused]?.querySelector("summary")?.focus({ preventScroll: true });
