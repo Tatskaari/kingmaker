@@ -67,17 +67,20 @@ export function roomAgentActions(world: MapState, characters: readonly { id: str
   }
   for (const other of world.actors) {
     if (other.characterId === characterId || other.roomId !== room.id || !other.awake || !other.position) continue;
-    if (continuingActionId && `talk_${other.characterId}` !== continuingActionId) continue;
-    const target = characters.find(item => item.id === other.characterId);
-    const candidates = neighbours(actorTile(other.position));
-    const estimatedSteps = estimate(candidates);
-    const path = !routing ? [] : shortest(candidates.map(point => route(point)));
-    if (target && path) {
-      const existing = actions.findIndex(action => action.id === `talk_${target.id}`);
-      if (existing >= 0 && (routing ? actions[existing]!.path.length <= path.length : actions[existing]!.estimatedSteps! <= estimatedSteps)) continue;
-      const action: CourtAgentAction = { id: `talk_${target.id}`, type: "talk", target: target.id, path, estimatedSteps,
-        description: `Talk to ${target.name} (${estimatedSteps} steps).` };
-      if (existing >= 0) actions[existing] = action; else actions.push(action);
+    for (const verb of ["talk", "follow"] as const) {
+      if (continuingActionId && `${verb}_${other.characterId}` !== continuingActionId) continue;
+      const target = characters.find(item => item.id === other.characterId);
+      const candidates = neighbours(actorTile(other.position));
+      const estimatedSteps = estimate(candidates);
+      const path = !routing ? [] : shortest(candidates.map(point => route(point)));
+      if (target && path) {
+        const existing = actions.findIndex(action => action.id === `${verb}_${target.id}`);
+        if (existing >= 0 && (routing ? actions[existing]!.path.length <= path.length : actions[existing]!.estimatedSteps! <= estimatedSteps)) continue;
+        const action: CourtAgentAction = { id: `${verb}_${target.id}`, type: verb, target: target.id, path, estimatedSteps,
+          description: verb === "talk" ? `Talk to ${target.name} (${estimatedSteps} steps).`
+            : `Follow ${target.name}: stay on a free adjacent tile as they move; reconsider every 15 seconds (${estimatedSteps} steps).` };
+        if (existing >= 0) actions[existing] = action; else actions.push(action);
+      }
     }
   }
   return actions;
