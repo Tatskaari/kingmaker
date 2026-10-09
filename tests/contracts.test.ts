@@ -484,7 +484,7 @@ test("GPT-6 Responses adapter preserves tool history and encrypted reasoning acr
     const body = JSON.parse(String(init.body));
     assert.equal(body.store, false);
     assert.deepEqual(body.reasoning, { effort: "medium" });
-    assert.equal(body.max_output_tokens, 8000);
+    assert.ok(!("max_output_tokens" in body));
     assert.ok(!("temperature" in body));
     assert.deepEqual(body.tools[0], { type: "function", name: "offer_replies", description: "Offer choices", parameters: { type: "object" }, strict: false });
     if (++count === 2) {
@@ -494,7 +494,7 @@ test("GPT-6 Responses adapter preserves tool history and encrypted reasoning acr
     return new Response(JSON.stringify({ status: "completed", output: count === 1 ? output : [{ type: "message", content: [{ type: "output_text", text: "Welcome" }] }] }), { status: 200 });
   });
   const client = Object.assign(new OpenRouterClient("test"), { complete: originalOpenRouterComplete });
-  const settings = { model: "openai/gpt-6-sol", api: "responses" as const, reasoning: { effort: "medium" as const }, max_tokens: 8000,
+  const settings = { model: "openai/gpt-6-sol", api: "responses" as const, reasoning: { effort: "medium" as const },
     tools: [{ type: "function" as const, function: { name: "offer_replies", description: "Offer choices", parameters: { type: "object" } } }] };
   const user = { role: "user" as const, content: "Hello" };
   const first = await client.complete({ ...settings, messages: [user] });

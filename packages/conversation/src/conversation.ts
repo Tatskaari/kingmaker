@@ -32,7 +32,7 @@ export function conversationRequest(input: ConversationInput, setup = characterM
   const exists = !!input.world.simulation!.runtimeCharacters[input.characterId];
   if (!exists) throw new Error(`Unknown character: ${input.characterId}`);
   return {
-    model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "none" }, max_tokens: 1200,
+    model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "none" },
     messages: [
       ...setup,
       ...participantPresentations(input.world, input.characterId, ["player"]),

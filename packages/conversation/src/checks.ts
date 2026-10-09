@@ -84,7 +84,7 @@ export async function adjudicateResolvedChecks<Result extends RollResult | Conve
       { role: "user", content: JSON.stringify({ dialogue: options.messages, resolvedChecks: results }) },
     ], response_format: { type: "json_schema", json_schema: { name: "conversation_roll_ruling", strict: true, schema: {
       type: "object", additionalProperties: false, required: ["direction"], properties: { direction: { type: "string", maxLength: 3000 } },
-    } } }, max_tokens: 2000 })).content, "GM roll ruling");
+    } } } })).content, "GM roll ruling");
     if (typeof ruling.direction !== "string" || !ruling.direction.trim()) throw new Error("The GM returned no direction for the roll.");
     return renderPrompt("checks-ruling", { ROLL_GUIDANCE: ROLL_GUIDANCE, results: JSON.stringify(results), direction: ruling.direction.trim() });
   };

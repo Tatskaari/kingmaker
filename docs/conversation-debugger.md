@@ -21,8 +21,8 @@ operation cancels its sibling. Very easy/easy/normal/hard/very hard map to DC
 natural 20, irrespective of modifiers.
 
 The AI response service retries transient provider/network failures and timeouts
-once. A truncated response retries with twice the output-token budget. Cancellation
-and non-retryable provider errors stop immediately. Dice stay resolved and the
+once. Game requests omit output-token caps, leaving the allowance to the provider.
+Truncated responses, cancellation and non-retryable provider errors stop immediately. Dice stay resolved and the
 popup remains open during a retry; exhausted failures cancel the paired operation.
 
 Run `proto install` to install the pinned Node 26 runtime and `npm ci` to install
