@@ -1684,6 +1684,36 @@
       "ownerCharacterId": "aldren"
     },
     {
+      "id": "furn_cart_left",
+      "name": "Wedged self-guiding cart \u2014 chassis",
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 61,
+        "y": 38
+      },
+      "interactionSpot": {
+        "x": 61,
+        "y": 37
+      },
+      "sprite": 72,
+      "ownerCharacterId": "rowan"
+    },
+    {
+      "id": "furn_cart_right",
+      "name": "Wedged self-guiding cart \u2014 gift tree",
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 62,
+        "y": 38
+      },
+      "interactionSpot": {
+        "x": 62,
+        "y": 37
+      },
+      "sprite": 72,
+      "ownerCharacterId": "rowan"
+    },
+    {
       "id": "furn_mara_bed_head",
       "name": "Gurt's bed \u2014 pillow",
       "roomId": "mara_chamber",

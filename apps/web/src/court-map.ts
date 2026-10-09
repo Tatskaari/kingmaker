@@ -4,6 +4,7 @@ import { doorActionLegality, type RoomAccess } from "../../../packages/core/src/
 import type { FixtureAction } from "../../../packages/core/src/fixtures.js";
 import type { DoorState, MapFixture, ActorMovement } from "../../../packages/contracts/src/index.js";
 import { drawDoors } from "./draw-doors.js";
+import { cartRattle, drawEntranceCart, isEntranceCart } from "./entrance-cart.js";
 import { actionsAtTile, requireCurrentFixtureAction, type CourtInteractionLayer } from "./court-interactions.js";
 import { CanvasMapRenderer } from "./map-renderer.js";
 import { palaceMap } from "./palace-map.js";
@@ -129,6 +130,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   const closeMenu = () => { menu.hidden = true; menuTile = undefined; };
   menu.addEventListener("contextmenu", event => { event.preventDefault(); closeMenu(); });
   const listeners = new AbortController();
+  const updateCartSound = cartRattle(root, listeners.signal);
   document.addEventListener("pointerdown", event => {
     if (event.button === 0 && !menu.contains(event.target as Node)) closeMenu();
   }, { signal: listeners.signal });
@@ -260,14 +262,26 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   let position = markers.find(marker => marker.id === player?.id)?.point;
   const artworkKey = () => JSON.stringify([
     doors.map(door => [door.tiles, door.open]),
-    fixtures.map(item => [item.position, item.sprite, item.open]),
+    fixtures.map(item => [item.id, item.position, item.sprite, item.open]),
     markers.find(marker => marker.id === player?.id)?.movement?.id,
   ]);
   let drawnArtwork = "";
+  const backdrop = document.createElement("canvas"); backdrop.width = canvas.width; backdrop.height = canvas.height;
+  const context = canvas.getContext("2d")!;
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)");
+  const paintCart = () => {
+    // Restore only the small animated area, keeping the palace raster cached.
+    for (const item of fixtures.filter(isEntranceCart)) if (item.position) {
+      const x = item.position.x * 16 - 2, y = item.position.y * 16 - 20;
+      context.drawImage(backdrop, x, y, 20, 42, x, y, 20, 42);
+    }
+    drawEntranceCart(context, fixtures, reducedMotion.matches ? 1000 : Date.now());
+  };
   const draw = () => {
     drawnArtwork = artworkKey();
     renderer.render();
     for (const item of fixtures) if (item.position) {
+      if (isEntranceCart(item)) continue;
       renderer.drawSprite("tiny-dungeon", item.sprite, item.position.x, item.position.y);
       if (item.open) {
         const context = canvas.getContext("2d")!;
@@ -287,6 +301,8 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       });
       context.stroke();
     }
+    backdrop.getContext("2d")!.drawImage(canvas, 0, 0);
+    paintCart();
   };
   draw();
   visualPosition = position;
@@ -338,6 +354,8 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   const animateActors = () => {
     if (!root.isConnected) return;
     const now = Date.now();
+    if (!document.hidden) paintCart();
+    updateCartSound(fixtures, visualPosition, now);
     for (const marker of markers) {
       const point = actorPosition(marker, now);
       if (!point) continue;

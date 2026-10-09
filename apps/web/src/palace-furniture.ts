@@ -15,6 +15,9 @@ export function palaceFurniture(map: MapState, owners: readonly InventoryOwner[]
     put(room, x, y, `${id}_bed_head`, `${name}'s bed — pillow`, 79);
     put(room, x + 1, y, `${id}_bed_foot`, `${name}'s bed — blanket`, 80);
   };
+  // Two occupied tiles span the service passage; both approaches stay inside.
+  put("entrance_hall", 3, 5, "cart_left", "Wedged self-guiding cart — chassis", 72, [], "rowan", { x: 3, y: 4 });
+  put("entrance_hall", 4, 5, "cart_right", "Wedged self-guiding cart — gift tree", 72, [], "rowan", { x: 4, y: 4 });
   const guests = [
     ["mara", "Gurt", "Ironmark dress uniform", "A carefully folded formal uniform for the centennial assembly.", "Draft assembly address", "Gurt's notes argue for lawful succession and disciplined conduct."],
     ["hadrik", "Klog", "Campaign cloak", "A wool cloak patched after many wet nights on campaign.", "Campaign chess pieces", "A travel set with more replacement pawns than originals."],
