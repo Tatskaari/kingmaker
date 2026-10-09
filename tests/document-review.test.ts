@@ -242,3 +242,30 @@ test("GM reviews receive editable presentation snapshots for every participant i
     transcript: [create(TranscriptMessageSchema, { text: "I smooth my hair and brush the dust off my coat." })] }, runtime);
   assert.match((await services.docs.read("Players/presentation.md")).document.body, /hair is smoothed flat/);
 });
+
+test("committed tool history captures exact text for replacements, insertions, creation and deletion", async () => {
+  const services = fixture();
+  const updates: import("../packages/conversation/src/services.js").DocumentUpdate[] = [];
+  const runtime = new ConversationRuntime({ services: { ...services,
+    debug: { record() {}, documentUpdated: event => updates.push(event) },
+  } });
+  const { GameMasterTools } = await import("../packages/conversation/src/gm-tools.js");
+  const tools = new GameMasterTools(runtime.services);
+  const trace = { response: { role: "assistant" as const, content: null }, toolCallId: "edit" };
+  const before = await services.docs.read(entry);
+  await tools.call("replace_document", { path: entry, expectedSha: before.sha, oldText: "Earlier history.", newText: "A promise." }, trace);
+  assert.equal(updates[0]!.beforeText, before.text);
+  assert.equal(updates[0]!.afterText, (await services.docs.read(entry)).text);
+  await tools.call("replace_document", { path: entry, expectedSha: before.sha, oldText: "A promise.", newText: "Conflict" }, trace);
+  assert.equal(updates.length, 1, "Failed writes are not recorded");
+  const current = await services.docs.read(entry);
+  await tools.call("insert_document", { path: entry, expectedSha: current.sha, afterLine: current.text.split("\n").length, text: "Another memory." }, trace);
+  assert.equal(updates[1]!.beforeText, current.text);
+  assert.match(updates[1]!.afterText, /Another memory/);
+  await tools.call("create_document", { path: "note.md", text: "A new note." }, trace);
+  assert.equal(updates[2]!.beforeText, "");
+  assert.equal(updates[2]!.afterText, "A new note.");
+  await tools.call("delete_document", { path: "note.md", expectedSha: (await services.docs.read("note.md")).sha }, trace);
+  assert.equal(updates[3]!.beforeText, "A new note.");
+  assert.equal(updates[3]!.afterText, "");
+});

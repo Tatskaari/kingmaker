@@ -87,6 +87,8 @@ export interface DocumentUpdate {
   path: string;
   beforeSha: string;
   afterSha: string;
+  beforeText: string;
+  afterText: string;
   response: OpenRouterMessage;
   toolCallId: string;
 }
