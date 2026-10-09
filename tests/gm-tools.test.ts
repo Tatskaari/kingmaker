@@ -153,7 +153,7 @@ test("activity origins stay scoped to participants and distinct across conversat
   const input = { name: "Meeting", status: "Promised", success_criteria: "Arrive", current_goal: "Go to the hall" };
   const origin = (text: string) => ({ characterId: "palace-guard-1", participants: ["palace-guard-1", "player"],
     transcript: [create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text })] });
-  const first = new GameMasterTools(services, "palace-guard-1", origin("PRIVATE_ORIGIN_ONE"));
+  const first = new GameMasterTools(services, "palace-guard-1", origin("PRIVATE_ORIGIN_ONE [[not-a-world-document]]"));
   await first.call("set_activity", input);
   const firstPath = characterIntent(services.scenario.read(), "palace-guard-1").activity!;
   assert.match((await services.docs.read(firstPath)).document.body, /PRIVATE_ORIGIN_ONE/);

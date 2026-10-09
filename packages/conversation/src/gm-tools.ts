@@ -51,7 +51,7 @@ export class GameMasterTools {
       const transcript = origin?.participants.includes(id) ? origin.transcript.map(turn => ({
         role: TranscriptRole[turn.role], speakerId: turn.speakerId, text: turn.text,
       })) : [];
-      const body = transcript.length ? `# Originating conversation (historical evidence)\n\n${JSON.stringify(transcript, null, 2)}\n` : "";
+      const body = transcript.length ? `# Originating conversation (historical evidence)\n\n\`\`\`json\n${JSON.stringify(transcript, null, 2)}\n\`\`\`\n` : "";
       this.edits.set(id, { before, activity: new ActivityEdits(this.services, id, before, body) });
     }
     return this.edits.get(id)!;
