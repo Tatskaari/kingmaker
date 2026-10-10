@@ -4,6 +4,12 @@ import type { OpenRouterMessage } from "../../providers/src/openrouter.js";
 import { analyzeAttention, type AnalysisEvent } from "./attention.js";
 import { reviewDocumentEvidence } from "./document-review.js";
 import type { ConversationStrategy } from "./phases.js";
+import { renderPrompt } from "../../prompts/src/index.js";
+import { gameMasterTools } from "./gm-tools.js";
+import { activityTools } from "./activity-tools.js";
+
+const commitmentFlags = ["immediate_commitment", "deferred_commitment", "general_commitment"];
+const reviewCategories = ["improvised_detail", "plot_progress", "other_world_update", "conversational_exchange", "relationship_or_knowledge_change"];
 
 /** One session owns ordered review jobs. Failed work is surfaced at drain, never silently lost. */
 export class ConversationReviews {
@@ -45,20 +51,27 @@ export function liveConversationStrategy(options: {
     record("classify", "live-attention", labels, pass);
     options.report?.({ kind: "labels", subject: "character", source: "attention", decisions: labels });
     const discretion = labels.immediate_feasibility?.choice === "gms_discretion";
-    const flagged = discretion || Object.values(labels).some(label => label.choice === "flagged");
+    const categories = [
+      ...(discretion || commitmentFlags.some(name => labels[name]?.choice === "flagged") ? ["activity"] : []),
+      ...reviewCategories.filter(name => labels[name]?.choice === "flagged"),
+    ];
     const transcript = turnEvidence(messages.slice(playerIndex), reply, options.characterId);
-    const review = async (reviewSignal: AbortSignal) => {
+    signal.throwIfAborted();
+    for (const category of categories) options.reviews.enqueue(async reviewSignal => {
+      const names = category === "activity" ? [...commitmentFlags, "immediate_feasibility"] : [category];
+      const reviewLabels = Object.fromEntries(Object.entries(labels).filter(([name]) => names.includes(name)));
       await reviewDocumentEvidence({ characterId: options.characterId, participants: [options.characterId, "player"], transcript },
-        labels, reviewSignal, { ...services, ai: { ...services.ai,
+        reviewLabels, reviewSignal, { ...services, ai: { ...services.ai,
           responses: (request, signal, info) => services.ai.responses({ ...request, reasoning: { ...request.reasoning, effort: "high" } },
             signal, { ...info, purpose: "conversation_review" }),
-        } },
-        "Review only this newly accepted conversation turn. Earlier turns have already been reviewed; do not repeat gifts or objectives. Preserve consequences in the world now, including inventory changes for agreed gifts/trades. Character movement is not executed by narration. Retain supported promises and player-led shared history as appropriate memories or beliefs.");
-      record("resolve", "live-review", { mode: "background" }, pass);
-    };
-    signal.throwIfAborted();
-    if (flagged) options.reviews.enqueue(review);
-    record("respond", "live-accepted", { reply, mode: flagged ? "background" : "none" }, pass);
+        } }, renderPrompt(`review-${category.replaceAll("_", "-")}`), {
+          systemPrompt: renderPrompt("review-focused"),
+          tools: gameMasterTools.filter(tool => category === "activity" ? tool.function.name === "set_activity"
+            : !activityTools.some(activity => activity.function.name === tool.function.name)),
+        });
+      record("resolve", "live-review", { mode: "background", category }, pass);
+    });
+    record("respond", "live-accepted", { reply, mode: categories.length ? "background" : "none", reviews: categories }, pass);
     return reply;
   } };
 }

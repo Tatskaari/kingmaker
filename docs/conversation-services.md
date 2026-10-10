@@ -63,7 +63,16 @@ private drafts or return a fixed response without calling that service.
 
 The main game supplies `liveConversationStrategy` as the response policy after
 those disclosure and dice steps. Jev classifies the character reply; flags including
-`gms_discretion` queue a GM review using high reasoning. The reply is released
+`gms_discretion` queue focused GM reviews using high reasoning. Immediate, deferred
+and general commitments share one activity review (also triggered by feasibility
+requiring GM discretion). It runs first and exposes only `set_activity`; the host
+rejects all other tool calls. Deferred activities use `activate=false`, and vague
+support alone creates no task. The host supplies context before the review.
+Each other flagged category gets its own instructions and review: improvised detail,
+plot progress, other world update, conversational exchange, and relationship or
+knowledge change. These reviewers have no activity tools. Each receives only its
+category's labels and the new turn's transcript, alongside current world context.
+The reply is released
 without a separate GM approval or waiting for consequence updates.
 Each conversation owns an ordered review queue. Subsequent turns continue without
 waiting for reviews; lore and world updates become available after they commit.

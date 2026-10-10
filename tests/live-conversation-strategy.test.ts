@@ -30,7 +30,8 @@ function fixture(mode: "background" | "discretion" | "error") {
       assert.equal(request.response_format, undefined, "No blocking GM approval");
       assert.equal(request.reasoning?.effort, "high");
       await gate;
-      return commitReview({ summary: "Recorded", newNotes: ["Promised the player a gift."], activeGoal: null }, request);
+      assert.deepEqual(request.tools?.map(tool => tool.function.name), ["set_activity"]);
+      return commitReview({ summary: "Recorded", newNotes: [], activeGoal: "Fetch the promised bird" }, request);
     } },
   }, strategies: { conversation: liveConversationStrategy({ characterId: "corvin", reviews }) } });
   return { runtime, reviews, before, backing, drafts, events, release };
@@ -107,4 +108,59 @@ test("the full conversation strategy retains dice adjudication before background
   assert.equal(f.drafts.length, 1);
   assert.ok(f.drafts[0]!.some(message => message.content?.startsWith("# Binding DM ruling")));
   f.release(); await f.reviews.drain();
+});
+
+test("flags schedule one combined activity review and separate focused reviews in order", async () => {
+  const f = fixture("background"), categories: string[] = [], labelSets: string[][] = [];
+  f.runtime.services.ai.decisions = async (_state, _questions, _signal, purpose) => purpose === "conversation_attention" ? {
+    immediate_commitment: choice("flagged"), deferred_commitment: choice("flagged"), general_commitment: choice("flagged"),
+    immediate_feasibility: choice("gms_discretion"), improvised_detail: choice("flagged"), plot_progress: choice("flagged"),
+    other_world_update: choice("flagged"), conversational_exchange: choice("flagged"), relationship_or_knowledge_change: choice("flagged"),
+  } : {};
+  f.runtime.services.debug.record = event => {
+    if (event.source === "live-review") categories.push((event.output as { category: string }).category);
+  };
+  f.runtime.services.ai.responses = async request => {
+    const evidence = request.messages.flatMap(message => {
+      try { const value = JSON.parse(message.content ?? ""); return value.labels ? [value] : []; } catch { return []; }
+    })[0]!;
+    labelSets.push(Object.keys(evidence.labels));
+    assert.deepEqual(evidence.transcript.map((turn: { text: string }) => turn.text), [
+      "Give me a bird.", "# Binding DM ruling\nPersuasion succeeded.", "I will give you a bird.",
+    ]);
+    assert.ok(!JSON.stringify(evidence.transcript).includes("Old conversation"));
+    assert.ok(!request.messages.some(message => message.content?.includes("As part of a review:")));
+    const names = request.tools!.map(tool => tool.function.name);
+    if (labelSets.length === 1) {
+      assert.deepEqual(names, ["set_activity"]);
+      assert.ok(request.messages.some(message => message.content?.includes("activate=false")));
+    } else {
+      assert.ok(!names.includes("set_activity") && !names.includes("set_wait") && !names.includes("clear_activity"));
+      assert.ok(request.messages.some(message => message.content?.startsWith("Review only")));
+    }
+    return { role: "assistant", content: "No changes needed." };
+  };
+  await runConversation({ ...request, messages: [{ role: "user", content: "Old conversation" },
+    { role: "assistant", content: "Old reply" }, ...request.messages] }, f.runtime);
+  await f.reviews.drain();
+  assert.deepEqual(categories, ["activity", "improvised_detail", "plot_progress", "other_world_update",
+    "conversational_exchange", "relationship_or_knowledge_change"]);
+  assert.deepEqual(labelSets, [["immediate_commitment", "deferred_commitment", "general_commitment", "immediate_feasibility"],
+    ...categories.slice(1).map(category => [category])]);
+});
+
+test("unflagged turns skip reviews and discretion alone schedules only the activity review", async () => {
+  for (const discretion of [false, true]) {
+    const f = fixture("background"); let calls = 0;
+    f.runtime.services.ai.decisions = async () => ({ immediate_commitment: choice("not_flagged"),
+      immediate_feasibility: choice(discretion ? "gms_discretion" : "not_applicable") });
+    f.runtime.services.ai.responses = async request => {
+      calls++;
+      assert.deepEqual(request.tools?.map(tool => tool.function.name), ["set_activity"]);
+      return { role: "assistant", content: "No supported activity." };
+    };
+    await runConversation(request, f.runtime);
+    await f.reviews.drain();
+    assert.equal(calls, discretion ? 1 : 0);
+  }
 });
