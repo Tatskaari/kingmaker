@@ -79,7 +79,7 @@ test("disclosure lists document paths with threshold decisions and open document
     open_2: { choice: "open_2", probabilities: { open_2: 0.9, skip: 0.1 } },
   } };
   const html = recentTranscriptsView([entry], {}, { characterId: "corvin" });
-  const summary = html.split('<div class="transcript-summary">')[1].split("<details>")[0];
+  const summary = html.split('<div class="transcript-summary">')[1].split("<details>")[0].split("<div data-context-launcher>")[0];
   assert.match(summary, /Documents considered \(3\)/);
   assert.match(summary, /1 selected to open/);
   assert.match(summary, /success">Open<\/span>/);
