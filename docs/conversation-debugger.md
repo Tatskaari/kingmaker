@@ -93,3 +93,24 @@ Select it to inspect the full request, response/tool calls or error and duration
 later tool-loop requests include earlier tool results. Background review entries
 continue updating after the character reply appears. Dice calls remain labelled
 GM roll ruling. All these entries are included in the exported `gmTurns` list.
+
+## Quest classification preview
+
+Run `npm run conversation -- --character rowan` with `OPENROUTER_API_KEY` set.
+Fresh Centennial Assembly sessions with Rowan register a **Pillow Delivery (CLI
+classification fixture)** quest. Ask about backing the cart out, compare a
+hypothetical suggestion with an actual agreement, and inspect **Jev quest
+transition** in the RHS after each accepted reply. The entry includes the exact
+condition, quest stage/revision, conversation evidence (including the current
+binding DM ruling), choice and probabilities. Negative results and failures are
+also shown and exported in `decisionCalls`.
+
+The fixture is a CLI example from issue #532, not loaded quest lore. Classification
+is read-only: it never advances the stage, starts activities, clears the cart or
+requests a quest GM decision. Existing conversation checks and reviews still run.
+Positive classifications depend on Rowan's actual reply and any ruling; a request
+alone is insufficient. Each turn reevaluates the unchanged outgoing condition.
+Snapshots use their own quest definitions rather than adding the fixture.
+Only explicitly discretionary outgoing transitions are classified; predicated
+transitions and unspecified triggers are excluded. There is no score threshold
+or automatic action in this preview.

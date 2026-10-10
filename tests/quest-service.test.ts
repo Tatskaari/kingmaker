@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { create, fromJson, toJson } from "@bufbuild/protobuf";
 import { MapStateSchema } from "../packages/contracts/src/index.js";
-import { QuestSchema, WorldStateSchema } from "../packages/contracts/src/v2.js";
+import { QuestSchema, QuestTrigger, WorldStateSchema } from "../packages/contracts/src/v2.js";
 import { createScenarioServices, QuestConflictError } from "../packages/lore/src/services.js";
 import { worldState } from "../packages/lore/src/world-state.js";
 
@@ -19,7 +19,7 @@ function definition() {
       ...["repair", "back_out"].map(id => ({ id, fromStageId: "blocked", toStageId: "unloading" })),
       { id: "finish", fromStageId: "unloading", toStageId: "delivered" },
       { id: "retry", fromStageId: "unloading", toStageId: "blocked" },
-    ],
+    ].map(edge => ({ ...edge, trigger: QuestTrigger.DISCRETIONARY, condition: "Adjudicated remedy" })),
   });
 }
 
@@ -67,6 +67,8 @@ test("invalid definitions and unavailable edges leave state unchanged and queue 
   const { quests } = fixture();
   for (const mutate of [
     (q: ReturnType<typeof definition>) => { q.id = ""; },
+    (q: ReturnType<typeof definition>) => { q.transitions[0]!.trigger = QuestTrigger.UNSPECIFIED; },
+    (q: ReturnType<typeof definition>) => { q.transitions[0]!.condition = ""; },
     (q: ReturnType<typeof definition>) => { q.stages[0]!.id = ""; },
     (q: ReturnType<typeof definition>) => { q.stages.push(q.stages[0]!); },
     (q: ReturnType<typeof definition>) => { q.transitions.push(q.transitions[0]!); },

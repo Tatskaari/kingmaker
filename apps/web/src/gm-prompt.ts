@@ -9,6 +9,7 @@ export const GM_ADJUDICATION_GUIDANCE = renderPrompt("gm-prompt-gm_adjudication_
 
 // Every new model-call kind must explicitly declare whether it speaks as GM.
 const gmCalls: Record<ModelCallKind, boolean> = {
+  quest_transition: false,
   conversation_attention: false,
   skill_check: false, skill_difficulty: false, prog_disc: false,
   game_master: true, gm_consultation: true, conversation_review: true,

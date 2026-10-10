@@ -20,6 +20,8 @@ import { WorldStateSchema } from "../packages/contracts/src/v2.js";
 import { loadConversationWorld } from "./lib/conversation-world.js";
 import { runConversationCli } from "../apps/conversation-cli/app.js";
 
+import { rowanQuestFixture } from "../apps/conversation-cli/quest-fixture.js";
+
 const args = process.argv.slice(2);
 const options = new Map<string, string>();
 const usage = "npm run conversation -- [--character corvin] [--scenario 'Centennial Assembly'] [--snapshot path] [--player document.md] [--output path] [--threshold 0.7] [--strategy game]";
@@ -37,6 +39,8 @@ const source = snapshotPath ? JSON.parse(readFileSync(snapshotPath, "utf8")) : u
 const services = createScenarioServices(source
   ? fromJson(WorldStateSchema, source.world ?? source)
   : loadConversationWorld(fileURLToPath(new URL("../lore", import.meta.url)), options.get("--scenario") ?? "Centennial Assembly", options.get("--player")));
+if (!snapshotPath && (options.get("--scenario") ?? "Centennial Assembly") === "Centennial Assembly"
+  && options.get("--character") === "rowan") await services.quests.register(rowanQuestFixture());
 const lore = await documentLore(services.scenario, options.get("--character") ?? "corvin");
 const jev = new JevClient(apiKey);
 const client = new OpenRouterClient(apiKey);
@@ -61,7 +65,7 @@ const build = services.scenario.read().simulation!.runtimeCharacters.player?.dnd
 const strategyName = options.get("--strategy") ?? "game";
 if (strategyName !== "game") throw new Error("Unknown conversation strategy");
 const reviews = new ConversationReviews();
-const result = await runConversationCli(input, ai.responses, disclosure, { ai, build,
+const result = await runConversationCli(input, ai.responses, disclosure, { ai, build, quests: services.quests,
   services: new ConversationRuntime({ services: { inventory: services.inventory, docs: services.docs, scenario: services.scenario, lore: documentLoreService(services.scenario) } }).services,
   beforeTurn: async () => { await reviews.drain(); return new DisclosureSession(await documentLore(services.scenario, characterId), ai, Number(options.get("--threshold") ?? "0.7")); },
   response: report => liveConversationStrategy({ characterId, reviews, report }),

@@ -4,8 +4,9 @@ import { gameLogger } from "../../../packages/observability/src/logging.js";
 
 const log = gameLogger("models");
 
-export type ModelCallKind = "conversation_attention" | "skill_check" | "skill_difficulty" | "prog_disc" | "conversation_expression" | "npc_request" | "npc_resolution" | "game_master" | "dialogue" | "dialogue_flavour" | "gm_consultation" | "conversation_review" | "conversation_check" | "world_event" | "event_decision" | "jev" | "outcome_review";
+export type ModelCallKind = "quest_transition" | "conversation_attention" | "skill_check" | "skill_difficulty" | "prog_disc" | "conversation_expression" | "npc_request" | "npc_resolution" | "game_master" | "dialogue" | "dialogue_flavour" | "gm_consultation" | "conversation_review" | "conversation_check" | "world_event" | "event_decision" | "jev" | "outcome_review";
 export const modelCallLabels: Record<ModelCallKind, string> = {
+  quest_transition: "Jev quest transition",
   conversation_attention: "Jev conversation attention",
   skill_check: "Jev skill check",
   skill_difficulty: "Jev skill difficulty",

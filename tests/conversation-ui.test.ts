@@ -243,3 +243,52 @@ test("terminal character responds without tools or reasoning while receiving the
     assert.equal(calls, 1);
   } finally { await act(() => setup.renderer.destroy()); }
 });
+
+test("CLI quest decisions appear on the RHS after acceptance and preserve dialogue on failure", async () => {
+  const { createScenarioServices } = await import("../packages/lore/src/services.js");
+  const { rowanQuestFixture } = await import("../apps/conversation-cli/quest-fixture.js");
+  const services = createScenarioServices(loadPlayableWorld());
+  await services.quests.register(rowanQuestFixture());
+  const before = services.quests.list();
+  let exported: ConversationResult | undefined, calls = 0;
+  const setup = await testRender(createElement(ConversationApp, {
+    input: { world: services.scenario.read(), characterId: "rowan", sources: [], transcript: [], message: "" },
+    checks: { quests: services.quests, build: undefined, ai: {
+      responses: async () => assert.fail("No quest GM review"),
+      decisions: async (_state, _questions, _signal, purpose) => {
+        assert.equal(purpose, "quest_transition");
+        if (++calls === 2) throw new Error("Quest classifier offline");
+        return { transition_0: { choice: "condition_not_met", probabilities: { condition_met: 0.1, condition_not_met: 0.9 } } };
+      },
+    } },
+    complete: async request => {
+      assert.doesNotMatch(JSON.stringify(request.messages), /cli_pillow_delivery|agree_to_back_out/);
+      return { role: "assistant", content: "I could, if we fixed the wheel." };
+    },
+    copyText: async () => "Copied", onFinish: result => { exported = result; },
+  }), { width: 180, height: 40, exitOnCtrlC: false, autoFocus: false });
+  const step = async (action: () => void | Promise<void>) => {
+    await act(async () => { await action(); await new Promise(resolve => setTimeout(resolve, 60)); }); await setup.flush();
+  };
+  try {
+    await setup.flush();
+    await step(() => setup.mockInput.typeText("Could you back it out?"));
+    await step(() => setup.mockInput.pressEnter());
+    assert.match(setup.captureCharFrame(), /Jev quest transition · completed/);
+    await step(() => setup.mockInput.typeText("And now?"));
+    await step(() => setup.mockInput.pressEnter());
+    assert.match(setup.captureCharFrame(), /Quest classifier offline/);
+    assert.match(setup.captureCharFrame(), /Jev quest transition · failed/);
+    await step(() => setup.mockInput.pressKey("d", { ctrl: true }));
+    const call = exported!.decisionCalls[0]!;
+    const row = setup.renderer.root.findDescendantById(call.id)!;
+    await step(() => setup.mockMouse.click(row.x + 2, row.y));
+    assert.match(setup.captureCharFrame(), /quest_transition/);
+    assert.equal(call.answers?.transition_0?.choice, "condition_not_met");
+    assert.match(JSON.stringify(call.request), /agree_to_back_out/);
+    await step(() => setup.mockInput.pressEscape());
+    assert.deepEqual(services.quests.list(), before);
+    assert.equal(exported!.transcript.length, 4);
+    assert.equal(exported!.decisionCalls[1]?.status, "failed");
+  } finally { await act(() => setup.renderer.destroy()); }
+});
