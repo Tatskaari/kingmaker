@@ -12,6 +12,8 @@ This conversation has been flagged as having an activity that the character must
 {{transcript}}
 </transcript>
 
+Only set an activity for the character being reviewed, and only when it should become active now. Deferred promises and their timing or conditions are preserved by the separate commitment memory reviewer; do not activate future-only work early or invent a trigger. Broad support or allegiance alone does not justify inventing an activity; leave intent unchanged. If no executable undertaking is supported, make no tool call.
+
 The current active quests and their progress are:
 
 <quests>
