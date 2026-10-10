@@ -7,13 +7,13 @@ import { inventoryOwners } from "../../../packages/core/src/inventory.js";
 import { worldForCharacter } from "../../../packages/core/src/physical-view.js";
 import { type WorldState } from "../../../packages/contracts/src/v2.js";
 
-import { activityGoal, intentContext } from "../../../packages/lore/src/activity.js";
+import { activityGoal, activityDefinition, characterIntent, intentDocument } from "../../../packages/lore/src/activity.js";
 import { actionCriteria, runAction, type ActionResult } from "../../../packages/conversation/src/action.js";
 import { runConversationReview, type ConversationReviewContext } from "../../../packages/conversation/src/review.js";
 import type { ConversationRuntime } from "../../../packages/conversation/src/runtime.js";
 import { jevRequest } from "../../../packages/providers/src/jev.js";
 import { physicalCharacterObservation } from "./physical-observation.js";
-import { renderJevRoomView } from "./jev-room-view.js";
+import { renderJevMap, renderJevRoomView } from "./jev-room-view.js";
 
 export interface PlanningFeedback { error: string; instruction: string }
 
@@ -33,16 +33,24 @@ async function worldActionContext(world: WorldState, characterId: string, histor
     inventory: character.inventory }));
   const visible = services.map.observe(characterId);
   const known = worldForCharacter(visible.map, inventoryOwners(characters, visible.map), characterId);
-  const observation = physicalCharacterObservation(known, characterId, goal, visible.actions);
-  const state = renderPrompt("planner-context", {
-    characterId, feedback: feedback ? JSON.stringify(feedback) : "",
-    intent: intentContext(world, characterId), goal,
-    observedMap: renderJevRoomView(visible.map, characters, observation),
-    history: visible.recentHistory?.length ? renderCharacterHistory(visible.recentHistory) : history.join("\n") || "None yet.",
+  const recent = visible.recentHistory?.length ? visible.recentHistory
+    : history.map(id => ({ kind: "action" as const, id, text: id }));
+  // Only consecutive completed room entries establish a reversal; intervening work/events reset it.
+  const previous = recent.at(-2), last = recent.at(-1);
+  const returnRoom = previous?.kind === "action" && last?.kind === "action"
+    && previous.id.startsWith("enter_") && last.id.startsWith("enter_")
+    && last.id === `enter_${known.actors.find(actor => actor.characterId === characterId)?.roomId}`
+    ? previous.id.slice("enter_".length) : undefined;
+  const actions = visible.actions.map(action => action.type === "move" && action.target === returnRoom
+    ? { ...action, description: `${action.description} [A -> B -> A: returns to the room just left without intervening progress.]` } : action);
+  const observation = physicalCharacterObservation(known, characterId, goal, actions);
+  const definition = activityDefinition(intentDocument(world, characterId, characterIntent(world, characterId).activity!));
+  const instructions = renderPrompt("world-action-instructions", {
+    characterId, currentGoal: goal, status: definition.status, successCriteria: definition.success_criteria,
+    worldView: renderJevRoomView(visible.map, characters, observation), map: renderJevMap(visible.map),
+    history: renderCharacterHistory(recent) || "None yet.", feedback: feedback ? JSON.stringify(feedback) : "",
   });
-  const instructions = renderPrompt("world-action-instructions");
-  const messages = await disclosedContext("planner", [{ role: "system", content: instructions },
-    { role: "user", content: state }], services, characterId, signal);
+  const messages = await disclosedContext("planner", [{ role: "system", content: instructions }], services, characterId, signal);
   const expanded = messages.map(message => message.content).join("\n\n");
   return { characterId, goal, revision: visible.map.revision, actions: observation.actions,
     request: jevRequest(expanded, instructions, { ...actionCriteria(observation.actions),

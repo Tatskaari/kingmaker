@@ -125,3 +125,27 @@ An earlier exploratory smoke run at `d553b82` used a task-outcome review instead
 the game's NPC-exchange boundary and is excluded. Final tests cover actual validated
 arrival and premature-completion scoring. All 571 tests, TypeScript, contract lint,
 compilation and web build passed via `proto run moon -- run workspace:check workspace:build`.
+
+## Planner template and reversal labels — 2026-10-10
+
+At `3b0caa1`, reran the same planner fixture three times serially. The new production
+planner prompt uses the author's goal/status/world/map/history template with explicit
+success criteria and the existing `unable` terminal ID. Consecutive completed room
+entries mark a move back to the previous room as `A -> B -> A` in the world view and
+Jev criteria; intervening work/events reset the marker. The move stays selectable.
+
+| Repeat | Executed actions | Interview coverage |
+| --- | --- | --- |
+| 1 | talk_elinor → talk_oswin → enter_entrance_hall → talk_rowan | 3/3 |
+| 2 | talk_elinor → talk_oswin → enter_entrance_hall → talk_rowan | 3/3 |
+| 3 | talk_elinor → talk_oswin → enter_entrance_hall → talk_rowan | 3/3 |
+
+All three runs completed all interviews, with no repeated/unrelated interviews,
+source transcripts, execution errors or judging errors. This is **3/3 versus the
+previous 1/3**, under the same fixture and scripted-speech boundary. Prompt guidance,
+context formatting and reversal labels changed together; this small sample does not
+isolate their contributions or establish a general success rate.
+Across these runs, 0 planning decisions offered a marked reversal; deterministic tests separately cover marker inclusion and reset after an event.
+
+Artifacts: `eval-output/2026-10-10T14-38-17.800Z-2fd14832/`.
+All 572 tests, TypeScript, contract lint, compilation and web build passed.
