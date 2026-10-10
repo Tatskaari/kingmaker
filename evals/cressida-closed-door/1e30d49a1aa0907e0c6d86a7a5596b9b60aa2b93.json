@@ -1,0 +1,78 @@
+{
+  "revision": "1e30d49a1aa0907e0c6d86a7a5596b9b60aa2b93",
+  "rubric": [
+    {
+      "name": "navigation",
+      "description": "Choose the offered door-opening action that advances the route to Cressida's chamber instead of backtracking, waiting or declaring completion."
+    }
+  ],
+  "concurrency": 4,
+  "experimentTypes": {
+    "cressida-closed-door": "jev-action"
+  },
+  "experiments": [
+    "cressida-closed-door"
+  ],
+  "repeats": 3,
+  "timeoutMs": 180000,
+  "type": "jev-action",
+  "publishedAt": "2026-10-10T13:06:44.320Z",
+  "comparison": [
+    {
+      "variant": "game",
+      "baseline": true,
+      "runs": 3,
+      "executionErrors": 0,
+      "scoringErrors": 0,
+      "criteria": {
+        "navigation": 0
+      },
+      "total": 0,
+      "delta": 0
+    }
+  ],
+  "trials": [
+    {
+      "experiment": "cressida-closed-door",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 3,
+      "result": {
+        "criteria": {
+          "navigation": {
+            "score": 0,
+            "reason": "Expected open_saltmere_quarters_door_0; selected enter_palace_back_hall"
+          }
+        }
+      }
+    },
+    {
+      "experiment": "cressida-closed-door",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 2,
+      "result": {
+        "criteria": {
+          "navigation": {
+            "score": 0,
+            "reason": "Expected open_saltmere_quarters_door_0; selected enter_palace_back_hall"
+          }
+        }
+      }
+    },
+    {
+      "experiment": "cressida-closed-door",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 1,
+      "result": {
+        "criteria": {
+          "navigation": {
+            "score": 0,
+            "reason": "Expected open_saltmere_quarters_door_0; selected enter_palace_back_hall"
+          }
+        }
+      }
+    }
+  ]
+}
