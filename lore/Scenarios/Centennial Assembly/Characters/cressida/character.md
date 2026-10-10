@@ -1,4 +1,5 @@
 ---
+sprite: 99
 factions: [saltmere]
 summary: "Your Centennial Assembly entry as Lady Cressida Pinchbeck, linking private characterization, shared court knowledge and scoped supporting notes. You are concealing your were-cow condition during the winter-solstice gathering."
 labels: [court-informed]

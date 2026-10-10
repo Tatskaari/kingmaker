@@ -1,4 +1,5 @@
 ---
+sprite: 88
 factions: [caerwyn]
 summary: "Your opening briefing as Aldren for greeting the player and asking them to investigate the late cushions. Links to your private identity, shared court knowledge and detailed scene notes."
 labels: [court-informed]

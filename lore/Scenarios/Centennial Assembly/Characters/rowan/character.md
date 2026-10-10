@@ -1,4 +1,5 @@
 ---
+sprite: 109
 factions: [nine-furrows]
 summary: "Your opening briefing as Rowan beside the self-guiding cart and gift tree, including Holt's dismantling order and your request for working space. Links to private characterization, shared court knowledge and scene detail."
 labels: [court-informed]
