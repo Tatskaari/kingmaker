@@ -32,7 +32,7 @@ export function createNavigationExperiment(fixture: NavigationCase, createAi: ()
     } }) }),
     getVariants: () => [],
     async run(runtime, signal) {
-      const result = await runAction({ goal: fixture.goal,
+      const result = await runAction({ characterId: fixture.characterId, goal: fixture.goal,
         request: jevEvaluationRequest(fixture.request.state, fixture.request.questions), actions: fixture.actions }, runtime, signal);
       runtime.services.debug.record({ turn: 1, pass: 1, source: "navigation", stage: "resolve", status: "completed",
         output: { actionId: result.action?.id ?? result.decision.choice } });

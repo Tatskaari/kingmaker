@@ -30,3 +30,14 @@ Run `npm run eval:navigation -- --repeats 3 --concurrency 1` with
 recorded AI service and game's shared default action strategy, with no variants.
 This is a fixed single-decision regression, not a full trip or timer test. It freezes
 the original prompt intentionally; future prompt-builder edits do not change it.
+
+## Recorded baseline
+
+On 10 October 2026, three serial live repeats with `typesafe/jev-1.13` all
+selected `enter_palace_back_hall`: 0/3 correct, with no execution or grading
+errors. This reproduces the observed mistake on this fixed input; it does not
+estimate general navigation accuracy. Full local recordings:
+`eval-output/2026-10-10T00-28-45.860Z-69d6fbdd/`.
+
+An earlier harness attempt failed before any model call because the action strategy
+was not registered. It is not included in these baseline results.
