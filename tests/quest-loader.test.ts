@@ -28,6 +28,8 @@ test("loads ordered scenario quest data and resumes saved progress without resee
   const state = services.quests.read("delivery");
   assert.deepEqual(state.quest!.stages.map(stage => stage.id), ["blocked", "done"]);
   assert.equal(state.currentStageId, "blocked");
+  assert.equal(state.active, false);
+  assert.deepEqual(services.quests.listActive(), []);
   assert.equal(state.quest!.transitions[0]!.condition, "The entrance is physically clear.");
   await services.quests.transition("delivery", "clear", 0, "Observed clearance");
   const saved = fromJson(WorldStateSchema, toJson(WorldStateSchema, services.currentWorld()));

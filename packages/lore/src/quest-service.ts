@@ -5,17 +5,20 @@ import type { WorldStore } from "./world-store.js";
 
 export interface QuestService {
   list(): QuestState[];
+  listActive(): QuestState[];
   read(id: string): QuestState;
   /** Outgoing edges only; callers must adjudicate their conditions. */
   availableTransitions(id: string): QuestTransition[];
   register(quest: Quest): Promise<QuestState>;
+  /** Toggle GM/host activation without changing quest progress. */
+  setActive(id: string, active: boolean, expectedRevision: number): Promise<QuestState>;
   /** Record an adjudicated transition. Does not execute scripts or world effects. */
   transition(id: string, transitionId: string, expectedRevision: number, evidence?: string): Promise<QuestState>;
 }
 
 export class QuestConflictError extends Error {
   constructor(readonly questId: string) {
-    super(`${questId}: quest changed; read it again before transitioning`);
+    super(`${questId}: quest changed; read it again before updating`);
     this.name = "QuestConflictError";
   }
 }
@@ -53,6 +56,7 @@ export function createQuestService(store: WorldStore): QuestService {
   };
   return {
     list: () => Object.values(store.state.quests).map(snapshot),
+    listActive: () => Object.values(store.state.quests).filter(state => state.active).map(snapshot),
     read: id => snapshot(current(id)),
     availableTransitions(id) {
       const state = snapshot(current(id));
@@ -64,6 +68,18 @@ export function createQuestService(store: WorldStore): QuestService {
         validateQuest(input);
         if (Object.hasOwn(store.state.quests, input.id)) throw new Error(`${input.id}: quest already registered`);
         return publish(input.id, create(QuestStateSchema, { quest: input, currentStageId: input.initialStageId }));
+      });
+    },
+    setActive(id, active, expectedRevision) {
+      return store.write(async () => {
+        const state = current(id);
+        if (state.revision !== expectedRevision) throw new QuestConflictError(id);
+        if (state.active === active) return snapshot(state);
+        if (state.revision === 0xffff_ffff) throw new Error(`${id}: quest revision exhausted`);
+        const next = snapshot(state);
+        next.active = active;
+        next.revision++;
+        return publish(id, next);
       });
     },
     transition(id, transitionId, expectedRevision, evidence = "") {

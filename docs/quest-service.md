@@ -7,6 +7,23 @@ references. Definitions are fixed after registration; multiple edges may converg
 on a stage, and retry edges may return to earlier stages.
 
 `list()` and `read(questId)` return detached `QuestState` snapshots.
+Newly registered and lore-loaded quests start inactive. `listActive()` returns
+only active quests, also as detached snapshots. The GM/host explicitly changes
+activation with `setActive(questId, active, expectedRevision)`:
+
+```ts
+const quest = quests.read("delivery");
+await quests.setActive("delivery", true, quest.revision);
+```
+
+Activation is independent of progress: inactive quests can still transition, and
+reaching a stage with no outgoing edges does not deactivate a quest. Deactivation
+preserves the current stage and history so a quest can be reactivated later.
+Changing activation increments the shared revision and persists in world saves;
+a request matching the current flag is a no-op after checking its revision.
+Activation does not add transition history records, so their revisions can have
+gaps. Concurrent activation and transition writes use the same conflict checks.
+
 `availableTransitions(questId)` returns outgoing edges, without evaluating their
 conditions. After the caller adjudicates a condition, advance with:
 
