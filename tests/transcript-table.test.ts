@@ -116,7 +116,7 @@ test("all transcript details launch formatted context, including GM review tools
     { role: "assistant", content: null, tool_calls: [{ id: "tool-1", function: { name: "read", arguments: "{}" } }] },
     { role: "tool", tool_call_id: "tool-1", content: "<private note>" },
   ] }, response: { role: "assistant", content: "Reviewed" } };
-  const html = transcriptDetail(call, id => id);
+  const html = transcriptDetail(call, (id: string) => id);
   assert.match(html, /data-context-open/);
   assert.match(html, /<template data-context-template>/);
   assert.match(html, /Review instructions/);
