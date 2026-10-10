@@ -14,6 +14,7 @@ test("only a successful player exchange with the target completes an active ques
       return { role: "assistant", content: "Welcome to court." };
     } } },
   });
+  assert.deepEqual((runtime.view().activeQuests as { title: string }[]).map(quest => quest.title), ["Talk to King Aldren"]);
   await runtime.services.quests.register(create(QuestSchema, {
     id: "greeting", title: "Talk to King Aldren", initialStageId: "arrived",
     stages: [{ id: "arrived" }, { id: "done", completed: true }],
@@ -27,6 +28,10 @@ test("only a successful player exchange with the target completes an active ques
   assert.equal(runtime.services.quests.read("greeting").active, true);
   fail = false;
   await runtime.checkedTalkToCharacter("aldren", "Hello.");
+  assert.deepEqual(runtime.view().activeQuests, []);
+  const introduction = runtime.services.quests.read("talk_to_aldren");
+  assert.equal(introduction.currentStageId, "completed");
+  assert.equal(introduction.active, false);
   const completed = runtime.services.quests.read("greeting");
   assert.equal(completed.currentStageId, "done");
   assert.equal(completed.active, false);
@@ -35,4 +40,5 @@ test("only a successful player exchange with the target completes an active ques
   runtime.restore(runtime.snapshot());
   await runtime.checkedTalkToCharacter("aldren", "Hello again.");
   assert.deepEqual(runtime.services.quests.read("greeting"), completed);
+  assert.deepEqual(runtime.services.quests.read("talk_to_aldren"), introduction);
 });

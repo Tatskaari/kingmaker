@@ -93,3 +93,14 @@ test("loads active conversation predicates and completed stages with strict meta
     assert.throws(() => build(invalid), expected);
   }
 });
+
+
+test("fresh games start with the Aldren introduction active", () => {
+  const quests = createScenarioServices(loadPlayableWorld()).quests;
+  assert.deepEqual(quests.listActive().map(state => state.quest!.id), ["talk_to_aldren"]);
+  const introduction = quests.read("talk_to_aldren");
+  assert.equal(introduction.quest!.title, "Talk to King Aldren");
+  assert.equal(introduction.currentStageId, "arrived");
+  assert.equal(introduction.quest!.transitions[0]!.playerTalkedTo, "aldren");
+  assert.equal(introduction.quest!.stages.find(stage => stage.id === "completed")!.completed, true);
+});
