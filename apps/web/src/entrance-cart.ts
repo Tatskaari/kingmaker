@@ -73,24 +73,16 @@ export function drawEntranceCart(context: CanvasRenderingContext2D, fixtures: re
 export function cartRattle(root: HTMLElement, signal: AbortSignal) {
   const sound = new Audio("./assets/cart-ragdoll.ogg");
   sound.preload = "auto";
-  const button = document.createElement("button"); button.type = "button"; button.className = "court-cart-sound";
-  button.textContent = "Mute cart"; button.setAttribute("aria-pressed", "false"); button.hidden = true; root.append(button);
-  let enabled = true, unlocked = false, playing = false;
+  let unlocked = false, playing = false;
   const silence = () => { sound.pause(); sound.currentTime = 0; playing = false; };
   root.addEventListener("pointerdown", () => { unlocked = true; }, { signal });
   root.addEventListener("keydown", () => { unlocked = true; }, { signal });
-  button.addEventListener("click", () => {
-    unlocked = true; enabled = !enabled; silence();
-    button.textContent = enabled ? "Mute cart" : "Unmute cart";
-    button.setAttribute("aria-pressed", String(!enabled));
-  }, { signal });
   document.addEventListener("visibilitychange", () => { if (document.hidden) silence(); }, { signal });
-  signal.addEventListener("abort", () => { silence(); button.remove(); }, { once: true });
+  signal.addEventListener("abort", silence, { once: true });
   return (fixtures: readonly MapFixture[], player: Point | undefined, now: number) => {
     const cart = fixtures.find(isEntranceCart)?.position;
     const distance = cart && player ? Math.hypot(cart.x - player.x, cart.y - player.y) : Infinity;
-    button.hidden = distance > 9;
-    if (!enabled || !unlocked || document.hidden || distance > 9 || !rattling(now)) { silence(); return; }
+    if (!unlocked || document.hidden || distance > 9 || !rattling(now)) { silence(); return; }
     sound.volume = Math.max(0, 0.35 * (1 - distance / 10));
     if (playing) return;
     playing = true;
