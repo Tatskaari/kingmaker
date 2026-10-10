@@ -1,4 +1,4 @@
-import type { QuestService } from "../../packages/lore/src/quest-service.js";
+import type { QuestService } from "../../../lore/src/quest-service.js";
 
 /** Runs in the host after the player agrees; never in the character model. */
 export async function helloWorld(quests: QuestService, signal: AbortSignal): Promise<string> {

@@ -1,21 +1,21 @@
-import { helloWorld } from "../scripts/conversation-trees/hello-world.js";
+import { helloWorld } from "../packages/conversation/src/tree-scripts/hello-world.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, TranscriptRole, type TranscriptMessage } from "../packages/contracts/src/index.js";
-import { CliConversationTree, type TreeStatus, type TreeScript } from "../apps/conversation-cli/conversation-tree.js";
+import { ConversationTreeSession, type TreeStatus, type TreeScript } from "../packages/conversation/src/conversation-tree.js";
 import { parseConversationTree } from "../packages/lore/src/conversation-tree.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
 import { conversationRequest } from "../packages/conversation/src/conversation.js";
 import type { AiService } from "../packages/conversation/src/services.js";
 import { loadPlayableWorld } from "./fixtures.js";
 
-const source = readFileSync(new URL("../scripts/conversation-trees/aldren.md", import.meta.url), "utf8");
+const source = readFileSync(new URL("../content/conversation-trees/aldren.md", import.meta.url), "utf8");
 async function setup(script?: TreeScript) {
   const services = createScenarioServices(loadPlayableWorld()), tree = parseConversationTree(source);
   await services.quests.register(tree.quest);
-  const runner = new CliConversationTree(tree, services.quests, { "hello-world.ts": script ?? (signal => helloWorld(services.quests, signal)) });
+  const runner = new ConversationTreeSession(tree, services.quests, { "hello-world.ts": script ?? (signal => helloWorld(services.quests, signal)) });
   const events: TreeStatus[] = [], signal = new AbortController().signal;
   const history: TranscriptMessage[] = [runner.goal(), create(TranscriptMessageSchema, {
     role: TranscriptRole.PLAYER, speakerId: "player", text: "Hello",

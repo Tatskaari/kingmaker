@@ -1,7 +1,7 @@
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { parseConversationTree } from "../packages/lore/src/conversation-tree.js";
-import { CliConversationTree } from "../apps/conversation-cli/conversation-tree.js";
-import { helloWorld } from "./conversation-trees/hello-world.js";
+import { ConversationTreeSession } from "../packages/conversation/src/conversation-tree.js";
+import { helloWorld } from "../packages/conversation/src/tree-scripts/hello-world.js";
 import { ConversationReviews, liveConversationStrategy } from "../packages/conversation/src/live-conversation-strategy.js";
 import { documentLoreService } from "../packages/conversation/src/document-lore.js";
 import { traceAiService } from "../packages/conversation/src/ai-tracing.js";
@@ -58,11 +58,11 @@ const traced = traceAiService(aiService(client, jev, false), () => ({ characterI
 const ai = { ...traced, responses: retryResponses(traced.responses) };
 const disclosure = new DisclosureSession(lore, ai,
   Number(options.get("--threshold") ?? "0.7"));
-let conversationTree: CliConversationTree | undefined;
+let conversationTree: ConversationTreeSession | undefined;
 if (treeEnabled) {
-  const tree = parseConversationTree(readFileSync(new URL("./conversation-trees/aldren.md", import.meta.url), "utf8"));
+  const tree = parseConversationTree(readFileSync(new URL("../content/conversation-trees/aldren.md", import.meta.url), "utf8"));
   await services.quests.register(tree.quest);
-  conversationTree = new CliConversationTree(tree, services.quests, { "hello-world.ts": signal => helloWorld(services.quests, signal) });
+  conversationTree = new ConversationTreeSession(tree, services.quests, { "hello-world.ts": signal => helloWorld(services.quests, signal) });
 }
 const input: ConversationInput = {
   world: services.scenario.read(), characterId,
