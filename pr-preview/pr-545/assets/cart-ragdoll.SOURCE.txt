@@ -1,0 +1,8 @@
+Cart ragdoll sound
+Source: https://www.youtube.com/watch?v=_GGfz-o5khc
+Video: Garry's Mod Ragdoll Sound
+Uploader: LemonDemmon
+
+First 2.4 seconds of the user-requested sound, transcoded to Ogg Vorbis
+with a 20 ms fade at the end to avoid a hard cut between animation bursts.
+This source note is attribution, not a claim that the recording is CC0.
