@@ -1,7 +1,7 @@
 import type { GameAction } from "../../core/src/actions.js";
 import type { AiService } from "../../conversation/src/services.js";
-import { runAction } from "../../conversation/src/action.js";
-import type { jevRequest } from "../../providers/src/jev.js";
+import { runAction, jevActionStrategy } from "../../conversation/src/action.js";
+import { jevEvaluationRequest, type jevRequest } from "../../providers/src/jev.js";
 import type { Experiment, RunRecording } from "./experiment.js";
 
 export interface NavigationCase {
@@ -9,11 +9,12 @@ export interface NavigationCase {
   characterId: string;
   goal: string;
   expected: string;
-  request: ReturnType<typeof jevRequest>;
+  request: Omit<ReturnType<typeof jevRequest>, "model">;
   actions: GameAction[];
 }
 function selected(recording: RunRecording): string {
-  const output = recording.getServiceRecord("debug").find(call => call.method === "record")?.args[0] as
+  const call = recording.getServiceRecord("debug").find(call => call.method === "record");
+  const output = (call?.args as unknown[] | undefined)?.[0] as
     { output?: { actionId?: string } } | undefined;
   if (!output?.output?.actionId) throw new Error("No resolved navigation action recorded");
   return output.output.actionId;
@@ -26,13 +27,13 @@ export function createNavigationExperiment(fixture: NavigationCase, createAi: ()
   return {
     name: fixture.name, type: "jev-action",
     rubric: [{ name: "navigation", description: "Choose the offered door-opening action that advances the route to Cressida's chamber instead of backtracking, waiting or declaring completion." }],
-    getBaseline: () => ({ name: "game", configure: () => ({ services: {
+    getBaseline: () => ({ name: "game", configure: () => ({ strategies: { action: jevActionStrategy }, services: {
       ai: () => createAi(), debug: () => ({ record: () => {} }),
     } }) }),
     getVariants: () => [],
     async run(runtime, signal) {
-      const result = await runAction({ characterId: fixture.characterId, goal: fixture.goal,
-        request: fixture.request, actions: fixture.actions }, runtime, signal);
+      const result = await runAction({ goal: fixture.goal,
+        request: jevEvaluationRequest(fixture.request.state, fixture.request.questions), actions: fixture.actions }, runtime, signal);
       runtime.services.debug.record({ turn: 1, pass: 1, source: "navigation", stage: "resolve", status: "completed",
         output: { actionId: result.action?.id ?? result.decision.choice } });
     },
