@@ -54,7 +54,7 @@ export class ConversationTreeSession {
       const answers = await ai.decisions({ characterId: this.tree.characterId, node: pending.node,
         conversation: transcript.filter(message => message.role === TranscriptRole.PLAYER || message.role === TranscriptRole.CHARACTER)
           .map(message => ({ speaker: message.speakerId, text: message.text })),
-      }, questions, signal);
+      }, questions, signal, "conversation_tree");
       signal.throwIfAborted();
       for (const edge of pending.conditions) {
         if (!["hit", "miss"].includes(answers[edge.id]?.choice ?? "")) throw new Error(`Missing or invalid tree decision: ${edge.id}`);
