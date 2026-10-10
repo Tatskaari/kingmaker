@@ -1,11 +1,13 @@
 ---
-summary: "Author navigation for the written opening Assembly Programme and the remaining unwritten quests."
+summary: "Author navigation for the introductory Talk to King Aldren objective, the written opening Assembly Programme and the remaining unwritten quests."
 ---
 # Quests
 
 Author navigation index. Agent context starts at `scenario.md` or `character.md`, not at this index.
 
 ## In this folder
+
+- [[Scenarios/Centennial Assembly/Quests/Talk to King Aldren/index|Talk to King Aldren]] — the player’s first objective on arriving at court.
 
 - [[Scenarios/Centennial Assembly/Quests/Affection at a Cost|Affection at a Cost]]
 - [[Scenarios/Centennial Assembly/Quests/Assembly Programme/index|Assembly Programme]] — opening event tree: Aldren's late cushions, Holt's disrupted timetable and possible player responses.
