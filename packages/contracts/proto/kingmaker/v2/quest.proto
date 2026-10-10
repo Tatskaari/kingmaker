@@ -35,6 +35,8 @@ message QuestState {
   string current_stage_id = 2;
   uint32 revision = 3;
   repeated QuestTransitionRecord history = 4;
+  // Explicit GM/host activation, independent of the current stage.
+  bool active = 5;
 }
 
 // Successful data transitions only; no implication of physical world effects.

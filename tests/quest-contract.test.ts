@@ -17,7 +17,7 @@ test("quest graph and playthrough progress survive world save formats", () => {
         description: `Clear by ${id}`, condition: "Entrance has physically cleared",
       })),
     },
-    currentStageId: "unloading", revision: 1,
+    currentStageId: "unloading", revision: 1, active: true,
     history: [{ transitionId: "back_out", revision: 1, evidence: "Cart moved outside" }],
   } } });
   assert.deepEqual(fromBinary(WorldStateSchema, toBinary(WorldStateSchema, world)), world);

@@ -87,3 +87,54 @@ test("invalid definitions and unavailable edges leave state unchanged and queue 
   assert.deepEqual(quests.read("delivery"), initial);
   assert.equal((await quests.transition("delivery", "repair", 0)).currentStageId, "unloading");
 });
+
+test("activation selects detached snapshots and preserves progress across save/resume", async () => {
+  const { quests, currentWorld } = fixture();
+  assert.equal((await quests.register(definition())).active, false);
+  await quests.register(create(QuestSchema, { ...definition(), id: "other" }));
+  assert.deepEqual(quests.listActive(), []);
+  const active = await quests.setActive("delivery", true, 0);
+  assert.equal(active.revision, 1);
+  assert.deepEqual(quests.listActive().map(state => state.quest!.id), ["delivery"]);
+  active.active = false;
+  quests.listActive()[0]!.quest!.stages.length = 0;
+  assert.equal(quests.read("delivery").active, true);
+  assert.equal(quests.read("delivery").quest!.stages.length, 3);
+  assert.deepEqual(await quests.setActive("delivery", true, 1), quests.read("delivery"));
+  await quests.transition("delivery", "repair", 1, "Repaired");
+  const paused = await quests.setActive("delivery", false, 2);
+  assert.equal(paused.currentStageId, "unloading");
+  assert.equal(paused.history[0]!.evidence, "Repaired");
+  assert.deepEqual(quests.listActive(), []);
+  const restored = createScenarioServices(fromJson(WorldStateSchema, toJson(WorldStateSchema, currentWorld()))).quests;
+  assert.deepEqual(restored.read("delivery"), paused);
+  await restored.transition("delivery", "finish", 3);
+  await restored.setActive("delivery", true, 4);
+  assert.equal(restored.read("delivery").currentStageId, "delivered");
+  assert.deepEqual(restored.read("delivery").history.map(record => record.revision), [2, 4]);
+});
+
+test("activation shares revision conflicts with transitions and rejects invalid writes", async () => {
+  const { quests, currentWorld } = fixture();
+  await quests.register(definition());
+  const results = await Promise.allSettled([
+    quests.setActive("delivery", true, 0),
+    quests.transition("delivery", "repair", 0),
+  ]);
+  assert.equal(results[0]!.status, "fulfilled");
+  assert.equal(results[1]!.status, "rejected");
+  if (results[1]!.status === "rejected") assert.ok(results[1].reason instanceof QuestConflictError);
+  await assert.rejects(quests.setActive("delivery", true, 0), QuestConflictError);
+  await quests.transition("delivery", "repair", 1);
+  await assert.rejects(quests.setActive("delivery", false, 1), QuestConflictError);
+  const before = quests.read("delivery");
+  await assert.rejects(quests.setActive("missing", true, 0), /not found/);
+  assert.deepEqual(quests.read("delivery"), before);
+  const saved = fromJson(WorldStateSchema, toJson(WorldStateSchema, currentWorld()));
+  saved.quests.delivery!.revision = 0xffff_ffff;
+  const exhausted = createScenarioServices(saved).quests;
+  await assert.rejects(exhausted.setActive("delivery", false, 0xffff_ffff), /revision exhausted/);
+  assert.equal(exhausted.read("delivery").active, true);
+  await quests.setActive("delivery", false, 2);
+  assert.equal(quests.read("delivery").revision, 3);
+});
