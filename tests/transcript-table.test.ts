@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error Browser renderer is JavaScript.
-import { transcriptSessions, recentTranscriptsView } from "../apps/web/src/debug-view.js";
+import { transcriptSessions, recentTranscriptsView, conversationTranscriptView } from "../apps/web/src/debug-view.js";
 
 const calls = [1, 2].map(id => ({ id, kind: "jev", characterId: "corvin", status: "success",
   startedAt: "2026-10-01T10:00:00Z", request: { state: "Find the key" }, response: { choice: "walk" } }));
@@ -88,4 +88,24 @@ test("disclosure lists document paths with threshold decisions and open document
   assert.ok(summary.indexOf("Cast/&lt;Opened&gt;.md") < summary.indexOf("Cast/Skipped.md"));
   assert.match(summary, /&lt;Summary&gt;/);
   assert.doesNotMatch(summary, /open_1|open_2|<Opened>|<Summary>/);
+});
+
+test("conversation context shows all exact input messages followed by the response", () => {
+  const html = conversationTranscriptView({ characterId: "rowan", contextCall: { id: 1, status: "success", request: { messages: [
+    { role: "system", content: "Original instructions" },
+    { role: "system", content: "# Disclosed lore\n<private belief>" },
+    { role: "user", content: "First line\nSecond line" },
+    { role: "assistant", content: "Earlier reply" },
+    { role: "system", content: "<binding ruling>" },
+  ] }, response: { role: "assistant", content: "A reply" } } }, { rowan: "<Rowan>" });
+  const expected = ["Original instructions", "# Disclosed lore\n&lt;private belief&gt;", "First line\nSecond line", "Earlier reply", "&lt;binding ruling&gt;", "A reply"];
+  for (const [index, text] of expected.entries()) {
+    assert.ok(html.includes(text));
+    if (index) assert.ok(html.indexOf(expected[index - 1]) < html.indexOf(text));
+  }
+  assert.match(html, /5 input messages/);
+  assert.match(html, /6 · assistant · Response/);
+  assert.match(html, /&lt;Rowan&gt;/);
+  assert.match(conversationTranscriptView({ conversation: [{}] }), /Full context is unavailable/);
+  assert.match(conversationTranscriptView({ conversation: [] }), /No character request captured/);
 });

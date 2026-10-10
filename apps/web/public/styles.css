@@ -489,3 +489,10 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 .court-sprite.court-cow { background-image: url('./assets/cressida-cow.svg'); background-size: 32px 32px; }
 
 .cressida-test-timer { margin: 0; padding: .4rem .8rem; color: #fff1ce; background: #342b32; font-variant-numeric: tabular-nums; }
+
+.debug-conversation { display: grid; gap: 22px; }
+.debug-conversation .history-turn { padding: 12px 18px; background: #151813; }
+.debug-conversation .debug-meta { display: block; margin-bottom: 8px; }
+.debug-conversation .context { border-color: #87a9ac; background: #182124; }
+.debug-conversation .context .speaker { color: #b5d7da; }
+.debug-conversation .context p { font-size: 1rem; color: #d0dfe0; }

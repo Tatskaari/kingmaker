@@ -239,6 +239,9 @@ export class WorldGameRuntime extends WorldHost {
   override view(): Record<string, unknown> { return { ...super.view(), speechBubbles: this.speechBubbles() }; }
   recentTranscripts() { return this.traces.recent(); }
   transcriptRuns() { return this.traces.runs(); }
+  override debugCharacter(id: string) {
+    return { ...super.debugCharacter(id), contextCall: this.traces.latestDialogue(this.conversationRuns.get(id), id) };
+  }
   debugDocuments() {
     const world = this.world();
     const paths = [...world.characters, ...(world.player ? [world.player] : [])];

@@ -72,6 +72,10 @@ export class ModelTranscripts {
       arguments: this.#clean(call.function.arguments), result: this.#clean(result) });
   }
   recent(): ModelTranscript[] { return structuredClone([...this.#entries].reverse()); }
+  latestDialogue(runKey: string | undefined, characterId: string): ModelTranscript | null {
+    const call = runKey && this.#runs[runKey]?.calls.findLast(call => call.kind === "dialogue" && call.characterId === characterId);
+    return call ? structuredClone(call) : null;
+  }
   runs(): Record<string, ModelTranscriptRun> { return structuredClone(this.#runs); }
   /** Public activity only: never expose requests, dialogue or review contents on the map. */
   speechBubbles(): { characterId: string; participantIds: string[] }[] {

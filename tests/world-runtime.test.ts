@@ -96,7 +96,14 @@ test("conversation spans retain turn, retry, review and scenario context", async
   assert.equal(alerts.unread, 1);
   assert.match(alerts.entries[0]!.message, /retry 1\/1.*Temporary transport failure/);
   await runtime.checkedTalkToCharacter("rowan", "Goodbye");
+  const debug = runtime.debugCharacter("rowan");
+  assert.deepEqual(debug.contextCall, runtime.recentTranscripts().find(call => call.kind === "dialogue"));
+  assert.ok((debug.contextCall!.request as any).messages.some((message: any) => message.role === "system"));
+  assert.equal(runtime.debugCharacter("corvin").contextCall, null);
+  const reloaded = new WorldGameRuntime(loadPlayableWorld(), "", runtime.snapshot());
+  assert.equal(reloaded.debugCharacter("rowan").contextCall, null);
   await runtime.endConversation("rowan");
+  assert.equal(runtime.debugCharacter("rowan").contextCall, null);
   const runs = Object.values(runtime.transcriptRuns());
   assert.equal(runs.length, 1);
   const run = runs[0]!;
