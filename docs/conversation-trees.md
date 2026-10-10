@@ -30,3 +30,27 @@ a Markdown filename does not permit arbitrary filesystem imports. The demo
 host services. Script execution precedes recording the transition; these are
 not an atomic transaction. Any evaluation/script/commit failure stops tree
 processing for the session, preventing automatic replay of partial effects.
+
+## Run the CLI PoC
+
+With `OPENROUTER_API_KEY` set, run:
+
+```sh
+npm run conversation -- --conversation_trees
+```
+
+The flag defaults to King Aldren in Centennial Assembly. This PoC requires a
+fresh CLI session; snapshots, other characters and other scenarios are rejected.
+Without the flag the existing CLI behavior is unchanged.
+
+The right pane shows the active goal, outgoing conditions and pending/hit/miss
+results. Select a tree or Jev entry to inspect conditions, probabilities and
+transition details. Goal changes are system messages in the transcript. Checks
+run before a reply (including the latest player message) and after a completed
+reply. Greeting, asking about the problem and agreeing to help should progress
+the tree; exact choices depend on Jev. Acceptance displays the hello-world output;
+refusal reaches a separate terminal node without running the script.
+
+Ctrl+D exports the usual transcript/world plus `conversationTrees` inspector
+history. The demo registers its progress in `world.quests`, but does not activate
+the actual Assembly Programme quest or change production gameplay.
