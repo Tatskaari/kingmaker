@@ -55,9 +55,8 @@ const followers = new WaitScheduler({
 });
 const transformations = cressidaScheduler({
   changed: timer => worker.postMessage({ type: "cressida_timer", timer }),
-  activeKey: () => runtime?.world().player && !waitsPaused
-    && runtime.world().simulation!.map!.actors.some(actor => actor.characterId === "cressida" && actor.position)
-    ? String(generation) : undefined,
+  // Keep automatic warnings and transformations dormant until a quest transition activates them.
+  activeKey: () => undefined,
   isCow: () => runtime?.world().simulation!.map!.actors.find(actor => actor.characterId === "cressida")?.physicalForm === "cow",
   transform: async signal => {
     const game = runtime;
