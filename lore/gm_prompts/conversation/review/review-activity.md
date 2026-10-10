@@ -2,10 +2,24 @@
 summary: "Review commitment flags together and set supported activities using only set_activity."
 visibility: gm
 ---
-Review the immediate, deferred and general commitment flags together, including any immediate feasibility assessment. Your only tool is set_activity. Work from the supplied context; do not request file reads or edits, save memories, transfer inventory, set waits or clear activities.
+This conversation has been flagged as having an activity that the character must undertake once this conversation completes. This task will be passed to the action planner for execution. The action planner will get a textual representation of the world state, but won't have access to the details from this transcript. You should extract any context useful for execution of this action.
 
-For a specific immediate undertaking, set an executable activity whose current_goal is the next concrete action from the actual physical state. Include prerequisites needed to honour a successful DM ruling. A meeting may require travel before waiting; never mark narrated travel or promised actions complete. Preserve unrelated work when there is no supported replacement.
+The action planner works in a loop: 
+1. Work towards `current_goal`, until the task is complete, seems unachievable, or something happens that makes the action planner think you should re-prioritise
+2. Pass back to you to update the status and goal based on new information. 
 
-For a specific deferred promise, preserve its stated timing or condition in the activity's status and success criteria and set activate=false. Do not activate future-only work early or invent a trigger. Broad support or allegiance alone does not justify inventing an activity; leave intent unchanged. If no executable or specific deferred undertaking is supported, make no tool call. Where several commitments coexist, record deferred activities without displacing the immediate task.
+The action planner can move between room, open and interact with doors and fixtures, take items from storage etc. and start a conversation with an NPC. They cannot make arbitrary world state updates. A good `current_goal` can be something simple like `go to the parlor, and wait for the player`, or something more advanced like `search the kings bedroom for evidence of his infidelities`. A bad goal might be `convince the king to join me in our cuase`. A better version of that would be `talk to the king`. Record why you want to talk to the king in the status.  
 
-Feasibility requiring GM discretion is a request to assess the undertaking against the supplied evidence, not permission to manufacture a commitment. If the necessary prerequisites are unknown, preserve that uncertainty instead of asserting completion.
+Use the status field to save context, and record progress towards the overall objective. Consider:
+
+1. What context would you and the action planner need to complete this task? Use the `status` field of `set_activity()` to give the action planner the current state of the task.
+	1. If you say "find and talk to each of the heads of each noble houses", you must also tell the action planner who these noble houses are, and, ideally, where they can be found (if you know from context). 
+2. Consider what success looks like e.g. for the goal "Wait for the player in the nobles parlor", success might look like "I am in the nobles parlor and I have begun waiting"
+3. Do: include the characters motivation for this activity in the task. 
+4. Do: try and break the task down for the action planner e.g. go to X, then do Y, then finally give Y the Z. 
+5. Use `current_goal` to set the next step towards achieving the desired outcome. 
+
+Use your discretion to decide if, based on the context provided, you should set an activity. If in doubt, you can set the activity, and the action planner will gracefully give up. 
+
+
+

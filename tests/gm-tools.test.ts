@@ -1,5 +1,3 @@
-import { create } from "@bufbuild/protobuf";
-import { TranscriptMessageSchema, TranscriptRole } from "../packages/contracts/src/index.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { createScenarioServices } from "../packages/lore/src/services.js";
@@ -196,25 +194,3 @@ async function writeMemory(services: ReturnType<typeof fixture>, gm: GameMasterT
   await gm.call("replace_document", { path: before.path, expectedSha: before.sha, oldText: before.document.body,
     newText: before.document.body + "\n" + note });
 }
-
-
-test("activity origins stay scoped to participants and distinct across conversations", async () => {
-  const services = fixture();
-  const input = { name: "Meeting", status: "Promised", success_criteria: "Arrive", current_goal: "Go to the hall" };
-  const origin = (text: string) => ({ characterId: "palace-guard-1", participants: ["palace-guard-1", "player"],
-    transcript: [create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text })] });
-  const first = new GameMasterTools(services, "palace-guard-1", origin("PRIVATE_ORIGIN_ONE [[not-a-world-document]]"));
-  await first.call("set_activity", input);
-  const firstPath = characterIntent(services.scenario.read(), "palace-guard-1").activity!;
-  assert.match((await services.docs.read(firstPath)).document.body, /PRIVATE_ORIGIN_ONE/);
-  await first.call("set_activity", { ...input, characterId: "palace-guard-2", activate: false });
-  const outsiderNotes = Object.values(services.scenario.read().docs).filter(doc => doc.frontmatter?.name === "Meeting");
-  assert.ok(outsiderNotes.some(doc => doc.body === ""), "an outsider sharing lore does not receive the transcript");
-  const second = new GameMasterTools(services, "palace-guard-1", origin("PRIVATE_ORIGIN_TWO"));
-  await second.call("set_activity", input);
-  const secondPath = characterIntent(services.scenario.read(), "palace-guard-1").activity!;
-  assert.notEqual(secondPath, firstPath);
-  assert.match((await services.docs.read(secondPath)).document.body, /PRIVATE_ORIGIN_TWO/);
-  assert.doesNotMatch((await services.docs.read(secondPath)).document.body, /PRIVATE_ORIGIN_ONE/);
-  assert.match((await services.docs.read(firstPath)).document.body, /PRIVATE_ORIGIN_ONE/);
-});

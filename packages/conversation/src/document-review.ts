@@ -38,8 +38,7 @@ export async function reviewDocumentEvidence(context: Readonly<ConversationRevie
     }) }],
   }, services, signal, { characterId: intent.actorId, review: true,
     ...(options.systemPrompt !== undefined ? { systemPrompt: options.systemPrompt } : {}),
-    // Single-character reviews contain synthetic observations, not a conversation.
-    ...(context.participants.length > 1 ? { activityOrigin: context } : {}), prepare: async messages => {
+    prepare: async messages => {
     const lore = await services.lore.forCharacter(intent.actorId, signal);
     const current = await services.docs.read(path);
     const initial: OpenRouterMessage[] = lore.initial.map(doc => ({ role: "user", content: `# Character evidence: ${doc.path}\n${doc.path === path ? current.document.body : doc.markdown}` }));
