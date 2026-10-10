@@ -87,8 +87,8 @@ scoped lore and live progressive disclosure remain available.
 Jev chooses real actions. The headless host uses the game's room actions, route
 validation, movement and PalaceMechanics; elapsed movement time advances instantly.
 Other actors stay fixed at the captured positions. Each validated individual talk
-provides a scripted account to the normal GM task-outcome review, which must update
-progress/current_goal itself. The fixture never supplies the next interviewee.
+runs the normal NPC-exchange resolver with scripted character speech; its normal
+GM reviews must update progress/current_goal themselves. The fixture never supplies the next interviewee.
 The three accounts are synthetic, not actual character-model responses. This tests
 navigation, sequential handoff and continuation, not dialogue quality or truth finding.
 

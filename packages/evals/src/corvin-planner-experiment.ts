@@ -53,7 +53,18 @@ export function createCorvinPlannerExperiment(createAi: () => AiService): Experi
     getBaseline: () => ({ name: "game", configure() {
       const backing = createScenarioServices(loadCorvinPlannerWorld());
       return { recordServices: ["ai", "docs", "map", "debug"], strategies: defaultWorldStrategies, services: {
-        ai: () => createAi(), docs: () => backing.docs, scenario: () => backing.scenario, inventory: () => backing.inventory,
+        ai: () => {
+          const live = createAi();
+          return { ...live, responses: (request, signal, info) => {
+            if (info?.purpose !== "dialogue") return live.responses(request, signal, info);
+            signal?.throwIfAborted();
+            const content = info.characterId === "corvin"
+              ? "I am asking each of you separately: what was said about my academic record? I want your own account before drawing conclusions."
+              : accounts[info.characterId ?? ""];
+            if (!content) throw new Error("Unexpected scripted interview participant");
+            return Promise.resolve({ role: "assistant" as const, content });
+          } };
+        }, docs: () => backing.docs, scenario: () => backing.scenario, inventory: () => backing.inventory,
         lore: services => documentLoreService(services.scenario), map: services => plannerMap(services, backing.mechanics),
         debug: () => ({ record: () => {} }),
       } };
@@ -71,10 +82,7 @@ export function createCorvinPlannerExperiment(createAi: () => AiService): Experi
           const target = result.talkTarget;
           if (!accounts[target] || interviewed.has(target)) return;
           interviewed.add(target);
-          await runResolution({ kind: "task_outcome", characterId: "corvin", goal: plan.goal, actions: [plan.action.id],
-            result: { reason: "complete", detail: `One individual interview completed with ${target}; this describes the conversation substep only.` },
-            observation: { interviewee: target, account: accounts[target], note: "This is the speaker's account, not independently verified truth." },
-          }, runtime, signal);
+          await runResolution({ kind: "npc_exchange", characterId: "corvin", targetId: target, goal: plan.goal }, runtime, signal);
           if (interviewed.size === Object.keys(accounts).length) return;
         }
       }
