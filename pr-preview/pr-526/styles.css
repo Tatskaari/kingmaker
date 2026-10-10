@@ -471,3 +471,5 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 @media (prefers-reduced-motion: reduce) { .court-speech, .court-speech span { animation: none; } }
 
 .court-sprite.court-cow { background-image: url('./assets/cressida-cow.svg'); background-size: 32px 32px; }
+
+.cressida-test-timer { margin: 0; padding: .4rem .8rem; color: #fff1ce; background: #342b32; font-variant-numeric: tabular-nums; }
