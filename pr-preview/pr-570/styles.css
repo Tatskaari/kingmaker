@@ -501,3 +501,10 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 @media (max-width: 700px) {
   .quest-feed { top: 108px; }
 }
+.model-context-modal { width: min(1100px, calc(100vw - 28px)); }
+.model-context-modal .panel { display: block; min-width: 0; }
+.model-context-modal header { position: sticky; top: 0; background: #1f1b15; padding-bottom: 12px; z-index: 1; }
+.model-context-modal h2 { margin: 0; }
+.model-context-modal pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+.model-context-modal .debug-conversation { grid-template-columns: minmax(0, 1fr); }
+[data-context-launcher] { margin: 12px 0; }
