@@ -72,3 +72,29 @@ proof of broader improvement or successful planner execution. This comparison pr
 See `comparison-results.json` for all six activity outputs. Full local recordings:
 `eval-output/2026-10-10T14-00-38.850Z-097ca83e/`. Validation passed all 571 tests,
 TypeScript, contract lint, compilation and web build.
+
+## Planner follow-through without the transcript
+
+Run `node --experimental-ffi --import tsx scripts/run-corvin-planner-eval.ts --repeats 3 --concurrency 1 --timeout-ms 600000` with `OPENROUTER_API_KEY`.
+Both Corvin runners are registered in `workspace:eval`.
+
+`planner-activity.json` is the exact structured activity from working-tree repeat 1
+in the historical comparison. The planner-only test seeds this **input**, not a
+review result: the review eval above separately tests producing the activity.
+No original dialogue is passed to the planner or subsequent GM reviews. Normal
+scoped lore and live progressive disclosure remain available.
+
+Jev chooses real actions. The headless host uses the game's room actions, route
+validation, movement and PalaceMechanics; elapsed movement time advances instantly.
+Other actors stay fixed at the captured positions. Each validated individual talk
+provides a scripted account to the normal GM task-outcome review, which must update
+progress/current_goal itself. The fixture never supplies the next interviewee.
+The three accounts are synthetic, not actual character-model responses. This tests
+navigation, sequential handoff and continuation, not dialogue quality or truth finding.
+
+At most 24 planner steps run. Coverage counts successful physical talk interactions;
+repeated/unrelated interviews and premature wait/complete/unable/idle fail full
+coverage. Inspect map interactions, AI requests, debug choices and committed activity
+changes in trial JSON. A separate invariant scans all AI inputs for the original
+exchange and transcript attachment. Model errors are reported separately by the
+common runner. Rubric scores are measurements, not CI pass/fail thresholds.
