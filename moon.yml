@@ -16,8 +16,13 @@ tasks:
     deps: [contracts:generate]
     options:
       cache: false
+  evalNavigation:
+    command: npx --no-install tsx scripts/run-navigation-eval.ts
+    deps: [contracts:generate]
+    options:
+      cache: false
   eval:
-    deps: [evalReview, evalGift, evalAttention]
+    deps: [evalReview, evalGift, evalAttention, evalNavigation]
     options:
       cache: false
   typecheck:

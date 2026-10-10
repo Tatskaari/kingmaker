@@ -254,3 +254,13 @@ checks. There are no extra timing, release-order or live-effect criteria.
 
 Use `--repeats 1 --concurrency 1` for an initial run. The existing common
 runner, artifact output and CI upload workflow are unchanged.
+
+## Navigation action regression
+
+`npm run eval:navigation -- --repeats 3 --concurrency 1` runs `cressida-closed-door`
+as a `jev-action` eval. It preserves the original failed Jev input before the
+step-by-step route instruction was added. Expected action: open the Saltmere quarters
+door, not backtrack to the East Wing. The deterministic rubric grades the resolved
+command; no movement or warning timer is simulated. See the
+[fixture and reconstruction notes](../evals/actions/cressida-closed-door/README.md).
+This baseline-only runner is included in `workspace:eval` and published history.
