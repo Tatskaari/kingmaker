@@ -1,4 +1,4 @@
-import { CRESSIDA_TRANSFORMATION_MS } from "../../../packages/core/src/cressida-transformation.js";
+import { cressidaScheduler } from "./cressida-scheduler.js";
 import { Autosave } from "./autosave.js";
 /// <reference lib="webworker" />
 import { WaitScheduler } from "./wait-scheduler.js";
@@ -53,19 +53,30 @@ const followers = new WaitScheduler({
   run: async (id, _elapsed, signal) => { await runtime?.moveFollower(id, signal); },
   error: (id, error) => alertUser("error", `${id}: following: ${String(error)}`),
 });
-const transformations = new WaitScheduler({
-  candidates: () => runtime?.world().player && !waitsPaused
+const transformations = cressidaScheduler({
+  changed: timer => worker.postMessage({ type: "cressida_timer", timer }),
+  activeKey: () => runtime?.world().player && !waitsPaused
     && runtime.world().simulation!.map!.actors.some(actor => actor.characterId === "cressida" && actor.position)
-    ? new Map([["cressida", String(generation)]]) : new Map(),
-  delayMs: () => CRESSIDA_TRANSFORMATION_MS,
-  busy: () => false,
-  run: async (_id, _elapsed, signal) => {
+    ? String(generation) : undefined,
+  isCow: () => runtime?.world().simulation!.map!.actors.find(actor => actor.characterId === "cressida")?.physicalForm === "cow",
+  transform: async signal => {
     const game = runtime;
     if (!game) return;
     const event = await game.transformCressida(signal);
     if (!signal.aborted && runtime === game) scheduleWorldEvent(game, event);
   },
-  error: (_id, error) => alertUser("error", `Cressida transformation: ${String(error)}`),
+  review: async (stage, signal) => {
+    const game = runtime;
+    if (!game) return;
+    stopBackground("cressida");
+    await game.reviewCressidaTransition(stage, signal, () => {
+      if (!signal.aborted && runtime === game && !waitsPaused) {
+        publishNpc("Cressida: activity updated.");
+        startBackground("cressida");
+      }
+    });
+  },
+  error: error => alertUser("error", `Cressida transformation: ${String(error)}`),
 });
 function syncWaits() { waits.sync(); followers.sync(); transformations.sync(); }
 const waits = new WaitScheduler({

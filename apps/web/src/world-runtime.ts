@@ -1,5 +1,6 @@
+import type { CressidaTransition } from "./cressida-scheduler.js";
 import { recordCharacterHistory } from "../../../packages/core/src/character-history.js";
-import { followingTarget, activityDefinition } from "../../../packages/lore/src/activity.js";
+import { followingTarget, activityDefinition, activityGoal } from "../../../packages/lore/src/activity.js";
 import { followRoute } from "../../../packages/core/src/follow.js";
 import { actorPosition, movementActor } from "../../../packages/core/src/simulation-movement.js";
 import type { RoomDeparture } from "../../../packages/core/src/room-departures.js";
@@ -543,6 +544,44 @@ export class WorldGameRuntime extends WorldHost {
     }, signal);
     if (this.activity.pendingWaitReviews?.[id]) await this.reviewNpcOutcome(id, true, signal);
     return decision.choice;
+  }
+  async reviewCressidaTransition(stage: CressidaTransition, signal: AbortSignal, activityReady = () => {}) {
+    const id = "cressida", actor = this.world().simulation!.map!.actors.find(actor => actor.characterId === id);
+    const roomId = stage === "warning" ? actor?.homeRoomId : "great_hall";
+    const room = this.world().simulation!.map!.rooms.find(room => room.id === roomId);
+    if (!room) throw new Error("Cressida's destination room is missing.");
+    const message = stage === "warning"
+      ? "You feel the warning signs: in thirty seconds you will turn into a cow. Get to your room before anyone sees."
+      : "You have turned back into a human. Return to the main hall and resume your place at the Assembly.";
+    const goal = stage === "warning"
+      ? `Run to your room, ${room.name} (${room.id}), immediately to hide your imminent transformation. `
+        + `From the Great Hall, go through the East Wing, then the Saltmere Drawing Room, then the Saltmere Back Hall, and finally into your chamber. `
+        + `In the Saltmere Drawing Room, open the Saltmere quarters door if it is closed, then enter the Saltmere Back Hall. `
+        + `There, open Cressida's door if it is closed and enter ${room.name}. `
+        + `If you are already partway along this route, continue from your current room; do not return to the Great Hall or East Wing to restart. `
+        + `If you are in the Entrance Hall, first enter the Great Hall. Stay in your chamber while you are a cow.`
+      : `Return to ${room.name} (${room.id}) now that you are human again.`;
+    const assign = async () => {
+      await this.commit(() => this.overrideActiveObjective(id, { current_goal: goal,
+        name: stage === "warning" ? "Hide the transformation" : "Return to the Assembly",
+        success_criteria: `Reach ${room.name} (${room.id}).` }), signal);
+      activityReady();
+    };
+    await assign();
+    const transcript = [create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, speakerId: "GM", text: message })];
+    const key = this.traces.start("conversation_review", id, id, { stage }, [id]);
+    try {
+      await runConversationReview({ characterId: id, participants: [id], transcript },
+        this.runtime(id, "conversation_review", {}, key, signal, [id]), signal);
+      this.traces.finish(key);
+    } catch (error) {
+      if (signal.aborted) this.traces.stop(key); else this.traces.fail(key, error);
+      throw error;
+    } finally {
+      // The timed instruction remains authoritative even if the review proposes another task.
+      const arrived = this.world().simulation!.map!.actors.find(actor => actor.characterId === id)?.roomId === room.id;
+      if (!signal.aborted && !arrived && activityGoal(this.world(), id) !== goal) await assign();
+    }
   }
   async processPerceivedEvent(id: string, event: Event, perception: string, signal = new AbortController().signal) {
     await this.commit(() => recordCharacterHistory(this.activity, id, { kind: "event", id: event.id, text: perception }), signal);
