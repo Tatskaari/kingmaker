@@ -554,7 +554,12 @@ export class WorldGameRuntime extends WorldHost {
       ? "You feel the warning signs: in one minute you will turn into a cow. Get to your room before anyone sees."
       : "You have turned back into a human. Return to the main hall and resume your place at the Assembly.";
     const goal = stage === "warning"
-      ? `Run to your room, ${room.name} (${room.id}), immediately to hide your imminent transformation. Stay there while you are a cow.`
+      ? `Run to your room, ${room.name} (${room.id}), immediately to hide your imminent transformation. `
+        + `From the Great Hall, go through the East Wing, then the Saltmere Drawing Room, then the Saltmere Back Hall, and finally into your chamber. `
+        + `In the Saltmere Drawing Room, open the Saltmere quarters door if it is closed, then enter the Saltmere Back Hall. `
+        + `There, open Cressida's door if it is closed and enter ${room.name}. `
+        + `If you are already partway along this route, continue from your current room; do not return to the Great Hall or East Wing to restart. `
+        + `If you are in the Entrance Hall, first enter the Great Hall. Stay in your chamber while you are a cow.`
       : `Return to ${room.name} (${room.id}) now that you are human again.`;
     const assign = async () => {
       await this.commit(() => this.overrideActiveObjective(id, { current_goal: goal,

@@ -45,6 +45,8 @@ test("private reviews get synthetic evidence and activities are assigned before 
   const playerMessages = runtime.snapshot().playerMessages;
   await runtime.reviewCressidaTransition("warning", signal, () => { ready++; });
   assert.match(activityGoal(runtime.world(), "cressida")!, /Run.*sabine_chamber/);
+  assert.match(activityGoal(runtime.world(), "cressida")!, /East Wing, then the Saltmere Drawing Room, then the Saltmere Back Hall/);
+  assert.match(activityGoal(runtime.world(), "cressida")!, /open the Saltmere quarters door if it is closed/);
   assert.match(evidence[0]!.text, /in one minute you will turn into a cow/);
   await runtime.reviewCressidaTransition("human", signal);
   assert.match(activityGoal(runtime.world(), "cressida")!, /Return.*great_hall/);
