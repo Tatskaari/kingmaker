@@ -72,3 +72,56 @@ proof of broader improvement or successful planner execution. This comparison pr
 See `comparison-results.json` for all six activity outputs. Full local recordings:
 `eval-output/2026-10-10T14-00-38.850Z-097ca83e/`. Validation passed all 571 tests,
 TypeScript, contract lint, compilation and web build.
+
+## Planner follow-through without the transcript
+
+Run `node --experimental-ffi --import tsx scripts/run-corvin-planner-eval.ts --repeats 3 --concurrency 1 --timeout-ms 600000` with `OPENROUTER_API_KEY`.
+Both Corvin runners are registered in `workspace:eval`.
+
+`planner-activity.json` is the exact structured activity from working-tree repeat 1
+in the historical comparison. The planner-only test seeds this **input**, not a
+review result: the review eval above separately tests producing the activity.
+No original dialogue is passed to the planner or subsequent GM reviews. Normal
+scoped lore and live progressive disclosure remain available.
+
+Jev chooses real actions. The headless host uses the game's room actions, route
+validation, movement and PalaceMechanics; elapsed movement time advances instantly.
+Other actors stay fixed at the captured positions. Each validated individual talk
+runs the normal NPC-exchange resolver with scripted character speech; its normal
+GM reviews must update progress/current_goal themselves. The fixture never supplies the next interviewee.
+The three accounts are synthetic, not actual character-model responses. This tests
+navigation, sequential handoff and continuation, not dialogue quality or truth finding.
+
+At most 24 planner steps run. Coverage counts successful physical talk interactions;
+repeated/unrelated interviews and premature wait/complete/unable/idle fail full
+coverage. Inspect map interactions, AI requests, debug choices and committed activity
+changes in trial JSON. A separate invariant scans all AI inputs for the original
+exchange and transcript attachment. Model errors are reported separately by the
+common runner. Rubric scores are measurements, not CI pass/fail thresholds.
+
+## Promoted baseline and planner results — 2026-10-10
+
+At revision `5de9b83`, three serial trials per runner, with no execution or judging
+errors. The production prompt is the unchanged user snapshot recorded above.
+The review baseline created an active task naming all three people in **3/3** runs;
+all activity bodies were empty. The shared review judge scored 100% in all three,
+with activation separately verified from committed pointers. Review artifacts:
+`eval-output/2026-10-10T14-20-49.903Z-fd49e3b2/`.
+
+| Planner repeat | Physically reached interviews | Subsequent navigation | Source transcript absent |
+| --- | --- | --- | --- |
+| 1 | Elinor, Oswin, Rowan | Entered Entrance Hall to reach Rowan (4 total actions) | Yes |
+| 2 | Elinor, Oswin | Alternated back hall / Great Hall until the 24-step budget | Yes |
+| 3 | Elinor, Oswin | Alternated back hall / Great Hall until the 24-step budget | Yes |
+
+Full interview coverage was **1/3** runs. Mean target coverage was 77.8%; exactly
+three distinct target interactions scored 33.3%; source-transcript exclusion scored
+100%. The two failures retained a current goal to find Rowan but never reached him.
+This demonstrates a remaining navigation/search failure; it does not establish that
+removing the transcript caused it. No navigation policy was changed in this layer.
+Planner artifacts: `eval-output/2026-10-10T14-20-49.868Z-5194f84e/`.
+
+An earlier exploratory smoke run at `d553b82` used a task-outcome review instead of
+the game's NPC-exchange boundary and is excluded. Final tests cover actual validated
+arrival and premature-completion scoring. All 571 tests, TypeScript, contract lint,
+compilation and web build passed via `proto run moon -- run workspace:check workspace:build`.
