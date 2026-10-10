@@ -28,7 +28,7 @@ export async function reviewDocumentEvidence(context: Readonly<ConversationRevie
   const actor = world.simulation!.map?.actors.find(actor => (actor.instanceId ?? actor.characterId) === intent.actorId);
   let opened: OpenRouterMessage[] | undefined;
   const reply = await runGameMaster({ model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "low" },
-    tools: options.tools,
+    ...(options.tools ? { tools: options.tools } : {}),
     messages: [{ role: "system", content: purpose }, { role: "user", content: JSON.stringify({
       characterId: context.characterId, participants: context.participants, document: before, presentations,
       intent: intentContext(world, intent.actorId), transcript: context.transcript, labels,
@@ -36,7 +36,8 @@ export async function reviewDocumentEvidence(context: Readonly<ConversationRevie
         roomName: world.simulation!.map?.rooms.find(room => room.id === actor.roomId)?.name, position: actor.position } : null,
       scenarioDocument: services.scenario.info().scenario,
     }) }],
-  }, services, signal, { characterId: intent.actorId, review: true, systemPrompt: options.systemPrompt,
+  }, services, signal, { characterId: intent.actorId, review: true,
+    ...(options.systemPrompt !== undefined ? { systemPrompt: options.systemPrompt } : {}),
     // Single-character reviews contain synthetic observations, not a conversation.
     ...(context.participants.length > 1 ? { activityOrigin: context } : {}), prepare: async messages => {
     const lore = await services.lore.forCharacter(intent.actorId, signal);

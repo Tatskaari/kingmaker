@@ -10,7 +10,7 @@ export { GAME_MASTER_PROMPT } from "./agent-setup.js";
 /** All GM entrypoints use the same tool definitions, execution and conflict handling. */
 export async function runGameMaster(request: ChatCompletionRequest, services: RuntimeServices, signal: AbortSignal,
   options: { characterId?: string; review?: boolean; systemPrompt?: string; activityOrigin?: Readonly<ConversationReviewContext>; prepare?: (messages: OpenRouterMessage[]) => Promise<OpenRouterMessage[]> } = {}) {
-  const messages = await services.agents.prepare({ agent: "game_master", systemPrompt: options.systemPrompt, ...(options.characterId ? { characterId: options.characterId } : {}), messages: request.messages }, signal);
+  const messages = await services.agents.prepare({ agent: "game_master", ...(options.systemPrompt !== undefined ? { systemPrompt: options.systemPrompt } : {}), ...(options.characterId ? { characterId: options.characterId } : {}), messages: request.messages }, signal);
   const tools = request.tools ?? gameMasterTools;
   const session = new GameMasterTools(services, options.characterId, options.activityOrigin);
   if (options.review) await session.begin();
@@ -23,7 +23,6 @@ export async function runGameMaster(request: ChatCompletionRequest, services: Ru
     signal.throwIfAborted();
     if (!response.tool_calls?.length) {
       try {
-        if (!tools.some(tool => tool.function.name === call.function.name)) throw new InvalidReviewError(`Tool unavailable in this review: ${call.function.name}`);
         await session.commit();
       } catch (error) {
         if (!(error instanceof DocumentConflictError)) throw error;
@@ -36,6 +35,7 @@ export async function runGameMaster(request: ChatCompletionRequest, services: Ru
     messages.push(response);
     for (const call of response.tool_calls) {
       try {
+        if (!tools.some(tool => tool.function.name === call.function.name)) throw new InvalidReviewError(`Tool unavailable in this review: ${call.function.name}`);
         const input = parseModelObject(call.function.arguments, "Game master tool");
         const result = await session.call(call.function.name, input, { response, toolCallId: call.id });
         messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
