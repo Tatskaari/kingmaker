@@ -16,6 +16,8 @@ export function characterMessages(sources: CharacterSources): OpenRouterMessage[
 
 export interface AgentSetupContext {
   agent: "character" | "game_master" | "exchange" | "planner" | "wait" | "attention" | "stranger";
+  /** Host-owned instructions for a reviewer with a narrower responsibility. */
+  systemPrompt?: string;
   characterId?: string;
   messages: readonly OpenRouterMessage[];
   /** Active speakers are not bystanders in the earshot warning. */
@@ -32,9 +34,9 @@ export type AgentSetupHook = (context: Readonly<AgentSetupContext>, signal: Abor
 
 /** Default prompt policy, separate from model execution and transport. */
 export const setupAgent: AgentSetupHook = async (context, signal, services) => {
-  const prompt = context.agent === "character" ? CHARACTER_PROMPT
+  const prompt = context.systemPrompt ?? (context.agent === "character" ? CHARACTER_PROMPT
     : context.agent === "game_master" ? GAME_MASTER_PROMPT
-    : context.agent === "exchange" ? renderPrompt("exchange-system") : undefined;
+    : context.agent === "exchange" ? renderPrompt("exchange-system") : undefined);
   const task = [...(prompt ? [{ role: "system" as const, content: prompt }] : []), ...context.messages];
   const lore = context.lore ?? (!context.sources && context.characterId && context.agent !== "game_master"
     ? await services.lore.forCharacter(context.characterId, signal) : undefined);

@@ -9,19 +9,21 @@ export { GAME_MASTER_PROMPT } from "./agent-setup.js";
 
 /** All GM entrypoints use the same tool definitions, execution and conflict handling. */
 export async function runGameMaster(request: ChatCompletionRequest, services: RuntimeServices, signal: AbortSignal,
-  options: { characterId?: string; review?: boolean; activityOrigin?: Readonly<ConversationReviewContext>; prepare?: (messages: OpenRouterMessage[]) => Promise<OpenRouterMessage[]> } = {}) {
-  const messages = await services.agents.prepare({ agent: "game_master", ...(options.characterId ? { characterId: options.characterId } : {}), messages: request.messages }, signal);
+  options: { characterId?: string; review?: boolean; systemPrompt?: string; activityOrigin?: Readonly<ConversationReviewContext>; prepare?: (messages: OpenRouterMessage[]) => Promise<OpenRouterMessage[]> } = {}) {
+  const messages = await services.agents.prepare({ agent: "game_master", systemPrompt: options.systemPrompt, ...(options.characterId ? { characterId: options.characterId } : {}), messages: request.messages }, signal);
+  const tools = request.tools ?? gameMasterTools;
   const session = new GameMasterTools(services, options.characterId, options.activityOrigin);
   if (options.review) await session.begin();
   let corrections = 0;
   for (let turn = 0; turn < 16; turn++) {
     signal.throwIfAborted();
-    const response = await services.ai.responses({ ...request, tools: gameMasterTools,
+    const response = await services.ai.responses({ ...request, tools,
       messages: options.prepare ? await options.prepare(messages) : messages,
     }, signal, { ...(options.characterId ? { characterId: options.characterId } : {}), ...(!options.review ? { purpose: "gm_consultation" as const } : {}) });
     signal.throwIfAborted();
     if (!response.tool_calls?.length) {
       try {
+        if (!tools.some(tool => tool.function.name === call.function.name)) throw new InvalidReviewError(`Tool unavailable in this review: ${call.function.name}`);
         await session.commit();
       } catch (error) {
         if (!(error instanceof DocumentConflictError)) throw error;
