@@ -20,7 +20,7 @@ export class QuestConflictError extends Error {
   }
 }
 
-function validateQuest(quest: Quest): void {
+export function validateQuest(quest: Quest): void {
   const ids = (kind: string, entries: readonly { id: string }[]) => {
     const seen = new Set<string>();
     for (const { id } of entries) {

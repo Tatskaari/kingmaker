@@ -2,6 +2,7 @@ import { seedMemories } from "./memories.js";
 import { create, fromJson, type JsonObject } from "@bufbuild/protobuf";
 import { type MapState } from "../../contracts/src/index.js";
 import { DocumentSchema, WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
+import { loadQuests } from "./quest-loader.js";
 import { parseMarkdown } from "./markdown.js";
 
 import { seedRuntimeCharacter } from "./runtime-actor.js";
@@ -27,7 +28,7 @@ export function worldState(map: MapState, markdown: ReadonlyMap<string, string>,
       throw new Error(`${name}: ${String(error)}`, { cause: error });
     }
   }));
-  const world = refreshDocumentGraph(create(WorldStateSchema, { docs, scenario, scenarioIndex, ...(player === undefined ? {} : { player }), simulation: { map } }));
+  const world = refreshDocumentGraph(create(WorldStateSchema, { docs, quests: loadQuests(lore, scenarioID), scenario, scenarioIndex, ...(player === undefined ? {} : { player }), simulation: { map } }));
   for (const path of world.characters) {
     const id = /\/Characters\/([^/]+)\/character\.md$/.exec(path)![1]!;
     const bodies = world.simulation!.map!.actors.filter(actor => actor.characterId === id);

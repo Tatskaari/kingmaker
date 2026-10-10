@@ -23,6 +23,29 @@ deciding whether a new request is appropriate. World saves retain `world.quests`
 reads and writes copy only the affected quest data.
 
 This service records quest data only. It does not evaluate conditions, execute
-scripts, load lore, expose character knowledge, or coordinate physical/document
+scripts, expose character knowledge, or coordinate physical/document
 effects. Those integrations must establish their own successful outcomes before
 recording progress; this API is not an atomic boundary for multi-service effects.
+
+## Lore loading
+
+Fresh worlds load quest folders directly beneath `Scenarios/<scenario>/Quests/`
+that contain `NNN_stage_*.md` notes. The folder's `index.md` supplies `id`, `title`
+and the overview body. Each stage supplies `id`, `title`, its description body,
+and optional `transitions` (a list of Markdown or wiki note links). Exactly one
+stage must declare `initial: true`; filename sorting determines display order.
+Transition links resolve using the vault's existing rules and must stay in that
+quest's `transitions/` folder. Each transition supplies `id`, `to` (a stage ID),
+`trigger: discretionary`, a nonempty `condition`, and an outcome description body.
+All definitions require `visibility: gm`. Condition note links are validated.
+
+Loading validates the graph through the same validator as service registration.
+It seeds revision zero only during fresh-world construction; resume retains the
+saved graph and progress. Existing flat quest sketches are not loaded as graphs.
+The Assembly Programme is the first authored graph. Its alternative delivery
+routes and failure/retry edges remain unfinished authoring work.
+
+This loader accepts data, not executable scripts: predicates, TypeScript modules,
+declared input execution and GM invocation are not supported. The caller must
+establish physical outcomes before recording a transition. Start a fresh game to
+pick up changed baseline quest definitions.

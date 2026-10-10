@@ -12,7 +12,7 @@ This is a stub.
 ## Read when relevant
 - [[World/index|World Overview]] — enduring setting, factions, places, history and law.
 - [[Assembly Map]] — current places, tiles, occupants, access and inventories.
-- [[Assembly Programme]], [[Minutes and Titles]], [[Patrol Inquiry]], [[Grain Settlement]], [[Affection at a Cost]], [[Recognition Hearing]] — possible events, prerequisites and world-state changes.
+- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/index|Assembly Programme]], [[Minutes and Titles]], [[Patrol Inquiry]], [[Grain Settlement]], [[Affection at a Cost]], [[Recognition Hearing]] — possible events, prerequisites and world-state changes.
 - [[Invitation Conversation]], [[Patrol Conversation]], [[Grain Conversation]], [[Private Dinner Conversation]] — full scene branches, including GM-only conditions and consequences.
 
 ## Shared court knowledge

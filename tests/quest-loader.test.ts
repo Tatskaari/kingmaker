@@ -1,0 +1,69 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { create, fromJson, toJson } from "@bufbuild/protobuf";
+import { MapStateSchema } from "../packages/contracts/src/index.js";
+import { WorldStateSchema } from "../packages/contracts/src/v2.js";
+import { worldState } from "../packages/lore/src/world-state.js";
+import { createScenarioServices } from "../packages/lore/src/services.js";
+import { loadPlayableWorld } from "./fixtures.js";
+
+const root = "Scenarios/Test/Quests/Delivery/";
+const note = (metadata: object, body = "Description") => `---\n${JSON.stringify({ visibility: "gm", ...metadata })}\n---\n${body}`;
+function fixture() {
+  return new Map([
+    ["Scenarios/Test/scenario.md", "Briefing"], ["Scenarios/Test/index.md", "Navigation"],
+    [root + "index.md", note({ id: "delivery", title: "Delivery" })],
+    [root + "020_stage_done.md", note({ id: "done", title: "Done" })],
+    [root + "010_stage_blocked.md", note({ id: "blocked", title: "Blocked", initial: true, transitions: ["[[./transitions/clear]]"] })],
+    [root + "transitions/clear.md", note({ id: "clear", trigger: "discretionary", to: "done", condition: "The entrance is physically clear." })],
+  ]);
+}
+const build = (notes = fixture()) => worldState(create(MapStateSchema), notes, "Test");
+
+test("loads ordered scenario quest data and resumes saved progress without reseeding", async () => {
+  const notes = fixture();
+  for (const [path, source] of fixture()) notes.set(path.replace("Scenarios/Test/", "Scenarios/Other/"), source);
+  const services = createScenarioServices(build(notes));
+  assert.equal(services.quests.list().length, 1);
+  const state = services.quests.read("delivery");
+  assert.deepEqual(state.quest!.stages.map(stage => stage.id), ["blocked", "done"]);
+  assert.equal(state.currentStageId, "blocked");
+  assert.equal(state.quest!.transitions[0]!.condition, "The entrance is physically clear.");
+  await services.quests.transition("delivery", "clear", 0, "Observed clearance");
+  const saved = fromJson(WorldStateSchema, toJson(WorldStateSchema, services.currentWorld()));
+  saved.docs[root + "010_stage_blocked.md"]!.frontmatter!.initial = false;
+  const resumed = createScenarioServices(saved).quests.read("delivery");
+  assert.equal(resumed.currentStageId, "done");
+  assert.equal(resumed.revision, 1);
+  assert.equal(resumed.history[0]!.evidence, "Observed clearance");
+});
+
+test("rejects invalid authored graphs with source context", () => {
+  for (const [path, metadata, expected] of [
+    ["020_stage_done.md", { id: "done", title: "Done", initial: true }, /exactly one/],
+    ["010_stage_blocked.md", { id: "blocked", title: "Blocked" }, /exactly one/],
+    ["020_stage_done.md", { id: "blocked", title: "Done" }, /duplicate stage/],
+    ["transitions/clear.md", { id: "clear", trigger: "discretionary", to: "missing", condition: "Clear" }, /unknown stage/],
+    ["transitions/clear.md", { id: "clear", trigger: "automatic", to: "done", condition: "Clear" }, /only discretionary/],
+    ["transitions/clear.md", { id: "clear", trigger: "discretionary", to: "done" }, /condition must/],
+    ["transitions/clear.md", { id: "clear", trigger: "discretionary", to: "done", condition: "[[Missing]]" }, /No matching/],
+    ["020_stage_done.md", { id: "done", title: "Done", visibility: "public" }, /visibility: gm/],
+    ["010_stage_blocked.md", { id: "blocked", title: "Blocked", initial: "true" }, /initial must/],
+    ["010_stage_blocked.md", { id: "blocked", title: "Blocked", initial: true, transitions: ["[[./transitions/missing]]"] }, /No matching/],
+  ] as const) {
+    const notes = fixture(); notes.set(root + path, note(metadata));
+    assert.throws(() => build(notes), expected);
+  }
+  const notes = fixture();
+  for (const [path, source] of fixture()) if (path.startsWith(root)) notes.set(path.replace("/Delivery/", "/Duplicate/"), source);
+  assert.throws(() => build(notes), /duplicate quest ID/);
+});
+
+test("the playable Assembly Programme loads with three remedy routes", () => {
+  const world = loadPlayableWorld();
+  const quests = createScenarioServices(world).quests;
+  assert.equal(quests.read("assembly_programme").quest!.stages.length, 6);
+  assert.deepEqual(quests.availableTransitions("assembly_programme").map(edge => edge.id),
+    ["agree_to_back_out", "begin_dismantling", "begin_repair"]);
+  assert.equal(quests.read("assembly_programme").currentStageId, "delivery_delayed");
+});

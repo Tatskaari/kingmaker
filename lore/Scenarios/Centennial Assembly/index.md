@@ -3,7 +3,7 @@ summary: "Author navigation for the assembly cast, character entries, shared cou
 ---
 # Centennial Assembly
 
-Author-facing index, not an agent prompt. Start the GM at [[Scenarios/Centennial Assembly/scenario|scenario.md]]. Each conversation starts at that character's `character.md`. [[Assembly Programme]] has an opening event-tree sketch. Aldren, Holt and Rowan have character briefings, situation notes and conversation beats for the cushion enquiry and blocked cart; the other character briefings and supporting prose remain to be sketched. Scenario character `properties.json` files contain draft starting stats and equipment; see [[Scenarios/Centennial Assembly/Characters/index|Characters]] for build choices.
+Author-facing index, not an agent prompt. Start the GM at [[Scenarios/Centennial Assembly/scenario|scenario.md]]. Each conversation starts at that character's `character.md`. [[Scenarios/Centennial Assembly/Quests/Assembly Programme/index|Assembly Programme]] has an opening event-tree sketch. Aldren, Holt and Rowan have character briefings, situation notes and conversation beats for the cushion enquiry and blocked cart; the other character briefings and supporting prose remain to be sketched. Scenario character `properties.json` files contain draft starting stats and equipment; see [[Scenarios/Centennial Assembly/Characters/index|Characters]] for build choices.
 
 ## Cast source and scoped conversation entry
 The author indexes below expose both private characterization and GM-only notes. Conversation entries link directly to their own private characterization and observer-owned knowledge; never import the author index or GM material wholesale.
@@ -26,7 +26,7 @@ The author indexes below expose both private characterization and GM-only notes.
 [[Cast/Caerwyn/Tomas Vey/index|Tomas Vey]] remains offstage lore until his participation is decided.
 
 ## GM detail to sketch
-Quests: [[Assembly Programme]], [[Minutes and Titles]], [[Patrol Inquiry]], [[Grain Settlement]], [[Affection at a Cost]], [[Recognition Hearing]].
+Quests: [[Scenarios/Centennial Assembly/Quests/Assembly Programme/index|Assembly Programme]], [[Minutes and Titles]], [[Patrol Inquiry]], [[Grain Settlement]], [[Affection at a Cost]], [[Recognition Hearing]].
 
 Full scene trees: [[Invitation Conversation]], [[Patrol Conversation]], [[Grain Conversation]], [[Private Dinner Conversation]]. Put only each NPC's permitted beats in their scoped conversation note.
 
