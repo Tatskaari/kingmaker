@@ -1,5 +1,5 @@
 ---
-summary: "GM-only context for Bran's desire for Gurt's approval before Klog objects, and the beneficiaries and costs of his proposals, plus portrayal references."
+summary: "Draft backstory provenance and GM-only context for Bran's desire for Gurt's approval before Klog objects, and the beneficiaries and costs of his proposals, plus portrayal references."
 visibility: gm
 ---
 # Bran — GM notes
@@ -19,3 +19,7 @@ Voice provenance: draft enduring voice; see [[Authoring/Writing Character Voices
 Character portrayal: [[Cast/Kläggenheim/Bran/private|Private characterization]].
 
 Parent: [[Cast/Kläggenheim/Bran/index|Bran]].
+
+## Draft backstory provenance
+
+The new backstory and linked city, flood and Bjork tradition notes are a light author-requested sketch for review and expansion, not material recovered from the source issues. Dates, family details and further consequences remain undecided.
