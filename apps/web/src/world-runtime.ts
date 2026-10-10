@@ -1,3 +1,6 @@
+import { compileConversationTree } from "../../../packages/lore/src/conversation-tree.js";
+import { ConversationTreeSession } from "../../../packages/conversation/src/conversation-tree.js";
+import { helloWorld } from "../../../packages/conversation/src/tree-scripts/hello-world.js";
 import type { CressidaTransition } from "./cressida-scheduler.js";
 import { recordCharacterHistory } from "../../../packages/core/src/character-history.js";
 import { followingTarget, activityDefinition, activityGoal } from "../../../packages/lore/src/activity.js";
@@ -54,6 +57,7 @@ const conversationChanged = (): ConversationStartResult => ({ ok: false, error: 
 export class WorldGameRuntime extends WorldHost {
   private provider: AiService;
   private traces: ModelTranscripts;
+  private conversationTrees = new Map<string, ConversationTreeSession>();
   private conversationRuns = new Map<string, string>();
   private liveConversations = new Map<string, { reviews: ConversationReviews; response: ReturnType<typeof liveConversationStrategy>; reviewedLive: boolean }>();
   private finishingReviews = new Set<ConversationReviews>();
@@ -224,6 +228,7 @@ export class WorldGameRuntime extends WorldHost {
   private stopConversations() {
     for (const { reviews } of this.liveConversations.values()) reviews.cancel();
     this.liveConversations.clear();
+    this.conversationTrees.clear();
     for (const reviews of this.finishingReviews) reviews.cancel();
     this.finishingReviews.clear();
     for (const key of this.conversationRuns.values()) this.traces.stop(key);
@@ -240,7 +245,7 @@ export class WorldGameRuntime extends WorldHost {
   recentTranscripts() { return this.traces.recent(); }
   transcriptRuns() { return this.traces.runs(); }
   override debugCharacter(id: string) {
-    return { ...super.debugCharacter(id), contextCall: this.traces.latestDialogue(this.conversationRuns.get(id), id) };
+    return { ...super.debugCharacter(id), conversationTree: this.conversationTrees.get(id)?.status, contextCall: this.traces.latestDialogue(this.conversationRuns.get(id), id) };
   }
   debugDocuments() {
     const world = this.world();
@@ -259,6 +264,18 @@ export class WorldGameRuntime extends WorldHost {
       this.conversationRuns.set(id, key);
     }
     return key;
+  }
+  private conversationTree(id: string) {
+    const document = this.world().docs[`Conversations/${id}.md`];
+    if (!document) return;
+    let session = this.conversationTrees.get(id);
+    if (!session) {
+      const tree = compileConversationTree({ body: document.body, metadata: document.frontmatter ?? {} });
+      session = new ConversationTreeSession(tree, this.worldServices.quests,
+        { "hello-world.ts": signal => helloWorld(this.worldServices.quests, signal) });
+      this.conversationTrees.set(id, session);
+    }
+    return session;
   }
   async checkedTalkToCharacter(id: string, message: string, thinking?: (text: string) => void, options: WorldOptions = {}, signal = new AbortController().signal, onText?: TextProgress) {
     const persist = this.persistChange;
@@ -293,7 +310,13 @@ export class WorldGameRuntime extends WorldHost {
     runtime.strategies.conversation = strategyOverride ?? strategies;
     runtime.services.character.respond = (request, cancellation) => runtime.services.ai.responses(request, cancellation);
     const transcript = previous.map(turn => fromJson(TranscriptMessageSchema, turn));
-    const request = await prepareConversation({ world, characterId: id, sources: lore.initial, transcript, message }, runtime.services, signal);
+    const tree = this.conversationTree(id);
+    if (tree) {
+      await tree.evaluate([...transcript, create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: message })],
+        runtime.services.ai, signal, () => {}, work => this.commit(work, signal, persist));
+    }
+    const request = await prepareConversation({ world, characterId: id, sources: lore.initial,
+      transcript: tree ? [...transcript, tree.goal()] : transcript, message }, runtime.services, signal);
     if (defending) request.messages = [...request.messages, { role: "system", content: renderPrompt("world-runtime-arrest-defense") }];
     thinking?.("Considering your words…");
     const rulings: string[] = [], preparedRulings: string[] = [], arrestRulings: string[] = [];
@@ -362,6 +385,15 @@ export class WorldGameRuntime extends WorldHost {
       }
     }, signal, persist);
     onText?.(reply.content!);
+    if (tree) {
+      try {
+        await tree.evaluate(this.activity.conversations[id]!.map(turn => fromJson(TranscriptMessageSchema, turn)),
+          runtime.services.ai, signal, () => {}, work => this.commit(work, signal, persist));
+      } catch (error) {
+        // The accepted reply is already saved; don't discard it if post-reply classification fails.
+        this.warning(`${id}: conversation tree: ${String(error)}`);
+      }
+    }
     return reply.content;
   }
   endConversationAsPlayer(id: string, message: string) {

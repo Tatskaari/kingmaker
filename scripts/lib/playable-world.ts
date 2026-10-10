@@ -8,5 +8,6 @@ import { loadDocumentLayers } from "../../packages/service-tools/src/layered-doc
 /** Shared fresh-game fixture for the console, evals, and integration tests. */
 export function loadPlayableWorld(root = resolve(import.meta.dirname, "../.."), overlays: readonly string[] = []) {
   const { markdown, sidecars } = loadDocumentLayers([`${root}/lore`, ...overlays]);
-  return playableWorld(fromJsonString(MapStateSchema, readFileSync(`${root}/content/palace-map.json`, "utf8")), markdown, sidecars);
+  const trees = loadDocumentLayers([`${root}/content/conversation-trees`]).markdown;
+  return playableWorld(fromJsonString(MapStateSchema, readFileSync(`${root}/content/palace-map.json`, "utf8")), markdown, sidecars, [...trees.values()]);
 }
