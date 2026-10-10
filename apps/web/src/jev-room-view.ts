@@ -47,7 +47,11 @@ export function renderJevRoomView(world: MapState, characters: readonly { id: st
   for (const item of observation.world.inventory) lines.push(`  ${item.name} [${item.id}]`,
     ...renderActions(observation.actions.filter(action => action.id === `inspect_item_${item.id}`), item.name, 0));
   if (!observation.world.inventory.length) lines.push("  Empty.");
-  lines.push("", "Room connections (map, not live observations):");
-  for (const item of world.rooms) lines.push(`  ${item.name} → ${item.exitRoomIds.map(nameOfRoom).join(", ") || "No exits"}`);
   return lines.join("\n");
+}
+
+/** Static room connectivity; never implies current knowledge of distant occupants. */
+export function renderJevMap(world: MapState): string {
+  const nameOfRoom = (id: string) => world.rooms.find(room => room.id === id)?.name ?? id;
+  return world.rooms.map(room => `${room.name} [${room.id}] → ${room.exitRoomIds.map(nameOfRoom).join(", ") || "No exits"}`).join("\n");
 }

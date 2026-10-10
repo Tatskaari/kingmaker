@@ -21,8 +21,18 @@ tasks:
     deps: [contracts:generate]
     options:
       cache: false
+  evalCorvinReview:
+    command: npx --no-install tsx scripts/run-corvin-inquiry-eval.ts
+    deps: [contracts:generate]
+    options:
+      cache: false
+  evalCorvinPlanner:
+    command: npx --no-install tsx scripts/run-corvin-planner-eval.ts
+    deps: [contracts:generate]
+    options:
+      cache: false
   eval:
-    deps: [evalReview, evalGift, evalAttention, evalNavigation]
+    deps: [evalReview, evalGift, evalAttention, evalNavigation, evalCorvinReview, evalCorvinPlanner]
     options:
       cache: false
   typecheck:

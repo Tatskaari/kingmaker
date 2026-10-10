@@ -1,9 +1,11 @@
+import { renderPrompt } from "../packages/prompts/src/index.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ConversationReviews, liveConversationStrategy } from "../packages/conversation/src/live-conversation-strategy.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { runConversation } from "../packages/conversation/src/phases.js";
-import { documentLoreService } from "../packages/conversation/src/document-lore.js";
+import { documentLore, documentLoreService } from "../packages/conversation/src/document-lore.js";
+import { activityGoal } from "../packages/lore/src/activity.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
 import { commitReview, loadPlayableWorld } from "./fixtures.js";
 import type { OpenRouterMessage } from "../packages/providers/src/openrouter.js";
@@ -30,7 +32,9 @@ function fixture(mode: "background" | "discretion" | "error") {
       assert.equal(request.response_format, undefined, "No blocking GM approval");
       assert.equal(request.reasoning?.effort, "high");
       await gate;
-      return commitReview({ summary: "Recorded", newNotes: ["Promised the player a gift."], activeGoal: null }, request);
+      if (!request.tools?.some(tool => tool.function.name === "set_activity")) return { role: "assistant", content: "Remembered." };
+      assert.deepEqual(request.tools?.map(tool => tool.function.name), ["set_activity"]);
+      return commitReview({ summary: "Recorded", newNotes: [], activeGoal: "Fetch the promised bird" }, request);
     } },
   }, strategies: { conversation: liveConversationStrategy({ characterId: "corvin", reviews }) } });
   return { runtime, reviews, before, backing, drafts, events, release };
@@ -60,7 +64,7 @@ test("GM discretion releases successive replies while its ordered reviews are pe
     assert.equal(f.events.filter(event => event === "live-accepted").length, 2);
     assert.ok(!f.events.includes("live-review"));
   } finally { f.release(); await f.reviews.drain(); }
-  assert.equal(f.events.filter(event => event === "live-review").length, 2);
+  assert.equal(f.events.filter(event => event === "live-review").length, 4);
   assert.notDeepEqual(f.backing.scenario.read(), f.before);
 });
 
@@ -107,4 +111,113 @@ test("the full conversation strategy retains dice adjudication before background
   assert.equal(f.drafts.length, 1);
   assert.ok(f.drafts[0]!.some(message => message.content?.startsWith("# Binding DM ruling")));
   f.release(); await f.reviews.drain();
+});
+
+test("flags schedule one combined activity review and separate focused reviews in order", async () => {
+  const f = fixture("background"), categories: string[] = [], labelSets: string[][] = [];
+  const decisions = f.runtime.services.ai.decisions;
+  f.runtime.services.ai.decisions = async (state, questions, signal, purpose) => purpose === "conversation_attention" ? {
+    immediate_commitment: choice("flagged"), deferred_commitment: choice("flagged"), general_commitment: choice("flagged"),
+    immediate_feasibility: choice("gms_discretion"), improvised_detail: choice("flagged"), plot_progress: choice("flagged"),
+    other_world_update: choice("flagged"), conversational_exchange: choice("flagged"), relationship_or_knowledge_change: choice("flagged"),
+  } : decisions(state, questions, signal, purpose);
+  f.runtime.services.debug.record = event => {
+    if (event.source === "live-review") categories.push((event.output as { category: string }).category);
+  };
+  f.runtime.services.ai.responses = async request => {
+    const evidence = request.messages.flatMap(message => {
+      try { const value = JSON.parse(message.content ?? ""); return value.labels ? [value] : []; } catch { return []; }
+    })[0]!;
+    labelSets.push(Object.keys(evidence.labels));
+    assert.deepEqual(evidence.transcript.map((turn: { text: string }) => turn.text), [
+      "Give me a bird.", "# Binding DM ruling\nPersuasion succeeded.", "I will give you a bird.",
+    ]);
+    assert.ok(!JSON.stringify(evidence.transcript).includes("Old conversation"));
+    assert.ok(!request.messages.some(message => message.content?.includes("As part of a review:")));
+    const names = request.tools!.map(tool => tool.function.name);
+    if (labelSets.length === 1) {
+      assert.deepEqual(names, ["set_activity"]);
+      assert.ok(request.messages.some(message => message.content === renderPrompt("review-activity")));
+    } else {
+      assert.ok(!names.includes("set_activity") && !names.includes("set_wait") && !names.includes("clear_activity"));
+      assert.ok(request.messages.some(message => message.content?.startsWith("Review only")));
+    }
+    return { role: "assistant", content: "No changes needed." };
+  };
+  await runConversation({ ...request, messages: [{ role: "user", content: "Old conversation" },
+    { role: "assistant", content: "Old reply" }, ...request.messages] }, f.runtime);
+  await f.reviews.drain();
+  assert.deepEqual(categories, ["activity", "commitment_memory", "improvised_detail", "plot_progress", "other_world_update",
+    "conversational_exchange", "relationship_or_knowledge_change"]);
+  assert.deepEqual(labelSets, [["immediate_commitment", "deferred_commitment", "general_commitment", "immediate_feasibility"],
+    ["immediate_commitment", "deferred_commitment", "general_commitment"], ...categories.slice(2).map(category => [category])]);
+});
+
+test("unflagged turns skip reviews and discretion alone schedules only the activity review", async () => {
+  for (const discretion of [false, true]) {
+    const f = fixture("background"); let calls = 0;
+    const decisions = f.runtime.services.ai.decisions;
+    f.runtime.services.ai.decisions = async (state, questions, signal, purpose) => purpose === "conversation_attention"
+      ? { immediate_commitment: choice("not_flagged"), immediate_feasibility: choice(discretion ? "gms_discretion" : "not_applicable") }
+      : decisions(state, questions, signal, purpose);
+    f.runtime.services.ai.responses = async request => {
+      calls++;
+      assert.deepEqual(request.tools?.map(tool => tool.function.name), ["set_activity"]);
+      return { role: "assistant", content: "No supported activity." };
+    };
+    await runConversation(request, f.runtime);
+    await f.reviews.drain();
+    assert.equal(calls, discretion ? 1 : 0);
+  }
+});
+
+test("commitment memory preserves why an NPC acted without delaying the activity", async () => {
+  const f = fixture("background");
+  let release!: () => void, started!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const ready = new Promise<void>(resolve => { started = resolve; });
+  const memory = { title: "The promised bird", context: "I agreed to the player's request for a bird.",
+    content: "The player persuaded me to give them a bird. I promised to fetch one; I have not yet handed it over." };
+  f.runtime.services.ai.responses = async request => {
+    if (request.tools?.some(tool => tool.function.name === "set_activity")) {
+      return commitReview({ summary: "Assigned", newNotes: [], activeGoal: "Fetch the promised bird" }, request);
+    }
+    const tools = request.tools!.map(tool => tool.function.name);
+    for (const name of ["read_document", "replace_document", "save_memory"]) assert.ok(tools.includes(name));
+    for (const name of ["set_activity", "set_wait", "clear_activity"]) assert.ok(!tools.includes(name));
+    assert.ok(request.messages.some(message => message.content?.includes("why they agreed")));
+    started(); await gate;
+    if (request.messages.some(message => message.tool_call_id === "remember-commitment")) return { role: "assistant", content: "Remembered." };
+    return { role: "assistant", content: null, tool_calls: [{ id: "remember-commitment", type: "function",
+      function: { name: "save_memory", arguments: JSON.stringify(memory) } }] };
+  };
+  await runConversation(request, f.runtime);
+  await ready;
+  try {
+    assert.equal(activityGoal(f.backing.scenario.read(), "corvin"), "Fetch the promised bird");
+    assert.ok(!Object.values(f.backing.scenario.read().docs).some(doc => doc.body.includes(memory.content)));
+  } finally { release(); await f.reviews.drain(); }
+  // A subsequent conversation's normal lore source exposes the indexed reason for disclosure.
+  const lore = await documentLore(f.backing.scenario, "corvin");
+  const link = lore.links(lore.initial).find(link => link.summary?.includes(memory.title));
+  assert.ok(link);
+  assert.match(lore.initial.at(-1)!.markdown, /The promised bird/);
+  assert.match((await lore.open(link, new AbortController().signal)).markdown, /persuaded me.*not yet handed it over/);
+  assert.equal(activityGoal(f.backing.scenario.read(), "corvin"), "Fetch the promised bird");
+});
+
+test("deferred and general commitments also receive a memory review without requiring an activity change", async () => {
+  for (const flag of ["deferred_commitment", "general_commitment"]) {
+    const f = fixture("background"), reviews: string[] = [];
+    const decisions = f.runtime.services.ai.decisions;
+    f.runtime.services.ai.decisions = async (state, questions, signal, purpose) => purpose === "conversation_attention"
+      ? { [flag]: choice("flagged") } : decisions(state, questions, signal, purpose);
+    f.runtime.services.debug.record = event => {
+      if (event.source === "live-review") reviews.push((event.output as { category: string }).category);
+    };
+    f.runtime.services.ai.responses = async () => ({ role: "assistant", content: "No change needed." });
+    await runConversation(request, f.runtime);
+    await f.reviews.drain();
+    assert.deepEqual(reviews, ["activity", "commitment_memory"]);
+  }
 });

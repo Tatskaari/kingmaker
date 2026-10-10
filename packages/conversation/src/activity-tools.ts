@@ -26,7 +26,7 @@ export class ActivityEdits {
   private writes = new Map<string, DocumentWrite>();
   private intent: { activity: string | null; wait: string | null } | undefined;
   private expected;
-  constructor(private services: RuntimeServices, private id: string, private before: DocumentSnapshot, private origin = "") {
+  constructor(private services: RuntimeServices, private id: string, private before: DocumentSnapshot) {
     this.expected = characterIntent(services.scenario.read(), id);
     this.id = this.expected.actorId;
   }
@@ -42,10 +42,10 @@ export class ActivityEdits {
     if (name === "set_activity") {
       const { name: title, status, success_criteria, current_goal } = input;
       const definition = { name: title, status, success_criteria, current_goal } as ActivityDefinition;
-      content = formatActivity(/\/Characters\/([^/]+)\//.exec(this.before.path)![1]!, definition) + this.origin;
+      content = formatActivity(/\/Characters\/([^/]+)\//.exec(this.before.path)![1]!, definition);
       const current = characterIntent(world, this.id).activity;
       path = current && JSON.stringify(activityDefinition(intentDocument(world, this.id, current))) === JSON.stringify(definition)
-        && intentDocument(world, this.id, current).body === this.origin
+        && intentDocument(world, this.id, current).body === ""
         ? current : `${folder}activity-${crypto.randomUUID()}.md`;
       if (input.activate !== false) this.intent = { activity: path, wait: null };
     } else if (name === "set_wait") {
