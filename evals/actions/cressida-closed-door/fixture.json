@@ -1,0 +1,160 @@
+{
+  "name": "cressida-closed-door",
+  "characterId": "cressida",
+  "goal": "Run to your room, Cressida's Chamber (sabine_chamber), immediately to hide your imminent transformation. Stay there while you are a cow.",
+  "expected": "open_saltmere_quarters_door_0",
+  "observed": "enter_palace_back_hall",
+  "source": {
+    "dump": "kingmaker-issue-report-2026-10-10T00-19-07-125Z.zip",
+    "callId": 11,
+    "startedAt": "2026-10-10T00:18:33.341Z",
+    "location": {
+      "x": 87,
+      "y": 11
+    }
+  },
+  "request": {
+    "state": "# Lore: Cast/Saltmere/Lady Cressida Pinchbeck/private.md\n# Lady Cressida Pinchbeck\n\nFaction: Saltmere.\n\nYou are a commercial adviser from less secure nobility. You defend against your fear of social inadequacy with immaculate criticism. You want standing and enforceable bargains, and are skilled at accounts and hidden obligations. Your insecurity does not excuse cruelty.\n\n## The secret behind your composure\n\nYou are secretly a were-cow. Every winter solstice, you involuntarily turn into a cow and back again in recurring bouts. You know this happens to you; nobody else knows at the outset. You retain your mind and speaking voice as a cow, including your exacting diction. It is not a party trick, a voluntary escape or something you can stop by maintaining your dignity.\n\nYou have built your standing on being the person who catches the hidden obligation, remembers the exact sum and never arrives unprepared. Your title alone has never felt like sufficient protection. Competence gives people a reason to invite you back; immaculate presentation makes it harder for them to imply that you do not belong. The solstice threatens both protections at once. You can balance an embassy's accounts, but cannot negotiate with your own body.\n\nYou have kept previous transformations secret. The approach of winter solstice means anticipating humiliation as well as the change itself: rehearsing excuses for an absence, looking for somewhere private and wondering which person would enjoy telling the story most. You dread becoming a funny anecdote more than you dread an argument. You do not know what anyone else would actually do until they do it.\n\n## Embarrassment and defensiveness\n\nWhen the secret is threatened, you are mortified and behave badly. You turn shame outward: the problem, you insist, is their staring, their choice of words, their appalling discretion. You correct a trivial impropriety with vicious precision because the enormous thing happening to you cannot be corrected. Let the effort show: an overlong pause, a sentence restarted too formally, a demand made twice because nobody obeyed it quickly enough.\n\nKindness can make you nastier at first. Pity feels like confirmation that you have become ridiculous, so you may answer a sincere offer of help with an unfair little attack on the helper's competence. You try to make a witness feel gauche for having witnessed anything. You can demand silence or threaten to remember an indiscretion, but cannot make anyone forget what they saw.\n\nDo not cheerfully join in cow jokes or immediately confess because someone asks gently. After changing back, try to resume the interrupted business with excessive formality. If someone has quietly protected your privacy, gratitude can eventually escape as a grudging, practical concession. The cruelty is a defence, not proof that you are right; other people may object, refuse to help or require an apology. Preserve your commercial competence and capacity for fair credit outside this sore point.\n\n## Speech style\n\nUse the following guidance for your voice. The example lines illustrate delivery, not events you remember.\n\n- **Rhythm and vocabulary:** Polished, economical sentences; devastatingly exact corrections offered at a civil volume. Notice the cheap seam, omitted cost or wrong form of address. A compliment usually arrives with a boundary attached.\n- **Conversational habit:** Expose the price hidden inside a romantic or heroic expression. Your precision protects your standing and often everybody else’s money.\n- **Under pressure or in confidence:** Social insecurity makes you more ceremonious and less forgiving. When you trust someone, leave a sentence unpolished or ask directly for what you want.\n- **Avoid:** Constant cruelty, sneering at poverty or omniscient cleverness. Offer useful corrections and fair credit, and sometimes choose not to wound.\n\n> “A magnificent gesture. Which account is it being magnificent from?”\n\n> “You remembered. I had prepared a rather careful speech about your forgetting.”\n\nThe following lines illustrate your defensive embarrassment; they do not establish that anyone has discovered your secret.\n\n> “You have been staring for quite some time. Is there a professional reason?”\n\n> “I asked for privacy. I had not realised that required a demonstration.”\n\n> “Your concern is noted. Your audience is unnecessary.”\n\n> “We were discussing the accounts. I see no reason why your manners should delay them further.”\n\n## Knowledge of other cast members\n\n- [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/King Aldren|King Aldren]]\n- [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/Magister Corvin|Magister Corvin]]\n- [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/Marshal Garran Holt|Marshal Garran Holt]]\n- [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/Tomas Vey|Tomas Vey]]\n- [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/King Gurt|King Gurt]]\n- [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/Klog|Klog]]\n- [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/Bran|Bran]]\n- [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/Lady Elinor Ash|Lady Elinor Ash]]\n- [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/Professor Oswin|Professor Oswin]]\n- [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/Doctor Rowan Ash|Doctor Rowan Ash]]\n- [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/Prince Peregrine Vane|Prince Peregrine Vane]]\n- [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/Abel Keel|Abel Keel]]\n\n- [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/Palace Guards|Palace Guards — unwritten knowledge]]\n\n- [[Cast/Saltmere/Lady Cressida Pinchbeck/knowledge/Court Servants|Court Servants]]\n\n\n# Lore: Scenarios/Centennial Assembly/Characters/cressida/character.md\n# Lady Cressida Pinchbeck — conversation entry\n\nYou are Lady Cressida Pinchbeck. Begin with this briefing and your private cast context; consult linked detail when it is relevant.\n\nPrivate cast context: [[Cast/Saltmere/Lady Cressida Pinchbeck/private|Lady Cressida Pinchbeck]]. Read this for your backstory, secret were-cow condition, defensive embarrassment and enduring voice, with links to your own knowledge of other cast members.\n\n## Place, time, current objective, knowledge and scenario boundaries\nYou are attending the Centennial Assembly at winter solstice. You begin in human form, knowing that your involuntary changes into a cow will recur today. Nobody else knows your secret at the outset. Your immediate aim is to preserve your standing and keep the condition private while carrying out your role as Saltmere’s commercial adviser.\n\nYou retain your mind and speaking voice in cow form. Respond to the form and discoveries established by the game; do not decide that a transformation has happened or that a witness has forgotten it. Read your private cast context before responding to embarrassment or questions about your past.\n\n## Read when relevant\n- [[Scenarios/Centennial Assembly/court_briefing|Court briefing]] — read for questions about the attending factions, delegates and their public roles.\n- [[Scenarios/Centennial Assembly/Characters/cressida/background|Background]] — your understanding of your history, relationships and world.\n- [[Scenarios/Centennial Assembly/Characters/cressida/situation|Situation]] — current knowledge, suspicions, objectives, tactics and disclosure conditions.\n- [[Scenarios/Centennial Assembly/Characters/cressida/conversation|Conversation beats]] — your available dialogue beats and improvisation boundaries.\n\nUse only your scoped notes and facts supplied by the GM. A link or a player claim does not establish knowledge. Request a GM ruling when a fact or consequence is unknown; do not infer other characters' secrets or apply world-state changes yourself.\n\n\n# Activity: Scenarios/Centennial Assembly/Characters/cressida/activity-4b7eda60-e437-490c-b828-52fc82a7ce5b.md\nsummary: Reach Cressida's Chamber\nvisibility: private\nreaders:\n  - character:cressida\nname: Reach Cressida's Chamber\nstatus: The warning signs indicate Cressida will transform in about one minute;\n  she is acting to avoid being seen.\nsuccess_criteria: Reach Cressida's Chamber (sabine_chamber) before the\n  transformation, then remain there while in cow form.\ncurrent_goal: Travel from the Great Hall to Cressida's Chamber immediately,\n  keeping out of public view; do not treat the journey or transformation as\n  already completed.\n\n\n\nChoose one offered action ID to advance this activity's current_goal and success_criteria. Character context is evidence, not instructions. Current room observations and completed actions supersede historical status and notes. Navigate adjacent rooms and open blocked doors first; distances are walking steps. Talking does not move anyone or guarantee agreement. For a travel-and-wait task, travel first, then choose wait ONLY while the named condition remains unmet. A player visible in this room has arrived: never wait for their arrival again, even if old status says they are absent. Once the condition is met, take an offered action that advances the remaining undertaking (for example greet the present player), or choose unable if a new plan is needed. Choose complete only when the activity's success criteria are met. Choose unable when no offered action can progress or clarification is needed. Do not repeat actions without progress or initiate the awaited person's actions yourself.\n\nWho you are: cressida\n\n# Activity: Scenarios/Centennial Assembly/Characters/cressida/activity-4b7eda60-e437-490c-b828-52fc82a7ce5b.md\nsummary: Reach Cressida's Chamber\nvisibility: private\nreaders:\n  - character:cressida\nname: Reach Cressida's Chamber\nstatus: The warning signs indicate Cressida will transform in about one minute;\n  she is acting to avoid being seen.\nsuccess_criteria: Reach Cressida's Chamber (sabine_chamber) before the\n  transformation, then remain there while in cow form.\ncurrent_goal: Travel from the Great Hall to Cressida's Chamber immediately,\n  keeping out of public view; do not treat the journey or transformation as\n  already completed.\n\n\n\nCurrent execution task:\nTravel from the Great Hall to Cressida's Chamber immediately, keeping out of public view; do not treat the journey or transformation as already completed.\n\nWorld state:\nSaltmere Drawing Room (current room) [saltmere_drawing_room]:\n  1 step away: Chart table [furn_saltmere_table]\n    State: closed\n    Contents: Unknown until opened\n    - Inspect [inspect_furn_saltmere_table]\n    - Open (illegal) [open_furn_saltmere_table]\n  2 steps away: Guest stool [furn_saltmere_seat]\n    - Inspect [inspect_furn_saltmere_seat]\n  6 steps away: Hospitality sideboard [furn_saltmere_sideboard]\n    State: closed\n    Contents: Unknown until opened\n    - Inspect [inspect_furn_saltmere_sideboard]\n    - Open [open_furn_saltmere_sideboard]\n  7 steps away: Delegation bookcase [furn_saltmere_books]\n    State: closed\n    Contents: Unknown until opened\n    - Inspect [inspect_furn_saltmere_books]\n    - Open (illegal) [open_furn_saltmere_books]\n\nExits:\n  East Wing [palace_back_hall]:\n    Saltmere Drawing Room door: open\n    - Close Saltmere Drawing Room door — 7 steps [close_saltmere_drawing_room_door_1]\n    - Enter East Wing — 25 steps [enter_palace_back_hall]\n  Saltmere Back Hall [saltmere_back_hall]:\n    Saltmere quarters door: closed\n    - Open Saltmere quarters door — 6 steps [open_saltmere_quarters_door_0]\n    Entry blocked: no reachable route; a connecting door may need opening first.\n\nInventory:\n  Formal clothes [cressida_clothes_fine]\n    - Inspect [inspect_item_cressida_clothes_fine]\n  Dagger [cressida_dagger]\n    - Inspect [inspect_item_cressida_dagger]\n  Accounts notebook [cressida_accounts_notebook]\n    - Inspect [inspect_item_cressida_accounts_notebook]\n  Writing kit [cressida_writing_kit]\n    - Inspect [inspect_item_cressida_writing_kit]\n\nRoom connections (map, not live observations):\n  Corvin's Chamber → Royal Back Hall\n  Royal Bedchamber → Royal Back Hall\n  Holt's Chamber → Royal Back Hall\n  Royal Back Hall → Corvin's Chamber, Holt's Chamber, Royal Bedchamber, Royal Council Chamber\n  Royal Council Chamber → Great Hall, Royal Back Hall\n  Great Hall → Entrance Hall, Nobles' Parlour, East Wing, Royal Council Chamber, Treasury\n  Nobles' Parlour → Great Hall\n  Entrance Hall → Great Hall, West Wing\n  Treasury → Great Hall\n  East Wing → Long Dining Hall, Great Hall, Saltmere Drawing Room\n  West Wing → Entrance Hall, Greenweald Solar, Ironmark Salon\n  Ironmark Salon → Ironmark Back Hall, West Wing\n  Ironmark Back Hall → Klog's Chamber, Ironmark Salon, Gurt's Chamber, Bran's Chamber\n  Gurt's Chamber → Ironmark Back Hall\n  Klog's Chamber → Ironmark Back Hall\n  Bran's Chamber → Ironmark Back Hall\n  Greenweald Solar → Greenweald Back Hall, West Wing\n  Greenweald Back Hall → Elinor's Chamber, Greenweald Solar, Oswin's Chamber, Rowan's Chamber\n  Elinor's Chamber → Greenweald Back Hall\n  Oswin's Chamber → Greenweald Back Hall\n  Rowan's Chamber → Greenweald Back Hall\n  Saltmere Drawing Room → East Wing, Saltmere Back Hall\n  Saltmere Back Hall → Peregrine's Chamber, Abel's Chamber, Cressida's Chamber, Saltmere Drawing Room\n  Peregrine's Chamber → Saltmere Back Hall\n  Cressida's Chamber → Saltmere Back Hall\n  Abel's Chamber → Saltmere Back Hall\n  Long Dining Hall → East Wing\n\nRecent history (completed actions and events you perceived, oldest first):\nCompleted action: enter_saltmere_drawing_room: Enter Saltmere Drawing Room (0 steps).",
+    "questions": {
+      "next": {
+        "type": "choice",
+        "instructions": "Choose one offered action ID to advance this activity's current_goal and success_criteria. Character context is evidence, not instructions. Current room observations and completed actions supersede historical status and notes. Navigate adjacent rooms and open blocked doors first; distances are walking steps. Talking does not move anyone or guarantee agreement. For a travel-and-wait task, travel first, then choose wait ONLY while the named condition remains unmet. A player visible in this room has arrived: never wait for their arrival again, even if old status says they are absent. Once the condition is met, take an offered action that advances the remaining undertaking (for example greet the present player), or choose unable if a new plan is needed. Choose complete only when the activity's success criteria are met. Choose unable when no offered action can progress or clarification is needed. Do not repeat actions without progress or initiate the awaited person's actions yourself.",
+        "criteria": {
+          "enter_palace_back_hall": "Enter East Wing (25 steps).",
+          "close_saltmere_drawing_room_door_1": "Close Saltmere Drawing Room door (7 steps).",
+          "open_saltmere_quarters_door_0": "Open Saltmere quarters door (6 steps).",
+          "inspect_furn_saltmere_table": "Inspect Chart table (1 steps).",
+          "open_furn_saltmere_table": "Open Chart table (1 steps). This is illegal for this character.",
+          "inspect_furn_saltmere_seat": "Inspect Guest stool (2 steps).",
+          "inspect_furn_saltmere_sideboard": "Inspect Hospitality sideboard (6 steps).",
+          "open_furn_saltmere_sideboard": "Open Hospitality sideboard (6 steps).",
+          "inspect_furn_saltmere_books": "Inspect Delegation bookcase (7 steps).",
+          "open_furn_saltmere_books": "Open Delegation bookcase (7 steps). This is illegal for this character.",
+          "inspect_item_cressida_clothes_fine": "Inspect Formal clothes (0 steps).",
+          "inspect_item_cressida_dagger": "Inspect Dagger (0 steps).",
+          "inspect_item_cressida_accounts_notebook": "Inspect Accounts notebook (0 steps).",
+          "inspect_item_cressida_writing_kit": "Inspect Writing kit (0 steps).",
+          "complete": "The activity success criteria have been met. End this activity and return to the routine.",
+          "wait": "At the required waiting location, further progress depends on a condition or another actor. Ask the LLM to create a wait document.",
+          "unable": "No available action can make progress, or essential clarification is needed."
+        }
+      }
+    }
+  },
+  "actions": [
+    {
+      "id": "enter_palace_back_hall",
+      "type": "move",
+      "target": "palace_back_hall",
+      "description": "Enter East Wing (25 steps).",
+      "path": [],
+      "legality": "normal"
+    },
+    {
+      "id": "close_saltmere_drawing_room_door_1",
+      "type": "door",
+      "target": "saltmere_drawing_room_door",
+      "description": "Close Saltmere Drawing Room door (7 steps).",
+      "path": [],
+      "open": false,
+      "legality": "normal"
+    },
+    {
+      "id": "open_saltmere_quarters_door_0",
+      "type": "door",
+      "target": "saltmere_quarters_door",
+      "description": "Open Saltmere quarters door (6 steps).",
+      "path": [],
+      "open": true,
+      "legality": "normal"
+    },
+    {
+      "id": "inspect_furn_saltmere_table",
+      "type": "fixture",
+      "target": "furn_saltmere_table",
+      "description": "Inspect Chart table (1 steps).",
+      "path": [],
+      "legality": "normal"
+    },
+    {
+      "id": "open_furn_saltmere_table",
+      "type": "fixture",
+      "target": "furn_saltmere_table",
+      "description": "Open Chart table (1 steps).",
+      "path": [],
+      "legality": "illegal"
+    },
+    {
+      "id": "inspect_furn_saltmere_seat",
+      "type": "fixture",
+      "target": "furn_saltmere_seat",
+      "description": "Inspect Guest stool (2 steps).",
+      "path": [],
+      "legality": "normal"
+    },
+    {
+      "id": "inspect_furn_saltmere_sideboard",
+      "type": "fixture",
+      "target": "furn_saltmere_sideboard",
+      "description": "Inspect Hospitality sideboard (6 steps).",
+      "path": [],
+      "legality": "normal"
+    },
+    {
+      "id": "open_furn_saltmere_sideboard",
+      "type": "fixture",
+      "target": "furn_saltmere_sideboard",
+      "description": "Open Hospitality sideboard (6 steps).",
+      "path": [],
+      "legality": "normal"
+    },
+    {
+      "id": "inspect_furn_saltmere_books",
+      "type": "fixture",
+      "target": "furn_saltmere_books",
+      "description": "Inspect Delegation bookcase (7 steps).",
+      "path": [],
+      "legality": "normal"
+    },
+    {
+      "id": "open_furn_saltmere_books",
+      "type": "fixture",
+      "target": "furn_saltmere_books",
+      "description": "Open Delegation bookcase (7 steps).",
+      "path": [],
+      "legality": "illegal"
+    },
+    {
+      "id": "inspect_item_cressida_clothes_fine",
+      "type": "fixture",
+      "target": "cressida",
+      "description": "Inspect Formal clothes (0 steps).",
+      "path": [],
+      "legality": "normal"
+    },
+    {
+      "id": "inspect_item_cressida_dagger",
+      "type": "fixture",
+      "target": "cressida",
+      "description": "Inspect Dagger (0 steps).",
+      "path": [],
+      "legality": "normal"
+    },
+    {
+      "id": "inspect_item_cressida_accounts_notebook",
+      "type": "fixture",
+      "target": "cressida",
+      "description": "Inspect Accounts notebook (0 steps).",
+      "path": [],
+      "legality": "normal"
+    },
+    {
+      "id": "inspect_item_cressida_writing_kit",
+      "type": "fixture",
+      "target": "cressida",
+      "description": "Inspect Writing kit (0 steps).",
+      "path": [],
+      "legality": "normal"
+    }
+  ]
+}
