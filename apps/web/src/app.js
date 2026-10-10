@@ -14,7 +14,7 @@ import { buildIssueReport, issuePageUrl, issueReportFilename } from "./issue-rep
 import { sandboxIntroduction, handoffPrefix, courtAffiliations, characterSprites, patronName } from "./introduction.js";
 import { strangerPortrait } from "./stranger-portrait.js";
 import { courtCharactersWithinEarshot } from "./earshot.js";
-import { mountPlayerFeedDrag } from "./player-feed-drag.js";
+import { mountPlayerFeedDrag, mountQuestFeedDrag } from "./player-feed-drag.js";
 import { historyTurns } from "./conversation-history.js";
 import { formatElapsedTime } from "./relative-time.js";
 import devOpenRouterApiKey from "virtual:kingmaker-dev-openrouter-key";
@@ -189,6 +189,7 @@ gameWorker.addEventListener("message", event => {
     updateCourtMap(document.querySelector("[data-court-map]"), state);
     updateNpcPanel();
     updatePlayerFeed();
+    updateQuestFeed();
     return;
   }
   const pending = pendingRequests.get(event.data.id);
@@ -326,6 +327,18 @@ function showConversationHistory(entry) {
   dialog.showModal();
 }
 
+function updateQuestFeed() {
+  const feed = document.querySelector("[data-quest-feed]");
+  if (!feed) return;
+  const quests = state.activeQuests || [];
+  const signature = JSON.stringify(quests);
+  if (feed.dataset.quests === signature) return;
+  feed.dataset.quests = signature;
+  feed.innerHTML = `<h2><button type="button" data-feed-drag aria-label="Move active quests. Drag or use arrow keys; Home resets position." title="Drag to move · Drag bottom-right corner to resize · Arrow keys to move · Home to reset">Active quests (${quests.length}) <span aria-hidden="true">⠿</span></button></h2>${quests.length
+    ? `<ol>${quests.map(quest => `<li><strong>${escapeHtml(quest.title)}</strong><div class="quest-stage">${escapeHtml(quest.stage)}</div><p>${escapeHtml(quest.description)}</p></li>`).join("")}</ol>`
+    : '<p class="feed-empty">No active quests.</p>'}`;
+}
+
 function updateNpcPanel() {
   const panel = document.querySelector("[data-npc-panel]"); if (!panel) return;
   const activities = { ...state.npcActivities };
@@ -407,7 +420,7 @@ function shell(content, inCourt = false) {
     return `<div class="court-shell">${content}<nav class="court-toolbar" aria-label="Game controls">
       <button popovertarget="court-menu">☰ <span>Menu</span></button>
       ${sheetButton}<button class="debug-button" data-debug-open aria-label="Open debug inspector">⌘ <span>Debug</span></button>
-    </nav><aside class="player-event-feed" data-player-feed aria-label="Events" tabindex="0"></aside></div>
+    </nav><aside class="player-event-feed" data-player-feed aria-label="Events" tabindex="0"></aside><aside class="player-event-feed quest-feed" data-quest-feed aria-label="Active quests" tabindex="0"></aside></div>
     ${popover("court-menu", "Game menu", `<div class="eyebrow">Palace of Caerwyn</div><h2>Kingmaker</h2><p>Welcome to court, ${escapeHtml(state.player?.name || "Emissary")}.</p><p>Left-click to walk. Right-click characters and objects for actions.</p><div class="court-menu-controls">${gameControls}${keyControl}</div><p class="map-credit">Tiny Dungeon tiles by Kenney · CC0</p>`)}
     ${sheet}${debugInspector()}`;
   }
@@ -680,6 +693,7 @@ function renderDay(bindPage = true) {
   const scroll = viewport && { left: viewport.scrollLeft, top: viewport.scrollTop };
   const previousFeed = retainedMap && app.querySelector("[data-player-feed]");
   const feedScroll = previousFeed?.scrollTop;
+  const previousQuests = retainedMap && app.querySelector("[data-quest-feed]");
   const openPopover = app.querySelector(".court-popover:popover-open")?.id;
   app.innerHTML = shell(`<section class="court-panel" aria-label="Palace of Caerwyn"><p class="cressida-test-timer" data-cressida-timer></p><div data-court-map></div></section>`, true);
   if (retainedMap) {
@@ -691,6 +705,7 @@ function renderDay(bindPage = true) {
     app.querySelector("[data-player-feed]").replaceWith(previousFeed);
     previousFeed.scrollTop = feedScroll;
   }
+  if (previousQuests) app.querySelector("[data-quest-feed]").replaceWith(previousQuests);
   if (historyDialog && retainedMap && !activeCharacter && !sheetOpen && !debugOpen) {
     const entry = state.playerMessages.find(message => message.id === historyDialog.dataset.conversationHistoryModal);
     if (entry) {
@@ -703,6 +718,8 @@ function renderDay(bindPage = true) {
   if (!activeCharacter) lastCourtNotice = notice;
   updatePlayerFeed();
   mountPlayerFeedDrag(document.querySelector("[data-player-feed]"));
+  updateQuestFeed();
+  mountQuestFeedDrag(document.querySelector("[data-quest-feed]"));
   if (bindPage) bind();
   updateNpcPanel();
   if (retainedMap) return;
