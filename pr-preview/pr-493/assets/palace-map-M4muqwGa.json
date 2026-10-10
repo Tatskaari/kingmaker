@@ -319,11 +319,11 @@
     {
       "characterId": "holt",
       "homeRoomId": "garran_chamber",
-      "roomId": "great_hall",
+      "roomId": "entrance_hall",
       "awake": true,
       "position": {
-        "x": 66,
-        "y": 19
+        "x": 65,
+        "y": 35
       }
     },
     {
@@ -389,11 +389,11 @@
     {
       "characterId": "rowan",
       "homeRoomId": "rowan_chamber",
-      "roomId": "great_hall",
+      "roomId": "entrance_hall",
       "awake": true,
       "position": {
-        "x": 62,
-        "y": 29
+        "x": 60,
+        "y": 37
       }
     },
     {
@@ -1682,6 +1682,95 @@
       },
       "sprite": 72,
       "ownerCharacterId": "aldren"
+    },
+    {
+      "id": "furn_cart_left",
+      "name": "Wedged self-guiding cart \u2014 chassis",
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 61,
+        "y": 37
+      },
+      "interactionSpot": {
+        "x": 60,
+        "y": 37
+      },
+      "sprite": 72,
+      "ownerCharacterId": "rowan"
+    },
+    {
+      "id": "furn_cart_right",
+      "name": "Wedged self-guiding cart \u2014 gift tree",
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 62,
+        "y": 37
+      },
+      "interactionSpot": {
+        "x": 63,
+        "y": 37
+      },
+      "sprite": 72,
+      "ownerCharacterId": "rowan"
+    },
+    {
+      "id": "furn_delivery_cushions",
+      "name": "Aldren's delayed cushion delivery",
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 62,
+        "y": 40
+      },
+      "interactionSpot": {
+        "x": 62,
+        "y": 41
+      },
+      "sprite": 75,
+      "container": true,
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_assembly_cushions",
+            "name": "Assembly seat cushions",
+            "details": "The cushions ordered for the assembly guests, still waiting outside the blocked entrance.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
+    },
+    {
+      "id": "furn_delivery_supplies",
+      "name": "Queued household supplies",
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 61,
+        "y": 42
+      },
+      "interactionSpot": {
+        "x": 61,
+        "y": 43
+      },
+      "sprite": 75,
+      "container": true,
+      "inventory": {
+        "items": [
+          {
+            "id": "furn_delivery_linen",
+            "name": "Folded table linen",
+            "details": "Clean linen awaiting delivery to the hall.",
+            "concealed": true,
+            "quantity": 1
+          },
+          {
+            "id": "furn_delivery_crockery",
+            "name": "Packed crockery",
+            "details": "Household serving dishes packed for carrying into the palace.",
+            "concealed": true,
+            "quantity": 1
+          }
+        ]
+      }
     },
     {
       "id": "furn_mara_bed_head",
