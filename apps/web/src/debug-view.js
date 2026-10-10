@@ -218,7 +218,7 @@ export function recentTranscriptsView(entries = [], runs = {}, route = {}) {
 }
 
 export function transcriptDetail(call, name) {
-  return `<section class="transcript-detail" data-transcript-key="call:${escape(call.id)}"><h3>${escape(transcriptType(call.kind))}</h3>${facts([["Character", name(call.characterId)], ["Participants", (call.participantIds || [call.characterId]).map(name).join(", ")], ["Status", transcriptStatus(call.status)], ["Started", transcriptTime(call.startedAt)], ["Duration", call.durationMs === undefined ? "In progress" : `${(call.durationMs / 1000).toFixed(2)}s`]])}<div class="transcript-summary">${transcriptSummary(call)}</div><details><summary>Trace context</summary>${facts([["Conversation ID", call.conversationId], ["Turn ID", call.turnId], ["Span ID", call.spanId], ["Scenario", call.scenario], ["World generation", call.worldGeneration], ["Location", call.location ? `${call.location.x}, ${call.location.y}` : "Not recorded"]])}</details>${call.request?.messages ? `<details><summary>Request messages (${call.request.messages.length})</summary>${messages(call.request.messages)}</details>` : ""}<details><summary>Full request and response</summary><h4>Request</h4><pre>${escape(JSON.stringify(call.request, null, 2))}</pre><h4>Response</h4><pre>${escape(JSON.stringify(call.response ?? null, null, 2))}</pre></details></section>`;
+  return `<section class="transcript-detail" data-transcript-key="call:${escape(call.id)}"><h3>${escape(transcriptType(call.kind))}</h3>${facts([["Character", name(call.characterId)], ["Participants", (call.participantIds || [call.characterId]).map(name).join(", ")], ["Status", transcriptStatus(call.status)], ["Started", transcriptTime(call.startedAt)], ["Duration", call.durationMs === undefined ? "In progress" : `${(call.durationMs / 1000).toFixed(2)}s`]])}<div class="transcript-summary">${transcriptSummary(call)}</div>${contextLauncher(call, name)}<details><summary>Trace context</summary>${facts([["Conversation ID", call.conversationId], ["Turn ID", call.turnId], ["Span ID", call.spanId], ["Scenario", call.scenario], ["World generation", call.worldGeneration], ["Location", call.location ? `${call.location.x}, ${call.location.y}` : "Not recorded"]])}</details>${call.request?.messages ? `<details><summary>Request messages (${call.request.messages.length})</summary>${messages(call.request.messages)}</details>` : ""}<details><summary>Full request and response</summary><h4>Request</h4><pre>${escape(JSON.stringify(call.request, null, 2))}</pre><h4>Response</h4><pre>${escape(JSON.stringify(call.response ?? null, null, 2))}</pre></details></section>`;
 }
 
 /** Chronological request browser, scoped before resolving a selected call. */
@@ -244,11 +244,21 @@ export function conversationTranscriptView(data, names = {}) {
   if (!call?.request?.messages) return empty(data?.conversation?.length
     ? "Full context is unavailable for this loaded conversation. Send another message to capture the next character request; saved dialogue alone does not include its instructions or disclosed lore."
     : "No character request captured for the current conversation. Start an audience and send a message.");
+  return contextLauncher(call, id => names[id] || id);
+}
+
+function contextLauncher(call, name) {
+  return `<div data-context-launcher><button type="button" data-context-open>Open full context</button><template data-context-template><header class="conversation-head"><div><div class="eyebrow">Captured model context</div><h2>${escape(transcriptType(call.kind))} · ${escape(name(call.characterId))}</h2></div><button type="button" data-context-close aria-label="Close full context" autofocus>Close</button></header><p class="debug-note">Snapshot of this call at opening. Messages are shown in request order, followed by the response. API keys are excluded.</p>${modelContextView(call, name)}</template></div>`;
+}
+
+/** Shared by dialogue, GM reviews and every other captured model call. */
+export function modelContextView(call, name = id => id) {
+  if (!Array.isArray(call.request?.messages)) return `<section class="debug-conversation"><p class="debug-meta">${escape(transcriptStatus(call.status))} · ${escape(transcriptTime(call.startedAt))}</p><p>This call uses structured input rather than chat messages.</p>${card("Request", `<pre>${escape(JSON.stringify(call.request, null, 2))}</pre>`)}${card("Response", `<pre>${escape(JSON.stringify(call.response ?? null, null, 2))}</pre>`)}${call.error ? `<p class="debug-error">${escape(call.error)}</p>` : ""}</section>`;
   const turns = [...call.request.messages, ...(call.response ? [call.response] : [])];
-  return `<section class="debug-conversation" aria-label="Current conversation context"><p class="debug-meta">${call.request.messages.length} input messages · ${escape(transcriptStatus(call.status))} · ${escape(transcriptTime(call.startedAt))} · Request order${call.response ? " · Response last" : ""}</p>${call.error ? `<p class="debug-error">${escape(call.error)}</p>` : ""}${turns.map((turn, index) => {
+  return `<section class="debug-conversation" aria-label="Model context"><p class="debug-meta">${call.request.messages.length} input messages · ${escape(transcriptStatus(call.status))} · ${escape(transcriptTime(call.startedAt))} · Request order${call.response ? " · Response last" : ""}</p>${call.error ? `<p class="debug-error">${escape(call.error)}</p>` : ""}${turns.map((turn, index) => {
     const system = turn.role === "system" || turn.role === "developer";
-    const speaker = system ? "Instructions / context" : turn.role === "assistant" ? names[data.characterId] || data.characterId
-      : turn.role === "user" ? names.player || "You / supplied context" : turn.role;
+    const speaker = system ? "Instructions / context" : turn.role === "assistant" ? name(call.characterId)
+      : turn.role === "user" ? "User / supplied context" : turn.role;
     const { role, content, ...extra } = turn;
     const text = typeof content === "string" ? content : JSON.stringify(content ?? null, null, 2);
     return `<article class="history-turn ${system ? "context" : role === "user" ? "player" : "character"}" data-transcript-key="context-${call.id}-${index}"><span class="speaker">${escape(speaker)}</span><span class="debug-meta">${index + 1} · ${escape(role)}${index === call.request.messages.length ? " · Response" : ""}</span><p>${escape(text)}</p>${Object.keys(extra).length ? `<pre>${escape(JSON.stringify(extra, null, 2))}</pre>` : ""}</article>`;

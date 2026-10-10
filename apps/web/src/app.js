@@ -314,6 +314,27 @@ function updatePlayerFeed() {
 }
 globalThis.setInterval?.(updatePlayerFeed, 1000);
 
+function showModelContext(button) {
+  const template = button.closest("[data-context-launcher]")?.querySelector("[data-context-template]");
+  if (!template) return;
+  const dialog = document.createElement("dialog");
+  dialog.className = "conversation-modal model-context-modal";
+  dialog.setAttribute("aria-label", "Full model context");
+  const panel = document.createElement("section");
+  panel.className = "panel";
+  panel.append(template.content.cloneNode(true));
+  dialog.append(panel);
+  dialog.querySelector("[data-context-close]").addEventListener("click", () => dialog.close());
+  dialog.addEventListener("close", () => {
+    dialog.remove();
+    if (button.isConnected) button.focus({ preventScroll: true });
+    else document.querySelector("#debug-panel")?.focus({ preventScroll: true });
+  });
+  // Keep the call snapshot open even if live debug updates rerender the app.
+  document.body.append(dialog);
+  dialog.showModal();
+}
+
 function showConversationHistory(entry) {
   const dialog = document.createElement("dialog");
   dialog.className = "conversation-modal";
@@ -918,6 +939,8 @@ function bind() {
     document.querySelector("#debug-panel")?.focus();
   }));
   document.querySelector("#debug-panel")?.addEventListener("click", event => {
+    const contextButton = event.target.closest("[data-context-open]");
+    if (contextButton) { showModelContext(contextButton); return; }
     const link = event.target.closest("[data-doc-path]");
     if (link) {
       event.preventDefault();
