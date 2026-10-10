@@ -54,6 +54,7 @@ const followers = new WaitScheduler({
   error: (id, error) => alertUser("error", `${id}: following: ${String(error)}`),
 });
 const transformations = cressidaScheduler({
+  changed: timer => worker.postMessage({ type: "cressida_timer", timer }),
   activeKey: () => runtime?.world().player && !waitsPaused
     && runtime.world().simulation!.map!.actors.some(actor => actor.characterId === "cressida" && actor.position)
     ? String(generation) : undefined,

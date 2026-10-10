@@ -102,6 +102,7 @@ let gameViewGeneration = 0;
 let strangerPortraitState = { generation: -1, key: "", expression: "amused", history: ["amused"] };
 const playerMessageReceivedAt = new Map();
 
+let cressidaTimer = null;
 const gameWorker = new Worker(new URL("./game.worker.ts", import.meta.url), { type: "module" });
 const pendingRequests = new Map();
 let workerFailure;
@@ -155,6 +156,9 @@ gameWorker.addEventListener("message", event => {
       render();
     }
     return;
+  }
+  if (event.data.type === "cressida_timer") {
+    cressidaTimer = event.data.timer; updateCressidaTimer(); return;
   }
   if (event.data.type === "alert") {
     alerts.add(event.data.level === "warning" ? "warning" : "error", String(event.data.message));
@@ -266,7 +270,16 @@ function recordCourtNotice(message) {
   courtNotices.push({ id: `ui-${crypto.randomUUID()}`, message, createdAt: new Date().toISOString() });
   updatePlayerFeed();
 }
+function updateCressidaTimer() {
+  const element = document.querySelector("[data-cressida-timer]");
+  if (!element) return;
+  if (!cressidaTimer) { element.textContent = "Cressida test timer: paused"; return; }
+  const seconds = Math.max(0, Math.ceil((cressidaTimer.dueAt - Date.now()) / 1000));
+  const label = { warning: "warning", cow: "cow transformation", human: "human transformation" }[cressidaTimer.next];
+  element.textContent = `Cressida test timer: ${label} in ${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+}
 function updatePlayerFeed() {
+  updateCressidaTimer();
   const feed = document.querySelector("[data-player-feed]");
   if (!feed) return;
   const messages = [...(state.playerMessages || []), ...courtNotices]
@@ -659,7 +672,7 @@ function renderDay(bindPage = true) {
   const previousFeed = retainedMap && app.querySelector("[data-player-feed]");
   const feedScroll = previousFeed?.scrollTop;
   const openPopover = app.querySelector(".court-popover:popover-open")?.id;
-  app.innerHTML = shell(`<section class="court-panel" aria-label="Palace of Caerwyn"><div data-court-map></div></section>`, true);
+  app.innerHTML = shell(`<section class="court-panel" aria-label="Palace of Caerwyn"><p class="cressida-test-timer" data-cressida-timer></p><div data-court-map></div></section>`, true);
   if (retainedMap) {
     app.querySelector("[data-court-map]").replaceWith(retainedMap);
     viewport?.scrollTo(scroll);

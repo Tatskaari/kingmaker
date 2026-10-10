@@ -1,6 +1,7 @@
 import { CRESSIDA_TRANSFORMATION_MS, CRESSIDA_WARNING_MS } from "../../../packages/core/src/cressida-transformation.js";
 import { WaitScheduler } from "./wait-scheduler.js";
 
+export interface CressidaTimer { next: "warning" | "cow" | "human"; dueAt: number }
 export type CressidaTransition = "warning" | "human";
 /** Reuse the NPC clock, but never wait for model review before changing the body. */
 export function cressidaScheduler(options: {
@@ -9,6 +10,7 @@ export function cressidaScheduler(options: {
   transform(signal: AbortSignal): Promise<void>;
   review(stage: CressidaTransition, signal: AbortSignal): Promise<void>;
   error(error: unknown): void;
+  changed?(timer: CressidaTimer | null): void;
 }) {
   let warned = false, reaction: AbortController | undefined;
   const review = (stage: CressidaTransition, signal: AbortSignal) => {
@@ -19,8 +21,12 @@ export function cressidaScheduler(options: {
   const scheduler = new WaitScheduler({
     candidates: () => { const key = options.activeKey(); return key === undefined ? new Map() : new Map([["cressida", key]]); },
     busy: () => false,
-    delayMs: () => options.isCow() ? CRESSIDA_TRANSFORMATION_MS
-      : warned ? CRESSIDA_WARNING_MS : CRESSIDA_TRANSFORMATION_MS - CRESSIDA_WARNING_MS,
+    delayMs: () => {
+      const delay = options.isCow() ? CRESSIDA_TRANSFORMATION_MS
+        : warned ? CRESSIDA_WARNING_MS : CRESSIDA_TRANSFORMATION_MS - CRESSIDA_WARNING_MS;
+      options.changed?.({ next: options.isCow() ? "human" : warned ? "cow" : "warning", dueAt: Date.now() + delay });
+      return delay;
+    },
     run: async (_id, _elapsed, signal) => {
       if (!options.isCow() && !warned) { warned = true; review("warning", signal); return; }
       reaction?.abort();
@@ -30,5 +36,5 @@ export function cressidaScheduler(options: {
     },
     error: (_id, error) => options.error(error),
   });
-  return { sync: () => scheduler.sync(), stop: () => { scheduler.stop(); reaction?.abort(); warned = false; } };
+  return { sync: () => scheduler.sync(), stop: () => { scheduler.stop(); reaction?.abort(); warned = false; options.changed?.(null); } };
 }

@@ -7,23 +7,26 @@ import { loadPlayableWorld } from "./fixtures.js";
 
 const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
 test("warn at one minute, change at two, return at four even if review stalls", async t => {
-  t.mock.timers.enable({ apis: ["setTimeout"] });
+  t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
+  let timer: import("../apps/web/src/cressida-scheduler.js").CressidaTimer | null = null;
   let cow = false;
   const stages: string[] = [], signals: AbortSignal[] = [];
-  const scheduler = cressidaScheduler({ activeKey: () => "game", isCow: () => cow,
+  const scheduler = cressidaScheduler({ changed: value => { timer = value; }, activeKey: () => "game", isCow: () => cow,
     transform: async () => { cow = !cow; stages.push(cow ? "cow" : "changed-human"); },
     review: async (stage, signal) => { stages.push(stage); signals.push(signal);
       await new Promise<void>(resolve => signal.addEventListener("abort", () => resolve())); },
     error: error => { throw error; },
   });
-  scheduler.sync(); t.mock.timers.tick(59_999); await flush(); assert.deepEqual(stages, []);
+  scheduler.sync(); assert.deepEqual(timer, { next: "warning", dueAt: 60_000 });
+  t.mock.timers.tick(59_999); await flush(); assert.deepEqual(stages, []);
   t.mock.timers.tick(1); await flush(); assert.deepEqual(stages, ["warning"]);
   t.mock.timers.tick(60_000); await flush(); assert.deepEqual(stages, ["warning", "cow"]);
   assert.equal(signals[0]!.aborted, true);
+  assert.deepEqual(timer, { next: "human", dueAt: 240_000 });
   t.mock.timers.tick(119_999); await flush(); assert.equal(cow, true);
   t.mock.timers.tick(1); await flush(); assert.deepEqual(stages, ["warning", "cow", "changed-human", "human"]);
   t.mock.timers.tick(60_000); await flush(); assert.equal(stages.at(-1), "warning");
-  scheduler.stop(); const count = stages.length;
+  scheduler.stop(); assert.equal(timer, null); const count = stages.length;
   t.mock.timers.tick(240_000); await flush(); assert.equal(stages.length, count);
   assert.equal(signals.at(-1)!.aborted, true);
 });
