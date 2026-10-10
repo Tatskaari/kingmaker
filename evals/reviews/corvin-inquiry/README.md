@@ -33,3 +33,47 @@ This baseline layer targets #529 and does not include #547's tool-argument chang
 It reproduces the primary checkout's HEAD (`a5d4c68`) before the user's local edits.
 The earlier smoke run reran PD and is not comparison evidence. Validation and fresh
 live results are reported in the PR and follow-up comparison layer.
+
+## Local prompt comparison
+
+Drop the candidate at `test_data/lore/gm_prompts/conversation/review/review-activity.md`.
+The existing fixture's `docs_override` resolves that folder. The `working-tree`
+variant substitutes only this prompt in the existing agent setup hook; `game` still
+uses the source prompt from HEAD a5d4c68. No changes to production prompts or tools.
+The checked-in candidate is the user's exact local prompt snapshot (SHA-256
+`5ba847b7cb5f385509f03cd1d58c049406cc0f0584bc19f97b577d70e4df0fa4`).
+
+Run the same CLI with `--repeats 3 --concurrency 1` to compare both. To run the
+baseline alone, use `--variants game`. Both variants use identical transcript,
+fixed disclosure, lore starting state, model settings, tools and scoring. Inspect
+recorded `ai.responses` calls to verify the changed activity-purpose message.
+Only the review/handoff is exercised; the planner does not perform the interviews.
+
+## Comparison results — 2026-10-10
+
+Three repeats per configuration at revision `4affd29`, with identical initial states,
+activity tools and model settings (`openai/gpt-6-luna`, high reasoning). No fresh PD
+calls. All six attention classifications chose deferred commitment; no execution or
+judging errors. The exact candidate still matched the user's file after the run.
+
+| Observed result | Source prompt | Local override |
+| --- | --- | --- |
+| Active inquiry assigned | 0/3 | 3/3 |
+| All three interviewees retained in activity fields | 3/3 | 3/3 |
+| Separate interviews retained | 3/3 | 3/3 |
+| Shared judge total | 100% | 100% |
+
+The source prompt used `activate:false` for “as soon as we finish here”, leaving
+Corvin without an active task. The override activated the inquiry and used `status`
+for motivation, uncertain allegations, individual interviews and current progress.
+Each version named Elinor as the first contact; the override's current_goal still
+included later interview steps, so it did not always restrict that field to one step.
+
+The shared judge missed the inactive-intent difference: its total is not evidence
+that both versions met the active-task expectation. The activation counts above are
+read directly from committed runtime pointers. This is a small synthetic case, not
+proof of broader improvement or successful planner execution. No prompt promotion.
+
+See `comparison-results.json` for all six activity outputs. Full local recordings:
+`eval-output/2026-10-10T14-00-38.850Z-097ca83e/`. Validation passed all 571 tests,
+TypeScript, contract lint, compilation and web build.
