@@ -119,7 +119,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
   const viewport = document.createElement("div"); viewport.className = "court-map-scroll";
   const stage = document.createElement("div"); stage.className = "court-map-stage";
   stage.style.aspectRatio = `${palaceMap.width} / ${palaceMap.height}`;
-  stage.style.width = `${palaceMap.width * 24}px`;
+  stage.style.width = `${palaceMap.width * 48}px`;
   const canvas = document.createElement("canvas"); canvas.setAttribute("aria-label", "Palace of Caerwyn");
   stage.append(canvas); viewport.append(stage); root.append(viewport);
   reportStatus("Left-click to walk; click again to change destination. Right-click a tile or character for actions.");
