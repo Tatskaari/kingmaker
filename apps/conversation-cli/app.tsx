@@ -115,7 +115,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
     if (running.current || !message.trim()) return;
     running.current = true; setBusy(true); setStatus("");
     const index = turns.length;
-    const messageIndex = transcript.length;
+    let messageIndex = transcript.length;
     setAnalysis(previous => previous.filter(event => event.messageIndex < messageIndex));
     try {
       if (checks?.beforeTurn) disclosure = await checks.beforeTurn();
@@ -146,7 +146,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
         const goal = await checks.conversationTree.evaluate([...transcript,
           create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: message })],
         tracedAi!, controller.current.signal, reportTree);
-        if (goal) { turnInput.transcript = [...transcript, goal]; setTranscript(turnInput.transcript); }
+        if (goal) { turnInput.transcript = [...transcript, goal]; setTranscript(turnInput.transcript); messageIndex = turnInput.transcript.length; }
       }
       const report = (event: import("../../packages/conversation/src/attention.js").AnalysisEvent) => setAnalysis(previous => [...previous, { ...event, messageIndex: messageIndex + (event.subject === "character" ? 1 : 0) }]);
       const strategies = disclosure && checks

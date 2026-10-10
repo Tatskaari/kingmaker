@@ -65,7 +65,7 @@ if (treeEnabled) {
   conversationTree = new CliConversationTree(tree, services.quests, { "hello-world.ts": helloWorld });
 }
 const input: ConversationInput = {
-  world: services.scenario.read(), characterId: characterId,
+  world: services.scenario.read(), characterId,
   sources: disclosure.sources,
   transcript: conversationTree ? [conversationTree.goal()] : [], message: "",
 };

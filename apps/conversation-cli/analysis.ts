@@ -1,3 +1,4 @@
+import { TranscriptRole } from "../../packages/contracts/src/index.js";
 import type { AnalysisEvent } from "../../packages/conversation/src/attention.js";
 import type { ConversationInput } from "../../packages/conversation/src/conversation.js";
 
@@ -23,6 +24,6 @@ export function formatAnalysis(event: AnalysisEvent): string {
 export function formatConversation(transcript: ConversationInput["transcript"], characterId: string, analysis: readonly MessageAnalysis[]): string {
   return transcript.map((message, index) => {
     const labels = analysis.filter(event => event.messageIndex === index).map(formatAnalysis).filter(Boolean);
-    return `${message.speakerId === "player" ? "You" : characterId}: ${message.text}${labels.length ? `\n${labels.map(label => `  ${label.replaceAll("\n", "\n  ")}`).join("\n")}` : ""}`;
+    return `${message.role === TranscriptRole.GAME_MASTER ? "System" : message.speakerId === "player" ? "You" : characterId}: ${message.text}${labels.length ? `\n${labels.map(label => `  ${label.replaceAll("\n", "\n  ")}`).join("\n")}` : ""}`;
   }).join("\n\n");
 }
