@@ -1,3 +1,4 @@
+import { renderPrompt } from "../packages/prompts/src/index.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ConversationReviews, liveConversationStrategy } from "../packages/conversation/src/live-conversation-strategy.js";
@@ -136,7 +137,7 @@ test("flags schedule one combined activity review and separate focused reviews i
     const names = request.tools!.map(tool => tool.function.name);
     if (labelSets.length === 1) {
       assert.deepEqual(names, ["set_activity"]);
-      assert.ok(request.messages.some(message => message.content?.includes("activate=false")));
+      assert.ok(request.messages.some(message => message.content === renderPrompt("review-activity")));
     } else {
       assert.ok(!names.includes("set_activity") && !names.includes("set_wait") && !names.includes("clear_activity"));
       assert.ok(request.messages.some(message => message.content?.startsWith("Review only")));

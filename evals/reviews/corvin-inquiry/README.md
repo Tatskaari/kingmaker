@@ -34,20 +34,15 @@ It reproduces the primary checkout's HEAD (`a5d4c68`) before the user's local ed
 The earlier smoke run reran PD and is not comparison evidence. Validation and fresh
 live results are reported in the PR and follow-up comparison layer.
 
-## Local prompt comparison
+## Promoted prompt
 
-Drop the candidate at `test_data/lore/gm_prompts/conversation/review/review-activity.md`.
-The existing fixture's `docs_override` resolves that folder. The `working-tree`
-variant substitutes only this prompt in the existing agent setup hook; `game` still
-uses the source prompt from HEAD a5d4c68. No changes to production prompts or tools.
-The checked-in candidate is the user's exact local prompt snapshot (SHA-256
-`5ba847b7cb5f385509f03cd1d58c049406cc0f0584bc19f97b577d70e4df0fa4`).
+The user's prompt now lives in the production `lore/gm_prompts/conversation/review/review-activity.md`.
+The temporary candidate and its lore prompt override have been removed. The runner
+uses the game baseline only. Captured character/player document overlays remain as
+scenario preconditions. Activities contain structured handoff fields without the
+originating conversation appended to their body.
 
-Run the same CLI with `--repeats 3 --concurrency 1` to compare both. To run the
-baseline alone, use `--variants game`. Both variants use identical transcript,
-fixed disclosure, lore starting state, model settings, tools and scoring. Inspect
-recorded `ai.responses` calls to verify the changed activity-purpose message.
-Only the review/handoff is exercised; the planner does not perform the interviews.
+The comparison below is historical evidence from before promotion.
 
 ## Comparison results — 2026-10-10
 
@@ -72,7 +67,7 @@ included later interview steps, so it did not always restrict that field to one 
 The shared judge missed the inactive-intent difference: its total is not evidence
 that both versions met the active-task expectation. The activation counts above are
 read directly from committed runtime pointers. This is a small synthetic case, not
-proof of broader improvement or successful planner execution. No prompt promotion.
+proof of broader improvement or successful planner execution. This comparison preceded promotion.
 
 See `comparison-results.json` for all six activity outputs. Full local recordings:
 `eval-output/2026-10-10T14-00-38.850Z-097ca83e/`. Validation passed all 571 tests,

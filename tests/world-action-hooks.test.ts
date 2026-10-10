@@ -80,7 +80,7 @@ test("planning tolerates document changes and still honours cancellation", async
 });
 
 
-test("originating dialogue and rulings reach disclosure and Jev after the review has ended", async () => {
+test("only structured activity fields reach disclosure and Jev after review", async () => {
   const services = fixture();
   const transcript = [
     create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: "Go confront those Nine Furrows delegates." }),
@@ -92,16 +92,17 @@ test("originating dialogue and rulings reach disclosure and Jev after the review
     disclosure: { disclose: async (_lore, messages) => {
       if (messages.some(message => message.content?.includes("Current execution task:"))) {
         disclosures++;
-        assert.match(JSON.stringify(messages), /Go confront those Nine Furrows delegates/);
+        for (const turn of transcript) assert.ok(!JSON.stringify(messages).includes(turn.text));
+        assert.match(JSON.stringify(messages), /Confront Nine Furrows/);
       }
       return [];
     } }, ai: {
       responses: async request => commitReview({ summary: "Agreed", newNotes: [], activeGoal: "Confront Nine Furrows" }, request),
       decisions: async state => {
         decisions++;
-        for (const turn of transcript) assert.ok(String(state).includes(turn.text));
-        assert.match(String(state), /Originating conversation \(historical evidence\)/);
-        assert.match(String(state), /GAME_MASTER/);
+        for (const turn of transcript) assert.ok(!String(state).includes(turn.text));
+        assert.doesNotMatch(String(state), /Originating conversation/);
+        assert.match(String(state), /Confront Nine Furrows/);
         return { next: { choice: "unable", probabilities: { unable: 1 } } };
       },
     } }, strategies: { review: documentReviewStrategy, action: jevActionStrategy } });

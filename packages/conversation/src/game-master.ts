@@ -1,4 +1,3 @@
-import type { ConversationReviewContext } from "./review.js";
 import type { ChatCompletionRequest, OpenRouterMessage } from "../../providers/src/openrouter.js";
 import { InvalidModelJsonError, parseModelObject } from "../../providers/src/structured-output.js";
 import { DocumentConflictError } from "../../lore/src/services.js";
@@ -9,10 +8,10 @@ export { GAME_MASTER_PROMPT } from "./agent-setup.js";
 
 /** All GM entrypoints use the same tool definitions, execution and conflict handling. */
 export async function runGameMaster(request: ChatCompletionRequest, services: RuntimeServices, signal: AbortSignal,
-  options: { characterId?: string; review?: boolean; systemPrompt?: string; activityOrigin?: Readonly<ConversationReviewContext>; prepare?: (messages: OpenRouterMessage[]) => Promise<OpenRouterMessage[]> } = {}) {
+  options: { characterId?: string; review?: boolean; systemPrompt?: string; prepare?: (messages: OpenRouterMessage[]) => Promise<OpenRouterMessage[]> } = {}) {
   const messages = await services.agents.prepare({ agent: "game_master", ...(options.systemPrompt !== undefined ? { systemPrompt: options.systemPrompt } : {}), ...(options.characterId ? { characterId: options.characterId } : {}), messages: request.messages }, signal);
   const tools = request.tools ?? gameMasterTools;
-  const session = new GameMasterTools(services, options.characterId, options.activityOrigin);
+  const session = new GameMasterTools(services, options.characterId);
   if (options.review) await session.begin();
   let corrections = 0;
   for (let turn = 0; turn < 16; turn++) {
