@@ -1,3 +1,4 @@
+// @ts-expect-error Browser renderer is JavaScript.
 import { conversationTranscriptView } from "../apps/web/src/debug-view.js";
 import assert from "node:assert/strict";
 import test from "node:test";
