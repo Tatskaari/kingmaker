@@ -1,3 +1,5 @@
+import { recordCharacterHistory } from "../../../packages/core/src/character-history.js";
+import { transformCressida, CRESSIDA_COW_EVENT, CRESSIDA_HUMAN_EVENT } from "../../../packages/core/src/cressida-transformation.js";
 import { createMovementService, type MovementClock } from "../../../packages/core/src/movement-service.js";
 import type { RoomDeparture } from "../../../packages/core/src/room-departures.js";
 import { getActorPosition, mapAtTime } from "../../../packages/core/src/simulation-movement.js";
@@ -211,6 +213,18 @@ export class WorldHost {
     const map = this.world().simulation!.map;
     if (!map) throw new Error("A physical map is required.");
     return createPhysicalEvent({ day: map.day, actors: foregroundBodies(mapAtTime(map, this.movement.now()).actors, undefined, this.movement.now()) }, kind, summary, participants);
+  }
+  async transformCressida(signal: AbortSignal) {
+    return this.writeSimulation(() => {
+      signal.throwIfAborted();
+      if (!this.world().player) throw new Error("Enter court before the solstice changes begin.");
+      this.worldServices.mechanics.executeMove(transformCressida);
+      const cow = this.world().simulation!.map!.actors.find(actor => actor.characterId === "cressida")!.physicalForm === "cow";
+      const event = this.worldEvent("changing form", cow ? CRESSIDA_COW_EVENT : CRESSIDA_HUMAN_EVENT, ["cressida"]);
+      recordCharacterHistory(this.activity, "cressida", { kind: "event", id: event.id,
+        text: `You have involuntarily changed into ${cow ? "a cow" : "human form"}. You retain your mind and speaking voice.` });
+      return event;
+    });
   }
   recordPlayerPerception(event: Event, perception: string) {
     const participants = event.participantIds.filter(id => id !== "player");

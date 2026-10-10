@@ -31,8 +31,9 @@ export function participantPresentations(world: WorldState, observerId: string, 
     const species = stats?.speciesId.replaceAll("-", " ");
     const identity = className && species ? `a ${className} ${species}` : className ? `a ${className}` : species ? `a ${species}` : "a person of unknown class and species";
     const presentation = world.docs[presentationPath(path)];
-    const appearance = presentation?.frontmatter?.visibility === "public" ? presentation.body : "Their appearance has not been described.";
-    return [`Before you stands ${name}, ${identity}. ${relativePower(level(id), level(observerId))}\n\n${appearance}`];
+    const form = world.simulation!.map?.actors.find(actor => actor.characterId === id)?.physicalForm;
+    const appearance = form === "cow" ? "A rather overweight, ugly cow. They can still speak." : presentation?.frontmatter?.visibility === "public" ? presentation.body : "Their appearance has not been described.";
+    return [`Before you stands ${name}, ${form === "cow" ? "currently in cow form" : identity}. ${relativePower(level(id), level(observerId))}\n\n${appearance}`];
   });
   return descriptions.length ? [{ role: "system", content: renderPrompt("participant-presentations", { PRESENTATIONS_PREFIX: PRESENTATIONS_PREFIX, appearances: descriptions.join("\n\n") }) }] : [];
 }

@@ -1,3 +1,4 @@
+import { CRESSIDA_TRANSFORMATION_MS } from "../../../packages/core/src/cressida-transformation.js";
 import { Autosave } from "./autosave.js";
 /// <reference lib="webworker" />
 import { WaitScheduler } from "./wait-scheduler.js";
@@ -52,7 +53,21 @@ const followers = new WaitScheduler({
   run: async (id, _elapsed, signal) => { await runtime?.moveFollower(id, signal); },
   error: (id, error) => alertUser("error", `${id}: following: ${String(error)}`),
 });
-function syncWaits() { waits.sync(); followers.sync(); }
+const transformations = new WaitScheduler({
+  candidates: () => runtime?.world().player && !waitsPaused
+    && runtime.world().simulation!.map!.actors.some(actor => actor.characterId === "cressida" && actor.position)
+    ? new Map([["cressida", String(generation)]]) : new Map(),
+  delayMs: () => CRESSIDA_TRANSFORMATION_MS,
+  busy: () => false,
+  run: async (_id, _elapsed, signal) => {
+    const game = runtime;
+    if (!game) return;
+    const event = await game.transformCressida(signal);
+    if (!signal.aborted && runtime === game) scheduleWorldEvent(game, event);
+  },
+  error: (_id, error) => alertUser("error", `Cressida transformation: ${String(error)}`),
+});
+function syncWaits() { waits.sync(); followers.sync(); transformations.sync(); }
 const waits = new WaitScheduler({
   delayMs: id => runtime && followingTarget(runtime.world(), id) ? 15_000 : 12_000 + Math.random() * 6_000,
   candidates: () => {
@@ -384,7 +399,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
   if (["configure", "create_game", "create_development_game", "load_game", "delete_game", "reset", "reset_world", "reset_characters"].includes(type)) {
     for (const pending of pendingDice.values()) pending.reject(new Error("Game changed during a dice roll."));
     pendingDice.clear();
-    waits.stop(); followers.stop(); waitsPaused = false;
+    waits.stop(); followers.stop(); transformations.stop(); waitsPaused = false;
     await autosave.flush();
     if (["configure", "create_game", "create_development_game", "load_game", "delete_game"].includes(type)) runtime?.movement.dispose();
     generation++; stopBackground(); stopWorldEvents(); conversationHolds.clear();
@@ -430,7 +445,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     autosave.markDirty();
     return { state: game.view(), activeSaveId: activeSave?.id };
   }
-  if (type === "cancel_npc") { waitsPaused = true; waits.stop(); followers.stop(); stopBackground(); publishNpc("NPC activity paused."); return {}; }
+  if (type === "cancel_npc") { waitsPaused = true; waits.stop(); followers.stop(); transformations.stop(); stopBackground(); publishNpc("NPC activity paused."); return {}; }
   if (type === "reset_world" || type === "reset_characters") {
     const game = requireRuntime();
     if (type === "reset_world") game.resetWorld();

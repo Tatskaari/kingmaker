@@ -29,6 +29,10 @@ export const setupWorldAgent: AgentSetupHook = async (context, signal, services)
     ...context.messages.filter(message => !(message.role === "system" && message.content?.startsWith(PRESENTATIONS_PREFIX))),
   ] };
   const { map } = services.map.observe(context.characterId!);
+  const body = map.actors.find(actor => actor.characterId === context.characterId);
+  if (context.characterId === "cressida") context = { ...context, messages: [...context.messages.slice(0, -1),
+    { role: "system", content: `You are currently a ${body?.physicalForm === "cow" ? "were-cow" : "human"}. You retain your mind and speaking voice. This is authoritative current state; earlier transformations in the transcript do not override it.` },
+    ...context.messages.slice(-1)] };
   const names = new Map(characterDocuments(world).map(({ id, document }) => [id,
     typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id]));
   const characters = map.actors.map(actor => ({ id: actor.instanceId || actor.characterId,

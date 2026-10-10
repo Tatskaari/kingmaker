@@ -10,7 +10,7 @@ import { CanvasMapRenderer } from "./map-renderer.js";
 import { palaceMap } from "./palace-map.js";
 import { canWalk, pointKey, type Point } from "../../../packages/core/src/navigation.js";
 
-export interface CourtCharacter { id: string; instanceId?: string; name: string; roomId?: string; position?: Point; movement?: ActorMovement; sprite?: number }
+export interface CourtCharacter { id: string; instanceId?: string; name: string; roomId?: string; position?: Point; movement?: ActorMovement; sprite?: number; physicalForm?: string }
 export interface CourtSpeech { characterId: string; participantIds: string[] }
 
 /** Reconcile bubbles in place so movement and unrelated renders do not restart the animation. */
@@ -60,7 +60,7 @@ export async function captureCourtMap(root: HTMLElement | null): Promise<Blob | 
 
   const stageRect = stage.getBoundingClientRect();
   const scaleX = output.width / stageRect.width, scaleY = output.height / stageRect.height;
-  const sample = stage.querySelector<HTMLElement>(".court-sprite");
+  const sample = stage.querySelector<HTMLElement>(".court-sprite:not([data-cow])");
   const imageUrl = sample && getComputedStyle(sample).backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1];
   if (imageUrl) {
     const sprites = new Image(); sprites.src = imageUrl;
@@ -74,7 +74,12 @@ export async function captureCourtMap(root: HTMLElement | null): Promise<Blob | 
       const bounds = sprite.getBoundingClientRect();
       const x = (bounds.left - stageRect.left) * scaleX, y = (bounds.top - stageRect.top) * scaleY;
       const width = bounds.width * scaleX, height = bounds.height * scaleY;
-      context.drawImage(sprites, spriteId % 12 * 32, Math.floor(spriteId / 12) * 32, 32, 32, x, y, width, height);
+      if (sprite.dataset.cow) {
+        const cow = new Image();
+        cow.src = getComputedStyle(sprite).backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1] ?? "";
+        await cow.decode();
+        context.drawImage(cow, x, y, width, height);
+      } else context.drawImage(sprites, spriteId % 12 * 32, Math.floor(spriteId / 12) * 32, 32, 32, x, y, width, height);
       if (!label?.textContent) continue;
       const text = label.textContent;
       context.font = `${Math.max(9, Math.round(13 * scaleY))}px Georgia, serif`;
@@ -225,7 +230,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
     control.className = `court-character${isPlayer ? " court-player" : ""}`;
     if (control instanceof HTMLButtonElement) {
       control.type = "button"; control.disabled = disabled;
-      control.setAttribute("aria-label", `Walk to ${marker.name} · ${marker.roomName}`);
+      control.setAttribute("aria-label", `Walk to ${marker.name}${marker.physicalForm === "cow" ? " (cow)" : ""} · ${marker.roomName}`);
       control.addEventListener("click", () => { if (marker.point) { closeMenu(); const spot = approach(marker.point); if (spot) void walkTo(spot); } });
       control.addEventListener("contextmenu", event => {
         event.preventDefault(); event.stopPropagation();
@@ -239,7 +244,12 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       });
     }
     const sprite = document.createElement("span"); sprite.className = "court-sprite"; sprite.setAttribute("aria-hidden", "true");
-    sprite.style.backgroundPosition = `${-(marker.sprite % 12) * 32}px ${-Math.floor(marker.sprite / 12) * 32}px`;
+    if (marker.physicalForm === "cow") {
+      sprite.dataset.cow = "true";
+      sprite.classList.add("court-cow");
+      control.setAttribute("aria-description", "Currently a cow");
+    }
+    sprite.style.backgroundPosition = marker.physicalForm === "cow" ? "0 0" : `${-(marker.sprite % 12) * 32}px ${-Math.floor(marker.sprite / 12) * 32}px`;
     const label = document.createElement("span"); label.className = "court-character-name";
     label.textContent = `${marker.name}${isPlayer ? " (you)" : ""}`;
     // Adjacent identical bodies share a visible label, while each button remains named.
@@ -342,10 +352,15 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       }
       const control = stage.querySelector<HTMLElement>(`[data-instance-id="${CSS.escape(marker.instanceId ?? marker.id)}"]`);
       if (control && marker.point) {
+        const sprite = control.querySelector<HTMLElement>(".court-sprite")!;
+        const cow = marker.physicalForm === "cow";
+        sprite.classList.toggle("court-cow", cow);
+        if (cow) sprite.dataset.cow = "true"; else delete sprite.dataset.cow;
+        sprite.style.backgroundPosition = cow ? "0 0" : `${-(marker.sprite % 12) * 32}px ${-Math.floor(marker.sprite / 12) * 32}px`;
         control.style.transition = "none";
         control.style.left = `${(marker.point.x + 0.5) / palaceMap.width * 100}%`;
         control.style.top = `${(marker.point.y + 0.5) / palaceMap.height * 100}%`;
-        control.setAttribute("aria-label", `Walk to ${marker.name} · ${marker.roomName}`);
+        control.setAttribute("aria-label", `Walk to ${marker.name}${marker.physicalForm === "cow" ? " (cow)" : ""} · ${marker.roomName}`);
       }
     }
     updateCourtSpeech(root, next.speechBubbles, next.characters);
