@@ -33,7 +33,7 @@ import { defaultWorldStrategies } from "./world-strategies.js";
 import { documentLoreService } from "../../../packages/conversation/src/document-lore.js";
 import { DisclosureSession } from "../../../packages/conversation/src/disclosure.js";
 import { runGameMaster } from "../../../packages/conversation/src/game-master.js";
-import { checkMechanics, adjudicateResolvedChecks } from "../../../packages/conversation/src/checks.js";
+import { checkMechanics, adjudicateResolvedChecks, PLAYER_OBSERVATION_PREFIX } from "../../../packages/conversation/src/checks.js";
 import { ConversationReviews, liveConversationStrategy } from "../../../packages/conversation/src/live-conversation-strategy.js";
 import { conversationStrategy } from "../../../packages/conversation/src/conversation-strategy.js";
 import { aiService } from "../../../packages/conversation/src/adapters.js";
@@ -299,7 +299,7 @@ export class WorldGameRuntime extends WorldHost {
     let arrested = false, challenged = false;
     const existingRulings = new Map<string, number>();
     for (const turn of request.messages) {
-      if (turn.role === "system" && turn.content?.startsWith("# Binding DM ruling")) {
+      if (turn.role === "system" && (turn.content?.startsWith("# Binding DM ruling") || turn.content?.startsWith(PLAYER_OBSERVATION_PREFIX))) {
         existingRulings.set(turn.content, (existingRulings.get(turn.content) ?? 0) + 1);
       }
     }
@@ -308,7 +308,7 @@ export class WorldGameRuntime extends WorldHost {
       preparedRulings.length = 0;
       const remaining = new Map(existingRulings);
       for (const turn of request.messages) {
-        if (turn.role !== "system" || !turn.content?.startsWith("# Binding DM ruling")) continue;
+        if (turn.role !== "system" || !(turn.content?.startsWith("# Binding DM ruling") || turn.content?.startsWith(PLAYER_OBSERVATION_PREFIX))) continue;
         const count = remaining.get(turn.content) ?? 0;
         if (count) remaining.set(turn.content, count - 1);
         else preparedRulings.push(turn.content);

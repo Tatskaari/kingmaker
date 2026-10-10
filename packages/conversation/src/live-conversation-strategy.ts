@@ -1,3 +1,4 @@
+import { PLAYER_OBSERVATION_PREFIX } from "./checks.js";
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, TranscriptRole, type TranscriptMessage } from "../../contracts/src/index.js";
 import type { OpenRouterMessage } from "../../providers/src/openrouter.js";
@@ -64,7 +65,7 @@ export function liveConversationStrategy(options: {
 }
 
 function turnEvidence(messages: readonly OpenRouterMessage[], reply: OpenRouterMessage, characterId: string): TranscriptMessage[] {
-  return [...messages.filter(message => message.role === "user" || (message.role === "system" && message.content?.startsWith("# Binding DM ruling"))), reply]
+  return [...messages.filter(message => message.role === "user" || (message.role === "system" && (message.content?.startsWith("# Binding DM ruling") || message.content?.startsWith(PLAYER_OBSERVATION_PREFIX)))), reply]
     .map(message => create(TranscriptMessageSchema, { role: message.role === "user" ? TranscriptRole.PLAYER : message.role === "assistant" ? TranscriptRole.CHARACTER : TranscriptRole.GAME_MASTER,
       speakerId: message.role === "user" ? "player" : message.role === "assistant" ? characterId : "GM", text: message.content ?? "" }));
 }

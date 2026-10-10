@@ -179,3 +179,47 @@ test("live world roll rulings can edit another NPC through the shared GM tools",
   assert.equal(rounds, 3);
   assert.match(runtime.world().docs[target]!.body, /messenger reported/);
 });
+
+
+for (const skill of ["insight", "investigation", "perception", "arcana", "history", "religion", "nature", "medicine", "survival"] as const) {
+test(`${skill} observations reach the player and character, survive reload, and commit only with a reply`, async () => {
+  const observation = "You notice Rowan hesitate before answering about the cart.";
+  let failReply = false, needsCheck = true, expected = 1;
+  const runtime = game({ services: {
+    random: { integer: () => 18 },
+    ai: {
+      decisions: async (...args) => {
+        const answers = await decisions(...args);
+        if (answers.persuasion) answers.persuasion.choice = "not_needed";
+        if (answers[skill] && "needed" in args[1][skill]!.criteria) answers[skill].choice = needsCheck ? "needed" : "not_needed";
+        return answers;
+      },
+      responses: async request => {
+        if ((JSON.stringify(request.response_format) ?? "").includes("conversation_roll_ruling")) {
+          assert.equal(JSON.parse(request.messages.at(-1)!.content!).resolvedChecks[0].skill, skill);
+          return { role: "assistant", content: JSON.stringify({ direction: "Hesitate over the cart. PRIVATE_DIRECTION", observation }) };
+        }
+        assert.equal(request.messages.filter(message => message.role === "system" && message.content === "# Player observation\n" + observation).length, expected);
+        if (failReply) throw new Error("Reply failed");
+        return { role: "assistant", content: "The cart? Well…" };
+      },
+    },
+  } });
+  await runtime.checkedTalkToCharacter("rowan", "I study his reaction to the cart.");
+  const visible = () => (runtime.view().conversations as Record<string, { role: string; text: string }[]>).rowan!;
+  assert.deepEqual(visible().map(message => message.role), ["player", "gm", "character"]);
+  assert.equal(visible()[1]!.text, observation);
+  assert.ok(!JSON.stringify(visible()).includes("PRIVATE_DIRECTION"));
+  runtime.restore(JSON.parse(JSON.stringify(runtime.snapshot())));
+  needsCheck = false;
+  await runtime.checkedTalkToCharacter("rowan", "Go on.");
+  assert.equal(visible().filter(message => message.role === "gm").length, 1);
+  const before = runtime.snapshot().conversations.rowan;
+  needsCheck = true; failReply = true; expected = 2;
+  await assert.rejects(runtime.checkedTalkToCharacter("rowan", "I watch him again."), /Reply failed/);
+  assert.deepEqual(runtime.snapshot().conversations.rowan, before);
+  failReply = false;
+  await runtime.checkedTalkToCharacter("rowan", "I watch him again.");
+  assert.equal(visible().filter(message => message.role === "gm").length, 2);
+});
+}
