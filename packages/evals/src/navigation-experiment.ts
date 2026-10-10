@@ -8,7 +8,7 @@ export interface NavigationCase {
   name: string;
   characterId: string;
   goal: string;
-  expected: string;
+  expected: string | string[];
   request: Omit<ReturnType<typeof jevRequest>, "model">;
   actions: GameAction[];
 }
@@ -22,11 +22,12 @@ function selected(recording: RunRecording): string {
 
 /** Exact failed planner input; exercise the shared game action strategy without rewriting the prompt. */
 export function createNavigationExperiment(fixture: NavigationCase, createAi: () => AiService): Experiment {
-  if (!fixture.actions.some(action => action.id === fixture.expected)
-    || !Object.hasOwn(fixture.request.questions.next!.criteria, fixture.expected)) throw new Error("Expected action must be offered");
+  const expected = typeof fixture.expected === "string" ? [fixture.expected] : fixture.expected;
+  if (!expected.length || expected.some(id => !fixture.actions.some(action => action.id === id)
+    || !Object.hasOwn(fixture.request.questions.next!.criteria, id))) throw new Error("Expected action must be offered");
   return {
     name: fixture.name, type: "jev-action",
-    rubric: [{ name: "navigation", description: "Choose the offered door-opening action that advances the route to Cressida's chamber instead of backtracking, waiting or declaring completion." }],
+    rubric: [{ name: "navigation", description: "Choose an offered action that advances the assigned destination or interaction instead of stalling or abandoning it." }],
     getBaseline: () => ({ name: "game", configure: () => ({ strategies: { action: jevActionStrategy }, services: {
       ai: () => createAi(), debug: () => ({ record: () => {} }),
     } }) }),
@@ -41,7 +42,7 @@ export function createNavigationExperiment(fixture: NavigationCase, createAi: ()
     async score(recording) {
       if (recording.error !== undefined) return { criteria: { navigation: { score: 0, reason: "Execution failed" } } };
       const actual = selected(recording);
-      return { criteria: { navigation: { score: Number(actual === fixture.expected), reason: `Expected ${fixture.expected}; selected ${actual}` } } };
+      return { criteria: { navigation: { score: Number(expected.includes(actual)), reason: `Expected ${expected.join(" or ")}; selected ${actual}` } } };
     },
   };
 }
