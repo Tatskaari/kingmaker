@@ -1,6 +1,6 @@
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, TranscriptRole } from "../../packages/contracts/src/index.js";
-import type { CliConversationTree, TreeStatus } from "./conversation-tree.js";
+import type { ConversationTreeSession, TreeStatus } from "../../packages/conversation/src/conversation-tree.js";
 import { traceCliGmCalls, gmCallLabel, type CliGmCall } from "./gm-calls.js";
 import type { ConversationStrategy } from "../../packages/conversation/src/phases.js";
 import { directConversationStrategy } from "../../packages/conversation/src/phases.js";
@@ -33,7 +33,7 @@ export interface ConversationResult {
 interface AppProps {
   input: ConversationInput;
   complete: Complete;
-  checks?: { conversationTree?: CliConversationTree; services?: Partial<RuntimeServices>; ai: AiService; build: DndCharacter | undefined; beginTurn?: () => void; beforeTurn?: () => Promise<DisclosureSession>; response?: (report: (event: import("../../packages/conversation/src/attention.js").AnalysisEvent) => void) => ConversationStrategy };
+  checks?: { conversationTree?: ConversationTreeSession; services?: Partial<RuntimeServices>; ai: AiService; build: DndCharacter | undefined; beginTurn?: () => void; beforeTurn?: () => Promise<DisclosureSession>; response?: (report: (event: import("../../packages/conversation/src/attention.js").AnalysisEvent) => void) => ConversationStrategy };
   disclosure?: DisclosureSession;
   copyText: (text: string) => Promise<string>;
   onFinish: (result: ConversationResult) => void;
