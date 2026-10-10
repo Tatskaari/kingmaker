@@ -44,7 +44,7 @@ test("everyone nearby perceives the transformation without a luck roll; distant 
   assert.equal(runtime.snapshot().playerMessages.at(-1)!.message, CRESSIDA_COW_EVENT);
 });
 
-test("one-minute testing cadence toggles both ways and cancellation stops future changes", async t => {
+test("two-minute testing cadence toggles both ways and cancellation stops future changes", async t => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const runtime = new WorldGameRuntime(loadPlayableWorld(), "");
   const scheduler = new WaitScheduler({ candidates: () => new Map([["cressida", "game"]]), busy: () => false,
@@ -52,10 +52,10 @@ test("one-minute testing cadence toggles both ways and cancellation stops future
     run: async (_id, _elapsed, cancellation) => { await runtime.transformCressida(cancellation); } });
   const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
   const form = () => runtime.world().simulation!.map!.actors.find(actor => actor.characterId === "cressida")!.physicalForm;
-  scheduler.sync(); t.mock.timers.tick(59_999); await flush(); assert.equal(form(), undefined);
+  scheduler.sync(); t.mock.timers.tick(119_999); await flush(); assert.equal(form(), undefined);
   t.mock.timers.tick(1); await flush(); assert.equal(form(), "cow");
-  t.mock.timers.tick(60_000); await flush(); assert.equal(form(), "human");
-  scheduler.stop(); t.mock.timers.tick(60_000); await flush(); assert.equal(form(), "human");
+  t.mock.timers.tick(120_000); await flush(); assert.equal(form(), "human");
+  scheduler.stop(); t.mock.timers.tick(120_000); await flush(); assert.equal(form(), "human");
 });
 
 
