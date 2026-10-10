@@ -471,9 +471,20 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 @media (prefers-reduced-motion: reduce) { .court-speech, .court-speech span { animation: none; } }
 
 .court-sprite[data-portrait] { background-size: 32px 32px; }
+.court-sprite[data-portrait="aldren"] { background-image: url('./assets/aldren.png'); }
+.court-sprite[data-portrait="corvin"] { background-image: url('./assets/corvin.png'); }
+.court-sprite[data-portrait="holt"] { background-image: url('./assets/holt.png'); }
+.court-sprite[data-portrait="elinor"] { background-image: url('./assets/elinor.png'); }
 .court-sprite[data-portrait="oswin"] { background-image: url('./assets/oswin.png'); }
 .court-sprite[data-portrait="rowan"] { background-image: url('./assets/rowan.png'); }
-.court-sprite[data-portrait="elinor"] { background-image: url('./assets/elinor.png'); }
+.court-sprite[data-portrait="gurt"] { background-image: url('./assets/gurt.png'); }
+.court-sprite[data-portrait="klog"] { background-image: url('./assets/klog.png'); }
+.court-sprite[data-portrait="bran"] { background-image: url('./assets/bran.png'); }
+.court-sprite[data-portrait="peregrine"] { background-image: url('./assets/peregrine.png'); }
+.court-sprite[data-portrait="cressida"] { background-image: url('./assets/cressida.png'); }
+.court-sprite[data-portrait="abel"] { background-image: url('./assets/abel.png'); }
+.court-sprite[data-portrait="palace-guard"] { background-image: url('./assets/palace-guard.png'); }
+.court-sprite[data-portrait="court-servant"] { background-image: url('./assets/court-servant.png'); }
 .court-sprite.court-cow { background-image: url('./assets/cressida-cow.svg'); background-size: 32px 32px; }
 
 .cressida-test-timer { margin: 0; padding: .4rem .8rem; color: #fff1ce; background: #342b32; font-variant-numeric: tabular-nums; }
