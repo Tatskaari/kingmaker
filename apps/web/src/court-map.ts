@@ -242,7 +242,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       });
     }
     const sprite = document.createElement("span"); sprite.className = "court-sprite"; sprite.setAttribute("aria-hidden", "true");
-    if (["oswin", "rowan", "elinor"].includes(marker.id)) sprite.dataset.portrait = marker.id;
+    if (["aldren", "corvin", "holt", "elinor", "oswin", "rowan", "gurt", "klog", "bran", "peregrine", "cressida", "abel", "palace-guard", "court-servant"].includes(marker.id)) sprite.dataset.portrait = marker.id;
     if (marker.physicalForm === "cow") {
       sprite.dataset.cow = "true";
       sprite.classList.add("court-cow");
