@@ -1,4 +1,5 @@
 ---
+sprite: 110
 factions: [nine-furrows]
 summary: "Your Centennial Assembly entry as Professor Oswin, linking private characterization, shared court knowledge and scoped supporting notes. Your current situation and objectives remain unwritten."
 labels: [court-informed]

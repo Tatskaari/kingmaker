@@ -4,7 +4,7 @@ visibility: private
 readers: ["character:court-servant"]
 factions: [caerwyn]
 name: Court Servant
-sprite: 98
+sprite: 100
 background: true
 placements:
   - {x: 61, y: 40}
