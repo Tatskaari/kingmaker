@@ -1,0 +1,180 @@
+{
+  "playerDocument": "Players/envoy.md",
+  "positions": {
+    "corvin": {
+      "roomId": "great_hall",
+      "position": {
+        "x": 58,
+        "y": 20
+      }
+    },
+    "holt": {
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 65,
+        "y": 35
+      }
+    },
+    "aldren": {
+      "roomId": "great_hall",
+      "position": {
+        "x": 62,
+        "y": 18
+      }
+    },
+    "gurt": {
+      "roomId": "great_hall",
+      "position": {
+        "x": 57,
+        "y": 22
+      }
+    },
+    "klog": {
+      "roomId": "great_hall",
+      "position": {
+        "x": 57,
+        "y": 25
+      }
+    },
+    "bran": {
+      "roomId": "great_hall",
+      "position": {
+        "x": 57,
+        "y": 28
+      }
+    },
+    "elinor": {
+      "roomId": "great_hall",
+      "position": {
+        "x": 62,
+        "y": 23
+      }
+    },
+    "oswin": {
+      "roomId": "great_hall",
+      "position": {
+        "x": 62,
+        "y": 26
+      }
+    },
+    "rowan": {
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 60,
+        "y": 37
+      }
+    },
+    "peregrine": {
+      "roomId": "great_hall",
+      "position": {
+        "x": 67,
+        "y": 22
+      }
+    },
+    "cressida": {
+      "roomId": "great_hall",
+      "position": {
+        "x": 67,
+        "y": 25
+      }
+    },
+    "abel": {
+      "roomId": "great_hall",
+      "position": {
+        "x": 67,
+        "y": 28
+      }
+    },
+    "player": {
+      "roomId": "great_hall",
+      "position": {
+        "x": 58,
+        "y": 21
+      }
+    },
+    "palace-guard-1": {
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 60,
+        "y": 33
+      }
+    },
+    "palace-guard-2": {
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 63,
+        "y": 33
+      }
+    },
+    "palace-guard-3": {
+      "roomId": "great_hall",
+      "position": {
+        "x": 59,
+        "y": 17
+      }
+    },
+    "palace-guard-4": {
+      "roomId": "great_hall",
+      "position": {
+        "x": 65,
+        "y": 17
+      }
+    },
+    "palace-guard-5": {
+      "roomId": "west_wing",
+      "position": {
+        "x": 43,
+        "y": 12
+      }
+    },
+    "palace-guard-6": {
+      "roomId": "west_wing",
+      "position": {
+        "x": 43,
+        "y": 15
+      }
+    },
+    "palace-guard-7": {
+      "roomId": "palace_back_hall",
+      "position": {
+        "x": 80,
+        "y": 12
+      }
+    },
+    "palace-guard-8": {
+      "roomId": "palace_back_hall",
+      "position": {
+        "x": 80,
+        "y": 15
+      }
+    },
+    "palace-guard-9": {
+      "roomId": "north_corridor",
+      "position": {
+        "x": 60,
+        "y": 11
+      }
+    },
+    "palace-guard-10": {
+      "roomId": "north_corridor",
+      "position": {
+        "x": 63,
+        "y": 11
+      }
+    },
+    "court-servant-1": {
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 61,
+        "y": 40
+      }
+    },
+    "court-servant-2": {
+      "roomId": "entrance_hall",
+      "position": {
+        "x": 62,
+        "y": 42
+      }
+    }
+  }
+}
