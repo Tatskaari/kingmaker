@@ -1,0 +1,16 @@
+Oswin, Rowan and Elinor — custom Kingmaker character sprites.
+
+Generated with OpenAI's built-in image generation tool using the existing
+Kenney Tiny Dungeon atlas as a visual reference. Selected by the author.
+Prepared as 32x32 PNGs with nearest-neighbour sampling and a transparent
+border-connected background. These are generated assets, not Kenney originals.
+
+Design prompt: Three front-facing, squat pixel-art humans in the atlas palette:
+Oswin, an elderly male professor in green/cream robes and a wizard cap;
+Rowan, a young male agricultural wizard/inventor with brown hair, tan work
+clothes, green mantle and tool belt; Elinor, a female university chancellor
+with brown hair in a bun and purple/cream robes. Dark plum outlines,
+minimal facial marks, hard square pixel clusters; no monsters or extra limbs.
+
+The in-game files preserve the approved preview designs. A subsequent generated
+background-extraction attempt returned an opaque checkerboard and was discarded.
