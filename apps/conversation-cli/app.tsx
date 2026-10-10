@@ -1,3 +1,6 @@
+import { create } from "@bufbuild/protobuf";
+import { TranscriptMessageSchema, TranscriptRole } from "../../packages/contracts/src/index.js";
+import type { CliConversationTree, TreeStatus } from "./conversation-tree.js";
 import { traceCliGmCalls, gmCallLabel, type CliGmCall } from "./gm-calls.js";
 import type { ConversationStrategy } from "../../packages/conversation/src/phases.js";
 import { directConversationStrategy } from "../../packages/conversation/src/phases.js";
@@ -24,12 +27,13 @@ export interface ConversationResult {
   analysis: MessageAnalysis[];
   decisionCalls: CliDecisionCall[];
   disclosure: DisclosureRound[];
+  conversationTrees: TreeStatus[];
   openedDocuments: ConversationInput["sources"];
 }
 interface AppProps {
   input: ConversationInput;
   complete: Complete;
-  checks?: { services?: Partial<RuntimeServices>; ai: AiService; build: DndCharacter | undefined; beginTurn?: () => void; beforeTurn?: () => Promise<DisclosureSession>; response?: (report: (event: import("../../packages/conversation/src/attention.js").AnalysisEvent) => void) => ConversationStrategy };
+  checks?: { conversationTree?: CliConversationTree; services?: Partial<RuntimeServices>; ai: AiService; build: DndCharacter | undefined; beginTurn?: () => void; beforeTurn?: () => Promise<DisclosureSession>; response?: (report: (event: import("../../packages/conversation/src/attention.js").AnalysisEvent) => void) => ConversationStrategy };
   disclosure?: DisclosureSession;
   copyText: (text: string) => Promise<string>;
   onFinish: (result: ConversationResult) => void;
@@ -43,6 +47,13 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
     return result;
   });
   const gmCount = useRef(0);
+  const [treeEvents, setTreeEvents] = useState<TreeStatus[]>([]);
+  const [treeStatus, setTreeStatus] = useState(checks?.conversationTree?.status);
+  const treeCount = useRef(0);
+  const reportTree = (status: TreeStatus) => {
+    timeline.record(`tree-${treeCount.current++}`);
+    setTreeEvents(previous => [...previous, status]); setTreeStatus(status);
+  };
   const [transcript, setTranscript] = useState(input.transcript);
   const [turns, setTurns] = useState<LlmTurn[]>([]);
   const [rounds, setRounds] = useState<DisclosureRound[]>([]);
@@ -77,6 +88,12 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
   const messageIds = timeline.messageIds(messages);
   const entries = timeline.sort([
     ...messages.map((message, index) => ({ id: `message-${index}`, timeId: messageIds[index]!, label: `${index + 1}. ${message.role}`, text: message.content ?? "No text content." })),
+    ...treeEvents.map((event, index) => ({ id: `tree-${index}`, timeId: `tree-${index}`,
+      label: `Tree ${event.node} · ${event.phase}${event.transition ? ` → ${event.transition}` : ""}`, text: JSON.stringify(event, null, 2) })),
+    ...treeEvents.flatMap((event, index) => event.phase === "completed" ? event.conditions.map(edge => ({
+      id: `tree-${index}-${edge.id}`, timeId: `tree-${index}`, label: `↳ ${edge.id}: ${edge.decision?.choice ?? "pending"}`,
+      text: JSON.stringify(edge, null, 2),
+    })) : []),
     ...gmTurns.map(call => ({ id: call.id, timeId: call.id, label: gmCallLabel(call), text: JSON.stringify(call, null, 2) })),
     ...decisionCalls.map(call => ({ id: call.id, timeId: call.id, label: decisionCallLabel(call), text: JSON.stringify(call, null, 2) })),
     ...rounds.flatMap(round => [
@@ -98,7 +115,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
     if (running.current || !message.trim()) return;
     running.current = true; setBusy(true); setStatus("");
     const index = turns.length;
-    const messageIndex = transcript.length;
+    let messageIndex = transcript.length;
     setAnalysis(previous => previous.filter(event => event.messageIndex < messageIndex));
     try {
       if (checks?.beforeTurn) disclosure = await checks.beforeTurn();
@@ -125,6 +142,12 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
         setDecisionCalls(previous => previous.some(item => item.id === call.id)
           ? previous.map(item => item.id === call.id ? call : item) : [...previous, call]);
       });
+      if (checks?.conversationTree) {
+        const goal = await checks.conversationTree.evaluate([...transcript,
+          create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: message })],
+        tracedAi!, controller.current.signal, reportTree);
+        if (goal) { turnInput.transcript = [...transcript, goal]; setTranscript(turnInput.transcript); messageIndex = turnInput.transcript.length; }
+      }
       const report = (event: import("../../packages/conversation/src/attention.js").AnalysisEvent) => setAnalysis(previous => [...previous, { ...event, messageIndex: messageIndex + (event.subject === "character" ? 1 : 0) }]);
       const strategies = disclosure && checks
         ? conversationStrategy(disclosure, tracedAi!, checks.build, message, requestRoll, trace, () => {}, {}, {}, checks.services ? { services: checks.services, characterId: input.characterId } : undefined,
@@ -147,6 +170,10 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
           setTurns(previous => [...previous.slice(0, index), turn]);
         });
       setTranscript(result.transcript); setDraft("");
+      if (checks?.conversationTree) {
+        const goal = await checks.conversationTree.evaluate(result.transcript, tracedAi!, controller.current.signal, reportTree);
+        if (goal) setTranscript([...result.transcript, goal]);
+      }
     } catch (cause) { setStatus(cause instanceof Error ? cause.message : String(cause)); }
     finally { running.current = false; setBusy(false); }
   }
@@ -162,7 +189,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
     }
     if (key.ctrl && (key.name === "c" || key.name === "d")) {
       key.preventDefault(); controller.current.abort();
-      onFinish({ characterId: input.characterId, transcript, gmTurns, analysis,
+      onFinish({ characterId: input.characterId, transcript, gmTurns, analysis, conversationTrees: treeEvents,
         decisionCalls: decisionCalls.map(call => call.status === "pending"
           ? { ...call, status: "failed", error: "Cancelled when conversation ended." } : call),
         disclosure: rounds.map(round => round.status === "pending" ? { ...round, status: "error", error: "Cancelled when conversation ended." } : round),
@@ -181,7 +208,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
   return <box width={width} height={height} flexDirection="column">
     <text height={1} selectable={false} truncate>{`Conversation · ${input.characterId}${busy ? " · Thinking…" : latest?.durationMs !== undefined ? ` · ${latest.durationMs}ms` : ""}`}</text>
     <box flexDirection="row" flexGrow={1} minHeight={0}>
-      <box width="80%" border flexDirection="column" paddingX={1}>
+      <box width={treeStatus ? "65%" : "80%"} border flexDirection="column" paddingX={1}>
         <text height={1} selectable={false} truncate>{selected === null ? "Conversation" : `${entries[selectedIndex]?.label} · Esc to return`}</text>
         <scrollbox id="conversation-content" ref={content} flexGrow={1} minHeight={0} scrollX={false}
           stickyScroll={selected === null} stickyStart="bottom" viewportCulling={false}>
@@ -196,7 +223,13 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
         }}
           focused={selected === null && (!busy || !!rollPrompt)} placeholder={rollPrompt ? `${rollPrompt.skill} · ${rollPrompt.difficulty} · modifier ${rollPrompt.modifier >= 0 ? "+" : ""}${rollPrompt.modifier}: enter d20 (1–20)` : busy ? "Waiting for reply…" : "Say something…"} />
       </box>
-      <box width="20%" border flexDirection="column">
+      <box width={treeStatus ? "35%" : "20%"} border flexDirection="column">
+        {treeStatus && <box flexDirection="column" flexShrink={0} paddingX={1}>
+          <text wrapMode="word">{`Goal · ${treeStatus.node}
+${treeStatus.guidance}`}</text>
+          <text wrapMode="word" fg="yellow">{treeStatus.error ?? treeStatus.scriptOutput ?? treeStatus.phase}</text>
+          {treeStatus.conditions.map(edge => <text key={edge.id} wrapMode="word">{`${edge.id} → ${edge.to}: ${edge.decision?.choice ?? "pending"}`}</text>)}
+        </box>}
         <text height={1} selectable={false} truncate>Messages / Jev</text>
         <scrollbox id="message-list" ref={sidebar} flexGrow={1} minHeight={0} scrollX={false} viewportCulling={false} stickyScroll stickyStart="bottom">
           {entries.map(entry => <text id={entry.id} key={entry.id} height={1} flexShrink={0}

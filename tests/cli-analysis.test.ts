@@ -4,7 +4,7 @@ import { CheckDegree } from "../packages/core/src/ability-checks.js";
 import { strict as assert } from "node:assert";
 import { test } from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { TranscriptMessageSchema } from "../packages/contracts/src/index.js";
+import { TranscriptMessageSchema, TranscriptRole } from "../packages/contracts/src/index.js";
 import { formatAnalysis, formatConversation, type MessageAnalysis } from "../apps/conversation-cli/analysis.js";
 import { conversationStrategy } from "../packages/conversation/src/conversation-strategy.js";
 import { DisclosureSession } from "../packages/conversation/src/disclosure.js";
@@ -63,4 +63,8 @@ test("an agreed exchange retains GM discretion even when the commitment classifi
     conversational_exchange: { choice: "flagged", probabilities: {} },
     immediate_feasibility: { choice: "gms_discretion", probabilities: { gms_discretion: 1 } },
   } }), /immediate_feasibility: gms_discretion/);
+});
+
+test("CLI labels injected goals as system messages", () => {
+  assert.equal(formatConversation([create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, text: "Ask for help." })], "aldren", []), "System: Ask for help.");
 });
