@@ -248,11 +248,27 @@ export function conversationTranscriptView(data, names = {}) {
 }
 
 function contextLauncher(call, name) {
-  return `<div data-context-launcher><button type="button" data-context-open>Open full context</button><template data-context-template><header class="conversation-head"><div><div class="eyebrow">Captured model context</div><h2>${escape(transcriptType(call.kind))} · ${escape(name(call.characterId))}</h2></div><button type="button" data-context-close aria-label="Close full context" autofocus>Close</button></header><p class="debug-note">Snapshot of this call at opening. Messages are shown in request order, followed by the response. API keys are excluded.</p>${modelContextView(call, name)}</template></div>`;
+  return `<div data-context-launcher><button type="button" data-context-open>Open full context</button><template data-context-template><header class="conversation-head"><div><div class="eyebrow">Captured model context</div><h2>${escape(transcriptType(call.kind))} · ${escape(name(call.characterId))}</h2></div><button type="button" data-context-close aria-label="Close full context" autofocus>Close</button></header><p class="debug-note">Snapshot of this call at opening. Chat messages are shown in request order followed by the response; Jev calls show context, questions and decisions. API keys are excluded.</p>${modelContextView(call, name)}</template></div>`;
 }
 
 /** Shared by dialogue, GM reviews and every other captured model call. */
+export function activityCallsView(data, names = {}) {
+  const calls = transcriptSessions(data?.requests, data?.agentRuns).flatMap(session => session.calls).sort((a, b) => b.id - a.id);
+  const name = id => names[id] || id;
+  return `<h3>Model calls</h3><p class="debug-note">Latest calls first. Open any call to inspect its captured input and output.</p>${calls.length ? calls.map(call => `<section class="debug-card" data-transcript-key="activity-call-${escape(call.id)}"><h4>${escape(name(call.characterId))} · ${escape(transcriptType(call.kind))}</h4><p class="debug-meta">${escape(transcriptTime(call.startedAt))} · ${escape(transcriptStatus(call.status))}</p>${contextLauncher(call, name)}</section>`).join("") : empty("No model calls recorded yet.")}`;
+}
+
+function jevContextView(call) {
+  const format = value => typeof value === "string" ? value : JSON.stringify(value ?? null, null, 2);
+  const request = call.request;
+  return `<section class="debug-conversation"><p class="debug-meta">${escape(transcriptStatus(call.status))} · ${escape(transcriptTime(call.startedAt))}</p>${card("Jev context", `<pre>${escape(format(request.state))}</pre>`)}${Object.entries(request.questions).map(([id, question]) => {
+    const answer = call.response?.[id] || (Object.keys(request.questions).length === 1 && call.response?.choice ? call.response : null);
+    return card(`Question: ${id}`, `<h4>Instructions</h4><pre>${escape(format(question.instructions))}</pre><h4>Criteria and probabilities</h4>${list(Object.entries(question.criteria || {}), ([choice, description]) => `<strong>${escape(choice)}${answer?.choice === choice ? " · Selected" : ""}</strong><p>${escape(format(description))}</p><span class="debug-meta">Probability: ${escape(answer?.probabilities?.[choice] ?? "Pending")}</span>`, "No criteria recorded.")}${facts([["Decision", answer?.choice ?? "Pending"], ["Confidence", answer?.confidence ?? "Not returned"]])}`);
+  }).join("")}${call.error ? `<p class="debug-error">${escape(call.error)}</p>` : ""}<details><summary>Full structured request and response</summary><h4>Request</h4><pre>${escape(format(request))}</pre><h4>Response</h4><pre>${escape(format(call.response))}</pre></details></section>`;
+}
+
 export function modelContextView(call, name = id => id) {
+  if (call.request?.questions && !Array.isArray(call.request.questions)) return jevContextView(call);
   if (!Array.isArray(call.request?.messages)) return `<section class="debug-conversation"><p class="debug-meta">${escape(transcriptStatus(call.status))} · ${escape(transcriptTime(call.startedAt))}</p><p>This call uses structured input rather than chat messages.</p>${card("Request", `<pre>${escape(JSON.stringify(call.request, null, 2))}</pre>`)}${card("Response", `<pre>${escape(JSON.stringify(call.response ?? null, null, 2))}</pre>`)}${call.error ? `<p class="debug-error">${escape(call.error)}</p>` : ""}</section>`;
   const turns = [...call.request.messages, ...(call.response ? [call.response] : [])];
   return `<section class="debug-conversation" aria-label="Model context"><p class="debug-meta">${call.request.messages.length} input messages · ${escape(transcriptStatus(call.status))} · ${escape(transcriptTime(call.startedAt))} · Request order${call.response ? " · Response last" : ""}</p>${call.error ? `<p class="debug-error">${escape(call.error)}</p>` : ""}${turns.map((turn, index) => {

@@ -4,7 +4,7 @@ import "./dice-roll.css";
 import { installDicePreview, showDiceRoll } from "./dice-roll.js";
 
 installDicePreview();
-import { characterTranscripts, recentTranscriptsView, conversationTranscriptView } from "./debug-view.js";
+import { characterTranscripts, recentTranscriptsView, conversationTranscriptView, activityCallsView } from "./debug-view.js";
 import { coalescedRefresh, updateTranscriptPanel } from "./debug-live.js";
 import { documentExplorer } from "./document-explorer.js";
 import { documentAnchor } from "./document-markdown.js";
@@ -170,7 +170,7 @@ gameWorker.addEventListener("message", event => {
       state.speechBubbles = event.data.speechBubbles;
       updateCourtSpeech(document.querySelector("[data-court-map]"), state.speechBubbles, state.characters);
     }
-    if (debugOpen && ["transcripts", "documents", "conversation"].includes(debugTab)) refreshDebugTranscripts();
+    if (debugOpen && ["transcripts", "documents", "conversation", "activity"].includes(debugTab)) refreshDebugTranscripts();
     return;
   }
   if (event.data.type === "npc_update") {
@@ -556,7 +556,7 @@ function debugInspector() {
   const content = debugError
     ? `<p class="debug-error">${escapeHtml(debugError)}</p>`
     : debugData
-      ? debugTab === "conversation" ? conversationView() : debugTab === "activity" ? '<section class="debug-card npc-planner" data-npc-panel></section>'  : debugTab === "transcripts" ? transcriptView() : debugTab === "documents" ? documentsView() : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
+      ? debugTab === "conversation" ? conversationView() : debugTab === "activity" ? `<section class="debug-card npc-planner" data-npc-panel></section><section data-activity-calls>${activityView()}</section>`  : debugTab === "transcripts" ? transcriptView() : debugTab === "documents" ? documentsView() : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
       : `<p class="debug-loading">Reading worker state…</p>`;
   const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${debugTabs().map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
   const isCharacter = debugRequest.type === "debug_character";
@@ -567,6 +567,10 @@ function documentsView() {
   return documentExplorer(debugData, documentRoute, Object.fromEntries((state?.characters || []).map(character => [character.id, character.name])));
 }
 
+function activityView() {
+  return activityCallsView(debugData, Object.fromEntries((state?.characters || []).map(character => [character.id, character.name])));
+}
+
 function transcriptView() {
   return recentTranscriptsView(debugData?.requests, debugData?.agentRuns, {
     ...transcriptRoute, characterId: debugRequest.type === "debug_character" ? debugRequest.payload.characterId : undefined, names: Object.fromEntries((state?.characters || []).map(character => [character.id, character.name])),
@@ -574,7 +578,7 @@ function transcriptView() {
 }
 
 const refreshDebugTranscripts = coalescedRefresh(async () => {
-  if (!debugOpen || !["transcripts", "documents", "conversation"].includes(debugTab)) return;
+  if (!debugOpen || !["transcripts", "documents", "conversation", "activity"].includes(debugTab)) return;
   const tab = debugTab;
   const sequence = debugReadSequence;
   const generation = gameViewGeneration;
@@ -584,10 +588,13 @@ const refreshDebugTranscripts = coalescedRefresh(async () => {
   try {
     const data = await rpc(tab === "conversation" ? request.type : tab === "documents" ? "debug_documents" : "debug_transcripts", tab === "conversation" ? request.payload : {});
     if (!isCurrent()) return;
-    debugData = tab === "transcripts" && request.type === "debug_character" ? characterTranscripts(data, request.payload.characterId) : data;
+    debugData = ["transcripts", "activity"].includes(tab) && request.type === "debug_character" ? characterTranscripts(data, request.payload.characterId) : data;
     debugError = "";
     const panel = document.querySelector("#debug-panel");
-    if (panel) updateTranscriptPanel(panel, tab === "conversation" ? conversationView() : tab === "documents" ? documentsView() : transcriptView());
+    if (tab === "activity") {
+      const calls = panel?.querySelector("[data-activity-calls]");
+      if (calls) updateTranscriptPanel(calls, activityView());
+    } else if (panel) updateTranscriptPanel(panel, tab === "conversation" ? conversationView() : tab === "documents" ? documentsView() : transcriptView());
   } catch (error) {
     if (!isCurrent()) return;
     const panel = document.querySelector("#debug-panel");
@@ -616,12 +623,12 @@ async function openDebug(request = debugRequest, title = debugTitle) {
   debugError = "";
   render();
   try {
-    const data = await rpc(debugTab === "documents" ? "debug_documents" : debugTab === "transcripts" ? "debug_transcripts" : request.type, request.payload);
+    const data = await rpc(debugTab === "documents" ? "debug_documents" : ["transcripts", "activity"].includes(debugTab) ? "debug_transcripts" : request.type, request.payload);
     if (readSequence !== debugReadSequence) return;
     if (debugTab === "documents" && changedTarget) documentRoute = {
       path: request.type === "debug_character" ? data.characterPaths?.[request.payload.characterId] ?? "" : data.scenario,
     };
-    debugData = debugTab === "transcripts" && request.type === "debug_character" ? characterTranscripts(data, request.payload.characterId) : data;
+    debugData = ["transcripts", "activity"].includes(debugTab) && request.type === "debug_character" ? characterTranscripts(data, request.payload.characterId) : data;
   }
   catch (error) {
     if (readSequence !== debugReadSequence) return;
@@ -995,7 +1002,7 @@ function bind() {
       status.textContent = error.message;
     } finally { button.disabled = false; }
   }));
-  document.querySelector("[data-debug-refresh]")?.addEventListener("click", () => ["transcripts", "documents", "conversation"].includes(debugTab) ? refreshDebugTranscripts() : openDebug());
+  document.querySelector("[data-debug-refresh]")?.addEventListener("click", () => ["transcripts", "documents", "conversation", "activity"].includes(debugTab) ? refreshDebugTranscripts() : openDebug());
   document.querySelectorAll("[data-debug-close]").forEach(button => button.addEventListener("click", () => { debugOpen = false; render(); }));
   document.querySelector("[data-choose-premade]")?.addEventListener("click", () => { if (!busy) { choosingPremade = true; render(); } });
   document.querySelector("[data-creation-back]")?.addEventListener("click", () => { if (!busy) { choosingPremade = false; render(); } });
