@@ -112,11 +112,12 @@ test("the full conversation strategy retains dice adjudication before background
 
 test("flags schedule one combined activity review and separate focused reviews in order", async () => {
   const f = fixture("background"), categories: string[] = [], labelSets: string[][] = [];
-  f.runtime.services.ai.decisions = async (_state, _questions, _signal, purpose) => purpose === "conversation_attention" ? {
+  const decisions = f.runtime.services.ai.decisions;
+  f.runtime.services.ai.decisions = async (state, questions, signal, purpose) => purpose === "conversation_attention" ? {
     immediate_commitment: choice("flagged"), deferred_commitment: choice("flagged"), general_commitment: choice("flagged"),
     immediate_feasibility: choice("gms_discretion"), improvised_detail: choice("flagged"), plot_progress: choice("flagged"),
     other_world_update: choice("flagged"), conversational_exchange: choice("flagged"), relationship_or_knowledge_change: choice("flagged"),
-  } : {};
+  } : decisions(state, questions, signal, purpose);
   f.runtime.services.debug.record = event => {
     if (event.source === "live-review") categories.push((event.output as { category: string }).category);
   };
@@ -152,8 +153,10 @@ test("flags schedule one combined activity review and separate focused reviews i
 test("unflagged turns skip reviews and discretion alone schedules only the activity review", async () => {
   for (const discretion of [false, true]) {
     const f = fixture("background"); let calls = 0;
-    f.runtime.services.ai.decisions = async () => ({ immediate_commitment: choice("not_flagged"),
-      immediate_feasibility: choice(discretion ? "gms_discretion" : "not_applicable") });
+    const decisions = f.runtime.services.ai.decisions;
+    f.runtime.services.ai.decisions = async (state, questions, signal, purpose) => purpose === "conversation_attention"
+      ? { immediate_commitment: choice("not_flagged"), immediate_feasibility: choice(discretion ? "gms_discretion" : "not_applicable") }
+      : decisions(state, questions, signal, purpose);
     f.runtime.services.ai.responses = async request => {
       calls++;
       assert.deepEqual(request.tools?.map(tool => tool.function.name), ["set_activity"]);
