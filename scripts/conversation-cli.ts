@@ -62,7 +62,7 @@ let conversationTree: CliConversationTree | undefined;
 if (treeEnabled) {
   const tree = parseConversationTree(readFileSync(new URL("./conversation-trees/aldren.md", import.meta.url), "utf8"));
   await services.quests.register(tree.quest);
-  conversationTree = new CliConversationTree(tree, services.quests, { "hello-world.ts": helloWorld });
+  conversationTree = new CliConversationTree(tree, services.quests, { "hello-world.ts": signal => helloWorld(services.quests, signal) });
 }
 const input: ConversationInput = {
   world: services.scenario.read(), characterId,

@@ -14,7 +14,7 @@ Only guidance is character-facing; conditions and scripts remain host-owned.
 The parser compiles nodes and transitions into the existing quest graph schema;
 script names remain separate host metadata. No script executes during parsing.
 
-This layer supplies the parser only; CLI activation follows in a dependent layer.
+The parser is independent of the CLI executor described below.
 
 ## Host execution
 
@@ -26,7 +26,8 @@ system message by the existing conversation request builder.
 
 Scripts are trusted TypeScript functions explicitly registered by the host;
 a Markdown filename does not permit arbitrary filesystem imports. The demo
-`hello-world.ts` returns an inspector message. Future world effects should use
+`hello-world.ts` activates `assembly_programme` through `quests.setActive()` and
+returns an inspector message. Future world effects should use
 host services. Script execution precedes recording the transition; these are
 not an atomic transaction. Any evaluation/script/commit failure stops tree
 processing for the session, preventing automatic replay of partial effects.
@@ -52,5 +53,7 @@ the tree; exact choices depend on Jev. Acceptance displays the hello-world outpu
 refusal reaches a separate terminal node without running the script.
 
 Ctrl+D exports the usual transcript/world plus `conversationTrees` inspector
-history. The demo registers its progress in `world.quests`, but does not activate
-the actual Assembly Programme quest or change production gameplay.
+history. The demo registers its progress in `world.quests`. Acceptance also activates
+Assembly Programme using the API from PR #560; inspect
+`world.quests.assembly_programme.active` in the export. Refusal leaves it inactive.
+This CLI flag does not change production gameplay.

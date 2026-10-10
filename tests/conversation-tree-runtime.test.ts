@@ -1,3 +1,4 @@
+import { helloWorld } from "../scripts/conversation-trees/hello-world.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
@@ -11,10 +12,10 @@ import type { AiService } from "../packages/conversation/src/services.js";
 import { loadPlayableWorld } from "./fixtures.js";
 
 const source = readFileSync(new URL("../scripts/conversation-trees/aldren.md", import.meta.url), "utf8");
-async function setup(script: TreeScript = async () => "Hello world!") {
+async function setup(script?: TreeScript) {
   const services = createScenarioServices(loadPlayableWorld()), tree = parseConversationTree(source);
   await services.quests.register(tree.quest);
-  const runner = new CliConversationTree(tree, services.quests, { "hello-world.ts": script });
+  const runner = new CliConversationTree(tree, services.quests, { "hello-world.ts": script ?? (signal => helloWorld(services.quests, signal)) });
   const events: TreeStatus[] = [], signal = new AbortController().signal;
   const history: TranscriptMessage[] = [runner.goal(), create(TranscriptMessageSchema, {
     role: TranscriptRole.PLAYER, speakerId: "player", text: "Hello",
@@ -84,4 +85,16 @@ test("cancelled decisions cannot advance progress", async () => {
     controller.abort(); return { greeted: { choice: "hit", probabilities: { hit: 1 } } };
   } }, controller.signal, () => {}), /abort/i);
   assert.equal(services.quests.read(tree.quest.id).revision, 0);
+});
+
+test("the real TypeScript hook activates the authored quest without advancing its stage", async () => {
+  const { step, services, runner } = await setup();
+  const before = services.quests.read("assembly_programme");
+  assert.equal(before.active, false);
+  await step("greeted"); await step("hinted"); await step("accepted");
+  const after = services.quests.read("assembly_programme");
+  assert.equal(after.active, true);
+  assert.equal(after.currentStageId, before.currentStageId);
+  assert.deepEqual(after.history, before.history);
+  assert.match(runner.status.scriptOutput!, /Hello world!.*now active/);
 });
