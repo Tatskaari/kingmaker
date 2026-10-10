@@ -259,7 +259,7 @@ test("committed tool history captures exact text for replacements, insertions, c
   await tools.call("replace_document", { path: entry, expectedSha: before.sha, oldText: "A promise.", newText: "Conflict" }, trace);
   assert.equal(updates.length, 1, "Failed writes are not recorded");
   const current = await services.docs.read(entry);
-  await tools.call("insert_document", { path: entry, expectedSha: current.sha, afterLine: current.text.split("\n").length, text: "Another memory." }, trace);
+  await tools.call("insert_document", { path: entry, expectedSha: current.sha, afterLine: current.text.trimEnd().split("\n").length, text: "Another memory." }, trace);
   assert.equal(updates[1]!.beforeText, current.text);
   assert.match(updates[1]!.afterText, /Another memory/);
   await tools.call("create_document", { path: "note.md", text: "A new note." }, trace);
