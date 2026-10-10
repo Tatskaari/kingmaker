@@ -5,12 +5,12 @@
   "originalReply": "“Giggling is audible; its subject is not thereby established.” *I glance toward the hall, then back to you.* “And I will not confront them on an inference, however familiar the inference may feel. If you heard specific words, tell me what they were—and who spoke them.”",
   "transcript": [
     {
-      "role": "PLAYER",
+      "role": "TRANSCRIPT_ROLE_PLAYER",
       "speakerId": "player",
       "text": "I heard them giggling to themselves. You should really confront them and defend your honor. "
     },
     {
-      "role": "CHARACTER",
+      "role": "TRANSCRIPT_ROLE_CHARACTER",
       "speakerId": "corvin",
       "text": "“Giggling is not proof of what was said.” *My thumb settles against the royal seal.* “But I agree that I should get to the truth of the matter. As soon as we finish here, I will speak to Lady Elinor Ash, Professor Oswin, and Doctor Rowan Ash, one by one. I will ask each what was said about my academic record and hear their account separately before deciding what to believe. My reputation deserves facts, not a public quarrel founded on an inference.”"
     }
