@@ -574,7 +574,8 @@ export class WorldGameRuntime extends WorldHost {
       throw error;
     } finally {
       // The timed instruction remains authoritative even if the review proposes another task.
-      if (!signal.aborted && activityGoal(this.world(), id) !== goal) await assign();
+      const arrived = this.world().simulation!.map!.actors.find(actor => actor.characterId === id)?.roomId === room.id;
+      if (!signal.aborted && !arrived && activityGoal(this.world(), id) !== goal) await assign();
     }
   }
   async processPerceivedEvent(id: string, event: Event, perception: string, signal = new AbortController().signal) {
