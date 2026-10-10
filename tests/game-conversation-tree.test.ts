@@ -41,7 +41,7 @@ test("fresh game goals activate the visible quest and persist through reload wit
   const seen: string[] = [], game = new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, undefined, options(seen));
   let writes = 0;
   game.setPersistence(async work => { writes++; return work(); });
-  assert.deepEqual(game.view().activeQuests, []);
+  assert.equal(game.services.quests.read("assembly_programme").active, false);
   await requestHelp(game);
   await game.checkedTalkToCharacter("aldren", "Yes");
   assert.equal(stage(game), "helping");
@@ -64,7 +64,7 @@ test("declining in the game leaves Assembly Programme inactive", async () => {
   await requestHelp(game);
   await game.checkedTalkToCharacter("aldren", "No");
   assert.equal(stage(game), "declined");
-  assert.deepEqual(game.view().activeQuests, []);
+  assert.equal(game.services.quests.read("assembly_programme").active, false);
   game.movement.dispose();
 });
 
@@ -80,7 +80,7 @@ test("failed post-reply Jev preserves accepted speech and does not activate a qu
   assert.match(JSON.stringify(game.snapshot().conversations.aldren), /Welcome, traveller\./);
   assert.match(JSON.stringify(game.snapshot().conversations.aldren), /Hello/);
   assert.equal(stage(game), "greeting");
-  assert.deepEqual(game.view().activeQuests, []);
+  assert.equal(game.services.quests.read("assembly_programme").active, false);
   assert.match(warnings[0]!, /Jev unavailable/);
   game.movement.dispose();
 });
