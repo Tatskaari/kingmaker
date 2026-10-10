@@ -238,16 +238,19 @@ function characterTranscriptView(entries, runs, route) {
     + `<div class="character-transcripts" data-transcript-container data-transcript-key="character-transcripts"><div class="transcript-selected" data-transcript-container data-transcript-key="selected">${selected ? transcriptDetail(selected, name) : empty("This call is no longer available for this character. Select another call.")}</div><nav class="transcript-call-list" aria-label="Character AI requests" data-transcript-container data-transcript-key="call-list">${menu}</nav></div>`;
 }
 
-/** Saved history includes system context that the player-facing conversation omits. */
+/** Show the actual response request, never reconstruct context from today's documents. */
 export function conversationTranscriptView(data, names = {}) {
-  const turns = data?.conversation || [];
-  if (!turns.length) return empty("No current conversation. Start an audience with this character to inspect its history.");
-  return `<section class="debug-conversation" aria-label="Current conversation transcript"><p class="debug-meta">${turns.length} entries · Oldest first</p>${turns.map((turn, index) => {
-    const role = label(turn.role);
-    const system = role === "game master";
-    const modelRole = system ? "system" : role === "character" ? "assistant" : "user";
-    const speaker = system ? turn.speakerId === "earshot" ? "Conversation earshot" : "DM / context"
-      : names[turn.speakerId] || (role === "player" ? "You" : names[data.characterId] || turn.speakerId || role);
-    return `<article class="history-turn ${system ? "context" : role === "player" ? "player" : "character"}" data-transcript-key="conversation-${index}"><span class="speaker">${escape(speaker)}</span><span class="debug-meta">${index + 1} · ${modelRole}${system ? " · Hidden from dialogue" : ""}</span><p>${escape(turn.text || "")}</p></article>`;
+  const call = data?.contextCall;
+  if (!call?.request?.messages) return empty(data?.conversation?.length
+    ? "Full context is unavailable for this loaded conversation. Send another message to capture the next character request; saved dialogue alone does not include its instructions or disclosed lore."
+    : "No character request captured for the current conversation. Start an audience and send a message.");
+  const turns = [...call.request.messages, ...(call.response ? [call.response] : [])];
+  return `<section class="debug-conversation" aria-label="Current conversation context"><p class="debug-meta">${call.request.messages.length} input messages · ${escape(transcriptStatus(call.status))} · ${escape(transcriptTime(call.startedAt))} · Request order${call.response ? " · Response last" : ""}</p>${call.error ? `<p class="debug-error">${escape(call.error)}</p>` : ""}${turns.map((turn, index) => {
+    const system = turn.role === "system" || turn.role === "developer";
+    const speaker = system ? "Instructions / context" : turn.role === "assistant" ? names[data.characterId] || data.characterId
+      : turn.role === "user" ? names.player || "You / supplied context" : turn.role;
+    const { role, content, ...extra } = turn;
+    const text = typeof content === "string" ? content : JSON.stringify(content ?? null, null, 2);
+    return `<article class="history-turn ${system ? "context" : role === "user" ? "player" : "character"}" data-transcript-key="context-${call.id}-${index}"><span class="speaker">${escape(speaker)}</span><span class="debug-meta">${index + 1} · ${escape(role)}${index === call.request.messages.length ? " · Response" : ""}</span><p>${escape(text)}</p>${Object.keys(extra).length ? `<pre>${escape(JSON.stringify(extra, null, 2))}</pre>` : ""}</article>`;
   }).join("")}</section>`;
 }

@@ -90,20 +90,22 @@ test("disclosure lists document paths with threshold decisions and open document
   assert.doesNotMatch(summary, /open_1|open_2|<Opened>|<Summary>/);
 });
 
-test("conversation transcript preserves hidden context in order and escapes speaker and text", () => {
-  const html = conversationTranscriptView({ characterId: "rowan", conversation: [
-    { role: "TRANSCRIPT_ROLE_GAME_MASTER", speakerId: "earshot", text: "Listeners changed" },
-    { role: "TRANSCRIPT_ROLE_PLAYER", speakerId: "player", text: "First line\nSecond line" },
-    { role: "TRANSCRIPT_ROLE_GAME_MASTER", speakerId: "GM", text: "<binding ruling>" },
-    { role: "TRANSCRIPT_ROLE_CHARACTER", speakerId: "rowan", text: "A reply" },
-  ] }, { rowan: "<Rowan>" });
-  assert.match(html, /Conversation earshot/);
-  assert.match(html, /system · Hidden from dialogue/);
-  assert.match(html, /First line\nSecond line/);
-  assert.match(html, /&lt;binding ruling&gt;/);
+test("conversation context shows all exact input messages followed by the response", () => {
+  const html = conversationTranscriptView({ characterId: "rowan", contextCall: { id: 1, status: "success", request: { messages: [
+    { role: "system", content: "Original instructions" },
+    { role: "system", content: "# Disclosed lore\n<private belief>" },
+    { role: "user", content: "First line\nSecond line" },
+    { role: "assistant", content: "Earlier reply" },
+    { role: "system", content: "<binding ruling>" },
+  ] }, response: { role: "assistant", content: "A reply" } } }, { rowan: "<Rowan>" });
+  const expected = ["Original instructions", "# Disclosed lore\n&lt;private belief&gt;", "First line\nSecond line", "Earlier reply", "&lt;binding ruling&gt;", "A reply"];
+  for (const [index, text] of expected.entries()) {
+    assert.ok(html.includes(text));
+    if (index) assert.ok(html.indexOf(expected[index - 1]) < html.indexOf(text));
+  }
+  assert.match(html, /5 input messages/);
+  assert.match(html, /6 · assistant · Response/);
   assert.match(html, /&lt;Rowan&gt;/);
-  assert.ok(html.indexOf("Listeners changed") < html.indexOf("First line"));
-  assert.ok(html.indexOf("First line") < html.indexOf("&lt;binding ruling&gt;"));
-  assert.ok(html.indexOf("&lt;binding ruling&gt;") < html.indexOf("A reply"));
-  assert.match(conversationTranscriptView({ conversation: [] }), /No current conversation/);
+  assert.match(conversationTranscriptView({ conversation: [{}] }), /Full context is unavailable/);
+  assert.match(conversationTranscriptView({ conversation: [] }), /No character request captured/);
 });
