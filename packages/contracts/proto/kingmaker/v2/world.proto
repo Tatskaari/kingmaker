@@ -4,6 +4,7 @@ package kingmaker.v2;
 
 import "google/protobuf/struct.proto";
 import "kingmaker/v1/game.proto";
+import "kingmaker/v2/quest.proto";
 
 // A document reference, resolved without loading the target's contents.
 message DocumentLink {
@@ -59,4 +60,6 @@ message WorldState {
   string scenario_index = 5;
   // Player's Markdown entrypoint; absent until the player has been created.
   optional string player = 6;
+  // GM-only quest definitions and progress, keyed by quest ID.
+  map<string, QuestState> quests = 9;
 }

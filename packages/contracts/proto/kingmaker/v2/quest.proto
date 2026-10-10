@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package kingmaker.v2;
+
+// GM-owned quest graph. Conditions describe requirements; they do not execute code.
+message Quest {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+  string initial_stage_id = 4;
+  repeated QuestStage stages = 5;
+  repeated QuestTransition transitions = 6;
+}
+
+// Established state, not an entry script. Repeated field order is display order.
+message QuestStage {
+  string id = 1;
+  string title = 2;
+  string description = 3;
+}
+
+// Directed edge; multiple routes may converge on the same stage.
+message QuestTransition {
+  string id = 1;
+  string from_stage_id = 2;
+  string to_stage_id = 3;
+  string description = 4;
+  // Adjudicated by the caller before requesting a transition.
+  string condition = 5;
+}
+
+// Per-playthrough progress. Quest definitions are fixed once registered.
+message QuestState {
+  Quest quest = 1;
+  string current_stage_id = 2;
+  uint32 revision = 3;
+  repeated QuestTransitionRecord history = 4;
+}
+
+// Successful data transitions only; no implication of physical world effects.
+message QuestTransitionRecord {
+  string transition_id = 1;
+  uint32 revision = 2;
+  string evidence = 3;
+}
