@@ -10,7 +10,7 @@ import type { RuntimeServices } from "./services.js";
 
 const text = { type: "string", minLength: 1 };
 export const activityTools: OpenRouterTool[] = [
-  { type: "function", function: { name: "set_activity", description: renderPrompt("activity-tools-set-activity"), parameters: {
+  { type: "function", function: { name: "set_activity", description: renderPrompt("activity-tools-set-activity", { focused: false }), parameters: {
     type: "object", additionalProperties: false, required: ["name", "status", "success_criteria", "current_goal"],
     properties: { name: text, status: text, success_criteria: text, current_goal: text, activate: { type: "boolean" } },
   } } },
