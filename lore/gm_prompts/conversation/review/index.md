@@ -10,6 +10,7 @@ GM conversation review instructions and the tools also used by world reviews and
 - [[gm_prompts/conversation/review/review-conversation|review conversation]]
 - [[gm_prompts/conversation/review/review-focused|focused review]]
 - [[gm_prompts/conversation/review/review-activity|activity review]]
+- [[gm_prompts/conversation/review/review-commitment-memory|commitment memory review]]
 - [[gm_prompts/conversation/review/review-improvised-detail|improvised detail review]]
 - [[gm_prompts/conversation/review/review-plot-progress|plot progress review]]
 - [[gm_prompts/conversation/review/review-other-world-update|other world update review]]

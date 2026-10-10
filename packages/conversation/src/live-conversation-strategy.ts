@@ -51,14 +51,17 @@ export function liveConversationStrategy(options: {
     record("classify", "live-attention", labels, pass);
     options.report?.({ kind: "labels", subject: "character", source: "attention", decisions: labels });
     const discretion = labels.immediate_feasibility?.choice === "gms_discretion";
+    const commitment = commitmentFlags.some(name => labels[name]?.choice === "flagged");
     const categories = [
-      ...(discretion || commitmentFlags.some(name => labels[name]?.choice === "flagged") ? ["activity"] : []),
+      ...(discretion || commitment ? ["activity"] : []),
+      ...(commitment ? ["commitment_memory"] : []),
       ...reviewCategories.filter(name => labels[name]?.choice === "flagged"),
     ];
     const transcript = turnEvidence(messages.slice(playerIndex), reply, options.characterId);
     signal.throwIfAborted();
     for (const category of categories) options.reviews.enqueue(async reviewSignal => {
-      const names = category === "activity" ? [...commitmentFlags, "immediate_feasibility"] : [category];
+      const names = category === "activity" ? [...commitmentFlags, "immediate_feasibility"]
+        : category === "commitment_memory" ? commitmentFlags : [category];
       const reviewLabels = Object.fromEntries(Object.entries(labels).filter(([name]) => names.includes(name)));
       await reviewDocumentEvidence({ characterId: options.characterId, participants: [options.characterId, "player"], transcript },
         reviewLabels, reviewSignal, { ...services, ai: { ...services.ai,

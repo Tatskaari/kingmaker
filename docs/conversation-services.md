@@ -68,6 +68,11 @@ and general commitments share one activity review (also triggered by feasibility
 requiring GM discretion). It runs first and exposes only `set_activity`; the host
 rejects all other tool calls. Deferred activities use `activate=false`, and vague
 support alone creates no task. The host supplies context before the review.
+Any commitment flag also queues one shared commitment memory review immediately
+after the activity review. It can read and edit documents and use `save_memory` to
+preserve the promise, its supported reason, beneficiaries and conditions for later
+conversation disclosure. This includes broad support even when no activity is set.
+It has no activity tools, so remembering a promise does not reschedule it.
 Each other flagged category gets its own instructions and review: improvised detail,
 plot progress, other world update, conversational exchange, and relationship or
 knowledge change. These reviewers have no activity tools. Each receives only its
