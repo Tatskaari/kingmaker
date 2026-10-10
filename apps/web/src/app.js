@@ -325,6 +325,7 @@ function showModelContext(button) {
   panel.append(template.content.cloneNode(true));
   dialog.append(panel);
   dialog.querySelector("[data-context-close]").addEventListener("click", () => dialog.close());
+  dialog.addEventListener("keydown", event => { if (event.key === "Escape") event.stopPropagation(); });
   dialog.addEventListener("close", () => {
     dialog.remove();
     if (button.isConnected) button.focus({ preventScroll: true });
