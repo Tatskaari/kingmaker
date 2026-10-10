@@ -1,3 +1,4 @@
+import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { parseConversationTree } from "../packages/lore/src/conversation-tree.js";
 import { CliConversationTree } from "../apps/conversation-cli/conversation-tree.js";
 import { helloWorld } from "./conversation-trees/hello-world.js";
@@ -75,7 +76,7 @@ const strategyName = options.get("--strategy") ?? "game";
 if (strategyName !== "game") throw new Error("Unknown conversation strategy");
 const reviews = new ConversationReviews();
 const result = await runConversationCli(input, ai.responses, disclosure, { ai, build, ...(conversationTree ? { conversationTree } : {}),
-  services: { inventory: services.inventory, docs: services.docs, scenario: services.scenario, lore: documentLoreService(services.scenario) },
+  services: new ConversationRuntime({ services: { ai, inventory: services.inventory, docs: services.docs, scenario: services.scenario, lore: documentLoreService(services.scenario) } }).services,
   beforeTurn: async () => { await reviews.drain(); return new DisclosureSession(await documentLore(services.scenario, characterId), ai, Number(options.get("--threshold") ?? "0.7")); },
   response: report => liveConversationStrategy({ characterId, reviews, report }),
   beginTurn: () => { turnId = crypto.randomUUID(); } });
