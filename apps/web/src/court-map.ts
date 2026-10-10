@@ -60,37 +60,35 @@ export async function captureCourtMap(root: HTMLElement | null): Promise<Blob | 
 
   const stageRect = stage.getBoundingClientRect();
   const scaleX = output.width / stageRect.width, scaleY = output.height / stageRect.height;
-  const sample = stage.querySelector<HTMLElement>(".court-sprite:not([data-cow])");
-  const imageUrl = sample && getComputedStyle(sample).backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1];
-  if (imageUrl) {
-    const sprites = new Image(); sprites.src = imageUrl;
-    await sprites.decode();
-    context.imageSmoothingEnabled = false;
-    for (const character of stage.querySelectorAll<HTMLElement>("[data-character-sprite]")) {
-      const spriteId = Number(character.dataset.characterSprite);
-      const sprite = character.querySelector<HTMLElement>(".court-sprite");
-      const label = character.querySelector<HTMLElement>(".court-character-name");
-      if (!sprite || !Number.isInteger(spriteId)) continue;
-      const bounds = sprite.getBoundingClientRect();
-      const x = (bounds.left - stageRect.left) * scaleX, y = (bounds.top - stageRect.top) * scaleY;
-      const width = bounds.width * scaleX, height = bounds.height * scaleY;
-      if (sprite.dataset.cow) {
-        const cow = new Image();
-        cow.src = getComputedStyle(sprite).backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1] ?? "";
-        await cow.decode();
-        context.drawImage(cow, x, y, width, height);
-      } else context.drawImage(sprites, spriteId % 12 * 32, Math.floor(spriteId / 12) * 32, 32, 32, x, y, width, height);
-      if (!label?.textContent) continue;
-      const text = label.textContent;
-      context.font = `${Math.max(9, Math.round(13 * scaleY))}px Georgia, serif`;
-      context.textAlign = "center"; context.textBaseline = "top";
-      const centre = x + width / 2, labelY = y + height + 2 * scaleY;
-      const textWidth = context.measureText(text).width;
-      context.fillStyle = "rgba(23, 16, 9, .92)";
-      context.fillRect(centre - textWidth / 2 - 3, labelY - 1, textWidth + 6, Math.max(11, 15 * scaleY));
-      context.fillStyle = character.classList.contains("court-player") ? "#afe1cf" : "#fff1ce";
-      context.fillText(text, centre, labelY);
+  const images = new Map<string, HTMLImageElement>();
+  context.imageSmoothingEnabled = false;
+  for (const character of stage.querySelectorAll<HTMLElement>("[data-character-sprite]")) {
+    const spriteId = Number(character.dataset.characterSprite);
+    const sprite = character.querySelector<HTMLElement>(".court-sprite");
+    const label = character.querySelector<HTMLElement>(".court-character-name");
+    if (!sprite || !Number.isInteger(spriteId)) continue;
+    const bounds = sprite.getBoundingClientRect();
+    const x = (bounds.left - stageRect.left) * scaleX, y = (bounds.top - stageRect.top) * scaleY;
+    const width = bounds.width * scaleX, height = bounds.height * scaleY;
+    const imageUrl = getComputedStyle(sprite).backgroundImage.match(/^url\(["']?(.*?)["']?\)$/)?.[1];
+    if (!imageUrl) continue;
+    let image = images.get(imageUrl);
+    if (!image) {
+      image = new Image(); image.src = imageUrl;
+      await image.decode(); images.set(imageUrl, image);
     }
+    if (sprite.dataset.cow || sprite.dataset.portrait) context.drawImage(image, x, y, width, height);
+    else context.drawImage(image, spriteId % 12 * 32, Math.floor(spriteId / 12) * 32, 32, 32, x, y, width, height);
+    if (!label?.textContent) continue;
+    const text = label.textContent;
+    context.font = `${Math.max(9, Math.round(13 * scaleY))}px Georgia, serif`;
+    context.textAlign = "center"; context.textBaseline = "top";
+    const centre = x + width / 2, labelY = y + height + 2 * scaleY;
+    const textWidth = context.measureText(text).width;
+    context.fillStyle = "rgba(23, 16, 9, .92)";
+    context.fillRect(centre - textWidth / 2 - 3, labelY - 1, textWidth + 6, Math.max(11, 15 * scaleY));
+    context.fillStyle = character.classList.contains("court-player") ? "#afe1cf" : "#fff1ce";
+    context.fillText(text, centre, labelY);
   }
   return canvasBlob(output);
 }
@@ -244,12 +242,13 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
       });
     }
     const sprite = document.createElement("span"); sprite.className = "court-sprite"; sprite.setAttribute("aria-hidden", "true");
+    if (["oswin", "rowan", "elinor"].includes(marker.id)) sprite.dataset.portrait = marker.id;
     if (marker.physicalForm === "cow") {
       sprite.dataset.cow = "true";
       sprite.classList.add("court-cow");
       control.setAttribute("aria-description", "Currently a cow");
     }
-    sprite.style.backgroundPosition = marker.physicalForm === "cow" ? "0 0" : `${-(marker.sprite % 12) * 32}px ${-Math.floor(marker.sprite / 12) * 32}px`;
+    sprite.style.backgroundPosition = marker.physicalForm === "cow" || sprite.dataset.portrait ? "0 0" : `${-(marker.sprite % 12) * 32}px ${-Math.floor(marker.sprite / 12) * 32}px`;
     const label = document.createElement("span"); label.className = "court-character-name";
     label.textContent = `${marker.name}${isPlayer ? " (you)" : ""}`;
     // Adjacent identical bodies share a visible label, while each button remains named.
@@ -356,7 +355,7 @@ export async function mountCourtMap(root: HTMLElement, characters: readonly Cour
         const cow = marker.physicalForm === "cow";
         sprite.classList.toggle("court-cow", cow);
         if (cow) sprite.dataset.cow = "true"; else delete sprite.dataset.cow;
-        sprite.style.backgroundPosition = cow ? "0 0" : `${-(marker.sprite % 12) * 32}px ${-Math.floor(marker.sprite / 12) * 32}px`;
+        sprite.style.backgroundPosition = cow || sprite.dataset.portrait ? "0 0" : `${-(marker.sprite % 12) * 32}px ${-Math.floor(marker.sprite / 12) * 32}px`;
         control.style.transition = "none";
         control.style.left = `${(marker.point.x + 0.5) / palaceMap.width * 100}%`;
         control.style.top = `${(marker.point.y + 0.5) / palaceMap.height * 100}%`;
