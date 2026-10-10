@@ -113,7 +113,9 @@ export class WorldHost {
       playerMessages: structuredClone(this.activity.playerMessages) };
   }
   debug() { return { documentWorld: toJson(WorldStateSchema, this.world()) }; }
-  debugCharacter(id: string) { return { characterId: id, documents: this.world().docs }; }
+  debugCharacter(id: string) { return { characterId: id, documents: this.world().docs,
+    conversation: structuredClone(this.activity.conversations[id] ?? []),
+  }; }
   debugGameMaster() { return { documentWorld: toJson(WorldStateSchema, this.world()),
     savedTranscript: structuredClone(this.activity.stranger?.history ?? []), promptMatchesCurrentScenario: true,
     compulsion: { active: false, options: this.activity.stranger?.replies?.options ?? [] },

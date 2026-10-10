@@ -21,5 +21,10 @@ test("browser view reads document presentation and preserves physical bodies and
   assert.equal(view.characters.filter((character: any) => character.id.startsWith("palace-guard-")).length,
     world.simulation!.map!.actors.filter(actor => actor.characterId.startsWith("palace-guard-")).length);
   assert.deepEqual(view.conversations.rowan.map((message: any) => message.role), ["player", "character"]);
+  const debug = host.debugCharacter("rowan");
+  assert.deepEqual(debug.conversation, saved.conversations.rowan);
+  debug.conversation.length = 0;
+  assert.equal(host.debugCharacter("rowan").conversation.length, 3);
+  assert.deepEqual(host.debugCharacter("corvin").conversation, []);
   assert.deepEqual(host.snapshot(), before);
 });

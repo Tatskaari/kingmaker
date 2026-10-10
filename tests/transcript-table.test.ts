@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error Browser renderer is JavaScript.
-import { transcriptSessions, recentTranscriptsView } from "../apps/web/src/debug-view.js";
+import { transcriptSessions, recentTranscriptsView, conversationTranscriptView } from "../apps/web/src/debug-view.js";
 
 const calls = [1, 2].map(id => ({ id, kind: "jev", characterId: "corvin", status: "success",
   startedAt: "2026-10-01T10:00:00Z", request: { state: "Find the key" }, response: { choice: "walk" } }));
@@ -88,4 +88,22 @@ test("disclosure lists document paths with threshold decisions and open document
   assert.ok(summary.indexOf("Cast/&lt;Opened&gt;.md") < summary.indexOf("Cast/Skipped.md"));
   assert.match(summary, /&lt;Summary&gt;/);
   assert.doesNotMatch(summary, /open_1|open_2|<Opened>|<Summary>/);
+});
+
+test("conversation transcript preserves hidden context in order and escapes speaker and text", () => {
+  const html = conversationTranscriptView({ characterId: "rowan", conversation: [
+    { role: "TRANSCRIPT_ROLE_GAME_MASTER", speakerId: "earshot", text: "Listeners changed" },
+    { role: "TRANSCRIPT_ROLE_PLAYER", speakerId: "player", text: "First line\nSecond line" },
+    { role: "TRANSCRIPT_ROLE_GAME_MASTER", speakerId: "GM", text: "<binding ruling>" },
+    { role: "TRANSCRIPT_ROLE_CHARACTER", speakerId: "rowan", text: "A reply" },
+  ] }, { rowan: "<Rowan>" });
+  assert.match(html, /Conversation earshot/);
+  assert.match(html, /system · Hidden from dialogue/);
+  assert.match(html, /First line\nSecond line/);
+  assert.match(html, /&lt;binding ruling&gt;/);
+  assert.match(html, /&lt;Rowan&gt;/);
+  assert.ok(html.indexOf("Listeners changed") < html.indexOf("First line"));
+  assert.ok(html.indexOf("First line") < html.indexOf("&lt;binding ruling&gt;"));
+  assert.ok(html.indexOf("&lt;binding ruling&gt;") < html.indexOf("A reply"));
+  assert.match(conversationTranscriptView({ conversation: [] }), /No current conversation/);
 });

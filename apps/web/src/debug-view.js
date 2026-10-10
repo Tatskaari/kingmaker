@@ -237,3 +237,17 @@ function characterTranscriptView(entries, runs, route) {
   return `<p class="debug-note">Requests involving ${escape(name(route.characterId))}, including dialogue, Jev decisions and character reviews. Select a call on the right. History is cleared when a game is loaded.</p>`
     + `<div class="character-transcripts" data-transcript-container data-transcript-key="character-transcripts"><div class="transcript-selected" data-transcript-container data-transcript-key="selected">${selected ? transcriptDetail(selected, name) : empty("This call is no longer available for this character. Select another call.")}</div><nav class="transcript-call-list" aria-label="Character AI requests" data-transcript-container data-transcript-key="call-list">${menu}</nav></div>`;
 }
+
+/** Saved history includes system context that the player-facing conversation omits. */
+export function conversationTranscriptView(data, names = {}) {
+  const turns = data?.conversation || [];
+  if (!turns.length) return empty("No current conversation. Start an audience with this character to inspect its history.");
+  return `<section class="debug-conversation" aria-label="Current conversation transcript"><p class="debug-meta">${turns.length} entries · Oldest first</p>${turns.map((turn, index) => {
+    const role = label(turn.role);
+    const system = role === "game master";
+    const modelRole = system ? "system" : role === "character" ? "assistant" : "user";
+    const speaker = system ? turn.speakerId === "earshot" ? "Conversation earshot" : "DM / context"
+      : names[turn.speakerId] || (role === "player" ? "You" : names[data.characterId] || turn.speakerId || role);
+    return `<article class="history-turn ${system ? "context" : role === "player" ? "player" : "character"}" data-transcript-key="conversation-${index}"><span class="speaker">${escape(speaker)}</span><span class="debug-meta">${index + 1} · ${modelRole}${system ? " · Hidden from dialogue" : ""}</span><p>${escape(turn.text || "")}</p></article>`;
+  }).join("")}</section>`;
+}
