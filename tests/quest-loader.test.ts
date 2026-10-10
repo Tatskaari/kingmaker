@@ -46,7 +46,7 @@ test("rejects invalid authored graphs with source context", () => {
     ["010_stage_blocked.md", { id: "blocked", title: "Blocked" }, /exactly one/],
     ["020_stage_done.md", { id: "blocked", title: "Done" }, /duplicate stage/],
     ["transitions/clear.md", { id: "clear", trigger: "discretionary", to: "missing", condition: "Clear" }, /unknown stage/],
-    ["transitions/clear.md", { id: "clear", trigger: "automatic", to: "done", condition: "Clear" }, /only discretionary/],
+    ["transitions/clear.md", { id: "clear", trigger: "automatic", to: "done", condition: "Clear" }, /unsupported transition trigger/],
     ["transitions/clear.md", { id: "clear", trigger: "discretionary", to: "done" }, /condition must/],
     ["transitions/clear.md", { id: "clear", trigger: "discretionary", to: "done", condition: "[[Missing]]" }, /No matching/],
     ["020_stage_done.md", { id: "done", title: "Done", visibility: "public" }, /visibility: gm/],
@@ -68,4 +68,28 @@ test("the playable Assembly Programme loads with three remedy routes", () => {
   assert.deepEqual(quests.availableTransitions("assembly_programme").map(edge => edge.id),
     ["agree_to_back_out", "begin_dismantling", "begin_repair"]);
   assert.equal(quests.read("assembly_programme").currentStageId, "delivery_delayed");
+});
+
+
+test("loads active conversation predicates and completed stages with strict metadata", () => {
+  const notes = fixture();
+  notes.set("Scenarios/Test/Characters/aldren/character.md", note({}));
+  notes.set(root + "index.md", note({ id: "delivery", title: "Delivery", active: true }));
+  notes.set(root + "020_stage_done.md", note({ id: "done", title: "Done", completed: true }));
+  notes.set(root + "transitions/clear.md", note({ id: "clear", trigger: "predicate", player_talked_to: "aldren", to: "done", condition: "Player talked to Aldren." }));
+  const state = build(notes).quests.delivery!;
+  assert.equal(state.active, true);
+  assert.equal(state.quest!.stages[1]!.completed, true);
+  assert.equal(state.quest!.transitions[0]!.playerTalkedTo, "aldren");
+  notes.delete("Scenarios/Test/Characters/aldren/character.md");
+  assert.throws(() => build(notes), /unknown conversation character/);
+  notes.set(root + "transitions/clear.md", note({ id: "clear", trigger: "predicate", to: "done", condition: "Talk." }));
+  assert.throws(() => build(notes), /player_talked_to must/);
+  for (const [path, metadata, expected] of [
+    ["index.md", { id: "delivery", title: "Delivery", active: "true" }, /active must be a boolean/],
+    ["020_stage_done.md", { id: "done", title: "Done", completed: "true" }, /completed must be a boolean/],
+  ] as const) {
+    const invalid = fixture(); invalid.set(root + path, note(metadata));
+    assert.throws(() => build(invalid), expected);
+  }
 });

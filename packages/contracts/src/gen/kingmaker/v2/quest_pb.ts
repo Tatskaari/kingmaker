@@ -10,7 +10,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file kingmaker/v2/quest.proto.
  */
 export const file_kingmaker_v2_quest: GenFile = /*@__PURE__*/
-  fileDesc("ChhraW5nbWFrZXIvdjIvcXVlc3QucHJvdG8SDGtpbmdtYWtlci52MiKvAQoFUXVlc3QSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSGAoQaW5pdGlhbF9zdGFnZV9pZBgEIAEoCRIoCgZzdGFnZXMYBSADKAsyGC5raW5nbWFrZXIudjIuUXVlc3RTdGFnZRIyCgt0cmFuc2l0aW9ucxgGIAMoCzIdLmtpbmdtYWtlci52Mi5RdWVzdFRyYW5zaXRpb24iPAoKUXVlc3RTdGFnZRIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCSJxCg9RdWVzdFRyYW5zaXRpb24SCgoCaWQYASABKAkSFQoNZnJvbV9zdGFnZV9pZBgCIAEoCRITCgt0b19zdGFnZV9pZBgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRIRCgljb25kaXRpb24YBSABKAkiogEKClF1ZXN0U3RhdGUSIgoFcXVlc3QYASABKAsyEy5raW5nbWFrZXIudjIuUXVlc3QSGAoQY3VycmVudF9zdGFnZV9pZBgCIAEoCRIQCghyZXZpc2lvbhgDIAEoDRI0CgdoaXN0b3J5GAQgAygLMiMua2luZ21ha2VyLnYyLlF1ZXN0VHJhbnNpdGlvblJlY29yZBIOCgZhY3RpdmUYBSABKAgiUgoVUXVlc3RUcmFuc2l0aW9uUmVjb3JkEhUKDXRyYW5zaXRpb25faWQYASABKAkSEAoIcmV2aXNpb24YAiABKA0SEAoIZXZpZGVuY2UYAyABKAliBnByb3RvMw");
+  fileDesc("ChhraW5nbWFrZXIvdjIvcXVlc3QucHJvdG8SDGtpbmdtYWtlci52MiKvAQoFUXVlc3QSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSGAoQaW5pdGlhbF9zdGFnZV9pZBgEIAEoCRIoCgZzdGFnZXMYBSADKAsyGC5raW5nbWFrZXIudjIuUXVlc3RTdGFnZRIyCgt0cmFuc2l0aW9ucxgGIAMoCzIdLmtpbmdtYWtlci52Mi5RdWVzdFRyYW5zaXRpb24iTwoKUXVlc3RTdGFnZRIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCRIRCgljb21wbGV0ZWQYBCABKAgiiwEKD1F1ZXN0VHJhbnNpdGlvbhIKCgJpZBgBIAEoCRIVCg1mcm9tX3N0YWdlX2lkGAIgASgJEhMKC3RvX3N0YWdlX2lkGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJEhEKCWNvbmRpdGlvbhgFIAEoCRIYChBwbGF5ZXJfdGFsa2VkX3RvGAYgASgJIqIBCgpRdWVzdFN0YXRlEiIKBXF1ZXN0GAEgASgLMhMua2luZ21ha2VyLnYyLlF1ZXN0EhgKEGN1cnJlbnRfc3RhZ2VfaWQYAiABKAkSEAoIcmV2aXNpb24YAyABKA0SNAoHaGlzdG9yeRgEIAMoCzIjLmtpbmdtYWtlci52Mi5RdWVzdFRyYW5zaXRpb25SZWNvcmQSDgoGYWN0aXZlGAUgASgIIlIKFVF1ZXN0VHJhbnNpdGlvblJlY29yZBIVCg10cmFuc2l0aW9uX2lkGAEgASgJEhAKCHJldmlzaW9uGAIgASgNEhAKCGV2aWRlbmNlGAMgASgJYgZwcm90bzM");
 
 /**
  * GM-owned quest graph. Conditions describe requirements; they do not execute code.
@@ -76,6 +76,13 @@ export type QuestStage = Message<"kingmaker.v2.QuestStage"> & {
    * @generated from field: string description = 3;
    */
   description: string;
+
+  /**
+   * Entering this stage completes and deactivates the quest.
+   *
+   * @generated from field: bool completed = 4;
+   */
+  completed: boolean;
 };
 
 /**
@@ -117,6 +124,13 @@ export type QuestTransition = Message<"kingmaker.v2.QuestTransition"> & {
    * @generated from field: string condition = 5;
    */
   condition: string;
+
+  /**
+   * Host predicate: a successful player exchange with this character ID.
+   *
+   * @generated from field: string player_talked_to = 6;
+   */
+  playerTalkedTo: string;
 };
 
 /**

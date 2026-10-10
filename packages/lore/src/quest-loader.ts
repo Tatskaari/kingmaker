@@ -12,6 +12,11 @@ export function loadQuests(notes: ReadonlyMap<string, Note>, scenarioID: string)
     if (typeof value !== "string" || !value.trim()) throw new Error(`${path}: ${field} must be nonempty text`);
     return value;
   };
+  const flag = (path: string, field: string): boolean => {
+    const value = notes.get(path)!.metadata[field];
+    if (value !== undefined && typeof value !== "boolean") throw new Error(`${path}: ${field} must be a boolean`);
+    return value === true;
+  };
   const title = (path: string) => text(path, "title");
   const gm = (path: string) => {
     const note = notes.get(path)!;
@@ -34,7 +39,7 @@ export function loadQuests(notes: ReadonlyMap<string, Note>, scenarioID: string)
         throw new Error(`${stagePath}: initial must be a boolean`);
       }
       if (stage.metadata.initial === true) initial.push(id);
-      quest.stages.push(create(QuestStageSchema, { id, title: title(stagePath), description: stage.body }));
+      quest.stages.push(create(QuestStageSchema, { id, title: title(stagePath), description: stage.body, completed: flag(stagePath, "completed") }));
       const outgoing = stage.metadata.transitions ?? [];
       if (!Array.isArray(outgoing)) throw new Error(`${stagePath}: transitions must be a list of note links`);
       for (const reference of outgoing) {
@@ -46,11 +51,17 @@ export function loadQuests(notes: ReadonlyMap<string, Note>, scenarioID: string)
             throw new Error("Transition must resolve inside this quest's transitions folder");
           }
           const transition = gm(target);
-          if (transition.metadata.trigger !== "discretionary") throw new Error(`${target}: only discretionary transition data is supported`);
+          const trigger = transition.metadata.trigger;
+          if (trigger !== "discretionary" && trigger !== "predicate") throw new Error(`${target}: unsupported transition trigger`);
+          const playerTalkedTo = trigger === "predicate" ? text(target, "player_talked_to") : "";
+          if (trigger === "discretionary" && transition.metadata.player_talked_to !== undefined) throw new Error(`${target}: player_talked_to requires trigger: predicate`);
+          if (playerTalkedTo && !notes.has(`Scenarios/${scenarioID}/Characters/${playerTalkedTo}/character.md`)) {
+            throw new Error(`${target}: unknown conversation character: ${playerTalkedTo}`);
+          }
           const condition = text(target, "condition");
           for (const reference of links(condition)) resolveLink(notes, target, reference);
           quest.transitions.push(create(QuestTransitionSchema, { id: text(target, "id"),
-            fromStageId: id, toStageId: text(target, "to"), description: transition.body, condition }));
+            fromStageId: id, toStageId: text(target, "to"), description: transition.body, condition, playerTalkedTo }));
         } catch (error) {
           throw new Error(`${stagePath}: ${String(reference)}: ${String(error)}`, { cause: error });
         }
@@ -60,7 +71,7 @@ export function loadQuests(notes: ReadonlyMap<string, Note>, scenarioID: string)
     quest.initialStageId = initial[0]!;
     try { validateQuest(quest); } catch (error) { throw new Error(`${path}: ${String(error)}`, { cause: error }); }
     if (quests.has(quest.id)) throw new Error(`${path}: duplicate quest ID: ${quest.id}`);
-    quests.set(quest.id, create(QuestStateSchema, { quest, currentStageId: quest.initialStageId }));
+    quests.set(quest.id, create(QuestStateSchema, { quest, currentStageId: quest.initialStageId, active: flag(path, "active") }));
   }
   return Object.fromEntries(quests);
 }
