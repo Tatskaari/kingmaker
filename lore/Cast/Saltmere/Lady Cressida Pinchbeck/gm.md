@@ -18,7 +18,7 @@ Her history of concealing the condition and her defensive shame belong in her [[
 
 A witnessed transformation can establish the visible change for that witness. Seeing a cow alone does not automatically establish that it is Cressida; neither observation grants the annual pattern, origin or her private feelings. Concealment can fail in play. “Nobody knows” describes the starting state, not immunity from discovery.
 
-The Centennial Assembly takes place at winter solstice. Cressida begins human. The intended cadence is ten minutes between form changes; current playtesting uses two minutes. One minute before cow form, she privately feels the warning signs and tries to reach her room. After becoming human again, she tries to return to the Great Hall. She retains her mind and speaking voice as a cow. This interval is a gameplay tuning choice, not knowledge shared by the court. Runtime mechanics establish each change; dialogue alone must not change her form. Nearby witnesses receive an event-log observation of each transformation.
+The Centennial Assembly takes place at winter solstice. Cressida begins human. She spends five minutes human, then one minute as a cow. Thirty seconds before cow form, she privately feels the warning signs and tries to reach her room. After becoming human again, she tries to return to the Great Hall. She retains her mind and speaking voice as a cow. This interval is a gameplay tuning choice, not knowledge shared by the court. Runtime mechanics establish each change; dialogue alone must not change her form. Nearby witnesses receive an event-log observation of each transformation.
 
 ## Portrayal and author references
 
