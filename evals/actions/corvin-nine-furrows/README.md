@@ -55,5 +55,16 @@ npm run eval:navigation -- --experiments corvin-nine-furrows --repeats 3 --concu
 
 `--list` needs no credentials. The existing navigation runner and `workspace:eval`
 CI task include this case with the shared game action strategy and no variants.
-Provider errors remain execution errors and score zero. Local validation and live
-baseline results are pending.
+Provider errors remain execution errors and score zero.
+
+## Recorded baseline
+
+On 10 October 2026, three serial trials at revision `1720510` with
+`typesafe/jev-1.13` all selected `unable`: 0/3 advancing actions, zero execution
+or grading errors. Each recorded AI input matches the captured state and questions.
+Local artifacts: `eval-output/2026-10-10T09-04-05.944Z-6b4dc237/`.
+This is a small fixed-input reproduction, not a general action-selection accuracy
+estimate or evidence that a full transcript is the appropriate remedy.
+
+An initial launch before dependency installation failed before any model calls;
+it is not included in these three trials.
