@@ -110,6 +110,11 @@ export class WorldHost {
       gmReplyOptions: structuredClone(this.activity.stranger?.replies ?? null),
       gmMessages: (this.activity.stranger?.history ?? []).filter(turn => (turn.role === "user" || turn.role === "assistant") && !turn.tool_calls?.length && turn.content)
         .map(turn => ({ role: turn.role, text: turn.content })),
+      activeQuests: this.worldServices.quests.listActive().map(({ quest, currentStageId }) => {
+        const stage = quest!.stages.find(stage => stage.id === currentStageId);
+        return { id: quest!.id, title: quest!.title || quest!.id,
+          stage: stage?.title || currentStageId, description: stage?.description || "" };
+      }),
       playerMessages: structuredClone(this.activity.playerMessages) };
   }
   debug() { return { documentWorld: toJson(WorldStateSchema, this.world()) }; }

@@ -494,3 +494,10 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 .debug-conversation .context { border-color: #87a9ac; background: #182124; }
 .debug-conversation .context .speaker { color: #b5d7da; }
 .debug-conversation .context p { font-size: 1rem; color: #d0dfe0; }
+
+.quest-feed { left: auto; bottom: auto; top: max(66px, calc(env(safe-area-inset-top) + 54px)); right: max(12px, env(safe-area-inset-right)); width: min(300px, calc(100% - 24px)); height: min(180px, 30dvh); }
+.quest-feed li + li { margin-top: 12px; }
+.quest-feed .quest-stage { color: var(--gold); font-size: 12px; margin: 3px 0; }
+@media (max-width: 700px) {
+  .quest-feed { top: 108px; }
+}
