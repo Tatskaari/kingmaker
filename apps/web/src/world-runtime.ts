@@ -551,7 +551,7 @@ export class WorldGameRuntime extends WorldHost {
     const room = this.world().simulation!.map!.rooms.find(room => room.id === roomId);
     if (!room) throw new Error("Cressida's destination room is missing.");
     const message = stage === "warning"
-      ? "You feel the warning signs: in one minute you will turn into a cow. Get to your room before anyone sees."
+      ? "You feel the warning signs: in thirty seconds you will turn into a cow. Get to your room before anyone sees."
       : "You have turned back into a human. Return to the main hall and resume your place at the Assembly.";
     const goal = stage === "warning"
       ? `Run to your room, ${room.name} (${room.id}), immediately to hide your imminent transformation. `

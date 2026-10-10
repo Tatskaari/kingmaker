@@ -6,7 +6,7 @@ import { activityGoal } from "../packages/lore/src/activity.js";
 import { loadPlayableWorld } from "./fixtures.js";
 
 const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
-test("warn at one minute, change at two, return at four even if review stalls", async t => {
+test("warn at 4:30, change at five minutes, return at six even if review stalls", async t => {
   t.mock.timers.enable({ apis: ["setTimeout", "Date"], now: 0 });
   let timer: import("../apps/web/src/cressida-scheduler.js").CressidaTimer | null = null;
   let cow = false;
@@ -17,15 +17,15 @@ test("warn at one minute, change at two, return at four even if review stalls", 
       await new Promise<void>(resolve => signal.addEventListener("abort", () => resolve())); },
     error: error => { throw error; },
   });
-  scheduler.sync(); assert.deepEqual(timer, { next: "warning", dueAt: 60_000 });
-  t.mock.timers.tick(59_999); await flush(); assert.deepEqual(stages, []);
+  scheduler.sync(); assert.deepEqual(timer, { next: "warning", dueAt: 270_000 });
+  t.mock.timers.tick(269_999); await flush(); assert.deepEqual(stages, []);
   t.mock.timers.tick(1); await flush(); assert.deepEqual(stages, ["warning"]);
-  t.mock.timers.tick(60_000); await flush(); assert.deepEqual(stages, ["warning", "cow"]);
+  t.mock.timers.tick(30_000); await flush(); assert.deepEqual(stages, ["warning", "cow"]);
   assert.equal(signals[0]!.aborted, true);
-  assert.deepEqual(timer, { next: "human", dueAt: 240_000 });
-  t.mock.timers.tick(119_999); await flush(); assert.equal(cow, true);
+  assert.deepEqual(timer, { next: "human", dueAt: 360_000 });
+  t.mock.timers.tick(59_999); await flush(); assert.equal(cow, true);
   t.mock.timers.tick(1); await flush(); assert.deepEqual(stages, ["warning", "cow", "changed-human", "human"]);
-  t.mock.timers.tick(60_000); await flush(); assert.equal(stages.at(-1), "warning");
+  t.mock.timers.tick(270_000); await flush(); assert.equal(stages.at(-1), "warning");
   scheduler.stop(); assert.equal(timer, null); const count = stages.length;
   t.mock.timers.tick(240_000); await flush(); assert.equal(stages.length, count);
   assert.equal(signals.at(-1)!.aborted, true);
@@ -47,7 +47,7 @@ test("private reviews get synthetic evidence and activities are assigned before 
   assert.match(activityGoal(runtime.world(), "cressida")!, /Run.*sabine_chamber/);
   assert.match(activityGoal(runtime.world(), "cressida")!, /East Wing, then the Saltmere Drawing Room, then the Saltmere Back Hall/);
   assert.match(activityGoal(runtime.world(), "cressida")!, /open the Saltmere quarters door if it is closed/);
-  assert.match(evidence[0]!.text, /in one minute you will turn into a cow/);
+  assert.match(evidence[0]!.text, /in thirty seconds you will turn into a cow/);
   await runtime.reviewCressidaTransition("human", signal);
   assert.match(activityGoal(runtime.world(), "cressida")!, /Return.*great_hall/);
   assert.deepEqual(evidence.map(item => item.participants), [["cressida"], ["cressida"]]);

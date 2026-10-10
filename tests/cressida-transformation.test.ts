@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { WorldGameRuntime } from "../apps/web/src/world-runtime.js";
 import { loadPlayableWorld } from "./fixtures.js";
-import { CRESSIDA_COW_EVENT, CRESSIDA_HUMAN_EVENT, CRESSIDA_TRANSFORMATION_MS } from "../packages/core/src/cressida-transformation.js";
+import { CRESSIDA_COW_EVENT, CRESSIDA_HUMAN_EVENT, CRESSIDA_HUMAN_MS } from "../packages/core/src/cressida-transformation.js";
 import { participantPresentations } from "../packages/conversation/src/participant-presentation.js";
 import { WaitScheduler } from "../apps/web/src/wait-scheduler.js";
 
@@ -44,18 +44,18 @@ test("everyone nearby perceives the transformation without a luck roll; distant 
   assert.equal(runtime.snapshot().playerMessages.at(-1)!.message, CRESSIDA_COW_EVENT);
 });
 
-test("two-minute testing cadence toggles both ways and cancellation stops future changes", async t => {
+test("human-duration clock toggles both ways and cancellation stops future changes", async t => {
   t.mock.timers.enable({ apis: ["setTimeout"] });
   const runtime = new WorldGameRuntime(loadPlayableWorld(), "");
   const scheduler = new WaitScheduler({ candidates: () => new Map([["cressida", "game"]]), busy: () => false,
-    delayMs: () => CRESSIDA_TRANSFORMATION_MS, error: (_id, error) => { throw error; },
+    delayMs: () => CRESSIDA_HUMAN_MS, error: (_id, error) => { throw error; },
     run: async (_id, _elapsed, cancellation) => { await runtime.transformCressida(cancellation); } });
   const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
   const form = () => runtime.world().simulation!.map!.actors.find(actor => actor.characterId === "cressida")!.physicalForm;
-  scheduler.sync(); t.mock.timers.tick(119_999); await flush(); assert.equal(form(), undefined);
+  scheduler.sync(); t.mock.timers.tick(299_999); await flush(); assert.equal(form(), undefined);
   t.mock.timers.tick(1); await flush(); assert.equal(form(), "cow");
-  t.mock.timers.tick(120_000); await flush(); assert.equal(form(), "human");
-  scheduler.stop(); t.mock.timers.tick(120_000); await flush(); assert.equal(form(), "human");
+  t.mock.timers.tick(300_000); await flush(); assert.equal(form(), "human");
+  scheduler.stop(); t.mock.timers.tick(300_000); await flush(); assert.equal(form(), "human");
 });
 
 

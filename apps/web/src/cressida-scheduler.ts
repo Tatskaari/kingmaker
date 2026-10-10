@@ -1,4 +1,4 @@
-import { CRESSIDA_TRANSFORMATION_MS, CRESSIDA_WARNING_MS } from "../../../packages/core/src/cressida-transformation.js";
+import { CRESSIDA_HUMAN_MS, CRESSIDA_COW_MS, CRESSIDA_WARNING_MS } from "../../../packages/core/src/cressida-transformation.js";
 import { WaitScheduler } from "./wait-scheduler.js";
 
 export interface CressidaTimer { next: "warning" | "cow" | "human"; dueAt: number }
@@ -22,8 +22,8 @@ export function cressidaScheduler(options: {
     candidates: () => { const key = options.activeKey(); return key === undefined ? new Map() : new Map([["cressida", key]]); },
     busy: () => false,
     delayMs: () => {
-      const delay = options.isCow() ? CRESSIDA_TRANSFORMATION_MS
-        : warned ? CRESSIDA_WARNING_MS : CRESSIDA_TRANSFORMATION_MS - CRESSIDA_WARNING_MS;
+      const delay = options.isCow() ? CRESSIDA_COW_MS
+        : warned ? CRESSIDA_WARNING_MS : CRESSIDA_HUMAN_MS - CRESSIDA_WARNING_MS;
       options.changed?.({ next: options.isCow() ? "human" : warned ? "cow" : "warning", dueAt: Date.now() + delay });
       return delay;
     },
