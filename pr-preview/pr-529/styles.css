@@ -207,11 +207,10 @@ button:focus-visible, .identity-field input:focus-visible { outline: 2px solid #
 .court-panel { padding: 22px; }
 .court-map-scroll { overflow: hidden; height: min(70vh, 720px); border: 1px solid var(--line); background: #100e0b; }
 .court-map-stage { position: relative; min-width: 100%; max-width: none; }
-.court-cart-sound { position: absolute; right: 12px; top: 64px; z-index: 5; padding: 8px 12px; border: 1px solid #786b56; background: #17130fed; color: #eee0c3; cursor: pointer; }
-.court-cart-sound[hidden] { display: none; }
 .court-map-stage canvas { display: block; width: 100%; height: auto; image-rendering: pixelated; }
 .court-character { position: absolute; transform: translate(-50%, -22px); display: grid; justify-items: center; gap: 3px; padding: 3px 6px; border: 1px solid transparent; border-radius: 5px; background: transparent; color: #fff1ce; z-index: 1; }
 button.court-character:focus-visible { border-color: #ffe2a0; background: #241b12c9; outline: 2px solid #ffe2a0; outline-offset: 2px; z-index: 2; }
+.court-map-stage .court-character { transform: translate(-50%, -22px) scale(2); transform-origin: 50% 22px; }
 .court-character:disabled { opacity: .5; cursor: wait; }
 .court-character-name { padding: 2px 5px; border-radius: 3px; background: #171009e8; font-size: .85rem; line-height: 1.2; max-width: 110px; text-align: center; }
 .court-sprite { width: 32px; height: 32px; background-image: url('./assets/kenney-tiny-dungeon.png'); background-size: 384px 352px; image-rendering: pixelated; }
@@ -469,3 +468,29 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 @keyframes court-speech-appear { from { opacity: 0; translate: 0 4px; } to { opacity: 1; translate: 0 0; } }
 @keyframes court-speech-dot { 0%, 60%, 100% { opacity: .45; } 30% { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { .court-speech, .court-speech span { animation: none; } }
+
+.court-sprite[data-portrait] { background-size: 32px 32px; }
+.court-sprite[data-portrait="aldren"] { background-image: url('./assets/aldren.png'); }
+.court-sprite[data-portrait="corvin"] { background-image: url('./assets/corvin.png'); }
+.court-sprite[data-portrait="holt"] { background-image: url('./assets/holt.png'); }
+.court-sprite[data-portrait="elinor"] { background-image: url('./assets/elinor.png'); }
+.court-sprite[data-portrait="oswin"] { background-image: url('./assets/oswin.png'); }
+.court-sprite[data-portrait="rowan"] { background-image: url('./assets/rowan.png'); }
+.court-sprite[data-portrait="gurt"] { background-image: url('./assets/gurt.png'); }
+.court-sprite[data-portrait="klog"] { background-image: url('./assets/klog.png'); }
+.court-sprite[data-portrait="bran"] { background-image: url('./assets/bran.png'); }
+.court-sprite[data-portrait="peregrine"] { background-image: url('./assets/peregrine.png'); }
+.court-sprite[data-portrait="cressida"] { background-image: url('./assets/cressida.png'); }
+.court-sprite[data-portrait="abel"] { background-image: url('./assets/abel.png'); }
+.court-sprite[data-portrait="palace-guard"] { background-image: url('./assets/palace-guard.png'); }
+.court-sprite[data-portrait="court-servant"] { background-image: url('./assets/court-servant.png'); }
+.court-sprite.court-cow { background-image: url('./assets/cressida-cow.svg'); background-size: 32px 32px; }
+
+.cressida-test-timer { margin: 0; padding: .4rem .8rem; color: #fff1ce; background: #342b32; font-variant-numeric: tabular-nums; }
+
+.debug-conversation { display: grid; gap: 22px; }
+.debug-conversation .history-turn { padding: 12px 18px; background: #151813; }
+.debug-conversation .debug-meta { display: block; margin-bottom: 8px; }
+.debug-conversation .context { border-color: #87a9ac; background: #182124; }
+.debug-conversation .context .speaker { color: #b5d7da; }
+.debug-conversation .context p { font-size: 1rem; color: #d0dfe0; }
