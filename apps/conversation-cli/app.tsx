@@ -14,6 +14,8 @@ import { createRoot, useKeyboard, useRenderer, useTerminalDimensions } from "@op
 import { ConversationRuntime } from "../../packages/conversation/src/runtime.js";
 import { disclosureDetails, type DisclosureRound, type DisclosureSession } from "../../packages/conversation/src/disclosure.js";
 import { conversationRequest, converse, type Complete, type ConversationInput, type LlmTurn } from "../../packages/conversation/src/conversation.js";
+import { classifyQuestTransitions } from "../../packages/conversation/src/quest-classification.js";
+import type { QuestService } from "../../packages/lore/src/quest-service.js";
 import { CliTimeline } from "./timeline.js";
 
 export interface ConversationResult {
@@ -29,7 +31,7 @@ export interface ConversationResult {
 interface AppProps {
   input: ConversationInput;
   complete: Complete;
-  checks?: { services?: Partial<RuntimeServices>; ai: AiService; build: DndCharacter | undefined; beginTurn?: () => void; beforeTurn?: () => Promise<DisclosureSession>; response?: (report: (event: import("../../packages/conversation/src/attention.js").AnalysisEvent) => void) => ConversationStrategy };
+  checks?: { quests?: Pick<QuestService, "list">; services?: Partial<RuntimeServices>; ai: AiService; build: DndCharacter | undefined; beginTurn?: () => void; beforeTurn?: () => Promise<DisclosureSession>; response?: (report: (event: import("../../packages/conversation/src/attention.js").AnalysisEvent) => void) => ConversationStrategy };
   disclosure?: DisclosureSession;
   copyText: (text: string) => Promise<string>;
   onFinish: (result: ConversationResult) => void;
@@ -141,12 +143,19 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
         } } },
         strategies: { conversation: strategies },
       });
+      let accepted: LlmTurn | undefined;
       const result = await converse({ ...turnInput, sources: disclosure?.sources ?? input.sources }, runtime, controller.current.signal,
         turn => {
+          accepted = turn;
           timeline.recordMessages([...turn.request.messages, ...(turn.response ? [turn.response] : [])]);
           setTurns(previous => [...previous.slice(0, index), turn]);
         });
       setTranscript(result.transcript); setDraft("");
+      if (checks?.quests && tracedAi && accepted?.response) {
+        // Run only after acceptance; a classifier failure must not discard the spoken exchange.
+        await classifyQuestTransitions(checks.quests.list(), input.characterId,
+          [...accepted.request.messages, accepted.response], tracedAi, controller.current.signal);
+      }
     } catch (cause) { setStatus(cause instanceof Error ? cause.message : String(cause)); }
     finally { running.current = false; setBusy(false); }
   }

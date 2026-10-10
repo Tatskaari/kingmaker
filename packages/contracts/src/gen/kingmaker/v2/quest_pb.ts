@@ -2,15 +2,15 @@
 // @generated from file kingmaker/v2/quest.proto (package kingmaker.v2, syntax proto3)
 /* eslint-disable */
 
-import type { GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
-import { fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
+import type { GenEnum, GenFile, GenMessage } from "@bufbuild/protobuf/codegenv2";
+import { enumDesc, fileDesc, messageDesc } from "@bufbuild/protobuf/codegenv2";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file kingmaker/v2/quest.proto.
  */
 export const file_kingmaker_v2_quest: GenFile = /*@__PURE__*/
-  fileDesc("ChhraW5nbWFrZXIvdjIvcXVlc3QucHJvdG8SDGtpbmdtYWtlci52MiKvAQoFUXVlc3QSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSGAoQaW5pdGlhbF9zdGFnZV9pZBgEIAEoCRIoCgZzdGFnZXMYBSADKAsyGC5raW5nbWFrZXIudjIuUXVlc3RTdGFnZRIyCgt0cmFuc2l0aW9ucxgGIAMoCzIdLmtpbmdtYWtlci52Mi5RdWVzdFRyYW5zaXRpb24iPAoKUXVlc3RTdGFnZRIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCSJxCg9RdWVzdFRyYW5zaXRpb24SCgoCaWQYASABKAkSFQoNZnJvbV9zdGFnZV9pZBgCIAEoCRITCgt0b19zdGFnZV9pZBgDIAEoCRITCgtkZXNjcmlwdGlvbhgEIAEoCRIRCgljb25kaXRpb24YBSABKAkikgEKClF1ZXN0U3RhdGUSIgoFcXVlc3QYASABKAsyEy5raW5nbWFrZXIudjIuUXVlc3QSGAoQY3VycmVudF9zdGFnZV9pZBgCIAEoCRIQCghyZXZpc2lvbhgDIAEoDRI0CgdoaXN0b3J5GAQgAygLMiMua2luZ21ha2VyLnYyLlF1ZXN0VHJhbnNpdGlvblJlY29yZCJSChVRdWVzdFRyYW5zaXRpb25SZWNvcmQSFQoNdHJhbnNpdGlvbl9pZBgBIAEoCRIQCghyZXZpc2lvbhgCIAEoDRIQCghldmlkZW5jZRgDIAEoCWIGcHJvdG8z");
+  fileDesc("ChhraW5nbWFrZXIvdjIvcXVlc3QucHJvdG8SDGtpbmdtYWtlci52MiKvAQoFUXVlc3QSCgoCaWQYASABKAkSDQoFdGl0bGUYAiABKAkSEwoLZGVzY3JpcHRpb24YAyABKAkSGAoQaW5pdGlhbF9zdGFnZV9pZBgEIAEoCRIoCgZzdGFnZXMYBSADKAsyGC5raW5nbWFrZXIudjIuUXVlc3RTdGFnZRIyCgt0cmFuc2l0aW9ucxgGIAMoCzIdLmtpbmdtYWtlci52Mi5RdWVzdFRyYW5zaXRpb24iPAoKUXVlc3RTdGFnZRIKCgJpZBgBIAEoCRINCgV0aXRsZRgCIAEoCRITCgtkZXNjcmlwdGlvbhgDIAEoCSKeAQoPUXVlc3RUcmFuc2l0aW9uEgoKAmlkGAEgASgJEhUKDWZyb21fc3RhZ2VfaWQYAiABKAkSEwoLdG9fc3RhZ2VfaWQYAyABKAkSEwoLZGVzY3JpcHRpb24YBCABKAkSEQoJY29uZGl0aW9uGAUgASgJEisKB3RyaWdnZXIYBiABKA4yGi5raW5nbWFrZXIudjIuUXVlc3RUcmlnZ2VyIpIBCgpRdWVzdFN0YXRlEiIKBXF1ZXN0GAEgASgLMhMua2luZ21ha2VyLnYyLlF1ZXN0EhgKEGN1cnJlbnRfc3RhZ2VfaWQYAiABKAkSEAoIcmV2aXNpb24YAyABKA0SNAoHaGlzdG9yeRgEIAMoCzIjLmtpbmdtYWtlci52Mi5RdWVzdFRyYW5zaXRpb25SZWNvcmQiUgoVUXVlc3RUcmFuc2l0aW9uUmVjb3JkEhUKDXRyYW5zaXRpb25faWQYASABKAkSEAoIcmV2aXNpb24YAiABKA0SEAoIZXZpZGVuY2UYAyABKAkqbAoMUXVlc3RUcmlnZ2VyEh0KGVFVRVNUX1RSSUdHRVJfVU5TUEVDSUZJRUQQABIfChtRVUVTVF9UUklHR0VSX0RJU0NSRVRJT05BUlkQARIcChhRVUVTVF9UUklHR0VSX1BSRURJQ0FURUQQAmIGcHJvdG8z");
 
 /**
  * GM-owned quest graph. Conditions describe requirements; they do not execute code.
@@ -117,6 +117,11 @@ export type QuestTransition = Message<"kingmaker.v2.QuestTransition"> & {
    * @generated from field: string condition = 5;
    */
   condition: string;
+
+  /**
+   * @generated from field: kingmaker.v2.QuestTrigger trigger = 6;
+   */
+  trigger: QuestTrigger;
 };
 
 /**
@@ -188,4 +193,30 @@ export type QuestTransitionRecord = Message<"kingmaker.v2.QuestTransitionRecord"
  */
 export const QuestTransitionRecordSchema: GenMessage<QuestTransitionRecord> = /*@__PURE__*/
   messageDesc(file_kingmaker_v2_quest, 4);
+
+/**
+ * @generated from enum kingmaker.v2.QuestTrigger
+ */
+export enum QuestTrigger {
+  /**
+   * @generated from enum value: QUEST_TRIGGER_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * @generated from enum value: QUEST_TRIGGER_DISCRETIONARY = 1;
+   */
+  DISCRETIONARY = 1,
+
+  /**
+   * @generated from enum value: QUEST_TRIGGER_PREDICATED = 2;
+   */
+  PREDICATED = 2,
+}
+
+/**
+ * Describes the enum kingmaker.v2.QuestTrigger.
+ */
+export const QuestTriggerSchema: GenEnum<QuestTrigger> = /*@__PURE__*/
+  enumDesc(file_kingmaker_v2_quest, 0);
 

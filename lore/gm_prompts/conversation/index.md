@@ -13,4 +13,8 @@ Character dialogue, GM review, attention, checks, actions and presentation promp
 - [[gm_prompts/conversation/review/index|review]]
 - [[gm_prompts/conversation/skill_check/index|skill check]]
 
+- [[gm_prompts/conversation/quest-classification|quest classification]]
+- [[gm_prompts/conversation/quest-condition-met|quest condition met]]
+- [[gm_prompts/conversation/quest-condition-not-met|quest condition not met]]
+
 Parent: [[gm_prompts/index|gm prompts]].

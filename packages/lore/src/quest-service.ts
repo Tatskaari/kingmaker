@@ -1,5 +1,5 @@
 import { clone, create } from "@bufbuild/protobuf";
-import { QuestSchema, QuestStateSchema, QuestTransitionRecordSchema,
+import { QuestSchema, QuestTrigger, QuestStateSchema, QuestTransitionRecordSchema,
   type Quest, type QuestState, type QuestTransition } from "../../contracts/src/v2.js";
 import type { WorldStore } from "./world-store.js";
 
@@ -34,6 +34,12 @@ function validateQuest(quest: Quest): void {
   ids("transition", quest.transitions);
   if (!stages.has(quest.initialStageId)) throw new Error(`${quest.id}: unknown initial stage: ${quest.initialStageId}`);
   for (const edge of quest.transitions) {
+    if (![QuestTrigger.DISCRETIONARY, QuestTrigger.PREDICATED].includes(edge.trigger)) {
+      throw new Error(`${quest.id}: transition ${edge.id} requires an explicit trigger`);
+    }
+    if (edge.trigger === QuestTrigger.DISCRETIONARY && !edge.condition.trim()) {
+      throw new Error(`${quest.id}: discretionary transition ${edge.id} requires a condition`);
+    }
     if (!stages.has(edge.fromStageId) || !stages.has(edge.toStageId)) {
       throw new Error(`${quest.id}: transition ${edge.id} references an unknown stage`);
     }

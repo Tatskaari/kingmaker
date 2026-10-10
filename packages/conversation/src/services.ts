@@ -16,7 +16,7 @@ export interface DecisionRequestInfo {
   disclosure?: { threshold: number; candidates: (LoreLink & { id: string })[] };
 }
 export interface AiService {
-  decisions(state: unknown, questions: JevQuestions, signal: AbortSignal, purpose?: "skill_check" | "skill_difficulty" | "prog_disc" | "conversation_attention", info?: DecisionRequestInfo): Promise<Record<string, JevChoice>>;
+  decisions(state: unknown, questions: JevQuestions, signal: AbortSignal, purpose?: "skill_check" | "skill_difficulty" | "prog_disc" | "conversation_attention" | "quest_transition", info?: DecisionRequestInfo): Promise<Record<string, JevChoice>>;
   responses(request: ChatCompletionRequest, signal?: AbortSignal, info?: AiRequestInfo): Promise<OpenRouterMessage>;
 }
 

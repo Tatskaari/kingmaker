@@ -26,3 +26,8 @@ This service records quest data only. It does not evaluate conditions, execute
 scripts, load lore, expose character knowledge, or coordinate physical/document
 effects. Those integrations must establish their own successful outcomes before
 recording progress; this API is not an atomic boundary for multi-service effects.
+
+Transitions require an explicit `QuestTrigger.DISCRETIONARY` or
+`QuestTrigger.PREDICATED`; discretionary transitions also require a nonempty
+condition. Use fresh definitions rather than migrating older saved quests.
+The conversation CLI can inspect discretionary conditions without recording progress.
