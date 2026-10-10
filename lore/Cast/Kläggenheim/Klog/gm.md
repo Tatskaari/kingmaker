@@ -1,5 +1,5 @@
 ---
-summary: "GM-only context for Klog's disputes with Bran and interpretation of Gurt, with guidance distinguishing his concern for claims from Corvin's legal precision."
+summary: "Draft backstory provenance and GM-only context for Klog's disputes with Bran and interpretation of Gurt, with guidance distinguishing his concern for claims from Corvin's legal precision."
 visibility: gm
 ---
 # Klog — GM notes
@@ -21,3 +21,7 @@ Voice distinction: avoid Corvin with a different title. Corvin asks what words a
 Character portrayal: [[Cast/Kläggenheim/Klog/private|Private characterization]].
 
 Parent: [[Cast/Kläggenheim/Klog/index|Klog]].
+
+## Draft backstory provenance
+
+The new backstory and linked city, flood and Bjork tradition notes are a light author-requested sketch for review and expansion, not material recovered from the source issues. Dates, family details and further consequences remain undecided.

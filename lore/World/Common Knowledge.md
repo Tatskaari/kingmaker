@@ -1,22 +1,12 @@
 ---
-summary: "Unwritten common knowledge about people and places, world events and history, magic, nature, superstition and religion, and law and politics."
+summary: "Shared world knowledge, with draft Kläggenheim cities, delegate histories and the Lower Works Flood."
 visibility: public
 status: draft
 ---
 # Common Knowledge
 
-## People and places
+[[World/Common Knowledge/People and Places/index|People and Places]] - Common knowledge about key nations, landmarks, and people around the world
 
-This is a stub.
+[[World/Common Knowledge/World Events/index|World Events]] - Common knowledge about historical events around the world.
 
-## World events and history
-
-This is a stub.
-
-## Magic, nature, superstition and religion
-
-This is a stub.
-
-## Law and politics
-
-This is a stub.
+[[World/Common Knowledge/Magic, Nature, Superstition and Religion/index|Magic, Nature, Superstition and Religion]] - Everyday beliefs and customs.
