@@ -1,3 +1,5 @@
+// @ts-expect-error Browser renderer is JavaScript.
+import { conversationTranscriptView } from "../apps/web/src/debug-view.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { WorldGameRuntime, type WorldOptions } from "../apps/web/src/world-runtime.js";
@@ -83,4 +85,29 @@ test("failed post-reply Jev preserves accepted speech and does not activate a qu
   assert.equal(game.services.quests.read("assembly_programme").active, false);
   assert.match(warnings[0]!, /Jev unavailable/);
   game.movement.dispose();
+});
+
+test("post-reply tree decisions retain the actual dialogue context in the inspector", async () => {
+  const config = options(), decide = config.services!.ai!.decisions!;
+  const game = new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, undefined, config);
+  config.services!.ai!.decisions = async (state, ...args) => {
+    if ((state as { conversation: { speaker: string }[] }).conversation.at(-1)!.speaker === "aldren") {
+      assert.deepEqual(game.speechBubbles(), [], "Jev classification is not character speech");
+      assert.match(conversationTranscriptView(game.debugCharacter("aldren")), /Welcome, traveller/);
+    }
+    return decide(state, ...args);
+  };
+  try {
+    await game.checkedTalkToCharacter("aldren", "Hello");
+    assert.equal(stage(game), "hint");
+    const latest = game.recentTranscripts()[0]!;
+    assert.equal(latest.kind, "conversation_tree");
+    const context = game.debugCharacter("aldren").contextCall!;
+    assert.equal(context.kind, "dialogue");
+    assert.notEqual(context.id, latest.id);
+    const html = conversationTranscriptView(game.debugCharacter("aldren"));
+    assert.match(html, /Welcome, traveller/);
+    assert.match(html, /Greet the player/);
+    assert.doesNotMatch(html, /Full context is unavailable/);
+  } finally { game.movement.dispose(); }
 });
