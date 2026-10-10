@@ -16,16 +16,18 @@ test("quest classification batches only outgoing discretionary edges and retains
     { role: "system" as const, content: "# Binding DM ruling\nRowan declines." },
     { role: "assistant" as const, content: "No." }];
   const negative = { choice: "condition_not_met", probabilities: { condition_met: 0.1, condition_not_met: 0.9 } };
+  const positive = { choice: "condition_met", probabilities: { condition_met: 0.9, condition_not_met: 0.1 } };
   const ai = traceCliDecisions({ responses: async () => assert.fail("No GM or character call"),
     decisions: async (evidence, questions, _signal, purpose) => {
       assert.equal(purpose, "quest_transition");
       assert.equal(Object.keys(questions).length, 2, "same transition ID in two quests remains independent");
       assert.match(JSON.stringify(evidence), /Binding DM ruling/);
-      return { transition_0: negative, transition_1: negative };
+      return { transition_0: negative, transition_1: positive };
     } }, call => calls.push(call));
   const result = await classifyQuestTransitions([state, { ...state, quest: { ...quest, id: "another_quest" } }], "rowan", messages, ai, new AbortController().signal);
   assert.deepEqual(result.map(item => [item.questId, item.transitionId, item.expectedRevision]),
     [[quest.id, edge.id, 7], ["another_quest", edge.id, 7]]);
+  assert.deepEqual(result.map(item => item.decision.choice), ["condition_not_met", "condition_met"]);
   assert.deepEqual(state, before);
   assert.deepEqual(calls.map(call => call.status), ["pending", "completed"]);
   assert.equal(calls[1]?.answers?.transition_0, negative);
