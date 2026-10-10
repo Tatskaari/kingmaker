@@ -7,7 +7,8 @@ references. Definitions are fixed after registration; multiple edges may converg
 on a stage, and retry edges may return to earlier stages.
 
 `list()` and `read(questId)` return detached `QuestState` snapshots.
-Newly registered and lore-loaded quests start inactive. `listActive()` returns
+Newly registered quests start inactive. Lore-loaded quests start inactive unless
+the quest index declares `active: true`. `listActive()` returns
 only active quests, also as detached snapshots. The GM/host explicitly changes
 activation with `setActive(questId, active, expectedRevision)`:
 
@@ -17,7 +18,9 @@ await quests.setActive("delivery", true, quest.revision);
 ```
 
 Activation is independent of progress: inactive quests can still transition, and
-reaching a stage with no outgoing edges does not deactivate a quest. Deactivation
+reaching a stage with no outgoing edges does not itself deactivate a quest.
+Entering a stage explicitly marked `completed: true` deactivates it in the same
+revision as the transition. Deactivation
 preserves the current stage and history so a quest can be reactivated later.
 Changing activation increments the shared revision and persists in world saves;
 a request matching the current flag is a no-op after checking its revision.
@@ -54,6 +57,13 @@ stage must declare `initial: true`; filename sorting determines display order.
 Transition links resolve using the vault's existing rules and must stay in that
 quest's `transitions/` folder. Each transition supplies `id`, `to` (a stage ID),
 `trigger: discretionary`, a nonempty `condition`, and an outcome description body.
+Alternatively, `trigger: predicate` with `player_talked_to: <character ID>` is a
+typed host condition; the loader validates that the scenario character exists.
+Stage notes may declare `completed: true`. The host records matching active
+transitions after successfully committing a player/character exchange, inside
+the same persistence operation. Opening a conversation, NPC-only conversations,
+failed replies and cancelled turns do not satisfy the predicate. No model call
+is added, and dialogue models do not update quests.
 All definitions require `visibility: gm`. Condition note links are validated.
 
 Loading validates the graph through the same validator as service registration.
@@ -62,7 +72,7 @@ saved graph and progress. Existing flat quest sketches are not loaded as graphs.
 The Assembly Programme is the first authored graph. Its alternative delivery
 routes and failure/retry edges remain unfinished authoring work.
 
-This loader accepts data, not executable scripts: predicates, TypeScript modules,
-declared input execution and GM invocation are not supported. The caller must
+This loader accepts typed data, not executable scripts: arbitrary predicates,
+TypeScript modules, declared input execution and GM invocation are not supported. The caller must
 establish physical outcomes before recording a transition. Start a fresh game to
 pick up changed baseline quest definitions.

@@ -17,6 +17,8 @@ message QuestStage {
   string id = 1;
   string title = 2;
   string description = 3;
+  // Entering this stage completes and deactivates the quest.
+  bool completed = 4;
 }
 
 // Directed edge; multiple routes may converge on the same stage.
@@ -27,6 +29,8 @@ message QuestTransition {
   string description = 4;
   // Adjudicated by the caller before requesting a transition.
   string condition = 5;
+  // Host predicate: a successful player exchange with this character ID.
+  string player_talked_to = 6;
 }
 
 // Per-playthrough progress. Quest definitions are fixed once registered.

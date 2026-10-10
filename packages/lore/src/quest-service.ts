@@ -91,6 +91,7 @@ export function createQuestService(store: WorldStore): QuestService {
         if (state.revision === 0xffff_ffff) throw new Error(`${id}: quest revision exhausted`);
         const next = snapshot(state);
         next.currentStageId = edge.toStageId;
+        if (next.quest!.stages.find(stage => stage.id === edge.toStageId)!.completed) next.active = false;
         next.revision++;
         next.history.push(create(QuestTransitionRecordSchema, { transitionId, revision: next.revision, evidence }));
         return publish(id, next);

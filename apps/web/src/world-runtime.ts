@@ -339,7 +339,7 @@ export class WorldGameRuntime extends WorldHost {
     }
     const reply = await runConversation(request, runtime, signal, prepared);
     if (reply.tool_calls?.length || !reply.content?.trim()) throw new Error("Expected a character reply without tool calls.");
-    await this.commit(() => {
+    await this.commit(async () => {
       if (JSON.stringify(previous) !== JSON.stringify(this.activity.conversations[id] ?? [])) throw new Error("Conversation changed; retry the turn.");
       this.assertPlayerFree();
       if (!!this.activity.arrestChallenges?.[id] !== defending) throw new Error("Arrest challenge changed; retry the turn.");
@@ -355,6 +355,11 @@ export class WorldGameRuntime extends WorldHost {
         ...[...preparedRulings, ...rulings, ...arrestRulings].map(text => toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, speakerId: "GM", text }))),
         toJson(TranscriptMessageSchema, create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: id, text: reply.content! })),
       ];
+      // The committed exchange is the evidence; opening a conversation is insufficient.
+      for (const state of this.services.quests.listActive()) {
+        const edge = state.quest!.transitions.find(edge => edge.fromStageId === state.currentStageId && edge.playerTalkedTo === id);
+        if (edge) await this.services.quests.transition(state.quest!.id, edge.id, state.revision, `Player talked to ${id}.`);
+      }
     }, signal, persist);
     onText?.(reply.content!);
     return reply.content;
