@@ -57,3 +57,17 @@ history. The demo registers its progress in `world.quests`. Acceptance also acti
 Assembly Programme using the API from PR #560; inspect
 `world.quests.assembly_programme.active` in the export. Refusal leaves it inactive.
 This CLI flag does not change production gameplay.
+
+## Try it in the game
+
+Fresh games now include the same Aldren tree from
+`content/conversation-trees/aldren.md`. Greet the king, ask about his important
+matter, then agree to help with the cushions. Assembly Programme appears in the
+existing top-right active quests panel. Refusal leaves the quest inactive.
+
+Only the current goal is injected into the dialogue model's system context.
+Jev conditions remain host-owned and appear in Aldren's Agent runs & requests
+inspector; the current tree status is also in his debug Raw JSON. Tree progress
+is saved with quest state, so loading or reopening a conversation retains its
+node and does not repeat the acceptance script. Start a fresh game to get the
+new authored tree; existing saves are not upgraded.

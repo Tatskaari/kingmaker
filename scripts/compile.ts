@@ -2,7 +2,7 @@ import { execFileSync } from "node:child_process";
 import { cpSync, mkdirSync, rmSync } from "node:fs";
 
 execFileSync("npx", ["--no-install", "tsc", "--outDir", "dist"], { stdio: "inherit" });
-for (const directory of ["lore/gm_prompts", "evals/prompts"]) {
+for (const directory of ["lore/gm_prompts", "evals/prompts", "content/conversation-trees"]) {
   const target = new URL(`../dist/${directory}/`, import.meta.url);
   rmSync(target, { recursive: true, force: true });
   mkdirSync(target, { recursive: true });

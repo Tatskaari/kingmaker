@@ -1,12 +1,15 @@
 import { create } from "@bufbuild/protobuf";
 import { fromMarkdown } from "mdast-util-from-markdown";
 import { QuestSchema, QuestStageSchema, QuestTransitionSchema, type QuestTransition } from "../../contracts/src/v2.js";
-import { parseMarkdown } from "./markdown.js";
+import { parseMarkdown, type Note } from "./markdown.js";
 import { validateQuest } from "./quest-service.js";
 
 /** A GM-owned dialogue graph backed by the existing quest progress service. */
 export function parseConversationTree(markdown: string) {
-  const note = parseMarkdown(markdown);
+  return compileConversationTree(parseMarkdown(markdown));
+}
+
+export function compileConversationTree(note: Note) {
   if (note.error) throw new Error(note.error);
   const field = (key: string) => {
     const value = note.metadata[key];
