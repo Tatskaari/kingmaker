@@ -69,8 +69,14 @@ export function liveConversationStrategy(options: {
             signal, { ...info, purpose: "conversation_review" }),
         } }, renderPrompt(`review-${category.replaceAll("_", "-")}`), {
           systemPrompt: renderPrompt("review-focused"),
-          tools: gameMasterTools.filter(tool => category === "activity" ? tool.function.name === "set_activity"
-            : !activityTools.some(activity => activity.function.name === tool.function.name)),
+          tools: category === "activity" ? activityTools.filter(tool => tool.function.name === "set_activity").map(tool => {
+            const parameters = tool.function.parameters as { required: string[]; properties: Record<string, unknown> };
+            return { ...tool, function: { ...tool.function,
+              description: renderPrompt("activity-tools-set-activity", { focused: true }),
+              parameters: { ...parameters, properties: Object.fromEntries(Object.entries(parameters.properties)
+                .filter(([name]) => parameters.required.includes(name))) },
+            } };
+          }) : gameMasterTools.filter(tool => !activityTools.some(activity => activity.function.name === tool.function.name)),
         });
       record("resolve", "live-review", { mode: "background", category }, pass);
     });

@@ -35,8 +35,13 @@ export async function runGameMaster(request: ChatCompletionRequest, services: Ru
     messages.push(response);
     for (const call of response.tool_calls) {
       try {
-        if (!tools.some(tool => tool.function.name === call.function.name)) throw new InvalidReviewError(`Tool unavailable in this review: ${call.function.name}`);
+        const definition = tools.find(tool => tool.function.name === call.function.name);
+        if (!definition) throw new InvalidReviewError(`Tool unavailable in this review: ${call.function.name}`);
         const input = parseModelObject(call.function.arguments, "Game master tool");
+        const schema = definition.function.parameters as { additionalProperties?: boolean; properties?: Record<string, unknown> };
+        if (schema.additionalProperties === false && Object.keys(input).some(key => !Object.hasOwn(schema.properties ?? {}, key))) {
+          throw new InvalidReviewError("Unexpected tool argument in this review.");
+        }
         const result = await session.call(call.function.name, input, { response, toolCallId: call.id });
         messages.push({ role: "tool", tool_call_id: call.id, content: JSON.stringify(result) });
       } catch (error) {

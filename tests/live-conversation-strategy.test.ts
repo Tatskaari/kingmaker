@@ -136,7 +136,9 @@ test("flags schedule one combined activity review and separate focused reviews i
     const names = request.tools!.map(tool => tool.function.name);
     if (labelSets.length === 1) {
       assert.deepEqual(names, ["set_activity"]);
-      assert.ok(request.messages.some(message => message.content?.includes("activate=false")));
+      const schema = request.tools![0]!.function.parameters as { properties: Record<string, unknown> };
+      assert.deepEqual(Object.keys(schema.properties), ["name", "status", "success_criteria", "current_goal"]);
+      assert.ok(!request.tools![0]!.function.description.includes("activate:false"));
     } else {
       assert.ok(!names.includes("set_activity") && !names.includes("set_wait") && !names.includes("clear_activity"));
       assert.ok(request.messages.some(message => message.content?.startsWith("Review only")));
@@ -150,6 +152,32 @@ test("flags schedule one combined activity review and separate focused reviews i
     "conversational_exchange", "relationship_or_knowledge_change"]);
   assert.deepEqual(labelSets, [["immediate_commitment", "deferred_commitment", "general_commitment", "immediate_feasibility"],
     ["immediate_commitment", "deferred_commitment", "general_commitment"], ...categories.slice(2).map(category => [category])]);
+});
+
+
+test("activity review rejects target and activation overrides before changing any activity", async () => {
+  for (const override of [{ characterId: "oswin" }, { activate: false }]) {
+    const f = fixture("background");
+    const before = Object.keys(f.backing.scenario.read().docs);
+    const ownGoal = activityGoal(f.backing.scenario.read(), "corvin");
+    const otherGoal = activityGoal(f.backing.scenario.read(), "oswin");
+    let calls = 0;
+    f.runtime.services.ai.responses = async request => {
+      if (!request.tools?.some(tool => tool.function.name === "set_activity")) return { role: "assistant", content: "Remembered." };
+      if (++calls === 1) return { role: "assistant", content: null, tool_calls: [{ id: "override", type: "function", function: {
+        name: "set_activity", arguments: JSON.stringify({ name: "Meeting", status: "Promised",
+          success_criteria: "Arrive", current_goal: "Go to the parlour", ...override }),
+      } }] };
+      assert.match(request.messages.at(-1)!.content!, /Unexpected tool argument/);
+      assert.deepEqual(Object.keys(f.backing.scenario.read().docs), before);
+      assert.equal(activityGoal(f.backing.scenario.read(), "corvin"), ownGoal);
+      assert.equal(activityGoal(f.backing.scenario.read(), "oswin"), otherGoal);
+      return { role: "assistant", content: "No change." };
+    };
+    await runConversation(request, f.runtime);
+    await f.reviews.drain();
+    assert.equal(calls, 2);
+  }
 });
 
 test("unflagged turns skip reviews and discretion alone schedules only the activity review", async () => {
