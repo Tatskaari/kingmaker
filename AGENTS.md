@@ -1,3 +1,7 @@
+# Character response latency
+
+Character dialogue must be fast: characters themselves must not have tools or model reasoning. Generate their spoken responses with reasoning effort `none`, using the scoped context and DM rulings already supplied. Tool use, memory writes, world changes and adjudication belong to the DM/GM or host services, never the character response model. Keep memory indexes in character context for Jev to progressively disclose the relevant notes.
+
 # World-state ownership
 
 Never clone the world. Do not deep-copy a WorldState with protobuf clone, structuredClone, JSON round-trips, or equivalent helpers. Read the live world and stage only the specific documents, inventories or actors an operation changes. Validate before publishing those changes. Build fresh worlds from source fixtures when isolation is required; serialization is for explicit save/export boundaries, not a substitute for cloning during updates.

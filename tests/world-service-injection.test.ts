@@ -71,7 +71,7 @@ test("successive dialogue turns persist only new rulings, including identical re
         if ((JSON.stringify(request.response_format) ?? "").includes("conversation_roll_ruling")) {
           return { role: "assistant", content: '{"direction":"Consider the offer."}' };
         }
-        if (request.tools) return commitReview({ summary: "Discussed the cart", newNotes: [], activeGoal: null }, request);
+        if (request.tools?.some(tool => tool.function.name === "set_activity")) return commitReview({ summary: "Discussed the cart", newNotes: [], activeGoal: null }, request);
         assert.equal(request.messages.filter(message => message.role === "system"
           && message.content?.startsWith("# Binding DM ruling")).length, expectedRulings);
         if (failReply) throw new Error("Reply failed");

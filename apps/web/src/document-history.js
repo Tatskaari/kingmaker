@@ -35,7 +35,7 @@ export function documentHistory(writes, name) {
       const toolKey = `${write.call.spanId}/${write.toolCallId}`;
       if (seen.has(toolKey)) continue;
       seen.add(toolKey);
-      const kind = ({ replace_document: "replaces", insert_document: "adds", create_document: "adds", delete_document: "removals" })[toolFor(write)?.function.name] || "updates";
+      const kind = ({ replace_document: "replaces", insert_document: "adds", create_document: "adds", save_memory: "adds", delete_document: "removals" })[toolFor(write)?.function.name] || "updates";
       counts[kind]++;
     }
     const summary = Object.entries(counts).filter(([kind, count]) => kind !== "updates" || count).map(([kind, count]) => `${count} ${count === 1 ? kind.slice(0, -1) : kind}`).join(", ");

@@ -177,7 +177,7 @@ test("CLI shows approval and pending background GM review transcripts in the RHS
   const ai: import("../packages/conversation/src/services.js").AiService = {
     decisions: async (_state, questions) => Object.fromEntries(Object.keys(questions).map(id => [id, { choice: "not_needed", probabilities: { not_needed: 1 } }])),
     responses: async request => {
-      if (request.tools) { await reviewReady; return { role: "assistant", content: "REVIEW_COMPLETE" }; }
+      if (request.tools?.some(tool => tool.function.name === "set_activity")) { await reviewReady; return { role: "assistant", content: "REVIEW_COMPLETE" }; }
       return { role: "assistant", content: '{"allowed":true,"reason":"APPROVED_GIFT"}' };
     },
   };
@@ -214,4 +214,32 @@ test("CLI shows approval and pending background GM review transcripts in the RHS
     await step(() => setup.mockInput.pressKey("d", { ctrl: true }));
     assert.deepEqual(exported?.gmTurns.map(call => [call.purpose, call.status]), [["approval", "completed"], ["review", "completed"]]);
   } finally { finishReview(); await background; await act(() => setup.renderer.destroy()); }
+});
+
+test("terminal character responds without tools or reasoning while receiving the memory index", async () => {
+  const { createScenarioServices } = await import("../packages/lore/src/services.js");
+  const { documentLore } = await import("../packages/conversation/src/document-lore.js");
+  const services = createScenarioServices(loadPlayableWorld());
+  const lore = await documentLore(services.scenario, "corvin");
+  let calls = 0;
+  const setup = await testRender(createElement(ConversationApp, {
+    input: { world: services.scenario.read(), characterId: "corvin", sources: lore.initial, transcript: [], message: "" },
+    checks: { services: { docs: services.docs, scenario: services.scenario }, build: undefined, ai: { decisions: async () => assert.fail("No checks requested"), responses: async () => assert.fail("Use character responder") } },
+    complete: async request => {
+      calls++;
+      assert.equal(request.tools, undefined);
+      assert.deepEqual(request.reasoning, { effort: "none" });
+      assert.ok(request.messages.some(message => message.content?.includes("/memories/index.md")));
+      return { role: "assistant", content: "I will remember the blue seal." };
+    },
+    copyText: async () => "Copied", onFinish: () => {},
+  }), { width: 100, height: 30, exitOnCtrlC: false, autoFocus: false });
+  try {
+    await setup.flush();
+    await act(async () => { await setup.mockInput.typeText("Remember the blue seal."); });
+    await setup.flush();
+    await act(async () => { await setup.mockInput.pressEnter(); await new Promise(resolve => setTimeout(resolve, 60)); });
+    await setup.waitForFrame(frame => frame.includes("I will remember the blue seal."));
+    assert.equal(calls, 1);
+  } finally { await act(() => setup.renderer.destroy()); }
 });
