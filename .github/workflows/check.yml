@@ -15,13 +15,13 @@ concurrency:
 
 jobs:
   check:
-    # Agents run only affected tests locally; the full suite runs here.
+    # Agents run only affected tests locally; the affected suite runs here.
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
         with:
-          # Moon compares against the base branch even when forcing every task.
+          # Moon diffs against the base revision to find affected tasks.
           fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
@@ -31,7 +31,26 @@ jobs:
         with:
           auto-install: true
       - run: npm ci
-      # --force runs every task rather than only those affected by the diff.
-      - run: proto run moon -- run --force workspace:check workspace:build
+      - name: Restore Moon cache
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            .moon/cache/hashes
+            .moon/cache/outputs
+          key: moon-${{ runner.os }}-${{ github.sha }}
+          restore-keys: moon-${{ runner.os }}-
+      - run: proto run moon -- ci workspace:check workspace:build
         env:
-          MOON_BASE: origin/${{ github.base_ref || 'main' }}
+          MOON_BASE: >-
+            ${{ github.event_name == 'pull_request' && format('origin/{0}', github.base_ref)
+            || github.event_name == 'push' && github.event.before
+            || 'HEAD~1' }}
+      # Save even when a task fails so passing tasks stay cached for the next run.
+      - name: Save Moon cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            .moon/cache/hashes
+            .moon/cache/outputs
+          key: moon-${{ runner.os }}-${{ github.sha }}
