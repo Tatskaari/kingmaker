@@ -61,12 +61,13 @@ test("rejects invalid authored graphs with source context", () => {
   assert.throws(() => build(notes), /duplicate quest ID/);
 });
 
-test("the playable Assembly Programme loads with three remedy routes", () => {
+test("the playable Assembly Programme loads two material stages and one shared clearance transition", () => {
   const world = loadPlayableWorld();
   const quests = createScenarioServices(world).quests;
-  assert.equal(quests.read("assembly_programme").quest!.stages.length, 6);
+  assert.deepEqual(quests.read("assembly_programme").quest!.stages.map(stage => stage.id),
+    ["delivery_delayed", "cart_cleared"]);
   assert.deepEqual(quests.availableTransitions("assembly_programme").map(edge => edge.id),
-    ["agree_to_back_out", "begin_dismantling", "begin_repair"]);
+    ["clear_cart"]);
   assert.equal(quests.read("assembly_programme").currentStageId, "delivery_delayed");
 });
 
