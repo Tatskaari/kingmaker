@@ -5,7 +5,7 @@ import { loadPlayableWorld } from "./fixtures.js";
 import { callDocumentTool } from "../packages/conversation/src/document-tools.js";
 import { compileHook } from "../packages/hooks/src/compiler.js";
 const path = "Hooks/example.ts";
-const source = 'export default async function run(services: HookServices): Promise<string> { return services.quests.read("assembly_programme").id; }\n';
+const source = 'export default async function run(services: HookServices): Promise<TransitionResult> { return { status: "accepted", message: services.quests.read("assembly_programme").id }; }\n';
 
 test("hook source uses normal edit tools with exact source round trips and atomic validation", async () => {
   const services = createScenarioServices(loadPlayableWorld());
@@ -31,8 +31,8 @@ test("hook source uses normal edit tools with exact source round trips and atomi
 });
 
 test("compiler validates entrypoint, signatures and imports without executing source", () => {
-  for (const source of ['export default 42', 'export default async () => 42', 'import x from "fs"; export default async () => "ok"', 'export default async () => fetch("https://example.com")']) {
+  for (const source of ['export default 42', 'export default async () => 42', 'import x from "fs"; export default async (): Promise<TransitionResult> => ({ status: "accepted" })', 'export default async () => fetch("https://example.com")']) {
     assert.throws(() => compileHook(path, source), /example.ts/);
   }
-  assert.match(compileHook(path, 'throw new Error("not executed"); export default async () => "ok"').javascript, /not executed/);
+  assert.match(compileHook(path, 'throw new Error("not executed"); export default async (): Promise<TransitionResult> => ({ status: "accepted" })').javascript, /not executed/);
 });
