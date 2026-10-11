@@ -30,3 +30,15 @@ test("locations refresh and distinguish same-room, disconnected and unknown orig
   holt.roomId = "missing";
   assert.match(activityNpcLocations(world, "aldren"), /Holt \(holt\): Unknown room \(location unavailable\)/);
 });
+
+test("instance identities remain separate and maps may be unavailable", () => {
+  const world = loadPlayableWorld(), map = world.simulation!.map!;
+  const guards = map.actors.filter(actor => actor.characterId.startsWith("palace-guard-"));
+  assert.ok(guards.length > 1);
+  const first = guards[0]!, second = guards[1]!;
+  const locations = activityNpcLocations(world, first.instanceId!);
+  assert.ok(!locations.includes(`(${first.instanceId})`));
+  assert.ok(locations.includes(`(${second.instanceId})`));
+  world.simulation!.map = undefined;
+  assert.match(activityNpcLocations(world, "aldren"), /no current map/);
+});
