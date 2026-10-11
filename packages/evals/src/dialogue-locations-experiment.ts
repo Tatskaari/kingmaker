@@ -1,15 +1,19 @@
 import { isDeepStrictEqual } from "node:util";
 import { WorldHost } from "../../../apps/web/src/world-host.js";
 import { setupWorldAgent } from "../../../apps/web/src/agent-setup.js";
+import { activityNpcLocations } from "../../conversation/src/activity-navigation.js";
+import type { AgentSetupHook } from "../../conversation/src/agent-setup.js";
 import { prepareConversation } from "../../conversation/src/conversation.js";
 import { DisclosureSession } from "../../conversation/src/disclosure.js";
 import { runConversation } from "../../conversation/src/phases.js";
+import { waitObservation } from "../../conversation/src/wait.js";
 import { documentLoreService } from "../../conversation/src/document-lore.js";
 import { createScenarioServices } from "../../lore/src/services.js";
 import { loadPlayableWorld } from "../../../scripts/lib/playable-world.js";
 import type { AiService } from "../../conversation/src/services.js";
 import type { WorldState } from "../../contracts/src/v2.js";
 import type { Experiment, RunRecording, RuntimeConfig } from "./experiment.js";
+import { renderPrompt } from "../../prompts/src/index.js";
 
 const question = "Where can I find Marshal Garran Holt?";
 const rubric = [{
@@ -31,13 +35,28 @@ export function scoreDialogueLocation(reply: string) {
     : `The reply does not identify Holt's current entrance location: ${JSON.stringify(reply)}` };
 }
 
+/** Temporary comparison policy: add the host's live physical view before normal setup. */
+export const dialogueWorldViewCandidate: AgentSetupHook = async (context, signal, services) => {
+  if (!context.characterId || (context.agent !== "character" && context.agent !== "exchange")) {
+    return setupWorldAgent(context, signal, services);
+  }
+  const world = services.scenario.read();
+  const observation = services.map.observe(context.characterId);
+  const content = renderPrompt("agent-setup-world-context", {
+    worldView: JSON.stringify(JSON.parse(waitObservation(services, context.characterId)), null, 2),
+    npc_locations: activityNpcLocations(world, context.characterId, observation.map),
+  });
+  return setupWorldAgent({ ...context, messages: [...context.messages.slice(0, -1),
+    { role: "system", content }, ...context.messages.slice(-1)] }, signal, services);
+};
+
 /** Reproduce the report through the normal character setup and disclosure path. */
 export function createDialogueLocationsExperiment(createAi: () => AiService): Experiment {
-  const config = (): RuntimeConfig => ({ name: "game", configure() {
+  const config = (name: string, setup: AgentSetupHook): RuntimeConfig => ({ name, configure() {
     const backing = createScenarioServices(loadPlayableWorld());
     return {
       recordServices: ["ai", "debug"],
-      strategies: { setup: { prepare: setupWorldAgent } },
+      strategies: { setup: { prepare: setup } },
       services: {
         ai: () => createAi(),
         scenario: () => backing.scenario,
@@ -52,7 +71,8 @@ export function createDialogueLocationsExperiment(createAi: () => AiService): Ex
   } });
   return {
     name: "guard-holt-location", type: "conversation", rubric,
-    getBaseline: config, getVariants: () => [],
+    getBaseline: () => config("game", setupWorldAgent),
+    getVariants: () => [config("dialogue-world-view", dialogueWorldViewCandidate)],
     async run(runtime, signal) {
       const world = runtime.services.scenario.read();
       const guard = world.simulation!.map!.actors.find(actor => actor.characterId.startsWith("palace-guard-")
