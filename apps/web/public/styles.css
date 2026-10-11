@@ -241,9 +241,10 @@ button.court-character:hover:not(:focus-visible) { border-color: transparent; ba
 .conversation-modal .composer { position: sticky; bottom: 0; background: #1f1b15; padding-bottom: 5px; }
 
 
-/* Name labels must not intercept interactions with the furniture below them. */
+/* The visible nameplate is part of the character target. Character controls
+ * take priority over scenery wherever their artwork overlaps. */
 .court-character:not(.court-off-map) { width: 34px; height: 34px; padding: 0; }
-.court-character:not(.court-off-map) .court-character-name { position: absolute; top: 36px; width: max-content; pointer-events: none; }
+.court-character:not(.court-off-map) .court-character-name { position: absolute; top: 36px; width: max-content; }
 .npc-planner { margin-top: 16px; padding: 12px; border: 1px solid var(--line); }
 .npc-activity-heading, .npc-goal-heading { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .npc-activity-heading { justify-content: space-between; }
