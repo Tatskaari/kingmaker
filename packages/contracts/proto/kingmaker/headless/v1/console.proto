@@ -53,19 +53,10 @@ message ObserveResponse {
   repeated PlayerAction actions = 2;
   // Present after selecting a talk action and until EndConversation succeeds.
   ActiveConversation active_conversation = 3;
-  repeated QuestObjective quests = 4;
 }
 
 message ActiveConversation {
   string character_id = 1;
-}
-
-// Player-visible active objective, matching the in-game quest panel.
-message QuestObjective {
-  string id = 1;
-  string title = 2;
-  string stage = 3;
-  string description = 4;
 }
 
 message ActRequest {

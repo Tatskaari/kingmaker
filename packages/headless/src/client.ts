@@ -18,16 +18,12 @@ export function execute(socketPath: string, code: string): Promise<{ value: Json
 
 export function observe(socketPath: string): Promise<{ observation: string; actions: Array<{
   id: string; description: string; type: string; legality: string;
-}>; activeConversation?: { characterId: string }; quests: Array<{
-  id: string; title: string; stage: string; description: string;
-}> }> {
+}>; activeConversation?: { characterId: string } }> {
   return request(socketPath, "game.observe", toJson(ObserveRequestSchema, create(ObserveRequestSchema)))
     .then(result => toJson(ObserveResponseSchema, fromJson(ObserveResponseSchema, result),
       { alwaysEmitImplicit: true }) as { observation: string; actions: Array<{
         id: string; description: string; type: string; legality: string;
-      }>; activeConversation?: { characterId: string }; quests: Array<{
-        id: string; title: string; stage: string; description: string;
-      }> });
+      }>; activeConversation?: { characterId: string } });
 }
 
 export function act(socketPath: string, id: string): Promise<{ value: JsonValue }> {

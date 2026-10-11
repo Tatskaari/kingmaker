@@ -54,7 +54,7 @@ test("QA protocol exposes only current player observations, actions and conversa
   const observed = await call("game.observe");
   assert.match(observed.result.observation, /^Great Hall/);
   assert.ok(observed.result.actions.some((action: any) => action.id === "enter_entrance_hall"));
-  assert.ok(observed.result.quests.some((quest: any) => quest.id === "talk_to_aldren"));
+  assert.equal(observed.result.quests, undefined);
   assert.equal((await call("game.execute", { code: "return game.inspect();" })).error.code, -32601);
   const unavailable = await call("game.act", { id: "not_an_observed_action" });
   assert.equal(unavailable.error.code, -32000);

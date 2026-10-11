@@ -46,8 +46,9 @@ npm run headless -- dump --description 'The door disappeared after I opened it' 
 
 QA mode exposes only `game.observe`, `game.act`, `game.say`,
 `game.end_conversation` and `game.dump` over JSON-RPC. Observation returns Jev's player room view,
-the current structured action list, player-visible active quests and any active
-conversation. `act` accepts one of those action IDs and revalidates it against the
+the current structured action list and any active conversation. GM-owned quest
+graphs and stage guidance are deliberately omitted; objectives must be learned
+through play. `act` accepts one of those action IDs and revalidates it against the
 live player observation before moving or interacting. A `talk` action starts a
 conversation and suppresses physical actions until `end_conversation`; `say`
 accepts plain English and returns the character's reply. `game.execute` and all

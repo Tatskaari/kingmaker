@@ -40,7 +40,7 @@ export function createDispatcher(game: WorldHeadlessGame, mode: HeadlessMode = "
         try {
           const activeConversation = game.conversation();
           const result = toJson(ObserveResponseSchema, fromJson(ObserveResponseSchema, {
-            observation: game.observe(), actions: game.actions(), quests: game.quests(),
+            observation: game.observe(), actions: game.actions(),
             ...(activeConversation ? { activeConversation } : {}),
           }), { alwaysEmitImplicit: true });
           if (Buffer.byteLength(JSON.stringify(result)) > MAX_BYTES - 4096) throw new Error("Result too large");

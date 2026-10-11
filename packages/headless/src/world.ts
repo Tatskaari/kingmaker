@@ -51,11 +51,6 @@ export class WorldHeadlessGame {
   actions() { return this.activeConversationId ? [] : this.observation().actions.map(({ id, description, type, legality }) =>
     ({ id, description, type, legality: legality ?? "normal" })); }
   conversation() { return this.activeConversationId ? { characterId: this.activeConversationId } : undefined; }
-  quests() { return this.runtime.services.quests.listActive().map(({ quest, currentStageId }) => {
-    const stage = quest!.stages.find(stage => stage.id === currentStageId);
-    return { id: quest!.id, title: quest!.title || quest!.id,
-      stage: stage?.title || currentStageId, description: stage?.description || "" };
-  }); }
   dump(filepath: string, description: string) {
     if (!isAbsolute(filepath)) throw new Error("Diagnostic dump filepath must be absolute.");
     const generatedAt = new Date().toISOString();

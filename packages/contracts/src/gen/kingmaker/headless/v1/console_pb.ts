@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file kingmaker/headless/v1/console.proto.
  */
 export const file_kingmaker_headless_v1_console: GenFile = /*@__PURE__*/
-  fileDesc("CiNraW5nbWFrZXIvaGVhZGxlc3MvdjEvY29uc29sZS5wcm90bxIVa2luZ21ha2VyLmhlYWRsZXNzLnYxIh4KDkV4ZWN1dGVSZXF1ZXN0EgwKBGNvZGUYASABKAkiRgoPRXhlY3V0ZVJlc3BvbnNlEiUKBXZhbHVlGAEgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEgwKBGxvZ3MYAiADKAkiLQoORXhlY3V0aW9uRXJyb3ISDAoEbG9ncxgBIAMoCRINCgVzdGFjaxgCIAEoCSIQCg5PYnNlcnZlUmVxdWVzdCJPCgxQbGF5ZXJBY3Rpb24SCgoCaWQYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSDAoEdHlwZRgDIAEoCRIQCghsZWdhbGl0eRgEIAEoCSLbAQoPT2JzZXJ2ZVJlc3BvbnNlEhMKC29ic2VydmF0aW9uGAEgASgJEjQKB2FjdGlvbnMYAiADKAsyIy5raW5nbWFrZXIuaGVhZGxlc3MudjEuUGxheWVyQWN0aW9uEkYKE2FjdGl2ZV9jb252ZXJzYXRpb24YAyABKAsyKS5raW5nbWFrZXIuaGVhZGxlc3MudjEuQWN0aXZlQ29udmVyc2F0aW9uEjUKBnF1ZXN0cxgEIAMoCzIlLmtpbmdtYWtlci5oZWFkbGVzcy52MS5RdWVzdE9iamVjdGl2ZSIqChJBY3RpdmVDb252ZXJzYXRpb24SFAoMY2hhcmFjdGVyX2lkGAEgASgJIk8KDlF1ZXN0T2JqZWN0aXZlEgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEg0KBXN0YWdlGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJIhgKCkFjdFJlcXVlc3QSCgoCaWQYASABKAkiNAoLQWN0UmVzcG9uc2USJQoFdmFsdWUYASABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUiHQoKU2F5UmVxdWVzdBIPCgdtZXNzYWdlGAEgASgJIjIKC1NheVJlc3BvbnNlEhQKDGNoYXJhY3Rlcl9pZBgBIAEoCRINCgVyZXBseRgCIAEoCSIYChZFbmRDb252ZXJzYXRpb25SZXF1ZXN0IhkKF0VuZENvbnZlcnNhdGlvblJlc3BvbnNlIjQKC0R1bXBSZXF1ZXN0EhMKC2Rlc2NyaXB0aW9uGAEgASgJEhAKCGZpbGVwYXRoGAIgASgJIg4KDER1bXBSZXNwb25zZTJuChJHYW1lQ29uc29sZVNlcnZpY2USWAoHRXhlY3V0ZRIlLmtpbmdtYWtlci5oZWFkbGVzcy52MS5FeGVjdXRlUmVxdWVzdBomLmtpbmdtYWtlci5oZWFkbGVzcy52MS5FeGVjdXRlUmVzcG9uc2UyyAMKDUdhbWVRYVNlcnZpY2USWAoHT2JzZXJ2ZRIlLmtpbmdtYWtlci5oZWFkbGVzcy52MS5PYnNlcnZlUmVxdWVzdBomLmtpbmdtYWtlci5oZWFkbGVzcy52MS5PYnNlcnZlUmVzcG9uc2USTAoDQWN0EiEua2luZ21ha2VyLmhlYWRsZXNzLnYxLkFjdFJlcXVlc3QaIi5raW5nbWFrZXIuaGVhZGxlc3MudjEuQWN0UmVzcG9uc2USTAoDU2F5EiEua2luZ21ha2VyLmhlYWRsZXNzLnYxLlNheVJlcXVlc3QaIi5raW5nbWFrZXIuaGVhZGxlc3MudjEuU2F5UmVzcG9uc2UScAoPRW5kQ29udmVyc2F0aW9uEi0ua2luZ21ha2VyLmhlYWRsZXNzLnYxLkVuZENvbnZlcnNhdGlvblJlcXVlc3QaLi5raW5nbWFrZXIuaGVhZGxlc3MudjEuRW5kQ29udmVyc2F0aW9uUmVzcG9uc2USTwoERHVtcBIiLmtpbmdtYWtlci5oZWFkbGVzcy52MS5EdW1wUmVxdWVzdBojLmtpbmdtYWtlci5oZWFkbGVzcy52MS5EdW1wUmVzcG9uc2ViBnByb3RvMw", [file_google_protobuf_struct]);
+  fileDesc("CiNraW5nbWFrZXIvaGVhZGxlc3MvdjEvY29uc29sZS5wcm90bxIVa2luZ21ha2VyLmhlYWRsZXNzLnYxIh4KDkV4ZWN1dGVSZXF1ZXN0EgwKBGNvZGUYASABKAkiRgoPRXhlY3V0ZVJlc3BvbnNlEiUKBXZhbHVlGAEgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEgwKBGxvZ3MYAiADKAkiLQoORXhlY3V0aW9uRXJyb3ISDAoEbG9ncxgBIAMoCRINCgVzdGFjaxgCIAEoCSIQCg5PYnNlcnZlUmVxdWVzdCJPCgxQbGF5ZXJBY3Rpb24SCgoCaWQYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSDAoEdHlwZRgDIAEoCRIQCghsZWdhbGl0eRgEIAEoCSKkAQoPT2JzZXJ2ZVJlc3BvbnNlEhMKC29ic2VydmF0aW9uGAEgASgJEjQKB2FjdGlvbnMYAiADKAsyIy5raW5nbWFrZXIuaGVhZGxlc3MudjEuUGxheWVyQWN0aW9uEkYKE2FjdGl2ZV9jb252ZXJzYXRpb24YAyABKAsyKS5raW5nbWFrZXIuaGVhZGxlc3MudjEuQWN0aXZlQ29udmVyc2F0aW9uIioKEkFjdGl2ZUNvbnZlcnNhdGlvbhIUCgxjaGFyYWN0ZXJfaWQYASABKAkiGAoKQWN0UmVxdWVzdBIKCgJpZBgBIAEoCSI0CgtBY3RSZXNwb25zZRIlCgV2YWx1ZRgBIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZSIdCgpTYXlSZXF1ZXN0Eg8KB21lc3NhZ2UYASABKAkiMgoLU2F5UmVzcG9uc2USFAoMY2hhcmFjdGVyX2lkGAEgASgJEg0KBXJlcGx5GAIgASgJIhgKFkVuZENvbnZlcnNhdGlvblJlcXVlc3QiGQoXRW5kQ29udmVyc2F0aW9uUmVzcG9uc2UiNAoLRHVtcFJlcXVlc3QSEwoLZGVzY3JpcHRpb24YASABKAkSEAoIZmlsZXBhdGgYAiABKAkiDgoMRHVtcFJlc3BvbnNlMm4KEkdhbWVDb25zb2xlU2VydmljZRJYCgdFeGVjdXRlEiUua2luZ21ha2VyLmhlYWRsZXNzLnYxLkV4ZWN1dGVSZXF1ZXN0GiYua2luZ21ha2VyLmhlYWRsZXNzLnYxLkV4ZWN1dGVSZXNwb25zZTLIAwoNR2FtZVFhU2VydmljZRJYCgdPYnNlcnZlEiUua2luZ21ha2VyLmhlYWRsZXNzLnYxLk9ic2VydmVSZXF1ZXN0GiYua2luZ21ha2VyLmhlYWRsZXNzLnYxLk9ic2VydmVSZXNwb25zZRJMCgNBY3QSIS5raW5nbWFrZXIuaGVhZGxlc3MudjEuQWN0UmVxdWVzdBoiLmtpbmdtYWtlci5oZWFkbGVzcy52MS5BY3RSZXNwb25zZRJMCgNTYXkSIS5raW5nbWFrZXIuaGVhZGxlc3MudjEuU2F5UmVxdWVzdBoiLmtpbmdtYWtlci5oZWFkbGVzcy52MS5TYXlSZXNwb25zZRJwCg9FbmRDb252ZXJzYXRpb24SLS5raW5nbWFrZXIuaGVhZGxlc3MudjEuRW5kQ29udmVyc2F0aW9uUmVxdWVzdBouLmtpbmdtYWtlci5oZWFkbGVzcy52MS5FbmRDb252ZXJzYXRpb25SZXNwb25zZRJPCgREdW1wEiIua2luZ21ha2VyLmhlYWRsZXNzLnYxLkR1bXBSZXF1ZXN0GiMua2luZ21ha2VyLmhlYWRsZXNzLnYxLkR1bXBSZXNwb25zZWIGcHJvdG8z", [file_google_protobuf_struct]);
 
 /**
  * @generated from message kingmaker.headless.v1.ExecuteRequest
@@ -150,11 +150,6 @@ export type ObserveResponse = Message<"kingmaker.headless.v1.ObserveResponse"> &
    * @generated from field: kingmaker.headless.v1.ActiveConversation active_conversation = 3;
    */
   activeConversation?: ActiveConversation | undefined;
-
-  /**
-   * @generated from field: repeated kingmaker.headless.v1.QuestObjective quests = 4;
-   */
-  quests: QuestObjective[];
 };
 
 /**
@@ -182,40 +177,6 @@ export const ActiveConversationSchema: GenMessage<ActiveConversation> = /*@__PUR
   messageDesc(file_kingmaker_headless_v1_console, 6);
 
 /**
- * Player-visible active objective, matching the in-game quest panel.
- *
- * @generated from message kingmaker.headless.v1.QuestObjective
- */
-export type QuestObjective = Message<"kingmaker.headless.v1.QuestObjective"> & {
-  /**
-   * @generated from field: string id = 1;
-   */
-  id: string;
-
-  /**
-   * @generated from field: string title = 2;
-   */
-  title: string;
-
-  /**
-   * @generated from field: string stage = 3;
-   */
-  stage: string;
-
-  /**
-   * @generated from field: string description = 4;
-   */
-  description: string;
-};
-
-/**
- * Describes the message kingmaker.headless.v1.QuestObjective.
- * Use `create(QuestObjectiveSchema)` to create a new message.
- */
-export const QuestObjectiveSchema: GenMessage<QuestObjective> = /*@__PURE__*/
-  messageDesc(file_kingmaker_headless_v1_console, 7);
-
-/**
  * @generated from message kingmaker.headless.v1.ActRequest
  */
 export type ActRequest = Message<"kingmaker.headless.v1.ActRequest"> & {
@@ -233,7 +194,7 @@ export type ActRequest = Message<"kingmaker.headless.v1.ActRequest"> & {
  * Use `create(ActRequestSchema)` to create a new message.
  */
 export const ActRequestSchema: GenMessage<ActRequest> = /*@__PURE__*/
-  messageDesc(file_kingmaker_headless_v1_console, 8);
+  messageDesc(file_kingmaker_headless_v1_console, 7);
 
 /**
  * @generated from message kingmaker.headless.v1.ActResponse
@@ -252,7 +213,7 @@ export type ActResponse = Message<"kingmaker.headless.v1.ActResponse"> & {
  * Use `create(ActResponseSchema)` to create a new message.
  */
 export const ActResponseSchema: GenMessage<ActResponse> = /*@__PURE__*/
-  messageDesc(file_kingmaker_headless_v1_console, 9);
+  messageDesc(file_kingmaker_headless_v1_console, 8);
 
 /**
  * @generated from message kingmaker.headless.v1.SayRequest
@@ -271,7 +232,7 @@ export type SayRequest = Message<"kingmaker.headless.v1.SayRequest"> & {
  * Use `create(SayRequestSchema)` to create a new message.
  */
 export const SayRequestSchema: GenMessage<SayRequest> = /*@__PURE__*/
-  messageDesc(file_kingmaker_headless_v1_console, 10);
+  messageDesc(file_kingmaker_headless_v1_console, 9);
 
 /**
  * @generated from message kingmaker.headless.v1.SayResponse
@@ -293,7 +254,7 @@ export type SayResponse = Message<"kingmaker.headless.v1.SayResponse"> & {
  * Use `create(SayResponseSchema)` to create a new message.
  */
 export const SayResponseSchema: GenMessage<SayResponse> = /*@__PURE__*/
-  messageDesc(file_kingmaker_headless_v1_console, 11);
+  messageDesc(file_kingmaker_headless_v1_console, 10);
 
 /**
  * Valid only during an active conversation. Ending commits its review before
@@ -309,7 +270,7 @@ export type EndConversationRequest = Message<"kingmaker.headless.v1.EndConversat
  * Use `create(EndConversationRequestSchema)` to create a new message.
  */
 export const EndConversationRequestSchema: GenMessage<EndConversationRequest> = /*@__PURE__*/
-  messageDesc(file_kingmaker_headless_v1_console, 12);
+  messageDesc(file_kingmaker_headless_v1_console, 11);
 
 /**
  * @generated from message kingmaker.headless.v1.EndConversationResponse
@@ -322,7 +283,7 @@ export type EndConversationResponse = Message<"kingmaker.headless.v1.EndConversa
  * Use `create(EndConversationResponseSchema)` to create a new message.
  */
 export const EndConversationResponseSchema: GenMessage<EndConversationResponse> = /*@__PURE__*/
-  messageDesc(file_kingmaker_headless_v1_console, 13);
+  messageDesc(file_kingmaker_headless_v1_console, 12);
 
 /**
  * Create this diagnostic only when reporting an issue. The archive contains
@@ -352,7 +313,7 @@ export type DumpRequest = Message<"kingmaker.headless.v1.DumpRequest"> & {
  * Use `create(DumpRequestSchema)` to create a new message.
  */
 export const DumpRequestSchema: GenMessage<DumpRequest> = /*@__PURE__*/
-  messageDesc(file_kingmaker_headless_v1_console, 14);
+  messageDesc(file_kingmaker_headless_v1_console, 13);
 
 /**
  * @generated from message kingmaker.headless.v1.DumpResponse
@@ -365,7 +326,7 @@ export type DumpResponse = Message<"kingmaker.headless.v1.DumpResponse"> & {
  * Use `create(DumpResponseSchema)` to create a new message.
  */
 export const DumpResponseSchema: GenMessage<DumpResponse> = /*@__PURE__*/
-  messageDesc(file_kingmaker_headless_v1_console, 15);
+  messageDesc(file_kingmaker_headless_v1_console, 14);
 
 /**
  * Trusted developer servers expose Execute as game.execute.
