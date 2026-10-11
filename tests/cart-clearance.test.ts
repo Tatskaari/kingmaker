@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create } from "@bufbuild/protobuf";
-import { ItemSchema } from "../packages/contracts/src/index.js";
+import { ItemInstanceSchema } from "../packages/contracts/src/index.js";
 import { loadPlayableWorld } from "./fixtures.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
 import { CART_BOOK_ID, CART_MEMORY, cartMemoryPath } from "../packages/lore/src/cart-clearance.js";
@@ -15,7 +15,7 @@ async function fixture() {
 }
 for (const remedy of ["repair", "back_out"]) test(`${remedy} clears the cart and broadcasts one private memory to every character`, async () => {
   const services = await fixture();
-  if (remedy === "repair") await services.inventory.addToInventory("player", create(ItemSchema, { id: CART_BOOK_ID, name: "Repair book" }));
+  if (remedy === "repair") await services.inventory.addToInventory("player", create(ItemInstanceSchema, { id: CART_BOOK_ID, name: "Repair book" }));
   const before = services.currentWorld(), state = services.quests.read("assembly_programme");
   await services.quests.transition("assembly_programme", "clear_cart", state.revision, remedy);
   const world = services.currentWorld();
