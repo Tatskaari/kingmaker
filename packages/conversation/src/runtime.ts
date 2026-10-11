@@ -82,6 +82,7 @@ export class ConversationRuntime<Review = ReviewLabels> {
         replace: async (...args) => services.docs?.replace ? services.docs.replace(...args) : unimplemented("docs.replace"),
         insert: async (...args) => services.docs?.insert ? services.docs.insert(...args) : unimplemented("docs.insert"),
         delete: async (...args) => services.docs?.delete ? services.docs.delete(...args) : unimplemented("docs.delete"),
+        query: async (...args) => services.docs?.query ? services.docs.query(...args) : unimplemented("docs.query"),
       },
       ai: {
         decisions: async (...args) => services.ai?.decisions
