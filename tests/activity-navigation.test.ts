@@ -9,7 +9,7 @@ test("live NPC locations use ordered room entries with doors assumed open", () =
   actor.roomId = "north_corridor";
   for (const door of map.doors) door.open = false;
   const locations = activityNpcLocations(world, "aldren");
-  assert.match(locations, /Marshal Garran Holt \(holt\): Entrance Hall \(walk via enter_great_hall, enter_entrance_hall\)/);
+  assert.match(locations, /Marshal Garran Holt \(holt\): Entrance Hall \(walk via enter_royal_council_chamber, enter_great_hall, enter_entrance_hall\)/);
   assert.ok(!locations.includes("King Aldren (aldren)"));
   assert.ok(!locations.includes("(player)"));
   assert.ok(map.doors.every(door => !door.open), "Planning must not open doors");
