@@ -20,6 +20,9 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
+        with:
+          # Moon compares against the base branch even when forcing every task.
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 26.9.0
@@ -28,5 +31,7 @@ jobs:
         with:
           auto-install: true
       - run: npm ci
-      # --force runs every task without diffing against a base branch the shallow checkout lacks.
+      # --force runs every task rather than only those affected by the diff.
       - run: proto run moon -- run --force workspace:check workspace:build
+        env:
+          MOON_BASE: origin/${{ github.base_ref || 'main' }}
