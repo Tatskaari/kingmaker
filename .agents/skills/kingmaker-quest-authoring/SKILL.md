@@ -24,7 +24,7 @@ Scope reaction reviews to what each recipient witnessed or learned. Legal permis
 
 ## Current authoring boundary
 
-Quest Markdown loads numbered `NNN_stage_*.md` files and linked transition notes. Conversation trees live in `content/conversation-trees/` and use registered host scripts. The quest service currently records progress only. Branch-declared check/review instructions and quest world-effect handlers are planned extensions, not executable Markdown syntax; label such contracts clearly until implemented.
+Quest Markdown loads numbered `NNN_stage_*.md` files and linked transition notes. Use `trigger: none` for quest transitions explicitly invoked by conversation edges or host actions; their conditions document caller preconditions. Conversation trees live in `content/conversation-trees/` and use registered host scripts. The quest service currently records progress only. Branch-declared check/review instructions and quest world-effect handlers are planned extensions, not executable Markdown syntax; label such contracts clearly until implemented.
 
 For the cart, use `delivery_delayed` → `cart_cleared`. Successful repair, backing out and smashing share clearance and helper assignment. Conversation reviews distinguish pleased Nine Furrows, neutral Nine Furrows with a resentful Rowan, and very unhappy Nine Furrows respectively; Holt appreciates resolution. Delivery completion and the later programme remain separate facts.
 

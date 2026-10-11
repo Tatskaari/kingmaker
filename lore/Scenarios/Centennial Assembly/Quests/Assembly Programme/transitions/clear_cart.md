@@ -2,7 +2,7 @@
 summary: "Shared clearance effect contract: remove the obstructing cart and assign helpers to carry goods inside after an adjudicated successful remedy."
 visibility: gm
 id: clear_cart
-trigger: discretionary
+trigger: none
 to: cart_cleared
 condition: "A remedy has succeeded, the host has cleared the cart obstruction and assigned helpers to bring the waiting goods inside."
 ---
