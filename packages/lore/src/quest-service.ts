@@ -44,7 +44,7 @@ export function validateQuest(quest: Quest): void {
 }
 
 /** Quest data shares the document write queue; only the affected quest is copied. */
-export function createQuestService(store: WorldStore): QuestService {
+export function createQuestService(store: WorldStore, beforeWrite: () => void = () => {}): QuestService {
   const current = (id: string) => {
     if (!Object.hasOwn(store.state.quests, id)) throw new Error(`${id}: quest not found`);
     return store.state.quests[id]!;
@@ -65,6 +65,7 @@ export function createQuestService(store: WorldStore): QuestService {
     register(quest) {
       const input = clone(QuestSchema, quest);
       return store.write(async () => {
+        beforeWrite();
         validateQuest(input);
         if (Object.hasOwn(store.state.quests, input.id)) throw new Error(`${input.id}: quest already registered`);
         return publish(input.id, create(QuestStateSchema, { quest: input, currentStageId: input.initialStageId }));
@@ -72,6 +73,7 @@ export function createQuestService(store: WorldStore): QuestService {
     },
     setActive(id, active, expectedRevision) {
       return store.write(async () => {
+        beforeWrite();
         const state = current(id);
         if (state.revision !== expectedRevision) throw new QuestConflictError(id);
         if (state.active === active) return snapshot(state);
@@ -84,6 +86,7 @@ export function createQuestService(store: WorldStore): QuestService {
     },
     transition(id, transitionId, expectedRevision, evidence = "") {
       return store.write(async () => {
+        beforeWrite();
         const state = current(id);
         if (state.revision !== expectedRevision) throw new QuestConflictError(id);
         const edge = state.quest!.transitions.find(candidate => candidate.id === transitionId);
