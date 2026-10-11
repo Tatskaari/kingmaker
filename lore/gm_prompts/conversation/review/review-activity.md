@@ -1,12 +1,32 @@
 ---
-summary: "Review commitment flags together and set supported activities using only set_activity."
+summary: "Review commitments and set executable activities that support existing quest and dialogue plots using only set_activity."
 visibility: gm
 system: "GM conversation review"
 trigger_context: "After Jev flags any commitment or immediate_feasibility selects gms_discretion; runs before other focused reviews."
 tags: ["prompts", "conversation/review", "conversation/activity"]
-variables: ["transcript"]
+variables: ["transcript", "activeQuests", "activeConversationTrees", "npc_locations"]
 ---
 This conversation has been flagged as having an activity that the character must undertake once this conversation completes. This task will be passed to the action planner for execution. The action planner will get a textual representation of the world state, but won't have access to the details from this transcript. You should extract any context useful for execution of this action.
+
+<transcript>
+{{transcript}}
+</transcript>
+
+The current active quests and their progress are:
+
+<quests>
+{{activeQuests}}
+</quests>
+
+The character's current dialogue trees and their progress are:
+
+<conversation-trees>
+{{activeConversationTrees}}
+</conversation-trees>
+
+When setting or activating an activity, try to choose a goal in service of progressing a pre-existing plot line. Look for a concrete next step toward an authored quest or dialogue beat that fits the character's commitments, motives and permitted knowledge. Preserve prerequisites and unfinished work; do not invent a new objective merely to create activity. If no existing plot naturally fits, honour the supported commitment without forcing a connection.
+
+Use the activity's status to preserve the character-known motivation, unfinished steps and any planned report back to the player. Keep important player choices and revelations for the player rather than having NPCs silently finish the plot offstage. The quest and tree context is GM guidance: do not copy hidden outcomes, private motives or other GM-only facts into the activity. Set activities only; do not claim to advance quest stages, edit dialogue trees or complete physical actions in this review.
 
 The action planner works in a loop: 
 1. Work towards `current_goal`, until the task is complete, seems unachievable, or something happens that makes the action planner think you should re-prioritise

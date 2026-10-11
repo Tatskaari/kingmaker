@@ -1,4 +1,5 @@
 import { activityNpcLocations } from "../packages/conversation/src/activity-navigation.js";
+import { reviewPromptContext } from "../packages/conversation/src/review-prompt-context.js";
 import { renderPrompt } from "../packages/prompts/src/index.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -146,7 +147,7 @@ test("flags schedule one combined activity review and separate focused reviews i
       assert.deepEqual(names, ["set_activity"]);
       assert.ok(!request.messages.some(message => message.content?.includes("## Find the relevant documents")));
       assert.ok(request.messages.some(message => message.content === renderPrompt("review-activity", {
-        transcript: JSON.stringify(evidence.transcript, null, 2),
+        ...reviewPromptContext({ characterId: "corvin", participants: ["corvin", "player"], transcript: evidence.transcript }, f.runtime.services),
         npc_locations: activityNpcLocations(f.backing.scenario.read(), "corvin"),
       })));
     } else {

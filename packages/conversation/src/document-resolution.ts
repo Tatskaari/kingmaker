@@ -1,4 +1,4 @@
-import { reviewGuidance } from "./review-prompt-context.js";
+import { reviewGuidance, reviewPromptContext } from "./review-prompt-context.js";
 import { renderPrompt } from "../../prompts/src/index.js";
 import { disclosedContext } from "./disclosed-context.js";
 import { create } from "@bufbuild/protobuf";
@@ -10,7 +10,7 @@ import type { ResolutionStrategy } from "./resolution.js";
 import type { RuntimeServices } from "./services.js";
 
 async function speak(characterId: string, partnerId: string, instruction: string, evidence: unknown, signal: AbortSignal, services: RuntimeServices) {
-  const response = await services.ai.responses({ model: "openai/gpt-6-luna", api: "responses",
+  const response = await services.ai.responses({ model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "none" },
     messages: await disclosedContext("exchange", [{ role: "user", content: JSON.stringify({ instruction, evidence }) }], services, characterId, signal, { participantIds: [characterId, partnerId] }),
   }, signal, { characterId, purpose: "dialogue" });
   signal.throwIfAborted();
@@ -48,8 +48,9 @@ export const documentResolutionStrategy: ResolutionStrategy = {
         { speaker: context.characterId, words: opening.text }, signal, services);
       const transcript = [opening, response];
       for (const characterId of participants) {
-        await reviewDocumentEvidence({ characterId, participants, transcript }, labels, signal, services,
-          renderPrompt("document-resolution-review-exchange", { reviewGuidance }));
+        const reviewContext = { characterId, participants, transcript };
+        await reviewDocumentEvidence(reviewContext, labels, signal, services,
+          renderPrompt("document-resolution-review-exchange", reviewPromptContext(reviewContext, services)));
       }
       return { summary: transcript.map(turn => `${turn.speakerId}: ${turn.text}`).join("\n") };
     }
