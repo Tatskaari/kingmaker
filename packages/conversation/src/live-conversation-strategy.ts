@@ -69,8 +69,10 @@ export function liveConversationStrategy(options: {
         reviewLabels, reviewSignal, { ...services, ai: { ...services.ai,
           responses: (request, signal, info) => services.ai.responses({ ...request, reasoning: { ...request.reasoning, effort: "high" } },
             signal, { ...info, purpose: "conversation_review" }),
-        } }, renderPrompt(`review-${category.replaceAll("_", "-")}`, category === "activity"
-          ? { npc_locations: activityNpcLocations(services.scenario.read(), options.characterId) } : {}), {
+        } }, renderPrompt(`review-${category.replaceAll("_", "-")}`, {
+          transcript: JSON.stringify(transcript, null, 2),
+          ...(category === "activity" ? { npc_locations: activityNpcLocations(services.scenario.read(), options.characterId) } : {}),
+        }), {
           systemPrompt: renderPrompt("review-focused"),
           tools: gameMasterTools.filter(tool => category === "activity" ? tool.function.name === "set_activity"
             : !activityTools.some(activity => activity.function.name === tool.function.name)),

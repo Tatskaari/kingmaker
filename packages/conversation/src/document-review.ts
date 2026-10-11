@@ -14,7 +14,7 @@ export const documentReviewStrategy: ConversationReviewStrategy = {
 
 /** GM reviews can edit the world; memories must still respect each NPC's knowledge. */
 export async function reviewDocumentEvidence(context: Readonly<ConversationReviewContext>, labels: Readonly<ReviewLabels>,
-  signal: AbortSignal, services: RuntimeServices, purpose = renderPrompt("review-conversation"),
+  signal: AbortSignal, services: RuntimeServices, purpose = renderPrompt("review-conversation", { transcript: JSON.stringify(context.transcript, null, 2) }),
   options: { tools?: OpenRouterTool[]; systemPrompt?: string } = {}) {
   signal.throwIfAborted();
   const intent = characterIntent(services.scenario.read(), context.characterId), path = intent.entry;
