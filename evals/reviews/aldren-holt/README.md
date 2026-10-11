@@ -44,3 +44,11 @@ Post-promotion game check at `08e79de`: route 1/1, physical-state 1/1, no errors
 Artifacts: `eval-output/2026-10-11T14-15-57.056Z-12c617df/`.
 The 29 focused navigation, prompt, conversation-strategy and lore-access tests,
 workspace typecheck and contracts lint passed on the promoted implementation.
+
+With the simplified review wording and live context in Jev (`c03ce43`), the
+review-to-planner trial selected `enter_entrance_hall` and preserved the map (1/1
+for both criteria, no errors). Artifacts:
+`eval-output/2026-10-11T14-52-23.834Z-07d49104/`.
+The planner refresh regression moves Holt and then Corvin through real simulation
+movement between planning calls, confirming both target and origin changes update
+Jev's context, including a feedback retry with a goal containing no route IDs.

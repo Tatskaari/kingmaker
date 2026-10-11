@@ -1,3 +1,4 @@
+import { startMove, completeMove } from "../packages/core/src/simulation-movement.js";
 import { create } from "@bufbuild/protobuf";
 import { activityGoal, characterIntent } from "../packages/lore/src/activity.js";
 import { documentLoreService } from "../packages/conversation/src/document-lore.js";
@@ -159,19 +160,13 @@ test("Jev refreshes NPC locations and routes from both actors on every planning 
   }, strategies: { action: jevActionStrategy } });
   await planWorldAction("corvin", runtime);
   assert.match(prompts[0]!, /Holt \(holt\): Entrance Hall \(walk via enter_entrance_hall\)/);
-  services.mechanics.executeMove(({ G }) => {
-    const holt = G.map!.actors.find(actor => actor.characterId === "holt")!;
-    holt.roomId = "great_hall";
-    Object.assign(holt.position!, { x: 61, y: 24 });
-  });
+  services.mechanics.executeMove(startMove, "holt", { id: "holt-arrives", to: { x: 61, y: 24 }, startedAtMs: 0, msPerTile: 1 });
+  services.mechanics.executeMove(completeMove, "holt", "holt-arrives", 1000);
   await planWorldAction("corvin", runtime);
   assert.match(prompts[1]!, /Holt \(holt\): Great Hall \(already in your room\)/);
   assert.doesNotMatch(prompts[1]!, /Holt \(holt\): Entrance Hall/);
-  services.mechanics.executeMove(({ G }) => {
-    const corvin = G.map!.actors.find(actor => actor.characterId === "corvin")!;
-    corvin.roomId = "entrance_hall";
-    Object.assign(corvin.position!, { x: 61, y: 35 });
-  });
+  services.mechanics.executeMove(startMove, "corvin", { id: "corvin-leaves", to: { x: 61, y: 35 }, startedAtMs: 0, msPerTile: 1 });
+  services.mechanics.executeMove(completeMove, "corvin", "corvin-leaves", 1000);
   await planWorldAction("corvin", runtime, undefined, [], { error: "Moved", instruction: "Replan" });
   assert.match(prompts[2]!, /Holt \(holt\): Great Hall \(walk via enter_great_hall\)/);
   assert.doesNotMatch(prompts[2]!, /Holt \(holt\): Great Hall \(already in your room\)/);
