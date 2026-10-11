@@ -13,6 +13,56 @@ import { loadPlayableWorld } from "./fixtures.js";
 function fixture() {
   return new ConversationRuntime({ services: createScenarioServices(loadPlayableWorld()) }).services;
 }
+
+test("a focused GM can set activity using only its advertised tool and prompt", async () => {
+  const services = fixture(), tools = gameMasterTools.filter(tool => tool.function.name === "set_activity");
+  let calls = 0;
+  services.ai.responses = async request => {
+    assert.deepEqual(request.tools, tools);
+    assert.equal(request.messages[0]!.content, "Review only the promised activity.");
+    assert.ok(!request.messages.some(message => message.content?.includes("As part of a review:")));
+    if (++calls === 1) return { role: "assistant", content: null, tool_calls: [{ id: "activity", type: "function", function: {
+      name: "set_activity", arguments: JSON.stringify({ name: "Meeting", status: "Promised",
+        success_criteria: "Arrive in the parlour", current_goal: "Go to the parlour" }),
+    } }] };
+    assert.equal(activityGoal(services.scenario.read(), "oswin"), "Go to the parlour");
+    return { role: "assistant", content: "Activity saved." };
+  };
+  await runGameMaster({ model: "test", messages: [], tools }, services, new AbortController().signal,
+    { characterId: "oswin", review: true, systemPrompt: "Review only the promised activity." });
+  assert.equal(calls, 2);
+});
+
+test("focused GM rejects every unadvertised tool before dispatch", async () => {
+  for (const tool of gameMasterTools.filter(tool => tool.function.name !== "set_activity")) {
+    const services = fixture();
+    const originalGoal = activityGoal(services.scenario.read(), "oswin");
+    let reads = 0, commits = 0, calls = 0;
+    services.docs.read = async () => { reads++; throw new Error("Disallowed read reached the document service"); };
+    services.docs.commit = async () => { commits++; throw new Error("Disallowed write reached the document service"); };
+    services.ai.responses = async request => {
+      if (++calls === 1) return { role: "assistant", content: null, tool_calls: [{ id: "forbidden", type: "function", function: {
+        name: tool.function.name, arguments: "{}",
+      } }] };
+      assert.match(request.messages.at(-1)!.content!, /Tool unavailable in this review/);
+      return { role: "assistant", content: "No change." };
+    };
+    await runGameMaster({ model: "test", messages: [], tools: gameMasterTools.filter(tool => tool.function.name === "set_activity") },
+      services, new AbortController().signal, { characterId: "oswin" });
+    assert.equal(reads, 0); assert.equal(commits, 0);
+    assert.equal(activityGoal(services.scenario.read(), "oswin"), originalGoal);
+  }
+});
+
+test("an explicitly empty GM tool list does not restore the default registry", async () => {
+  const services = fixture();
+  services.ai.responses = async request => {
+    assert.deepEqual(request.tools, []);
+    return { role: "assistant", content: "No changes." };
+  };
+  await runGameMaster({ model: "test", messages: [], tools: [] }, services, new AbortController().signal);
+});
+
 test("GM tools edit other characters and quest documents, preserving SHA conflict checks", async () => {
   const services = fixture(), gm = new GameMasterTools(services, "oswin");
   const other = characterEntry(services.scenario.info(), "corvin");
