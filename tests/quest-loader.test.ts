@@ -61,14 +61,14 @@ test("rejects invalid authored graphs with source context", () => {
   assert.throws(() => build(notes), /duplicate quest ID/);
 });
 
-test("the playable Assembly Programme loads two material stages and one shared clearance transition", () => {
+test("the playable Assembly Programme loads investigation, blockage and an unblocked stub", () => {
   const world = loadPlayableWorld();
   const quests = createScenarioServices(world).quests;
   assert.deepEqual(quests.read("assembly_programme").quest!.stages.map(stage => stage.id),
-    ["delivery_delayed", "cart_cleared"]);
+    ["investigate_missing_pillows", "cart_blocked", "cart_unblocked"]);
   assert.deepEqual(quests.availableTransitions("assembly_programme").map(edge => edge.id),
-    ["clear_cart"]);
-  assert.equal(quests.read("assembly_programme").currentStageId, "delivery_delayed");
+    ["learn_cart_blocked"]);
+  assert.equal(quests.read("assembly_programme").currentStageId, "investigate_missing_pillows");
 });
 
 

@@ -71,3 +71,9 @@ inspector; the current tree status is also in his debug Raw JSON. Tree progress
 is saved with quest state, so loading or reopening a conversation retains its
 node and does not repeat the acceptance script. Start a fresh game to get the
 new authored tree; existing saves are not upgraded.
+
+## Cart conversation playtest
+
+Fresh games also load Holt, Rowan, Corvin and palace-guard trees. Ask Holt about the pillows, calm him, and hear his explanation; `pillow-lead.ts` activates the quest if needed and advances it to `cart_blocked`. Asking alone does not advance it. Press Holt for permission to smash, or ask Rowan to back out or accept help seeking Corvin’s advice. Corvin can be persuaded to cooperate or disclose the book in his room; guards can hear a distraction proposal. Each guard body has independent saved tree progress.
+
+Use the existing Agent runs & requests inspector to follow branches. These are dialogue playtests: ordinary GM check/review behavior applies, but the trees do not enforce branch-specific rolls or execute cart removal, book placement/transfer, guard movement, helper delivery or a legal permission grant. NPC agreement is not proof those effects occurred. `cart_unblocked` remains a stub. Start a fresh game; the CLI tree flag remains Aldren-only.
