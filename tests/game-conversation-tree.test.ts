@@ -111,3 +111,21 @@ test("post-reply tree decisions retain the actual dialogue context in the inspec
     assert.doesNotMatch(html, /Full context is unavailable/);
   } finally { game.movement.dispose(); }
 });
+
+test("a cached conversation uses validated edits without resetting its current node", async () => {
+  const seen: string[] = [], game = new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, undefined, options(seen));
+  try {
+    await requestHelp(game);
+    await game.checkedTalkToCharacter("aldren", "Yes");
+    const before = game.services.quests.read("conversation-aldren-cushions");
+    const doc = await game.services.docs.read("Conversations/aldren.md");
+    await game.services.docs.replace(doc.path, doc.sha,
+      "Acknowledge the player's agreement to help with the cushions. Continue naturally using your permitted knowledge.",
+      "Explain that you will report back after speaking with Holt.");
+    await game.checkedTalkToCharacter("aldren", "Thanks");
+    assert.match(seen.at(-1)!, /report back after speaking with Holt/);
+    const after = game.services.quests.read("conversation-aldren-cushions");
+    assert.equal(after.currentStageId, "helping");
+    assert.deepEqual(after.history, before.history);
+  } finally { game.movement.dispose(); }
+});
