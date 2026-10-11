@@ -46,6 +46,8 @@ export function palaceFurniture(map: MapState, owners: readonly InventoryOwner[]
     put(room, 0, 3, `${id}_desk`, `${name}'s writing table`, 72, deskItems);
     put(room, 1, 3, `${id}_stool`, `${name}'s desk stool`, 73);
   }
+  put("corvin_chamber", 0, 0, "corvin_reference", "Corvin's reference books", 63,
+    [item("corvin_cart_book", "Self-guiding carts: diagnosis and repair", "Corvin's reference book explains how to release the cargo-protection interlock and repair Rowan's wedged cart. Bring it to Rowan.")], "corvin");
   bed("corvin_chamber", 3, 3, "corvin", "Corvin");
   bed("garran_chamber", 3, 0, "garran", "Holt");
   bed("royal_bedchamber", 4, 3, "king", "Aldren");

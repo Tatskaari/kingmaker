@@ -164,7 +164,15 @@ export class WorldHost {
         }
       }
       if (command.kind === "door") worldEvent = this.setDoor(command.id, command.open);
-      if (command.kind === "fixture") { const result = this.interactFixtureWithEvent(command.id); worldEvent = result.event; message = result.message; roll = result.roll; }
+      if (command.kind === "fixture") {
+        const result = this.interactFixtureWithEvent(command.id);
+        worldEvent = result.event; message = result.message; roll = result.roll;
+        if (command.id.startsWith("smash_furn_cart_") && roll?.success) {
+          const quest = this.worldServices.quests.read("assembly_programme");
+          if (quest.currentStageId !== "cart_unblocked") await this.worldServices.quests.transition(quest.quest!.id,
+            quest.currentStageId === "investigate_missing_pillows" ? "clear_cart_early" : "clear_cart", quest.revision, "smash");
+        }
+      }
       return { done: true,
         ...(worldEvent ? { worldEvent } : {}), ...(message ? { message } : {}), ...(roll ? { roll } : {}) };
     },
