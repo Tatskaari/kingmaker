@@ -11,7 +11,7 @@ export function documentVersion(document: Document): string {
 export async function snapshot(path: string, document: Document): Promise<DocumentSnapshot> {
   const sha = await sha256(documentVersion(document));
   const metadata = document.frontmatter ?? {};
-  const text = (Object.keys(metadata).length || /^---\r?\n/.test(document.body)) ? `---\n${stringify(canonical(metadata))}---\n${document.body}` : document.body;
+  const text = path.endsWith(".ts") ? document.body : (Object.keys(metadata).length || /^---\r?\n/.test(document.body)) ? `---\n${stringify(canonical(metadata))}---\n${document.body}` : document.body;
   return { path, sha, text, document };
 }
 

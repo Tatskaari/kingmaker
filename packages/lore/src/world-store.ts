@@ -1,3 +1,4 @@
+import { prepareHooks } from "./hook-documents.js";
 import { withHookReference } from "../../hooks/src/reference.js";
 import { publishSimulationChanges } from "../../core/src/simulation-publication.js";
 import { createSimulationAuthority } from "../../core/src/simulation-authority.js";
@@ -10,12 +11,14 @@ import { validateDocuments } from "./document-audit.js";
 /** Shared authority and write queue; service implementations own their mutation policies. */
 export class WorldStore {
   state: WorldState;
+  hooks: ReturnType<typeof prepareHooks>;
   private writes: Promise<unknown> = Promise.resolve();
   private graph: DocumentGraph;
   private simulation: ReturnType<typeof createSimulationAuthority>;
   constructor(initial: WorldState) {
     this.state = { ...initial, docs: withHookReference(initial.docs) };
     this.graph = DocumentGraph.build(this.state);
+    this.hooks = prepareHooks(this.state.docs);
     this.simulation = createSimulationAuthority(this.state.simulation!);
     this.state.simulation = this.simulation.read();
   }
@@ -33,6 +36,7 @@ export class WorldStore {
     const graph = prepared.update(draft);
     validateDocuments(draft);
     const quests = prepareQuestDefinitions(this.state, draft);
+    const hooks = prepareHooks(draft.docs);
     const before = this.state.simulation!, next = draft.simulation!;
     if (next !== before) {
       const characters = Object.fromEntries(Object.entries(next.runtimeCharacters)
@@ -43,6 +47,7 @@ export class WorldStore {
       }
     }
     this.graph = graph;
+    this.hooks = hooks;
     this.state = { ...draft, quests, simulation: this.state.simulation };
   }
 }

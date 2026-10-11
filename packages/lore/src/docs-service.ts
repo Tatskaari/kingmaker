@@ -1,6 +1,6 @@
-import { clone, fromJson, toJson, type JsonObject } from "@bufbuild/protobuf";
+import { clone, toJson } from "@bufbuild/protobuf";
 import { DocumentSchema, type Document } from "../../contracts/src/v2.js";
-import { parseMarkdown } from "./markdown.js";
+import { parseDocument } from "./hook-documents.js";
 import { snapshot } from "./document-snapshot.js";
 import { canonical } from "../../core/src/state-version.js";
 import { DocumentConflictError, type DocsService, type DocumentSnapshot } from "./service-types.js";
@@ -29,10 +29,8 @@ export function createDocsService(store: WorldStore, readOnlyRoots: readonly str
     return current;
   }
   async function publish(path: string, text: string, expected?: DocumentSnapshot): Promise<DocumentSnapshot> {
-    const note = parseMarkdown(text);
-    if (note.error) throw new Error(`${path}: ${note.error}`);
     const draft = { ...store.state, docs: { ...store.state.docs } };
-    const next = fromJson(DocumentSchema, { body: note.body, frontmatter: note.metadata as JsonObject });
+    const next = parseDocument(path, text);
     draft.docs[path] = next;
     const graph = store.prepareDocuments(draft);
     const result = await snapshot(path, clone(DocumentSchema, draft.docs[path]!));
@@ -65,9 +63,7 @@ export function createDocsService(store: WorldStore, readOnlyRoots: readonly str
           if (JSON.stringify(canonical(store.state.docs[change.path])) !== JSON.stringify(canonical(expected.get(change.path)))) {
             throw new DocumentConflictError(change.path, change.expectedSha ?? "absent", "changed");
           }
-          const note = parseMarkdown(change.text);
-          if (note.error) throw new Error(`${change.path}: ${note.error}`);
-          const next = fromJson(DocumentSchema, { body: note.body, frontmatter: note.metadata as JsonObject });
+          const next = parseDocument(change.path, change.text);
           draft.docs[change.path] = next;
         }
         if (new Set(intents.map(intent => intent.actorId)).size !== intents.length) throw new Error("Duplicate intent write.");
