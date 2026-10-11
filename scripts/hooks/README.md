@@ -3,6 +3,10 @@
 Read this index, then open the service and data-type pages needed for your hook.
 This reference is generated from the same interfaces used by hook validation.
 
+- [Quest service](interfaces/HookQuestService.md): inspect, activate and advance quests.
+- [Map service](interfaces/HookMapService.md): read fixtures and edit interaction actions.
+- [Hook signature](type-aliases/Hook.md) and [all public types](globals.md).
+
 Create `Hooks/<name>.ts` using the normal document editing tools. Export a default
 async function taking `HookServices` and returning `Promise<string>`. The types
 are available without imports. Bind it on a conversation edge with
