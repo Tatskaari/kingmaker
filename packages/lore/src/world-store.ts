@@ -4,6 +4,7 @@ import type { SimulationMove } from "../../core/src/simulation-move.js";
 import { clone } from "@bufbuild/protobuf";
 import { WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
 import { DocumentGraph } from "./document-graph.js";
+import { prepareQuestDefinitions } from "./live-quest-definitions.js";
 import { validateDocuments } from "./document-audit.js";
 
 /** Shared authority and write queue; service implementations own their mutation policies. */
@@ -31,6 +32,7 @@ export class WorldStore {
   publishDocuments(draft: WorldState, prepared = this.graph): void {
     const graph = prepared.update(draft);
     validateDocuments(draft);
+    const quests = prepareQuestDefinitions(this.state, draft);
     const before = this.state.simulation!, next = draft.simulation!;
     if (next !== before) {
       const characters = Object.fromEntries(Object.entries(next.runtimeCharacters)
@@ -41,6 +43,6 @@ export class WorldStore {
       }
     }
     this.graph = graph;
-    this.state = { ...draft, simulation: this.state.simulation };
+    this.state = { ...draft, quests, simulation: this.state.simulation };
   }
 }

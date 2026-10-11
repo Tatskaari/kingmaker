@@ -3,7 +3,7 @@ import { QuestSchema, QuestStageSchema, QuestTransitionSchema, QuestStateSchema,
 import { links, resolveLink, type Note } from "./markdown.js";
 import { validateQuest } from "./quest-service.js";
 
-/** Compile authored quest data only when constructing a fresh scenario world. */
+/** Compile authored quest definitions for a fresh world or an unpublished document draft. */
 export function loadQuests(notes: ReadonlyMap<string, Note>, scenarioID: string): Record<string, QuestState> {
   const prefix = `Scenarios/${scenarioID}/Quests/`;
   const quests = new Map<string, QuestState>();
