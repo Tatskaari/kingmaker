@@ -1,5 +1,6 @@
 import { compileConversationTree } from "../../../packages/lore/src/conversation-tree.js";
 import { ConversationTreeSession } from "../../../packages/conversation/src/conversation-tree.js";
+import { pillowLead } from "../../../packages/conversation/src/tree-scripts/pillow-lead.js";
 import { helloWorld } from "../../../packages/conversation/src/tree-scripts/hello-world.js";
 import type { CressidaTransition } from "./cressida-scheduler.js";
 import { recordCharacterHistory } from "../../../packages/core/src/character-history.js";
@@ -272,7 +273,8 @@ export class WorldGameRuntime extends WorldHost {
     if (!session) {
       const tree = compileConversationTree({ body: document.body, metadata: document.frontmatter ?? {} });
       session = new ConversationTreeSession(tree, this.worldServices.quests,
-        { "hello-world.ts": signal => helloWorld(this.worldServices.quests, signal) });
+        { "hello-world.ts": signal => helloWorld(this.worldServices.quests, signal),
+          "pillow-lead.ts": signal => pillowLead(this.worldServices.quests, signal) });
       this.conversationTrees.set(id, session);
     }
     return session;

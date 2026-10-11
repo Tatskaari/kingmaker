@@ -1,10 +1,10 @@
-import { parseConversationTree } from "../../../packages/lore/src/conversation-tree.js";
+import { compileConversationTree, parseConversationTree } from "../../../packages/lore/src/conversation-tree.js";
 import { palaceMap } from "./palace-map.js";
 import { seedPresentation, presentationPath } from "../../../packages/lore/src/presentation.js";
 import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
 import { clone } from "@bufbuild/protobuf";
 import { GamePhase, DndCharacterSchema, WorldMapSchema, MapStateSchema as MapSchema, type MapState as PalaceMap } from "../../../packages/contracts/src/index.js";
-import { CharacterPropertiesSchema, QuestStateSchema, WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
+import { DocumentSchema, CharacterPropertiesSchema, QuestStateSchema, WorldStateSchema, type WorldState } from "../../../packages/contracts/src/v2.js";
 import { grantGuardAccess } from "./guard-duty.js";
 import { placeBackgroundCharacters } from "./background-characters.js";
 import { worldState, refreshDocumentGraph } from "../../../packages/lore/src/world-state.js";
@@ -25,6 +25,18 @@ export function playableWorld(baseline: PalaceMap, markdown: ReadonlyMap<string,
     world.quests[tree.quest.id] = create(QuestStateSchema, { quest: tree.quest, currentStageId: tree.quest.initialStageId });
   }
   placeBackgroundCharacters(world);
+  for (const { tree } of trees) {
+    const bodies = Object.values(world.simulation!.runtimeCharacters)
+      .filter(actor => actor.characterId === tree.characterId && actor.id !== tree.characterId);
+    for (const actor of bodies) {
+      const template = world.docs[`Conversations/${tree.characterId}.md`]!;
+      const metadata = { ...template.frontmatter, id: `${tree.quest.id}-${actor.id}`, character: actor.id };
+      const instanceTree = compileConversationTree({ body: template.body, metadata });
+      world.docs[`Conversations/${actor.id}.md`] = create(DocumentSchema, { body: template.body, frontmatter: metadata });
+      world.quests[instanceTree.quest.id] = create(QuestStateSchema, { quest: instanceTree.quest, currentStageId: instanceTree.quest.initialStageId });
+    }
+    if (bodies.length) delete world.quests[tree.quest.id];
+  }
   for (const path of world.characters) {
     const properties = sidecars.get(path.replace(/character\.md$/, "properties.json"));
     if (properties) for (const actor of Object.values(world.simulation!.runtimeCharacters).filter(actor => actor.document === path)) {
