@@ -1,0 +1,109 @@
+{
+  "revision": "9b30a9111d75da7bdadce9100e449a2d4f8863fa",
+  "rubric": [
+    {
+      "name": "interview-coverage",
+      "description": "Physically reach and talk individually to Elinor, Oswin and Rowan."
+    },
+    {
+      "name": "no-repeat-interviews",
+      "description": "Reach all three without repeating an interview or talking to unrelated people."
+    },
+    {
+      "name": "no-transcript",
+      "description": "AI inputs contain no raw source conversation or originating-conversation attachment."
+    }
+  ],
+  "concurrency": 4,
+  "experimentTypes": {
+    "corvin-inquiry-follow-through": "jev-action"
+  },
+  "experiments": [
+    "corvin-inquiry-follow-through"
+  ],
+  "repeats": 3,
+  "timeoutMs": 180000,
+  "type": "jev-action",
+  "publishedAt": "2026-10-11T10:19:51.255Z",
+  "comparison": [
+    {
+      "variant": "game",
+      "baseline": true,
+      "runs": 3,
+      "executionErrors": 0,
+      "scoringErrors": 0,
+      "criteria": {
+        "interview-coverage": 0.8888888888888888,
+        "no-repeat-interviews": 0.6666666666666666,
+        "no-transcript": 1
+      },
+      "total": 0.8518518518518517,
+      "delta": 0
+    }
+  ],
+  "trials": [
+    {
+      "experiment": "corvin-inquiry-follow-through",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 1,
+      "result": {
+        "criteria": {
+          "interview-coverage": {
+            "score": 0.6666666666666666,
+            "reason": "Reached 2/3: elinor, oswin"
+          },
+          "no-repeat-interviews": {
+            "score": 0,
+            "reason": "Requires exactly one individual interaction with each target."
+          },
+          "no-transcript": {
+            "score": 1
+          }
+        }
+      }
+    },
+    {
+      "experiment": "corvin-inquiry-follow-through",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 2,
+      "result": {
+        "criteria": {
+          "interview-coverage": {
+            "score": 1,
+            "reason": "Reached 3/3: elinor, oswin, rowan"
+          },
+          "no-repeat-interviews": {
+            "score": 1,
+            "reason": "Requires exactly one individual interaction with each target."
+          },
+          "no-transcript": {
+            "score": 1
+          }
+        }
+      }
+    },
+    {
+      "experiment": "corvin-inquiry-follow-through",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 3,
+      "result": {
+        "criteria": {
+          "interview-coverage": {
+            "score": 1,
+            "reason": "Reached 3/3: elinor, oswin, rowan"
+          },
+          "no-repeat-interviews": {
+            "score": 1,
+            "reason": "Requires exactly one individual interaction with each target."
+          },
+          "no-transcript": {
+            "score": 1
+          }
+        }
+      }
+    }
+  ]
+}
