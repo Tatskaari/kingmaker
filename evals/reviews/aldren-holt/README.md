@@ -11,13 +11,18 @@ Reconstruction uses fresh authored world/lore, without later activities or memor
 with Aldren's captured initial position. Earlier small talk, player customisation,
 and unrelated review events are omitted. The normal live conversation review policy
 replays the fixed reply and runs attention/disclosure normally. No desired activity
-is pre-seeded. This isolates the route handoff, not subsequent walking or dialogue.
+is pre-seeded. The review is followed by one real Jev planning decision, without executing movement or dialogue.
 
 Run `npm run eval:review:locations -- --repeats 3 --concurrency 1`
-with `OPENROUTER_API_KEY`. The route criterion checks the committed active
-`current_goal` for `enter_entrance_hall` and Holt; physical-state checks that review
-leaves the map unchanged. These narrow deterministic criteria do not grade every
+with `OPENROUTER_API_KEY`. The route criterion checks that Jev selects
+`enter_entrance_hall` after review; physical-state checks that review and planning
+leave the map unchanged. Jev receives live NPC locations regardless of whether
+the reviewer included navigation in `current_goal`. These narrow deterministic criteria do not grade every
 semantic aspect of the promise or guarantee subsequent planner completion.
+
+Historical results below used the old goal-text rubric, requiring an action ID
+in `current_goal`. They are not directly comparable with the current next-action
+rubric. The user requested the simpler shared context instead of prescribing goal wording.
 
 Baseline at `3b98f5b`: route 0/3, physical-state 3/3, no execution errors.
 Artifacts: `eval-output/2026-10-11T14-09-01.887Z-98a7a996/`.
