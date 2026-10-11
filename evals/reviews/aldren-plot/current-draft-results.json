@@ -1,0 +1,131 @@
+[
+  {
+    "batch": 1,
+    "variant": "prompt",
+    "artifact": "eval-output/2026-10-11T16-39-53.482Z-c3572088/0001.json",
+    "scores": {
+      "delegation": 1,
+      "player-return": 0,
+      "reconnection": 0.5,
+      "grounding": 0.75,
+      "runtime-preserved": 1
+    },
+    "changed": [
+      "Conversations/aldren.md"
+    ],
+    "sqlCalls": 0
+  },
+  {
+    "batch": 1,
+    "variant": "game",
+    "artifact": "eval-output/2026-10-11T16-39-53.482Z-c3572088/0002.json",
+    "scores": {
+      "delegation": 1,
+      "player-return": 0,
+      "reconnection": 0.5,
+      "grounding": 1,
+      "runtime-preserved": 1
+    },
+    "changed": [
+      "Scenarios/Centennial Assembly/Characters/aldren/memories/delegation.md"
+    ],
+    "sqlCalls": 0
+  },
+  {
+    "batch": 1,
+    "variant": "sql-and-prompt",
+    "artifact": "eval-output/2026-10-11T16-39-53.482Z-c3572088/0003.json",
+    "scores": {
+      "delegation": 1,
+      "player-return": 0,
+      "reconnection": 0.5,
+      "grounding": 1,
+      "runtime-preserved": 1
+    },
+    "changed": [
+      "Conversations/aldren.md"
+    ],
+    "sqlCalls": 0
+  },
+  {
+    "batch": 1,
+    "variant": "sql",
+    "artifact": "eval-output/2026-10-11T16-39-53.482Z-c3572088/0004.json",
+    "scores": {
+      "delegation": 1,
+      "player-return": 0,
+      "reconnection": 0.75,
+      "grounding": 1,
+      "runtime-preserved": 1
+    },
+    "changed": [
+      "Scenarios/Centennial Assembly/Quests/Assembly Programme/index.md"
+    ],
+    "sqlCalls": 1
+  },
+  {
+    "batch": 2,
+    "variant": "prompt",
+    "artifact": "eval-output/2026-10-11T16-41-21.095Z-127c42b1/0001.json",
+    "scores": {
+      "delegation": 1,
+      "player-return": 0,
+      "reconnection": 0.5,
+      "grounding": 1,
+      "runtime-preserved": 1
+    },
+    "changed": [
+      "Conversations/aldren.md"
+    ],
+    "sqlCalls": 0
+  },
+  {
+    "batch": 2,
+    "variant": "game",
+    "artifact": "eval-output/2026-10-11T16-41-21.095Z-127c42b1/0002.json",
+    "scores": {
+      "delegation": 1,
+      "player-return": 0,
+      "reconnection": 0.5,
+      "grounding": 1,
+      "runtime-preserved": 1
+    },
+    "changed": [
+      "Scenarios/Centennial Assembly/Characters/aldren/memories/delegation.md"
+    ],
+    "sqlCalls": 0
+  },
+  {
+    "batch": 2,
+    "variant": "sql",
+    "artifact": "eval-output/2026-10-11T16-41-21.095Z-127c42b1/0003.json",
+    "scores": {
+      "delegation": 1,
+      "player-return": 0,
+      "reconnection": 0.25,
+      "grounding": 0.75,
+      "runtime-preserved": 1
+    },
+    "changed": [
+      "Scenarios/Centennial Assembly/Characters/aldren/memories/delegation.md",
+      "Scenarios/Centennial Assembly/Quests/Talk to King Aldren/index.md"
+    ],
+    "sqlCalls": 6
+  },
+  {
+    "batch": 2,
+    "variant": "sql-and-prompt",
+    "artifact": "eval-output/2026-10-11T16-41-21.095Z-127c42b1/0004.json",
+    "scores": {
+      "delegation": 1,
+      "player-return": 0,
+      "reconnection": 0.5,
+      "grounding": 1,
+      "runtime-preserved": 1
+    },
+    "changed": [
+      "Conversations/aldren.md"
+    ],
+    "sqlCalls": 0
+  }
+]
