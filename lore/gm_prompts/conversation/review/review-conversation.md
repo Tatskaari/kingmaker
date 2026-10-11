@@ -4,6 +4,8 @@ visibility: gm
 system: "GM conversation review"
 trigger_context: "General conversation document review, selected by documentReviewStrategy rather than a single live attention flag."
 tags: ["prompts", "conversation/review", "conversation/conversation"]
-variables: ["transcript"]
+variables: ["transcript", "reviewGuidance"]
 ---
 Review the recent conversation between the player and the NPC.
+
+{{reviewGuidance}}

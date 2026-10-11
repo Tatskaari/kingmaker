@@ -62,7 +62,7 @@ export const focusedPlotBaseline: ReviewVariant = { name: "game", strategies: {
       { ...services, ai: { ...services.ai, responses: (request, cancellation, info) => services.ai.responses(
         { ...request, reasoning: { effort: "high" } }, cancellation, { ...info, purpose: "conversation_review" }) } },
       renderPrompt("review-plot-progress", reviewPromptContext(context, services)), {
-        systemPrompt: renderPrompt("review-focused"),
+        systemPrompt: renderPrompt("review-system"),
         tools: gameMasterTools.filter(tool => !activityTools.some(activity => activity.function.name === tool.function.name)),
       }),
   },
@@ -75,14 +75,14 @@ const rubric = [
   { name: "grounding", description: "Edits preserve existing facts, scoped NPC knowledge and unresolved status. They distinguish future conditional plans from completed actions; no invented delivered order, discovered blockage, moved cart or arrived cushions." },
 ].map(item => ({ ...item, levels: accuracyLevels }));
 
-export function createAldrenPlotExperiment(createAi: () => AiService, judge: Pick<AiService, "decisions">, variants: readonly ReviewVariant[] = []) {
-  const base = createReviewExperiment(aldrenPlotCase, [focusedPlotBaseline, ...variants], createAi, judge);
-  const [baseline, ...candidates] = base.getVariants();
+export function createAldrenPlotExperiment(createAi: () => AiService, judge: Pick<AiService, "decisions">) {
+  const base = createReviewExperiment(aldrenPlotCase, [focusedPlotBaseline], createAi, judge);
+  const [baseline] = base.getVariants();
   const score = createJevScorer(rubric, recording => ({ transcript: fixture.transcript,
     expectations: aldrenPlotCase.expectations, changes: documentChanges(recording) }), judge);
   return { ...base, rubric: [...rubric, { name: "runtime-preserved", description: "Review leaves physical state and compiled quest state unchanged; document edits alone must not be claimed as runtime transitions." }],
     getBaseline: () => withTranscriptFixture(baseline!, fixture),
-    getVariants: () => candidates.map(config => withTranscriptFixture(config, fixture)),
+    getVariants: () => [],
     async score(recording: Parameters<typeof score>[0], context: Parameters<typeof score>[1]) {
       const result = await score(recording, context);
       const before = recording.initialState as WorldState, after = recording.finalState as WorldState;

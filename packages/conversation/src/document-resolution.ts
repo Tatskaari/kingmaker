@@ -1,3 +1,4 @@
+import { reviewGuidance } from "./review-prompt-context.js";
 import { renderPrompt } from "../../prompts/src/index.js";
 import { disclosedContext } from "./disclosed-context.js";
 import { create } from "@bufbuild/protobuf";
@@ -48,15 +49,15 @@ export const documentResolutionStrategy: ResolutionStrategy = {
       const transcript = [opening, response];
       for (const characterId of participants) {
         await reviewDocumentEvidence({ characterId, participants, transcript }, labels, signal, services,
-          renderPrompt("document-resolution-review-exchange"));
+          renderPrompt("document-resolution-review-exchange", { reviewGuidance }));
       }
       return { summary: transcript.map(turn => `${turn.speakerId}: ${turn.text}`).join("\n") };
     }
     const purpose = context.kind === "wait_ended"
-      ? renderPrompt("document-resolution-review-wait")
+      ? renderPrompt("document-resolution-review-wait", { reviewGuidance })
       : context.kind === "world_event"
-      ? renderPrompt("document-resolution-review-event")
-      : renderPrompt("document-resolution-review-action");
+      ? renderPrompt("document-resolution-review-event", { reviewGuidance })
+      : renderPrompt("document-resolution-review-action", { reviewGuidance });
     const text = context.kind === "world_event" ? context.perception : JSON.stringify(context);
     return reviewDocumentEvidence({ characterId: context.characterId, participants: [context.characterId],
       transcript: [create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER, speakerId: "observation", text })],

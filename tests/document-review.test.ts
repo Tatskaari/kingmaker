@@ -29,6 +29,7 @@ const answer = (activeGoal: string | null, request: import("../packages/provider
 test("v2 review writes notes through tools and commits the goal, preserves access metadata, and survives reload", async () => {
   const services = fixture(), before = services.scenario.read();
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async request => {
+    assert.ok(request.tools?.some(tool => tool.function.name === "query_documents"));
     const text = JSON.stringify(request);
     assert.match(text, /Please go to the hall/); assert.match(text, /Alice speaks softly/);
     assert.ok(!text.includes("SECRET_SENTINEL")); return answer("Go to the hall", request);
