@@ -127,6 +127,7 @@ export class WorldHost {
     traceNote: "Model requests are available in the transcript inspector.",
   }; }
   readonly map: MapService = {
+    updateFixture: async (id, update) => { await this.writeSimulation(() => this.worldServices.map.updateFixture(id, update)); },
     layout: () => {
       const layout = this.world().simulation!.map?.layout;
       if (!layout) throw new Error("A map layout is required.");

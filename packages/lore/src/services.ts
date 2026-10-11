@@ -1,3 +1,4 @@
+import { createMapService } from "./map-service.js";
 import { createInventoryService } from "../../core/src/inventory-service.js";
 import type { WorldState } from "../../contracts/src/v2.js";
 import { WorldStore } from "./world-store.js";
@@ -20,6 +21,6 @@ export function createScenarioServices(initial: WorldState) {
     write: action => store.write(action),
     executeMove: (move, ...args) => store.executeMove(move, ...args),
   });
-  return { inventory, quests: createQuestService(store), currentWorld: () => store.state, docs, scenario: createScenarioService(store, docs),
+  return { map: createMapService(store), inventory, quests: createQuestService(store), currentWorld: () => store.state, docs, scenario: createScenarioService(store, docs),
     character: createCharacterService(store), mechanics: createMechanicsService(store) };
 }

@@ -1,3 +1,4 @@
+import type { FixtureUpdate } from "../../core/src/update-fixture.js";
 import type { CharacterHistoryEntry } from "../../core/src/character-history.js";
 import type { Event, MapState, WorldMap } from "../../contracts/src/index.js";
 import type { GameAction } from "../../core/src/actions.js";
@@ -24,6 +25,8 @@ export interface MapResult {
   message?: string;
 }
 export interface MapService {
+  /** Trusted host callback; not a serializable player command. */
+  updateFixture(id: string, update: FixtureUpdate): Promise<void>;
   layout(): WorldMap;
   /** Discovery does not pathfind. An explicit selected action ID requests its executable route. */
   observe(characterId: string, selectedActionId?: string): MapObservation;
