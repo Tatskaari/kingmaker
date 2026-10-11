@@ -1,5 +1,5 @@
 ---
-summary: "GM-only context for Gurt's decline, meaningful consent and the competing interpretations of Klog and Bran. Keeps his attentiveness uncertain and their private suspicions outside his assumed knowledge."
+summary: "Draft backstory provenance and GM-only context for Gurt's decline, meaningful consent and the competing interpretations of Klog and Bran. Keeps his attentiveness uncertain and their private suspicions outside his assumed knowledge."
 visibility: gm
 ---
 # King Gurt — GM notes
@@ -21,3 +21,7 @@ Gurt's cognitive decline meets a constitution unable to accommodate it. His mome
 Character portrayal: [[Cast/Kläggenheim/King Gurt/private|Private characterization]].
 
 Parent: [[Cast/Kläggenheim/King Gurt/index|King Gurt]].
+
+## Draft backstory provenance
+
+The new backstory and linked city, flood and Bjork tradition notes are a light author-requested sketch for review and expansion, not material recovered from the source issues. Dates, family details and further consequences remain undecided.
