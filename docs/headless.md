@@ -41,7 +41,7 @@ npm run headless -- act --id enter_entrance_hall
 npm run headless -- act --id talk_rowan
 npm run headless -- say --message 'What brings you to court?'
 npm run headless -- end-conversation
-npm run headless -- dump --description 'The door disappeared after I opened it'
+npm run headless -- dump --description 'The door disappeared after I opened it' --output /tmp/door-disappeared.zip
 ```
 
 QA mode exposes only `game.observe`, `game.act`, `game.say`,
@@ -53,10 +53,10 @@ conversation and suppresses physical actions until `end_conversation`; `say`
 accepts plain English and returns the character's reply. `game.execute` and all
 direct runtime, service, snapshot, and JavaScript access return `Method not found`.
 When reporting an issue, `dump` accepts a description of what happened and what
-was expected, then returns the standard diagnostic ZIP as ProtoJSON bytes; the
-CLI writes it to a timestamped file without overwriting an existing file. The
-archive contains internal debugging data and is an attachment, not a source of
-gameplay information. Use
+was expected plus an absolute destination filepath. The server writes the
+standard diagnostic ZIP there with mode `0600` and refuses to overwrite an
+existing file; no diagnostic contents cross JSON-RPC. The archive contains
+internal debugging data and is an attachment, not a source of gameplay information. Use
 `--dev-player` or a playable `--world` because a fresh character-creation game has
 no placed player to observe. Developer and QA servers use the same default socket,
 so run only one at a time or give each a distinct `--socket`.

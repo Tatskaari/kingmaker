@@ -100,10 +100,9 @@ message EndConversationResponse {}
 message DumpRequest {
   // What happened and what the player expected instead.
   string description = 1;
+  // Absolute destination for the ZIP. The parent directory must exist and the
+  // file must not already exist.
+  string filepath = 2;
 }
 
-message DumpResponse {
-  string filename = 1;
-  // A ZIP archive, encoded as base64 in ProtoJSON.
-  bytes archive = 2;
-}
+message DumpResponse {}

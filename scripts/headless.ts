@@ -1,6 +1,6 @@
 import { loadPlayableWorld } from "./lib/playable-world.js";
 import { characterCreationWorld } from "../apps/web/src/playable-world.js";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fromJson } from "@bufbuild/protobuf";
@@ -42,9 +42,10 @@ if (args[0] === "exec") {
   try { await endConversation(socketPath); print({}); } catch (error) { report(error); }
 } else if (args[0] === "dump") {
   try {
-    const response = await createDump(socketPath, option("--description") ?? "");
-    const output = resolve(option("--output") ?? response.filename);
-    writeFileSync(output, response.archive, { flag: "wx" });
+    const requested = option("--output");
+    if (!requested) throw new Error("dump requires --output with a descriptive ZIP filepath");
+    const output = resolve(requested);
+    await createDump(socketPath, option("--description") ?? "", output);
     print(output);
   } catch (error) { report(error); }
 } else if (!args.length || args[0] === "start" || args[0]?.startsWith("--")) {

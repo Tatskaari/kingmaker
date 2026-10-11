@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, statSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createConnection } from "node:net";
@@ -65,7 +65,7 @@ test("QA socket client can observe and select only advertised player actions", a
   assert.deepEqual(await say(path, "Hello"), { characterId: "rowan", reply: "Welcome, envoy." });
   await endConversation(path);
   assert.equal((await observe(path)).activeConversation, undefined);
-  const diagnostic = await dump(path, "A QA issue occurred");
-  assert.match(diagnostic.filename, /^kingmaker-issue-report-.*\.zip$/);
-  assert.match(strFromU8(unzipSync(diagnostic.archive)["report.md"]!), /A QA issue occurred/);
+  const diagnostic = join(directory, "qa-issue.zip");
+  await dump(path, "A QA issue occurred", diagnostic);
+  assert.match(strFromU8(unzipSync(readFileSync(diagnostic))["report.md"]!), /A QA issue occurred/);
 });

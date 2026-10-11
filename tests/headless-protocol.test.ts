@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { strFromU8, unzipSync } from "fflate";
 import { WorldHeadlessGame } from "../packages/headless/src/world.js";
 import { loadPlayableWorld } from "./fixtures.js";
@@ -71,10 +74,15 @@ test("QA protocol exposes only current player observations, actions and conversa
   assert.deepEqual((await call("game.end_conversation")).result, {});
   assert.equal((await call("game.observe")).result.activeConversation, undefined);
   assert.equal((await call("game.dump", {})).error.code, -32602);
-  const dump = (await call("game.dump", { description: "The door vanished" })).result;
-  assert.match(dump.filename, /^kingmaker-issue-report-.*\.zip$/);
-  const files = unzipSync(Buffer.from(dump.archive, "base64"));
+  assert.match((await call("game.dump", { description: "The door vanished", filepath: "relative.zip" })).error.message,
+    /filepath must be absolute/);
+  const directory = mkdtempSync(join(tmpdir(), "kingmaker-protocol-dump-")), filepath = join(directory, "door-vanished.zip");
+  t.after(() => rmSync(directory, { recursive: true, force: true }));
+  assert.deepEqual((await call("game.dump", { description: "The door vanished", filepath })).result, {});
+  assert.equal(statSync(filepath).mode & 0o777, 0o600);
+  const files = unzipSync(readFileSync(filepath));
   assert.match(strFromU8(files["report.md"]!), /The door vanished/);
   assert.equal(JSON.parse(strFromU8(files["environment.json"]!)).source, "headless-qa");
   assert.ok(files["world-state.json"]);
+  assert.match((await call("game.dump", { description: "Again", filepath })).error.message, /exist/i);
 });

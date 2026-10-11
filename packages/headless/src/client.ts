@@ -51,12 +51,9 @@ export function endConversation(socketPath: string): Promise<void> {
     .then(result => { fromJson(EndConversationResponseSchema, result); });
 }
 
-export function dump(socketPath: string, description: string): Promise<{ filename: string; archive: Uint8Array }> {
-  return request(socketPath, "game.dump", toJson(DumpRequestSchema, create(DumpRequestSchema, { description })))
-    .then(result => {
-      const response = fromJson(DumpResponseSchema, result);
-      return { filename: response.filename, archive: response.archive };
-    });
+export function dump(socketPath: string, description: string, filepath: string): Promise<void> {
+  return request(socketPath, "game.dump", toJson(DumpRequestSchema, create(DumpRequestSchema, { description, filepath })))
+    .then(result => { fromJson(DumpResponseSchema, result); });
 }
 
 function request(socketPath: string, method: string, params: JsonValue): Promise<JsonValue> {

@@ -95,15 +95,14 @@ export function createDispatcher(game: WorldHeadlessGame, mode: HeadlessMode = "
         }
       }
       if (request.method === "game.dump") {
-        let description: string;
+        let description: string, filepath: string;
         try {
-          description = fromJson(DumpRequestSchema, request.params as JsonValue).description;
-          if (!description.trim()) throw new Error("description must not be empty");
-        } catch { return respond(fault(id, -32602, "Expected DumpRequest with non-empty description")); }
+          ({ description, filepath } = fromJson(DumpRequestSchema, request.params as JsonValue));
+          if (!description.trim() || !filepath.trim()) throw new Error("description and filepath must not be empty");
+        } catch { return respond(fault(id, -32602, "Expected DumpRequest with non-empty description and filepath")); }
         try {
-          const result = toJson(DumpResponseSchema, create(DumpResponseSchema, game.dump(description)),
-            { alwaysEmitImplicit: true });
-          if (Buffer.byteLength(JSON.stringify(result)) > MAX_BYTES - 4096) throw new Error("Diagnostic dump is too large");
+          game.dump(filepath, description);
+          const result = toJson(DumpResponseSchema, create(DumpResponseSchema), { alwaysEmitImplicit: true });
           return respond({ jsonrpc: "2.0", id, result });
         } catch (error) {
           return respond(fault(id, -32000, error instanceof Error ? error.message.slice(0, 2000) : String(error)));
