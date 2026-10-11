@@ -1,12 +1,12 @@
 import { newQuickJSWASMModuleFromVariant, type QuickJSHandle } from "quickjs-emscripten-core";
 import variant from "@jitl/quickjs-singlefile-browser-release-sync";
 import type { CompiledHook } from "./compiler.js";
-import type { HookServices } from "./services.js";
+import type { HookServices, TransitionResult } from "./services.js";
 
 let modulePromise: ReturnType<typeof newQuickJSWASMModuleFromVariant> | undefined;
 /** Fresh VM per invocation. Only explicit services cross the boundary; never host objects. */
 export async function runHook(hook: CompiledHook, bind: (guard: () => void) => HookServices,
-  signal: AbortSignal, timeoutMs = 1000): Promise<string> {
+  signal: AbortSignal, timeoutMs = 1000): Promise<TransitionResult> {
   signal.throwIfAborted();
   const module = await (modulePromise ??= newQuickJSWASMModuleFromVariant(variant));
   signal.throwIfAborted();
@@ -105,8 +105,11 @@ export async function runHook(hook: CompiledHook, bind: (guard: () => void) => H
       if (state.type === "fulfilled") {
         try {
           if (pending.size) throw new Error("Await every hook service write before returning");
-          if (vm.typeof(state.value) !== "string") throw new Error("Hook must return a string");
-          return vm.getString(state.value);
+          const result = vm.dump(state.value);
+          if (!result || !["accepted", "rejected"].includes(result.status)
+            || (result.message !== undefined && (typeof result.message !== "string" || result.message.length > 4096))
+            || (result.status === "rejected" && typeof result.message !== "string")) throw new Error("Hook must return a valid TransitionResult");
+          return result as TransitionResult;
         } finally { state.value.dispose(); }
       }
       if (state.type === "rejected") {
