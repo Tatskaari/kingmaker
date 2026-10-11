@@ -1,3 +1,4 @@
+import { validateHookBindings } from "./hook-bindings.js";
 import { prepareHooks } from "./hook-documents.js";
 import { withHookReference } from "../../hooks/src/reference.js";
 import { publishSimulationChanges } from "../../core/src/simulation-publication.js";
@@ -19,6 +20,7 @@ export class WorldStore {
     this.state = { ...initial, docs: withHookReference(initial.docs) };
     this.graph = DocumentGraph.build(this.state);
     this.hooks = prepareHooks(this.state.docs);
+    validateHookBindings(this.state, this.hooks);
     this.simulation = createSimulationAuthority(this.state.simulation!);
     this.state.simulation = this.simulation.read();
   }
@@ -37,6 +39,7 @@ export class WorldStore {
     validateDocuments(draft);
     const quests = prepareQuestDefinitions(this.state, draft);
     const hooks = prepareHooks(draft.docs);
+    validateHookBindings(draft, hooks);
     const before = this.state.simulation!, next = draft.simulation!;
     if (next !== before) {
       const characters = Object.fromEntries(Object.entries(next.runtimeCharacters)

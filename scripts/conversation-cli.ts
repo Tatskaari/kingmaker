@@ -1,7 +1,7 @@
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
-import { parseConversationTree } from "../packages/lore/src/conversation-tree.js";
+import { compileConversationTree, parseConversationTree } from "../packages/lore/src/conversation-tree.js";
 import { ConversationTreeSession } from "../packages/conversation/src/conversation-tree.js";
-import { helloWorld } from "../packages/conversation/src/tree-scripts/hello-world.js";
+import hookSources from "../packages/hooks/src/source-catalog.js";
 import { ConversationReviews, liveConversationStrategy } from "../packages/conversation/src/live-conversation-strategy.js";
 import { documentLoreService } from "../packages/conversation/src/document-lore.js";
 import { traceAiService } from "../packages/conversation/src/ai-tracing.js";
@@ -61,8 +61,12 @@ const disclosure = new DisclosureSession(lore, ai,
 let conversationTree: ConversationTreeSession | undefined;
 if (treeEnabled) {
   const tree = parseConversationTree(readFileSync(new URL("../content/conversation-trees/aldren.md", import.meta.url), "utf8"));
-  await services.quests.register(tree.quest);
-  conversationTree = new ConversationTreeSession(tree, services.quests, { "hello-world.ts": signal => helloWorld(services, signal) });
+  for (const [path, text] of Object.entries(hookSources)) await services.docs.create(path, text);
+  const path = "Conversations/aldren.md";
+  await services.docs.create(path, readFileSync(new URL("../content/conversation-trees/aldren.md", import.meta.url), "utf8"));
+  conversationTree = new ConversationTreeSession(tree, services.quests, services.hooks.bind(),
+    () => { const doc = services.currentWorld().docs[path]!; return compileConversationTree({ body: doc.body, metadata: doc.frontmatter ?? {} }); },
+    () => services.hooks.bind());
 }
 const input: ConversationInput = {
   world: services.scenario.read(), characterId,

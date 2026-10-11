@@ -1,3 +1,4 @@
+import { readHookSources } from "./packages/hooks/src/source-catalog.js";
 import { readCompilerAssets } from "./packages/hooks/src/compiler-assets.js";
 import { readHookReference } from "./packages/hooks/src/reference-catalog.js";
 import { defineConfig, type Plugin } from "vite";
@@ -36,6 +37,11 @@ function hookReferences(): Plugin {
   return {
     name: "kingmaker-hook-reference",
     load(id) {
+      if (id === `${repositoryRoot}packages/hooks/src/source-catalog.ts`) {
+        const catalog = readHookSources();
+        for (const path of Object.keys(catalog)) this.addWatchFile(`${repositoryRoot}content/hooks/${path.slice("Hooks/".length)}`);
+        return `export default ${JSON.stringify(catalog)};`;
+      }
       if (id === `${repositoryRoot}packages/hooks/src/compiler-assets.ts`) {
         this.addWatchFile(`${repositoryRoot}packages/hooks/src/services.ts`);
         return `export default ${JSON.stringify(readCompilerAssets())};`;

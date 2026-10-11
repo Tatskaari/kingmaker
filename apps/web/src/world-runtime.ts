@@ -1,8 +1,5 @@
-import { authoriseCartSmash } from "../../../packages/conversation/src/tree-scripts/cart-actions.js";
 import { compileConversationTree } from "../../../packages/lore/src/conversation-tree.js";
 import { ConversationTreeSession } from "../../../packages/conversation/src/conversation-tree.js";
-import { pillowLead } from "../../../packages/conversation/src/tree-scripts/pillow-lead.js";
-import { helloWorld } from "../../../packages/conversation/src/tree-scripts/hello-world.js";
 import type { CressidaTransition } from "./cressida-scheduler.js";
 import { recordCharacterHistory } from "../../../packages/core/src/character-history.js";
 import { followingTarget, activityDefinition, activityGoal } from "../../../packages/lore/src/activity.js";
@@ -275,16 +272,14 @@ export class WorldGameRuntime extends WorldHost {
       let source = document;
       let tree = compileConversationTree({ body: source.body, metadata: source.frontmatter ?? {} });
       session = new ConversationTreeSession(tree, this.worldServices.quests,
-        { "hello-world.ts": signal => helloWorld(this.worldServices, signal),
-          "pillow-lead.ts": signal => pillowLead(this.worldServices, signal),
-          "authorise-cart-smash.ts": signal => authoriseCartSmash(this.worldServices, signal) }, () => {
+        this.worldServices.hooks.bind(), () => {
           const current = this.world().docs[`Conversations/${id}.md`]!;
           if (current !== source) {
             tree = compileConversationTree({ body: current.body, metadata: current.frontmatter ?? {} });
             source = current;
           }
           return tree;
-        });
+        }, () => this.worldServices.hooks.bind());
       this.conversationTrees.set(id, session);
     }
     return session;
