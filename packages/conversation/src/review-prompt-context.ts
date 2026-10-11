@@ -2,6 +2,9 @@ import { renderPrompt } from "../../prompts/src/index.js";
 import type { ConversationReviewContext } from "./review.js";
 import type { RuntimeServices } from "./services.js";
 
+/** Shared author-owned guidance; task templates choose whether to include it. */
+export const reviewGuidance = renderPrompt("review-focused");
+
 /** Read live GM state when the queued review starts; never widen character context. */
 export function reviewPromptContext(context: Readonly<ConversationReviewContext>, services: RuntimeServices) {
   const world = services.scenario.read();
@@ -18,6 +21,7 @@ export function reviewPromptContext(context: Readonly<ConversationReviewContext>
   const activeConversationTrees = treeDocuments.filter(([path]) => path === `Conversations/${context.characterId}.md`)
     .map(([path, document]) => ({ path, document, state: state(String(document.frontmatter?.id)) }));
   return {
+    reviewGuidance,
     youAreTheGameMaster: renderPrompt("gm-prompt-gm_base_prompt"),
     transcript: JSON.stringify(context.transcript, null, 2),
     activeQuests: JSON.stringify(activeQuests, null, 2),

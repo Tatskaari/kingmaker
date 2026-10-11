@@ -27,7 +27,7 @@ export const aldrenPlotVariants: ReviewVariant[] = [
       return reviewDocumentEvidence(context, labels, signal, { ...services, ai: { ...services.ai,
         responses: (request, cancellation, info) => services.ai.responses({ ...request, reasoning: { effort: "high" } },
           cancellation, { ...info, purpose: "conversation_review" }),
-      } }, purpose, { systemPrompt: renderPrompt("review-focused"), tools: variant.sql ? [...tools, queryDocumentsTool] : tools });
+      } }, purpose, { systemPrompt: renderPrompt("review-system"), tools: variant.sql ? [...tools, queryDocumentsTool] : tools });
     },
   },
 } }));

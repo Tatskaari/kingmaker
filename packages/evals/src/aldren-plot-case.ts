@@ -62,7 +62,7 @@ export const focusedPlotBaseline: ReviewVariant = { name: "game", strategies: {
       { ...services, ai: { ...services.ai, responses: (request, cancellation, info) => services.ai.responses(
         { ...request, reasoning: { effort: "high" } }, cancellation, { ...info, purpose: "conversation_review" }) } },
       renderPrompt("review-plot-progress", reviewPromptContext(context, services)), {
-        systemPrompt: renderPrompt("review-focused"),
+        systemPrompt: renderPrompt("review-system"),
         tools: gameMasterTools.filter(tool => !activityTools.some(activity => activity.function.name === tool.function.name)),
       }),
   },
