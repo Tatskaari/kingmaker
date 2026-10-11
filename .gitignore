@@ -11,3 +11,7 @@ dist/
 lore/.obsidian/workspace*.json
 lore/.obsidian/cache/
 lore/.trash/
+
+# Local IDE settings and nested agent checkouts.
+/.idea/
+/.claude/worktrees/
