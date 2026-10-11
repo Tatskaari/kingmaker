@@ -1,6 +1,10 @@
 ---
 summary: "Preserve commitments and the experienced reasons for them as private memories for future conversations."
 visibility: gm
+system: "GM conversation review"
+trigger_context: "After Jev flags an immediate, deferred or general commitment; preserves memory separately from the activity review."
+tags: ["prompts", "conversation/review", "conversation/commitment-memory"]
+variables: ["transcript"]
 ---
 Review only the memory consequences of the immediate, deferred and general commitments in this turn. The activity reviewer handles execution separately. Preserve what the character agreed to do, for whom, and why they agreed, using only motives or circumstances supported by their experience, the conversation and binding DM rulings. Do not invent a private motivation merely to explain a successful roll.
 

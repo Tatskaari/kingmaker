@@ -1,3 +1,4 @@
+import { reviewPromptContext } from "./review-prompt-context.js";
 import { renderPrompt } from "../../prompts/src/index.js";
 import { presentationPath } from "../../lore/src/presentation.js";
 import type { OpenRouterMessage, OpenRouterTool } from "../../providers/src/openrouter.js";
@@ -14,7 +15,7 @@ export const documentReviewStrategy: ConversationReviewStrategy = {
 
 /** GM reviews can edit the world; memories must still respect each NPC's knowledge. */
 export async function reviewDocumentEvidence(context: Readonly<ConversationReviewContext>, labels: Readonly<ReviewLabels>,
-  signal: AbortSignal, services: RuntimeServices, purpose = renderPrompt("review-conversation"),
+  signal: AbortSignal, services: RuntimeServices, purpose = renderPrompt("review-conversation", reviewPromptContext(context, services)),
   options: { tools?: OpenRouterTool[]; systemPrompt?: string } = {}) {
   signal.throwIfAborted();
   const intent = characterIntent(services.scenario.read(), context.characterId), path = intent.entry;

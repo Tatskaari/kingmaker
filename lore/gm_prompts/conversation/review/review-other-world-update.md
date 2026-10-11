@@ -1,6 +1,10 @@
 ---
 summary: "Reconcile consequential non-exchange world changes and visible presentation against actual state."
 visibility: gm
+system: "GM conversation review"
+trigger_context: "After Jev conversation attention selects flagged for other_world_update; one focused background GM review of the accepted turn."
+tags: ["prompts", "conversation/review", "conversation/other-world-update"]
+variables: ["transcript"]
 ---
 Review only consequential world changes outside commitments, gifts/trades, quest progress and relationship or knowledge changes. Reconcile narrated effects against actual state. Read participant presentation documents when the turn establishes a visible change in clothing, grooming or condition; update the affected presentation while preserving unchanged appearance and omitting unestablished details.
 

@@ -1,6 +1,10 @@
 ---
 summary: "Review commitment flags together and set supported activities using only set_activity."
 visibility: gm
+system: "GM conversation review"
+trigger_context: "After Jev flags any commitment or immediate_feasibility selects gms_discretion; runs before other focused reviews."
+tags: ["prompts", "conversation/review", "conversation/activity"]
+variables: ["transcript"]
 ---
 This conversation has been flagged as having an activity that the character must undertake once this conversation completes. This task will be passed to the action planner for execution. The action planner will get a textual representation of the world state, but won't have access to the details from this transcript. You should extract any context useful for execution of this action.
 

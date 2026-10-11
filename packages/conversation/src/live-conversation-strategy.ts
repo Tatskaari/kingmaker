@@ -1,4 +1,5 @@
 import { activityNpcLocations } from "./activity-navigation.js";
+import { reviewPromptContext } from "./review-prompt-context.js";
 import { PLAYER_OBSERVATION_PREFIX } from "./checks.js";
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, TranscriptRole, type TranscriptMessage } from "../../contracts/src/index.js";
@@ -69,8 +70,10 @@ export function liveConversationStrategy(options: {
         reviewLabels, reviewSignal, { ...services, ai: { ...services.ai,
           responses: (request, signal, info) => services.ai.responses({ ...request, reasoning: { ...request.reasoning, effort: "high" } },
             signal, { ...info, purpose: "conversation_review" }),
-        } }, renderPrompt(`review-${category.replaceAll("_", "-")}`, category === "activity"
-          ? { npc_locations: activityNpcLocations(services.scenario.read(), options.characterId) } : {}), {
+        } }, renderPrompt(`review-${category.replaceAll("_", "-")}`, {
+          ...reviewPromptContext({ characterId: options.characterId, participants: [options.characterId, "player"], transcript }, services),
+          ...(category === "activity" ? { npc_locations: activityNpcLocations(services.scenario.read(), options.characterId) } : {}),
+        }), {
           systemPrompt: renderPrompt("review-focused"),
           tools: gameMasterTools.filter(tool => category === "activity" ? tool.function.name === "set_activity"
             : !activityTools.some(activity => activity.function.name === tool.function.name)),

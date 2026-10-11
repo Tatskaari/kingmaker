@@ -134,11 +134,20 @@ test("flags schedule one combined activity review and separate focused reviews i
       "Give me a bird.", "# Binding DM ruling\nPersuasion succeeded.", "I will give you a bird.",
     ]);
     assert.ok(!JSON.stringify(evidence.transcript).includes("Old conversation"));
+    if (evidence.labels.plot_progress) {
+      const prompt = request.messages.find(message => message.content?.includes("<transcript>"))!.content!;
+      const embedded = prompt.split("<transcript>\n")[1]!.split("\n</transcript>")[0]!;
+      assert.deepEqual(JSON.parse(embedded), evidence.transcript);
+      assert.ok(!prompt.includes("{{transcript}}"));
+    }
     assert.ok(!request.messages.some(message => message.content?.includes("As part of a review:")));
     const names = request.tools!.map(tool => tool.function.name);
     if (labelSets.length === 1) {
       assert.deepEqual(names, ["set_activity"]);
-      assert.ok(request.messages.some(message => message.content === renderPrompt("review-activity", { npc_locations: activityNpcLocations(f.backing.scenario.read(), "corvin") })));
+      assert.ok(request.messages.some(message => message.content === renderPrompt("review-activity", {
+        transcript: JSON.stringify(evidence.transcript, null, 2),
+        npc_locations: activityNpcLocations(f.backing.scenario.read(), "corvin"),
+      })));
     } else {
       assert.ok(!names.includes("set_activity") && !names.includes("set_wait") && !names.includes("clear_activity"));
       assert.ok(request.messages.some(message => message.content?.startsWith("Review only")));

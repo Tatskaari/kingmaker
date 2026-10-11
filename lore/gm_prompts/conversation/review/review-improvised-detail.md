@@ -1,6 +1,10 @@
 ---
 summary: "Reconcile newly introduced story details as supported facts, private beliefs or unresolved claims."
 visibility: gm
+system: "GM conversation review"
+trigger_context: "After Jev conversation attention selects flagged for improvised_detail; one focused background GM review of the accepted turn."
+tags: ["prompts", "conversation/review", "conversation/improvised-detail"]
+variables: ["transcript"]
 ---
 Review only newly improvised story details. Compare the new claims with relevant established lore and DM rulings. Preserve compatible player-led shared history and harmless improvisation so the story can develop collaboratively. A hedged or implicitly accepted claim is not automatically objective truth.
 
