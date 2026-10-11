@@ -13,3 +13,5 @@ Run: `node --import tsx scripts/run-aldren-plot-eval.ts --repeats 2 --concurrenc
 The latest author-draft comparison (two trials per configuration) is recorded separately in [current draft comparison](current-draft-comparison.md), preserving the earlier successful candidate results.
 
 The follow-up [explicit return-beat comparison](return-beat-comparison.md) tests the restored positive instruction with two trials per configuration and independent compilation checks of edited trees.
+
+See [promoted baseline validation](promotion-validation.md) for final default behavior, SQL tool availability, live trials and known compiler/tool-budget limitations.
