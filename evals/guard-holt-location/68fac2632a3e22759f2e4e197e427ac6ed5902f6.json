@@ -1,0 +1,78 @@
+{
+  "revision": "68fac2632a3e22759f2e4e197e427ac6ed5902f6",
+  "rubric": [
+    {
+      "name": "location",
+      "description": "The character answers with Holt's current location, the Entrance Hall or service entrance, without claiming uncertainty."
+    }
+  ],
+  "concurrency": 4,
+  "experimentTypes": {
+    "guard-holt-location": "conversation"
+  },
+  "experiments": [
+    "guard-holt-location"
+  ],
+  "repeats": 3,
+  "timeoutMs": 180000,
+  "type": "conversation",
+  "publishedAt": "2026-10-11T23:57:15.396Z",
+  "comparison": [
+    {
+      "variant": "game",
+      "baseline": true,
+      "runs": 3,
+      "executionErrors": 0,
+      "scoringErrors": 0,
+      "criteria": {
+        "location": 1
+      },
+      "total": 1,
+      "delta": 0
+    }
+  ],
+  "trials": [
+    {
+      "experiment": "guard-holt-location",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 1,
+      "result": {
+        "criteria": {
+          "location": {
+            "score": 1,
+            "reason": "The reply directs the player to Holt's current entrance location."
+          }
+        }
+      }
+    },
+    {
+      "experiment": "guard-holt-location",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 2,
+      "result": {
+        "criteria": {
+          "location": {
+            "score": 1,
+            "reason": "The reply directs the player to Holt's current entrance location."
+          }
+        }
+      }
+    },
+    {
+      "experiment": "guard-holt-location",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 3,
+      "result": {
+        "criteria": {
+          "location": {
+            "score": 1,
+            "reason": "The reply directs the player to Holt's current entrance location."
+          }
+        }
+      }
+    }
+  ]
+}
