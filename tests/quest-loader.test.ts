@@ -64,6 +64,7 @@ test("rejects invalid authored graphs and condition links with source context", 
   for (const invalid of [source.replace("initial: blocked", "initial: missing"),
     source.replace("When: clear -> done", "When: clear -> absent"),
     source.replace("physically clear.", "[[Missing]]."), source.replace("visibility: gm", "visibility: public"),
+    source.replace("### Quest Log\nFind a way to clear the entrance.\n", ""),
     source.replace("Trigger: none", "Trigger: automatic")]) {
     assert.throws(() => build(fixture(invalid)), error => error instanceof Error && error.message.includes(path));
   }

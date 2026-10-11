@@ -18,6 +18,16 @@ test("only a successful player exchange with the target completes an active ques
     } } },
   });
   assert.deepEqual((runtime.view().activeQuests as { title: string }[]).map(quest => quest.title), ["Talk to King Aldren"]);
+  const programme = runtime.services.quests.read("assembly_programme");
+  await runtime.services.quests.setActive("assembly_programme", true, programme.revision);
+  await runtime.services.quests.transition("assembly_programme", "learn_cart_blocked", programme.revision + 1);
+  const programmeView = (runtime.view().activeQuests as { id: string; stages: { id: string; status: string; description: string }[] }[])
+    .find(quest => quest.id === "assembly_programme")!;
+  assert.deepEqual(programmeView.stages.map(stage => [stage.id, stage.status]), [
+    ["investigate_missing_pillows", "completed"], ["cart_blocked", "active"],
+  ]);
+  assert.match(programmeView.stages[1]!.description, /Rowan's cart/);
+  await runtime.services.quests.setActive("assembly_programme", false, programme.revision + 2);
   await runtime.services.quests.register(create(QuestSchema, {
     id: "greeting", title: "Talk to King Aldren", initialStageId: "arrived",
     stages: [

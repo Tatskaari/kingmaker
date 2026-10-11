@@ -62,6 +62,7 @@ export function compileAuthoredGraph(note: Note, kind: "conversation" | "quest" 
   }
   validateQuest(quest);
   if (quest.stages.some(stage => !stage.description)) throw new Error("Every node requires Guidance");
+  if (kind === "quest" && quest.stages.some(stage => !stage.questLog)) throw new Error("Every quest node requires Quest Log");
   if (kind === "quest" && quest.transitions.some(edge => !triggers.has(edge.id))) throw new Error("Every quest transition requires Trigger");
   return { quest, scripts };
 }

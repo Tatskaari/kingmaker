@@ -58,6 +58,8 @@ graph compiler; a quest document supplies flat `id`, `title`, `initial`,
 ## Node: blocked | Entrance blocked
 ### Guidance
 Resolve the obstruction. Agreement to act is not clearance.
+### Quest Log
+The entrance is blocked. Find a way to clear it.
 ### When: clear_cart -> clear
 The host has cleared the obstruction and assigned helpers.
 #### Trigger: none
@@ -69,9 +71,11 @@ The entrance is clear; delivery remains a separate activity.
 
 Node and transition IDs allow hyphens and underscores. File order determines
 stage order. `| Title` is optional; otherwise the node ID supplies its title.
-Every node requires `Guidance`; quest guidance is GM-owned, not injected into
-character replies. An empty `### Completed` heading on a node deactivates the
-quest when that node is entered. A terminal node alone does not complete a quest.
+Every node requires `Guidance` and `Quest Log`. Guidance is GM-owned and is not
+shown to players or injected into character replies. Quest Log is player-facing
+journal copy for that stage. Keep it limited to facts the player knows when the
+stage is reached. An empty `### Completed` heading on a node deactivates the quest
+when that node is entered. A terminal node alone does not complete a quest.
 The text before the first node supplies the quest overview; keep longer author
 notes and effect contracts in linked supporting documents.
 

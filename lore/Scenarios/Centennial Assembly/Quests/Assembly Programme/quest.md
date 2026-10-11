@@ -16,6 +16,8 @@ Record Holt's disclosed lead and direct the investigation to the cart. This does
 Aldren wants his pillows. Ask Holt where the delivery is. Holt is furious about the delayed festivities and resents another enquiry about upholstery. Calming him enough to explain reveals that the pillows are probably held up by Rowan's cart too.
 
 Only Holt actually disclosing that lead advances this stage; greeting him or asking the question is insufficient. His conversation edge invokes the transition explicitly.
+### Quest Log
+King Aldren's ceremonial pillows have not arrived. Ask Lord Holt where their delivery has been delayed.
 ### When: learn_cart_blocked -> cart_blocked
 Holt has told the player that the pillow delivery is probably blocked by Rowan’s cart.
 #### Trigger: none
@@ -30,6 +32,8 @@ The player resolves the obstruction before hearing Holt’s explanation. The hos
 Holt has explained that the pillows are probably delayed by Rowan's cart. Resolve the obstruction by helping Rowan seek Corvin's advice, persuading Rowan to back the cart out the way it came, smashing it, or completing another player-devised solution. Holt gives permission to smash only reluctantly if pressed; permission does not make Nine Furrows approve.
 
 Conversation branches own negotiation and scoped reactions. Failed attempts leave other approaches available. Agreement to act is not clearance; invoke the shared transition when play establishes that a remedy's intended mechanism worked, then let its host effects publish clearance.
+### Quest Log
+Holt believes Rowan's cart at the palace service entrance is holding up the pillow delivery. Find a way to clear the obstruction.
 ### When: clear_cart -> cart_unblocked
 A remedy has succeeded: repair using Corvin’s book, Rowan backing out, a successful physical smash, or another completed solution established in play. The host clears the obstruction and records a shared memory for every character. Delivery remains a separate task.
 #### Trigger: fixture_absent furn_cart_left
@@ -38,3 +42,5 @@ A remedy has succeeded: repair using Corvin’s book, Rowan backing out, a succe
 ## Node: cart_unblocked | Cart unblocked
 ### Guidance
 The palace service entrance is clear. Every character receives the fixed clearance memory; a plot review updates their dialogue trees to reflect the completed remedy. Deliveries can resume, but goods have not yet arrived in the hall. Do not restart the cart investigation. Later delivery and assembly programme details remain unwritten.
+### Quest Log
+The palace service entrance is clear. Deliveries can resume, but King Aldren's pillows have not yet reached the hall.
