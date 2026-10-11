@@ -4,10 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createConnection } from "node:net";
 import test from "node:test";
+import { strFromU8, unzipSync } from "fflate";
 import { WorldHeadlessGame } from "../packages/headless/src/world.js";
 import { loadPlayableWorld } from "./fixtures.js";
 import { startConsole } from "../packages/headless/src/server.js";
-import { act, endConversation, execute, observe, say } from "../packages/headless/src/client.js";
+import { act, dump, endConversation, execute, observe, say } from "../packages/headless/src/client.js";
 
 test("socket persists across clients, serializes async edits, and preserves logs on errors", async t => {
   const directory = mkdtempSync(join(tmpdir(), "kingmaker-socket-")), path = join(directory, "game.sock");
@@ -64,4 +65,7 @@ test("QA socket client can observe and select only advertised player actions", a
   assert.deepEqual(await say(path, "Hello"), { characterId: "rowan", reply: "Welcome, envoy." });
   await endConversation(path);
   assert.equal((await observe(path)).activeConversation, undefined);
+  const diagnostic = await dump(path, "A QA issue occurred");
+  assert.match(diagnostic.filename, /^kingmaker-issue-report-.*\.zip$/);
+  assert.match(strFromU8(unzipSync(diagnostic.archive)["report.md"]!), /A QA issue occurred/);
 });

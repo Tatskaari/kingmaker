@@ -41,16 +41,22 @@ npm run headless -- act --id enter_entrance_hall
 npm run headless -- act --id talk_rowan
 npm run headless -- say --message 'What brings you to court?'
 npm run headless -- end-conversation
+npm run headless -- dump --description 'The door disappeared after I opened it'
 ```
 
-QA mode exposes only `game.observe`, `game.act`, `game.say` and
-`game.end_conversation` over JSON-RPC. Observation returns Jev's player room view,
+QA mode exposes only `game.observe`, `game.act`, `game.say`,
+`game.end_conversation` and `game.dump` over JSON-RPC. Observation returns Jev's player room view,
 the current structured action list, player-visible active quests and any active
 conversation. `act` accepts one of those action IDs and revalidates it against the
 live player observation before moving or interacting. A `talk` action starts a
 conversation and suppresses physical actions until `end_conversation`; `say`
 accepts plain English and returns the character's reply. `game.execute` and all
-direct runtime, service, snapshot, and JavaScript access return `Method not found`. Use
+direct runtime, service, snapshot, and JavaScript access return `Method not found`.
+When reporting an issue, `dump` accepts a description of what happened and what
+was expected, then returns the standard diagnostic ZIP as ProtoJSON bytes; the
+CLI writes it to a timestamped file without overwriting an existing file. The
+archive contains internal debugging data and is an attachment, not a source of
+gameplay information. Use
 `--dev-player` or a playable `--world` because a fresh character-creation game has
 no placed player to observe. Developer and QA servers use the same default socket,
 so run only one at a time or give each a distinct `--socket`.

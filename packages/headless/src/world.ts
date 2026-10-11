@@ -7,6 +7,7 @@ import { inventoryOwners } from "../../core/src/inventory.js";
 import { worldForCharacter } from "../../core/src/physical-view.js";
 import { physicalCharacterObservation } from "../../../apps/web/src/physical-observation.js";
 import { renderJevRoomView } from "../../../apps/web/src/jev-room-view.js";
+import { buildIssueReport, issueReportFilename } from "../../../apps/web/src/issue-report.js";
 
 /** The production console uses the same v2 host as the browser worker. */
 export class WorldHeadlessGame {
@@ -53,6 +54,16 @@ export class WorldHeadlessGame {
     return { id: quest!.id, title: quest!.title || quest!.id,
       stage: stage?.title || currentStageId, description: stage?.description || "" };
   }); }
+  dump(description: string) {
+    const generatedAt = new Date().toISOString();
+    return { filename: issueReportFilename(generatedAt), archive: buildIssueReport({
+      description, generatedAt, worldState: this.runtime.world(), requests: this.runtime.recentTranscripts(),
+      agentRuns: this.runtime.transcriptRuns(), alerts: [], environment: {
+        source: "headless-qa", node: process.version, platform: process.platform,
+        activeConversation: this.activeConversationId ?? null,
+      },
+    }) };
+  }
   overview() { return this.runtime.view(); }
   async act(id: string) {
     if (this.activeConversationId) throw new Error(`End the conversation with ${this.activeConversationId} before acting.`);

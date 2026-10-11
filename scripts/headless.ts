@@ -1,6 +1,6 @@
 import { loadPlayableWorld } from "./lib/playable-world.js";
 import { characterCreationWorld } from "../apps/web/src/playable-world.js";
-import { mkdirSync, readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { tmpdir } from "node:os";
 import { fromJson } from "@bufbuild/protobuf";
@@ -8,7 +8,7 @@ import type { WorldSnapshot } from "../apps/web/src/world-runtime.js";
 import { WorldStateSchema } from "../packages/contracts/src/v2.js";
 import { WorldHeadlessGame } from "../packages/headless/src/world.js";
 import { startConsole } from "../packages/headless/src/server.js";
-import { act, endConversation, execute, observe, say } from "../packages/headless/src/client.js";
+import { act, dump as createDump, endConversation, execute, observe, say } from "../packages/headless/src/client.js";
 
 const args = process.argv.slice(2);
 const option = (name: string) => {
@@ -40,6 +40,13 @@ if (args[0] === "exec") {
   try { print(await say(socketPath, option("--message") ?? "")); } catch (error) { report(error); }
 } else if (args[0] === "end-conversation") {
   try { await endConversation(socketPath); print({}); } catch (error) { report(error); }
+} else if (args[0] === "dump") {
+  try {
+    const response = await createDump(socketPath, option("--description") ?? "");
+    const output = resolve(option("--output") ?? response.filename);
+    writeFileSync(output, response.archive, { flag: "wx" });
+    print(output);
+  } catch (error) { report(error); }
 } else if (!args.length || args[0] === "start" || args[0]?.startsWith("--")) {
   const worldPath = option("--world");
   const source = worldPath ? JSON.parse(readFileSync(worldPath, "utf8")) : undefined;
@@ -54,4 +61,4 @@ if (args[0] === "exec") {
   for (const signal of ["SIGINT", "SIGTERM"] as const) process.once(signal, () => {
     server.close(() => process.exit(0));
   });
-} else throw new Error("Usage: headless [start|exec|observe|act|say|end-conversation] [--qa] [--socket path] [--world path] [--code source|--file path|--id action|--message text]");
+} else throw new Error("Usage: headless [start|exec|observe|act|say|end-conversation|dump] [--qa] [--socket path] [--world path] [--code source|--file path|--id action|--message text|--description text|--output path]");

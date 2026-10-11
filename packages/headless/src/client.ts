@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
 import { createConnection } from "node:net";
 import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
-import { ActRequestSchema, ActResponseSchema, EndConversationRequestSchema, EndConversationResponseSchema,
-  ExecuteRequestSchema, ExecuteResponseSchema, ObserveRequestSchema, ObserveResponseSchema,
-  SayRequestSchema, SayResponseSchema } from "../../contracts/src/gen/kingmaker/headless/v1/console_pb.js";
+import { ActRequestSchema, ActResponseSchema, DumpRequestSchema, DumpResponseSchema, EndConversationRequestSchema,
+  EndConversationResponseSchema, ExecuteRequestSchema, ExecuteResponseSchema, ObserveRequestSchema,
+  ObserveResponseSchema, SayRequestSchema,
+  SayResponseSchema } from "../../contracts/src/gen/kingmaker/headless/v1/console_pb.js";
 
 /** Each call may reconnect: the world belongs to the server, not the connection. */
 export function execute(socketPath: string, code: string): Promise<{ value: JsonValue; logs: string[] }> {
@@ -48,6 +49,14 @@ export function endConversation(socketPath: string): Promise<void> {
   return request(socketPath, "game.end_conversation",
     toJson(EndConversationRequestSchema, create(EndConversationRequestSchema)))
     .then(result => { fromJson(EndConversationResponseSchema, result); });
+}
+
+export function dump(socketPath: string, description: string): Promise<{ filename: string; archive: Uint8Array }> {
+  return request(socketPath, "game.dump", toJson(DumpRequestSchema, create(DumpRequestSchema, { description })))
+    .then(result => {
+      const response = fromJson(DumpResponseSchema, result);
+      return { filename: response.filename, archive: response.archive };
+    });
 }
 
 function request(socketPath: string, method: string, params: JsonValue): Promise<JsonValue> {

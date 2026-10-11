@@ -17,6 +17,7 @@ service GameQaService {
   rpc Act(ActRequest) returns (ActResponse);
   rpc Say(SayRequest) returns (SayResponse);
   rpc EndConversation(EndConversationRequest) returns (EndConversationResponse);
+  rpc Dump(DumpRequest) returns (DumpResponse);
 }
 
 message ExecuteRequest {
@@ -93,3 +94,16 @@ message SayResponse {
 message EndConversationRequest {}
 
 message EndConversationResponse {}
+
+// Create this diagnostic only when reporting an issue. The archive contains
+// internal debugging data and must not be inspected or used to guide play.
+message DumpRequest {
+  // What happened and what the player expected instead.
+  string description = 1;
+}
+
+message DumpResponse {
+  string filename = 1;
+  // A ZIP archive, encoded as base64 in ProtoJSON.
+  bytes archive = 2;
+}

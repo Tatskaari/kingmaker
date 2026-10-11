@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { strFromU8, unzipSync } from "fflate";
 import { WorldHeadlessGame } from "../packages/headless/src/world.js";
 import { loadPlayableWorld } from "./fixtures.js";
 import { createDispatcher } from "../packages/headless/src/server.js";
@@ -69,4 +70,11 @@ test("QA protocol exposes only current player observations, actions and conversa
   assert.match((await call("game.act", { id: "enter_great_hall" })).error.message, /End the conversation/);
   assert.deepEqual((await call("game.end_conversation")).result, {});
   assert.equal((await call("game.observe")).result.activeConversation, undefined);
+  assert.equal((await call("game.dump", {})).error.code, -32602);
+  const dump = (await call("game.dump", { description: "The door vanished" })).result;
+  assert.match(dump.filename, /^kingmaker-issue-report-.*\.zip$/);
+  const files = unzipSync(Buffer.from(dump.archive, "base64"));
+  assert.match(strFromU8(files["report.md"]!), /The door vanished/);
+  assert.equal(JSON.parse(strFromU8(files["environment.json"]!)).source, "headless-qa");
+  assert.ok(files["world-state.json"]);
 });

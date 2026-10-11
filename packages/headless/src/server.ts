@@ -4,9 +4,10 @@ import { stripTypeScriptTypes } from "node:module";
 import { format } from "node:util";
 import { runInNewContext } from "node:vm";
 import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
-import { ActRequestSchema, ActResponseSchema, EndConversationRequestSchema, EndConversationResponseSchema,
-  ExecuteRequestSchema, ExecuteResponseSchema, ExecutionErrorSchema, ObserveRequestSchema, ObserveResponseSchema,
-  SayRequestSchema, SayResponseSchema } from "../../contracts/src/gen/kingmaker/headless/v1/console_pb.js";
+import { ActRequestSchema, ActResponseSchema, DumpRequestSchema, DumpResponseSchema, EndConversationRequestSchema,
+  EndConversationResponseSchema, ExecuteRequestSchema, ExecuteResponseSchema, ExecutionErrorSchema,
+  ObserveRequestSchema, ObserveResponseSchema, SayRequestSchema,
+  SayResponseSchema } from "../../contracts/src/gen/kingmaker/headless/v1/console_pb.js";
 import type { WorldHeadlessGame } from "./world.js";
 
 const MAX_BYTES = 1024 * 1024;
@@ -88,6 +89,21 @@ export function createDispatcher(game: WorldHeadlessGame, mode: HeadlessMode = "
           await game.endActiveConversation();
           const result = toJson(EndConversationResponseSchema, create(EndConversationResponseSchema),
             { alwaysEmitImplicit: true });
+          return respond({ jsonrpc: "2.0", id, result });
+        } catch (error) {
+          return respond(fault(id, -32000, error instanceof Error ? error.message.slice(0, 2000) : String(error)));
+        }
+      }
+      if (request.method === "game.dump") {
+        let description: string;
+        try {
+          description = fromJson(DumpRequestSchema, request.params as JsonValue).description;
+          if (!description.trim()) throw new Error("description must not be empty");
+        } catch { return respond(fault(id, -32602, "Expected DumpRequest with non-empty description")); }
+        try {
+          const result = toJson(DumpResponseSchema, create(DumpResponseSchema, game.dump(description)),
+            { alwaysEmitImplicit: true });
+          if (Buffer.byteLength(JSON.stringify(result)) > MAX_BYTES - 4096) throw new Error("Diagnostic dump is too large");
           return respond({ jsonrpc: "2.0", id, result });
         } catch (error) {
           return respond(fault(id, -32000, error instanceof Error ? error.message.slice(0, 2000) : String(error)));

@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file kingmaker/headless/v1/console.proto.
  */
 export const file_kingmaker_headless_v1_console: GenFile = /*@__PURE__*/
-  fileDesc("CiNraW5nbWFrZXIvaGVhZGxlc3MvdjEvY29uc29sZS5wcm90bxIVa2luZ21ha2VyLmhlYWRsZXNzLnYxIh4KDkV4ZWN1dGVSZXF1ZXN0EgwKBGNvZGUYASABKAkiRgoPRXhlY3V0ZVJlc3BvbnNlEiUKBXZhbHVlGAEgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEgwKBGxvZ3MYAiADKAkiLQoORXhlY3V0aW9uRXJyb3ISDAoEbG9ncxgBIAMoCRINCgVzdGFjaxgCIAEoCSIQCg5PYnNlcnZlUmVxdWVzdCJPCgxQbGF5ZXJBY3Rpb24SCgoCaWQYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSDAoEdHlwZRgDIAEoCRIQCghsZWdhbGl0eRgEIAEoCSLbAQoPT2JzZXJ2ZVJlc3BvbnNlEhMKC29ic2VydmF0aW9uGAEgASgJEjQKB2FjdGlvbnMYAiADKAsyIy5raW5nbWFrZXIuaGVhZGxlc3MudjEuUGxheWVyQWN0aW9uEkYKE2FjdGl2ZV9jb252ZXJzYXRpb24YAyABKAsyKS5raW5nbWFrZXIuaGVhZGxlc3MudjEuQWN0aXZlQ29udmVyc2F0aW9uEjUKBnF1ZXN0cxgEIAMoCzIlLmtpbmdtYWtlci5oZWFkbGVzcy52MS5RdWVzdE9iamVjdGl2ZSIqChJBY3RpdmVDb252ZXJzYXRpb24SFAoMY2hhcmFjdGVyX2lkGAEgASgJIk8KDlF1ZXN0T2JqZWN0aXZlEgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEg0KBXN0YWdlGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJIhgKCkFjdFJlcXVlc3QSCgoCaWQYASABKAkiNAoLQWN0UmVzcG9uc2USJQoFdmFsdWUYASABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUiHQoKU2F5UmVxdWVzdBIPCgdtZXNzYWdlGAEgASgJIjIKC1NheVJlc3BvbnNlEhQKDGNoYXJhY3Rlcl9pZBgBIAEoCRINCgVyZXBseRgCIAEoCSIYChZFbmRDb252ZXJzYXRpb25SZXF1ZXN0IhkKF0VuZENvbnZlcnNhdGlvblJlc3BvbnNlMm4KEkdhbWVDb25zb2xlU2VydmljZRJYCgdFeGVjdXRlEiUua2luZ21ha2VyLmhlYWRsZXNzLnYxLkV4ZWN1dGVSZXF1ZXN0GiYua2luZ21ha2VyLmhlYWRsZXNzLnYxLkV4ZWN1dGVSZXNwb25zZTL3AgoNR2FtZVFhU2VydmljZRJYCgdPYnNlcnZlEiUua2luZ21ha2VyLmhlYWRsZXNzLnYxLk9ic2VydmVSZXF1ZXN0GiYua2luZ21ha2VyLmhlYWRsZXNzLnYxLk9ic2VydmVSZXNwb25zZRJMCgNBY3QSIS5raW5nbWFrZXIuaGVhZGxlc3MudjEuQWN0UmVxdWVzdBoiLmtpbmdtYWtlci5oZWFkbGVzcy52MS5BY3RSZXNwb25zZRJMCgNTYXkSIS5raW5nbWFrZXIuaGVhZGxlc3MudjEuU2F5UmVxdWVzdBoiLmtpbmdtYWtlci5oZWFkbGVzcy52MS5TYXlSZXNwb25zZRJwCg9FbmRDb252ZXJzYXRpb24SLS5raW5nbWFrZXIuaGVhZGxlc3MudjEuRW5kQ29udmVyc2F0aW9uUmVxdWVzdBouLmtpbmdtYWtlci5oZWFkbGVzcy52MS5FbmRDb252ZXJzYXRpb25SZXNwb25zZWIGcHJvdG8z", [file_google_protobuf_struct]);
+  fileDesc("CiNraW5nbWFrZXIvaGVhZGxlc3MvdjEvY29uc29sZS5wcm90bxIVa2luZ21ha2VyLmhlYWRsZXNzLnYxIh4KDkV4ZWN1dGVSZXF1ZXN0EgwKBGNvZGUYASABKAkiRgoPRXhlY3V0ZVJlc3BvbnNlEiUKBXZhbHVlGAEgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEgwKBGxvZ3MYAiADKAkiLQoORXhlY3V0aW9uRXJyb3ISDAoEbG9ncxgBIAMoCRINCgVzdGFjaxgCIAEoCSIQCg5PYnNlcnZlUmVxdWVzdCJPCgxQbGF5ZXJBY3Rpb24SCgoCaWQYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSDAoEdHlwZRgDIAEoCRIQCghsZWdhbGl0eRgEIAEoCSLbAQoPT2JzZXJ2ZVJlc3BvbnNlEhMKC29ic2VydmF0aW9uGAEgASgJEjQKB2FjdGlvbnMYAiADKAsyIy5raW5nbWFrZXIuaGVhZGxlc3MudjEuUGxheWVyQWN0aW9uEkYKE2FjdGl2ZV9jb252ZXJzYXRpb24YAyABKAsyKS5raW5nbWFrZXIuaGVhZGxlc3MudjEuQWN0aXZlQ29udmVyc2F0aW9uEjUKBnF1ZXN0cxgEIAMoCzIlLmtpbmdtYWtlci5oZWFkbGVzcy52MS5RdWVzdE9iamVjdGl2ZSIqChJBY3RpdmVDb252ZXJzYXRpb24SFAoMY2hhcmFjdGVyX2lkGAEgASgJIk8KDlF1ZXN0T2JqZWN0aXZlEgoKAmlkGAEgASgJEg0KBXRpdGxlGAIgASgJEg0KBXN0YWdlGAMgASgJEhMKC2Rlc2NyaXB0aW9uGAQgASgJIhgKCkFjdFJlcXVlc3QSCgoCaWQYASABKAkiNAoLQWN0UmVzcG9uc2USJQoFdmFsdWUYASABKAsyFi5nb29nbGUucHJvdG9idWYuVmFsdWUiHQoKU2F5UmVxdWVzdBIPCgdtZXNzYWdlGAEgASgJIjIKC1NheVJlc3BvbnNlEhQKDGNoYXJhY3Rlcl9pZBgBIAEoCRINCgVyZXBseRgCIAEoCSIYChZFbmRDb252ZXJzYXRpb25SZXF1ZXN0IhkKF0VuZENvbnZlcnNhdGlvblJlc3BvbnNlIiIKC0R1bXBSZXF1ZXN0EhMKC2Rlc2NyaXB0aW9uGAEgASgJIjEKDER1bXBSZXNwb25zZRIQCghmaWxlbmFtZRgBIAEoCRIPCgdhcmNoaXZlGAIgASgMMm4KEkdhbWVDb25zb2xlU2VydmljZRJYCgdFeGVjdXRlEiUua2luZ21ha2VyLmhlYWRsZXNzLnYxLkV4ZWN1dGVSZXF1ZXN0GiYua2luZ21ha2VyLmhlYWRsZXNzLnYxLkV4ZWN1dGVSZXNwb25zZTLIAwoNR2FtZVFhU2VydmljZRJYCgdPYnNlcnZlEiUua2luZ21ha2VyLmhlYWRsZXNzLnYxLk9ic2VydmVSZXF1ZXN0GiYua2luZ21ha2VyLmhlYWRsZXNzLnYxLk9ic2VydmVSZXNwb25zZRJMCgNBY3QSIS5raW5nbWFrZXIuaGVhZGxlc3MudjEuQWN0UmVxdWVzdBoiLmtpbmdtYWtlci5oZWFkbGVzcy52MS5BY3RSZXNwb25zZRJMCgNTYXkSIS5raW5nbWFrZXIuaGVhZGxlc3MudjEuU2F5UmVxdWVzdBoiLmtpbmdtYWtlci5oZWFkbGVzcy52MS5TYXlSZXNwb25zZRJwCg9FbmRDb252ZXJzYXRpb24SLS5raW5nbWFrZXIuaGVhZGxlc3MudjEuRW5kQ29udmVyc2F0aW9uUmVxdWVzdBouLmtpbmdtYWtlci5oZWFkbGVzcy52MS5FbmRDb252ZXJzYXRpb25SZXNwb25zZRJPCgREdW1wEiIua2luZ21ha2VyLmhlYWRsZXNzLnYxLkR1bXBSZXF1ZXN0GiMua2luZ21ha2VyLmhlYWRsZXNzLnYxLkR1bXBSZXNwb25zZWIGcHJvdG8z", [file_google_protobuf_struct]);
 
 /**
  * @generated from message kingmaker.headless.v1.ExecuteRequest
@@ -325,6 +325,52 @@ export const EndConversationResponseSchema: GenMessage<EndConversationResponse> 
   messageDesc(file_kingmaker_headless_v1_console, 13);
 
 /**
+ * Create this diagnostic only when reporting an issue. The archive contains
+ * internal debugging data and must not be inspected or used to guide play.
+ *
+ * @generated from message kingmaker.headless.v1.DumpRequest
+ */
+export type DumpRequest = Message<"kingmaker.headless.v1.DumpRequest"> & {
+  /**
+   * What happened and what the player expected instead.
+   *
+   * @generated from field: string description = 1;
+   */
+  description: string;
+};
+
+/**
+ * Describes the message kingmaker.headless.v1.DumpRequest.
+ * Use `create(DumpRequestSchema)` to create a new message.
+ */
+export const DumpRequestSchema: GenMessage<DumpRequest> = /*@__PURE__*/
+  messageDesc(file_kingmaker_headless_v1_console, 14);
+
+/**
+ * @generated from message kingmaker.headless.v1.DumpResponse
+ */
+export type DumpResponse = Message<"kingmaker.headless.v1.DumpResponse"> & {
+  /**
+   * @generated from field: string filename = 1;
+   */
+  filename: string;
+
+  /**
+   * A ZIP archive, encoded as base64 in ProtoJSON.
+   *
+   * @generated from field: bytes archive = 2;
+   */
+  archive: Uint8Array;
+};
+
+/**
+ * Describes the message kingmaker.headless.v1.DumpResponse.
+ * Use `create(DumpResponseSchema)` to create a new message.
+ */
+export const DumpResponseSchema: GenMessage<DumpResponse> = /*@__PURE__*/
+  messageDesc(file_kingmaker_headless_v1_console, 15);
+
+/**
  * Trusted developer servers expose Execute as game.execute.
  *
  * @generated from service kingmaker.headless.v1.GameConsoleService
@@ -380,6 +426,14 @@ export const GameQaService: GenService<{
     methodKind: "unary";
     input: typeof EndConversationRequestSchema;
     output: typeof EndConversationResponseSchema;
+  },
+  /**
+   * @generated from rpc kingmaker.headless.v1.GameQaService.Dump
+   */
+  dump: {
+    methodKind: "unary";
+    input: typeof DumpRequestSchema;
+    output: typeof DumpResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_kingmaker_headless_v1_console, 1);
