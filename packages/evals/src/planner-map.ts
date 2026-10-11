@@ -1,3 +1,4 @@
+import { updateFixture } from "../../core/src/update-fixture.js";
 import { PalaceMechanics, type MechanicalActivity } from "../../../apps/web/src/palace-mechanics.js";
 import { roomAgentActions } from "../../../apps/web/src/room-actions.js";
 import { characterDocuments } from "../../lore/src/character-id.js";
@@ -17,6 +18,7 @@ export function plannerMap(services: RuntimeServices, mechanics: MechanicsStateS
     currentSimulation: () => services.scenario.read().simulation!, executeMove: mechanics.executeMove,
   });
   return {
+    updateFixture: async (id, update) => { mechanics.executeMove(updateFixture, id, update); },
     layout: () => services.scenario.read().simulation!.map!.layout!,
     observe(id, selectedActionId) {
       const world = services.scenario.read(), map = world.simulation!.map!;
