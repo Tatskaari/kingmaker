@@ -1,0 +1,11 @@
+# Aldren delegates himself
+
+Reconstructs the focused plot review after the envoy critically succeeds at persuading Aldren to approach Holt himself. Source call IDs and dump hash are in source.json. fixture.json uses the shared character/disclosure/message format; lore overrides hold documents, not a serialized game or provider transcript.
+
+The fixture uses the quest and dialogue source notes from the cart-dialogue-sequence branch, the actual pre-review character entry, and reconstructed activity/memory documents from preceding successful GM tool calls. No desired reroute is seeded. The binding mechanics are condensed; player and character speech is preserved. Disclosure is fixed and relevant rather than a replay of every original disclosure. The map is fresh except Aldren's actual review-time position. His activity text still says Great Hall while the authoritative position has already moved to Royal Back Hall; this discrepancy existed in the captured request. Other actors use fresh-game positions.
+
+Assembly Programme is active at investigate_missing_pillows; the opening conversation has reached helping. All variants start from the same state. The base predates trigger:none: construction compiles those transitions as discretionary, then restores the authored trigger metadata. This review runs no quest scheduler or conversation edge helpers. It tests GM authored edits, not a playable end-to-end continuation. Document writes currently do not recompile the live quest graph; compare those separately.
+
+The normal review hook calls the actual focused GM with the captured plot flag, existing tool surface and high reasoning, isolating it from activity/memory reviewers and Jev classification. The replay supplies the recorded character response without generating new speech. The rubric grades committed before/after edits for honouring delegation, a player return beat, reconnection to the cart, grounding and unchanged runtime state.
+
+Run: `node --import tsx scripts/run-aldren-plot-eval.ts --repeats 1 --concurrency 1 --timeout-ms 600000` with OPENROUTER_API_KEY. Inspect trial recordings for ai responses/tool calls, docs operations, document diffs and final compiled quests. No UI is added. Baseline results pending.
