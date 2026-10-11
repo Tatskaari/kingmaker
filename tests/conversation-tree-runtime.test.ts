@@ -66,15 +66,26 @@ test("refusal takes its branch without running the script", async () => {
   assert.equal(runner.status.node, "declined");
 });
 
-test("script failure keeps progress unchanged and blocks automatic replay", async () => {
+test("script failure keeps progress unchanged and the next turn retries", async () => {
   let calls = 0;
-  const { runner, step, services, tree } = await setup(async () => { calls++; throw new Error("script failed"); });
+  const { runner, step, services, tree } = await setup(async () => { if (++calls === 1) throw new Error("script failed"); return "ok"; });
   await step("greeted"); await step("hinted");
   await assert.rejects(step("accepted"), /script failed/);
   assert.equal(services.quests.read(tree.quest.id).currentStageId, "cushions");
   assert.equal(runner.status.phase, "failed");
-  await assert.rejects(step("accepted"), /stopped/);
-  assert.equal(calls, 1);
+  await step("accepted");
+  assert.equal(calls, 2);
+  assert.notEqual(services.quests.read(tree.quest.id).currentStageId, "cushions");
+  assert.equal(runner.status.phase, "ready");
+});
+
+test("a failed decision call does not block later turns", async () => {
+  const { runner, history, step } = await setup();
+  await assert.rejects(runner.evaluate(history, { decisions: async () => { throw new Error("network"); } },
+    new AbortController().signal, () => {}), /network/);
+  assert.equal(runner.status.phase, "failed");
+  await step("greeted");
+  assert.equal(runner.status.node, "hint");
 });
 
 test("cancelled decisions cannot advance progress", async () => {

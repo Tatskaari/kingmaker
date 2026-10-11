@@ -16,10 +16,9 @@ export interface TreeStatus {
 }
 export type TreeScript = (signal: AbortSignal) => Promise<string>;
 
-/** Host-owned executor. Script failures stop this session to avoid replaying partial effects. */
+/** Host-owned executor. Each evaluation restarts from the saved quest stage, so a failed turn is retried on the next. */
 export class ConversationTreeSession {
   status: TreeStatus;
-  private failed = false;
   constructor(readonly tree: ConversationTree, private quests: QuestService,
     private scripts: Readonly<Record<string, TreeScript>>) {
     for (const name of Object.values(tree.scripts)) {
@@ -41,7 +40,6 @@ export class ConversationTreeSession {
   async evaluate(transcript: readonly TranscriptMessage[], ai: Pick<AiService, "decisions">,
     signal: AbortSignal, report: (status: TreeStatus) => void,
     commit: (work: () => Promise<void>) => Promise<void> = work => work()): Promise<TranscriptMessage | undefined> {
-    if (this.failed) throw new Error("Conversation tree stopped after a failure; start a fresh session.");
     const state = this.quests.read(this.tree.quest.id), pending = this.current();
     if (!pending.conditions.length) return;
     const publish = (status: TreeStatus) => { this.status = status; report(status); };
@@ -75,7 +73,6 @@ export class ConversationTreeSession {
       publish({ ...this.current(), transition: chosen.id, ...(scriptOutput !== undefined ? { scriptOutput } : {}) });
       return this.goal();
     } catch (error) {
-      this.failed = true;
       publish({ ...this.status, phase: "failed", error: String(error) });
       throw error;
     }
