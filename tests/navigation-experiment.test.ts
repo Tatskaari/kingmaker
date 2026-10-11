@@ -8,19 +8,23 @@ import { createNavigationExperiment, type NavigationCase } from "../packages/eva
 import { runExperiment } from "../packages/evals/src/experiment.js";
 import { runEvalCli } from "../packages/evals/src/cli.js";
 import { createCorvinNineFurrowsExperiment } from "../packages/evals/src/corvin-nine-furrows-case.js";
+import type { AiService } from "../packages/conversation/src/services.js";
 
 test("navigation CLI runs both registered cases and publishes combined results", async () => {
   const output = mkdtempSync(join(tmpdir(), "navigation-eval-"));
-  const createAi = (choice: string) => () => ({
+  const createAi = (choice: string): (() => AiService) => () => ({
     responses: async () => { throw Error("No dialogue should be generated"); },
-    decisions: async () => ({ next: { choice, probabilities: { [choice]: 1 } } }),
+    decisions: async (_state, questions, _signal, purpose) => {
+      if (purpose === "prog_disc") return Object.fromEntries(Object.keys(questions).map(key => [key, { choice: "skip", probabilities: { [key]: 0, skip: 1 } }]));
+      return { next: { choice, probabilities: { [choice]: 1 } } };
+    },
   });
   try {
     const result = await runEvalCli([
       createNavigationExperiment(fixture as NavigationCase, createAi(fixture.expected)),
       createCorvinNineFurrowsExperiment(createAi("talk_elinor")),
     ], { args: ["--repeats", "1", "--concurrency", "1", "--output", output], print: () => {} });
-    assert.equal(result.exitCode, 0);
+    assert.equal(result.exitCode, 0, JSON.stringify(result.trials.map(trial => trial.recording.error)));
     assert.equal(result.trials.length, 2);
     for (const trial of result.trials) assert.equal(trial.result!.criteria.navigation!.score, 1);
     const published = JSON.parse(readFileSync(join(result.directory!, "results.json"), "utf8"));
