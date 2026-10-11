@@ -92,7 +92,8 @@ test("fresh games retain the introduction predicate and explicit cart transition
     ["investigate_missing_pillows", "cart_blocked", "cart_unblocked"]);
   assert.equal(programme.currentStageId, "investigate_missing_pillows");
   assert.deepEqual(programme.quest!.transitions.map(edge => [edge.id, edge.playerTalkedTo]),
-    [["learn_cart_blocked", ""], ["clear_cart", ""]]);
-  assert.equal(programme.quest!.stages[2]!.description, "This is a stub.");
+    [["learn_cart_blocked", ""], ["clear_cart_early", ""], ["clear_cart", ""]]);
+  assert.match(programme.quest!.stages[2]!.description, /service entrance is clear/);
+  assert.deepEqual(programme.quest!.transitions.filter(edge => edge.id.startsWith("clear_cart")).map(edge => edge.fixtureAbsent), ["furn_cart_left", "furn_cart_left"]);
   assert.equal(programme.quest!.stages[2]!.completed, false);
 });
