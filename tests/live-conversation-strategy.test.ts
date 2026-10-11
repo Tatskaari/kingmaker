@@ -150,6 +150,7 @@ test("flags schedule one combined activity review and separate focused reviews i
         npc_locations: activityNpcLocations(f.backing.scenario.read(), "corvin"),
       })));
     } else {
+      assert.ok(names.includes("query_documents"));
       assert.equal(request.messages.filter(message => message.content?.includes("## Find the relevant documents")).length, 1);
       assert.ok(!names.includes("set_activity") && !names.includes("set_wait") && !names.includes("clear_activity"));
       assert.ok(request.messages.some(message => evidence.labels.plot_progress

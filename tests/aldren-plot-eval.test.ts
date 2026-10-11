@@ -26,7 +26,8 @@ test("baseline plot review includes promoted guidance once with no experimental 
     responses: async request => {
       requests++;
       assert.equal(request.reasoning?.effort, "high");
-      assert.ok(!request.tools?.some(tool => ["set_activity", "query_documents"].includes(tool.function.name)));
+      assert.ok(!request.tools?.some(tool => tool.function.name === "set_activity"));
+      assert.ok(request.tools?.some(tool => tool.function.name === "query_documents"));
       const text = request.messages.map(message => message.content ?? "").join("\n");
       for (const guidance of [renderPrompt("gm-prompt-gm_base_prompt"), renderPrompt("review-focused")]) {
         assert.equal(text.split(guidance).length - 1, 1);
@@ -50,10 +51,10 @@ test("baseline plot review includes promoted guidance once with no experimental 
   assert.equal(requests, 1);
 });
 
-test("optional GM SQL searches live docs and returns recoverable read-only errors", async () => {
+test("GM SQL searches live docs and returns recoverable read-only errors", async () => {
   const services = new ConversationRuntime({ services: createScenarioServices(aldrenPlotCase.loadWorld([])) }).services;
   const gm = new GameMasterTools(services, "aldren");
-  assert.ok(!gameMasterTools.some(tool => tool.function.name === "query_documents"));
+  assert.ok(gameMasterTools.some(tool => tool.function.name === "query_documents"));
   const result = await gm.call("query_documents", { sql: "SELECT path FROM docs WHERE path = 'Conversations/holt.md'" });
   assert.deepEqual(result, { ok: true, columns: ["path"], rows: [{ path: "Conversations/holt.md" }], truncated: false });
   const invalid = await gm.call("query_documents", { sql: "DELETE FROM docs" });
