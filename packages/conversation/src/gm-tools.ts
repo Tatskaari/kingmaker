@@ -17,10 +17,11 @@ const text = { type: "string" };
 function tool(name: string, description: string, properties: Record<string, unknown>, required = Object.keys(properties)): OpenRouterTool {
   return { type: "function", function: { name, description, parameters: { type: "object", additionalProperties: false, properties, required } } };
 }
-/** Optional experimental surface; not enabled by the game defaults. */
+/** Read-only discovery shared by document-capable GM reviews. */
 export const queryDocumentsTool = tool("query_documents", "Run one read-only SQLite query over GM documents. Tables: docs(path,name,folder,summary,body), props(path,key,value), links(source,target). List properties have one row per item. REGEXP is case-insensitive; snippets(body, pattern) returns matching line snippets. At most 200 rows. Use read_document to obtain a version SHA before editing. This searches documents, not runtime state.", { sql: text });
 
 export const gameMasterTools: OpenRouterTool[] = [
+  queryDocumentsTool,
   tool("list_documents", renderPrompt("gm-tools-list-documents"), { prefix: text, offset: { type: "integer", minimum: 0 }, limit: { type: "integer", minimum: 1, maximum: 50 } }, []),
   tool("list_characters", renderPrompt("gm-tools-list-characters"), {}),
   tool("read_inventory", "Read a runtime character inventory and its version before updating it. Use the runtime actor ID, including player.", { actorId: text }),

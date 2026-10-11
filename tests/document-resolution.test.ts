@@ -8,7 +8,7 @@ import { worldState } from "../packages/lore/src/world-state.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { documentResolutionStrategy } from "../packages/conversation/src/document-resolution.js";
-import { runResolution } from "../packages/conversation/src/resolution.js";
+import { runResolution, type ResolutionContext } from "../packages/conversation/src/resolution.js";
 
 const entry = (id: string) => `Scenarios/Test/Characters/${id}/character.md`;
 function fixture() {
@@ -26,8 +26,9 @@ test("v2 exchange isolates speakers and reviews each participant through documen
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: { responses: async (request, _signal, info) => {
     subjects.push(info?.characterId);
     const prompt = JSON.stringify(request); calls++;
-    if (calls === 1) { assert.match(prompt, /ALICE_PRIVATE/); assert.ok(!prompt.includes("BOB_PRIVATE")); return { role: "assistant", content: "Will you help?" }; }
-    if (calls === 2) { assert.match(prompt, /BOB_PRIVATE/); assert.ok(!prompt.includes("ALICE_PRIVATE")); assert.ok(!prompt.includes("SECRET_INTENT")); return { role: "assistant", content: "I refuse." }; }
+    if (calls === 1) { assert.ok(!request.tools?.length); assert.match(prompt, /ALICE_PRIVATE/); assert.ok(!prompt.includes("BOB_PRIVATE")); return { role: "assistant", content: "Will you help?" }; }
+    if (calls === 2) { assert.ok(!request.tools?.length); assert.match(prompt, /BOB_PRIVATE/); assert.ok(!prompt.includes("ALICE_PRIVATE")); assert.ok(!prompt.includes("SECRET_INTENT")); return { role: "assistant", content: "I refuse." }; }
+    assert.ok(request.tools?.some(tool => tool.function.name === "query_documents"));
     assert.equal(request.messages.filter(message => message.content?.includes("## Find the relevant documents")).length, 1);
     return commitReview({ summary: "Refused", newNotes: ["Bob refused to help."], activeGoal: null }, request);
   } } }, strategies: { resolution: documentResolutionStrategy } });
@@ -42,11 +43,32 @@ test("ignored events do not write; processed events use only their limited perce
     const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario), ai: {
       decisions: async () => ({ reaction: { choice: react ? "process" : "ignore", probabilities: {} } }),
       responses: async request => { calls++; assert.match(JSON.stringify(request), /Indistinct voices/);
+        assert.ok(request.tools?.some(tool => tool.function.name === "query_documents"));
         return commitReview({ summary: "Heard voices", newNotes: ["Indistinct voices."], activeGoal: null }, request); },
     } }, strategies: { resolution: documentResolutionStrategy } });
     await runResolution({ kind: "world_event", characterId: "alice", eventId: "event", perception: "Indistinct voices." }, runtime);
     assert.equal(calls, react ? 2 : 0);
     assert.equal((await services.docs.read(entry("alice"))).text.includes("Indistinct voices"), react);
+  }
+});
+
+test("action and wait reviews can query documents", async () => {
+  const contexts: ResolutionContext[] = [
+    { kind: "wait_ended", characterId: "alice", instructions: "Wait for Bob", observation: "Bob arrived" },
+    { kind: "task_outcome", characterId: "alice", goal: "Find Bob", actions: [],
+      result: { reason: "completed", detail: "Bob arrived" }, observation: "Bob arrived" },
+  ];
+  for (const context of contexts) {
+    const services = fixture(); let calls = 0;
+    const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario),
+      ai: { responses: async request => {
+        calls++;
+        assert.ok(request.tools?.some(tool => tool.function.name === "query_documents"));
+        return { role: "assistant", content: "No changes." };
+      } },
+    }, strategies: { resolution: documentResolutionStrategy } });
+    await runResolution(context, runtime);
+    assert.equal(calls, 1);
   }
 });
 
