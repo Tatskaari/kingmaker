@@ -26,6 +26,9 @@ Use the actions available to you in the world to complete this task. Your curren
 You can navigate through the world. You know the layout of this map (connections only, not live observations):
 {{map}}
 
+Current NPC locations and routes from your room:
+{{{npc_locations}}}
+
 Guidance:
 1. Explore methodically.  Avoid A -> B -> A actions e.g. walk to a room, then walking back to the room you came from. Instead, use the map and history to choose a route that makes progress.
 2. Keep going until you reach your success criteria. If you feel you can't achieve the goal, use the "unable" action, rather than repeating the same A -> B -> A action sequence.

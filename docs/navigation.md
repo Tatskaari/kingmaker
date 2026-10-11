@@ -48,7 +48,10 @@ Activity review receives `npc_locations`, a Mustache template parameter in
 on-map NPC's current room and the shortest sequence of room-entry actions from
 the reviewing character, for example `Marshal Garran Holt (holt): Entrance Hall
 (walk via enter_entrance_hall)`. Shared cast instances retain their runtime IDs.
-The review copies the relevant room and ordered actions into `current_goal`.
+Jev receives the same `npc_locations` parameter in `world-action-instructions.md`.
+Both callers build it from live world state. Every planning call refreshes the
+locations and routes alongside the observed map, including retries after feedback;
+execution does not depend on routes having been copied into `current_goal`.
 
 Routes use authored room exits and assume open doors; they are room-level guidance,
 not tile paths or permission to bypass locks, fixtures or access rules. Execution

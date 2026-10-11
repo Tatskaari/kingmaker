@@ -145,3 +145,31 @@ test("planner fills the authored template and marks reversals only after consecu
   progressed = true;
   await planWorldAction("corvin", runtime, undefined, [], feedback);
 });
+
+test("Jev refreshes NPC locations and routes from both actors on every planning call", async () => {
+  const services = fixture("Speak to Holt"), prompts: string[] = [];
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario),
+    ai: { decisions: async (state, questions) => {
+      const prompt = String(questions.next!.instructions);
+      prompts.push(prompt);
+      assert.ok(String(state).includes(prompt));
+      assert.doesNotMatch(prompt, /\{\{\{npc_locations\}\}\}/);
+      return { next: { choice: "unable", probabilities: { unable: 1 } } };
+    } },
+  }, strategies: { action: jevActionStrategy } });
+  await planWorldAction("corvin", runtime);
+  assert.match(prompts[0]!, /Holt \(holt\): Entrance Hall \(walk via enter_entrance_hall\)/);
+  const map = services.scenario.read().simulation!.map!;
+  const holt = map.actors.find(actor => actor.characterId === "holt")!;
+  const corvin = map.actors.find(actor => actor.characterId === "corvin")!;
+  holt.roomId = corvin.roomId;
+  Object.assign(holt.position!, { x: 61, y: 24 });
+  await planWorldAction("corvin", runtime);
+  assert.match(prompts[1]!, /Holt \(holt\): Great Hall \(already in your room\)/);
+  assert.doesNotMatch(prompts[1]!, /Holt \(holt\): Entrance Hall/);
+  corvin.roomId = "entrance_hall";
+  Object.assign(corvin.position!, { x: 61, y: 35 });
+  await planWorldAction("corvin", runtime, undefined, [], { error: "Moved", instruction: "Replan" });
+  assert.match(prompts[2]!, /Holt \(holt\): Great Hall \(walk via enter_great_hall\)/);
+  assert.doesNotMatch(prompts[2]!, /Holt \(holt\): Great Hall \(already in your room\)/);
+});
