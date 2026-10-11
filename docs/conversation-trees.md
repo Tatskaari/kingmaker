@@ -76,4 +76,12 @@ new authored tree; existing saves are not upgraded.
 
 Fresh games also load Holt, Rowan, Corvin and palace-guard trees. Ask Holt about the pillows, calm him, and hear his explanation; `pillow-lead.ts` activates the quest if needed and advances it to `cart_blocked`. Asking alone does not advance it. Press Holt for permission to smash, or ask Rowan to back out or accept help seeking Corvin’s advice. Corvin can be persuaded to cooperate or disclose the book in his room; guards can hear a distraction proposal. Each guard body has independent saved tree progress.
 
-Use the existing Agent runs & requests inspector to follow branches. These are dialogue playtests: ordinary GM check/review behavior applies, but the trees do not enforce branch-specific rolls or execute cart removal, book placement/transfer, guard movement, helper delivery or a legal permission grant. NPC agreement is not proof those effects occurred. `cart_unblocked` remains a stub. Start a fresh game; the CLI tree flag remains Aldren-only.
+Use the existing Agent runs & requests inspector to follow branches. These are dialogue playtests: ordinary GM check/review behavior applies, but the trees do not enforce branch-specific rolls or execute cart removal, book placement/transfer, guard movement, helper delivery. NPC agreement is not proof those effects occurred. `cart_unblocked` remains a stub. Start a fresh game; the CLI tree flag remains Aldren-only.
+
+The existing Assembly Programme start hooks (`hello-world.ts`, or direct discovery
+through `pillow-lead.ts`) now install illegal smash actions on the cart. Holt's
+`blessing-given` edge runs `authorise-cart-smash.ts` to make those same actions legal.
+These hooks use the authoritative map callback service. Repeated setup does not
+revoke permission, and save/resume preserves it. Raw `quests.setActive` remains a
+data API; it does not run application hooks. Generic Markdown stage-entry hooks
+are not introduced here. Smashing still does not advance `clear_cart` or deliver goods.
