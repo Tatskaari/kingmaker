@@ -29,7 +29,7 @@ test("Holt must disclose the lead before the quest advances, and resume does not
     assert.equal(state.history.length, 1);
     assert.equal(state.history[0]!.transitionId, "learn_cart_blocked");
     game.restore(game.snapshot());
-    await pillowLead(game.services.quests, new AbortController().signal);
+    await pillowLead(game.services, new AbortController().signal);
     assert.deepEqual(game.services.quests.read("assembly_programme"), state);
     assert.ok(game.world().simulation!.map!.fixtures.some(fixture => fixture.id === "furn_cart_left"));
   } finally { game.movement.dispose(); }

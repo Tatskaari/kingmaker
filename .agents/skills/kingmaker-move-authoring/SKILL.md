@@ -5,11 +5,11 @@ description: Author Kingmaker simulation moves and authoritative service updates
 
 # Authoring authoritative moves
 
-## Agreed design and current implementation
+## Current implementation
 
-Use one entity-level move, such as `updateFixture`, for trusted host updates rather than introducing a move for every editable field. The agreed map-service API is `updateFixture(fixtureId, update)`, where `update` is a synchronous callback operating on the current fixture draft. Apply the same pattern to other authoritative simulation updates where appropriate.
+Use one entity-level move, such as `updateFixture`, for trusted host updates rather than introducing a move for every editable field. The map-service API is `updateFixture(fixtureId, update)`, where `update` is a synchronous callback operating on the current fixture draft. Apply the same pattern to other authoritative simulation updates where appropriate.
 
-This is the agreed implementation direction, not an existing API: at the time of writing `MapService` provides `layout`, `observe` and `interact`. Fixture action data and the callback helper still need implementation. Inspect the current code before assuming either exists:
+`MapService` provides `updateFixture` alongside `layout`, `observe` and `interact`. `createScenarioServices().map` exposes the authoritative write to registered hooks. Fixtures store action definitions; handlers still resolve to trusted application code. Inspect:
 
 - `packages/conversation/src/map.ts`: map-service interface and player command shapes.
 - `packages/core/src/simulation-authority.ts`: registered boardgame.io moves and host dispatch.
@@ -32,7 +32,7 @@ This is a synchronous transaction boundary, not an asynchronous lock or conflict
 
 Moves and callbacks must be deterministic from current state and supplied inputs, with no external side effects. No AI, I/O, timers, nested move dispatch, or `await` belongs inside the callback. Even awaiting an already-resolved Promise yields execution. Do not let drafts escape into stored references or later tasks. Multiple service calls are separate moves, not one transaction across simulation, quest records and documents.
 
-Awaiting the outer service call is fine: it may queue the move. The move itself must remain synchronous. Illustrative use of the planned API, using an existing fixture field:
+Awaiting the outer service call is fine: it may queue the move. The move itself must remain synchronous. Example using an existing fixture field:
 
 ```ts
 await services.map.updateFixture(fixtureId, fixture => {
@@ -40,7 +40,7 @@ await services.map.updateFixture(fixtureId, fixture => {
 });
 ```
 
-For Holt's permission, the same callback will update the cart action's permission when action data exists. It must not change ownership or grant unrelated inventory access.
+For Holt's permission, `authorise-cart-smash.ts` updates the stored cart action's `illegal` flag through this callback. It must not change ownership or grant unrelated inventory access.
 
 Do not introduce homebrew state-update bookkeeping for this pattern: no parallel fixture-version counters, hashes, snapshot merging or bespoke conflict/retry machinery merely to protect synchronous draft updates. Reuse boardgame.io’s authoritative move execution and existing state-publication conventions.
 

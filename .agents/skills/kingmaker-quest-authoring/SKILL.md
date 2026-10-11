@@ -16,7 +16,7 @@ Read `lore/Authoring/Working on Lore.md` and `lore/Authoring/Agent Disclosure.md
 
 ## Effects and disclosure
 
-For authoritative simulation changes, follow [move authoring](../kingmaker-move-authoring/SKILL.md): host hooks use synchronous draft callbacks through registered moves; player commands remain data-only. The `updateFixture` callback API is agreed but not yet implemented.
+For authoritative simulation changes, follow [move authoring](../kingmaker-move-authoring/SKILL.md): host hooks use synchronous draft callbacks through registered moves; player commands remain data-only. Registered hooks can call `services.map.updateFixture(id, fixture => { /* synchronous edits */ })`. Quest-start hooks add the illegal cart action; Holt’s agreement hook changes that action to legal.
 
 Keep mechanics and review execution in host/GM services. Character responses remain tool-free with reasoning effort `none`; preserve scoped memory indexes for Jev disclosure.
 

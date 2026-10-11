@@ -339,6 +339,16 @@ message DoorState {
   bool open = 6;
 }
 
+// Host-authored interaction data. Handler names resolve to trusted application code.
+message FixtureInteraction {
+  string id = 1;
+  string label = 2;
+  string handler = 3;
+  string actor_id = 4;
+  bool illegal = 5;
+  uint32 order = 6;
+}
+
 // Physical map furniture; contents live in its inventory.
 message MapFixture {
   string id = 1;
@@ -355,6 +365,7 @@ message MapFixture {
   repeated string searched_by = 12;
   string owner_character_id = 13;
   Inventory inventory = 14;
+  repeated FixtureInteraction actions = 15;
 }
 
 message MapState {

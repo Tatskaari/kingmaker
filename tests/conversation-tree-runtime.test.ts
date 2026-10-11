@@ -14,7 +14,7 @@ import { loadPlayableWorld } from "./fixtures.js";
 const source = readFileSync(new URL("../content/conversation-trees/aldren.md", import.meta.url), "utf8");
 async function setup(script?: TreeScript) {
   const services = createScenarioServices(loadPlayableWorld()), tree = parseConversationTree(source);
-  const runner = new ConversationTreeSession(tree, services.quests, { "hello-world.ts": script ?? (signal => helloWorld(services.quests, signal)) });
+  const runner = new ConversationTreeSession(tree, services.quests, { "hello-world.ts": script ?? (signal => helloWorld(services, signal)) });
   const events: TreeStatus[] = [], signal = new AbortController().signal;
   const history: TranscriptMessage[] = [runner.goal(), create(TranscriptMessageSchema, {
     role: TranscriptRole.PLAYER, speakerId: "player", text: "Hello",

@@ -63,11 +63,12 @@ The browser requests an immediate flush when the page becomes hidden or receives
 worker before IndexedDB finishes. The in-app Saved games action and game switches
 explicitly await a flush. Periodic saving remains the fallback for abrupt exits.
 
-## Planned authoritative fixture updates
+## Authoritative fixture updates
 
-The agreed host API is `map.updateFixture(fixtureId, update)`: a registered move
+The host API is `map.updateFixture(fixtureId, update)`: a registered move
 finds the current fixture inside boardgame.io's draft `G` and invokes a synchronous,
-side-effect-free callback. It is not implemented yet. Read-only world access can
+side-effect-free callback. The service rejects async callbacks without committing
+their draft edits. Read-only world access can
 remain outside moves; async work finishes before entering the update callback.
 Player interactions remain data-only commands, not callbacks or arbitrary writes.
 
@@ -80,3 +81,11 @@ Do not add bespoke version/hash/conflict bookkeeping around these synchronous
 draft updates. The inventory service's snapshot/SHA replacement workflow needs
 review against this pattern; reviewing and updating it is separate implementation
 work, not a reason to reproduce its bookkeeping in the fixture service.
+
+Fixtures persist `actions` with an ID, label, registered handler name, actor ID,
+illegality flag and menu order. The initial handler is `smash-cart`; only that
+handler is currently accepted. Quest-start helpers install one action per cart
+tile for the player, and Holt's `authorise-cart-smash.ts` hook changes its legality.
+The same stored definition drives the menu, execution lookup and event legality.
+Ownership and inventory access are unchanged. Repeated setup preserves permission;
+saves retain the data. Use a fresh game for the changed baseline behavior.

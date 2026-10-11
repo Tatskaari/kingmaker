@@ -43,6 +43,7 @@ The player has proposed smashing the cart.
 Push back about offending Nine Furrows. If the player presses a practical case and the GM ruling supports persuasion, reluctantly give explicit permission to smash the cart to clear the entrance. Failure leaves you unconvinced. Your blessing is permission, not destruction, and does not make Nine Furrows approve.
 ### When: blessing-given -> authorised
 Holt has explicitly given the player permission to smash the cart.
+#### Run: authorise-cart-smash.ts
 ### When: other-remedy -> options
 The player has withdrawn the smash proposal and proposed repair or backing out.
 

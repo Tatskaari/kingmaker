@@ -1,3 +1,4 @@
+import { authoriseCartSmash } from "../../../packages/conversation/src/tree-scripts/cart-actions.js";
 import { compileConversationTree } from "../../../packages/lore/src/conversation-tree.js";
 import { ConversationTreeSession } from "../../../packages/conversation/src/conversation-tree.js";
 import { pillowLead } from "../../../packages/conversation/src/tree-scripts/pillow-lead.js";
@@ -273,8 +274,9 @@ export class WorldGameRuntime extends WorldHost {
     if (!session) {
       const tree = compileConversationTree({ body: document.body, metadata: document.frontmatter ?? {} });
       session = new ConversationTreeSession(tree, this.worldServices.quests,
-        { "hello-world.ts": signal => helloWorld(this.worldServices.quests, signal),
-          "pillow-lead.ts": signal => pillowLead(this.worldServices.quests, signal) });
+        { "hello-world.ts": signal => helloWorld(this.worldServices, signal),
+          "pillow-lead.ts": signal => pillowLead(this.worldServices, signal),
+          "authorise-cart-smash.ts": signal => authoriseCartSmash(this.worldServices, signal) });
       this.conversationTrees.set(id, session);
     }
     return session;
