@@ -1,0 +1,79 @@
+{
+  "revision": "55ba11a605d4febcf656fb14e6de14e6b52ad686",
+  "rubric": [
+    {
+      "name": "navigation",
+      "description": "Choose an expected action that advances the character's current objective, as defined by the scenario's allowed outcomes."
+    }
+  ],
+  "concurrency": 4,
+  "experimentTypes": {
+    "cressida-closed-door": "jev-action",
+    "corvin-nine-furrows": "jev-action"
+  },
+  "experiments": [
+    "corvin-nine-furrows"
+  ],
+  "repeats": 3,
+  "timeoutMs": 180000,
+  "type": "jev-action",
+  "publishedAt": "2026-10-11T22:33:19.637Z",
+  "comparison": [
+    {
+      "variant": "game",
+      "baseline": true,
+      "runs": 3,
+      "executionErrors": 0,
+      "scoringErrors": 0,
+      "criteria": {
+        "navigation": 0
+      },
+      "total": 0,
+      "delta": 0
+    }
+  ],
+  "trials": [
+    {
+      "experiment": "corvin-nine-furrows",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 2,
+      "result": {
+        "criteria": {
+          "navigation": {
+            "score": 0,
+            "reason": "Expected talk to elinor or oswin or rowan; selected unable"
+          }
+        }
+      }
+    },
+    {
+      "experiment": "corvin-nine-furrows",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 1,
+      "result": {
+        "criteria": {
+          "navigation": {
+            "score": 0,
+            "reason": "Expected talk to elinor or oswin or rowan; selected unable"
+          }
+        }
+      }
+    },
+    {
+      "experiment": "corvin-nine-furrows",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 3,
+      "result": {
+        "criteria": {
+          "navigation": {
+            "score": 0,
+            "reason": "Expected talk to elinor or oswin or rowan; selected unable"
+          }
+        }
+      }
+    }
+  ]
+}
