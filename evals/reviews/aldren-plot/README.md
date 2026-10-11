@@ -11,3 +11,5 @@ The normal review hook calls the actual focused GM with the captured plot flag, 
 Run: `node --import tsx scripts/run-aldren-plot-eval.ts --repeats 1 --concurrency 1 --timeout-ms 600000` with OPENROUTER_API_KEY. Inspect trial recordings for ai responses/tool calls, docs operations, document diffs and final compiled quests. No UI is added. Baseline and three candidate runs completed. See [comparison](comparison.md) for the observed changes and runtime limitations.
 
 The latest author-draft comparison (two trials per configuration) is recorded separately in [current draft comparison](current-draft-comparison.md), preserving the earlier successful candidate results.
+
+The follow-up [explicit return-beat comparison](return-beat-comparison.md) tests the restored positive instruction with two trials per configuration and independent compilation checks of edited trees.
