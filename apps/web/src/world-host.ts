@@ -167,7 +167,6 @@ export class WorldHost {
       if (command.kind === "fixture") {
         const result = this.interactFixtureWithEvent(command.id);
         worldEvent = result.event; message = result.message; roll = result.roll;
-
       }
       await this.worldServices.hooks.evaluatePredicates(signal ?? new AbortController().signal);
       return { done: true,
