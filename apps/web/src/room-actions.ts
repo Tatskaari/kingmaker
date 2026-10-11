@@ -65,7 +65,8 @@ export function roomAgentActions(world: MapState, characters: readonly { id: str
     if (action.verb === "open" && fixture?.requiredKeyId
       && !itemsFor(owners, characterId).some(item => item.id === fixture.requiredKeyId)) continue;
     const candidates = action.target === characterId ? [start] : fixture!.interactionSpot ? [fixture!.interactionSpot] : neighbours(fixture!.position!);
-    const path = !routing ? reachable(candidates) ? [] : undefined : shortest(candidates.map(point => route(point)));
+    const path = action.target === characterId && !routing ? []
+      : !routing ? reachable(candidates) ? [] : undefined : shortest(candidates.map(point => route(point)));
     if (path) actions.push({ id: action.id, type: "fixture", target: action.target, path, estimatedSteps: estimate(candidates), legality: action.legality,
       description: `${action.label} (${estimate(candidates)} steps).` });
   }

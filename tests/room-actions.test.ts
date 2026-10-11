@@ -136,6 +136,7 @@ test("action discovery excludes a visible character across the cart-blocked serv
   }
   const actions = roomAgentActions(world, scenario.characters, inventoryOwners(scenario.characters, world), "corvin");
   assert.ok(actions.some(action => action.id === "talk_holt"), "reachable characters remain available");
+  assert.ok(actions.some(action => action.id === "inspect_item_corvin_quarterstaff"), "carried items remain available between tiles");
   assert.ok(!actions.some(action => action.id === "talk_court-servant-1"));
   assert.ok(!actions.some(action => action.id === "talk_court-servant-2"));
 });
