@@ -3,15 +3,23 @@
  * commits: make effects retry-safe because a later failure does not roll back earlier writes.
  * No imports, network, timers, filesystem or whole-world access are available.
  */
-export type Hook = (services: HookServices) => Promise<string>;
+export type Hook = (services: HookServices) => Promise<TransitionResult>;
+
+/** A hook either permits the edge or rejects it with a character-facing reason.
+ * @remarks Reject before applying effects. Rejection keeps the conversation at
+ * its current node, and later attempts may retry. Earlier effects are not undone.
+ */
+export type TransitionResult =
+  | { status: "accepted"; message?: string }
+  | { status: "rejected"; message: string };
 
 /** Services available to document-authored hooks. Read methods return detached data.
  * @example
  * ```ts
- * export default async function run(services: HookServices): Promise<string> {
+ * export default async function run(services: HookServices): Promise<TransitionResult> {
  *   const quest = services.quests.read("assembly_programme");
  *   await services.quests.setActive(quest.id, true, quest.revision);
- *   return "Assembly Programme activated.";
+ *   return { status: "accepted", message: "Assembly Programme activated." };
  * }
  * ```
  */

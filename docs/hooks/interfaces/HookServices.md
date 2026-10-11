@@ -14,10 +14,10 @@ Services available to document-authored hooks. Read methods return detached data
 ## Example
 
 ```ts
-export default async function run(services: HookServices): Promise<string> {
+export default async function run(services: HookServices): Promise<TransitionResult> {
   const quest = services.quests.read("assembly_programme");
   await services.quests.setActive(quest.id, true, quest.revision);
-  return "Assembly Programme activated.";
+  return { status: "accepted", message: "Assembly Programme activated." };
 }
 ```
 

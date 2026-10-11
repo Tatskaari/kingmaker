@@ -1,9 +1,8 @@
 import { QuestConflictError, type QuestService } from "../../lore/src/quest-service.js";
 
-/** Expected gameplay outcomes; unexpected execution failures still throw. */
-export type TransitionResult =
-  | { status: "accepted"; message?: string }
-  | { status: "rejected"; message: string };
+import type { TransitionResult } from "../../hooks/src/services.js";
+export type { TransitionResult } from "../../hooks/src/services.js";
+
 export type TransitionHook = (signal: AbortSignal) => Promise<TransitionResult>;
 
 /** Host orchestration, not a transaction: hooks must reject before applying effects. */

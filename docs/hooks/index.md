@@ -14,12 +14,16 @@ This reference is generated from the same interfaces used by hook validation.
 
 - [Quest service](interfaces/HookQuestService.md): inspect, activate and advance quests.
 - [Map service](interfaces/HookMapService.md): read fixtures and edit interaction actions.
-- [Hook signature](type-aliases/Hook.md) and [all public types](globals.md).
+- [Hook signature](type-aliases/Hook.md) and [service overview](interfaces/HookServices.md).
 
 Create `Hooks/<name>.ts` using the normal document editing tools. Export a default
-async function taking `HookServices` and returning `Promise<string>`. The types
+async function taking `HookServices` and returning `Promise<TransitionResult>`. The types
 are available without imports. Bind it on a conversation edge with
 `#### Run: <name>.ts`. Creating or editing source validates it without running it.
+
+Return `{ status: "accepted", message: "..." }` to permit the edge, or
+`{ status: "rejected", message: "reason" }` to keep the current node. Reject before
+applying effects. The reason is supplied to the character and inspector.
 
 Hooks execute before recording the conversation transition. Effects already
 committed by a service are not rolled back if a later call fails. Make hooks

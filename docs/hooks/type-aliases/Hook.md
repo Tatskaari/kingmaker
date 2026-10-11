@@ -9,7 +9,7 @@ summary: "Type Alias: Hook API reference for conversation hooks."
 
 # Type Alias: Hook
 
-> **Hook** = (`services`) => `Promise`\<`string`\>
+> **Hook** = (`services`) => `Promise`\<[`TransitionResult`](TransitionResult.md)\>
 
 A registered conversation hook. Export one default async function with this signature.
 
@@ -21,7 +21,7 @@ A registered conversation hook. Export one default async function with this sign
 
 ## Returns
 
-`Promise`\<`string`\>
+`Promise`\<[`TransitionResult`](TransitionResult.md)\>
 
 ## Remarks
 

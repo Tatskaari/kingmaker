@@ -21,3 +21,4 @@ summary: "Hook services API reference for conversation hooks."
 ## Type Aliases
 
 - [Hook](type-aliases/Hook.md)
+- [TransitionResult](type-aliases/TransitionResult.md)
