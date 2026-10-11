@@ -152,7 +152,9 @@ test("flags schedule one combined activity review and separate focused reviews i
     } else {
       assert.equal(request.messages.filter(message => message.content?.includes("## Find the relevant documents")).length, 1);
       assert.ok(!names.includes("set_activity") && !names.includes("set_wait") && !names.includes("clear_activity"));
-      assert.ok(request.messages.some(message => message.content?.startsWith("Review only")));
+      assert.ok(request.messages.some(message => evidence.labels.plot_progress
+        ? message.content?.includes("provide an appropriate future report, invitation or choice")
+        : message.content?.startsWith("Review only")));
       assert.ok(!request.messages.some(message => message.content?.includes("Current NPC locations and routes")));
     }
     return { role: "assistant", content: "No changes needed." };
