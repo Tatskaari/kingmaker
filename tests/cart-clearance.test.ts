@@ -50,3 +50,43 @@ test("populated fixtures cannot be removed through hooks", async () => {
   await assert.rejects(services.hooks.bind()["remove-supplies.ts"]!(new AbortController().signal));
   assert.equal(services.currentWorld().simulation!.map, map);
 });
+
+test("authored fixture predicates run their hook only when the condition becomes true", async () => {
+  const services = createScenarioServices(loadPlayableWorld());
+  await services.docs.create("Hooks/predicate-effect.ts", `export default async function run(services: HookServices): Promise<TransitionResult> {
+    await services.memories.broadcast("predicate-test", { title: "Done", context: "Fixture removed", content: "A fixture is gone.", review: "Update dialogue." });
+    return { status: "accepted" };
+  }`);
+  await services.docs.create("Scenarios/Centennial Assembly/Quests/Predicate test/quest.md", `---
+id: predicate_test
+title: Predicate test
+initial: blocked
+active: true
+visibility: gm
+summary: Fixture predicate test.
+---
+## Node: blocked
+### Guidance
+Wait for the fixture removal.
+### When: cleared -> clear
+The blocking fixture has been removed.
+#### Trigger: fixture_absent furn_cart_left
+#### Run: predicate-effect.ts
+## Node: clear
+### Guidance
+The fixture is gone.
+`);
+  const signal = new AbortController().signal;
+  await services.quests.setActive("predicate_test", true, services.quests.read("predicate_test").revision);
+  await services.hooks.evaluatePredicates(signal);
+  assert.equal(services.quests.read("predicate_test").currentStageId, "blocked");
+  await services.docs.create("Hooks/remove-empty.ts", `export default async function run(services: HookServices): Promise<TransitionResult> {
+    await services.map.removeFixtures(["furn_cart_left"]); return { status: "accepted" };
+  }`);
+  await services.hooks.bind()["remove-empty.ts"]!(signal);
+  await services.hooks.evaluatePredicates(signal);
+  assert.equal(services.quests.read("predicate_test").currentStageId, "clear");
+  assert.ok(services.currentWorld().docs["Reviews/predicate-test.md"]);
+  await services.hooks.evaluatePredicates(signal);
+  assert.equal(services.quests.read("predicate_test").history.length, 1);
+});
