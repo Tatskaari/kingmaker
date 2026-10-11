@@ -271,3 +271,11 @@ door, not backtrack to the East Wing. The deterministic rubric grades the resolv
 command; no movement or warning timer is simulated. See the
 [fixture and reconstruction notes](../evals/actions/cressida-closed-door/README.md).
 This baseline-only runner is included in `workspace:eval` and published history.
+
+`corvin-nine-furrows` rebuilds the moment after Corvin agreed to confront the
+delegates about their reported accusation: a fresh playable world, the captured
+situation and activity notes as a `test_data/lore` overlay, and captured positions.
+The current `planWorldAction` builds the prompt and offered actions, so planner and
+lore changes reach it. It expects a talk action with Elinor, Oswin or Rowan.
+Run `npm run eval:navigation -- --experiments corvin-nine-furrows --repeats 3`.
+See [evidence and reconstruction limits](../evals/actions/corvin-nine-furrows/README.md).

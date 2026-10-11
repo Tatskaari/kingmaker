@@ -1,0 +1,14 @@
+{
+  "name": "corvin-nine-furrows",
+  "characterId": "corvin",
+  "activity": "Scenarios/Centennial Assembly/Characters/corvin/activity-8284d99f-9d1b-4780-a488-099d435fb055.md",
+  "expectedTalkTargets": ["elinor", "oswin", "rowan"],
+  "observed": "unable",
+  "docs_override": "test_data/lore",
+  "source": {
+    "dump": "kingmaker-issue-report-2026-10-09T17-51-26-118Z.zip",
+    "sha256": "bcbd46ac9ef4063416c3a9c4565b07322f9673d6529c05ee79f0a1fd81e2f995",
+    "callId": 28,
+    "startedAt": "2026-10-09T17:50:13.652Z"
+  }
+}
