@@ -1,13 +1,88 @@
 # Architecture
 
-Kingmaker turns an Obsidian vault into a world you can roleplay in. AI characters
-speak from lore they are allowed to know, Jev makes fast choices, and a game master
-(GM) adjudicates and records what changes. This document describes the intended
-shape of the system: the concepts, where they live, and the rules that keep them
-apart. Detailed behaviour lives in [`docs/`](docs/); repository workflow rules live
-in [`AGENTS.md`](AGENTS.md).
+Kingmaker turns an Obsidian vault into a world you can roleplay in. This
+document describes the intended shape of the system. It starts with the big
+picture, how the world, the characters and the game master (GM) feed each
+other, and then covers how that is built: hooks, services and the two kinds of
+game state. [How Kingmaker works](docs/how-it-works.md) is a guided tour of each
+system. Detailed behaviour lives in [`docs/`](docs/), and repository workflow
+rules live in [`AGENTS.md`](AGENTS.md).
 
-## The three concepts
+## The big picture: world, character, GM, with Jev at every step
+
+![Obsidian lore feeds Jev's relevance decisions, characters respond from their own knowledge, and the GM reviews conversations to update in-game notes.](docs/images/character-mind.png)
+
+Three participants pass the story around a loop:
+
+- **The world** is everything that exists: authored lore and in-game notes (AI
+  state, in documents), plus the physical palace (simulation state, in
+  boardgame.io).
+- **The character** speaks and acts from their own perspective. The speaking
+  model has no tools and no reasoning (`effort: "none"`), so replies are fast.
+  It only knows what was put in front of it.
+- **The GM** adjudicates and remembers. It rules on dice, reviews what happened,
+  and writes the consequences back into the world through services: memories,
+  relationships, lore, and the activities that drive NPCs.
+
+**Jev** is the decision-maker at every handoff. It uses a cheap, fast decisions
+API that returns a probability for each option the host offers. It never writes
+state and never invents free text, so it can run often without making the game
+slow or expensive.
+
+```
+                         ┌──────────────── WORLD ────────────────┐
+                         │  documents: lore, memories, goals     │
+                         │  simulation: rooms, doors, bodies     │
+                         └───▲─────────────┬────────────────▲────┘
+              GM writes      │             │ Jev selects     │ Jev plans moves,
+          notes and goals    │             │ permitted lore  │ checks waits,
+                             │             ▼                 │ weighs perceptions
+                     ┌───────┴──┐     ┌──────────────┐       │
+                     │    GM    │◀────│  CHARACTER   │───────┘
+                     │ reviews, │ Jev │ speaks, acts │
+                     │ rulings  │flags└──────▲───────┘
+                     └──────────┘            │ Jev steers the conversation
+                                             │ tree and picks dice checks
+                                          PLAYER
+```
+
+| Handoff | What Jev decides | System |
+| --- | --- | --- |
+| World → character | Which linked notes the character may know are relevant right now | Progressive disclosure |
+| Player → character | Whether the player's move needs a check, and which skill and difficulty | Dice checks (the GM then rules on the roll) |
+| Conversation → character | Whether the authored conversation has moved to its next node | Conversation trees |
+| Character → GM | What in the exchange the world must react to, and so which reviews to dispatch | Attention |
+| World → character, acting | The next action toward a goal, from an accessibility-tree-style room view | Activity planning |
+| World → character, waiting | Whether to keep waiting, switch activity, or wake the GM | Waits |
+| World → character, perceiving | Whether something seen or overheard matters to them | Perception |
+
+Tool use, memory writes, world changes and adjudication belong to the GM and
+host services, never to the character response model.
+
+### The loop in four systems
+
+1. **Progressive disclosure** gives the speaking character the lore it needs
+   without tool calls. Jev reads the summaries of linked documents the
+   character is allowed to see, and opens the relevant ones before the reply.
+2. **Conversation trees** steer authored conversations. Between turns, Jev
+   checks whether any of the current node's conditions has happened. If one
+   has, the character gets new guidance.
+3. **Attention** closes the loop. After each reply, Jev flags things the world
+   should react to (promises, invented details, trades, plot progress). A
+   decision tree turns the flags into focused GM review jobs that run in the
+   background. An unremarkable turn costs one Jev call and no GM call.
+4. **Activities and planning** turn agreements into action. Reviews write
+   activity documents with goals and success criteria. Jev pursues each goal
+   one action at a time, choosing from an accessibility-tree-style text view of
+   the room in which every available action has an ID. Waits, routines and
+   perception keep NPCs reacting between conversations.
+
+Fast, cheap models sit on the path the player waits for. Expensive GM agents run
+only when attention or an NPC's progress calls for them, and run in the
+background. [How Kingmaker works](docs/how-it-works.md) walks through each system
+and a full example.
+
+## How it's built: three concepts
 
 The engine has three parts:
 
@@ -176,44 +251,6 @@ point at document paths (character entry, activity, wait). Documents contain no
 sheets, inventories or positions, and the simulation contains no prose.
 Document edits don't invalidate mechanics, and moves don't rewrite documents.
 
-## The agents
-
-Three model roles have deliberately different powers:
-
-- **Character**: speaks. It has no tools and no reasoning (`effort: "none"`), and
-  answers from the scoped context and GM rulings it is given. Latency matters
-  most here.
-- **Jev**: decides. It uses the decisions API to pick from options the host
-  supplies: which lore link to open, which skill a check needs, which action ID
-  to take, whether a perceived event matters, whether a conversation-tree
-  condition was met. Jev picks; it doesn't write state.
-- **GM**: adjudicates and records. It sets check rulings and runs reviews with
-  document, activity and inventory tools that write through services. GM access
-  never grants a character knowledge.
-
-Tool use, memory writes, world changes and adjudication belong to the GM and
-host services, never to the character response model.
-
-## How a turn flows
-
-**Player conversation.** Progressive disclosure opens the character's
-`character.md`; Jev chooses links using permitted `summary` previews, and the
-lore service checks each target's `readers`/`visibility` before opening it.
-Jev then decides whether a check is needed and picks skill and difficulty. The
-host rolls; presentation animates the fixed result while the GM writes one
-binding ruling. The character replies. Afterwards Jev runs attention and
-conversation-tree checks. Flagged turns go into the conversation's ordered GM
-review queue, which edits documents and activities through services while play
-continues. See [conversation services](docs/conversation-services.md) and
-[conversation trees](docs/conversation-trees.md).
-
-**NPC activity.** A runtime character with an activity asks Jev to choose an
-action from `map.observe`. `map.interact` validates and commits it through
-simulation moves, then an outcome review updates documents. A wait gets a
-periodic Jev check that can continue, switch activity or wake the GM. Physical
-events (doors, entries, finished conversations) trigger perception rolls and
-Jev relevance checks, which can interrupt an NPC with a review.
-
 ## Hosts
 
 Hosts compose services and strategies, own scheduling and persistence, and
@@ -280,6 +317,7 @@ from `apps/web`, since that is where `WorldGameRuntime` lives.
 
 ## Further reading
 
+[How Kingmaker works](docs/how-it-works.md) ·
 [Runtime architecture](docs/architecture.md) ·
 [Conversation services](docs/conversation-services.md) ·
 [Document-backed world state](docs/lore-world-state.md) ·
