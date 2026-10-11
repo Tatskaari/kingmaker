@@ -5,16 +5,19 @@ import type { QuestService } from "../../lore/src/quest-service.js";
 import type { AiService } from "./services.js";
 import type { JevChoice, JevQuestions } from "../../providers/src/jev.js";
 
+import { transitionWithHook, type TransitionHook, type TransitionResult } from "./quest-transition.js";
+
 export interface TreeStatus {
   node: string;
   guidance: string;
-  phase: "ready" | "checking" | "completed" | "failed";
+  phase: "ready" | "checking" | "completed" | "rejected" | "failed";
   conditions: { id: string; to: string; condition: string; decision?: JevChoice }[];
   transition?: string;
   scriptOutput?: string;
+  result?: TransitionResult;
   error?: string;
 }
-export type TreeScript = (signal: AbortSignal) => Promise<string>;
+export type TreeScript = TransitionHook;
 
 /** Host-owned executor. Each evaluation restarts from the saved quest stage, so a failed turn is retried on the next. */
 export class ConversationTreeSession {
@@ -47,7 +50,9 @@ export class ConversationTreeSession {
   goal(): TranscriptMessage {
     this.refresh();
     return create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER,
-      text: `Current conversation goal (replaces any earlier conversation goal):\n${this.status.guidance}` });
+      text: `Current conversation goal (replaces any earlier conversation goal):\n${this.status.guidance}`
+        + (this.status.result?.status === "rejected"
+          ? `\nTransition rejected; the goal is unchanged. Explain this outcome without claiming success:\n${this.status.result.message}` : "") });
   }
   async evaluate(transcript: readonly TranscriptMessage[], ai: Pick<AiService, "decisions">,
     signal: AbortSignal, report: (status: TreeStatus) => void,
@@ -78,17 +83,17 @@ export class ConversationTreeSession {
       publish({ ...pending, conditions, phase: "completed", ...(chosen ? { transition: chosen.id } : {}) });
       if (!chosen) return;
       const script = this.tree.scripts[chosen.id];
-      let scriptOutput: string | undefined;
+      let result: TransitionResult | undefined;
       let stale = false;
       await commit(async () => {
         signal.throwIfAborted();
         if (this.quests.read(this.tree.quest.id).revision !== state.revision) { stale = true; return; }
-        scriptOutput = script ? await this.scripts[script]!(signal) : undefined;
-        signal.throwIfAborted();
-        await this.quests.transition(this.tree.quest.id, chosen.id, state.revision, JSON.stringify({ answers, transcript }));
+        result = await transitionWithHook(this.quests, this.tree.quest.id, chosen.id, state.revision,
+          signal, script ? this.scripts[script] : undefined, JSON.stringify({ answers, transcript }));
       });
       if (stale) { this.refresh(); publish(this.current()); return this.goal(); }
-      publish({ ...this.current(), transition: chosen.id, ...(scriptOutput !== undefined ? { scriptOutput } : {}) });
+      publish({ ...(result?.status === "rejected" ? { ...pending, conditions, phase: "rejected" as const } : this.current()),
+        transition: chosen.id, ...(result ? { result } : {}), ...(result?.message !== undefined ? { scriptOutput: result.message } : {}) });
       return this.goal();
     } catch (error) {
       publish({ ...this.status, phase: "failed", error: String(error) });

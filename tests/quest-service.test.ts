@@ -1,3 +1,4 @@
+import { transitionWithHook } from "../packages/conversation/src/quest-transition.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create, fromJson, toJson } from "@bufbuild/protobuf";
@@ -137,4 +138,27 @@ test("activation shares revision conflicts with transitions and rejects invalid 
   assert.equal(exhausted.read("delivery").active, true);
   await quests.setActive("delivery", false, 2);
   assert.equal(quests.read("delivery").revision, 3);
+});
+
+
+test("host quest hooks reject without recording progress and validate before effects", async () => {
+  const { quests } = fixture();
+  await quests.register(definition());
+  const signal = new AbortController().signal, before = quests.read("delivery");
+  const result = await transitionWithHook(quests, "delivery", "repair", 0, signal,
+    async () => ({ status: "rejected", message: "Missing repair kit." }));
+  assert.deepEqual(result, { status: "rejected", message: "Missing repair kit." });
+  assert.deepEqual(quests.read("delivery"), before);
+  await transitionWithHook(quests, "delivery", "repair", 0, signal,
+    async () => ({ status: "accepted", message: "Repaired." }), "Kit used");
+  assert.equal(quests.read("delivery").currentStageId, "unloading");
+  assert.equal(quests.read("delivery").history[0]!.evidence, "Kit used");
+  const forbidden = async () => { assert.fail("invalid requests must not execute hooks"); };
+  await assert.rejects(transitionWithHook(quests, "delivery", "repair", 0, signal, forbidden), /quest changed/);
+  await assert.rejects(transitionWithHook(quests, "delivery", "repair", 1, signal, forbidden), /not available/);
+  const controller = new AbortController();
+  await assert.rejects(transitionWithHook(quests, "delivery", "finish", 1, controller.signal, async () => {
+    controller.abort(); return { status: "accepted" };
+  }), /abort/i);
+  assert.equal(quests.read("delivery").currentStageId, "unloading");
 });

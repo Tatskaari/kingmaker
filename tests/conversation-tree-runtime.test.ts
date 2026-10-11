@@ -45,7 +45,7 @@ test("misses retain the node; all branches are shown and file order breaks ties"
 
 test("acceptance runs the script once and supplies a system goal without reasoning or tools", async () => {
   let calls = 0;
-  const { runner, step, services, history } = await setup(async () => { calls++; return "Hello world!"; });
+  const { runner, step, services, history } = await setup(async () => { calls++; return { status: "accepted", message: "Hello world!" }; });
   await step("greeted"); await step("hinted"); await step("requested");
   const goal = await step("agreed");
   assert.equal(calls, 1);
@@ -68,7 +68,7 @@ test("refusal takes its branch without running the script", async () => {
 
 test("script failure keeps progress unchanged and the next turn retries", async () => {
   let calls = 0;
-  const { runner, step, services, tree } = await setup(async () => { if (++calls === 1) throw new Error("script failed"); return "ok"; });
+  const { runner, step, services, tree } = await setup(async () => { if (++calls === 1) throw new Error("script failed"); return { status: "accepted", message: "ok" }; });
   await step("greeted"); await step("hinted");
   await assert.rejects(step("accepted"), /script failed/);
   assert.equal(services.quests.read(tree.quest.id).currentStageId, "cushions");
@@ -115,7 +115,7 @@ test("a definition edit during Jev classification discards the old decision and 
     const doc = services.currentWorld().docs["Conversations/aldren.md"]!;
     return parseConversationTree(`---\n${JSON.stringify(doc.frontmatter)}\n---\n${doc.body}`);
   };
-  const runner = new ConversationTreeSession(readTree(), services.quests, { "hello-world.ts": async () => "unused" }, readTree);
+  const runner = new ConversationTreeSession(readTree(), services.quests, { "hello-world.ts": async () => ({ status: "accepted", message: "unused" }) }, readTree);
   const goal = await runner.evaluate([], { decisions: async () => {
     const doc = await services.docs.read("Conversations/aldren.md");
     await services.docs.replace(doc.path, doc.sha, "Greet the player.", "Give the player the revised greeting.");
@@ -141,4 +141,32 @@ test("a refreshed definition preserves retries after a failed script", async () 
   currentTree = parseConversationTree((await services.docs.read(doc.path)).text);
   await assert.rejects(runner.evaluate([], decide, signal, () => {}), /partially executed/);
   assert.equal(calls, 2);
+});
+
+
+test("a hook rejection explains the unchanged goal and permits a later successful retry", async () => {
+  let hasItem = false;
+  const { runner, step, services, tree } = await setup(async () => hasItem
+    ? { status: "accepted", message: "Item delivered." }
+    : { status: "rejected", message: "The player does not have the requested item." });
+  await step("greeted"); await step("hinted");
+  const before = services.quests.read(tree.quest.id);
+  const rejection = await step("accepted");
+  assert.deepEqual(services.quests.read(tree.quest.id), before);
+  assert.equal(runner.status.phase, "rejected");
+  assert.equal(runner.status.result?.status, "rejected");
+  assert.match(rejection!.text, /player does not have the requested item/);
+  assert.equal(runner.goal().text, rejection!.text);
+  assert.equal(runner.status.conditions.find(edge => edge.id === "accepted")!.decision!.choice, "hit");
+  const request = conversationRequest({ world: services.currentWorld(), characterId: "aldren", sources: [],
+    transcript: [runner.goal()], message: "Here you go" });
+  assert.match(String(request.messages.at(-2)!.content), /player does not have the requested item/);
+  assert.deepEqual(request.reasoning, { effort: "none" });
+  assert.equal(request.tools, undefined);
+  hasItem = true;
+  const accepted = await step("accepted");
+  assert.equal(runner.status.node, "helping");
+  assert.equal(runner.status.result?.status, "accepted");
+  assert.doesNotMatch(accepted!.text, /Transition rejected/);
+  assert.equal(services.quests.read(tree.quest.id).history.length, before.history.length + 1);
 });

@@ -83,3 +83,23 @@ This loader accepts typed data, not executable scripts: arbitrary predicates,
 TypeScript modules, declared input execution and GM invocation are not supported. The caller must
 establish physical outcomes before recording a transition. Start a fresh game to
 pick up changed baseline quest definitions.
+
+## Host transition hooks
+
+Host callers can use `transitionWithHook` from
+`packages/conversation/src/quest-transition.ts` to validate an available edge,
+run a trusted hook and record progress only on acceptance. The data service's
+`quests.transition()` remains a recording API and does not execute hooks.
+
+Hooks return the shared, extensible `TransitionResult` union:
+
+```ts
+{ status: "accepted", message: "Item delivered." } // message is optional
+{ status: "rejected", message: "The player does not have the requested item." }
+```
+
+A rejection is a normal gameplay outcome: it leaves progress, revision and history
+unchanged and permits a later retry. Unexpected failures still throw. Validate
+prerequisites against live state before applying effects: this helper does not
+roll back service calls, and hook effects plus quest recording are not atomic.
+The caller owns persistence and supplies any rejection message to its presentation.
