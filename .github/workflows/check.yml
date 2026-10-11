@@ -28,4 +28,5 @@ jobs:
         with:
           auto-install: true
       - run: npm ci
-      - run: proto run moon -- run workspace:check workspace:build
+      # --force runs every task without diffing against a base branch the shallow checkout lacks.
+      - run: proto run moon -- run --force workspace:check workspace:build
