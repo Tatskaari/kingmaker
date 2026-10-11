@@ -8,6 +8,7 @@ import { defaultWorldStrategies } from "../../../apps/web/src/world-strategies.j
 import { planWorldAction } from "../../../apps/web/src/world-action.js";
 import { plannerMap } from "./planner-map.js";
 import type { Experiment, RunRecording } from "./experiment.js";
+import { navigationRubric } from "./navigation-experiment.js";
 import fixture from "../../../evals/actions/corvin-nine-furrows/fixture.json" with { type: "json" };
 import captured from "../../../evals/actions/corvin-nine-furrows/world.json" with { type: "json" };
 
@@ -37,7 +38,7 @@ export function createCorvinNineFurrowsExperiment(createAi: () => AiService): Ex
   const targets = fixture.expectedTalkTargets;
   return {
     name: fixture.name, type: "jev-action",
-    rubric: [{ name: "navigation", description: `Talk to a Nine Furrows delegate (${targets.join(", ")}) instead of waiting, abandoning the task or approaching someone else.` }],
+    rubric: navigationRubric,
     getBaseline: () => ({ name: "game", configure() {
       const backing = createScenarioServices(loadCorvinNineFurrowsWorld());
       return { recordServices: ["ai", "docs", "map", "debug"], strategies: defaultWorldStrategies, services: {
