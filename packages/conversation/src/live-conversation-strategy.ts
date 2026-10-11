@@ -74,7 +74,7 @@ export function liveConversationStrategy(options: {
           ...reviewPromptContext({ characterId: options.characterId, participants: [options.characterId, "player"], transcript }, services),
           ...(category === "activity" ? { npc_locations: activityNpcLocations(services.scenario.read(), options.characterId) } : {}),
         }), {
-          systemPrompt: renderPrompt("review-focused"),
+          systemPrompt: renderPrompt("review-system"),
           tools: gameMasterTools.filter(tool => category === "activity" ? tool.function.name === "set_activity"
             : !activityTools.some(activity => activity.function.name === tool.function.name)),
         });

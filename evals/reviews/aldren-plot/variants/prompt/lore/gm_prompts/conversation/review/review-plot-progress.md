@@ -4,7 +4,7 @@ visibility: gm
 system: "GM conversation review"
 trigger_context: "After Jev flags plot_progress; focused review of an accepted turn whose approach may require plot adaptation."
 tags: ["prompts", "conversation/review", "conversation/plot-progress"]
-variables: ["youAreTheGameMaster", "transcript", "activeQuests", "activeConversationTrees"]
+variables: ["youAreTheGameMaster", "transcript", "activeQuests", "activeConversationTrees", "reviewGuidance"]
 ---
 {{youAreTheGameMaster}}
 
@@ -33,3 +33,5 @@ Allow the detour, then find a natural in-character course back to an authored pl
 Conversation guidance handles what characters think, say, and offer. Quest guidance handles material world changes and the sequence of set pieces. Keep proposed future beats conditional on actual events; a promise is not a delivered order, discovery or completed quest stage. Do not change physical state, fabricate knowledge, duplicate existing memories, or replace the activity reviewer's work.
 
 Use supported document edits and report what you actually changed. Editing guidance does not itself execute a quest transition or move a live conversation pointer. Identify any runtime follow-through still required instead of claiming it happened.
+
+{{reviewGuidance}}

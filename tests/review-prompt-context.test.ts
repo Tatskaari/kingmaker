@@ -10,6 +10,7 @@ test("review variables read live quest and tree progress without including other
   const runtime = new ConversationRuntime({ services });
   const context = { characterId: "aldren", participants: ["aldren", "player"], transcript: [] };
   const before = reviewPromptContext(context, runtime.services);
+  assert.match(before.reviewGuidance, /When making changes to documents/);
   assert.equal(JSON.parse(before.activeQuests).some((q: { quest: { id: string } }) => q.quest.id === "assembly_programme"), false);
   await services.quests.setActive("assembly_programme", true, 0);
   const after = reviewPromptContext(context, runtime.services);
