@@ -28,6 +28,7 @@ test("v2 exchange isolates speakers and reviews each participant through documen
     const prompt = JSON.stringify(request); calls++;
     if (calls === 1) { assert.match(prompt, /ALICE_PRIVATE/); assert.ok(!prompt.includes("BOB_PRIVATE")); return { role: "assistant", content: "Will you help?" }; }
     if (calls === 2) { assert.match(prompt, /BOB_PRIVATE/); assert.ok(!prompt.includes("ALICE_PRIVATE")); assert.ok(!prompt.includes("SECRET_INTENT")); return { role: "assistant", content: "I refuse." }; }
+    assert.equal(request.messages.filter(message => message.content?.includes("## Find the relevant documents")).length, 1);
     return commitReview({ summary: "Refused", newNotes: ["Bob refused to help."], activeGoal: null }, request);
   } } }, strategies: { resolution: documentResolutionStrategy } });
   const result = await runResolution({ kind: "npc_exchange", characterId: "alice", targetId: "bob", goal: "SECRET_INTENT" }, runtime);
