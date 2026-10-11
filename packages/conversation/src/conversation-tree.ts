@@ -23,13 +23,15 @@ export type TreeScript = TransitionHook;
 export class ConversationTreeSession {
   status: TreeStatus;
   constructor(public tree: ConversationTree, private quests: QuestService,
-    private scripts: Readonly<Record<string, TreeScript>>, private readTree: () => ConversationTree = () => this.tree) {
+    private scripts: Readonly<Record<string, TreeScript>>, private readTree: () => ConversationTree = () => this.tree,
+    private readScripts: () => Readonly<Record<string, TreeScript>> = () => scripts) {
     for (const name of Object.values(tree.scripts)) {
       if (!Object.hasOwn(scripts, name)) throw new Error(`Unregistered conversation script: ${name}`);
     }
     this.status = this.current();
   }
   private refresh() {
+    this.scripts = this.readScripts();
     const tree = this.readTree();
     if (tree === this.tree) return;
     if (tree.quest.id !== this.tree.quest.id || tree.characterId !== this.tree.characterId) throw new Error("Conversation identity changed.");

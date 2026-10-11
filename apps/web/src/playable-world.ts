@@ -1,3 +1,4 @@
+import hookSources from "../../../packages/hooks/src/source-catalog.js";
 import { compileConversationTree, parseConversationTree } from "../../../packages/lore/src/conversation-tree.js";
 import { palaceMap } from "./palace-map.js";
 import { seedPresentation, presentationPath } from "../../../packages/lore/src/presentation.js";
@@ -15,7 +16,7 @@ export function playableWorld(baseline: PalaceMap, markdown: ReadonlyMap<string,
   const map = clone(MapSchema, baseline);
   map.layout = clone(WorldMapSchema, baseline.layout ?? palaceMap);
   const player = "Players/envoy.md";
-  const notes = new Map(markdown);
+  const notes = new Map([...Object.entries(hookSources), ...markdown]);
   notes.set(player, "---\nname: Visiting Envoy\nvisibility: private\nsummary: A visiting envoy attending the Centennial Assembly.\nreaders: [\"character:player\"]\n---\nYou are a visiting envoy attending the Centennial Assembly.");
   const trees = conversationTrees.map(source => ({ source, tree: parseConversationTree(source) }));
   for (const { source, tree } of trees) notes.set(`Conversations/${tree.characterId}.md`, source);

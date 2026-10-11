@@ -1,3 +1,4 @@
+import { parseDocument } from "./hook-documents.js";
 import { seedMemories } from "./memories.js";
 import { create, fromJson, type JsonObject } from "@bufbuild/protobuf";
 import { type MapState } from "../../contracts/src/index.js";
@@ -22,7 +23,7 @@ export function worldState(map: MapState, markdown: ReadonlyMap<string, string>,
   const docs = Object.fromEntries([...lore].sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0).map(([name, note]) => {
     try {
       if (note.error) throw new Error(note.error);
-      const doc = fromJson(DocumentSchema, { body: note.body, frontmatter: note.metadata as JsonObject });
+      const doc = name.endsWith(".ts") ? parseDocument(name, markdown.get(name)!) : fromJson(DocumentSchema, { body: note.body, frontmatter: note.metadata as JsonObject });
       return [name, doc];
     } catch (error) {
       throw new Error(`${name}: ${String(error)}`, { cause: error });

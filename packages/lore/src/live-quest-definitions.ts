@@ -10,10 +10,15 @@ import { loadQuests } from "./quest-loader.js";
 export function prepareQuestDefinitions(before: WorldState, draft: WorldState): WorldState["quests"] {
   const scenarioID = draft.scenario.split("/")[1]!;
   const prefix = `Scenarios/${scenarioID}/Quests/`;
+  const changedHooks = new Set([...new Set([...Object.keys(before.docs), ...Object.keys(draft.docs)])]
+    .filter(path => path.startsWith("Hooks/") && before.docs[path]?.body !== draft.docs[path]?.body)
+    .map(path => path.slice("Hooks/".length)));
   const changed = [...new Set([...Object.keys(before.docs), ...Object.keys(draft.docs)])].filter(path => {
     if (!path.startsWith(prefix) && !/^Conversations\/[^/]+\.md$/.test(path)) return false;
     const old = before.docs[path], next = draft.docs[path];
-    return old?.body !== next?.body || !equal(old?.frontmatter, next?.frontmatter);
+    return old?.body !== next?.body || !equal(old?.frontmatter, next?.frontmatter)
+      || (path.startsWith("Conversations/") && next && changedHooks.size > 0
+        && Object.values(compileConversationTree({ body: next.body, metadata: next.frontmatter ?? {} }).scripts).some(name => changedHooks.has(name)));
   });
   if (!changed.length) return before.quests;
   const quests = { ...before.quests };

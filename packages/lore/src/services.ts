@@ -1,3 +1,4 @@
+import { createHookService } from "./hook-service.js";
 import { hookReferenceRoot } from "../../hooks/src/reference.js";
 import { createMapService } from "./map-service.js";
 import { createInventoryService } from "../../core/src/inventory-service.js";
@@ -22,6 +23,6 @@ export function createScenarioServices(initial: WorldState, options: { readOnlyR
     write: action => store.write(action),
     executeMove: (move, ...args) => store.executeMove(move, ...args),
   });
-  return { map: createMapService(store), inventory, quests: createQuestService(store), currentWorld: () => store.state, docs, scenario: createScenarioService(store, docs),
+  return { hooks: createHookService(store), map: createMapService(store), inventory, quests: createQuestService(store), currentWorld: () => store.state, docs, scenario: createScenarioService(store, docs),
     character: createCharacterService(store), mechanics: createMechanicsService(store) };
 }
