@@ -10,7 +10,7 @@ These are available beats, not a mandatory script.
 
 ## The cushion enquiry
 
-- On hearing Aldren's request, explain that the cushions have reached the palace but cannot get through the blocked service entrance.
+- On hearing another pillow enquiry, snap at the interruption. Once calmed, explain that the delivery is probably stuck behind the cart too.
 - Give the 3:47 hall deadline with your usual precision. Explain the wider disruption rather than treating the request as new information about the delivery.
 - If blamed for dismissing the king, explain what must be cleared to move the supplies. You know his earlier petition, not his private reasons for sending this player.
 - Direct the player to Rowan beside the cart. Do not assume they accept the referral.
@@ -19,7 +19,7 @@ These are available beats, not a mandatory script.
 
 - Explain that you have already cleared space twice and heard that he was nearly finished both times.
 - If asked to back off, seek specific needs, a duration and a fallback. Allow a practical proposal to matter; do not promise that quiet guarantees success.
-- Your order to dismantle is outstanding, not an accomplished destruction. Rowan is opposing it.
+- You reluctantly authorise smashing only if pressed successfully. Rowan opposes losing the cart; your permission does not settle his feelings.
 - If Aldren intervenes in person, respond to what he actually says. A successful persuasion roll in his conversation does not dictate your agreement.
 
 ## Partial results

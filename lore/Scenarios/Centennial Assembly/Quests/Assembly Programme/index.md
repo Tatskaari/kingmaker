@@ -39,10 +39,10 @@ You are the GM. Use this opening quest sketch for the first interaction after ch
 
 - **3. The player brings the problem to Holt.**
   - Prerequisite: the player actually reaches and speaks with him. Aldren's referral does not itself start this conversation or inform Holt.
-  - Holt is already dealing with a disrupted programme. The cushion enquiry is another demand on his attention.
+  - Holt is barking orders and raging about the blasted cart delaying the festivities. The cushion enquiry infuriates him; calm him before he explains that the pillows are probably blocked too.
   - He explains the relevant timetable with absurd precision: the hall preparations should have been finished by **3:47 this afternoon**.
   - Keep the person responsible for finishing the hall unnamed until chosen. Only that time is established; do not invent the rest of the itinerary as prior fact.
-  - **The player repeats Aldren's demand:** Holt explains why the plan has broken down.
+  - **The player repeats Aldren's demand:** Holt snaps at the interruption. A calming approach can get him to explain the likely holdup.
   - **They ask what help he actually needs:** he explains the obstruction and the immediate problem it creates for the preparations.
   - **They blame him for the delay:** he distinguishes what he planned from the event outside his control; the player can still learn what happened.
   - **They leave before hearing the explanation:** they have not learned the cause simply by meeting him.
@@ -50,7 +50,7 @@ You are the GM. Use this opening quest sketch for the first interaction after ch
 - **4. Holt reveals the disruption.**
   - Rowan's experimental cart is blocking the service entrance with a large potted gift tree aboard. The cushions have reached the palace but are stuck in the delivery queue outside.
   - The blockage disrupts other supplies and the hall preparations. Holt needs the entrance cleared, not merely another assurance about cushions.
-  - Holt has already cleared space twice for Rowan to work. Both times Rowan said he was nearly finished. Holt has now ordered dismantling, but Rowan is physically in the way.
+  - Holt has already cleared space twice for Rowan to work. Both times Rowan said he was nearly finished. Holt is considering dismantling but does not want to offend Nine Furrows; his blessing requires the player to press the case.
   - **The player investigates:** direct them to Rowan beside the cart at the service entrance.
   - **They return to Aldren:** they can report what they learned; Aldren learns the cause only through that report or another actual communication.
   - **Aldren approaches Holt himself:** play their exchange when he actually arrives or communicates. Holt explains the obstruction; a royal request does not clear it.
@@ -67,10 +67,11 @@ You are the GM. Use this opening quest sketch for the first interaction after ch
 
 ## Stages
 
-- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/010_stage_delivery_delayed|Delivery delayed]]
-- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/020_stage_cart_cleared|Cart cleared]]
+- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/010_stage_investigate_missing_pillows|Investigate the missing pillows]]
+- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/020_stage_cart_blocked|Cart blocked]]
+- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/030_stage_cart_unblocked|Cart unblocked — unwritten]]
 
-The quest has two material stages and one [[Scenarios/Centennial Assembly/Quests/Assembly Programme/transitions/clear_cart|shared clearance transition]]. Conversation branches own checks, agreements and scoped character reactions. They invoke the shared transition after successful resolution; attempts and negotiations do not need quest stages.
+Holt’s disclosed lead advances the investigation to the blocked cart. All remedies then share one [[Scenarios/Centennial Assembly/Quests/Assembly Programme/transitions/clear_cart|shared clearance transition]]. Conversation branches own checks, agreements and scoped character reactions. They invoke clearance after successful resolution; attempts and negotiations do not need quest stages.
 
 ## Conversation branch direction
 
@@ -86,9 +87,9 @@ The quest has two material stages and one [[Scenarios/Centennial Assembly/Quests
 
 ## Runtime and follow-up boundaries
 
-Fresh games load this two-stage graph. The existing Aldren conversation activates it; registered conversation scripts can call the quest service. Branch-declared checks, scoped review instructions and executable quest effects still need implementation. Changing a stage alone does not remove fixtures or move goods. Start a fresh game for these definition changes.
+Fresh games load this three-stage graph. Aldren’s conversation activates the investigation; Holt’s disclosure advances it to `cart_blocked`. Holt, Rowan, Corvin and guard dialogue trees are drafted in `content/conversation-trees/`. Branch-declared checks, scoped review instructions and executable quest effects still need implementation. Changing a stage alone does not remove fixtures or move goods. Start a fresh game for these definition changes.
 
-After clearance, helpers must actually deliver the pillows before their arrival is established. Aldren is happy when he learns they arrived; Holt remains five minutes behind schedule. Talking to Holt should introduce a separate programme quest, whose later sequence remains unwritten. No new follow-up quest is executable in this layer.
+`cart_unblocked` is a literal stub for iteration after the opening conversations. Later delivery, Aldren’s reaction and Holt’s wider programme are deferred.
 
 Preserve the earlier possibility of carrying cushions through a safe alternative route without clearing the cart; this does not satisfy `clear_cart`. Exact repair checks, book access, helper identities and delivery mechanics remain to be authored. The supporting instruction stubs remain unwritten.
 

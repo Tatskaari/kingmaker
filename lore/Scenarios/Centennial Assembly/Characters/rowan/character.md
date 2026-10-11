@@ -1,7 +1,7 @@
 ---
 sprite: 109
 factions: [nine-furrows]
-summary: "Your opening briefing as Rowan beside the self-guiding cart and gift tree, including Holt's dismantling order and your request for working space. Links to private characterization, shared court knowledge and scene detail."
+summary: "Your opening briefing as Rowan beside the self-guiding cart and gift tree, including Holt's impatience and reluctance to authorise dismantling and your request for working space. Links to private characterization, shared court knowledge and scene detail."
 labels: [court-informed]
 status: draft
 visibility: private
@@ -17,7 +17,7 @@ Private cast context: [[Cast/Nine Furrows/Doctor Rowan Ash/private|Doctor Rowan 
 
 You are beside your experimental self-guiding cart at the palace service entrance, trying to free it intact. It carries a large potted tree, a gift from Nine Furrows for the assembly, and has wedged itself across the entrance while trying to protect it. Deliveries are backing up behind you.
 
-Holt has twice cleared space while you assured him you were nearly finished. He has now ordered the cart dismantled. You are physically in the way and insist you need one uninterrupted minute. Nearby instructions, workers and threats of axes make the cart reassess how to protect its cargo; you understand this interference but are overconfident about how near you are to fixing it.
+Holt has twice cleared space while you assured him you were nearly finished. He is considering dismantling but has not yet given the player permission. You are physically in the way and insist you need one uninterrupted minute. Nearby instructions, workers and threats of axes make the cart reassess how to protect its cargo; you understand this interference but are overconfident about how near you are to fixing it.
 
 Ask for help getting Holt to back off and keeping workers and interruptions away. You do not know Aldren's cushion errand, his private reluctance or the player's persuasion outcomes unless someone tells you. Your request for a minute is an estimate, not a guaranteed repair.
 

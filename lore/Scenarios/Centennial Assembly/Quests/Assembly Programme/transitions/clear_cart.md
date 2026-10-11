@@ -3,7 +3,7 @@ summary: "Shared clearance effect contract: remove the obstructing cart and assi
 visibility: gm
 id: clear_cart
 trigger: none
-to: cart_cleared
+to: cart_unblocked
 condition: "A remedy has succeeded, the host has cleared the cart obstruction and assigned helpers to bring the waiting goods inside."
 ---
 # Clear the cart
