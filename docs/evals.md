@@ -34,6 +34,10 @@ uses the captured activity as input and scripted interview speech; see the
 [fixture notes](../evals/reviews/corvin-inquiry/README.md) for boundaries and results.
 Both are registered in `workspace:eval`.
 
+`npm run eval:dialogue:locations` asks a Great Hall palace guard where to find
+Marshal Holt. It exercises the normal character setup and progressive-disclosure
+path, and grades whether the reply identifies Holt's live Entrance Hall location.
+
 The old physical travel probe remains `npm run eval:review:handoff`; its existing
 `REVIEW_EVAL_REPEATS` and `REVIEW_EVAL_OUTPUT_DIR` settings apply only to that command.
 
