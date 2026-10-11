@@ -37,3 +37,12 @@ test("infinite execution, cancelled hooks and unresolved promises terminate", as
   await assert.rejects(runHook(compile('return {status:"accepted", message:"ok"};'), guard => bindHookServices(store, guard), controller.signal), /abort/i);
   await assert.rejects(runHook(compile('await new Promise(() => {}); return {status:"accepted", message:"bad"};'), guard => bindHookServices(store, guard), signal()), /unresolved/);
 });
+
+test("structured rejection is a normal result; later failure preserves earlier commits", async () => {
+  const store = new WorldStore(loadPlayableWorld());
+  assert.deepEqual(await runHook(compile('return {status:"rejected", message:"Need permission"};'), guard => bindHookServices(store, guard), signal()),
+    {status:"rejected", message:"Need permission"});
+  await assert.rejects(runHook(compile('const q = services.quests.read("assembly_programme"); await services.quests.setActive(q.id, true, q.revision); throw new Error("Later effect failed");'), guard => bindHookServices(store, guard), signal()), /Later effect failed/);
+  assert.equal(store.state.quests.assembly_programme!.active, true);
+  await assert.rejects(runHook(compile('return {status:"rejected"} as any;'), guard => bindHookServices(store, guard), signal()), /TransitionResult/);
+});
