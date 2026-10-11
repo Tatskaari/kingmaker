@@ -1,3 +1,4 @@
+import { roomAgentActions } from "../apps/web/src/room-actions.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { activityNpcLocations } from "../packages/conversation/src/activity-navigation.js";
@@ -41,4 +42,23 @@ test("instance identities remain separate and maps may be unavailable", () => {
   assert.ok(locations.includes(`(${second.instanceId})`));
   world.simulation!.map = undefined;
   assert.match(activityNpcLocations(world, "aldren"), /no current map/);
+});
+
+
+test("the emitted multi-room route resolves to executable room actions", () => {
+  const world = loadPlayableWorld(), map = world.simulation!.map!;
+  const actor = map.actors.find(actor => actor.characterId === "aldren")!;
+  actor.roomId = "north_corridor";
+  Object.assign(actor.position!, { x: 61, y: 12 });
+  for (const door of map.doors) door.open = true;
+  const line = activityNpcLocations(world, "aldren").split("\n").find(line => line.includes("(holt)"))!;
+  const steps = line.match(/enter_[a-z_]+/g)!;
+  assert.ok(steps.length > 1);
+  for (const step of steps) {
+    const action = roomAgentActions(map, [], [], "aldren", step).find(action => action.id === step);
+    assert.ok(action?.path.length, step);
+    Object.assign(actor.position!, action.path.at(-1));
+    actor.roomId = action.target;
+  }
+  assert.equal(actor.roomId, map.actors.find(actor => actor.characterId === "holt")!.roomId);
 });
