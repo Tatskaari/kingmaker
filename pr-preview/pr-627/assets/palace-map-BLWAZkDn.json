@@ -1201,6 +1201,7 @@
             "id": "furn_corvin_cart_book",
             "name": "Self-guiding carts: diagnosis and repair",
             "details": "Corvin's reference book explains how to release the cargo-protection interlock and repair Rowan's wedged cart. Bring it to Rowan.",
+            "concealed": true,
             "quantity": 1
           }
         ]
