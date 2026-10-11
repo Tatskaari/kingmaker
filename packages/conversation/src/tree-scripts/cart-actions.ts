@@ -1,3 +1,4 @@
+import type { TransitionResult } from "../quest-transition.js";
 import { create } from "@bufbuild/protobuf";
 import { FixtureInteractionSchema } from "../../../contracts/src/index.js";
 import { isCartPart } from "../../../core/src/cart.js";
@@ -20,8 +21,8 @@ export async function cartActions(services: CartHookServices, authorised = false
   });
 }
 
-export async function authoriseCartSmash(services: CartHookServices, signal: AbortSignal): Promise<string> {
+export async function authoriseCartSmash(services: CartHookServices, signal: AbortSignal): Promise<TransitionResult> {
   signal.throwIfAborted();
   await cartActions(services, true);
-  return "Holt authorised the player to smash the cart.";
+  return { status: "accepted", message: "Holt authorised the player to smash the cart." };
 }

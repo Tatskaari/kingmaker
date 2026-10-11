@@ -29,8 +29,8 @@ a Markdown filename does not permit arbitrary filesystem imports. The demo
 `hello-world.ts` activates `assembly_programme` through `quests.setActive()` and
 returns an inspector message. Future world effects should use
 host services. Script execution precedes recording the transition; these are
-not an atomic transaction. Any evaluation/script/commit failure stops tree
-processing for the session, preventing automatic replay of partial effects.
+not an atomic transaction. Unexpected evaluation/script/commit failures throw;
+the next evaluation may retry, so effects must be safe to repeat.
 
 ## Run the CLI PoC
 
@@ -85,3 +85,15 @@ These hooks use the authoritative map callback service. Repeated setup does not
 revoke permission, and save/resume preserves it. Raw `quests.setActive` remains a
 data API; it does not run application hooks. Generic Markdown stage-entry hooks
 are not introduced here. Smashing still does not advance `clear_cart` or deliver goods.
+
+
+Transition scripts return `TransitionResult` (`status: "accepted"` with an
+optional `message`, or `status: "rejected"` with a required `message`) instead
+of a string. Rejection retains the current node and quest progress, reports a
+`rejected` phase and the structured result in tree status, and includes the
+reason alongside the unchanged goal as GM context for the next character reply.
+The existing script-output inspector also displays the message. A later matched
+attempt reruns the hook against current state. Character models remain tool-free
+with reasoning effort `none`. Hooks must reject before applying world effects;
+rejection does not roll back previous service calls. Quest hooks use the same
+[host result contract](quest-service.md#host-transition-hooks).
