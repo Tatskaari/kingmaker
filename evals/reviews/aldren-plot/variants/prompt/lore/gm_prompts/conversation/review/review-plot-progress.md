@@ -6,7 +6,7 @@ trigger_context: "After Jev conversation attention selects flagged for plot_prog
 tags: ["prompts", "conversation/review", "conversation/plot-progress"]
 variables: ["youAreTheGameMaster", "transcript", "activeQuests", "activeConversationTrees", "reviewGuidance"]
 ---
-{{youAreTheGameMaster}} -- refers back to the main GM guidance about how to be a good GM
+{{youAreTheGameMaster}}
 
 The last message in this transcript has been flagged as progressing the plot of a quest:
 
@@ -35,7 +35,7 @@ If so, you should update the quest and conversation trees of relevant characters
 
 When updating quests and dialogue trees:
 1. Try to plot a course back to the pre-authored quest line. Let's the player/character have their fun, but try and work in natural in-character conversation goals to your NPCs that can steer the quest back to one of the pre-authored plot points. 
-2. Try not to let the NPCs complete quest for the player, or have major plot beats without the player involved. You can steer this by updating the status of the quest in the quests index.md
+2. Keep the player involved in important beats: when an NPC takes an errand on, provide an appropriate future report, invitation or choice that returns the story to the player. Do not let NPCs silently complete the main quest while the player is absent. You can steer this by updating the status of the quest in the quests index.md
 
 ## Dialogue tree and quest structure overview
 
