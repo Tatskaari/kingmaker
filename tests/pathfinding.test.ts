@@ -28,10 +28,15 @@ test("shared routing has deterministic ties and does not retain dynamic obstacle
 });
 
 test("shared reachability labels follow doors and fixtures without depending on actor positions", () => {
-  const map = layout(), routing = createPathfindingService(map);
+  const map = layout(), tiles = map.tiles;
+  let tileReads = 0;
+  Object.defineProperty(map, "tiles", { configurable: true, get() { tileReads++; return tiles; } });
+  const routing = createPathfindingService(map);
   const leftTop = { x: 0, y: 0 }, leftBottom = { x: 0, y: 1 }, right = { x: 2, y: 1 };
   assert.equal(routing.isReachable(leftTop, [right]), true);
-  assert.equal(routing.isReachable(leftBottom, [right]), true, "multiple actors share the same regions");
+  const firstReads = tileReads;
+  assert.equal(createPathfindingService(map).isReachable(leftBottom, [right]), true, "multiple actors share the same regions");
+  assert.equal(tileReads, firstReads, "a second actor reuses the labels without scanning tiles");
   const door = create(DoorStateSchema, { id: "divide", tiles: [{ x: 1, y: 0 }, { x: 1, y: 1 }] });
   assert.equal(routing.isReachable(leftTop, [right], { doors: [door] }), false);
   door.open = true;
