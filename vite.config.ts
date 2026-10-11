@@ -1,3 +1,4 @@
+import { readHookReference } from "./packages/hooks/src/reference-catalog.js";
 import { defineConfig, type Plugin } from "vite";
 import { listPromptFiles, readPromptCatalog } from "./packages/prompts/src/catalog.js";
 import { readFileSync } from "node:fs";
@@ -30,9 +31,21 @@ function markdownPrompts(): Plugin {
   };
 }
 
+function hookReferences(): Plugin {
+  return {
+    name: "kingmaker-hook-reference",
+    load(id) {
+      if (id !== `${repositoryRoot}packages/hooks/src/reference-catalog.ts`) return;
+      const catalog = readHookReference();
+      for (const path of Object.keys(catalog)) this.addWatchFile(`${repositoryRoot}${path}`);
+      return `export default ${JSON.stringify(catalog)};`;
+    },
+  };
+}
+
 export default defineConfig(({ command }) => ({
-  worker: { plugins: () => [markdownPrompts()] },
-  plugins: [markdownPrompts(), {
+  worker: { plugins: () => [markdownPrompts(), hookReferences()] },
+  plugins: [markdownPrompts(), hookReferences(), {
     name: "kingmaker-dev-openrouter-key",
     resolveId(id) { if (id === devKeyModule) return `\0${devKeyModule}`; },
     load(id) { if (id === `\0${devKeyModule}`) return `export default ${JSON.stringify(developmentOpenRouterKey(command))};`; },
