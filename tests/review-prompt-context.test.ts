@@ -20,5 +20,6 @@ test("review variables read live quest and tree progress without including other
   assert.equal(trees[0].state.currentStageId, "greeting");
   assert.equal(trees[0].state.history, undefined);
   assert.match(after.youAreTheGameMaster, /story for the player/);
-  assert.equal(reviewPromptContext({ ...context, characterId: "rowan" }, runtime.services).activeConversationTrees, "[]");
+  const rowanTrees = JSON.parse(reviewPromptContext({ ...context, characterId: "rowan" }, runtime.services).activeConversationTrees);
+  assert.deepEqual(rowanTrees.map((tree: { path: string }) => tree.path), ["Conversations/rowan.md"]);
 });
