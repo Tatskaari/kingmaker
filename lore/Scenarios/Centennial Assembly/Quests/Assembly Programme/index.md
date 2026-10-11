@@ -1,6 +1,5 @@
 ---
 summary: "Overview of Aldren's cushion enquiry, Holt's blocked entrance and Rowan's cart, with opening conversations, alternative outcomes and navigation to draft quest stages and transitions."
-id: assembly_programme
 title: Assembly Programme
 status: draft
 visibility: gm
@@ -65,13 +64,12 @@ You are the GM. Use this opening quest sketch for the first interaction after ch
   - Rowan can explain his interest in moving food with too few workers if asked about the machine's purpose; this does not disclose other people's agricultural secrets.
   - Leave room for refusal, partial success and player proposals. Exact repair mechanics, access routes, damage and later consequences remain to be authored or adjudicated.
 
-## Stages
+## Quest graph
 
-- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/010_stage_investigate_missing_pillows|Investigate the missing pillows]]
-- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/020_stage_cart_blocked|Cart blocked]]
-- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/030_stage_cart_unblocked|Cart unblocked — unwritten]]
+- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/quest|Quest graph]] — investigation, blocked cart and shared transitions.
+- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/cart_unblocked|Cart unblocked — unwritten]].
 
-Holt’s disclosed lead advances the investigation to the blocked cart. All remedies then share one [[Scenarios/Centennial Assembly/Quests/Assembly Programme/transitions/clear_cart|shared clearance transition]]. Conversation branches own checks, agreements and scoped character reactions. They invoke clearance after successful resolution; attempts and negotiations do not need quest stages.
+Holt’s disclosed lead advances the investigation to the blocked cart. All remedies then share one [[Scenarios/Centennial Assembly/Quests/Assembly Programme/clear_cart|shared clearance transition]]. Conversation branches own checks, agreements and scoped character reactions. They invoke clearance after successful resolution; attempts and negotiations do not need quest stages.
 
 ## Conversation branch direction
 
@@ -82,7 +80,7 @@ Holt’s disclosed lead advances the investigation to the blocked cart. All reme
 
 ## Supporting notes
 
-- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/transitions/index|Transitions]] — shared world-effect contract.
+- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/clear_cart|Clearance effects]] — shared world-effect contract.
 - [[Scenarios/Centennial Assembly/Quests/Assembly Programme/inputs/index|Inputs]] — Rowan's request, knowledge boundaries and unwritten supporting instructions.
 
 ## Runtime and follow-up boundaries

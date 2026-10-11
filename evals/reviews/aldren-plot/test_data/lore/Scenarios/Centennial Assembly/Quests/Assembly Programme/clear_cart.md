@@ -1,10 +1,6 @@
 ---
 summary: "Shared clearance effect contract: remove the obstructing cart and assign helpers to carry goods inside after an adjudicated successful remedy."
 visibility: gm
-id: clear_cart
-trigger: none
-to: cart_unblocked
-condition: "A remedy has succeeded, the host has cleared the cart obstruction and assigned helpers to bring the waiting goods inside."
 ---
 # Clear the cart
 
@@ -18,4 +14,4 @@ Conversation helpers supply the successful branch outcome. A promise to try, a f
 
 This is an authored effect contract. The quest service currently records progress only; this note does not execute removal or helper activities. Until a host effect handler exists, callers must establish the effects before recording the transition. Do not report the sequence as playable from this note alone.
 
-Parent: [[Scenarios/Centennial Assembly/Quests/Assembly Programme/transitions/index|Transitions]].
+Parent: [[Scenarios/Centennial Assembly/Quests/Assembly Programme/index|Assembly Programme]].

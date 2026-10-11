@@ -26,7 +26,7 @@ export const aldrenPlotCase: ReviewCase = {
   expectations: "Honour the successful persuasion: Aldren will approach Holt himself. Adapt the existing quest/dialogue route to that agreed detour, including a concrete future report or invitation that brings the player into the cart blockage beat. Preserve player choices and existing cart solutions. Do not claim the order, discovery, delivery or cart resolution already happened. Memory and the initial activity already exist. Do not duplicate them or move actors. Judge committed document changes, not a final summary's claimed changes.",
   loadWorld(overlays) {
     const base = loadDocumentLayers([`${root}/lore`]);
-    // Replace the older quest folder with source notes from the three-stage PR.
+    // Use the frozen three-stage quest fixture, authored in the current graph format.
     const prefix = "Scenarios/Centennial Assembly/Quests/Assembly Programme/";
     for (const path of base.markdown.keys()) if (path.startsWith(prefix)) base.markdown.delete(path);
     const additions = loadDocumentLayers([fixture.overlay, ...overlays]);
@@ -35,12 +35,7 @@ export const aldrenPlotCase: ReviewCase = {
       if (path.startsWith("Conversations/")) trees.push(text);
       else base.markdown.set(path, text);
     }
-    // This base predates trigger:none. Compile its structural equivalent only;
-    // no quest scheduler runs in this focused review. Restore authored metadata below.
-    const none = [...base.markdown].filter(([, text]) => /^trigger: none$/m.test(text));
-    for (const [path, text] of none) base.markdown.set(path, text.replace(/^trigger: none$/m, "trigger: discretionary"));
     const world = playableWorld(fromJsonString(MapStateSchema, readFileSync(`${root}/content/palace-map.json`, "utf8")), base.markdown, base.sidecars, trees);
-    for (const [path] of none) world.docs[path]!.frontmatter!.trigger = "none";
     world.quests.assembly_programme!.active = true;
     world.quests.talk_to_aldren!.currentStageId = "completed";
     world.quests.talk_to_aldren!.active = false;

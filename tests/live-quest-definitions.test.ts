@@ -55,12 +55,28 @@ test("batch drafts compile together and a failure publishes none of their edits"
 test("quest document edits recompile definitions without resetting stage or activation", async () => {
   const services = createScenarioServices(loadPlayableWorld());
   const quest = services.quests.read("assembly_programme");
-  const stagePath = Object.entries(services.currentWorld().docs).find(([path, doc]) => path.includes("/Quests/") && doc.frontmatter?.id === quest.currentStageId)![0];
+  const stagePath = Object.entries(services.currentWorld().docs).find(([path, doc]) => path.includes("/Quests/") && path.endsWith("/quest.md") && doc.frontmatter?.id === quest.quest!.id)![0];
   const doc = await services.docs.read(stagePath);
-  await services.docs.insert(stagePath, doc.sha, doc.text.trimEnd().split("\n").length, "\nInclude the player in the report.\n");
+  await services.docs.replace(stagePath, doc.sha, "Aldren wants his pillows.", "Aldren wants his pillows. Include the player in the report.");
   const after = services.quests.read("assembly_programme");
   assert.equal(after.currentStageId, quest.currentStageId);
   assert.equal(after.active, quest.active);
   assert.match(after.quest!.stages.find(stage => stage.id === quest.currentStageId)!.description, /Include the player/);
   assert.equal(after.revision, quest.revision + 1);
+});
+
+test("quest graph deletion, ID changes and current-node removal leave live progress intact", async () => {
+  const services = createScenarioServices(loadPlayableWorld());
+  const path = "Scenarios/Centennial Assembly/Quests/Assembly Programme/quest.md";
+  const doc = await services.docs.read(path), before = services.quests.read("assembly_programme");
+  const indexPath = path.replace("quest.md", "index.md"), index = await services.docs.read(indexPath);
+  await services.docs.replace(indexPath, index.sha,
+    "[[Scenarios/Centennial Assembly/Quests/Assembly Programme/quest|Quest graph]]", "Quest graph");
+  await assert.rejects(services.docs.delete(path, doc.sha), /cannot remove a live quest/);
+  for (const text of [doc.text.replace("id: assembly_programme", "id: renamed"),
+    doc.text.replaceAll("investigate_missing_pillows", "removed")]) {
+    await assert.rejects(services.docs.commit([{ path, expectedSha: doc.sha, text }]), /Document validation/);
+  }
+  assert.deepEqual(await services.docs.read(path), doc);
+  assert.deepEqual(services.quests.read("assembly_programme"), before);
 });

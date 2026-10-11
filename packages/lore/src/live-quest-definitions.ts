@@ -39,7 +39,7 @@ export function prepareQuestDefinitions(before: WorldState, draft: WorldState): 
       const notes = new Map(Object.entries(draft.docs).map(([name, doc]) => [name, { body: doc.body, metadata: doc.frontmatter ?? {} }]));
       const compiled = loadQuests(notes, scenarioID);
       const previous = new Set(Object.entries(before.docs).filter(([name]) => name.startsWith(prefix)
-        && /^[^/]+\/index\.md$/.test(name.slice(prefix.length))).flatMap(([, doc]) =>
+        && /^[^/]+\/quest\.md$/.test(name.slice(prefix.length))).flatMap(([, doc]) =>
         typeof doc.frontmatter?.id === "string" && before.quests[doc.frontmatter.id] ? [doc.frontmatter.id] : []));
       for (const id of previous) if (!compiled[id]) throw new Error(`${id}: cannot remove a live quest definition; edit its current node in place`);
       for (const [id, state] of Object.entries(compiled)) {
