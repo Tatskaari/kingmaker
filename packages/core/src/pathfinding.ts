@@ -83,7 +83,7 @@ function reachable(layout: WorldMap, from: Point, targets: readonly Point[], con
 
 /** Pure route queries over a fixed authored layout. Dynamic obstacles are explicit inputs. */
 export function createPathfindingService(layout: WorldMap) {
-  const roomTiles = layout.tiles.map((_, index) => {
+  const roomTiles = () => layout.tiles.map((_, index) => {
     const point = { x: index % layout.width, y: Math.floor(index / layout.width) };
     return { key: pointKey(point), roomId: roomAt(layout, point)?.id };
   });
@@ -91,7 +91,7 @@ export function createPathfindingService(layout: WorldMap) {
       const blocked = navigationBlockers(constraints.doors, constraints.fixtures);
       if (constraints.allowedRoomIds) {
         const exceptions = new Set(constraints.thresholds?.map(pointKey));
-        for (const tile of roomTiles) {
+        for (const tile of roomTiles()) {
           if (!constraints.allowedRoomIds.includes(tile.roomId ?? "") && !exceptions.has(tile.key)) blocked.add(tile.key);
         }
       }
