@@ -7,6 +7,7 @@ import { DocumentConflictError, type DocsService, type DocumentSnapshot } from "
 import { runtimeActor } from "./runtime-actor.js";
 import { activityDefinition, intentDocument, waitActivities } from "./activity.js";
 import type { WorldStore } from "./world-store.js";
+import { queryDocuments } from "./document-query.js";
 
 export function createDocsService(store: WorldStore): DocsService {
   function document(path: string): Document {
@@ -111,6 +112,7 @@ export function createDocsService(store: WorldStore): DocsService {
       delete draft.docs[path];
       store.publishDocuments(draft);
     }),
+    query: sql => queryDocuments(() => store.state.docs, sql),
   };
   return docs;
 }

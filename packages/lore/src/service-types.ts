@@ -48,6 +48,19 @@ export interface DocsService {
   /** Insert after a 1-based line in snapshot.text; 0 inserts at the beginning. */
   insert(path: string, expectedSha: string, afterLine: number, text: string): Promise<DocumentSnapshot>;
   delete(path: string, expectedSha: string): Promise<void>;
+  /**
+   * Run one read-only SQLite statement over the current documents:
+   * docs(path, name, folder, summary, body), props(path, key, value) with one row per list item,
+   * and links(source, target). `X REGEXP 'pattern'` matches case-insensitively;
+   * snippets(body, 'pattern') returns up to five matching lines as JSON.
+   */
+  query(sql: string): Promise<DocumentQueryResult>;
+}
+export interface DocumentQueryResult {
+  columns: string[];
+  rows: Record<string, string | number | Uint8Array | null>[];
+  /** More rows matched than were returned. */
+  truncated: boolean;
 }
 export class DocumentConflictError extends Error {
   constructor(readonly path: string, readonly expectedSha: string, readonly actualSha: string) {
