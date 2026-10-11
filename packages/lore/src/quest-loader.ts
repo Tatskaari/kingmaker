@@ -52,9 +52,9 @@ export function loadQuests(notes: ReadonlyMap<string, Note>, scenarioID: string)
           }
           const transition = gm(target);
           const trigger = transition.metadata.trigger;
-          if (trigger !== "discretionary" && trigger !== "predicate") throw new Error(`${target}: unsupported transition trigger`);
+          if (trigger !== "none" && trigger !== "discretionary" && trigger !== "predicate") throw new Error(`${target}: unsupported transition trigger`);
           const playerTalkedTo = trigger === "predicate" ? text(target, "player_talked_to") : "";
-          if (trigger === "discretionary" && transition.metadata.player_talked_to !== undefined) throw new Error(`${target}: player_talked_to requires trigger: predicate`);
+          if (trigger !== "predicate" && transition.metadata.player_talked_to !== undefined) throw new Error(`${target}: player_talked_to requires trigger: predicate`);
           if (playerTalkedTo && !notes.has(`Scenarios/${scenarioID}/Characters/${playerTalkedTo}/character.md`)) {
             throw new Error(`${target}: unknown conversation character: ${playerTalkedTo}`);
           }

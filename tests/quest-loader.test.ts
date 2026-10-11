@@ -61,12 +61,13 @@ test("rejects invalid authored graphs with source context", () => {
   assert.throws(() => build(notes), /duplicate quest ID/);
 });
 
-test("the playable Assembly Programme loads with three remedy routes", () => {
+test("the playable Assembly Programme loads two material stages and one shared clearance transition", () => {
   const world = loadPlayableWorld();
   const quests = createScenarioServices(world).quests;
-  assert.equal(quests.read("assembly_programme").quest!.stages.length, 6);
+  assert.deepEqual(quests.read("assembly_programme").quest!.stages.map(stage => stage.id),
+    ["delivery_delayed", "cart_cleared"]);
   assert.deepEqual(quests.availableTransitions("assembly_programme").map(edge => edge.id),
-    ["agree_to_back_out", "begin_dismantling", "begin_repair"]);
+    ["clear_cart"]);
   assert.equal(quests.read("assembly_programme").currentStageId, "delivery_delayed");
 });
 
@@ -103,4 +104,16 @@ test("fresh games start with the Aldren introduction active", () => {
   assert.equal(introduction.currentStageId, "arrived");
   assert.equal(introduction.quest!.transitions[0]!.playerTalkedTo, "aldren");
   assert.equal(introduction.quest!.stages.find(stage => stage.id === "completed")!.completed, true);
+});
+
+
+test("trigger none requires an explicit caller and rejects conversation predicates", async () => {
+  const notes = fixture();
+  notes.set(root + "transitions/clear.md", note({ id: "clear", trigger: "none", to: "done", condition: "Host completed clearance." }));
+  const quests = createScenarioServices(build(notes)).quests;
+  assert.equal(quests.availableTransitions("delivery")[0]!.playerTalkedTo, "");
+  await quests.transition("delivery", "clear", 0, "Conversation edge invoked clearance");
+  assert.equal(quests.read("delivery").currentStageId, "done");
+  notes.set(root + "transitions/clear.md", note({ id: "clear", trigger: "none", to: "done", condition: "Clear", player_talked_to: "aldren" }));
+  assert.throws(() => build(notes), /player_talked_to requires trigger: predicate/);
 });
