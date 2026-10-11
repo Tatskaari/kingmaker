@@ -1,3 +1,4 @@
+import { hookAuthoringEvidence } from "./hook-authoring-evidence.js";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
@@ -80,12 +81,22 @@ export function createAldrenPlotExperiment(createAi: () => AiService, judge: Pic
   const [baseline] = base.getVariants();
   const score = createJevScorer(rubric, recording => ({ transcript: fixture.transcript,
     expectations: aldrenPlotCase.expectations, changes: documentChanges(recording) }), judge);
-  return { ...base, rubric: [...rubric, { name: "runtime-preserved", description: "Review preserves physical state, current quest stages, activation and transition history; validated definition edits may update compiled graphs and revisions." }],
+  return { ...base,
+    summarise(recording: Parameters<typeof score>[0]) {
+      const evidence = hookAuthoringEvidence(recording.initialState as WorldState, recording.finalState as WorldState);
+      return `${base.summarise(recording)}; ${evidence.sources.length} authored hooks; ${evidence.bindings.length} bindings`;
+    },
+    rubric: [...rubric,
+      { name: "hook-authored", description: "Review commits new or edited TypeScript hook source, excluding unchanged baseline hooks." },
+      { name: "hook-bound", description: "A final conversation transition references an authored hook; successful document publication validates compilation and binding." }, { name: "runtime-preserved", description: "Review preserves physical state, current quest stages, activation and transition history; validated definition edits may update compiled graphs and revisions." }],
     getBaseline: () => withTranscriptFixture(baseline!, fixture),
     getVariants: () => [],
     async score(recording: Parameters<typeof score>[0], context: Parameters<typeof score>[1]) {
       const result = await score(recording, context);
       const before = recording.initialState as WorldState, after = recording.finalState as WorldState;
+      const hooks = hookAuthoringEvidence(before, after);
+      result.criteria["hook-authored"] = { score: hooks.sources.length ? 1 : 0 };
+      result.criteria["hook-bound"] = { score: hooks.bindings.length ? 1 : 0 };
       const progress = (world: WorldState) => Object.fromEntries(Object.entries(world.quests).map(([id, state]) =>
         [id, { currentStageId: state.currentStageId, active: state.active, history: state.history }]));
       result.criteria["runtime-preserved"] = { score: isDeepStrictEqual(before.simulation, after.simulation) && isDeepStrictEqual(progress(before), progress(after)) ? 1 : 0 };

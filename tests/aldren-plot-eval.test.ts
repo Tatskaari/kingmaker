@@ -93,3 +93,15 @@ test("plot grading permits validated definition updates while preserving quest p
   assert.equal(trial!.result!.criteria["runtime-preserved"]!.score, 1);
   assert.match(trial!.summary, /1 changed documents/);
 });
+
+test("hook authoring evidence excludes baseline hooks and distinguishes unbound source", async () => {
+  const { hookAuthoringEvidence } = await import("../packages/evals/src/hook-authoring-evidence.js");
+  const world = aldrenPlotCase.loadWorld([]), services = createScenarioServices(world);
+  assert.deepEqual(hookAuthoringEvidence(world, services.currentWorld()), { sources: [], bindings: [] });
+  await services.docs.create("Hooks/royal-report.ts", 'export default async (services: HookServices): Promise<string> => "Report ready";');
+  assert.equal(hookAuthoringEvidence(world, services.currentWorld()).sources.length, 1);
+  assert.equal(hookAuthoringEvidence(world, services.currentWorld()).bindings.length, 0);
+  const doc = await services.docs.read("Conversations/aldren.md");
+  await services.docs.commit([{ path: doc.path, expectedSha: doc.sha, text: doc.text.replaceAll("hello-world.ts", "royal-report.ts") }]);
+  assert.ok(hookAuthoringEvidence(world, services.currentWorld()).bindings.length > 0);
+});
