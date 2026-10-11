@@ -127,7 +127,7 @@ test("a definition edit during Jev classification discards the old decision and 
   assert.equal(runner.status.node, "hint");
 });
 
-test("a refreshed definition does not clear a failed script's replay guard", async () => {
+test("a refreshed definition preserves retries after a failed script", async () => {
   const services = createScenarioServices(loadPlayableWorld()), tree = parseConversationTree(source), signal = new AbortController().signal;
   let calls = 0, currentTree = tree;
   const runner = new ConversationTreeSession(tree, services.quests, { "hello-world.ts": async () => { calls++; throw new Error("partially executed"); } }, () => currentTree);
@@ -139,6 +139,6 @@ test("a refreshed definition does not clear a failed script's replay guard", asy
   const doc = await services.docs.read("Conversations/aldren.md");
   await services.docs.replace(doc.path, doc.sha, "Greet the player.", "Greet the player warmly.");
   currentTree = parseConversationTree((await services.docs.read(doc.path)).text);
-  await assert.rejects(runner.evaluate([], decide, signal, () => {}), /stopped/);
-  assert.equal(calls, 1);
+  await assert.rejects(runner.evaluate([], decide, signal, () => {}), /partially executed/);
+  assert.equal(calls, 2);
 });
