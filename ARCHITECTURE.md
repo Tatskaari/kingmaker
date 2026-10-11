@@ -16,10 +16,15 @@ The engine has three parts:
    carries out an action.
 2. **Services** are modules of functionality that hooks call. They are injected,
    so a host, test or eval can replace any of them.
-3. **Game state** sits between the **docs service** and the **boardgame.io game
-   object**. The docs service holds lore and character state for LLM requests.
-   The boardgame.io simulation holds physical state and changes it mechanically
-   through moves.
+3. **Game state** comes in two kinds with different owners:
+   - **Simulation state** is the physical world. It is a boardgame.io game: it
+     changes only through moves, it is sent out to clients, and clients can
+     evaluate moves ahead of the server as optimistic updates.
+   - **AI state** is the lore and character knowledge used for LLM requests. It
+     lives in the docs service, is authoritative, and runs only on the server.
+
+   Everything that changes the physical world goes through the boardgame.io
+   interface, including the AI.
 
 ```
               ┌──────────────────────────── host (web worker · headless · CLI · evals)
@@ -30,16 +35,16 @@ The engine has three parts:
    │ setup, conversation,│           │ ai · disclosure · lore · character · map  │
    │ review, action,     │           │ docs · scenario · quests · inventory      │
    │ actionExecution,    │           │ mechanics · presentation · random · debug │
-   │ resolution          │           └───────────────┬───────────────────────────┘
-   └─────────────────────┘                           │ read live / write via queue
-                                                     ▼
-                         ┌───────────────── WorldStore (one authority) ─────────┐
-                         │  WorldState (kingmaker.v2)                           │
-                         │   docs: Markdown documents, links, access metadata   │◀── docs service
-                         │   quests: quest graphs and progress                  │◀── quest service
-                         │   simulation ── boardgame.io client + moves ─────────│◀── mechanics,
-                         │     map, layout, doors, fixtures, runtime characters │    inventory, map
-                         └──────────────────────────────────────────────────────┘
+   │ resolution          │           └──────┬──────────────────────────┬─────────┘
+   └─────────────────────┘                  │ SHA-checked edits        │ moves only
+                                            ▼                          ▼
+              ┌─ AI state (server-authoritative) ─┐   ┌─ Simulation state (boardgame.io G) ─┐
+              │ docs service                      │   │ map, layout, doors, fixtures,       │
+              │  lore, memories, relationships,   │   │ positions, movements, sheets,       │
+              │  activities, waits, quests        │   │ inventories, runtime characters     │
+              │ server-only; clients get views    │   │ synced to clients; optimistic moves │
+              └───────────────────────────────────┘   └─────────────────────────────────────┘
+                        └──── document paths only (runtime character → entry, activity, wait) ────┘
 ```
 
 ### 1. Hooks and strategies
@@ -100,38 +105,76 @@ hook or service against the baseline from the same world and evidence. See
 ### 3. Game state
 
 `kingmaker.v2.WorldState` (`packages/contracts/proto/kingmaker/v2/world.proto`)
-is one protobuf world per playthrough, owned by `WorldStore`
-(`packages/lore/src/world-store.ts`). It has two halves with separate write paths.
+is one protobuf world per playthrough. It holds two kinds of state, each with a
+different owner, a different distribution model and a different write path.
 
-**Documents: what the AI knows.** `WorldState.docs` maps vault-relative paths to
-Markdown bodies, flat frontmatter and resolved links. It holds the authored lore
-plus everything learned in play: memories, relationships, activities, waits and
-the player's character entry. LLM context is built from documents. The docs
-service writes with compare-and-swap: `read` returns a SHA, and
-`create`/`replace`/`insert`/`delete` require it, validate a private draft
-(links, access, scenario references), then publish. A stale SHA raises
-`DocumentConflictError` and the caller rereads. See
-[document-backed world state](docs/lore-world-state.md) and
-[activities and waits](docs/activity-waits.md).
+| | Simulation state | AI state |
+| --- | --- | --- |
+| What | The physical world: map, layout, doors, fixtures, positions, movements, sheets, inventories, runtime characters | What characters and the GM know and intend: lore, memories, relationships, activities, waits, the player's entry, quests |
+| Lives in | `WorldState.simulation`, the boardgame.io `G` | `WorldState.docs` and `WorldState.quests`, behind the docs and quest services |
+| Changed by | Registered boardgame.io moves only | SHA- or revision-checked service writes |
+| Distribution | Synced to clients; clients run moves optimistically | Server-only and authoritative; clients receive views, never the store |
+| Used for | Rules, movement, rendering, observations | LLM context and GM records |
 
-**Simulation: what physically exists.** `WorldState.simulation` holds the map,
-layout, doors, fixtures and their inventories, actor positions and movements,
-and `runtimeCharacters` (D&D sheet, inventory, activity and wait pointers for
-each body). It lives inside a boardgame.io client created by
-`createSimulationAuthority` (`packages/core/src/simulation-authority.ts`).
-Simulation state changes only through registered moves (`startMove`, `setDoor`,
-`interactWithFixture`, `transferBetweenInventories`, and others). Moves are pure
-functions of `{ G }` and explicit arguments, so they never read a clock or
-schedule work; services such as movement supply time and timers. The browser
-sends service requests, never arbitrary moves. See
+#### Simulation state: a boardgame.io game
+
+The simulation is a boardgame.io game. `createSimulationAuthority`
+(`packages/core/src/simulation-authority.ts`) registers the moves (`startMove`,
+`completeMove`, `cancelMove`, `setDoor`, `interactWithFixture`,
+`transferBetweenInventories`, `publishSimulationChanges`, and others) and
+holds the state as `G`. Moves are deterministic functions of `{ G }` and
+explicit arguments. They never read a clock, call a model or schedule work;
+services such as movement supply time and timers around them. A move that
+leaves `G` unchanged is treated as invalid.
+
+Because moves are deterministic and the state is plain data, the simulation
+can be sent to clients, and clients can evaluate moves locally as optimistic
+updates before the authoritative result arrives. Renderers interpolate actor
+positions from stored routes (`getActorPosition`, `mapAtTime`) instead of
+holding their own copy of the physical state.
+
+**Everything goes through the boardgame.io interface.** UI commands, NPC
+action execution, map interactions, inventory transfers and GM tool calls
+reach the simulation as moves, through the `mechanics`, `inventory` and `map`
+services. The AI is no exception: when a review changes an inventory or a
+document update touches a runtime character, the change is published as a
+move (`publishSimulationChanges`). Nothing assigns to `G` directly, and
+clients send service requests, never arbitrary moves. See
 [map interactions](docs/map-services.md) and [navigation](docs/navigation.md).
 
-The halves meet only through references. Runtime characters point at document
-paths (character entry, activity, wait). Documents contain no character sheets,
-inventories or positions. Document edits don't invalidate mechanics, and
-mechanical changes don't rewrite documents. **Quests** (`WorldState.quests`) are
-GM-owned graphs with revision-checked transitions; see
+Today this runs in a single process: the browser worker or headless process
+holds the boardgame.io client locally (`WorldStore`, `executeLocalMove`), and
+multiplayer hosting isn't built yet. The move-only rule is what keeps that
+step open.
+
+#### AI state: the docs service
+
+`WorldState.docs` maps vault-relative paths to Markdown bodies, flat
+frontmatter and resolved links. It holds the authored lore plus everything
+learned in play: memories, relationships, activities, waits and the player's
+character entry. LLM context is built from it. AI state is authoritative and
+server-side: model calls, disclosure and GM tools run where the docs service
+lives. Clients receive only views, such as dialogue, the player's own entry or
+inspector traces. They never receive the document store, because it holds
+other characters' secrets and GM-only truth.
+
+The docs service writes with compare-and-swap: `read` returns a SHA, and
+`create`/`replace`/`insert`/`delete` require it, validate a private draft
+(links, access, scenario references), then publish. A stale SHA raises
+`DocumentConflictError` and the caller rereads. **Quests**
+(`WorldState.quests`) are GM-owned graphs with revision-checked transitions in
+the same server-side store. See
+[document-backed world state](docs/lore-world-state.md),
+[activities and waits](docs/activity-waits.md) and
 [quest service](docs/quest-service.md).
+
+#### Where they meet
+
+`WorldStore` (`packages/lore/src/world-store.ts`) holds both and serialises
+writes. The two halves are connected only by references: runtime characters
+point at document paths (character entry, activity, wait). Documents contain no
+sheets, inventories or positions, and the simulation contains no prose.
+Document edits don't invalidate mechanics, and moves don't rewrite documents.
 
 ## The agents
 
@@ -214,6 +257,11 @@ from `apps/web`, since that is where `WorldGameRuntime` lives.
 
 - **The vault is the source; the save is the playthrough.** A fresh game is built
   from `lore/` and `content/`. Play writes to the saved world, never the vault.
+- **Simulation changes are moves.** Every physical change, from the UI, NPCs or
+  the GM, goes through a registered boardgame.io move. Moves stay deterministic
+  and model-free so clients can run them optimistically.
+- **AI state stays on the server.** Documents are authoritative and are never
+  sent to clients as a store; clients get permitted views.
 - **One live world, never cloned.** Read live state and stage only the documents,
   inventories or actors an operation changes. Validate, then publish through the
   owning service. Serialisation is for save/export only.
