@@ -1,8 +1,8 @@
+import { withHookReference } from "../../hooks/src/reference.js";
 import { publishSimulationChanges } from "../../core/src/simulation-publication.js";
 import { createSimulationAuthority } from "../../core/src/simulation-authority.js";
 import type { SimulationMove } from "../../core/src/simulation-move.js";
-import { clone } from "@bufbuild/protobuf";
-import { WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
+import { type WorldState } from "../../contracts/src/v2.js";
 import { DocumentGraph } from "./document-graph.js";
 import { prepareQuestDefinitions } from "./live-quest-definitions.js";
 import { validateDocuments } from "./document-audit.js";
@@ -14,7 +14,7 @@ export class WorldStore {
   private graph: DocumentGraph;
   private simulation: ReturnType<typeof createSimulationAuthority>;
   constructor(initial: WorldState) {
-    this.state = clone(WorldStateSchema, initial);
+    this.state = { ...initial, docs: withHookReference(initial.docs) };
     this.graph = DocumentGraph.build(this.state);
     this.simulation = createSimulationAuthority(this.state.simulation!);
     this.state.simulation = this.simulation.read();

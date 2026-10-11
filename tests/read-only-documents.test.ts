@@ -7,7 +7,7 @@ import { callDocumentTool } from "../packages/conversation/src/document-tools.js
 test("host read-only roots protect every write while reads and queries remain available", async () => {
   const initial = loadPlayableWorld(), bootstrap = createScenarioServices(initial);
   const path = "docs/hooks/index.md";
-  await bootstrap.docs.create(path, "---\nvisibility: gm\nsummary: Hook reference\n---\nReference.");
+
   const services = createScenarioServices(bootstrap.currentWorld(), { readOnlyRoots: ["docs/hooks"] });
   const before = await services.docs.read(path);
   for (const write of [

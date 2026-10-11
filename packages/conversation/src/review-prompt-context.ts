@@ -3,7 +3,7 @@ import type { ConversationReviewContext } from "./review.js";
 import type { RuntimeServices } from "./services.js";
 
 /** Shared author-owned guidance; task templates choose whether to include it. */
-export const reviewGuidance = renderPrompt("review-focused");
+export const reviewGuidance = renderPrompt("review-focused") + "\n\nHook API reference: [Hook services](docs/hooks/index.md). Before authoring a conversation hook, use read_document on this read-only index, then progressively open the relevant service and type pages. Use the normal document editing tools for Hooks/<name>.ts; reference it with Run: <name>.ts on a conversation transition.";
 
 /** Read live GM state when the queued review starts; never widen character context. */
 export function reviewPromptContext(context: Readonly<ConversationReviewContext>, services: RuntimeServices) {

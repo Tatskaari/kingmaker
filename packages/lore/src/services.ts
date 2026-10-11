@@ -1,3 +1,4 @@
+import { hookReferenceRoot } from "../../hooks/src/reference.js";
 import { createMapService } from "./map-service.js";
 import { createInventoryService } from "../../core/src/inventory-service.js";
 import type { WorldState } from "../../contracts/src/v2.js";
@@ -14,7 +15,7 @@ export { QuestConflictError, type QuestService } from "./quest-service.js";
 /** World services share one authority and write queue across documents and simulation. */
 export function createScenarioServices(initial: WorldState, options: { readOnlyRoots?: readonly string[] } = {}) {
   const store = new WorldStore(initial);
-  const docs = createDocsService(store, options.readOnlyRoots);
+  const docs = createDocsService(store, [hookReferenceRoot, ...options.readOnlyRoots ?? []]);
   // Trusted synchronous host code reads live state; document APIs retain CAS snapshots.
   const inventory = createInventoryService({
     currentSimulation: () => store.state.simulation!,
