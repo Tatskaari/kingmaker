@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 // @ts-expect-error Browser renderer is JavaScript.
-import { transcriptSessions, recentTranscriptsView, conversationTranscriptView } from "../apps/web/src/debug-view.js";
+import { transcriptSessions, recentTranscriptsView, conversationTranscriptView, transcriptDetail, modelContextView, activityCallsView } from "../apps/web/src/debug-view.js";
 
 const calls = [1, 2].map(id => ({ id, kind: "jev", characterId: "corvin", status: "success",
   startedAt: "2026-10-01T10:00:00Z", request: { state: "Find the key" }, response: { choice: "walk" } }));
@@ -79,7 +79,7 @@ test("disclosure lists document paths with threshold decisions and open document
     open_2: { choice: "open_2", probabilities: { open_2: 0.9, skip: 0.1 } },
   } };
   const html = recentTranscriptsView([entry], {}, { characterId: "corvin" });
-  const summary = html.split('<div class="transcript-summary">')[1].split("<details>")[0];
+  const summary = html.split('<div class="transcript-summary">')[1].split("<details>")[0].split("<div data-context-launcher>")[0];
   assert.match(summary, /Documents considered \(3\)/);
   assert.match(summary, /1 selected to open/);
   assert.match(summary, /success">Open<\/span>/);
@@ -91,7 +91,7 @@ test("disclosure lists document paths with threshold decisions and open document
 });
 
 test("conversation context shows all exact input messages followed by the response", () => {
-  const html = conversationTranscriptView({ characterId: "rowan", contextCall: { id: 1, status: "success", request: { messages: [
+  const html = conversationTranscriptView({ characterId: "rowan", contextCall: { id: 1, characterId: "rowan", status: "success", request: { messages: [
     { role: "system", content: "Original instructions" },
     { role: "system", content: "# Disclosed lore\n<private belief>" },
     { role: "user", content: "First line\nSecond line" },
@@ -108,4 +108,36 @@ test("conversation context shows all exact input messages followed by the respon
   assert.match(html, /&lt;Rowan&gt;/);
   assert.match(conversationTranscriptView({ conversation: [{}] }), /Full context is unavailable/);
   assert.match(conversationTranscriptView({ conversation: [] }), /No character request captured/);
+});
+
+test("all transcript details launch formatted context, including GM review tools", () => {
+  const call = { id: 9, kind: "conversation_review", characterId: "rowan", status: "success", request: { messages: [
+    { role: "system", content: "Review instructions" },
+    { role: "assistant", content: null, tool_calls: [{ id: "tool-1", function: { name: "read", arguments: "{}" } }] },
+    { role: "tool", tool_call_id: "tool-1", content: "<private note>" },
+  ] }, response: { role: "assistant", content: "Reviewed" } };
+  const html = transcriptDetail(call, (id: string) => id);
+  assert.match(html, /data-context-open/);
+  assert.match(html, /<template data-context-template>/);
+  assert.match(html, /Review instructions/);
+  assert.match(html, /tool_calls/);
+  assert.match(html, /tool_call_id/);
+  assert.match(html, /&lt;private note&gt;/);
+  assert.match(html, /4 · assistant · Response/);
+  const structured = modelContextView({ ...call, kind: "jev", request: { state: "<context>", questions: ["Act?"] }, response: { choice: "yes" } });
+  assert.match(structured, /structured input rather than chat messages/);
+  assert.match(structured, /&lt;context&gt;/);
+  assert.match(structured, /Act\?/);
+  assert.match(structured, /yes/);
+});
+
+test("Activity exposes one popup per call and Jev shows questions with decisions", () => {
+  const request = { state: "<private context>", questions: { next: { instructions: "Choose a route", criteria: { stay: "Stay here", go: "Go upstairs" } } } };
+  const response = { next: { choice: "go", probabilities: { stay: 0.2, go: 0.8 }, confidence: 0.9 } };
+  const call = { ...calls[0], request, response };
+  const html = modelContextView(call);
+  for (const text of ["Jev context", "&lt;private context&gt;", "Question: next", "Choose a route", "Go upstairs", "go · Selected", "0.8", "0.9"]) assert.ok(html.includes(text), text);
+  const activity = activityCallsView({ requests: [call], agentRuns: { goal: { ...runs.goal, calls: [call] } } });
+  assert.equal((activity.match(/data-context-open/g) || []).length, 1);
+  assert.match(activity, /Jev context/);
 });
