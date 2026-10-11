@@ -80,13 +80,15 @@ export function createAldrenPlotExperiment(createAi: () => AiService, judge: Pic
   const [baseline] = base.getVariants();
   const score = createJevScorer(rubric, recording => ({ transcript: fixture.transcript,
     expectations: aldrenPlotCase.expectations, changes: documentChanges(recording) }), judge);
-  return { ...base, rubric: [...rubric, { name: "runtime-preserved", description: "Review leaves physical state and compiled quest state unchanged; document edits alone must not be claimed as runtime transitions." }],
+  return { ...base, rubric: [...rubric, { name: "runtime-preserved", description: "Review preserves physical state, current quest stages, activation and transition history; validated definition edits may update compiled graphs and revisions." }],
     getBaseline: () => withTranscriptFixture(baseline!, fixture),
     getVariants: () => [],
     async score(recording: Parameters<typeof score>[0], context: Parameters<typeof score>[1]) {
       const result = await score(recording, context);
       const before = recording.initialState as WorldState, after = recording.finalState as WorldState;
-      result.criteria["runtime-preserved"] = { score: isDeepStrictEqual(before.simulation, after.simulation) && isDeepStrictEqual(before.quests, after.quests) ? 1 : 0 };
+      const progress = (world: WorldState) => Object.fromEntries(Object.entries(world.quests).map(([id, state]) =>
+        [id, { currentStageId: state.currentStageId, active: state.active, history: state.history }]));
+      result.criteria["runtime-preserved"] = { score: isDeepStrictEqual(before.simulation, after.simulation) && isDeepStrictEqual(progress(before), progress(after)) ? 1 : 0 };
       return result;
     },
   };
