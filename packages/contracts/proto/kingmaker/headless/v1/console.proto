@@ -4,12 +4,19 @@ package kingmaker.headless.v1;
 
 import "google/protobuf/struct.proto";
 
-// JSON-RPC adapter exposes Execute as game.execute over a local Unix socket.
-// QA servers expose only Observe and Act as game.observe and game.act.
+// Trusted developer servers expose Execute as game.execute.
 service GameConsoleService {
   rpc Execute(ExecuteRequest) returns (ExecuteResponse);
+}
+
+// QA servers expose only this service over newline-delimited JSON-RPC 2.0 on
+// the supplied Unix socket. Begin with Observe, act using an ID from the latest
+// response, and observe again after every state change.
+service GameQaService {
   rpc Observe(ObserveRequest) returns (ObserveResponse);
   rpc Act(ActRequest) returns (ActResponse);
+  rpc Say(SayRequest) returns (SayResponse);
+  rpc EndConversation(EndConversationRequest) returns (EndConversationResponse);
 }
 
 message ExecuteRequest {
@@ -39,15 +46,50 @@ message PlayerAction {
 }
 
 message ObserveResponse {
+  // Player-readable room or conversation view.
   string observation = 1;
+  // Currently valid physical actions. Empty during an active conversation.
   repeated PlayerAction actions = 2;
+  // Present after selecting a talk action and until EndConversation succeeds.
+  ActiveConversation active_conversation = 3;
+  repeated QuestObjective quests = 4;
+}
+
+message ActiveConversation {
+  string character_id = 1;
+}
+
+// Player-visible active objective, matching the in-game quest panel.
+message QuestObjective {
+  string id = 1;
+  string title = 2;
+  string stage = 3;
+  string description = 4;
 }
 
 message ActRequest {
-  // Must identify an action in the player's current observation.
+  // Must identify an action in the latest observation. A talk action starts a
+  // conversation; follow it with Say or EndConversation rather than Act.
   string id = 1;
 }
 
 message ActResponse {
+  // Action-specific player-visible outcome. Observe again for current state.
   google.protobuf.Value value = 1;
 }
+
+message SayRequest {
+  // Plain-English player speech. Valid only during an active conversation.
+  string message = 1;
+}
+
+message SayResponse {
+  string character_id = 1;
+  string reply = 2;
+}
+
+// Valid only during an active conversation. Ending commits its review before
+// physical actions become available again.
+message EndConversationRequest {}
+
+message EndConversationResponse {}

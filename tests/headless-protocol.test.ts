@@ -42,17 +42,31 @@ test("protocol validation, notifications, batches and execution errors", async (
   assert.equal((await dispatch(request("return 2;")) as any).result.value, 2);
 });
 
-test("QA protocol exposes only current player observations and actions", async () => {
-  const dispatch = createDispatcher(new WorldHeadlessGame(loadPlayableWorld()), "qa");
+test("QA protocol exposes only current player observations, actions and conversation turns", async t => {
+  const game = new WorldHeadlessGame(loadPlayableWorld());
+  const dispatch = createDispatcher(game, "qa");
   const call = (method: string, params: unknown = {}, id: string | number = 1) =>
     dispatch({ jsonrpc: "2.0", id, method, params }) as Promise<any>;
   const observed = await call("game.observe");
   assert.match(observed.result.observation, /^Great Hall/);
   assert.ok(observed.result.actions.some((action: any) => action.id === "enter_entrance_hall"));
+  assert.ok(observed.result.quests.some((quest: any) => quest.id === "talk_to_aldren"));
   assert.equal((await call("game.execute", { code: "return game.inspect();" })).error.code, -32601);
-  assert.equal((await call("game.act", { id: "not_an_observed_action" })).error.code, -32000);
-  assert.match((await call("game.act", { id: "not_an_observed_action" })).error.message, /Unavailable player action/);
+  const unavailable = await call("game.act", { id: "not_an_observed_action" });
+  assert.equal(unavailable.error.code, -32000);
+  assert.match(unavailable.error.message, /Unavailable player action/);
   assert.equal((await call("game.act", {})).error.code, -32602);
   assert.equal((await call("game.act", { id: "enter_entrance_hall" })).result.value.done, true);
   assert.match((await call("game.observe")).result.observation, /^Entrance Hall/);
+  t.mock.method(game.runtime, "checkedTalkToCharacter", async () => "Welcome, envoy.");
+  t.mock.method(game.runtime, "endConversation", async () => undefined);
+  assert.deepEqual((await call("game.act", { id: "talk_rowan" })).result.value, { characterId: "rowan" });
+  const conversation = await call("game.observe");
+  assert.deepEqual(conversation.result.activeConversation, { characterId: "rowan" });
+  assert.deepEqual(conversation.result.actions, []);
+  assert.deepEqual((await call("game.say", { message: "Hello" })).result,
+    { characterId: "rowan", reply: "Welcome, envoy." });
+  assert.match((await call("game.act", { id: "enter_great_hall" })).error.message, /End the conversation/);
+  assert.deepEqual((await call("game.end_conversation")).result, {});
+  assert.equal((await call("game.observe")).result.activeConversation, undefined);
 });

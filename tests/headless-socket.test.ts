@@ -7,7 +7,7 @@ import test from "node:test";
 import { WorldHeadlessGame } from "../packages/headless/src/world.js";
 import { loadPlayableWorld } from "./fixtures.js";
 import { startConsole } from "../packages/headless/src/server.js";
-import { act, execute, observe } from "../packages/headless/src/client.js";
+import { act, endConversation, execute, observe, say } from "../packages/headless/src/client.js";
 
 test("socket persists across clients, serializes async edits, and preserves logs on errors", async t => {
   const directory = mkdtempSync(join(tmpdir(), "kingmaker-socket-")), path = join(directory, "game.sock");
@@ -48,7 +48,10 @@ test("socket persists across clients, serializes async edits, and preserves logs
 
 test("QA socket client can observe and select only advertised player actions", async t => {
   const directory = mkdtempSync(join(tmpdir(), "kingmaker-qa-socket-")), path = join(directory, "game.sock");
-  const server = await startConsole(new WorldHeadlessGame(loadPlayableWorld()), path, "qa");
+  const game = new WorldHeadlessGame(loadPlayableWorld());
+  t.mock.method(game.runtime, "checkedTalkToCharacter", async () => "Welcome, envoy.");
+  t.mock.method(game.runtime, "endConversation", async () => undefined);
+  const server = await startConsole(game, path, "qa");
   t.after(async () => { await new Promise<void>(resolve => server.close(() => resolve())); rmSync(directory, { recursive: true, force: true }); });
   const before = await observe(path);
   assert.match(before.observation, /^Great Hall/);
@@ -56,4 +59,9 @@ test("QA socket client can observe and select only advertised player actions", a
   await assert.rejects(execute(path, "return 42;"), /Method not found/);
   assert.equal(((await act(path, "enter_entrance_hall")).value as { done: boolean }).done, true);
   assert.match((await observe(path)).observation, /^Entrance Hall/);
+  await act(path, "talk_rowan");
+  assert.deepEqual((await observe(path)).activeConversation, { characterId: "rowan" });
+  assert.deepEqual(await say(path, "Hello"), { characterId: "rowan", reply: "Welcome, envoy." });
+  await endConversation(path);
+  assert.equal((await observe(path)).activeConversation, undefined);
 });

@@ -1,8 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { createConnection } from "node:net";
 import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
-import { ActRequestSchema, ActResponseSchema, ExecuteRequestSchema, ExecuteResponseSchema,
-  ObserveRequestSchema, ObserveResponseSchema } from "../../contracts/src/gen/kingmaker/headless/v1/console_pb.js";
+import { ActRequestSchema, ActResponseSchema, EndConversationRequestSchema, EndConversationResponseSchema,
+  ExecuteRequestSchema, ExecuteResponseSchema, ObserveRequestSchema, ObserveResponseSchema,
+  SayRequestSchema, SayResponseSchema } from "../../contracts/src/gen/kingmaker/headless/v1/console_pb.js";
 
 /** Each call may reconnect: the world belongs to the server, not the connection. */
 export function execute(socketPath: string, code: string): Promise<{ value: JsonValue; logs: string[] }> {
@@ -16,11 +17,15 @@ export function execute(socketPath: string, code: string): Promise<{ value: Json
 
 export function observe(socketPath: string): Promise<{ observation: string; actions: Array<{
   id: string; description: string; type: string; legality: string;
+}>; activeConversation?: { characterId: string }; quests: Array<{
+  id: string; title: string; stage: string; description: string;
 }> }> {
   return request(socketPath, "game.observe", toJson(ObserveRequestSchema, create(ObserveRequestSchema)))
     .then(result => toJson(ObserveResponseSchema, fromJson(ObserveResponseSchema, result),
       { alwaysEmitImplicit: true }) as { observation: string; actions: Array<{
         id: string; description: string; type: string; legality: string;
+      }>; activeConversation?: { characterId: string }; quests: Array<{
+        id: string; title: string; stage: string; description: string;
       }> });
 }
 
@@ -31,6 +36,18 @@ export function act(socketPath: string, id: string): Promise<{ value: JsonValue 
       const json = toJson(ActResponseSchema, response) as { value?: JsonValue };
       return { value: json.value ?? null };
     });
+}
+
+export function say(socketPath: string, message: string): Promise<{ characterId: string; reply: string }> {
+  return request(socketPath, "game.say", toJson(SayRequestSchema, create(SayRequestSchema, { message })))
+    .then(result => toJson(SayResponseSchema, fromJson(SayResponseSchema, result),
+      { alwaysEmitImplicit: true }) as { characterId: string; reply: string });
+}
+
+export function endConversation(socketPath: string): Promise<void> {
+  return request(socketPath, "game.end_conversation",
+    toJson(EndConversationRequestSchema, create(EndConversationRequestSchema)))
+    .then(result => { fromJson(EndConversationResponseSchema, result); });
 }
 
 function request(socketPath: string, method: string, params: JsonValue): Promise<JsonValue> {

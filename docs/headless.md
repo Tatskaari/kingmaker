@@ -38,13 +38,19 @@ start the socket in restricted mode:
 npm run headless -- start --qa --dev-player
 npm run headless -- observe
 npm run headless -- act --id enter_entrance_hall
+npm run headless -- act --id talk_rowan
+npm run headless -- say --message 'What brings you to court?'
+npm run headless -- end-conversation
 ```
 
-QA mode exposes only `game.observe` and `game.act` over JSON-RPC. Observation
-returns Jev's player room view together with the current structured action list.
-`act` accepts one of those action IDs and revalidates it against the live player
-observation before moving or interacting. `game.execute` and all direct runtime,
-service, snapshot, and JavaScript access return `Method not found`. Use
+QA mode exposes only `game.observe`, `game.act`, `game.say` and
+`game.end_conversation` over JSON-RPC. Observation returns Jev's player room view,
+the current structured action list, player-visible active quests and any active
+conversation. `act` accepts one of those action IDs and revalidates it against the
+live player observation before moving or interacting. A `talk` action starts a
+conversation and suppresses physical actions until `end_conversation`; `say`
+accepts plain English and returns the character's reply. `game.execute` and all
+direct runtime, service, snapshot, and JavaScript access return `Method not found`. Use
 `--dev-player` or a playable `--world` because a fresh character-creation game has
 no placed player to observe. Developer and QA servers use the same default socket,
 so run only one at a time or give each a distinct `--socket`.
@@ -94,8 +100,8 @@ Simulation state returned by `inspect()` is frozen. Use `game.services` for
 validated document, inventory and mechanics updates, or `game.move()` / `game.act()`
 for gameplay. Direct assignment is rejected; `game.edit()` is no longer provided.
 
-The socket speaks newline-delimited JSON-RPC 2.0. `game.execute`, `game.observe`,
-and `game.act` params/results use their ProtoJSON request and response messages, defined in
+The socket speaks newline-delimited JSON-RPC 2.0. Each method's params and results
+use the corresponding ProtoJSON request and response messages defined in
 `packages/contracts/proto/kingmaker/headless/v1/console.proto`. Snippet errors use
 code `-32000` with `ExecutionError` in `error.data`; protocol errors use standard
 JSON-RPC codes. Logs are separate from the returned JSON value. Requests and

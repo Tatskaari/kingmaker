@@ -9,7 +9,7 @@ import test, { type TestContext } from "node:test";
 import { toJson } from "@bufbuild/protobuf";
 import { WorldStateSchema } from "../packages/contracts/src/v2.js";
 import { WorldHeadlessGame } from "../packages/headless/src/world.js";
-import { act, execute, observe } from "../packages/headless/src/client.js";
+import { act, endConversation, execute, observe } from "../packages/headless/src/client.js";
 import { characterCreationWorld } from "../apps/web/src/playable-world.js";
 import { loadPlayableWorld } from "./fixtures.js";
 
@@ -73,6 +73,10 @@ test("headless CLI --qa starts without JavaScript execution access", async t => 
   assert.ok(before.actions.some(action => action.id === "enter_entrance_hall"));
   await act(run.socket, "enter_entrance_hall");
   assert.match((await observe(run.socket)).observation, /^Entrance Hall/);
+  await act(run.socket, "talk_rowan");
+  assert.deepEqual((await observe(run.socket)).activeConversation, { characterId: "rowan" });
+  await endConversation(run.socket);
+  assert.equal((await observe(run.socket)).activeConversation, undefined);
 });
 
 test("headless CLI preserves --world startup state regardless of --dev-player", async t => {

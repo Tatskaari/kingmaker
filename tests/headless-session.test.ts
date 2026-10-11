@@ -65,8 +65,15 @@ test("talk approaches a character and delegates to real player dialogue methods"
   const talk = t.mock.method(live.runtime, "checkedTalkToCharacter", async () => "Welcome, envoy.");
   const end = t.mock.method(live.runtime, "endConversation", async () => undefined);
   assert.deepEqual(await live.act("talk_rowan"), { characterId: "rowan" });
+  assert.deepEqual(live.conversation(), { characterId: "rowan" });
+  assert.deepEqual(live.actions(), []);
+  assert.match(live.observe(), /^In conversation with rowan/);
+  await assert.rejects(live.act("enter_great_hall"), /End the conversation/);
   assert.equal(await live.talk("rowan", "Hello"), "Welcome, envoy.");
   assert.deepEqual(talk.mock.calls[0]!.arguments, ["rowan", "Hello"]);
-  await live.endConversation("rowan");
+  assert.deepEqual(await live.say("What news?"), { characterId: "rowan", reply: "Welcome, envoy." });
+  assert.deepEqual(talk.mock.calls[1]!.arguments, ["rowan", "What news?"]);
+  await live.endActiveConversation();
   assert.deepEqual(end.mock.calls[0]!.arguments, ["rowan", undefined]);
+  assert.equal(live.conversation(), undefined);
 });

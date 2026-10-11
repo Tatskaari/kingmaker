@@ -4,8 +4,9 @@ import { stripTypeScriptTypes } from "node:module";
 import { format } from "node:util";
 import { runInNewContext } from "node:vm";
 import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
-import { ActRequestSchema, ActResponseSchema, ExecuteRequestSchema, ExecuteResponseSchema, ExecutionErrorSchema,
-  ObserveRequestSchema, ObserveResponseSchema } from "../../contracts/src/gen/kingmaker/headless/v1/console_pb.js";
+import { ActRequestSchema, ActResponseSchema, EndConversationRequestSchema, EndConversationResponseSchema,
+  ExecuteRequestSchema, ExecuteResponseSchema, ExecutionErrorSchema, ObserveRequestSchema, ObserveResponseSchema,
+  SayRequestSchema, SayResponseSchema } from "../../contracts/src/gen/kingmaker/headless/v1/console_pb.js";
 import type { WorldHeadlessGame } from "./world.js";
 
 const MAX_BYTES = 1024 * 1024;
@@ -36,8 +37,10 @@ export function createDispatcher(game: WorldHeadlessGame, mode: HeadlessMode = "
         try { fromJson(ObserveRequestSchema, (request.params ?? {}) as JsonValue); }
         catch { return respond(fault(id, -32602, "Expected ObserveRequest")); }
         try {
+          const activeConversation = game.conversation();
           const result = toJson(ObserveResponseSchema, fromJson(ObserveResponseSchema, {
-            observation: game.observe(), actions: game.actions(),
+            observation: game.observe(), actions: game.actions(), quests: game.quests(),
+            ...(activeConversation ? { activeConversation } : {}),
           }), { alwaysEmitImplicit: true });
           if (Buffer.byteLength(JSON.stringify(result)) > MAX_BYTES - 4096) throw new Error("Result too large");
           return respond({ jsonrpc: "2.0", id, result });
@@ -57,6 +60,33 @@ export function createDispatcher(game: WorldHeadlessGame, mode: HeadlessMode = "
           if (json === undefined) throw new Error("Action returned a non-JSON-compatible value");
           if (Buffer.byteLength(json) > MAX_BYTES - 4096) throw new Error("Result too large");
           const result = toJson(ActResponseSchema, fromJson(ActResponseSchema, { value: JSON.parse(json) }),
+            { alwaysEmitImplicit: true });
+          return respond({ jsonrpc: "2.0", id, result });
+        } catch (error) {
+          return respond(fault(id, -32000, error instanceof Error ? error.message.slice(0, 2000) : String(error)));
+        }
+      }
+      if (request.method === "game.say") {
+        let message: string;
+        try {
+          message = fromJson(SayRequestSchema, request.params as JsonValue).message;
+          if (!message.trim()) throw new Error("message must not be empty");
+        } catch { return respond(fault(id, -32602, "Expected SayRequest with non-empty message")); }
+        try {
+          const result = toJson(SayResponseSchema, fromJson(SayResponseSchema, await game.say(message)),
+            { alwaysEmitImplicit: true });
+          if (Buffer.byteLength(JSON.stringify(result)) > MAX_BYTES - 4096) throw new Error("Result too large");
+          return respond({ jsonrpc: "2.0", id, result });
+        } catch (error) {
+          return respond(fault(id, -32000, error instanceof Error ? error.message.slice(0, 2000) : String(error)));
+        }
+      }
+      if (request.method === "game.end_conversation") {
+        try { fromJson(EndConversationRequestSchema, (request.params ?? {}) as JsonValue); }
+        catch { return respond(fault(id, -32602, "Expected EndConversationRequest")); }
+        try {
+          await game.endActiveConversation();
+          const result = toJson(EndConversationResponseSchema, create(EndConversationResponseSchema),
             { alwaysEmitImplicit: true });
           return respond({ jsonrpc: "2.0", id, result });
         } catch (error) {

@@ -8,7 +8,7 @@ import type { WorldSnapshot } from "../apps/web/src/world-runtime.js";
 import { WorldStateSchema } from "../packages/contracts/src/v2.js";
 import { WorldHeadlessGame } from "../packages/headless/src/world.js";
 import { startConsole } from "../packages/headless/src/server.js";
-import { act, execute, observe } from "../packages/headless/src/client.js";
+import { act, endConversation, execute, observe, say } from "../packages/headless/src/client.js";
 
 const args = process.argv.slice(2);
 const option = (name: string) => {
@@ -36,6 +36,10 @@ if (args[0] === "exec") {
   try { print(await observe(socketPath)); } catch (error) { report(error); }
 } else if (args[0] === "act") {
   try { print((await act(socketPath, option("--id") ?? "")).value); } catch (error) { report(error); }
+} else if (args[0] === "say") {
+  try { print(await say(socketPath, option("--message") ?? "")); } catch (error) { report(error); }
+} else if (args[0] === "end-conversation") {
+  try { await endConversation(socketPath); print({}); } catch (error) { report(error); }
 } else if (!args.length || args[0] === "start" || args[0]?.startsWith("--")) {
   const worldPath = option("--world");
   const source = worldPath ? JSON.parse(readFileSync(worldPath, "utf8")) : undefined;
@@ -50,4 +54,4 @@ if (args[0] === "exec") {
   for (const signal of ["SIGINT", "SIGTERM"] as const) process.once(signal, () => {
     server.close(() => process.exit(0));
   });
-} else throw new Error("Usage: headless [start|exec|observe|act] [--qa] [--socket path] [--world path] [--code source|--file path|--id action]");
+} else throw new Error("Usage: headless [start|exec|observe|act|say|end-conversation] [--qa] [--socket path] [--world path] [--code source|--file path|--id action|--message text]");
