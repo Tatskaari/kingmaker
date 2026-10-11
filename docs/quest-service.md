@@ -49,40 +49,59 @@ recording progress; this API is not an atomic boundary for multi-service effects
 
 ## Lore loading
 
-Fresh worlds load quest folders directly beneath `Scenarios/<scenario>/Quests/`
-that contain `NNN_stage_*.md` notes. The folder's `index.md` supplies `id`, `title`
-and the overview body. Each stage supplies `id`, `title`, its description body,
-and optional `transitions` (a list of Markdown or wiki note links). Exactly one
-stage must declare `initial: true`; filename sorting determines display order.
-Transition links resolve using the vault's existing rules and must stay in that
-quest's `transitions/` folder. Each transition supplies `id`, `to` (a stage ID),
-a `trigger`, a nonempty `condition`, and an outcome description body.
-Use `trigger: none` for explicit calls from conversation edges or host actions;
-its condition documents caller preconditions, not an automatically evaluated trigger.
-`trigger: discretionary` describes caller-adjudicated transitions.
-Alternatively, `trigger: predicate` with `player_talked_to: <character ID>` is a
-typed host condition; the loader validates that the scenario character exists.
-Stage notes may declare `completed: true`. The host records matching active
-transitions after successfully committing a player/character exchange, inside
-the same persistence operation. Opening a conversation, NPC-only conversations,
-failed replies and cancelled turns do not satisfy the predicate. No model call
-is added, and dialogue models do not update quests.
-All definitions require `visibility: gm`. Condition note links are validated.
+Fresh worlds load `Scenarios/<scenario>/Quests/<quest>/quest.md`. The folder's
+`index.md` stays author navigation. Quests and conversations share the Markdown
+graph compiler; a quest document supplies flat `id`, `title`, `initial`,
+`visibility: gm`, `summary` and optional boolean `active` frontmatter.
 
-Loading validates the graph through the same validator as service registration.
-It seeds revision zero only during fresh-world construction; resume retains the
-saved graph and progress. Existing flat quest sketches are not loaded as graphs.
-The Assembly Programme is the first authored graph. It has `investigate_missing_pillows`, `cart_blocked` and the unwritten
-`cart_unblocked` stage. Holt’s disclosure invokes `learn_cart_blocked`; successful
-remedies will invoke `clear_cart`. Conversation branches will select the remedy and character reactions.
-The transition note specifies cart removal and helper assignment, but those host
-effects are not implemented by the data service. See
+```md
+## Node: blocked | Entrance blocked
+### Guidance
+Resolve the obstruction. Agreement to act is not clearance.
+### When: clear_cart -> clear
+The host has cleared the obstruction and assigned helpers.
+#### Trigger: none
+
+## Node: clear | Entrance clear
+### Guidance
+The entrance is clear; delivery remains a separate activity.
+```
+
+Node and transition IDs allow hyphens and underscores. File order determines
+stage order. `| Title` is optional; otherwise the node ID supplies its title.
+Every node requires `Guidance`; quest guidance is GM-owned, not injected into
+character replies. An empty `### Completed` heading on a node deactivates the
+quest when that node is entered. A terminal node alone does not complete a quest.
+The text before the first node supplies the quest overview; keep longer author
+notes and effect contracts in linked supporting documents.
+
+Every quest edge requires one empty trigger heading:
+- `#### Trigger: none` requires an explicit conversation or host call.
+- `#### Trigger: discretionary` records a caller-adjudicated condition.
+- `#### Trigger: player_talked_to aldren` uses the existing typed host predicate.
+  The loader verifies that the scenario character exists. Only a successfully
+  committed player/character exchange satisfies it; opening a conversation,
+  NPC-only dialogue, failed replies and cancelled turns do not.
+
+Conditions document evidence and caller preconditions; this format does not
+introduce automatic Jev evaluation. Condition note links and graph references
+are validated. Optional `#### Run: <name>.ts` headings compile to separate script
+metadata, as in conversation trees. Compilation never imports or executes a file.
+Quest callers must explicitly resolve registered hooks and use the host helper
+below; raw `quests.transition()` and typed conversation predicates do not run
+script metadata. The converted baseline quests declare no `Run` hooks.
+
+Loading seeds revision zero only during fresh-world construction; resume retains
+the saved graph and progress. Live graph-document edits retain progress and
+invalidate stale revisions. Removing the current node or a live quest is rejected.
+Numbered stage notes and linked transition definitions are no longer a graph
+format. Start a fresh game after this baseline conversion; no save migration is provided.
+
+Assembly Programme retains `investigate_missing_pillows`, `cart_blocked` and the
+unwritten `cart_unblocked` node. Holt's actual disclosure invokes
+`learn_cart_blocked`; remedies will invoke `clear_cart` after successful material
+effects. The linked clearance contract remains unimplemented. See
 [quest authoring guidance](../.agents/skills/kingmaker-quest-authoring/SKILL.md).
-
-This loader accepts typed data, not executable scripts: arbitrary predicates,
-TypeScript modules, declared input execution and GM invocation are not supported. The caller must
-establish physical outcomes before recording a transition. Start a fresh game to
-pick up changed baseline quest definitions.
 
 ## Host transition hooks
 
