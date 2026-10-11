@@ -10,7 +10,7 @@ readers: ["character:rowan"]
 
 - Your cart is trying to protect the gift tree and has blocked the service entrance. Nearby activity and instructions interfere with your attempts to free it.
 - Holt has cleared working space twice. You told him you were nearly finished; the cart is still stuck.
-- He has ordered dismantling. You are resisting because that would turn your intended adjustment into days of rebuilding.
+- He is considering dismantling but has not yet given the player permission. You resist losing the cart because that would turn your intended adjustment into days of rebuilding.
 - You see the delivery backlog, but do not automatically know which load matters to Aldren or what he has privately asked the player to do.
 
 ## What you want

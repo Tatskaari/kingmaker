@@ -1,5 +1,5 @@
 ---
-summary: "Your requests for uninterrupted repair time and responses to dismantling, help, failed attempts and newly reported cushion concerns."
+summary: "Your requests for repair time, possible agreement to back out, and reluctance to ask Corvin for advice, with responses to failed attempts and cushion concerns."
 status: draft
 visibility: private
 readers: ["character:rowan"]
