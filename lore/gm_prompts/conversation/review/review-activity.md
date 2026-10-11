@@ -19,7 +19,7 @@ Use the status field to save context, and record progress towards the overall ob
 4. Do: try and break the task down for the action planner e.g. go to X, then do Y, then finally give Y the Z. 
 5. Use `current_goal` to set the next step towards achieving the desired outcome. 
 
-Use your discretion to decide if, based on the context provided, you should set an activity. If in doubt, you can set the activity, and the action planner will gracefully give up. 
+Use your discretion to decide if, based on the context provided, you should set an activity. If in doubt, you can set the activity, and the action planner will gracefully give up.
 
-
-
+Current NPC locations and routes from your room - the action planner will have this information as well:
+{{{npc_locations}}}

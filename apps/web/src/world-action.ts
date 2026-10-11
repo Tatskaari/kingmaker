@@ -1,3 +1,4 @@
+import { activityNpcLocations } from "../../../packages/conversation/src/activity-navigation.js";
 import { renderCharacterHistory } from "../../../packages/core/src/character-history.js";
 import { renderPrompt } from "../../../packages/prompts/src/index.js";
 import { disclosedContext } from "../../../packages/conversation/src/disclosed-context.js";
@@ -48,6 +49,7 @@ async function worldActionContext(world: WorldState, characterId: string, histor
   const instructions = renderPrompt("world-action-instructions", {
     characterId, currentGoal: goal, status: definition.status, successCriteria: definition.success_criteria,
     worldView: renderJevRoomView(visible.map, characters, observation), map: renderJevMap(visible.map),
+    npc_locations: activityNpcLocations(world, characterId, visible.map),
     history: renderCharacterHistory(recent) || "None yet.", feedback: feedback ? JSON.stringify(feedback) : "",
   });
   const messages = await disclosedContext("planner", [{ role: "system", content: instructions }], services, characterId, signal);

@@ -1,10 +1,10 @@
+import type { MapState } from "../../contracts/src/index.js";
 import type { WorldState } from "../../contracts/src/v2.js";
 
 /** Room-level guidance uses the same exits and enter_<room> actions as the planner.
  * Doors are assumed open; the executor still handles doors and physical blockers.
  * Deliberately exposes all on-map NPC locations to activity review for now. */
-export function activityNpcLocations(world: WorldState, characterId: string): string {
-  const map = world.simulation?.map;
+export function activityNpcLocations(world: WorldState, characterId: string, map: MapState | undefined = world.simulation?.map): string {
   if (!map) return "NPC locations unavailable: no current map.";
   const id = (actor: (typeof map.actors)[number]) => actor.instanceId || actor.characterId;
   const origin = map.actors.find(actor => id(actor) === characterId);

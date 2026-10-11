@@ -1,3 +1,4 @@
+import { startMove, completeMove } from "../packages/core/src/simulation-movement.js";
 import { create } from "@bufbuild/protobuf";
 import { activityGoal, characterIntent } from "../packages/lore/src/activity.js";
 import { documentLoreService } from "../packages/conversation/src/document-lore.js";
@@ -144,4 +145,47 @@ test("planner fills the authored template and marks reversals only after consecu
   await planWorldAction("corvin", runtime, undefined, [], feedback);
   progressed = true;
   await planWorldAction("corvin", runtime, undefined, [], feedback);
+});
+
+test("Jev refreshes NPC locations and routes from both actors on every planning call", async () => {
+  const services = fixture("Speak to Holt"), prompts: string[] = [];
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario),
+    ai: { decisions: async (state, questions) => {
+      const prompt = String(questions.next!.instructions);
+      prompts.push(prompt);
+      assert.ok(String(state).includes(prompt));
+      assert.doesNotMatch(prompt, /\{\{\{npc_locations\}\}\}/);
+      return { next: { choice: "unable", probabilities: { unable: 1 } } };
+    } },
+  }, strategies: { action: jevActionStrategy } });
+  await planWorldAction("corvin", runtime);
+  assert.match(prompts[0]!, /Holt \(holt\): Entrance Hall \(walk via enter_entrance_hall\)/);
+  services.mechanics.executeMove(startMove, "holt", { id: "holt-arrives", to: { x: 61, y: 24 }, startedAtMs: 0, msPerTile: 1 });
+  services.mechanics.executeMove(completeMove, "holt", "holt-arrives", 1000);
+  await planWorldAction("corvin", runtime);
+  assert.match(prompts[1]!, /Holt \(holt\): Great Hall \(already in your room\)/);
+  assert.doesNotMatch(prompts[1]!, /Holt \(holt\): Entrance Hall/);
+  services.mechanics.executeMove(startMove, "corvin", { id: "corvin-leaves", to: { x: 61, y: 35 }, startedAtMs: 0, msPerTile: 1 });
+  services.mechanics.executeMove(completeMove, "corvin", "corvin-leaves", 1000);
+  await planWorldAction("corvin", runtime, undefined, [], { error: "Moved", instruction: "Replan" });
+  assert.match(prompts[2]!, /Holt \(holt\): Great Hall \(walk via enter_great_hall\)/);
+  assert.doesNotMatch(prompts[2]!, /Holt \(holt\): Great Hall \(already in your room\)/);
+});
+
+test("NPC routes use the same projected actor rooms as Jev's observed map", async () => {
+  const services = fixture("Speak to Holt"), observe = services.map.observe;
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario),
+    map: { observe: id => {
+      const observation = observe(id);
+      // The host can project a moving actor into a room before arrival is committed.
+      return { ...observation, map: { ...observation.map, actors: observation.map.actors.map(actor => actor.characterId === "holt"
+        ? { ...actor, roomId: "great_hall", position: { ...actor.position!, x: 61, y: 24 } } : actor) } };
+    } }, ai: { decisions: async state => {
+      assert.equal(services.scenario.read().simulation!.map!.actors.find(actor => actor.characterId === "holt")!.roomId, "entrance_hall");
+      assert.match(String(state), /Holt \(holt\): Great Hall \(already in your room\)/);
+      assert.doesNotMatch(String(state), /Holt \(holt\): Entrance Hall/);
+      return { next: { choice: "unable", probabilities: { unable: 1 } } };
+    } },
+  }, strategies: { action: jevActionStrategy } });
+  await planWorldAction("corvin", runtime);
 });

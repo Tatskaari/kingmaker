@@ -42,3 +42,21 @@ The Great Hall’s main floor is 12 × 13 tiles, with the entrance six rows fart
 south than the original layout. New arrivals use the wider-spaced court placements
 authored in the scenario. Use the existing `resetWorld()` development command to
 apply the updated physical layout and placements to an existing save.
+
+Activity review receives `npc_locations`, a Mustache template parameter in
+`lore/gm_prompts/conversation/review/review-activity.md`. It lists every other
+on-map NPC's current room and the shortest sequence of room-entry actions from
+the reviewing character, for example `Marshal Garran Holt (holt): Entrance Hall
+(walk via enter_entrance_hall)`. Shared cast instances retain their runtime IDs.
+Jev receives the same `npc_locations` parameter in `world-action-instructions.md`.
+Both callers build it from live world state. Jev uses the same projected actor
+rooms as its observed map, including movement in progress. Every planning call refreshes the
+locations and routes alongside the observed map, including retries after feedback;
+execution does not depend on routes having been copied into `current_goal`.
+
+Routes use authored room exits and assume open doors; they are room-level guidance,
+not tile paths or permission to bypass locks, fixtures or access rules. Execution
+still handles doors and replans on obstruction or changed NPC locations. Same-room
+and disconnected targets are explicit. Location disclosure is unrestricted within
+the current map for now; future visibility policy can filter this context at its
+host-owned construction point in `activityNpcLocations`.
