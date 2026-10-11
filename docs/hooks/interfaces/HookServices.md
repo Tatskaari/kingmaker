@@ -23,6 +23,32 @@ export default async function run(services: HookServices): Promise<TransitionRes
 
 ## Properties
 
+### inventory
+
+> **inventory**: `object`
+
+Check an actual possession, not a dialogue claim.
+
+#### hasItem()
+
+> **hasItem**(`ownerId`, `itemId`): `boolean`
+
+##### Parameters
+
+###### ownerId
+
+`string`
+
+###### itemId
+
+`string`
+
+##### Returns
+
+`boolean`
+
+***
+
 ### map
 
 > **map**: [`HookMapService`](HookMapService.md)
@@ -31,8 +57,54 @@ Inspect fixtures and update their interaction actions through authoritative move
 
 ***
 
+### memories
+
+> **memories**: `object`
+
+Broadcast a public milestone once and queue scoped plot reviews.
+
+#### broadcast()
+
+> **broadcast**(`id`, `input`): `Promise`\<`void`\>
+
+##### Parameters
+
+###### id
+
+`string`
+
+###### input
+
+[`HookBroadcast`](HookBroadcast.md)
+
+##### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### quests
 
 > **quests**: [`HookQuestService`](HookQuestService.md)
 
 Inspect and advance quest progress through the authoritative quest service.
+
+***
+
+### transition?
+
+> `optional` **transition?**: `object`
+
+Evidence supplied by the host when executing an authored quest transition.
+
+#### evidence
+
+> **evidence**: `string`
+
+#### questId
+
+> **questId**: `string`
+
+#### transitionId
+
+> **transitionId**: `string`

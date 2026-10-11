@@ -12,6 +12,7 @@ summary: "Hook services API reference for conversation hooks."
 ## Interfaces
 
 - [HookAction](interfaces/HookAction.md)
+- [HookBroadcast](interfaces/HookBroadcast.md)
 - [HookFixture](interfaces/HookFixture.md)
 - [HookMapService](interfaces/HookMapService.md)
 - [HookQuestService](interfaces/HookQuestService.md)

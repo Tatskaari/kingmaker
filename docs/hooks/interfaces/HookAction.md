@@ -53,6 +53,14 @@ Player-visible action label.
 
 ***
 
+### onSuccessHook?
+
+> `optional` **onSuccessHook?**: `string`
+
+Authored hook invoked by the host after a successful physical action.
+
+***
+
 ### order
 
 > **order**: `number`

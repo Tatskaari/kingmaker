@@ -25,6 +25,24 @@ List detached fixture IDs and actions, without cloning or exposing the world.
 
 ***
 
+### removeFixtures()
+
+> **removeFixtures**(`ids`): `Promise`\<`void`\>
+
+Remove empty fixtures; absent IDs are harmless on retry. Rejects populated containers.
+
+#### Parameters
+
+##### ids
+
+`string`[]
+
+#### Returns
+
+`Promise`\<`void`\>
+
+***
+
 ### updateFixture()
 
 > **updateFixture**(`id`, `update`): `Promise`\<`void`\>
