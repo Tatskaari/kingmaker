@@ -1,0 +1,92 @@
+{
+  "revision": "a2045feb052a1a758448ea6d5baebd330a88afcf",
+  "rubric": [
+    {
+      "name": "route",
+      "description": "After review, Jev chooses enter_entrance_hall to approach Holt using its current observations."
+    },
+    {
+      "name": "physical-state",
+      "description": "Review does not move actors or change the physical map."
+    }
+  ],
+  "concurrency": 4,
+  "experimentTypes": {
+    "aldren-holt": "review"
+  },
+  "experiments": [
+    "aldren-holt"
+  ],
+  "repeats": 3,
+  "timeoutMs": 180000,
+  "type": "review",
+  "publishedAt": "2026-10-11T17:40:42.013Z",
+  "comparison": [
+    {
+      "variant": "game",
+      "baseline": true,
+      "runs": 3,
+      "executionErrors": 0,
+      "scoringErrors": 0,
+      "criteria": {
+        "route": 1,
+        "physical-state": 1
+      },
+      "total": 1,
+      "delta": 0
+    }
+  ],
+  "trials": [
+    {
+      "experiment": "aldren-holt",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 2,
+      "result": {
+        "criteria": {
+          "route": {
+            "score": 1,
+            "reason": "Selected enter_entrance_hall; goal: Go from the Great Hall to the Entrance Hall via enter_entrance_hall, find Marshal Garran Holt, and speak to him directly to issue the promised order to find the missing assembly cushions and resolve the delay."
+          },
+          "physical-state": {
+            "score": 1
+          }
+        }
+      }
+    },
+    {
+      "experiment": "aldren-holt",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 1,
+      "result": {
+        "criteria": {
+          "route": {
+            "score": 1,
+            "reason": "Selected enter_entrance_hall; goal: Go to the Entrance Hall via enter_entrance_hall and speak with Marshal Garran Holt, directing him to find the missing Centennial Assembly cushions and resolve the delay."
+          },
+          "physical-state": {
+            "score": 1
+          }
+        }
+      }
+    },
+    {
+      "experiment": "aldren-holt",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 3,
+      "result": {
+        "criteria": {
+          "route": {
+            "score": 1,
+            "reason": "Selected enter_entrance_hall; goal: Go from the Great Hall to the Entrance Hall and speak directly with Marshal Garran Holt. Deliver Aldren’s promised order to find the missing assembly cushions and resolve the delay; learn any explanation Holt provides without assuming one."
+          },
+          "physical-state": {
+            "score": 1
+          }
+        }
+      }
+    }
+  ]
+}
