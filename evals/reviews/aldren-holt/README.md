@@ -13,10 +13,13 @@ and unrelated review events are omitted. The normal live conversation review pol
 replays the fixed reply and runs attention/disclosure normally. No desired activity
 is pre-seeded. This isolates the route handoff, not subsequent walking or dialogue.
 
-Run `npm run eval:review -- --experiments aldren-holt --repeats 3 --concurrency 1`
+Run `npm run eval:review:locations -- --repeats 3 --concurrency 1`
 with `OPENROUTER_API_KEY`. The route criterion checks the committed active
 `current_goal` for `enter_entrance_hall` and Holt; physical-state checks that review
 leaves the map unchanged. These narrow deterministic criteria do not grade every
 semantic aspect of the promise or guarantee subsequent planner completion.
 
-Baseline validation pending. This layer changes no production behavior.
+Baseline at `3b98f5b`: route 0/3, physical-state 3/3, no execution errors.
+Artifacts: `eval-output/2026-10-11T14-09-01.887Z-98a7a996/`.
+The dedicated runner is registered in `workspace:eval`; its narrow rubric stays
+separate from the broader conversation review suite. This layer changes no production behavior.

@@ -6,6 +6,11 @@ tasks:
     deps: [contracts:generate]
     options:
       cache: false
+  evalLocations:
+    command: npx --no-install tsx scripts/run-aldren-holt-eval.ts
+    deps: [contracts:generate]
+    options:
+      cache: false
   evalGift:
     command: npx --no-install tsx scripts/run-peregrine-gift-eval.ts
     deps: [contracts:generate]
@@ -32,7 +37,7 @@ tasks:
     options:
       cache: false
   eval:
-    deps: [evalReview, evalGift, evalAttention, evalNavigation, evalCorvinReview, evalCorvinPlanner]
+    deps: [evalReview, evalLocations, evalGift, evalAttention, evalNavigation, evalCorvinReview, evalCorvinPlanner]
     options:
       cache: false
   typecheck:

@@ -18,6 +18,7 @@
     "eval:attention": "tsx scripts/run-attention-eval.ts",
     "eval:review": "tsx scripts/run-conversation-review-eval.ts",
     "eval:review:gift": "tsx scripts/run-peregrine-gift-eval.ts",
+    "eval:review:locations": "tsx scripts/run-aldren-holt-eval.ts",
     "eval:wait": "tsx scripts/run-wait-eval.ts",
     "eval:review:handoff": "tsx scripts/run-review-handoff-eval.ts",
     "eval:navigation": "tsx scripts/run-navigation-eval.ts"
