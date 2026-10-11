@@ -33,7 +33,7 @@ test("quest Run bindings execute saved hooks and reject without advancing", asyn
   }`);
   const path = "Scenarios/Centennial Assembly/Quests/Assembly Programme/quest.md";
   const doc = await services.docs.read(path);
-  await services.docs.replace(path, doc.sha, "#### Trigger: none\n\n## Node: cart_blocked", "#### Trigger: none\n#### Run: reject-milestone.ts\n\n## Node: cart_blocked");
+  await services.docs.replace(path, doc.sha, "Holt has told the player that the pillow delivery is probably blocked by Rowan’s cart.\n#### Trigger: none", "Holt has told the player that the pillow delivery is probably blocked by Rowan’s cart.\n#### Trigger: none\n#### Run: reject-milestone.ts");
   const before = services.quests.read("assembly_programme");
   const result = await services.hooks.transition("assembly_programme", "learn_cart_blocked", before.revision, "Not yet", new AbortController().signal);
   assert.deepEqual(result, { status: "rejected", message: "Not yet" });

@@ -12,9 +12,9 @@ import { createMapService } from "./map-service.js";
 
 const progress = (state: QuestState): HookQuestState => ({ id: state.quest!.id, currentStageId: state.currentStageId, revision: state.revision, active: state.active });
 function fixtureView(fixture: MapFixture): HookFixture {
-  return { id: fixture.id, name: fixture.name, actions: fixture.actions.map(({ id, label, handler, actorId, illegal, order, onSuccessHook }) => {
+  return { id: fixture.id, name: fixture.name, actions: fixture.actions.map(({ id, label, handler, actorId, illegal, order }) => {
     if (handler !== "smash-cart") throw new Error(`Unsupported hook action handler: ${handler}`);
-    return { id, label, handler, actorId, illegal, order, ...(onSuccessHook ? { onSuccessHook } : {}) };
+    return { id, label, handler, actorId, illegal, order };
   }) };
 }
 function actions(value: unknown): HookAction[] {
@@ -58,7 +58,6 @@ export function bindHookServices(store: WorldStore, guard: () => void, signal = 
         if (typeof view.name !== "string" || !view.name.trim()) throw new Error("Invalid fixture name");
         fixture.name = view.name;
         fixture.actions = actions(view.actions).map(action => {
-          if (action.onSuccessHook && !store.hooks.has(action.onSuccessHook)) throw new Error(`Unknown success hook: ${action.onSuccessHook}`);
           return create(FixtureInteractionSchema, action);
         });
       }),

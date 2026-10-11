@@ -8,6 +8,15 @@ import type { TreeScript } from "../../conversation/src/conversation-tree.js";
 
 export function createHookService(store: WorldStore) {
   return {
+    /** Re-evaluate authored physical predicates against current state after a host action. */
+    async evaluatePredicates(signal: AbortSignal) {
+      for (const state of createQuestService(store).listActive()) {
+        signal.throwIfAborted();
+        const edge = state.quest!.transitions.find(edge => edge.fromStageId === state.currentStageId
+          && edge.fixtureAbsent && !store.state.simulation!.map!.fixtures.some(f => f.id === edge.fixtureAbsent));
+        if (edge) await this.transition(state.quest!.id, edge.id, state.revision, "", signal);
+      }
+    },
     async transition(id: string, edge: string, revision: number, evidence: string, signal: AbortSignal) {
       const doc = Object.entries(store.state.docs).find(([path, doc]) => path.includes("/Quests/") && path.endsWith("/quest.md") && doc.frontmatter?.id === id)?.[1];
       if (!doc) throw new Error(`No authored quest document: ${id}`);

@@ -95,8 +95,6 @@ export interface HookAction {
   label: string;
   /** The initial PoC exposes the existing cart-smashing handler only. */
   handler: "smash-cart";
-  /** Authored hook invoked by the host after a successful physical action. */
-  onSuccessHook?: string;
   /** Runtime actor ID allowed to perform this action, typically player. */
   actorId: string;
   /** Whether performing this action is illegal. Permission does not change ownership. */

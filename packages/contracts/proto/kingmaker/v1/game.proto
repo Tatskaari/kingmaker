@@ -347,7 +347,6 @@ message FixtureInteraction {
   string actor_id = 4;
   bool illegal = 5;
   uint32 order = 6;
-  string on_success_hook = 7;
 }
 
 // Physical map furniture; contents live in its inventory.
