@@ -1,0 +1,90 @@
+{
+  "revision": "fae757fba857c52afa416d35285f0cf3334ac485",
+  "rubric": [
+    {
+      "name": "navigation",
+      "description": "Choose the offered door-opening action that advances the route to Cressida's chamber instead of backtracking, waiting or declaring completion."
+    }
+  ],
+  "concurrency": 4,
+  "experimentTypes": {
+    "cressida-closed-door": "jev-action"
+  },
+  "experiments": [
+    "cressida-closed-door"
+  ],
+  "repeats": 3,
+  "timeoutMs": 180000,
+  "type": "jev-action",
+  "publishedAt": "2026-10-11T10:01:20.370Z",
+  "comparison": [
+    {
+      "variant": "game",
+      "baseline": true,
+      "runs": 3,
+      "executionErrors": 3,
+      "scoringErrors": 0,
+      "criteria": {
+        "navigation": 0
+      },
+      "total": 0,
+      "delta": 0
+    }
+  ],
+  "trials": [
+    {
+      "experiment": "cressida-closed-door",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 2,
+      "result": {
+        "criteria": {
+          "navigation": {
+            "score": 0,
+            "reason": "Execution failed; see recording.error."
+          }
+        }
+      },
+      "executionError": {
+        "name": "Error",
+        "message": "Jev returned HTTP 402. OpenRouter credits or the key's spending limit need attention. Provider: Insufficient credits. Add more using https://openrouter.ai/settings/credits"
+      }
+    },
+    {
+      "experiment": "cressida-closed-door",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 3,
+      "result": {
+        "criteria": {
+          "navigation": {
+            "score": 0,
+            "reason": "Execution failed; see recording.error."
+          }
+        }
+      },
+      "executionError": {
+        "name": "Error",
+        "message": "Jev returned HTTP 402. OpenRouter credits or the key's spending limit need attention. Provider: Insufficient credits. Add more using https://openrouter.ai/settings/credits"
+      }
+    },
+    {
+      "experiment": "cressida-closed-door",
+      "variant": "game",
+      "baseline": true,
+      "repeat": 1,
+      "result": {
+        "criteria": {
+          "navigation": {
+            "score": 0,
+            "reason": "Execution failed; see recording.error."
+          }
+        }
+      },
+      "executionError": {
+        "name": "Error",
+        "message": "Jev returned HTTP 402. OpenRouter credits or the key's spending limit need attention. Provider: Insufficient credits. Add more using https://openrouter.ai/settings/credits"
+      }
+    }
+  ]
+}
