@@ -6,7 +6,7 @@ import { WorldGameRuntime } from "../apps/web/src/world-runtime.js";
 test("milestone reviews update live trees, retain failed recipients and resume without rebroadcast", async () => {
   let fail = true, calls = 0;
   const game = new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, undefined, { services: { ai: {
-    decisions: async (_input, questions) => Object.fromEntries(Object.keys(questions).map(name => [name, { choice: "ignore", reason: "test" }])),
+    decisions: async (_input, questions) => Object.fromEntries(Object.keys(questions).map(name => [name, { choice: "ignore", reason: "test", probabilities: { ignore: 1 } }])),
     responses: async request => {
       calls++;
       if (fail) throw new Error("review unavailable");
