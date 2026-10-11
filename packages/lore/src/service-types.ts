@@ -1,3 +1,4 @@
+import type { JsonValue } from "@bufbuild/protobuf";
 import type { Document, WorldState, CharacterProperties, RuntimeCharacter } from "../../contracts/src/v2.js";
 import type { ActorState, MapState } from "../../contracts/src/index.js";
 
@@ -49,16 +50,17 @@ export interface DocsService {
   insert(path: string, expectedSha: string, afterLine: number, text: string): Promise<DocumentSnapshot>;
   delete(path: string, expectedSha: string): Promise<void>;
   /**
-   * Run one read-only SQLite statement over the current documents:
-   * docs(path, name, folder, summary, body), props(path, key, value) with one row per list item,
-   * and links(source, target). `X REGEXP 'pattern'` matches case-insensitively;
-   * snippets(body, 'pattern') returns up to five matching lines as JSON.
+   * Interpret one read-only Postgres-style SELECT over the current documents, like an Obsidian base.
+   * `FROM docs` is the only table. Bare names are frontmatter properties; file.path, file.name,
+   * file.folder, file.body, file.links and file.backlinks describe the document. A list matches
+   * when any item does, so follow links with `file.backlinks IN (SELECT file.path FROM docs WHERE ...)`.
+   * `~`/`~*` match JavaScript regexes; snippets(file.body, 'pattern') returns up to five matching lines.
    */
   query(sql: string): Promise<DocumentQueryResult>;
 }
 export interface DocumentQueryResult {
   columns: string[];
-  rows: Record<string, string | number | Uint8Array | null>[];
+  rows: Record<string, JsonValue>[];
   /** More rows matched than were returned. */
   truncated: boolean;
 }
