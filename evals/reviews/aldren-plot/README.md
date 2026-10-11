@@ -15,24 +15,3 @@ The latest author-draft comparison (two trials per configuration) is recorded se
 The follow-up [explicit return-beat comparison](return-beat-comparison.md) tests the restored positive instruction with two trials per configuration and independent compilation checks of edited trees.
 
 See [promoted baseline validation](promotion-validation.md) for final default behavior, SQL tool availability, live trials and known compiler/tool-budget limitations.
-
-## Document hook PoC
-
-The current fixture now loads the generated, read-only hook API reference and the
-same document hook registry as the game. The shared review guidance links the
-reference index. No desired royal-report hook is seeded and no extra hook-specific
-instruction is inserted into the captured conversation.
-
-Two new deterministic criteria report whether the reviewer committed a new/edited
-`.ts` hook and whether a final conversation edge binds that source. Unchanged
-baseline hooks do not count. These measure authoring adoption, not semantic
-correctness or successful execution of the future encounter; interpret them with
-the existing delegation/grounding scores. The runtime-preservation criterion must
-still pass: the review must not execute future effects while authoring source.
-
-Run the ordinary command above with `--variants game --repeats 2 --concurrency 1`.
-Inspect the recorded `docs/hooks/` reads, `.ts` writes and final `Run` headings.
-For the separate live Holt path, run `node --import tsx scripts/playtest-holt-hooks.ts`
-with the same key. It uses real dialogue and Jev decisions with ordinary game
-mechanics, saving turns, actual hook output and final action legality under
-`eval-output/`. No fixed die result or successful character response is injected.
