@@ -40,6 +40,7 @@ function enqueue<T>(work: () => Promise<T>): Promise<T> {
 }
 const background = new Map<string, { id: string; controller: AbortController; participants: string[] }>();
 const worldEvents = new Set<AbortController>();
+let milestoneReview: AbortController | undefined;
 const pendingNpcs: Array<{ id: string; handoffs: number }> = [];
 const conversationHolds = new Set<string>();
 const conversationReviews = new Set<string>();
@@ -77,7 +78,18 @@ const transformations = cressidaScheduler({
   },
   error: error => alertUser("error", `Cressida transformation: ${String(error)}`),
 });
-function syncWaits() { waits.sync(); followers.sync(); transformations.sync(); }
+function syncWaits() {
+  waits.sync(); followers.sync(); transformations.sync();
+  const game = runtime;
+  if (!game || milestoneReview || !game.hasPendingMilestoneReviews()) return;
+  const controller = new AbortController();
+  milestoneReview = controller;
+  void game.reviewPendingMilestones(controller.signal).then(() => {
+    if (runtime === game && !controller.signal.aborted) publishNpc("Quest dialogue updated.");
+  }).catch(error => {
+    if (!controller.signal.aborted) alertUser("error", `Quest dialogue review: ${String(error)}. Pending reviews will retry on the next action or reload.`);
+  }).finally(() => { if (milestoneReview === controller) milestoneReview = undefined; });
+}
 const waits = new WaitScheduler({
   delayMs: id => runtime && followingTarget(runtime.world(), id) ? 15_000 : 12_000 + Math.random() * 6_000,
   candidates: () => {
@@ -412,6 +424,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     waits.stop(); followers.stop(); transformations.stop(); waitsPaused = false;
     await autosave.flush();
     if (["configure", "create_game", "create_development_game", "load_game", "delete_game"].includes(type)) runtime?.movement.dispose();
+    milestoneReview?.abort(); milestoneReview = undefined;
     generation++; stopBackground(); stopWorldEvents(); conversationHolds.clear();
     if (runtime) attachPersistence(runtime);
   }

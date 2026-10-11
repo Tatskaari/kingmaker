@@ -1,3 +1,4 @@
+import { reviewMilestone } from "../../../packages/conversation/src/milestone-review.js";
 import { compileConversationTree } from "../../../packages/lore/src/conversation-tree.js";
 import { ConversationTreeSession } from "../../../packages/conversation/src/conversation-tree.js";
 import type { CressidaTransition } from "./cressida-scheduler.js";
@@ -214,6 +215,36 @@ export class WorldGameRuntime extends WorldHost {
       const expression = result.expression?.choice;
       return expression && Object.hasOwn(portraitExpressions, expression) ? expression as PortraitExpression : undefined;
     } catch { return undefined; }
+  }
+  hasPendingMilestoneReviews() {
+    return Object.entries(this.world().docs).some(([path, doc]) => path.startsWith("Reviews/")
+      && Array.isArray(doc.frontmatter?.pending) && doc.frontmatter.pending.length > 0);
+  }
+  /** Completed recipients persist individually, so failed or interrupted reviews resume after load. */
+  async reviewPendingMilestones(signal: AbortSignal) {
+    for (const path of Object.keys(this.world().docs).filter(path => path.startsWith("Reviews/"))) {
+      const pending = this.world().docs[path]?.frontmatter?.pending;
+      if (!Array.isArray(pending)) continue;
+      for (const id of pending) {
+        signal.throwIfAborted();
+        if (typeof id !== "string") throw new Error(`Invalid milestone recipient: ${path}`);
+        if (this.world().docs[`Conversations/${id}.md`]) {
+          const key = this.traces.start("conversation_review", id, id, { milestone: path }, [id]);
+          try {
+            await reviewMilestone(id, this.world().docs[path]!.body,
+              this.runtime(id, "conversation_review", {}, key, signal, [id]).services, signal);
+            this.traces.finish(key);
+          } catch (error) { this.traces.fail(key, error); throw error; }
+        }
+        await this.commit(async () => {
+          const current = await this.worldServices.docs.read(path);
+          const remaining = current.document.frontmatter?.pending;
+          if (!Array.isArray(remaining)) throw new Error(`Invalid milestone queue: ${path}`);
+          await this.worldServices.docs.commit([{ path, expectedSha: current.sha,
+            text: `---\n${JSON.stringify({ ...current.document.frontmatter, pending: remaining.filter(value => value !== id) })}\n---\n${current.document.body}` }]);
+        }, signal);
+      }
+    }
   }
   async executeAction(context: ActionExecutionContext, signal = new AbortController().signal) {
     const id = context.command.kind === "step" ? context.command.characterId : "player";
