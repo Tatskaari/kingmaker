@@ -105,3 +105,15 @@ test("fresh games start with the Aldren introduction active", () => {
   assert.equal(introduction.quest!.transitions[0]!.playerTalkedTo, "aldren");
   assert.equal(introduction.quest!.stages.find(stage => stage.id === "completed")!.completed, true);
 });
+
+
+test("trigger none requires an explicit caller and rejects conversation predicates", async () => {
+  const notes = fixture();
+  notes.set(root + "transitions/clear.md", note({ id: "clear", trigger: "none", to: "done", condition: "Host completed clearance." }));
+  const quests = createScenarioServices(build(notes)).quests;
+  assert.equal(quests.availableTransitions("delivery")[0]!.playerTalkedTo, "");
+  await quests.transition("delivery", "clear", 0, "Conversation edge invoked clearance");
+  assert.equal(quests.read("delivery").currentStageId, "done");
+  notes.set(root + "transitions/clear.md", note({ id: "clear", trigger: "none", to: "done", condition: "Clear", player_talked_to: "aldren" }));
+  assert.throws(() => build(notes), /player_talked_to requires trigger: predicate/);
+});

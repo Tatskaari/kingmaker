@@ -56,7 +56,10 @@ and optional `transitions` (a list of Markdown or wiki note links). Exactly one
 stage must declare `initial: true`; filename sorting determines display order.
 Transition links resolve using the vault's existing rules and must stay in that
 quest's `transitions/` folder. Each transition supplies `id`, `to` (a stage ID),
-`trigger: discretionary`, a nonempty `condition`, and an outcome description body.
+a `trigger`, a nonempty `condition`, and an outcome description body.
+Use `trigger: none` for explicit calls from conversation edges or host actions;
+its condition documents caller preconditions, not an automatically evaluated trigger.
+`trigger: discretionary` describes caller-adjudicated transitions.
 Alternatively, `trigger: predicate` with `player_talked_to: <character ID>` is a
 typed host condition; the loader validates that the scenario character exists.
 Stage notes may declare `completed: true`. The host records matching active
