@@ -1,4 +1,4 @@
-export default async function run(services: HookServices): Promise<string> {
+export default async function run(services: HookServices): Promise<TransitionResult> {
   for (const fixture of services.map.listFixtures()) {
     if (!["furn_cart_left", "furn_cart_right"].includes(fixture.id)) continue;
     await services.map.updateFixture(fixture.id, current => {
@@ -10,5 +10,5 @@ export default async function run(services: HookServices): Promise<string> {
   }
   const quest = services.quests.read("assembly_programme");
   await services.quests.setActive(quest.id, true, quest.revision);
-  return "Hello world! Assembly Programme is now active.";
+  return { status: "accepted", message: "Hello world! Assembly Programme is now active." };
 }

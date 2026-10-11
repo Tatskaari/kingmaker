@@ -4,7 +4,7 @@ import { createScenarioServices } from "../packages/lore/src/services.js";
 import { loadPlayableWorld } from "./fixtures.js";
 import { ConversationTreeSession } from "../packages/conversation/src/conversation-tree.js";
 import { compileConversationTree } from "../packages/lore/src/conversation-tree.js";
-const source = 'export default async function run(services: HookServices): Promise<string> { const q = services.quests.read("assembly_programme"); await services.quests.setActive(q.id, true, q.revision); return "dynamic"; }';
+const source = 'export default async function run(services: HookServices): Promise<TransitionResult> { const q = services.quests.read("assembly_programme"); await services.quests.setActive(q.id, true, q.revision); return {status:"accepted", message:"dynamic"}; }';
 
 test("source and reference publish together, execute after binding, and survive resume", async () => {
   const services = createScenarioServices(loadPlayableWorld());
@@ -18,7 +18,7 @@ test("source and reference publish together, execute after binding, and survive 
   assert.equal((await services.docs.read(hook.path)).sha, hook.sha);
   const resumed = createScenarioServices(services.currentWorld());
   assert.equal(resumed.quests.read("assembly_programme").active, false);
-  assert.equal(await resumed.hooks.bind()["dynamic.ts"]!(new AbortController().signal), "dynamic");
+  assert.deepEqual(await resumed.hooks.bind()["dynamic.ts"]!(new AbortController().signal), {status:"accepted", message:"dynamic"});
   assert.equal(resumed.quests.read("assembly_programme").active, true);
 });
 

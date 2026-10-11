@@ -1,4 +1,4 @@
-export default async function run(services: HookServices): Promise<string> {
+export default async function run(services: HookServices): Promise<TransitionResult> {
   for (const fixture of services.map.listFixtures()) {
     if (!["furn_cart_left", "furn_cart_right"].includes(fixture.id)) continue;
     await services.map.updateFixture(fixture.id, current => {
@@ -9,5 +9,5 @@ export default async function run(services: HookServices): Promise<string> {
       if (existing) existing.illegal = false;
     });
   }
-  return "Holt authorised the player to smash the cart.";
+  return { status: "accepted", message: "Holt authorised the player to smash the cart." };
 }

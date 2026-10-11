@@ -1,4 +1,4 @@
-export default async function run(services: HookServices): Promise<string> {
+export default async function run(services: HookServices): Promise<TransitionResult> {
   for (const fixture of services.map.listFixtures()) {
     if (!["furn_cart_left", "furn_cart_right"].includes(fixture.id)) continue;
     await services.map.updateFixture(fixture.id, current => {
@@ -9,9 +9,9 @@ export default async function run(services: HookServices): Promise<string> {
     });
   }
   let quest = services.quests.read("assembly_programme");
-  if (quest.currentStageId !== "investigate_missing_pillows") return "The pillow lead is already recorded.";
+  if (quest.currentStageId !== "investigate_missing_pillows") return { status: "accepted", message: "The pillow lead is already recorded." };
   if (!quest.active) quest = await services.quests.setActive(quest.id, true, quest.revision);
   await services.quests.transition(quest.id, "learn_cart_blocked", quest.revision,
     "Holt explained that the pillow delivery is probably blocked by Rowan's cart.");
-  return "Pillow lead recorded: investigate the blocked cart.";
+  return { status: "accepted", message: "Pillow lead recorded: investigate the blocked cart." };
 }
