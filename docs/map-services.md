@@ -75,3 +75,8 @@ See the [move-authoring skill](../.agents/skills/kingmaker-move-authoring/SKILL.
 for draft lifetime, rejection requirements, conflict limits and the distinction
 between state persistence and non-serializable callback move logs. This pattern
 can apply to other authoritative simulation updates without per-field moves.
+
+Do not add bespoke version/hash/conflict bookkeeping around these synchronous
+draft updates. The inventory service's snapshot/SHA replacement workflow needs
+review against this pattern; reviewing and updating it is separate implementation
+work, not a reason to reproduce its bookkeeping in the fixture service.

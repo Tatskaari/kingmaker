@@ -42,7 +42,9 @@ await services.map.updateFixture(fixtureId, fixture => {
 
 For Holt's permission, the same callback will update the cart action's permission when action data exists. It must not change ownership or grant unrelated inventory access.
 
-Do not add fixture versions just to protect this synchronous read-and-edit path. Retain existing version checks on other APIs where callers submit replacements prepared across asynchronous work; this design does not authorise removing them indiscriminately.
+Do not introduce homebrew state-update bookkeeping for this pattern: no parallel fixture-version counters, hashes, snapshot merging or bespoke conflict/retry machinery merely to protect synchronous draft updates. Reuse boardgame.io’s authoritative move execution and existing state-publication conventions.
+
+The inventory system needs review: `packages/core/src/inventory-service.ts` currently uses detached inventory snapshots and SHA/version checks for replacement commits. Assess whether authoritative callers can instead express their intent through synchronous current-state draft updates. This is follow-up work, not approval to strip conflict protection from asynchronous replacement APIs without changing their callers. Do not copy the inventory bookkeeping into new services by default.
 
 ## Helper implementation requirements
 
