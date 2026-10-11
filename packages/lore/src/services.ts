@@ -12,9 +12,9 @@ export * from "./service-types.js";
 export { QuestConflictError, type QuestService } from "./quest-service.js";
 
 /** World services share one authority and write queue across documents and simulation. */
-export function createScenarioServices(initial: WorldState) {
+export function createScenarioServices(initial: WorldState, options: { readOnlyRoots?: readonly string[] } = {}) {
   const store = new WorldStore(initial);
-  const docs = createDocsService(store);
+  const docs = createDocsService(store, options.readOnlyRoots);
   // Trusted synchronous host code reads live state; document APIs retain CAS snapshots.
   const inventory = createInventoryService({
     currentSimulation: () => store.state.simulation!,

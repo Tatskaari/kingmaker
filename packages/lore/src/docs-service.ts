@@ -9,7 +9,15 @@ import { activityDefinition, intentDocument, waitActivities } from "./activity.j
 import type { WorldStore } from "./world-store.js";
 import { queryDocuments } from "./document-query.js";
 
-export function createDocsService(store: WorldStore): DocsService {
+export function createDocsService(store: WorldStore, readOnlyRoots: readonly string[] = []): DocsService {
+  function writable(path: string): void {
+    if (path.startsWith("/") || path.includes("\\") || path.split("/").some(part => !part || part === "." || part === "..")) {
+      throw new Error(`${path}: Expected a canonical document path`);
+    }
+    if (readOnlyRoots.some(root => path === root || path.startsWith(`${root}/`))) {
+      throw new Error(`${path}: document is read-only`);
+    }
+  }
   function document(path: string): Document {
     if (!Object.hasOwn(store.state.docs, path)) throw new Error(`${path}: document not found`);
     return clone(DocumentSchema, store.state.docs[path]!);
@@ -43,6 +51,7 @@ export function createDocsService(store: WorldStore): DocsService {
   const docs: DocsService = {
     async commit(changes, intents = []) {
       return store.write(async () => {
+        for (const change of changes) writable(change.path);
         if (new Set(changes.map(change => change.path)).size !== changes.length) throw new Error("Duplicate document write.");
         const expected = new Map<string, Document | undefined>();
         for (const change of changes) {
@@ -83,16 +92,19 @@ export function createDocsService(store: WorldStore): DocsService {
     },
     read,
     create: (path, text) => store.write(async () => {
+      writable(path);
       if (Object.hasOwn(store.state.docs, path)) throw new Error(`${path}: document already exists`);
       return publish(path, text);
     }),
     replace: (path, sha, oldText, newText) => store.write(async () => {
+      writable(path);
       const current = await checked(path, sha);
       const offset = current.text.indexOf(oldText);
       if (!oldText || offset < 0 || current.text.indexOf(oldText, offset + 1) >= 0) throw new Error(`${path}: oldText must match exactly once`);
       return publish(path, current.text.slice(0, offset) + newText + current.text.slice(offset + oldText.length), current);
     }),
     insert: (path, sha, afterLine, text) => store.write(async () => {
+      writable(path);
       const current = await checked(path, sha);
       const lines = current.text ? current.text.split("\n") : [];
       if (current.text.endsWith("\n")) lines.pop();
@@ -103,6 +115,7 @@ export function createDocsService(store: WorldStore): DocsService {
       return publish(path, before + (before && !before.endsWith("\n") && text ? "\n" : "") + text + (after && text && !text.endsWith("\n") ? "\n" : "") + after, current);
     }),
     delete: (path, sha) => store.write(async () => {
+      writable(path);
       const expected = await checked(path, sha);
       const current = store.state.docs[path];
       if (JSON.stringify(canonical(current && toJson(DocumentSchema, current))) !== JSON.stringify(canonical(toJson(DocumentSchema, expected.document)))) {
