@@ -51,7 +51,7 @@ export function finalTouchedDocuments(recording: RunRecording) {
   // Also capture typed inventory updates, which change documents outside the docs service.
   const paths = new Set(documentChanges(recording).map(change => change.path));
   for (const call of recording.calls) {
-    if (call.service !== "docs" || call.method === "read" || call.outcome?.status !== "returned") continue;
+    if (call.service !== "docs" || ["read", "query"].includes(call.method) || call.outcome?.status !== "returned") continue;
     const args = call.args as unknown[];
     if (call.method === "commit") {
       for (const write of args[0] as { path: string }[]) paths.add(write.path);
@@ -104,7 +104,7 @@ export function createReviewExperiment(testCase: ReviewCase, variants: readonly 
       }
     },
     summarise(recording) {
-      const changes = documentChanges(recording), writes = recording.getServiceRecord("docs").filter(call => call.method !== "read");
+      const changes = documentChanges(recording), writes = recording.getServiceRecord("docs").filter(call => !["read", "query"].includes(call.method));
       return `${changes.length} changed documents; ${writes.length} write calls`;
     },
     async score(recording, context) {
