@@ -1,0 +1,172 @@
+{
+  "sourceRevision": "4affd29",
+  "baselineHead": "a5d4c687e3b6805443c63897ed6cb8c8706ec3d9",
+  "promptSha256": "5ba847b7cb5f385509f03cd1d58c049406cc0f0584bc19f97b577d70e4df0fa4",
+  "artifacts": "eval-output/2026-10-10T14-00-38.850Z-097ca83e",
+  "model": "openai/gpt-6-luna",
+  "reasoning": {
+    "effort": "high"
+  },
+  "identicalInitialStates": true,
+  "identicalActivityToolsAndModelSettings": true,
+  "freshDisclosureCalls": 0,
+  "limitation": "Shared judge scores tied at 100% and missed inactive intent; activation below is read directly from final committed runtime state. No interviews or navigation were executed.",
+  "trials": [
+    {
+      "variant": "game",
+      "repeat": 1,
+      "activeActivity": false,
+      "executionError": null,
+      "judgingError": null,
+      "scores": {
+        "grounding": 1,
+        "coverage": 1,
+        "knowledge": 1,
+        "intent": 1,
+        "preservation": 1,
+        "restraint": 1,
+        "physical-state": 1
+      },
+      "activities": [
+        {
+          "path": "Scenarios/Centennial Assembly/Characters/corvin/activity-adb2d73f-f03a-44ec-bceb-820491efa2a5.md",
+          "active": false,
+          "name": "Separate inquiries about Corvin’s academic record",
+          "status": "Deferred until the current conversation is finished; then speak with Lady Elinor Ash, Professor Oswin, and Doctor Rowan Ash one by one.",
+          "success_criteria": "After this conversation ends, ask each of the three separately what was said about Corvin’s academic record and hear each person’s account before deciding what to believe. Do not treat the promised conversations as completed in advance.",
+          "current_goal": "Once this conversation has ended, begin by finding Lady Elinor Ash and asking her separately what was said about Corvin’s academic record."
+        }
+      ]
+    },
+    {
+      "variant": "working-tree",
+      "repeat": 1,
+      "activeActivity": true,
+      "executionError": null,
+      "judgingError": null,
+      "scores": {
+        "grounding": 1,
+        "coverage": 1,
+        "knowledge": 1,
+        "intent": 1,
+        "preservation": 1,
+        "restraint": 1,
+        "physical-state": 1
+      },
+      "activities": [
+        {
+          "path": "Scenarios/Centennial Assembly/Characters/corvin/activity-ba367e06-6877-4a6c-b89b-2caa4e28261b.md",
+          "active": true,
+          "name": "Privately establish what was said about Corvin's academic record",
+          "status": "Corvin is in the Great Hall after speaking with the Visiting Envoy, who previously warned him about alleged remarks concerning his academic record. The Envoy's warning and the player's report of giggling are not proof of what was said. Corvin has just committed that, as soon as this conversation ends, he will speak to Lady Elinor Ash, Professor Oswin, and Doctor Rowan Ash one by one, asking each what was said about his academic record and hearing each account separately before deciding what to believe. No interviews have happened yet. His motive is to get facts and protect his reputation without starting a public quarrel based on inference. Their current locations are not established here; locate each as needed. Keep the conversations separate, record what each actually says, and do not treat a promise or an allegation as confirmation.",
+          "success_criteria": "Corvin has separately asked Lady Elinor Ash, Professor Oswin, and Doctor Rowan Ash what was said about his academic record and heard each person's account. Preserve the accounts as distinct claims; do not infer guilt or decide what to believe on Corvin's behalf.",
+          "current_goal": "Locate and speak with Lady Elinor Ash first. Ask what was said about Corvin's academic record and hear her account; do not treat the allegation as established fact. Then proceed separately to Professor Oswin and Doctor Rowan Ash."
+        }
+      ]
+    },
+    {
+      "variant": "game",
+      "repeat": 2,
+      "activeActivity": false,
+      "executionError": null,
+      "judgingError": null,
+      "scores": {
+        "grounding": 1,
+        "coverage": 1,
+        "knowledge": 1,
+        "intent": 1,
+        "preservation": 1,
+        "restraint": 1,
+        "physical-state": 1
+      },
+      "activities": [
+        {
+          "path": "Scenarios/Centennial Assembly/Characters/corvin/activity-5d0adf70-1ca9-49c4-b440-10deb3d75ffc.md",
+          "active": false,
+          "name": "Separate inquiry into the academic-record remarks",
+          "status": "Deferred: begin only once the current business in the Great Hall is finished, as Corvin promised. The interviewees’ locations are not established; locate each before approaching them.",
+          "success_criteria": "After the current business here is finished, Corvin speaks to Lady Elinor Ash, Professor Oswin, and Doctor Rowan Ash one by one, asking each separately what was said about his academic record and hearing each account before deciding what to believe.",
+          "current_goal": "Once the current business here is finished, locate Lady Elinor Ash and ask her separately what was said about Corvin’s academic record."
+        }
+      ]
+    },
+    {
+      "variant": "working-tree",
+      "repeat": 2,
+      "activeActivity": true,
+      "executionError": null,
+      "judgingError": null,
+      "scores": {
+        "grounding": 1,
+        "coverage": 1,
+        "knowledge": 1,
+        "intent": 1,
+        "preservation": 1,
+        "restraint": 1,
+        "physical-state": 1
+      },
+      "activities": [
+        {
+          "path": "Scenarios/Centennial Assembly/Characters/corvin/activity-ae81a652-0965-4c58-a473-5f49cc7dbb2f.md",
+          "active": true,
+          "name": "Establish what was said about Corvin’s academic record",
+          "status": "Corvin has just committed, after the Visiting Envoy’s warning about alleged remarks and the player’s report of giggling, to learn what was actually said rather than infer it or start a public quarrel. Giggling is not evidence of the alleged remarks. Speak with the three people separately, not as a group: first Lady Elinor Ash, then Professor Oswin, then Doctor Rowan Ash. Ask each what was said about Corvin’s academic record and listen to that person’s account before moving to the next; do not treat any account as established fact without assessing it. Their current locations are not established here. Corvin is in the Great Hall at the start of this activity.",
+          "success_criteria": "Corvin has spoken to Lady Elinor Ash, Professor Oswin, and Doctor Rowan Ash individually and heard each account about what was said concerning his academic record. No public confrontation or conclusion based solely on the reported giggling.",
+          "current_goal": "Locate Lady Elinor Ash and speak with her separately. Ask what, if anything, was said about Corvin’s academic record, and hear her account before seeking Professor Oswin and Doctor Rowan Ash."
+        }
+      ]
+    },
+    {
+      "variant": "game",
+      "repeat": 3,
+      "activeActivity": false,
+      "executionError": null,
+      "judgingError": null,
+      "scores": {
+        "grounding": 1,
+        "coverage": 1,
+        "knowledge": 1,
+        "intent": 1,
+        "preservation": 1,
+        "restraint": 1,
+        "physical-state": 1
+      },
+      "activities": [
+        {
+          "path": "Scenarios/Centennial Assembly/Characters/corvin/activity-809f3664-d300-4f01-a70a-982f968e8fdb.md",
+          "active": false,
+          "name": "Hear three separate accounts about the academic-record gossip",
+          "status": "Deferred until the current conversation is finished; then speak with Lady Elinor Ash, Professor Oswin, and Doctor Rowan Ash one by one, as promised.",
+          "success_criteria": "After the current conversation ends, ask each of the three separately what was said about Corvin's academic record and hear each account before deciding what to believe. Do not treat the promise as completed, and do not turn it into a public confrontation.",
+          "current_goal": "Once this conversation is finished, seek out Lady Elinor Ash and ask her what was said about Corvin's academic record."
+        }
+      ]
+    },
+    {
+      "variant": "working-tree",
+      "repeat": 3,
+      "activeActivity": true,
+      "executionError": null,
+      "judgingError": null,
+      "scores": {
+        "grounding": 1,
+        "coverage": 1,
+        "knowledge": 1,
+        "intent": 1,
+        "preservation": 1,
+        "restraint": 1,
+        "physical-state": 1
+      },
+      "activities": [
+        {
+          "path": "Scenarios/Centennial Assembly/Characters/corvin/activity-eb50f295-84a5-4c87-97bb-70aae921452e.md",
+          "active": true,
+          "name": "Establish what was said about Corvin’s academic record",
+          "status": "Corvin agreed to investigate the reported remarks rather than treat giggling as proof or start a public quarrel. He is currently in the Great Hall. After this conversation, he intends to speak with each person separately and hear their account before deciding what to believe: Lady Elinor Ash, Professor Oswin, and Doctor Rowan Ash. Their locations are not established here. Ask what, if anything, was said about Corvin’s academic record; do not accuse them or claim the report is confirmed.",
+          "success_criteria": "Corvin has separately asked Lady Elinor Ash, Professor Oswin, and Doctor Rowan Ash what was said about his academic record, and has heard each account. He has not treated an unverified report as fact or begun a public quarrel.",
+          "current_goal": "Find and speak with Lady Elinor Ash privately. Ask her what, if anything, was said about Corvin’s academic record and hear her account. Then proceed to speak separately with Professor Oswin and Doctor Rowan Ash, asking each the same question and hearing each account before deciding what to believe."
+        }
+      ]
+    }
+  ]
+}

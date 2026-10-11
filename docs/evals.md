@@ -27,6 +27,13 @@ It checks that the agreement survives without inventing executable travel. See t
 [fixture notes](../evals/reviews/oswin-kobold-city/README.md) for reconstruction limits
 and the recorded planner loop. Select it with `--experiments oswin-kobold-city`.
 
+Corvin's separate-interview scenario has two runners: `scripts/run-corvin-inquiry-eval.ts`
+checks the review's structured handoff, and `scripts/run-corvin-planner-eval.ts` checks
+navigation and subsequent GM reviews without the source transcript. The planner runner
+uses the captured activity as input and scripted interview speech; see the
+[fixture notes](../evals/reviews/corvin-inquiry/README.md) for boundaries and results.
+Both are registered in `workspace:eval`.
+
 The old physical travel probe remains `npm run eval:review:handoff`; its existing
 `REVIEW_EVAL_REPEATS` and `REVIEW_EVAL_OUTPUT_DIR` settings apply only to that command.
 
