@@ -1,9 +1,8 @@
 # Generated hook service documentation
 
-Status: implementation plan, not a generated API reference or working feature.
-Builds on [document-authored conversation hooks](document-hooks.md). The runtime
-API, generation tasks and read-only service enforcement described here are not
-implemented by this documentation change.
+The public contract is `packages/hooks/src/services.ts`. TypeDoc and its Markdown
+plugin generate the committed [reference](hooks/index.md). This layer implements
+generation and drift checks; document loading and execution follow in the stack.
 
 ## Source of truth
 
@@ -44,23 +43,13 @@ to produce an index and separate reference pages, and its
 [output options](https://typedoc-plugin-markdown.org/docs/options/output) to select
 the destination. Prefer standard configuration over a custom theme.
 
-Compatibility finding, checked against npm metadata on 2026-10-11:
-
-- Repository TypeScript: `7.0.2`.
-- TypeDoc: `0.28.20`, with declared TypeScript peer support from 5.0 through 6.0.
-- Markdown plugin: `4.13.1`, with a `typedoc: 0.28.x` peer dependency.
-
-This combination is a generator recommendation, not a verified installation for
-this repository. Before adding dependencies, check for a compatible release and
-prove generation over the actual hook declarations. Do not force peer resolution
-or silently downgrade the workspace compiler. If support has not caught up, bring
-back an explicit proposal for an isolated documentation toolchain using supported
-TypeScript; confirm it can read the chosen declaration syntax. Runtime hook
-compilation and build-time documentation generation are separate concerns.
-
-Recheck with `npm view typedoc version peerDependencies --json` and
-`npm view typedoc-plugin-markdown version peerDependencies --json`. Pin the verified
-pair in the lockfile. No packages were installed for this design document.
+The workspace uses the official side-by-side compiler setup: `@typescript/native`
+provides TypeScript 7.0.2's `tsc`, while `typescript` aliases Microsoft's
+`@typescript/typescript6` 6.0.2 compatibility package for the compiler API and
+TypeDoc 0.28.20 / typedoc-plugin-markdown 4.13.1. Both versions are pinned.
+TypeScript 7 WASM (`tsgo-wasm`) was investigated: it distributes a binary and Node
+CLI launcher, without an embeddable browser compiler API. A browser adapter is
+outside this PoC. See Microsoft's [side-by-side recommendation](https://devblogs.microsoft.com/typescript/announcing-typescript-7-0/).
 
 ## Committed output and progressive reading
 
@@ -105,7 +94,7 @@ an agent document write. Reads, query discovery and graph links remain supported
 
 ## Moon tasks and drift checks
 
-Proposed task names below do not exist yet:
+Implemented tasks:
 
 - `workspace:hooksDocsGenerate`: run the pinned generator with the public API
   entrypoint and configuration, writing the committed `docs/hooks/` output.

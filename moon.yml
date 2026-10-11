@@ -1,6 +1,13 @@
 toolchains:
   default: node
 tasks:
+  hooksDocsGenerate:
+    command: node scripts/hooks/docs.mjs
+    options:
+      cache: false
+  hooksDocsCheck:
+    command: node scripts/hooks/docs.mjs --check
+    inputs: ['packages/hooks/src/services.ts', 'scripts/hooks/**/*', 'docs/hooks/**/*', 'package.json', 'package-lock.json']
   evalReview:
     command: npx --no-install tsx scripts/run-conversation-review-eval.ts
     deps: [contracts:generate]
@@ -63,7 +70,7 @@ tasks:
   build:
     deps: [compile, webBuild]
   check:
-    deps: [contracts:lint, typecheck, test]
+    deps: [contracts:lint, typecheck, test, hooksDocsCheck]
   dev:
     command: npx --no-install vite
     deps: [contracts:generate]
