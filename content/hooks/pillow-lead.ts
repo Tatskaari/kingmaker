@@ -5,7 +5,7 @@ export default async function run(services: HookServices): Promise<TransitionRes
       const id = `smash_${current.id}`;
       const existing = current.actions.find(action => action.id === id);
       if (!existing) current.actions.push({ id, label: "Smash cart · Strength check (DC 15)",
-        handler: "smash-cart", onSuccessHook: "smashed-cart.ts", actorId: "player", illegal: true, order: 25 });
+        handler: "smash-cart", actorId: "player", illegal: true, order: 25 });
     });
   }
   let quest = services.quests.read("assembly_programme");

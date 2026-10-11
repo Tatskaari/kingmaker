@@ -1,10 +1,10 @@
 export default async function run(services: HookServices): Promise<TransitionResult> {
-  const remedy = services.transition?.evidence;
+  const fixtures = services.map.listFixtures();
+  const remedy = services.transition?.evidence || (fixtures.some(f => f.id === "furn_gift_tree") ? "smash" : "");
   if (!["repair", "back_out", "smash"].includes(remedy || "")) return { status: "rejected", message: "A successful cart remedy is required." };
   if (remedy === "repair" && !services.inventory.hasItem("player", "furn_corvin_cart_book")) {
     return { status: "rejected", message: "Bring Corvin's cart-repair book to Rowan first." };
   }
-  const fixtures = services.map.listFixtures();
   if (remedy === "smash" && !fixtures.some(f => f.id === "furn_gift_tree")) {
     return { status: "rejected", message: "The cart has not been successfully smashed." };
   }

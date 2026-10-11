@@ -167,14 +167,9 @@ export class WorldHost {
       if (command.kind === "fixture") {
         const result = this.interactFixtureWithEvent(command.id);
         worldEvent = result.event; message = result.message; roll = result.roll;
-        const hookName = result.event.details?.onSuccessHook;
-        if (typeof hookName === "string" && (!roll || roll.success)) {
-          const hook = this.worldServices.hooks.bind()[hookName];
-          if (!hook) throw new Error(`Missing fixture completion hook: ${hookName}`);
-          const outcome = await hook(signal ?? new AbortController().signal);
-          if (outcome.message) message = `${message} ${outcome.message}`;
-        }
+
       }
+      await this.worldServices.hooks.evaluatePredicates(signal ?? new AbortController().signal);
       return { done: true,
         ...(worldEvent ? { worldEvent } : {}), ...(message ? { message } : {}), ...(roll ? { roll } : {}) };
     },

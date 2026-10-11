@@ -54,7 +54,6 @@ function fixtureEventContext(world: PhysicalMap, characters: ReturnType<typeof m
     action: action.verb,
     legality: action.legality,
     fixtureId: fixture?.id ?? action.target,
-    ...(fixture?.actions.find(item => item.id === actionId)?.onSuccessHook ? { onSuccessHook: fixture.actions.find(item => item.id === actionId)!.onSuccessHook } : {}),
     fixtureName: fixture?.name ?? action.target,
     ...(item ? { itemId: item.id, itemName: item.name } : {}),
     ...(owner ? { ownerCharacterId: owner.id, ownerName: owner.name } : {}),
