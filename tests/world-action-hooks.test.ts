@@ -159,16 +159,19 @@ test("Jev refreshes NPC locations and routes from both actors on every planning 
   }, strategies: { action: jevActionStrategy } });
   await planWorldAction("corvin", runtime);
   assert.match(prompts[0]!, /Holt \(holt\): Entrance Hall \(walk via enter_entrance_hall\)/);
-  const map = services.scenario.read().simulation!.map!;
-  const holt = map.actors.find(actor => actor.characterId === "holt")!;
-  const corvin = map.actors.find(actor => actor.characterId === "corvin")!;
-  holt.roomId = corvin.roomId;
-  Object.assign(holt.position!, { x: 61, y: 24 });
+  services.mechanics.executeMove(({ G }) => {
+    const holt = G.map!.actors.find(actor => actor.characterId === "holt")!;
+    holt.roomId = "great_hall";
+    Object.assign(holt.position!, { x: 61, y: 24 });
+  });
   await planWorldAction("corvin", runtime);
   assert.match(prompts[1]!, /Holt \(holt\): Great Hall \(already in your room\)/);
   assert.doesNotMatch(prompts[1]!, /Holt \(holt\): Entrance Hall/);
-  corvin.roomId = "entrance_hall";
-  Object.assign(corvin.position!, { x: 61, y: 35 });
+  services.mechanics.executeMove(({ G }) => {
+    const corvin = G.map!.actors.find(actor => actor.characterId === "corvin")!;
+    corvin.roomId = "entrance_hall";
+    Object.assign(corvin.position!, { x: 61, y: 35 });
+  });
   await planWorldAction("corvin", runtime, undefined, [], { error: "Moved", instruction: "Replan" });
   assert.match(prompts[2]!, /Holt \(holt\): Great Hall \(walk via enter_great_hall\)/);
   assert.doesNotMatch(prompts[2]!, /Holt \(holt\): Great Hall \(already in your room\)/);
