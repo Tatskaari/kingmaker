@@ -16,6 +16,8 @@ Read `lore/Authoring/Working on Lore.md` and `lore/Authoring/Agent Disclosure.md
 
 ## Effects and disclosure
 
+For authoritative simulation changes, follow [move authoring](../kingmaker-move-authoring/SKILL.md): host hooks use synchronous draft callbacks through registered moves; player commands remain data-only. The `updateFixture` callback API is agreed but not yet implemented.
+
 Keep mechanics and review execution in host/GM services. Character responses remain tool-free with reasoning effort `none`; preserve scoped memory indexes for Jev disclosure.
 
 Validate against live state, stage only affected entities and publish material effects with progress consistently. Repeated completion must not duplicate items, activities or reactions. A fixture action that resolves a quest must share the successful outcome path with conversation helpers.

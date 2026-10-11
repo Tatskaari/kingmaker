@@ -62,3 +62,21 @@ The browser requests an immediate flush when the page becomes hidden or receives
 `pagehide`. These are best-effort lifecycle saves: refresh/back can terminate the
 worker before IndexedDB finishes. The in-app Saved games action and game switches
 explicitly await a flush. Periodic saving remains the fallback for abrupt exits.
+
+## Planned authoritative fixture updates
+
+The agreed host API is `map.updateFixture(fixtureId, update)`: a registered move
+finds the current fixture inside boardgame.io's draft `G` and invokes a synchronous,
+side-effect-free callback. It is not implemented yet. Read-only world access can
+remain outside moves; async work finishes before entering the update callback.
+Player interactions remain data-only commands, not callbacks or arbitrary writes.
+
+See the [move-authoring skill](../.agents/skills/kingmaker-move-authoring/SKILL.md)
+for draft lifetime, rejection requirements, conflict limits and the distinction
+between state persistence and non-serializable callback move logs. This pattern
+can apply to other authoritative simulation updates without per-field moves.
+
+Do not add bespoke version/hash/conflict bookkeeping around these synchronous
+draft updates. The inventory service's snapshot/SHA replacement workflow needs
+review against this pattern; reviewing and updating it is separate implementation
+work, not a reason to reproduce its bookkeeping in the fixture service.
