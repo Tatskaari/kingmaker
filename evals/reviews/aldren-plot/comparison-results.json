@@ -1,0 +1,115 @@
+{
+  "date": "2026-10-11",
+  "run_revision": "430d945",
+  "model": "openai/gpt-6-luna",
+  "reasoning": "high",
+  "repeats": 1,
+  "trials": [
+    {
+      "variant": "game",
+      "repeat": 1,
+      "artifact": "eval-output/aldren-comparison/2026-10-11T15-25-23.737Z-95f59632/0001.json",
+      "changed_documents": [],
+      "tool_counts": {
+        "list_documents": 2,
+        "read_document": 6
+      },
+      "gm_summary": [
+        "No quest-stage update is supported: Aldren agreed to approach Holt and issue an order, but has not delivered it. Holt’s explanation, the cause of the delay, and the cushions’ whereabouts remain unknown. The existing notes already record Aldren’s agreement; no duplicate memory or other change was needed."
+      ],
+      "scores": {
+        "delegation": 1,
+        "player-return": 0,
+        "reconnection": 0,
+        "grounding": 1,
+        "runtime-preserved": 1
+      },
+      "execution_error": null,
+      "judging_error": null
+    },
+    {
+      "variant": "sql",
+      "repeat": 1,
+      "artifact": "eval-output/aldren-comparison/2026-10-11T15-25-23.737Z-95f59632/0002.json",
+      "changed_documents": [],
+      "tool_counts": {
+        "query_documents": 1,
+        "read_document": 10,
+        "list_documents": 1
+      },
+      "gm_summary": [
+        "No quest or GM-document updates. Aldren’s critical-success persuasion result establishes his willingness and commitment to issue Holt a direct order, but he has not delivered it. Holt has not responded, and the delay’s cause and the cushions’ whereabouts remain unknown; no investigation stage advances. The existing memory already records Aldren’s changed willingness, so I added no duplicate."
+      ],
+      "scores": {
+        "delegation": 1,
+        "player-return": 0,
+        "reconnection": 0,
+        "grounding": 1,
+        "runtime-preserved": 1
+      },
+      "execution_error": null,
+      "judging_error": null
+    },
+    {
+      "variant": "prompt",
+      "repeat": 1,
+      "artifact": "eval-output/aldren-comparison/2026-10-11T15-25-23.737Z-95f59632/0003.json",
+      "changed_documents": [
+        "Conversations/aldren.md",
+        "Scenarios/Centennial Assembly/Characters/aldren/conversation.md",
+        "Scenarios/Centennial Assembly/Characters/aldren/situation.md",
+        "Scenarios/Centennial Assembly/Quests/Assembly Programme/010_stage_investigate_missing_pillows.md",
+        "Scenarios/Centennial Assembly/Quests/Assembly Programme/index.md",
+        "Scenarios/Centennial Assembly/Quests/Assembly Programme/transitions/learn_cart_blocked.md"
+      ],
+      "tool_counts": {
+        "list_documents": 1,
+        "read_document": 19,
+        "replace_document": 13
+      },
+      "gm_summary": [
+        "**Outcome: the agreed detour is now documented, but no runtime event was performed.**\n\nI updated Aldren’s conversation tree with the already-ruled critical-success branch: he is willing to find Holt and give the order, but has not delivered it. I added a later reporting route so that, after Aldren actually speaks with Holt, he shares only Holt’s actual response and returns the next choice to the player.\n\nI also updated Aldren’s situation and conversation guidance, plus the Assembly Programme quest, investigation-stage, and `learn_cart_blocked` transition guidance. The quest notes now support either the player hearing the cart lead directly from Holt or learning it through Aldren’s later report. The stage advances only once that information reaches the player; the order itself does not clear the cart or deliver the cushions.\n\n**Runtime follow-through still required:** Aldren has not moved to Holt or delivered the order. The edited tree does not move the live conversation pointer (still `helping`, inactive), and the active quest remains at `investigate_missing_pillows`. The live quest transition/helper still needs to support Aldren relaying Holt’s explanation; the separate activity and actual scene execution remain outstanding. No physical state or quest progress was changed."
+      ],
+      "scores": {
+        "delegation": 1,
+        "player-return": 1,
+        "reconnection": 1,
+        "grounding": 1,
+        "runtime-preserved": 1
+      },
+      "execution_error": null,
+      "judging_error": null
+    },
+    {
+      "variant": "sql-and-prompt",
+      "repeat": 1,
+      "artifact": "eval-output/aldren-comparison/2026-10-11T15-25-23.737Z-95f59632/0004.json",
+      "changed_documents": [
+        "Conversations/aldren.md",
+        "Conversations/holt.md",
+        "Scenarios/Centennial Assembly/Characters/aldren/conversation.md",
+        "Scenarios/Centennial Assembly/Characters/aldren/situation.md",
+        "Scenarios/Centennial Assembly/Quests/Assembly Programme/010_stage_investigate_missing_pillows.md",
+        "Scenarios/Centennial Assembly/Quests/Assembly Programme/index.md",
+        "Scenarios/Centennial Assembly/Quests/Assembly Programme/transitions/learn_cart_blocked.md"
+      ],
+      "tool_counts": {
+        "list_documents": 1,
+        "read_document": 8,
+        "replace_document": 15
+      },
+      "gm_summary": [
+        "**Plot adaptation made.** Aldren’s successful persuasion now has a supported detour: he intends to approach Holt and issue the order, but the guidance keeps that separate from actually delivering it or getting a response. After a real exchange, Aldren reports only what he learned and gives the player a choice about how to follow up.\n\nI updated Aldren’s and Holt’s conversation guidance, Aldren’s situation and conversation notes, and the Assembly Programme quest, investigation stage, and `learn_cart_blocked` transition. The player can now learn the cart lead from Holt directly or from Aldren’s accurate report of an actual exchange with Holt; either route can return the story to the existing `cart_blocked` stage.\n\n**Runtime follow-through remains:** Aldren still has to reach Holt and deliver the order; the documents do not move him or advance the live conversation. The supplied Aldren conversation is still at `helping` and inactive. The existing quest helper covers Holt telling the player directly; the Aldren-report route still needs runtime wiring to invoke the same transition after the report. No order delivery, Holt response, quest transition, or physical change was recorded here."
+      ],
+      "scores": {
+        "delegation": 1,
+        "player-return": 1,
+        "reconnection": 1,
+        "grounding": 1,
+        "runtime-preserved": 1
+      },
+      "execution_error": null,
+      "judging_error": null
+    }
+  ]
+}
