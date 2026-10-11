@@ -1,0 +1,33 @@
+{
+  "transcript": [
+    {
+      "type": "character",
+      "character_id": "aldren"
+    },
+    {
+      "type": "progressive_disclosure",
+      "docs": [
+        "Scenarios/Centennial Assembly/Characters/aldren/situation.md",
+        "Scenarios/Centennial Assembly/Characters/aldren/conversation.md",
+        "Scenarios/Centennial Assembly/Characters/aldren/memories/index.md",
+        "Scenarios/Centennial Assembly/Characters/aldren/memories/delegation.md"
+      ]
+    },
+    {
+      "type": "message",
+      "who": "player",
+      "message": "That pun was awful. Fine but what do you mean I should talk some sense into Holt. You're the king aren't you? Can I just say it's an order? "
+    },
+    {
+      "type": "message",
+      "who": "gm",
+      "message": "Binding GM ruling: persuasion critical_success; natural 20, modifier 17, total 37, DC 15. Aldren accepts that he should approach Holt himself, thanks the envoy and will issue the order to find the cushions and resolve the delay. He has not delivered the order; Holt has not complied; the cushions have not arrived and their whereabouts and cause of delay remain unknown. Honour this success; do not roll again."
+    },
+    {
+      "type": "message",
+      "who": "agent",
+      "message": "“You’re quite right. I am the king—and I have been asking you to lend me a courage I ought to supply myself.” *My expression brightens with sudden resolve.* “I’ll speak to Holt directly, and I’ll make it an order: find the cushions and resolve this delay.”\n\n*I turn at once, then pause to give you a grateful nod.* “Thank you. You have made the royal prerogative seem remarkably obvious.”"
+    }
+  ],
+  "docs_override": "test_data/lore"
+}
