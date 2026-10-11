@@ -12,7 +12,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file kingmaker/headless/v1/console.proto.
  */
 export const file_kingmaker_headless_v1_console: GenFile = /*@__PURE__*/
-  fileDesc("CiNraW5nbWFrZXIvaGVhZGxlc3MvdjEvY29uc29sZS5wcm90bxIVa2luZ21ha2VyLmhlYWRsZXNzLnYxIh4KDkV4ZWN1dGVSZXF1ZXN0EgwKBGNvZGUYASABKAkiRgoPRXhlY3V0ZVJlc3BvbnNlEiUKBXZhbHVlGAEgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEgwKBGxvZ3MYAiADKAkiLQoORXhlY3V0aW9uRXJyb3ISDAoEbG9ncxgBIAMoCRINCgVzdGFjaxgCIAEoCTJuChJHYW1lQ29uc29sZVNlcnZpY2USWAoHRXhlY3V0ZRIlLmtpbmdtYWtlci5oZWFkbGVzcy52MS5FeGVjdXRlUmVxdWVzdBomLmtpbmdtYWtlci5oZWFkbGVzcy52MS5FeGVjdXRlUmVzcG9uc2ViBnByb3RvMw", [file_google_protobuf_struct]);
+  fileDesc("CiNraW5nbWFrZXIvaGVhZGxlc3MvdjEvY29uc29sZS5wcm90bxIVa2luZ21ha2VyLmhlYWRsZXNzLnYxIh4KDkV4ZWN1dGVSZXF1ZXN0EgwKBGNvZGUYASABKAkiRgoPRXhlY3V0ZVJlc3BvbnNlEiUKBXZhbHVlGAEgASgLMhYuZ29vZ2xlLnByb3RvYnVmLlZhbHVlEgwKBGxvZ3MYAiADKAkiLQoORXhlY3V0aW9uRXJyb3ISDAoEbG9ncxgBIAMoCRINCgVzdGFjaxgCIAEoCSIQCg5PYnNlcnZlUmVxdWVzdCJPCgxQbGF5ZXJBY3Rpb24SCgoCaWQYASABKAkSEwoLZGVzY3JpcHRpb24YAiABKAkSDAoEdHlwZRgDIAEoCRIQCghsZWdhbGl0eRgEIAEoCSJcCg9PYnNlcnZlUmVzcG9uc2USEwoLb2JzZXJ2YXRpb24YASABKAkSNAoHYWN0aW9ucxgCIAMoCzIjLmtpbmdtYWtlci5oZWFkbGVzcy52MS5QbGF5ZXJBY3Rpb24iGAoKQWN0UmVxdWVzdBIKCgJpZBgBIAEoCSI0CgtBY3RSZXNwb25zZRIlCgV2YWx1ZRgBIAEoCzIWLmdvb2dsZS5wcm90b2J1Zi5WYWx1ZTKWAgoSR2FtZUNvbnNvbGVTZXJ2aWNlElgKB0V4ZWN1dGUSJS5raW5nbWFrZXIuaGVhZGxlc3MudjEuRXhlY3V0ZVJlcXVlc3QaJi5raW5nbWFrZXIuaGVhZGxlc3MudjEuRXhlY3V0ZVJlc3BvbnNlElgKB09ic2VydmUSJS5raW5nbWFrZXIuaGVhZGxlc3MudjEuT2JzZXJ2ZVJlcXVlc3QaJi5raW5nbWFrZXIuaGVhZGxlc3MudjEuT2JzZXJ2ZVJlc3BvbnNlEkwKA0FjdBIhLmtpbmdtYWtlci5oZWFkbGVzcy52MS5BY3RSZXF1ZXN0GiIua2luZ21ha2VyLmhlYWRsZXNzLnYxLkFjdFJlc3BvbnNlYgZwcm90bzM", [file_google_protobuf_struct]);
 
 /**
  * @generated from message kingmaker.headless.v1.ExecuteRequest
@@ -82,7 +82,111 @@ export const ExecutionErrorSchema: GenMessage<ExecutionError> = /*@__PURE__*/
   messageDesc(file_kingmaker_headless_v1_console, 2);
 
 /**
+ * @generated from message kingmaker.headless.v1.ObserveRequest
+ */
+export type ObserveRequest = Message<"kingmaker.headless.v1.ObserveRequest"> & {
+};
+
+/**
+ * Describes the message kingmaker.headless.v1.ObserveRequest.
+ * Use `create(ObserveRequestSchema)` to create a new message.
+ */
+export const ObserveRequestSchema: GenMessage<ObserveRequest> = /*@__PURE__*/
+  messageDesc(file_kingmaker_headless_v1_console, 3);
+
+/**
+ * @generated from message kingmaker.headless.v1.PlayerAction
+ */
+export type PlayerAction = Message<"kingmaker.headless.v1.PlayerAction"> & {
+  /**
+   * @generated from field: string id = 1;
+   */
+  id: string;
+
+  /**
+   * @generated from field: string description = 2;
+   */
+  description: string;
+
+  /**
+   * @generated from field: string type = 3;
+   */
+  type: string;
+
+  /**
+   * @generated from field: string legality = 4;
+   */
+  legality: string;
+};
+
+/**
+ * Describes the message kingmaker.headless.v1.PlayerAction.
+ * Use `create(PlayerActionSchema)` to create a new message.
+ */
+export const PlayerActionSchema: GenMessage<PlayerAction> = /*@__PURE__*/
+  messageDesc(file_kingmaker_headless_v1_console, 4);
+
+/**
+ * @generated from message kingmaker.headless.v1.ObserveResponse
+ */
+export type ObserveResponse = Message<"kingmaker.headless.v1.ObserveResponse"> & {
+  /**
+   * @generated from field: string observation = 1;
+   */
+  observation: string;
+
+  /**
+   * @generated from field: repeated kingmaker.headless.v1.PlayerAction actions = 2;
+   */
+  actions: PlayerAction[];
+};
+
+/**
+ * Describes the message kingmaker.headless.v1.ObserveResponse.
+ * Use `create(ObserveResponseSchema)` to create a new message.
+ */
+export const ObserveResponseSchema: GenMessage<ObserveResponse> = /*@__PURE__*/
+  messageDesc(file_kingmaker_headless_v1_console, 5);
+
+/**
+ * @generated from message kingmaker.headless.v1.ActRequest
+ */
+export type ActRequest = Message<"kingmaker.headless.v1.ActRequest"> & {
+  /**
+   * Must identify an action in the player's current observation.
+   *
+   * @generated from field: string id = 1;
+   */
+  id: string;
+};
+
+/**
+ * Describes the message kingmaker.headless.v1.ActRequest.
+ * Use `create(ActRequestSchema)` to create a new message.
+ */
+export const ActRequestSchema: GenMessage<ActRequest> = /*@__PURE__*/
+  messageDesc(file_kingmaker_headless_v1_console, 6);
+
+/**
+ * @generated from message kingmaker.headless.v1.ActResponse
+ */
+export type ActResponse = Message<"kingmaker.headless.v1.ActResponse"> & {
+  /**
+   * @generated from field: google.protobuf.Value value = 1;
+   */
+  value?: Value | undefined;
+};
+
+/**
+ * Describes the message kingmaker.headless.v1.ActResponse.
+ * Use `create(ActResponseSchema)` to create a new message.
+ */
+export const ActResponseSchema: GenMessage<ActResponse> = /*@__PURE__*/
+  messageDesc(file_kingmaker_headless_v1_console, 7);
+
+/**
  * JSON-RPC adapter exposes Execute as game.execute over a local Unix socket.
+ * QA servers expose only Observe and Act as game.observe and game.act.
  *
  * @generated from service kingmaker.headless.v1.GameConsoleService
  */
@@ -94,6 +198,22 @@ export const GameConsoleService: GenService<{
     methodKind: "unary";
     input: typeof ExecuteRequestSchema;
     output: typeof ExecuteResponseSchema;
+  },
+  /**
+   * @generated from rpc kingmaker.headless.v1.GameConsoleService.Observe
+   */
+  observe: {
+    methodKind: "unary";
+    input: typeof ObserveRequestSchema;
+    output: typeof ObserveResponseSchema;
+  },
+  /**
+   * @generated from rpc kingmaker.headless.v1.GameConsoleService.Act
+   */
+  act: {
+    methodKind: "unary";
+    input: typeof ActRequestSchema;
+    output: typeof ActResponseSchema;
   },
 }> = /*@__PURE__*/
   serviceDesc(file_kingmaker_headless_v1_console, 0);

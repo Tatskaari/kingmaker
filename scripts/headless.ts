@@ -8,7 +8,7 @@ import type { WorldSnapshot } from "../apps/web/src/world-runtime.js";
 import { WorldStateSchema } from "../packages/contracts/src/v2.js";
 import { WorldHeadlessGame } from "../packages/headless/src/world.js";
 import { startConsole } from "../packages/headless/src/server.js";
-import { execute } from "../packages/headless/src/client.js";
+import { act, execute, observe } from "../packages/headless/src/client.js";
 
 const args = process.argv.slice(2);
 const option = (name: string) => {
@@ -19,17 +19,23 @@ const option = (name: string) => {
   return value;
 };
 const socketPath = resolve(option("--socket") ?? `${tmpdir()}/kingmaker-${process.getuid?.() ?? "local"}/game.sock`);
+const print = (value: unknown) => console.log(typeof value === "string" ? value : JSON.stringify(value, null, 2));
+const report = (error: unknown) => {
+  const detail = error as Error & { data?: { logs?: string[] } };
+  for (const line of detail.data?.logs ?? []) console.error(line);
+  console.error(detail.message); process.exitCode = 1;
+};
 if (args[0] === "exec") {
-  const code = option("--code") ?? readFileSync(option("--file") ?? 0, "utf8");
   try {
+    const code = option("--code") ?? readFileSync(option("--file") ?? 0, "utf8");
     const response = await execute(socketPath, code);
     for (const line of response.logs) console.error(line);
-    console.log(typeof response.value === "string" ? response.value : JSON.stringify(response.value, null, 2));
-  } catch (error) {
-    const detail = error as Error & { data?: { logs?: string[] } };
-    for (const line of detail.data?.logs ?? []) console.error(line);
-    console.error(detail.message); process.exitCode = 1;
-  }
+    print(response.value);
+  } catch (error) { report(error); }
+} else if (args[0] === "observe") {
+  try { print(await observe(socketPath)); } catch (error) { report(error); }
+} else if (args[0] === "act") {
+  try { print((await act(socketPath, option("--id") ?? "")).value); } catch (error) { report(error); }
 } else if (!args.length || args[0] === "start" || args[0]?.startsWith("--")) {
   const worldPath = option("--world");
   const source = worldPath ? JSON.parse(readFileSync(worldPath, "utf8")) : undefined;
@@ -38,9 +44,10 @@ if (args[0] === "exec") {
     : args.includes("--dev-player") ? loadPlayableWorld() : characterCreationWorld(loadPlayableWorld());
   const game = new WorldHeadlessGame(world, process.env.OPENROUTER_API_KEY ?? "");
   mkdirSync(dirname(socketPath), { recursive: true, mode: 0o700 });
-  const server = await startConsole(game, socketPath);
-  console.log(`Game console ready: ${socketPath}`);
+  const mode = args.includes("--qa") ? "qa" : "developer";
+  const server = await startConsole(game, socketPath, mode);
+  console.log(`Game ${mode === "qa" ? "QA" : "console"} ready: ${socketPath}`);
   for (const signal of ["SIGINT", "SIGTERM"] as const) process.once(signal, () => {
     server.close(() => process.exit(0));
   });
-} else throw new Error("Usage: headless [start|exec] [--socket path] [--world path] [--code source|--file path]");
+} else throw new Error("Usage: headless [start|exec|observe|act] [--qa] [--socket path] [--world path] [--code source|--file path|--id action]");

@@ -4,15 +4,18 @@ import { stripTypeScriptTypes } from "node:module";
 import { format } from "node:util";
 import { runInNewContext } from "node:vm";
 import { create, fromJson, toJson, type JsonValue } from "@bufbuild/protobuf";
-import { ExecuteRequestSchema, ExecuteResponseSchema, ExecutionErrorSchema } from "../../contracts/src/gen/kingmaker/headless/v1/console_pb.js";
+import { ActRequestSchema, ActResponseSchema, ExecuteRequestSchema, ExecuteResponseSchema, ExecutionErrorSchema,
+  ObserveRequestSchema, ObserveResponseSchema } from "../../contracts/src/gen/kingmaker/headless/v1/console_pb.js";
 import type { WorldHeadlessGame } from "./world.js";
 
 const MAX_BYTES = 1024 * 1024;
 const fault = (id: unknown, code: number, message: string, data?: JsonValue) =>
   ({ jsonrpc: "2.0", id, error: { code, message, ...(data === undefined ? {} : { data }) } });
 
-/** Trusted local developer console; vm is an execution context, not a security sandbox. */
-export function createDispatcher(game: WorldHeadlessGame) {
+export type HeadlessMode = "developer" | "qa";
+
+/** Developer mode is trusted code execution. QA mode exposes only observed player actions. */
+export function createDispatcher(game: WorldHeadlessGame, mode: HeadlessMode = "developer") {
   async function dispatch(input: unknown): Promise<unknown> {
     if (Array.isArray(input)) {
       if (!input.length) return fault(null, -32600, "Empty batch");
@@ -28,6 +31,40 @@ export function createDispatcher(game: WorldHeadlessGame) {
       return fault(null, -32600, "Invalid request");
     }
     const respond = (reply: unknown) => hasId ? reply : undefined;
+    if (mode === "qa") {
+      if (request.method === "game.observe") {
+        try { fromJson(ObserveRequestSchema, (request.params ?? {}) as JsonValue); }
+        catch { return respond(fault(id, -32602, "Expected ObserveRequest")); }
+        try {
+          const result = toJson(ObserveResponseSchema, fromJson(ObserveResponseSchema, {
+            observation: game.observe(), actions: game.actions(),
+          }), { alwaysEmitImplicit: true });
+          if (Buffer.byteLength(JSON.stringify(result)) > MAX_BYTES - 4096) throw new Error("Result too large");
+          return respond({ jsonrpc: "2.0", id, result });
+        } catch (error) {
+          return respond(fault(id, -32000, error instanceof Error ? error.message.slice(0, 2000) : String(error)));
+        }
+      }
+      if (request.method === "game.act") {
+        let actionId: string;
+        try {
+          actionId = fromJson(ActRequestSchema, request.params as JsonValue).id;
+          if (!actionId.trim()) throw new Error("id must not be empty");
+        } catch { return respond(fault(id, -32602, "Expected ActRequest with non-empty id")); }
+        try {
+          const value = await game.act(actionId);
+          const json = JSON.stringify(value === undefined ? null : value);
+          if (json === undefined) throw new Error("Action returned a non-JSON-compatible value");
+          if (Buffer.byteLength(json) > MAX_BYTES - 4096) throw new Error("Result too large");
+          const result = toJson(ActResponseSchema, fromJson(ActResponseSchema, { value: JSON.parse(json) }),
+            { alwaysEmitImplicit: true });
+          return respond({ jsonrpc: "2.0", id, result });
+        } catch (error) {
+          return respond(fault(id, -32000, error instanceof Error ? error.message.slice(0, 2000) : String(error)));
+        }
+      }
+      return respond(fault(id, -32601, "Method not found"));
+    }
     if (request.method !== "game.execute") return respond(fault(id, -32601, "Method not found"));
     let code: string;
     try {
@@ -63,8 +100,8 @@ export function createDispatcher(game: WorldHeadlessGame) {
 }
 
 /** Newline-delimited JSON-RPC; one global queue serializes every client's code. */
-export async function startConsole(game: WorldHeadlessGame, socketPath: string) {
-  const dispatch = createDispatcher(game);
+export async function startConsole(game: WorldHeadlessGame, socketPath: string, mode: HeadlessMode = "developer") {
+  const dispatch = createDispatcher(game, mode);
   let queue = Promise.resolve();
   const server = createServer(socket => {
     socket.setEncoding("utf8");

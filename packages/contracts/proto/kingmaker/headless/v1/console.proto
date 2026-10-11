@@ -5,8 +5,11 @@ package kingmaker.headless.v1;
 import "google/protobuf/struct.proto";
 
 // JSON-RPC adapter exposes Execute as game.execute over a local Unix socket.
+// QA servers expose only Observe and Act as game.observe and game.act.
 service GameConsoleService {
   rpc Execute(ExecuteRequest) returns (ExecuteResponse);
+  rpc Observe(ObserveRequest) returns (ObserveResponse);
+  rpc Act(ActRequest) returns (ActResponse);
 }
 
 message ExecuteRequest {
@@ -24,4 +27,27 @@ message ExecuteResponse {
 message ExecutionError {
   repeated string logs = 1;
   string stack = 2;
+}
+
+message ObserveRequest {}
+
+message PlayerAction {
+  string id = 1;
+  string description = 2;
+  string type = 3;
+  string legality = 4;
+}
+
+message ObserveResponse {
+  string observation = 1;
+  repeated PlayerAction actions = 2;
+}
+
+message ActRequest {
+  // Must identify an action in the player's current observation.
+  string id = 1;
+}
+
+message ActResponse {
+  google.protobuf.Value value = 1;
 }

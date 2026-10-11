@@ -41,3 +41,18 @@ test("protocol validation, notifications, batches and execution errors", async (
   assert.equal((await dispatch(request('return "x".repeat(1024 * 1024);')) as any).error.code, -32000);
   assert.equal((await dispatch(request("return 2;")) as any).result.value, 2);
 });
+
+test("QA protocol exposes only current player observations and actions", async () => {
+  const dispatch = createDispatcher(new WorldHeadlessGame(loadPlayableWorld()), "qa");
+  const call = (method: string, params: unknown = {}, id: string | number = 1) =>
+    dispatch({ jsonrpc: "2.0", id, method, params }) as Promise<any>;
+  const observed = await call("game.observe");
+  assert.match(observed.result.observation, /^Great Hall/);
+  assert.ok(observed.result.actions.some((action: any) => action.id === "enter_entrance_hall"));
+  assert.equal((await call("game.execute", { code: "return game.inspect();" })).error.code, -32601);
+  assert.equal((await call("game.act", { id: "not_an_observed_action" })).error.code, -32000);
+  assert.match((await call("game.act", { id: "not_an_observed_action" })).error.message, /Unavailable player action/);
+  assert.equal((await call("game.act", {})).error.code, -32602);
+  assert.equal((await call("game.act", { id: "enter_entrance_hall" })).result.value.done, true);
+  assert.match((await call("game.observe")).result.observation, /^Entrance Hall/);
+});

@@ -39,7 +39,8 @@ export class WorldHeadlessGame {
     const observation = this.observation(id);
     return renderJevRoomView(observation.map, observation.characters, observation);
   }
-  actions() { return this.observation().actions.map(({ id, description, type, legality }) => ({ id, description, type, legality })); }
+  actions() { return this.observation().actions.map(({ id, description, type, legality }) =>
+    ({ id, description, type, legality: legality ?? "normal" })); }
   overview() { return this.runtime.view(); }
   async act(id: string) {
     const action = this.observation("player", id).actions.find(action => action.id === id);

@@ -31,6 +31,24 @@ npm run headless -- exec --code 'return await game.talk("rowan", "What brings yo
 npm run headless -- exec --code 'await game.endConversation("rowan");'
 ```
 
+For QA clients that must play only through the same choices available to a player,
+start the socket in restricted mode:
+
+```sh
+npm run headless -- start --qa --dev-player
+npm run headless -- observe
+npm run headless -- act --id enter_entrance_hall
+```
+
+QA mode exposes only `game.observe` and `game.act` over JSON-RPC. Observation
+returns Jev's player room view together with the current structured action list.
+`act` accepts one of those action IDs and revalidates it against the live player
+observation before moving or interacting. `game.execute` and all direct runtime,
+service, snapshot, and JavaScript access return `Method not found`. Use
+`--dev-player` or a playable `--world` because a fresh character-creation game has
+no placed player to observe. Developer and QA servers use the same default socket,
+so run only one at a time or give each a distinct `--socket`.
+
 Set `OPENROUTER_API_KEY` on the **server** for dialogue and reviews. `--dev-player`
 uses the existing development envoy and skips character creation. Without this
 flag, a fresh authored scenario starts in player creation. Use
@@ -76,8 +94,8 @@ Simulation state returned by `inspect()` is frozen. Use `game.services` for
 validated document, inventory and mechanics updates, or `game.move()` / `game.act()`
 for gameplay. Direct assignment is rejected; `game.edit()` is no longer provided.
 
-The socket speaks newline-delimited JSON-RPC 2.0. `game.execute` params/results
-use ProtoJSON for `ExecuteRequest`/`ExecuteResponse`, defined in
+The socket speaks newline-delimited JSON-RPC 2.0. `game.execute`, `game.observe`,
+and `game.act` params/results use their ProtoJSON request and response messages, defined in
 `packages/contracts/proto/kingmaker/headless/v1/console.proto`. Snippet errors use
 code `-32000` with `ExecutionError` in `error.data`; protocol errors use standard
 JSON-RPC codes. Logs are separate from the returned JSON value. Requests and
