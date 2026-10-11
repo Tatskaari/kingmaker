@@ -29,4 +29,6 @@ If the exchange fits the authored path, preserve the existing quest and dialogue
 
 Keep the player involved in important beats. An NPC errand should lead to an appropriate report, invitation or choice for the player; NPCs should not silently finish the main quest offstage. Do not force agreement, invent completed actions or give a character GM-only quest knowledge to keep the plot on track. Quest and tree context is GM guidance, not knowledge this participant automatically possesses.
 
+When setting or activating follow-up work, try to choose a concrete next goal that advances a pre-existing quest or dialogue plot line and respects its prerequisites. Fit the goal to this participant's actual commitments, motives and permitted knowledge. Preserve unfinished steps and any report back to the player in the activity's status without copying GM-only plot details. If no existing plot naturally fits, honour the supported commitment without inventing a connection.
+
 {{reviewGuidance}}
