@@ -14,6 +14,10 @@ Treat requests to implement, change, or fix repository code as requests to compl
 
 Push the first coherent, reviewable commit and open its PR early, before running lengthy local tests or builds. The user's GitHub Action provides QA, so publish and share the PR link while local validation continues. Mark validation as pending or in progress until results are known; keep pushing coherent follow-up commits and updating PR descriptions as fixes and feedback land. Early publication does not replace the required checks or mean the work is complete.
 
+## Agent skills
+
+Keep repository skills in `.agents/skills/<name>/SKILL.md`. `.claude/skills` is a symlink to that directory so Codex and Claude Code share one copy; do not duplicate repository skills in user-level skill directories.
+
 ## Follow existing patterns
 
 Before implementing a change, inspect comparable code and follow the repository's existing patterns as closely as possible. Reuse established architecture, abstractions, naming, data flow, UI conventions and testing approaches.
