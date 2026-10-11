@@ -6664,14 +6664,34 @@ GM conversation review instructions and the tools also used by world reviews and
 
 Parent: [[gm_prompts/conversation/index|conversation]].
 `,Ic=`---
-summary: "Review commitment flags together and set supported activities using only set_activity."
+summary: "Review commitments and set executable activities that support existing quest and dialogue plots using only set_activity."
 visibility: gm
 system: "GM conversation review"
 trigger_context: "After Jev flags any commitment or immediate_feasibility selects gms_discretion; runs before other focused reviews."
 tags: ["prompts", "conversation/review", "conversation/activity"]
-variables: ["transcript"]
+variables: ["transcript", "activeQuests", "activeConversationTrees", "npc_locations"]
 ---
 This conversation has been flagged as having an activity that the character must undertake once this conversation completes. This task will be passed to the action planner for execution. The action planner will get a textual representation of the world state, but won't have access to the details from this transcript. You should extract any context useful for execution of this action.
+
+<transcript>
+{{transcript}}
+</transcript>
+
+The current active quests and their progress are:
+
+<quests>
+{{activeQuests}}
+</quests>
+
+The character's current dialogue trees and their progress are:
+
+<conversation-trees>
+{{activeConversationTrees}}
+</conversation-trees>
+
+When setting or activating an activity, try to choose a goal in service of progressing a pre-existing plot line. Look for a concrete next step toward an authored quest or dialogue beat that fits the character's commitments, motives and permitted knowledge. Preserve prerequisites and unfinished work; do not invent a new objective merely to create activity. If no existing plot naturally fits, honour the supported commitment without forcing a connection.
+
+Use the activity's status to preserve the character-known motivation, unfinished steps and any planned report back to the player. Keep important player choices and revelations for the player rather than having NPCs silently finish the plot offstage. The quest and tree context is GM guidance: do not copy hidden outcomes, private motives or other GM-only facts into the activity. Set activities only; do not claim to advance quest stages, edit dialogue trees or complete physical actions in this review.
 
 The action planner works in a loop: 
 1. Work towards \`current_goal\`, until the task is complete, seems unachievable, or something happens that makes the action planner think you should re-prioritise
@@ -7587,6 +7607,8 @@ Try to respect the plot of active quests and the intended progression of dialogu
 If the exchange fits the authored path, preserve the existing quest and dialogue definitions. If it establishes a different approach or skips a dialogue beat, make only the necessary updates to reflect what actually happened and steer naturally back toward an authored plot point. Consult the relevant quest documents before changing their structure, and use the supported transition hooks for established progress.
 
 Keep the player involved in important beats. An NPC errand should lead to an appropriate report, invitation or choice for the player; NPCs should not silently finish the main quest offstage. Do not force agreement, invent completed actions or give a character GM-only quest knowledge to keep the plot on track. Quest and tree context is GM guidance, not knowledge this participant automatically possesses.
+
+When setting or activating follow-up work, try to choose a concrete next goal that advances a pre-existing quest or dialogue plot line and respects its prerequisites. Fit the goal to this participant's actual commitments, motives and permitted knowledge. Preserve unfinished steps and any report back to the player in the activity's status without copying GM-only plot details. If no existing plot naturally fits, honour the supported commitment without inventing a connection.
 
 {{reviewGuidance}}
 `,Nu=`---
@@ -8676,6 +8698,26 @@ Use update_inventories to persist agreed gifts or trades in actual typed invento
 
 Use list_characters to inspect live intent and find instance IDs; characters sharing lore have independent activity/wait paths. Use list_documents and read_document to find relevant context. Authored character.md activity/wait fields are scene-start defaults, not live intent; change current intent with the activity tools. Keep summaries, permissions and links valid when editing. Use returned SHAs for later document edits. Set an executable activity while work remains; set a wait only when no action is currently possible until an observable condition changes. Keep unchanged intent. Write memories with the document edit tools. Finish a review with a brief plain-text summary. When asked for a ruling, return the requested ruling.`,"review-activity":`This conversation has been flagged as having an activity that the character must undertake once this conversation completes. This task will be passed to the action planner for execution. The action planner will get a textual representation of the world state, but won't have access to the details from this transcript. You should extract any context useful for execution of this action.
 
+<transcript>
+{{transcript}}
+</transcript>
+
+The current active quests and their progress are:
+
+<quests>
+{{activeQuests}}
+</quests>
+
+The character's current dialogue trees and their progress are:
+
+<conversation-trees>
+{{activeConversationTrees}}
+</conversation-trees>
+
+When setting or activating an activity, try to choose a goal in service of progressing a pre-existing plot line. Look for a concrete next step toward an authored quest or dialogue beat that fits the character's commitments, motives and permitted knowledge. Preserve prerequisites and unfinished work; do not invent a new objective merely to create activity. If no existing plot naturally fits, honour the supported commitment without forcing a connection.
+
+Use the activity's status to preserve the character-known motivation, unfinished steps and any planned report back to the player. Keep important player choices and revelations for the player rather than having NPCs silently finish the plot offstage. The quest and tree context is GM guidance: do not copy hidden outcomes, private motives or other GM-only facts into the activity. Set activities only; do not claim to advance quest stages, edit dialogue trees or complete physical actions in this review.
+
 The action planner works in a loop: 
 1. Work towards \`current_goal\`, until the task is complete, seems unachievable, or something happens that makes the action planner think you should re-prioritise
 2. Pass back to you to update the status and goal based on new information. 
@@ -8893,6 +8935,8 @@ Try to respect the plot of active quests and the intended progression of dialogu
 If the exchange fits the authored path, preserve the existing quest and dialogue definitions. If it establishes a different approach or skips a dialogue beat, make only the necessary updates to reflect what actually happened and steer naturally back toward an authored plot point. Consult the relevant quest documents before changing their structure, and use the supported transition hooks for established progress.
 
 Keep the player involved in important beats. An NPC errand should lead to an appropriate report, invitation or choice for the player; NPCs should not silently finish the main quest offstage. Do not force agreement, invent completed actions or give a character GM-only quest knowledge to keep the plot on track. Quest and tree context is GM guidance, not knowledge this participant automatically possesses.
+
+When setting or activating follow-up work, try to choose a concrete next goal that advances a pre-existing quest or dialogue plot line and respects its prerequisites. Fit the goal to this participant's actual commitments, motives and permitted knowledge. Preserve unfinished steps and any report back to the player in the activity's status without copying GM-only plot details. If no existing plot naturally fits, honour the supported commitment without inventing a connection.
 
 {{reviewGuidance}}`,"document-resolution-review-wait":`The wait has ended and its pointer has been cleared. Reconsider the character using the wait instructions and the observed condition. The current observation supersedes historical notes about who had not arrived. When the awaited condition is satisfied and a next action is feasible, call set_activity and commit it now. Do not then call set_wait just to defer your own available action: greeting a present player is immediately executable. Use set_wait only for a genuinely new unmet external dependency, not the condition that just ended.
 
