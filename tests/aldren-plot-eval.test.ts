@@ -98,7 +98,7 @@ test("hook authoring evidence excludes baseline hooks and distinguishes unbound 
   const { hookAuthoringEvidence } = await import("../packages/evals/src/hook-authoring-evidence.js");
   const world = aldrenPlotCase.loadWorld([]), services = createScenarioServices(world);
   assert.deepEqual(hookAuthoringEvidence(world, services.currentWorld()), { sources: [], bindings: [] });
-  await services.docs.create("Hooks/royal-report.ts", 'export default async (services: HookServices): Promise<string> => "Report ready";');
+  await services.docs.create("Hooks/royal-report.ts", 'export default async (services: HookServices): Promise<TransitionResult> => ({status:"accepted", message:"Report ready"});');
   assert.equal(hookAuthoringEvidence(world, services.currentWorld()).sources.length, 1);
   assert.equal(hookAuthoringEvidence(world, services.currentWorld()).bindings.length, 0);
   const doc = await services.docs.read("Conversations/aldren.md");
