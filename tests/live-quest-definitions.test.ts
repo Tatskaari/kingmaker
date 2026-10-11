@@ -69,7 +69,10 @@ test("quest graph deletion, ID changes and current-node removal leave live progr
   const services = createScenarioServices(loadPlayableWorld());
   const path = "Scenarios/Centennial Assembly/Quests/Assembly Programme/quest.md";
   const doc = await services.docs.read(path), before = services.quests.read("assembly_programme");
-  await assert.rejects(services.docs.delete(path, doc.sha), /Document validation/);
+  const indexPath = path.replace("quest.md", "index.md"), index = await services.docs.read(indexPath);
+  await services.docs.replace(indexPath, index.sha,
+    "[[Scenarios/Centennial Assembly/Quests/Assembly Programme/quest|Quest graph]]", "Quest graph");
+  await assert.rejects(services.docs.delete(path, doc.sha), /cannot remove a live quest/);
   for (const text of [doc.text.replace("id: assembly_programme", "id: renamed"),
     doc.text.replaceAll("investigate_missing_pillows", "removed")]) {
     await assert.rejects(services.docs.commit([{ path, expectedSha: doc.sha, text }]), /Document validation/);
