@@ -414,3 +414,23 @@ participants are excluded; door obstruction and distinct body IDs follow the
 existing earshot rules. The warning is context for speech, not a perception event
 or a claim that anyone learned it. Override `strategies.setup.prepare` to replace this policy,
 or delegate to `setupWorldAgent` to retain the earshot warning.
+
+## Review prompt authoring
+
+Conversation attention criteria and review prompts carry Obsidian `system`,
+`trigger_context` and `tags` properties. Use `#conversation/plot-progress` to find
+both the Jev criterion and the focused GM review. Properties describe routing;
+they are not sent to the model and do not configure which reviews run.
+
+The focused review templates and general `review-conversation` template accept
+`{{transcript}}`: pretty-printed JSON of the review's supplied transcript, retaining
+speaker IDs, roles and text. For live focused reviews this is the newly accepted
+player/NPC turn plus supplied GM rulings, not the full conversation history.
+The plot review demonstrates placement in a `<transcript>` block. Authors may
+place the variable in the other review task templates as needed; it is not a
+variable of the shared `review-focused` system prompt or Jev attention criteria.
+
+Rendering uses the existing strict Mustache renderer without HTML escaping or
+recursive evaluation of inserted text. The structured user evidence remains
+available alongside the rendered task. This change does not broaden a review's
+scope, tools or permitted knowledge.
