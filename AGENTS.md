@@ -55,9 +55,9 @@ The local OpenRouter development key is stored as a plain key in `~/secrets/king
 3. Implement and commit the first coherent, reviewable version of that layer.
 4. Immediately publish it with `gh stack submit --auto --open`, before lengthy local validation. Replace generated PR bodies with concise problem, resulting behavior, validation status, actionable QA criteria, and stack-order details using `gh pr edit <number> --body-file <file>`. Mark checks not yet run as pending and share the PR link with the user.
 5. Add each dependent layer with `gh stack add <branch>`, then implement, commit and submit it as soon as it is reviewable; do not wait for the entire stack to be finished before publishing.
-6. Run `proto run moon -- run workspace:check workspace:build` from the top branch while GitHub QA and the user's review can proceed.
-7. Fix any failures, commit and submit follow-up changes, and re-run affected checks. Refresh PR descriptions with actual validation results and current QA criteria.
-8. Verify the stack with `gh stack view` and confirm each PR's base and head using `gh pr view` before reporting completion.
+6. Run the affected checks locally from the top branch while GitHub QA and the user's review can proceed: `proto run moon -- run workspace:typecheck contracts:lint`, plus only the test files covering the changed code, e.g. `node --experimental-ffi --import tsx --import ./scripts/test-logging.ts --test tests/inventory.test.ts tests/gm-inventory.test.ts`. Do not run the full `workspace:check workspace:build` locally; the `Check and build` GitHub Action runs the full suite and build on every PR. Several agents run in parallel on one machine, and each full run saturates every core.
+7. Fix any failures, including failures reported by the `Check and build` action, commit and submit follow-up changes, and re-run affected checks. Refresh PR descriptions with actual validation results and current QA criteria.
+8. Verify the stack with `gh stack view` and confirm each PR's base and head using `gh pr view` before reporting completion. Report the `Check and build` result from `gh pr checks <number>`, or mark it pending.
 
 ## PR QA criteria
 
@@ -72,7 +72,7 @@ For backend or tooling changes without a visible UI, say so and provide a specif
 3. Run `gh stack rebase --upstack --no-trunk` to cascade it through dependent branches.
 4. Resolve conflicts by retaining the intended behavior from both layers, stage the resolution, and run `gh stack rebase --continue`.
 5. Publish the rewritten stack with `gh stack submit --auto --open` before lengthy local validation and refresh affected PR descriptions, marking checks as pending or in progress.
-6. Re-run the full checks from the top branch while GitHub QA proceeds. Fix and publish any follow-up changes, re-run affected checks, and update the PR descriptions with actual results before reporting completion.
+6. Re-run the affected checks from the top branch while GitHub QA and the `Check and build` action proceed. Fix and publish any follow-up changes, re-run affected checks, and update the PR descriptions with actual results before reporting completion.
 
 ## After merge
 

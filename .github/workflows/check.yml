@@ -1,0 +1,31 @@
+name: Check and build
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: check-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    # Agents run only affected tests locally; the full suite runs here.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.9.0
+          cache: npm
+      - uses: moonrepo/setup-toolchain@v0
+        with:
+          auto-install: true
+      - run: npm ci
+      - run: proto run moon -- run workspace:check workspace:build
