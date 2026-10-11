@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { aldrenPlotCase, createAldrenPlotExperiment } from "../packages/evals/src/aldren-plot-case.js";
-import { aldrenPlotVariants } from "../packages/evals/src/aldren-plot-variants.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { GameMasterTools, gameMasterTools } from "../packages/conversation/src/gm-tools.js";
 import { runExperiment } from "../packages/evals/src/experiment.js";
+import { renderPrompt } from "../packages/prompts/src/index.js";
 import type { AiService } from "../packages/conversation/src/services.js";
 
 test("plot fixture constructs independent worlds at the delegation boundary", () => {
@@ -20,31 +20,34 @@ test("plot fixture constructs independent worlds at the delegation boundary", ()
   assert.notEqual(second.docs[path]!.body, "changed");
 });
 
-test("four variants isolate prompt and SQL access while preserving fixed inputs", async () => {
-  const requests: { sql: boolean; reroute: boolean; transcript: string }[] = [];
+test("baseline plot review includes promoted guidance once with no experimental variants", async () => {
+  let requests = 0;
   const ai: AiService = {
     responses: async request => {
+      requests++;
       assert.equal(request.reasoning?.effort, "high");
-      assert.ok(!request.tools?.some(tool => tool.function.name === "set_activity"));
-      const evidence = request.messages.find(message => message.role === "user" && message.content?.startsWith('{"characterId"'))!;
-      requests.push({ sql: !!request.tools?.some(tool => tool.function.name === "query_documents"),
-        reroute: request.messages.some(message => message.content?.includes("Try to plot a course back")),
-        transcript: JSON.stringify(JSON.parse(evidence.content!).transcript) });
-      const candidate = requests.at(-1)!.reroute;
-      const guidanceCopies = request.messages.reduce((count, message) =>
-        count + (message.content?.split("frivolous chatter").length ?? 1) - 1, 0);
-      assert.equal(guidanceCopies, candidate ? 1 : 0);
+      assert.ok(!request.tools?.some(tool => ["set_activity", "query_documents"].includes(tool.function.name)));
+      const text = request.messages.map(message => message.content ?? "").join("\n");
+      for (const guidance of [renderPrompt("gm-prompt-gm_base_prompt"), renderPrompt("review-focused")]) {
+        assert.equal(text.split(guidance).length - 1, 1);
+      }
+      assert.match(text, /provide an appropriate future report, invitation or choice/);
+      assert.ok(!text.includes("{{youAreTheGameMaster}}"));
+      assert.ok(!text.includes("refers back to the main GM guidance"));
+      assert.match(text, /<quests>/);
+      assert.match(text, /<conversation-trees>/);
       return { role: "assistant", content: "No changes." };
     },
     decisions: async (_evidence, questions) => Object.fromEntries(Object.keys(questions).map(key => [key,
       { choice: "complete", probabilities: { complete: 1 } }])),
   };
-  const trials = await runExperiment(createAldrenPlotExperiment(() => ai, ai, aldrenPlotVariants), { repeats: 1, concurrency: 1 });
+  const experiment = createAldrenPlotExperiment(() => ai, ai);
+  assert.deepEqual(experiment.getVariants(), []);
+  const trials = await runExperiment(experiment, { repeats: 1, concurrency: 1 });
+  assert.equal(trials.length, 1);
+  assert.equal(trials[0]!.variant, "game");
   assert.ok(trials.every(trial => !trial.recording.error && !trial.scoringError));
-  assert.deepEqual(requests.map(({ sql, reroute }) => ({ sql, reroute })), [
-    { sql: false, reroute: false }, { sql: false, reroute: true }, { sql: true, reroute: false }, { sql: true, reroute: true },
-  ]);
-  assert.equal(new Set(requests.map(request => request.transcript)).size, 1);
+  assert.equal(requests, 1);
 });
 
 test("optional GM SQL searches live docs and returns recoverable read-only errors", async () => {
