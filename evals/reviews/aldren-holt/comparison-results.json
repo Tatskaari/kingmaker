@@ -1,0 +1,99 @@
+{
+  "revision": "fa57ead39442dd1710bd47b1b2f67aa893970416",
+  "artifacts": "eval-output/2026-10-11T14-10-20.515Z-430eea91",
+  "repeats": 3,
+  "concurrency": 1,
+  "scope": "Committed route handoff; not end-to-end movement or quest completion.",
+  "trials": [
+    {
+      "variant": "game",
+      "repeat": 1,
+      "result": {
+        "criteria": {
+          "route": {
+            "score": 0,
+            "reason": "From the Great Hall, locate Marshal Holt and speak with him: deliver Aldren's order to find the late assembly cushions and resolve the delay, then ask why they are late."
+          },
+          "physical-state": {
+            "score": 1
+          }
+        }
+      }
+    },
+    {
+      "variant": "npc-locations",
+      "repeat": 1,
+      "result": {
+        "criteria": {
+          "route": {
+            "score": 1,
+            "reason": "Go to the Entrance Hall via enter_entrance_hall, then speak directly with Marshal Garran Holt: issue my order to find the missing assembly cushions and resolve the delay, and ask what is holding them up."
+          },
+          "physical-state": {
+            "score": 1
+          }
+        }
+      }
+    },
+    {
+      "variant": "game",
+      "repeat": 2,
+      "result": {
+        "criteria": {
+          "route": {
+            "score": 0,
+            "reason": "Locate Marshal Garran Holt in the palace/preparations area and speak to him directly about finding the delayed assembly cushions and resolving the holdup."
+          },
+          "physical-state": {
+            "score": 1
+          }
+        }
+      }
+    },
+    {
+      "variant": "npc-locations",
+      "repeat": 2,
+      "result": {
+        "criteria": {
+          "route": {
+            "score": 1,
+            "reason": "Go to the Entrance Hall via enter_entrance_hall, then speak with Marshal Garran Holt in person: tell him, as the king, to find the late assembly cushions and resolve the delay. Ask for an explanation of the holdup; its cause and the cushions' whereabouts are unknown."
+          },
+          "physical-state": {
+            "score": 1
+          }
+        }
+      }
+    },
+    {
+      "variant": "game",
+      "repeat": 3,
+      "result": {
+        "criteria": {
+          "route": {
+            "score": 0,
+            "reason": "Locate Marshal Holt in the palace and speak to him directly, ordering him to find the missing assembly cushions and resolve the delay."
+          },
+          "physical-state": {
+            "score": 1
+          }
+        }
+      }
+    },
+    {
+      "variant": "npc-locations",
+      "repeat": 3,
+      "result": {
+        "criteria": {
+          "route": {
+            "score": 1,
+            "reason": "Go from the Great Hall to the Entrance Hall via enter_entrance_hall, then speak directly with Marshal Garran Holt (currently in the Entrance Hall) and issue Aldren's order to find the assembly cushions and resolve their delay. Open doors as needed; if Holt is unavailable or the route is blocked, reassess and report the obstacle without inventing a resolution."
+          },
+          "physical-state": {
+            "score": 1
+          }
+        }
+      }
+    }
+  ]
+}

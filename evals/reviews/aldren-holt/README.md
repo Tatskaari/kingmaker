@@ -22,4 +22,15 @@ semantic aspect of the promise or guarantee subsequent planner completion.
 Baseline at `3b98f5b`: route 0/3, physical-state 3/3, no execution errors.
 Artifacts: `eval-output/2026-10-11T14-09-01.887Z-98a7a996/`.
 The dedicated runner is registered in `workspace:eval`; its narrow rubric stays
-separate from the broader conversation review suite. This layer changes no production behavior.
+separate from the broader conversation review suite. The final regression runs against the promoted game baseline only.
+
+
+The temporary candidate added live NPC rooms and ordered `enter_<room>` actions
+only to the focused activity-review prompt. The interleaved comparison (three
+trials per configuration, concurrency 1) scored route 3/3 for the candidate versus
+0/3 for game, with physical-state 3/3 for both and no execution errors. Committed
+goals retained the unfinished order and directed Aldren to Holt in Entrance Hall.
+See [comparison-results.json](comparison-results.json) for goals, revision and
+artifact location. Both used the same scenario, model settings and rubric.
+This narrow sample supports the handoff; it does not measure full quest completion.
+The candidate hook and template were removed when promoted into the game prompt.
