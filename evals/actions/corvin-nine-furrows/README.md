@@ -64,6 +64,14 @@ the world setup and grading with a mocked AI.
 
 ## Recorded baselines
 
+On 11 October 2026, three serial trials of the engine-built fixture at revision
+`7418e46` with the game's default Jev settings all selected `unable` (probabilities
+0.50–0.51): 0/3 advancing actions, zero execution or grading errors. Each recorded
+request used the current planner template, disclosed the call-28 situation and
+offered `talk_elinor`, `talk_oswin` and `talk_rowan`. Local artifacts:
+`eval-output/2026-10-11T10-19-37.324Z-283a0cd7/`. This is a small reproduction, not
+an accuracy estimate.
+
 On 10 October 2026, three serial trials at revision `1720510` with
 `typesafe/jev-1.13` replayed the frozen call-28 request (the previous fixture format).
 All selected `unable`: 0/3 advancing actions, zero execution or grading errors.

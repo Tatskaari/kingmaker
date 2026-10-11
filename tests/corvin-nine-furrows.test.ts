@@ -21,7 +21,7 @@ test("Corvin action eval accepts each delegate but rejects abandonment and unrel
       responses: async () => { throw Error("No dialogue should be generated"); },
       decisions: async (state, questions, _signal, purpose) => {
         if (purpose === "prog_disc") return Object.fromEntries(Object.keys(questions).map(key => [key, { choice: "skip", probabilities: { [key]: 0, skip: 1 } }]));
-        prompt = state;
+        prompt = String(state);
         assert.ok(Object.hasOwn(questions.next!.criteria, choice), `${choice} should be offered`);
         return { next: { choice, probabilities: { [choice]: 1 } } };
       },
