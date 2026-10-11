@@ -37,3 +37,11 @@ test("rejects invalid graphs and malformed reserved headings", () => {
     source.replace("hello-world.ts", "../outside.ts"), source.replace("visibility: gm", "visibility: public"),
     source.replace("### Guidance", "### Guidnce")]) assert.throws(() => parseConversationTree(invalid));
 });
+
+test("shared graph syntax preserves underscored IDs and isolates script metadata", () => {
+  const tree = parseConversationTree(source.replaceAll("ask", "ask_player").replaceAll("accepted", "help_accepted"));
+  assert.equal(tree.quest.initialStageId, "ask_player");
+  assert.equal(tree.quest.transitions[0]!.id, "help_accepted");
+  assert.deepEqual(tree.scripts, { help_accepted: "hello-world.ts" });
+  assert.throws(() => parseConversationTree(source.replace("character: aldren\n", "")), /requires character/);
+});
