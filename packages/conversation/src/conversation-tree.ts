@@ -19,12 +19,23 @@ export type TreeScript = (signal: AbortSignal) => Promise<string>;
 /** Host-owned executor. Each evaluation restarts from the saved quest stage, so a failed turn is retried on the next. */
 export class ConversationTreeSession {
   status: TreeStatus;
-  constructor(readonly tree: ConversationTree, private quests: QuestService,
-    private scripts: Readonly<Record<string, TreeScript>>) {
+  constructor(public tree: ConversationTree, private quests: QuestService,
+    private scripts: Readonly<Record<string, TreeScript>>, private readTree: () => ConversationTree = () => this.tree) {
     for (const name of Object.values(tree.scripts)) {
       if (!Object.hasOwn(scripts, name)) throw new Error(`Unregistered conversation script: ${name}`);
     }
     this.status = this.current();
+  }
+  private refresh() {
+    const tree = this.readTree();
+    if (tree === this.tree) return;
+    if (tree.quest.id !== this.tree.quest.id || tree.characterId !== this.tree.characterId) throw new Error("Conversation identity changed.");
+    for (const name of Object.values(tree.scripts)) {
+      if (!Object.hasOwn(this.scripts, name)) throw new Error(`Unregistered conversation script: ${name}`);
+    }
+    this.tree = tree;
+    this.status = this.current();
+    // Keep the failure latch: a document edit must not replay a partially executed script.
   }
   private current(): TreeStatus {
     const state = this.quests.read(this.tree.quest.id);
@@ -34,12 +45,14 @@ export class ConversationTreeSession {
         .map(edge => ({ id: edge.id, to: edge.toStageId, condition: edge.condition })) };
   }
   goal(): TranscriptMessage {
+    this.refresh();
     return create(TranscriptMessageSchema, { role: TranscriptRole.GAME_MASTER,
       text: `Current conversation goal (replaces any earlier conversation goal):\n${this.status.guidance}` });
   }
   async evaluate(transcript: readonly TranscriptMessage[], ai: Pick<AiService, "decisions">,
     signal: AbortSignal, report: (status: TreeStatus) => void,
     commit: (work: () => Promise<void>) => Promise<void> = work => work()): Promise<TranscriptMessage | undefined> {
+    this.refresh();
     const state = this.quests.read(this.tree.quest.id), pending = this.current();
     if (!pending.conditions.length) return;
     const publish = (status: TreeStatus) => { this.status = status; report(status); };
@@ -54,6 +67,9 @@ export class ConversationTreeSession {
           .map(message => ({ speaker: message.speakerId, text: message.text })),
       }, questions, signal, "conversation_tree");
       signal.throwIfAborted();
+      if (this.quests.read(this.tree.quest.id).revision !== state.revision) {
+        this.refresh(); publish(this.current()); return this.goal();
+      }
       for (const edge of pending.conditions) {
         if (!["hit", "miss"].includes(answers[edge.id]?.choice ?? "")) throw new Error(`Missing or invalid tree decision: ${edge.id}`);
       }
@@ -63,13 +79,15 @@ export class ConversationTreeSession {
       if (!chosen) return;
       const script = this.tree.scripts[chosen.id];
       let scriptOutput: string | undefined;
+      let stale = false;
       await commit(async () => {
         signal.throwIfAborted();
-        if (this.quests.read(this.tree.quest.id).revision !== state.revision) throw new Error("Conversation tree changed; retry the turn.");
+        if (this.quests.read(this.tree.quest.id).revision !== state.revision) { stale = true; return; }
         scriptOutput = script ? await this.scripts[script]!(signal) : undefined;
         signal.throwIfAborted();
         await this.quests.transition(this.tree.quest.id, chosen.id, state.revision, JSON.stringify({ answers, transcript }));
       });
+      if (stale) { this.refresh(); publish(this.current()); return this.goal(); }
       publish({ ...this.current(), transition: chosen.id, ...(scriptOutput !== undefined ? { scriptOutput } : {}) });
       return this.goal();
     } catch (error) {

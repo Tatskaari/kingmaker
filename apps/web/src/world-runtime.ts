@@ -272,11 +272,19 @@ export class WorldGameRuntime extends WorldHost {
     if (!document) return;
     let session = this.conversationTrees.get(id);
     if (!session) {
-      const tree = compileConversationTree({ body: document.body, metadata: document.frontmatter ?? {} });
+      let source = document;
+      let tree = compileConversationTree({ body: source.body, metadata: source.frontmatter ?? {} });
       session = new ConversationTreeSession(tree, this.worldServices.quests,
         { "hello-world.ts": signal => helloWorld(this.worldServices, signal),
           "pillow-lead.ts": signal => pillowLead(this.worldServices, signal),
-          "authorise-cart-smash.ts": signal => authoriseCartSmash(this.worldServices, signal) });
+          "authorise-cart-smash.ts": signal => authoriseCartSmash(this.worldServices, signal) }, () => {
+          const current = this.world().docs[`Conversations/${id}.md`]!;
+          if (current !== source) {
+            tree = compileConversationTree({ body: current.body, metadata: current.frontmatter ?? {} });
+            source = current;
+          }
+          return tree;
+        });
       this.conversationTrees.set(id, session);
     }
     return session;

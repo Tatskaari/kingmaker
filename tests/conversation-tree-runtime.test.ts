@@ -108,3 +108,37 @@ test("the real TypeScript hook activates the authored quest without advancing it
   assert.deepEqual(after.history, before.history);
   assert.match(runner.status.scriptOutput!, /Hello world!.*now active/);
 });
+
+test("a definition edit during Jev classification discards the old decision and refreshes guidance", async () => {
+  const services = createScenarioServices(loadPlayableWorld()), signal = new AbortController().signal;
+  const readTree = () => {
+    const doc = services.currentWorld().docs["Conversations/aldren.md"]!;
+    return parseConversationTree(`---\n${JSON.stringify(doc.frontmatter)}\n---\n${doc.body}`);
+  };
+  const runner = new ConversationTreeSession(readTree(), services.quests, { "hello-world.ts": async () => "unused" }, readTree);
+  const goal = await runner.evaluate([], { decisions: async () => {
+    const doc = await services.docs.read("Conversations/aldren.md");
+    await services.docs.replace(doc.path, doc.sha, "Greet the player.", "Give the player the revised greeting.");
+    return { greeted: { choice: "hit", probabilities: { hit: 1 } } };
+  } }, signal, () => {});
+  assert.match(goal!.text, /revised greeting/);
+  assert.equal(services.quests.read("conversation-aldren-cushions").currentStageId, "greeting");
+  await runner.evaluate([], { decisions: async () => ({ greeted: { choice: "hit", probabilities: { hit: 1 } } }) }, signal, () => {});
+  assert.equal(runner.status.node, "hint");
+});
+
+test("a refreshed definition preserves retries after a failed script", async () => {
+  const services = createScenarioServices(loadPlayableWorld()), tree = parseConversationTree(source), signal = new AbortController().signal;
+  let calls = 0, currentTree = tree;
+  const runner = new ConversationTreeSession(tree, services.quests, { "hello-world.ts": async () => { calls++; throw new Error("partially executed"); } }, () => currentTree);
+  await services.quests.transition(tree.quest.id, "greeted", 0);
+  await services.quests.transition(tree.quest.id, "hinted", 1);
+  const decide = { decisions: async (_state: unknown, questions: Record<string, unknown>) => Object.fromEntries(Object.keys(questions).map(id => [id,
+    { choice: id === "accepted" ? "hit" : "miss", probabilities: { hit: id === "accepted" ? 1 : 0 } }])) };
+  await assert.rejects(runner.evaluate([], decide, signal, () => {}), /partially executed/);
+  const doc = await services.docs.read("Conversations/aldren.md");
+  await services.docs.replace(doc.path, doc.sha, "Greet the player.", "Greet the player warmly.");
+  currentTree = parseConversationTree((await services.docs.read(doc.path)).text);
+  await assert.rejects(runner.evaluate([], decide, signal, () => {}), /partially executed/);
+  assert.equal(calls, 2);
+});
