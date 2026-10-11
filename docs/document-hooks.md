@@ -115,5 +115,5 @@ Character response models remain tool-free with reasoning effort `none`.
   observable quest activation, lead progression and cart-permission behaviour.
 
 These are proposed implementation checks, not validation performed by this docs
-change. Compiler setup, API reference generation and read-only delivery are the
-next documentation layer.
+change. See [generated hook service documentation](hook-api-documentation.md) for
+API reference generation, read-only delivery and Moon drift checks.
