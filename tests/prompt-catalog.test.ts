@@ -35,7 +35,7 @@ test("planner template receives the observed map and optional action feedback", 
 
 test("eval templates load separately from the game catalog", () => {
   const evalCatalog = readPromptCatalog(new URL("../evals/prompts/", import.meta.url));
-  assert.equal(Object.keys(evalCatalog).length, 15);
+  assert.equal(Object.keys(evalCatalog).length, 16);
   for (const [id, entry] of Object.entries(evalCatalog)) {
     assert.equal(catalog[id], undefined, id);
     assert.doesNotThrow(() => Mustache.parse(entry), id);

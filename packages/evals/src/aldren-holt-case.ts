@@ -31,9 +31,8 @@ export function createAldrenHoltExperiment(createAi: () => AiService, variants: 
       { name: "route", description: "The active current_goal includes enter_entrance_hall and Holt, preserving a concrete route to the person to approach." },
       { name: "physical-state", description: "Review does not move actors or change the physical map." },
     ],
-    getBaseline: () => ({ ...base.getBaseline(), async configure() {
-      return { ...await base.getBaseline().configure(), recordServices: ["docs", "ai"] as const };
-    } }),
+    getBaseline: () => recorded(base.getBaseline()),
+    getVariants: () => base.getVariants().map(recorded),
     async score(recording: import("./experiment.js").RunRecording) {
       const before = recording.initialState as WorldState, after = recording.finalState as WorldState;
       const goal = after ? activityGoal(after, "aldren") ?? "" : "";
@@ -43,4 +42,10 @@ export function createAldrenHoltExperiment(createAi: () => AiService, variants: 
       } };
     },
   };
+}
+
+function recorded(config: import("./experiment.js").RuntimeConfig) {
+  return { ...config, async configure() {
+    return { ...await config.configure(), recordServices: ["docs", "ai"] as const };
+  } };
 }
