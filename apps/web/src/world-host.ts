@@ -164,7 +164,11 @@ export class WorldHost {
         }
       }
       if (command.kind === "door") worldEvent = this.setDoor(command.id, command.open);
-      if (command.kind === "fixture") { const result = this.interactFixtureWithEvent(command.id); worldEvent = result.event; message = result.message; roll = result.roll; }
+      if (command.kind === "fixture") {
+        const result = this.interactFixtureWithEvent(command.id);
+        worldEvent = result.event; message = result.message; roll = result.roll;
+      }
+      await this.worldServices.hooks.evaluatePredicates(signal ?? new AbortController().signal);
       return { done: true,
         ...(worldEvent ? { worldEvent } : {}), ...(message ? { message } : {}), ...(roll ? { roll } : {}) };
     },

@@ -1196,6 +1196,13 @@
             "details": "Corvin's annotations mark the road-protection levy and the forfeiture clause: a sovereign who knowingly certifies the required common patrols while diverting their protected funds must abdicate once the three mandated kingdoms authenticate the breach.",
             "concealed": true,
             "quantity": 1
+          },
+          {
+            "id": "furn_corvin_cart_book",
+            "name": "Self-guiding carts: diagnosis and repair",
+            "details": "Corvin's reference book explains how to release the cargo-protection interlock and repair Rowan's wedged cart. Bring it to Rowan.",
+            "concealed": true,
+            "quantity": 1
           }
         ]
       }

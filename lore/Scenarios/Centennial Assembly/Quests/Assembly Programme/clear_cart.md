@@ -1,17 +1,15 @@
 ---
-summary: "Shared clearance effect contract: remove the obstructing cart and assign helpers to carry goods inside after an adjudicated successful remedy."
+summary: "Shared clearance effect contract: clear the obstruction, broadcast the milestone and review character dialogue after a successful remedy."
 visibility: gm
 ---
 # Clear the cart
 
 ## Required host effects
 
-After a successful remedy, remove the obstructing cart fixtures and assign helpers executable activities to bring the waiting goods inside. Validate the affected state before publishing these effects and quest progress together; repeated requests must not duplicate activities or goods. Detailed damage handling is deferred.
+Successful repair with Corvin's book, Rowan agreeing to back out, and a successful physical smash converge on the clearance transition. Repair requires the actual book in the player's inventory when it is presented to Rowan. The host clears the cart obstruction and gives every character one fixed private memory that the entrance is clear and deliveries can resume. This public milestone is shared regardless of distance; private negotiations are not broadcast.
 
-Conversation helpers supply the successful branch outcome. A promise to try, a failed check or merely discussing a remedy is insufficient. The physical smash action must use this same completion path.
+Queue a plot review for each character to update their current conversation goals and future branches. Repair leaves Rowan and Nine Furrows pleased; backing out leaves Rowan slightly resentful and Nine Furrows neutral; smashing displeases Nine Furrows even with Holt's permission. Holt appreciates the cleared entrance. Aldren can acknowledge progress but must not claim his cushions have arrived.
 
-## Current runtime boundary
-
-This is an authored effect contract. The quest service currently records progress only; this note does not execute removal or helper activities. Until a host effect handler exists, callers must establish the effects before recording the transition. Do not report the sequence as playable from this note alone.
+Failed attempts do not clear the cart. Repeated completion does not duplicate memories. Delivery and helper assignments remain separate, unfinished follow-up work; clearance does not move the waiting goods.
 
 Parent: [[Scenarios/Centennial Assembly/Quests/Assembly Programme/index|Assembly Programme]].
