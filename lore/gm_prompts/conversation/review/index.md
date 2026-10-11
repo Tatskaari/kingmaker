@@ -8,7 +8,7 @@ GM conversation review instructions and the tools also used by world reviews and
 
 - [[gm_prompts/conversation/review/agent-setup-game_master_prompt|agent setup game master prompt]]
 - [[gm_prompts/conversation/review/review-conversation|review conversation]]
-- [[gm_prompts/conversation/review/review-focused|focused review]]
+- [[gm_prompts/conversation/review/review-focused|shared review: search, editing and verification]]
 - [[gm_prompts/conversation/review/review-activity|activity review]]
 - [[gm_prompts/conversation/review/review-commitment-memory|commitment memory review]]
 - [[gm_prompts/conversation/review/review-improvised-detail|improvised detail review]]
