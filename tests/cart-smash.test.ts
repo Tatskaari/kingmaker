@@ -1,3 +1,4 @@
+import { helloWorld } from "../packages/conversation/src/tree-scripts/hello-world.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { WorldGameRuntime } from "../apps/web/src/world-runtime.js";
@@ -6,7 +7,7 @@ import { loadPlayableWorld } from "./fixtures.js";
 import { cartStrengthCheck } from "../packages/core/src/cart.js";
 import { interactWithFixture } from "../packages/core/src/simulation-fixtures.js";
 
-function fixture(natural: number, side = "left") {
+async function fixture(natural: number, side = "left") {
   const world = loadPlayableWorld(), map = world.simulation!.map!;
   const target = map.fixtures.find(f => f.id === `furn_cart_${side}`)!;
   const player = map.actors.find(a => a.characterId === "player")!;
@@ -15,11 +16,12 @@ function fixture(natural: number, side = "left") {
   let rolls = 0;
   const game = new WorldGameRuntime(world, "", undefined, undefined, undefined,
     { services: { random: { integer: () => { rolls++; return natural; } } } });
+  await helloWorld(game.services, new AbortController().signal);
   return { game, rolls: () => rolls, id: `smash_furn_cart_${side}` };
 }
 
 test("a failed cart Strength check leaves the blockage and offers another attempt", async () => {
-  const { game, rolls, id } = fixture(12);
+  const { game, rolls, id } = await fixture(12);
   const before = game.world().simulation!.map!.fixtures;
   const result = await game.executeAction({ command: { kind: "fixture", id } });
   assert.equal(rolls(), 1); assert.equal(result.roll?.modifier, 2);
@@ -31,7 +33,7 @@ test("a failed cart Strength check leaves the blockage and offers another attemp
 });
 
 for (const side of ["left", "right"]) test(`smashing from the ${side} clears a lane, preserves the tree and survives save/load`, async () => {
-  const { game, rolls, id } = fixture(13, side);
+  const { game, rolls, id } = await fixture(13, side);
   const result = await game.executeAction({ command: { kind: "fixture", id } });
   assert.equal(rolls(), 1); assert.equal(result.roll?.success, true);
   assert.equal(result.roll?.total, 15); assert.match(result.worldEvent!.summary, /smash.*opening a way/);
@@ -48,7 +50,7 @@ for (const side of ["left", "right"]) test(`smashing from the ${side} clears a l
 });
 
 test("cart rolls require a valid approach and cannot bypass the roll at the simulation boundary", async () => {
-  const { game, rolls, id } = fixture(20);
+  const { game, rolls, id } = await fixture(20);
   for (const natural of [undefined, 0, 21, 1.5, NaN]) {
     assert.throws(() => game.services.mechanics.executeMove(interactWithFixture, "player", id, Date.now(), natural), /Invalid simulation move/);
   }

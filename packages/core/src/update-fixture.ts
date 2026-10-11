@@ -22,5 +22,11 @@ export function updateFixture({ G }: SimulationMoveContext, id: string, update: 
     if (point && (!Number.isInteger(point.x) || !Number.isInteger(point.y))) return INVALID_MOVE;
   }
   if (inventoryError(inventoryOwners(Object.values(G.runtimeCharacters), map))) return INVALID_MOVE;
+  const actionIds = new Set<string>();
+  for (const owner of map.fixtures) for (const action of owner.actions) {
+    if (!action.id || actionIds.has(action.id) || !action.label || action.handler !== "smash-cart"
+      || !G.runtimeCharacters[action.actorId]) return INVALID_MOVE;
+    actionIds.add(action.id);
+  }
   map.revision++;
 }

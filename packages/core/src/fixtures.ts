@@ -20,10 +20,13 @@ export function fixtureActions(fixtures: readonly MapFixture[] | undefined, owne
     const name = fixtureName(fixture, actorId);
     const illegal = fixture.ownerCharacterId !== "" && fixture.ownerCharacterId !== actorId;
     const actions: FixtureAction[] = [{ id: `inspect_${fixture.id}`, target: fixture.id, verb: "inspect", label: `Inspect ${name}`, order: 20, legality: "normal" }];
-    if (actorId === "player" && isCartPart(fixture) && hasIntactCart(fixtures)) actions.push({
-      id: `smash_${fixture.id}`, target: fixture.id, verb: "smash", label: "Smash cart · Strength check (DC 15)",
-      order: 25, legality: illegal ? "illegal" : "normal",
-    });
+    for (const action of fixture.actions) {
+      if (action.actorId !== actorId) continue;
+      if (action.handler === "smash-cart" && isCartPart(fixture) && hasIntactCart(fixtures)) actions.push({
+        id: action.id, target: fixture.id, verb: "smash", label: action.label,
+        order: action.order, legality: action.illegal ? "illegal" : "normal",
+      });
+    }
     if (!fixture.container) return actions;
     if (fixture.open) {
       actions.push({ id: `close_${fixture.id}`, target: fixture.id, verb: "close", label: `Close ${name}`, order: 30, legality: "normal" });
