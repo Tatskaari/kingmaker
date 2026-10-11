@@ -9,9 +9,37 @@ summary: "Interface: HookQuestService API reference for conversation hooks."
 
 # Interface: HookQuestService
 
-Quest progress operations; these do not run other hooks or physical effects.
-
 ## Methods
+
+### advance()
+
+> **advance**(`id`, `transitionId`, `expectedRevision`, `evidence?`): `Promise`\<[`TransitionResult`](../type-aliases/TransitionResult.md)\>
+
+Execute the quest edge's authored Run hook, then record progress if accepted.
+
+#### Parameters
+
+##### id
+
+`string`
+
+##### transitionId
+
+`string`
+
+##### expectedRevision
+
+`number`
+
+##### evidence?
+
+`string`
+
+#### Returns
+
+`Promise`\<[`TransitionResult`](../type-aliases/TransitionResult.md)\>
+
+***
 
 ### list()
 

@@ -47,8 +47,10 @@ export function compileAuthoredGraph(note: Note, kind: "conversation" | "quest" 
       if (body) throw new Error("Trigger headings cannot have a body");
       const trigger = heading.slice("Trigger: ".length);
       const talkedTo = /^player_talked_to ([a-z][a-z0-9_-]*)$/.exec(trigger);
-      if (trigger !== "none" && trigger !== "discretionary" && !talkedTo) throw new Error(`Unsupported quest trigger: ${trigger}`);
+      const fixtureAbsent = /^fixture_absent ([a-z][a-z0-9_-]*)$/.exec(trigger);
+      if (trigger !== "none" && trigger !== "discretionary" && !talkedTo && !fixtureAbsent) throw new Error(`Unsupported quest trigger: ${trigger}`);
       edge.playerTalkedTo = talkedTo?.[1] ?? "";
+      edge.fixtureAbsent = fixtureAbsent?.[1] ?? "";
       triggers.add(edge.id);
     } else if (node.depth === 4 && run && edge && !Object.hasOwn(scripts, edge.id)) {
       if (body) throw new Error("Run headings cannot have a body");

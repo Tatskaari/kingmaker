@@ -26,3 +26,11 @@ Interaction actions; edit these inside updateFixture's synchronous callback.
 > `readonly` **id**: `string`
 
 Immutable fixture ID.
+
+***
+
+### name
+
+> **name**: `string`
+
+Public fixture name.

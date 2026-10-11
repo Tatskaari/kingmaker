@@ -122,3 +122,28 @@ unchanged and permits a later retry. Unexpected failures still throw. Validate
 prerequisites against live state before applying effects: this helper does not
 roll back service calls, and hook effects plus quest recording are not atomic.
 The caller owns persistence and supplies any rejection message to its presentation.
+
+## Authored effects and physical predicates
+
+Use `services.hooks.transition(id, edge, revision, evidence, signal)` on the host,
+or `services.quests.advance(id, edge, revision, evidence)` inside a conversation
+hook, to resolve the live quest document's `Run` binding and execute its saved
+`Hooks/<name>.ts` source. The hook receives the transition ID and evidence through
+`services.transition`. Rejection retains progress. Raw `quests.transition` is
+still data-only. Nested quest advancement from a quest hook is rejected.
+
+`#### Trigger: fixture_absent <fixture-id>` is a generic world-state predicate.
+The host calls `hooks.evaluatePredicates(signal)` after physical interactions;
+matching edges on active quests execute their authored hooks. No quest IDs or
+physical-action prefixes belong in that dispatcher.
+
+Hooks can check `inventory.hasItem`, rename fixtures, remove empty fixtures,
+and broadcast a public milestone through `memories.broadcast`. A broadcast ID
+is idempotent: it writes one private memory per character entry and a GM-only
+`Reviews/<id>.md` job containing author-owned dialogue review instructions and
+pending actor IDs. This deliberately informs all characters of the public
+milestone. Private negotiations must not be placed in the broadcast text.
+
+Effects use existing service publication boundaries. Hooks must validate before
+writing and remain retry-safe; several service calls and progress recording are
+not one transaction. Model review runs later, outside the bounded hook VM.

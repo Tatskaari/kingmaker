@@ -44,6 +44,12 @@ Give every lore Markdown document, including indexes, author references and stub
 
 For lore navigation, every content folder under `lore/` (including the vault root) must have a lowercase `index.md`. Keep its note links, child-folder index links and parent link current when adding, moving or renaming content. Use unambiguous vault-relative links for nested indexes and relative Markdown links to the root index. These are author navigation files; retain `scenario.md` and `character.md` as agent entrypoints.
 
+## Dynamic quest hooks
+
+Keep all quest-specific behavior out of the main game and generic services. Quests are authored content: IDs, branches, prerequisites, world effects, canned memories and review instructions belong in quest documents and dynamic hooks; engine changes must provide reusable capabilities.
+
+Before implementing quest or conversation effects, inspect the current authored graph and dynamic hook system (`Run: <name>.ts`, `content/hooks/`, saved `Hooks/` documents, and `HookServices`). Keep quest-specific IDs, prerequisites, outcomes, memories and review instructions in authored content/hooks. Never special-case a quest ID, stage or remedy in the generic quest data service. Execute authored quest hooks through the host hook dispatcher; raw quest progress writes remain data-only. When a hook lacks a capability, extend the reusable, validated hook-service API following existing host-service patterns rather than moving quest logic into infrastructure. Apply this rule to physical-action completion paths as well as conversation branches. Prefer an authored quest transition predicate for physical world-state conditions; never detect quest-specific action IDs in the generic action dispatcher.
+
 ## Saved-game compatibility
 
 Do not add or maintain migrations or backward-compatibility code for existing saved games. When save schemas or authored world content change incompatibly, require a fresh game instead of upgrading old saves. Keep ordinary save/load support for the current format.
