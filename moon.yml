@@ -18,6 +18,11 @@ tasks:
     deps: [contracts:generate]
     options:
       cache: false
+  evalDialogueLocations:
+    command: npx --no-install tsx scripts/run-dialogue-locations-eval.ts
+    deps: [contracts:generate]
+    options:
+      cache: false
   evalGift:
     command: npx --no-install tsx scripts/run-peregrine-gift-eval.ts
     deps: [contracts:generate]
@@ -44,7 +49,7 @@ tasks:
     options:
       cache: false
   eval:
-    deps: [evalReview, evalLocations, evalGift, evalAttention, evalNavigation, evalCorvinReview, evalCorvinPlanner]
+    deps: [evalReview, evalLocations, evalDialogueLocations, evalGift, evalAttention, evalNavigation, evalCorvinReview, evalCorvinPlanner]
     options:
       cache: false
   typecheck:
