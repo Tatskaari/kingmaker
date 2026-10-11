@@ -5,6 +5,8 @@ import { TranscriptMessageSchema, TranscriptRole, type TranscriptMessage } from 
 import type { OpenRouterMessage } from "../../../packages/providers/src/openrouter.js";
 import { setupAgent, type AgentSetupHook } from "../../../packages/conversation/src/agent-setup.js";
 import { characterDocuments } from "../../../packages/lore/src/character-id.js";
+import { activityNpcLocations } from "../../../packages/conversation/src/activity-navigation.js";
+import { characterWorldView } from "../../../packages/conversation/src/wait.js";
 import { courtCharactersWithinEarshot, EARSHOT_DESCRIPTIONS } from "./earshot.js";
 
 const earshotPrefix = "# Current conversation earshot";
@@ -23,23 +25,31 @@ export const setupWorldAgent: AgentSetupHook = async (context, signal, services)
     return setupAgent(context, signal, services);
   }
   signal.throwIfAborted();
+  const characterId = context.characterId;
   const world = services.scenario.read();
   context = { ...context, messages: [
-    ...participantPresentations(world, context.characterId, context.participantIds ?? [context.characterId]),
+    ...participantPresentations(world, characterId, context.participantIds ?? [characterId]),
     ...context.messages.filter(message => !(message.role === "system" && message.content?.startsWith(PRESENTATIONS_PREFIX))),
   ] };
-  const { map } = services.map.observe(context.characterId!);
-  const body = map.actors.find(actor => actor.characterId === context.characterId);
-  if (context.characterId === "cressida") context = { ...context, messages: [...context.messages.slice(0, -1),
+  const observation = services.map.observe(characterId);
+  const { map } = observation;
+  const worldContext = renderPrompt("agent-setup-world-context", {
+    worldView: JSON.stringify(characterWorldView(observation, characterId), null, 2),
+    npc_locations: activityNpcLocations(world, characterId, map),
+  });
+  context = { ...context, messages: [...context.messages.slice(0, -1),
+    { role: "system", content: worldContext }, ...context.messages.slice(-1)] };
+  const body = map.actors.find(actor => actor.characterId === characterId);
+  if (characterId === "cressida") context = { ...context, messages: [...context.messages.slice(0, -1),
     { role: "system", content: `You are currently a ${body?.physicalForm === "cow" ? "were-cow" : "human"}. You retain your mind and speaking voice. This is authoritative current state; earlier transformations in the transcript do not override it.` },
     ...context.messages.slice(-1)] };
   const names = new Map(characterDocuments(world).map(({ id, document }) => [id,
     typeof document.frontmatter?.name === "string" ? document.frontmatter.name : id]));
   const characters = map.actors.map(actor => ({ id: actor.instanceId || actor.characterId,
     name: names.get(actor.instanceId || actor.characterId) ?? actor.characterId, position: actor.position }));
-  const speaker = characters.find(character => character.id === context.characterId);
+  const speaker = characters.find(character => character.id === characterId);
   if (!speaker?.position) return setupAgent(context, signal, services);
-  const participants = new Set(context.participantIds ?? [context.characterId]);
+  const participants = new Set(context.participantIds ?? [characterId]);
   const listeners = courtCharactersWithinEarshot(speaker, characters.filter(character => !participants.has(character.id)), map.doors, map.fixtures, map.layout);
   const groups = (Object.keys(EARSHOT_DESCRIPTIONS) as Array<keyof typeof EARSHOT_DESCRIPTIONS>).flatMap(level => {
     const nearby = listeners.filter(listener => listener.level === level).sort((a, b) => a.id.localeCompare(b.id));

@@ -3,21 +3,25 @@ import { activityDefinition, characterIntent, intentDocument, waitActivities } f
 import type { DocumentSnapshot } from "../../lore/src/services.js";
 import type { RuntimeServices } from "./services.js";
 import { disclosedContext } from "./disclosed-context.js";
+import type { MapObservation } from "./map.js";
 
 export interface WaitDecision {
   choice: string; character: DocumentSnapshot; wait: DocumentSnapshot; targets: DocumentSnapshot[];
   observation: string; intent: ReturnType<typeof characterIntent>;
 }
 /** Deliberately excludes remote actors, their documents and unobserved world events. */
-export function waitObservation(services: RuntimeServices, id: string): string {
-  const { map, recentHistory } = services.map.observe(id), actor = map.actors.find(actor => actor.characterId === id);
-  if (!actor?.position) throw new Error("Waiting character is not placed.");
-  return JSON.stringify({ room: map.rooms.find(room => room.id === actor.roomId)?.name, roomId: actor.roomId,
+export function characterWorldView({ map, recentHistory }: Readonly<MapObservation>, id: string) {
+  const actor = map.actors.find(actor => actor.characterId === id);
+  if (!actor?.position) throw new Error("Character is not placed.");
+  return { room: map.rooms.find(room => room.id === actor.roomId)?.name, roomId: actor.roomId,
     position: actor.position, physicalForm: actor.physicalForm, recentHistory: recentHistory ?? [],
     visibleCharacters: map.actors.filter(other => other.characterId !== id && other.roomId === actor.roomId)
       .map(other => ({ id: other.characterId, position: other.position, awake: other.awake, physicalForm: other.physicalForm })),
     doors: map.doors.filter(door => door.roomIds.includes(actor.roomId)).map(door => ({ id: door.id, open: door.open })),
-  });
+  };
+}
+export function waitObservation(services: RuntimeServices, id: string): string {
+  return JSON.stringify(characterWorldView(services.map.observe(id), id));
 }
 export async function decideWait(id: string, elapsedSeconds: number, services: RuntimeServices, signal: AbortSignal): Promise<WaitDecision | undefined> {
   const world = services.scenario.read(), intent = characterIntent(world, id);

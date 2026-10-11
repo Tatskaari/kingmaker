@@ -22,8 +22,18 @@ function fixture() {
     runtime.services.agents.prepare({ agent, characterId: "rowan", participantIds, sources: [],
       messages: [{ role: "user", content: "Hello" }] }, new AbortController().signal);
   const warning = async (...args: Parameters<typeof prepare>) => (await prepare(...args)).find(message => message.content?.startsWith("# Current conversation earshot"))!.content!;
-  return { world, map, actor, runtime, warning, observations: () => observations };
+  const worldView = async (...args: Parameters<typeof prepare>) => (await prepare(...args)).find(message => message.content?.startsWith("# Current world view"))!.content!;
+  return { world, map, actor, runtime, warning, worldView, observations: () => observations };
 }
+
+test("conversation setup supplies the observable world and live NPC locations", async () => {
+  const { worldView } = fixture();
+  const context = await worldView();
+  assert.match(context, /"room": "Great Hall"/);
+  assert.match(context, /Marshal Garran Holt \(holt\): Great Hall \(already in your room\)/);
+  assert.match(context, /Magister Corvin \(corvin\): Great Hall \(already in your room\)/);
+  assert.match(context, /temporarily includes every on-map NPC/);
+});
 
 test("conversation setup groups nearby bystanders, excludes participants and refreshes positions", async () => {
   const { actor, warning, observations } = fixture();
@@ -78,7 +88,11 @@ test("headless turns retain one audience note across reloads and only commit cha
       counts.push(request.messages.filter(message => message.role === "system" && message.content?.startsWith("# Current conversation earshot")).length);
       if (fail) throw new Error("Intentional response failure");
       return { role: "assistant", content: "Hello." };
-    } } },
+    }, decisions: async (_state, questions) => Object.fromEntries(Object.entries(questions).map(([id, question]) => {
+      const choice = Object.hasOwn(question.criteria, "skip") ? "skip"
+        : Object.hasOwn(question.criteria, "not_flagged") ? "not_flagged" : Object.keys(question.criteria)[0]!;
+      return [id, { choice, probabilities: Object.fromEntries(Object.keys(question.criteria).map(key => [key, Number(key === choice)])) }];
+    })) } },
   });
   const notes = () => game.snapshot().conversations.rowan!.filter(turn => (turn as { speakerId?: string }).speakerId === "earshot");
   await game.talk("rowan", "Hello");
