@@ -22,7 +22,7 @@ Holt has told the player that the pillow delivery is probably blocked by Rowan�
 
 ### When: clear_cart_early -> cart_unblocked
 The player resolves the obstruction before hearing Holt’s explanation. The host validates repair with the book, Rowan backing out, or a successful smash.
-#### Trigger: none
+#### Trigger: fixture_absent furn_cart_left
 #### Run: clear-cart.ts
 
 ## Node: cart_blocked | Cart blocked
@@ -32,7 +32,7 @@ Holt has explained that the pillows are probably delayed by Rowan's cart. Resolv
 Conversation branches own negotiation and scoped reactions. Failed attempts leave other approaches available. Agreement to act is not clearance; invoke the shared transition only through an established successful remedy and its host effects.
 ### When: clear_cart -> cart_unblocked
 A remedy has succeeded: repair using Corvin’s book, Rowan agreeing to back out, or a successful physical smash. The host clears the obstruction and records a shared memory for every character. Delivery remains a separate task.
-#### Trigger: none
+#### Trigger: fixture_absent furn_cart_left
 #### Run: clear-cart.ts
 
 ## Node: cart_unblocked | Cart unblocked
