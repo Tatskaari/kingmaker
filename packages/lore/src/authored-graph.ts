@@ -36,6 +36,9 @@ export function compileAuthoredGraph(note: Note, kind: "conversation" | "quest" 
     } else if (node.depth === 3 && heading === "Guidance" && stage && !stage.description && !edge) {
       if (!body) throw new Error(`${stage.id}: empty guidance`);
       stage.description = body;
+    } else if (kind === "quest" && node.depth === 3 && heading === "Quest Log" && stage && !stage.questLog && !edge) {
+      if (!body) throw new Error(`${stage.id}: empty quest log`);
+      stage.questLog = body;
     } else if (kind === "quest" && node.depth === 3 && heading === "Completed" && stage && !stage.completed && !edge) {
       if (body) throw new Error("Completed headings cannot have a body");
       stage.completed = true;

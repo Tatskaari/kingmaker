@@ -20,10 +20,16 @@ test("only a successful player exchange with the target completes an active ques
   assert.deepEqual((runtime.view().activeQuests as { title: string }[]).map(quest => quest.title), ["Talk to King Aldren"]);
   await runtime.services.quests.register(create(QuestSchema, {
     id: "greeting", title: "Talk to King Aldren", initialStageId: "arrived",
-    stages: [{ id: "arrived" }, { id: "done", completed: true }],
+    stages: [
+      { id: "arrived", title: "Find Aldren", questLog: "Find King Aldren and introduce yourself." },
+      { id: "done", title: "Introduction made", questLog: "You introduced yourself to King Aldren.", completed: true },
+    ],
     transitions: [{ id: "greet", fromStageId: "arrived", toStageId: "done", playerTalkedTo: "aldren" }],
   }));
   await runtime.services.quests.setActive("greeting", true, 0);
+  const greetingView = (runtime.view().activeQuests as { id: string; stages: { title: string; description: string; status: string }[] }[])
+    .find(quest => quest.id === "greeting")!;
+  assert.deepEqual(greetingView.stages, [{ title: "Find Aldren", description: "Find King Aldren and introduce yourself.", status: "active", id: "arrived" }]);
   await runtime.checkedTalkToCharacter("rowan", "Hello.");
   assert.equal(runtime.services.quests.read("greeting").currentStageId, "arrived");
   fail = true;

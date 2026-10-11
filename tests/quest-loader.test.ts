@@ -18,12 +18,16 @@ initial: blocked
 ## Node: blocked | Blocked
 ### Guidance
 Clear the entrance.
+### Quest Log
+Find a way to clear the entrance.
 ### When: clear -> done
 The entrance is physically clear.
 #### Trigger: none
 ## Node: done | Done
 ### Guidance
 The delivery can proceed.
+### Quest Log
+The entrance is clear and the delivery can proceed.
 ### Completed
 `;
 function fixture(graph = source) {
@@ -42,6 +46,7 @@ test("loads ordered quest graphs and resumes saved progress without reseeding", 
   const state = services.quests.read("delivery");
   assert.deepEqual(state.quest!.stages.map(stage => [stage.id, stage.title]), [["blocked", "Blocked"], ["done", "Done"]]);
   assert.equal(state.currentStageId, "blocked");
+  assert.equal(state.quest!.stages[0]!.questLog, "Find a way to clear the entrance.");
   assert.equal(state.active, false);
   assert.deepEqual(services.quests.listActive(), []);
   assert.equal(state.quest!.transitions[0]!.condition, "The entrance is physically clear.");

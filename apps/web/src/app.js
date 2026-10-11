@@ -16,6 +16,7 @@ import { strangerPortrait } from "./stranger-portrait.js";
 import { courtCharactersWithinEarshot } from "./earshot.js";
 import { mountPlayerFeedDrag, mountQuestFeedDrag } from "./player-feed-drag.js";
 import { historyTurns } from "./conversation-history.js";
+import { questFeedItems, questLogContent } from "./quest-log.js";
 import { formatElapsedTime } from "./relative-time.js";
 import devOpenRouterApiKey from "virtual:kingmaker-dev-openrouter-key";
 
@@ -353,12 +354,42 @@ function updateQuestFeed() {
   const feed = document.querySelector("[data-quest-feed]");
   if (!feed) return;
   const quests = state.activeQuests || [];
+  updateQuestLogDialog(quests);
   const signature = JSON.stringify(quests);
   if (feed.dataset.quests === signature) return;
   feed.dataset.quests = signature;
   feed.innerHTML = `<h2><button type="button" data-feed-drag aria-label="Move active quests. Drag or use arrow keys; Home resets position." title="Drag to move · Drag bottom-right corner to resize · Arrow keys to move · Home to reset">Active quests (${quests.length}) <span aria-hidden="true">⠿</span></button></h2>${quests.length
-    ? `<ol>${quests.map(quest => `<li><strong>${escapeHtml(quest.title)}</strong><div class="quest-stage">${escapeHtml(quest.stage)}</div><p>${escapeHtml(quest.description)}</p></li>`).join("")}</ol>`
+    ? questFeedItems(quests)
     : '<p class="feed-empty">No active quests.</p>'}`;
+  feed.querySelectorAll("[data-quest-id]").forEach(button => button.addEventListener("click", () => showQuestLog(button.dataset.questId)));
+}
+
+function updateQuestLogDialog(quests = state.activeQuests || []) {
+  const dialog = document.querySelector("[data-quest-log]");
+  if (!dialog) return;
+  const quest = quests.find(candidate => candidate.id === dialog.dataset.questLog);
+  if (!quest) { dialog.close(); return; }
+  dialog.innerHTML = questLogContent(quest);
+  dialog.querySelector("[data-quest-log-close]").addEventListener("click", () => dialog.close());
+}
+
+function showQuestLog(id) {
+  document.querySelector("[data-quest-log]")?.remove();
+  const quest = (state.activeQuests || []).find(candidate => candidate.id === id);
+  if (!quest) return;
+  const dialog = document.createElement("dialog");
+  dialog.className = "quest-log-modal";
+  dialog.dataset.questLog = id;
+  dialog.setAttribute("aria-label", `${quest.title} quest log`);
+  document.body.append(dialog);
+  updateQuestLogDialog();
+  dialog.addEventListener("click", event => {
+    if (event.target !== dialog) return;
+    const bounds = dialog.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) dialog.close();
+  });
+  dialog.addEventListener("close", () => { dialog.remove(); document.querySelector(`[data-quest-id="${CSS.escape(id)}"]`)?.focus(); });
+  dialog.showModal();
 }
 
 function updateNpcPanel() {
