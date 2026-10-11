@@ -11,6 +11,7 @@ import type { ReviewVariant } from "./review-experiment.js";
 
 const overlay = resolve(import.meta.dirname, "../../../evals/reviews/aldren-plot/variants/prompt/lore");
 const template = parseMarkdown(readFileSync(`${overlay}/gm_prompts/conversation/review/review-plot-progress.md`, "utf8")).body;
+const candidateGuidance = parseMarkdown(readFileSync(`${overlay}/gm_prompts/conversation/review/review-focused.md`, "utf8")).body;
 export const aldrenPlotVariants: ReviewVariant[] = [
   { name: "prompt", prompt: true, sql: false },
   { name: "sql", prompt: false, sql: true },
@@ -20,7 +21,9 @@ export const aldrenPlotVariants: ReviewVariant[] = [
   review: {
     classify: async () => ({ plot_progress: { choice: "flagged" } }),
     resolve: (context, labels, signal, services) => {
-      const values = reviewPromptContext(context, services);
+      const values = { ...reviewPromptContext(context, services),
+        ...(variant.prompt ? { reviewGuidance: candidateGuidance } : {}),
+      };
       const purpose = variant.prompt ? renderCatalogPrompt({ candidate: template }, "candidate", values)
         : renderPrompt("review-plot-progress", values);
       const tools = gameMasterTools.filter(tool => !activityTools.some(activity => activity.function.name === tool.function.name));

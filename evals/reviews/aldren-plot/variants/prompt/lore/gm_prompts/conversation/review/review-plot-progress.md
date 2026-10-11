@@ -1,37 +1,46 @@
 ---
-summary: Adapt quest and conversation routes when an agreed player approach diverges from the authored sequence.
+summary: Update existing quest progress from established outcomes and authored quest instructions.
 visibility: gm
 system: "GM conversation review"
-trigger_context: "After Jev flags plot_progress; focused review of an accepted turn whose approach may require plot adaptation."
+trigger_context: "After Jev conversation attention selects flagged for plot_progress; one focused background GM review of the accepted turn."
 tags: ["prompts", "conversation/review", "conversation/plot-progress"]
 variables: ["youAreTheGameMaster", "transcript", "activeQuests", "activeConversationTrees", "reviewGuidance"]
 ---
-{{youAreTheGameMaster}}
+{{youAreTheGameMaster}} -- refers back to the main GM guidance about how to be a good GM
 
-The last accepted exchange has been flagged for possible plot adaptation:
+The last message in this transcript has been flagged as progressing the plot of a quest:
+
 <transcript>
 {{transcript}}
 </transcript>
 
-Evaluate whether the quests or conversation trees need to change to support what was agreed.
+Your job is to evaluate if any updates to the quests or conversation trees are needed. The current active quests are:
+
 <quests>
 {{activeQuests}}
 </quests>
+
+The character has the current active conversation trees:
+
 <conversation-trees>
 {{activeConversationTrees}}
 </conversation-trees>
 
 Consider:
-1. Has a character agreed to an approach that the current conversation trees cannot accommodate?
-2. Has this exchange skipped or replaced an authored conversation step?
-3. Is the player pursuing an approach outside the existing quest route?
+1. Has the character agreed to a different approach that is not possible in these conversation trees?
+2. Has the conversation skipped a step in the tree? Do we need to update the active tree? 
+3. Is the player trying to pursue an approach that's not pre-authored in this quest/conversation 
 
-If the existing route fits, leave it alone. Otherwise read the relevant quest and conversation documents, then update the relevant characters' conversation routes and quest guidance to support the agreed approach. Preserve existing identifiers, structure and unrelated branches. Respect binding rulings and preserve the player's success.
+If so, you should update the quest and conversation trees of relevant characters to bring this quest back on track. Don't update the pre-authored quest structure and conversation trees if they already fit. 
 
-Allow the detour, then find a natural in-character course back to an authored plot point. Keep the player involved in important beats: when an NPC takes an errand on, provide an appropriate future report, invitation or choice that returns the story to the player. Do not let NPCs silently complete the main quest while the player is absent.
+When updating quests and dialogue trees:
+1. Try to plot a course back to the pre-authored quest line. Let's the player/character have their fun, but try and work in natural in-character conversation goals to your NPCs that can steer the quest back to one of the pre-authored plot points. 
+2. Try not to let the NPCs complete quest for the player, or have major plot beats without the player involved. You can steer this by updating the status of the quest in the quests index.md
 
-Conversation guidance handles what characters think, say, and offer. Quest guidance handles material world changes and the sequence of set pieces. Keep proposed future beats conditional on actual events; a promise is not a delivered order, discovery or completed quest stage. Do not change physical state, fabricate knowledge, duplicate existing memories, or replace the activity reviewer's work.
+## Dialogue tree and quest structure overview
 
-Use supported document edits and report what you actually changed. Editing guidance does not itself execute a quest transition or move a live conversation pointer. Identify any runtime follow-through still required instead of claiming it happened.
+Dialogue trees guide what a character tries to say; quests track meaningful story/world stages. The tree will have a bunch of conversation goals to hit, and when come of these are hit, they will trigger quest transitions. The quest transitions general make larger narrative updates when they transition. Both of which come together to move the world state forward.  
+
+These documents have specific formats, and if you don't follow this format, your updates will fail to save.  
 
 {{reviewGuidance}}

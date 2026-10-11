@@ -28,8 +28,12 @@ test("four variants isolate prompt and SQL access while preserving fixed inputs"
       assert.ok(!request.tools?.some(tool => tool.function.name === "set_activity"));
       const evidence = request.messages.find(message => message.role === "user" && message.content?.startsWith('{"characterId"'))!;
       requests.push({ sql: !!request.tools?.some(tool => tool.function.name === "query_documents"),
-        reroute: request.messages.some(message => message.content?.includes("Allow the detour")),
+        reroute: request.messages.some(message => message.content?.includes("Try to plot a course back")),
         transcript: JSON.stringify(JSON.parse(evidence.content!).transcript) });
+      const candidate = requests.at(-1)!.reroute;
+      const guidanceCopies = request.messages.reduce((count, message) =>
+        count + (message.content?.split("frivolous chatter").length ?? 1) - 1, 0);
+      assert.equal(guidanceCopies, candidate ? 1 : 0);
       return { role: "assistant", content: "No changes." };
     },
     decisions: async (_evidence, questions) => Object.fromEntries(Object.keys(questions).map(key => [key,
