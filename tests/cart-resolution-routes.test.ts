@@ -9,7 +9,7 @@ for (const remedy of ["repair", "back-out"]) test(`${remedy} hook clears directl
   const services = createScenarioServices(loadPlayableWorld()), signal = new AbortController().signal;
   if (remedy === "repair") {
     assert.equal((await services.hooks.bind()["repair-cart.ts"]!(signal)).status, "rejected");
-    await services.inventory.transferBetweenInventories("furn_corvin_reference", "player", "furn_corvin_cart_book");
+    await services.inventory.transferBetweenInventories("palace_corvin_books", "player", "furn_corvin_cart_book");
   }
   const hook = services.hooks.bind()[`${remedy}-cart.ts`]!;
   assert.equal((await hook(signal)).status, "accepted");
@@ -20,7 +20,7 @@ for (const remedy of ["repair", "back-out"]) test(`${remedy} hook clears directl
   assert.equal(hasIntactCart(services.currentWorld().simulation!.map!.fixtures), false);
   assert.ok(services.currentWorld().docs["Reviews/cart-cleared.md"]);
 });
-for (const natural of [1, 20]) test(`physical smash rolls ${natural} and invokes its authored success hook only on success`, async () => {
+for (const natural of [1, 20]) test(`physical smash rolls ${natural} and invokes its quest predicate only on success`, async () => {
   const world = loadPlayableWorld(), target = world.simulation!.map!.fixtures.find(f => f.id === "furn_cart_left")!;
   world.simulation!.map!.actors.find(a => a.characterId === "player")!.position = { ...target.interactionSpot! };
   const game = new WorldGameRuntime(world, "", undefined, undefined, undefined, { services: { random: { integer: () => natural } } });
