@@ -1,0 +1,23 @@
+{
+  "transcript": [
+    {
+      "type": "character",
+      "character_id": "corvin"
+    },
+    {
+      "type": "progressive_disclosure",
+      "docs": []
+    },
+    {
+      "type": "message",
+      "who": "player",
+      "message": "I heard them giggling to themselves. You should really confront them and defend your honor. "
+    },
+    {
+      "type": "message",
+      "who": "agent",
+      "message": "“Giggling is not proof of what was said.” *My thumb settles against the royal seal.* “But I agree that I should get to the truth of the matter. As soon as we finish here, I will speak to Lady Elinor Ash, Professor Oswin, and Doctor Rowan Ash, one by one. I will ask each what was said about my academic record and hear their account separately before deciding what to believe. My reputation deserves facts, not a public quarrel founded on an inference.”"
+    }
+  ],
+  "docs_override": "test_data/lore"
+}

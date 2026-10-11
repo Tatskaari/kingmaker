@@ -53,7 +53,7 @@ test("GM retry keeps presentation open and reuses the already-resolved dice", as
       calls++;
       assert.equal(JSON.parse(request.messages.at(-1)!.content!).resolvedChecks[0].roll, 12);
       if (calls === 1) throw new ProviderResponseError("temporarily unavailable", true);
-      return { role: "assistant", content: '{"direction":"Notice their hesitation."}' };
+      return { role: "assistant", content: '{"direction":"Notice their hesitation.","observation":"You notice their hesitation."}' };
     }),
   });
   await new Promise(resolve => setImmediate(resolve));

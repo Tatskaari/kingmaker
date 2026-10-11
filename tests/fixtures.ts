@@ -36,7 +36,7 @@ export function commitReview(result: { summary: string; newNotes: string[]; acti
   });
   const current = snapshots.filter(snapshot => snapshot.path === snapshots[0]?.path).at(-1);
   const notes = newNotes.filter(note => !current?.document.body.includes(note));
-  return { role: "assistant" as const, content: null, tool_calls: [
+  const tool_calls = [
     ...(notes.length ? [{ id: "review", type: "function" as const, function: { name: "replace_document", arguments: JSON.stringify({
       path: current?.path ?? "fixture.md", expectedSha: current?.sha ?? "fixture", oldText: current?.document.body ?? "Fixture",
       newText: (current?.document.body ?? "Fixture") + "\n" + notes.map(note => `- ${note}`).join("\n"),
@@ -44,5 +44,6 @@ export function commitReview(result: { summary: string; newNotes: string[]; acti
     { id: "fixture-intent", type: "function" as const, function: activeGoal ? { name: "set_activity", arguments: JSON.stringify({
       name: activeGoal, status: "Assigned", success_criteria: activeGoal, current_goal: activeGoal,
     }) } : { name: "clear_activity", arguments: "{}" } },
-  ] };
+  ].filter(call => !request?.tools || request.tools.some(tool => tool.function.name === call.function.name));
+  return { role: "assistant" as const, content: tool_calls.length ? null : summary, tool_calls };
 }

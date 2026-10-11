@@ -80,7 +80,7 @@ test("planning tolerates document changes and still honours cancellation", async
 });
 
 
-test("originating dialogue and rulings reach disclosure and Jev after the review has ended", async () => {
+test("only structured activity fields reach disclosure and Jev after review", async () => {
   const services = fixture();
   const transcript = [
     create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: "Go confront those Nine Furrows delegates." }),
@@ -90,18 +90,19 @@ test("originating dialogue and rulings reach disclosure and Jev after the review
   let decisions = 0, disclosures = 0;
   const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario),
     disclosure: { disclose: async (_lore, messages) => {
-      if (messages.some(message => message.content?.includes("Current execution task:"))) {
+      if (messages.some(message => message.content?.includes("You are to execute the following goal:"))) {
         disclosures++;
-        assert.match(JSON.stringify(messages), /Go confront those Nine Furrows delegates/);
+        for (const turn of transcript) assert.ok(!JSON.stringify(messages).includes(turn.text));
+        assert.match(JSON.stringify(messages), /Confront Nine Furrows/);
       }
       return [];
     } }, ai: {
       responses: async request => commitReview({ summary: "Agreed", newNotes: [], activeGoal: "Confront Nine Furrows" }, request),
       decisions: async state => {
         decisions++;
-        for (const turn of transcript) assert.ok(String(state).includes(turn.text));
-        assert.match(String(state), /Originating conversation \(historical evidence\)/);
-        assert.match(String(state), /GAME_MASTER/);
+        for (const turn of transcript) assert.ok(!String(state).includes(turn.text));
+        assert.doesNotMatch(String(state), /Originating conversation/);
+        assert.match(String(state), /Confront Nine Furrows/);
         return { next: { choice: "unable", probabilities: { unable: 1 } } };
       },
     } }, strategies: { review: documentReviewStrategy, action: jevActionStrategy } });
@@ -110,4 +111,37 @@ test("originating dialogue and rulings reach disclosure and Jev after the review
   await planWorldAction("corvin", runtime);
   assert.equal(decisions, 2);
   assert.equal(disclosures, 2);
+});
+
+test("planner fills the authored template and marks reversals only after consecutive room entries", async () => {
+  const services = fixture("Find Rowan"), observe = services.map.observe;
+  let progressed = false;
+  const runtime = new ConversationRuntime({ services: { ...services, lore: documentLoreService(services.scenario),
+    map: { observe: id => {
+      const observation = observe(id), actor = observation.map.actors.find(actor => actor.characterId === id)!;
+      const move = observation.actions.find(action => action.type === "move")!;
+      return { ...observation, recentHistory: [
+        { kind: "action" as const, id: `enter_${move.target}`, text: "Entered previous room" },
+        { kind: "action" as const, id: `enter_${actor.roomId}`, text: "Entered current room" },
+        ...(progressed ? [{ kind: "event" as const, id: "new-evidence", text: "Rowan called from the previous room" }] : []),
+      ] };
+    } }, ai: { decisions: async (state, questions) => {
+      const prompt = String(questions.next!.instructions);
+      assert.match(prompt, /You are to execute the following goal:\s+Find Rowan/);
+      assert.match(prompt, /Success criteria:/);
+      assert.match(prompt, /current view of the world is:/);
+      assert.match(prompt, /layout of this map \(connections only, not live observations\)/);
+      assert.match(prompt, /Entered previous room/);
+      assert.match(prompt, /Door blocked/);
+      assert.doesNotMatch(prompt, /\{\{(?:currentGoal|status|worldView|map|history)\}\}/);
+      const marked = Object.values(questions.next!.criteria).filter(value => value.includes("A -> B -> A:"));
+      assert.equal(marked.length, progressed ? 0 : 1);
+      assert.equal(String(state).includes("without intervening progress"), !progressed);
+      return { next: { choice: "unable", probabilities: { unable: 1 } } };
+    } },
+  }, strategies: { action: jevActionStrategy } });
+  const feedback = { error: "Door blocked", instruction: "Replan" };
+  await planWorldAction("corvin", runtime, undefined, [], feedback);
+  progressed = true;
+  await planWorldAction("corvin", runtime, undefined, [], feedback);
 });

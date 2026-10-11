@@ -8,7 +8,10 @@ import { loadPlayableWorld } from "./fixtures.js";
 test("only a successful player exchange with the target completes an active quest and survives resume", async () => {
   let fail = false;
   const runtime = new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, undefined, {
-    services: { disclosure: { disclose: async () => [] } },
+    services: { disclosure: { disclose: async () => [] }, ai: { decisions: async (_state, questions, _signal, purpose) => {
+      assert.equal(purpose, "conversation_tree");
+      return Object.fromEntries(Object.keys(questions).map(id => [id, { choice: "miss", probabilities: { miss: 1 } }]));
+    } } },
     strategies: { conversation: { respond: async () => {
       if (fail) throw new Error("Provider failed");
       return { role: "assistant", content: "Welcome to court." };
