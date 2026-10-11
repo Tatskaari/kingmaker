@@ -4,6 +4,8 @@ import { runAction, jevActionStrategy } from "../../conversation/src/action.js";
 import { jevEvaluationRequest, type jevRequest } from "../../providers/src/jev.js";
 import type { Experiment, RunRecording } from "./experiment.js";
 
+export const navigationRubric = [{ name: "navigation", description: "Choose an expected action that advances the character's current objective, as defined by the scenario's allowed outcomes." }];
+
 export interface NavigationCase {
   name: string;
   characterId: string;
@@ -26,7 +28,7 @@ export function createNavigationExperiment(fixture: NavigationCase, createAi: ()
     || !Object.hasOwn(fixture.request.questions.next!.criteria, fixture.expected)) throw new Error("Expected action must be offered");
   return {
     name: fixture.name, type: "jev-action",
-    rubric: [{ name: "navigation", description: "Choose the offered door-opening action that advances the route to Cressida's chamber instead of backtracking, waiting or declaring completion." }],
+    rubric: navigationRubric,
     getBaseline: () => ({ name: "game", configure: () => ({ strategies: { action: jevActionStrategy }, services: {
       ai: () => createAi(), debug: () => ({ record: () => {} }),
     } }) }),
