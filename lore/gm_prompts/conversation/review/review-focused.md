@@ -13,7 +13,7 @@ Often the change you are making will have a wider effect on other documents arou
 - Start broad in scope: Search by keyword across all documents, and check the matching snippets for relevancy. 
 - Narrow results with another required concept, a specific field, or an evidenced folder restriction. 
 - Finally, open only the most promising results. 
-- Consider 
+- Consider one edit at a time. Don't try and find all affected files for all your edits in one go. 
 - Use properties for authored metadata, links for explicit references, and text search for unlinked mentions. A backlink identifies a document to inspect; it does not prove that every fact in it depends on the target. Results are not relevance-ranked. Check limits and truncation before treating a search as complete.
 
 ## Check the impact of an edit
@@ -25,11 +25,7 @@ Often the change you are making will have a wider effect on other documents arou
 ## Make focused, consistent edits
 
 - Read the current document and use its version SHA with the editing tools. If an edit conflicts, read the new version and reconsider the change; preserve intervening work.
-- Update the existing source of truth and genuinely affected notes rather than appending competing accounts or duplicating memories and objectives. Keep changes proportional to the established event.
-- Preserve unrelated content, identifiers, existing branches, permissions and valid links. Keep GM truth separate from character knowledge. Use the established document structure and keep summaries and navigation accurate when their contents change.
-- Document edits record guidance, knowledge or narrative state. Do not claim they also moved an actor, transferred inventory, changed a live activity pointer or executed a quest transition. Use the appropriate operation when it is available and within your task.
+- Update the existing source of truth and genuinely affected notes rather than appending competing accounts or duplicating memories and objectives. Keep changes proportional to the established event. Consider if this is a useful things to record that facilitates telling a fun story, or if it's frivolous chatter that bloats context. 
+- Consider the visibility and audience of the file. Don't include information that the audience of this file shouldn't see. The audience is set in a property on the document. 
+- Document edits record guidance, knowledge or narrative state + quest and conversation graphs. World interactions are done through activities by characters, or by scripts when quests and dialogue trees transition. Do not claim they also moved an actor, transferred inventory, changed a live activity pointer or executed a quest transition. Use the appropriate operation when it is available and within your task.
 
-## Verify and report
-
-- Check tool results. Where reading is available, read back changed documents and check relevant references after replacements or deletions. Confirm that the intended change was committed and unrelated material remains intact.
-- Finish with a brief account of what actually changed, or why no change was needed. Distinguish committed edits from proposed future events and any remaining runtime follow-through.
