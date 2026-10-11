@@ -23,6 +23,7 @@ Holt has told the player that the pillow delivery is probably blocked by Rowan�
 ### When: clear_cart_early -> cart_unblocked
 The player resolves the obstruction before hearing Holt’s explanation. The host validates repair with the book, Rowan backing out, or a successful smash.
 #### Trigger: none
+#### Run: clear-cart.ts
 
 ## Node: cart_blocked | Cart blocked
 ### Guidance
@@ -32,6 +33,7 @@ Conversation branches own negotiation and scoped reactions. Failed attempts leav
 ### When: clear_cart -> cart_unblocked
 A remedy has succeeded: repair using Corvin’s book, Rowan agreeing to back out, or a successful physical smash. The host clears the obstruction and records a shared memory for every character. Delivery remains a separate task.
 #### Trigger: none
+#### Run: clear-cart.ts
 
 ## Node: cart_unblocked | Cart unblocked
 ### Guidance
