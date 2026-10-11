@@ -59,6 +59,7 @@ export class ConversationRuntime<Review = ReviewLabels> {
         return messages;
       } },
       map: {
+        updateFixture: (...args) => services.map?.updateFixture ? services.map.updateFixture(...args) : unimplemented("map.updateFixture"),
         layout: () => services.map?.layout ? services.map.layout() : unimplemented("map.layout"),
         observe: (...args) => services.map?.observe ? services.map.observe(...args) : unimplemented("map.observe"),
         interact: (...args) => services.map?.interact ? services.map.interact(...args) : unimplemented("map.interact"),
