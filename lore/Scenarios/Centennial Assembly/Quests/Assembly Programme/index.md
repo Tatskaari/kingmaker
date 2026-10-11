@@ -67,29 +67,30 @@ You are the GM. Use this opening quest sketch for the first interaction after ch
 
 ## Stages
 
-This folder reorganizes the existing sketch using the proposed format in [issue #532](https://github.com/Tatskaari/kingmaker/issues/532). Stage numbers control author navigation order; they do not require the player to follow the opening conversations in sequence. The blockage exists before the player accepts an errand.
-
 - [[Scenarios/Centennial Assembly/Quests/Assembly Programme/010_stage_delivery_delayed|Delivery delayed]]
-- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/020_stage_backing_out|Backing out]]
-- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/030_stage_dismantling|Dismantling]]
-- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/040_stage_repairing|Repairing]]
-- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/050_stage_unloading|Unloading]]
-- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/060_stage_delivered|Delivered]]
+- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/020_stage_cart_cleared|Cart cleared]]
+
+The quest has two material stages and one [[Scenarios/Centennial Assembly/Quests/Assembly Programme/transitions/clear_cart|shared clearance transition]]. Conversation branches own checks, agreements and scoped character reactions. They invoke the shared transition after successful resolution; attempts and negotiations do not need quest stages.
+
+## Conversation branch direction
+
+- **Help Rowan repair the cart:** develop the route through Corvin's expertise and a book in his room. Distracting the guards, reconciling Rowan and Corvin, or persuading Corvin to provide the book are possible approaches. Corvin's unregistered magic remains a tentative author idea. Exact checks and book mechanics are unfinished.
+- **Convince Rowan to back out:** he is stubborn and insists he needs one more uninterrupted minute. Success leaves Nine Furrows broadly neutral and Rowan slightly resentful.
+- **Smash the cart:** illegal unless Holt has authorised it. Nine Furrows is very unhappy even if the act was authorised. Damage details are deferred.
+- Helping Rowan leaves him and Nine Furrows pleased with the player. Holt appreciates a quick resolution by any route. Apply reactions through scoped GM reviews using witnessed or communicated outcomes, without granting everyone knowledge of private conversations.
 
 ## Supporting notes
 
-- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/transitions/index|Transitions]] — caller-adjudicated conditions and outcome descriptions.
-- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/inputs/index|Inputs]] — Rowan's existing request, knowledge boundaries and unwritten shared instructions.
+- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/transitions/index|Transitions]] — shared world-effect contract.
+- [[Scenarios/Centennial Assembly/Quests/Assembly Programme/inputs/index|Inputs]] — Rowan's request, knowledge boundaries and unwritten supporting instructions.
 
-The numbered stages and linked transitions load as quest data in fresh games. Transition conditions must be adjudicated by the caller; their prose does not execute world changes. Automatic predicates and TypeScript hooks remain infrastructure work. Supporting instruction stubs remain unwritten. Do not infer successful actions from entering a stage or opening a note.
+## Runtime and follow-up boundaries
 
-## Unresolved author decisions
+Fresh games load this two-stage graph. The existing Aldren conversation activates it; registered conversation scripts can call the quest service. Branch-declared checks, scoped review instructions and executable quest effects still need implementation. Changing a stage alone does not remove fixtures or move goods. Start a fresh game for these definition changes.
 
-- Precise persuasion thresholds, repair options and consequences remain to be authored or adjudicated for the actual attempt.
-- Wider assembly troubles and political leads remain undecided; this sketch establishes no specific lead.
-- The investigation, escalating requests and possible outcomes after the introduction remain unwritten.
-- Preserve the possibility of delivering cushions while the entrance remains blocked. Its representation alongside cart clearance is unresolved; the numbered notes do not remove that alternative.
-- Backing-out feasibility, successful repair, gift-tree and wreckage disposition, unloading, retry edges and transition scripts remain unwritten.
+After clearance, helpers must actually deliver the pillows before their arrival is established. Aldren is happy when he learns they arrived; Holt remains five minutes behind schedule. Talking to Holt should introduce a separate programme quest, whose later sequence remains unwritten. No new follow-up quest is executable in this layer.
+
+Preserve the earlier possibility of carrying cushions through a safe alternative route without clearing the cart; this does not satisfy `clear_cart`. Exact repair checks, book access, helper identities and delivery mechanics remain to be authored. The supporting instruction stubs remain unwritten.
 
 Character references: [[Cast/Caerwyn/King Aldren/private|Aldren]], [[Cast/Caerwyn/Marshal Garran Holt/private|Holt]] and [[Cast/Nine Furrows/Doctor Rowan Ash/private|Rowan]]. Their enduring characterization stays in Cast.
 

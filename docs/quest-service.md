@@ -69,8 +69,11 @@ All definitions require `visibility: gm`. Condition note links are validated.
 Loading validates the graph through the same validator as service registration.
 It seeds revision zero only during fresh-world construction; resume retains the
 saved graph and progress. Existing flat quest sketches are not loaded as graphs.
-The Assembly Programme is the first authored graph. Its alternative delivery
-routes and failure/retry edges remain unfinished authoring work.
+The Assembly Programme is the first authored graph. It now has two material stages, `delivery_delayed` and `cart_cleared`, joined by
+`clear_cart`. Conversation branches will select the remedy and character reactions.
+The transition note specifies cart removal and helper assignment, but those host
+effects are not implemented by the data service. See
+[quest authoring guidance](../.agents/skills/kingmaker-quest-authoring/SKILL.md).
 
 This loader accepts typed data, not executable scripts: arbitrary predicates,
 TypeScript modules, declared input execution and GM invocation are not supported. The caller must
