@@ -167,10 +167,12 @@ export class WorldHost {
       if (command.kind === "fixture") {
         const result = this.interactFixtureWithEvent(command.id);
         worldEvent = result.event; message = result.message; roll = result.roll;
-        if (command.id.startsWith("smash_furn_cart_") && roll?.success) {
-          const quest = this.worldServices.quests.read("assembly_programme");
-          if (quest.currentStageId !== "cart_unblocked") await this.worldServices.quests.transition(quest.quest!.id,
-            quest.currentStageId === "investigate_missing_pillows" ? "clear_cart_early" : "clear_cart", quest.revision, "smash");
+        const hookName = result.event.details?.onSuccessHook;
+        if (typeof hookName === "string" && (!roll || roll.success)) {
+          const hook = this.worldServices.hooks.bind()[hookName];
+          if (!hook) throw new Error(`Missing fixture completion hook: ${hookName}`);
+          const outcome = await hook(signal ?? new AbortController().signal);
+          if (outcome.message) message = `${message} ${outcome.message}`;
         }
       }
       return { done: true,
