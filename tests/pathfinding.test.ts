@@ -27,6 +27,22 @@ test("shared routing has deterministic ties and does not retain dynamic obstacle
   assert.equal(routing.findPath(from, to, { fixtures: [fixture] }), undefined);
 });
 
+test("shared reachability labels follow doors and fixtures without depending on actor positions", () => {
+  const map = layout(), routing = createPathfindingService(map);
+  const leftTop = { x: 0, y: 0 }, leftBottom = { x: 0, y: 1 }, right = { x: 2, y: 1 };
+  assert.equal(routing.isReachable(leftTop, [right]), true);
+  assert.equal(routing.isReachable(leftBottom, [right]), true, "multiple actors share the same regions");
+  const door = create(DoorStateSchema, { id: "divide", tiles: [{ x: 1, y: 0 }, { x: 1, y: 1 }] });
+  assert.equal(routing.isReachable(leftTop, [right], { doors: [door] }), false);
+  door.open = true;
+  assert.equal(routing.isReachable(leftTop, [right], { doors: [door] }), true, "opening a door invalidates labels");
+  const fixtures = [{ x: 1, y: 0 }, { x: 1, y: 1 }].map((position, index) =>
+    create(MapFixtureSchema, { id: `block-${index}`, position }));
+  assert.equal(routing.isReachable(leftTop, [right], { doors: [door], fixtures }), false);
+  fixtures[1]!.position = undefined;
+  assert.equal(routing.isReachable(leftTop, [right], { doors: [door], fixtures }), true, "moving a fixture invalidates labels");
+});
+
 test("room constraints and threshold exceptions never bypass physical blockers", () => {
   const routing = createPathfindingService(layout());
   const from = { x: 0, y: 0 }, to = { x: 2, y: 0 };
@@ -36,4 +52,7 @@ test("room constraints and threshold exceptions never bypass physical blockers",
   const door = create(DoorStateSchema, { tiles: [to] });
   assert.equal(routing.findPath(from, to, { ...constraints, doors: [door] }), undefined);
   assert.equal(routing.findPath({ x: -1, y: 0 }, to), undefined);
+  assert.equal(routing.isReachable(from, [to], { allowedRoomIds: ["left"] }), false);
+  assert.equal(routing.isReachable(from, [to], constraints), true);
+  assert.equal(routing.isReachable(from, [to], { ...constraints, doors: [door] }), false);
 });

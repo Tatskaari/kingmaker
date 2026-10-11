@@ -110,10 +110,9 @@ test("door approaches on adjoining threshold tiles remain executable", () => {
   }
 });
 
-test("action discovery estimates Manhattan distances without reading tiles", () => {
+test("action discovery uses reachability labels and retains Manhattan estimates", () => {
   const scenario = load(), world = scenario.world!;
   place(scenario, "great_hall");
-  Object.defineProperty(world.layout!, "tiles", { get() { throw new Error("Discovery must not pathfind"); } });
   const actions = roomAgentActions(world, scenario.characters, inventoryOwners(scenario.characters, world), "corvin");
   assert.ok(actions.some(action => action.type === "talk"));
   assert.ok(actions.some(action => action.type === "fixture"));
@@ -123,4 +122,20 @@ test("action discovery estimates Manhattan distances without reading tiles", () 
   const king = world.actors.find(item => item.characterId === "aldren")!;
   const distance = Math.abs(actor.position!.x - king.position!.x) + Math.abs(actor.position!.y - king.position!.y);
   assert.equal(actions.find(action => action.id === "talk_aldren")!.estimatedSteps, Math.max(0, distance - 1));
+});
+
+test("action discovery excludes a visible character across the cart-blocked service passage", () => {
+  const scenario = load(), world = scenario.world!;
+  const positions = {
+    corvin: { x: 61, y: 34.97 }, holt: { x: 59, y: 37 },
+    "court-servant-1": { x: 61, y: 40 }, "court-servant-2": { x: 62, y: 42 },
+  };
+  for (const actor of world.actors) {
+    const position = positions[(actor.instanceId ?? actor.characterId) as keyof typeof positions];
+    if (position) { actor.roomId = "entrance_hall"; actor.position = create(TilePositionSchema, position); }
+  }
+  const actions = roomAgentActions(world, scenario.characters, inventoryOwners(scenario.characters, world), "corvin");
+  assert.ok(actions.some(action => action.id === "talk_holt"), "reachable characters remain available");
+  assert.ok(!actions.some(action => action.id === "talk_court-servant-1"));
+  assert.ok(!actions.some(action => action.id === "talk_court-servant-2"));
 });
