@@ -34,3 +34,8 @@ See [comparison-results.json](comparison-results.json) for goals, revision and
 artifact location. Both used the same scenario, model settings and rubric.
 This narrow sample supports the handoff; it does not measure full quest completion.
 The candidate hook and template were removed when promoted into the game prompt.
+
+Post-promotion game check at `08e79de`: route 1/1, physical-state 1/1, no errors.
+Artifacts: `eval-output/2026-10-11T14-15-57.056Z-12c617df/`.
+The 29 focused navigation, prompt, conversation-strategy and lore-access tests,
+workspace typecheck and contracts lint passed on the promoted implementation.
