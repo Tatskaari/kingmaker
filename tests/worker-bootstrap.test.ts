@@ -19,6 +19,8 @@ test("browser worker bundle boots without a DOM and registers its RPC handler", 
       let listening = false;
       globalThis.self = { location: { href: 'http://localhost/' }, addEventListener() { listening = true; }, postMessage() {} };
       globalThis.fetch = async () => new Response(readFileSync(${JSON.stringify(resolve("content/palace-map.json"))}, 'utf8'));
+      // Browser workers have no Node process; do not select TypeScript's Node host.
+      globalThis.process = undefined;
       await import(${JSON.stringify(worker)});
       await new Promise(resolve => setImmediate(resolve));
       if (!listening) throw new Error('Worker did not register its RPC handler');
