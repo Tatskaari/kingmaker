@@ -38,6 +38,33 @@ Construct fresh services per run; use supplied recorded dependencies for compose
 including AI. Ordered document overlays live in `packages/service-tools/src/layered-docs.ts`.
 For conversation review, reuse `createReviewExperiment` and the normal review hooks.
 
+### Build fixtures from the engine
+
+Build the initial state from source fixtures and let the game build model inputs. Do not
+check in captured prompts, rendered request text, offered-action lists or whole world dumps.
+A frozen request stops testing the game as soon as prompts, lore or actions change.
+Follow `packages/evals/src/corvin-inquiry-case.ts`, `corvin-planner-experiment.ts` and
+`corvin-nine-furrows-case.ts`:
+
+- Start from `loadPlayableWorld(undefined, overlays)` in `scripts/lib/playable-world.ts`.
+- Put each captured note that differs from source lore, using its captured vault path, under
+  `evals/<kind>/<case>/test_data/lore/`. Include only those notes: character situation,
+  activity, memories, player notes. Use the state just before the failure, not the dump's
+  later edits; the captured request is often the best source for that text.
+- Keep physical preconditions in a small `world.json`, such as actor positions keyed by
+  instance ID and the player document. Apply them in `loadWorld` and point runtime intent
+  (activity, wait) at overlay notes, then call `refreshDocumentGraph`.
+- Keep case metadata in a small `fixture.json`: the overlay folder, the expected outcome,
+  the observed failure and the source dump, its hash and call ID.
+- Drive the real entry point (`planWorldAction`, conversation review, NPC exchange) with
+  `defaultWorldStrategies` and `createScenarioServices`, using `plannerMap` for a headless
+  host. Script only the boundary under test, such as character speech.
+- Compare a prompt or lore candidate by adding a variant overlay with that one file
+  (e.g. `test_data/lore/gm_prompts/...`). Do not fork the prompt in code.
+- Test the world setup and grading with a mocked AI under `tests/`.
+- In the README, record what was captured, what source lore supplies, any differences from
+  the original game (new actors, later edits excluded) and the reconstruction assumptions.
+
 Grade committed state and relevant missing changes, not just the model's claimed summary.
 Include deterministic invariants where appropriate and Jev criteria for semantic quality.
 Record baseline results, repeats, errors and artifact locations. A stochastic problem may
