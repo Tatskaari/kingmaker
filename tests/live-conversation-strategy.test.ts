@@ -1,3 +1,4 @@
+import { activityNpcLocations } from "../packages/conversation/src/activity-navigation.js";
 import { renderPrompt } from "../packages/prompts/src/index.js";
 import assert from "node:assert/strict";
 import test from "node:test";
@@ -137,10 +138,11 @@ test("flags schedule one combined activity review and separate focused reviews i
     const names = request.tools!.map(tool => tool.function.name);
     if (labelSets.length === 1) {
       assert.deepEqual(names, ["set_activity"]);
-      assert.ok(request.messages.some(message => message.content === renderPrompt("review-activity")));
+      assert.ok(request.messages.some(message => message.content === renderPrompt("review-activity", { npc_locations: activityNpcLocations(f.backing.scenario.read(), "corvin") })));
     } else {
       assert.ok(!names.includes("set_activity") && !names.includes("set_wait") && !names.includes("clear_activity"));
       assert.ok(request.messages.some(message => message.content?.startsWith("Review only")));
+      assert.ok(!request.messages.some(message => message.content?.includes("Current NPC locations and routes")));
     }
     return { role: "assistant", content: "No changes needed." };
   };

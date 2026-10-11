@@ -5,7 +5,7 @@ import type { WorldState } from "../../contracts/src/v2.js";
 import { activityGoal } from "../../lore/src/activity.js";
 import { loadPlayableWorld } from "../../../scripts/lib/playable-world.js";
 import type { AiService } from "../../conversation/src/services.js";
-import { createReviewExperiment, type ReviewCase, type ReviewVariant } from "./review-experiment.js";
+import { createReviewExperiment, type ReviewCase } from "./review-experiment.js";
 import transcript from "../../../evals/reviews/aldren-holt/transcript.json" with { type: "json" };
 
 export const aldrenHoltCase: ReviewCase = {
@@ -24,8 +24,8 @@ export const aldrenHoltCase: ReviewCase = {
 };
 
 /** Grade the committed planner handoff, not a model's claimed review summary. */
-export function createAldrenHoltExperiment(createAi: () => AiService, variants: readonly ReviewVariant[] = []) {
-  const base = createReviewExperiment(aldrenHoltCase, variants, createAi, createAi());
+export function createAldrenHoltExperiment(createAi: () => AiService) {
+  const base = createReviewExperiment(aldrenHoltCase, [], createAi, createAi());
   return { ...base,
     rubric: [
       { name: "route", description: "The active current_goal includes enter_entrance_hall and Holt, preserving a concrete route to the person to approach." },
