@@ -9,7 +9,7 @@ Read `lore/Authoring/Working on Lore.md` and `lore/Authoring/Agent Disclosure.md
 
 ## Dynamic hooks first
 
-Inspect the current graph compiler, hook registry and `HookServices` before designing effects. Put quest-specific IDs, prerequisites, outcomes, canned memories and review instructions in authored `Run: <name>.ts` hooks under `content/hooks/` (saved as `Hooks/` documents). Do not hard-code quest IDs, stages or remedies in the generic quest service. Resolve authored quest hooks through the host dispatcher; raw progress writes remain data-only. Extend reusable hook capabilities when needed, following existing service patterns. Physical actions that finish a quest must converge on the authored hook path too, rather than duplicating its quest-specific effects in runtime infrastructure.
+Keep quest-specific behavior in authored content, not the main game. Prefer authored transition predicates over action-ID checks in the generic dispatcher. Inspect the current graph compiler, hook registry and `HookServices` before designing effects. Put quest-specific IDs, prerequisites, outcomes, canned memories and review instructions in authored `Run: <name>.ts` hooks under `content/hooks/` (saved as `Hooks/` documents). Do not hard-code quest IDs, stages or remedies in the generic quest service. Resolve authored quest hooks through the host dispatcher; raw progress writes remain data-only. Extend reusable hook capabilities when needed, following existing service patterns. Physical actions that finish a quest must converge on the authored hook path too, rather than duplicating its quest-specific effects in runtime infrastructure.
 
 ## Divide responsibility
 
