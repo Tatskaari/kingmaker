@@ -1,3 +1,4 @@
+import { removeFixtures } from "./remove-fixtures.js";
 import { updateFixture } from "./update-fixture.js";
 import { transformCressida } from "./cressida-transformation.js";
 import { Client } from "boardgame.io/client";
@@ -9,7 +10,7 @@ import { interactWithFixture } from "./simulation-fixtures.js";
 import { addToInventory, removeFromInventory, transferBetweenInventories, replaceInventories } from "./simulation-inventory.js";
 import { publishSimulationChanges } from "./simulation-publication.js";
 
-const moves = { updateFixture, transformCressida, startMove, completeMove, cancelMove, setDoor, interactWithFixture,
+const moves = { removeFixtures, updateFixture, transformCressida, startMove, completeMove, cancelMove, setDoor, interactWithFixture,
   addToInventory, removeFromInventory, transferBetweenInventories, replaceInventories, publishSimulationChanges };
 
 /** Trusted host executor. The browser sends service requests, never arbitrary moves. */

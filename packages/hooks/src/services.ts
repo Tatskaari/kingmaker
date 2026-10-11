@@ -28,6 +28,12 @@ export interface HookServices {
   quests: HookQuestService;
   /** Inspect fixtures and update their interaction actions through authoritative moves. */
   map: HookMapService;
+  /** Evidence supplied by the host when executing an authored quest transition. */
+  transition?: { questId: string; transitionId: string; evidence: string };
+  /** Check an actual possession, not a dialogue claim. */
+  inventory: { hasItem(ownerId: string, itemId: string): boolean };
+  /** Broadcast a public milestone once and queue scoped plot reviews. */
+  memories: { broadcast(id: string, input: HookBroadcast): Promise<void> };
 }
 
 /** Detached quest progress. Read again after a write to obtain the current revision. */
@@ -43,7 +49,17 @@ export interface HookQuestState {
 }
 
 /** Quest progress operations; these do not run other hooks or physical effects. */
+export interface HookBroadcast {
+  title: string;
+  context: string;
+  content: string;
+  /** GM-only instructions for updating each character's dialogue after the milestone. */
+  review: string;
+}
+
 export interface HookQuestService {
+  /** Execute the quest edge's authored Run hook, then record progress if accepted. */
+  advance(id: string, transitionId: string, expectedRevision: number, evidence?: string): Promise<TransitionResult>;
   /** Read all registered quests as detached progress records. */
   list(): HookQuestState[];
   /** Read a quest by its stable ID.
@@ -91,12 +107,16 @@ export interface HookAction {
 export interface HookFixture {
   /** Immutable fixture ID. */
   readonly id: string;
+  /** Public fixture name. */
+  name: string;
   /** Interaction actions; edit these inside updateFixture's synchronous callback. */
   actions: HookAction[];
 }
 
 /** Fixture operations. This PoC exposes action edits, not arbitrary map mutation. */
 export interface HookMapService {
+  /** Remove empty fixtures; absent IDs are harmless on retry. Rejects populated containers. */
+  removeFixtures(ids: string[]): Promise<void>;
   /** List detached fixture IDs and actions, without cloning or exposing the world. */
   listFixtures(): HookFixture[];
   /** Edit the current fixture's actions inside one authoritative move.

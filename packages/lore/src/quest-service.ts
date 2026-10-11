@@ -1,4 +1,3 @@
-import { prepareCartClearance } from "./cart-clearance.js";
 import { clone, create } from "@bufbuild/protobuf";
 import { QuestSchema, QuestStateSchema, QuestTransitionRecordSchema,
   type Quest, type QuestState, type QuestTransition } from "../../contracts/src/v2.js";
@@ -98,9 +97,6 @@ export function createQuestService(store: WorldStore, beforeWrite: () => void = 
         if (next.quest!.stages.find(stage => stage.id === edge.toStageId)!.completed) next.active = false;
         next.revision++;
         next.history.push(create(QuestTransitionRecordSchema, { transitionId, revision: next.revision, evidence }));
-        if (id === "assembly_programme" && edge.toStageId === "cart_unblocked") {
-          store.publishDocuments(prepareCartClearance(store.state, evidence));
-        }
         return publish(id, next);
       });
     },

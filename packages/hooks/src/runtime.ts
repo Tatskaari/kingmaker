@@ -39,6 +39,12 @@ export async function runHook(hook: CompiledHook, bind: (guard: () => void) => H
     if (++calls > 64) throw new Error("Hook service call limit exceeded");
     const values = args.map(arg => vm.typeof(arg) === "function" ? undefined : vm.dump(arg));
     switch (name) {
+      case "inventory.hasItem": return services.inventory.hasItem(string(values[0]), string(values[1]));
+      case "memories.broadcast": return services.memories.broadcast(string(values[0]), values[1]);
+      case "map.removeFixtures":
+        if (!Array.isArray(values[0]) || values[0].length > 100) throw new Error("Expected fixture IDs");
+        return services.map.removeFixtures(values[0].map(string));
+      case "quests.advance": return services.quests.advance(string(values[0]), string(values[1]), revision(values[2]), values[3] === undefined ? undefined : string(values[3]));
       case "quests.list": return services.quests.list();
       case "quests.read": return services.quests.read(string(values[0]));
       case "map.listFixtures": return services.map.listFixtures();
@@ -59,6 +65,7 @@ export async function runHook(hook: CompiledHook, bind: (guard: () => void) => H
             finally { result.dispose(); }
             const updated = vm.dump(draft);
             if (!updated || updated.id !== fixture.id || !Array.isArray(updated.actions)) throw new Error("Invalid fixture update");
+            fixture.name = updated.name;
             fixture.actions = updated.actions;
           } finally { inCallback = false; draft.dispose(); }
         });
@@ -67,10 +74,10 @@ export async function runHook(hook: CompiledHook, bind: (guard: () => void) => H
     }
   }
   const root = vm.newObject(); disposables.push(root);
-  for (const [service, methods] of Object.entries({ quests: ["list", "read", "setActive", "transition"], map: ["listFixtures", "updateFixture"] })) {
+  for (const [service, methods] of Object.entries({ quests: ["list", "read", "setActive", "transition", "advance"], map: ["listFixtures", "updateFixture", "removeFixtures"], inventory: ["hasItem"], memories: ["broadcast"] })) {
     const object = vm.newObject(); disposables.push(object);
     for (const method of methods) {
-      const asynchronous = ["setActive", "transition", "updateFixture"].includes(method);
+      const asynchronous = ["setActive", "transition", "advance", "updateFixture", "removeFixtures", "broadcast"].includes(method);
       const fn = vm.newFunction(method, (...args) => {
         guard();
         if (inCallback) throw new Error("Fixture callbacks cannot call services");
@@ -91,6 +98,10 @@ export async function runHook(hook: CompiledHook, bind: (guard: () => void) => H
       vm.setProp(object, method, fn); fn.dispose();
     }
     vm.setProp(root, service, object);
+  }
+  if (services.transition) {
+    const context = encode(services.transition);
+    vm.setProp(root, "transition", context); context.dispose();
   }
   vm.setProp(vm.global, "services", root);
   let output: QuickJSHandle | undefined;
