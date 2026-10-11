@@ -24,13 +24,13 @@ export class DocumentGraph {
     const namesChanged = notes.size !== this.sources.size || [...notes.keys()].some(path => !this.sources.has(path));
     const sources = new Map<string, Source>();
     for (const [name, doc] of notes) {
-      if (name.startsWith("/") || name.includes("\\") || name.split("/").some(part => !part || part === "." || part === "..") || !name.endsWith(".md")) {
-        throw new Error(`${name}: Expected a vault-relative Markdown path`);
+      if (name.startsWith("/") || name.includes("\\") || name.split("/").some(part => !part || part === "." || part === "..") || (!name.endsWith(".md") && !/^Hooks\/[a-z][a-z0-9-]*\.ts$/.test(name))) {
+        throw new Error(`${name}: Expected a vault-relative Markdown or Hooks/<name>.ts path`);
       }
       try {
         const previous = this.sources.get(name);
         const bodyChanged = previous?.body !== doc.body;
-        const references = bodyChanged ? links(doc.body) : previous!.references;
+        const references = name.endsWith(".ts") ? [] : bodyChanged ? links(doc.body) : previous!.references;
         const resolved = namesChanged || bodyChanged ? references.flatMap(link => {
           const target = resolveLink(notes, name, link);
           return target ? [{ target, source: link.target }] : [];
