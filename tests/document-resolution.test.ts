@@ -1,5 +1,5 @@
 import { documentLoreService } from "../packages/conversation/src/document-lore.js";
-import { commitReview } from "./fixtures.js";
+import { commitReview, loadPlayableWorld } from "./fixtures.js";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { create } from "@bufbuild/protobuf";
@@ -50,6 +50,41 @@ test("ignored events do not write; processed events use only their limited perce
     assert.equal(calls, react ? 2 : 0);
     assert.equal((await services.docs.read(entry("alice"))).text.includes("Indistinct voices"), react);
   }
+});
+
+test("exchange reviews inject live plot context without exposing it to speakers", async () => {
+  const services = createScenarioServices(loadPlayableWorld());
+  await services.quests.setActive("assembly_programme", true, 0);
+  let calls = 0;
+  const runtime = new ConversationRuntime({ services: { ...services,
+    lore: { forCharacter: async () => ({ initial: [], links: () => [], open: async () => assert.fail() }) },
+    ai: { responses: async request => {
+      calls++;
+      const prompt = request.messages.map(message => message.content ?? "").join("\n");
+      if (calls <= 2) {
+        assert.equal(request.reasoning?.effort, "none");
+        assert.ok(!request.tools?.length);
+        assert.doesNotMatch(prompt, /assembly_programme|<quests>|<conversation-trees>/);
+        return { role: "assistant", content: calls === 1 ? "Please report back." : "I will." };
+      }
+      const system = request.messages.find(message => message.content?.includes("<quests>"))?.content ?? "";
+      assert.match(system, /Please report back\./);
+      assert.match(system, /I will\./);
+      assert.match(system, /Keep the player involved/);
+      assert.match(system, /currentStageId/);
+      assert.match(system, new RegExp(`Conversations/${calls === 3 ? "aldren" : "rowan"}\\.md`));
+      assert.doesNotMatch(system, new RegExp(`Conversations/${calls === 3 ? "rowan" : "aldren"}\\.md`));
+      if (calls === 3) {
+        assert.match(system, /assembly_programme/);
+        await services.quests.setActive("assembly_programme", false, 1);
+      } else {
+        assert.doesNotMatch(system, /assembly_programme/);
+      }
+      return { role: "assistant", content: "No changes." };
+    } },
+  }, strategies: { resolution: documentResolutionStrategy } });
+  await runResolution({ kind: "npc_exchange", characterId: "aldren", targetId: "rowan", goal: "Ask for a report" }, runtime);
+  assert.equal(calls, 4);
 });
 
 test("action and wait reviews can query documents", async () => {
