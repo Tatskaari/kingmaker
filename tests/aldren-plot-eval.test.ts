@@ -44,7 +44,7 @@ test("baseline plot review includes promoted guidance once beside the quest tran
   };
   const experiment = createAldrenPlotExperiment(() => ai, ai);
   assert.deepEqual(experiment.getVariants().map(variant => variant.name), ["quest-transcript"]);
-  const trials = await runExperiment(experiment, { repeats: 1, concurrency: 1 });
+  const trials = await runExperiment(experiment, { repeats: 1, concurrency: 1, variants: [] });
   assert.equal(trials.length, 1);
   assert.equal(trials[0]!.variant, "game");
   assert.ok(trials.every(trial => !trial.recording.error && !trial.scoringError));
