@@ -553,6 +553,7 @@ async function handle(type: string, payload: Record<string, unknown>, requestId:
     return { state: game.view(), activeSaveId: activeSave?.id };
   }
   if (type === "debug_transcripts") return { requests: requireRuntime().recentTranscripts(), agentRuns: requireRuntime().transcriptRuns() };
+  if (type === "debug_story") return requireRuntime().debugStory();
   if (type === "debug_documents") return requireRuntime().debugDocuments();
   if (type === "issue_report") return { worldState: requireRuntime().world(), requests: requireRuntime().recentTranscripts(), agentRuns: requireRuntime().transcriptRuns() };
   if (type === "debug_gm") return requireRuntime().debugGameMaster();

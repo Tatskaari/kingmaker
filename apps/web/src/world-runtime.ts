@@ -282,6 +282,30 @@ export class WorldGameRuntime extends WorldHost {
   override debugCharacter(id: string) {
     return { ...super.debugCharacter(id), conversationTree: this.conversationTrees.get(id)?.status, contextCall: this.traces.latestDialogue(this.conversationRuns.get(id), id) };
   }
+  debugStory() {
+    const conversations = new Map(Object.entries(this.world().docs).flatMap(([path, document]) => {
+      if (!path.startsWith("Conversations/") || !path.endsWith(".md")) return [];
+      const tree = compileConversationTree({ body: document.body, metadata: document.frontmatter ?? {} });
+      return [[tree.quest.id, tree.characterId] as const];
+    }));
+    const graph = ([id, state]: [string, WorldState["quests"][string]]) => ({
+      id, title: state.quest?.title || id, active: state.active, currentNode: state.currentStageId,
+      history: state.history.map(record => record.transitionId),
+      nodes: state.quest?.stages.map(node => ({ id: node.id, title: node.title || node.id,
+        guidance: node.description, completed: node.completed })) ?? [],
+      edges: state.quest?.transitions.map(edge => ({ id: edge.id, from: edge.fromStageId, to: edge.toStageId,
+        condition: edge.condition, trigger: edge.playerTalkedTo ? `Talk to ${edge.playerTalkedTo}`
+          : edge.fixtureAbsent ? `Fixture absent: ${edge.fixtureAbsent}` : "GM discretion" })) ?? [],
+    });
+    const quests = Object.entries(this.world().quests), byTitle = (a: ReturnType<typeof graph>, b: ReturnType<typeof graph>) => a.title.localeCompare(b.title);
+    return {
+      quests: quests.filter(([id]) => !conversations.has(id)).map(graph).sort(byTitle),
+      conversations: quests.filter(([id]) => conversations.has(id)).map(entry => {
+        const characterId = conversations.get(entry[0])!;
+        return { ...graph(entry), characterId, live: this.conversationTrees.get(characterId)?.status };
+      }).sort(byTitle),
+    };
+  }
   debugDocuments() {
     const world = this.world();
     const paths = [...world.characters, ...(world.player ? [world.player] : [])];

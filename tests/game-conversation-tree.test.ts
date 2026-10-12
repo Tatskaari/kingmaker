@@ -61,6 +61,22 @@ test("fresh game goals activate the visible quest and persist through reload wit
   game.movement.dispose(); resumed.movement.dispose();
 });
 
+test("story debug data exposes quest and conversation graphs with live GM progress", async () => {
+  const game = new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, undefined, options());
+  try {
+    await game.checkedTalkToCharacter("aldren", "Hello");
+    const story = game.debugStory();
+    const quest = story.quests.find(item => item.id === "assembly_programme")!;
+    assert.equal(quest.currentNode, "investigate_missing_pillows");
+    assert.deepEqual(quest.nodes.map(node => node.id), ["investigate_missing_pillows", "cart_blocked", "cart_unblocked"]);
+    assert.equal(quest.edges[0]!.to, "cart_blocked");
+    const conversation = story.conversations.find(item => item.characterId === "aldren")!;
+    assert.equal(conversation.currentNode, "hint");
+    assert.equal(conversation.live?.node, "hint");
+    assert.match(conversation.nodes.find(node => node.id === "hint")!.guidance, /something very dire/);
+  } finally { game.movement.dispose(); }
+});
+
 test("declining in the game leaves Assembly Programme inactive", async () => {
   const game = new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, undefined, options());
   await requestHelp(game);
