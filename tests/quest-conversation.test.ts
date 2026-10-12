@@ -18,12 +18,28 @@ test("only a successful player exchange with the target completes an active ques
     } } },
   });
   assert.deepEqual((runtime.view().activeQuests as { title: string }[]).map(quest => quest.title), ["Talk to King Aldren"]);
+  const programme = runtime.services.quests.read("assembly_programme");
+  await runtime.services.quests.setActive("assembly_programme", true, programme.revision);
+  await runtime.services.quests.transition("assembly_programme", "learn_cart_blocked", programme.revision + 1);
+  const programmeView = (runtime.view().activeQuests as { id: string; stages: { id: string; status: string; description: string }[] }[])
+    .find(quest => quest.id === "assembly_programme")!;
+  assert.deepEqual(programmeView.stages.map(stage => [stage.id, stage.status]), [
+    ["investigate_missing_pillows", "completed"], ["cart_blocked", "active"],
+  ]);
+  assert.match(programmeView.stages[1]!.description, /Rowan's cart/);
+  await runtime.services.quests.setActive("assembly_programme", false, programme.revision + 2);
   await runtime.services.quests.register(create(QuestSchema, {
     id: "greeting", title: "Talk to King Aldren", initialStageId: "arrived",
-    stages: [{ id: "arrived" }, { id: "done", completed: true }],
+    stages: [
+      { id: "arrived", title: "Find Aldren", questLog: "Find King Aldren and introduce yourself." },
+      { id: "done", title: "Introduction made", questLog: "You introduced yourself to King Aldren.", completed: true },
+    ],
     transitions: [{ id: "greet", fromStageId: "arrived", toStageId: "done", playerTalkedTo: "aldren" }],
   }));
   await runtime.services.quests.setActive("greeting", true, 0);
+  const greetingView = (runtime.view().activeQuests as { id: string; stages: { title: string; description: string; status: string }[] }[])
+    .find(quest => quest.id === "greeting")!;
+  assert.deepEqual(greetingView.stages, [{ title: "Find Aldren", description: "Find King Aldren and introduce yourself.", status: "active", id: "arrived" }]);
   await runtime.checkedTalkToCharacter("rowan", "Hello.");
   assert.equal(runtime.services.quests.read("greeting").currentStageId, "arrived");
   fail = true;

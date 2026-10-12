@@ -16,6 +16,8 @@ Clear the entrance.
 ## Node: cart_blocked | Cart blocked
 ### Guidance
 Find a remedy. Agreement is not clearance.
+### Quest Log
+Find a way to clear the cart.
 ### When: clear_cart -> cart_unblocked
 The host has cleared the obstruction.
 #### Trigger: none
@@ -27,6 +29,8 @@ A successful exchange with Aldren.
 ## Node: cart_unblocked | Cart unblocked
 ### Guidance
 The entrance is clear.
+### Quest Log
+The entrance is clear.
 ### Completed
 `;
 
@@ -37,6 +41,7 @@ test("quest graph shares conversation nodes, conditions and script metadata with
   assert.equal(tree.quest.description, "# Delivery\nClear the entrance.");
   assert.deepEqual(tree.quest.stages.map(stage => [stage.id, stage.title, stage.completed]),
     [["cart_blocked", "Cart blocked", false], ["cart_unblocked", "Cart unblocked", true]]);
+  assert.equal(tree.quest.stages[0]!.questLog, "Find a way to clear the cart.");
   assert.deepEqual(tree.quest.transitions.map(edge => [edge.id, edge.toStageId, edge.playerTalkedTo]),
     [["clear_cart", "cart_unblocked", ""], ["ask_aldren", "cart_unblocked", "aldren"]]);
   assert.deepEqual(tree.scripts, { clear_cart: "clear-cart.ts" });
@@ -52,7 +57,8 @@ test("quest graphs reject missing, malformed or duplicate directives and invalid
     source.replace("#### Trigger: none", "#### Trigger: none\n#### Trigger: discretionary"),
     source.replace("### Completed", "### Completed\nUnexpected body"), source.replace("### Completed", "### Completed\n### Completed"),
     source.replace("clear_cart -> cart_unblocked", "clear_cart -> absent"), source.replace("clear-cart.ts", "../outside.ts"),
-    source.replace("visibility: gm", "visibility: public"), source.replace("Find a remedy. Agreement is not clearance.", "")]) {
+    source.replace("visibility: gm", "visibility: public"), source.replace("Find a remedy. Agreement is not clearance.", ""),
+    source.replace("### Quest Log\nFind a way to clear the cart.\n", "")]) {
     assert.throws(() => parseQuestTree(invalid));
   }
 });

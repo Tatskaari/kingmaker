@@ -68,6 +68,8 @@ summary: Fixture predicate test.
 ## Node: blocked
 ### Guidance
 Wait for the fixture removal.
+### Quest Log
+Wait for the obstruction to be removed.
 ### When: cleared -> clear
 The blocking fixture has been removed.
 #### Trigger: fixture_absent furn_cart_left
@@ -75,6 +77,8 @@ The blocking fixture has been removed.
 ## Node: clear
 ### Guidance
 The fixture is gone.
+### Quest Log
+The obstruction is gone.
 `);
   const signal = new AbortController().signal;
   await services.quests.setActive("predicate_test", true, services.quests.read("predicate_test").revision);

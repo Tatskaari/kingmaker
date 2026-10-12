@@ -497,7 +497,19 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 
 .quest-feed { left: auto; bottom: auto; top: max(66px, calc(env(safe-area-inset-top) + 54px)); right: max(12px, env(safe-area-inset-right)); width: min(300px, calc(100% - 24px)); height: min(180px, 30dvh); }
 .quest-feed li + li { margin-top: 12px; }
-.quest-feed .quest-stage { color: var(--gold); font-size: 12px; margin: 3px 0; }
+.quest-link { width: 100%; border: 0; padding: 3px 0; background: transparent; color: #f5ead2; font: inherit; font-weight: 700; text-align: left; cursor: pointer; }
+.quest-link:hover, .quest-link:focus-visible { color: var(--gold); }
+.quest-log-modal { width: min(620px, calc(100vw - 28px)); }
+.quest-log-modal .panel { display: block; min-width: 0; }
+.quest-log-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+.quest-log-head h2 { margin-top: 4px; }
+.quest-log-stages { list-style: none; margin: 18px 0 0; padding: 0; }
+.quest-log-stages li + li { margin-top: 10px; }
+.quest-log-stages details { border: 1px solid #c9a66238; background: #15120e; }
+.quest-log-stages summary { display: grid; gap: 3px; padding: 12px 14px; cursor: pointer; }
+.quest-log-stages details[open] summary { border-bottom: 1px solid #c9a66238; }
+.quest-log-stages p { margin: 0; padding: 14px; white-space: pre-wrap; }
+.quest-stage-status { color: var(--gold); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
 @media (max-width: 700px) {
   .quest-feed { top: 108px; }
 }

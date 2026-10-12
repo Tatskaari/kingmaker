@@ -19,6 +19,8 @@ message QuestStage {
   string description = 3;
   // Entering this stage completes and deactivates the quest.
   bool completed = 4;
+  // Player-facing journal copy. GM guidance remains in description.
+  string quest_log = 5;
 }
 
 // Directed edge; multiple routes may converge on the same stage.
