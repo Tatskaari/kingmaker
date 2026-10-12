@@ -33,7 +33,7 @@ export interface ConversationResult {
 interface AppProps {
   input: ConversationInput;
   complete: Complete;
-  checks?: { conversationTree?: ConversationTreeSession; services?: Partial<RuntimeServices>; ai: AiService; build: DndCharacter | undefined; beginTurn?: () => void; beforeTurn?: () => Promise<DisclosureSession>; response?: (report: (event: import("../../packages/conversation/src/attention.js").AnalysisEvent) => void) => ConversationStrategy };
+  checks?: { conversationTree?: ConversationTreeSession; services?: Partial<RuntimeServices>; ai: AiService; build: DndCharacter | undefined; beginTurn?: () => void; beforeTurn?: () => Promise<DisclosureSession>; afterTurn?: () => Promise<void>; response?: (report: (event: import("../../packages/conversation/src/attention.js").AnalysisEvent) => void) => ConversationStrategy };
   disclosure?: DisclosureSession;
   copyText: (text: string) => Promise<string>;
   onFinish: (result: ConversationResult) => void;
@@ -174,6 +174,7 @@ export function ConversationApp({ input, complete, disclosure, checks, copyText,
         const goal = await checks.conversationTree.evaluate(result.transcript, tracedAi!, controller.current.signal, reportTree);
         if (goal) setTranscript([...result.transcript, goal]);
       }
+      await checks?.afterTurn?.();
     } catch (cause) { setStatus(cause instanceof Error ? cause.message : String(cause)); }
     finally { running.current = false; setBusy(false); }
   }

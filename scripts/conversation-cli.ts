@@ -97,6 +97,7 @@ const runtimeServices = new ConversationRuntime({ services: { ai, inventory: ser
 const result = await runConversationCli(input, ai.responses, disclosure, { ai, build, ...(conversationTree ? { conversationTree } : {}),
   services: runtimeServices,
   beforeTurn: async () => { await reviews.drain(); return new DisclosureSession(await documentLore(services.scenario, characterId), ai, Number(options.get("--threshold") ?? "0.7")); },
+  ...(questReviewer ? { afterTurn: () => reviews.drain() } : {}),
   response: report => liveConversationStrategy({ characterId, reviews, report,
     ...(questReviewer ? {
       plotReviewWhen: messages => messages.findLast(message => message.role === "user")?.content?.startsWith("PLOT:") === true,

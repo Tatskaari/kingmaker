@@ -1,7 +1,7 @@
 import { toJson } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema } from "../../contracts/src/index.js";
 import type { JevChoice, JevQuestions } from "../../providers/src/jev.js";
-import { reviewDocumentEvidence } from "../../conversation/src/document-review.js";
+import { runGameMaster } from "../../conversation/src/game-master.js";
 import { advanceQuestTool, gameMasterTools } from "../../conversation/src/gm-tools.js";
 import { activityTools } from "../../conversation/src/activity-tools.js";
 import { reviewGuidance } from "../../conversation/src/review-prompt-context.js";
@@ -78,7 +78,7 @@ export class QuestTranscriptReviewer {
         unchanged: "This turn does not change the playable course of this quest.",
       },
     }]));
-    const decisions = await services.ai.decisions({ characterId: context.characterId, turn }, questions, signal, "conversation_attention");
+    const decisions = await services.ai.decisions({ characterId: context.characterId, turn }, questions, signal, "quest_relevance");
     return { candidates, decisions };
   }
 
@@ -109,11 +109,10 @@ export class QuestTranscriptReviewer {
         availableActions: JSON.stringify(observation.actions, null, 2), reviewGuidance,
       });
       const tools = [...gameMasterTools.filter(tool => !activityTools.some(activity => activity.function.name === tool.function.name)), advanceQuestTool];
-      const result = await reviewDocumentEvidence(context, { questId: candidate.id, development: summary.content }, signal,
-        { ...services, ai: { ...services.ai, responses: (request, cancellation, info) => services.ai.responses(
-          { ...request, reasoning: { ...request.reasoning, effort: "high" } }, cancellation, info) } }, purpose,
-        { systemPrompt: renderGamePrompt("review-system"), tools });
-      changed.push(`${candidate.id}: ${result.summary}`);
+      const result = await runGameMaster({ model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "high" }, tools,
+        messages: [{ role: "system", content: purpose }],
+      }, services, signal, { characterId: context.characterId, review: true, systemPrompt: renderGamePrompt("review-system") });
+      changed.push(`${candidate.id}: ${result.content ?? ""}`);
     }
     return { summary: changed.length ? changed.join("\n") : "No active quest was changed by this turn." };
   }

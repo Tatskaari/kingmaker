@@ -18,7 +18,8 @@ export async function runGameMaster(request: ChatCompletionRequest, services: Ru
     signal.throwIfAborted();
     const response = await services.ai.responses({ ...request, tools,
       messages: options.prepare ? await options.prepare(messages) : messages,
-    }, signal, { ...(options.characterId ? { characterId: options.characterId } : {}), ...(!options.review ? { purpose: "gm_consultation" as const } : {}) });
+    }, signal, { ...(options.characterId ? { characterId: options.characterId } : {}),
+      purpose: options.review ? "conversation_review" : "gm_consultation" });
     signal.throwIfAborted();
     if (!response.tool_calls?.length) {
       try {

@@ -16,7 +16,7 @@ test("quest transcript review sees the whole map and the character's available a
   const runtime = new ConversationRuntime({ services: { ...backing, map: host.map, lore: documentLoreService(backing.scenario),
     ai: {
       decisions: async (_state, questions, _signal, purpose) => Object.fromEntries(Object.entries(questions).map(([id, question]) => {
-        const selected = purpose === "conversation_attention" ? "update" : "skip";
+        const selected = purpose === "quest_relevance" ? "update" : "skip";
         return [id, { choice: selected, probabilities: Object.fromEntries(Object.keys(question.criteria).map(key => [key, key === selected ? 1 : 0])) }];
       })),
       responses: async request => {

@@ -243,3 +243,24 @@ test("terminal character responds without tools or reasoning while receiving the
     assert.equal(calls, 1);
   } finally { await act(() => setup.renderer.destroy()); }
 });
+
+test("CLI keeps a turn busy through its post-turn review and shows review failures", async () => {
+  const setup = await testRender(createElement(ConversationApp, {
+    input: { world: loadPlayableWorld(), characterId: "corvin", sources: [], transcript: [], message: "" },
+    checks: {
+      ai: { decisions: async () => ({}), responses: async () => ({ role: "assistant" as const, content: "unused" }) },
+      build: undefined,
+      afterTurn: async () => { throw new Error("Quest updater failed before completion."); },
+    },
+    complete: async () => ({ role: "assistant" as const, content: "The spoken reply remains visible." }),
+    copyText: async () => "Copied", onFinish: () => {},
+  }), { width: 100, height: 30, exitOnCtrlC: false, autoFocus: false });
+  try {
+    await setup.flush();
+    await act(async () => { await setup.mockInput.typeText("Continue the quest."); });
+    await setup.flush();
+    await act(async () => { await setup.mockInput.pressEnter(); });
+    await setup.waitForFrame(frame => frame.includes("Quest updater failed before completion."));
+    assert.match(setup.captureCharFrame(), /The spoken reply remains visible/);
+  } finally { await act(() => setup.renderer.destroy()); }
+});

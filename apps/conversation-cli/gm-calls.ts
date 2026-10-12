@@ -14,7 +14,7 @@ export function traceCliGmCalls(ai: AiService, report: (call: CliGmCall) => void
     const schema = request.response_format?.json_schema as { name?: string } | undefined;
     const purpose = schema?.name === "conversation_roll_ruling" ? "roll ruling"
       : schema?.name === "conversation_approval" ? "approval"
-      : request.tools?.some(tool => tool.function.name === "set_activity") ? "review" : "consultation";
+      : info?.purpose === "conversation_review" || request.tools?.some(tool => tool.function.name === "set_activity") ? "review" : "consultation";
     const started = Date.now();
     const call: CliGmCall = { id: nextId(), purpose, status: "pending", request: structuredClone(request) };
     report(call);
