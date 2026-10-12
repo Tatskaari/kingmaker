@@ -22,10 +22,13 @@ import { createScenarioServices } from "../packages/lore/src/services.js";
 import { WorldStateSchema } from "../packages/contracts/src/v2.js";
 import { loadConversationWorld } from "./lib/conversation-world.js";
 import { runConversationCli } from "../apps/conversation-cli/app.js";
+import { QuestTranscriptReviewer } from "../packages/evals/src/quest-transcript-reviewer.js";
+import { loadPlayableWorld } from "./lib/playable-world.js";
+import { WorldHost } from "../apps/web/src/world-host.js";
 
 const args = process.argv.slice(2);
 const options = new Map<string, string>();
-const usage = "npm run conversation -- [--character corvin] [--scenario 'Centennial Assembly'] [--snapshot path] [--player document.md] [--output path] [--threshold 0.7] [--strategy game] [--conversation_trees]";
+const usage = "npm run conversation -- [--character corvin] [--scenario 'Centennial Assembly'] [--snapshot path] [--player document.md] [--output path] [--threshold 0.7] [--strategy game|quest-transcript] [--conversation_trees]";
 if (args.includes("--help")) { console.log(usage); process.exit(0); }
 for (let index = 0; index < args.length; index += 2) {
   if (args[index] === "--conversation_trees") { options.set("--conversation_trees", "true"); index--; continue; }
@@ -36,15 +39,20 @@ for (let index = 0; index < args.length; index += 2) {
 if (!process.stdin.isTTY || !process.stdout.isTTY) throw new Error("The conversation debugger requires an interactive terminal.");
 const apiKey = process.env.OPENROUTER_API_KEY;
 if (!apiKey) throw new Error("Set OPENROUTER_API_KEY before starting the conversation debugger.");
-const treeEnabled = options.has("--conversation_trees");
+const strategyName = options.get("--strategy") ?? "game";
+const treeEnabled = options.has("--conversation_trees") || strategyName === "quest-transcript";
 const characterId = options.get("--character") ?? (treeEnabled ? "aldren" : "corvin");
 const snapshotPath = options.get("--snapshot");
 if (treeEnabled && (snapshotPath || characterId !== "aldren" || (options.get("--scenario") ?? "Centennial Assembly") !== "Centennial Assembly")) {
   throw new Error("--conversation_trees currently requires a fresh Centennial Assembly conversation with Aldren.");
 }
+if (strategyName === "quest-transcript" && (snapshotPath || characterId !== "aldren" || (options.get("--scenario") ?? "Centennial Assembly") !== "Centennial Assembly")) {
+  throw new Error("The quest-transcript experiment currently requires a fresh Centennial Assembly conversation with Aldren.");
+}
 const source = snapshotPath ? JSON.parse(readFileSync(snapshotPath, "utf8")) : undefined;
 const services = createScenarioServices(source
   ? fromJson(WorldStateSchema, source.world ?? source)
+  : strategyName === "quest-transcript" ? loadPlayableWorld()
   : loadConversationWorld(fileURLToPath(new URL("../lore", import.meta.url)), options.get("--scenario") ?? "Centennial Assembly", options.get("--player")));
 const lore = await documentLore(services.scenario, characterId);
 const jev = new JevClient(apiKey);
@@ -60,10 +68,14 @@ const disclosure = new DisclosureSession(lore, ai,
   Number(options.get("--threshold") ?? "0.7"));
 let conversationTree: ConversationTreeSession | undefined;
 if (treeEnabled) {
-  const tree = parseConversationTree(readFileSync(new URL("../content/conversation-trees/aldren.md", import.meta.url), "utf8"));
-  for (const [path, text] of Object.entries(hookSources)) await services.docs.create(path, text);
   const path = "Conversations/aldren.md";
-  await services.docs.create(path, readFileSync(new URL("../content/conversation-trees/aldren.md", import.meta.url), "utf8"));
+  const existing = services.scenario.read().docs[path];
+  const source = readFileSync(new URL("../content/conversation-trees/aldren.md", import.meta.url), "utf8");
+  const tree = existing ? compileConversationTree({ body: existing.body, metadata: existing.frontmatter ?? {} }) : parseConversationTree(source);
+  if (!existing) {
+    for (const [hookPath, text] of Object.entries(hookSources)) await services.docs.create(hookPath, text);
+    await services.docs.create(path, source);
+  }
   conversationTree = new ConversationTreeSession(tree, services.quests, services.hooks.bind(),
     () => { const doc = services.currentWorld().docs[path]!; return compileConversationTree({ body: doc.body, metadata: doc.frontmatter ?? {} }); },
     () => services.hooks.bind());
@@ -76,17 +88,27 @@ const input: ConversationInput = {
 conversationRequest(input); // Validate the snapshot and selected character before entering the terminal UI.
 const player = services.scenario.info().player;
 const build = services.scenario.read().simulation!.runtimeCharacters.player?.dnd;
-const strategyName = options.get("--strategy") ?? "game";
-if (strategyName !== "game") throw new Error("Unknown conversation strategy");
+if (!['game', 'quest-transcript'].includes(strategyName)) throw new Error("Unknown conversation strategy");
 const reviews = new ConversationReviews();
+const questReviewer = strategyName === "quest-transcript" ? new QuestTranscriptReviewer() : undefined;
+const map = strategyName === "quest-transcript" ? new WorldHost(services.scenario.read()).map : undefined;
+const runtimeServices = new ConversationRuntime({ services: { ai, inventory: services.inventory, docs: services.docs,
+  scenario: services.scenario, lore: documentLoreService(services.scenario), ...(map ? { map } : {}) } }).services;
 const result = await runConversationCli(input, ai.responses, disclosure, { ai, build, ...(conversationTree ? { conversationTree } : {}),
-  services: new ConversationRuntime({ services: { ai, inventory: services.inventory, docs: services.docs, scenario: services.scenario, lore: documentLoreService(services.scenario) } }).services,
+  services: runtimeServices,
   beforeTurn: async () => { await reviews.drain(); return new DisclosureSession(await documentLore(services.scenario, characterId), ai, Number(options.get("--threshold") ?? "0.7")); },
-  response: report => liveConversationStrategy({ characterId, reviews, report }),
+  response: report => liveConversationStrategy({ characterId, reviews, report,
+    ...(questReviewer ? {
+      plotReviewWhen: messages => messages.findLast(message => message.role === "user")?.content?.startsWith("PLOT:") === true,
+      plotReview: (context, _labels, signal, runtime) => questReviewer.review(context, signal, runtime).then(() => {}),
+    } : {}),
+  }),
   beginTurn: () => { turnId = crypto.randomUUID(); } });
 await reviews.drain();
 traces.finish(conversationId);
 const output = resolve(options.get("--output") ?? `test-output/conversation-${Date.now()}.json`);
 mkdirSync(dirname(output), { recursive: true });
-writeFileSync(output, JSON.stringify({ ...result, requests: traces.recent(), agentRuns: traces.runs(), world: toJson(WorldStateSchema, services.scenario.read()), transcript: result.transcript.map(message => toJson(TranscriptMessageSchema, message)) }, null, 2));
+writeFileSync(output, JSON.stringify({ ...result, requests: traces.recent(), agentRuns: traces.runs(),
+  ...(questReviewer ? { questTranscripts: questReviewer.snapshot(runtimeServices) } : {}),
+  world: toJson(WorldStateSchema, services.scenario.read()), transcript: result.transcript.map(message => toJson(TranscriptMessageSchema, message)) }, null, 2));
 console.log(`Conversation ready for review: ${output}`);

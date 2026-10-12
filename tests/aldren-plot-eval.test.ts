@@ -20,7 +20,7 @@ test("plot fixture constructs independent worlds at the delegation boundary", ()
   assert.notEqual(second.docs[path]!.body, "changed");
 });
 
-test("baseline plot review includes promoted guidance once with no experimental variants", async () => {
+test("baseline plot review includes promoted guidance once beside the quest transcript candidate", async () => {
   let requests = 0;
   const ai: AiService = {
     responses: async request => {
@@ -43,7 +43,7 @@ test("baseline plot review includes promoted guidance once with no experimental 
       { choice: "complete", probabilities: { complete: 1 } }])),
   };
   const experiment = createAldrenPlotExperiment(() => ai, ai);
-  assert.deepEqual(experiment.getVariants(), []);
+  assert.deepEqual(experiment.getVariants().map(variant => variant.name), ["quest-transcript"]);
   const trials = await runExperiment(experiment, { repeats: 1, concurrency: 1 });
   assert.equal(trials.length, 1);
   assert.equal(trials[0]!.variant, "game");

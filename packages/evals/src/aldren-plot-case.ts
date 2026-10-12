@@ -18,6 +18,7 @@ import { createReviewExperiment, documentChanges, type ReviewCase, type ReviewVa
 import { createJevScorer, accuracyLevels } from "./jev-scorer.js";
 import { loadTranscriptFixture, withTranscriptFixture } from "./transcript-fixture.js";
 import source from "../../../evals/reviews/aldren-plot/source.json" with { type: "json" };
+import { QuestTranscriptReviewer } from "./quest-transcript-reviewer.js";
 
 const root = resolve(import.meta.dirname, "../../.."), directory = `${root}/evals/reviews/aldren-plot`;
 const fixture = loadTranscriptFixture(`${directory}/fixture.json`);
@@ -63,6 +64,12 @@ export const focusedPlotBaseline: ReviewVariant = { name: "game", strategies: {
   },
 } };
 
+const questTranscriptReviewer = new QuestTranscriptReviewer();
+export const questTranscriptCandidate: ReviewVariant = { name: "quest-transcript", strategies: {
+  conversation: directConversationStrategy,
+  review: questTranscriptReviewer.strategy(),
+} };
+
 const rubric = [
   { name: "delegation", description: "Committed documents preserve Aldren's successful agreement to approach Holt himself, without assigning the original errand back to the player or undoing the check." },
   { name: "player-return", description: "Committed quest or dialogue edits establish a concrete future report/invitation that brings the player into the next story beat after Aldren approaches Holt. A suggestion only in the review summary earns no credit; no relevant edits earns zero." },
@@ -71,13 +78,13 @@ const rubric = [
 ].map(item => ({ ...item, levels: accuracyLevels }));
 
 export function createAldrenPlotExperiment(createAi: () => AiService, judge: Pick<AiService, "decisions">) {
-  const base = createReviewExperiment(aldrenPlotCase, [focusedPlotBaseline], createAi, judge);
-  const [baseline] = base.getVariants();
+  const base = createReviewExperiment(aldrenPlotCase, [focusedPlotBaseline, questTranscriptCandidate], createAi, judge);
+  const [baseline, candidate] = base.getVariants();
   const score = createJevScorer(rubric, recording => ({ transcript: fixture.transcript,
     expectations: aldrenPlotCase.expectations, changes: documentChanges(recording) }), judge);
   return { ...base, rubric: [...rubric, { name: "runtime-preserved", description: "Review preserves physical state, current quest stages, activation and transition history; validated definition edits may update compiled graphs and revisions." }],
     getBaseline: () => withTranscriptFixture(baseline!, fixture),
-    getVariants: () => [],
+    getVariants: () => [candidate!],
     async score(recording: Parameters<typeof score>[0], context: Parameters<typeof score>[1]) {
       const result = await score(recording, context);
       const before = recording.initialState as WorldState, after = recording.finalState as WorldState;

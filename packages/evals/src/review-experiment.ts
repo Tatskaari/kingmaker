@@ -12,6 +12,7 @@ import { defaultWorldStrategies } from "../../../apps/web/src/world-strategies.j
 import type { ConversationRuntimeOptions } from "../../conversation/src/runtime.js";
 import { accuracyLevels, createJevScorer } from "./jev-scorer.js";
 import type { Criterion, Experiment, RunRecording, RuntimeConfig } from "./experiment.js";
+import { WorldHost } from "../../../apps/web/src/world-host.js";
 
 export interface ReviewCase extends ConversationReviewContext {
   name: string;
@@ -79,7 +80,9 @@ export function createReviewExperiment(testCase: ReviewCase, variants: readonly 
     const replay: ReviewConversation = { ...conversation };
     conversations.set(conversation.strategy, replay);
     return { recordServices: ["docs", "questProgress"], services: { inventory: () => backing.inventory, questProgress: () => ({ advance: backing.hooks.transition }), docs: () => backing.docs, scenario: () => backing.scenario, ai: () => createAi(),
-      map: services => ({ observe: characterId => ({ characterId, map: services.scenario.read().simulation!.map!, actions: [] }) }),
+      map: services => ({
+        observe: (characterId, selectedActionId) => new WorldHost(services.scenario.read()).map.observe(characterId, selectedActionId),
+      }),
       character: services => ({ respond: async (request, signal) => {
         const draft = replay.draft;
         delete replay.draft;
