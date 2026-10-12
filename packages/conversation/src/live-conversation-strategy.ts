@@ -8,7 +8,7 @@ import { analyzeAttention, type AnalysisEvent } from "./attention.js";
 import { reviewDocumentEvidence } from "./document-review.js";
 import type { ConversationStrategy } from "./phases.js";
 import { renderPrompt } from "../../prompts/src/index.js";
-import { gameMasterTools } from "./gm-tools.js";
+import { advanceQuestTool, gameMasterTools } from "./gm-tools.js";
 import { activityTools } from "./activity-tools.js";
 
 const commitmentFlags = ["immediate_commitment", "deferred_commitment", "general_commitment"];
@@ -82,7 +82,10 @@ export function liveConversationStrategy(options: {
               parameters: { ...parameters, properties: Object.fromEntries(Object.entries(parameters.properties)
                 .filter(([name]) => parameters.required.includes(name))) },
             } };
-          }) : gameMasterTools.filter(tool => !activityTools.some(activity => activity.function.name === tool.function.name)),
+          }) : [
+            ...gameMasterTools.filter(tool => !activityTools.some(activity => activity.function.name === tool.function.name)),
+            ...(category === "plot_progress" ? [advanceQuestTool] : []),
+          ],
         });
       record("resolve", "live-review", { mode: "background", category }, pass);
     });
