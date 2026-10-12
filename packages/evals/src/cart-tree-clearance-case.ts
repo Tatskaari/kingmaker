@@ -69,7 +69,7 @@ export const focusedCartPlotBaseline: ReviewVariant = { name: "game", strategies
 export const advanceQuestCandidate: ReviewVariant = { name: "advance-quest-tool", strategies: plotReview([
   ...gameMasterTools.filter(tool => !activityTools.some(activity => activity.function.name === tool.function.name)),
   advanceQuestTool,
-], "\n\nUse `advance_quest` when the transcript establishes a completed solution to the current quest obstacle outside of the existing dialogue trees. Try to lean on the side of fun: if the player and NPC acted out something, try and make it happen in the world if you can. Do not require those effects to exist before calling the tool.") };
+], "\n\nUse `advance_quest` when the transcript establishes a completed solution to the current quest obstacle outside of the existing dialogue trees. Try to lean on the side of fun: if the player and NPC acted out something, try and make it happen in the world if you can. When the accepted narration confirms that an improvised solution's intended mechanism worked, treat it as successful unless the transcript explicitly says the obstacle remains. Do not invent another intermediate hurdle merely because every downstream movement was not narrated. Do not require the transition's effects to exist before calling the tool.") };
 
 export function createCartTreeClearanceExperiment(createAi: () => AiService, judge: Pick<AiService, "decisions">) {
   const base = createReviewExperiment(cartTreeClearanceCase, [focusedCartPlotBaseline, advanceQuestCandidate], createAi, judge);
