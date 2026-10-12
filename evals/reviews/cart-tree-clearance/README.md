@@ -20,11 +20,9 @@ The replay supplies a compact, grounded version of the relevant exchange: Holt's
 limited inspection permission, Rowan's inconclusive inspection, the player's
 tree-transfer proposal, its binding successful persuasion ruling, Rowan's
 agreement, the coordinated lift and Rowan's observation that the tree is safely
-down, the cart has stopped bracing and the service passage is open. It is not a
-verbatim transcript. The dump said the wheels had eased back; this reconstruction
-makes the intended physical consequence explicit so the eval tests authoritative
-clearance rather than the linguistic ambiguity of that phrase. It preserves the
-distinction between agreeing, acting and observing the result.
+down and the cart has stopped bracing. It is not a verbatim transcript, but it
+preserves the causal facts and the distinction between agreeing, acting and
+observing the result.
 
 The experiment then runs exactly one production-style `plot_progress` review
 over the complete transcript. It fixes that classification instead of rerunning

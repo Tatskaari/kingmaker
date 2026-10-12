@@ -25,7 +25,7 @@ test("baseline review detects the completed lift but cannot advance the quest", 
       reviews++;
       assert.ok(!request.tools?.some(tool => tool.function.name === "advance_quest"));
       assert.match(request.messages.map(message => message.content).join("\n"), /persuasion major_success/);
-      assert.match(request.messages.map(message => message.content).join("\n"), /entrance is open/);
+      assert.match(request.messages.map(message => message.content).join("\n"), /cart has stopped bracing/);
       return { role: "assistant", content: "The outcome needs an authoritative quest transition that this review cannot perform." };
     },
   };
