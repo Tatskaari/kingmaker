@@ -47,6 +47,19 @@ summary that merely describes clearance.
 
 ## Baseline result
 
-Pending rerun after grounding the transcript and isolating `plot_progress`. The
-earlier three-review result used the abbreviated final exchange and is not
-comparable to this corrected design.
+One live serial trial on 2026-10-12 completed without execution or judging
+errors. The focused production `plot_progress` review left Assembly Programme
+at `cart_blocked`, retained the obstruction and did not publish the milestone:
+
+| Criterion | Score |
+| --- | ---: |
+| Quest advanced | 0% |
+| Obstruction cleared | 0% |
+| Milestone broadcast | 0% |
+| Delivery pending | 100% |
+
+Local artifact:
+`eval-output/2026-10-12T00-16-18.332Z-93bad773/`. This single trial demonstrates
+the capability gap under the focused design; it is not a general estimate of
+review quality. The earlier three-review run used the abbreviated final exchange
+and is not comparable to this corrected result.
