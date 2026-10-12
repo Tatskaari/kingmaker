@@ -16,8 +16,8 @@ test("cart tree-clearance fixture reconstructs the authoritative pre-review boun
   assert.notEqual(second.docs[activity]!.body, "changed");
 });
 
-test("advance-quest candidate reaches the authored hook, which rejects the unsupported tree-transfer remedy", async () => {
-  let baselineReviews = 0, candidateReviews = 0, rejected = false;
+test("advance-quest candidate runs the authored clearance hook for the established tree transfer", async () => {
+  let baselineReviews = 0, candidateReviews = 0, accepted = false;
   const ai: AiService = {
     decisions: async (_state, questions) => Object.fromEntries(Object.keys(questions).map(name =>
       [name, { choice: "not_flagged", probabilities: { not_flagged: 1 } }])),
@@ -35,9 +35,9 @@ test("advance-quest candidate reaches the authored hook, which rejects the unsup
         name: "advance_quest", arguments: JSON.stringify({ questId: "assembly_programme", transitionId: "clear_cart",
           expectedRevision: 1, evidence: "tree_transfer" }),
       } }] };
-      rejected = true;
-      assert.match(result.content!, /successful cart remedy is required/);
-      return { role: "assistant", content: "The outcome needs an authoritative quest transition that this review cannot perform." };
+      accepted = true;
+      assert.match(result.content!, /\"status\":\"accepted\"/);
+      return { role: "assistant", content: "The authored clearance transition completed." };
     },
   };
   const experiment = createCartTreeClearanceExperiment(() => ai, ai);
@@ -45,14 +45,16 @@ test("advance-quest candidate reaches the authored hook, which rejects the unsup
   assert.equal(trials.length, 2);
   assert.equal(baselineReviews, 1);
   assert.equal(candidateReviews, 2);
-  assert.equal(rejected, true);
-  for (const trial of trials) {
+  assert.equal(accepted, true);
+  for (const [index, trial] of trials.entries()) {
     assert.equal(trial.recording.error, undefined);
     assert.equal(trial.scoringError, undefined);
-    assert.equal(trial.result!.criteria["quest-advanced"]!.score, 0);
-    assert.equal(trial.result!.criteria["obstruction-cleared"]!.score, 0);
-    assert.equal(trial.result!.criteria["milestone-broadcast"]!.score, 0);
+    assert.equal(trial.result!.criteria["quest-advanced"]!.score, index);
+    assert.equal(trial.result!.criteria["obstruction-cleared"]!.score, index);
+    assert.equal(trial.result!.criteria["milestone-broadcast"]!.score, index);
     assert.equal(trial.result!.criteria["delivery-pending"]!.score, 1);
-    assert.match(trial.summary, /quest cart_blocked; obstruction present; milestone missing/);
+    assert.match(trial.summary, index
+      ? /quest cart_unblocked; obstruction cleared; milestone present/
+      : /quest cart_blocked; obstruction present; milestone missing/);
   }
 });
