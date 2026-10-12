@@ -16,11 +16,21 @@ Programme at `cart_blocked`. It retains the source map's intact two-tile cart an
 gift tree. Later dump edits, stale replacement activities and post-hoc memories
 are deliberately excluded.
 
-The replay supplies the final player instruction and Rowan's accepted reply that
-the tree is safely down, the cart has stopped bracing and its wheels have eased
-back. The live conversation attention and review strategy run normally. The eval
-does not seed clearance, a quest transition, fixture removal, delivery or the
-public milestone.
+The replay supplies a compact, grounded version of the relevant exchange: Holt's
+limited inspection permission, Rowan's inconclusive inspection, the player's
+tree-transfer proposal, its binding successful persuasion ruling, Rowan's
+agreement, the coordinated lift and Rowan's observation that the tree is safely
+down and the cart has stopped bracing. It is not a verbatim transcript, but it
+preserves the causal facts and the distinction between agreeing, acting and
+observing the result.
+
+The experiment then runs exactly one production-style `plot_progress` review
+over the complete transcript. It fixes that classification instead of rerunning
+Jev's attention pass, and does not run the conversation-tree evaluator or the
+full web-host turn pipeline. This isolates the question under test: can the plot
+review connect an established outcome to the authored quest hook? It does not
+seed clearance, a quest transition, fixture removal, delivery or the public
+milestone.
 
 ## Expected result
 
@@ -37,17 +47,6 @@ summary that merely describes clearance.
 
 ## Baseline result
 
-One live serial trial on 2026-10-12 completed without execution or judging
-errors. The production `game` strategy left Assembly Programme at
-`cart_blocked`, retained the obstruction and did not publish the milestone:
-
-| Criterion | Score |
-| --- | ---: |
-| Quest advanced | 0% |
-| Obstruction cleared | 0% |
-| Milestone broadcast | 0% |
-| Delivery pending | 100% |
-
-Local artifact:
-`eval-output/2026-10-12T00-08-03.962Z-b334e5f2/`. This single trial establishes
-the captured capability gap; it is not a general estimate of review quality.
+Pending rerun after grounding the transcript and isolating `plot_progress`. The
+earlier three-review result used the abbreviated final exchange and is not
+comparable to this corrected design.

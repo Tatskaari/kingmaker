@@ -17,19 +17,15 @@ test("cart tree-clearance fixture reconstructs the authoritative pre-review boun
 });
 
 test("baseline review detects the completed lift but cannot advance the quest", async () => {
-  let attention = 0, reviews = 0;
+  let reviews = 0;
   const ai: AiService = {
-    decisions: async (_state, questions, _signal, purpose) => {
-      if (purpose === "conversation_attention") attention++;
-      return Object.fromEntries(Object.keys(questions).map(name => {
-        const flagged = ["improvised_detail", "plot_progress", "other_world_update"].includes(name);
-        const choice = flagged ? "flagged" : name === "immediate_feasibility" ? "not_applicable" : name.startsWith("open_") ? "skip" : "not_flagged";
-        return [name, { choice, probabilities: { [choice]: 1 } }];
-      }));
-    },
+    decisions: async (_state, questions) => Object.fromEntries(Object.keys(questions).map(name =>
+      [name, { choice: "not_flagged", probabilities: { not_flagged: 1 } }])),
     responses: async request => {
       reviews++;
       assert.ok(!request.tools?.some(tool => tool.function.name === "advance_quest"));
+      assert.match(request.messages.map(message => message.content).join("\n"), /persuasion major_success/);
+      assert.match(request.messages.map(message => message.content).join("\n"), /cart has stopped bracing/);
       return { role: "assistant", content: "The outcome needs an authoritative quest transition that this review cannot perform." };
     },
   };
@@ -37,8 +33,7 @@ test("baseline review detects the completed lift but cannot advance the quest", 
   const [trial] = await runExperiment(experiment, { repeats: 1, concurrency: 1 });
   assert.equal(trial!.recording.error, undefined);
   assert.equal(trial!.scoringError, undefined);
-  assert.equal(attention, 1);
-  assert.equal(reviews, 3);
+  assert.equal(reviews, 1);
   assert.equal(trial!.result!.criteria["quest-advanced"]!.score, 0);
   assert.equal(trial!.result!.criteria["obstruction-cleared"]!.score, 0);
   assert.equal(trial!.result!.criteria["milestone-broadcast"]!.score, 0);
