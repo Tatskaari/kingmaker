@@ -10,6 +10,7 @@ import type { RuntimeServices, DocumentUpdate } from "./services.js";
 import { ActivityEdits, activityTools } from "./activity-tools.js";
 import { characterIntent } from "../../lore/src/activity.js";
 import { DocumentConflictError, type DocumentSnapshot } from "../../lore/src/services.js";
+import { characterWorldView } from "./wait.js";
 
 export class InvalidReviewError extends Error {}
 
@@ -19,7 +20,7 @@ function tool(name: string, description: string, properties: Record<string, unkn
 }
 /** Read-only discovery shared by document-capable GM reviews. */
 export const queryDocumentsTool = tool("query_documents", "Run one read-only SQLite query over GM documents. Tables: docs(path,name,folder,summary,body), props(path,key,value), links(source,target). List properties have one row per item. REGEXP is case-insensitive; snippets(body, pattern) returns matching line snippets. At most 200 rows. Use read_document to obtain a version SHA before editing. This searches documents, not runtime state.", { sql: text });
-export const advanceQuestTool = tool("advance_quest", "Advance one currently available authored quest transition and run its bound hook. Use the quest ID, transition ID and current revision from Active quest state.", {
+export const advanceQuestTool = tool("advance_quest", "Advance one currently available authored quest transition and run its bound hook. If the quest is inactive, a successful non-final transition also starts it. Use the quest ID, transition ID and current revision from the supplied quest state.", {
   questId: text,
   transitionId: text,
   expectedRevision: { type: "integer", minimum: 0 },
@@ -28,6 +29,8 @@ export const advanceQuestTool = tool("advance_quest", "Advance one currently ava
 
 export const gameMasterTools: OpenRouterTool[] = [
   queryDocumentsTool,
+  tool("observe_world", "Observe the current character's room, visible characters, available actions and the scenario's room index.", {}),
+  tool("observe_room", "Inspect the current physical contents of one room as the omniscient GM. Use a room ID from observe_world.", { roomId: text }),
   tool("list_documents", renderPrompt("gm-tools-list-documents"), { prefix: text, offset: { type: "integer", minimum: 0 }, limit: { type: "integer", minimum: 1, maximum: 50 } }, []),
   tool("list_characters", renderPrompt("gm-tools-list-characters"), {}),
   tool("read_inventory", "Read a runtime character inventory and its version before updating it. Use the runtime actor ID, including player.", { actorId: text }),
@@ -74,13 +77,30 @@ export class GameMasterTools {
       try { return { ok: true, ...await docs.query(string("sql")) }; }
       catch (error) { return { ok: false, error: String(error) }; }
     }
+    if (name === "observe_world") {
+      if (!this.characterId) throw new InvalidReviewError("No current character is available to observe the world.");
+      const observation = this.services.map.observe(this.characterId);
+      return { current: characterWorldView(observation, this.characterId), actions: observation.actions,
+        rooms: observation.map.rooms.map(room => ({ id: room.id, name: room.name })) };
+    }
+    if (name === "observe_room") return this.services.map.observeRoom(string("roomId"));
     if (name === "save_memory") return callMemoryTool(this.services, this.characterId, input, trace);
     if (name === "advance_quest") {
       const revision = input.expectedRevision;
       if (!Number.isSafeInteger(revision) || Number(revision) < 0) throw new InvalidReviewError("Expected a non-negative quest revision.");
       try {
-        const result = await this.services.questProgress.advance(string("questId"), string("transitionId"), Number(revision), string("evidence"), this.signal);
-        return { ok: result.status === "accepted", ...result };
+        const questId = string("questId"), before = this.services.scenario.read().quests[questId];
+        const result = await this.services.questProgress.advance(questId, string("transitionId"), Number(revision), string("evidence"), this.signal);
+        let started = false;
+        if (result.status === "accepted" && before && !before.active) {
+          const current = this.services.scenario.read().quests[questId]!;
+          const completed = current.quest!.stages.find(stage => stage.id === current.currentStageId)?.completed ?? false;
+          if (!completed) {
+            await this.services.questProgress.setActive(questId, true, current.revision, this.signal);
+            started = true;
+          }
+        }
+        return { ok: result.status === "accepted", ...result, started };
       } catch (error) {
         return { ok: false, error: String(error) };
       }

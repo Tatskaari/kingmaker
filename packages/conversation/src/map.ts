@@ -11,6 +11,13 @@ export interface MapObservation {
   /** This character’s completed actions interleaved with their perceived events. */
   recentHistory?: readonly CharacterHistoryEntry[];
 }
+export interface RoomObservation {
+  revision: number;
+  room: MapState["rooms"][number];
+  doors: MapState["doors"];
+  fixtures: MapState["fixtures"];
+  actors: MapState["actors"];
+}
 export type MapCommand =
   | { kind: "move"; destination: { x: number; y: number } }
   | { kind: "door"; id: string; open: boolean }
@@ -30,6 +37,8 @@ export interface MapService {
   layout(): WorldMap;
   /** Discovery does not pathfind. An explicit selected action ID requests its executable route. */
   observe(characterId: string, selectedActionId?: string): MapObservation;
+  /** Omniscient GM inspection of one current room, without dumping the whole map. */
+  observeRoom(roomId: string): RoomObservation;
   /** Validate and commit against current state. Movement resolves on arrival; a step then revalidates its interaction. */
   interact(command: Readonly<MapCommand>, signal?: AbortSignal): MapResult | Promise<MapResult>;
 }

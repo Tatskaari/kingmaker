@@ -152,6 +152,25 @@ export class WorldHost {
         actions: roomAgentActions(map, characters, owners, id, selectedActionId),
         recentHistory: (this.activity.characterHistory?.[id] ?? []).map(entry => ({ ...entry })) };
     },
+    observeRoom: roomId => {
+      const physical = this.world().simulation!.map;
+      if (!physical) throw new Error("A physical map is required.");
+      const map = mapAtTime(physical, this.movement.now());
+      const room = map.rooms.find(candidate => candidate.id === roomId);
+      if (!room) throw new Error(`Unknown room: ${roomId}`);
+      return {
+        revision: map.revision,
+        room: { ...room, exitRoomIds: [...room.exitRoomIds], allowedCharacterIds: [...room.allowedCharacterIds] },
+        doors: map.doors.filter(door => door.roomIds.includes(roomId)).map(door => ({ ...door, roomIds: [...door.roomIds],
+          tiles: door.tiles.map(tile => ({ ...tile })), interactionSpots: door.interactionSpots.map(spot => ({ ...spot })) })),
+        fixtures: map.fixtures.filter(fixture => fixture.roomId === roomId).map(fixture => ({ ...fixture,
+          position: fixture.position ? { ...fixture.position } : undefined,
+          interactionSpot: fixture.interactionSpot ? { ...fixture.interactionSpot } : undefined,
+          examinedBy: [...fixture.examinedBy], searchedBy: [...fixture.searchedBy], actions: fixture.actions.map(action => ({ ...action })) })),
+        actors: map.actors.filter(actor => actor.roomId === roomId).map(actor => ({ ...actor,
+          position: actor.position ? { ...actor.position } : undefined })),
+      };
+    },
     interact: async (command, signal) => {
       if (command.kind === "step") return this.stepNpcAction(command.characterId, command.actionId, command.goal, signal);
       let worldEvent: Event | undefined, message: string | undefined;

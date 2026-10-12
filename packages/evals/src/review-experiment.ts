@@ -79,9 +79,13 @@ export function createReviewExperiment(testCase: ReviewCase, variants: readonly 
       : gameReviewConversation(testCase));
     const replay: ReviewConversation = { ...conversation };
     conversations.set(conversation.strategy, replay);
-    return { recordServices: ["docs", "questProgress"], services: { inventory: () => backing.inventory, questProgress: () => ({ advance: backing.hooks.transition }), docs: () => backing.docs, scenario: () => backing.scenario, ai: () => createAi(),
+    return { recordServices: ["docs", "questProgress"], services: { inventory: () => backing.inventory, questProgress: () => ({
+      advance: backing.hooks.transition,
+      setActive: async (questId, active, expectedRevision) => { await backing.quests.setActive(questId, active, expectedRevision); },
+    }), docs: () => backing.docs, scenario: () => backing.scenario, ai: () => createAi(),
       map: services => ({
         observe: (characterId, selectedActionId) => new WorldHost(services.scenario.read()).map.observe(characterId, selectedActionId),
+        observeRoom: roomId => new WorldHost(services.scenario.read()).map.observeRoom(roomId),
       }),
       character: services => ({ respond: async (request, signal) => {
         const draft = replay.draft;

@@ -62,6 +62,7 @@ export class ConversationRuntime<Review = ReviewLabels> {
         updateFixture: (...args) => services.map?.updateFixture ? services.map.updateFixture(...args) : unimplemented("map.updateFixture"),
         layout: () => services.map?.layout ? services.map.layout() : unimplemented("map.layout"),
         observe: (...args) => services.map?.observe ? services.map.observe(...args) : unimplemented("map.observe"),
+        observeRoom: (...args) => services.map?.observeRoom ? services.map.observeRoom(...args) : unimplemented("map.observeRoom"),
         interact: (...args) => services.map?.interact ? services.map.interact(...args) : unimplemented("map.interact"),
       },
       scenario: {
@@ -78,6 +79,7 @@ export class ConversationRuntime<Review = ReviewLabels> {
         read: id => services.inventory?.read ? services.inventory.read(id) : unimplemented("inventory.read"), commit: changes => services.inventory?.commit ? services.inventory.commit(changes) : unimplemented("inventory.commit") },
       questProgress: {
         advance: (...args) => services.questProgress?.advance ? services.questProgress.advance(...args) : unimplemented("questProgress.advance"),
+        setActive: (...args) => services.questProgress?.setActive ? services.questProgress.setActive(...args) : unimplemented("questProgress.setActive"),
       },
       docs: {
         commit: async (writes, intents) => services.docs?.commit ? services.docs.commit(writes, intents) : unimplemented("docs.commit"),

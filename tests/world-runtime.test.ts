@@ -180,8 +180,13 @@ test("PLOT turns run quest transcript review inside the main game conversation t
         updates++;
         assert.equal(request.reasoning?.effort, "high");
         assert.ok(request.tools?.some(tool => tool.function.name === "advance_quest"));
-        assert.match(prompt, /## Whole physical map/);
-        assert.match(prompt, /## Actions currently available to the reviewed character/);
+        assert.ok(request.tools?.some(tool => tool.function.name === "observe_world"));
+        if (!request.messages.some(message => message.role === "tool")) return { role: "assistant", content: null, tool_calls: [{
+          id: "start-assembly", type: "function", function: { name: "advance_quest", arguments: JSON.stringify({
+            questId: "assembly_programme", transitionId: "learn_cart_blocked", expectedRevision: 0,
+            evidence: "Aldren directed the player to investigate the cart.",
+          }) },
+        }] };
         return { role: "assistant", content: "The current graph already supports the lead." };
       }
       return { role: "assistant", content: "Then investigate the cart at the gate." };
@@ -193,7 +198,9 @@ test("PLOT turns run quest transcript review inside the main game conversation t
   await runtime.endConversation("aldren", undefined, { waitForLiveReviews: true });
 
   assert.equal(summaries, 1);
-  assert.equal(updates, 1);
+  assert.equal(updates, 2);
+  assert.equal(runtime.snapshot().quests.assembly_programme!.active, true);
+  assert.equal(runtime.snapshot().quests.assembly_programme!.currentStageId, "cart_blocked");
   const run = Object.values(runtime.transcriptRuns())[0]!;
   assert.ok(run.calls.some(call => call.kind === "quest_relevance"));
   assert.equal(run.calls.filter(call => call.kind === "conversation_review").length, 2);

@@ -134,6 +134,8 @@ export class WorldGameRuntime extends WorldHost {
       questProgress: {
         advance: (questId, transitionId, expectedRevision, evidence, cancellation) => this.commit(
           () => this.worldServices.hooks.transition(questId, transitionId, expectedRevision, evidence, cancellation), cancellation, persist),
+        setActive: (questId, active, expectedRevision, cancellation) => this.commit(
+          async () => { await this.worldServices.quests.setActive(questId, active, expectedRevision); }, cancellation, persist),
         ...this.options.services?.questProgress, ...extra.services?.questProgress,
       },
       docs: {

@@ -105,6 +105,7 @@ export interface RuntimeServices {
   readonly questProgress: {
     advance(questId: string, transitionId: string, expectedRevision: number, evidence: string,
       signal: AbortSignal): Promise<TransitionResult>;
+    setActive(questId: string, active: boolean, expectedRevision: number, signal: AbortSignal): Promise<void>;
   };
   readonly ai: AiService;
   readonly disclosure: Pick<ProgressiveDisclosure, "disclose">;

@@ -9,14 +9,15 @@ import { createScenarioServices } from "../packages/lore/src/services.js";
 import { WorldHost } from "../apps/web/src/world-host.js";
 import { loadPlayableWorld } from "./fixtures.js";
 
-test("quest transcript review sees the whole map and the character's available actions", async () => {
+test("quest transcript review can observe the character's world and available actions", async () => {
   const backing = createScenarioServices(loadPlayableWorld()), host = new WorldHost(backing.scenario.read());
   const reviewer = new QuestTranscriptReviewer();
   let summaries = 0, updates = 0;
   const runtime = new ConversationRuntime({ services: { ...backing, map: host.map, lore: documentLoreService(backing.scenario),
     ai: {
       decisions: async (_state, questions, _signal, purpose) => Object.fromEntries(Object.entries(questions).map(([id, question]) => {
-        const selected = purpose === "quest_relevance" ? "update" : "skip";
+        const selected = purpose === "quest_relevance" && question.instructions.includes('"id": "talk_to_aldren"') ? "update"
+          : purpose === "quest_relevance" ? "unchanged" : "skip";
         return [id, { choice: selected, probabilities: Object.fromEntries(Object.keys(question.criteria).map(key => [key, key === selected ? 1 : 0])) }];
       })),
       responses: async request => {
@@ -27,10 +28,8 @@ test("quest transcript review sees the whole map and the character's available a
         }
         updates++;
         const prompt = request.messages.map(message => message.content ?? "").join("\n");
-        assert.match(prompt, /## Whole physical map/);
-        assert.match(prompt, /great_hall/);
-        assert.match(prompt, /## Actions currently available to the reviewed character/);
-        assert.match(prompt, /talk_/);
+        assert.match(prompt, /Call `observe_world`/);
+        assert.ok(request.tools?.some(tool => tool.function.name === "observe_world"));
         return { role: "assistant", content: "The existing route already supports this development." };
       },
     },
@@ -45,9 +44,10 @@ test("quest transcript review sees the whole map and the character's available a
   assert.deepEqual(Object.keys(reviewer.snapshot()), ["talk_to_aldren"]);
 });
 
-test("quest relevance falls back to all scenario quests and includes their folder index", async () => {
+test("quest relevance considers every unfinished story quest and includes their folder index", async () => {
   const world = loadPlayableWorld();
-  for (const state of Object.values(world.quests)) state.active = false;
+  assert.equal(world.quests.talk_to_aldren!.active, true);
+  assert.equal(world.quests.assembly_programme!.active, false);
   const backing = createScenarioServices(world), host = new WorldHost(backing.scenario.read());
   let relevancePrompts: unknown[] = [];
   const runtime = new ConversationRuntime({ services: { ...backing, map: host.map, lore: documentLoreService(backing.scenario),
@@ -70,7 +70,7 @@ test("quest relevance falls back to all scenario quests and includes their folde
   assert.deepEqual(labels.candidates.map(candidate => candidate.id).sort(), ["assembly_programme", "talk_to_aldren"]);
   assert.equal(relevancePrompts.length, 2);
   for (const prompt of relevancePrompts) {
-    assert.match(String(prompt), /There are no active story quests/);
+    assert.match(String(prompt), /unfinished quest/);
     assert.match(String(prompt), /Scenarios\/Centennial Assembly\/Quests\/index\.md/);
   }
 });
