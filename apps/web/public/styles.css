@@ -509,6 +509,44 @@ body.in-court { height: 100dvh; min-height: 0; overflow: hidden; overscroll-beha
 .quest-log-stages summary { display: grid; gap: 3px; padding: 12px 14px; cursor: pointer; }
 .quest-log-stages details[open] summary { border-bottom: 1px solid #c9a66238; }
 .quest-log-stages p { margin: 0; padding: 14px; white-space: pre-wrap; }
+
+/* The GM's authored story paths, shown as a playful live game board. */
+.story-map { display: grid; gap: 16px; padding-bottom: 20px; }
+.story-kind { display: flex; gap: 8px; }
+.story-kind button { border: 1px solid #625846; background: #15130f; color: #aaa18f; padding: 8px 13px; }
+.story-kind button[aria-pressed="true"] { border-color: var(--gold); color: #f1dfb5; background: #2c2519; }
+.story-picker { display: flex; gap: 10px; overflow-x: auto; padding: 2px 2px 9px; }
+.story-picker button { flex: 0 0 auto; display: flex; align-items: center; gap: 11px; min-width: 150px; border: 1px solid #454035; background: #11130f; color: #d4c6aa; padding: 9px 12px; text-align: left; }
+.story-picker button[aria-current="true"] { border-color: var(--gold); background: #282116; box-shadow: inset 0 -2px #b99047; }
+.story-picker button > span:last-child { display: grid; gap: 2px; }
+.story-picker small, .story-state, .story-node-id, .story-paths small { color: #918979; font: .7rem ui-monospace, SFMono-Regular, Menlo, monospace; }
+.story-picker .court-sprite { flex: 0 0 32px; }
+.story-quest-mark { color: var(--gold); font-size: 1.25rem; }
+.story-board { min-width: 0; border: 1px solid #4b463a; background: radial-gradient(circle at 12% 0%, #7d64201c, transparent 30%), #0e100d; }
+.story-board-head { display: grid; grid-template-columns: minmax(180px, .65fr) minmax(240px, 1fr); align-items: center; gap: 18px; padding: 15px 18px; border-bottom: 1px solid #38372f; }
+.story-board-head > div { display: flex; align-items: center; gap: 12px; }
+.story-board-head h3 { margin: 2px 0 0; color: #f1dfb5; }
+.story-board-head p { margin: 0; color: #bdb5a4; }
+.story-gm-token { display: grid; place-items: center; width: 38px; height: 38px; border: 1px solid #d4b567; border-radius: 50%; color: #17130f; background: #d4b567; font: 700 .72rem ui-monospace, monospace; box-shadow: 0 0 18px #d4b56755; }
+.story-flow { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(220px, 270px); align-items: start; gap: 24px; overflow-x: auto; padding: 26px 22px 32px; }
+.story-step { position: relative; display: grid; gap: 10px; }
+.story-step:not(:last-child)::after { content: ""; position: absolute; z-index: 0; top: 47px; right: -25px; width: 25px; border-top: 2px dashed #655a43; }
+.story-node { position: relative; z-index: 1; min-height: 88px; padding: 14px; border: 1px solid #47463d; background: #171914; }
+.story-node h4 { margin: 5px 0 0; color: #ded2b7; }
+.story-node p { display: -webkit-box; overflow: hidden; margin: 10px 0 0; color: #bcb5a7; -webkit-line-clamp: 5; -webkit-box-orient: vertical; }
+.story-step.future { opacity: .58; }
+.story-step.visited .story-node { border-color: #65765f; }
+.story-step.current { opacity: 1; }
+.story-step.current .story-node { border-color: #dbbd70; background: #292317; box-shadow: 0 0 0 1px #dbbd7040, 0 0 28px #dbbd701c; }
+.story-you-are-here { position: absolute; top: -11px; right: 9px; padding: 3px 7px; color: #17130f; background: #dbbd70; font: 700 .67rem ui-monospace, monospace; text-transform: uppercase; letter-spacing: .05em; }
+.story-paths { display: grid; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.story-paths li { display: grid; grid-template-columns: 1fr auto; gap: 3px 8px; padding: 8px 10px; border-left: 3px solid #625846; background: #141510; }
+.story-paths li.hit { border-left-color: #87a976; background: #172016; }
+.story-paths li.miss { opacity: .45; text-decoration: line-through; }
+.story-paths span { color: #d2c19a; font-size: .82rem; }
+.story-paths b { grid-row: 1 / span 2; grid-column: 2; align-self: center; color: #a7905d; font: .7rem ui-monospace, monospace; }
+.story-ending { margin: 0; color: #777267; font-style: italic; font-size: .8rem; }
+@media (max-width: 700px) { .story-board-head { grid-template-columns: 1fr; } .story-flow { grid-auto-columns: minmax(210px, 82vw); } }
 .quest-stage-status { color: var(--gold); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
 @media (max-width: 700px) {
   .quest-feed { top: 108px; }

@@ -17,6 +17,7 @@ import { courtCharactersWithinEarshot } from "./earshot.js";
 import { mountPlayerFeedDrag, mountQuestFeedDrag } from "./player-feed-drag.js";
 import { historyTurns } from "./conversation-history.js";
 import { questFeedItems, questLogContent } from "./quest-log.js";
+import { storyMapView } from "./story-map.js";
 import { formatElapsedTime } from "./relative-time.js";
 import devOpenRouterApiKey from "virtual:kingmaker-dev-openrouter-key";
 
@@ -37,6 +38,7 @@ let lastCourtNotice = "";
 let sheetOpen = false;
 let debugOpen = false;
 let debugTab = "documents";
+let storyRoute = { kind: "quests" };
 let transcriptRoute = {};
 let documentRoute = {};
 let debugReadSequence = 0;
@@ -171,14 +173,14 @@ gameWorker.addEventListener("message", event => {
       state.speechBubbles = event.data.speechBubbles;
       updateCourtSpeech(document.querySelector("[data-court-map]"), state.speechBubbles, state.characters);
     }
-    if (debugOpen && ["transcripts", "documents", "conversation", "activity"].includes(debugTab)) refreshDebugTranscripts();
+    if (debugOpen && ["transcripts", "documents", "conversation", "activity", "story"].includes(debugTab)) refreshDebugTranscripts();
     return;
   }
   if (event.data.type === "npc_update") {
     if (event.data.activeSaveId !== activeSaveId) return;
     if (!state || event.data.state.revision >= (state.revision ?? 0)) state = event.data.state;
     npcRun = event.data.running;
-    if (debugOpen && debugTab === "conversation") refreshDebugTranscripts();
+    if (debugOpen && ["conversation", "story"].includes(debugTab)) refreshDebugTranscripts();
     const initiatedConversation = event.data.initiatedConversation || initiatedConversationId();
     if (initiatedConversation && !activeCharacter) {
       activeCharacter = initiatedConversation;
@@ -577,7 +579,7 @@ function characterSheet() {
 }
 
 function debugTabs() {
-  return [["documents", "Documents"], ...(debugRequest.type === "debug_character" ? [["conversation", "Conversation transcript"]] : []), ["activity", "Activity"], ["json", "Raw JSON"], ["transcripts", "Agent runs & requests"]];
+  return [["story", "Story map"], ["documents", "Documents"], ...(debugRequest.type === "debug_character" ? [["conversation", "Conversation transcript"]] : []), ["activity", "Activity"], ["json", "Raw JSON"], ["transcripts", "Agent runs & requests"]];
 }
 
 function conversationView() {
@@ -588,11 +590,15 @@ function debugInspector() {
   const content = debugError
     ? `<p class="debug-error">${escapeHtml(debugError)}</p>`
     : debugData
-      ? debugTab === "conversation" ? conversationView() : debugTab === "activity" ? `<section class="debug-card npc-planner" data-npc-panel></section><section data-activity-calls>${activityView()}</section>`  : debugTab === "transcripts" ? transcriptView() : debugTab === "documents" ? documentsView() : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
+      ? debugTab === "story" ? storyView() : debugTab === "conversation" ? conversationView() : debugTab === "activity" ? `<section class="debug-card npc-planner" data-npc-panel></section><section data-activity-calls>${activityView()}</section>`  : debugTab === "transcripts" ? transcriptView() : debugTab === "documents" ? documentsView() : `<pre>${escapeHtml(JSON.stringify(debugData, null, 2))}</pre>`
       : `<p class="debug-loading">Reading worker state…</p>`;
   const tabs = `<div class="debug-tabs" role="tablist" aria-label="Debug view">${debugTabs().map(([id, title]) => `<button id="debug-tab-${id}" role="tab" data-debug-tab="${id}" aria-selected="${debugTab === id}" aria-controls="debug-panel" tabindex="${debugTab === id ? 0 : -1}">${title}</button>`).join("")}</div>`;
   const isCharacter = debugRequest.type === "debug_character";
-  return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}" ${debugOpen ? "" : "inert"}><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTab === "documents" ? "Documents" : debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">${debugTab === "documents" ? "Live documents for the whole game. Select a file to read it and inspect recent tool updates." : debugTab === "conversation" ? "Exact messages for the latest character reply, including system instructions and progressively disclosed lore, followed by its response. Captured for this loaded session." : isCharacter ? "Agent runs are filtered to this character." : "Authoritative world state and live activity."} API keys are excluded.</p>${tabs}<div id="debug-panel" class="debug-panel ${debugTab === "documents" ? "documents-panel" : ""}" role="tabpanel" aria-labelledby="debug-tab-${debugTab}" tabindex="0">${content}</div></aside>`;
+  return `<div class="debug-scrim ${debugOpen ? "open" : ""}" data-debug-close></div><aside class="debug-inspector ${debugOpen ? "open" : ""}" role="dialog" aria-modal="true" aria-label="Debug inspector" aria-hidden="${debugOpen ? "false" : "true"}" ${debugOpen ? "" : "inert"}><header><div><div class="eyebrow">Live worker memory</div><h2>${escapeHtml(debugTab === "documents" ? "Documents" : debugTab === "story" ? "Story map" : debugTitle)}</h2></div><div class="debug-actions"><button data-debug-refresh>Refresh</button><button class="debug-close" data-debug-close aria-label="Close debug inspector">×</button></div></header><p class="debug-note">${debugTab === "story" ? "The authored paths through the game. The lit node is the GM's current truth; path labels show what can move it next." : debugTab === "documents" ? "Live documents for the whole game. Select a file to read it and inspect recent tool updates." : debugTab === "conversation" ? "Exact messages for the latest character reply, including system instructions and progressively disclosed lore, followed by its response. Captured for this loaded session." : isCharacter ? "Agent runs are filtered to this character." : "Authoritative world state and live activity."} API keys are excluded.</p>${tabs}<div id="debug-panel" class="debug-panel ${debugTab === "documents" ? "documents-panel" : ""}" role="tabpanel" aria-labelledby="debug-tab-${debugTab}" tabindex="0">${content}</div></aside>`;
+}
+
+function storyView() {
+  return storyMapView(debugData, storyRoute, [...(state?.characters || []), ...(state?.player ? [state.player] : [])]);
 }
 
 function documentsView() {
@@ -610,7 +616,7 @@ function transcriptView() {
 }
 
 const refreshDebugTranscripts = coalescedRefresh(async () => {
-  if (!debugOpen || !["transcripts", "documents", "conversation", "activity"].includes(debugTab)) return;
+  if (!debugOpen || !["transcripts", "documents", "conversation", "activity", "story"].includes(debugTab)) return;
   const tab = debugTab;
   const sequence = debugReadSequence;
   const generation = gameViewGeneration;
@@ -618,7 +624,7 @@ const refreshDebugTranscripts = coalescedRefresh(async () => {
   const isCurrent = () => debugOpen && debugTab === tab
     && sequence === debugReadSequence && generation === gameViewGeneration;
   try {
-    const data = await rpc(tab === "conversation" ? request.type : tab === "documents" ? "debug_documents" : "debug_transcripts", tab === "conversation" ? request.payload : {});
+    const data = await rpc(tab === "story" ? "debug_story" : tab === "conversation" ? request.type : tab === "documents" ? "debug_documents" : "debug_transcripts", tab === "conversation" ? request.payload : {});
     if (!isCurrent()) return;
     debugData = ["transcripts", "activity"].includes(tab) && request.type === "debug_character" ? characterTranscripts(data, request.payload.characterId) : data;
     debugError = "";
@@ -626,7 +632,7 @@ const refreshDebugTranscripts = coalescedRefresh(async () => {
     if (tab === "activity") {
       const calls = panel?.querySelector("[data-activity-calls]");
       if (calls) updateTranscriptPanel(calls, activityView());
-    } else if (panel) updateTranscriptPanel(panel, tab === "conversation" ? conversationView() : tab === "documents" ? documentsView() : transcriptView());
+    } else if (panel) updateTranscriptPanel(panel, tab === "story" ? storyView() : tab === "conversation" ? conversationView() : tab === "documents" ? documentsView() : transcriptView());
   } catch (error) {
     if (!isCurrent()) return;
     const panel = document.querySelector("#debug-panel");
@@ -646,7 +652,7 @@ const refreshDebugTranscripts = coalescedRefresh(async () => {
 async function openDebug(request = debugRequest, title = debugTitle) {
   const readSequence = ++debugReadSequence;
   const changedTarget = !debugOpen || request !== debugRequest || request.type !== debugRequest.type || request.payload.characterId !== debugRequest.payload.characterId;
-  if (changedTarget) { debugTab = "documents"; transcriptRoute = {}; documentRoute = {}; }
+  if (changedTarget) { debugTab = request.type === "debug_character" ? "documents" : "story"; transcriptRoute = {}; documentRoute = {}; storyRoute = { kind: "quests" }; }
   debugOpen = true;
   sheetOpen = false;
   debugRequest = request;
@@ -655,7 +661,7 @@ async function openDebug(request = debugRequest, title = debugTitle) {
   debugError = "";
   render();
   try {
-    const data = await rpc(debugTab === "documents" ? "debug_documents" : ["transcripts", "activity"].includes(debugTab) ? "debug_transcripts" : request.type, request.payload);
+    const data = await rpc(debugTab === "story" ? "debug_story" : debugTab === "documents" ? "debug_documents" : ["transcripts", "activity"].includes(debugTab) ? "debug_transcripts" : request.type, request.payload);
     if (readSequence !== debugReadSequence) return;
     if (debugTab === "documents" && changedTarget) documentRoute = {
       path: request.type === "debug_character" ? data.characterPaths?.[request.payload.characterId] ?? "" : data.scenario,
@@ -963,7 +969,7 @@ function bind() {
   document.querySelectorAll("[data-report-issue]").forEach(button => button.addEventListener("click", openIssueReporter));
   document.querySelector("[data-sheet-open]")?.addEventListener("click", () => { sheetOpen = true; debugOpen = false; render(); });
   document.querySelectorAll("[data-sheet-close]").forEach(button => button.addEventListener("click", () => { sheetOpen = false; render(); }));
-  document.querySelector("[data-debug-open]")?.addEventListener("click", () => { debugTab = "documents"; documentRoute = {}; openDebug({ type: "debug", payload: {} }, "Overall debug"); });
+  document.querySelector("[data-debug-open]")?.addEventListener("click", () => { debugTab = "story"; storyRoute = { kind: "quests" }; openDebug({ type: "debug", payload: {} }, "Overall debug"); });
   const debugButton = document.querySelector("[data-debug-open]");
   if (debugButton) debugButton.insertAdjacentHTML("beforebegin", alertBell());
   bindAlertBell();
@@ -978,6 +984,13 @@ function bind() {
     document.querySelector("#debug-panel")?.focus();
   }));
   document.querySelector("#debug-panel")?.addEventListener("click", event => {
+    const storyKind = event.target.closest("[data-story-kind]");
+    const storyId = event.target.closest("[data-story-id]");
+    if (storyKind || storyId) {
+      storyRoute = storyKind ? { kind: storyKind.dataset.storyKind } : { ...storyRoute, id: storyId.dataset.storyId };
+      updateTranscriptPanel(document.querySelector("#debug-panel"), storyView());
+      return;
+    }
     const contextButton = event.target.closest("[data-context-open]");
     if (contextButton) { showModelContext(contextButton); return; }
     const link = event.target.closest("[data-doc-path]");
@@ -1034,7 +1047,7 @@ function bind() {
       status.textContent = error.message;
     } finally { button.disabled = false; }
   }));
-  document.querySelector("[data-debug-refresh]")?.addEventListener("click", () => ["transcripts", "documents", "conversation", "activity"].includes(debugTab) ? refreshDebugTranscripts() : openDebug());
+  document.querySelector("[data-debug-refresh]")?.addEventListener("click", () => ["transcripts", "documents", "conversation", "activity", "story"].includes(debugTab) ? refreshDebugTranscripts() : openDebug());
   document.querySelectorAll("[data-debug-close]").forEach(button => button.addEventListener("click", () => { debugOpen = false; render(); }));
   document.querySelector("[data-choose-premade]")?.addEventListener("click", () => { if (!busy) { choosingPremade = true; render(); } });
   document.querySelector("[data-creation-back]")?.addEventListener("click", () => { if (!busy) { choosingPremade = false; render(); } });
