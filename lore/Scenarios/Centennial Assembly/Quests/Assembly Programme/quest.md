@@ -27,11 +27,11 @@ The player resolves the obstruction before hearing Holt’s explanation. The hos
 
 ## Node: cart_blocked | Cart blocked
 ### Guidance
-Holt has explained that the pillows are probably delayed by Rowan's cart. Resolve the obstruction by helping Rowan seek Corvin's advice, persuading Rowan to back the cart out the way it came, or smashing it. Holt gives permission to smash only reluctantly if pressed; permission does not make Nine Furrows approve.
+Holt has explained that the pillows are probably delayed by Rowan's cart. Resolve the obstruction by helping Rowan seek Corvin's advice, persuading Rowan to back the cart out the way it came, smashing it, or completing another player-devised solution. Holt gives permission to smash only reluctantly if pressed; permission does not make Nine Furrows approve.
 
-Conversation branches own negotiation and scoped reactions. Failed attempts leave other approaches available. Agreement to act is not clearance; invoke the shared transition only through an established successful remedy and its host effects.
+Conversation branches own negotiation and scoped reactions. Failed attempts leave other approaches available. Agreement to act is not clearance; invoke the shared transition when play establishes that a remedy's intended mechanism worked, then let its host effects publish clearance.
 ### When: clear_cart -> cart_unblocked
-A remedy has succeeded: repair using Corvin’s book, Rowan agreeing to back out, or a successful physical smash. The host clears the obstruction and records a shared memory for every character. Delivery remains a separate task.
+A remedy has succeeded: repair using Corvin’s book, Rowan backing out, a successful physical smash, or another completed solution established in play. The host clears the obstruction and records a shared memory for every character. Delivery remains a separate task.
 #### Trigger: fixture_absent furn_cart_left
 #### Run: clear-cart.ts
 

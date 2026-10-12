@@ -81,3 +81,13 @@ Local artifact:
 `eval-output/2026-10-12T00-39-45.130Z-6c1cf6af/`. This single paired run supports
 promotion for the captured regression, but is not a broad estimate of review
 behavior.
+
+## Promoted baseline
+
+One live serial run after promotion completed without execution or judging
+errors. The production `game` baseline scored 100%: it advanced to
+`cart_unblocked`, cleared the obstruction, published the milestone and left
+delivery pending.
+
+Local artifact:
+`eval-output/2026-10-12T00-46-01.292Z-a44c07a7/`.
