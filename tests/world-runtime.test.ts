@@ -6,12 +6,41 @@ import test from "node:test";
 import { AlertLog } from "../apps/web/src/alerts.js";
 import type { WorldOptions } from "../apps/web/src/world-runtime.js";
 import { activityGoal } from "../packages/lore/src/activity.js";
+import { ConversationReviews, liveConversationStrategy } from "../packages/conversation/src/live-conversation-strategy.js";
 
 function game(options: WorldOptions = {}, warning?: (message: string) => void) {
   return new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, warning, { ...options, services: { disclosure: { disclose: async () => [] }, ...options.services } });
 }
 const reviewReply = (request: import("../packages/providers/src/openrouter.js").ChatCompletionRequest) => commitReview({ summary: "Agreed", newNotes: ["PROMISESENTINEL"], activeGoal: "Go to the great hall" }, request);
 const commit = async <T>(work: () => T) => work();
+
+test("conversation ending can wait for queued live reviews", async () => {
+  let release!: () => void;
+  let started!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  const ready = new Promise<void>(resolve => { started = resolve; });
+  const runtime = game();
+  runtime.endConversationAsPlayer("rowan", "Goodbye.");
+  const reviews = new ConversationReviews();
+  reviews.enqueue(async () => { started(); await gate; });
+  const response = liveConversationStrategy({ characterId: "rowan", reviews });
+  const sessions = (runtime as unknown as { liveConversations: Map<string, {
+    reviews: ConversationReviews;
+    response: typeof response;
+    reviewedLive: boolean;
+  }> }).liveConversations;
+  sessions.set("rowan", { reviews, response, reviewedLive: true });
+
+  let ended = false;
+  const ending = runtime.endConversation("rowan", undefined, { waitForLiveReviews: true })
+    .then(() => { ended = true; });
+  await ready;
+  await new Promise<void>(resolve => setImmediate(resolve));
+  assert.equal(ended, false);
+  release();
+  await ending;
+  assert.equal(ended, true);
+});
 
 test("v2 game reviews into documents, saves without v1 state, and subsequent dialogue sees edits", async () => {
   let calls = 0;

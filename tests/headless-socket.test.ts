@@ -51,7 +51,16 @@ test("QA socket client can observe and select only advertised player actions", a
   const directory = mkdtempSync(join(tmpdir(), "kingmaker-qa-socket-")), path = join(directory, "game.sock");
   const game = new WorldHeadlessGame(loadPlayableWorld());
   t.mock.method(game.runtime, "checkedTalkToCharacter", async () => "Welcome, envoy.");
-  t.mock.method(game.runtime, "endConversation", async () => undefined);
+  let finishReview!: () => void;
+  let reviewStarted!: () => void;
+  const review = new Promise<void>(resolve => { finishReview = resolve; });
+  const started = new Promise<void>(resolve => { reviewStarted = resolve; });
+  t.mock.method(game.runtime, "endConversation", async (_id: string, _signal: AbortSignal | undefined,
+    options: { waitForLiveReviews?: boolean } | undefined) => {
+    assert.deepEqual(options, { waitForLiveReviews: true });
+    reviewStarted();
+    await review;
+  });
   const server = await startConsole(game, path, "qa");
   t.after(async () => { await new Promise<void>(resolve => server.close(() => resolve())); rmSync(directory, { recursive: true, force: true }); });
   const before = await observe(path);
@@ -63,7 +72,15 @@ test("QA socket client can observe and select only advertised player actions", a
   await act(path, "talk_rowan");
   assert.deepEqual((await observe(path)).activeConversation, { characterId: "rowan" });
   assert.deepEqual(await say(path, "Hello"), { characterId: "rowan", reply: "Welcome, envoy." });
-  await endConversation(path);
+  const ending = endConversation(path);
+  await started;
+  let observed = false;
+  const observing = observe(path).then(result => { observed = true; return result; });
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(observed, false);
+  finishReview();
+  await ending;
+  await observing;
   assert.equal((await observe(path)).activeConversation, undefined);
   const diagnostic = join(directory, "qa-issue.zip");
   await dump(path, "A QA issue occurred", diagnostic);

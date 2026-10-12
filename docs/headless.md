@@ -51,7 +51,10 @@ graphs and stage guidance are deliberately omitted; objectives must be learned
 through play. `act` accepts one of those action IDs and revalidates it against the
 live player observation before moving or interacting. A `talk` action starts a
 conversation and suppresses physical actions until `end_conversation`; `say`
-accepts plain English and returns the character's reply. `game.execute` and all
+accepts plain English and returns the character's reply. `end_conversation`
+waits for all review work from that exchange before it returns and physical
+actions become available, preventing a second conversation from starting against
+stale character state. `game.execute` and all
 direct runtime, service, snapshot, and JavaScript access return `Method not found`.
 When reporting an issue, `dump` accepts a description of what happened and what
 was expected plus an absolute destination filepath. The server writes the

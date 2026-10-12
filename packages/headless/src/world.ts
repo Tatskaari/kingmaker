@@ -126,14 +126,14 @@ export class WorldHeadlessGame {
     }
     return { actions, jail: this.runtime.jail() };
   }
-  async endConversation(id: string, message?: string, signal?: AbortSignal) {
+  async endConversation(id: string, message?: string, signal?: AbortSignal, waitForLiveReviews = false) {
     if (message !== undefined) await this.runtime.checkedTalkToCharacter(id, message, undefined, {}, signal);
-    const result = await this.runtime.endConversation(id, signal);
+    const result = await this.runtime.endConversation(id, signal, { waitForLiveReviews });
     if (this.activeConversationId === id) this.activeConversationId = undefined;
     return result;
   }
   async endActiveConversation(signal?: AbortSignal) {
     if (!this.activeConversationId) throw new Error("No active conversation to end.");
-    return this.endConversation(this.activeConversationId, undefined, signal);
+    return this.endConversation(this.activeConversationId, undefined, signal, true);
   }
 }
