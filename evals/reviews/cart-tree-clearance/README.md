@@ -34,3 +34,20 @@ The captured failure left the quest and fixtures unchanged because conversation
 reviews could edit documents and activities but had no quest-advance operation.
 This baseline eval measures committed state rather than accepting a review
 summary that merely describes clearance.
+
+## Baseline result
+
+One live serial trial on 2026-10-12 completed without execution or judging
+errors. The production `game` strategy left Assembly Programme at
+`cart_blocked`, retained the obstruction and did not publish the milestone:
+
+| Criterion | Score |
+| --- | ---: |
+| Quest advanced | 0% |
+| Obstruction cleared | 0% |
+| Milestone broadcast | 0% |
+| Delivery pending | 100% |
+
+Local artifact:
+`eval-output/2026-10-12T00-08-03.962Z-b334e5f2/`. This single trial establishes
+the captured capability gap; it is not a general estimate of review quality.
