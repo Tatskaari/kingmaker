@@ -173,6 +173,30 @@ test("flags schedule one combined activity review and separate focused reviews i
     ["immediate_commitment", "deferred_commitment", "general_commitment"], ...categories.slice(2).map(category => [category])]);
 });
 
+test("an experimental plot reviewer replaces only the default plot-progress review", async () => {
+  const f = fixture("background"), custom: string[] = [], categories: string[] = [];
+  f.runtime.services.ai.decisions = async (_state, _questions, _signal, purpose) => purpose === "conversation_attention" ? {
+    plot_progress: choice("flagged"), relationship_or_knowledge_change: choice("flagged"),
+    immediate_feasibility: choice("not_applicable"),
+  } : {};
+  f.runtime.services.ai.responses = async request => {
+    assert.ok(request.messages.some(message => message.content?.startsWith("Review only consequential new knowledge")));
+    return { role: "assistant", content: "No changes needed." };
+  };
+  f.runtime.services.debug.record = event => {
+    if (event.source === "live-review") categories.push((event.output as { category: string }).category);
+  };
+  f.runtime.strategies.conversation = liveConversationStrategy({ characterId: "corvin", reviews: f.reviews,
+    plotReview: async (context, labels) => {
+      custom.push(context.transcript.at(-1)!.text, (labels.plot_progress as { choice: string }).choice);
+    },
+  });
+  await runConversation(request, f.runtime);
+  await f.reviews.drain();
+  assert.deepEqual(custom, ["I will give you a bird.", "flagged"]);
+  assert.deepEqual(categories, ["relationship_or_knowledge_change"]);
+});
+
 
 test("activity review rejects target and activation overrides before changing any activity", async () => {
   for (const override of [{ characterId: "oswin" }, { activate: false }]) {

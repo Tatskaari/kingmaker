@@ -10,6 +10,8 @@ import type { ConversationStrategy } from "./phases.js";
 import { renderPrompt } from "../../prompts/src/index.js";
 import { advanceQuestTool, gameMasterTools } from "./gm-tools.js";
 import { activityTools } from "./activity-tools.js";
+import type { ConversationReviewContext, ReviewLabels } from "./review.js";
+import type { RuntimeServices } from "./services.js";
 
 const commitmentFlags = ["immediate_commitment", "deferred_commitment", "general_commitment"];
 const reviewCategories = ["improvised_detail", "plot_progress", "other_world_update", "conversational_exchange", "relationship_or_knowledge_change"];
@@ -35,6 +37,8 @@ export function liveConversationStrategy(options: {
   characterId: string;
   reviews: ConversationReviews;
   report?: (event: AnalysisEvent) => void;
+  /** Experimental hosts may replace the plot-progress reviewer without changing other focused reviews. */
+  plotReview?: (context: ConversationReviewContext, labels: ReviewLabels, signal: AbortSignal, services: RuntimeServices) => Promise<void>;
 }): ConversationStrategy {
   let turn = 0;
   return { respond: async ({ request }, signal, services) => {
@@ -58,10 +62,14 @@ export function liveConversationStrategy(options: {
     const categories = [
       ...(discretion || commitment ? ["activity"] : []),
       ...(commitment ? ["commitment_memory"] : []),
-      ...reviewCategories.filter(name => labels[name]?.choice === "flagged"),
+      ...reviewCategories.filter(name => labels[name]?.choice === "flagged" && (name !== "plot_progress" || !options.plotReview)),
     ];
     const transcript = turnEvidence(messages.slice(playerIndex), reply, options.characterId);
     signal.throwIfAborted();
+    if (options.plotReview && labels.plot_progress?.choice === "flagged") {
+      const context = { characterId: options.characterId, participants: [options.characterId, "player"], transcript };
+      options.reviews.enqueue(reviewSignal => options.plotReview!(context, labels, reviewSignal, services));
+    }
     for (const category of categories) options.reviews.enqueue(async reviewSignal => {
       const names = category === "activity" ? [...commitmentFlags, "immediate_feasibility"]
         : category === "commitment_memory" ? commitmentFlags : [category];
