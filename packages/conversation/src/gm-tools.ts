@@ -19,7 +19,7 @@ function tool(name: string, description: string, properties: Record<string, unkn
 }
 /** Read-only discovery shared by document-capable GM reviews. */
 export const queryDocumentsTool = tool("query_documents", "Run one read-only SQLite query over GM documents. Tables: docs(path,name,folder,summary,body), props(path,key,value), links(source,target). List properties have one row per item. REGEXP is case-insensitive; snippets(body, pattern) returns matching line snippets. At most 200 rows. Use read_document to obtain a version SHA before editing. This searches documents, not runtime state.", { sql: text });
-export const advanceQuestTool = tool("advance_quest", "Advance one currently available authored quest transition and run its bound hook. Use the quest ID, transition ID and current revision from Active quest state. Evidence must state the concrete completed outcome; the authored hook may reject unsupported or incomplete outcomes. Never use this for an agreement, plan or attempted action.", {
+export const advanceQuestTool = tool("advance_quest", "Advance one currently available authored quest transition and run its bound hook. Use the quest ID, transition ID and current revision from Active quest state.", {
   questId: text,
   transitionId: text,
   expectedRevision: { type: "integer", minimum: 0 },

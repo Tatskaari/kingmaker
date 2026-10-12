@@ -69,7 +69,7 @@ export const focusedCartPlotBaseline: ReviewVariant = { name: "game", strategies
 export const advanceQuestCandidate: ReviewVariant = { name: "advance-quest-tool", strategies: plotReview([
   ...gameMasterTools.filter(tool => !activityTools.some(activity => activity.function.name === tool.function.name)),
   advanceQuestTool,
-], "\n\nWhen `advance_quest` is available, use it when the accepted transcript establishes a completed player-devised solution to the current quest obstacle. Authored remedies are examples, not an exhaustive whitelist. The unchanged pre-review quest and map state do not disprove the accepted outcome: advancing through the authored hook is how you publish its authoritative effects. Do not require those effects to exist before calling the tool. Continue to distinguish a completed solution from an agreement, plan, attempt, or unresolved intermediate result.") };
+], "\n\nUse `advance_quest` when the transcript establishes a completed solution to the current quest obstacle outside of the existing dialogue trees. Try to lean on the side of fun: if the player and NPC acted out something, try and make it happen in the world if you can. Do not require those effects to exist before calling the tool.") };
 
 export function createCartTreeClearanceExperiment(createAi: () => AiService, judge: Pick<AiService, "decisions">) {
   const base = createReviewExperiment(cartTreeClearanceCase, [focusedCartPlotBaseline, advanceQuestCandidate], createAi, judge);
