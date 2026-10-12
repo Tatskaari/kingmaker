@@ -49,25 +49,31 @@ export class QuestTranscriptReviewer {
   }
 
   private questContext(services: RuntimeServices) {
-    const world = services.scenario.read();
+    const world = services.scenario.read(), scenarioRoot = services.scenario.info().scenario.replace(/\/scenario\.md$/, "");
     const conversationIds = new Set(Object.entries(world.docs).filter(([path]) => path.startsWith("Conversations/"))
       .map(([, document]) => document.frontmatter?.id));
-    return Object.entries(world.quests).filter(([id, state]) => state.active && !conversationIds.has(id)).map(([id, state]) => ({
+    const quests = Object.entries(world.quests).filter(([id]) => !conversationIds.has(id)).map(([id, state]) => ({
       id, currentStageId: state.currentStageId, revision: state.revision, quest: state.quest,
       documents: Object.entries(world.docs).filter(([path, document]) => path.includes("/Quests/") && document.frontmatter?.id === id)
         .map(([path]) => path),
     }));
+    const activeQuests = quests.filter(quest => world.quests[quest.id]!.active);
+    const questIndexPath = `${scenarioRoot}/Quests/index.md`, questIndex = world.docs[questIndexPath];
+    return { activeQuests, candidates: activeQuests.length ? activeQuests : quests,
+      questIndex: JSON.stringify({ path: questIndexPath, document: questIndex ?? null }, null, 2) };
   }
 
   async classify(context: ConversationReviewContext, signal: AbortSignal, services: RuntimeServices): Promise<QuestTranscriptLabels> {
     const turn = JSON.stringify(context.transcript.map(message => toJson(TranscriptMessageSchema, message)), null, 2);
-    const candidates: QuestCandidate[] = this.questContext(services).map((quest, index) => ({
+    const questContext = this.questContext(services);
+    const candidates: QuestCandidate[] = questContext.candidates.map((quest, index) => ({
       id: quest.id, question: `quest_${index}`, quest,
     }));
     if (!candidates.length) return { candidates, decisions: {} };
     const questions: JevQuestions = Object.fromEntries(candidates.map(candidate => [candidate.question, {
       type: "choice",
-      instructions: renderPrompt("quest-transcript-relevance", { quest: JSON.stringify(candidate.quest, null, 2), turn }),
+      instructions: renderPrompt("quest-transcript-relevance", { quest: JSON.stringify(candidate.quest, null, 2), turn,
+        activeQuests: questContext.activeQuests, questIndex: questContext.questIndex }),
       criteria: {
         update: "This turn creates progress, a new approach, a commitment, an opening, or a blocker or failure that changes what this quest should do next.",
         unchanged: "This turn does not change the playable course of this quest.",

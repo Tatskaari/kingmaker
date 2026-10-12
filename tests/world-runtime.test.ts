@@ -164,7 +164,7 @@ test("PLOT turns run quest transcript review inside the main game conversation t
     decisions: async (_state, questions, _signal, purpose) => Object.fromEntries(Object.entries(questions).map(([id, question]) => {
       const choices = Object.keys(question.criteria);
       const choice = purpose === "quest_relevance"
-        ? JSON.stringify(question.instructions).includes('"id": "talk_to_aldren"') ? "update" : "unchanged"
+        ? JSON.stringify(question.instructions).includes('"id": "assembly_programme"') ? "update" : "unchanged"
         : choices.find(candidate => ["miss", "not_flagged", "not_applicable", "not_needed", "skip"].includes(candidate)) ?? choices[0]!;
       return [id, { choice, probabilities: Object.fromEntries(choices.map(candidate => [candidate, candidate === choice ? 1 : 0])) }];
     })),

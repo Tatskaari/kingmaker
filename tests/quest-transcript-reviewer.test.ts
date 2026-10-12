@@ -44,3 +44,33 @@ test("quest transcript review sees the whole map and the character's available a
   assert.equal(updates, 1);
   assert.deepEqual(Object.keys(reviewer.snapshot()), ["talk_to_aldren"]);
 });
+
+test("quest relevance falls back to all scenario quests and includes their folder index", async () => {
+  const world = loadPlayableWorld();
+  for (const state of Object.values(world.quests)) state.active = false;
+  const backing = createScenarioServices(world), host = new WorldHost(backing.scenario.read());
+  let relevancePrompts: unknown[] = [];
+  const runtime = new ConversationRuntime({ services: { ...backing, map: host.map, lore: documentLoreService(backing.scenario),
+    ai: {
+      decisions: async (_state, questions, _signal, purpose) => {
+        if (purpose === "quest_relevance") relevancePrompts = Object.values(questions).map(question => question.instructions);
+        return Object.fromEntries(Object.entries(questions).map(([id, question]) => [id, { choice: "unchanged",
+          probabilities: Object.fromEntries(Object.keys(question.criteria).map(key => [key, key === "unchanged" ? 1 : 0])) }]));
+      },
+      responses: async () => assert.fail("No quest update should run"),
+    },
+  } });
+  const context = { characterId: "aldren", participants: ["aldren", "player"], transcript: [
+    create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: "PLOT: I want another route." }),
+    create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: "aldren", text: "Let us consider it." }),
+  ] };
+
+  const labels = await new QuestTranscriptReviewer().classify(context, new AbortController().signal, runtime.services);
+
+  assert.deepEqual(labels.candidates.map(candidate => candidate.id).sort(), ["assembly_programme", "talk_to_aldren"]);
+  assert.equal(relevancePrompts.length, 2);
+  for (const prompt of relevancePrompts) {
+    assert.match(String(prompt), /There are no active story quests/);
+    assert.match(String(prompt), /Scenarios\/Centennial Assembly\/Quests\/index\.md/);
+  }
+});
