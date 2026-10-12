@@ -13,7 +13,9 @@ function drawGiftTree(context: CanvasRenderingContext2D) {
     context.fillStyle = "#a4b967"; context.fillRect(12, -15, 4, 3);
 }
 
-const rattling = (now: number) => now % 3200 < 2400;
+const RATTLE_INTERVAL_MS = 8000;
+const RATTLE_DURATION_MS = 2400;
+const rattling = (now: number) => now % RATTLE_INTERVAL_MS < RATTLE_DURATION_MS;
 
 /** Entrance goods and the surviving tree use the same fixture renderer. */
 export function drawEntranceScenery(context: CanvasRenderingContext2D, fixture: MapFixture): boolean {
@@ -87,7 +89,7 @@ export function cartRattle(root: HTMLElement, signal: AbortSignal) {
     if (playing) return;
     playing = true;
     // Join the current burst if the player walks into earshot partway through it.
-    sound.currentTime = (now % 3200) / 1000;
+    sound.currentTime = (now % RATTLE_INTERVAL_MS) / 1000;
     void sound.play().catch(() => { playing = false; /* Retry after the next user gesture. */ });
   };
 }
