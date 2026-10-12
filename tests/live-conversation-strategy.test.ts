@@ -175,10 +175,11 @@ test("flags schedule one combined activity review and separate focused reviews i
 
 test("an experimental plot reviewer replaces only the default plot-progress review", async () => {
   const f = fixture("background"), custom: string[] = [], categories: string[] = [];
+  const decisions = f.runtime.services.ai.decisions;
   f.runtime.services.ai.decisions = async (_state, _questions, _signal, purpose) => purpose === "conversation_attention" ? {
-    plot_progress: choice("flagged"), relationship_or_knowledge_change: choice("flagged"),
+    plot_progress: choice("not_flagged"), relationship_or_knowledge_change: choice("flagged"),
     immediate_feasibility: choice("not_applicable"),
-  } : {};
+  } : decisions(_state, _questions, _signal, purpose);
   f.runtime.services.ai.responses = async request => {
     assert.ok(request.messages.some(message => message.content?.startsWith("Review only consequential new knowledge")));
     return { role: "assistant", content: "No changes needed." };
@@ -187,13 +188,14 @@ test("an experimental plot reviewer replaces only the default plot-progress revi
     if (event.source === "live-review") categories.push((event.output as { category: string }).category);
   };
   f.runtime.strategies.conversation = liveConversationStrategy({ characterId: "corvin", reviews: f.reviews,
+    plotReviewWhen: messages => messages.some(message => message.role === "user" && message.content?.startsWith("PLOT:")),
     plotReview: async (context, labels) => {
       custom.push(context.transcript.at(-1)!.text, (labels.plot_progress as { choice: string }).choice);
     },
   });
-  await runConversation(request, f.runtime);
+  await runConversation({ ...request, messages: [{ role: "user", content: "PLOT: Give me a bird." }] }, f.runtime);
   await f.reviews.drain();
-  assert.deepEqual(custom, ["I will give you a bird.", "flagged"]);
+  assert.deepEqual(custom, ["I will give you a bird.", "not_flagged"]);
   assert.deepEqual(categories, ["relationship_or_knowledge_change"]);
 });
 

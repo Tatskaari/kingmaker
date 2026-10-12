@@ -39,6 +39,8 @@ export function liveConversationStrategy(options: {
   report?: (event: AnalysisEvent) => void;
   /** Experimental hosts may replace the plot-progress reviewer without changing other focused reviews. */
   plotReview?: (context: ConversationReviewContext, labels: ReviewLabels, signal: AbortSignal, services: RuntimeServices) => Promise<void>;
+  /** Optional explicit trigger used by experiments instead of the normal plot-progress attention flag. */
+  plotReviewWhen?: (messages: readonly OpenRouterMessage[], labels: ReviewLabels) => boolean;
 }): ConversationStrategy {
   let turn = 0;
   return { respond: async ({ request }, signal, services) => {
@@ -66,7 +68,8 @@ export function liveConversationStrategy(options: {
     ];
     const transcript = turnEvidence(messages.slice(playerIndex), reply, options.characterId);
     signal.throwIfAborted();
-    if (options.plotReview && labels.plot_progress?.choice === "flagged") {
+    const reviewPlot = labels.plot_progress?.choice === "flagged" || options.plotReviewWhen?.(messages, labels) === true;
+    if (options.plotReview && reviewPlot) {
       const context = { characterId: options.characterId, participants: [options.characterId, "player"], transcript };
       options.reviews.enqueue(reviewSignal => options.plotReview!(context, labels, reviewSignal, services));
     }
