@@ -63,3 +63,21 @@ Local artifact:
 the capability gap under the focused design; it is not a general estimate of
 review quality. The earlier three-review run used the abbreviated final exchange
 and is not comparable to this corrected result.
+
+## Candidate comparison
+
+One live serial comparison on 2026-10-12 completed without execution or judging
+errors. The temporary `advance-quest-tool` strategy added the host-dispatched
+tool, removed the hook's duplicate remedy whitelist, and instructed plot review
+to favour completed improvised solutions without requiring their downstream
+effects to exist first.
+
+| Variant | Quest advanced | Obstruction cleared | Milestone broadcast | Delivery pending | Total |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `game` | 0% | 0% | 0% | 100% | 25% |
+| `advance-quest-tool` | 100% | 100% | 100% | 100% | 100% |
+
+Local artifact:
+`eval-output/2026-10-12T00-39-45.130Z-6c1cf6af/`. This single paired run supports
+promotion for the captured regression, but is not a broad estimate of review
+behavior.
