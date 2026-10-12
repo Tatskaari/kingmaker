@@ -51,7 +51,7 @@
     {
       "type": "message",
       "who": "agent",
-      "message": "*I give the crew a firm nod and count them through the lift, guiding the pot clear of the cart without letting it tip. Once the tree is set upright in a safe, visible spot, I turn back to the wheels and linkage.*\n\n\u201cIt\u2019s down safely. The cart has stopped bracing now the tree is clear\u2014look, the wheels have eased back.\u201d"
+      "message": "*I give the crew a firm nod and count them through the lift, guiding the pot clear of the cart without letting it tip. Once the tree is set upright in a safe, visible spot, I turn back to the wheels and linkage.*\n\n\u201cIt\u2019s down safely. The cart stopped bracing as soon as the tree was clear\u2014look, the wheels eased back and it rolled out of the service passage. The entrance is open.\u201d"
     }
   ],
   "docs_override": "test_data/lore"
