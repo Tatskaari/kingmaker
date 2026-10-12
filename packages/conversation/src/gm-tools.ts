@@ -19,6 +19,12 @@ function tool(name: string, description: string, properties: Record<string, unkn
 }
 /** Read-only discovery shared by document-capable GM reviews. */
 export const queryDocumentsTool = tool("query_documents", "Run one read-only SQLite query over GM documents. Tables: docs(path,name,folder,summary,body), props(path,key,value), links(source,target). List properties have one row per item. REGEXP is case-insensitive; snippets(body, pattern) returns matching line snippets. At most 200 rows. Use read_document to obtain a version SHA before editing. This searches documents, not runtime state.", { sql: text });
+export const advanceQuestTool = tool("advance_quest", "Advance one currently available authored quest transition and run its bound hook. Use the quest ID, transition ID and current revision from Active quest state. Evidence must state the concrete completed outcome; the authored hook may reject unsupported or incomplete outcomes. Never use this for an agreement, plan or attempted action.", {
+  questId: text,
+  transitionId: text,
+  expectedRevision: { type: "integer", minimum: 0 },
+  evidence: text,
+});
 
 export const gameMasterTools: OpenRouterTool[] = [
   queryDocumentsTool,
@@ -43,7 +49,8 @@ export const gameMasterTools: OpenRouterTool[] = [
 export class GameMasterTools {
   pending = false;
   private edits = new Map<string, { before: DocumentSnapshot; activity: ActivityEdits; trace?: Pick<DocumentUpdate, "response" | "toolCallId"> }>();
-  constructor(private services: RuntimeServices, private characterId?: string) {
+  constructor(private services: RuntimeServices, private characterId?: string,
+    private signal = new AbortController().signal) {
     if (characterId) this.characterId = characterIntent(services.scenario.read(), characterId).actorId;
   }
   private async target(id: string) {
@@ -68,6 +75,16 @@ export class GameMasterTools {
       catch (error) { return { ok: false, error: String(error) }; }
     }
     if (name === "save_memory") return callMemoryTool(this.services, this.characterId, input, trace);
+    if (name === "advance_quest") {
+      const revision = input.expectedRevision;
+      if (!Number.isSafeInteger(revision) || Number(revision) < 0) throw new InvalidReviewError("Expected a non-negative quest revision.");
+      try {
+        const result = await this.services.questProgress.advance(string("questId"), string("transitionId"), Number(revision), string("evidence"), this.signal);
+        return { ok: result.status === "accepted", ...result };
+      } catch (error) {
+        return { ok: false, error: String(error) };
+      }
+    }
     if (name === "read_inventory") return this.services.inventory.read(string("actorId"));
     if (name === "update_inventories") {
       if (!Array.isArray(input.changes) || !input.changes.length) throw new InvalidReviewError("Supply inventory changes");

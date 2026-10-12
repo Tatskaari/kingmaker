@@ -9,6 +9,7 @@ import type { JevChoice, JevQuestions } from "../../providers/src/jev.js";
 import type { ChatCompletionRequest, OpenRouterMessage, TextProgress } from "../../providers/src/openrouter.js";
 import type { CharacterSources, LoreDocument } from "./conversation.js";
 import type { LoreLink } from "./lore.js";
+import type { TransitionResult } from "../../hooks/src/services.js";
 
 export interface AiRequestInfo { characterId?: string; purpose?: "gm_consultation" | "dialogue" | "conversation_review"; onText?: TextProgress }
 export interface DecisionRequestInfo {
@@ -100,6 +101,11 @@ export interface RuntimeServices {
   readonly scenario: ScenarioService;
   readonly docs: DocsService;
   readonly inventory: InventoryService;
+  /** Host-dispatched quest transitions run authored hooks; raw quest writes are not exposed. */
+  readonly questProgress: {
+    advance(questId: string, transitionId: string, expectedRevision: number, evidence: string,
+      signal: AbortSignal): Promise<TransitionResult>;
+  };
   readonly ai: AiService;
   readonly disclosure: Pick<ProgressiveDisclosure, "disclose">;
   readonly lore: LoreService & {

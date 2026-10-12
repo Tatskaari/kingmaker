@@ -76,6 +76,9 @@ export class ConversationRuntime<Review = ReviewLabels> {
         removeFromInventory: (...args) => services.inventory?.removeFromInventory ? services.inventory.removeFromInventory(...args) : unimplemented("inventory.removeFromInventory"),
         transferBetweenInventories: (...args) => services.inventory?.transferBetweenInventories ? services.inventory.transferBetweenInventories(...args) : unimplemented("inventory.transferBetweenInventories"),
         read: id => services.inventory?.read ? services.inventory.read(id) : unimplemented("inventory.read"), commit: changes => services.inventory?.commit ? services.inventory.commit(changes) : unimplemented("inventory.commit") },
+      questProgress: {
+        advance: (...args) => services.questProgress?.advance ? services.questProgress.advance(...args) : unimplemented("questProgress.advance"),
+      },
       docs: {
         commit: async (writes, intents) => services.docs?.commit ? services.docs.commit(writes, intents) : unimplemented("docs.commit"),
         read: async (...args) => services.docs?.read ? services.docs.read(...args) : unimplemented("docs.read"),

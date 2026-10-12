@@ -78,7 +78,7 @@ export function createReviewExperiment(testCase: ReviewCase, variants: readonly 
       : gameReviewConversation(testCase));
     const replay: ReviewConversation = { ...conversation };
     conversations.set(conversation.strategy, replay);
-    return { recordServices: ["docs"], services: { inventory: () => backing.inventory, docs: () => backing.docs, scenario: () => backing.scenario, ai: () => createAi(),
+    return { recordServices: ["docs", "questProgress"], services: { inventory: () => backing.inventory, questProgress: () => ({ advance: backing.hooks.transition }), docs: () => backing.docs, scenario: () => backing.scenario, ai: () => createAi(),
       map: services => ({ observe: characterId => ({ characterId, map: services.scenario.read().simulation!.map!, actions: [] }) }),
       character: services => ({ respond: async (request, signal) => {
         const draft = replay.draft;

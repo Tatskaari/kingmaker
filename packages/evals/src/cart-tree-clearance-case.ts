@@ -5,7 +5,7 @@ import { refreshDocumentGraph } from "../../lore/src/world-state.js";
 import { renderPrompt } from "../../prompts/src/index.js";
 import { activityTools } from "../../conversation/src/activity-tools.js";
 import { reviewDocumentEvidence } from "../../conversation/src/document-review.js";
-import { gameMasterTools } from "../../conversation/src/gm-tools.js";
+import { advanceQuestTool, gameMasterTools } from "../../conversation/src/gm-tools.js";
 import { directConversationStrategy } from "../../conversation/src/phases.js";
 import { reviewPromptContext } from "../../conversation/src/review-prompt-context.js";
 import { loadPlayableWorld } from "../../../scripts/lib/playable-world.js";
@@ -50,7 +50,7 @@ const rubric = [
 ] as const;
 
 /** Isolate the review that must connect the completed physical outcome to authored plot state. */
-export const focusedCartPlotBaseline: ReviewVariant = { name: "game", strategies: {
+const plotReview = (tools = gameMasterTools.filter(tool => !activityTools.some(activity => activity.function.name === tool.function.name))): ReviewVariant["strategies"] => ({
   conversation: directConversationStrategy,
   review: {
     classify: async () => ({ plot_progress: { choice: "flagged" } }),
@@ -59,16 +59,22 @@ export const focusedCartPlotBaseline: ReviewVariant = { name: "game", strategies
         { ...request, reasoning: { effort: "high" } }, cancellation, { ...info, purpose: "conversation_review" }) } },
       renderPrompt("review-plot-progress", reviewPromptContext(context, services)), {
         systemPrompt: renderPrompt("review-system"),
-        tools: gameMasterTools.filter(tool => !activityTools.some(activity => activity.function.name === tool.function.name)),
+        tools,
       }),
   },
-} };
+});
+
+export const focusedCartPlotBaseline: ReviewVariant = { name: "game", strategies: plotReview() };
+export const advanceQuestCandidate: ReviewVariant = { name: "advance-quest-tool", strategies: plotReview([
+  ...gameMasterTools.filter(tool => !activityTools.some(activity => activity.function.name === tool.function.name)),
+  advanceQuestTool,
+]) };
 
 export function createCartTreeClearanceExperiment(createAi: () => AiService, judge: Pick<AiService, "decisions">) {
-  const base = createReviewExperiment(cartTreeClearanceCase, [focusedCartPlotBaseline], createAi, judge);
-  const [baseline] = base.getVariants();
+  const base = createReviewExperiment(cartTreeClearanceCase, [focusedCartPlotBaseline, advanceQuestCandidate], createAi, judge);
+  const [baseline, candidate] = base.getVariants();
   const config = withTranscriptFixture(baseline!, fixture);
-  return { ...base, rubric, getBaseline: () => config, getVariants: () => [],
+  return { ...base, rubric, getBaseline: () => config, getVariants: () => [withTranscriptFixture(candidate!, fixture)],
     summarise(recording: Parameters<typeof base.summarise>[0]) {
       const world = recording.finalState as WorldState | undefined;
       const stage = world?.quests.assembly_programme?.currentStageId ?? "missing";
