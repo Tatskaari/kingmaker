@@ -50,14 +50,15 @@ const rubric = [
 ] as const;
 
 /** Isolate the review that must connect the completed physical outcome to authored plot state. */
-const plotReview = (tools = gameMasterTools.filter(tool => !activityTools.some(activity => activity.function.name === tool.function.name))): ReviewVariant["strategies"] => ({
+const plotReview = (tools = gameMasterTools.filter(tool => !activityTools.some(activity => activity.function.name === tool.function.name)),
+  guidance = ""): ReviewVariant["strategies"] => ({
   conversation: directConversationStrategy,
   review: {
     classify: async () => ({ plot_progress: { choice: "flagged" } }),
     resolve: (context, labels, signal, services) => reviewDocumentEvidence(context, labels, signal,
       { ...services, ai: { ...services.ai, responses: (request, cancellation, info) => services.ai.responses(
         { ...request, reasoning: { effort: "high" } }, cancellation, { ...info, purpose: "conversation_review" }) } },
-      renderPrompt("review-plot-progress", reviewPromptContext(context, services)), {
+      renderPrompt("review-plot-progress", reviewPromptContext(context, services)) + guidance, {
         systemPrompt: renderPrompt("review-system"),
         tools,
       }),
@@ -68,7 +69,7 @@ export const focusedCartPlotBaseline: ReviewVariant = { name: "game", strategies
 export const advanceQuestCandidate: ReviewVariant = { name: "advance-quest-tool", strategies: plotReview([
   ...gameMasterTools.filter(tool => !activityTools.some(activity => activity.function.name === tool.function.name)),
   advanceQuestTool,
-]) };
+], "\n\nWhen `advance_quest` is available, use it when the accepted transcript establishes a completed player-devised solution to the current quest obstacle. Authored remedies are examples, not an exhaustive whitelist. The unchanged pre-review quest and map state do not disprove the accepted outcome: advancing through the authored hook is how you publish its authoritative effects. Do not require those effects to exist before calling the tool. Continue to distinguish a completed solution from an agreement, plan, attempt, or unresolved intermediate result.") };
 
 export function createCartTreeClearanceExperiment(createAi: () => AiService, judge: Pick<AiService, "decisions">) {
   const base = createReviewExperiment(cartTreeClearanceCase, [focusedCartPlotBaseline, advanceQuestCandidate], createAi, judge);
