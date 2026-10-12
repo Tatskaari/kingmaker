@@ -1,13 +1,14 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, statSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, statSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { createConnection } from "node:net";
 import test from "node:test";
+import { strFromU8, unzipSync } from "fflate";
 import { WorldHeadlessGame } from "../packages/headless/src/world.js";
 import { loadPlayableWorld } from "./fixtures.js";
 import { startConsole } from "../packages/headless/src/server.js";
-import { execute } from "../packages/headless/src/client.js";
+import { act, dump, endConversation, execute, observe, say } from "../packages/headless/src/client.js";
 
 test("socket persists across clients, serializes async edits, and preserves logs on errors", async t => {
   const directory = mkdtempSync(join(tmpdir(), "kingmaker-socket-")), path = join(directory, "game.sock");
@@ -44,4 +45,44 @@ test("socket persists across clients, serializes async edits, and preserves logs
   });
   assert.equal(replies[0].error.code, -32700);
   assert.equal(replies[1].result.value, 42);
+});
+
+test("QA socket client can observe and select only advertised player actions", async t => {
+  const directory = mkdtempSync(join(tmpdir(), "kingmaker-qa-socket-")), path = join(directory, "game.sock");
+  const game = new WorldHeadlessGame(loadPlayableWorld());
+  t.mock.method(game.runtime, "checkedTalkToCharacter", async () => "Welcome, envoy.");
+  let finishReview!: () => void;
+  let reviewStarted!: () => void;
+  const review = new Promise<void>(resolve => { finishReview = resolve; });
+  const started = new Promise<void>(resolve => { reviewStarted = resolve; });
+  t.mock.method(game.runtime, "endConversation", async (_id: string, _signal: AbortSignal | undefined,
+    options: { waitForLiveReviews?: boolean } | undefined) => {
+    assert.deepEqual(options, { waitForLiveReviews: true });
+    reviewStarted();
+    await review;
+  });
+  const server = await startConsole(game, path, "qa");
+  t.after(async () => { await new Promise<void>(resolve => server.close(() => resolve())); rmSync(directory, { recursive: true, force: true }); });
+  const before = await observe(path);
+  assert.match(before.observation, /^Great Hall/);
+  assert.ok(before.actions.some(action => action.id === "enter_entrance_hall"));
+  await assert.rejects(execute(path, "return 42;"), /Method not found/);
+  assert.equal(((await act(path, "enter_entrance_hall")).value as { done: boolean }).done, true);
+  assert.match((await observe(path)).observation, /^Entrance Hall/);
+  await act(path, "talk_rowan");
+  assert.deepEqual((await observe(path)).activeConversation, { characterId: "rowan" });
+  assert.deepEqual(await say(path, "Hello"), { characterId: "rowan", reply: "Welcome, envoy." });
+  const ending = endConversation(path);
+  await started;
+  let observed = false;
+  const observing = observe(path).then(result => { observed = true; return result; });
+  await new Promise(resolve => setTimeout(resolve, 20));
+  assert.equal(observed, false);
+  finishReview();
+  await ending;
+  await observing;
+  assert.equal((await observe(path)).activeConversation, undefined);
+  const diagnostic = join(directory, "qa-issue.zip");
+  await dump(path, "A QA issue occurred", diagnostic);
+  assert.match(strFromU8(unzipSync(readFileSync(diagnostic))["report.md"]!), /A QA issue occurred/);
 });

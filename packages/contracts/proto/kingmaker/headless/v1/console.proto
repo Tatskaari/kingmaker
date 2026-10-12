@@ -4,9 +4,20 @@ package kingmaker.headless.v1;
 
 import "google/protobuf/struct.proto";
 
-// JSON-RPC adapter exposes Execute as game.execute over a local Unix socket.
+// Trusted developer servers expose Execute as game.execute.
 service GameConsoleService {
   rpc Execute(ExecuteRequest) returns (ExecuteResponse);
+}
+
+// QA servers expose only this service over newline-delimited JSON-RPC 2.0 on
+// the supplied Unix socket. Begin with Observe, act using an ID from the latest
+// response, and observe again after every state change.
+service GameQaService {
+  rpc Observe(ObserveRequest) returns (ObserveResponse);
+  rpc Act(ActRequest) returns (ActResponse);
+  rpc Say(SayRequest) returns (SayResponse);
+  rpc EndConversation(EndConversationRequest) returns (EndConversationResponse);
+  rpc Dump(DumpRequest) returns (DumpResponse);
 }
 
 message ExecuteRequest {
@@ -25,3 +36,64 @@ message ExecutionError {
   repeated string logs = 1;
   string stack = 2;
 }
+
+message ObserveRequest {}
+
+message PlayerAction {
+  string id = 1;
+  string description = 2;
+  string type = 3;
+  string legality = 4;
+}
+
+message ObserveResponse {
+  // Player-readable room or conversation view.
+  string observation = 1;
+  // Currently valid physical actions. Empty during an active conversation.
+  repeated PlayerAction actions = 2;
+  // Present after selecting a talk action and until EndConversation succeeds.
+  ActiveConversation active_conversation = 3;
+}
+
+message ActiveConversation {
+  string character_id = 1;
+}
+
+message ActRequest {
+  // Must identify an action in the latest observation. A talk action starts a
+  // conversation; follow it with Say or EndConversation rather than Act.
+  string id = 1;
+}
+
+message ActResponse {
+  // Action-specific player-visible outcome. Observe again for current state.
+  google.protobuf.Value value = 1;
+}
+
+message SayRequest {
+  // Plain-English player speech. Valid only during an active conversation.
+  string message = 1;
+}
+
+message SayResponse {
+  string character_id = 1;
+  string reply = 2;
+}
+
+// Valid only during an active conversation. Ending commits its review before
+// physical actions become available again.
+message EndConversationRequest {}
+
+message EndConversationResponse {}
+
+// Create this diagnostic only when reporting an issue. The archive contains
+// internal debugging data and must not be inspected or used to guide play.
+message DumpRequest {
+  // What happened and what the player expected instead.
+  string description = 1;
+  // Absolute destination for the ZIP. The parent directory must exist and the
+  // file must not already exist.
+  string filepath = 2;
+}
+
+message DumpResponse {}

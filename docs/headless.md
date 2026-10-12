@@ -31,6 +31,40 @@ npm run headless -- exec --code 'return await game.talk("rowan", "What brings yo
 npm run headless -- exec --code 'await game.endConversation("rowan");'
 ```
 
+For QA clients that must play only through the same choices available to a player,
+start the socket in restricted mode:
+
+```sh
+npm run headless -- start --qa --dev-player
+npm run headless -- observe
+npm run headless -- act --id enter_entrance_hall
+npm run headless -- act --id talk_rowan
+npm run headless -- say --message 'What brings you to court?'
+npm run headless -- end-conversation
+npm run headless -- dump --description 'The door disappeared after I opened it' --output /tmp/door-disappeared.zip
+```
+
+QA mode exposes only `game.observe`, `game.act`, `game.say`,
+`game.end_conversation` and `game.dump` over JSON-RPC. Observation returns Jev's player room view,
+the current structured action list and any active conversation. GM-owned quest
+graphs and stage guidance are deliberately omitted; objectives must be learned
+through play. `act` accepts one of those action IDs and revalidates it against the
+live player observation before moving or interacting. A `talk` action starts a
+conversation and suppresses physical actions until `end_conversation`; `say`
+accepts plain English and returns the character's reply. `end_conversation`
+waits for all review work from that exchange before it returns and physical
+actions become available, preventing a second conversation from starting against
+stale character state. `game.execute` and all
+direct runtime, service, snapshot, and JavaScript access return `Method not found`.
+When reporting an issue, `dump` accepts a description of what happened and what
+was expected plus an absolute destination filepath. The server writes the
+standard diagnostic ZIP there with mode `0600` and refuses to overwrite an
+existing file; no diagnostic contents cross JSON-RPC. The archive contains
+internal debugging data and is an attachment, not a source of gameplay information. Use
+`--dev-player` or a playable `--world` because a fresh character-creation game has
+no placed player to observe. Developer and QA servers use the same default socket,
+so run only one at a time or give each a distinct `--socket`.
+
 Set `OPENROUTER_API_KEY` on the **server** for dialogue and reviews. `--dev-player`
 uses the existing development envoy and skips character creation. Without this
 flag, a fresh authored scenario starts in player creation. Use
@@ -76,8 +110,8 @@ Simulation state returned by `inspect()` is frozen. Use `game.services` for
 validated document, inventory and mechanics updates, or `game.move()` / `game.act()`
 for gameplay. Direct assignment is rejected; `game.edit()` is no longer provided.
 
-The socket speaks newline-delimited JSON-RPC 2.0. `game.execute` params/results
-use ProtoJSON for `ExecuteRequest`/`ExecuteResponse`, defined in
+The socket speaks newline-delimited JSON-RPC 2.0. Each method's params and results
+use the corresponding ProtoJSON request and response messages defined in
 `packages/contracts/proto/kingmaker/headless/v1/console.proto`. Snippet errors use
 code `-32000` with `ExecutionError` in `error.data`; protocol errors use standard
 JSON-RPC codes. Logs are separate from the returned JSON value. Requests and

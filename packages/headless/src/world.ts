@@ -1,4 +1,6 @@
 import { fromJson } from "@bufbuild/protobuf";
+import { writeFileSync } from "node:fs";
+import { isAbsolute } from "node:path";
 import { WorldStateSchema, type WorldState } from "../../contracts/src/v2.js";
 import { WorldGameRuntime, type WorldSnapshot, type WorldOptions } from "../../../apps/web/src/world-runtime.js";
 import { characterDocuments } from "../../lore/src/character-id.js";
@@ -7,10 +9,12 @@ import { inventoryOwners } from "../../core/src/inventory.js";
 import { worldForCharacter } from "../../core/src/physical-view.js";
 import { physicalCharacterObservation } from "../../../apps/web/src/physical-observation.js";
 import { renderJevRoomView } from "../../../apps/web/src/jev-room-view.js";
+import { buildIssueReport } from "../../../apps/web/src/issue-report.js";
 
 /** The production console uses the same v2 host as the browser worker. */
 export class WorldHeadlessGame {
   runtime: WorldGameRuntime;
+  private activeConversationId: string | undefined;
   constructor(source: WorldState | WorldSnapshot, private readonly apiKey = "", private readonly options: WorldOptions = {}) {
     this.runtime = this.create(source);
   }
@@ -19,7 +23,9 @@ export class WorldHeadlessGame {
       ? new WorldGameRuntime(fromJson(WorldStateSchema, source.world), this.apiKey, source, undefined, undefined, this.options)
       : new WorldGameRuntime(source, this.apiKey, undefined, undefined, undefined, this.options);
   }
-  load(source: WorldState | WorldSnapshot) { this.runtime.movement.dispose(); this.runtime = this.create(source); }
+  load(source: WorldState | WorldSnapshot) {
+    this.runtime.movement.dispose(); this.runtime = this.create(source); this.activeConversationId = undefined;
+  }
   snapshot() { return this.runtime.snapshot(); }
   inspect() { return this.runtime.world(); }
   /** Simulation reads are immutable; commands use the same services as the game. */
@@ -37,11 +43,29 @@ export class WorldHeadlessGame {
   }
   observe(id = "player") {
     const observation = this.observation(id);
-    return renderJevRoomView(observation.map, observation.characters, observation);
+    const rendered = renderJevRoomView(observation.map, observation.characters,
+      this.activeConversationId && id === "player" ? { ...observation, actions: [] } : observation);
+    return this.activeConversationId && id === "player"
+      ? `In conversation with ${this.activeConversationId}.\n\n${rendered}` : rendered;
   }
-  actions() { return this.observation().actions.map(({ id, description, type, legality }) => ({ id, description, type, legality })); }
+  actions() { return this.activeConversationId ? [] : this.observation().actions.map(({ id, description, type, legality }) =>
+    ({ id, description, type, legality: legality ?? "normal" })); }
+  conversation() { return this.activeConversationId ? { characterId: this.activeConversationId } : undefined; }
+  dump(filepath: string, description: string) {
+    if (!isAbsolute(filepath)) throw new Error("Diagnostic dump filepath must be absolute.");
+    const generatedAt = new Date().toISOString();
+    const archive = buildIssueReport({
+      description, generatedAt, worldState: this.runtime.world(), requests: this.runtime.recentTranscripts(),
+      agentRuns: this.runtime.transcriptRuns(), alerts: [], environment: {
+        source: "headless-qa", node: process.version, platform: process.platform,
+        activeConversation: this.activeConversationId ?? null,
+      },
+    });
+    writeFileSync(filepath, archive, { flag: "wx", mode: 0o600 });
+  }
   overview() { return this.runtime.view(); }
   async act(id: string) {
+    if (this.activeConversationId) throw new Error(`End the conversation with ${this.activeConversationId} before acting.`);
     const action = this.observation("player", id).actions.find(action => action.id === id);
     if (!action) throw new Error(`Unavailable player action: ${id}`);
     const movement = await this.move(action.path.at(-1)!.x, action.path.at(-1)!.y);
@@ -52,6 +76,7 @@ export class WorldHeadlessGame {
       await this.runtime.presentMap("player", result);
       return result;
     }
+    this.activeConversationId = action.target;
     return { characterId: action.target };
   }
   async move(x: number, y: number) {
@@ -59,7 +84,16 @@ export class WorldHeadlessGame {
     await this.runtime.presentMap("player", result);
     return result;
   }
-  async talk(id: string, message: string) { await this.act(`talk_${id}`); return this.runtime.checkedTalkToCharacter(id, message); }
+  async talk(id: string, message: string) {
+    if (!this.activeConversationId) await this.act(`talk_${id}`);
+    if (this.activeConversationId !== id) throw new Error(`Already in conversation with ${this.activeConversationId}.`);
+    return this.runtime.checkedTalkToCharacter(id, message);
+  }
+  async say(message: string) {
+    if (!this.activeConversationId) throw new Error("Start a conversation with a talk action before speaking.");
+    const characterId = this.activeConversationId;
+    return { characterId, reply: await this.runtime.checkedTalkToCharacter(characterId, message) };
+  }
   /** Explicitly advance one NPC through the same plan/step/review path used by the worker. */
   async advanceNpc(id: string, maxActions = 24) {
     const signal = AbortSignal.timeout(180_000), actions: string[] = [];
@@ -92,8 +126,14 @@ export class WorldHeadlessGame {
     }
     return { actions, jail: this.runtime.jail() };
   }
-  async endConversation(id: string, message?: string, signal?: AbortSignal) {
+  async endConversation(id: string, message?: string, signal?: AbortSignal, waitForLiveReviews = false) {
     if (message !== undefined) await this.runtime.checkedTalkToCharacter(id, message, undefined, {}, signal);
-    return this.runtime.endConversation(id, signal);
+    const result = await this.runtime.endConversation(id, signal, { waitForLiveReviews });
+    if (this.activeConversationId === id) this.activeConversationId = undefined;
+    return result;
+  }
+  async endActiveConversation(signal?: AbortSignal) {
+    if (!this.activeConversationId) throw new Error("No active conversation to end.");
+    return this.endConversation(this.activeConversationId, undefined, signal, true);
   }
 }

@@ -447,7 +447,8 @@ export class WorldGameRuntime extends WorldHost {
       create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: message })));
     (this.activity.conversationEndRequested ??= {})[id] = true;
   }
-  async endConversation(id: string, signal = new AbortController().signal) {
+  async endConversation(id: string, signal = new AbortController().signal,
+    options: { waitForLiveReviews?: boolean } = {}) {
     const session = this.liveConversations.get(id), reviews = session?.reviews;
     if (reviews) signal = AbortSignal.any([signal, reviews.signal]);
     const persist = this.persistChange;
@@ -478,15 +479,20 @@ export class WorldGameRuntime extends WorldHost {
       delete this.activity.pendingConversationEvents?.[id];
     }, signal, persist);
     const finishTrace = () => this.traces.finish(key, { participants: [id, "player"], messages: transcript });
+    let liveReviewCompletion: Promise<void> | undefined;
     if (reviews && session?.reviewedLive) {
       this.finishingReviews.add(reviews);
-      void reviews.drain().then(finishTrace, error => {
+      const completion = reviews.drain().then(finishTrace).catch(error => {
         if (reviews.signal.aborted) this.traces.stop(key);
         else { this.traces.fail(key, error); this.warning(`${id}: live conversation review: ${String(error)}`); }
+        if (options.waitForLiveReviews) throw error;
       }).finally(() => { this.finishingReviews.delete(reviews); });
+      if (options.waitForLiveReviews) liveReviewCompletion = completion;
+      else void completion;
     } else finishTrace();
     this.conversationRuns.delete(id);
     this.liveConversations.delete(id);
+    await liveReviewCompletion;
     return event;
   }
   async planNpc(id: string, signal: AbortSignal, conflict?: PlanningFeedback, runKey?: string) {

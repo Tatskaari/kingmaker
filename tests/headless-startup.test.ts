@@ -9,7 +9,7 @@ import test, { type TestContext } from "node:test";
 import { toJson } from "@bufbuild/protobuf";
 import { WorldStateSchema } from "../packages/contracts/src/v2.js";
 import { WorldHeadlessGame } from "../packages/headless/src/world.js";
-import { execute } from "../packages/headless/src/client.js";
+import { act, endConversation, execute, observe } from "../packages/headless/src/client.js";
 import { characterCreationWorld } from "../apps/web/src/playable-world.js";
 import { loadPlayableWorld } from "./fixtures.js";
 
@@ -32,6 +32,7 @@ async function start(t: TestContext, args: string[] = [], source?: unknown) {
     rmSync(directory, { recursive: true, force: true });
   });
   let output = "";
+  const ready = args.includes("--qa") ? `Game QA ready: ${socket}` : `Game console ready: ${socket}`;
   await new Promise<void>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`Console did not start: ${output}`)), 15_000);
     const finish = (error?: Error) => { clearTimeout(timer); error ? reject(error) : resolve(); };
@@ -40,10 +41,10 @@ async function start(t: TestContext, args: string[] = [], source?: unknown) {
     child.stderr.on("data", chunk => { output += chunk; });
     child.stdout.on("data", chunk => {
       output += chunk;
-      if (output.includes(`Game console ready: ${socket}`)) finish();
+      if (output.includes(ready)) finish();
     });
   });
-  return async (code: string) => (await execute(socket, code)).value;
+  return Object.assign(async (code: string) => (await execute(socket, code)).value, { socket });
 }
 
 test("headless CLI starts a normal fresh game at character creation", async t => {
@@ -62,6 +63,20 @@ test("headless CLI --dev-player starts the playable development envoy", async t 
     phase: "conversations", player: "Players/envoy.md", day: 1, canTalk: true,
   });
   assert.match(String(await run("return game.observe();")), /^Great Hall/);
+});
+
+test("headless CLI --qa starts without JavaScript execution access", async t => {
+  const run = await start(t, ["--qa", "--dev-player"]);
+  await assert.rejects(run("return game.inspect();"), /Method not found/);
+  const before = await observe(run.socket);
+  assert.match(before.observation, /^Great Hall/);
+  assert.ok(before.actions.some(action => action.id === "enter_entrance_hall"));
+  await act(run.socket, "enter_entrance_hall");
+  assert.match((await observe(run.socket)).observation, /^Entrance Hall/);
+  await act(run.socket, "talk_rowan");
+  assert.deepEqual((await observe(run.socket)).activeConversation, { characterId: "rowan" });
+  await endConversation(run.socket);
+  assert.equal((await observe(run.socket)).activeConversation, undefined);
 });
 
 test("headless CLI preserves --world startup state regardless of --dev-player", async t => {
