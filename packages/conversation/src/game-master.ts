@@ -11,7 +11,7 @@ export async function runGameMaster(request: ChatCompletionRequest, services: Ru
   options: { characterId?: string; review?: boolean; systemPrompt?: string; prepare?: (messages: OpenRouterMessage[]) => Promise<OpenRouterMessage[]> } = {}) {
   const messages = await services.agents.prepare({ agent: "game_master", ...(options.systemPrompt !== undefined ? { systemPrompt: options.systemPrompt } : {}), ...(options.characterId ? { characterId: options.characterId } : {}), messages: request.messages }, signal);
   const tools = request.tools ?? gameMasterTools;
-  const session = new GameMasterTools(services, options.characterId);
+  const session = new GameMasterTools(services, options.characterId, signal);
   if (options.review) await session.begin();
   let corrections = 0;
   for (let turn = 0; turn < 16; turn++) {

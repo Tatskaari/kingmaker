@@ -129,6 +129,11 @@ export class WorldGameRuntime extends WorldHost {
         removeFromInventory: (...args) => this.commit(() => this.worldServices.inventory.removeFromInventory(...args), signal, persist),
         transferBetweenInventories: (...args) => this.commit(() => this.worldServices.inventory.transferBetweenInventories(...args), signal, persist),
         read: id => this.worldServices.inventory.read(id), commit: changes => this.commit(() => this.worldServices.inventory.commit(changes), signal, persist), ...this.options.services?.inventory, ...extra.services?.inventory },
+      questProgress: {
+        advance: (questId, transitionId, expectedRevision, evidence, cancellation) => this.commit(
+          () => this.worldServices.hooks.transition(questId, transitionId, expectedRevision, evidence, cancellation), cancellation, persist),
+        ...this.options.services?.questProgress, ...extra.services?.questProgress,
+      },
       docs: {
         commit: (writes, intents) => this.commit(() => this.worldServices.docs.commit(writes, intents), signal, persist),
         read: path => this.worldServices.docs.read(path),
