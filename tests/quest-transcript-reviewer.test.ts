@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { create } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema, TranscriptRole } from "../packages/contracts/src/index.js";
-import { QuestTranscriptReviewer } from "../packages/evals/src/quest-transcript-reviewer.js";
+import { QuestTranscriptReviewer } from "../packages/conversation/src/quest-transcript-reviewer.js";
 import { ConversationRuntime } from "../packages/conversation/src/runtime.js";
 import { documentLoreService } from "../packages/conversation/src/document-lore.js";
 import { createScenarioServices } from "../packages/lore/src/services.js";
@@ -42,5 +42,5 @@ test("quest transcript review sees the whole map and the character's available a
   await reviewer.review(context, new AbortController().signal, runtime.services);
   assert.equal(summaries, 1);
   assert.equal(updates, 1);
-  assert.deepEqual(Object.keys(reviewer.snapshot(runtime.services)), ["talk_to_aldren"]);
+  assert.deepEqual(Object.keys(reviewer.snapshot()), ["talk_to_aldren"]);
 });

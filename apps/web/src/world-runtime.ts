@@ -39,6 +39,7 @@ import { runGameMaster } from "../../../packages/conversation/src/game-master.js
 import { checkMechanics, adjudicateResolvedChecks, PLAYER_OBSERVATION_PREFIX } from "../../../packages/conversation/src/checks.js";
 import { ConversationReviews, liveConversationStrategy } from "../../../packages/conversation/src/live-conversation-strategy.js";
 import { conversationStrategy } from "../../../packages/conversation/src/conversation-strategy.js";
+import { QuestTranscriptReviewer } from "../../../packages/conversation/src/quest-transcript-reviewer.js";
 import { aiService } from "../../../packages/conversation/src/adapters.js";
 import { OpenRouterClient, type TextProgress } from "../../../packages/providers/src/openrouter.js";
 import { JevClient } from "../../../packages/providers/src/jev.js";
@@ -61,6 +62,7 @@ export class WorldGameRuntime extends WorldHost {
   private conversationRuns = new Map<string, string>();
   private liveConversations = new Map<string, { reviews: ConversationReviews; response: ReturnType<typeof liveConversationStrategy>; reviewedLive: boolean }>();
   private finishingReviews = new Set<ConversationReviews>();
+  private questTranscriptReviewer = new QuestTranscriptReviewer();
   private persistChange: <T>(work: () => T | Promise<T>) => Promise<T> = async work => work();
   setPersistence(commit: <T>(work: () => T | Promise<T>) => Promise<T>) { this.persistChange = commit; }
   private commit<T>(work: () => T | Promise<T>, signal?: AbortSignal, persist = this.persistChange): Promise<T> {
@@ -268,6 +270,7 @@ export class WorldGameRuntime extends WorldHost {
     this.finishingReviews.clear();
     for (const key of this.conversationRuns.values()) this.traces.stop(key);
     this.conversationRuns.clear();
+    this.questTranscriptReviewer.clear();
   }
   override restore(saved: WorldSnapshot) {
     if (this.conversationRuns) this.stopConversations();
@@ -328,7 +331,10 @@ export class WorldGameRuntime extends WorldHost {
     let session = this.liveConversations.get(id);
     if (!session) {
       const reviews = new ConversationReviews();
-      session = { reviews, response: liveConversationStrategy({ characterId: id, reviews }), reviewedLive: true };
+      session = { reviews, response: liveConversationStrategy({ characterId: id, reviews,
+        plotReviewWhen: messages => messages.findLast(message => message.role === "user")?.content?.startsWith("PLOT:") === true,
+        plotReview: (context, _labels, reviewSignal, services) => this.questTranscriptReviewer.review(context, reviewSignal, services).then(() => {}),
+      }), reviewedLive: true };
       this.liveConversations.set(id, session);
     }
     const strategyOverride = options.strategies?.conversation ?? this.options.strategies?.conversation;

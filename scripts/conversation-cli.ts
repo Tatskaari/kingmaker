@@ -22,7 +22,7 @@ import { createScenarioServices } from "../packages/lore/src/services.js";
 import { WorldStateSchema } from "../packages/contracts/src/v2.js";
 import { loadConversationWorld } from "./lib/conversation-world.js";
 import { runConversationCli } from "../apps/conversation-cli/app.js";
-import { QuestTranscriptReviewer } from "../packages/evals/src/quest-transcript-reviewer.js";
+import { QuestTranscriptReviewer } from "../packages/conversation/src/quest-transcript-reviewer.js";
 import { loadPlayableWorld } from "./lib/playable-world.js";
 import { WorldHost } from "../apps/web/src/world-host.js";
 
@@ -110,6 +110,6 @@ traces.finish(conversationId);
 const output = resolve(options.get("--output") ?? `test-output/conversation-${Date.now()}.json`);
 mkdirSync(dirname(output), { recursive: true });
 writeFileSync(output, JSON.stringify({ ...result, requests: traces.recent(), agentRuns: traces.runs(),
-  ...(questReviewer ? { questTranscripts: questReviewer.snapshot(runtimeServices) } : {}),
+  ...(questReviewer ? { questTranscripts: questReviewer.snapshot() } : {}),
   world: toJson(WorldStateSchema, services.scenario.read()), transcript: result.transcript.map(message => toJson(TranscriptMessageSchema, message)) }, null, 2));
 console.log(`Conversation ready for review: ${output}`);

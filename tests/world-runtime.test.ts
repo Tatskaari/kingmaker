@@ -8,8 +8,18 @@ import type { WorldOptions } from "../apps/web/src/world-runtime.js";
 import { activityGoal } from "../packages/lore/src/activity.js";
 import { ConversationReviews, liveConversationStrategy } from "../packages/conversation/src/live-conversation-strategy.js";
 
+const negativeDecision = (question: { criteria: Record<string, string> }) => {
+  const choices = Object.keys(question.criteria);
+  const choice = choices.find(candidate => ["miss", "not_flagged", "not_applicable", "not_needed", "skip", "normal", "unchanged"].includes(candidate)) ?? choices[0]!;
+  return { choice, probabilities: Object.fromEntries(choices.map(candidate => [candidate, candidate === choice ? 1 : 0])) };
+};
+
 function game(options: WorldOptions = {}, warning?: (message: string) => void) {
-  return new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, warning, { ...options, services: { disclosure: { disclose: async () => [] }, ...options.services } });
+  return new WorldGameRuntime(loadPlayableWorld(), "", undefined, undefined, warning, { ...options, services: {
+    disclosure: { disclose: async () => [] }, ...options.services,
+    ai: { decisions: async (_state, questions) => Object.fromEntries(Object.entries(questions).map(([id, question]) => [id, negativeDecision(question)])),
+      ...options.services?.ai },
+  } });
 }
 const reviewReply = (request: import("../packages/providers/src/openrouter.js").ChatCompletionRequest) => commitReview({ summary: "Agreed", newNotes: ["PROMISESENTINEL"], activeGoal: "Go to the great hall" }, request);
 const commit = async <T>(work: () => T) => work();
@@ -148,6 +158,47 @@ test("conversation spans retain turn, retry, review and scenario context", async
   assert.notEqual(runtime.recentTranscripts()[0]!.conversationId, run.conversationId);
 });
 
+test("PLOT turns run quest transcript review inside the main game conversation trace", async () => {
+  let summaries = 0, updates = 0;
+  const runtime = game({ services: { ai: {
+    decisions: async (_state, questions, _signal, purpose) => Object.fromEntries(Object.entries(questions).map(([id, question]) => {
+      const choices = Object.keys(question.criteria);
+      const choice = purpose === "quest_relevance"
+        ? JSON.stringify(question.instructions).includes('"id": "talk_to_aldren"') ? "update" : "unchanged"
+        : choices.find(candidate => ["miss", "not_flagged", "not_applicable", "not_needed", "skip"].includes(candidate)) ?? choices[0]!;
+      return [id, { choice, probabilities: Object.fromEntries(choices.map(candidate => [candidate, candidate === choice ? 1 : 0])) }];
+    })),
+    responses: async request => {
+      const prompt = request.messages.map(message => message.content ?? "").join("\n");
+      if (prompt.includes("Add one compact entry to this quest's running transcript")) {
+        summaries++;
+        assert.equal(request.reasoning?.effort, "none");
+        assert.deepEqual(request.tools, []);
+        return { role: "assistant", content: "Aldren offered the player a new lead." };
+      }
+      if (prompt.includes("## Running transcript for this quest")) {
+        updates++;
+        assert.equal(request.reasoning?.effort, "high");
+        assert.ok(request.tools?.some(tool => tool.function.name === "advance_quest"));
+        assert.match(prompt, /## Whole physical map/);
+        assert.match(prompt, /## Actions currently available to the reviewed character/);
+        return { role: "assistant", content: "The current graph already supports the lead." };
+      }
+      return { role: "assistant", content: "Then investigate the cart at the gate." };
+    },
+  } } });
+
+  assert.equal(await runtime.checkedTalkToCharacter("aldren", "PLOT: What about the cart at the gate?"),
+    "Then investigate the cart at the gate.");
+  await runtime.endConversation("aldren", undefined, { waitForLiveReviews: true });
+
+  assert.equal(summaries, 1);
+  assert.equal(updates, 1);
+  const run = Object.values(runtime.transcriptRuns())[0]!;
+  assert.ok(run.calls.some(call => call.kind === "quest_relevance"));
+  assert.equal(run.calls.filter(call => call.kind === "conversation_review").length, 2);
+});
+
 test("parallel characters and injected character responders remain separately traced", async () => {
   const runtime = game({ services: { character: { respond: async () => ({ role: "assistant", content: "Yes." }) } },
     strategies: { conversation: { respond: (context, signal, services) => services.character.respond(context.request, signal), } } });
@@ -243,8 +294,8 @@ test("conversation history is published before review and survives failed review
   assert.equal(restored.snapshot().playerMessages.length, 2);
 });
 
-const noChecks = (questions: Record<string, unknown>) => Object.fromEntries(Object.keys(questions).map(id =>
-  [id, { choice: id.startsWith("open_") ? "skip" : "not_needed", probabilities: { [id]: 0, skip: 1 } }]));
+const noChecks = (questions: Record<string, { criteria: Record<string, string> }>) => Object.fromEntries(Object.entries(questions).map(([id, question]) =>
+  [id, negativeDecision(question)]));
 const selected = (choice: string) => ({ choice, probabilities: { [choice]: 1 } });
 
 test("main game releases the NPC to act on newly assigned activity while live review is pending", async () => {

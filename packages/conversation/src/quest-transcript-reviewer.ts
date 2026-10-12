@@ -1,31 +1,26 @@
 import { toJson } from "@bufbuild/protobuf";
 import { TranscriptMessageSchema } from "../../contracts/src/index.js";
 import type { JevChoice, JevQuestions } from "../../providers/src/jev.js";
-import { runGameMaster } from "../../conversation/src/game-master.js";
-import { advanceQuestTool, gameMasterTools } from "../../conversation/src/gm-tools.js";
-import { activityTools } from "../../conversation/src/activity-tools.js";
-import { reviewGuidance } from "../../conversation/src/review-prompt-context.js";
-import type { ConversationReviewContext, ConversationReviewStrategy } from "../../conversation/src/review.js";
-import type { RuntimeServices } from "../../conversation/src/services.js";
-import { renderPrompt as renderGamePrompt } from "../../prompts/src/index.js";
-import { renderPrompt } from "./prompts.js";
+import { runGameMaster } from "./game-master.js";
+import { advanceQuestTool, gameMasterTools } from "./gm-tools.js";
+import { activityTools } from "./activity-tools.js";
+import { reviewGuidance } from "./review-prompt-context.js";
+import type { ConversationReviewContext, ConversationReviewStrategy } from "./review.js";
+import type { RuntimeServices } from "./services.js";
+import { renderPrompt } from "../../prompts/src/index.js";
 
 interface QuestCandidate { id: string; question: string; quest: unknown }
 export interface QuestTranscriptLabels extends Record<string, unknown> { candidates: QuestCandidate[]; decisions: Record<string, JevChoice> }
 
-/** Temporary quest-update policy used by evals and the conversation debugger. */
+/** Temporary quest-update policy used by evals and explicit PLOT: turns. */
 export class QuestTranscriptReviewer {
-  private readonly transcripts = new WeakMap<RuntimeServices["scenario"], Map<string, string[]>>();
+  private readonly transcripts = new Map<string, string[]>();
 
-  snapshot(services: Pick<RuntimeServices, "scenario">) {
-    return Object.fromEntries([...(this.transcripts.get(services.scenario) ?? new Map())].map(([id, entries]) => [id, [...entries]]));
+  snapshot() {
+    return Object.fromEntries([...this.transcripts].map(([id, entries]) => [id, [...entries]]));
   }
 
-  private transcript(services: Pick<RuntimeServices, "scenario">) {
-    let transcript = this.transcripts.get(services.scenario);
-    if (!transcript) { transcript = new Map(); this.transcripts.set(services.scenario, transcript); }
-    return transcript;
-  }
+  clear() { this.transcripts.clear(); }
 
   private wholeMap(services: Pick<RuntimeServices, "scenario">) {
     const map = services.scenario.read().simulation!.map!;
@@ -88,7 +83,7 @@ export class QuestTranscriptReviewer {
       if (labels.decisions[candidate.question]?.choice !== "update") continue;
       signal.throwIfAborted();
       const turn = JSON.stringify(context.transcript.map(message => toJson(TranscriptMessageSchema, message)), null, 2);
-      const transcripts = this.transcript(services), prior = transcripts.get(candidate.id) ?? [];
+      const prior = this.transcripts.get(candidate.id) ?? [];
       const summaryRequest = renderPrompt("quest-transcript-summary", {
         quest: JSON.stringify(candidate.quest, null, 2), questTranscript: prior.join("\n"), turn,
       });
@@ -97,7 +92,7 @@ export class QuestTranscriptReviewer {
       }, signal, { characterId: context.characterId, purpose: "conversation_review" });
       if (summary.tool_calls?.length || !summary.content?.trim()) throw new Error("Quest transcript summarizer returned no plain-text entry.");
       const transcript = [...prior, summary.content.trim()];
-      transcripts.set(candidate.id, transcript);
+      this.transcripts.set(candidate.id, transcript);
 
       const world = services.scenario.read(), observation = services.map.observe(context.characterId);
       const activeConversationTrees = Object.entries(world.docs).filter(([path]) => path === `Conversations/${context.characterId}.md`)
@@ -111,7 +106,7 @@ export class QuestTranscriptReviewer {
       const tools = [...gameMasterTools.filter(tool => !activityTools.some(activity => activity.function.name === tool.function.name)), advanceQuestTool];
       const result = await runGameMaster({ model: "openai/gpt-6-luna", api: "responses", reasoning: { effort: "high" }, tools,
         messages: [{ role: "system", content: purpose }],
-      }, services, signal, { characterId: context.characterId, review: true, systemPrompt: renderGamePrompt("review-system") });
+      }, services, signal, { characterId: context.characterId, review: true, systemPrompt: renderPrompt("review-system") });
       changed.push(`${candidate.id}: ${result.content ?? ""}`);
     }
     return { summary: changed.length ? changed.join("\n") : "No active quest was changed by this turn." };

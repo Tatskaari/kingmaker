@@ -18,7 +18,7 @@ import { createReviewExperiment, documentChanges, type ReviewCase, type ReviewVa
 import { createJevScorer, accuracyLevels } from "./jev-scorer.js";
 import { loadTranscriptFixture, withTranscriptFixture } from "./transcript-fixture.js";
 import source from "../../../evals/reviews/aldren-plot/source.json" with { type: "json" };
-import { QuestTranscriptReviewer } from "./quest-transcript-reviewer.js";
+import { QuestTranscriptReviewer } from "../../conversation/src/quest-transcript-reviewer.js";
 
 const root = resolve(import.meta.dirname, "../../.."), directory = `${root}/evals/reviews/aldren-plot`;
 const fixture = loadTranscriptFixture(`${directory}/fixture.json`);
