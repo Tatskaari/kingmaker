@@ -16,7 +16,7 @@ test("narrative queue injects arrivals after tool results, without classificatio
   const services = new ConversationRuntime({ services: { ...backing, map: host.map, ai: {
     decisions: async () => { throw new Error("Narrative must not classify"); },
     responses: async request => {
-      requests.push(structuredClone(request.messages));
+      requests.push(structuredClone([...request.messages]));
       assert.equal(request.reasoning?.effort, "high");
       assert.ok(!request.tools?.some(tool => tool.function.name.startsWith("observe_")));
       if (requests.length === 1) {

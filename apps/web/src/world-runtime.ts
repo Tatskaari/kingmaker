@@ -64,7 +64,7 @@ export class WorldGameRuntime extends WorldHost {
   private finishingReviews = new Set<ConversationReviews>();
   private narrative!: NarrativeReviewer;
   private narrativeDocuments = new Map<string, Document>();
-  private narrativeActivities = new Map<string, string>();
+  private narrativeActivities = new Map<string, string | undefined>();
   private narrativeConversations = new Map<string, number>();
   private persistChange: <T>(work: () => T | Promise<T>) => Promise<T> = async work => work();
   setPersistence(commit: <T>(work: () => T | Promise<T>) => Promise<T>) { this.persistChange = commit; }
@@ -199,6 +199,7 @@ export class WorldGameRuntime extends WorldHost {
       docs: {
         commit: (writes, intents) => commit(() => this.worldServices.docs.commit(writes, intents)),
         read: path => this.worldServices.docs.read(path),
+        query: sql => this.worldServices.docs.query(sql),
         create: (...args) => commit(() => this.worldServices.docs.create(...args)),
         replace: (...args) => commit(() => this.worldServices.docs.replace(...args)),
         insert: (...args) => commit(() => this.worldServices.docs.insert(...args)),
