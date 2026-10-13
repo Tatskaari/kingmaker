@@ -34,9 +34,10 @@ export const attentionQuestions: JevQuestions = {
 };
 
 export async function analyzeAttention(ai: AiService, messages: readonly OpenRouterMessage[], characterReply: OpenRouterMessage,
-  signal: AbortSignal): Promise<Record<string, JevChoice>> {
+  signal: AbortSignal, options: { includePlot?: boolean } = {}): Promise<Record<string, JevChoice>> {
   signal.throwIfAborted();
-  const answers = await ai.decisions({ messages: messages.map(message => ({ ...message })), characterReply: { ...characterReply } }, attentionQuestions, signal, "conversation_attention");
+  const questions = options.includePlot === false ? Object.fromEntries(Object.entries(attentionQuestions).filter(([name]) => name !== "plot_progress")) : attentionQuestions;
+  const answers = await ai.decisions({ messages: messages.map(message => ({ ...message })), characterReply: { ...characterReply } }, questions, signal, "conversation_attention");
   signal.throwIfAborted();
   return answers;
 }

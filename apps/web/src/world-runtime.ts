@@ -24,7 +24,7 @@ import type { JsonValue } from "@bufbuild/protobuf";
 import { runActionExecution, type ActionExecutionContext } from "../../../packages/conversation/src/action-execution.js";
 import { create, fromJson, toJson } from "@bufbuild/protobuf";
 import { EventSchema, GamePhase, TranscriptMessageSchema, TranscriptRole, type Event } from "../../../packages/contracts/src/index.js";
-import type { WorldState } from "../../../packages/contracts/src/v2.js";
+import type { Document, WorldState } from "../../../packages/contracts/src/v2.js";
 import { WorldHost, type WorldSnapshot } from "./world-host.js";
 import { characterId } from "../../../packages/lore/src/character-id.js";
 import { ConversationRuntime, type ConversationRuntimeOptions } from "../../../packages/conversation/src/runtime.js";
@@ -39,7 +39,7 @@ import { runGameMaster } from "../../../packages/conversation/src/game-master.js
 import { checkMechanics, adjudicateResolvedChecks, PLAYER_OBSERVATION_PREFIX } from "../../../packages/conversation/src/checks.js";
 import { ConversationReviews, liveConversationStrategy } from "../../../packages/conversation/src/live-conversation-strategy.js";
 import { conversationStrategy } from "../../../packages/conversation/src/conversation-strategy.js";
-import { QuestTranscriptReviewer } from "../../../packages/conversation/src/quest-transcript-reviewer.js";
+import { NarrativeReviewer, reviewNarrative, documentChangeSummary, type NarrativeEvent } from "../../../packages/conversation/src/narrative-reviewer.js";
 import { aiService } from "../../../packages/conversation/src/adapters.js";
 import { OpenRouterClient, type TextProgress } from "../../../packages/providers/src/openrouter.js";
 import { JevClient } from "../../../packages/providers/src/jev.js";
@@ -62,11 +62,19 @@ export class WorldGameRuntime extends WorldHost {
   private conversationRuns = new Map<string, string>();
   private liveConversations = new Map<string, { reviews: ConversationReviews; response: ReturnType<typeof liveConversationStrategy>; reviewedLive: boolean }>();
   private finishingReviews = new Set<ConversationReviews>();
-  private questTranscriptReviewer = new QuestTranscriptReviewer();
+  private narrative!: NarrativeReviewer;
+  private narrativeDocuments = new Map<string, Document>();
+  private narrativeActivities = new Map<string, string>();
+  private narrativeConversations = new Map<string, number>();
   private persistChange: <T>(work: () => T | Promise<T>) => Promise<T> = async work => work();
   setPersistence(commit: <T>(work: () => T | Promise<T>) => Promise<T>) { this.persistChange = commit; }
-  private commit<T>(work: () => T | Promise<T>, signal?: AbortSignal, persist = this.persistChange): Promise<T> {
-    return persist(() => { signal?.throwIfAborted(); return work(); });
+  private commit<T>(work: () => T | Promise<T>, signal?: AbortSignal, persist = this.persistChange, narrativeWrite = false): Promise<T> {
+    return persist(async () => {
+      signal?.throwIfAborted();
+      const result = await work();
+      this.collectNarrativeEvents(narrativeWrite);
+      return result;
+    });
   }
   constructor(world: WorldState, apiKey: string, saved?: WorldSnapshot, changed = () => {}, private readonly warning = (_message: string) => {},
     readonly options: WorldOptions = {}) {
@@ -74,8 +82,56 @@ export class WorldGameRuntime extends WorldHost {
     Object.assign(this.map, options.services?.map);
     this.provider = aiService(new OpenRouterClient(apiKey, 60_000, globalThis.location?.origin || "http://localhost", warning), new JevClient(apiKey, undefined, undefined, warning), false);
     this.traces = new ModelTranscripts(apiKey, changed);
+    this.startNarrative();
     this.movement.resume();
   }
+  private startNarrative() {
+    this.narrative?.cancel();
+    this.narrativeDocuments = new Map(Object.entries(this.world().docs));
+    this.narrativeActivities = new Map(Object.values(this.world().simulation!.runtimeCharacters).map(actor => [actor.id, actor.activity]));
+    this.narrativeConversations.clear();
+    this.narrative = new NarrativeReviewer(async (history, take, signal) => {
+      const key = this.traces.start("narrative_review", "gm");
+      try {
+        const services = this.runtime("gm", "narrative_review", {}, key, signal).services;
+        const responses = services.ai.responses;
+        services.ai.responses = (request, cancellation, info) => responses(request, cancellation, { ...info, purpose: "narrative_review" });
+        await reviewNarrative(history, take, services, signal);
+        this.traces.finish(key);
+      } catch (error) { this.traces.fail(key, error); throw error; }
+    }, error => this.warning(`Narrative review: ${String(error)}`));
+  }
+  private collectNarrativeEvents(narrativeWrite = false) {
+    if (!this.narrative) return;
+    const world = this.world(), changes: NarrativeEvent[] = [], dialogue: NarrativeEvent[] = [];
+    for (const path of new Set([...this.narrativeDocuments.keys(), ...Object.keys(world.docs)])) {
+      const before = this.narrativeDocuments.get(path), after = world.docs[path];
+      if (before === after) continue;
+      const summary = documentChangeSummary(path, before, after);
+      if (summary) changes.push({ id: `document/${crypto.randomUUID()}`, summary: `${narrativeWrite ? "Narrative agent: " : ""}${summary}` });
+      if (after) this.narrativeDocuments.set(path, after); else this.narrativeDocuments.delete(path);
+    }
+    for (const actor of Object.values(world.simulation!.runtimeCharacters)) {
+      if (actor.activity && actor.activity !== this.narrativeActivities.get(actor.id)) changes.push({
+        id: `activation/${crypto.randomUUID()}`, characterId: actor.id,
+        summary: `${actor.id} activated: ${activityGoal(world, actor.id)} (${actor.activity})`,
+      });
+      this.narrativeActivities.set(actor.id, actor.activity);
+    }
+    for (const [id, turns] of Object.entries(this.activity.conversations)) {
+      if (!turns.length) continue;
+      const key = this.conversationRun(id), start = this.narrativeConversations.get(key) ?? 0;
+      turns.slice(start).forEach((value, offset) => {
+        const turn = fromJson(TranscriptMessageSchema, value);
+        dialogue.push({ id: `${key}[${start + offset}]`, characterId: id, summary: `${turn.speakerId}: ${turn.text}` });
+      });
+      this.narrativeConversations.set(key, turns.length);
+    }
+    // Own writes remain visible at the next boundary, but cannot create an idle self-review loop.
+    this.narrative.enqueue(changes, !narrativeWrite);
+    this.narrative.enqueue(dialogue);
+  }
+  async drainNarrative() { await this.narrative.drain(); }
   protected override writeSimulation<T>(work: () => T): Promise<T> { return this.commit(work); }
   protected override movementError(error: unknown) { this.warning(String(error)); }
   protected override movementDeparted(departure: RoomDeparture) {
@@ -103,12 +159,14 @@ export class WorldGameRuntime extends WorldHost {
   protected override rollFixtureDie() { return this.random().integer(1, 20); }
   private runtime(id: string, kind: ModelCallKind, extra: WorldOptions = {}, runKey?: string, signal?: AbortSignal, participantIds = [id]) {
     const turnId = crypto.randomUUID(), conversationId = runKey ?? crypto.randomUUID();
+    let messageIndex = 0;
     const persist = this.persistChange;
+    const commit = <T>(work: () => T | Promise<T>, cancellation = signal) => this.commit(work, cancellation, persist, kind === "narrative_review");
     const world = this.world();
     const random = { ...this.random(), ...extra.services?.random };
     const ai = { ...this.provider, ...this.options.services?.ai, ...extra.services?.ai };
     const scenario = {
-      setPlayer: (path: string) => this.commit(() => this.worldServices.scenario.setPlayer(path), signal, persist),
+      setPlayer: (path: string) => commit(() => this.worldServices.scenario.setPlayer(path)),
       info: () => this.worldServices.scenario.info(), read: () => this.worldServices.scenario.read(),
       getDocument: (path: string) => this.worldServices.scenario.getDocument(path),
       ...this.options.services?.scenario, ...extra.services?.scenario,
@@ -127,32 +185,34 @@ export class WorldGameRuntime extends WorldHost {
       scenario,
       lore: documentLoreService(scenario, { ...this.options.services?.lore, ...extra.services?.lore }),
       inventory: {
-        addToInventory: (...args) => this.commit(() => this.worldServices.inventory.addToInventory(...args), signal, persist),
-        removeFromInventory: (...args) => this.commit(() => this.worldServices.inventory.removeFromInventory(...args), signal, persist),
-        transferBetweenInventories: (...args) => this.commit(() => this.worldServices.inventory.transferBetweenInventories(...args), signal, persist),
-        read: id => this.worldServices.inventory.read(id), commit: changes => this.commit(() => this.worldServices.inventory.commit(changes), signal, persist), ...this.options.services?.inventory, ...extra.services?.inventory },
+        addToInventory: (...args) => commit(() => this.worldServices.inventory.addToInventory(...args)),
+        removeFromInventory: (...args) => commit(() => this.worldServices.inventory.removeFromInventory(...args)),
+        transferBetweenInventories: (...args) => commit(() => this.worldServices.inventory.transferBetweenInventories(...args)),
+        read: id => this.worldServices.inventory.read(id), commit: changes => commit(() => this.worldServices.inventory.commit(changes)), ...this.options.services?.inventory, ...extra.services?.inventory },
       questProgress: {
-        advance: (questId, transitionId, expectedRevision, evidence, cancellation) => this.commit(
-          () => this.worldServices.hooks.transition(questId, transitionId, expectedRevision, evidence, cancellation), cancellation, persist),
-        setActive: (questId, active, expectedRevision, cancellation) => this.commit(
-          async () => { await this.worldServices.quests.setActive(questId, active, expectedRevision); }, cancellation, persist),
+        advance: (questId, transitionId, expectedRevision, evidence, cancellation) => commit(
+          () => this.worldServices.hooks.transition(questId, transitionId, expectedRevision, evidence, cancellation), cancellation),
+        setActive: (questId, active, expectedRevision, cancellation) => commit(
+          async () => { await this.worldServices.quests.setActive(questId, active, expectedRevision); }, cancellation),
         ...this.options.services?.questProgress, ...extra.services?.questProgress,
       },
       docs: {
-        commit: (writes, intents) => this.commit(() => this.worldServices.docs.commit(writes, intents), signal, persist),
+        commit: (writes, intents) => commit(() => this.worldServices.docs.commit(writes, intents)),
         read: path => this.worldServices.docs.read(path),
-        create: (...args) => this.commit(() => this.worldServices.docs.create(...args), signal, persist),
-        replace: (...args) => this.commit(() => this.worldServices.docs.replace(...args), signal, persist),
-        insert: (...args) => this.commit(() => this.worldServices.docs.insert(...args), signal, persist),
-        delete: (...args) => this.commit(() => this.worldServices.docs.delete(...args), signal, persist),
+        create: (...args) => commit(() => this.worldServices.docs.create(...args)),
+        replace: (...args) => commit(() => this.worldServices.docs.replace(...args)),
+        insert: (...args) => commit(() => this.worldServices.docs.insert(...args)),
+        delete: (...args) => commit(() => this.worldServices.docs.delete(...args)),
         ...this.options.services?.docs, ...extra.services?.docs,
       },
-      character: { create: input => this.commit(() => this.worldServices.character.create(input), signal, persist), rollCheck: checkMechanics(world.simulation!.runtimeCharacters.player?.dnd,
+      character: { create: input => commit(() => this.worldServices.character.create(input)), rollCheck: checkMechanics(world.simulation!.runtimeCharacters.player?.dnd,
         () => random.integer(1, 20)), ...this.options.services?.character, ...extra.services?.character },
       map: { ...this.map, ...this.options.services?.map, ...extra.services?.map },
       ai: { ...traced, responses: retryResponses(traced.responses, this.warning) },
       random,
-      debug: { record: () => {}, documentUpdated: event => this.traces.documentUpdated(event), ...this.options.services?.debug, ...extra.services?.debug },
+      debug: { record: () => {}, documentUpdated: event => this.traces.documentUpdated(event),
+        conversationMessage: turn => this.narrative.enqueue([{ id: `${conversationId}[${messageIndex++}]`, characterId: turn.speakerId, summary: `${turn.speakerId}: ${turn.text}` }]),
+        ...this.options.services?.debug, ...extra.services?.debug },
       presentation: { renderMap: async () => {}, showRoll: async () => {}, setPortrait: async () => {}, ...this.options.services?.presentation, ...extra.services?.presentation },
     }, strategies: { ...defaultWorldStrategies, ...this.options.strategies, ...extra.strategies,
       review: { ...defaultWorldStrategies.review, ...this.options.strategies?.review, ...extra.strategies?.review },
@@ -272,11 +332,12 @@ export class WorldGameRuntime extends WorldHost {
     this.finishingReviews.clear();
     for (const key of this.conversationRuns.values()) this.traces.stop(key);
     this.conversationRuns.clear();
-    this.questTranscriptReviewer.clear();
+    this.startNarrative();
   }
   override restore(saved: WorldSnapshot) {
     if (this.conversationRuns) this.stopConversations();
     super.restore(saved);
+    if (this.narrative) this.startNarrative();
   }
   override reset() { super.reset(); this.stopConversations(); this.traces.clearDocumentWrites(); }
   override resetCharacters() { super.resetCharacters(); this.stopConversations(); this.traces.clearDocumentWrites(); }
@@ -333,10 +394,7 @@ export class WorldGameRuntime extends WorldHost {
     let session = this.liveConversations.get(id);
     if (!session) {
       const reviews = new ConversationReviews();
-      session = { reviews, response: liveConversationStrategy({ characterId: id, reviews,
-        plotReviewWhen: messages => messages.findLast(message => message.role === "user")?.content?.startsWith("PLOT:") === true,
-        plotReview: (context, _labels, reviewSignal, services) => this.questTranscriptReviewer.review(context, reviewSignal, services).then(() => {}),
-      }), reviewedLive: true };
+      session = { reviews, response: liveConversationStrategy({ characterId: id, reviews, narrativeStream: true }), reviewedLive: true };
       this.liveConversations.set(id, session);
     }
     const strategyOverride = options.strategies?.conversation ?? this.options.strategies?.conversation;
@@ -454,6 +512,7 @@ export class WorldGameRuntime extends WorldHost {
     (this.activity.conversations[id] ??= []).push(toJson(TranscriptMessageSchema,
       create(TranscriptMessageSchema, { role: TranscriptRole.PLAYER, speakerId: "player", text: message })));
     (this.activity.conversationEndRequested ??= {})[id] = true;
+    this.collectNarrativeEvents();
   }
   async endConversation(id: string, signal = new AbortController().signal,
     options: { waitForLiveReviews?: boolean } = {}) {

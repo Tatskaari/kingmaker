@@ -15,6 +15,7 @@ async function speak(characterId: string, partnerId: string, instruction: string
   }, signal, { characterId, purpose: "dialogue" });
   signal.throwIfAborted();
   if (response.tool_calls?.length || !response.content?.trim()) throw new Error("Expected character speech.");
+  services.debug.conversationMessage?.({ speakerId: characterId, text: response.content });
   return create(TranscriptMessageSchema, { role: TranscriptRole.CHARACTER, speakerId: characterId, text: response.content });
 }
 

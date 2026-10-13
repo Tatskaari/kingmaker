@@ -37,6 +37,8 @@ export function liveConversationStrategy(options: {
   characterId: string;
   reviews: ConversationReviews;
   report?: (event: AnalysisEvent) => void;
+  /** A host-owned narrative stream replaces plot classification and focused plot reviews. */
+  narrativeStream?: boolean;
   /** Experimental hosts may replace the plot-progress reviewer without changing other focused reviews. */
   plotReview?: (context: ConversationReviewContext, labels: ReviewLabels, signal: AbortSignal, services: RuntimeServices) => Promise<void>;
   /** Optional explicit trigger used by experiments instead of the normal plot-progress attention flag. */
@@ -56,7 +58,7 @@ export function liveConversationStrategy(options: {
     const reply = await services.character.respond({ ...request, messages }, signal);
     signal.throwIfAborted();
     if (reply.role !== "assistant" || !reply.content?.trim() || reply.tool_calls?.length) throw new Error("Expected a plain character draft");
-    const labels = await analyzeAttention(services.ai, messages, reply, signal);
+    const labels = await analyzeAttention(services.ai, messages, reply, signal, { includePlot: !options.narrativeStream });
     record("classify", "live-attention", labels, pass);
     options.report?.({ kind: "labels", subject: "character", source: "attention", decisions: labels });
     const discretion = labels.immediate_feasibility?.choice === "gms_discretion";
@@ -64,7 +66,7 @@ export function liveConversationStrategy(options: {
     const categories = [
       ...(discretion || commitment ? ["activity"] : []),
       ...(commitment ? ["commitment_memory"] : []),
-      ...reviewCategories.filter(name => labels[name]?.choice === "flagged" && (name !== "plot_progress" || !options.plotReview)),
+      ...reviewCategories.filter(name => labels[name]?.choice === "flagged" && (name !== "plot_progress" || !options.plotReview && !options.narrativeStream)),
     ];
     const transcript = turnEvidence(messages.slice(playerIndex), reply, options.characterId);
     signal.throwIfAborted();

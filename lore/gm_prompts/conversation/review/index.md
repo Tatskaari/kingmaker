@@ -20,6 +20,7 @@ GM conversation review instructions and the tools also used by world reviews and
 - [[gm_prompts/conversation/review/quest-transcript-relevance|quest transcript relevance]]
 - [[gm_prompts/conversation/review/quest-transcript-summary|quest transcript summary]]
 - [[gm_prompts/conversation/review/quest-transcript-update|quest transcript update]]
+- [[gm_prompts/conversation/review/narrative-review|narrative event stream]]
 - [[gm_prompts/conversation/review/tools/index|tools]]
 
 Parent: [[gm_prompts/conversation/index|conversation]].

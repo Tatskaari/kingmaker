@@ -4,8 +4,9 @@ import { gameLogger } from "../../../packages/observability/src/logging.js";
 
 const log = gameLogger("models");
 
-export type ModelCallKind = "conversation_tree" | "conversation_attention" | "quest_relevance" | "skill_check" | "skill_difficulty" | "prog_disc" | "conversation_expression" | "npc_request" | "npc_resolution" | "game_master" | "dialogue" | "dialogue_flavour" | "gm_consultation" | "conversation_review" | "conversation_check" | "world_event" | "event_decision" | "jev" | "outcome_review";
+export type ModelCallKind = "narrative_review" | "conversation_tree" | "conversation_attention" | "quest_relevance" | "skill_check" | "skill_difficulty" | "prog_disc" | "conversation_expression" | "npc_request" | "npc_resolution" | "game_master" | "dialogue" | "dialogue_flavour" | "gm_consultation" | "conversation_review" | "conversation_check" | "world_event" | "event_decision" | "jev" | "outcome_review";
 export const modelCallLabels: Record<ModelCallKind, string> = {
+  narrative_review: "Narrative agent (event queue)",
   conversation_attention: "Jev conversation attention",
   conversation_tree: "Jev conversation tree",
   quest_relevance: "Jev quest relevance",

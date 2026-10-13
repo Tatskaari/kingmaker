@@ -8,8 +8,9 @@ export { GAME_MASTER_PROMPT } from "./agent-setup.js";
 
 /** All GM entrypoints use the same tool definitions, execution and conflict handling. */
 export async function runGameMaster(request: ChatCompletionRequest, services: RuntimeServices, signal: AbortSignal,
-  options: { characterId?: string; review?: boolean; systemPrompt?: string; prepare?: (messages: OpenRouterMessage[]) => Promise<OpenRouterMessage[]> } = {}) {
-  const messages = await services.agents.prepare({ agent: "game_master", ...(options.systemPrompt !== undefined ? { systemPrompt: options.systemPrompt } : {}), ...(options.characterId ? { characterId: options.characterId } : {}), messages: request.messages }, signal);
+  options: { characterId?: string; review?: boolean; systemPrompt?: string; history?: OpenRouterMessage[]; prepare?: (messages: OpenRouterMessage[]) => Promise<OpenRouterMessage[]> } = {}) {
+  const messages = options.history ?? [];
+  if (!messages.length) messages.push(...await services.agents.prepare({ agent: "game_master", ...(options.systemPrompt !== undefined ? { systemPrompt: options.systemPrompt } : {}), ...(options.characterId ? { characterId: options.characterId } : {}), messages: request.messages }, signal));
   const tools = request.tools ?? gameMasterTools;
   const session = new GameMasterTools(services, options.characterId, signal);
   if (options.review) await session.begin();
@@ -30,6 +31,7 @@ export async function runGameMaster(request: ChatCompletionRequest, services: Ru
         continue;
       }
       signal.throwIfAborted();
+      messages.push(response);
       return response;
     }
     messages.push(response);

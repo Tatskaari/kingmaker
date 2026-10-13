@@ -11,7 +11,7 @@ import type { CharacterSources, LoreDocument } from "./conversation.js";
 import type { LoreLink } from "./lore.js";
 import type { TransitionResult } from "../../hooks/src/services.js";
 
-export interface AiRequestInfo { characterId?: string; purpose?: "gm_consultation" | "dialogue" | "conversation_review"; onText?: TextProgress }
+export interface AiRequestInfo { characterId?: string; purpose?: "gm_consultation" | "dialogue" | "conversation_review" | "narrative_review"; onText?: TextProgress }
 export interface DecisionRequestInfo {
   characterId?: string;
   disclosure?: { threshold: number; candidates: (LoreLink & { id: string })[] };
@@ -82,6 +82,7 @@ export interface ConversationDebugEvent {
 export interface DebugService {
   record(event: Readonly<ConversationDebugEvent>): void;
   documentUpdated?(event: DocumentUpdate): void;
+  conversationMessage?(message: { speakerId: string; text: string }): void;
 }
 /** Emitted only after a tool's document write has committed successfully. */
 export interface DocumentUpdate {

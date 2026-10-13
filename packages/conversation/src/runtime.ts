@@ -126,7 +126,8 @@ export class ConversationRuntime<Review = ReviewLabels> {
       },
       random: { integer: (...args) => services.random?.integer
         ? services.random.integer(...args) : unimplemented("random.integer") },
-      debug: { documentUpdated: event => services.debug?.documentUpdated?.(event), record: (...args) => services.debug?.record
+      debug: { conversationMessage: event => services.debug?.conversationMessage?.(event),
+        documentUpdated: event => services.debug?.documentUpdated?.(event), record: (...args) => services.debug?.record
         ? services.debug.record(...args) : unimplemented("debug.record") },
     };
   }
