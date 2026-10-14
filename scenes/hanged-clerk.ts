@@ -45,6 +45,7 @@ export const hangedClerk: Scene = {
     {
       id: "kell",
       name: "Sergeant Agnes Kell",
+      statblock: "guard", weapon: "club",
       look: "Forties, a rain cape beaded with drizzle, a battered oilcloth notebook and a pencil stub she sharpens with a clasp knife; a truncheon she has never been seen to draw. Stands very still and watches people's hands.",
       voice: "Dry, calm, precise and sparing: short sentences, the odd 'Noted.' Calls the player 'investigator'. Finds them funny and lets a joke land with a twitch of the mouth, then steers back with a question. Taps her pencil on the notebook when time is being wasted.",
       wants: "To do this properly: find out what really happened to Prout and write it down true, before the dead-cart comes at noon and he goes in the ground as a suicide.",
@@ -66,6 +67,7 @@ export const hangedClerk: Scene = {
     {
       id: "cob",
       name: "Cob",
+      statblock: "commoner", weapon: "unarmed-strike",
       look: "A scrawny boy of about eleven in a man's waistcoat and a pair of good black clerk's boots three sizes too big, laced round his ankles with string. Gutter stones in both fists, scabbed knuckles, a yellowing bruise on one cheek.",
       voice: "Loud and cocky, and talks about himself in the third person ('Cob don't talk to bluebottles'). Foul-mouthed in an inventive gutter way (sod off, bleedin', bum-faced palace pigeon) but never truly obscene. Brags, mocks and dares; goes very quiet and very young when he's frightened.",
       wants: "Respect, and to be left alone. To keep the boots: the first good thing he's ever owned. Something to eat. Never to go home to his da.",
@@ -87,6 +89,7 @@ export const hangedClerk: Scene = {
     {
       id: "moll",
       name: "Moll",
+      statblock: "commoner", weapon: "unarmed-strike",
       look: "A sharp-faced girl of thirteen or so perched on top of the yard wall, heels drumming the bricks, shawl knotted at her chest, one fist kept tightly closed.",
       voice: "Fast, vicious and funny. Swears in Common, Saltmere dock cant and the scraps of Kläggenheim dwarvish she picked up from the carters. Answers questions with questions and orders Cob about ('Shut it, Cob').",
       wants: "To keep Cob: he's all she's got. To keep the silver crown in her fist. To get the two of them out of the granary quarter before the gentleman comes back.",
@@ -106,6 +109,7 @@ export const hangedClerk: Scene = {
     {
       id: "tull",
       name: "Corporal Abner Tull",
+      statblock: "guard", weapon: "club",
       group: "Corporal Tull and two constables with the dead-cart",
       look: "Stout and red-faced in a damp watch cape, with a lunch-shaped bulge in one pocket. Two yawning constables push a handcart behind him with a long ladder lashed on top.",
       voice: "Cheerful, weary and procedural. Calls Kell 'Sarge' and everyone else 'sir' or 'madam', and quotes his orders word for word.",

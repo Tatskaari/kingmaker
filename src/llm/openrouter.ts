@@ -89,7 +89,9 @@ export async function fetchWithRetry(url: string, init: RequestInit, label: stri
       const retryAfter = Number(response.headers.get("retry-after"));
       await response.body?.cancel();
       const delay = Number.isFinite(retryAfter) && retryAfter > 0 ? retryAfter * 1000 : 1500 * 2 ** attempt;
-      process.stderr.write(`[${label}] HTTP ${response.status}, retrying in ${Math.round(delay / 1000)}s\n`);
+      // Retries are routine: logged with the calls, never printed into play.
+      logCall({ operation: label, retry: attempt + 1, status: response.status, delayMs: delay });
+      if (process.env.KM_DEBUG) process.stderr.write(`[${label}] HTTP ${response.status}, retrying in ${Math.round(delay / 1000)}s\n`);
       await sleep(delay);
       continue;
     }

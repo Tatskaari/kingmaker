@@ -7,7 +7,37 @@ import type { Operation } from "../world/dsl.ts";
 export type EntryKind = "player" | "narration" | "dialogue" | "roll" | "system";
 export interface Entry { turn: number; speaker: string; kind: EntryKind; text: string; scene?: string }
 
-export interface PlayerCharacter { name: string; concept: string; modifiers: Partial<Record<Skill, number>> }
+export interface PlayerCharacter {
+  name: string;
+  concept: string;
+  modifiers: Partial<Record<Skill, number>>;
+  /** Their D&D build in a line ("human rogue 3 (thief), criminal background"), when the rules engine made the sheet. */
+  build?: string;
+}
+
+/** D&D mechanics (src/rules/dnd.ts): the engine's campaign, and who in the story it has given stats. */
+export interface RulesState {
+  /** The engine campaign, event log and state (serializeCampaign). */
+  campaign: string;
+  /** Engine id of the player character. */
+  pc: string;
+  /** Story characters the rules have touched: cast id -> engine id and the weapon they fight with. */
+  npcs: Record<string, { id: string; weapon: string }>;
+  /** The build's preferences, in order, for choices that come later (level-ups). */
+  prefer?: string[];
+  /** Kept up to date by the rules, so a turn's decision needn't load the engine. */
+  spells?: Array<{ id: string; name: string; level: number }>;
+  weapons?: Array<{ id: string; name: string }>;
+  /** "HP 13/24, spell slots 1st 2/4": the player's state for the GM's brief. */
+  status?: string;
+  /** A spell with a listed duration is running: story time passing can end it. */
+  timed?: boolean;
+}
+
+/** Something the last reply left hanging over the player, resolved by the rules at the start of their next turn. */
+export type Threat =
+  | { kind: "attack"; by: string; turn: number }
+  | { kind: "hazard"; hazard: string; severity: "glancing" | "serious"; turn: number };
 
 export interface TurnMetric {
   turn: number;
@@ -107,6 +137,12 @@ export interface SessionState {
   pendingExit?: { exitId: string; turn: number; via: string; extended: boolean };
   /** The story reached an ending; the next player turn is the wind-down, then the scene closes. */
   closing?: { exitId: string; turn: number };
+  /** D&D mechanics, when the session has a rules-engine character sheet. */
+  rules?: RulesState;
+  /** A blow or a danger the last reply left hanging over the player (rules sessions). */
+  threat?: Threat;
+  /** System lines to show when the next scene opens (a level-up at a milestone). */
+  announce?: string[];
   /** Scene chain: previous scenes' exits in this session. */
   history: Array<{ sceneId: string; exitId: string; summary: string; lastMoments?: string[] }>;
 }

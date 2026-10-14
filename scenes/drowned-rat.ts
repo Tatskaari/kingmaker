@@ -107,6 +107,7 @@ export const drownedRat: Scene = {
     {
       id: "hobb",
       name: "Big Hobb Mallory",
+      statblock: "tough", weapon: "unarmed-strike",
       look: "A dock-porter the size of a door: a head like a bollard, a nose broken more than once, shoulders that fill the corner, a leather porter's hood pushed back. His right hand is wrapped in a tarry rag, and he keeps it under the table. A greasy string round his thick neck disappears into his shirt.",
       voice: "Slow, low and polite: 'sir', 'missus', 'Mrs Quill'. Says as little as he can, then far too much all at once. When frightened he goes very quiet and very still, like a dray-horse in thunder.",
       wants: "To forget last night. Not to hang. To get through tonight's loading without his master looking at him. For his mum in the Shambles never to know.",
@@ -127,6 +128,7 @@ export const drownedRat: Scene = {
     {
       id: "nan-quill",
       name: "Nan Quill",
+      statblock: "tough", weapon: "club",
       look: "A small, square woman of sixty with forearms like hams, a man's flat cap pinned to her grey bun and a leather apron with a coin pouch on it. Behind the bar, on two nails, hangs Manners: a blackthorn cudgel polished by use. Beside it, on hooks, a row of pewter measures from a gill to a quart, which she uses for beer and gossip alike.",
       voice: "Flat, unhurried river-stairs talk. Speaks in rules and prices and quotes rule numbers. Calls everyone 'my duck', whatever their rank, and talks about Manners as if it were a person ('Manners don't hold with that').",
       wants: "A full, paying, peaceful house on the busiest night of the year; her rules kept; nobody's blood on her floor; and a fair price for what she knows.",
@@ -150,6 +152,7 @@ export const drownedRat: Scene = {
     {
       id: "kell",
       name: "Sergeant Agnes Kell",
+      statblock: "guard", weapon: "club",
       look: "Forties, in a borrowed brown coat over her watch uniform that fools nobody (it's the boots, and the way she stands). A battered oilcloth notebook and a pencil stub she sharpens with a clasp knife; a truncheon she has never been seen to draw. Stands very still and watches people's hands.",
       voice: "Dry, calm, precise and sparing: short sentences, the odd 'Noted.' Calls the player 'investigator'. Finds them funny and lets a joke land with a twitch of the mouth, then steers back with a question. Taps her pencil on the notebook when time is being wasted.",
       wants: "To find out who really killed Wendell Prout and write it down true, whatever the Captain's book says; tonight, to find the big man with the bandaged hand and hear what he knows before he drinks it away or somebody shuts his mouth for good. If anyone is sitting in a cell for Prout who shouldn't be, to get them out.",
@@ -170,6 +173,7 @@ export const drownedRat: Scene = {
     {
       id: "cob",
       name: "Cob",
+      statblock: "commoner", weapon: "unarmed-strike",
       look: "A scrawny boy of about eleven in a man's waistcoat, with a pot-boy's sacking apron over it that reaches his ankles. On his feet, either Prout's good black clerk's boots, three sizes too big and laced on with string, or nothing much, depending on how the morning went. Scabbed knuckles, a yellowing bruise on one cheek, a tray of empty pots.",
       voice: "Loud and cocky, and talks about himself in the third person ('Cob don't talk to bluebottles'). Foul-mouthed in an inventive gutter way (sod off, bleedin', bum-faced palace pigeon) but never truly obscene. Brags, mocks and dares; goes very quiet and very young when he's frightened.",
       wants: "Respect, and to be left alone. Something to eat: Nan pays her pot-boy in eel stew and a penny. Never to go home to his da. Moll safe, wherever the morning left her. And the big cove from the loft to get what's coming to him, without ever finding out Cob was there.",
@@ -188,6 +192,7 @@ export const drownedRat: Scene = {
     {
       id: "arlo",
       name: "Arlo Quarry",
+      statblock: "tough", weapon: "unarmed-strike",
       look: "A young lighterman built like a water butt, with rolled sleeves, a fresh black eye and forearms he keeps flexing. His elbow is on the nearest table at all times, in case.",
       voice: "Loud, cheerful and spoiling for it. Talks in challenges and wagers ('Penny says I'd have you'). Calls everyone 'champ', sarcastically. Goes quiet and sulky when he's laughed at.",
       wants: "The champion's chair, tonight, while Big Hobb won't wrestle. A champion who refuses three challenges in one night gives the chair up, by house custom, and Hobb is on two.",
@@ -205,6 +210,7 @@ export const drownedRat: Scene = {
     {
       id: "dilly",
       name: "Dilly Sparrow",
+      statblock: "commoner", weapon: "unarmed-strike",
       look: "A tiny, ancient bargewoman in a man's coat and three shawls, with a clay pipe, a pack of cards worn soft as cloth, and a pile of coppers and new silver in front of her. Her barge, the Dabchick, is tied up at the foot of the stairs.",
       voice: "Croaky, sly and motherly at once. Calls everyone 'my lamb'. Deals as she talks and never looks at her cards.",
       wants: "Her nightly game of Tuppenny Bargee and her winnings. Hobb to stop drinking like a man who's going to be hanged. Tonight, also, the watch to go away.",

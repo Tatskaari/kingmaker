@@ -32,6 +32,10 @@ export interface Character {
   enters?: string;
   /** A group (e.g. "four goblins") voiced through its leader. */
   group?: string;
+  /** Their stats when the rules need them (a blow, a spell): an SRD statblock id (commoner, guard, tough, noble, spy, mastiff...). Commoner when omitted. */
+  statblock?: string;
+  /** What they'd hit someone with (an SRD weapon id: club, dagger, mace...), when it isn't their statblock's usual one. */
+  weapon?: string;
 }
 
 export interface Check {
@@ -93,6 +97,8 @@ export interface Exit {
   next?: string;
   /** Authored world update for this exit. */
   script?: WorldScript;
+  /** A milestone: the player's character goes up a level when the story ends this way. */
+  milestone?: boolean;
 }
 
 /**
@@ -146,6 +152,8 @@ export interface Scene {
   lore?: string[];
   /** Character creation: on exit, the player's character sheet is extracted from the conversation. */
   createsCharacter?: boolean;
+  /** Time passes before this scene opens: the player gets a short rest (an hour) or a long rest (a night). */
+  rest?: "short" | "long";
 }
 
 export function beatOrExit(scene: Scene, id: string): { beat?: Beat; exit?: Exit } {

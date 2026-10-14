@@ -1,6 +1,7 @@
 import type { ChoiceQuestion, Decider, Decision } from "../llm/decide.ts";
 import { currentBeat, IMPROVISED_EXIT_ID, offstageCast, presentCast, scriptTranscript, sceneEntries, spentHere } from "./brief.ts";
-import { describeRoll, rng, rollCheck, titleCase, type RollResult } from "./dice.ts";
+import { describeRoll, titleCase, type RollResult } from "./dice.ts";
+import { HAZARD_KINDS, rollFor, type SpellChoice, type WeaponChoice } from "../rules/dnd.ts";
 import { SKILLS, type Character, type Exit, type Scene, type Skill, type Transition } from "./scene.ts";
 import type { SceneStatus, SessionState } from "./session.ts";
 
@@ -76,14 +77,13 @@ function transitionsFor(scene: Scene, state: SessionState, phase: "attempt" | "c
 /** Social means are interchangeable ways to reach the same goal: the roll follows the player's method. */
 const SOCIAL: Skill[] = ["persuasion", "intimidation", "deception", "performance"];
 
-function resolve(scene: Scene, state: SessionState, transition: Transition, phase: Move["phase"], means?: Skill): Move {
+async function resolve(scene: Scene, state: SessionState, transition: Transition, phase: Move["phase"], means?: Skill): Promise<Move> {
   let to = transition.to ?? state.beat;
   let roll: RollResult | undefined;
   if (transition.check) {
-    const random = rng(state.seed + 7919 * ++state.rollCount);
     // Preserve intent, change method: a threat aimed at a route written for persuasion rolls intimidation.
     const skill = means && means !== transition.check.skill && SOCIAL.includes(means) && SOCIAL.includes(transition.check.skill) ? means : transition.check.skill;
-    roll = rollCheck(random, skill, transition.check.dc, state.player.modifiers[skill] ?? 0);
+    roll = await rollFor(state, skill, transition.check.dc);
     to = roll.success ? transition.check.onSuccess : transition.check.onFailure ?? state.beat;
   }
   const exit = scene.exits.find(e => e.id === to);
@@ -132,6 +132,53 @@ export interface PreDecision {
   plain?: boolean;
   /** A risky attempt outside the scene's routes, already rolled. */
   freeform?: FreeformCheck;
+  /** Something the rules resolve (rules sessions): a spell, a blow, a rest. */
+  mechanic?: Mechanic;
+}
+
+/** What the player is doing that the D&D rules resolve, and with what. */
+export type Mechanic =
+  | { kind: "cast"; spell: string; targets: string[] }
+  | { kind: "attack"; target: string; weapon?: string }
+  | { kind: "rest"; length: "short" | "long" };
+
+/** The player's spells and weapons, for the decider (rules sessions only). */
+export interface RulesOptions { spells: SpellChoice[]; weapons: WeaponChoice[] }
+
+const ORDINAL = ["cantrip", "1st-level", "2nd-level", "3rd-level", "4th-level", "5th-level", "6th-level", "7th-level", "8th-level", "9th-level"];
+
+/** Which spell, at whom; or which blow, at whom: a second small call, only on those turns. */
+async function mechanicDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, kind: "cast" | "attack", rules: RulesOptions): Promise<{ mechanic?: Mechanic; decision: Decision }> {
+  const present = presentCast(scene, state);
+  const q: Record<string, ChoiceQuestion> = {};
+  if (kind === "cast") {
+    q.spell = {
+      instructions: "The player is casting a spell in their latest turn. Which of their spells is it?",
+      criteria: { ...Object.fromEntries(rules.spells.map(sp => [sp.id, `${sp.name} (${ORDINAL[sp.level]})`])), not_theirs: "A spell or kind of magic that isn't one of these." },
+    };
+    for (const c of present) q[`aim_${c.id}`] = { instructions: `Is ${c.name} a target of the spell, or caught in its area?`, criteria: { yes: "Yes", no: "No" } };
+    q.aim_self = { instructions: "Is the player casting the spell on themselves?", criteria: { yes: "Yes", no: "No" } };
+  } else {
+    q.target = {
+      instructions: "The player is attacking someone in their latest turn. Whom?",
+      criteria: Object.fromEntries(present.map(c => [c.id, `${c.name}${c.group ? ` (${c.group})` : ""}`])),
+    };
+    q.weapon = {
+      instructions: "With what?",
+      criteria: { ...Object.fromEntries(rules.weapons.map(w => [w.id, w.name])), other: "Something else (an improvised weapon, a thrown object), or not clear" },
+    };
+  }
+  const decision = await decider.decide(decisionState(scene, state, playerTurn), q, "director.mechanic");
+  if (kind === "cast") {
+    const spell = decision.answers.spell?.choice;
+    if (!spell || spell === "not_theirs") return { decision };
+    const targets = [...present.filter(c => decision.answers[`aim_${c.id}`]?.choice === "yes").map(c => c.id), ...(decision.answers.aim_self?.choice === "yes" ? ["self"] : [])];
+    return { mechanic: { kind, spell, targets }, decision };
+  }
+  const target = decision.answers.target?.choice;
+  if (!target || !present.some(c => c.id === target)) return { decision };
+  const weapon = decision.answers.weapon?.choice;
+  return { mechanic: { kind, target, ...(weapon && weapon !== "other" ? { weapon } : {}) }, decision };
 }
 
 const SKILL_TEXT: Record<Skill, string> = {
@@ -156,8 +203,7 @@ async function freeformCheck(decider: Decider, scene: Scene, state: SessionState
   }, "director.freeform");
   const skill = (decision.answers.skill?.choice ?? "persuasion") as Skill;
   const dc = DIFFICULTY[(decision.answers.difficulty?.choice ?? "moderate") as keyof typeof DIFFICULTY] ?? 13;
-  const random = rng(state.seed + 7919 * ++state.rollCount);
-  return { check: { skill, dc, roll: rollCheck(random, skill, dc, state.player.modifiers[skill] ?? 0) }, decision };
+  return { check: { skill, dc, roll: await rollFor(state, skill, dc) }, decision };
 }
 
 /** Before the reply: is the player attempting a transition, or should a pacing cue fire? Plus who speaks first. */
@@ -213,7 +259,7 @@ async function pressureDetails(decider: Decider, scene: Scene, state: SessionSta
   return decider.decide({ ...decisionState(scene, state, playerTurn), person_being_pressed: target.name }, q, "director.pressure");
 }
 
-export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean; freeform?: boolean; offGraph?: boolean; relocate?: boolean; pressure?: boolean; consequences?: boolean }): Promise<PreDecision> {
+export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean; freeform?: boolean; offGraph?: boolean; relocate?: boolean; pressure?: boolean; consequences?: boolean; rules?: RulesOptions }): Promise<PreDecision> {
   const attempts = transitionsFor(scene, state, "attempt");
   const cues = transitionsFor(scene, state, "cue");
   // Outcomes that need no roll are shown as alternatives, so the decider can see that a kind
@@ -283,6 +329,18 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
       criteria: { consequential: "Yes: in this world it would provoke a real reaction or carry a real risk.", harmless: "It's playful, but nobody here would mind or be put at risk.", none: "Nothing daft or reckless in it." },
     };
   }
+  if (options.rules) {
+    questions.mechanic = {
+      instructions: "Is the player, in their latest turn, doing one of these things the game's rules resolve?",
+      criteria: {
+        ...(options.rules.spells.length ? { cast: "Casting a spell or working magic (naming a spell, or plainly using one of their magical abilities)." } : {}),
+        attack: "Attacking someone to hurt them right now: a blow, a stab, a shot, a punch, a kick. Threats, grabs, shoves and drawing a weapon aren't attacks.",
+        short_rest: "Stopping to rest for an hour or so: catching their breath, binding wounds, a meal and a sit-down.",
+        long_rest: "Sleeping the night, or resting for many hours.",
+        none: "None of these.",
+      },
+    };
+  }
   questions.ooc = {
     instructions: "Is the player's latest turn spoken out of character, to the GM rather than in the story (e.g. asking what their options are, how something works in the game, or what they know)?",
     criteria: { in_character: "In character: the player's character speaks or acts in the story.", out_of_character: "Out of character: a question or remark to the GM about the game or the situation." },
@@ -327,7 +385,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const chosen = attempt ?? plainEnding ?? cue;
   // (a plain action alongside a cue: the cue's beat change carries the reply)
   const means = decision.answers.attempt_means?.choice;
-  const move = chosen ? resolve(scene, state, chosen, attempt || plainEnding ? "attempt" : "cue", attempt && means && means !== "none" && (decision.answers.attempt_means?.probabilities?.[means] ?? 1) >= SCENE_ENDING_CONFIDENCE ? means as Skill : undefined) : undefined;
+  const move = chosen ? await resolve(scene, state, chosen, attempt || plainEnding ? "attempt" : "cue", attempt && means && means !== "none" && (decision.answers.attempt_means?.probabilities?.[means] ?? 1) >= SCENE_ENDING_CONFIDENCE ? means as Skill : undefined) : undefined;
   let freeform: FreeformCheck | undefined;
   let combined = decision;
   // No dice for the impossible: if the player is reaching for something the scene can't offer,
@@ -364,8 +422,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     const which = answers.pressure_secret?.choice?.startsWith("secret_") && (answers.pressure_secret.probabilities?.[answers.pressure_secret.choice] ?? 1) >= 0.5 ? Number(answers.pressure_secret.choice.slice(7)) : undefined;
     pressure = { target: target.id, skill, stakes, approach, disposition, ...(which !== undefined ? { secret: which } : {}), ruling: ruled.kind, ...(ruled.kind !== "roll" && ruled.why ? { why: ruled.why } : {}) };
     if (ruled.kind === "roll") {
-      const random = rng(state.seed + 7919 * ++state.rollCount);
-      const roll = rollCheck(random, skill, ruled.dc, state.player.modifiers[skill] ?? 0);
+      const roll = await rollFor(state, skill, ruled.dc);
       const band = roll.success
         ? (roll.critical === "success" || roll.total - ruled.dc >= 5 ? "yes_and" : "yes")
         : (roll.critical === "failure" || ruled.dc - roll.total >= 5 ? "no_and" : "no_but");
@@ -384,7 +441,21 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const limitChoice = decision.answers.limit?.choice;
   const limitConfident = (decision.answers.limit?.probabilities?.[limitChoice ?? ""] ?? 1) >= SCENE_ENDING_CONFIDENCE;
   const limit = limitChoice?.startsWith("limit_") && limitConfident ? scene.limits?.[Number(limitChoice.slice(6))] : undefined;
+  // The rules: a spell or a blow gets its details in a second small call; a rest needs none. Not
+  // when the scene can't offer it, when it's out of character, or when it starts a fight for the map.
+  let mechanic: Mechanic | undefined;
+  const asked = decision.answers.mechanic?.choice;
+  const sure = asked && asked !== "none" && (decision.answers.mechanic?.probabilities?.[asked] ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  if (options.rules && sure && !limit && !ooc && move?.exit?.kind !== "combat") {
+    if (asked === "short_rest" || asked === "long_rest") mechanic = { kind: "rest", length: asked === "short_rest" ? "short" : "long" };
+    else if (asked === "cast" || asked === "attack") {
+      const details = await mechanicDetails(decider, scene, state, playerTurn, asked, options.rules);
+      combined = { ...combined, answers: { ...combined.answers, ...details.decision.answers }, latencyMs: combined.latencyMs + details.decision.latencyMs, costUsd: combined.costUsd + details.decision.costUsd };
+      mechanic = details.mechanic;
+    }
+  }
   return {
+    ...(mechanic ? { mechanic } : {}),
     ...(move ? { move } : {}), ...(decision.answers.speaker ? { speaker: decision.answers.speaker.choice } : {}), decision: combined,
     ...(plain ? { plain } : {}), ...(plainTransition ? { plainTransition } : {}), ...(freeform ? { freeform } : {}), ...(limit ? { limit } : {}), ...(ooc ? { ooc } : {}),
     ...(offGraph ? { offGraph } : {}), ...(relocate.length ? { relocate } : {}), ...(pressure ? { pressure } : {}), ...(daft ? { daft } : {}), ...(earned ? { earned } : {}),
@@ -497,7 +568,9 @@ function guardHolders(scene: Scene, state: SessionState, text: string): Characte
   return [...holders.filter(named), ...holders.filter(c => !named(c))].slice(0, 3);
 }
 
-export async function decideAfter(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, reply: string, options: { hold?: string; staging?: boolean } = {}): Promise<{ move?: Move; decision?: Decision; status?: SceneStatus; ending?: EndingRead; landed?: string[]; hinted?: string[]; guard?: Record<string, GuardStage> }> {
+export type ThreatRead = { kind: "attack"; by: string } | { kind: "hazard"; hazard: string; severity: "glancing" | "serious" };
+
+export async function decideAfter(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, reply: string, options: { hold?: string; staging?: boolean; rules?: boolean } = {}): Promise<{ move?: Move; decision?: Decision; status?: SceneStatus; ending?: EndingRead; landed?: string[]; hinted?: string[]; guard?: Record<string, GuardStage>; threat?: ThreatRead }> {
   // An ending held back this turn (the player gets a last chance) can't be confirmed by the same reply.
   const leadsTo = (t: Transition) => [t.to, t.check?.onSuccess, t.check?.onFailure];
   // While an ending is held for the player's response, no other ending (not even the improvised one) can fire.
@@ -539,6 +612,23 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
       },
     };
   }
+  // The rules: did the reply leave a blow or a danger hanging over the player? It lands at the
+  // start of their next turn, so they get to answer it, as at the table.
+  const present = options.rules ? presentCast(scene, state) : [];
+  if (options.rules) {
+    questions.threat = {
+      instructions: "Does the latest GM reply end with the player character in immediate physical danger that hasn't been resolved yet: someone in the act of striking, shooting or lunging at them, or a danger about to catch them (a fall, fire, poison, cold water, being grabbed or dragged, something working on their mind)? Only something already under way, not a threat in words, a warning or a possibility.",
+      criteria: {
+        ...Object.fromEntries(present.map(c => [`attack:${c.id}`, `${c.name} is in the act of attacking them`])),
+        ...Object.fromEntries(Object.entries(HAZARD_KINDS).map(([k, text]) => [`hazard:${k}`, `About to be caught by ${text}`])),
+        none: "No: nothing physical is about to hit them.",
+      },
+    };
+    questions.threat_severity = {
+      instructions: "If something is about to hit the player character, how bad would it be?",
+      criteria: { glancing: "A knock, a scare, a ducking: it could hurt a bit.", serious: "Serious: it could badly hurt someone." },
+    };
+  }
   if (outcomes.length) {
     // A cue's text describes its trigger ("they set off..."); after the reply, ask about its effect.
     const effect = (t: Transition) => {
@@ -567,7 +657,7 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
   const endingAnswer = decision.answers.ending;
   // The improvised ending defers to any authored ending the ending-state read finds plausible,
   // even one with no route (a holed scene, or an approach nobody authored).
-  let move = chosen ? resolve(scene, state, chosen, "outcome") : undefined;
+  let move = chosen ? await resolve(scene, state, chosen, "outcome") : undefined;
   if (move?.exit?.id === IMPROVISED_EXIT_ID && endingAnswer) {
     const best = endings.filter(e => e.id !== IMPROVISED_EXIT_ID).map(e => ({ e, p: endingAnswer.probabilities?.[e.id] ?? 0 })).sort((a, b) => b.p - a.p)[0];
     if (best && best.p >= 0.2) move = { ...move, to: best.e.id, exit: best.e };
@@ -581,7 +671,14 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
   const landed = pending.filter(e => decision.answers[`landed_${e.id}`]?.choice === "landed").map(e => e.id);
   const hinted = pending.filter(e => decision.answers[`landed_${e.id}`]?.choice === "hinted").map(e => e.id);
   const guard = Object.fromEntries(holders.map(c => [c.id, decision.answers[`guard_${c.id}`]?.choice as GuardStage | undefined]).filter(([, g]) => g)) as Record<string, GuardStage>;
-  return { ...(move ? { move } : {}), decision, ...(status ? { status } : {}), ...(ending ? { ending } : {}), ...(landed.length ? { landed } : {}), ...(hinted.length ? { hinted } : {}), ...(Object.keys(guard).length ? { guard } : {}) };
+  let threat: ThreatRead | undefined;
+  const t = decision.answers.threat;
+  if (t && t.choice !== "none" && (t.probabilities?.[t.choice] ?? 1) >= SCENE_ENDING_CONFIDENCE) {
+    const [kind, what] = t.choice.split(":");
+    if (kind === "attack" && present.some(c => c.id === what)) threat = { kind: "attack", by: what! };
+    if (kind === "hazard" && what) threat = { kind: "hazard", hazard: what, severity: decision.answers.threat_severity?.choice === "serious" ? "serious" : "glancing" };
+  }
+  return { ...(threat ? { threat } : {}), ...(move ? { move } : {}), decision, ...(status ? { status } : {}), ...(ending ? { ending } : {}), ...(landed.length ? { landed } : {}), ...(hinted.length ? { hinted } : {}), ...(Object.keys(guard).length ? { guard } : {}) };
 }
 
 /** Tier-one scene health, asked alongside the outcome check at no extra latency. */

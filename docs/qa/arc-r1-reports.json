@@ -1,0 +1,780 @@
+[
+ {
+  "run": {
+   "session": "arc1-detective",
+   "character": "Inspector Odo Fairweather: a methodical, soft-spoken investigator from the palace who writes everything down and believes in kindness as a tool",
+   "persona": "A methodical detective. You ask careful questions, follow clues, keep your promises and build trust with people. You're kind to the children and keep a list of what you've learned. You like to tell people small true things about yourself (your late mother was a laundress at the palace; you hate the sight of rats)."
+  },
+  "report": {
+   "session": "arc1-detective",
+   "turns": 65,
+   "scenes_played": [
+    "1. The granary yard (hanged-clerk), T1-12, ended 'The case is made'",
+    "2. Caerwyn, the afternoon (market square, downtime), T13-16, ended 'Onward'",
+    "3. The Drowned Rat, T17-52. Spilled into the Shambles, the palace laundry, the palace arch, back to the Rat and the Heron wharf showdown. Ended 'An ending of their own'",
+    "4. The wharves after dark (downtime), T53-57, ended 'Onward'",
+    "5. The Heron Warehouse, T58-65, ended 'Caught in the act', then the session was over"
+   ],
+   "ended": "The session ended on its own at turn 65, at the end of 'The Heron Warehouse'. Sallow initials the ledger in front of Kell. She arrests him for 'theft from the Crown', and the Crakes walk off. Kell then asks 'Inspector. You witnessed it. What do you want entered in the record?' and the output says '\u2014 The session is over. \u2014' before I can answer. There is no epilogue. The King who commissioned me never appears and the Marshal meeting is skipped. Prout's murder is never formally charged, my promise to tell the King that Hobb confessed freely never gets a chance, and there is no return to the children. That was 25 turns more than the brief's ~40, mostly because scene 3 ran 36 turns.",
+   "summary": "I played Inspector Odo Fairweather through the hanged-clerk arc. Scenes 1 to 3 (52 turns) were very good. The clue design was fair: door barred inside, a level cord mark under the noose burn, a skull swelling, clean palms, and the dead man's boots on Cob with the Granary Roll page stitched in the lining. Failed rolls caused interesting trouble: Moll was paid a silver crown to lie. The child NPCs were vivid. The GM took my improvisations and paid them off. It accepted 'Mother Tansy' and the palace laundry as a safe house, the laundry-gate route, rescuing Hobb's mother, and a note to the King carried by a guard I had named. At the wharf showdown Scrope downed his pen, Hobb confessed in public and then stood in front of me, and Guardsman Rusk arrived with men because of my note. Most character memory was strong. Cob recalled my first promise word for word, including that Kell was there to hear it. The problem is world-state memory across scene boundaries. I resolved the climax inside the Drowned Rat scene: barge held, ledger taken, Sallow walked into the palace. The next two pre-written scenes then ran as if none of that had happened. Scene 4 opened with Kell saying 'The barge is loading. The gentleman comes at midnight to see it off.' Scene 5 had the barge loading again, Hobb back at the grille with a token, and Scrope back in the counting-box with the ledger. Sallow had been freed off-screen. The 'caught in the act' finale felt like a re-run, and the session stopped mid-question with no denouement. Pacing was front-loaded: the core of the crime came out on turn 2, Kell gave Sallow's full name and office on turn 11, and Hobb's full confession took one DC 14 roll. A backend error also leaked into play output once.",
+   "memory_checks": [
+    {
+     "scene": "Caerwyn, the afternoon",
+     "turn": 13,
+     "who": "Sergeant Kell",
+     "earlier": "Scene 1, T8: I snapped at her in front of the children: 'That will do, Sergeant. She is twelve, and she has just been braver than half the Watch. Write the name and keep the sermon.'",
+     "what_they_did": "I asked what I had said when I 'spoke sharply' to her. She quoted a different, kind line from T12: 'You said I sent Prout to the palace, and the palace was where he was going. You said I hadn't put the cord round his neck.' The quote was accurate but from the wrong moment.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "Caerwyn, the afternoon",
+     "turn": 14,
+     "who": "Sergeant Kell",
+     "earlier": "Scene 1, T8 rebuke ('keep the sermon')",
+     "what_they_did": "When I pressed her about the Moll coin moment she said: 'You told me not to make a child carry the blame for an adult's crime... That I could write down that Moll had lied without deciding she'd done it for money.' The gist was right, but she made up softer words and the sting was gone. 'You were right to stop me.'",
+     "verdict": "partly"
+    },
+    {
+     "scene": "Caerwyn, the afternoon",
+     "turn": 15,
+     "who": "Sergeant Kell",
+     "earlier": "Scene 1, T11-12: the children were sent to the palace laundry",
+     "what_they_did": "'The children went ahead. I saw them turn toward the palace.'",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "Caerwyn, the afternoon",
+     "turn": 16,
+     "who": "Sergeant Kell",
+     "earlier": "Scene 1, T6: I told Cob, with Kell nearby, that I can't abide rats and once fainted over one in the palace cellars",
+     "what_they_did": "On hearing of the Drowned Rat: 'I remember the rat. I'll take the door first.' I had partly prompted her with 'You heard what I told Cob?'",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "The Drowned Rat (laundry gate)",
+     "turn": 30,
+     "who": "Bera, laundress",
+     "earlier": "Scene 1, T11: I promised the kids beds at the palace laundry under 'Mother Tansy' (a name I invented) and said my mother worked the coppers there",
+     "what_they_did": "'Fairweather,' she says, recognizing you... 'Mother Tansy's on the coppers. The children came in, yes\u2014Moll and Cob, both fed, both underfoot.' My invented NPC and the kids' arrival both carried across scenes.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "The Drowned Rat (laundry warm room)",
+     "turn": 31,
+     "who": "Moll",
+     "earlier": "Scene 1, T8/T12: I promised somewhere safe by dark and told them 'I will not drag you anywhere'",
+     "what_they_did": "Asked unprompted what I had promised, she said: 'You promised us somewhere safe to sleep, and food. And you said we could come here without being dragged.'",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "The Drowned Rat (laundry warm room)",
+     "turn": 31,
+     "who": "Cob",
+     "earlier": "Scene 1, T6: 'I will not let anyone call you a thief for it'",
+     "what_they_did": "'And you promised not to call me a thief over the paper.'",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "The Drowned Rat (laundry warm room)",
+     "turn": 32,
+     "who": "Cob and Kell",
+     "earlier": "Scene 1, T3: my first promise, not to tell the Watch where Cob sleeps (the loft)",
+     "what_they_did": "Cob: 'You promised you wouldn't tell the Watch where Cob sleeps. You said it in front of Sergeant Kell.' Kell: 'I remember.' Cob: 'You kept it, then? Not just wrote it down?' Precise, and it landed emotionally.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "The Drowned Rat (asking the regulars for help)",
+     "turn": 38,
+     "who": "Nan, Dilly, Arlo",
+     "earlier": "T18 I paid Kell's 4s6d door debt with interest; T19 I bought Dilly gin; T24 I paid Hobb's drinks",
+     "what_they_did": "I said 'You have seen my money twice today'. Nobody mentioned the payments, and Dilly and Nan declined to help. Later Nan lent me a lantern and Arlo walked me to the corner, so I was treated a little warmer, but nobody explicitly recalled the payments.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "The Drowned Rat (Heron wharf)",
+     "turn": 48,
+     "who": "Guardsman Tavin Rusk",
+     "earlier": "T35: at the palace arch I gave him my note for the King and asked his name so I could thank him later",
+     "what_they_did": "He arrived at the wharf with men: 'Inspector Fairweather. The Marshal sent us.' He acted on the note. At T49 I thanked him 'properly' as promised.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "The Drowned Rat / The wharves after dark",
+     "turn": 51,
+     "who": "Hobb",
+     "earlier": "T21: I gave him my handkerchief; T23: I had his mother moved to the laundry",
+     "what_they_did": "He was still holding the handkerchief scenes later, and asked 'She'll be all right there, sir?'",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "The wharves after dark",
+     "turn": 53,
+     "who": "Sergeant Kell",
+     "earlier": "T45-52: barge secured, ledger taken, Sallow escorted into the palace. The scene's own opening line says 'Rusk and the escort take Sallow onward'.",
+     "what_they_did": "'The barge is loading. The gentleman comes at midnight to see it off.' She corrected herself only after I challenged her ('I was speaking from what Hobb told us at the Rat'), then invented an unnamed 'gentleman' who 'still comes at midnight'.",
+     "verdict": "forgot"
+    },
+    {
+     "scene": "The wharves after dark",
+     "turn": 56,
+     "who": "Nan Quill",
+     "earlier": "T40: she lent me a lantern with 'Take that. Bring it back.'",
+     "what_they_did": "She saw me strike through the promise line, checked the shutter and said: 'Still works. I'll take that as an apology with unusually good handwriting.' The lantern was handled correctly, but she never said she had asked for it back, and calling it an 'apology' was a bit muddled.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "The Heron Warehouse",
+     "turn": 60,
+     "who": "Hobb",
+     "earlier": "T50-52: he walked into the palace with Rusk and me",
+     "what_they_did": "'Rusk took me to the palace. Then Master Sallow told them I was to come back...' He remembered the escort, but one turn earlier he had said 'Nobody sent me. I came back.' His memory was used to cover the retcon.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "The Heron Warehouse",
+     "turn": 61,
+     "who": "Sergeant Kell",
+     "earlier": "T22, evening at the Rat: 'His account is enough for an arrest.' Hobb confessed to me while she wrote.",
+     "what_they_did": "'This morning I said Hobb's account was enough to take him up... He confessed to me, in front of witnesses.' She took on my wrong 'this morning' and moved the confession to herself.",
+     "verdict": "false_memory"
+    },
+    {
+     "scene": "The Heron Warehouse",
+     "turn": 64,
+     "who": "Scrope, tally clerk",
+     "earlier": "T44-51: he refused to write, closed the ledger and handed it to the palace men",
+     "what_they_did": "He was back in the counting-box with 'the green ledger open under his hand' and showed no reaction to 'Good evening again, Mr Scrope. I did not expect to see you back up there tonight.'",
+     "verdict": "forgot"
+    }
+   ],
+   "pacing": "Front-loaded, then doubled at the end.\n\nScene 1 gave up the crime almost at once. On T2, after one Persuasion success for a barley sugar, Cob told the whole night: 'Mister Prout arguing with Silvertop and a big cove with his hand all bandaged. Then a thump, and a choking noise. Then the hoist creaked, though there weren't any sacks on it.' The physical clues on T4 only confirmed it. On T11 Kell offered, unasked, Sallow's full name and office ('Master Josiah Sallow... Purveyor's offices in the palace back courts') and Prout's visit to the watch house three days earlier. By T12 she had underlined 'murder by Master Josiah Sallow' and the scene closed as 'The case is made.' The middle stretch did make me work: two failed rolls turned Cob silent and had Moll lie for a paid crown, and I had to change approach (let Cob keep the boots, then appeal to Moll).\n\nScene 2 was a good short breather. Kell again handed me the next lead unprompted: 'Dock porters say big men with bandaged hands... drink at the Drowned Rat.'\n\nIn scene 3, Hobb's full murder confession, inside a crowded tavern with a Watch sergeant present, took a single DC 14 roll ('I only held the rope'). On T21 he also laid out the whole smuggling operation in one go.\n\nThe palace stretch dragged (T33-37). I was told the palace was closed three different ways ('closed to anyone without business today', 'You won't get to him before the eleventh bell', 'I can't carry you past this arch'). That was waiting rather than play.\n\nThe wharf showdown (T42-51) was perfectly paced: escalating risk, whistles, the payoff of the note. Then the scene cut as I walked in with 'your account ready', so the Marshal and King payoff was skipped. Scenes 4 and 5 replayed the climax I had already done.\n\nThe ending was rushed. Kell asks what to enter in the record and the session ends. There is no denouement, the King is never seen, and nothing returns to 'see he's done right by.'",
+   "characters": "**Most alive and consistent**\n- **Kell** was the strongest. She has a dry 'Noted.' tic, is rule-bound, and feels real guilt ('Prout came to the watch house three days ago... I told him to take it to the palace. I forgot him.'). She has a good backstory ('I was nineteen and tried to arrest a pickpocket in Nan's house. She put me through the door. Through it, not the doorway.'). She kept her word to Mrs Hobb even though it meant I went to the Heron alone ('I'll stay with them. Mrs Hobb asked me to stay on the stairs, and I gave my word.').\n- Kell's weaknesses: she sometimes works as a hint dispenser (the Drowned Rat lead, Sallow's office). She repeats herself: 'safe at the laundry' three times in scene 4, and 'someone arguing over a token... not who' three times. She was the mouthpiece for the scene-4 continuity break.\n- **Cob** is wonderful. He speaks of himself in the third person ('Cob checked', 'Cob don't know nothing'), and at the end of scene 1 says 'Bread pudding,' as though testing the reliability of the evidence. In scene 3 he asked 'You kept it, then? Not just wrote it down?'\n- **Moll** is sharp and consistent. She took my two crowns AND kept the evidence coin ('Two for one? You think I'm a dockside idiot?'), and she drove a hard bargain for Cob.\n- **Nan** has a real voice: 'my duck', a rules board, a cudgel called Manners, and 'Rule one is fond of you already.' Dilly ('my lamb') stays consistently cautious. Arlo's champion's chair and 'Don't make me your witness, Fairweather' are good.\n- **Hobb** was the emotional core. He went from 'I only held the rope' to stepping in front of me at the wharf with 'No... Not again.' Scene 5 then reused him as a plot device: back at the grille with a token to stage the replay.\n- Mrs Hobb was short and touching ('I'll tell him he's still my boy'). Tavin Rusk was a functional payoff. Saul and Duchess the dog were charming late additions.\n\n**Flat**\n- **Sallow** is a cane, lavender and stock threats ('You will regret making an enemy of the Purveyor's office'). In the finale he signs the incriminating ledger on cue, 'As you wish, Inspector', after a Watch sergeant has just announced 'Watch business' at the door. That makes him look foolish and exists only to set up 'caught in the act'.\n- **Scrope** was brave in scene 3, then silently reset in scene 5.\n- **The King**, the man who commissioned me, never appears.",
+   "scene_notes": [
+    {
+     "scene": "1. The granary yard (hanged-clerk)",
+     "notes": "The opening image is excellent: the pigeon 'perched on the beam as if supervising', Cob shouting 'Spin, you miserable clerk!' The clues are fair and well layered: loft door barred inside with the rope tied off there, a level cord mark under the noose burn, a swelling at the back of the skull, clean palms, Prout in stockings while Cob wears his boots, and the page stitched into the boot lining. Here I did my memorable things: barley-sugar trade (gift and kindness), my mother the palace laundress, my fear of rats, three written promises, two crowns and a penknife to Moll, and a sharp rebuke to Kell. Rolls created friction: Moll's paid lie on a failure was a highlight. Weak points: Cob told the whole night on T2, and Kell gave Sallow's identity and office on T11. Small slips: Kell told Moll 'You said he argued with Silvertop' when it was Cob who said it; the narration twice referred to my notebook as put away right after I had written in it; one roll was labelled 'to get Cob to name the men in the loft' when I had asked to see the boot. The scene ended with the children having 'gone on ahead' to the laundry, although I had asked them to walk with me."
+    },
+    {
+     "scene": "2. Caerwyn, the afternoon (market square)",
+     "notes": "A short, pleasant downtime scene. It added texture: the chalked bread price, the delegation banners ('They've all come to recognise one sovereign and argue about the wording'). My grain-and-goblins joke landed ('They steal a wagon and leave the bill with everyone else'). It was a good place to test Kell's memory, and the results were mixed (see memory checks). Kell offered the Drowned Rat lead herself, and the rat callback worked."
+    },
+    {
+     "scene": "3. The Drowned Rat (and everything after it)",
+     "notes": "This 36-turn scene sprawled across the tavern, the Shambles, the laundry, the palace arch, the Rat again and the Heron wharf, and the engine did not break it up. The tavern was the funniest set: 'Boots, apparently, are an official uniform', rule four ('no watch on duty'), and Nan's 'Still owe me four and six for the door.' Hobb's confession came too easily. The laundry check-in was the high point for memory: the children recalled all three promises. The palace-arch wait dragged. The wharf showdown was the best sequence of the session, because everything I had set up paid off. The scene closed as 'An ending of their own', so the engine seemed to know I had made my own climax. One backend error appeared in the output: '[memory.disclose.arlo] HTTP 502, retrying in 2s'."
+    },
+    {
+     "scene": "4. The wharves after dark",
+     "notes": "This scene opened on the pre-written premise as if scene 3 had not happened. Its first paragraph says Sallow is taken 'onward' inside the palace, and then Kell says 'The barge is loading. The gentleman comes at midnight to see it off.' When I challenged her, the GM patched it awkwardly: an unnamed 'gentleman' who 'still comes at midnight', 'He didn't give me a name.' The Marshal meeting I was walking into was skipped entirely. A saving grace: returning Nan's lantern and her 'apology with unusually good handwriting.'"
+    },
+    {
+     "scene": "5. The Heron Warehouse",
+     "notes": "This was a replay of the climax with retcons. The barge was 'swinging sacks down into the waiting barge' one turn after a porter said 'No sacks going aboard. Palace coats have the barge fast.' Hobb was back with a token (first 'Nobody sent me. I came back.', then 'Master Sallow told them I was to come back... They let me go with him'). Scrope and the ledger were back in the counting-box. Kell now needed to see Sallow commit a crime, so Sallow signed on cue and Kell arrested him for theft. The Crakes left when asked. The session ended on Kell's question without letting me answer. Saul and Duchess were nice; Duchess gave 'a single damp lick'."
+    }
+   ],
+   "stonewalled": [
+    {
+     "turn": 15,
+     "what": "When I wanted to check on the children at the palace, Kell said: 'the palace is closed to anyone without business today... checking on two children probably won't [qualify].' I am a palace inspector commissioned by the King."
+    },
+    {
+     "turn": 23,
+     "what": "Kell, about going to the King: 'The palace gates are shut to everyone but the Assembly party tonight. You won't get to him before the eleventh bell.'"
+    },
+    {
+     "turn": 34,
+     "what": "Guards at the laundry arch: 'I can't carry you past this arch. The King is at the delegations' dinner, and no one is admitted to him tonight.' There was no roll. The King never appears in the whole arc despite personally commissioning me."
+    },
+    {
+     "turn": 49,
+     "what": "Rusk: 'The Marshal sent us to secure the book and stop the barge. Not to arrest a royal officer. That would need the King's warrant.' This is reasonable on its own, but it was the third wall between me and royal authority."
+    },
+    {
+     "turn": 62,
+     "what": "'The wall offers no crack wide enough for two pairs of eyes.' A mild and fair block, though it felt like it was steering me toward the scripted walk-in."
+    }
+   ],
+   "railroaded": [
+    {
+     "turn": 12,
+     "what": "I asked the children to walk with me to the laundry. The scene transition said they had 'gone on ahead towards the palace laundry, clutching their own counsel', so I lost the chance to deliver them myself."
+    },
+    {
+     "turn": 52,
+     "what": "I was walking up to the Marshal with 'your account ready' and Sallow and Hobb in escort. The scene cut ('An ending of their own') and the next one began with 'The palace doors close behind you'. The Marshal/King payoff and my promise to tell the King that Hobb confessed freely were skipped."
+    },
+    {
+     "turn": 53,
+     "what": "Scene 4 ran its pre-written premise ('The barge is loading. The gentleman comes at midnight to see it off') even though I had already secured the barge and the ledger and walked Sallow into the palace."
+    },
+    {
+     "turn": 58,
+     "what": "Scene 5 reset the world to stage the planned climax. The barge was loading again, Hobb was back with a token, Scrope and the ledger were back in the counting-box, and Sallow had been freed off-screen ('They let me go with him')."
+    },
+    {
+     "turn": 64,
+     "what": "Sallow signed the incriminating ledger on cue ('As you wish, Inspector') in front of a Watch sergeant who had just announced herself, so that Kell could make the 'caught in the act' arrest."
+    },
+    {
+     "turn": 65,
+     "what": "The session ended mid-exchange, right after Kell asked 'What do you want entered in the record?', with no room for my answer or any wrap-up."
+    }
+   ],
+   "inconsistencies": [
+    {
+     "turn": 3,
+     "what": "Kell to Moll: 'You said he argued with Silvertop.' It was Cob who said it. Moll: 'I said nothing of the sort.'"
+    },
+    {
+     "turn": 6,
+     "what": "The roll was labelled 'Persuasion check to get Cob to name the men in the loft', but my action was asking to see what was crackling in his boot."
+    },
+    {
+     "turn": 7,
+     "what": "'Moll's gaze catches on the line you wrote for Cob' when I had just closed the notebook and put it away."
+    },
+    {
+     "turn": 9,
+     "what": "'Moll's eyes move from your empty hand to the notebook you've put away' in the same turn I wrote a line in it."
+    },
+    {
+     "turn": 34,
+     "what": "A backend error leaked into the player-facing output: '[memory.disclose.arlo] HTTP 502, retrying in 2s'. Arlo was not in the scene."
+    },
+    {
+     "turn": 42,
+     "what": "'Your hand barely reaches for the lantern before it vanishes into the dark behind the piles. You shutter it, set it down' is garbled. It also calls it 'Arlo's lantern', but it was Nan's, which I had taken back."
+    },
+    {
+     "turn": 53,
+     "what": "Scene 4 narration says 'Rusk and the escort take Sallow onward; Hobb stays with them', then Kell says 'The barge is loading. The gentleman comes at midnight to see it off.' The barge had been secured by the palace men at T49-51."
+    },
+    {
+     "turn": 54,
+     "what": "Kell invents a nameless 'gentleman' who 'still comes at midnight'. Hobb's only account (T21) was that 'The Master' (Sallow) comes at midnight."
+    },
+    {
+     "turn": 54,
+     "what": "Kell has just left the laundry and repeats 'safe at the laundry' three times across T54-55, as filler."
+    },
+    {
+     "turn": 58,
+     "what": "'The Heron's hoist creaks, swinging sacks down into the waiting barge' directly after the porter's 'No sacks going aboard. Palace coats have the barge fast.'"
+    },
+    {
+     "turn": 59,
+     "what": "Hobb is at the Heron grille with a token although he was escorted into the palace. On T59 he says 'Nobody sent me. I came back.' and on T60 'Master Sallow told them I was to come back... They let me go with him.'"
+    },
+    {
+     "turn": 61,
+     "what": "Kell: 'This morning I said Hobb's account was enough... He confessed to me.' She said it in the evening at the Rat, and he confessed to Odo."
+    },
+    {
+     "turn": 63,
+     "what": "Scrope is back in the counting-box with the green ledger, which the palace men took from him at T51. Sallow is free with the Crakes, after walking into the palace under escort at T52."
+    }
+   ],
+   "best_moment": "The Heron wharf standoff, T43-48. I stepped into the lantern light with my badge and spoke to the whole wharf, not to Sallow. I told the clerk in the counting-box, 'Wendell Prout was a clerk too... Think very carefully before you write anything tonight.' Scrope lowered his pen. Hobb spoke up unprompted ('He's telling it true, Mister Scrope. I held the clerk while the Master strangled him.'). When the Crake came for me, Hobb stepped in front of me: 'No. Not again.' Then whistles, and Guardsman Rusk, whose name I had asked at the laundry arch, rounds the corner: 'Inspector Fairweather. The Marshal sent us.' Every beat paid off something I had done earlier (the handkerchief, the kindness to Hobb, the note to the King). Close second, T32: Cob recalling my first promise and asking, 'You kept it, then? Not just wrote it down?'",
+   "worst_moment": "The T52-58 scene transitions. I had resolved the climax: barge held, ledger taken from Scrope, Sallow walked into the palace under escort. I was on the palace steps with my account ready. The scene cut, the Marshal meeting vanished, and Kell opened the next scene with 'The barge is loading. The gentleman comes at midnight to see it off.' Two scenes later the barge was loading again, Hobb was back at the grille with a token, Scrope and the ledger were back in the counting-box, and Sallow was free. All of it was retconned so the pre-written 'caught in the act' finale could play. It made my earlier choices feel like they had not counted.",
+   "ratings": {
+    "fun": 4,
+    "story": 3,
+    "characters": 4,
+    "memory": 3,
+    "pacing": 3,
+    "humour": 4,
+    "consistency": 2,
+    "responsiveness": 4
+   },
+   "would_keep_playing": true,
+   "other_notes": "**Biggest structural finding:** the engine labelled scene 3 'An ending of their own', so it recognised I had made my own climax, yet it still ran the next two pre-planned scenes on their original premises. Either the later scene openings need to be rewritten from the actual world state, or a scene whose climax the player has already resolved should be skipped or turned into a denouement.\n\n**Character memory vs world memory:** NPC memory of personal interactions was good to very good. The children recalled all three promises, Rusk acted on the note, and Hobb kept the handkerchief. Two caveats. Kell made up softer wording for my rebuke, and later took on my wrong 'this morning' as fact. And no NPC across scenes knew anything they could not have known; the only 'false knowledge' was the scene engine's own reset of world state.\n\n**Rolls:** six rolls in 65 turns, all fair. Failures led somewhere (Moll's lie). The one label mismatch on T6 suggests roll purposes are being reused from a fixed list.\n\n**Pacing / length:** the brief said about 40 turns; it took 65. Scene 3 alone ran 36 turns across six locations without a break.\n\n**Missing payoffs:** the King's commission (the tea detail, 'see he's done right by') never paid off. Mother Tansy never appeared on stage. No scene ever let me tell the King about Hobb as I had promised. A short epilogue would have fixed a lot.\n\n**Narration naming NPCs early:** names such as Moll, Arlo Quarry and Hobb appear in narration before anyone introduces them. This is minor, but it flattens introductions.\n\n**Humour:** gently Pratchett-ish and well judged:\n- 'Boots, apparently, are an official uniform.'\n- 'Kell takes the wet planks with the expression of someone adding a complaint to an already well-kept list.'\n- 'Kettle's on,' she says, as if that resolves the matter of palaces.\n- 'an apology with unusually good handwriting.'\n\n**Leaked error:** the '[memory.disclose.arlo] HTTP 502' line should never reach player output."
+  }
+ },
+ {
+  "run": {
+   "session": "arc1-chancer",
+   "character": "Pip Gallowglass: a cheerful chancer and part-time notary who is never quite where they're supposed to be",
+   "persona": "A Pratchett-style chancer: silly but genuinely engaged with the story. You make outrageous claims about your own past, strike deals with everyone, pay with things of dubious value, and commit to your bits with a straight face. You want to see the case solved, ideally at a profit."
+  },
+  "report": {
+   "session": "arc1-chancer",
+   "turns": 37,
+   "scenes_played": [
+    "1. The granary yard (opening; transcript marks it 'The case is made'): turns 1-12",
+    "2. Caerwyn, the afternoon (downtime, market square to the river stairs): turns 13-15",
+    "3. The Drowned Rat ('What Big Hobb knows'): turns 16-27",
+    "4. The wharves after dark (downtime opener, but I played it as the infiltration inside the Heron): turns 28-33",
+    "5. The Heron Warehouse ('Caught in the act'): turns 34-37"
+   ],
+   "ended": "After turn 37 the game printed '\u2014 The session is over. \u2014'. It came right after Sergeant Kell stepped out on her own and arrested Sallow at the Heron ('I arrest you for theft from the Crown, committed in my sight.' ... 'Investigator. The book, please.'). There was no epilogue and no King scene. Hobb's fate, Cob's pie debt and my fee were never resolved, even though Kell had said at the end of scene 1: 'You'll have to carry the case to the King, investigator.' No command errors in the whole session. Every turn returned in roughly 5-20 seconds.",
+   "summary": "The first three scenes were very good. The opening image lands (Prout turning on the hoist, a pigeon 'as if supervising', Cob yelling 'Spin, you dead old turnip!'). The humour is dry and Pratchett-adjacent. Kell, Cob, Nan Quill and Hobb feel like people, and NPCs remembered my gifts, promises and tall tales within and across scenes: Kell recalled the 'Treaty' pencil and the Pseudopolis hanging story, Cob quoted my promise back word for word, and Hobb held me to standing with him 'before the King' two scenes later. The big weakness is world-state continuity at scene boundaries. Twice the next scene's prewritten opener ignored what I had just done. First it put me back on the river stairs after I had already gone into the Heron, and the GM broke character to say 'I misplaced everyone.' Then it reset the warehouse to before the ledger theft, so the clerk Scrope and Duchess the dog each appeared in two places at once. Pacing was quick to rushed. Most secrets fell to a single roll: the villain was named by turn 9 of 37, and Hobb confessed and laid out the whole Heron plan in two turns. The finale took 4 turns, and the climax went to an NPC: Kell made the arrest after I had proposed slipping away quietly, and then the session simply ended.",
+   "memory_checks": [
+    {
+     "scene": "1 Granary yard",
+     "turn": 5,
+     "who": "Cob",
+     "earlier": "Nothing. I had promised secrecy and pies (turn 2), never that nobody would take his boots.",
+     "what_they_did": "\"You said nobody takes 'em.\" (said to me while guarding Prout's boots)",
+     "verdict": "false_memory"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 6,
+     "who": "Cob (and Kell)",
+     "earlier": "Turn 2: I promised 'on my notarial seal' (a lump of wax) that nobody would learn he told, plus a hot pork pie every day for a week. I tested it by asking 'What did I promise you earlier?'",
+     "what_they_did": "Cob: \"You said nobody'd learn Cob was the one who told. And pork pies. Every day for a week.\" Kell: \"Not exactly a contract drafted by the Royal Chancery, but I heard it.\"",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "2 Caerwyn market (downtime)",
+     "turn": 13,
+     "who": "Kell",
+     "earlier": "Scene 1, turn 9: I gave her a chewed pencil that 'signed the Treaty of Two Rivers. Well, it was in the room.'",
+     "what_they_did": "\"The pencil's holding. It has not signed anything historic. I've been keeping it away from the palace.\" (I did prompt with 'Treaty pencil', but she supplied the joke herself.)",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "2 Caerwyn market (downtime)",
+     "turn": 13,
+     "who": "Kell",
+     "earlier": "Scene 1, turn 2: the pie promise to Cob. I only said the pie was 'for a certain young gentleman in large boots.'",
+     "what_they_did": "\"Cob will have his. That matters more.\"",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "2 Caerwyn market (downtime)",
+     "turn": 14,
+     "who": "Kell",
+     "earlier": "Scene 1, turn 3: I claimed I was hanged in Pseudopolis for forging a signature that turned out to be my own, and the rope snapped because it was cheap hemp. She said nothing at the time.",
+     "what_they_did": "\"I heard the hanging story. I also heard the part about the rope snapping because it was cheap hemp. I decided not to ask whether you considered that a professional endorsement.\"",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 16,
+     "who": "Kell",
+     "earlier": "Scene 1: my legal claims ('practically law', 'Notarial Code, section nine', 'notarial privilege')",
+     "what_they_did": "\"That is not how I remember you describing the law.\" It is a vague callback with nothing specific in it.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 17,
+     "who": "Kell",
+     "earlier": "Scene 2, turn 13: she said of Cob's pie 'Cob will have his. That matters more.' In the Rat I paid for two ales with that same pie and then pointed it out ('Sergeant. That was Cob's pie.').",
+     "what_they_did": "Kell didn't react at all. Only Nan answered: \"Tomorrow's pies are tomorrow's business, my duck.\" That was a missed beat for a character who had just said the pie mattered.",
+     "verdict": "forgot"
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 19,
+     "who": "Kell",
+     "earlier": "In the Rat I had mentioned the docker's knot, the cord and the silver cane. I never mentioned the loft.",
+     "what_they_did": "\"Investigator. You've just named the loft, the knot, and the cane in front of the room.\"",
+     "verdict": "false_memory"
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 21,
+     "who": "Hobb / Kell / narration (Cob's anonymity)",
+     "earlier": "Scene 1, turns 2 and 10: I promised Cob nobody would learn he was the witness and dictated 'name withheld under notarial privilege'.",
+     "what_they_did": "Kell never named Cob in the Rat. When I asked whether the Master knew anyone else was in the loft, Hobb said: \"Just me, the Master, and the clerk. There wasn't anyone else up there.\" The promise held, though it was never tested at a payoff.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 23,
+     "who": "Hobb",
+     "earlier": "Turns 21-22: I offered to stand beside him before the King and talk, and said plainly I couldn't promise a pardon.",
+     "what_they_did": "\"You'll stand by me tomorrow?\" he asks. Not for a pardon, you've said. Just to talk.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "4 Wharves after dark",
+     "turn": 28,
+     "who": "GM / scene opener",
+     "earlier": "End of scene 3 (turn 27): Hobb and I were let in through the Heron's river door. Duchess barked, and Kell stayed in the shadow of the plank walk.",
+     "what_they_did": "Opener: \"You're on the river stairs, the Drowned Rat's door shut behind you. Sergeant Kell stays at your side ... Hobb has gone on ahead into the Heron with you, while Kell waits in the plank-walk shadow.\" When I objected: \"You're right\u2014you were already inside with Hobb ... I misplaced everyone.\"",
+     "verdict": "forgot"
+    },
+    {
+     "scene": "4 Wharves after dark (inside the Heron)",
+     "turn": 33,
+     "who": "Kell",
+     "earlier": "Scene 3, turn 26: my three-note 'Pseudopolis Notaries' Hymn' whistle signal, after which Hobb muttered \"That's not the hymn, sir.\"",
+     "what_they_did": "When I whistled it again as the agreed signal: \"That still isn't the hymn, investigator.\"",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "5 Heron Warehouse",
+     "turn": 34,
+     "who": "GM / scene opener",
+     "earlier": "Scene 4, turn 33: I left by the river door with the ledger under my coat, Scrope the clerk, Hobb, and Duchess the dog, who 'defected for pie crust'.",
+     "what_they_did": "Opener: a lamp burns in the counting-box, 'a vast brindled dog snores across the threshold', the forewoman calls for hands. After I corrected it, Kell acknowledged the ledger, but in the same reply 'Duchess rises with a low growl' at the land door beside Sallow.",
+     "verdict": "forgot"
+    },
+    {
+     "scene": "5 Heron Warehouse",
+     "turn": 35,
+     "who": "Hobb",
+     "earlier": "Scene 3: my promise to stand with him before the King if he testified.",
+     "what_they_did": "\"You said you'd stand with me before the King, sir. If I say what I know. I did say it, at the Rat. I'll swear to it.\"",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "5 Heron Warehouse",
+     "turn": 35,
+     "who": "GM / narration (Scrope)",
+     "earlier": "Scene 4, turn 33: Scrope came out with us and the green ledger was under my coat.",
+     "what_they_did": "\"From the counting-box stair, Scrope appears with the green ledger pressed to his chest. Sallow turns toward him. 'The book, Clerk.'\" It was quietly fixed the next turn after an out-of-character note ('Sallow's call goes unanswered').",
+     "verdict": "forgot"
+    },
+    {
+     "scene": "5 Heron Warehouse",
+     "turn": 36,
+     "who": "Kell",
+     "earlier": "Turn 34: the narration showed Sallow entering by the land door, in full view from our hiding place.",
+     "what_they_did": "Turn 35: \"I haven't seen him arrive.\" Turn 36: \"I have the loading. Not his arrival. Not yet.\"",
+     "verdict": "forgot"
+    }
+   ],
+   "pacing": "Brisk throughout and rushed at the end. Secrets fell fast. On turn 2 Cob named 'Silvertop ... Comes with the Purveyor's wagons. Opens the big doors with his own key.' On turn 7 the boot page showed 'lost to goblins', countersigned 'J. Sallow, for the Royal Purveyor'. On turn 8 Moll confessed the bribe. On turn 9 Kell gave the full name and post ('Master Josiah Sallow. Under-purveyor for grain.'). By turn 11 the body had given up cord marks, a skull bruise, clean palms and a docker's knot. Moll's lie lasted 4 turns, even though I failed the Insight roll against her (the failure still produced a clue, the boot crackle). In the Rat, one Persuasion success got Hobb's full confession (turn 20). The next turn (22) was a complete dossier: 'eleventh bell ... The Master comes at midnight, with two men called the Crakes ... brass heron token at the grille ... a watchman at the land door, and a clerk up in the counting-box with the book. The real one.' It was earned, but it was an info dump. Scrope folded in two turns. Kell keeps the case moving by hinting, which removes some of the discovery: 'If you're asking what's inside one, that's another matter.', 'The body may.', 'The bandaged man may have left us something too.', 'The river stairs are that way', 'And the docks are still there, investigator.' Repetition drags in places. Kell gives the 'Prout came to me three days ago ... I sent him to the palace' beat three times (turns 7, 9, 14; the third adds 'I forgot him until this morning', which does land). 'It's us' / 'No extra boots' comes twice in a row (24, 25), and so does Hobb's 'I'll keep the gang off you as long as I can' (23, 25). The downtime scene (turns 13-15) was well judged: short, character-driven, and it ended when I walked down the stairs. The finale was 4 turns. Sallow appears, the re-sacking is seen, and Kell arrests him in one paragraph. 'The Crakes start forward', then they are never mentioned again, and the session ends. Nothing I had earned was withheld; the opposite was the problem, with almost no friction anywhere.",
+   "characters": "Sergeant Agnes Kell is the strongest character and is consistent across all five scenes: procedural, deadpan, 'I write down what happened. If the Captain dislikes it, he can dislike it accurately.', 'Notary Gallowglass. That was almost a proper investigation.', 'I'll have to enter this as evidence of absolution.', 'Yesterday's Assembly notices. At least one of us has been properly documented.' She keeps 'what I can swear to' to the end ('It'll do as corroboration ... Not as a substitute for what I saw'). Two weaknesses. She often works as the GM's hint dispenser ('do you want to ask her about the payment\u2014or follow another thread?'), and in the finale she took the climax: she arrested Sallow after I had proposed leaving quietly. Cob is vivid: third-person 'Cob sleeps in the loft', 'Those are Cob's boots.', 'He sewed it in his boot. Like a sailor.' He guards the boots consistently. Moll is sharp ('I've had better offers from a cabbage.', 'No button? Tragic. I'd have bought a decent button with it.'). But she gave me 'a brief, guarded nod' at the end of scene 1 even though I'd snubbed her twice, and she never came back, so my slight was never tested. Nan Quill has 'my duck', the rules board and a cudgel named Manners; consistent and fun, though 'Rule six' gets hammered. Arlo picked up my bit ('View's not bad from here, cousin.'). Dilly had one perfect line ('You used to give Cob the end of your pie, my lamb. Funny thing, a hand that's nothing.'). Hobb is sympathetic and consistent from the Rat to the Heron, and he remembered my promise. Scrope is human in two lines ('I've a wife in South Ward. I'm not dying over a book.'). Sallow is the flattest: he exists only in the last 4 turns, with good but thin lines ('forty remaining is not a count. It is an invitation to finish.'), and I never got to confront him. Duchess the dog is charming ('swallows it with the solemnity of a magistrate accepting a document') but ends up in two places at once.",
+   "scene_notes": [
+    {
+     "scene": "1. The granary yard (turns 1-12)",
+     "notes": "A great opening tableau, and the clue design is good: Prout's boots on Cob's feet with the page sewn into the lining, the wheat-ear coin, the docker's knot. It responded well to my bits: the 'Royal Commemorative Button' worked on Cob, and the notarized IOU was mocked by Moll. Too easy, though. Every probe paid off, and the villain had a name, a title and a motive by turn 9. Kell steered nearly every turn. The scene ended on a failed loft search plus Kell's wrap-up, not by my choice, but the wrap-up line was good."
+    },
+    {
+     "scene": "2. Caerwyn, the afternoon (downtime, turns 13-15)",
+     "notes": "The best downtime beat. I bought pies with a 'signed character reference' (pieman: 'provided it says I'm punctual. My wife reads these.'). Kell recalled the pencil and the hanging story. Her motive and guilt came out naturally. My 'notarized absolution' (wax pressed on the back of her hand) got a perfect deadpan reply. Three turns was the right length, and it ended naturally on the river stairs."
+    },
+    {
+     "scene": "3. The Drowned Rat (turns 16-27)",
+     "notes": "The best-built scene. The rules board, the 'Are you on duty?' rule, and the champion's-chair custom (three refusals and the chair changes hands) gave me a lever to make Hobb show his hand. I counted myself as the third refusal and claimed the chair, and the game played along. Then Hobb cracked quickly and info-dumped the whole Heron setup. Time jumped from dusk to 'eleventh bell's near' in a couple of turns. The scene ended after Hobb and I were already inside the Heron, which set up the reset."
+    },
+    {
+     "scene": "4. The wharves after dark (downtime, turns 28-33)",
+     "notes": "The opener contradicted the previous scene, and even itself ('Kell stays at your side ... Kell waits in the plank-walk shadow outside'). When I pushed back, the GM broke character: 'I misplaced everyone.' After that, the counting-box infiltration was tense and responsive. My huge signature in the ledger became leverage on Scrope ('My name is in your book now ... So you're already in it with me'), and the game gave me a Persuasion roll for it. A planned 'downtime' scene became the main action because I had already moved past it."
+    },
+    {
+     "scene": "5. The Heron Warehouse (turns 34-37)",
+     "notes": "The opener reset the warehouse to before the ledger theft (lamp in the counting-box, dog at the door, short of hands), and a turn later Scrope 'appears with the green ledger' to act out what was evidently a planned 'The book, Clerk.' beat. Fixed only after an out-of-character note. Kell repeated 'I haven't seen him arrive' after he had walked in in plain view. The re-sacking reveal (wheat-ear stamp under the heron mark) was a nice visual. Then Kell arrested Sallow by herself, the Crakes threat evaporated, and the session ended. The climax was rushed and handed to an NPC."
+    }
+   ],
+   "stonewalled": [
+    {
+     "turn": 10,
+     "what": "I asked twice (turns 9 and 10) where Sallow could be found ('Purveyor's office? Or does he lunch?'). I never got an answer. Kell redirected to 'What do you want written down?' and 'The body may.' Mild, and probably meant to push me to the docks."
+    },
+    {
+     "turn": 16,
+     "what": "I asked to read the whole rules board. Rules only came out one at a time as Nan cited them (one, three, four, six). Minor, and arguably a good drip, but the full board never showed up when I read it."
+    }
+   ],
+   "railroaded": [
+    {
+     "turn": 28,
+     "what": "The scene 4 opener put me back on the river stairs with Kell at my side, although scene 3 had ended with me inside the Heron. I had to argue my way back to where I was."
+    },
+    {
+     "turn": 34,
+     "what": "The scene 5 opener reset the Heron to before the infiltration (book in the lit counting-box, dog asleep at the door, gang short of hands), ignoring that I had already walked out with the ledger, the clerk, Hobb and the dog."
+    },
+    {
+     "turn": 35,
+     "what": "Scrope reappeared on the counting-box stair with the ledger so Sallow could say 'The book, Clerk.' The scene was playing its planned beat even though the player had already taken both."
+    },
+    {
+     "turn": 37,
+     "what": "My stated plan was 'Now we leave, quietly, and take all this to the palace before he notices he's short one clerk.' Instead Kell stepped out and arrested Sallow, and the session ended. I had no part in the climax and never got the King scene that scene 1 had promised."
+    }
+   ],
+   "inconsistencies": [
+    {
+     "turn": 3,
+     "what": "Kell called Cob's 'She didn't see him jump' 'a contradiction', but Moll had not yet claimed in front of me that she saw it (she only does so in turn 4). It rested on testimony given off-screen to the Captain."
+    },
+    {
+     "turn": 5,
+     "what": "Cob: 'You said nobody takes 'em.' I never said anything about his boots."
+    },
+    {
+     "turn": 9,
+     "what": "Kell repeated almost word for word her turn-7 line 'Prout came to me three days ago asking how to report false entries ... I sent him to the palace' (and a third time in turn 14) as if it were new information."
+    },
+    {
+     "turn": 19,
+     "what": "Kell: 'You've just named the loft, the knot, and the cane in front of the room.' I never mentioned the loft in the Rat."
+    },
+    {
+     "turn": 28,
+     "what": "The scene opener contradicted the previous scene's ending and itself (Kell both 'at your side' on the river stairs and 'in the plank-walk shadow'). The GM then broke character: 'You're right ... I misplaced everyone.'"
+    },
+    {
+     "turn": 34,
+     "what": "The opener has Kell 'in her borrowed coat' (she wore a rain cape), a dog snoring at the land door, and the counting-box lit and occupied, all after I'd left with the clerk, the book and Duchess."
+    },
+    {
+     "turn": 34,
+     "what": "Duchess 'defected' and came out with us (turn 33), yet 'Duchess rises with a low growl' at the land door when Sallow enters, and growls at his ankles at the end."
+    },
+    {
+     "turn": 35,
+     "what": "Scrope appears inside on the counting-box stair 'with the green ledger pressed to his chest', while both he and the ledger are outside with me."
+    },
+    {
+     "turn": 35,
+     "what": "Kell says 'I haven't seen him arrive' (and in turn 36, 'Not his arrival. Not yet.') right after the narration showed Sallow entering by the land door in view of our hiding place."
+    },
+    {
+     "turn": 37,
+     "what": "Kell 'steps out onto the plank walk' and arrests Sallow, who is inside the warehouse. 'The Crakes start forward', then they vanish from the narration and the arrest completes 'by the book' unopposed."
+    },
+    {
+     "turn": 37,
+     "what": "Scene 1's setup ('You'll have to carry the case to the King, investigator') and Hobb's 'before the King tomorrow' thread were never paid off."
+    },
+    {
+     "turn": 18,
+     "what": "The narration used NPC names before my character could know them: Moll (turn 1), Nan and Manners (16), Dilly (18), Saul (34), Hep (35, 'Hep barks a number' with no introduction)."
+    }
+   ],
+   "best_moment": "The running hymn joke. At the Heron's river door I whistled three dreadful notes as Kell's signal, 'the Pseudopolis Notaries' Hymn', and Hobb murmured, 'That's not the hymn, sir.' A scene later, escaping with the ledger, I whistled it again, and Kell, from the shadows: 'That still isn't the hymn, investigator.' It was a callback, a character beat and a punchline all at once. A close second: the game treated my oversized signature in Scrope's ledger as real leverage ('his name, and your threat, are not easily put back'). The Drowned Rat's champion's-chair custom, used to force Hobb to show his bandaged hand, was also excellent.",
+   "worst_moment": "Turns 34-35. I had already left the Heron with the ledger under my coat, the clerk Scrope, Hobb, and the dog. The finale scene reset all of it (lamp lit in the counting-box, dog asleep at the door), then had 'Scrope appear with the green ledger pressed to his chest' so Sallow could say 'The book, Clerk.' It took an out-of-character note to fix, and two turns later Kell made the arrest herself and the session ended with '\u2014 The session is over. \u2014'. No King, no confrontation for my character, no payoff for any promise.",
+   "ratings": {
+    "fun": 4,
+    "story": 3,
+    "characters": 4,
+    "memory": 3,
+    "pacing": 2,
+    "humour": 4,
+    "consistency": 2,
+    "responsiveness": 4
+   },
+   "would_keep_playing": true,
+   "other_notes": "Scene-1 memorable acts I set up for later tests:\n- gift: two 'Royal Commemorative Buttons' to Cob\n- promise: Cob's anonymity plus a pork pie a day for a week\n- slight: 'Miss Sweary', 'kettle with ideas', and 'no button' twice to Moll\n- tall tale: hanged in Pseudopolis, the rope snapped\n- gift: a chewed 'Treaty of Two Rivers' pencil to Kell\n- offer: a notarized IOU to Moll, which she refused\n\nCob and Moll never reappeared, so the pie debt (I spent Cob's pie on ale in the Rat and rolled the debt over), his anonymity and Moll's grudge were never tested at a payoff. That is the biggest gap for the memory goal. The arc never brought scene-1 characters back.\n\nNPC memory of my words was good. World-state memory across scene boundaries was poor. It looks like each new scene's opener is prewritten and doesn't account for players who move ahead of it. My persona's momentum (going straight into the Heron) ran ahead of the planned 'wharves after dark' downtime scene twice.\n\nRolls: 6 in 37 turns (5 Persuasion, 1 Insight), DCs 12-14, 5 successes. The one failure still produced a clue. The roll lines are clear ('Persuasion check to make the clerk believe that surrendering the book is safer than keeping it: 10 + 4 = 14 vs DC 13: success').\n\nThe world honoured my dubious payments in funny ways: the pieman took a character reference; Nan took a pie ('One pie's worth two small ales. No change.'); Moll scorned the IOU. My profit motive never came up: no fee, reward or King's purse.\n\nThe GM's one break in character ('I misplaced everyone') was graceful but broke immersion. Out-of-character corrections worked: the GM accepted them and adjusted, though only partly (Duchess stayed duplicated).\n\nScene names differ between the live output and the transcript: live shows '\u2014 Next scene: The Drowned Rat \u2014', the transcript shows '\u2014 Scene ends: What Big Hobb knows \u2014'. Both downtime scenes end as 'Onward' in the transcript.\n\nMy saved copy of the transcript: /tmp/claude-1000/-home-jon-git-kingmaker/35fbf16c-f75a-4d9b-b39e-d31232946d70/scratchpad/arc1-chancer-transcript.md"
+  }
+ },
+ {
+  "run": {
+   "session": "arc1-rough",
+   "character": "Brannoc Hale: an ex-soldier, blunt, impatient and fond of the direct approach",
+   "persona": "A rough, impatient investigator. You cut corners, lean on people, make threats, and occasionally lose your temper (you'll shove someone or cuff a cheeky kid). You make a few enemies, then later need help from some of those same people and have to deal with how they feel about you. You do want the murderer caught."
+  },
+  "report": {
+   "session": "arc1-rough (hanged-clerk, played as Brannoc Hale, a rough ex-soldier investigator)",
+   "turns": 35,
+   "scenes_played": [
+    "1. Granary yard: the hanged clerk (T1-13, ended 'The case is made')",
+    "2. Caerwyn market square, afternoon: downtime (T14, ended 'Onward')",
+    "3. The Drowned Rat (T15-23, ended 'What Big Hobb knows')",
+    "4. The wharves after dark: downtime (T24-28, ended 'Onward')",
+    "5. The Heron Warehouse (T29-35, ended 'Caught in the act', then 'The session is over')"
+   ],
+   "ended": "At turn 35. Kell arrested Sallow at the Heron for theft from the Crown and Prout's murder. Sallow handed me his cane (\"Investigator, you have no idea what you've done\") and the output said \"\u2014 The session is over. \u2014\". A 36th command got back \"\u2014 This scene has ended. \u2014\" (exit 0). There was no scene with the King and no wrap-up. Several things were left open: whether Moll got the papers to the palace, my promise to stand up for Hobb before the King, the Watch Captain Bunce, and Cob.",
+   "summary": "This was a tight, coherent five-scene murder mystery, and every clue led to the next one: the ledger page sewn into the dead man's boots, the wheat-ear crown Sallow paid Moll with, a suicide order dated before the death, the rope-burned palm, the brass heron token, and the true book. Memory was the strongest area. Every time I tested whether people remembered my rough behaviour, they did, within scenes and across them, and I caught no false memories. The pewter Grey Company badge I gave Hobb as surety was tracked across three scenes and paid off at the climax. Pacing was the weakest area. Secrets came too easily: Big Hobb gave a full murder confession on the first Intimidation roll, then later recited the whole heist plan in one speech. The climax resolved in three turns, and the session stopped dead at the arrest at 35 turns, with no payoff for the promises the game had encouraged me to make. Sergeant Kell, Big Hobb, Nan Quill and Scrope felt alive. Cob vanished after scene 1, and Sallow was thin.",
+   "memory_checks": [
+    {
+     "scene": "1 Granary yard",
+     "turn": 3,
+     "who": "Moll",
+     "earlier": "T1: I cuffed Cob round the ear and threatened to hang him off the beam",
+     "what_they_did": "Refused my penny and promise: \"You reckon I fetch porters for a promise from a man who just hit a child?\"",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 11,
+     "who": "Moll",
+     "earlier": "T2/T9: I told Kell about 11 years in the Duke's Grey Company, then told Moll to 'ask anyone in the Grey Company' that I keep my promises",
+     "what_they_did": "Used it as a nickname: \"Don't make me regret letting you talk, Grey Company.\"",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "2 Market square (downtime)",
+     "turn": 14,
+     "who": "Sgt Agnes Kell",
+     "earlier": "Scene 1: I threatened the doors and backed off, struck Cob, found the evidence, and she signed the murder finding",
+     "what_they_did": "Asked what she had written about me: \"I wrote that you threatened to take the granary doors off their hinges, then chose not to. And that you struck Cob before I stepped between you... I also wrote that you brought me evidence, and I signed the murder finding.\" This was accurate.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 21,
+     "who": "Big Hobb",
+     "earlier": "T17: I told him he'd hang off the same beam as Sallow unless he testified",
+     "what_they_did": "\"You said I'd hang. Now you say I might not. I don't know which to believe, sir.\"",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 22,
+     "who": "Big Hobb",
+     "earlier": "T21: I offered to stand up for him in front of the King",
+     "what_they_did": "Held me to it before agreeing to go: \"You said you'd stand up for me. I need to know you mean it.\" This is what led to the badge gift.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "4 Wharves (downtime)",
+     "turn": 24,
+     "who": "Sgt Agnes Kell",
+     "earlier": "Scene 1: I cuffed Cob and yanked his boot off",
+     "what_they_did": "When I proposed using the kids as runners: \"After the way you handled Cob, I wouldn't assume she'll come when called.\"",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "4 Wharves (downtime)",
+     "turn": 26,
+     "who": "Moll",
+     "earlier": "Scene 1, T1: I hit Cob, not Moll. I called myself 'the one who hit you'.",
+     "what_they_did": "Corrected me accurately: \"You hit Cob. And now you trust him?\" She stayed on the wall out of reach and was still afraid of Silvertop.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "4 Wharves (downtime)",
+     "turn": 27,
+     "who": "Moll",
+     "earlier": "T3: she refused my silver penny ('Keep your two pennies') because I'd hit a child",
+     "what_they_did": "Took the papers and the two pennies, but said: \"I'll see what I can do. Not for the money.\" This fits her T3 stance, though she didn't refer back to it.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "4 Wharves (downtime)",
+     "turn": 28,
+     "who": "Big Hobb and Kell",
+     "earlier": "T15 in the Rat: I passed Kell off as my 'cousin from the country', and she said 'I'm also not your cousin'",
+     "what_they_did": "Hobb: \"Your cousin, is she?\" Kell: \"Not by any honest reckoning.\" I had reused the cousin line in this turn, so it was partly prompted, but she stayed consistent.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "4 Wharves / 5 Heron",
+     "turn": 29,
+     "who": "Narrator, Kell and Hobb",
+     "earlier": "T23: I gave Hobb my pewter grey-wolf Grey Company badge as surety for my word",
+     "what_they_did": "The badge was tracked across scenes. In the T23 scene intro: \"Kell glances at Hobb's closed fist around your badge.\" At T28: \"your badge is somewhere inside that same hand.\" At T29: \"the pewter badge tucked in his fist is a promise he is still trying to believe.\"",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "5 Heron",
+     "turn": 34,
+     "who": "Big Hobb",
+     "earlier": "T23: the badge and my deal ('You play straight, I'll stand up in front of the King')",
+     "what_they_did": "When I shouted \"You've got my wolf in your fist. Your choice\", he opened his hand: \"Your wolf badge is there. 'I'm done, Master,' he says.\" He acted on the promise.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "5 Heron",
+     "turn": 35,
+     "who": "Sgt Agnes Kell",
+     "earlier": "Scene 1: the order dated before the death. Scene 3: Hobb's confession naming the cane.",
+     "what_they_did": "Charged Sallow with \"the murder of Wendell Prout: Hobb's confession, your cane, and the false suicide order.\" The evidence chain from earlier scenes was correct.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "All scenes",
+     "turn": 23,
+     "who": "Sgt Agnes Kell",
+     "earlier": "T2: I told her about Harrowmere and cutting down nine deserters the provost hanged off a mill beam, as my reason for knowing hanged men",
+     "what_they_did": "She never acknowledged it, not even during the body exam, where it was the obvious hook. When I mentioned wearing the badge for eleven years at T23 she didn't react. Moll did pick up 'Grey Company'. I didn't test Kell on it directly.",
+     "verdict": "partly"
+    }
+   ],
+   "pacing": "The game never dragged, and the scene lengths suited the arc (13 / 1 / 9 / 5 / 7 turns). The main problem was secrets surrendering too fast, plus a rushed ending.\n\n- Scene 1 dropped about one major clue per turn from T6 to T13: the ledger page in the boot (T6), Kell admitting Prout had asked her how to report false entries (T7), Cob's eyewitness account (T8), Moll's bribe and a description of the big man (T10), the body findings (T11), and the order's date (T12). Each clue was tied to something I did, so it felt earned and brisk. But Cob gave a full eyewitness account (\"Silvertop came last night. With the big cove and his bad hand... Then there was a thump, and a choking noise. The hoist creaked.\") after one low-voiced push from the man who had just cuffed him and pulled off his boot. That was too easy for a terrified child. Moll, who hated me, gave up the bribe on a single ask.\n- Scene 3 had the biggest giveaway. On the second turn, one Intimidation roll (23 vs DC 15) produced a complete murder confession: \"Master hit him with his cane, then put a cord round his neck. I held his arms... Then I put the rope on him and hauled him up on the sack hoist.\" That solved the murder at T16 of 35. At T20 Hobb volunteered the whole smuggling operation (\"wheat-ear sacks... heron sacks... Saltmere barge\"). At T23 he delivered a classic GM briefing in a character's voice: \"He comes at the midnight bell, with the Crakes. The river door's on the plank walk; show the brass heron and they draw the bolt. Saul keeps the land door with his dog. The true book's in the counting-box, with Scrope. Tonight they're loading the King's grain onto a Saltmere barge.\" That is a clear info dump.\n- The locked-room setup from the opening (\"loft door is barred from inside\") was resolved in one flat line at T17 (\"He had the key\") with no payoff.\n- In scene 5 the climax collapsed. Scrope handed over the book on one roll (T30). Sallow walked in right on cue (T32). My failed roll (T33) gave exactly one beat of danger, with the Crakes coming up the stair. Then a single roll (T34) turned the whole gang and Hobb, and Kell arrived on cue. At T35 the arrest happened and the session ended. Swords were drawn, but there was never a physical confrontation.\n- The ending was rushed: 35 turns rather than about 40, with no denouement. Sallow's \"you have no idea what you've done\" is a fine hook, but the game had invited several promises it never let land: standing up for Hobb before the King, Moll's run to the palace with the evidence, my protection promise to Cob, facing the King who commissioned me, and the bent Captain.\n- Nothing was withheld after I had earned it. The two downtime scenes worked; scene 4 held my best player-driven beat.",
+   "characters": "Alive and consistent:\n- **Sergeant Agnes Kell** was alive and consistent in all five scenes. She disapproves, follows procedure, and notes everything. Her dry wit is excellent: \"If those papers go in the river, investigator, I expect they'll be difficult to read.\" / \"Not by any honest reckoning.\" / \"The cape is what keeps the rain off the notebook.\" She has a nice guilt beat (\"I should have kept him here.\"), and her \"almost-thanks is just a twitch at the corner of her mouth\" was earned. Two weaknesses. First, she has a verbal tic: some form of \"I can record X, I can't record Y\" comes up about five times (T8, T10, T13, T19, T21). Second, she often acts as the co-GM, framing the player's next choice: \"Where would you like to start?\", \"What do you make of them, investigator?\", \"Do you want the dead man's hands examined before the cart comes?\", \"The porter's gossip was that the big men with bandaged hands drink at the Drowned Rat. Where now, investigator?\", \"That's the choice, investigator. The cells\u2014or the Heron.\" At the climax she was conveniently offstage, then arrived on cue.\n- **Big Hobb** was the best character: a gentle, terrified giant (\"the way a dray-horse goes still when thunder is close\", \"I only held the rope\", \"I'm sorry, Mrs Quill\"). His trust arc with the badge paid off. He was also overused as the exposition machine.\n- **Moll** was fierce, protective and consistent from \"You big-armed bastard\" through \"Don't make me regret letting you talk, Grey Company\" to \"Not for the money.\" Her shift from enemy to reluctant ally felt earned.\n- **Nan Quill** was vivid and consistent: a numbered rules board, \"my duck\", and a cudgel named Manners. She enforced rules three and four on me.\n- **Scrope** was small but moving: \"It balances. Every page. Wendell would want it to balance.\" / \"I knew him. Forty years.\"\n\nFlat or underused:\n- **Cob** was vivid in scene 1 (the third-person tic, the dead man's boots, \"Silvertop,\" he says, quiet now), then never appeared again, even when I called for both kids.\n- **Sallow** was urbane (lavender, silver-topped cane, \"An energetic account, Investigator\") but had only four lines and folded quickly.\n- **Arlo** had one line. The ancient card-dealing bargewoman was never used. The Crakes were props. **Hep Grist** flipped on a single roll (\"We'll swear. All of us. For them.\"). **Tull** was a functional weary corporal.",
+   "scene_notes": [
+    {
+     "scene": "1 Granary yard (T1-13)",
+     "notes": "A strong opening image with good comic touches: \"a pigeon perched on the beam as if supervising\" and the boy who says \"Cob says he don't mind. He's dead.\" Everyone reacted consistently to my roughness: I cuffed Cob (T1), pulled his boot off (T5) and snatched Tull's order (T12), and Kell noted each one. Moll refused my penny-and-promise because I'd hit a child (T3). Clues came in quick succession (see pacing). The best investigative beat came at T12-13: the order I snatched turned out to be signed \"yesterday afternoon\", before Prout died, and I got to make that deduction myself. Oddities: my 'silver penny' became 'the silver crown' in Moll's fist (T5-6) before being revealed as Sallow's wheat-ear crown (T9). Cob's \"Cob's not talking about himself, he just\u2014\" (T6) was a dangling thread that never came back."
+    },
+    {
+     "scene": "2 Market square, downtime (T14)",
+     "notes": "One turn and fine as a transition, with Pratchett-ish set dressing: watchmen arguing \"which end of the procession route is 'the beginning'\", and bread prices going up. Kell recounted her notes on me accurately. The next lead came through off-screen porter gossip, although we never met any porters (Moll had refused to fetch one). BUG: stray garbage text 'eveloperiyanas-cmpr' was appended after the Drowned Rat intro, and it is saved in the transcript."
+    },
+    {
+     "scene": "3 The Drowned Rat (T15-23)",
+     "notes": "The best-dressed scene: \"The room contains a great many large men and a great many bandages\", the rules board, Nan, and Manners. When I tried the 'she's my cousin' cover, it got a good put-down: \"Two coppers buys two ales, my duck. It doesn't buy a family history.\" Hobb confessed on the first roll at T16. The dilemma of cells versus the Heron was a good, real choice. I gave Hobb my Grey Company badge as surety at T23, and the scene closed on his info-dump briefing."
+    },
+    {
+     "scene": "4 Wharves after dark, downtime (T24-28)",
+     "notes": "I went off-path to recruit Moll, the kid I'd made an enemy of, as a runner to the palace. The game pushed back gently (\"You could search the yards, but the minutes would go with you\") and then let it happen when I persisted. Moll remembered the cuff and stayed out of reach on the wall. She took the papers \"Not for the money\" and left me unsure whether she'd deliver, which was nicely ambiguous. This was the best test of the 'need help from your enemies' brief."
+    },
+    {
+     "scene": "5 The Heron Warehouse (T29-35)",
+     "notes": "Atmospheric: grain dust, the counting-box, Hep Grist's counts (\"Thirty-eight to the hatch! Who's stopped my count?\"), and \"In the gang's arithmetic, you are a pair of hands.\" Scrope was lovely. The climax was compressed: book, entrance, failed roll, room flips, arrest, end. A named 'Kit' appeared without any introduction. The badge payoff (T34) was the emotional high point. The session ended on the arrest, with no scene before the King."
+    }
+   ],
+   "stonewalled": [
+    {
+     "turn": 2,
+     "what": "The padlocked doors couldn't be opened until 'after the Assembly' (the warden had the key), and Kell refused to let me force the hinges. This was fair, and a ladder arrived with the dead-cart at T11."
+    },
+    {
+     "turn": 15,
+     "what": "I looked at the Drowned Rat's rules board, but its contents were never shown. Rules three and four only came out when Nan enforced them. Minor."
+    },
+    {
+     "turn": 25,
+     "what": "The kids were nowhere to be seen at the granary yards on my first look, and the game nudged me back toward the Heron. A soft block, which the game lifted when I called for them at T26."
+    }
+   ],
+   "railroaded": [
+    {
+     "turn": 11,
+     "what": "I asked to have the hands, neck and fingernails examined. Kell climbed the ladder and reported the findings herself, so I never examined the body. That was acceptable, but the body exam was the natural payoff for my 'I cut down nine hanged deserters' backstory, and it went unused."
+    },
+    {
+     "turn": 25,
+     "what": "The game discouraged the off-path detour: \"You could search the yards, but the minutes would go with you\u2014and the barge is due out on the ebb after midnight.\" It was mild and I overrode it."
+    },
+    {
+     "turn": 35,
+     "what": "The session ended right after the arrest. My next input (\"Now we take him to the King. And Hobb comes with us, I gave my word.\") got back \"\u2014 This scene has ended. \u2014\". There was no way to keep the promises the story had invited."
+    }
+   ],
+   "inconsistencies": [
+    {
+     "turn": 6,
+     "what": "I flipped Moll a 'silver penny' at T3 (she said 'Keep your two pennies'). By T5-6 the narration called what was in her fist 'her silver' and 'the silver crown', and at T9 it was revealed as Sallow's wheat-ear crown. At the time this read as the game conflating my coin with a planted clue. It became a clue only because I questioned it."
+    },
+    {
+     "turn": 6,
+     "what": "Cob, while speaking about himself in the third person, says \"Cob's not talking about himself, he just\u2014\" and then shuts his mouth. It hints at a secret (is 'Cob' someone else? the pigeon?) that is never followed up."
+    },
+    {
+     "turn": 14,
+     "what": "Stray garbage tokens 'eveloperiyanas-cmpr' appear at the end of the narration that opens the Drowned Rat, and they are persisted in the transcript."
+    },
+    {
+     "turn": 14,
+     "what": "Kell cites 'the porter's gossip' about the Drowned Rat, but no porters were ever met on-screen."
+    },
+    {
+     "turn": 17,
+     "what": "The explanation of the locked room is muddled. Hobb says: \"The Master barred it from inside, sir. He had the key. There wasn't another way out... When we left, he barred it himself.\" It only works if they left through the padlocked ground-floor yard doors, which is never stated clearly."
+    },
+    {
+     "turn": 19,
+     "what": "At T18 Kell tells Hobb \"No one is taking you to the Captain tonight\", then at T19 immediately offers the Captain's watch-house cells as the lawful option."
+    },
+    {
+     "turn": 34,
+     "what": "'Kit' is named (\"Kit's hands are trembling\") without ever being introduced, possibly the lantern-boy. Hep's \"We'll swear. All of us. For them.\" has no clear referent for 'them'."
+    }
+   ],
+   "best_moment": "T34 at the Heron. My Intimidation roll on Sallow had just failed and the Crakes were coming up the stair. I bellowed \"HOBB! You've got my wolf in your fist. Your choice. NOW.\" He opened his hand: \"Your wolf badge is there. 'I'm done, Master,' he says, voice rough.\" I had given that gift as a promise in a different scene, and here it paid off at exactly the right moment. A close second is T12-13: the suicide order I snatched off the corporal turned out to be signed \"yesterday afternoon\", before Prout was dead, and the game left that deduction for me to make.",
+   "worst_moment": "The ending, T35. The arrest, one ominous line (\"you have no idea what you've done\"), and then \"\u2014 The session is over. \u2014\". There was nothing about whether Moll got the papers to the King, no chance to keep my word to Hobb, nothing on Bunce, Cob or the King. Runner-up is T16/T23. Big Hobb confessed the whole murder on the first roll in the second turn of the scene, and later recited the entire heist layout (midnight, the Crakes, the token, Saul and his dog, Scrope and the true book, the barge) in one speech.",
+   "ratings": {
+    "fun": 4,
+    "story": 4,
+    "characters": 4,
+    "memory": 4,
+    "pacing": 3,
+    "humour": 3,
+    "consistency": 4,
+    "responsiveness": 4
+   },
+   "would_keep_playing": true,
+   "other_notes": "- **Technical:** no command errors. Turns took roughly 5-20 seconds. The live output showed \"\u2014 Next scene: X \u2014\" headers, while the transcript recorded \"*\u2014 Scene ends: <title> \u2014*\" ('The case is made', 'Onward', 'What Big Hobb knows', 'Onward', 'Caught in the act'). After the end, a 'say' command returns \"\u2014 This scene has ended. \u2014\" with exit code 0; wording like \"the session is over\" would be clearer there.\n- **Dice:** there were 4 visible Intimidation checks (T16 succeeded 23 vs 15, T30 succeeded 20 vs 14, T33 failed 12 vs 15, T34 succeeded 22 vs 14). They suited my bully persona. The single failure only cost one beat before the next roll fixed everything. No rolls were asked for the cuff, the boot-yank, the hinge-levering or snatching the order.\n- **Persona test** (make enemies, then need them): this worked best with Moll. She stayed hostile, stayed physically out of reach, and helped only on her own terms. Kell's disapproval carried through every scene. Hobb's arc went from threat ('you'll hang') to my word to the badge, and he called out the contradiction himself. Cob, Tull and Nan never came back in a way where I needed them.\n- **Promises:** the badge-and-word promise to Hobb was carried through and paid off. The protection promise to Cob (\"Silvertop or his big friend come within a street of this boy, they answer to me\") was never tested. The promise to stand up for Hobb before the King, and Moll's run with the evidence, were cut off by the ending. That is the single biggest gap for the memory goal: the game invites commitments it never cashes in.\n- **Backstory:** the detailed past I gave Kell (Grey Company, Harrowmere, nine hanged deserters) was never picked up by her, even at the body exam where it fit perfectly. Moll did turn 'Grey Company' into a nickname.\n- **Tone:** comic touches were wry rather than funny. The best were the pigeon 'supervising', \"a great many large men and a great many bandages\", Manners the cudgel, the watchmen arguing which end of the route is 'the beginning', and Kell's deadpan. The world played it straight, as intended, but there were few laugh-out-loud beats.\n- **Structure:** the arc felt fixed (granary, then the Rat, then the wharves, then the Heron), but the game responded well within each scene. It honoured my off-path detour, my badge gift, wedging a door with a sack, and coaching Scrope to cover for me."
+  }
+ }
+]

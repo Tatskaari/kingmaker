@@ -124,8 +124,10 @@ export function sceneBrief(scene: Scene, state: SessionState, options: { secrets
     `## Ways this scene can end\nThese are the only ways it can close. The player's choices decide which; don't force one.\n${scene.exits.map(exitBlock).join("\n")}`,
     ...(scene.essentials?.length && !options.hideEssentials ? [`## What the player needs to come across\nThe author placed these somewhere specific. Players often go elsewhere: when they do, don't let the scene starve. Move the thing to whatever they are engaging with (another person who could know it, an object, an event), or nudge softly (a remark, a telltale detail, a chance to notice or remember), so it reaches them through the path they chose.\n${scene.essentials.map(e => `- ${e.what} (placed with: ${e.placedWith.join("; ")}). It opens up: ${e.unlocks}${state.landed?.includes(e.id) ? " [already come across]" : state.hinted?.includes(e.id) ? " [already hinted at: the player has had a sign of it. Don't point at it again; let them take it up, or let it reach them another way]" : ""}`).join("\n")}`] : []),
     ...(scene.limits?.length ? [`## What this scene can't offer\nIf the player reaches for one of these, let the world say no honestly, in the fiction, and show them what is possible instead.\n${bullets(scene.limits)}`] : []),
-    `## The player character\n${state.player.name}: ${state.player.concept}. They are the only player character. Other people only know their name if they've been told it.${skillSummary(state)}`,
-    `## Table rules (for out-of-character questions)\n- The game rolls a d20 plus a skill modifier at the scene's key moments; you'll be told the result. You don't roll or promise rolls yourself.\n- Scenes play in order; a scene can be brief, but it can't be skipped.\n- There's no experience or loot system yet.\n- Your prep (what the scene is about, secrets, how it can end) stays behind the screen.`,
+    `## The player character\n${state.player.name}: ${state.player.concept}.${state.player.build ? ` In game terms: ${state.player.build}; their spells, weapons and gear are what their sheet says.` : ""} They are the only player character. Other people only know their name if they've been told it.${skillSummary(state)}`,
+    `## Table rules (for out-of-character questions)\n${state.rules
+      ? "- The game runs D&D rules: it rolls the dice for checks, saving throws, spells, attacks and rests, and you're told each result (🎲). You never roll, ask for a roll or invent numbers.\n- The player can see their character sheet out of game (#sheet). Levels come at story milestones. A real fight moves to the battle map."
+      : "- The game rolls a d20 plus a skill modifier at the scene's key moments; you'll be told the result. You don't roll or promise rolls yourself.\n- There's no experience or loot system yet."}\n- Scenes play in order; a scene can be brief, but it can't be skipped.\n- Your prep (what the scene is about, secrets, how it can end) stays behind the screen.`,
   ].join("\n\n");
 }
 
@@ -197,9 +199,20 @@ export function nowNote(scene: Scene, state: SessionState, directive: string[], 
     // Co-GM notes steer the middle of a scene; a closing works from what happened, not stale steering.
     ...(!state.closing && !state.pendingExit && (state.notes || state.whispers?.length) ? [`## Notes from your co-GM (for you, written a moment ago: let them shape what people do, but nobody recites them; if the player has since chosen otherwise, the player's choice wins)\n${[state.notes ?? "", ...(state.whispers ?? []).map(w => `- On ${scene.cast.find(c => c.id === w.to)?.name ?? w.to}'s mind: ${w.note}`)].filter(Boolean).join("\n")}`] : []),
     ...(state.canon.length || state.established.length ? [`## Details established in play (keep them true)\n${bullets([...state.established, ...state.canon])}`] : []),
+    ...(playerNow(state) ? [playerNow(state)!] : []),
     ...(directive.length ? [`## For this reply\n${directive.join("\n\n")}`] : []),
   ];
   return parts.join("\n\n");
+}
+
+/** The player's state from the rules, when it should show in the story: hurt, or under a condition. */
+function playerNow(state: SessionState): string | undefined {
+  const status = state.rules?.status;
+  if (!status) return undefined;
+  const hp = /^HP (\d+)\/(\d+)/.exec(status);
+  const hurt = !!hp && Number(hp[1]) < Number(hp[2]);
+  const conditions = status.split(", ").slice(1).filter(p => !p.startsWith("spell slots") && !/^\d/.test(p));
+  return hurt || conditions.length ? `## The player character now\n${status}. Let it show: someone hurt moves and looks hurt.` : undefined;
 }
 
 export function sceneEntries(state: SessionState): Entry[] {

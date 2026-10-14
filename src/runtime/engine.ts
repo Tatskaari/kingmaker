@@ -7,6 +7,7 @@ import { approachById } from "./approaches.ts";
 import { currentBeat, effectiveScene, presentCast, sceneEntries } from "./brief.ts";
 import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, relocateDirective, STALL_DIRECTIVE, type Move } from "./director.ts";
 import { describeRoll } from "./dice.ts";
+import { attack as rulesAttack, attackOnPlayer, castSpell, comeTo, createCharacter, hazard, levelUp, passTime, rest, type Outcome } from "../rules/dnd.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
 import { newSessionId, saveSession, snapshotSession, type Entry, type EntryKind, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
@@ -66,18 +67,24 @@ async function extractCharacter(scene: Scene, state: SessionState): Promise<void
   }
 }
 
-export async function createSession(options: { sceneId: string; approach: string; player?: string; seed?: number; id?: string }): Promise<SessionState> {
+export async function createSession(options: { sceneId: string; approach: string; player?: string; seed?: number; id?: string; rules?: boolean }): Promise<SessionState> {
   approachById(options.approach);
   const scene = sceneById(options.sceneId);
   const playerText = options.player ?? DEFAULT_PLAYER;
   const [name, ...rest] = playerText.split(":");
-  const player: PlayerCharacter = { name: name!.trim(), concept: rest.join(":").trim() || playerText, modifiers: await rollUpModifiers(playerText) };
-  return {
+  const player: PlayerCharacter = { name: name!.trim(), concept: rest.join(":").trim() || playerText, modifiers: {} };
+  const state: SessionState = {
     id: options.id ?? newSessionId(scene.id), sceneId: scene.id, approach: options.approach,
     seed: options.seed ?? Math.floor(Math.random() * 1e9), rollCount: 0, player,
     turn: 0, beat: scene.start, turnsInBeat: 0, path: [], established: [], canon: [], notes: null, notesTurn: null,
     patches: [], repairs: [], transcript: [], metrics: [], history: [],
   };
+  // A D&D character sheet from the concept (the rules engine); without it, modifiers from the concept.
+  if (options.rules !== false) {
+    try { await createCharacter(state); } catch { delete state.rules; }
+  }
+  if (!state.rules) state.player.modifiers = await rollUpModifiers(playerText);
+  return state;
 }
 
 function push(state: SessionState, hooks: TurnHooks, entry: Omit<Entry, "turn" | "scene">): Entry {
@@ -105,6 +112,16 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}): Pro
     : [`Open the scene. ${scene.opening} Keep it to a short paragraph or two and end on something the player can respond to.`];
   await settlePresence(scene, state, deciderFor(approach.decider)).catch(() => undefined);
   if (approach.staging) state.guard ??= {};
+  // Between scenes: a milestone level-up, coming to after being knocked down, the rest the gap allows.
+  for (const text of state.announce ?? []) push(state, hooks, { speaker: "system", kind: "system", text });
+  delete state.announce;
+  if (state.rules) {
+    for (const text of await passTime(state, 60).catch(() => [] as string[])) push(state, hooks, { speaker: "dice", kind: "roll", text });
+    const woke = await comeTo(state).catch(() => undefined);
+    if (woke) push(state, hooks, { speaker: "dice", kind: "roll", text: woke });
+    const rested = scene.rest ? await rest(state, scene.rest).catch(() => undefined) : undefined;
+    for (const text of rested?.lines ?? []) push(state, hooks, { speaker: "dice", kind: "roll", text });
+  }
   if (approach.memory) {
     // Recurring people walk in remembering: open what bears on this scene before the first line.
     const opening = await disclose(scene, state, "").catch(() => undefined);
@@ -196,13 +213,33 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     return { entries: state.transcript.slice(before), ended: exit, metric };
   }
 
+  // The rules: a blow or a danger the last reply left hanging over the player lands now, before
+  // they act, as at the table. Its outcome leads this turn's reply.
+  const ruled: string[] = [];
+  if (state.rules?.timed) {
+    const ran = await passTime(state, 1).catch(() => [] as string[]);
+    for (const text of ran) push(state, hooks, { speaker: "dice", kind: "roll", text });
+    if (ran.length) ruled.push(`Rules: ${ran.join("; ")} (the spell's time is up).`);
+  }
+  if (state.threat && state.rules) {
+    const threat = state.threat;
+    delete state.threat;
+    const attacker = threat.kind === "attack" ? presentCast(scene, state).find(c => c.id === threat.by) : undefined;
+    const outcome = threat.kind === "attack"
+      ? attacker ? await attackOnPlayer(state, attacker).catch(() => undefined) : undefined
+      : await hazard(state, threat.hazard, threat.severity).catch(() => undefined);
+    if (outcome) {
+      for (const text of outcome.lines) push(state, hooks, { speaker: "dice", kind: "roll", text });
+      ruled.push(outcome.directive);
+    }
+  }
   // Speculative reply: start the GM before the decision returns; hold its text until we know it's valid.
   let speculation: { promise: Promise<Spoken | undefined>; controller: AbortController; buffer: string; release?: (text: string) => void } | undefined;
   if (approach.speculative && approach.voice === "gm" && !state.endingLead && !state.sceneStatus?.startsWith("stuck")) {
     const controller = new AbortController();
     const spec = { controller, buffer: "", promise: Promise.resolve(undefined as Spoken | undefined) } as NonNullable<typeof speculation>;
     const onText = (text: string) => { spec.buffer = text; spec.release?.(text); };
-    spec.promise = gmReply(scene, state, [], onText, "gm.speculative", controller.signal).catch(() => undefined);
+    spec.promise = gmReply(scene, state, ruled, onText, "gm.speculative", controller.signal).catch(() => undefined);
     speculation = spec;
   }
   // Quick-block: start the quick co-GM alongside the decision, so on an off-graph turn its answer
@@ -212,7 +249,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     ? quickRepair(authored, state, approach.repairEffort ? { effort: approach.repairEffort } : {}).catch(() => undefined)
     : undefined;
   const disclosing = approach.memory ? disclose(scene, state, input).catch(() => undefined) : undefined;
-  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off", relocate: approach.deciderRelocation === true, pressure: approach.pressureRolls === true, consequences: approach.consequences === true });
+  const rules = state.rules ? { spells: state.rules.spells ?? [], weapons: state.rules.weapons ?? [] } : undefined;
+  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off", relocate: approach.deciderRelocation === true, pressure: approach.pressureRolls === true, consequences: approach.consequences === true, ...(rules ? { rules } : {}) });
   if (pre.offGraph) state.offGraphTurn = state.turn;
   // A failed roll stands: don't have something else hand over what the dice just withheld.
   if (pre.move?.roll && !pre.move.roll.success && pre.relocate) delete pre.relocate;
@@ -253,6 +291,16 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.freeform.roll) });
     state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: "freeform", source: "pre", roll: pre.freeform.roll });
     directive = [freeformDirective(pre.freeform)];
+  }
+  // The rules resolve a spell, a blow or a rest; the GM narrates what they decided.
+  if (pre.mechanic && state.rules) {
+    const m = pre.mechanic;
+    const present = presentCast(scene, state);
+    const outcome: Outcome = await (m.kind === "cast" ? castSpell(state, present, m.spell, m.targets) : m.kind === "attack" ? rulesAttack(state, present, m.target, m.weapon) : rest(state, m.length))
+      .catch(error => ({ lines: [`(The rules couldn't resolve that: ${error instanceof Error ? error.message : String(error)})`], directive: "" }));
+    for (const text of outcome.lines) push(state, hooks, { speaker: "dice", kind: "roll", text });
+    if (outcome.directive) directive.push(outcome.directive);
+    state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `rules:${m.kind}${m.kind === "cast" ? `:${m.spell}` : m.kind === "attack" ? `:${m.target}` : `:${m.length}`}`, source: "pre" });
   }
   if (state.endingLead && !pre.move && !state.closing) {
     const exit = scene.exits.find(e => e.id === state.endingLead!.exitId);
@@ -330,7 +378,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     const repairing = (approach.repairKind === "quick"
       ? quickRepair(authored, state, approach.repairEffort ? { effort: approach.repairEffort } : {})
       : runRepair(authored, state, { effort: approach.repairEffort ?? "medium" })).catch(() => undefined);
-    const beat = await gmReply(scene, state, [STALL_DIRECTIVE], speakHooks(textHooks, "gm", "narration"), "gm.stall", undefined, 140);
+    const beat = await gmReply(scene, state, [...ruled, STALL_DIRECTIVE], speakHooks(textHooks, "gm", "narration"), "gm.stall", undefined, 140);
     spoken.push(beat);
     push(state, hooks, { speaker: "gm", kind: "narration", text: beat.text });
     // Budget: wait for the co-GM only until its deadline; a late result lands next turn instead.
@@ -379,16 +427,16 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       speculation.controller.abort();
       state.speculation = { used: state.speculation?.used ?? 0, discarded: (state.speculation?.discarded ?? 0) + 1 };
     }
-    reply ??= await gmReply(scene, state, directive, speakHooks(textHooks, "gm", "narration"));
+    reply ??= await gmReply(scene, state, [...ruled, ...directive], speakHooks(textHooks, "gm", "narration"));
     spoken.push(reply);
     push(state, hooks, { speaker: "gm", kind: "narration", text: reply.text });
   } else {
     // Narration first when something happened that only the GM can describe.
-    let next = directive.length || !pre.speaker ? "gm" : pre.speaker;
+    let next = directive.length || ruled.length || !pre.speaker ? "gm" : pre.speaker;
     const responded: string[] = [];
     for (let i = 0; i < 4 && next !== "player"; i++) {
       const line = next === "gm"
-        ? await narratorReply(scene, state, i === 0 ? directive : [], speakHooks(textHooks, "gm", "narration"))
+        ? await narratorReply(scene, state, i === 0 ? [...ruled, ...directive] : [], speakHooks(textHooks, "gm", "narration"))
         : await actorReply(scene, state, next, [
           ...(i === 0 && pre.limit ? [limitDirective(pre.limit)] : []),
           ...(state.whispers ?? []).filter(w => w.to === next).map(w => w.note),
@@ -413,10 +461,11 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     const postStarted = performance.now();
     const replyText = spoken.map(s => s.speaker === "gm" ? s.text : `${scene.cast.find(c => c.id === s.speaker)?.name}: ${s.text}`).join("\n\n");
     const hold = state.pendingExit?.turn === state.turn ? state.pendingExit.exitId : undefined;
-    const post = await decideAfter(decider, scene, state, input, replyText, { ...(hold ? { hold } : {}), staging: approach.staging === true });
+    const post = await decideAfter(decider, scene, state, input, replyText, { ...(hold ? { hold } : {}), staging: approach.staging === true, rules: !!state.rules });
     postDecisionMs = performance.now() - postStarted;
     if (post.decision) { costUsd += post.decision.costUsd; calls++; }
     if (post.status) state.sceneStatus = post.status;
+    if (post.threat && !state.closing) state.threat = { ...post.threat, turn: state.turn };
     if (post.landed?.length) state.landed = [...new Set([...(state.landed ?? []), ...post.landed])];
     if (post.hinted?.length) state.hinted = [...new Set([...(state.hinted ?? []), ...post.hinted])];
     // Staged secrets never go back: what's out stays out.
@@ -494,12 +543,16 @@ export async function chainScene(state: SessionState, combatResult = "the party 
   const lastMoments = sceneEntries(state).filter(e => e.kind !== "system").slice(-4)
     .map(e => e.kind === "player" ? `${state.player.name} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.text);
   state.history.push({ sceneId: scene.id, exitId: exit.id, summary: handoff, lastMoments });
+  // A milestone ending: the player goes up a level, announced as the next scene opens.
+  const levelled = exit.milestone && state.rules ? await levelUp(state).catch(() => [] as string[]) : [];
   const next = sceneById(exit.next);
   Object.assign(state, {
     sceneId: next.id, beat: next.start, turnsInBeat: 0, path: [], established: [], canon: [], notes: null, notesTurn: null,
     whispers: [], patches: [], repairs: [], entered: [], absent: [], sceneStatus: undefined, memory: { opened: [] }, landed: [], hinted: [], guard: {},
   });
   delete state.ended;
+  delete state.threat;
+  if (levelled.length) state.announce = levelled;
   saveSession(state);
   return state;
 }

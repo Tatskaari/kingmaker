@@ -64,6 +64,7 @@ export const heronWarehouse: Scene = {
     {
       id: "kell",
       name: "Sergeant Agnes Kell",
+      statblock: "guard", weapon: "club",
       look: "Forties, in the same borrowed coat over her watch uniform that fools nobody (it's the boots). A battered oilcloth notebook and a pencil stub she sharpens with a clasp knife, a watch whistle on a cord round her neck, and a truncheon she has never been seen to draw. Stands very still and watches people's hands.",
       voice: "Dry, calm, precise and sparing: short sentences, the odd 'Noted.' Calls the player 'investigator'. Finds them funny and lets a joke land with a twitch of the mouth, then steers back with a question. Taps her pencil on the notebook when time is being wasted. Whispers badly.",
       wants: "To see Prout's killer answer for it, written down true: tonight, to catch the man behind it with the King's grain, or to come away with proof the King can't wave aside.",
@@ -82,6 +83,7 @@ export const heronWarehouse: Scene = {
     {
       id: "saul",
       name: "Saul Tench",
+      statblock: "guard", weapon: "spear",
       look: "An old river-watchman in a greatcoat over a dozen other coats, a red muffler wound round his head over his left ear, a lantern, a rattle, and a cudgel he mostly uses to poke his brazier. At his feet, or across the land door's threshold, lies Duchess: a vast, elderly brindle mastiff with a face like a collapsed sofa, who snores, drools and has opinions about smells.",
       voice: "Loud, because he can't hear himself on the left. Talks to Duchess more than to people, and answers for her ('She says you smell of sausage'). Repeats things back ('A buyer, you say?'). Ends sentences with 'and all's well', out of forty years' habit, whether it is or not.",
       wants: "A quiet night by his brazier, Duchess fed and happy, and to keep his place: the Heron pays three times what the river watch did.",
@@ -102,6 +104,7 @@ export const heronWarehouse: Scene = {
     {
       id: "hep",
       name: "Hepzibah Grist",
+      statblock: "tough", weapon: "dagger",
       group: "Hep Grist and her re-sacking gang, six porters in grain-white with knives and sack-needles",
       look: "A broad woman in a leather apron with a sack-needle stuck through her collar and a knife on a cord, floured white to the elbows, with a voice like a winch. Her gang work fast, heads down, and don't talk.",
       voice: "Shouts in numbers and the gang's own cant ('Forty to the hatch! Mind that seam!'). Never uses a name if 'you' will do. Swears by the tide.",
@@ -122,6 +125,7 @@ export const heronWarehouse: Scene = {
     {
       id: "scrope",
       name: "Mister Lemuel Scrope",
+      statblock: "commoner", weapon: "unarmed-strike",
       look: "A narrow, stooped clerk in rusty black, with sleeve-guards, a green eyeshade and a pen behind each ear, up a short stair in the glass-sided counting-box over the floor. The true book, a fat ledger bound in green calf with a brass clasp, lies open under his left hand, which never leaves it.",
       voice: "A dry murmur of figures. Talks in double entry ('That doesn't balance'). Apologises to the book when he blots it.",
       wants: "The count right and the books balanced. To get through tonight. To be anywhere else.",
@@ -140,6 +144,7 @@ export const heronWarehouse: Scene = {
     {
       id: "hobb",
       name: "Big Hobb Mallory",
+      statblock: "tough", weapon: "unarmed-strike",
       look: "A dock-porter the size of a door, with a head like a bollard, a nose broken more than once and a leather porter's hood. His right hand is wrapped in a tarry rag, and he works the hoist one-handed, wincing. Where he is tonight follows from how the Drowned Rat ended: on the hoist with Hep's gang as usual; in the watch-house cells if Kell took him in (then he isn't here at all, and the gang is a man shorter); or, if he ran from the Rat to warn his master, with the Master, and he comes in at his heels at the midnight bell.",
       voice: "Slow, low and polite: 'sir', 'missus'. Says as little as he can, then far too much all at once. When frightened he goes very quiet and very still, like a dray-horse in thunder.",
       wants: "To get through tonight's loading without his master looking at him. Not to hang. For his mum in the Shambles never to know. Underneath, to put right what he did, if anyone could show him how.",
@@ -155,6 +160,7 @@ export const heronWarehouse: Scene = {
     {
       id: "sallow",
       name: "Master Josiah Sallow",
+      statblock: "tough", weapon: "club",
       group: "Master Sallow, his lantern-boy and the Crake brothers, two hired river-bruisers",
       look: "Fifty, pink and well-fed, in a good dark coat with a fur collar, with a silver-topped cane, a wheat-ear signet ring (the Royal Purveyor's office's mark) and the soft hands of a man who signs things. He wears so much lavender water that you smell him a full minute before you see him. Behind him come a yawning lantern-boy and the Crakes: two enormous, identical river-bruisers, one of whom talks.",
       voice: "Smooth, reasonable and faintly bored; talks like an official letter ('It has come to my attention', 'regrettably', 'in the King's interest'). Never raises his voice. Calls people by their trade ('Clerk', 'Porter', 'Sergeant'). The more frightened he is, the more polite he gets.",

@@ -10,7 +10,7 @@ import { hangedClerk } from "./hanged-clerk.ts";
 
 const kell: Character = { ...hangedClerk.cast.find(c => c.id === "kell")!, attitude: "As things stand between her and the investigator after the morning (her memories say how); she stays practical and dry, and she has her own errands too." };
 
-function interlude(spec: { id: string; title: string; summary: string; setting: string; where: string; flavour: string; lead: string; onward: string; next: string; lore: string[]; limits: string[] }): Scene {
+function interlude(spec: { id: string; title: string; summary: string; setting: string; where: string; flavour: string; lead: string; onward: string; next: string; lore: string[]; limits: string[]; rest?: "short" | "long" }): Scene {
   return {
     id: spec.id, title: spec.title, summary: spec.summary,
     setting: spec.setting,
@@ -32,6 +32,7 @@ function interlude(spec: { id: string; title: string; summary: string; setting: 
     essentials: [{ id: "lead", what: spec.lead, placedWith: ["Sergeant Kell", "gossip in the town"], carriers: ["kell"], unlocks: "the next scene" }],
     limits: spec.limits,
     lore: spec.lore,
+    ...(spec.rest ? { rest: spec.rest } : {}),
   };
 }
 
@@ -43,6 +44,7 @@ export const caerwynAfternoon = interlude({
   lead: "Big men with bandaged hands who do night work for gentlemen drink at the Drowned Rat, halfway down the river stairs (a porter told Kell; dock gossip says the same).",
   onward: "the river stairs and the Drowned Rat",
   next: "drowned-rat",
+  rest: "short",
   lore: ["World/Caerwyn.md", "World/Centennial Assembly.md"],
   limits: [
     "Places that aren't on the way (the palace, the Corn Exchange's back rooms, the watch house cells, anywhere outside the walls): they're for another day. The Assembly has the palace shut to anyone without business, and the trail goes to the river.",
