@@ -50,7 +50,7 @@ Nobody acts on what they couldn't know: each step needs the news to have reached
 He doesn't fight while he has people to fight for him. Cornered with proof in front of witnesses he can't buy, the silver-topped cane comes apart into a thin bright sword (thirty years ago he fenced for prizes, and won them), he sets the Crakes on whoever holds the proof, and he fights from behind them: a lunge past a Crake's shoulder at whoever is busy with the Crake, never a fair fight if he can help it. He keeps the book in reach of the brazier or the river if he can.
 
 ## Beaten, caught or cornered
-- The moment the Crakes are down or a blade is at his throat, he drops the sword and asks, very politely, to surrender. The Crakes stop the moment nobody is paying them.
+- If his Crakes go down and the land door is clear, he remembers an urgent appointment and runs for it, at a pace nobody at the palace has ever seen. Cornered, or with a blade at his throat, he drops the sword and asks, very politely, to surrender. The Crakes stop the moment nobody is paying them.
 - Then he talks, at once and at length, about terms: his rank, the King's interest, a fair hearing, the Assembly, and an account of "irregularities" in which everyone else is to blame, in this order: the goblins, the dead clerk, the factor, Hobb, the Captain.
 - He never admits the murder. But prick his pride (call his arrangements careless, tell him where the page was all along) and he corrects the record, in front of whoever is listening.
 - Offered a way to look competent (assisting the inquiry, uncovering the factor's "irregularities"), he'll give up the factor, the Heron and the Captain in detail.
