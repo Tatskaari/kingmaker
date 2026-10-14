@@ -26,6 +26,7 @@ Full write-up: [experiments/deviation-repair.md](experiments/deviation-repair.md
 - **Stall-and-report-back works once it's budgeted.** On an off-graph turn, a generated holding beat streams at ~1 s while a *quick* co-GM (compact output, no reasoning, 3 s deadline) decides. The follow-up starts at ~4.2 s, 97% of turns resolve within 5 s, and it scored the best target-ending rate (18/20). Without the deadline, follow-ups took 10–20 s.
 - **A background co-GM never costs latency** (100% within budget). It lands next turn and adds a little.
 - **Speculative replies** start the GM alongside the decision and keep the reply when the decision changes nothing. That cuts median first text from 1.38 s to 1.10 s for free.
+- **Best design so far: `gm-quick-block`.** Ordinary turns reply at once. On a turn the decider judges off the graph, it waits up to 3 s for the quick co-GM: it opens a route (with a roll and a reason when the outcome should be uncertain) or relocates a missed essential. Then it sends one coherent reply. Intended ending 19/20, every scene ended, fewest turns (6.8), 95% of replies within 5 s (median 1.3 s). The holding-beat variant (`gm-stall-quick`) works (17/20). Claude analysts found the beats were real story beats, never canned, but often too long, and the follow-ups repeated or rewound them. A single short wait reads better.
 
 ## What was built
 

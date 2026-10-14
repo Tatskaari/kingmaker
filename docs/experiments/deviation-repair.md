@@ -82,3 +82,15 @@ Four Claude analysts each read the transcripts for one group of conditions. Thei
 | `gm-stall-quick` | **17/20** | **20/20** | 13/20 | 3.95 | **6.8** | **1.09 s** | **100%** |
 
 No run ended in the improvised "ending of their own" any more (0/60, against several before): authored endings win when they fit. `gm-stall-quick` remains the best within-budget option: it always reaches an ending, in the fewest turns, with every resolving reply inside 5 s.
+
+## Round 3, after the investigation's fixes (n = 20 each)
+
+| condition | target ending | scene ended | judge criterion | progress | turns | resolving text p50 / p90 | within 5 s |
+|---|---|---|---|---|---|---|---|
+| `gm` | 14/20 | 18/20 | 10/20 | 3.90 | 8.8 | 1.53 / 2.76 s | 98% |
+| `gm-nudge` (restrained) | 14/20 | 17/20 | **15/20** | 4.10 | 8.7 | 1.39 / 3.32 s | 93% |
+| `gm-repair` (off-graph-gated background) | 15/20 | 19/20 | 11/20 | 3.95 | 7.7 | 1.43 / 2.96 s | 97% |
+| `gm-stall-quick` | 17/20 | 20/20 | 13/20 | 4.05 | 8.2 | 1.21 / 3.24 s | 97% |
+| **`gm-quick-block`** | **19/20** | **20/20** | 14/20 | **4.15** | **6.8** | 1.29 / 4.18 s | 95% |
+
+**`gm-quick-block` is the best design within the 5 s budget.** On ordinary turns it replies at once, speculatively. When the decider judges the player has gone off the graph, it waits up to 3 s for the quick co-GM: a compact, no-reasoning call that opens a route (with a roll and a stated reason when the outcome should be uncertain) or relocates a missed essential. Then it sends one coherent reply. It reached the intended ending 19/20 times, ended every scene in the fewest turns, and scored highest on "intent" (the player's idea taken seriously, 4.2). Because the wait only happens on the few off-graph turns, the median reply stays at 1.3 s.
