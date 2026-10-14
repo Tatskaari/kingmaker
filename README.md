@@ -12,7 +12,7 @@ Needs Node 26 and `OPENROUTER_API_KEY` (or `~/secrets/kingmaker-dev-openrouter.t
 npm install                       # only needed for typecheck and the world scribe's script checks
 npm run scene -- list             # scenes and approaches
 npm run scene -- play stranger-crossroads            # interactive: character creation, then the road
-npm run scene -- start crossroads-ambush --approach gm --session demo
+npm run scene -- start crossroads-ambush --session demo          # defaults to the recommended v2
 npm run scene -- say demo 'I raise my hands. "Easy, friend. What happened to your ox?"'
 npm run scene -- transcript demo
 npm run scene -- status demo      # debug: beat, rolls, co-GM notes, latency
@@ -42,6 +42,10 @@ npm run scene -- world demo       # Phase 2: world-update scripts for the finish
 
 | approach | what it tests |
 |---|---|
+| **`v2`** (default) | **Recommended.** GM voice with essentials, speculative replies, quick co-GM on off-graph turns (3 s), background co-GM. |
+| `gm-quick-block`, `gm-stall-quick` | The two budgeted repair designs `v2` came from: a single wait vs a holding beat plus follow-up. |
+| `gm-rigid`, `gm-nudge`, `gm-fast`, `gm-repair-*` | Deviation experiment conditions: no essentials, decider relocation, speculative replies only, co-GM timings (low/stall/blocking). |
+| `gm-low`, `gm-medium` | GM voice with more reasoning (no gain, slower). |
 | `gm` | One GM voice narrates and plays everyone (Friends & Fables style). Luna decision mode as the director. |
 | `gm-jev` / `gm-luna` | The same, with Jev or Luna structured output as the decider. |
 | `gm-repair` | Plus a background co-GM (Luna, medium reasoning). It leaves short-lived notes, whispers to characters, "no, but" alternatives, and additive routes. It's gated by the scene status. |

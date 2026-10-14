@@ -42,6 +42,11 @@ export interface Approach {
 }
 
 export const APPROACHES: Record<string, Approach> = {
+  // Recommended: what the experiments support (docs/experiments/deviation-repair.md). Single GM
+  // voice with the scene's essentials in its prep; speculative replies; on a turn the decider judges
+  // off the graph, wait up to 3 s for the quick co-GM (routes with rolls, relocations), then one reply;
+  // the full co-GM reviews in the background between turns.
+  v2: { id: "v2", description: "Recommended: GM voice, speculative replies, quick co-GM on off-graph turns (3 s), background co-GM.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true },
   "gm-rigid": { id: "gm-rigid", description: "Baseline: single GM voice without the scene's essentials and without a co-GM.", voice: "gm", decider: "luna-decisions", repair: "off", hideEssentials: true },
   gm: { id: "gm", description: "Single GM voice; Luna decision mode tracks beats, rolls and exits.", voice: "gm", decider: "luna-decisions", repair: "off" },
   "gm-jev": { id: "gm-jev", description: "Single GM voice; Jev tracks beats, rolls and exits.", voice: "gm", decider: "jev", repair: "off" },

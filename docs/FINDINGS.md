@@ -17,6 +17,10 @@ What the overnight experiment of 2026-10-14 learned about GM-run scenes. The bri
 9. **More GM reasoning doesn't help.** Luna as GM at `low` / `medium` reasoning showed no measurable quality gain over `none` (81/88/81% criterion pass), and `medium` more than doubled time to first text (1.6 → 3.7 s median). Keep `none`. A Luna-high *judge* agreed with Sol on 80% of verdicts at about 1/15 of the cost, which makes it good for cheap screening.
 10. **It's snappy and cheap.** First text arrives at about 1.1 s median (p90 about 1.7 s). The decision call takes about 0.28 s. A turn costs under $0.001 in game calls. The night's total of about $25 was mostly the judge model.
 
+## Recommended configuration: `v2`
+
+The single GM voice with essentials in its prep, Luna decision mode, speculative replies, the quick co-GM on off-graph turns (3 s deadline, one coherent reply), and the full co-GM in the background. It's the CLI default. On the off-graph experiment (pooled, quick co-GM variants): ~90% of scenes ended the way the player's approach should lead, 95–99% of scenes reached an ending, and 95–99% of replies resolved within 5 s at a median of ~1.2 s. See [experiments/deviation-repair.md](experiments/deviation-repair.md).
+
 ## Resolving deviations within a 5 s budget
 
 Full write-up: [experiments/deviation-repair.md](experiments/deviation-repair.md). 10 off-graph cases (routes removed, invented approaches, players avoiding where a clue was placed) × 10 conditions × 2 samples.
@@ -26,7 +30,8 @@ Full write-up: [experiments/deviation-repair.md](experiments/deviation-repair.md
 - **Stall-and-report-back works once it's budgeted.** On an off-graph turn, a generated holding beat streams at ~1 s while a *quick* co-GM (compact output, no reasoning, 3 s deadline) decides. The follow-up starts at ~4.2 s, 97% of turns resolve within 5 s, and it scored the best target-ending rate (18/20). Without the deadline, follow-ups took 10–20 s.
 - **A background co-GM never costs latency** (100% within budget). It lands next turn and adds a little.
 - **Speculative replies** start the GM alongside the decision and keep the reply when the decision changes nothing. That cuts median first text from 1.38 s to 1.10 s for free.
-- **Best design so far: `gm-quick-block`.** Ordinary turns reply at once. On a turn the decider judges off the graph, it waits up to 3 s for the quick co-GM: it opens a route (with a roll and a reason when the outcome should be uncertain) or relocates a missed essential. Then it sends one coherent reply. Intended ending 19/20, every scene ended, fewest turns (6.8), 95% of replies within 5 s (median 1.3 s). The holding-beat variant (`gm-stall-quick`) works (17/20). Claude analysts found the beats were real story beats, never canned, but often too long, and the follow-ups repeated or rewound them. A single short wait reads better.
+- **Pooled over 4 rounds:** target endings were 60% with no essentials and no co-GM, 72% with essentials, 75% adding the background co-GM, and **89–90% adding the quick co-GM** (stall or single-wait variants), with 95–99% of replies within 5 s. Leave relocation to the GM and the quick co-GM: the per-turn decider either dumped secrets early or, once restrained, never fired.
+- **Best design so far: `gm-quick-block` (now `v2`).** Ordinary turns reply at once. On a turn the decider judges off the graph, it waits up to 3 s for the quick co-GM: it opens a route (with a roll and a reason when the outcome should be uncertain) or relocates a missed essential. Then it sends one coherent reply. Intended ending 19/20, every scene ended, fewest turns (6.8), 95% of replies within 5 s (median 1.3 s). The holding-beat variant (`gm-stall-quick`) works (17/20). Claude analysts found the beats were real story beats, never canned, but often too long, and the follow-ups repeated or rewound them. A single short wait reads better.
 
 ## What was built
 

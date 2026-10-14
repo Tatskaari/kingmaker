@@ -112,3 +112,30 @@ Changes for round 4 (`2350645`):
 - Off-graph detection counts plans put as questions. Attempts that don't end the scene need 0.45 confidence.
 - The quick co-GM sees every beat's routes plus the cast's wants and secrets. It gives uncertain plans a roll with a specific failure consequence, and adds scene-wide routes.
 - Quick-block starts the quick co-GM alongside the decision, with a deadline from the start of the turn. A late result keeps the speculative reply.
+
+## Round 4 and the pooled picture
+
+Round 4 (`2350645`, n = 20 each): `gm` 12/20 target endings, `gm-nudge` 18/20, `gm-stall-quick` 19/20, `gm-quick-block` 17/20. Every roll showed a reason (100%). The tightened relocation (new carriers only, on avoidance) **never fired** (0 relocations), an over-correction from the 26/31 early reveals before it. Without it, the in-scene GM still landed the essentials on 12–14 of 16 placements in the deviation cases, so the essentials in the prep do that job.
+
+Single rounds of 20 are noisy: the same `gm` configuration scored 16, 16, 14 and 12. Pooled across rounds:
+
+| condition | runs | target ending | scene ended | judge criterion | within 5 s |
+|---|---|---|---|---|---|
+| `gm-rigid` (no essentials, no co-GM) | 20 | 60% | 75% | 50% | 99% |
+| `gm` (essentials in prep) | 80 | 72% | 88% | 60% | 97–99% |
+| `gm-nudge` (decider relocation, as it evolved) | 80 | 71% | 86% | 69% | 93–100% |
+| `gm-repair` (background co-GM) | 40 | 75% | 92% | 68% | 97–100% |
+| **`gm-stall-quick`** (holding beat + quick co-GM) | **80** | **89%** | **99%** | 62% | 96–97% |
+| **`gm-quick-block`** (quick co-GM, one reply) | **40** | **90%** | **95%** | 70% | 95–99% |
+| `gm-repair-blocking` (full co-GM before every reply) | 20 | 75% | 100% | 75% | **0%** |
+
+## Conclusions
+
+1. **Tell the GM what the scene needs.** Essentials (what the player must come across, where it was placed, that it can move) let the in-scene GM relocate missed clues itself, at no cost: 60% → 72% target endings. Analysts saw it move clues to whoever the player was engaging with, in ways that "felt like they were always there".
+2. **A quick co-GM inside the budget is the repair step that reliably helps:** ~89–90% target endings and 95–99% of scenes ending, against ~72–75% without one. It's a compact, no-reasoning call that opens a route (with a roll and a reason when uncertain) or relocates a missed essential. With a 3 s deadline it keeps 95–99% of replies within 5 s.
+3. **The full co-GM belongs in the background.** It never delays a reply and adds a little, from canon and routes for later turns. Blocking on it buys nothing over the quick co-GM and makes replies take 12.5 s.
+4. **Hold beats or a single wait both work.** Holding beats served the story (never canned) but tended to run long and pre-resolve the attempt, and the follow-up sometimes rewound them. A single wait of up to 3 s on the rare off-graph turn (~5% of turns) gives one coherent reply and still keeps the median at ~1.2 s.
+5. **Leave relocation to the GM and the quick co-GM, not the per-turn decider.** The decider either dumped secrets early through their own carrier, or, once restrained, never fired.
+6. **Rolls stay on edges and always say why.** That includes the quick co-GM's new routes: "Athletics check to work with the porters and lever the cart onto a timber track…".
+
+**Recommended configuration: `v2`** (now the CLI default). Single GM voice with essentials in its prep, Luna decision mode, speculative replies, the quick co-GM on off-graph turns with a 3 s deadline, and the full co-GM in the background.

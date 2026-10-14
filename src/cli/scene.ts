@@ -13,13 +13,13 @@ import { describeOperations, scribe } from "../world/scribe.ts";
 const USAGE = `Kingmaker V2 scene harness
 
   scene list                                   scenes and approaches
-  scene start <scene> [--approach gm] [--as "Name: concept"] [--seed N] [--session ID]
+  scene start <scene> [--approach v2] [--as "Name: concept"] [--seed N] [--session ID]
                                                start a scene; prints the session id and the opening
   scene say <session> <what you say or do>     take a turn (speech in quotes, actions in plain words)
   scene transcript <session>                   the scene so far
   scene status <session>                       debug view: beat, path, co-GM notes, latency (not for blind QA)
   scene world <session> [--mode reconcile]     Phase 2: write world-update scripts for every finished scene
-  scene play <scene> [--approach gm]           interactive play on a terminal
+  scene play <scene> [--approach v2]           interactive play on a terminal
 `;
 
 function flag(args: string[], name: string): string | undefined {
@@ -104,7 +104,7 @@ async function main(): Promise<void> {
   }
 
   if (command === "start" || command === "play") {
-    const approach = flag(args, "approach") ?? "gm";
+    const approach = flag(args, "approach") ?? "v2";
     const player = flag(args, "as");
     const seed = flag(args, "seed");
     const id = flag(args, "session");
