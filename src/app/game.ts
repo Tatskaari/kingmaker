@@ -6,6 +6,7 @@ import type { Exit } from "../runtime/scene.ts";
 import { loadSession, saveSession, type Entry, type EntryKind, type SessionState } from "../runtime/session.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { combat, maps, type CombatAction, type CombatController, type Dir, type Position } from "./adapters.ts";
+import { repairCampaign } from "./rules-repair.ts";
 import { resumable, saveApp, type JournalEntry, type Mode, type Resumable } from "./save.ts";
 import { beginScene, combatSetup, endedExit, epilogue, isInterlude, moveOn, newGame, storyOf, takeTurn, TIME_WORDS, type Epilogue } from "./story.ts";
 
@@ -132,6 +133,7 @@ export class Game {
 
   async resume(r: Resumable): Promise<void> {
     const session = loadSession(r.session.id);
+    if (repairCampaign(session)) saveSession(session);
     this.session = session;
     this.pos = r.save.pos;
     this.before = r.save.before;

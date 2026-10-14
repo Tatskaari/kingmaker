@@ -6,6 +6,7 @@ import type { Character } from "../../runtime/scene.ts";
 import type { SessionState } from "../../runtime/session.ts";
 import type { CombatAction, CombatAdapter, CombatController, CombatOptions, CombatView, CombatantView, Dir } from "../adapters.ts";
 import { add, chebyshev, same, STEP } from "../geometry.ts";
+import { repairCampaign } from "../rules-repair.ts";
 import { C, glyphOf, PEOPLE } from "../theme.ts";
 
 /**
@@ -348,6 +349,7 @@ class StandInFight implements CombatController {
         const target = action.target === "self" || action.target === "player" ? "self" : this.fighters.find(f => f.setup.id === action.target && !f.out)?.character.id;
         this.actionUsed = true;
         const outcome = await castSpell(this.session, this.fighters.filter(f => !f.player).map(f => f.character), action.spell, target ? [target] : []);
+        repairCampaign(this.session);
         for (const line of outcome.lines) say(line.startsWith("(") ? line : `🎲 ${line}`);
         break;
       }

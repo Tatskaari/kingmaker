@@ -8,6 +8,7 @@ import { saveSession, sessionDir, type Entry, type SessionState } from "../runti
 import { sceneById } from "../../scenes/index.ts";
 import type { CombatField } from "./adapters.ts";
 import { afterTurn } from "./background.ts";
+import { repairCampaign } from "./rules-repair.ts";
 
 /**
  * The story flow of the playable game (docs/design/playable.md), with no UI in it: make the
@@ -64,6 +65,8 @@ export async function beginScene(session: SessionState, hooks: TurnHooks): Promi
 export async function takeTurn(session: SessionState, input: string, hooks: TurnHooks): Promise<TurnResult> {
   setCallLog(join(sessionDir(session.id), "calls.jsonl"));
   const result = await playerTurn(session, input, hooks);
+  // A spell attack this turn can leave the rules campaign unloadable (see rules-repair.ts).
+  if (repairCampaign(session)) saveSession(session);
   afterTurn(session);
   return result;
 }

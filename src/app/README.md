@@ -40,7 +40,10 @@ To swap a real module in, change its line at the bottom of `adapters.ts`.
 ```sh
 python3 src/app/smoke/smoke.py            # the real TUI under a pty, the whole arc offline (about 70 s)
 python3 src/app/smoke/smoke.py --live     # one real GM turn, quit and resume, a real scene boundary
-KM_RUNS_DIR=runs/app-test node --no-warnings src/app/smoke/flow.ts   # the story flow and stand-ins, no UI
+KM_RUNS_DIR=runs/app-test node --no-warnings src/app/smoke/flow.ts     # the story flow and stand-ins, no UI
+KM_RUNS_DIR=runs/app-test node --no-warnings src/app/smoke/caster.ts   # a live-built wizard casting in the fight
 ```
+
+`rules-repair.ts` is a stop-gap for a rules-layer bug, and the report proposes the real fix. A spell attack logs the spell's id as `weaponInstanceId`, and the engine then refuses to reload the campaign. The app repairs the campaign after each turn, after each spell in a fight, and on resume.
 
 The offline run uses an invalid API key, so the GM can't speak, and it ends scenes with `#end`. The run covers character creation, walking, overlays, every scene, the notebook, save, quit and Continue (on the map and mid-fight), a full stand-in fight, and The End. Each step's screen is saved under `runs/app-smoke/<run>/`. `smoke/vt.py` is the small VT screen that reads it.
