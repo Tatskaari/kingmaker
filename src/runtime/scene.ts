@@ -142,6 +142,8 @@ export interface Scene {
   essentials?: Essential[];
   /** Named spots world scripts can refer to (e.g. "crossroads", "ditch"). */
   anchors?: string[];
+  /** Lore docs about this place and its world (paths under lore/): the GM's always-in entry docs. */
+  lore?: string[];
   /** Character creation: on exit, the player's character sheet is extracted from the conversation. */
   createsCharacter?: boolean;
 }

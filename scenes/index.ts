@@ -9,11 +9,14 @@ import { warrenHostage } from "./warren-hostage.ts";
 import { blockedEntrance } from "./blocked-entrance.ts";
 import { greenStandoff } from "./green-standoff.ts";
 import { hangedClerk } from "./hanged-clerk.ts";
+import { drownedRat } from "./drowned-rat.ts";
+import { heronWarehouse } from "./heron-warehouse.ts";
+import { caerwynAfternoon, wharfNight } from "./interludes.ts";
 import { crossroadsHoled, entranceHoled, tollHoled } from "./holed.ts";
 
 export const SCENES: Scene[] = [
   strangerCrossroads, crossroadsAmbush, crossroadsAftermath, crossroadsSituation,
-  garrowsToll, warrenHostage, blockedEntrance, greenStandoff, hangedClerk,
+  garrowsToll, warrenHostage, blockedEntrance, greenStandoff, hangedClerk, caerwynAfternoon, drownedRat, wharfNight, heronWarehouse,
   crossroadsHoled, entranceHoled, tollHoled,
 ];
 

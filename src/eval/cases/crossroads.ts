@@ -130,3 +130,8 @@ export const crossroadsCases: EvalCase[] = [
 export const situationCases: EvalCase[] = crossroadsCases
   .filter((c): c is Extract<EvalCase, { kind: "trajectory" }> => c.kind === "trajectory")
   .map(c => ({ ...c, id: c.id.replace("xr-traj", "xs-traj"), scene: "crossroads-situation", about: `${c.about} (situation format)` }));
+
+/** Memory smoke test: "We are leaving", said while standing beside Tam after handing the idol back, read as abandoning him. */
+crossroadsCases.push({ kind: "decision", id: "xr-dec-leaving-together", about: "Handing the idol back and saying 'we are leaving' beside Tam means leaving with him, not walking off and abandoning him.", scene: "crossroads-ambush", setup: { snapshot: "evals/fixtures/memory/ambush-idol-handed-003.json" }, phase: "before",
+  input: "I take the idol gently from Tam, walk halfway to the hedge, and set it on the milestone. Then I step back beside Tam. \"There she is. Take her home, Skrag. We are leaving.\"",
+  expect: ["none", "plain", "goblins-appear"], tags: ["exits", "memory-smoke"] });

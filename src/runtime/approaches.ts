@@ -41,6 +41,12 @@ export interface Approach {
   hideEssentials?: boolean;
   /** The decider flags daft or reckless acts the world would answer, and the GM is told to follow them through. */
   consequences?: boolean;
+  /**
+   * "docs": the docs service (after V1). Each character has a memory index, played scenes leave a
+   * story note, Jev opens the relevant notes each turn (progressive disclosure), and background
+   * reviews fired by attention flags write first-person memories. Otherwise: prose hand-offs only.
+   */
+  memory?: "docs" | "lite";
   /** House style for the GM voice: "comic" adds prompts/tone-comic.md (Pratchett / Monty Python). */
   tone?: "comic";
   /** Reasoning effort for the voices (GM, narrator, actors). Default "none" for snappy replies. */
@@ -52,7 +58,10 @@ export const APPROACHES: Record<string, Approach> = {
   // voice with the scene's essentials in its prep; speculative replies; on a turn the decider judges
   // off the graph, wait up to 3 s for the quick co-GM (routes with rolls, relocations), then one reply;
   // the full co-GM reviews in the background between turns.
-  v2: { id: "v2", description: "Recommended: GM voice in the comic house style, consequences for daft acts, speculative replies, quick co-GM on off-graph turns (3 s), background co-GM.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, tone: "comic", consequences: true },
+  v2: { id: "v2", description: "Recommended: GM voice in the comic house style with consequences, V1's docs-service memory (lore, per-character memories, Jev disclosure, background reviews), speculative replies, quick co-GM on off-graph turns (3 s), background co-GM.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, tone: "comic", consequences: true, memory: "docs" },
+  "v2-nomemory": { id: "v2-nomemory", description: "v2 without the docs service: prose hand-offs between scenes only.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, tone: "comic", consequences: true },
+  "v2-memory": { id: "v2-memory", description: "v2 plus V1's docs service: lore and per-character memories, Jev opens what matters each turn, Jev-flagged background reviews write memories and record improvised details into the lore.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, tone: "comic", consequences: true, memory: "docs" },
+  "v2-memory-lite": { id: "v2-memory-lite", description: "Alternative to v2-memory: one merged memory review per flagged turn (no tools), facts as separate notes, one memory per person at scene end.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, tone: "comic", consequences: true, memory: "lite" },
   "v2-straight": { id: "v2-straight", description: "v2 played straight: no comic house style or consequence flag (the v2 of the deviation experiment).", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true },
   "v2-comic": { id: "v2-comic", description: "v2 with the comic house style: the world plays it straight, daft acts get real consequences, stakes stay real.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, tone: "comic" },
   "v2-comic-bill": { id: "v2-comic-bill", description: "v2-comic plus consequences: the decider flags daft or reckless acts the world would answer, and the GM follows them through.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, tone: "comic", consequences: true },

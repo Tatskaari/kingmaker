@@ -2,6 +2,7 @@ import { respond, type Message, type RespondResult } from "../llm/openrouter.ts"
 import { currentBeat, nowNote, prompt, sceneBrief, sceneEntries, scriptTranscript, speakerName, presentCast } from "./brief.ts";
 import type { Scene } from "./scene.ts";
 import type { SessionState } from "./session.ts";
+import { memoryBrief } from "../lore/disclosure.ts";
 import { approachById } from "./approaches.ts";
 
 export interface Spoken { speaker: string; kind: "narration" | "dialogue"; text: string; result: RespondResult }
@@ -56,10 +57,15 @@ function gmHistory(scene: Scene, state: SessionState): Message[] {
 
 /** Approach "gm": one call, the GM narrates and voices everyone (Friends & Fables style). */
 export async function gmReply(scene: Scene, state: SessionState, directive: string[], onText?: (t: string) => void, operation = "gm.reply", signal?: AbortSignal, maxTokens?: number): Promise<Spoken> {
+  const docs = Boolean(approachById(state.approach).memory);
+  const lore = docs ? memoryBrief(scene, state, "stable") : undefined;
+  const memory = docs ? memoryBrief(scene, state, "live") : undefined;
   const input: Message[] = [
-    { role: "developer", content: sceneBrief(scene, state, { hideEssentials: approachById(state.approach).hideEssentials === true }) },
+    { role: "developer", content: sceneBrief(scene, state, { hideEssentials: approachById(state.approach).hideEssentials === true, lastHandoffOnly: docs }) },
+    ...(lore ? [{ role: "developer" as const, content: lore }] : []),
     ...gmHistory(scene, state),
-    { role: "developer", content: nowNote(scene, state, directive) },
+    // Volatile memory goes after the conversation so the cached prefix survives a newly opened note.
+    { role: "developer", content: [memory, nowNote(scene, state, directive)].filter(Boolean).join("\n\n") },
   ];
   // The model behaves best with a user turn to answer; the opening has none yet.
   if (!input.some(m => m.role === "user")) input.push({ role: "user", content: "(The player is ready. Begin.)" });

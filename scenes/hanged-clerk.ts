@@ -304,6 +304,7 @@ export const hangedClerk: Scene = {
       id: "case-made", kind: "progress", title: "The case is made",
       outcome: "Kell writes Prout's death down as murder, made to look like a suicide, with the man calling himself Master Sallow of the Royal Purveyor's office behind it. The player has a case, and whatever proof they found here, to take to the King.",
       closing: "Kell underlines something twice, closes her notebook and says something dry that is very nearly thanks. Prout goes to the watch house as a murder; she wants the player to carry the case to the King, since the Captain takes his orders from the Purveyor's office. Let the kids react to how the player treated them.",
+      next: "caerwyn-afternoon",
       script: (world, outcome) => {
         world.quest("hanged-clerk").complete("Proved Wendell Prout was murdered, and named Sallow of the Royal Purveyor's office as behind it.");
         world.quest("purveyors-man").start("The Purveyor's Man", "A man calling himself Master Sallow, of the Royal Purveyor's office, had the palace clerk Wendell Prout killed and hung up as a suicide. The case needs taking to the King, not the Watch Captain.");
@@ -318,6 +319,7 @@ export const hangedClerk: Scene = {
       id: "open-case", kind: "progress", title: "Murder by persons unknown",
       outcome: "Kell writes Prout's death down as murder by persons unknown, so he goes to the watch-house cold room and not the suicides' pit. Nobody has been named, but the case stays open.",
       closing: "Kell writes one line and underlines it; Prout will go on the cart under a sheet, as a murder. She tells the player, drily, that an open case beats a wrong one.",
+      next: "caerwyn-afternoon",
       script: (world, outcome) => {
         world.quest("hanged-clerk").advance("murder_unnamed", "Prout's death is on the books as murder by persons unknown.");
         world.character("kell").remember("Prout was murdered; nobody has been named for it yet, and the case is open.");
@@ -330,6 +332,7 @@ export const hangedClerk: Scene = {
       id: "wrong-man", kind: "other", title: "The wrong name in the book",
       outcome: "At the player's insistence, and over Kell's objection, a child has been taken in for Prout's murder. The Captain will gladly file a murder that embarrasses nobody at court, and whoever really killed Prout is in the clear.",
       closing: "Narrate the arrest without relish: the accused child's fury or terror, the other one bolting (over the wall or through the gap behind the water butt), and Kell writing her objection down in full. Prout is still turning on the hoist.",
+      next: "caerwyn-afternoon",
       script: (world, outcome) => {
         const accused = has(outcome.established, MOLL_TAKEN) ? "moll" : "cob";
         const other = accused === "cob" ? "moll" : "cob";
@@ -348,6 +351,7 @@ export const hangedClerk: Scene = {
       id: "closed-suicide", kind: "other", title: "Filed as a suicide",
       outcome: "Prout goes into the Captain's book as a suicide and onto the dead-cart for the pit outside the north gate. Nobody will look for whoever killed him.",
       closing: "Kell writes one word in her notebook and shuts it. Prout goes out of the yard on the dead-cart under a sheet, past the Assembly bunting (at noon, if it isn't here yet). Let the kids react.",
+      next: "caerwyn-afternoon",
       script: (world) => {
         world.quest("hanged-clerk").fail("Prout was filed as a suicide.");
         world.character("kell").setAttitude("wary", "The King's investigator let Prout go down as a suicide.");
@@ -359,6 +363,7 @@ export const hangedClerk: Scene = {
       id: "walked-away", kind: "leave", title: "Walked away",
       outcome: "The player left the granary yard before anything troubled the suicide story. At noon the dead-cart takes Prout away as a suicide.",
       closing: "Kell watches them go without a word, then turns back to the body and opens her notebook on her own.",
+      next: "caerwyn-afternoon",
       script: (world) => {
         world.quest("hanged-clerk").fail("Walked away before the case was made; Prout was filed as a suicide.");
         world.character("kell").setAttitude("wary", "The King's investigator walked away from Prout's case.");
@@ -384,4 +389,5 @@ export const hangedClerk: Scene = {
     "Answers that would need someone who isn't here (what goes on at court, anyone's business at the palace, anything about the goblin raids on the King's Road): nobody in this yard knows, and nothing here says.",
   ],
   anchors: ["granary-yard", "hoist-beam", "loft-door", "tally-loft", "water-butt", "yard-wall", "yard-gate", "yard-doors"],
+  lore: ["Places/Granary Yard.md"],
 };

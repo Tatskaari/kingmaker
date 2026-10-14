@@ -85,10 +85,14 @@ export interface SessionState {
   landed?: string[];
   /** Essentials a reply has already pointed towards: a nudge is given once, not repeated. */
   hinted?: string[];
+  /** Docs-service memory: notes Jev has opened for this scene (indexes are always in). */
+  memory?: { opened: Array<{ path: string; title: string; scope: string; turn: number }> };
   /** Beats whose pressure has already been offered to the GM (it fires once). */
   pressureOffered?: string[];
   /** Characters brought on stage early by play (before their authored entrance beat). */
   entered?: string[];
+  /** Recurring characters the hand-off rules out of this scene (taken in, fled, left behind). */
+  absent?: string[];
   /** Cheap per-turn status from the after-reply decision; gates the repair agent. */
   sceneStatus?: SceneStatus;
   lastRepairTurn?: number;

@@ -8,6 +8,7 @@
     "node": ">=26.4.0"
   },
   "scripts": {
+    "play": "node --no-warnings src/cli/scene.ts play hanged-clerk",
     "scene": "node --no-warnings src/cli/scene.ts",
     "eval": "node --no-warnings src/eval/run.ts",
     "typecheck": "tsc --noEmit -p .",

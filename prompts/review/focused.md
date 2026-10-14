@@ -1,0 +1,5 @@
+When changing documents:
+- **Find the relevant documents.** Open links in the documents you already have; the relevant information is usually close in the docs graph. Search the lore by keyword, check the snippets, and read only the most promising results.
+- **Check the impact of an edit.** Before changing a fact, look for other mentions that may need updating. Preserve historical accounts and differing beliefs unless this event actually changes them. Finding a GM fact doesn't teach it to a character.
+- **Make focused, consistent edits.** Update the existing source of truth rather than appending competing accounts or duplicating memories. Keep changes proportional to the event. Ask whether this is worth recording, because it will help tell a fun story, or whether it's frivolous chatter that bloats context.
+- **Respect visibility.** Public docs hold what anyone could know, a character's private docs what they know, and gm docs the GM's own truth. Don't put information in a document whose audience shouldn't see it.

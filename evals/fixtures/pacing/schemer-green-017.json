@@ -1,0 +1,492 @@
+{
+ "id": "qa2-schemer-gm",
+ "sceneId": "green-standoff",
+ "approach": "gm",
+ "seed": 165522303,
+ "rollCount": 2,
+ "player": {
+  "name": "Vesper Quill",
+  "concept": "a silver-tongued half-elf rogue and part-time forger, travelling to Caerwyn to sell secrets at the Assembly",
+  "modifiers": {
+   "persuasion": 5,
+   "deception": 6,
+   "intimidation": 1,
+   "insight": 3,
+   "performance": 2,
+   "perception": 3,
+   "investigation": 4,
+   "sleight_of_hand": 5,
+   "stealth": 5,
+   "athletics": 0,
+   "acrobatics": 4,
+   "animal_handling": 0,
+   "arcana": 1,
+   "history": 3,
+   "nature": 0,
+   "religion": 0,
+   "medicine": 0,
+   "survival": 1
+  }
+ },
+ "turn": 17,
+ "beat": "terms",
+ "turnsInBeat": 11,
+ "path": [
+  {
+   "turn": 6,
+   "from": "judgment",
+   "to": "terms",
+   "via": "appeal",
+   "source": "pre",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 13,
+    "die": 8,
+    "modifier": 5,
+    "total": 13,
+    "success": true,
+    "critical": null
+   }
+  },
+  {
+   "turn": 14,
+   "from": "terms",
+   "to": "terms",
+   "via": "freeform",
+   "source": "pre",
+   "roll": {
+    "skill": "stealth",
+    "dc": 16,
+    "die": 12,
+    "modifier": 5,
+    "total": 17,
+    "success": true,
+    "critical": null
+   }
+  }
+ ],
+ "established": [],
+ "canon": [],
+ "notes": null,
+ "notesTurn": null,
+ "patches": [],
+ "repairs": [],
+ "transcript": [
+  {
+   "turn": 0,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "The low sun lays the church tower’s shadow across Harrowby Green. By the well, villagers bunch around their hayforks; across from them, mud-caked folk cluster among nine carts, two cows, and a restless sprawl of geese. In the middle, a small girl sits cross-legged inside a ring of chalk and salt, arms folded, chin up. A thin young woman in a green University gown stands over her, straw doll tied at her belt and grey ash on her thumb. A stooped old man pleads softly; a big lad with an eel-spear shouts about goblins.\n\nThe young woman spots you on the track. Relief flickers across her face, then vanishes beneath a formal composure. “A stranger. Good. You are required as the stranger’s eye at a ward-judgment. Come, please.” Her ash-marked thumb hovers over the doll. “What is your name?”"
+  },
+  {
+   "turn": 1,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I sweep off my hat in a practiced bow, eyes flicking from the hayforks to the carts and back. \"Lisette Marrow, clerk-notary, bound for the Assembly at Caerwyn. A ward-judgment? I'd be honoured, mistress... though I like to know what I'm lending my eye to before I lend it. Who's the child, and why is she sitting in salt?\""
+  },
+  {
+   "turn": 1,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Hester’s posture softens a fraction at your courtesy. “Hester Quill. Acting ward-keeper.” Her voice firms as she turns the matter into a recital. “Pip Callow took the corn mother from the bounds-stone this morning. Theft from the ward is answered by the thief’s mark—ash and chalk on the brow, lasting a year and a day—unless the thief makes amends before the parish. She has refused.”\n\nThe old reeve dips his head. “Oswin Thatcher, friend. I ask you: spare the child, and let my people have one more week on the green.”\n\nThe spear-bearing lad cuts in, “The goblins at the burnt mill are the real trouble. Come with us tonight—we’ll get their seed-grain back.”\n\nPip looks you over. “I took it. I’m not sorry. You got a blade?” Hester waits, ash still on her thumb. What do you ask or say?"
+  },
+  {
+   "turn": 2,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I crouch at the very edge of the chalk, careful not to scuff it, and drop my voice so only Pip can hear. \"I've a blade, and a few things sharper than blades. But a blade's no use to you sitting in a salt ring. Tell me true, little thief: why'd you take it, and where is it now? Because whoever's holding that corn mother is holding this whole green by the throat.\""
+  },
+  {
+   "turn": 2,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Pip’s gaze drops briefly to the corn mother at Hester’s belt. “I put it back. It’s there now.” Her chin lifts again. “If there’s no doll, there’s no ward. If there’s no ward, they can’t make us go.”\n\nOswin’s fingers tighten around the broom-handle staff. He says nothing, but his eyes flick to Pip.\n\nHester’s ash-marked thumb stills against the straw. “The ward is not a hostage, miss Marrow.” Her tone is precise, but her gaze stays on Pip. “And she knows what she did.”\n\nAt the well, the villagers shift their grips on the hayforks. Pip looks up at you. “I didn’t want them sent out.”"
+  },
+  {
+   "turn": 3,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I rise, brushing chalk-dust from my knee, and give Hester a sly, sideways smile. \"Sharp ears, ward-keeper. Acting ward-keeper, you said. So where's the proper one, and why isn't it their thumb in the ash tonight?\" I nod toward the carts. \"And forgive a stranger's ignorance, but what has a straw doll to do with whether these folk stay or go?\""
+  },
+  {
+   "turn": 3,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "“I am the proper one tonight,” Hester says, keeping her voice level. “Master Warden Applegarth is at the Centennial Assembly in Caerwyn. Ward-night leaves the parish in my charge.”\n\nAt your question about the doll, her hand closes around it. “At sundown, I walk the bounds with the corn mother, then set it in the niche of the bounds-stone. The ward turns anyone not of Harrowby out—goblins included. It doesn’t hurt them. It makes them remember urgent business elsewhere.”\n\nOswin lowers his eyes. “And my people are not of Harrowby, friend.”\n\nNed plants his eel-spear in the turf. Two lads edge closer. “Then deal with the goblins before sundown. Come with us to the burnt mill.”\n\nHester glances at the church tower’s lengthening shadow. “The Statute allows amends before the parish. The choice is Pip’s.”"
+  },
+  {
+   "turn": 4,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I give Hester a gracious nod, then drift toward the carts as if to admire the geese, and fall in beside the old reeve where the hayforks can't hear. \"Master Thatcher. A week on the green, you said. Suppose that doll never reached its stone tonight, or reached it and did nothing at all. What would a week be worth to your people?\" I keep my eyes on the geese, smiling pleasantly. \"And why does Harrowby want you gone so badly? It isn't only goblins.\""
+  },
+  {
+   "turn": 4,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Oswin turns his face toward the geese, following your gaze. “A week would be worth a dry roof over the little ones, friend. Time to see the river fall and go home. But the doll is where it belongs. I can’t ask you to spoil the ward.”\n\nHis mouth tightens at your second question. “Harrowby gave us the green for two days. They fear the goblins, and they fear a ward with strangers inside it. I don’t think they hate us.” He pauses, then adds, quieter, “I said something careless when we arrived. Pip heard me. I told her, half in jest, that without the doll there’d be no ward and no turning us out.”\n\nBehind you, the church shadow inches across the grass. Ned plants his eel-spear; Hester flexes her grey thumb. “The sun is low, miss Marrow,” she calls. “Are you willing to speak for the judgment?”"
+  },
+  {
+   "turn": 5,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I pat Oswin's arm, murmur \"Leave it with me,\" and stroll back toward the ring. \"Willing, ward-keeper, once I know what I'm swearing to. What does the stranger's eye actually do? And can you hold a judgment without one?\" I tilt my head, all innocent curiosity. \"One more thing, for my notes. What makes a body 'of Harrowby' in the ward's reckoning? Born under that tower? Wed to a Harrowby name? Or simply written in the parish book?\""
+  },
+  {
+   "turn": 5,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Hester’s expression tightens at the questions, but she answers plainly. “The stranger’s eye witnesses the judgment and may speak to its fairness before I act. An objection won’t stop me; it goes in the parish book for the Master Warden to read. I need a witness tonight. No, I won’t make the judgment without one.”\n\nAt “of Harrowby,” she pauses. “The Statutes reckon it by more than birth or ink. A stranger who breaks a parishioner’s bread and salt at the bounds-stone is a guest, and the ward counts them as parish for as long as it stands.”\n\nOswin looks up sharply, hope and alarm together. Hester’s thumb presses hard against the doll. “I have not agreed to stretch the ward over thirty-one guests.” The sun rests level with the church tower."
+  },
+  {
+   "turn": 6,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I step close to Hester, close enough that the hayforks can't hear, and speak low and friendly. \"So my words go in the book for Master Applegarth. Then think what he'll read, ward-keeper. Either that his acting keeper marked a child's face and drove thirty-one flood-folk out toward a goblin-held mill at dusk, on his Centennial night... or that she showed the judgment of a Master.\" I smile. \"I can write either. I'd rather write the second. Let me fetch you Pip's amends before the sun touches that tower. In return, you give me a letter in your hand to Applegarth at the Assembly, naming me a friend of Harrowby. Do we understand each other?\""
+  },
+  {
+   "turn": 6,
+   "scene": "green-standoff",
+   "speaker": "dice",
+   "kind": "roll",
+   "text": "Persuasion check: 8 + 5 = 13 vs DC 13: success"
+  },
+  {
+   "turn": 6,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Hester studies you for a long beat. Then, with the whole green watching, she lowers her ash-marked thumb.\n\n“On the stranger’s testimony, I reserve judgment on the mark. The theft is answered by restoration: the corn mother is returned, and Pip remains under the ward-keeper’s care until sundown.” She steps aside and scuffs open the chalk ring with her boot.\n\nPip gets up stiffly and moves close to you. “What happens to everyone?”\n\nHester turns back to you, guarded but listening. “Your letter is a separate matter, miss Marrow. First, Harrowby must be safe tonight. If I count Sedgeford inside the ward, it must hold for them too.”\n\nOswin speaks up. “My people can stand the night watch, friend. We have hands enough, and the cows give milk.” Ned grips his eel-spear. “Or we go for the goblins before they come here. Lead us to the burnt mill.” The sunlight thins along the church tower."
+  },
+  {
+   "turn": 7,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I ruffle Pip's hair. \"Everyone gets what they bargain for, sprat. Stick close and keep your ears open.\" To Hester and Ned I raise one finger: \"A moment, both of you. A good notary hears all parties.\" Then I amble toward the well, fussing with my pack as if hunting for a quill, and hang at the edge of the hayfork crowd, listening hard to what the Harrowby folk mutter among themselves."
+  },
+  {
+   "turn": 7,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "The villagers’ muttering follows you to the well.\n\n“Ward held before,” an old woman says, gripping her rake. “Can’t have holes in it.” A man beside her answers, “They’ve done no harm. Oswin’s folk helped haul our hay out of the wet field.” Someone else mutters, “And who feeds thirty-one extra mouths?”\n\nAt the carts, Oswin lifts his voice, gentle but carrying. “We’ll stand the night watch, friend. And the cows can give milk for the children. If there’s harvest still to bring in, my people have hands.”\n\nNed’s jaw works. “And the goblins keep our seed-grain. Let us take it back before they come sniffing here.” Pip stays close beside you, looking from the adults to your face. “So what happens to everyone?”"
+  },
+  {
+   "turn": 8,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "\"What happens to everyone,\" I tell Pip, \"depends on who pays the piper.\" I wink at her and slip back to Oswin's side, voice low. \"Your ward-keeper's halfway to bread and salt, Master Thatcher, and I put her there. But brokers have to eat too. Before I finish the job, tell me what Sedgeford has that's worth a week under a dry roof. Coin, river-pearls, a secret worth selling? I'm not proud.\""
+  },
+  {
+   "turn": 8,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Oswin gives a rueful little smile. “No river-pearls, friend. The flood took enough from us.”\n\nHe gestures toward the carts. “We have hands for Harrowby’s last harvest, if there’s work still to do. We can keep watch tonight. The cows will give milk for the children. It isn’t coin, but it’s honest.”\n\nNed hears enough to bristle. “And we’ve got lads who can fight. Let us march on the mill. Five goblins, seed-grain stolen. We could have it back before dawn.” He looks directly at you, hope breaking through his bluster. “You’d lead us?”\n\nAcross the green, Hester keeps one hand on the corn mother. “Harvest hands and a watch serve the parish. They don’t make a thin ward whole.” The last sunlight clings to the church tower. Pip tugs your sleeve. “Are we staying?”"
+  },
+  {
+   "turn": 9,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "\"Put up the spear, Ned.\" I hold up a hand. \"Five goblins in a burnt mill aren't an army, they're a market stall. I spent two winters fencing silver through goblin traders up in the Marches, and I can haggle in their tongue well enough to get cheated politely.\" I turn to Hester. \"Let me buy Sedgeford's grain back with words instead of spears. If those goblins are gone with the grain on our side of the bounds, your ward's got no teeth to bite at. Can you hold the bounds-walk until I'm back, or does it have to be sundown on the nose?\""
+  },
+  {
+   "turn": 9,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Ned lowers his spear a little, caught between hope and disbelief. “You can talk to them?”\n\n“I can hold the bounds-walk,” Hester says, precise as ever. “There is no bell that makes sundown a deadline. But I will not leave Harrowby unwarded indefinitely while someone bargains with goblins.” She looks to the dimming hill, then to the villagers. “Give me a reason this serves the parish—not merely a reason Sedgeford needs it.”\n\nOswin offers, “My folk will take the night watch and work Harrowby’s harvest. We can leave the cows’ milk here for the children.”\n\nHester unties the corn mother, keeping it firmly in hand. “The sun is touching the hill, miss Marrow. Will you go to the mill—and will you return before I must choose?”"
+  },
+  {
+   "turn": 10,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "\"Here's your parish reason,\" I tell Hester, tugging on my gloves. \"Goblins with a full larder sit tight. Goblins who've eaten Sedgeford's seed by midwinter come looking for Harrowby's. I'd rather they leave with a bargain in their bellies and a reason never to come back. And Harrowby gets thirty-one backs for its harvest into the bargain.\" I nudge Pip toward her. \"Keep the sprat, and keep that doll warm. I'll be back before you have to choose.\" Then to Ned: \"You and one lad, no more. Spear pointed at the ground. Lead the way to this mill.\""
+  },
+  {
+   "turn": 10,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "“I’ll hold the ward until you return,” Hester says. “But I make no promise beyond that. Bring me a reason the parish can trust—not merely a goblin’s word.”\n\nOswin bows his head. “We’ll keep watch, friend. And the harvest hands are yours.”\n\nNed’s bluster falls away into a fierce, relieved grin. “One lad, then. Jory!” He beckons a spearman over. “Keep yours pointed down unless the goblins give us cause.”\n\nThe sun touches the hill. Hester unties the corn mother and turns toward the bounds-stone, holding it close. Pip hurries after you. “You’re coming back, right?” Ned waits at the edge of the green, Jory beside him, ready to lead you north."
+  },
+  {
+   "turn": 11,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I crouch to Pip's height. \"Always, sprat. I never leave money on the table.\" I steer her gently back toward Hester, then fall in beside Ned as we head north. \"Talk while we walk. Who burnt this mill, and when? And how exactly did five goblins walk off with Sedgeford's seed-grain under thirty-one noses?\""
+  },
+  {
+   "turn": 11,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Hester calls after you as you leave the green, corn mother in hand. “I gave my word to hold the ward until you return. Do not make me regret it.”\n\nNed leads you north along the river path, Jory following with his eel-spear lowered. The last light catches the water through the trees. At your question, Ned’s grin fades.\n\n“Mill burned before my time. Roof came down, wheel’s been dead years. Goblins use the stones for a den.” He rubs his yellowing eye. “They came in the dark while we were bedding down. Took the seed sacks from the cart. Nobody saw till morning.”\n\nJory glances at him, then away. Ned’s grip tightens on his spear. “I followed their tracks to the mill. Five, like I said. We’ll get the grain back.”"
+  },
+  {
+   "turn": 12,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I stop on the path and tilt my head at Ned's face. \"That bruise is yellowing, Ned. That's four or five days old, and you only lost the grain last night. Goblins bite, they don't punch.\" I flick a silver penny over my knuckles and catch Jory's eye. \"And you looked away just now like a man who's heard a different version of this story. A penny for the true one, Jory. Who was on watch when those sacks walked off?\""
+  },
+  {
+   "turn": 12,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Ned’s hand rises to his bruised eye. “It’s from the axle. I was under the cart when they came.” His voice goes hard, then falters. “I hid. Pip saw.”\n\nJory shifts his spear, eyes on the silver penny. “We were all asleep. No watch. Ned woke when the sacks were already going. He followed their tracks at dawn.” He takes a breath. “They didn’t beat him. He’s been telling it loud so the others will go with him.”\n\nNed stares at the path. “I thought if I made it sound like a fight, they wouldn’t know I’d been scared.” The river murmurs beside you. Behind, Harrowby’s last sunlight fades. Jory looks at you. “Still want to bargain with five goblins?”"
+  },
+  {
+   "turn": 13,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I flip the penny to Jory. \"Honest coin for honest words.\" Then I sling an arm round Ned's shoulders. \"Hiding under a cart from five goblins isn't cowardice, it's arithmetic. Your secret's safe with me, Ned. I don't give secrets away, I sell them, and nobody's buying yours tonight. But you owe me one, and I always collect.\" I let go. \"Now. Quiet as you can. We get close to this mill and listen before anyone shows a face. I want to know what they're saying before I say anything back.\""
+  },
+  {
+   "turn": 13,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Jory catches the penny and closes his fist around it. Ned stiffens at your arm, then gives a small, grateful nod. “All right. Quiet.”\n\nYou leave the river path and pick your way through wet reeds toward the burnt mill. No one speaks. Ahead, the mill’s blackened stones hunch beside the water; a low fire flickers in its broken shell. Goblin voices murmur within—quick, wary, arguing over something you can’t make out.\n\nBehind you, Harrowby’s church bell gives one slow stroke. Ned glances back toward the village, then at you. “Close enough to listen. What now?”"
+  },
+  {
+   "turn": 14,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "\"Stay here, both of you. If you hear me scream, run. If you hear me laugh, come slowly.\" I slip forward alone, low through the reeds, until I'm pressed against the cold blackened stones beside a gap in the wall. I hold my breath and listen, sifting their chatter for the goblin words I picked up in the Marches."
+  },
+  {
+   "turn": 14,
+   "scene": "green-standoff",
+   "speaker": "dice",
+   "kind": "roll",
+   "text": "Stealth check: 12 + 5 = 17 vs DC 16: success"
+  },
+  {
+   "turn": 14,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "You slip through the reeds without a sound and press against the mill’s cold, blackened stones. The goblin voices sharpen into words you know.\n\n“—grain’s seed, not food,” one snaps. “We trade it back, we’ve nothing to plant.”\n\nAnother answers, “Humans bring spears. We keep it till they go.”\n\nA third voice, smaller and anxious: “They’ll ward the road at sundown. Then we’re trapped here with their village angry.”\n\nThere’s a rustle of sacks inside, then a pause. A goblin says, “If their talker comes alone, we hear them. Spears stay outside.”\n\nBehind you, Ned and Jory wait hidden among the reeds. The firelight flickers through the gap. You can approach openly, call to them in their tongue, or carry what you’ve heard back to Ned."
+  },
+  {
+   "turn": 15,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I step out into the firelight of the gap, hands open and empty, and call in my rusty Marches goblin: \"Peace, peace! I'm the talker. Spears stay outside, just as you like.\" I sit down cross-legged on the threshold stone, uninvited, as if this is a market. \"I heard you. Seed, not food. And you're right to be worried, the ward comes down on the road tonight. So let's talk about what you need to plant, and what you need to walk away from here in one piece. Which of you does the bargaining?\""
+  },
+  {
+   "turn": 15,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Firelight catches on five small faces and the stolen seed-sacks stacked against the mill wall. A wiry goblin with a copper ring through one ear steps forward, keeping well inside the broken doorway.\n\n“I’m Gritt. I bargain.” Their eyes flick to your empty hands, then past you to the reeds. “You say the ward comes down on the road. Why should we give back seed we need, so your village can chase us into the dark?”\n\nThe goblin beside them clutches a sack tighter. From behind you, Ned whispers, “Ask for all of it.” But Gritt watches only you. “What do you offer?”"
+  },
+  {
+   "turn": 16,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I wave a hand behind me at Ned's whisper without looking round. \"Here's my offer, Gritt. One sack stays with you, to plant wherever you go next. The rest walks back with me. In return, I see you safe past the ward tonight. Harrowby's keeper owes me a favour, and there's an old rite of theirs, bread and salt at the bounds-stone, that makes a stranger a guest. Guests aren't turned out.\" I lean in, lowering my voice. \"And for my trouble, one more thing. You've watched that village from these reeds for days. Tell me something about Harrowby that Harrowby doesn't want told.\""
+  },
+  {
+   "turn": 16,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Gritt’s ears angle back. “You promise what your keeper hasn’t agreed to.”\n\nThey glance toward the others, then back at you. “One sack stays. The rest, we can trade—if your people let us pass without spears at our backs. But we won’t be marched like dogs.”\n\nAt the question about Harrowby, Gritt’s smile is thin. “Their ward-keeper is afraid. Not of us. Of getting the ward wrong with everyone watching.” A goblin behind them hisses, but Gritt lifts a hand. “That’s what I’ve seen. No more.”\n\nA bell sounds faintly across the darkening fields. Gritt’s gaze shifts to the north. “Will you take that bargain to your people—or are you selling me a promise you can’t keep?”"
+  },
+  {
+   "turn": 17,
+   "scene": "green-standoff",
+   "speaker": "player",
+   "kind": "player",
+   "text": "I laugh, delighted. \"Sharp. You're right, that one was a promise on credit. So here's one I can pay in full: the keeper swore before her whole parish she won't set the ward until I walk back onto that green. Every minute I sit here is a minute the road stays open.\" I jerk a thumb over my shoulder and raise my voice in the human tongue. \"Ned! Jory! These folk walk north with one sack, and nobody follows. Spears in the mud.\" Back to Gritt, softer: \"Leave the rest stacked by the door. And lend me that copper ring as a token, so the keeper can see goblins keep their bargains. I'll make sure the tale gets told kindly.\""
+  },
+  {
+   "turn": 17,
+   "scene": "green-standoff",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Gritt gives a short, dry laugh. “Keep the ring. I don’t lend my name as a token. But I’ll leave the sacks here and take one. No spears after us; we walk north.”\n\nNed steps out of the reeds, spear lowered but his face tight. “You’re letting them keep our seed?”\n\n“They need seed,” Gritt says. “You need a harvest. Seems both sides can count.”\n\nThe goblins shoulder one sack and slip away into the dark. No copper ring changes hands. When you return to Harrowby, the last light rests on the hill. Hester stands by the bounds-stone with the corn mother in hand; villagers are beginning to pack pots. She turns at your approach. “What have you brought me?”"
+  }
+ ],
+ "metrics": [
+  {
+   "turn": 1,
+   "preDecisionMs": 236.459311,
+   "firstTextMs": 1022.813421,
+   "replyMs": 8162.386693,
+   "postDecisionMs": 322.04864499999894,
+   "costUsd": 0.00072389,
+   "calls": 3
+  },
+  {
+   "turn": 2,
+   "preDecisionMs": 375.980399,
+   "firstTextMs": 1332.461832,
+   "replyMs": 2962.0131709999996,
+   "postDecisionMs": 319.3728369999999,
+   "costUsd": 0.00079034,
+   "calls": 3
+  },
+  {
+   "turn": 3,
+   "preDecisionMs": 1067.243109,
+   "firstTextMs": 1801.364592,
+   "replyMs": 2942.6820020000005,
+   "postDecisionMs": 1051.6216369999997,
+   "costUsd": 0.00087612,
+   "calls": 3
+  },
+  {
+   "turn": 4,
+   "preDecisionMs": 427.35566,
+   "firstTextMs": 1292.5760349999998,
+   "replyMs": 3487.44737,
+   "postDecisionMs": 224.39271399999961,
+   "costUsd": 0.00095702,
+   "calls": 3
+  },
+  {
+   "turn": 5,
+   "preDecisionMs": 444.56416400000006,
+   "firstTextMs": 1471.785409,
+   "replyMs": 3235.55667,
+   "postDecisionMs": 731.0096030000004,
+   "costUsd": 0.0010118850000000001,
+   "calls": 3
+  },
+  {
+   "turn": 6,
+   "preDecisionMs": 409.686697,
+   "firstTextMs": 1480.237585,
+   "replyMs": 3633.720929,
+   "postDecisionMs": 307.3197890000001,
+   "costUsd": 0.001117275,
+   "calls": 3
+  },
+  {
+   "turn": 7,
+   "preDecisionMs": 245.91895399999999,
+   "firstTextMs": 993.6600010000001,
+   "replyMs": 3082.307119,
+   "postDecisionMs": 294.07335900000044,
+   "costUsd": 0.00102925,
+   "calls": 3
+  },
+  {
+   "turn": 8,
+   "preDecisionMs": 418.00264599999997,
+   "firstTextMs": 1291.9981559999999,
+   "replyMs": 3231.148755,
+   "postDecisionMs": 1823.458963,
+   "costUsd": 0.00104534,
+   "calls": 3
+  },
+  {
+   "turn": 9,
+   "preDecisionMs": 469.06738099999995,
+   "firstTextMs": 1371.7756180000001,
+   "replyMs": 3120.0143749999997,
+   "postDecisionMs": 298.1665499999999,
+   "costUsd": 0.001060485,
+   "calls": 3
+  },
+  {
+   "turn": 10,
+   "preDecisionMs": 502.27459699999997,
+   "firstTextMs": 1509.211485,
+   "replyMs": 2944.038161,
+   "postDecisionMs": 296.1656159999998,
+   "costUsd": 0.00105626,
+   "calls": 3
+  },
+  {
+   "turn": 11,
+   "preDecisionMs": 494.536458,
+   "firstTextMs": 1510.632806,
+   "replyMs": 3393.763051,
+   "postDecisionMs": 381.3694559999999,
+   "costUsd": 0.0010347099999999999,
+   "calls": 3
+  },
+  {
+   "turn": 12,
+   "preDecisionMs": 386.684273,
+   "firstTextMs": 1264.222095,
+   "replyMs": 3074.9697979999996,
+   "postDecisionMs": 307.57423900000003,
+   "costUsd": 0.00105866,
+   "calls": 3
+  },
+  {
+   "turn": 13,
+   "preDecisionMs": 338.791581,
+   "firstTextMs": 1804.057161,
+   "replyMs": 3404.917625,
+   "postDecisionMs": 322.5311750000001,
+   "costUsd": 0.001039965,
+   "calls": 3
+  },
+  {
+   "turn": 14,
+   "preDecisionMs": 641.267782,
+   "firstTextMs": 1479.7059829999998,
+   "replyMs": 3495.8597,
+   "postDecisionMs": 298.42812499999945,
+   "costUsd": 0.00130956,
+   "calls": 3
+  },
+  {
+   "turn": 15,
+   "preDecisionMs": 406.016703,
+   "firstTextMs": 1170.402902,
+   "replyMs": 2493.529563,
+   "postDecisionMs": 321.37425200000007,
+   "costUsd": 0.0010026149999999999,
+   "calls": 3
+  },
+  {
+   "turn": 16,
+   "preDecisionMs": 386.12177099999997,
+   "firstTextMs": 1023.533138,
+   "replyMs": 2989.1105310000003,
+   "postDecisionMs": 262.3670440000001,
+   "costUsd": 0.001024445,
+   "calls": 3
+  },
+  {
+   "turn": 17,
+   "preDecisionMs": 380.323011,
+   "firstTextMs": 1195.305742,
+   "replyMs": 3100.136035,
+   "postDecisionMs": 306.2049659999998,
+   "costUsd": 0.00104079,
+   "calls": 3
+  }
+ ],
+ "history": [],
+ "sceneStatus": "on_track"
+}

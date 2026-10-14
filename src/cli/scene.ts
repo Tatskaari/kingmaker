@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { setCallLog, sessionSpend } from "../llm/openrouter.ts";
@@ -9,6 +9,10 @@ import { applyRepair, runRepair, shouldRepair, writeRepair } from "../runtime/re
 import { loadSession, saveSession, sessionDir, type Entry, type SessionState } from "../runtime/session.ts";
 import { SCENES, sceneById } from "../../scenes/index.ts";
 import { describeOperations, scribe } from "../world/scribe.ts";
+import { listDocs, readDoc } from "../lore/docs.ts";
+import { rememberTurn } from "../lore/remember.ts";
+import { reviewTurn } from "../lore/reviews.ts";
+import { effectiveScene } from "../runtime/brief.ts";
 
 const USAGE = `Kingmaker V2 scene harness
 
@@ -70,6 +74,16 @@ function spawnRepair(state: SessionState): void {
   child.unref();
 }
 
+const rememberLock = (id: string, turn: number) => join(sessionDir(id), `remember-${turn}.lock`);
+
+/** Docs-service memory: the attention filter and memory review run in the background after each turn. */
+function spawnRemember(state: SessionState): void {
+  if (!approachById(state.approach).memory) return;
+  writeFileSync(rememberLock(state.id, state.turn), String(state.turn));
+  const child = spawn(process.execPath, [import.meta.filename, "remember", state.id, "--turn", String(state.turn), "--scene", state.sceneId], { detached: true, stdio: "ignore", env: process.env });
+  child.unref();
+}
+
 async function waitForRepair(id: string): Promise<void> {
   // The co-GM is background work: by default never hold the player's turn for it.
   const limit = Date.now() + Number(process.env.KM_REPAIR_WAIT_MS ?? 0);
@@ -77,6 +91,8 @@ async function waitForRepair(id: string): Promise<void> {
 }
 
 async function afterTurn(state: SessionState, hooks: TurnHooks): Promise<void> {
+  // Memory is background work: never hold the story for it. Late memories are picked up by disclosure.
+  spawnRemember(state);
   if (!state.ended) { spawnRepair(state); return; }
   const scene = sceneById(state.sceneId);
   const exit = scene.exits.find(e => e.id === state.ended!.exitId)!;
@@ -110,7 +126,15 @@ async function main(): Promise<void> {
     const id = flag(args, "session");
     const sceneId = args.shift();
     if (!sceneId) throw new Error("Which scene? See `scene list`.");
-    const state = await createSession({ sceneId, approach, ...(player ? { player } : {}), ...(seed ? { seed: Number(seed) } : {}), ...(id ? { id } : {}) });
+    let who = player;
+    if (command === "play" && !who && process.stdin.isTTY) {
+      const ask = createInterface({ input: process.stdin, output: process.stdout });
+      console.log("Who are you? Give a name and a few words about yourself, e.g. \"Wren Ashdown: a quick-witted half-elf ranger with a dry sense of humour\".");
+      const answer = (await ask.question("(Enter for Wren Ashdown) > ")).trim();
+      ask.close();
+      if (answer) who = answer.includes(":") ? answer : `${answer}: an investigator lent to the case by the King`;
+    }
+    const state = await createSession({ sceneId, approach, ...(who ? { player: who } : {}), ...(seed ? { seed: Number(seed) } : {}), ...(id ? { id } : {}) });
     setCallLog(join(sessionDir(state.id), "calls.jsonl"));
     saveSession(state);
     console.log(`Session: ${state.id}\nYou are ${state.player.name}: ${state.player.concept}\n`);
@@ -127,7 +151,7 @@ async function main(): Promise<void> {
       const current = loadSession(state.id);
       await playerTurn(current, line, printer(current));
       await afterTurn(current, printer(current));
-      if (current.ended && !current.history.length) break;
+      if (current.ended) break; // the last scene ended with nowhere to go next
     }
     rl.close();
     return;
@@ -144,6 +168,37 @@ async function main(): Promise<void> {
     const hooks = printer(state);
     await playerTurn(state, text, hooks);
     await afterTurn(state, hooks);
+    return;
+  }
+
+  if (command === "remember") {
+    const id = args.shift()!;
+    const turn = Number(flag(args, "turn"));
+    try {
+      // Review the turn as it stood (its snapshot): by now the session may have moved on to the next scene.
+      const sceneId = flag(args, "scene");
+      const snapshot = join(sessionDir(id), "snapshots", `${sceneId}-turn-${String(turn).padStart(3, "0")}.json`);
+      const state = sceneId && existsSync(snapshot) ? JSON.parse(readFileSync(snapshot, "utf8")) as SessionState : loadSession(id);
+      setCallLog(join(sessionDir(id), "calls.jsonl"));
+      const scene = effectiveScene(sceneById(state.sceneId), state.patches);
+      if (approachById(state.approach).memory === "lite") await rememberTurn(scene, state, turn);
+      else {
+        const result = await reviewTurn(scene, state, turn);
+        appendFileSync(join(sessionDir(id), "memory-reviews.jsonl"), JSON.stringify({ turn, at: new Date().toISOString(), ...result }) + "\n");
+      }
+    } finally {
+      rmSync(rememberLock(id, turn), { force: true });
+    }
+    return;
+  }
+
+  if (command === "memories") {
+    const id = args.shift();
+    if (!id) throw new Error("Usage: scene memories <session>");
+    for (const path of listDocs(id).sort()) {
+      const doc = readDoc(id, path)!;
+      console.log(`## ${path}  [${doc.meta.visibility}${doc.meta.readers ? ` ${doc.meta.readers.join(",")}` : ""}]\n${doc.meta.context ? `(${doc.meta.context})\n` : ""}${doc.body}\n`);
+    }
     return;
   }
 

@@ -11,6 +11,10 @@ import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair }
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
 import { newSessionId, saveSession, snapshotSession, type Entry, type EntryKind, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
 import { actorReply, gmReply, narratorReply, type Spoken } from "./voices.ts";
+import { disclose, keepOpened, URGENT } from "../lore/disclosure.ts";
+import { savePlayedScene } from "../lore/docs.ts";
+import { rememberScene } from "../lore/remember.ts";
+import { broadcastEnding } from "../lore/reviews.ts";
 
 export interface TurnHooks {
   /** A new speaker starts; text follows via onText. */
@@ -99,6 +103,12 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}): Pro
   const directive = state.history.length
     ? [`Open the scene, picking up exactly from how the last one ended (see what happened just before this scene: it outranks the prep). The author's idea for the opening, to adapt to what actually happened: ${scene.opening} Keep it to a short paragraph or two and end on something the player can respond to.`]
     : [`Open the scene. ${scene.opening} Keep it to a short paragraph or two and end on something the player can respond to.`];
+  await settlePresence(scene, state, deciderFor(approach.decider)).catch(() => undefined);
+  if (approach.memory) {
+    // Recurring people walk in remembering: open what bears on this scene before the first line.
+    const opening = await disclose(scene, state, "").catch(() => undefined);
+    if (opening?.opened.length) keepOpened(state, opening.opened);
+  }
   const spoken = approach.voice === "gm"
     ? await gmReply(scene, state, directive, speakHooks(hooks, "gm", "narration"), "gm.opening")
     : await narratorReply(scene, state, directive, speakHooks(hooks, "gm", "narration"));
@@ -106,6 +116,22 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}): Pro
   saveSession(state);
   snapshotSession(state);
   return state.transcript.slice(before);
+}
+
+/**
+ * Who from earlier scenes is actually here? A recurring character's card can't know whether the
+ * last scene ended with them taken in or fled; the hand-off does. Only confident "not here" counts.
+ */
+async function settlePresence(scene: Scene, state: SessionState, decider: ReturnType<typeof deciderFor>): Promise<void> {
+  const handoff = state.history.at(-1)?.summary;
+  if (!handoff) return;
+  const recurring = scene.cast.filter(c => handoff.includes(c.name.split(" ").at(-1)!) || handoff.includes(c.name.split(" ")[0]!));
+  if (!recurring.length) return;
+  const decision = await decider.decide({ previous_scene: handoff, new_scene: `${scene.title}: ${scene.setting}` }, Object.fromEntries(recurring.map(c => [c.id, {
+    instructions: `A new scene is starting right after the previous one ended as described. Going by what happened (not by what this scene's prep assumes), can ${c.name} be here at the start of the new scene, or does what happened rule it out (taken into custody, fled, left far behind, dead)?`,
+    criteria: { here: `${c.name} can be here (or nothing rules it out).`, not_here: `What happened rules out ${c.name} being here.` },
+  }])), "director.presence");
+  state.absent = recurring.filter(c => decision.answers[c.id]?.choice === "not_here" && (decision.answers[c.id]?.probabilities?.not_here ?? 1) >= 0.8).map(c => c.id);
 }
 
 function applyMove(state: SessionState, scene: Scene, move: Move, source: "pre" | "post"): void {
@@ -183,6 +209,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   const quickEarly = approach.repair === "quick-block" && approach.voice === "gm" && !state.closing
     ? quickRepair(authored, state, approach.repairEffort ? { effort: approach.repairEffort } : {}).catch(() => undefined)
     : undefined;
+  const disclosing = approach.memory ? disclose(scene, state, input).catch(() => undefined) : undefined;
   const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off", relocate: approach.deciderRelocation === true, pressure: approach.pressureRolls === true, consequences: approach.consequences === true });
   if (pre.offGraph) state.offGraphTurn = state.turn;
   // A failed roll stands: don't have something else hand over what the dice just withheld.
@@ -191,6 +218,16 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (pre.decision) { costUsd += pre.decision.costUsd; calls++; }
   let ended: Exit | undefined;
   let directive: string[] = [];
+  const disclosed = disclosing ? await disclosing : undefined;
+  if (disclosed) { costUsd += disclosed.costUsd; calls++; }
+  if (disclosed?.opened.length) {
+    keepOpened(state, disclosed.opened);
+    // Only a note clearly about this moment is worth a fresh reply (the speculative one, written
+    // without it, is set aside); the rest simply join the prep for the replies that follow.
+    const urgent = disclosed.opened.filter(n => (n.p ?? 0) >= URGENT);
+    const owners = [...new Set(urgent.map(n => scene.cast.find(c => `character:${c.id}` === n.scope)?.name).filter(Boolean))];
+    if (urgent.length) directive.push(`Something from before bears on this moment${owners.length ? `: ${owners.join(" and ")} remember${owners.length === 1 ? "s" : ""} it` : ""} (see the notes just opened under "What people remember"). Let it show in how they respond, in their own words.`);
+  }
   // Someone not yet on stage was called into the scene by the player's turn.
   if (pre.speaker && scene.cast.some(c => c.id === pre.speaker) && !presentCast(scene, state).some(c => c.id === pre.speaker)) {
     state.entered = [...(state.entered ?? []), pre.speaker];
@@ -426,6 +463,15 @@ function finishScene(state: SessionState, scene: Scene, exit: Exit): void {
   state.transcript.push({ turn: state.turn, scene: state.sceneId, speaker: "system", kind: "system", text: `Scene ends: ${exit.title}` });
 }
 
+/** Test harness: end the scene through a given exit now (as if play had reached it). */
+export function forceEnding(state: SessionState, exitId: string): void {
+  const scene = sceneById(state.sceneId);
+  const exit = scene.exits.find(e => e.id === exitId);
+  if (!exit) throw new Error(`Scene ${scene.id} has no exit ${exitId}`);
+  finishScene(state, scene, exit);
+  saveSession(state);
+}
+
 /** Continue into the exit's next scene in the same session (the map would sit in between). */
 export async function chainScene(state: SessionState, combatResult = "the party won"): Promise<SessionState | undefined> {
   if (!state.ended) return undefined;
@@ -433,13 +479,17 @@ export async function chainScene(state: SessionState, combatResult = "the party 
   const exit = scene.exits.find(e => e.id === state.ended!.exitId)!;
   if (!exit.next) return undefined;
   const handoff = await writeHandoff(scene, state, exit, combatResult);
+  const memory = approachById(state.approach).memory;
+  if (memory === "docs") broadcastEnding(scene, state, exit);
+  if (memory === "lite") await rememberScene(scene, state, `${exit.title}: ${exit.outcome}`).catch(() => undefined);
+  if (memory) savePlayedScene(state.id, scene, exit.title, handoff);
   const lastMoments = sceneEntries(state).filter(e => e.kind !== "system").slice(-4)
     .map(e => e.kind === "player" ? `${state.player.name} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.text);
   state.history.push({ sceneId: scene.id, exitId: exit.id, summary: handoff, lastMoments });
   const next = sceneById(exit.next);
   Object.assign(state, {
     sceneId: next.id, beat: next.start, turnsInBeat: 0, path: [], established: [], canon: [], notes: null, notesTurn: null,
-    whispers: [], patches: [], repairs: [], entered: [], sceneStatus: undefined,
+    whispers: [], patches: [], repairs: [], entered: [], absent: [], sceneStatus: undefined, memory: { opened: [] }, landed: [], hinted: [],
   });
   delete state.ended;
   saveSession(state);

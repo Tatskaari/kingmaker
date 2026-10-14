@@ -1,0 +1,290 @@
+{
+ "id": "hanged-clerk-20261014-111539-1y08",
+ "sceneId": "hanged-clerk",
+ "approach": "v2",
+ "seed": 854971070,
+ "rollCount": 2,
+ "player": {
+  "name": "Wren Ashdown",
+  "concept": "a quick-witted half-elf ranger with a longbow, a dry sense of humour and a soft spot for underdogs",
+  "modifiers": {
+   "persuasion": 2,
+   "deception": 2,
+   "intimidation": 0,
+   "insight": 3,
+   "performance": 1,
+   "perception": 5,
+   "investigation": 2,
+   "sleight_of_hand": 2,
+   "stealth": 5,
+   "athletics": 2,
+   "acrobatics": 4,
+   "animal_handling": 3,
+   "arcana": 0,
+   "history": 1,
+   "nature": 4,
+   "religion": 0,
+   "medicine": 2,
+   "survival": 5
+  }
+ },
+ "turn": 5,
+ "beat": "doubt",
+ "turnsInBeat": 1,
+ "path": [
+  {
+   "turn": 3,
+   "from": "yard",
+   "to": "yard",
+   "via": "win-cob",
+   "source": "pre",
+   "roll": {
+    "skill": "persuasion",
+    "dc": 13,
+    "die": 1,
+    "modifier": 2,
+    "total": 3,
+    "success": false,
+    "critical": "failure"
+   }
+  },
+  {
+   "turn": 4,
+   "from": "yard",
+   "to": "doubt",
+   "via": "scare-kids",
+   "source": "pre",
+   "roll": {
+    "skill": "intimidation",
+    "dc": 12,
+    "die": 20,
+    "modifier": 0,
+    "total": 20,
+    "success": true,
+    "critical": "success"
+   }
+  }
+ ],
+ "established": [],
+ "canon": [
+  "Wren backhanded Cob during the questioning."
+ ],
+ "notes": "Have Kell intervene firmly and put herself between Wren and Cob; keep the assault consequential rather than letting it vanish into the successful roll. Let the next exchange follow Wren’s question about Silvertop, while Moll focuses on getting Cob safe and away from Wren. Don’t give up the boot page yet; Cob is still its carrier, and it can come up if Wren earns access or searches the boots.",
+ "notesTurn": 4,
+ "patches": [],
+ "repairs": [
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 3,
+   "assessment": "Wren tried to buy Cob’s trust; the failed approach sent him into hiding. The scene is still moving, with clear next steps through Moll or the gap behind the water butt.",
+   "status": "on_track",
+   "notes": "Let Wren choose how to approach next; don’t make them repeat the same persuasion attempt. Keep the gap as a usable option, but let Cob’s fear and Moll’s protectiveness shape what they’ll risk sharing.",
+   "relocations": [],
+   "costUsd": 0.001599675,
+   "latencyMs": 11558.009109,
+   "patches": 0,
+   "canon": 0,
+   "whispers": 2
+  },
+  {
+   "sceneId": "hanged-clerk",
+   "turn": 4,
+   "assessment": "Wren’s intimidation got Cob’s testimony, but the backhand has made this a tense protection issue, not a clean persuasion win. The murder inquiry is moving: Cob has placed Silvertop in the loft with Prout and a bandaged man.",
+   "status": "on_track",
+   "notes": "Have Kell intervene firmly and put herself between Wren and Cob; keep the assault consequential rather than letting it vanish into the successful roll. Let the next exchange follow Wren’s question about Silvertop, while Moll focuses on getting Cob safe and away from Wren. Don’t give up the boot page yet; Cob is still its carrier, and it can come up if Wren earns access or searches the boots.",
+   "relocations": [],
+   "costUsd": 0.0017978,
+   "latencyMs": 14943.472285,
+   "patches": 0,
+   "canon": 1,
+   "whispers": 3
+  }
+ ],
+ "transcript": [
+  {
+   "turn": 0,
+   "scene": "hanged-clerk",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Wendell Prout turns slowly from the sack hoist above the shut loft door, a pigeon perched on the beam above him. A scrawny boy in boots far too large for him skips gutter stones at the body. “Spin, you grey old turnip!” he crows. From the yard wall, a sharp-faced girl swears at him in Common, then something harsher in dock cant.\n\nA woman in a rain cape steps away from the gate, notebook in hand. “Sergeant Agnes Kell. The Captain calls it suicide. I haven’t written that down.” Her eyes flick from your hands to the hanging clerk. “Where would you like to start, investigator?”"
+  },
+  {
+   "turn": 1,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "Start by getting those damnd kids away. They're disturbing the evidence."
+  },
+  {
+   "turn": 1,
+   "scene": "hanged-clerk",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Sergeant Kell taps her pencil against the notebook. “They’re not watchmen, investigator. I can ask them to step back, but they don’t take orders from me.”\n\nCob stops throwing long enough to grin at you. “Cob’s not disturbing nothing. He’s making the dead turn.” Another stone skips off the cobbles. Moll swings her heels on the wall and calls, “You want them moved, ask nice. Or bring a ladder.”\n\nKell’s gaze settles on the children, then returns to you. “I’ll keep them clear of the body. What do you want me to say?”"
+  },
+  {
+   "turn": 2,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "You think the boy saw anything? Might be worth questioning him."
+  },
+  {
+   "turn": 2,
+   "scene": "hanged-clerk",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "“Worth a try,” Kell says. “Though he doesn’t talk to the watch.”\n\nCob flings another stone; it clips the hanging clerk’s stockinged foot. “Cob saw a dead man. Big mystery, that.” His grin is too quick, and his eyes dart to Moll.\n\n“Don’t wind him up,” Moll calls from the wall. “He’s got rocks and no sense.”\n\nKell turns her notebook so the pencil is ready. “You can ask him yourself, investigator. He’s listening, even when he pretends not to.”"
+  },
+  {
+   "turn": 3,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "What did you see Cob? I'm sure i can make it worth your while."
+  },
+  {
+   "turn": 3,
+   "scene": "hanged-clerk",
+   "speaker": "dice",
+   "kind": "roll",
+   "text": "Persuasion check to get Cob to trust you with what he heard: 1 + 2 = 3 vs DC 13: failure (natural 1!)"
+  },
+  {
+   "turn": 3,
+   "scene": "hanged-clerk",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Cob squints at your offer. “Worth it? Cob knows what your sort means by ‘worth it.’ Bum-faced palace pigeon.”\n\nHe pelts one last stone—not at Prout this time, but at your boot—then darts behind the water butt and vanishes through a gap in the boards. Moll’s heels stop drumming. “Brilliant,” she says, staring down at you. “Now he’s gone and you’ve made him think you’re just like the rest.”\n\nKell makes a small note. “He’s in there, then. The gap’s child-sized. You could try another way with him—or ask Moll what she knows.”"
+  },
+  {
+   "turn": 4,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "Okay Cob. I tried to do this the easy way. Now you're getting the hard way *backhands the child* tell me what you know!"
+  },
+  {
+   "turn": 4,
+   "scene": "hanged-clerk",
+   "speaker": "dice",
+   "kind": "roll",
+   "text": "Intimidation check to scare the children into talking: 20 + 0 = 20 vs DC 12: success (natural 20!)"
+  },
+  {
+   "turn": 4,
+   "scene": "hanged-clerk",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Cob’s bravado vanishes. White-faced in the gap, he blurts, “Cob was there! Last night. Mister Prout argued with Silvertop and a big man with a bandaged hand. Then a thump, and choking—and the hoist creaked. Cob hid. Cob didn’t do it!”\n\nHis voice breaks into a sob. Moll screams from the wall, “You put your hands on him, you bastard!” and scrambles down, eyes fixed on Cob.\n\nKell’s mouth goes thin. She writes carefully in her notebook. “Noted. A witness, frightened into speaking.” She looks at you. “Who’s Silvertop—and how do we establish it?”"
+  },
+  {
+   "turn": 5,
+   "scene": "hanged-clerk",
+   "speaker": "player",
+   "kind": "player",
+   "text": "Probably some kind of local crime lord. Cob?"
+  },
+  {
+   "turn": 5,
+   "scene": "hanged-clerk",
+   "speaker": "gm",
+   "kind": "narration",
+   "text": "Kell steps between you and the gap, one hand raised—not on her truncheon, but firm. “Enough, investigator. You don’t hit a child again.” Her pencil remains poised over the notebook. “I’ll record what he said. I won’t turn a frightened boy’s words into a name without evidence.”\n\nMoll is down from the wall now, putting herself between Cob and you. “You’re coming with me,” she tells him, voice shaking with anger. Cob clutches the edge of the water butt, sobbing.\n\nKell keeps her eyes on you. “Silvertop, Cob. What did he look like?” From behind her, Cob manages: “Silver-topped cane. Wheat-ear ring.”"
+  }
+ ],
+ "metrics": [
+  {
+   "turn": 1,
+   "repairMs": 0,
+   "preDecisionMs": 385.57989899999666,
+   "firstTextMs": 842.6693489999961,
+   "followUpMs": null,
+   "resolvingTextMs": 842.6693489999961,
+   "replyMs": 1924.0699280000044,
+   "postDecisionMs": 159.73768800000107,
+   "costUsd": 0.000782775,
+   "calls": 3
+  },
+  {
+   "turn": 2,
+   "repairMs": 0,
+   "preDecisionMs": 390.1677029999846,
+   "firstTextMs": 2395.6842539999925,
+   "followUpMs": null,
+   "resolvingTextMs": 2395.6842539999925,
+   "replyMs": 3304.4248040000093,
+   "postDecisionMs": 366.21976199999335,
+   "costUsd": 0.000806205,
+   "calls": 3
+  },
+  {
+   "turn": 3,
+   "repairMs": 0,
+   "preDecisionMs": 323.2402159999765,
+   "firstTextMs": 1174.1533720000007,
+   "followUpMs": null,
+   "resolvingTextMs": 1174.1533720000007,
+   "replyMs": 2171.05394100002,
+   "postDecisionMs": 277.30798300000606,
+   "costUsd": 0.00084839,
+   "calls": 3
+  },
+  {
+   "turn": 4,
+   "repairMs": 0,
+   "preDecisionMs": 331.5645240000158,
+   "firstTextMs": 1268.0577280000143,
+   "followUpMs": null,
+   "resolvingTextMs": 1268.0577280000143,
+   "replyMs": 2425.8562670000247,
+   "postDecisionMs": 436.1776119999995,
+   "costUsd": 0.0009335150000000001,
+   "calls": 3
+  },
+  {
+   "turn": 5,
+   "repairMs": 0,
+   "preDecisionMs": 329.97297900001286,
+   "firstTextMs": 1128.8384540000116,
+   "followUpMs": null,
+   "resolvingTextMs": 1128.8384540000116,
+   "replyMs": 2481.3814639999764,
+   "postDecisionMs": 416.9554449999705,
+   "costUsd": 0.00153625,
+   "calls": 3
+  }
+ ],
+ "history": [],
+ "speculation": {
+  "used": 3,
+  "discarded": 2
+ },
+ "sceneStatus": "on_track",
+ "pressureOffered": [
+  "yard"
+ ],
+ "whispers": [
+  {
+   "to": "kell",
+   "note": "Step in now: make Wren back away from Cob, and insist the witness is not to be struck again. Keep recording what Cob said, but ask Wren what evidence they have before naming anyone.",
+   "turn": 4
+  },
+  {
+   "to": "cob",
+   "note": "Frightened and sobbing, give a concrete identifying detail about Silvertop only if Kell keeps Wren away: the silver-topped cane and wheat-ear ring. Stay wary; don’t volunteer the boot page.",
+   "turn": 4
+  },
+  {
+   "to": "moll",
+   "note": "Get between Cob and Wren, and demand that Kell keep him safe. Don’t trust Wren just because Cob has blurted out the truth.",
+   "turn": 4
+  }
+ ],
+ "lastRepairTurn": 4,
+ "offGraphTurn": 4,
+ "landed": [
+  "not-suicide",
+  "silvertop"
+ ]
+}

@@ -23,12 +23,15 @@ export function prompt(name: string, vars: Record<string, string> = {}): string 
 export const IMPROVISED_EXIT_ID = "own-ending";
 export function withImprovisedEnding(scene: Scene): Scene {
   if (scene.exits.some(e => e.id === IMPROVISED_EXIT_ID)) return scene;
+  // When every authored exit that continues goes to the same scene, an ending of their own does too.
+  const nexts = [...new Set(scene.exits.map(e => e.next).filter((n): n is string => !!n))];
   return {
     ...scene,
     exits: [...scene.exits, {
       id: IMPROVISED_EXIT_ID, kind: "other", title: "An ending of their own",
       outcome: "The scene ends in a way the prep didn't foresee, as established in play.",
       closing: "Close on the moment the player chose, at the threshold, without narrating what comes next.",
+      ...(nexts.length === 1 ? { next: nexts[0]! } : {}),
     }],
     anytime: [...(scene.anytime ?? []), {
       id: "improvised-ending", on: "outcome",
@@ -76,7 +79,7 @@ export function visitedBeats(state: SessionState): Set<string> {
 
 export function presentCast(scene: Scene, state: SessionState): Character[] {
   const visited = visitedBeats(state);
-  return scene.cast.filter(c => !c.enters || visited.has(c.enters) || state.entered?.includes(c.id));
+  return scene.cast.filter(c => state.entered?.includes(c.id) || (!state.absent?.includes(c.id) && (!c.enters || visited.has(c.enters))));
 }
 
 export function offstageCast(scene: Scene, state: SessionState): Character[] {
@@ -106,7 +109,7 @@ function exitBlock(exit: Exit): string {
 }
 
 /** Stable prep for the GM: everything that doesn't change turn to turn (cache-friendly prefix). */
-export function sceneBrief(scene: Scene, state: SessionState, options: { secrets?: boolean; hideEssentials?: boolean } = {}): string {
+export function sceneBrief(scene: Scene, state: SessionState, options: { secrets?: boolean; hideEssentials?: boolean; lastHandoffOnly?: boolean } = {}): string {
   options = { secrets: true, ...options };
   const present = new Set(presentCast(scene, state).map(c => c.id));
   const cast = scene.cast.map(c => castBlock(scene, options.secrets ? c : { ...c, secrets: [] }, present.has(c.id))).join("\n\n");
@@ -116,7 +119,7 @@ export function sceneBrief(scene: Scene, state: SessionState, options: { secrets
     `## The place\n${scene.setting}`,
     `## What this scene is about\n${scene.premise}`,
     ...(scene.background?.length ? [`## Background\n${bullets(scene.background)}`] : []),
-    ...(last ? [`## What happened just before this scene\nThis is what actually happened in the story. Where it disagrees with this prep about the state of the fiction (who is where, who has what, what was said), what happened wins: adapt the prep to it. It doesn't change what this scene is about.\n\n${state.history.map(h => h.summary).join("\n\n")}${last.lastMoments?.length ? `\n\nThe last moments, word for word:\n${last.lastMoments.map(m => `> ${m}`).join("\n")}` : ""}`] : []),
+    ...(last ? [`## What happened just before this scene\nThis is what actually happened in the story. Where it disagrees with this prep about the state of the fiction (who is where, who has what, what was said), what happened wins: adapt the prep to it. It doesn't change what this scene is about. It's your knowledge, not everyone's: people here know only what they saw, did or have been told, so someone who wasn't there doesn't know it unless they hear it.\n\n${(options.lastHandoffOnly ? [last] : state.history).map(h => h.summary).join("\n\n")}${options.lastHandoffOnly && state.history.length > 1 ? "\n\n(Earlier scenes are in the story notes under \"What people remember\".)" : ""}${last.lastMoments?.length ? `\n\nThe last moments, word for word:\n${last.lastMoments.map(m => `> ${m}`).join("\n")}` : ""}`] : []),
     `## The people here\n${cast}`,
     `## Ways this scene can end\nThese are the only ways it can close. The player's choices decide which; don't force one.\n${scene.exits.map(exitBlock).join("\n")}`,
     ...(scene.essentials?.length && !options.hideEssentials ? [`## What the player needs to come across\nThe author placed these somewhere specific. Players often go elsewhere: when they do, don't let the scene starve. Move the thing to whatever they are engaging with (another person who could know it, an object, an event), or nudge softly (a remark, a telltale detail, a chance to notice or remember), so it reaches them through the path they chose.\n${scene.essentials.map(e => `- ${e.what} (placed with: ${e.placedWith.join("; ")}). It opens up: ${e.unlocks}${state.landed?.includes(e.id) ? " [already come across]" : state.hinted?.includes(e.id) ? " [already hinted at: the player has had a sign of it. Don't point at it again; let them take it up, or let it reach them another way]" : ""}`).join("\n")}`] : []),
