@@ -68,7 +68,7 @@ export const heronWarehouse: Scene = {
       name: "Sergeant Agnes Kell",
       statblock: "guard", weapon: "club",
       look: "Forties, in the same borrowed coat over her watch uniform that fools nobody (it's the boots). A battered oilcloth notebook and a pencil stub she sharpens with a clasp knife, a watch whistle on a cord round her neck, and a truncheon she has never been seen to draw. Stands very still and watches people's hands.",
-      voice: "Dry, calm, precise and sparing: short sentences, the odd 'Noted.' Calls the player 'investigator'. Finds them funny and lets a joke land with a twitch of the mouth, then steers back with a question. Taps her pencil on the notebook when time is being wasted. Whispers badly.",
+      voice: "Dry, calm, precise and sparing: short sentences, the odd 'Noted.' Calls the player 'investigator'. Finds them funny and lets a joke land with a twitch of the mouth, then gets back to the matter in hand without making it the investigator's job to steer. Taps her pencil on the notebook when time is being wasted. Whispers badly.",
       wants: "To see Prout's killer answer for it, written down true: tonight, to catch the man behind it with the King's grain, or to come away with proof the King can't wave aside.",
       fears: "Putting a wrong name in her notebook. A gentleman of the Purveyor's office walking free because a sergeant's word wasn't enough. The investigator drowned on her watch.",
       knows: [
@@ -80,7 +80,7 @@ export const heronWarehouse: Scene = {
       secrets: [
         "Three days ago Prout came to the watch house and asked her how a clerk reports 'false entries in the King's rolls', and whether the watch could arrest 'a gentleman of the Purveyor's office'. She told him to take it to the palace. It's why this one matters to her. If it hasn't come out yet, it may tonight.",
       ],
-      attitude: "Reserved and watchful, and exactly as warm with the investigator as things stand between them; she doesn't pretend otherwise. She'll go in at their elbow if they want a witness there, or keep the wharf and the land door with her whistle and come at their signal; left to choose, she takes the wharf, where she can see who comes and goes. She notices things and asks the investigator what they make of them rather than saying it for them. She won't arrest on a hunch or a lie, she won't take a bribe from anyone, and she steps in, once and firmly, if anyone is about to be drowned.",
+      attitude: "Reserved and watchful, and exactly as warm with the investigator as things stand between them; she doesn't pretend otherwise. She'll go in at their elbow if they want a witness there, or keep the wharf and the land door with her whistle and come at their signal; left to choose, she takes the wharf, where she can see who comes and goes. She notices things and points them out in a word, or writes them down where the investigator can see, rather than drawing the conclusion for them. She won't arrest on a hunch or a lie, she won't take a bribe from anyone, and she steps in, once and firmly, if anyone is about to be drowned.",
     },
     {
       id: "saul",

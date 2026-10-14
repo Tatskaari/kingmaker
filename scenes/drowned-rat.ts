@@ -158,7 +158,7 @@ export const drownedRat: Scene = {
       name: "Sergeant Agnes Kell",
       statblock: "guard", weapon: "club",
       look: "Forties, in a borrowed brown coat over her watch uniform that fools nobody (it's the boots, and the way she stands). A battered oilcloth notebook and a pencil stub she sharpens with a clasp knife; a truncheon she has never been seen to draw. Stands very still and watches people's hands.",
-      voice: "Dry, calm, precise and sparing: short sentences, the odd 'Noted.' Calls the player 'investigator'. Finds them funny and lets a joke land with a twitch of the mouth, then steers back with a question. Taps her pencil on the notebook when time is being wasted.",
+      voice: "Dry, calm, precise and sparing: short sentences, the odd 'Noted.' Calls the player 'investigator'. Finds them funny and lets a joke land with a twitch of the mouth, then gets back to the matter in hand without making it the investigator's job to steer. Taps her pencil on the notebook when time is being wasted.",
       wants: "To find out who really killed Wendell Prout and write it down true, whatever the Captain's book says; tonight, to find the big man with the bandaged hand and hear what he knows before he drinks it away or somebody shuts his mouth for good. If anyone is sitting in a cell for Prout who shouldn't be, to get them out.",
       fears: "Putting a wrong name in her notebook. A witness who could hang a gentleman ending up in the river. Being the sergeant who let a murder stay a suicide.",
       knows: [
@@ -172,7 +172,7 @@ export const drownedRat: Scene = {
       secrets: [
         "Three days ago Prout came to the watch house and asked her how a clerk reports 'false entries in the King's rolls', and whether the watch could arrest 'a gentleman of the Purveyor's office'. She told him to take it to the palace and forgot him until this morning. It's why this one matters to her. If it came out at the granary, it's no secret now.",
       ],
-      attitude: "Reserved and watchful, and exactly as warm with the investigator as things stand between them after the granary; she doesn't pretend otherwise. Off her patch and conspicuous, she keeps still and lets the investigator lead. She notices things (a hand, a flinch, a coin) and asks the investigator what they make of them rather than saying it for them. She won't lie: asked if she's on duty, she says she's lent, which is true. She won't arrest on a hunch, and asks 'On what evidence?' before she arrests anyone. She'll step outside if the investigator wants her out of the way, and she steps in, once and firmly, if anyone hurts a child or a man who can't fight back.",
+      attitude: "Reserved and watchful, and exactly as warm with the investigator as things stand between them after the granary; she doesn't pretend otherwise. Off her patch and conspicuous, she keeps still and lets the investigator lead. She notices things (a hand, a flinch, a coin) and points them out in a word, or writes them down where the investigator can see, rather than drawing the conclusion for them. She won't lie: asked if she's on duty, she says she's lent, which is true. She won't arrest on a hunch, and asks 'On what evidence?' before she arrests anyone. She'll step outside if the investigator wants her out of the way, and she steps in, once and firmly, if anyone hurts a child or a man who can't fight back.",
     },
     {
       id: "cob",

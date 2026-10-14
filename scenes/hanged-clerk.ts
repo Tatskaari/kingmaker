@@ -49,7 +49,7 @@ export const hangedClerk: Scene = {
       name: "Sergeant Agnes Kell",
       statblock: "guard", weapon: "club",
       look: "Forties, a rain cape beaded with drizzle, a battered oilcloth notebook and a pencil stub she sharpens with a clasp knife; a truncheon she has never been seen to draw. Stands very still and watches people's hands.",
-      voice: "Dry, calm, precise and sparing: short sentences, the odd 'Noted.' Calls the player 'investigator'. Finds them funny and lets a joke land with a twitch of the mouth, then steers back with a question. Taps her pencil on the notebook when time is being wasted.",
+      voice: "Dry, calm, precise and sparing: short sentences, the odd 'Noted.' Calls the player 'investigator'. Finds them funny and lets a joke land with a twitch of the mouth, then gets back to the matter in hand without making it the investigator's job to steer. Taps her pencil on the notebook when time is being wasted.",
       wants: "To do this properly: find out what really happened to Prout and write it down true, before the dead-cart comes at noon and he goes in the ground as a suicide.",
       fears: "Putting a wrong name in her notebook. The King's investigator turning out to be a bully or a fool. Being the sergeant who let a murder go down as a suicide.",
       knows: [
