@@ -177,8 +177,16 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     spec.promise = gmReply(scene, state, [], onText, "gm.speculative", controller.signal).catch(() => undefined);
     speculation = spec;
   }
+  // Quick-block: start the quick co-GM alongside the decision, so on an off-graph turn its answer
+  // is (nearly) ready when we need it; on other turns it's simply ignored.
+  const quickStarted = performance.now();
+  const quickEarly = approach.repair === "quick-block" && approach.voice === "gm" && !state.closing
+    ? quickRepair(authored, state, approach.repairEffort ? { effort: approach.repairEffort } : {}).catch(() => undefined)
+    : undefined;
   const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off", relocate: approach.deciderRelocation === true });
   if (pre.offGraph) state.offGraphTurn = state.turn;
+  // A failed roll stands: don't have something else hand over what the dice just withheld.
+  if (pre.move?.roll && !pre.move.roll.success && pre.relocate) delete pre.relocate;
   const preDecisionMs = performance.now() - started;
   if (pre.decision) { costUsd += pre.decision.costUsd; calls++; }
   let ended: Exit | undefined;
@@ -237,16 +245,16 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   // Stall mode: off the graph, with nothing else decided this turn. Hold the moment, let the co-GM
   // work in parallel, then resolve it with whatever it adds.
   // Only a genuinely off-graph turn earns a hold (a stale "stuck" from last turn made holds misfire).
-  const offGraphTurn = approach.voice === "gm" && !pre.move && !pre.limit && !pre.ooc && !ended && !pre.relocate?.length && pre.offGraph === true;
-  const stall = approach.repair === "stall" && offGraphTurn;
-  if (approach.repair === "quick-block" && offGraphTurn) {
-    // One coherent reply: wait (up to the deadline) for the quick co-GM, re-decide, then answer.
-    const repairStarted = performance.now();
-    const repairing = quickRepair(authored, state, approach.repairEffort ? { effort: approach.repairEffort } : {}).catch(() => undefined);
+  const offGraphTurn = approach.voice === "gm" && !pre.move && !pre.limit && !pre.ooc && !ended && pre.offGraph === true;
+  const stall = approach.repair === "stall" && offGraphTurn && !pre.relocate?.length;
+  if (approach.repair === "quick-block" && offGraphTurn && quickEarly) {
+    // One coherent reply: wait for the quick co-GM until the deadline (from the start of the turn),
+    // re-decide, then answer. A late result lands next turn; the speculative reply stays usable.
+    const repairing = quickEarly;
     let late = false;
-    const deadline = approach.repairDeadlineMs ?? 3000;
+    const deadline = Math.max(0, (approach.repairDeadlineMs ?? 3000) - (performance.now() - quickStarted));
     const repair = await Promise.race([repairing, new Promise<undefined>(r => setTimeout(() => { late = true; r(undefined); }, deadline))]);
-    repairMs = performance.now() - repairStarted;
+    repairMs = performance.now() - quickStarted;
     if (late) {
       const turn = state.turn;
       void repairing.then(r => { if (r) { try { writeRepair(state, { ...r, turn }); } catch { /* best effort */ } } });
@@ -256,6 +264,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       applyRepair(authored, state, repair);
       costUsd += repair.costUsd; calls++;
       scene = effectiveScene(authored, state.patches);
+      // The co-GM's move supersedes this turn's decider relocation.
+      directive = directive.filter(d => !d.startsWith("Something the scene needs is within reach"));
       const again = await decideBefore(decider, scene, state, input, { speaker: false });
       if (again.decision) { costUsd += again.decision.costUsd; calls++; }
       if (again.move) {
@@ -265,8 +275,9 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
         if (again.move.exit && again.move.chosen) ended = again.move.exit;
         else if (again.move.exit) state.pendingExit = { exitId: again.move.exit.id, turn: state.turn, via: again.move.transition.id, extended: false };
       } else if (again.plainTransition) directive.push(plainDirective(again.plainTransition));
+      // The co-GM changed something, so the speculative reply (written without it) is stale.
+      if (speculation) { speculation.controller.abort(); speculation = undefined; }
     }
-    if (speculation) { speculation.controller.abort(); speculation = undefined; }
   }
   if (stall) {
     const repairStarted = performance.now();

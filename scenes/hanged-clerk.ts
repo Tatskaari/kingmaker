@@ -368,9 +368,9 @@ export const hangedClerk: Scene = {
     },
   ],
   essentials: [
-    { id: "not-suicide", what: "Prout didn't hang himself: he was struck and strangled, then hoisted up for show.", placedWith: ["the body (cord mark, the blow to the head)", "Cob's account of the loft", "the scraped heels of Prout's boots"], unlocks: "Kell treating it as murder" },
-    { id: "page", what: "Prout found grain written off as 'lost to goblins' that turned up at the river warehouses, every wagon countersigned 'J. Sallow, for the Royal Purveyor'.", placedWith: ["the page sewn into Prout's left boot (Cob is wearing the boots)", "the tally book in the loft"], unlocks: "the motive, and the name Sallow" },
-    { id: "silvertop", what: "A gentleman with a silver-topped cane and a wheat-ear signet ring (Sallow) was in the loft that night and paid Moll to tell the suicide story.", placedWith: ["Cob ('Silvertop')", "Moll, if she cracks"], unlocks: "naming Sallow as the man behind it" },
+    { id: "not-suicide", what: "Prout didn't hang himself: he was struck and strangled, then hoisted up for show.", placedWith: ["the body (cord mark, the blow to the head)", "Cob's account of the loft", "the scraped heels of Prout's boots"], carriers: ["cob"], unlocks: "Kell treating it as murder" },
+    { id: "page", what: "Prout found grain written off as 'lost to goblins' that turned up at the river warehouses, every wagon countersigned 'J. Sallow, for the Royal Purveyor'.", placedWith: ["the page sewn into Prout's left boot (Cob is wearing the boots)", "the tally book in the loft"], carriers: [], unlocks: "the motive, and the name Sallow" },
+    { id: "silvertop", what: "A gentleman with a silver-topped cane and a wheat-ear signet ring (Sallow) was in the loft that night.", placedWith: ["Cob ('Silvertop')", "Moll, if she cracks"], carriers: ["cob", "moll"], unlocks: "naming Sallow as the man behind it" },
   ],
   limits: [
     "Talking to the dead (speak with dead, a séance, calling up Prout's ghost): there's no such magic in Caerwyn. The Nine Furrows wizards deal in weather, wards and grain, none of them is here, and the dead stay dead. Prout can only tell what his body shows.",

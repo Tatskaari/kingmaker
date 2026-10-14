@@ -46,12 +46,15 @@ export function effectiveScene(authored: Scene, patches: ScenePatch[]): Scene {
   for (const patch of patches) {
     if (patch.beat && !beats.some(b => b.id === patch.beat!.id)) beats.push({ ...patch.beat, transitions: [...patch.beat.transitions] });
   }
+  const anytime = [...(scene.anytime ?? [])];
   for (const patch of patches) {
     if (!patch.transition) continue;
+    // "*" = scene-wide, so a later tracker move can't strand a route the player is pursuing.
+    if (patch.transition.beat === "*") { if (!anytime.some(t => t.id === patch.transition!.transition.id)) anytime.push(patch.transition.transition); continue; }
     const beat = beats.find(b => b.id === patch.transition!.beat);
     if (beat && !beat.transitions.some(t => t.id === patch.transition!.transition.id)) beat.transitions.push(patch.transition.transition);
   }
-  return { ...scene, beats };
+  return { ...scene, beats, anytime };
 }
 
 export function currentBeat(scene: Scene, state: SessionState): Beat {

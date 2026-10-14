@@ -270,8 +270,8 @@ export const garrowsToll: Scene = {
     },
   ],
   essentials: [
-    { id: "arrow", what: "A goblin arrow hit Garrow's door minutes after he laughed Tam away; he's hidden it in the drawer under the counter and is frightened.", placedWith: ["the fresh hole in the toll-house door", "clawed tracks under the hedge across the road", "Garrow himself, if gently pressed about the morning"], unlocks: "Garrow admitting Tam was right, which opens his Clause of Perils (free passage for a true report)" },
-    { id: "clause", what: "Garrow's Book has a Clause of Perils: a traveller bringing true report of peril on the Road passes free.", placedWith: ["the Book, if read or asked about", "Garrow, once he admits the danger"], unlocks: "passing free by reporting the goblins" },
+    { id: "arrow", what: "A goblin arrow hit Garrow's door minutes after he laughed Tam away; he's hidden it in the drawer under the counter and is frightened.", placedWith: ["the fresh hole in the toll-house door", "clawed tracks under the hedge across the road", "Garrow himself, if gently pressed about the morning"], carriers: [], unlocks: "Garrow admitting Tam was right, which opens his Clause of Perils (free passage for a true report)" },
+    { id: "clause", what: "Garrow's Book has a Clause of Perils: a traveller bringing true report of peril on the Road passes free.", placedWith: ["the Book, if read or asked about", "Garrow, once he admits the danger"], carriers: [], unlocks: "passing free by reporting the goblins" },
   ],
   limits: [
     "Crossing the river anywhere but this bridge (fording or swimming it, a boat, another bridge, a cross-country detour): this is the only crossing for miles. The river is in winter spate, loud, brown and freezing between steep banks, and the nearest ford is by the burnt mill, half a day north. The party can set off for it, which ends this scene; slipping past the bar on the bridge itself is another matter.",

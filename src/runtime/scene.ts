@@ -106,6 +106,8 @@ export interface Essential {
   what: string;
   /** Where the author put it (people, objects, moments). */
   placedWith: string[];
+  /** Cast ids among the authored carriers: relocation means someone else. */
+  carriers?: string[];
   /** What it opens up once the player has it. */
   unlocks: string;
 }

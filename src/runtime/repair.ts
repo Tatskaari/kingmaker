@@ -246,10 +246,11 @@ export async function quickRepair(authored: Scene, state: SessionState, options:
   const scene = effectiveScene(authored, state.patches);
   const beat = currentBeat(scene, state);
   const essentials = (scene.essentials ?? []).filter(e => !state.landed?.includes(e.id));
-  const targets = [...scene.beats.map(b => b.id), ...scene.exits.map(e => e.id)];
+  const targets = [...scene.beats.map(b => b.id), ...scene.exits.filter(e => e.id !== "own-ending").map(e => e.id)];
   const schema = {
-    type: "object", additionalProperties: false, required: ["move", "essential", "carrier", "target", "when", "roll_skill", "roll_dc", "roll_reason", "note"],
+    type: "object", additionalProperties: false, required: ["move", "essential", "carrier", "target", "when", "roll_skill", "roll_dc", "roll_reason", "failure", "note"],
     properties: {
+      failure: { type: "string", description: "For a route with a roll: the specific consequence if the roll fails (fail forward: the situation changes, the story goes on)." },
       roll_skill: { type: "string", enum: [...SKILLS, "none"], description: "For open_route: if whether the player's plan works should be uncertain, the skill that decides it; otherwise none." },
       roll_dc: { type: "integer", description: "10 easy, 13 moderate, 16 hard." },
       roll_reason: { type: "string", description: "Why the player would be rolling, for the player: 'to lever the cart onto the skids'." },
@@ -262,13 +263,14 @@ export async function quickRepair(authored: Scene, state: SessionState, options:
     },
   };
   const started = performance.now();
-  const result = await respondJson<{ move: string; essential: string; carrier: string; target: string; when: string; roll_skill: string; roll_dc: number; roll_reason: string; note: string }>({
+  const result = await respondJson<{ move: string; essential: string; carrier: string; target: string; when: string; roll_skill: string; roll_dc: number; roll_reason: string; failure: string; note: string }>({
     operation: "repair.quick", effort: options.effort ?? "none",
-    instructions: "You are the co-GM of a live roleplaying scene. The player has just tried something the prep didn't plan for, and you have a few seconds to decide. Choose the smallest move that lets the scene follow the player and pay off what they're doing: let their approach lead to an existing beat or ending (with a roll if whether it works should be uncertain), bring something the scene needs to them through whatever they're engaging with, or tell the GM how to resolve it honestly. A plausible plan deserves a real chance: don't steer the player back to the routes the prep expected. Keep the player's idea theirs (the credit and their conditions stay with them). Never refuse flatly; if the world can't do it, say what it can do instead.",
+    instructions: "You are the co-GM of a live roleplaying scene. The player has just tried or proposed something the prep didn't plan for, and you have a few seconds to decide. Choose the smallest move that lets the scene follow the player and pay off what they're doing: let their approach lead to an existing beat or ending, bring something the scene needs to them through whatever they're engaging with, or tell the GM how to resolve it honestly. A plausible plan deserves a real chance: don't steer the player back to the routes the prep expected. If whether it works is uncertain, give it a roll (and say what failing costs, so the story moves on either way); only a plan that addresses the real cause of the problem and can't really go wrong may reach an ending without one. Describe the route by the state of things it brings about. Keep the player's idea theirs (the credit and their conditions stay with them). Never refuse flatly; if the world can't do it, say what it can do instead.",
     input: [{ role: "user", content: [
       `Scene: ${scene.title}. ${scene.premise}`,
       `Current beat: ${beat.title}. ${beat.direction}`,
-      `Routes from here: ${[...beat.transitions, ...(scene.anytime ?? [])].map(t => `[${t.to ?? t.check?.onSuccess}] ${t.when}`).join(" | ")}`,
+      `People: ${presentCast(scene, state).map(c => `[${c.id}] ${c.name}: wants ${c.wants}${c.secrets?.length ? `; hiding: ${c.secrets.join(" ")}` : ""}`).join(" | ")}`,
+      `Beats and their routes: ${scene.beats.map(b => `[${b.id}] ${b.title}: ${b.transitions.map(t => `${t.when} -> ${t.to ?? t.check?.onSuccess}`).join("; ")}`).join(" || ")}`,
       `Endings: ${scene.exits.map(e => `[${e.id}] ${e.title}: ${e.outcome}`).join(" | ")}`,
       essentials.length ? `Not yet come across: ${essentials.map(e => `[${e.id}] ${e.what} (placed with ${e.placedWith.join("; ")})`).join(" | ")}` : "",
       scene.limits?.length ? `Can't offer: ${scene.limits.join(" | ")}` : "",
@@ -289,9 +291,9 @@ export async function quickRepair(authored: Scene, state: SessionState, options:
   if (result.move === "open_route" && result.target !== "none" && targets.includes(result.target) && result.when.trim()) {
     const roll = result.roll_skill !== "none" && (SKILLS as readonly string[]).includes(result.roll_skill);
     const transition: Transition = roll
-      ? { id: `quick-${state.turn}`, when: result.when, on: "attempt", check: { skill: result.roll_skill as typeof SKILLS[number], dc: Math.max(8, Math.min(18, result.roll_dc || 13)), reason: result.roll_reason, success: result.note, failure: "It doesn't work out as hoped: the situation gets harder, but the player keeps their footing and the story goes on.", onSuccess: result.target } }
+      ? { id: `quick-${state.turn}`, when: result.when, on: "attempt", check: { skill: result.roll_skill as typeof SKILLS[number], dc: Math.max(8, Math.min(18, result.roll_dc || 13)), reason: result.roll_reason, success: result.note, failure: result.failure?.trim() || "It doesn't work out as hoped: the situation gets harder, but the story goes on.", onSuccess: result.target } }
       : { id: `quick-${state.turn}`, when: result.when, on: "outcome", to: result.target };
-    patches.push({ turn: state.turn, transition: { beat: beat.id, transition }, why: result.note });
+    patches.push({ turn: state.turn, transition: { beat: "*", transition }, why: result.note });
   }
   return {
     turn: state.turn, assessment: `quick: ${result.move}`, status: "drifting", notes: notes.join("\n"), whispers, relocations, canon: [], patches,

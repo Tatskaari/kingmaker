@@ -156,20 +156,22 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   if (options.offGraph) {
     const routes = [...currentBeat(scene, state).transitions, ...(scene.anytime ?? [])].map(t => t.when);
     questions.off_graph = {
-      instructions: `Is the player, in their latest turn, pursuing a way to deal with the scene's central situation that none of the scene's routes describes? The routes: ${routes.map(r => `"${r}"`).join("; ")}. Ordinary conversation, questions and small actions are not.`,
-      criteria: { off_graph: "Yes: a real attempt to resolve or change the situation by a means none of the routes describes.", covered: "No: it matches a route, or it's ordinary play." },
+      instructions: `Is the player, in their latest turn, proposing or pursuing a way to deal with the scene's central situation that none of the scene's routes describes? A plan put as a question ("could we...?", "what if we...?") counts. The routes: ${routes.map(r => `"${r}"`).join("; ")}. Ordinary conversation, questions about the situation and small actions don't.`,
+      criteria: { off_graph: "Yes: a real attempt or proposal to resolve or change the situation by a means none of the routes describes.", covered: "No: it matches a route, or it's ordinary play." },
     };
   }
   // Relocation is for when play has gone elsewhere: not before the player has had a fair chance
   // at where the author placed it (early reveals through the original carrier aren't relocation).
   const playerTurns = sceneEntries(state).filter(e => e.kind === "player").length;
-  const missing = options.relocate && playerTurns >= 3 ? (scene.essentials ?? []).filter(e => !state.landed?.includes(e.id)).slice(0, 3) : [];
+  const missing = options.relocate && playerTurns >= 2 ? (scene.essentials ?? []).filter(e => !state.landed?.includes(e.id)).slice(0, 3) : [];
   const present = presentCast(scene, state);
   for (const e of missing) {
+    // Relocation means a new carrier: delivery through the authored one belongs to its authored edge.
+    const others = present.filter(c => !(e.carriers ?? []).includes(c.id));
     questions[`relocate_${e.id}`] = {
-      instructions: `In a roleplaying scene the player needs to come across this: "${e.what}" The author placed it with: ${e.placedWith.join("; ")}. The player has had a few exchanges to find it there. Is the player clearly busy elsewhere, so that it should now reach them through someone or something they are engaging with in their latest turn? The carrier must plausibly know or show it (nobody gains knowledge they couldn't have), and it must never be someone the player is avoiding. Choose not_now if the player is still heading towards where it was placed, if it has nothing to do with what they're doing, or if in doubt.`,
+      instructions: `In a roleplaying scene the player needs to come across this: "${e.what}" The author placed it with: ${e.placedWith.join("; ")}. Has the player passed up or turned away from where it was placed (ignoring or refusing that person, not looking at that place) while busy with something else? If so, should it now reach them through someone or something else they are engaging with in their latest turn? The carrier must plausibly know or show it (nobody gains knowledge they couldn't have) and must never be someone the player is avoiding. Choose not_now if the player hasn't passed it up, is still heading towards it, if it has nothing to do with what they're doing, or if in doubt.`,
       criteria: {
-        ...Object.fromEntries(present.map(c => [c.id, `${c.name}: the player is engaging with them now, and they could plausibly know it or let it slip`])),
+        ...Object.fromEntries(others.map(c => [c.id, `${c.name}: the player is engaging with them now, and they could plausibly know it or let it slip`])),
         world: "Something in the scene itself (an object, a sound, a telltale detail) shows it, through what the player is doing.",
         not_now: "Not now.",
       },
@@ -202,7 +204,8 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const answer = decision.answers.attempt?.choice;
   const candidate = attempts.find(t => t.id === answer);
   const probability = candidate ? decision.answers.attempt?.probabilities?.[candidate.id] ?? 1 : 0;
-  const attempt = candidate && (!endsScene(scene, candidate) || probability >= SCENE_ENDING_CONFIDENCE) ? candidate : undefined;
+  // Every attempt needs some confidence (a 0.39 match shouldn't take over a turn); endings need more.
+  const attempt = candidate && probability >= (endsScene(scene, candidate) ? SCENE_ENDING_CONFIDENCE : 0.45) ? candidate : undefined;
   const plain = answer?.startsWith("plain:") ?? false;
   // A player's attempt (or something they simply do) outranks a pacing cue: the player acted first.
   // Only a real attempt outranks a pacing cue: talking or simply doing things doesn't hold the world back.
