@@ -686,6 +686,8 @@ export async function chainScene(state: SessionState, combatResult = "the party 
   delete state.ended;
   delete state.threat;
   delete state.brawl;
+  // A wind-down or ending pending when the scene ended (a /end) belongs to that scene, not the next.
+  delete state.closing; delete state.pendingExit; delete state.endingLead;
   saveSession(state);
   return state;
 }

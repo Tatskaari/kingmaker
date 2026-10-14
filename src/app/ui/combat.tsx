@@ -30,7 +30,7 @@ export function fightCommand(game: Game, command: Command): void {
   switch (command) {
     case "target": {
       const n = game.fightTargets().length;
-      game.targetIndex = (Math.min(game.targetIndex, n - 1) + 1) % Math.max(1, n);
+      game.targetIndex = (Math.min(game.targetIndex, n - 1) + 1) % Math.max(1, n); game.targetId = undefined;
       game.emit();
       return;
     }
@@ -99,8 +99,8 @@ export function CombatScreen({ game }: { game: Game }) {
       return;
     }
     if (key.sequence === "?") { fightCommand(game, "help"); return; }
-    if (key.name === "tab") { game.targetIndex = (Math.min(game.targetIndex, targets.length - 1) + (key.shift ? targets.length - 1 : 1)) % Math.max(1, targets.length); game.emit(); return; }
-    if (/^[1-9]$/.test(key.sequence ?? "") && Number(key.sequence) <= targets.length) { game.targetIndex = Number(key.sequence) - 1; game.emit(); return; }
+    if (key.name === "tab") { game.targetIndex = (Math.min(game.targetIndex, targets.length - 1) + (key.shift ? targets.length - 1 : 1)) % Math.max(1, targets.length); game.targetId = undefined; game.emit(); return; }
+    if (/^[1-9]$/.test(key.sequence ?? "") && Number(key.sequence) <= targets.length) { game.targetIndex = Number(key.sequence) - 1; game.targetId = undefined; game.emit(); return; }
     if (!myTurn && !["s", "escape"].includes(key.name)) return;
     const d = SCREEN_KEYS[key.name];
     const me = fight.state().units[fight.state().pc]!;
@@ -143,7 +143,7 @@ export function CombatScreen({ game }: { game: Game }) {
     const i = aimable(id);
     if (i < 0) return;
     if (attackIfAimed && target?.id === id) { fightCommand(game, "attack"); return; }
-    game.targetIndex = i;
+    game.targetIndex = i; game.targetId = undefined;
     game.status = `Aiming at ${targets[i]!.name}${myTurn ? ": click again to attack." : "."}`;
     game.emit();
   };

@@ -29,7 +29,8 @@ export function CreateScreen({ game }: { game: Game }) {
   const [name, setName] = useState("");
   const [concept, setConcept] = useState("");
   const [field, setField] = useState<"name" | "concept">("name");
-  const submit = () => void game.create(name || DEFAULT_NAME, concept || DEFAULT_CONCEPT);
+  // What the box holds when Enter comes (a pasted line arrives with its Enter, before the state catches up).
+  const submit = (typed = concept) => void game.create(name || DEFAULT_NAME, typed || DEFAULT_CONCEPT);
   useKeyboard(key => {
     if (game.overlay || key.defaultPrevented || game.screen !== "create") return;
     if (key.name === "tab" || (key.name === "up" && field === "concept") || (key.name === "down" && field === "name")) setField(f => (f === "name" ? "concept" : "name"));
@@ -40,10 +41,10 @@ export function CreateScreen({ game }: { game: Game }) {
     <text fg={C.title} attributes={BOLD}>Who are you?</text>
     <text fg={C.dim} attributes={ITALIC}>The King has lent you to a small matter of a hanged clerk. He didn't say who you were. You'd better.</text>
     <box width={w} marginTop={1} border borderColor={field === "name" ? C.borderHot : C.border} title=" Name " titleAlignment="left" height={3}>
-      <input value={name} onInput={setName} onSubmit={() => setField("concept")} focused={field === "name"} placeholder={`${DEFAULT_NAME} (Enter for the default)`} />
+      <input value={name} onInput={setName} onSubmit={(value: unknown) => { if (typeof value === "string") setName(value); setField("concept"); }} focused={field === "name"} placeholder={`${DEFAULT_NAME} (Enter for the default)`} />
     </box>
     <box width={w} border borderColor={field === "concept" ? C.borderHot : C.border} title=" Who they are, in a sentence " titleAlignment="left" height={3}>
-      <input value={concept} onInput={setConcept} onSubmit={submit} focused={field === "concept"} placeholder={DEFAULT_CONCEPT} />
+      <input value={concept} onInput={setConcept} onSubmit={(value: unknown) => submit(typeof value === "string" ? value : concept)} focused={field === "concept"} placeholder={DEFAULT_CONCEPT} />
     </box>
     <box width={w} flexDirection="column" marginTop={1}>
       <text fg={C.dim}>{`A class, a species, a background and a level ${LEVEL} D&D sheet are made to fit (SRD 5.2.1). For example:`}</text>

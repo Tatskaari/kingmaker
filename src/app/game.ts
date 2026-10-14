@@ -137,6 +137,8 @@ export class Game {
   card?: Card;
   /** The player's chosen target in a fight (an index into fightTargets()). */
   targetIndex = 0;
+  /** Who's aimed at: held by id, so someone else moving doesn't change it (the list is sorted by distance). */
+  targetId: string | undefined;
   overlay?: Overlay;
   /** The sheet the rules engine just made (the created screen). */
   sheet?: SheetData;
@@ -273,7 +275,7 @@ export class Game {
     this.messages = extras?.messages ?? [];
     this.journal = extras?.journal ?? [];
     this.overlay = undefined;
-    this.targetIndex = 0;
+    this.targetIndex = 0; this.targetId = undefined;
     switch (core.state.mode) {
       case "combat":
         this.screen = "combat";
@@ -784,7 +786,7 @@ export class Game {
     if (core.state.mode === "scene" && core.session.sceneId === this.shown && core.session.ended) { void this.moveOn(() => core.carryOn(this.hooks())); return; }
     switch (core.state.mode) {
       case "end": this.toEnd(); break;
-      case "combat": this.targetIndex = 0; this.screen = "combat"; break;
+      case "combat": this.targetIndex = 0; this.targetId = undefined; this.screen = "combat"; break;
       case "explore": this.screen = this.card ? "between" : "explore"; break;
       default: this.showSceneSoFar();
     }
@@ -876,7 +878,12 @@ export class Game {
 
   target(): { id: string; name: string; at: { x: number; y: number } } | undefined {
     const all = this.fightTargets();
-    return all.length ? all[Math.min(this.targetIndex, all.length - 1)] : undefined;
+    if (!all.length) return undefined;
+    const held = this.targetId ? all.find(t => t.id === this.targetId) : undefined;
+    if (held) { this.targetIndex = all.indexOf(held); return held; }
+    const t = all[Math.min(this.targetIndex, all.length - 1)]!;
+    this.targetId = t.id;
+    return t;
   }
 
   /** A fight action by id, as the QA console would take it; the other side's turns play out after it, paced. */
