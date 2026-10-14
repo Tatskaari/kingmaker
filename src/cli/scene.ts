@@ -276,7 +276,7 @@ async function main(): Promise<void> {
       scene: state.sceneId, approach: state.approach, turn: state.turn, beat: state.beat, turnsInBeat: state.turnsInBeat,
       path: state.path.map(p => `${p.turn}: ${p.from} -> ${p.to} via ${p.via} (${p.source})${p.roll ? ` [${p.roll.skill} ${p.roll.total}/${p.roll.dc}]` : ""}`),
       ended: state.ended?.exitId, notes: state.notes, canon: state.canon, established: state.established,
-      patches: state.patches.map(p => p.beat ? `beat ${p.beat.id}` : `${p.transition!.beat} + ${p.transition!.transition.when}`),
+      patches: state.patches.map(p => p.beat ? `beat ${p.beat.id}` : p.transition ? `${p.transition.beat} + ${p.transition.transition.when}` : `${p.cast?.id} keeps back: ${p.cast?.secrets.join(" ")}`),
       repairs: state.repairs.map(r => `${r.turn}: ${r.status} — ${r.assessment}`),
       latency: { avgFirstTextMs: avg(turns.map(t => t.firstTextMs ?? t.replyMs)), avgPreDecisionMs: avg(turns.map(t => t.preDecisionMs)), avgReplyMs: avg(turns.map(t => t.replyMs)) },
       costUsd: turns.reduce((a, t) => a + t.costUsd, 0).toFixed(5),

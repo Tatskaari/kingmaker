@@ -103,6 +103,19 @@ V1's docs service, rebuilt (`memory: "docs"`, part of `v2`):
 
 The result: recall of what the player did held up across three scenes. The remaining errors are the GM embellishing around true memories (a second promise, an invented relationship). See [experiments/memory.md](../experiments/memory.md).
 
+## Talks with companions between scenes
+
+Talking to someone who walks with the player on the map (Kell, after the granary) opens a short talk: a cRPG companion conversation, with free text in and out and a few suggested lines to choose from. It's a scene built from their lore ([scenes/talk.ts](../../scenes/talk.ts)) and played by the ordinary turn ([src/runtime/talk.ts](../../src/runtime/talk.ts)). It works for anyone with a lore entry.
+
+- **The story waits.** The scene the story is heading for is set aside while the talk lasts and put back exactly as it was. A talk has no story exits: it ends when the player says goodbye or walks on, back on the map where they were, and the lead is still the lead.
+- **Backstory comes slowly, through the runtime's own machinery:**
+  - *What's still theirs to tell.* One decision call (alongside the greeting) judges, per note of their lore, whether its heart has already been told anywhere: in a talk, or in a scene of the story (from the replies that mention them, since a hand-off can leave out a word they let slip). It also judges which note is the deepest.
+  - *The one thing this time.* One call picks what they might open up about this talk, by how things stand between them (their memories of the player) and how many times they've talked. Small things come first; the deepest is withheld (named as not this talk's, and kept out of disclosure) until the third talk.
+  - *A step at a time.* That thing goes on their card as a staged secret, starting as near the surface as the prep says it is. Once it's out (an outcome only they can give, judged after a reply and never offered beforehand as something the player simply achieves), the talk moves to its "told" beat. How far they got carries over to the next talk that turns to it.
+  - *Told is told.* What they've told goes in the talk record and their memories, so no later talk or scene of the story has them tell it again. The talk's GM is told by name what's been told.
+- **Dialogue choices.** Each reply brings two to four suggested lines (one small call, in plain text, alongside the after-reply decision): `say_1`… actions in the game core's scene mode, plus a goodbye and walking on. Choosing one is the same as saying it.
+- **Run like any scene, less some parts.** The memory reviews run as usual. A talk has no co-GM (nothing to keep on track) and no dice for ordinary talk. Its turns cost and take about as long as a scene's.
+
 ## The rules (D&D 5.5e)
 
 The vendored [dnd-srd-engine](../../vendor/dnd-srd-engine/README.md) (SRD 5.2.1) decides what the rules decide, and the GM narrates exactly that (`src/rules/dnd.ts`).

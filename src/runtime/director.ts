@@ -351,8 +351,9 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const cues = transitionsFor(scene, state, "cue");
   // Outcomes that need no roll are shown as alternatives, so the decider can see that a kind
   // word might simply work; choosing one means "no attempt now" (it's judged after the reply).
-  // The built-in improvised ending is only ever judged after the reply, on what happened.
-  const outcomes = transitionsFor(scene, state, "outcome").filter(t => t.to !== IMPROVISED_EXIT_ID);
+  // The built-in improvised ending, and what only someone else can give, are only ever judged
+  // after the reply, on what happened.
+  const outcomes = transitionsFor(scene, state, "outcome").filter(t => t.to !== IMPROVISED_EXIT_ID && !t.given);
   const questions: Record<string, ChoiceQuestion> = {};
   if (attempts.length || outcomes.length || options.freeform === true) {
     const q = question("attempt", attempts, scene);

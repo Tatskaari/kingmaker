@@ -3,7 +3,7 @@ import { respond, respondJson } from "../llm/openrouter.ts";
 import { recordingWorld } from "../world/dsl.ts";
 import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
-import { approachById } from "./approaches.ts";
+import { approachById, sceneApproach } from "./approaches.ts";
 import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntries, unnamed } from "./brief.ts";
 import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type Reaction, type Witness } from "./director.ts";
 import { describeRoll } from "./dice.ts";
@@ -193,7 +193,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   const authored = sceneById(state.sceneId);
   applyPendingRepairs(authored, state);
   let scene = effectiveScene(authored, state.patches);
-  const approach = approachById(state.approach);
+  const approach = sceneApproach(state, authored);
   const decider = deciderFor(approach.decider);
   if (approach.staging) state.guard ??= {};
   const before = state.transcript.length;

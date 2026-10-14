@@ -98,3 +98,8 @@ export function approachById(id: string): Approach {
   if (!approach) throw new Error(`Unknown approach ${id}. Known: ${Object.keys(APPROACHES).join(", ")}`);
   return approach;
 }
+
+/** The session's approach as a scene runs it: a scene can turn things off or on for itself (a talk has no co-GM). */
+export function sceneApproach(state: { approach: string }, scene: { approach?: Partial<Approach> }): Approach {
+  return { ...approachById(state.approach), ...scene.approach };
+}

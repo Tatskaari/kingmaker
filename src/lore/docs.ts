@@ -68,6 +68,12 @@ export function readDoc(sessionId: string, path: string): Doc | undefined {
   return undefined;
 }
 
+/** A doc as authored, before any session's play has touched it. */
+export function seedDoc(path: string): Doc | undefined {
+  const f = inside(LORE_ROOT, path);
+  return existsSync(f) ? parseDoc(path, readFileSync(f, "utf8")) : undefined;
+}
+
 export function writeDoc(sessionId: string, doc: Doc): void {
   const f = inside(overlay(sessionId), doc.path);
   mkdirSync(dirname(f), { recursive: true });
