@@ -310,7 +310,8 @@ function layoutOnce(plan: PlacePlan, W: number, D: number, notchCorner: Corner |
     switch (plan.surroundings) {
       case "earth-bank": set(p, tile("wall", { style: "bank", height: 2 })); break;
       case "water": set(p, corner ? { ...open } : tile("deep-water")); break;
-      case "buildings": set(p, back && !corner ? tile("wall", { style: style === "brick" ? "plaster" : "brick", height: 3 }) : { ...open }); break;
+      // The neighbours: brick, or timber beside brick (plaster's salmon roofs outshine the place itself).
+      case "buildings": set(p, back && !corner ? tile("wall", { style: style === "brick" ? "timber" : "brick", height: 3 }) : { ...open }); break;
       default: set(p, { ...open });
     }
   }

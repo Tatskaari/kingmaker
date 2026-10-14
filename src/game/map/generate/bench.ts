@@ -66,6 +66,8 @@ const effort = opt("effort", "none") as Effort;
 const format = opt("format", "compact") as "compact" | "verbose";
 const VIEWS: Array<[View, "afternoon" | "night"]> = [["scene", "afternoon"], ["scene", "night"], ["outside", "afternoon"]];
 process.env.KM_LOOK_CACHE ??= join(out, "look-cache.json");
+// The pictures draw people as letters: tools/preview.py has no Kingmaker Glyphs sprites (KM_GLYPHS=kingmaker for them).
+process.env.KM_GLYPHS ??= "ascii";
 
 interface Record_ {
   key: string; prompt: string; run: number; ok: boolean; repairs: number; ms: number; shellMs?: number; costUsd: number;
