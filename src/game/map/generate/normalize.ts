@@ -208,6 +208,8 @@ export function normalizePlan(raw: PlacePlan, cast: CastMember[] = []): { plan: 
   for (const t of plan.things) {
     if (heldIn.has(t.id)) t.in = resolve(areaOfId(t.id), [rooms, outside]) ?? mainId;
     fixRelation(t, resolve(t.target, anything), resolve(t.target2, anything), problem);
+    // On, in or under a door (a grille in the river door): it's by the door, as the door itself is drawn.
+    if (["on", "in", "under"].includes(t.relation) && doors.has(t.target)) t.relation = "by-door";
   }
   // Things held by things that are themselves held, or that hold each other, are put down.
   for (const t of plan.things) if (["on", "in", "under"].includes(t.relation) && t.target === t.id) { t.relation = "centre"; t.target = ""; }

@@ -164,9 +164,9 @@ export function furnish(site: Site, plan: PlacePlan): Furnished {
   const free = (p: Tile2, area: string, opts: { aloft?: boolean; person?: boolean } = {}) => {
     const t = tileAt(p);
     if (!t || areaAt(p) !== area || !passable(p)) return false;
-    // Not in the shallows, and not on a gangplank (a boat's only way aboard).
+    // Not in the shallows (unless it's in the river: a buoy, a floating cask), nor on a gangplank (a boat's only way aboard).
     const a = site.areas.get(area);
-    if (t.terrain === "water" || (t.terrain === "bridge" && (a?.ground === "water" || a?.boat))) return false;
+    if ((t.terrain === "water" && a?.ground !== "water") || (t.terrain === "bridge" && (a?.ground === "water" || a?.boat))) return false;
     const k = tkey(p);
     if (opts.aloft) return !aloftAt.has(k);
     if (occupied.has(k) || peopleAt.has(k) || reserved.has(k)) return false;
