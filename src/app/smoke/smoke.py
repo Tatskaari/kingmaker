@@ -186,6 +186,8 @@ def offline():
     say(app, "#end caught-in-the-act")
     expect(app, r"The King's Morning ·", "the King's morning opens straight away (a summons)", timeout=60)
     app.wait_for(r"couldn't move on|Level up|couldn't open", 40)
+    # The level-up shows before the opening's call comes back: wait until the input is free again.
+    app.wait_for(r"Say something or do something", 40)
     say(app, "#end justice")
     expect(app, r"How it went", "The End", timeout=60)
     expect(app, r"Hanged Clerk: The case is made", "the epilogue lists the chapters")
