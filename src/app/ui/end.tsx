@@ -1,7 +1,7 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import type { Game } from "../game.ts";
 import { C } from "../theme.ts";
-import { BOLD, ITALIC, Keys, useGame } from "./common.tsx";
+import { BOLD, ITALIC, Keys, useGame, wrap } from "./common.tsx";
 
 export function EndScreen({ game }: { game: Game }) {
   useGame(game);
@@ -15,10 +15,10 @@ export function EndScreen({ game }: { game: Game }) {
   const w = Math.min(width - 4, 110);
   const big = width >= 70 && height >= 30;
   const chapters = end?.chapters ?? [];
-  const notes = (sceneId: string) => game.journal.find(j => j.sceneId === sceneId)?.lines ?? [];
-  const noteLines = chapters.reduce((n, c) => n + notes(c.sceneId).length, 0);
-  const below = chapters.length + noteLines + 3 + 2;
-  const narration = Math.max(5, height - (big ? 8 : 2) - below - 2);
+  const notes = (sceneId: string) => (game.journal.find(j => j.sceneId === sceneId)?.lines ?? []).flatMap(l => wrap(l, w - 4));
+  const tab = wrap(`The GM's bar tab this sitting: $${(end?.spentUsd ?? 0).toFixed(2)}. The King has graciously declined to pay it.`, w);
+  const below = 1 + chapters.reduce((n, c) => n + 1 + notes(c.sceneId).length, 0) + tab.length;
+  const narration = Math.max(5, height - (big ? 8 : 2) - below - 5);
   return <box width={width} height={height} flexDirection="column" alignItems="center" backgroundColor={C.bg} paddingTop={1}>
     {big ? <ascii-font text="THE END" font="block" color={[C.title, "#c98a3a"]} /> : <text fg={C.title} attributes={BOLD}>T H E   E N D</text>}
     <box width={w} height={narration} marginTop={1} border borderColor={C.border} title={` ${game.session?.player.name ?? "The investigator"} `} paddingX={1}>
@@ -26,14 +26,14 @@ export function EndScreen({ game }: { game: Game }) {
         <text fg={C.gm} wrapMode="word">{end?.closing ?? ""}</text>
       </scrollbox>
     </box>
-    <box width={w} flexDirection="column" marginTop={1} flexShrink={0}>
-      <text fg={C.title}>How it went</text>
-      {chapters.map((c, i) => <box key={i} flexDirection="column" flexShrink={0}>
-        <text><span fg={C.dim}>{`${i + 1}. ${c.title}: `}</span><span fg={C.text}>{c.ending}</span></text>
-        {notes(c.sceneId).map((l, j) => <text key={j} fg={C.faint} wrapMode="word">{`   ${l}`}</text>)}
-      </box>)}
-      <text fg={C.faint} attributes={ITALIC}>{`The GM's bar tab this sitting: $${(end?.spentUsd ?? 0).toFixed(2)}. The King has graciously declined to pay it.`}</text>
+    <box width={w} height={below} flexDirection="column" marginTop={1} flexShrink={0}>
+      <text fg={C.title} flexShrink={0}>How it went</text>
+      {chapters.flatMap((c, i) => [
+        <text key={`c${i}`} flexShrink={0}><span fg={C.dim}>{`${i + 1}. ${c.title}: `}</span><span fg={C.text}>{c.ending}</span></text>,
+        ...notes(c.sceneId).map((l, j) => <text key={`n${i}-${j}`} fg={C.faint} flexShrink={0}>{`   ${l}`}</text>),
+      ])}
+      {tab.map((l, i) => <text key={`t${i}`} fg={C.faint} attributes={ITALIC} flexShrink={0}>{l}</text>)}
     </box>
-    <box marginTop={1} flexShrink={0}><Keys items={[["Enter", "back to the title"], ["q", "quit"]]} /></box>
+    <box height={1} marginTop={1} flexShrink={0}><Keys items={[["Enter", "back to the title"], ["q", "quit"]]} /></box>
   </box>;
 }

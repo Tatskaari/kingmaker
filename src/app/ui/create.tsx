@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import type { Game } from "../game.ts";
 import { DEFAULT_CONCEPT, DEFAULT_NAME, LEVEL } from "../story.ts";
 import { C } from "../theme.ts";
-import { BOLD, ITALIC, Keys, Spinner, useGame } from "./common.tsx";
+import { BOLD, ITALIC, Keys, Spinner, useGame, wrap } from "./common.tsx";
 
 const ROLLING = [
   "Consulting the Standard Array…",
@@ -77,16 +77,19 @@ export function CreatedScreen({ game }: { game: Game }) {
   });
   const session = game.session;
   const w = Math.min(width - 4, 110);
+  // Centred columns don't measure wrapped text reliably: wrap it here and size the boxes to fit.
+  const sheet = (game.sheet ?? "").split("\n").flatMap(l => wrap(l, w - 4));
+  const intro = wrap(game.messages.at(-1) ?? "", w);
+  const room = Math.max(4, height - intro.length - 9);
   return <box width={width} height={height} flexDirection="column" alignItems="center" justifyContent="center" backgroundColor={C.bg}>
-    <text fg={C.title} attributes={BOLD}>{`${session?.player.name ?? "You"}, ${session?.player.build ?? "adventurer"}`}</text>
-    <text fg={C.dim} attributes={ITALIC}>{session?.player.concept ?? ""}</text>
-    <box width={w} marginTop={1} border borderColor={C.border} title=" Character sheet " paddingX={1} flexDirection="column">
-      <text fg={C.text} wrapMode="word">{game.sheet ?? ""}</text>
+    <text fg={C.title} attributes={BOLD} flexShrink={0}>{`${session?.player.name ?? "You"}, ${session?.player.build ?? "adventurer"}`}</text>
+    <text fg={C.dim} attributes={ITALIC} flexShrink={0}>{wrap(session?.player.concept ?? "", w)[0] ?? ""}</text>
+    <box width={w} height={Math.min(room, sheet.length) + 2} marginTop={1} border borderColor={C.border} title=" Character sheet " paddingX={1} flexDirection="column" flexShrink={0}>
+      {sheet.slice(0, room).map((l, i) => <text key={i} fg={C.text} flexShrink={0}>{l}</text>)}
     </box>
-    <box width={w} marginTop={1} flexDirection="column">
-      <text fg={C.text} wrapMode="word">{game.messages.at(-1) ?? ""}</text>
+    <box width={w} height={intro.length} marginTop={1} flexDirection="column" flexShrink={0}>
+      {intro.map((l, i) => <text key={i} fg={C.text} flexShrink={0}>{l}</text>)}
     </box>
-    <box marginTop={1}><Keys items={[["Enter", "set off for the granary"]]} /></box>
-    <text fg={C.faint}>{height < 30 ? "" : "(You can see this sheet again any time: c on the map, #sheet in a scene.)"}</text>
+    <box height={1} marginTop={1} flexShrink={0}><Keys items={[["Enter", "set off for the granary"], ["", "(c on the map or #sheet in a scene shows this again)"]]} /></box>
   </box>;
 }

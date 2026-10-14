@@ -385,7 +385,7 @@ export class Game {
         lines: [
           ...(notebook.length ? ["Your notebook:", ...notebook.map(l => `  ${l}`), ""] : []),
           ...(skipped.length ? [`(The story has already overtaken ${skipped.join(" and ")}.)`, ""] : []),
-          `The lead: ${next.title}${where ? `, at ${where.name}` : ""}.`,
+          `The lead: ${next.title}.${where ? ` Where: ${where.name}.` : ""}`,
           next.hook,
           "",
           "Press Enter to walk there.",
@@ -480,8 +480,10 @@ export class Game {
     if (!result) return;
     this.fight = undefined;
     const session = this.session!;
-    const said = { victory: "We won the fight.", surrender: "They surrendered.", defeat: "We lost the fight, and I woke up on the floor.", fled: "They ran for it." }[result.outcome];
-    this.note({ sceneId: session.sceneId, title: sceneById(session.sceneId).title, ending: endedExit(session)?.title ?? "A fight", lines: [`${said} ${result.summary}`] });
+    const said = { victory: "We won the fight.", surrender: "We won: they gave up.", defeat: "We lost the fight, and I woke up on the floor.", fled: "They ran for it." }[result.outcome];
+    const enemies = new Set((this.setup?.combatants ?? []).filter(c => c.side === "enemy").map(c => c.id));
+    const fell = result.casualties.filter(c => enemies.has(c.id) && c.state !== "standing").map(c => `${c.name} ${c.state === "down" ? "went down" : c.state}`);
+    this.note({ sceneId: session.sceneId, title: sceneById(session.sceneId).title, ending: endedExit(session)?.title ?? "A fight", lines: [`${said}${fell.length ? ` ${capital(fell.join("; "))}.` : ""}`] });
     await this.chain("After the fight", result.summary);
   }
 
