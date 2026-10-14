@@ -1,7 +1,7 @@
 import type { ChoiceQuestion, Decider, Decision } from "../llm/decide.ts";
 import { currentBeat, presentCast, scriptTranscript, sceneEntries } from "./brief.ts";
 import { describeRoll, rng, rollCheck, titleCase, type RollResult } from "./dice.ts";
-import type { Exit, Scene, Transition } from "./scene.ts";
+import { SKILLS, type Exit, type Scene, type Skill, type Transition } from "./scene.ts";
 import type { SessionState } from "./session.ts";
 
 /** What the director decided this turn, and what the GM must make happen. */
@@ -12,7 +12,12 @@ export interface Move {
   /** Beat or exit id we end up at (may equal the current beat after a failed check). */
   to: string;
   exit?: Exit;
+  /** The player chose this outcome (their own attempt, and the dice didn't say otherwise). */
+  chosen: boolean;
 }
+
+/** A risky attempt none of the scene's routes cover: rolled, narrated, but it moves no beat. */
+export interface FreeformCheck { skill: Skill; dc: number; roll: RollResult }
 
 const phaseOf = (t: Transition): "attempt" | "cue" | "outcome" => t.on ?? (t.check ? "attempt" : "outcome");
 
@@ -61,25 +66,64 @@ function resolve(scene: Scene, state: SessionState, transition: Transition, phas
     to = roll.success ? transition.check.onSuccess : transition.check.onFailure ?? state.beat;
   }
   const exit = scene.exits.find(e => e.id === to);
-  return { transition, phase, to, ...(roll ? { roll } : {}), ...(exit ? { exit } : {}) };
+  const chosen = phase === "attempt" && (!roll || roll.success);
+  return { transition, phase, to, chosen, ...(roll ? { roll } : {}), ...(exit ? { exit } : {}) };
 }
 
-export interface PreDecision { move?: Move; speaker?: string; decision?: Decision }
+export interface PreDecision {
+  move?: Move;
+  speaker?: string;
+  decision?: Decision;
+  /** The player is doing something that simply happens (an outcome route), no dice. */
+  plain?: boolean;
+  /** A risky attempt outside the scene's routes, already rolled. */
+  freeform?: FreeformCheck;
+}
+
+const SKILL_TEXT: Record<Skill, string> = {
+  persuasion: "Persuasion: winning someone over honestly, appeals, bargaining", deception: "Deception: lying, bluffing, disguises, tricks",
+  intimidation: "Intimidation: threats and shows of force", insight: "Insight: reading someone's intentions or lies",
+  performance: "Performance: music, poetry, acting, entertaining a crowd", perception: "Perception: noticing, spotting, listening",
+  investigation: "Investigation: searching, deducing, examining clues", sleight_of_hand: "Sleight of hand: pickpocketing, palming, planting objects",
+  stealth: "Stealth: sneaking, hiding", athletics: "Athletics: climbing, jumping, grappling, shoving, lifting",
+  acrobatics: "Acrobatics: balance, tumbling, nimble escapes", animal_handling: "Animal handling: calming or controlling animals",
+  arcana: "Arcana: magical lore, spells, enchanted objects", history: "History: knowledge of past events, peoples and places",
+  nature: "Nature: plants, animals, weather, the land", religion: "Religion: gods, rites, holy objects",
+  medicine: "Medicine: treating wounds, diagnosing", survival: "Survival: tracking, foraging, finding a way",
+};
+const DIFFICULTY = { easy: 10, moderate: 13, hard: 16 } as const;
+
+async function freeformCheck(decider: Decider, scene: Scene, state: SessionState, playerTurn: string): Promise<{ check: FreeformCheck; decision: Decision }> {
+  const decision = await decider.decide(decisionState(scene, state, playerTurn), {
+    skill: { instructions: "The player is attempting something risky in a tabletop roleplaying scene (latest_player_turn). Which skill best decides whether it works?", criteria: SKILL_TEXT },
+    difficulty: { instructions: "How hard is what the player is attempting, given the situation and the people involved?", criteria: {
+      easy: "Easy: most people could manage it; only bad luck stops it.", moderate: "Moderate: a real chance of failure for most people.", hard: "Hard: it would take skill and luck.",
+    } },
+  }, "director.freeform");
+  const skill = (decision.answers.skill?.choice ?? "persuasion") as Skill;
+  const dc = DIFFICULTY[(decision.answers.difficulty?.choice ?? "moderate") as keyof typeof DIFFICULTY] ?? 13;
+  const random = rng(state.seed + 7919 * ++state.rollCount);
+  return { check: { skill, dc, roll: rollCheck(random, skill, dc, state.player.modifiers[skill] ?? 0) }, decision };
+}
 
 /** Before the reply: is the player attempting a transition, or should a pacing cue fire? Plus who speaks first. */
-export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean }): Promise<PreDecision> {
+export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean; freeform?: boolean }): Promise<PreDecision> {
   const attempts = transitionsFor(scene, state, "attempt");
   const cues = transitionsFor(scene, state, "cue");
   // Outcomes that need no roll are shown as alternatives, so the decider can see that a kind
   // word might simply work; choosing one means "no attempt now" (it's judged after the reply).
   const outcomes = transitionsFor(scene, state, "outcome");
   const questions: Record<string, ChoiceQuestion> = {};
-  if (attempts.length) {
+  if (options.freeform !== false || attempts.length) {
     const q = question("attempt", attempts);
-    questions.attempt = outcomes.length
-      ? { instructions: `${q.instructions} Some things need no dice: if the player's turn is better described by one of the "simply happens" options, choose that.`,
-        criteria: { ...q.criteria, ...Object.fromEntries(outcomes.map(t => [`plain:${t.id}`, `Simply happens, no dice needed: ${t.when}`])) } }
-      : q;
+    questions.attempt = {
+      instructions: `${q.instructions} Some things need no dice: if the player's turn is better described by one of the "simply happens" options, choose that. Choose other_risky only for a genuinely uncertain attempt that none of the listed options covers.`,
+      criteria: {
+        ...q.criteria,
+        ...Object.fromEntries(outcomes.map(t => [`plain:${t.id}`, `Simply happens, no dice needed: ${t.when}`])),
+        ...(options.freeform !== false ? { other_risky: "The player attempts something risky whose outcome is genuinely uncertain (sneaky, physical, magical or social) and that none of the options above covers. Ordinary talk, questions and harmless actions are not risky." } : {}),
+      },
+    };
   }
   if (cues.length) questions.cue = question("cue", cues);
   if (options.speaker) {
@@ -91,20 +135,36 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   }
   if (!Object.keys(questions).length) return {};
   const decision = await decider.decide(decisionState(scene, state, playerTurn), questions, "director.before");
-  const attempt = attempts.find(t => t.id === decision.answers.attempt?.choice);
-  const cue = cues.find(t => t.id === decision.answers.cue?.choice);
-  // A player's attempt outranks a pacing cue: the player acted first.
+  const answer = decision.answers.attempt?.choice;
+  const attempt = attempts.find(t => t.id === answer);
+  const plain = answer?.startsWith("plain:") ?? false;
+  // A player's attempt (or something they simply do) outranks a pacing cue: the player acted first.
+  const cue = attempt || plain ? undefined : cues.find(t => t.id === decision.answers.cue?.choice);
   const chosen = attempt ?? cue;
   const move = chosen ? resolve(scene, state, chosen, attempt ? "attempt" : "cue") : undefined;
-  return { ...(move ? { move } : {}), ...(decision.answers.speaker ? { speaker: decision.answers.speaker.choice } : {}), decision };
+  let freeform: FreeformCheck | undefined;
+  let combined = decision;
+  if (answer === "other_risky" && !move) {
+    const extra = await freeformCheck(decider, scene, state, playerTurn);
+    freeform = extra.check;
+    combined = { ...decision, answers: { ...decision.answers, ...extra.decision.answers }, latencyMs: decision.latencyMs + extra.decision.latencyMs, costUsd: decision.costUsd + extra.decision.costUsd };
+  }
+  return { ...(move ? { move } : {}), ...(decision.answers.speaker ? { speaker: decision.answers.speaker.choice } : {}), decision: combined, ...(plain ? { plain } : {}), ...(freeform ? { freeform } : {}) };
+}
+
+export function freeformDirective(check: FreeformCheck): string {
+  return `The player's attempt called for a ${titleCase(check.skill)} check. ${describeRoll(check.roll)}. Narrate the result: on a success they get what they were going for, within this scene; on a failure it costs them or complicates things, but the story keeps going. This roll doesn't end the scene by itself.`;
 }
 
 /**
  * After the reply: has an outcome now happened in the fiction? Cues count too: the GM often
  * brings the next beat in on their own, and the tracker should follow rather than replay it.
  */
-export async function decideAfter(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, reply: string): Promise<{ move?: Move; decision?: Decision }> {
-  const outcomes = [...transitionsFor(scene, state, "outcome"), ...transitionsFor(scene, state, "cue")];
+export async function decideAfter(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, reply: string, options: { hold?: string } = {}): Promise<{ move?: Move; decision?: Decision }> {
+  // An ending held back this turn (the player gets a last chance) can't be confirmed by the same reply.
+  const leadsTo = (t: Transition) => [t.to, t.check?.onSuccess, t.check?.onFailure];
+  const outcomes = [...transitionsFor(scene, state, "outcome"), ...transitionsFor(scene, state, "cue")]
+    .filter(t => !options.hold || !leadsTo(t).includes(options.hold));
   if (!outcomes.length) return {};
   const decision = await decider.decide(decisionState(scene, state, playerTurn, reply), { outcome: question("outcome", outcomes) }, "director.after");
   const chosen = outcomes.find(t => t.id === decision.answers.outcome?.choice);
@@ -133,7 +193,9 @@ export function moveDirective(scene: Scene, state: SessionState, move: Move): st
   if (move.roll && move.transition.check) {
     lines.push(`The player's attempt called for a ${titleCase(move.roll.skill)} check (${move.transition.when.replace(/\.$/, "")}). ${describeRoll(move.roll)}. ${move.roll.success ? move.transition.check.success : move.transition.check.failure} Narrate this result.`);
   }
-  if (move.exit) {
+  if (move.exit && !move.chosen) {
+    lines.push(`Things are escalating towards this: ${move.exit.outcome} Don't let it happen yet. In this reply, escalate (a warning, a last demand, a countdown, a weapon raised) and stop with the moment hanging: the next move is the player's.`);
+  } else if (move.exit) {
     lines.push(`This reply closes the scene. ${move.exit.outcome} ${move.exit.closing}`);
   } else if (move.to !== state.beat) {
     const beat = scene.beats.find(b => b.id === move.to)!;

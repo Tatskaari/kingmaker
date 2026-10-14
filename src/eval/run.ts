@@ -133,14 +133,16 @@ async function runDecision(c: DecisionCase, decider: string, sample: number): Pr
     let probabilities: Record<string, number> | undefined;
     if (c.phase === "before") {
       const pre = await decideBefore(d, scene, state, c.input, { speaker: false });
-      choice = pre.move?.transition.id ?? "none";
+      choice = pre.move?.transition.id ?? (pre.freeform ? `freeform:${pre.freeform.skill}` : pre.plain ? "plain" : "none");
       probabilities = { ...pre.decision?.answers.attempt?.probabilities, ...pre.decision?.answers.cue?.probabilities };
     } else {
       const post = await decideAfter(d, scene, state, c.input, c.reply ?? "");
       choice = post.move?.transition.id ?? "none";
       probabilities = post.decision?.answers.outcome?.probabilities;
     }
-    return { case: c.id, decider, sample, ok: true, choice, correct: c.expect.includes(choice), latencyMs: performance.now() - started, ...(probabilities ? { probabilities } : {}) };
+    // "none" means no roll and no move: something that simply happens counts too.
+    const correct = c.expect.includes(choice) || (choice === "plain" && c.expect.includes("none")) || c.expect.some(e => e.endsWith("*") && choice.startsWith(e.slice(0, -1)));
+    return { case: c.id, decider, sample, ok: true, choice, correct, latencyMs: performance.now() - started, ...(probabilities ? { probabilities } : {}) };
   } catch (error) {
     return { case: c.id, decider, sample, ok: false, error: error instanceof Error ? error.message : String(error) };
   }

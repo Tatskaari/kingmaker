@@ -63,6 +63,10 @@ export interface SessionState {
   transcript: Entry[];
   metrics: TurnMetric[];
   ended?: { exitId: string; turn: number; operations: Operation[]; warnings: string[] };
+  /** An ending the player didn't choose is coming; they get one last chance to respond. */
+  pendingExit?: { exitId: string; turn: number; via: string; extended: boolean };
+  /** The story reached an ending; the next player turn is the wind-down, then the scene closes. */
+  closing?: { exitId: string; turn: number };
   /** Scene chain: previous scenes' exits in this session. */
   history: Array<{ sceneId: string; exitId: string; summary: string }>;
 }

@@ -85,6 +85,7 @@ export function sceneBrief(scene: Scene, state: SessionState, options: { secrets
     ...(background.length ? [`## Already established before this scene\n${bullets(background)}`] : []),
     `## The people here\n${cast}`,
     `## Ways this scene can end\nThese are the only ways it can close. The player's choices decide which; don't force one.\n${scene.exits.map(exitBlock).join("\n")}`,
+    ...(scene.limits?.length ? [`## What this scene can't offer\nIf the player reaches for one of these, let the world say no honestly, in the fiction, and show them what is possible instead.\n${bullets(scene.limits)}`] : []),
     `## The player character\n${state.player.name}: ${state.player.concept}`,
   ].join("\n\n");
 }
@@ -107,7 +108,8 @@ export function nowNote(scene: Scene, state: SessionState, directive: string[], 
   const parts = [
     `## Where the scene is now: ${beat.title}\n${beat.direction}`,
     ...(options.castNotes !== false && castNotes.length ? [`What people are doing:\n${castNotes.join("\n")}`] : []),
-    ...(beat.pressure ? [`If the scene stalls or drifts, the world can push: ${beat.pressure}`] : []),
+    // Pressure is for stalls: offered on turn one, the GM uses it at once and rushes the beat.
+    ...(beat.pressure && state.turnsInBeat >= 2 ? [`The scene has been sitting here a while. If it's stalling or drifting, the world can push: ${beat.pressure}`] : []),
     `(The scene has been at this point for ${state.turnsInBeat} exchange${state.turnsInBeat === 1 ? "" : "s"}.)`,
     `## What moves the scene on from here\n${transitions.map(t => transitionLine(scene, t)).join("\n")}`,
     ...(state.notes ? [`## Notes from your co-GM\n${state.notes}`] : []),

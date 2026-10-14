@@ -112,6 +112,11 @@ export interface Scene {
   exits: Exit[];
   /** Transitions available from every beat (e.g. the party attacks, the party walks away). */
   anytime?: Transition[];
+  /**
+   * What the world can't offer here: tempting things players reach for that don't exist or
+   * can't work in this scene. Lets the GM say "no, but" honestly instead of inventing.
+   */
+  limits?: string[];
   /** Established facts carried in from earlier scenes. */
   background?: string[];
   /** Named spots world scripts can refer to (e.g. "crossroads", "ditch"). */

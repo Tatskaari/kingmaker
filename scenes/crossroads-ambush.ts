@@ -48,6 +48,12 @@ export const crossroadsAmbush: Scene = {
       enters: "ambush",
     },
   ],
+  limits: [
+    "Nobody else is coming to help: the toll house is a mile back and its men laughed Tam away.",
+    "The goblins own nothing worth having except Grandmother Bone, their bows, knives and Skrag's rattle.",
+    "There's no horse, cart or shortcut; Hollis Farm is an hour's walk and the warren under the burnt mill is half a day north. Neither is reachable within this scene.",
+    "Nothing at the crossroads is magical except Grandmother Bone, and even that does nothing visible.",
+  ],
   anchors: ["crossroads", "milestone", "ditch", "hedgerow", "gibbet", "drovers-track", "kings-road"],
   start: "ranting",
   beats: [

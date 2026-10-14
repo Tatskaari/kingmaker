@@ -1,8 +1,9 @@
 import type { Scene } from "../src/runtime/scene.ts";
 import { crossroadsAmbush } from "./crossroads-ambush.ts";
 import { crossroadsAftermath } from "./crossroads-aftermath.ts";
+import { strangerCrossroads } from "./stranger-crossroads.ts";
 
-export const SCENES: Scene[] = [crossroadsAmbush, crossroadsAftermath];
+export const SCENES: Scene[] = [strangerCrossroads, crossroadsAmbush, crossroadsAftermath];
 
 export function sceneById(id: string): Scene {
   const scene = SCENES.find(s => s.id === id);

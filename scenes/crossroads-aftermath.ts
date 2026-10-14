@@ -26,6 +26,11 @@ export const crossroadsAftermath: Scene = {
       attitude: "Grateful; attaches himself to the party.",
     },
   ],
+  limits: [
+    "The warren under the burnt mill is half a day north: the party can set off for it, but it isn't reachable within this scene.",
+    "Tam has no money beyond the eleven silver pennies sewn into his hat, and nothing else of value.",
+    "Garrow and the toll house are a mile back up the King's Road; nobody else is around.",
+  ],
   anchors: ["crossroads", "milestone", "ditch", "hedgerow", "drovers-track", "kings-road", "hollis-farm"],
   start: "emerges",
   beats: [

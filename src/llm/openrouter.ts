@@ -192,7 +192,8 @@ export async function respond(request: RespondRequest): Promise<RespondResult> {
     throw new Error(`OpenRouter ${request.operation}: stream ended without a final response`);
   }
   if (final.status !== "completed") {
-    logCall({ provider: "openrouter", operation: request.operation, model, request: body, error: `status ${final.status}`, details: final.incomplete_details });
+    logCall({ provider: "openrouter", operation: request.operation, model, request: body, error: `status ${final.status}`, details: final.incomplete_details, partial: streamed.slice(0, 4000), usage: final.usage });
+    if (!request.noPhaseRetry) return respond({ ...request, noPhaseRetry: true });
     throw new Error(`OpenRouter ${request.operation}: response ${final.status} (${final.incomplete_details?.reason ?? "unknown"})`);
   }
   const phases = (final.output ?? []).filter(item => item.type === "message").map(item => item.phase ?? "none");

@@ -10,7 +10,8 @@
   "scripts": {
     "scene": "node src/cli/scene.ts",
     "eval": "node src/eval/run.ts",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "compare": "node src/eval/compare.ts"
   },
   "devDependencies": {
     "@types/node": "26.6.5",

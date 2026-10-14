@@ -5,7 +5,7 @@ import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { approachById } from "./approaches.ts";
 import { effectiveScene, sceneEntries } from "./brief.ts";
-import { decideAfter, decideBefore, decideNextSpeaker, moveDirective, type Move } from "./director.ts";
+import { decideAfter, decideBefore, decideNextSpeaker, freeformDirective, moveDirective, type Move } from "./director.ts";
 import { describeRoll } from "./dice.ts";
 import { applyPendingRepairs } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
@@ -40,6 +40,25 @@ async function rollUpModifiers(concept: string): Promise<Partial<Record<Skill, n
     return Object.fromEntries(SKILLS.map(s => [s, Math.max(-2, Math.min(8, Number(result[s]) || 0))]));
   } catch {
     return Object.fromEntries(SKILLS.map(s => [s, 2]));
+  }
+}
+
+/** Character creation scenes end by writing the player's sheet from the conversation. */
+async function extractCharacter(scene: Scene, state: SessionState): Promise<void> {
+  const transcript = sceneEntries(state).map(e => `${e.kind === "player" ? "Player" : e.speaker}: ${e.text}`).join("\n\n");
+  try {
+    const sheet = await respondJson<{ name: string; concept: string; modifiers: Record<Skill, number> }>({
+      operation: "player.sheet", effort: "low",
+      instructions: "You write a tabletop RPG character sheet from a character-creation conversation. Use only what the player established or accepted. The concept is one or two sentences: who they are, where they're from, what they're good at, a flaw, and how they'll get into court. Skill modifiers are 5e style for a capable level 3 adventurer: strong skills +4 to +6, average +1 to +2, weak -1 to 0.",
+      input: [{ role: "user", content: transcript }],
+      json: { name: "sheet", schema: { type: "object", additionalProperties: false, required: ["name", "concept", "modifiers"], properties: {
+        name: { type: "string" }, concept: { type: "string" },
+        modifiers: { type: "object", additionalProperties: false, required: [...SKILLS], properties: Object.fromEntries(SKILLS.map(k => [k, { type: "integer" }])) },
+      } } },
+    });
+    state.player = { name: sheet.name.trim() || state.player.name, concept: sheet.concept.trim(), modifiers: Object.fromEntries(SKILLS.map(k => [k, Math.max(-2, Math.min(8, Number(sheet.modifiers[k]) || 0))])) };
+  } catch (error) {
+    state.transcript.push({ turn: state.turn, scene: scene.id, speaker: "system", kind: "system", text: `(character sheet extraction failed: ${error instanceof Error ? error.message : String(error)})` });
   }
 }
 
@@ -115,16 +134,53 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   state.turn++;
   push(state, hooks, { speaker: "player", kind: "player", text: input });
 
+  // Wind-down turn: the story already reached an ending; answer the player and close.
+  if (state.closing) {
+    const exit = scene.exits.find(e => e.id === state.closing!.exitId)!;
+    const closing = [`The scene is ending: ${exit.outcome} Answer the player's last turn and bring the scene to a close. ${exit.closing} Keep it short.`];
+    const replyStarted = performance.now();
+    const close = approach.voice === "gm"
+      ? await gmReply(scene, state, closing, speakHooks(textHooks, "gm", "narration"), "gm.closing")
+      : await narratorReply(scene, state, [...closing, "You may give a character a brief last word if it fits."], speakHooks(textHooks, "gm", "narration"));
+    push(state, hooks, { speaker: "gm", kind: "narration", text: close.text });
+    delete state.closing;
+    if (authored.createsCharacter) await extractCharacter(authored, state);
+    finishScene(state, authored, exit);
+    const metric: TurnMetric = { turn: state.turn, preDecisionMs: 0, firstTextMs, replyMs: performance.now() - replyStarted, postDecisionMs: 0, costUsd: close.result.costUsd, calls: 1 };
+    state.metrics.push(metric);
+    saveSession(state);
+    snapshotSession(state);
+    return { entries: state.transcript.slice(before), ended: exit, metric };
+  }
+
   const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors" });
   const preDecisionMs = performance.now() - started;
   if (pre.decision) { costUsd += pre.decision.costUsd; calls++; }
   let ended: Exit | undefined;
   let directive: string[] = [];
+  const pending = state.pendingExit;
+  if (pending) delete state.pendingExit;
   if (pre.move) {
     directive = moveDirective(scene, state, pre.move);
     if (pre.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.move.roll) });
     applyMove(state, scene, pre.move, "pre");
-    if (pre.move.exit) ended = pre.move.exit;
+    if (pre.move.exit && (pre.move.chosen || pending?.exitId === pre.move.exit.id)) ended = pre.move.exit;
+    else if (pre.move.exit) state.pendingExit = { exitId: pre.move.exit.id, turn: state.turn, via: pre.move.transition.id, extended: false };
+  } else if (pre.freeform) {
+    push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.freeform.roll) });
+    state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: "freeform", source: "pre", roll: pre.freeform.roll });
+    directive = [freeformDirective(pre.freeform)];
+  }
+  if (pending && !pre.move) {
+    const exit = scene.exits.find(e => e.id === pending.exitId)!;
+    if ((pre.plain || pre.freeform) && !pending.extended) {
+      // The player is doing something that might change things: hold the ending one more turn.
+      state.pendingExit = { ...pending, extended: true };
+      directive.push(`The scene is on the brink of: ${exit.title} (${exit.outcome}). The player's response may change that; play it honestly.`);
+    } else {
+      ended = exit;
+      directive.push(`This reply closes the scene. ${exit.outcome} ${exit.closing}`);
+    }
   }
 
   const spoken: Spoken[] = [];
@@ -147,7 +203,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       if (i === 0 && next === "gm" && pre.speaker && pre.speaker !== "gm") { next = pre.speaker; continue; }
       const decision = await decideNextSpeaker(decider, scene, state, input, responded);
       calls++;
-      next = decision;
+      // The narrator never follows itself: a second passage just repeats the first.
+      next = decision === "gm" && line.speaker === "gm" ? "player" : decision;
     }
   }
   const replyMs = performance.now() - replyStarted;
@@ -157,25 +214,24 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (!ended) {
     const postStarted = performance.now();
     const replyText = spoken.map(s => s.speaker === "gm" ? s.text : `${scene.cast.find(c => c.id === s.speaker)?.name}: ${s.text}`).join("\n\n");
-    const post = await decideAfter(decider, scene, state, input, replyText);
+    const hold = state.pendingExit?.turn === state.turn ? state.pendingExit.exitId : undefined;
+    const post = await decideAfter(decider, scene, state, input, replyText, hold ? { hold } : {});
     postDecisionMs = performance.now() - postStarted;
     if (post.decision) { costUsd += post.decision.costUsd; calls++; }
     if (post.move) {
       if (post.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(post.move.roll) });
-      const closing = post.move.exit ? [`The story has just reached an ending. ${post.move.exit.outcome} ${post.move.exit.closing} Close the scene in two to four sentences, picking up exactly where the last reply left off.`] : [];
       applyMove(state, scene, post.move, "post");
       if (post.move.exit) {
-        ended = post.move.exit;
-        const close = approach.voice === "gm"
-          ? await gmReply(scene, state, closing, speakHooks(hooks, "gm", "narration"), "gm.closing")
-          : await narratorReply(scene, state, closing, speakHooks(hooks, "gm", "narration"));
-        costUsd += close.result.costUsd; calls++;
-        push(state, hooks, { speaker: "gm", kind: "narration", text: close.text });
+        delete state.pendingExit;
+        // A fight has already broken out in the reply; anything else gets one wind-down turn.
+        if (post.move.exit.kind === "combat") ended = post.move.exit;
+        else state.closing = { exitId: post.move.exit.id, turn: state.turn };
       }
     }
   }
   if (!state.path.some(p => p.turn === state.turn && p.to !== p.from)) state.turnsInBeat++;
 
+  if (ended && authored.createsCharacter) await extractCharacter(authored, state);
   if (ended) finishScene(state, authored, ended);
   const metric: TurnMetric = { turn: state.turn, preDecisionMs, firstTextMs, replyMs, postDecisionMs, costUsd, calls };
   state.metrics.push(metric);

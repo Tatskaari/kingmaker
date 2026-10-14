@@ -64,6 +64,7 @@ export async function actorReply(scene: Scene, state: SessionState, characterId:
     `Also here: ${others.length ? others.join("; ") : "nobody else"}. The player's character: ${state.player.name}, ${state.player.concept}.`,
     ...(state.history.length ? [`Earlier today: ${state.history.map(h => h.summary).join(" ")}`] : []),
     ...(state.canon.length || state.established.length ? [`Things that have been established (true): ${[...state.established, ...state.canon].join(" ")}`] : []),
+    ...(scene.limits?.length ? [`How things stand here (don't contradict it): ${scene.limits.join(" ")}`] : []),
     ...(beat.cast?.[c.id] ? [`What you're doing in this part of the scene: ${beat.cast[c.id]}`] : []),
     ...(direction.length ? [`The GM's direction for this moment: ${direction.join(" ")}`] : []),
   ].join("\n\n");
@@ -71,7 +72,7 @@ export async function actorReply(scene: Scene, state: SessionState, characterId:
     { role: "developer", content: context },
     { role: "user", content: `The scene so far:\n\n${scriptTranscript(scene, state) || "(The scene is just starting.)"}\n\nNow, as ${c.name}:` },
   ];
-  const result = await respond({ operation: `actor.${c.id}`, instructions: system, input, effort: "none", maxOutputTokens: 300, ...(onText ? { onText } : {}) });
+  const result = await respond({ operation: `actor.${c.id}`, instructions: system, input, effort: "none", maxOutputTokens: 900, ...(onText ? { onText } : {}) });
   const text = result.text.trim().replace(new RegExp(`^${c.name.split(" ")[0]}[^:]{0,20}:\\s*`), "");
   return { speaker: c.id, kind: "dialogue", text, result };
 }
