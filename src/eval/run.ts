@@ -150,6 +150,8 @@ async function runDecision(c: DecisionCase, decider: string, sample: number): Pr
 
 interface TrajectoryRun {
   case: string; approach: string; sample: number; ok: boolean; error?: string; turns?: number; exit?: string;
+  targetHit?: boolean; patches?: number; improvisedRoutesTaken?: number; relocations?: number; essentialsLanded?: string; firstTextP50?: number | null; firstTextP90?: number | null;
+  followUpTurns?: number; followUpP50?: number | null; blockingRepairP50?: number | null; backgroundRepairP50?: number | null; backgroundRepairP90?: number | null;
   scores?: Record<Dimension, number>; progress?: number; criterion?: { pass: boolean; reason: string };
   tangents?: Array<{ turn: number; what: string; handled: string }>; summary?: string; worstMoment?: string;
   avgFirstTextMs?: number; costUsd?: number; session?: string;
@@ -175,7 +177,9 @@ async function runTrajectory(c: TrajectoryCase, approach: string, sample: number
     state.turnsInBeat = 0;
     await openScene(state);
     let cost = 0;
-    const repairOn = approachById(approach).repair !== "off";
+    // Blocking and stall modes repair inside the turn; background runs between turns.
+    const repairOn = ["background", "stall"].includes(approachById(approach).repair);
+    const repairLatencies: number[] = [];
     while (!state.ended && state.turn < c.maxTurns) {
       const input = await simulatePlayer(c, state);
       const result = await playerTurn(state, input);
@@ -184,11 +188,28 @@ async function runTrajectory(c: TrajectoryCase, approach: string, sample: number
         const repair = await runRepair(scene, state, { effort: approachById(approach).repairEffort ?? "medium" });
         applyRepair(scene, state, repair);
         cost += repair.costUsd;
+        repairLatencies.push(repair.latencyMs);
       }
     }
     const verdict = await judgeTrajectory(effectiveScene(scene, state.patches), state, c.criterion);
     const first = state.metrics.map(m => m.firstTextMs ?? m.replyMs);
+    const pct = (xs: number[], p: number) => xs.length ? Math.round([...xs].sort((a, b) => a - b)[Math.min(xs.length - 1, Math.floor(xs.length * p))]!) : null;
+    const followUps = state.metrics.map(m => m.followUpMs).filter((x): x is number => typeof x === "number");
+    const blocking = state.metrics.map(m => m.repairMs ?? 0).filter(x => x > 0);
+    const improvIds = new Set(state.patches.flatMap(p => [p.transition?.transition.id, p.beat?.id]).filter(Boolean));
+    const essentials = effectiveScene(scene, state.patches).essentials ?? [];
+    const repairStats = {
+      targetHit: c.targetExits ? c.targetExits.includes(state.ended?.exitId ?? "none") : undefined,
+      relocations: state.repairs.reduce((a, r) => a + ((r as { relocations?: unknown[] }).relocations?.length ?? 0), 0),
+      essentialsLanded: essentials.length ? `${(state.landed ?? []).length}/${essentials.length}` : undefined,
+      patches: state.patches.length,
+      improvisedRoutesTaken: state.path.filter(p => improvIds.has(p.via) || improvIds.has(p.to)).length,
+      firstTextP50: pct(first, 0.5), firstTextP90: pct(first, 0.9),
+      followUpTurns: followUps.length, followUpP50: pct(followUps, 0.5),
+      blockingRepairP50: pct(blocking, 0.5), backgroundRepairP50: pct(repairLatencies, 0.5), backgroundRepairP90: pct(repairLatencies, 0.9),
+    };
     return {
+      ...repairStats,
       case: c.id, approach, sample, ok: true, turns: state.turn, exit: state.ended?.exitId ?? "none",
       scores: verdict.scores, progress: verdict.progress, criterion: verdict.criterion, tangents: verdict.tangents,
       summary: verdict.summary, worstMoment: verdict.worstMoment, session: id,
@@ -309,6 +330,17 @@ if (trajectories.length) {
     const ok = runs.filter(r => r.ok);
     const t = ok.flatMap(r => r.tangents ?? []);
     lines.push(`| ${cid} | ${a} | ${ok.length}/${runs.length} | ${ok.filter(r => r.exit !== "none").length}/${ok.length} | ${ok.map(r => r.exit).join(",")} | ${fmt(mean(ok.map(r => r.turns!)), 1)} | ${fmt(mean(ok.map(r => r.progress!)), 1)} | ${ok.filter(r => r.criterion?.pass).length}/${ok.length} | ${DIMENSIONS.map(d => fmt(mean(ok.map(r => r.scores![d])), 1)).join(" | ")} | ${t.filter(x => x.handled === "well").length}/${t.filter(x => x.handled === "ok").length}/${t.filter(x => x.handled === "badly").length} | ${fmt(mean(ok.map(r => r.avgFirstTextMs!)), 0)} |`);
+  }
+  if (trajectories.some(r => r.targetHit !== undefined || r.patches)) {
+    lines.push("", "### Repair and latency", "", "| case | approach | n | target ending | co-GM patches | improvised routes taken | relocations | essentials landed | first text p50 / p90 ms | follow-up p50 ms (turns) | co-GM ms (blocking / background p50) |", "|---|---|---|---|---|---|---|---|---|---|---|");
+    const groups2 = new Map<string, TrajectoryRun[]>();
+    for (const r of trajectories) groups2.set(`${r.case}|${r.approach}`, [...(groups2.get(`${r.case}|${r.approach}`) ?? []), r]);
+    for (const [key, runs] of groups2) {
+      const [cid, a] = key.split("|");
+      const ok = runs.filter(r => r.ok);
+      const m = (xs: Array<number | null | undefined>) => { const v = xs.filter((x): x is number => typeof x === "number"); return v.length ? Math.round(mean(v)) : "-"; };
+      lines.push(`| ${cid} | ${a} | ${ok.length} | ${ok.some(r => r.targetHit !== undefined) ? `${ok.filter(r => r.targetHit).length}/${ok.length}` : "-"} | ${fmt(mean(ok.map(r => r.patches ?? 0)), 1)} | ${fmt(mean(ok.map(r => r.improvisedRoutesTaken ?? 0)), 1)} | ${fmt(mean(ok.map(r => r.relocations ?? 0)), 1)} | ${ok.map(r => r.essentialsLanded ?? "-").join(",")} | ${m(ok.map(r => r.firstTextP50))} / ${m(ok.map(r => r.firstTextP90))} | ${m(ok.map(r => r.followUpP50))} (${fmt(mean(ok.map(r => r.followUpTurns ?? 0)), 1)}) | ${m(ok.map(r => r.blockingRepairP50))} / ${m(ok.map(r => r.backgroundRepairP50))} |`);
+    }
   }
   lines.push("", "### Weakest moments", "");
   for (const r of trajectories) lines.push(`- **${r.case} / ${r.approach} #${r.sample}** (${r.session ?? ""}): ${r.error ?? r.worstMoment}`);

@@ -103,7 +103,8 @@ function exitBlock(exit: Exit): string {
 }
 
 /** Stable prep for the GM: everything that doesn't change turn to turn (cache-friendly prefix). */
-export function sceneBrief(scene: Scene, state: SessionState, options: { secrets: boolean } = { secrets: true }): string {
+export function sceneBrief(scene: Scene, state: SessionState, options: { secrets?: boolean; hideEssentials?: boolean } = {}): string {
+  options = { secrets: true, ...options };
   const present = new Set(presentCast(scene, state).map(c => c.id));
   const cast = scene.cast.map(c => castBlock(scene, options.secrets ? c : { ...c, secrets: [] }, present.has(c.id))).join("\n\n");
   const last = state.history.at(-1);
@@ -112,11 +113,13 @@ export function sceneBrief(scene: Scene, state: SessionState, options: { secrets
     `## The place\n${scene.setting}`,
     `## What this scene is about\n${scene.premise}`,
     ...(scene.background?.length ? [`## Background\n${bullets(scene.background)}`] : []),
-    ...(last ? [`## What happened just before this scene\nThis is what actually happened in play. Where it disagrees with anything in this prep (who is where, who has what, what was said), what happened in play wins: adapt the prep to it.\n\n${state.history.map(h => h.summary).join("\n\n")}${last.lastMoments?.length ? `\n\nThe last moments, word for word:\n${last.lastMoments.map(m => `> ${m}`).join("\n")}` : ""}`] : []),
+    ...(last ? [`## What happened just before this scene\nThis is what actually happened in the story. Where it disagrees with this prep about the state of the fiction (who is where, who has what, what was said), what happened wins: adapt the prep to it. It doesn't change what this scene is about.\n\n${state.history.map(h => h.summary).join("\n\n")}${last.lastMoments?.length ? `\n\nThe last moments, word for word:\n${last.lastMoments.map(m => `> ${m}`).join("\n")}` : ""}`] : []),
     `## The people here\n${cast}`,
     `## Ways this scene can end\nThese are the only ways it can close. The player's choices decide which; don't force one.\n${scene.exits.map(exitBlock).join("\n")}`,
+    ...(scene.essentials?.length && !options.hideEssentials ? [`## What the player needs to come across\nThe author placed these somewhere specific. Players often go elsewhere: when they do, don't let the scene starve. Move the thing to whatever they are engaging with (another person who could know it, an object, an event), or nudge softly (a remark, a telltale detail, a chance to notice or remember), so it reaches them through the path they chose.\n${scene.essentials.map(e => `- ${e.what} (placed with: ${e.placedWith.join("; ")}). It opens up: ${e.unlocks}${state.landed?.includes(e.id) ? " [already come across]" : ""}`).join("\n")}`] : []),
     ...(scene.limits?.length ? [`## What this scene can't offer\nIf the player reaches for one of these, let the world say no honestly, in the fiction, and show them what is possible instead.\n${bullets(scene.limits)}`] : []),
     `## The player character\n${state.player.name}: ${state.player.concept}. They are the only player character. Other people only know their name if they've been told it.${skillSummary(state)}`,
+    `## Table rules (for out-of-character questions)\n- The game rolls a d20 plus a skill modifier at the scene's key moments; you'll be told the result. You don't roll or promise rolls yourself.\n- Scenes play in order; a scene can be brief, but it can't be skipped.\n- There's no experience or loot system yet.\n- Your prep (what the scene is about, secrets, how it can end) stays behind the screen.`,
   ].join("\n\n");
 }
 
@@ -145,9 +148,11 @@ export function nowNote(scene: Scene, state: SessionState, directive: string[], 
   const transitions = [...beat.transitions, ...(scene.anytime ?? [])];
   const parts = [
     `## Where the scene is now: ${beat.title}\n${beat.direction}`,
-    ...(options.castNotes !== false && castNotes.length ? [`What people are after in this part of the scene (they pursue it naturally, react first to what just happened, and don't repeat themselves):\n${castNotes.join("\n")}`] : []),
-    // Pressure is for stalls: offered on turn one, the GM uses it at once and rushes the beat.
-    ...(beat.pressure && state.turnsInBeat >= 2 ? [`The scene has been sitting here a while. If it's stalling or drifting, the world can push: ${beat.pressure}`] : []),
+    // Cast notes are a beat's opening agenda: once voiced, re-sending them turns them into repeated lines.
+    ...(options.castNotes !== false && castNotes.length && state.turnsInBeat <= 1 ? [`What people are after in this part of the scene (they pursue it naturally, react first to what just happened, and don't repeat themselves):\n${castNotes.join("\n")}`] : []),
+    ...(options.castNotes !== false && castNotes.length && state.turnsInBeat > 1 ? [`People have already made their wants known here (${castNotes.map(n => n.split(":")[0]!.slice(2)).join(", ")}): now they act on them, wait, change tack or give ground; they don't restate them.`] : []),
+    // Pressure is for stalls, and fires once: offered every turn, it gets replayed word for word.
+    ...(beat.pressure && state.turnsInBeat >= 2 && !state.pressureOffered?.includes(beat.id) ? [`The scene has been sitting here a while. If it's stalling or drifting, the world can push: ${beat.pressure}`] : []),
     `(The scene has been at this point for ${state.turnsInBeat} exchange${state.turnsInBeat === 1 ? "" : "s"}.)`,
     `## What moves the scene on from here\n${transitions.map(t => transitionLine(scene, t)).join("\n")}`,
     ...(state.notes || state.whispers?.length ? [`## Notes from your co-GM (written a moment ago: if the player has since chosen otherwise, the player's choice wins)\n${[state.notes ?? "", ...(state.whispers ?? []).map(w => `- ${scene.cast.find(c => c.id === w.to)?.name ?? w.to}: ${w.note}`)].filter(Boolean).join("\n")}`] : []),

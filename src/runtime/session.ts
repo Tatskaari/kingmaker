@@ -11,6 +11,10 @@ export interface PlayerCharacter { name: string; concept: string; modifiers: Par
 
 export interface TurnMetric {
   turn: number;
+  /** Time spent in a blocking co-GM review before anything else (0 otherwise). */
+  repairMs?: number;
+  /** Stall mode: time until the follow-up (resolving) text started, when there was one. */
+  followUpMs?: number | null;
   preDecisionMs: number;
   firstTextMs: number | null;
   replyMs: number;
@@ -39,6 +43,8 @@ export interface RepairResult {
   notes: string;
   /** Per-character steering for the next exchange or two. */
   whispers?: Array<{ to: string; note: string }>;
+  /** Essentials the co-GM moved because play went elsewhere. */
+  relocations?: Array<{ essential: string; technique: string; to: string; how: string }>;
   canon: string[];
   patches: ScenePatch[];
   moveTo?: string;
@@ -63,13 +69,19 @@ export interface SessionState {
   notes: string | null;
   notesTurn: number | null;
   whispers?: Array<{ to: string; note: string; turn: number }>;
+  /** The ending the story has been leaning towards, and for how many replies in a row. */
+  endingLead?: { exitId: string; count: number; probability: number };
+  /** Essentials the player has come across (judged after each reply). */
+  landed?: string[];
+  /** Beats whose pressure has already been offered to the GM (it fires once). */
+  pressureOffered?: string[];
   /** Characters brought on stage early by play (before their authored entrance beat). */
   entered?: string[];
   /** Cheap per-turn status from the after-reply decision; gates the repair agent. */
   sceneStatus?: SceneStatus;
   lastRepairTurn?: number;
   patches: ScenePatch[];
-  repairs: Array<Omit<RepairResult, "patches" | "canon" | "whispers"> & { patches: number; canon: number; whispers: number }>;
+  repairs: Array<Omit<RepairResult, "patches" | "canon" | "whispers" | "relocations"> & { patches: number; canon: number; whispers: number; relocations?: Array<{ essential: string; technique: string; to: string; how: string }> }>;
   transcript: Entry[];
   metrics: TurnMetric[];
   ended?: { exitId: string; turn: number; operations: Operation[]; warnings: string[] };

@@ -9,10 +9,12 @@ import { warrenHostage } from "./warren-hostage.ts";
 import { blockedEntrance } from "./blocked-entrance.ts";
 import { greenStandoff } from "./green-standoff.ts";
 import { hangedClerk } from "./hanged-clerk.ts";
+import { crossroadsHoled, entranceHoled, tollHoled } from "./holed.ts";
 
 export const SCENES: Scene[] = [
   strangerCrossroads, crossroadsAmbush, crossroadsAftermath, crossroadsSituation,
   garrowsToll, warrenHostage, blockedEntrance, greenStandoff, hangedClerk,
+  crossroadsHoled, entranceHoled, tollHoled,
 ];
 
 /** Scenes as the runtime sees them: authored, plus the built-in "ending of their own". */

@@ -22,10 +22,20 @@ function repairSchema(scene: Scene) {
   const beats = scene.beats.map(b => b.id);
   const targets = [...beats, ...scene.exits.map(e => e.id), "new_beat"];
   const cast = scene.cast.map(c => c.id);
+  const essentials = (scene.essentials ?? []).map(e => e.id);
   return {
     type: "object", additionalProperties: false,
-    required: ["assessment", "status", "notes", "whispers", "no_but", "canon", "move_to", "add_beat", "add_transitions"],
+    required: ["assessment", "status", "notes", "whispers", "relocations", "no_but", "canon", "move_to", "add_beat", "add_transitions"],
     properties: {
+      relocations: {
+        type: "array", description: "Things the scene needs that the player is missing because play went elsewhere, and where you're moving them.",
+        items: { type: "object", additionalProperties: false, required: ["essential", "technique", "to", "how"], properties: {
+          essential: essentials.length ? { type: "string", enum: essentials } : { type: "string" },
+          technique: { type: "string", enum: ["move", "soft_nudge", "improvise"], description: "move: give it to another carrier; soft_nudge: a hint, remark or telltale detail; improvise: a new way to the same place." },
+          to: { type: "string", enum: [...cast, "world"], description: "Who carries it now (a character) or 'world' (an object, event or detail the GM narrates)." },
+          how: { type: "string", description: "Concretely how it reaches the player through what they're doing." },
+        } },
+      },
       assessment: { type: "string", description: "One or two sentences: what the player is doing or enjoying, and how the scene is going." },
       status: { type: "string", enum: ["on_track", "drifting", "stuck"] },
       notes: { type: "string", description: "Whispered notes to the GM for the next couple of replies. Empty if things are going well." },
@@ -78,6 +88,7 @@ function repairSchema(scene: Scene) {
 }
 
 interface RepairJson {
+  relocations: Array<{ essential: string; technique: "move" | "soft_nudge" | "improvise"; to: string; how: string }>;
   assessment: string;
   status: "on_track" | "drifting" | "stuck";
   notes: string;
@@ -109,6 +120,7 @@ export async function runRepair(authored: Scene, state: SessionState, options: {
       `## Tracker: the scene is at beat "${beat.id}" (${beat.title}); ${state.turnsInBeat} exchanges here, ${sinceMove} since anything moved.`,
       `## Your notes still in effect\n${state.notes ?? "(none)"}${state.whispers?.length ? `\n${state.whispers.map(w => `- to ${w.to}: ${w.note}`).join("\n")}` : ""}`,
       `## Established so far\n${[...state.established, ...state.canon].map(x => `- ${x}`).join("\n") || "(nothing yet)"}`,
+      ...(scene.essentials?.length ? [`## What the player needs to come across (essentials)\n${scene.essentials.map(e => `- [${e.id}] ${e.what} (placed with: ${e.placedWith.join("; ")}; opens up: ${e.unlocks}) ${state.landed?.includes(e.id) ? "LANDED" : "NOT YET"}`).join("\n")}`] : []),
       `## Transcript\n${scriptTranscript(scene, state)}`,
     ].join("\n\n") },
   ];
@@ -150,12 +162,15 @@ function toRepairResult(scene: Scene, state: SessionState, json: RepairJson, met
     patches.push({ turn: state.turn, transition: { beat: from, transition }, why: t.why });
   }
   const noBut = json.no_but.map(n => `"No, but" for ${n.approach}: ${n.reason_in_fiction} Instead: ${n.alternative} (towards ${targetTitle(scene, n.alternative_route)}).`);
-  const notes = [json.notes.trim(), ...noBut].filter(Boolean).join("\n");
+  const relocations = (json.relocations ?? []).filter(r => !state.landed?.includes(r.essential));
+  const worldMoves = relocations.filter(r => r.to === "world").map(r => `Let this reach the player through the world: ${r.how}`);
+  const notes = [json.notes.trim(), ...noBut, ...worldMoves].filter(Boolean).join("\n");
+  const relocationWhispers = relocations.filter(r => r.to !== "world").map(r => ({ to: r.to, note: `If it fits the moment, this reaches the player through you: ${r.how}` }));
   const present = new Set(presentCast(scene, state).map(c => c.id));
   const moveTo = json.move_to && ids.has(json.move_to) && json.move_to !== state.beat ? json.move_to : undefined;
   return {
     turn: state.turn, assessment: json.assessment + (problems.length ? ` [rejected: ${problems.join("; ")}]` : ""), status: json.status,
-    notes, whispers: json.whispers.filter(w => present.has(w.to) || scene.cast.some(c => c.id === w.to)), canon: json.canon, patches,
+    notes, whispers: [...json.whispers, ...relocationWhispers].filter(w => present.has(w.to) || scene.cast.some(c => c.id === w.to)), relocations, canon: json.canon, patches,
     ...(moveTo ? { moveTo } : {}), costUsd: meta.costUsd, latencyMs: meta.latencyMs,
   };
 }

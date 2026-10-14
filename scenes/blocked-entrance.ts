@@ -193,6 +193,11 @@ export const blockedEntrance: Scene = {
       script: (world) => { world.setFlag("entrance_still_blocked", true); },
     },
   ],
+  essentials: [
+    { id: "charm-cause", what: "The cart braces because its protective charm thinks the too-narrow arch threatens the gift tree it carries.", placedWith: ["Rowan, when asked how the cart works", "Mags, if asked what the cart is protecting"], unlocks: "fixes aimed at the real cause: calming the charm, or taking the tree off so it has nothing to protect" },
+    { id: "corvin-book", what: "Magister Corvin owns a book on carriage maintenance that explains how to release the charm.", placedWith: ["Rowan, reluctantly"], unlocks: "going to find Corvin" },
+    { id: "holt-order", what: "Holt has already signed an order to have the cart broken up, and will hand it over if pressed.", placedWith: ["Holt, if pressed for permission"], unlocks: "smashing the cart with his blessing" },
+  ],
   limits: [
     "Another way in for the wagons: there isn't one. The kitchen door is too small and the main gate is closed to deliveries for the Assembly.",
     "Magister Corvin or his book: neither is here. Getting them means leaving this scene to go and find Corvin.",

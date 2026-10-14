@@ -1,4 +1,4 @@
-import { respondJson, SOL, type Effort } from "../llm/openrouter.ts";
+import { respondJson, LUNA, type Effort } from "../llm/openrouter.ts";
 import { prompt, sceneBrief, scriptTranscript } from "../runtime/brief.ts";
 import type { Scene } from "../runtime/scene.ts";
 import type { Entry, SessionState } from "../runtime/session.ts";
@@ -13,8 +13,10 @@ export interface Verdict {
   costUsd: number;
 }
 
-const JUDGE_MODEL = process.env.KM_JUDGE_MODEL ?? SOL;
-const JUDGE_EFFORT = (process.env.KM_JUDGE_EFFORT ?? "medium") as Effort;
+// Luna at high reasoning: agreed with Sol on 32/40 pass/fail verdicts at ~1/15 of the cost
+// (docs/LOG.md). Set KM_JUDGE_MODEL=openai/gpt-6-sol KM_JUDGE_EFFORT=medium for a second opinion.
+const JUDGE_MODEL = process.env.KM_JUDGE_MODEL ?? LUNA;
+const JUDGE_EFFORT = (process.env.KM_JUDGE_EFFORT ?? "high") as Effort;
 
 const schema = {
   type: "object", additionalProperties: false,

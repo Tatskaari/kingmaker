@@ -57,7 +57,7 @@ function gmHistory(scene: Scene, state: SessionState): Message[] {
 /** Approach "gm": one call, the GM narrates and voices everyone (Friends & Fables style). */
 export async function gmReply(scene: Scene, state: SessionState, directive: string[], onText?: (t: string) => void, operation = "gm.reply"): Promise<Spoken> {
   const input: Message[] = [
-    { role: "developer", content: sceneBrief(scene, state) },
+    { role: "developer", content: sceneBrief(scene, state, { hideEssentials: approachById(state.approach).hideEssentials === true }) },
     ...gmHistory(scene, state),
     { role: "developer", content: nowNote(scene, state, directive) },
   ];
@@ -72,7 +72,7 @@ export async function gmReply(scene: Scene, state: SessionState, directive: stri
 /** Approach "actors": the GM narrates only; it does not voice characters. */
 export async function narratorReply(scene: Scene, state: SessionState, directive: string[], onText?: (t: string) => void): Promise<Spoken> {
   const input: Message[] = [
-    { role: "developer", content: sceneBrief(scene, state) },
+    { role: "developer", content: sceneBrief(scene, state, { hideEssentials: approachById(state.approach).hideEssentials === true }) },
     { role: "user", content: `The scene so far:\n\n${scriptTranscript(scene, state) || "(The scene is just starting.)"}` },
     { role: "developer", content: `${nowNote(scene, state, directive, { castNotes: true })}\n\nNarrate now: the world, what happens and what the player notices. The characters speak for themselves, so don't write their dialogue.` },
   ];

@@ -48,6 +48,10 @@ export const crossroadsAmbush: Scene = {
       enters: "ambush",
     },
   ],
+  essentials: [
+    { id: "idol", what: "Tam is carrying the goblins' bone idol (Grandmother Bone), which his plough turned up in his field.", placedWith: ["Tam: the lump in his smock he keeps touching and won't explain", "a read on Tam that he's hiding something"], unlocks: "seeing that the goblins are after the idol, so the standoff can be settled by returning, trading or bluffing over it" },
+    { id: "goblin-want", what: "The goblins want Grandmother Bone back for their shrine, and would rather bargain than die.", placedWith: ["Skrag's demand when the goblins show themselves"], unlocks: "a peaceful bargain, a trade or a bluff instead of a fight" },
+  ],
   limits: [
     "Help from anyone else (the toll-house men, guards, other travellers): nobody is coming. The toll house is a mile back and its men laughed Tam away; the road is empty.",
     "Loot, money or valuables from the goblins: they own nothing worth having except Grandmother Bone, their bows, knives and Skrag's rattle.",

@@ -7,8 +7,10 @@ import { garrowsTollCases } from "./garrows-toll.ts";
 import { warrenHostageCases } from "./warren-hostage.ts";
 import { greenStandoffCases } from "./green-standoff.ts";
 import { hangedClerkCases } from "./hanged-clerk.ts";
+import { repairCases } from "./repair.ts";
 
 export const CASES: EvalCase[] = [
   ...crossroadsCases, ...situationCases, ...entranceCases, ...qa1Cases, ...openingCases,
   ...garrowsTollCases, ...warrenHostageCases, ...greenStandoffCases, ...hangedClerkCases,
+  ...repairCases,
 ];

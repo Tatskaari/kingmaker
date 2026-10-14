@@ -5,9 +5,9 @@ import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { approachById } from "./approaches.ts";
 import { currentBeat, effectiveScene, presentCast, sceneEntries } from "./brief.ts";
-import { decideAfter, decideBefore, decideNextSpeaker, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, type Move } from "./director.ts";
+import { decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, STALL_DIRECTIVE, type Move } from "./director.ts";
 import { describeRoll } from "./dice.ts";
-import { applyPendingRepairs } from "./repair.ts";
+import { applyPendingRepairs, applyRepair, runRepair } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
 import { newSessionId, saveSession, snapshotSession, type Entry, type EntryKind, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
 import { actorReply, gmReply, narratorReply, type Spoken } from "./voices.ts";
@@ -124,7 +124,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (state.ended) throw new Error(`Scene ${state.sceneId} has already ended (${state.ended.exitId}).`);
   const authored = sceneById(state.sceneId);
   applyPendingRepairs(authored, state);
-  const scene = effectiveScene(authored, state.patches);
+  let scene = effectiveScene(authored, state.patches);
   const approach = approachById(state.approach);
   const decider = deciderFor(approach.decider);
   const before = state.transcript.length;
@@ -135,6 +135,19 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
 
   state.turn++;
   push(state, hooks, { speaker: "player", kind: "player", text: input });
+
+  // Blocking co-GM: review the player's input before deciding, so a new route can fire this turn.
+  let repairMs = 0;
+  if (approach.repair === "blocking" && !state.closing) {
+    const repairStarted = performance.now();
+    try {
+      const repair = await runRepair(authored, state, { effort: approach.repairEffort ?? "medium" });
+      applyRepair(authored, state, repair);
+      costUsd += repair.costUsd; calls++;
+      scene = effectiveScene(authored, state.patches);
+    } catch { /* the turn goes ahead without it */ }
+    repairMs = performance.now() - repairStarted;
+  }
 
   // Wind-down turn: the story already reached an ending; answer the player and close.
   if (state.closing) {
@@ -155,7 +168,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     return { entries: state.transcript.slice(before), ended: exit, metric };
   }
 
-  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true });
+  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair === "stall" });
   const preDecisionMs = performance.now() - started;
   if (pre.decision) { costUsd += pre.decision.costUsd; calls++; }
   let ended: Exit | undefined;
@@ -172,17 +185,26 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     directive = moveDirective(scene, state, pre.move);
     if (pre.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.move.roll, pre.move.transition.check?.reason) });
     applyMove(state, scene, pre.move, "pre");
-    if (pre.move.exit && (pre.move.chosen || pending?.exitId === pre.move.exit.id)) ended = pre.move.exit;
+    if (pre.move.exit && pre.move.chosen && pre.move.roll && pre.move.exit.kind !== "combat") {
+      // The dice decided it: play the decisive moment and the reactions now, close on the next reply.
+      directive = directive.filter(d => !d.startsWith("This reply closes the scene"));
+      directive.push(`The dice have decided it: this is heading to ${pre.move.exit.title} (${pre.move.exit.outcome}). Play the decisive moment and people's immediate reactions, including anyone who saw it; the scene closes on your next reply, so don't wrap everything up yet.`);
+      state.closing = { exitId: pre.move.exit.id, turn: state.turn };
+    } else if (pre.move.exit && (pre.move.chosen || pending?.exitId === pre.move.exit.id)) ended = pre.move.exit;
     else if (pre.move.exit) state.pendingExit = { exitId: pre.move.exit.id, turn: state.turn, via: pre.move.transition.id, extended: false };
   } else if (pre.freeform) {
     push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.freeform.roll) });
     state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: "freeform", source: "pre", roll: pre.freeform.roll });
     directive = [freeformDirective(pre.freeform)];
   }
+  if (state.endingLead && !pre.move && !state.closing) {
+    const exit = scene.exits.find(e => e.id === state.endingLead!.exitId);
+    if (exit) directive.push(`The scene may be reaching its end (${exit.title}). Stay at the threshold: don't narrate journeys or arrivals somewhere else; if the player is leaving or the matter is settled, let it close here.`);
+  }
   if (pre.ooc) directive.push(OOC_DIRECTIVE);
   else if (pre.plainTransition && !pre.limit && !pre.move) directive.push(plainDirective(pre.plainTransition));
   if (pre.limit) directive.push(limitDirective(pre.limit));
-  if (wasStuck && !pre.move) directive.push(`The scene has been going in circles. Break the loop in this reply: let someone act on what they want, let the world push${currentBeat(scene, state).pressure ? ` (${currentBeat(scene, state).pressure})` : ""}, or reveal something that opens a way forward. Don't just repeat the last exchange.`);
+  if (wasStuck && !pre.move) directive.push("The scene has been going in circles. Break the loop in this reply with something new: someone acts on what they want or gives ground, a consequence lands, or something is revealed that opens a way forward. Don't replay an earlier push or repeat the last exchange.");
   if (pending && !pre.move) {
     const exit = scene.exits.find(e => e.id === pending.exitId)!;
     if ((pre.plain || pre.freeform) && !pending.extended) {
@@ -197,7 +219,41 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
 
   const spoken: Spoken[] = [];
   const replyStarted = performance.now();
-  if (approach.voice === "gm") {
+  let followUpMs: number | null = null;
+  // Stall mode: off the graph, with nothing else decided this turn. Hold the moment, let the co-GM
+  // work in parallel, then resolve it with whatever it adds.
+  const stall = approach.repair === "stall" && approach.voice === "gm" && !pre.move && !pre.limit && !pre.ooc && !ended
+    && (pre.offGraph === true || state.sceneStatus === "stuck" || state.sceneStatus === "uncovered");
+  if (stall) {
+    const repairStarted = performance.now();
+    const repairing = runRepair(authored, state, { effort: approach.repairEffort ?? "medium" }).catch(() => undefined);
+    const beat = await gmReply(scene, state, [STALL_DIRECTIVE], speakHooks(textHooks, "gm", "narration"), "gm.stall");
+    spoken.push(beat);
+    push(state, hooks, { speaker: "gm", kind: "narration", text: beat.text });
+    const repair = await repairing;
+    if (repair) {
+      applyRepair(authored, state, repair);
+      costUsd += repair.costUsd; calls++;
+      scene = effectiveScene(authored, state.patches);
+    }
+    void repairStarted;
+    const again = await decideBefore(decider, scene, state, input, { speaker: false });
+    if (again.decision) { costUsd += again.decision.costUsd; calls++; }
+    const follow = [FOLLOW_UP_DIRECTIVE, ...directive];
+    if (again.move) {
+      follow.push(...moveDirective(scene, state, again.move));
+      if (again.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(again.move.roll, again.move.transition.check?.reason) });
+      applyMove(state, scene, again.move, "pre");
+      if (again.move.exit && again.move.chosen) ended = again.move.exit;
+      else if (again.move.exit) state.pendingExit = { exitId: again.move.exit.id, turn: state.turn, via: again.move.transition.id, extended: false };
+    } else if (again.plainTransition) follow.push(plainDirective(again.plainTransition));
+    const resolve = await gmReply(scene, state, follow, text => {
+      if (followUpMs === null) followUpMs = performance.now() - started;
+      hooks.onText?.(text);
+    }, "gm.followup");
+    spoken.push(resolve);
+    push(state, hooks, { speaker: "gm", kind: "narration", text: resolve.text });
+  } else if (approach.voice === "gm") {
     spoken.push(await gmReply(scene, state, directive, speakHooks(textHooks, "gm", "narration")));
     push(state, hooks, { speaker: "gm", kind: "narration", text: spoken[0]!.text });
   } else {
@@ -223,6 +279,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     }
   }
   const replyMs = performance.now() - replyStarted;
+  { const b = currentBeat(scene, state); if (b.pressure && state.turnsInBeat >= 2 && !state.pressureOffered?.includes(b.id)) state.pressureOffered = [...(state.pressureOffered ?? []), b.id]; }
   for (const s of spoken) { costUsd += s.result.costUsd; calls++; }
 
   let postDecisionMs = 0;
@@ -234,6 +291,19 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     postDecisionMs = performance.now() - postStarted;
     if (post.decision) { costUsd += post.decision.costUsd; calls++; }
     if (post.status) state.sceneStatus = post.status;
+    if (post.landed?.length) state.landed = [...new Set([...(state.landed ?? []), ...post.landed])];
+    // Where the story stands: an ending that leads twice running (or clearly) closes the scene.
+    if (post.ending && !post.move && !state.closing && !state.pendingExit) {
+      const lead = state.endingLead?.exitId === post.ending.exitId ? state.endingLead.count + 1 : 1;
+      state.endingLead = { exitId: post.ending.exitId, count: lead, probability: post.ending.probability };
+      const exit = scene.exits.find(e => e.id === post.ending!.exitId);
+      if (exit && (post.ending.probability >= 0.6 || (lead >= 2 && post.ending.probability >= 0.35))) {
+        state.path.push({ turn: state.turn, from: state.beat, to: exit.id, via: "ending-reached", source: "post" });
+        if (exit.kind === "combat") ended = exit;
+        else state.closing = { exitId: exit.id, turn: state.turn };
+        delete state.endingLead;
+      }
+    } else if (!post.ending) delete state.endingLead;
     if (post.move) {
       if (post.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(post.move.roll, post.move.transition.check?.reason) });
       applyMove(state, scene, post.move, "post");
@@ -249,7 +319,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
 
   if (ended && authored.createsCharacter) await extractCharacter(authored, state);
   if (ended) finishScene(state, authored, ended);
-  const metric: TurnMetric = { turn: state.turn, preDecisionMs, firstTextMs, replyMs, postDecisionMs, costUsd, calls };
+  const metric: TurnMetric = { turn: state.turn, repairMs, preDecisionMs, firstTextMs, followUpMs, replyMs, postDecisionMs, costUsd, calls };
   state.metrics.push(metric);
   saveSession(state);
   snapshotSession(state);
@@ -294,7 +364,7 @@ async function writeHandoff(scene: Scene, state: SessionState, exit: Exit, comba
   try {
     const result = await respond({
       operation: "handoff", effort: "low",
-      instructions: "You write the hand-off between two scenes of a roleplaying game, for the GM of the next scene. Describe the state of things at the moment the last scene ended, exactly as it was established in play (not as anyone planned it): who is where and in what state, who holds what, what was promised or agreed, what the player character learned, and how people feel. Things that were offered but refused, or threatened but not done, didn't happen. Be concrete and brief: a short paragraph, then up to eight bullet points.",
+      instructions: "You write the hand-off between two scenes of a roleplaying game, for the GM of the next scene. Describe the state of things in the story at the moment the last scene ended, exactly as it was established in play (not as anyone planned it): who is where and in what state, who holds what, what was promised or agreed, what the player character learned, and how people feel. Things that were offered but refused, or threatened but not done, didn't happen. Leave out anything said out of character (questions or agreements about the game itself). Be concrete and brief: a short paragraph, then up to eight bullet points.",
       input: [{ role: "user", content: `Scene: ${scene.title}\nHow it ended: ${exit.title}. ${exit.outcome}${exit.kind === "combat" ? `\nThe fight was then played out on the map: ${combatResult}.` : ""}\nThe player character: ${state.player.name}, ${state.player.concept} (the only player character).\n\n## The scene as played\n${transcript}` }],
     });
     return `Previous scene, "${scene.title}", ended: ${exit.title}.\n${result.text.trim()}`;

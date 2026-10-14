@@ -48,6 +48,8 @@ export interface TrajectoryCase {
   persona: string;
   maxTurns: number;
   criterion: string;
+  /** Endings that mean the player's approach worked (repair experiment). */
+  targetExits?: string[];
   approaches?: string[];
   tags?: string[];
 }

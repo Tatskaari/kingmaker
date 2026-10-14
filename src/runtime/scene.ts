@@ -95,6 +95,21 @@ export interface Exit {
   script?: WorldScript;
 }
 
+/**
+ * Something the scene needs the player to come across for its endings to be reachable: a clue,
+ * a piece of information, an opportunity. Authors say where it was placed; when play goes
+ * elsewhere, the GM and co-GM move it to whatever the player is engaging with.
+ */
+export interface Essential {
+  id: string;
+  /** What the player should come to know or have, in a sentence. */
+  what: string;
+  /** Where the author put it (people, objects, moments). */
+  placedWith: string[];
+  /** What it opens up once the player has it. */
+  unlocks: string;
+}
+
 export interface Scene {
   id: string;
   title: string;
@@ -121,6 +136,8 @@ export interface Scene {
   limits?: string[];
   /** Established facts carried in from earlier scenes. */
   background?: string[];
+  /** What the scene needs the player to come across (moved elsewhere when play doesn't go there). */
+  essentials?: Essential[];
   /** Named spots world scripts can refer to (e.g. "crossroads", "ditch"). */
   anchors?: string[];
   /** Character creation: on exit, the player's character sheet is extracted from the conversation. */
