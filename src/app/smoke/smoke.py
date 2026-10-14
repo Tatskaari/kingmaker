@@ -56,9 +56,39 @@ def expect(app, pattern, what, timeout=30.0):
     return m
 
 
+def gone(app, pattern, what, timeout=10.0):
+    """Pump until a regex no longer matches the screen."""
+    rx = re.compile(pattern, re.S | re.I)
+    end = time.time() + timeout
+    while time.time() < end and rx.search(app.text()):
+        app.pump(0.2)
+    path = dump(app, re.sub(r"[^a-z0-9]+", "-", what.lower()).strip("-")[:40])
+    if rx.search(app.text()):
+        print(f"FAIL: {what} (/{pattern}/ still there after {timeout}s; screen in {path})")
+        print(app.text())
+        app.close()
+        sys.exit(1)
+    print(f"ok: {what}")
+
+
 def keys(app, *names, settle=0.12):
     for n in names:
         app.send(KEYS.get(n, n), settle)
+
+
+def click_text(app, pattern):
+    """Click (an SGR mouse press and release) on the first cell of the first match of a regex on screen."""
+    rows = app.text().split("\n")
+    for y, row in enumerate(rows):
+        m = re.search(pattern, row)
+        if m:
+            x = m.start()
+            app.send(f"\x1b[<0;{x + 1};{y + 1}M\x1b[<0;{x + 1};{y + 1}m", 0.4)
+            return True
+    print(f"FAIL: nothing on screen to click matching /{pattern}/")
+    print(app.text())
+    app.close()
+    sys.exit(1)
 
 
 def say(app, text):
@@ -77,6 +107,9 @@ def new_game(app, name, concept):
     app.type(concept)
     keys(app, "enter")
     expect(app, r"Character sheet.*AC \d+", "the rules engine made a sheet", timeout=90)
+    expect(app, r"1 Character.*2 Combat.*HP .*\d+/\d+.*STR.*DEX.*CON.*Saving throws", "the sheet: in pages, the numbers and the six abilities")
+    keys(app, "right")
+    expect(app, r"2 Combat.*Attacks.*Purse", "→ turns the sheet's page")
     keys(app, "enter")
     expect(app, r"The lead:.*Hanged Clerk", "exploring Caerwyn, the lead is the hanged clerk")
 
@@ -124,8 +157,13 @@ def offline():
     expect(app, r"How to play", "help overlay")
     keys(app, "esc")
     keys(app, "c")
-    expect(app, r"Character sheet.*Skills:", "sheet overlay")
+    expect(app, r"Character sheet.*Saving throws.*Skills", "sheet overlay")
+    keys(app, "2")
+    expect(app, r"Attacks.*Features", "the sheet overlay's second page")
+    click_text(app, r"1 Character")
+    expect(app, r"Character sheet.*Saving throws", "a click on a tab turns back to it")
     keys(app, "esc")
+    gone(app, r"Saving throws", "Esc puts the sheet away")
     # A step with the arrows: up the screen, then back.
     walk(app, "left right")
     to_lead(app, r"The Hanged Clerk ·")
@@ -173,6 +211,9 @@ def offline():
     expect(app, r"Initiative", "the fight starts on the Heron's own floor")
     keys(app, "m")
     expect(app, r"Your options", "the fight's options menu")
+    keys(app, "esc")
+    keys(app, "s")
+    expect(app, r"Character sheet.*HP .*\d+/\d+", "the sheet in a fight")
     keys(app, "esc")
     # Quit mid-fight and Continue: the fight carries on where it was.
     keys(app, "ctrl-c")

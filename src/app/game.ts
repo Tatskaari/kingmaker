@@ -9,7 +9,7 @@ import { exploreState, leadTarget, town, walkId } from "../game/town.ts";
 import type { StoryState, Tile2 } from "../game/types.ts";
 import { fightEffects } from "../game/views.ts";
 import { setCallLog } from "../llm/openrouter.ts";
-import { sheetText } from "../rules/dnd.ts";
+import { sheetData, type SheetData } from "../rules/dnd.ts";
 import { sceneEntries } from "../runtime/brief.ts";
 import type { TurnHooks } from "../runtime/engine.ts";
 import { sessionDir, type Entry, type EntryKind, type SessionState } from "../runtime/session.ts";
@@ -48,7 +48,7 @@ export interface Card {
 }
 
 export type Overlay =
-  | { kind: "sheet"; text: string }
+  | { kind: "sheet"; sheet?: SheetData; error?: string }
   | { kind: "help" }
   | { kind: "journal" }
   | { kind: "scene-map" }
@@ -76,7 +76,8 @@ export class Game {
   /** The player's chosen target in a fight (an index into fightTargets()). */
   targetIndex = 0;
   overlay?: Overlay;
-  sheet?: string;
+  /** The sheet the rules engine just made (the created screen). */
+  sheet?: SheetData;
   creating?: { name: string; concept: string };
   ending?: Epilogue;
   error?: string;
@@ -162,7 +163,7 @@ export class Game {
       const core = await Core.create({ player: who, level: LEVEL, explorer: this.explorer, fights: this.fights });
       this.core = core;
       setCallLog(join(sessionDir(core.state.id), "calls.jsonl"));
-      this.sheet = await sheetText(core.session);
+      this.sheet = await sheetData(core.session);
       this.journal = [];
       this.messages = [`${TIME_WORDS[core.state.story.time]}. ${sceneById(core.session.sceneId).hook}`];
       this.screen = "created";
@@ -645,7 +646,10 @@ export class Game {
 
   async showSheet(): Promise<void> {
     if (!this.session) return;
-    this.overlay = { kind: "sheet", text: await sheetText(this.session).catch(error => `The sheet couldn't be read: ${message(error)}`) };
+    // In a fight, the player as the fight has left them so far (its campaign is written back when it ends).
+    const campaign = this.fight?.state().campaign;
+    try { this.overlay = { kind: "sheet", sheet: await sheetData(this.session, campaign ? { campaign } : {}) }; }
+    catch (error) { this.overlay = { kind: "sheet", error: `The sheet couldn't be read: ${message(error)}` }; }
     this.emit();
   }
 

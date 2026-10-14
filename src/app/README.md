@@ -17,7 +17,8 @@ It needs a real terminal and `OPENROUTER_API_KEY` (or `~/secrets/kingmaker-dev-o
 | where | keys |
 |---|---|
 | title | ↑↓ and Enter; Continue resumes the latest game |
-| character | Tab between name and concept; Enter; on the sheet, r makes them again |
+| character | Tab between name and concept; Enter; on the sheet, r makes them again (or click the buttons) |
+| the sheet | ←→, Tab or 1–9 turn its pages (or click a tab); ↑↓, PgUp/PgDn or the wheel scroll a long page; Esc, or a click outside it, puts it away |
 | explore | arrows or WASD walk (they move with the screen: up is up; the map's north is up-left); e or Enter interact; g walk to the lead (any key stops); c sheet; j notebook; ? help; Esc menu |
 | scene | type and press Enter; `#sheet` `#map` `#journal` `#help` `#save` `#quit`; PgUp/PgDn scroll; Esc menu |
 | combat | arrows move 5 ft; Tab or 1–9 pick a target; a attack; z close in; c cast (Enter at the target, t on yourself); u knock over a lantern or brazier; d dash; g dodge; x disengage; f let the dice decide; m every option; e end turn; s sheet |
@@ -46,6 +47,7 @@ Exploration and fights plug into the core, and the app uses the real modules:
 - the cards between scenes and the notebook (the exit scripts' journal lines);
 - the look of each scene and fight: one set of effects and a director, so spells, fires, damage numbers and barks show in the world as they land;
 - overlays: the sheet, help, the scene's place on the map (#map), the spell picker, a fight's every option;
+- the character sheet: the rules engine's sheet as data (`sheetData` in src/rules/dnd.ts), laid out for the screen by `ui/sheet-layout.ts` (a page at a time on a small screen, all of it in columns on a big one), with a portrait for each class (`ui/portraits.ts`), shown by `ui/sheet.tsx` after character creation and over the game (c, s, #sheet). In a fight it reads the fight's own campaign, so it's as the fight has left you;
 - walking to the lead a step at a time;
 - the fight's target, and a beat between the other side's turns.
 
