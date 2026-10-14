@@ -112,7 +112,8 @@ export function actorsHere(state: ExploreState, world?: SceneWorld, mapId = stat
     if (me) { state.at = { ...me.at }; state.map = mapId; }
     return [...actors, ...fromWorld.map(a => (a.kind === "player" ? a : { ...a, id: `${state.scene}:${a.id}` }))];
   }
-  if (!state.scene) for (const f of state.followers) if (f.map === mapId) {
+  // In a scene with a world, Kell is in the world; in one without (the King's morning), she walks in with you.
+  for (const f of state.followers) if (f.map === mapId) {
     actors.push({ id: f.id, name: f.name, kind: "person", glyph: f.glyph, color: f.color, map: mapId, at: f.at, ref: f.id, blocks: true,
       interaction: { kind: "examine", text: kellLine(state.story), label: `Talk to ${f.name}` } });
   }
@@ -417,6 +418,8 @@ export function enterScene(state: ExploreState, sceneId: string): { map: string;
   state.scene = sceneId;
   state.map = start.map;
   state.at = { ...start.at };
+  // Whoever walks with you comes in too (drawn when the scene has no world of its own to put them in).
+  for (const f of state.followers) { f.map = start.map; f.at = besideSpot(state, start.map, start.at); }
   return start;
 }
 

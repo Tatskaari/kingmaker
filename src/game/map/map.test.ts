@@ -1,12 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyOps, buildWorld, damageThing, type WorldSpec } from "../../world/scene-world.ts";
+import { applyOps, buildWorld, damageThing, tick, type WorldSpec } from "../../world/scene-world.ts";
 import { hangedClerkWorld } from "../../../scenes/worlds/hanged-clerk.ts";
 import { drownedRatWorld } from "../../../scenes/worlds/drowned-rat.ts";
 import type { MapActor, StoryState, Tile2 } from "../types.ts";
 import {
   CAST, MAPS, actorsFromWorld, battlefield, captureScene, emptyOverlay, enterScene, feetToTile, getMap, heronWorld, dressingRoomWorld, interact, isStructure, leaveScene,
-  move, newExploration, nearby, overlayActors, pathTo, reachable, regionForScene, render, renderExplore, screenOf, setStory, spotsNear, storyFromSession, tileAt, tileAtScreen, tileToFeet, toPlain,
+  move, newExploration, nearby, overlayActors, overlayRegionStates, pathTo, reachable, regionForScene, render, renderExplore, screenOf, setStory, spotsNear, storyFromSession, tileAt, tileAtScreen, tileToFeet, toPlain,
   type PlaceRegion,
 } from "./index.ts";
 
@@ -239,6 +239,20 @@ test("the overlay: what a scene did stays on the map after it, and fires burn ou
   assert.equal(later.some(a => a.ref === "nan-quill"), false, "people move on with the story");
   // And the town shows nothing from it unless the place itself burned.
   assert.deepEqual(captureScene(emptyOverlay(), regionForScene("drowned-rat")!.region, w).scenes["drowned-rat"]!.states, []);
+});
+
+test("the Heron goes up in smoke: ablaze from the town that night, a charred ruin the next morning", () => {
+  const w = world("heron-warehouse", heronWorld, ["saul", "hep"]);
+  damageThing(w, w.entities["heron-sacks"]!, 4, "fire", 1);
+  tick(w, 2, 11);
+  assert.ok(w.entities.floor!.states.includes("exploded"), "the dust went up");
+  const overlay = captureScene(emptyOverlay(), regionForScene("heron-warehouse")!.region, w, "night");
+  const town = getMap("caerwyn");
+  assert.ok(overlayRegionStates(overlay, town, "night")["heron-exterior"]!.includes("burning"));
+  const after = overlayRegionStates(overlay, town, "next-morning")["heron-exterior"]!;
+  assert.ok(after.includes("burnt") && !after.includes("burning"));
+  const lines = render(town, [], { x: 48, y: 38 }, { w: 80, h: 24 }, { time: "night", regionStates: overlayRegionStates(overlay, town, "night"), tick: 1 });
+  assert.match(toPlain(lines), /[\^▲*]/, "flames over the Heron");
 });
 
 test("for combat: the battlefield, free spots for the Crakes, a move range, marks and a cursor", () => {
