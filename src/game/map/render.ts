@@ -334,13 +334,14 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
    * living terrain, in projected-plane coordinates so it doesn't crawl with the camera), then
    * whatever lies on it (a scene world's puddles and slicks), burns on it or hangs over it.
    */
-  function ground(at: Tile2, key: string, sc: number, sr: number): void {
-    const look = GROUND[key]!;
+  function ground(at: Tile2, kind: string, sc: number, sr: number): void {
+    const look = GROUND[kind]!;
     if (!look.bg) return;
     const p = project(at);
     const i = index(at);
     const fire = fires.has(i), dust = dusts.has(i);
-    const flow = key === "water" || key === "deep-water" ? flowOf(key) : undefined;
+    const flow = kind === "water" || kind === "deep-water" ? flowOf(kind) : undefined;
+    const indoors = isRoofed(tileAt(map, at));
     // Only the layers with something near this tile.
     const near = layers.filter(l => at.x >= l.box.x0 && at.x <= l.box.x1 && at.y >= l.box.y0 && at.y <= l.box.y1 && l.layer.surfaces.some(sp => {
       const f = feetOf(l.o, p.col, p.row);
@@ -351,7 +352,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
       const sx = sc + dx, sy = sr + dy;
       if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
       const px = p.col + dx, py = p.row + dy;
-      const cell = text ? undefined : groundAt(key, px, py, lf, flow);
+      const cell = text ? undefined : groundAt(kind, px, py, lf, flow);
       if (cell) {
         // The lattice: the cell under a tile's middle keeps a faint dot, so the grid reads.
         if (dy && cell.glyph === " " && look.tip !== " " && !look.animate) put(sx, sy, look.tip, hexOf(mixRGB(rgbOf(cell.bg!), rgbOf(cell.fg), 0.55)), cell.bg);
@@ -364,7 +365,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
         put(sx, sy, faces[f]!, look.fg2 && hash(at.x, at.y, dx, 7) % 4 === 0 ? look.fg2 : look.fg, look.bg);
       }
       for (const l of near) {
-        const over = l.layer.at(feetOf(l.o, px, py), under(sx, sy), px, py, isRoofed(tileAt(map, at)));
+        const over = l.layer.at(feetOf(l.o, px, py), under(sx, sy), px, py, indoors);
         if (over) put(sx, sy, over.glyph, over.fg, over.bg, { ...(over.glow ? { glow: true } : {}) });
       }
       if (fire) { const f = fireAt(under(sx, sy), px, py, lf, 0.8, i); put(sx, sy, f.glyph, f.fg, f.bg, { bold: true, ...(f.glow ? { glow: true } : {}) }); }
@@ -379,10 +380,10 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
   }
 
   /** The river's current on the projected plane (square units a second), from which way it runs on this map. */
-  function flowOf(key: string): { x: number; y: number } {
+  function flowOf(kind: string): { x: number; y: number } {
     const d = RIVER[map.id] ?? { x: 1, y: 0 };
     const col = 2 * (d.x + d.y), row = 2 * (d.y - d.x);
-    const k = (key === "deep-water" ? 1.5 : 0.7) / Math.max(1e-6, Math.hypot(col, row));
+    const k = (kind === "deep-water" ? 1.5 : 0.7) / Math.max(1e-6, Math.hypot(col, row));
     return { x: col * k, y: row * k };
   }
 
@@ -459,20 +460,20 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     if (states.includes("hanging")) put(sc, r - 1, "│", "#c8a878");
     const person = a.kind === "person" || a.kind === "creature";
     const fg = look.alpha < 1 && r >= 0 && r < h && sc >= 0 && sc < w ? mixRGB(cells[r]![sc]!.bg === NONE ? INK : cells[r]![sc]!.bg, rgbOf(look.fg), look.alpha) : look.fg;
-    // A big thing on fire (a table, a stack of sacks) burns over its whole tile.
-    const heat = look.look.burning ?? 0;
+    // What burns throws embers and smoke; a big thing on fire (a table, a stack of sacks) burns
+    // over its whole tile, tongues of flame licking up off it, each on its own beat.
+    const heat = look.look.burning ?? 0, flame = look.look.flame ?? "fire";
+    if (heat > 0) burning.push({ sc, sr: r, seed: seedOf(a.id), strength: heat, flame });
     if (heat > 0 && !person && (a.blocks || look.look.wreck)) {
       const p = project(at);
-      for (const dx of [-1, 1]) if (sc + dx >= 0 && sc + dx < w && r >= 0 && r < h) {
-        const f = fireAt(under(sc + dx, r), p.col + dx, p.row, lf, 0.55 + 0.4 * heat, seedOf(a.id), look.look.flame ?? "fire");
-        put(sc + dx, r, f.glyph, f.fg, f.bg, { bold: true, ...(f.glow ? { glow: true } : {}) });
+      for (const dx of [-1, 1]) {
+        if (sc + dx >= 0 && sc + dx < w && r >= 0 && r < h) {
+          const f = fireAt(under(sc + dx, r), p.col + dx, p.row, lf, 0.55 + 0.4 * heat, seedOf(a.id), flame);
+          put(sc + dx, r, f.glyph, f.fg, f.bg, { bold: true, ...(f.glow ? { glow: true } : {}) });
+        }
+        const tongue = noise2(beat * 0.37 + dx * 3.1, seedOf(a.id) % 97, 13);
+        if (tongue > 0.5) put(sc + dx, r - 1, tongue > 0.75 ? "▲" : "^", ramp(FLAME_RAMPS[flame], clamp01(0.45 + tongue * 0.5)), undefined, { bold: true, glow: true });
       }
-    }
-    if (heat > 0) burning.push({ sc, sr: r, seed: seedOf(a.id), strength: heat, flame: look.look.flame ?? "fire" });
-    // Tongues of flame over it, each on its own beat.
-    if (heat > 0 && !person && (a.blocks || look.look.wreck)) for (const dx of [-1, 1]) {
-      const tongue = noise2(beat * 0.37 + dx * 3.1, seedOf(a.id) % 97, 13);
-      if (tongue > 0.5) put(sc + dx, r - 1, tongue > 0.75 ? "▲" : "^", ramp(FLAME_RAMPS[look.look.flame ?? "fire"], clamp01(0.45 + tongue * 0.5)), undefined, { bold: true, glow: true });
     }
     // Sacks and crates come in stacks.
     const stacked = !look.look.wreck && (look.glyph === "■" || look.glyph === "▣" || (!!a.blocks && STACKS.has(look.look.role)));

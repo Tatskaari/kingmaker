@@ -658,6 +658,9 @@ export class Game {
     this.core = undefined;
     this.lines = [];
     this.walking = false;
+    // Another game's scene is news to nobody.
+    this.look = undefined;
+    this.fightLook = undefined;
     this.loadSaves();
   }
 
