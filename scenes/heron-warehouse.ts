@@ -259,7 +259,7 @@ export const heronWarehouse: Scene = {
         {
           id: "lift-book", on: "attempt",
           when: "The player tries to lift the true book from under Scrope's hand without him or the gang seeing.",
-          check: { reason: "to lift the true book from under Scrope's hand",
+          check: { reason: "to lift the ledger from under the clerk's hand",
             skill: "sleight_of_hand", dc: 15,
             success: "Scrope turns to trim the lamp, and when he turns back his hand comes down on bare desk. The book is under the player's coat.",
             failure: "Scrope's hand clamps down on the book with a squeak like a trodden mouse, and heads turn all over the floor.",
@@ -269,7 +269,7 @@ export const heronWarehouse: Scene = {
         {
           id: "win-scrope", on: "attempt",
           when: "The player tries to persuade Scrope to give them the true book or to swear to it (for Prout's sake, for his own neck, for the King), where his terror of the Master could still win. (Proof that puts it beyond doubt for him needs no dice.)",
-          check: { reason: "to persuade Scrope to give up the true book",
+          check: { reason: "to persuade the clerk to give up his ledger",
             skill: "persuasion", dc: 14,
             success: "Scrope looks at the book for a long time, then closes it, does up the clasp and holds it out in both hands. 'It balances,' he says. 'Every page. Wendell would want it to balance.'",
             failure: "Scrope hugs the book to his chest and shakes his head, white as paper: not with the Master coming. He hasn't called for anyone. Yet.",

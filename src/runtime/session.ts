@@ -144,6 +144,8 @@ export interface SessionState {
   threat?: Threat;
   /** Where this scene's prep no longer matches the story (written at the scene boundary): these override it. */
   adjustments?: string[];
+  /** The scene's opening rewritten at the boundary to start where the story actually is. */
+  opening?: string;
   /** The scene's world: where everything and everyone is, and in what state (scenes with a world spec). */
   world?: SceneWorld;
   /** What the player carried out of the last scene's world, to carry into the next. */

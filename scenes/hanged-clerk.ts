@@ -207,7 +207,7 @@ export const hangedClerk: Scene = {
         {
           id: "win-cob", on: "attempt",
           when: "The player pushes Cob to tell who was in the loft last night, or about the boots, with an appeal, an argument, a bargain or a promise of safety, while he's still holding out and it could go either way. (Not just asking; a fair trade or a real promise to keep him safe needs no dice.)",
-          check: { reason: "to get Cob to name the men in the loft",
+          check: { reason: "to get Cob to tell you what he saw",
             skill: "persuasion", dc: 12,
             success: "Cob gives up what he's been holding: Silvertop, the posh cove with the silver-topped cane who comes with the Purveyor's wagons and has his own key to the big doors, and a big man with a bandaged hand. If asked, he owns up that the boots came off Mister Prout, and that he saw the clerk sewing something into one two nights ago.",
             failure: "Cob clams up and backs towards the water butt: Cob don't know nothing. He'll talk to someone who gives him a real reason to feel safe.",
@@ -217,7 +217,7 @@ export const hangedClerk: Scene = {
         {
           id: "catch-moll", on: "attempt",
           when: "The player presses on the holes in Moll's story, or tries to read what she's hiding, where it could go either way. (Not just asking her to tell it.)",
-          check: { reason: "to learn who paid Moll to lie",
+          check: { reason: "to get the truth out of Moll",
             skill: "insight", dc: 13,
             success: "Moll cracks: a gentleman with a silver-topped cane and a wheat-ear signet ring paid her a silver crown at first light to say she saw the clerk jump, and his big friend with the bandaged hand called him 'Master Sallow'. Pressed, she opens her fist on the coin.",
             failure: "Moll sticks to her story and turns up the abuse, but her eyes keep going to the yard gate, and the holes in her story are still there.",

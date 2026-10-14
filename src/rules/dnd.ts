@@ -518,7 +518,7 @@ export async function spellInfo(spellId: string): Promise<Dnd.SpellDef | undefin
 }
 
 /** Cast one of the player's spells at story characters (or themselves, or nobody in particular). */
-export async function castSpell(state: SessionState, cast: Character[], spellId: string, targetIds: string[]): Promise<Outcome> {
+export async function castSpell(state: SessionState, cast: Character[], spellId: string, targetIds: string[], options: { ritual?: boolean } = {}): Promise<Outcome> {
   const ctx = await open(state);
   const pcId = state.rules!.pc;
   const spell = ctx.engine.content.spells.get(spellId);
@@ -529,8 +529,10 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
     const what = spell?.name ?? "that spell";
     return { lines: [`(${what === "that spell" ? "That isn't a spell" : `${what} isn't a spell`} ${state.player.name} has ready: #sheet shows what they have.)`], directive: `The player reached for magic their character doesn't have ready (${what}). It doesn't come: nothing happens beyond a gesture, maybe a fizzle. Say so in a few words, in the fiction, without inventing any effect, and let them choose something else.` };
   }
-  let slotLevel = 0;
-  if (spell.level > 0) {
+  // A ritual takes ten minutes longer and no slot (if the spell is one).
+  const ritual = options.ritual === true && spell.ritual;
+  let slotLevel = ritual ? spell.level : 0;
+  if (spell.level > 0 && !ritual) {
     const sheet = sheetOf(ctx, pcId);
     const free = (l: number) => (sheet.spellSlots.slotsByLevel[l - 1] ?? 0) - (me.spellSlotsUsed[String(l)] ?? 0);
     slotLevel = [1, 2, 3, 4, 5, 6, 7, 8, 9].find(l => l >= spell.level && free(l) > 0) ?? 0;
@@ -568,7 +570,7 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
   const aimAt = world ? positionOf(world, targetIds.find(t => world.entities[t]) ?? "player") : undefined;
   const targetPosition = aimAt ? { x: Math.round(aimAt.x / 5), y: Math.round(aimAt.y / 5) } : { x: 0, y: 0 };
   try {
-    events = ctx.apply(ctx.engine.plan.castSpell(ctx.campaign.state, { characterId: pcId, spellId, slotLevel, targetIds: people.map(p => p.engine), ...((spell.mechanicalEffects ?? []).some(m => /zone/i.test(String(m["kind"]))) || /zone|silence|darkness|fog/i.test(spell.id) ? { targetPosition } : {}) }).events);
+    events = ctx.apply(ctx.engine.plan.castSpell(ctx.campaign.state, { characterId: pcId, spellId, slotLevel, targetIds: people.map(p => p.engine), ...(ritual ? { asRitual: true } : {}), ...((spell.mechanicalEffects ?? []).some(m => /zone/i.test(String(m["kind"]))) || /zone|silence|darkness|fog/i.test(spell.id) ? { targetPosition } : {}) }).events);
   } catch (error) {
     // Aimed only at things: the engine wants a creature, so spend the slot ourselves.
     if (!things.length) {
@@ -590,10 +592,10 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
   const statusText = status(ctx, pcId);
   close(state, ctx);
   const named = [...people.map(p => nameOf(ctx, state, p.engine)), ...things.map(t => t.name)];
-  const head = `${spell.name}${slotLevel ? ` (${ordinal(slotLevel)}-level slot)` : " (cantrip)"}${area ? `: ${area}` : named.length ? ` on ${named.join(", ")}` : ""}`;
+  const head = `${spell.name}${ritual ? " (as a ritual: ten minutes, no slot)" : slotLevel ? ` (${ordinal(slotLevel)}-level slot)` : " (cantrip)"}${area ? `: ${area}` : named.length ? ` on ${named.join(", ")}` : ""}`;
   const facts = `${spell.name}: ${spell.level ? `${ordinal(spell.level)}-level` : "cantrip"} ${spell.school}; casting time ${spell.castingTime}; range ${spell.range}; duration ${spell.duration}${spell.concentration ? " (concentration)" : ""}`;
   return {
-    lines: [`Cast ${head}${area && named.length ? `, catching ${named.join(", ")}` : ""}`, ...lines, ...(slotLevel ? [`${state.player.name}: ${statusText}`] : [])],
+    lines: [`Cast ${head}${area && named.length ? `, catching ${named.join(", ")}` : ""}`, ...lines, ...(slotLevel && !ritual ? [`${state.player.name}: ${statusText}`] : [])],
     directive: `Rules: the player cast ${head}${area ? `, which caught ${named.join(", ") || "nobody and nothing"}` : ""}. ${account.length ? `${capitalise(account.join("; "))}.` : "It has no roll: it simply takes effect as the spell describes."} Narrate exactly this, in the fiction: what working the spell looks and sounds like here, its effect as the rules describe it (${facts}), and how the people present react to someone casting a spell at all. The world already shows what it burned or broke. Don't add effects the spell doesn't have.`,
     status: statusText,
   };
@@ -884,6 +886,11 @@ export async function rest(state: SessionState, kind: "short" | "long"): Promise
   } else {
     ctx.apply(ctx.engine.plan.longRest(ctx.campaign.state, { participantIds: [pcId] }).events);
   }
+  // The rest takes time: spells with a listed duration run out (Aid doesn't outlast a night).
+  ctx.apply([event(ctx.E, "InGameTimeAdvanced", { minutes: kind === "short" ? 60 : 480, reason: `${kind} rest` })]);
+  const planned = ctx.engine.plan.expireSpellDurations(ctx.campaign.state, { type: "ExpireSpellDurations" });
+  ctx.apply(Array.isArray(planned) ? planned : planned.events);
+  state.rules!.timed = Object.values((ctx.campaign.state["effectInstances"] ?? {}) as Record<string, EffectInstance>).some(e => e.durationMinutes !== undefined);
   const statusText = status(ctx, pcId);
   close(state, ctx);
   lines.unshift(`${kind === "short" ? "Short rest (an hour)" : "Long rest (a night)"}: ${statusText}`);

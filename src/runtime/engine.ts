@@ -7,7 +7,7 @@ import { approachById } from "./approaches.ts";
 import { currentBeat, effectiveScene, presentCast, sceneEntries } from "./brief.ts";
 import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, relocateDirective, STALL_DIRECTIVE, type Move } from "./director.ts";
 import { describeRoll } from "./dice.ts";
-import { buildWorld, heldBy, joinWorld, tick, within, type Entity } from "../world/scene-world.ts";
+import { areaOf, buildWorld, heldBy, joinWorld, tick, within, type Entity } from "../world/scene-world.ts";
 import { stageManage } from "../world/stage.ts";
 import { attack as rulesAttack, attackOnPlayer, castSpell, comeTo, createCharacter, hazard, levelUp, passTime, rest, wrestle, type Outcome } from "../rules/dnd.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
@@ -110,7 +110,7 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}): Pro
   const approach = approachById(state.approach);
   const before = state.transcript.length;
   const directive = state.history.length
-    ? [`Open the scene, picking up exactly from how the last one ended (see what happened just before this scene, and where the prep is out of date: they outrank the prep). The author's idea for the opening, to adapt to what actually happened: ${scene.opening} Pick up after the last scene's closing lines rather than repeating them. Keep it to a short paragraph or two and end on something the player can respond to.`]
+    ? [`Open the scene, picking up exactly from how the last one ended (see what happened just before this scene, and where the prep is out of date: they outrank the prep). The opening, as it stands after what actually happened: ${state.opening ?? scene.opening} Pick up after the last scene's closing lines rather than repeating them. Keep it to a short paragraph or two and end on something the player can respond to.`]
     : [`Open the scene. ${scene.opening} Keep it to a short paragraph or two and end on something the player can respond to.`];
   await settlePresence(scene, state, deciderFor(approach.decider)).catch(() => undefined);
   if (approach.staging) state.guard ??= {};
@@ -125,9 +125,10 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}): Pro
     for (const text of await passTime(state, 60).catch(() => [] as string[])) push(state, hooks, { speaker: "dice", kind: "roll", text });
     const woke = await comeTo(state).catch(() => undefined);
     if (woke) push(state, hooks, { speaker: "dice", kind: "roll", text: woke });
+    // Level up first, so the night's rest fills the new hit points too.
+    const levelled = scene.milestone ? await levelUp(state).catch(() => [] as string[]) : [];
     const rested = scene.rest ? await rest(state, scene.rest).catch(() => undefined) : undefined;
     for (const text of rested?.lines ?? []) push(state, hooks, { speaker: "dice", kind: "roll", text });
-    const levelled = scene.milestone ? await levelUp(state).catch(() => [] as string[]) : [];
     for (const text of levelled) push(state, hooks, { speaker: "system", kind: "system", text });
   }
   if (approach.memory) {
@@ -234,6 +235,12 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     const burned = tick(state.world, state.turn, state.seed + 31337 * state.turn);
     for (const text of burned) push(state, hooks, { speaker: "dice", kind: "roll", text });
     if (burned.length) ruled.push(`Rules, since the last reply: ${burned.join("; ")}. The world shows what's burning now; let the fire be felt (smoke, heat, people's reactions).`);
+    // An explosion catches everyone in it, the player included.
+    const here = state.world.entities.player ? areaOf(state.world, "player") : undefined;
+    if (state.rules && here?.states.includes("exploded") && burned.some(l => /explosion/i.test(l))) {
+      const blast = await hazard(state, "fire", "serious").catch(() => undefined);
+      if (blast) { for (const text of blast.lines) push(state, hooks, { speaker: "dice", kind: "roll", text }); ruled.push(blast.directive); }
+    }
   }
   if (state.threat && state.rules) {
     const threat = state.threat;
@@ -310,7 +317,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (pre.mechanic && state.rules) {
     const m = pre.mechanic;
     const present = presentCast(scene, state);
-    const outcome: Outcome = await (m.kind === "cast" ? castSpell(state, present, m.spell, m.targets) : m.kind === "attack" ? rulesAttack(state, present, m.target, m.weapon) : m.kind === "wrestle" ? wrestle(state, present, m.target, m.how) : rest(state, m.length))
+    const outcome: Outcome = await (m.kind === "cast" ? castSpell(state, present, m.spell, m.targets, { ritual: /\britual\b/i.test(input) }) : m.kind === "attack" ? rulesAttack(state, present, m.target, m.weapon) : m.kind === "wrestle" ? wrestle(state, present, m.target, m.how) : rest(state, m.length))
       .catch(error => ({ lines: [`(The rules couldn't resolve that: ${error instanceof Error ? error.message : String(error)})`], directive: "" }));
     for (const text of outcome.lines) push(state, hooks, { speaker: "dice", kind: "roll", text });
     if (outcome.directive) directive.push(outcome.directive);
@@ -562,7 +569,7 @@ export async function chainScene(state: SessionState, combatResult = "the party 
     candidates.push(candidate);
     id = candidate.assumes?.length ? candidate.overtaken : undefined;
   }
-  const { handoff, sceneId, adjustments, skipped } = await crossBoundary(scene, state, exit, combatResult, candidates);
+  const { handoff, sceneId, adjustments, skipped, opening } = await crossBoundary(scene, state, exit, combatResult, candidates);
   const memory = approachById(state.approach).memory;
   if (memory === "docs") broadcastEnding(scene, state, exit);
   if (memory === "lite") await rememberScene(scene, state, `${exit.title}: ${exit.outcome}`).catch(() => undefined);
@@ -577,7 +584,7 @@ export async function chainScene(state: SessionState, combatResult = "the party 
   Object.assign(state, {
     sceneId: next.id, beat: next.start, turnsInBeat: 0, path: [], established: [], canon: [], notes: null, notesTurn: null,
     whispers: [], patches: [], repairs: [], entered: [], absent: [], sceneStatus: undefined, memory: { opened: [] }, landed: [], hinted: [], guard: {},
-    adjustments,
+    adjustments, opening,
   });
   delete state.ended;
   delete state.threat;
@@ -591,7 +598,7 @@ export async function chainScene(state: SessionState, combatResult = "the party 
  * skipped) and where that scene's prep is out of date. Prep is written before play; this is where
  * it catches up.
  */
-async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, combatResult: string, candidates: Scene[]): Promise<{ handoff: string; sceneId: string; adjustments: string[]; skipped: Array<{ sceneId: string; why: string }> }> {
+async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, combatResult: string, candidates: Scene[]): Promise<{ handoff: string; sceneId: string; adjustments: string[]; skipped: Array<{ sceneId: string; why: string }>; opening?: string }> {
   const transcript = sceneEntries(state).map(e => e.kind === "player" ? `${state.player.name} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.kind === "narration" ? `GM: ${e.text}` : `[${e.text}]`).join("\n\n");
   const ended = `${exit.title}. ${exit.outcome}${exit.kind === "combat" ? ` The fight was then played out on the map: ${combatResult}.` : ""}`;
   const story = [
@@ -611,17 +618,19 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
     instructions: "You write the hand-off between two scenes of a roleplaying game, for the GM of the next scene. Describe the state of things in the story at the moment the last scene ended, exactly as it was established in play (not as anyone planned it): who is where and in what state, who holds what, what was promised or agreed, what the player character learned, and how people feel. Things that were offered but refused, or threatened but not done, didn't happen. Leave out anything said out of character (questions or agreements about the game itself). Be concrete and brief: a short paragraph, then up to eight bullet points.",
     input: [{ role: "user", content: story }],
   }).then(r => `Previous scene, "${scene.title}", ended: ${exit.title}.\n${r.text.trim()}`).catch(() => `Previous scene, "${scene.title}", ended: ${ended}`);
-  const verdict = respondJson<{ scenes: Array<{ id: string; holds: boolean; why: string }>; adjustments: string[] }>({
+  const verdict = respondJson<{ scenes: Array<{ id: string; holds: boolean; why: string }>; adjustments: string[]; opening: string }>({
     operation: "boundary", effort: "low",
     instructions: [
       "The upcoming scenes of a roleplaying game were written before play. Check them against what has actually happened in the story.",
       "1. scenes: for each upcoming scene, in order, judge whether what it takes for granted still holds. A scene is overtaken when play has already done, prevented or bypassed what it is about (its central matter is settled, the people it needs are gone, the thing it's built around has already happened).",
       "2. adjustments: for the first upcoming scene that still holds, list each point where its prep (what it's about, its opening, its background, its people) no longer matches the story: where someone is or what state they're in, who holds what, what people know, what has already happened. The scene's own time and place stand (it may start after a gap, such as the next morning): say what's true by then. Write each as a short statement of what is true instead, so its GM can adapt (\"Hobb is in the watch-house cells, not on the hoist.\"). Leave out everything that still fits. An empty list is fine.",
+      "3. opening: that scene's opening direction, rewritten so it starts where the story actually is. Keep the author's intent (the place, the mood, what a first glance shows, what to end on) and drop or change whatever the adjustments make untrue; never replay something that has already happened (an arrival, a first meeting, a discovery). If nothing needs changing, return the author's opening as it is.",
     ].join("\n"),
     input: [{ role: "user", content: `${story}\n\n## Upcoming scenes, in order\n${candidates.map(prep).join("\n\n")}` }],
-    json: { name: "boundary", schema: { type: "object", additionalProperties: false, required: ["scenes", "adjustments"], properties: {
+    json: { name: "boundary", schema: { type: "object", additionalProperties: false, required: ["scenes", "adjustments", "opening"], properties: {
       scenes: { type: "array", items: { type: "object", additionalProperties: false, required: ["id", "holds", "why"], properties: { id: { type: "string" }, holds: { type: "boolean" }, why: { type: "string" } } } },
       adjustments: { type: "array", items: { type: "string" } },
+      opening: { type: "string" },
     } } },
   }).catch(() => undefined);
   const [text, result] = await Promise.all([handoff, verdict]);
@@ -629,7 +638,10 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
   const holds = (c: Scene) => !c.assumes?.length || result?.scenes.find(v => v.id === c.id)?.holds !== false;
   const chosen = candidates.find(holds) ?? candidates.at(-1)!;
   const skipped = candidates.slice(0, candidates.indexOf(chosen)).map(c => ({ sceneId: c.id, why: result?.scenes.find(v => v.id === c.id)?.why ?? "" }));
-  return { handoff: text, sceneId: chosen.id, adjustments: (result?.adjustments ?? []).map(a => a.trim()).filter(Boolean).slice(0, 10), skipped };
+  // The rewritten opening is for the scene the verdict was about: the first that holds.
+  const firstHolding = result ? candidates.find(c => !c.assumes?.length || result.scenes.find(v => v.id === c.id)?.holds !== false) : undefined;
+  const opening = firstHolding?.id === chosen.id && result?.opening?.trim() ? result.opening.trim() : undefined;
+  return { handoff: text, sceneId: chosen.id, adjustments: (result?.adjustments ?? []).map(a => a.trim()).filter(Boolean).slice(0, 10), skipped, ...(opening ? { opening } : {}) };
 }
 
 export function transcriptMarkdown(state: SessionState, options: { allScenes?: boolean } = {}): string {
