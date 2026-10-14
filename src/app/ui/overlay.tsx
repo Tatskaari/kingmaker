@@ -7,6 +7,7 @@ import { Place } from "./place.tsx";
 
 const HELP: Record<string, string[]> = {
   explore: [
+    "Click on the map to walk there (any key or click stops you). Right-click anyone or anything for what you can do with them; the Nearby list works the same.",
     "Walk with the arrow keys or WASD: they move with the screen (up is up). On the map, north is up-left.",
     "The lead (gold, with a !) is where the story is waiting: walk there and talk to whoever's waiting, or step into the place. g walks you there; any key stops.",
     "e (or Enter) talks to whoever you're facing, looks at things, and goes through doors. Bumping into someone whose scene is waiting opens it too.",

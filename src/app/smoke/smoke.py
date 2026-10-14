@@ -1,6 +1,7 @@
 """
 Headless smoke test of the playable game: run the real OpenTUI app under a pseudo-terminal, drive
-it with keystrokes, and grep the screen. By default it plays the whole arc offline (an invalid API
+it with keystrokes and the mouse (xterm's SGR 1006 reports: a click to walk, a right-click menu),
+and grep the screen. By default it plays the whole arc offline (an invalid API
 key, so the GM can't speak: scenes are ended with the #end testing command), including a save,
 quit and Continue, and a full stand-in fight. With --live it plays one real scene turn against
 the GM instead.
@@ -10,6 +11,8 @@ the GM instead.
 
 Screens are dumped to runs/app-smoke/<run>/ for reading afterwards.
 """
+import glob
+import json
 import os
 import re
 import sys
@@ -96,6 +99,57 @@ def to_lead(app, what, timeout=40):
     return expect(app, what, f"g walks to the lead and the scene opens ({what})", timeout=timeout)
 
 
+# At 130 columns the map's box is everything left of the sidebar.
+MAP_COLS = 89
+
+
+def saved_at():
+    """Where the player stands on the map, as the game last saved it: (map, x, y)."""
+    for path in glob.glob(os.path.join(ROOT, ENV["KM_RUNS_DIR"], "sessions", "*", "game.json")):
+        with open(path) as f:
+            ex = json.load(f)["explore"]["ex"]
+        return ex["map"], ex["at"]["x"], ex["at"]["y"]
+    return None
+
+
+def on_screen(app, tile):
+    """A map tile's cell on screen, from where the player's @ is drawn (the map's projection: column 2(x + y), row y - x)."""
+    _, px, py = saved_at()
+    mx, my = app.find("@", MAP_COLS)
+    dx, dy = tile[0] - px, tile[1] - py
+    return mx + 2 * (dx + dy), my + (dy - dx)
+
+
+def mouse(app):
+    """The map by mouse (SGR 1006): point at Kell, click to walk along the lane, right-click for a menu, then talk to Kell from hers."""
+    app.point(*app.find("K", MAP_COLS))
+    expect(app, r"Sergeant Kell \S+ \d+ +· +click to walk there", "pointing at Kell says who she is and what a click does")
+    # A left click on the lane four steps west: the player walks there, a step at a time.
+    app.click(*on_screen(app, (38, 8)))
+    end = time.time() + 10
+    while time.time() < end and saved_at() != ("caerwyn", 38, 8):
+        app.pump(0.2)
+    dump(app, "left-click-walk")
+    if saved_at() != ("caerwyn", 38, 8):
+        print(f"FAIL: a left click walks there (the game has the player at {saved_at()})")
+        app.close()
+        sys.exit(1)
+    print("ok: a left click walks there")
+    # A right-click on the street: its menu; Esc closes it.
+    app.click(*on_screen(app, (36, 8)), button=2)
+    expect(app, r"Walk here", "a right-click on the street opens its menu")
+    keys(app, "esc")
+    if app.wait_for(r"Esc never mind", 0.5):
+        print("FAIL: Esc closes the menu")
+        app.close()
+        sys.exit(1)
+    # A right-click on Kell, and a click on what it offers: over to her, and her scene opens.
+    app.click(*app.find("K", MAP_COLS), button=2)
+    expect(app, r"1 Talk to Sergeant Kell", "a right-click on Kell offers to talk to her")
+    app.click(*app.find("Talk to Sergeant Kell"))
+    expect(app, r"The Hanged Clerk ·", "choosing it walks over to her and her scene opens", timeout=40)
+
+
 def fight(app):
     expect(app, r"Initiative", "combat: the initiative tracker", timeout=30)
     expect(app, r"Round \d", "the battlefield is drawn, the round is up")
@@ -128,7 +182,8 @@ def offline():
     keys(app, "esc")
     # A step with the arrows: up the screen, then back.
     walk(app, "left right")
-    to_lead(app, r"The Hanged Clerk ·")
+    # Then the mouse: a click to walk, a right-click for what to do; Kell's scene opens from hers (g opens the later ones).
+    mouse(app)
     expect(app, r"couldn't open the scene", "offline: the GM can't speak (expected)", timeout=40)
     expect(app, r"The yard behind the King", "the scene's place is drawn beside the transcript")
     say(app, "#map")

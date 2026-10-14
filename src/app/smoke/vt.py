@@ -182,6 +182,25 @@ class App:
             self.pump(0.01)
         self.pump(settle)
 
+    def click(self, x, y, button=0, settle=0.3):
+        """A mouse click at a cell (0-based), as xterm reports it with SGR (1006): press, then release. Button 0 left, 2 right."""
+        os.write(self.fd, f"\x1b[<{button};{x + 1};{y + 1}M".encode())
+        self.pump(0.05)
+        self.send(f"\x1b[<{button};{x + 1};{y + 1}m", settle)
+
+    def point(self, x, y, settle=0.3):
+        """The mouse moved over a cell, no button down (SGR motion)."""
+        self.send(f"\x1b[<35;{x + 1};{y + 1}M", settle)
+
+    def find(self, text, cols=None):
+        """The cell (0-based x, y) where some text first shows on screen, left of column `cols` if given."""
+        n = len(text)
+        for y, row in enumerate(self.screen.grid):
+            for x in range(len(row[:cols]) - n + 1):
+                if "".join(row[x:x + n]) == text:
+                    return x, y
+        return None
+
     def text(self):
         return self.screen.text()
 

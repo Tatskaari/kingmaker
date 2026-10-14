@@ -7,7 +7,7 @@ import { ELEMENTS, spellElement } from "./look/director.ts";
 import type { Effects } from "./look/effects.ts";
 import { glyphSet, type GlyphSet } from "./look/glyphs.ts";
 import { renderStage } from "./look/stage.ts";
-import { battlefield, regionForScene, render, tileToFeet, toPlain, type RenderOptions, type Viewport } from "./map/index.ts";
+import { battlefield, regionForScene, render, tileToFeet, toPlain, type Picks, type RenderOptions, type Viewport } from "./map/index.ts";
 import { castOf } from "./map/looks.ts";
 import type { GameState } from "./play.ts";
 import { exploreState } from "./town.ts";
@@ -32,9 +32,16 @@ export interface ViewOptions {
   glyphs?: GlyphSet;
   /** What's playing (the scene's or the fight's Effects), drawn over the place. */
   effects?: Effects;
+  /** The tile under the pointer, lit up. */
+  hover?: Tile2;
+  /** Filled in with what's drawn where, for the mouse: pick.at(x, y) is the tile (and who) in a cell. */
+  pick?: Picks;
 }
 
-/** The town round the player; in a scene, the scene's place with its world (where everyone is now) and its effects. */
+/**
+ * The town round the player; in a scene, the scene's place with its world (where everyone is now)
+ * and its effects. With `pick`, what's drawn where, for the mouse; `hover` lights up a tile.
+ */
 export function townView(game: GameState, session: SessionState | undefined, size: Viewport, options: ViewOptions = {}): StyledLine[] {
   const ex = exploreState(game);
   const world = ex.scene && session?.world && session.world.scene === ex.scene ? session.world : undefined;
@@ -168,9 +175,10 @@ export function fightLook(u: { castId?: string | undefined; glyph: string; color
   return look ? { glyph: look.glyph, color: look.color } : { glyph: u.glyph, color: u.color };
 }
 
-function pick(options: ViewOptions): Pick<RenderOptions, "t" | "tick" | "color" | "glyphs"> {
+function pick(options: ViewOptions): Pick<RenderOptions, "t" | "tick" | "color" | "glyphs" | "hover" | "pick"> {
   return {
     ...(options.t !== undefined ? { t: options.t } : {}), ...(options.tick !== undefined ? { tick: options.tick } : {}),
     ...(options.color !== undefined ? { color: options.color } : {}), ...(options.glyphs ? { glyphs: options.glyphs } : {}),
+    ...(options.hover ? { hover: options.hover } : {}), ...(options.pick ? { pick: options.pick } : {}),
   };
 }

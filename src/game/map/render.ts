@@ -27,6 +27,12 @@ import { inBounds, isRoofed, isStructure, regionAt, tileAt, type MapTile, type P
  * coloured light that walls stop (the Rat's driftwood fire lights it blue), and effects (a
  * fireball, a splash, damage numbers, barks) projected onto the map. One clock drives it all: `t`,
  * in milliseconds. Plain text (color: false) is quiet: no motion, no effects, no icons.
+ *
+ * Things look as much in the way as they are: what stands in the way fills its square (a cart has
+ * its wheels either side, a stall its awning, the statue its plinth), and small things you can walk
+ * past (a lamp, a sign) stand up on their posts. For the mouse, a frame can say what's drawn where
+ * (Picks): the tile and the person or thing in every cell, as drawn, so a click picks what the
+ * player is looking at. `hover` lights up the tile under the pointer.
  */
 
 export interface Viewport { w: number; h: number }
@@ -65,6 +71,40 @@ export interface RenderOptions {
   effects?: { region: Region; frame: EffectFrame };
   /** Tiles on fire (a fight's, a burning floor), thick with dust (the Heron's floor), or scorched. */
   hazards?: { fire?: Tile2[]; dust?: Tile2[]; scorched?: Tile2[] };
+  /** The tile under the pointer: everything drawn for it is lit up. */
+  hover?: Tile2;
+  /** Filled in with what's drawn where, for the mouse (see Picks). */
+  pick?: Picks;
+}
+
+/**
+ * What a frame drew where, for the mouse: for each viewport cell, the map tile whose drawing shows
+ * there (a wall's face belongs to the wall, a lamp up its post to the lamp's tile, the lead's marker
+ * to the lead) and who or what is drawn in it. render() fills it in as it paints, so picking always
+ * agrees with drawing: a click on someone's letter is a click on them, wherever the camera is.
+ */
+export class Picks {
+  w = 0;
+  h = 0;
+  /** The map the frame was of. */
+  map = "";
+  private width = 1;
+  private tiles: Int32Array = new Int32Array(0);
+  private actors: Array<MapActor | undefined> = [];
+
+  /** Take a frame's picks (render() calls this). */
+  fill(w: number, h: number, map: TileMap, tiles: Int32Array, actors: Array<MapActor | undefined>): void {
+    this.w = w; this.h = h; this.map = map.id; this.width = map.width; this.tiles = tiles; this.actors = actors;
+  }
+
+  /** The tile drawn at a viewport cell and who or what is drawn there; undefined where nothing of the map is. */
+  at(sx: number, sy: number): { at: Tile2; actor?: MapActor } | undefined {
+    if (sx < 0 || sy < 0 || sx >= this.w || sy >= this.h) return undefined;
+    const i = this.tiles[sy * this.w + sx]!;
+    if (i < 0) return undefined;
+    const actor = this.actors[sy * this.w + sx];
+    return { at: { x: i % this.width, y: Math.floor(i / this.width) }, ...(actor ? { actor } : {}) };
+  }
 }
 
 /** Light falling on a tile: three multipliers (1 is as authored). */
@@ -175,7 +215,11 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
   // The tile currently being painted: cells it touches take its light and depth.
   let light: Light = FULL, depth = 0;
   // Where the player was drawn: if something in front painted over them, they're drawn through it.
-  let me: { x: number; y: number; depth: number } | undefined;
+  let me: { x: number; y: number; depth: number; at: Tile2; actor: MapActor } | undefined;
+  // Whose each cell is (the tile being painted, and who or what on it): for the mouse, and the pointer's highlight.
+  const owner = new Int32Array(w * h).fill(-1);
+  const drawn: Array<MapActor | undefined> | undefined = options.pick ? new Array(w * h) : undefined;
+  let tile = -1, actor: MapActor | undefined;
   const put = (sx: number, sy: number, ch: string, fg: string | RGB, bg?: string | RGB, extra: { bold?: boolean; glow?: boolean; floor?: number } = {}) => {
     if (sx < 0 || sy < 0 || sx >= w || sy >= h) return;
     const cell = cells[sy]![sx]!;
@@ -183,6 +227,8 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     cell.fg = typeof fg === "string" ? (fg ? rgbOf(fg) : NONE) : fg;
     if (bg !== undefined) cell.bg = typeof bg === "string" ? (bg ? rgbOf(bg) : NONE) : bg;
     cell.bold = !!extra.bold; cell.glow = !!extra.glow; cell.light = light; cell.depth = depth; cell.floor = extra.floor ?? 0;
+    owner[sy * w + sx] = tile;
+    if (drawn) drawn[sy * w + sx] = actor;
   };
   /** A cell as the look layer takes one (hex), for laying something over it. */
   const under = (sx: number, sy: number) => { const c = cells[sy]![sx]!; return { glyph: c.ch, fg: hexOf(c.fg === NONE ? INK : c.fg), bg: hexOf(c.bg === NONE ? INK : c.bg) }; };
@@ -258,12 +304,14 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
       if (t.terrain === "void") continue;
       const sc = 2 * S + ox, sr = R + oy;
       light = lights?.at(x, y) ?? FULL; depth = R;
+      tile = index(at); actor = undefined;
       const region = regionAt(map, at);
       const states = region ? regionStates[region.id] ?? [] : [];
       paintTile(at, t, sc, sr, states);
       const mark = marks.get(key(at));
       if (mark) paintMark(mark, sc, sr);
-      for (const a of order(byTile.get(key(at)) ?? [])) paintActor(a, t, at, sc, sr);
+      for (const a of order(byTile.get(key(at)) ?? [])) { actor = a; paintActor(a, t, at, sc, sr); }
+      actor = undefined;
       if (options.cursor && options.cursor.x === x && options.cursor.y === y) {
         const glow = { bold: true, glow: true };
         put(sc - 1, sr, "[", "#ffe680", undefined, glow); put(sc + 1, sr, "]", "#ffe680", undefined, glow);
@@ -444,13 +492,15 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     if (a.kind === "player") {
       const r = sr - standing - raiseFor(a.name, states);
       put(sc, r, "@", a.color ?? "#d0d0d0", "#3a3418", { bold: true, glow: true });
-      me = { x: sc, y: r, depth };
+      me = { x: sc, y: r, depth, at, actor: a };
       return;
     }
     const look = lookFor(a);
     // Hidden from the player, or gone.
     if (look.alpha < 0.35) return;
-    const r = sr - standing - Math.max(raiseFor(a.name, states), look.lift);
+    // Up a post (a lamp, a sign): a row up, the post under it, and people walk past it.
+    const post = states.includes("post");
+    const r = sr - standing - Math.max(raiseFor(a.name, states), look.lift, post ? 1 : 0);
     if (states.includes("overhead")) {
       // Bunting and the like: a string of little flags across the tile.
       for (const dx of [-1, 0, 1]) put(sc + dx, r, dx ? a.glyph : "‿", dx ? bunting(at, dx) : "#8a8070");
@@ -458,8 +508,13 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     }
     // A rope up to whatever it hangs from.
     if (states.includes("hanging")) put(sc, r - 1, "│", "#c8a878");
+    if (post) put(sc, r + 1, "│", scaleRGB(rgbOf(look.fg), 0.5), undefined, { floor: BLOCK_FLOOR });
     const person = a.kind === "person" || a.kind === "creature";
-    const fg = look.alpha < 1 && r >= 0 && r < h && sc >= 0 && sc < w ? mixRGB(cells[r]![sc]!.bg === NONE ? INK : cells[r]![sc]!.bg, rgbOf(look.fg), look.alpha) : look.fg;
+    // Big and in the way: it fills its square, so it looks as big as it is.
+    const big = a.blocks && !person && !look.look.wreck && look.alpha >= 1 ? bulk(a, look) : undefined;
+    if (big) for (const p of big.parts) put(sc + p.dx, r + p.dy, p.ch, p.fg, undefined, { floor: BLOCK_FLOOR, ...(p.bold ? { bold: true } : {}) });
+    const gy = r - (big?.lift ?? 0);
+    const fg = look.alpha < 1 && gy >= 0 && gy < h && sc >= 0 && sc < w ? mixRGB(cells[gy]![sc]!.bg === NONE ? INK : cells[gy]![sc]!.bg, rgbOf(look.fg), look.alpha) : look.fg;
     // What burns throws embers and smoke; a big thing on fire (a table, a stack of sacks) burns
     // over its whole tile, tongues of flame licking up off it, each on its own beat.
     const heat = look.look.burning ?? 0, flame = look.look.flame ?? "fire";
@@ -475,11 +530,8 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
         if (tongue > 0.5) put(sc + dx, r - 1, tongue > 0.75 ? "▲" : "^", ramp(FLAME_RAMPS[flame], clamp01(0.45 + tongue * 0.5)), undefined, { bold: true, glow: true });
       }
     }
-    // Sacks and crates come in stacks.
-    const stacked = !look.look.wreck && (look.glyph === "■" || look.glyph === "▣" || (!!a.blocks && STACKS.has(look.look.role)));
-    if (stacked) { put(sc, r - 1, look.glyph, scaleRGB(rgbOf(look.fg), 1.1), undefined, { floor: BLOCK_FLOOR }); put(sc + (hash(at.x, at.y) % 2 ? 1 : -1), r, look.glyph, scaleRGB(rgbOf(look.fg), 0.85), undefined, { floor: BLOCK_FLOOR }); }
-    put(sc, r, look.glyph, fg, look.bg, { bold: !!look.bold, glow: look.glow, floor: person ? BEING_FLOOR : 0 });
-    if (look.above) put(sc, r - (stacked ? 2 : 1), look.above.glyph, look.above.fg, undefined, { bold: true, glow: true });
+    put(sc, gy, look.glyph, fg, look.bg, { bold: !!look.bold, glow: look.glow, floor: person ? BEING_FLOOR : 0 });
+    if (look.above) put(sc, gy - (big?.parts.some(p => p.dx === 0 && p.dy === -1) ? 2 : 1), look.above.glyph, look.above.fg, undefined, { bold: true, glow: true });
   }
 
   /** Something burning lights the cell it's in and stays bright at night. */
@@ -589,8 +641,20 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
 
   // Hidden behind a building: drawn through it, picked out so it's plain that you're back there.
   if (me && me.x >= 0 && me.y >= 0 && me.x < w && me.y < h && cells[me.y]![me.x]!.depth > me.depth) {
-    depth = 1e9; light = FULL;
+    depth = 1e9; light = FULL; tile = index(me.at); actor = me.actor;
     put(me.x, me.y, "@", "#ffffff", "#6a3a8a", { bold: true, glow: true });
+    actor = undefined;
+  }
+
+  // The pointer's tile, lit up: everything drawn for it (its ground, a wall's face, a lamp up its post).
+  if (options.hover && !text && inBounds(map, options.hover)) {
+    const hovered = index(options.hover);
+    for (let i = 0; i < w * h; i++) {
+      if (owner[i] !== hovered) continue;
+      const cell = cells[Math.floor(i / w)]![i % w]!;
+      cell.bg = mixRGB(cell.bg === NONE ? INK : cell.bg, HOVER, 0.3);
+      cell.glow = true;
+    }
   }
 
   // The lead: a marker floating over the place the story is heading for, or an arrow at the edge.
@@ -600,7 +664,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     const standing = isStructure(t) && t.blocks ? t.height ?? 0 : 0;
     const my = s.y - 2 - standing;
     const pulse = Math.floor(lf.t / 450) % 2 === 0;
-    depth = 1e9; light = FULL;
+    depth = 1e9; light = FULL; tile = inBounds(map, options.lead) ? index(options.lead) : -1; actor = undefined;
     if (s.x >= 1 && s.x < w - 1 && my >= 0 && my < h) {
       put(s.x, my, pulse ? "▼" : "▽", "#ffd700", undefined, { bold: true, glow: true });
       if (my - 1 >= 0) put(s.x, my - 1, "!", "#ffd700", undefined, { bold: true, glow: true });
@@ -690,11 +754,45 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     });
   }
 
+  options.pick?.fill(w, h, map, owner, drawn ?? []);
   return cells.map(row => toSpans(row, !text));
 }
 
 /** Sacks, crates and grain heaped high enough to be in the way. */
 const STACKS = new Set(["sack", "crate", "grain"]);
+
+/** The pointer's highlight. */
+const HOVER = rgbOf("#9ab8e8");
+
+const WOOD = rgbOf("#8a6a48"), WHEEL = rgbOf("#6a5038"), STONE = rgbOf("#8e8a84"), AWNING = [rgbOf("#c8483a"), rgbOf("#e8dcc0")];
+
+/** A cell of a thing's bulk: across from (dx), or over (dy -1), the cell its own glyph would take. */
+interface Part { dx: number; dy: number; ch: string; fg: RGB; bold?: boolean }
+
+/**
+ * How a big thing that's in the way fills its square, so it looks it: a cart has a wheel either
+ * side (and its load on it), a stall its awning over it, the statue its plinth under it (`lift`
+ * raises the thing's own glyph onto it), the crane its treadwheel, crates and sacks are a stack.
+ * Anything else in the way gets a frame in its own colour.
+ */
+function bulk(a: MapActor, look: ActorLook): { parts: Part[]; lift: number } {
+  const name = a.name.toLowerCase(), role = look.look.role, fg = rgbOf(look.fg);
+  const side = (left: string, right: string, color: RGB = scaleRGB(fg, 0.62)): Part[] => [{ dx: -1, dy: 0, ch: left, fg: color }, { dx: 1, dy: 0, ch: right, fg: color }];
+  const over = (chars: string, colors: RGB[]): Part[] => [...chars].map((ch, i) => ({ dx: i - 1, dy: -1, ch, fg: colors[i % colors.length]! }));
+  if (/\bstalls?\b/.test(name)) return { parts: [...over("▄▄▄", AWNING), ...side("│", "│", WOOD)], lift: 0 };
+  if (role === "cart" || /\b(cart|wagon|barrow)\b/.test(name)) {
+    const load = /cabbage/.test(name) ? over("●●●", [rgbOf("#6aa04a"), rgbOf("#8ac060")]) : /garland/.test((a.states ?? []).join(" ")) ? over("~~~", [rgbOf("#e04040"), rgbOf("#f0c040"), rgbOf("#4080e0")]) : [];
+    return { parts: [...side("o", "o", WHEEL), ...load], lift: 0 };
+  }
+  if (role === "statue") return { parts: [...side("▐", "▌", STONE), { dx: 0, dy: 0, ch: "█", fg: STONE }], lift: 1 };
+  if (role === "well") return { parts: side("(", ")", STONE), lift: 0 };
+  if (/\bstocks\b|pillory/.test(name)) return { parts: side("═", "═", fg), lift: 0 };
+  if (/crane|treadwheel/.test(name)) return { parts: [...side("(", ")", WOOD), { dx: 0, dy: 0, ch: "○", fg: WOOD, bold: true }, { dx: 1, dy: -1, ch: "─", fg }], lift: 1 };
+  if (STACKS.has(role) || look.glyph === "■" || look.glyph === "▣") return { parts: [...side(look.glyph, look.glyph, scaleRGB(fg, 0.85)), { dx: 0, dy: -1, ch: look.glyph, fg: scaleRGB(fg, 1.1) }], lift: 0 };
+  if (role === "table" || role === "bench") return { parts: side("═", "═", fg), lift: 0 };
+  if (role === "boat" || role === "hull-bar") return { parts: side("◄", "►"), lift: 0 };
+  return { parts: side("▐", "▌"), lift: 0 };
+}
 
 function wrapBark(text: string, width: number): string[] {
   const out: string[] = [];

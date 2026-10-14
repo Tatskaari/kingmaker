@@ -1,8 +1,8 @@
 import { sceneById } from "../../scenes/index.ts";
 import type { SessionState } from "../runtime/session.ts";
 import {
-  actorsHere, direction, enterScene, getMap, interact, isLive, leadMarker, leaveScene, look, move, newExploration, pathTo, PLACES, regionAt, regionForScene, regionOpen,
-  setStory, steps, tileAt, isStructure, travel, whereabouts, type ExploreState, type PlaceRegion,
+  actorsAt, actorsHere, direction, enterScene, getMap, inRect, interact, isDoorway, isLive, leadMarker, leaveScene, look, lookAt, move, newExploration, pathTo, PLACES, regionAt, regionForScene, regionOpen,
+  setStory, steps, tileAt, tileName, isStructure, travel, walkPlan, whereabouts, type ExploreState, type PlaceRegion,
 } from "./map/index.ts";
 import type { Action, Explorer, GameState } from "./play.ts";
 import type { Interaction, MapActor, Tile2, TileMap } from "./types.ts";
@@ -25,6 +25,13 @@ import { townText } from "./views.ts";
  *   open_door_<direction>                   try a door beside you
  *   interact                                whatever's in front of you (the app's e key)
  *   look                                    what's around you
+ *
+ * And by the tile, for a click on the map (actionsAt says which a tile offers; things in sight go
+ * by the ids above):
+ *   walk@<x>,<y>                            walk there (through it, if it's a door; as near as you can get, if you can't)
+ *   look@<x>,<y>                            look at what's there, from where you stand
+ *   talk@<x>,<y>, enter@<x>,<y>             talk to whoever's there, step into the place there (walking over first)
+ *   travel@<x>,<y>, door@<x>,<y>            go through the way out or the door there (walking up to it first)
  */
 
 export interface TownState {
@@ -274,6 +281,103 @@ function goTo(game: GameState, t: Target, andUse: boolean): Done {
   return { text: [...said, done.text].filter(Boolean).join(" "), ...(done.scene ? { scene: true } : {}) };
 }
 
+// ---------------------------------------------------------------------------------------------
+// A click on the map: what's at a tile, and what can be done with it.
+
+export interface TileActions {
+  at: Tile2;
+  /** What's there, for a menu's title: "Sergeant Kell", "a cabbage cart", "the watch house". */
+  title: string;
+  /** What can be done with it, the likeliest first, walking there last. */
+  actions: Action[];
+}
+
+/**
+ * What a click on a tile can do (the app's right-click menu): talk to whoever's there, look at
+ * what's there, go through a door or a way out, step into the lead's place, or walk there. What's in
+ * sight goes by the explorer's own ids (talk_kell, travel_up_the_river_stairs: what the QA console
+ * sees); the rest goes by the tile (look@29,21, walk@30,22).
+ */
+export function actionsAt(game: GameState, session: SessionState | undefined, at: Tile2): TileActions {
+  const ex = exploreState(game);
+  const map = getMap(ex.map);
+  const world = ex.scene ? session?.world : undefined;
+  const title = tileName(ex, at, world);
+  if (at.x === ex.at.x && at.y === ex.at.y) return { at, title, actions: [{ id: "look", label: "Look around", kind: "examine" }] };
+  const tile = `${at.x},${at.y}`;
+  const sighted = targets(game, session);
+  const out: Action[] = [];
+  const add = (a: Action) => { if (!out.some(o => o.id === a.id || o.label === a.label)) out.push(a); };
+  const who = actorsAt(ex, at, world);
+  for (const a of who) {
+    const i = a.interaction;
+    if (!i) continue;
+    const t = sighted.find(t => t.actor && (t.actor.id === a.id || (!!a.ref && t.actor.ref === a.ref)));
+    if (i.kind === "scene") add({ id: t?.id ?? `${i.verb === "talk" ? "talk" : "enter"}@${tile}`, label: i.label, kind: i.verb === "talk" ? "talk" : "enter" });
+    else if (i.kind === "travel") add({ id: t?.id ?? `travel@${tile}`, label: i.label, kind: "travel" });
+    else if (isPerson(a) && /^talk/i.test(i.label)) add({ id: t?.id ?? `talk@${tile}`, label: i.label, kind: "talk" });
+    // Looking is done from where you stand.
+    else add({ id: `look@${tile}`, label: i.label, kind: "examine" });
+  }
+  const exit = map.exits.find(e => e.at.x === at.x && e.at.y === at.y);
+  const t = tileAt(map, at);
+  if (exit) {
+    const label = `${exit.label} (${getMap(exit.to.map).name})`;
+    add({ id: sighted.find(s => s.kind === "travel" && !s.actor && s.label === label)?.id ?? `travel@${tile}`, label, kind: "travel" });
+  } else if (t.terrain === "door") {
+    add({ id: `door@${tile}`, label: t.blocks ? "Try the door" : "Go through the door", kind: "use" });
+  }
+  // The lead's place, when it's walked into (the granary yard).
+  const place = (map.regions as PlaceRegion[]).find(r => r.trigger === "enter" && r.sceneId && isLive(ex.story, r.sceneId) && inRect(r.rect, at) && !inRect(r.rect, ex.at));
+  if (place) add({ id: sighted.find(s => s.kind === "enter" && s.area && inRect(s.area, at))?.id ?? `enter@${tile}`, label: place.label ?? `Go into ${place.name}`, kind: "enter" });
+  // Doors and ways out say what they are when you try them; anything else can be looked at, and walked to.
+  if (!exit && t.terrain !== "door") {
+    if (!who.some(a => a.interaction)) add({ id: `look@${tile}`, label: `Look at ${title}`, kind: "examine" });
+    add({ id: `walk@${tile}`, label: who.some(a => a.blocks) || !standable(map, at) ? "Walk over" : "Walk here", kind: "move" });
+  }
+  return { at, title, actions: out };
+}
+
+/** A tile-addressed action (walk@30,22): walk, look, talk, step in, go through. */
+function atTile(game: GameState, session: SessionState, verb: string, at: Tile2): Done {
+  const ex = exploreState(game);
+  const map = getMap(ex.map);
+  const world = ex.scene ? session.world : undefined;
+  if (verb === "look") return { text: lookAt(ex, at, world) };
+  if (verb === "walk" || verb === "door") return walkTo(game, at);
+  const d = steps(at, ex.at), dir = direction(ex.at, at);
+  const exit = map.exits.find(e => e.at.x === at.x && e.at.y === at.y);
+  if (verb === "travel" && exit) return goTo(game, { id: `travel@${at.x},${at.y}`, label: exit.label, kind: "travel", at, distance: d, direction: dir, interaction: { kind: "travel", to: exit.to, label: exit.label }, onto: true }, true);
+  if (verb === "enter") {
+    const r = (map.regions as PlaceRegion[]).find(r => r.trigger === "enter" && r.sceneId && isLive(ex.story, r.sceneId) && inRect(r.rect, at));
+    if (r) return goTo(game, { id: `enter@${at.x},${at.y}`, label: r.label ?? r.name, kind: "enter", at, distance: d, direction: dir, interaction: { kind: "scene", sceneId: r.sceneId!, verb: "enter", label: r.label ?? r.name }, onto: true, area: r.rect }, true);
+  }
+  const a = actorsAt(ex, at, world).find(a => a.interaction && (a.interaction.kind !== "examine" || isPerson(a)));
+  if (verb === "talk" && a?.interaction) return goTo(game, { id: `talk@${at.x},${at.y}`, label: a.interaction.label, kind: "talk", at: a.at, distance: d, direction: dir, actor: a, interaction: a.interaction }, true);
+  throw new Error(`Unavailable action: ${verb}@${at.x},${at.y}. Observe again for what's there.`);
+}
+
+/**
+ * Walk to a tile (a click on the map): round what's in the way, through it if it's a door, or as
+ * near as you can get; up to a door or a way out that doesn't open as you come, you try it.
+ */
+function walkTo(game: GameState, at: Tile2): Done {
+  const ex = exploreState(game);
+  const map = getMap(ex.map);
+  const name = tileName(ex, at);
+  const plan = walkPlan(ex, at);
+  if (!plan) return { text: `You can't see a way any nearer ${name} from here.` };
+  const walk = walkPath(game, plan.path);
+  const said = told(walk, direction(ex.at, at));
+  if (walk.scene) return { text: said.join(" "), scene: true };
+  if (!plan.reaches && !walk.travelled && !walk.blocked && ex.map === map.id && steps(ex.at, at) === 1 && isDoorway(map, at)) {
+    const r = move(ex, at.x - ex.at.x, at.y - ex.at.y);
+    if (r.message) said.push(r.message);
+    if (sceneOpens(game, r.trigger)) return { text: said.join(" "), scene: true };
+  }
+  return { text: said.join(" ") || (plan.reaches ? "You're already there." : `You're as near ${name} as you can get.`) };
+}
+
 /** What interact (the app's e) would do now, in words: "Talk to Sergeant Kell", "Go through the gate". */
 export function interactLabel(game: GameState, session?: SessionState): { label: string; scene: boolean } | undefined {
   const ex = exploreState(game);
@@ -351,7 +455,9 @@ export const town: Explorer = {
     const ex = exploreState(game);
     let done: Done;
     const step = /^walk_(\w+)$/.exec(id);
-    if (id === "look") done = { text: look(ex) };
+    const byTile = /^(walk|look|talk|enter|travel|door)@(\d+),(\d+)$/.exec(id);
+    if (byTile) done = atTile(game, session, byTile[1]!, { x: Number(byTile[2]), y: Number(byTile[3]) });
+    else if (id === "look") done = { text: look(ex) };
     else if (step && COMPASS[step[1]!]) {
       const [dx, dy] = COMPASS[step[1]!]!;
       const r = move(ex, dx, dy);

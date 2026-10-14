@@ -14,6 +14,8 @@ It needs a real terminal and `OPENROUTER_API_KEY` (or `~/secrets/kingmaker-dev-o
 
 ## Playing
 
+The map is mostly played with the mouse. Click somewhere to walk there, a step at a time, round whatever's in the way (through it, if it's a door; as near as you can get, if you can't); any key or click stops you. Right-click someone or something for what you can do with them: talk, look, go through, step in, walk over. The sidebar's Nearby list works the same way, and the tile under the pointer lights up while the bottom line says what's there. Every key still works.
+
 | where | keys |
 |---|---|
 | title | ↑↓ and Enter; Continue resumes the latest game |
@@ -46,7 +48,7 @@ Exploration and fights plug into the core, and the app uses the real modules:
 - the cards between scenes and the notebook (the exit scripts' journal lines);
 - the look of each scene and fight: one set of effects and a director, so spells, fires, damage numbers and barks show in the world as they land;
 - overlays: the sheet, help, the scene's place on the map (#map), the spell picker, a fight's every option;
-- walking to the lead a step at a time;
+- walking a step at a time, to the lead or wherever you clicked, and the map's right-click menu (what's at a tile: the town explorer's `actionsAt`, picked from what the renderer drew where);
 - the fight's target, and a beat between the other side's turns.
 
 Every action goes through the core by the same action ids the QA console uses (`walk_northeast`, `interact`, `talk_kell`, `attack_crake-1`, `cast_fire-bolt_sallow`, `end_turn`, `continue`). The screens draw from the core's state: the map module's explore state, the scene's world, and the fight's controller.
@@ -63,11 +65,12 @@ KM_RUNS_DIR=runs/app-test node --no-warnings src/app/smoke/caster.ts            
 
 The offline run uses an invalid API key, so the GM can't speak, and it ends scenes with `#end`. It covers:
 
-- character creation, walking, overlays, and g walking to each lead (across town, through the Rat's door, along the wharves);
+- character creation, walking, overlays, and g walking to the later leads (across town, through the Rat's door, along the wharves);
+- the mouse, as xterm reports it (SGR 1006): pointing at Kell, a click that walks, a right-click menu closed with Esc, and Kell's scene opened from hers;
 - every scene, its place drawn beside the transcript, and the notebook;
 - save, quit and Continue (on the map and mid-fight);
 - a whole tactical fight on the Heron's floor, the aftermath, the summons, and The End.
 
-Each step's screen is saved under `runs/app-smoke/<run>/`. `smoke/vt.py` is the small VT screen it reads.
+Each step's screen is saved under `runs/app-smoke/<run>/`. `smoke/vt.py` is the small VT screen it reads, and sends the keys and the mouse with.
 
 `rules-repair.ts` is a stop-gap for a rules-layer bug, and the report proposes the real fix. A spell attack logs the spell's id as `weaponInstanceId`, and the engine then refuses to reload the campaign. The app repairs the campaign after each turn and on resume.
