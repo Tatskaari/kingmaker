@@ -31,6 +31,8 @@ export interface RulesState {
   /** Kept up to date by the rules, so a turn's decision needn't load the engine. */
   spells?: Array<{ id: string; name: string; level: number }>;
   weapons?: Array<{ id: string; name: string }>;
+  /** Class features the player can use in a scene (Second Wind, Rage...), with whether they take a target. */
+  features?: Array<{ id: string; name: string; target: "self" | "creature" }>;
   /** "HP 13/24, spell slots 1st 2/4": the player's state for the GM's brief. */
   status?: string;
   /** A spell with a listed duration is running: story time passing can end it. */

@@ -83,6 +83,7 @@ function refresh(ctx: Ctx, state: SessionState): void {
   const sheet = sheetOf(ctx, id);
   state.rules!.spells = readySpells(sheet);
   state.rules!.weapons = weaponsOf(ctx, id).filter(w => !state.rules!.gone?.includes(w.id));
+  state.rules!.features = featuresOf(ctx, id);
   state.rules!.gear = gearOf(ctx, id);
   state.player.modifiers = modifiersFrom(sheet);
   state.player.build = buildLine(ctx, id);
@@ -300,11 +301,67 @@ export async function createCharacter(state: SessionState, level = 3): Promise<s
       resolveChoices(ctx, pc.id, prefer);
     } catch { break; }
   }
+  grantResources(ctx, pc.id);
   state.rules = { campaign: "", pc: pc.id, npcs: {}, prefer };
   refresh(ctx, state);
   close(state, ctx);
   const sheet = sheetOf(ctx, pc.id);
   return `${state.player.name}: ${state.player.build}. AC ${sheet.ac.total}, HP ${sheet.hp.current}/${sheet.effectiveHpMax}.`;
+}
+
+type Formula = number | { kind: string; value?: number; classId?: string; ability?: Dnd.Ability; term?: Formula; terms?: Formula[] };
+type Resource = { resourceId: string; current: number; max: number; recharge?: string };
+
+function formula(f: Formula, levels: Record<string, number>, scores: Record<Dnd.Ability, number>): number {
+  if (typeof f === "number") return f;
+  const terms = (f.terms ?? []).map(t => formula(t, levels, scores));
+  switch (f.kind) {
+    case "const": return f.value ?? 0;
+    case "level": return f.classId ? levels[f.classId] ?? 0 : Object.values(levels).reduce((a, b) => a + b, 0);
+    case "abilityMod": return Math.floor(((f.ability ? scores[f.ability] : 10) - 10) / 2);
+    case "multiply": return terms.reduce((a, b) => a * b, 1);
+    case "add": case "sum": return terms.reduce((a, b) => a + b, 0);
+    case "max": return Math.max(...terms);
+    case "min": return Math.min(...terms);
+    case "ceil": return Math.ceil(formula(f.term ?? 0, levels, scores));
+    case "floor": return Math.floor(formula(f.term ?? 0, levels, scores));
+    default: return 0;
+  }
+}
+
+/**
+ * Class resources (Second Wind's uses, Rage, Bardic Inspiration...): the engine reads them off the
+ * character as created and has no event that grants one, so they go into the character's creation
+ * snapshot, worked out from the class and subclass tables at the levels they have now (on creation
+ * and on every level-up). What was spent since still counts.
+ */
+function grantResources(ctx: Ctx, pcId: string): void {
+  const c = ctx.campaign.state.characters[pcId]!;
+  const content = ctx.engine.content as unknown as { classes: Map<string, { levelTable?: Record<string, { features?: Array<{ effects?: Array<Record<string, unknown>> }> }> }>; subclasses: Map<string, { levelTable?: Record<string, { features?: Array<{ effects?: Array<Record<string, unknown>> }> }> }> };
+  const levels = Object.fromEntries(c.classes.map(k => [k.classId, k.level]));
+  const granted = new Map<string, Resource>();
+  const walk = (table: Record<string, { features?: Array<{ effects?: Array<Record<string, unknown>> }> }> | undefined, upTo: number) => {
+    for (const [lvl, row] of Object.entries(table ?? {}).sort((a, b) => Number(a[0]) - Number(b[0]))) {
+      if (Number(lvl) > upTo) continue;
+      for (const e of (row.features ?? []).flatMap(f => f.effects ?? [])) {
+        if (e["kind"] !== "GrantResource") continue;
+        const max = Math.max(0, formula(e["max"] as Formula, levels, sheetOf(ctx, pcId).abilityScores));
+        granted.set(String(e["resourceId"]), { resourceId: String(e["resourceId"]), current: max, max, ...(e["recharge"] ? { recharge: String(e["recharge"]) } : {}) });
+      }
+    }
+  };
+  for (const k of c.classes) {
+    walk(content.classes.get(k.classId)?.levelTable, k.level);
+    if (k.subclassId) walk(content.subclasses.get(k.subclassId)?.levelTable, k.level);
+  }
+  const have = (c as unknown as { resources?: Resource[] }).resources ?? [];
+  const want = [...granted.values()];
+  if (want.every(r => have.some(h => h.resourceId === r.resourceId && h.max === r.max)) && have.length === want.length) return;
+  const raw = JSON.parse(ctx.E.serializeCampaign(ctx.campaign)) as { events: Array<Record<string, unknown>> };
+  const created = raw.events.find(e => e["type"] === "CharacterCreated" && (e["snapshot"] as { id?: string } | undefined)?.id === pcId);
+  if (!created) return;
+  (created["snapshot"] as { resources?: Resource[] }).resources = want;
+  ctx.campaign = loadWellFormed(ctx.E, JSON.stringify(raw), ctx.engine);
 }
 
 function sheetOf(ctx: Ctx, id: string): Dnd.CharacterSheet {
@@ -1011,6 +1068,7 @@ export async function levelUp(state: SessionState): Promise<string[]> {
   try {
     ctx.apply(ctx.engine.plan.levelUp(ctx.campaign.state, { characterId: pcId, classId: main.classId, hpStrategy: "average" }).events);
     const picked = resolveChoices(ctx, pcId, state.rules.prefer ?? []);
+    grantResources(ctx, pcId);
     const sheet = sheetOf(ctx, pcId);
     refresh(ctx, state);
     close(state, ctx);
@@ -1085,19 +1143,60 @@ export async function jump(state: SessionState, j: Jump): Promise<JumpOutcome> {
   if (!state.rules || !j.drop) return { made, reach, ...(roll ? { roll } : {}), lines, account: short };
   const ctx = await open(state);
   const pcId = state.rules.pc;
-  const dice = Math.max(1, Math.min(20, Math.floor(j.drop / 10)));
-  const random = rng(state.seed + 104729 * state.rollCount);
-  const rolls = Array.from({ length: dice }, () => 1 + Math.floor(random() * 6));
-  const amount = rolls.reduce((a, b) => a + b, 0);
-  const events = ctx.apply([
-    event(ctx.E, "DamageApplied", { targetId: pcId, components: [{ amount, type: "bludgeoning" }], source: "fall" }),
-    event(ctx.E, "ConditionApplied", { targetId: pcId, conditionId: "prone", appliedConditionId: ctx.E.newEventId() }),
-  ]);
+  // The engine's own fall: 1d6 bludgeoning per 10 feet (at most 20d6), landing prone.
+  const events = ctx.apply((ctx.engine.plan["falling"] as (s: Dnd.CampaignState, i: unknown) => Dnd.PlanResult)(ctx.campaign.state, { type: "Falling", characterId: pcId, distanceFeet: j.drop }).events);
+  // A fall that hurts lands you prone (the engine's fall leaves that to us).
+  if (events.some(e => e.type === "DamageApplied") && !events.some(e => e.type === "ConditionApplied" && e["conditionId"] === "prone"))
+    events.push(...ctx.apply([event(ctx.E, "ConditionApplied", { targetId: pcId, conditionId: "prone", appliedConditionId: ctx.E.newEventId() })]));
   const { lines: more, account } = describe(ctx, state, events, () => "");
   const statusText = status(ctx, pcId);
   const down = knockedDown(ctx, state);
   close(state, ctx);
-  return { made, reach, ...(roll ? { roll } : {}), lines: [...lines, `Fall: ${dice}d6 (${rolls.join("+")}) bludgeoning`, ...more], account: `${short}, and fall ${j.drop} ft: ${account.join("; ")}${down}`, status: statusText };
+  return { made, reach, ...(roll ? { roll } : {}), lines: [...lines, `Fall: ${j.drop} ft`, ...more], account: `${short}, and fall ${j.drop} ft${account.length ? `: ${account.join("; ")}` : " unhurt"}${down}`, status: statusText };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Class features: what a fighter, barbarian, bard or sorcerer can do outside a fight too.
+
+const FEATURES: Array<{ id: string; name: string; classId: string; target: "self" | "creature" }> = [
+  { id: "second-wind", name: "Second Wind", classId: "fighter", target: "self" },
+  { id: "rage", name: "Rage", classId: "barbarian", target: "self" },
+  { id: "bardic-inspiration", name: "Bardic Inspiration", classId: "bard", target: "creature" },
+  { id: "innate-sorcery", name: "Innate Sorcery", classId: "sorcerer", target: "self" },
+];
+
+function featuresOf(ctx: Ctx, id: string): NonNullable<NonNullable<SessionState["rules"]>["features"]> {
+  const c = ctx.campaign.state.characters[id]!;
+  return FEATURES.filter(f => c.classes.some(k => k.classId === f.classId)).map(({ id, name, target }) => ({ id, name, target }));
+}
+
+/** A class feature, through the engine's own intent for it (uses, rests and all). */
+export async function useFeature(state: SessionState, cast: Character[], featureId: string, targetId?: string): Promise<Outcome> {
+  const feature = FEATURES.find(f => f.id === featureId);
+  if (!feature) return { lines: [], directive: "" };
+  const ctx = await open(state);
+  const pcId = state.rules!.pc;
+  const who = feature.target === "creature" ? cast.find(c => c.id === targetId) ?? (targetId && state.world?.entities[targetId]?.kind === "person" ? bystander(state.world.entities[targetId]!) : undefined) : undefined;
+  if (feature.target === "creature" && !who) { close(state, ctx); return { lines: [`(${feature.name} needs someone to give it to.)`], directive: "" }; }
+  let events: Dnd.EngineEvent[];
+  try {
+    const intent = ctx.E.bonusActionIntent(feature.id, pcId, who ? { targetId: ensureNpc(ctx, state, who) } : {});
+    const method = intent.type.charAt(0).toLowerCase() + intent.type.slice(1);
+    events = ctx.apply((ctx.engine.plan[method] as (s: Dnd.CampaignState, i: unknown) => Dnd.PlanResult)(ctx.campaign.state, intent).events);
+  } catch (error) {
+    close(state, ctx);
+    const why = error instanceof Error ? error.message : String(error);
+    return { lines: [`(${feature.name}: ${why})`], directive: `The player reached for ${feature.name}, but it isn't there to use (${why}). Nothing comes of it; say so in a few words, in the fiction.` };
+  }
+  const { lines, account } = describe(ctx, state, events, () => feature.name);
+  const statusText = status(ctx, pcId);
+  if (events.some(e => /^(ConditionApplied|EffectStarted)$/.test(e.type))) state.rules!.timed = true;
+  close(state, ctx);
+  return {
+    lines: [`${feature.name}${who ? ` for ${calledBy(state, who)}` : ""}`, ...lines, `${state.player.name}: ${statusText}`],
+    directive: `Rules: the player used ${feature.name}${who ? ` on ${calledBy(state, who)}` : ""}. ${account.length ? `${capitalise(account.join("; "))}.` : "It takes effect as the feature describes."} Narrate exactly that, in the fiction, briefly.`,
+    status: statusText,
+  };
 }
 
 export { ABILITY_NAME };

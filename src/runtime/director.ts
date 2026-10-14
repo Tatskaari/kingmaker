@@ -144,6 +144,7 @@ export type Mechanic =
   | { kind: "wrestle"; target: string; how: "grapple" | "prone" | "push"; from?: ActFrom }
   | { kind: "attack"; target: string; weapon?: string; from?: ActFrom }
   | { kind: "rest"; length: "short" | "long" }
+  | { kind: "feature"; feature: string; target?: string }
   | Jumping;
 
 /**
@@ -163,6 +164,8 @@ export interface ActFrom { area?: string; near?: string; backOff?: number }
 export interface RulesOptions {
   spells: SpellChoice[];
   weapons: WeaponChoice[];
+  /** Class features they can use (Second Wind, Rage...). */
+  features?: Array<{ id: string; name: string; target: "self" | "creature" }>;
   /** Things near the player a spell or a blow could be aimed at (scenes with a world). */
   things?: Array<{ id: string; name: string }>;
   /** People in the world who aren't in the cast (a crowd, someone who walked in). */
@@ -175,9 +178,18 @@ export interface RulesOptions {
 const ORDINAL = ["cantrip", "1st-level", "2nd-level", "3rd-level", "4th-level", "5th-level", "6th-level", "7th-level", "8th-level", "9th-level"];
 
 /** Which spell, at whom; or which blow, at whom: a second small call, only on those turns. */
-async function mechanicDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, kind: "cast" | "attack" | "grapple" | "shove" | "jump", rules: RulesOptions): Promise<{ mechanic?: Mechanic; decision: Decision }> {
+async function mechanicDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, kind: "cast" | "attack" | "grapple" | "shove" | "jump" | "feature", rules: RulesOptions): Promise<{ mechanic?: Mechanic; decision: Decision }> {
   if (kind === "jump") return jumpDetails(decider, scene, state, playerTurn, rules);
   const present = [...presentCast(scene, state), ...(rules.bystanders ?? []).map(b => ({ ...b, group: undefined }))];
+  if (kind === "feature") {
+    const features = rules.features ?? [];
+    const q: Record<string, ChoiceQuestion> = { feature: { instructions: "The player is using a class feature in their latest turn. Which?", criteria: Object.fromEntries(features.map(f => [f.id, f.name])) } };
+    if (features.some(f => f.target === "creature")) q.feature_for = { instructions: "If it's one they give to someone else, who?", criteria: { ...Object.fromEntries(present.map(c => [c.id, `${c.name}${c.group ? ` (${c.group})` : ""}`])), nobody: "Nobody else: themselves, or it isn't that kind." } };
+    const decision = await decider.decide(decisionState(scene, state, playerTurn), q, "director.feature");
+    const feature = features.find(f => f.id === decision.answers.feature?.choice);
+    const target = decision.answers.feature_for?.choice;
+    return feature ? { mechanic: { kind: "feature", feature: feature.id, ...(feature.target === "creature" && target && target !== "nobody" ? { target } : {}) }, decision } : { decision };
+  }
   const things = rules.things ?? [];
   const q: Record<string, ChoiceQuestion> = {};
   if (kind === "cast") {
@@ -413,6 +425,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
         grapple: "Grabbing hold of someone to hold or restrain them against their will (a grapple, a headlock, pinning them).",
         shove: "Shoving someone who'd resist: to knock them down, or push them back or away.",
         jump: "Jumping: across a gap or over something, up onto something, or down from it.",
+        ...(options.rules.features?.length ? { feature: `Using one of their class features: ${options.rules.features.map(f => f.name).join(", ")}.` } : {}),
         short_rest: "Stopping to rest for an hour or so: catching their breath, binding wounds, a meal and a sit-down.",
         long_rest: "Sleeping the night, or resting for many hours.",
         none: "None of these.",
@@ -529,7 +542,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const sure = asked && asked !== "none" && (decision.answers.mechanic?.probabilities?.[asked] ?? 1) >= SCENE_ENDING_CONFIDENCE;
   if (options.rules && sure && !limit && !ooc && move?.exit?.kind !== "combat") {
     if (asked === "short_rest" || asked === "long_rest") mechanic = { kind: "rest", length: asked === "short_rest" ? "short" : "long" };
-    else if (asked === "cast" || asked === "attack" || asked === "grapple" || asked === "shove" || asked === "jump") {
+    else if (asked === "cast" || asked === "attack" || asked === "grapple" || asked === "shove" || asked === "jump" || asked === "feature") {
       const details = await mechanicDetails(decider, scene, state, playerTurn, asked, options.rules);
       combined = { ...combined, answers: { ...combined.answers, ...details.decision.answers }, latencyMs: combined.latencyMs + details.decision.latencyMs, costUsd: combined.costUsd + details.decision.costUsd };
       mechanic = details.mechanic;
