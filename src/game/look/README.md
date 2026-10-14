@@ -73,7 +73,9 @@ renderStage(world, dressing, { w, h, t: now, time, effects: fx, positions: id =>
 
 ## Integrating with the map renderer (`src/game/map/render.ts`)
 
-The map's isometric renderer keeps its own projection, blocks, roofs, cutaways and markers. The look layer replaces how *things*, *ground* and *surfaces* look, and adds coloured light and effects. Everything is pure, with world and map state in and cells out, and one clock: `lookFrame(options.tick, options.time, glyphs)` turns the map's 100 ms ticks into milliseconds.
+The plug-in point is `src/game/views.ts`: `townView` and `fightView` call `renderExplore` and `render`. Those calls carry the tick, the world and the time to the renderer; `fightLook` can become `castLook`.
+
+The map's isometric renderer keeps its own projection, blocks, roofs, cutaways and markers. The look layer replaces how *things*, *ground* and *surfaces* look, and adds coloured light and effects. Everything is pure, with world and map state in and cells out, and one clock: `lookFrame(options.tick, options.time, glyphs)` turns the map's 100 ms ticks into milliseconds (pass `msPerTick` if the app ticks at another rate).
 
 Make five changes in `render()`, then a few outside it.
 
