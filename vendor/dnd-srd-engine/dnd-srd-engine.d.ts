@@ -104,13 +104,15 @@ export interface Engine {
     resolveChoice(state: CampaignState, intent: { characterId: string; choiceId: string; selectedOptionIds: string[] }): PlanResult;
     equip(state: CampaignState, intent: { characterId: string; instanceId: string; slot: "mainHand" | "offHand" | "armor" | "shield" }): PlanResult;
     attack(state: CampaignState, intent: { attackerId: string; targetId: string; weaponInstanceId: string; advantage?: Advantage }): PlanResult;
-    castSpell(state: CampaignState, intent: { characterId: string; spellId: string; slotLevel: number; targetIds: string[] }): PlanResult;
+    castSpell(state: CampaignState, intent: { characterId: string; spellId: string; slotLevel: number; targetIds: string[]; targetPosition?: { x: number; y: number }; asRitual?: boolean }): PlanResult;
     abilityCheck(state: CampaignState, intent: { type: "AbilityCheck"; characterId: string; ability: Ability; skill?: string; dc?: number; advantage?: Advantage }): PlanResult;
     save(state: CampaignState, intent: { type: "Save"; characterId: string; ability: Ability; dc: number; advantage?: Advantage }): PlanResult;
     shortRest(state: CampaignState, intent: { participantIds: string[]; hitDiceToSpend?: Record<string, number> }): PlanResult;
     longRest(state: CampaignState, intent: { participantIds: string[] }): PlanResult;
     levelUp(state: CampaignState, intent: { characterId: string; classId: string; hpStrategy: "average" | "rolled" }): PlanResult;
     expireSpellDurations(state: CampaignState, intent: { type: "ExpireSpellDurations" }): PlanResult | EngineEvent[];
+    grapple(state: CampaignState, intent: { type: "Grapple"; attackerId: string; targetId: string; targetAbility?: "STR" | "DEX" }): PlanResult;
+    shove(state: CampaignState, intent: { type: "Shove"; attackerId: string; targetId: string; mode: "prone" | "push" }): PlanResult;
     [planner: string]: unknown;
   };
 }

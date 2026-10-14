@@ -37,6 +37,7 @@ const pageItem = {
 export const hangedClerk: Scene = {
   id: "hanged-clerk",
   title: "The Hanged Clerk",
+  time: "morning",
   summary: "A palace clerk hanged behind the granary, two foul-mouthed kids who know more than they say, and a dry watch sergeant with until noon.",
   setting: "Mid-morning on the eve of the Centennial Assembly, in the cobbled yard behind the King's Granary in Caerwyn's granary quarter. Over the wall the city is hanging bunting for tomorrow's procession; in here it smells of wet grain, pigeons and river mud, and the night's drizzle has only just stopped. High on the granary's back wall a hoist beam juts out above the shut loft door, and from its hook, on a noose, hangs Wendell Prout: a small grey-coated clerk with ink-stained fingers and no boots, his darned stockinged feet turning at about head height. The hoist rope runs up over the beam's pulley and in through a slot above the loft door, so it's tied off somewhere inside: getting him down means cutting the rope above his head, well out of reach from the cobbles, or lowering him from the loft. Nothing stands beneath him: no stool, no ladder, no crate; the yard was swept bare yesterday for the Assembly. His satchel lies open and empty by the gate, his spectacles bent in the gutter. The big yard doors into the granary are padlocked. A water butt stands in one corner. The yard wall is shoulder-high on the lane side, and a girl is sitting on top of it.",
   premise: "What really happened to Wendell Prout, and will the player get the truth on the record before the watch carts him off as a suicide at noon?",
@@ -48,7 +49,7 @@ export const hangedClerk: Scene = {
       name: "Sergeant Agnes Kell",
       statblock: "guard", weapon: "club",
       look: "Forties, a rain cape beaded with drizzle, a battered oilcloth notebook and a pencil stub she sharpens with a clasp knife; a truncheon she has never been seen to draw. Stands very still and watches people's hands.",
-      voice: "Dry, calm, precise and sparing: short sentences, the odd 'Noted.' Calls the player 'investigator'. Finds them funny and lets a joke land with a twitch of the mouth, then steers back with a question. Taps her pencil on the notebook when time is being wasted.",
+      voice: "Dry, calm, precise and sparing: short sentences, the odd 'Noted.' Calls the player 'investigator'. Finds them funny and lets a joke land with a twitch of the mouth, then gets back to the matter in hand without making it the investigator's job to steer. Taps her pencil on the notebook when time is being wasted.",
       wants: "To do this properly: find out what really happened to Prout and write it down true, before the dead-cart comes at noon and he goes in the ground as a suicide.",
       fears: "Putting a wrong name in her notebook. The King's investigator turning out to be a bully or a fool. Being the sergeant who let a murder go down as a suicide.",
       knows: [
@@ -207,7 +208,7 @@ export const hangedClerk: Scene = {
         {
           id: "win-cob", on: "attempt",
           when: "The player pushes Cob to tell who was in the loft last night, or about the boots, with an appeal, an argument, a bargain or a promise of safety, while he's still holding out and it could go either way. (Not just asking; a fair trade or a real promise to keep him safe needs no dice.)",
-          check: { reason: "to get Cob to name the men in the loft",
+          check: { reason: "to get Cob to tell you what he saw",
             skill: "persuasion", dc: 12,
             success: "Cob gives up what he's been holding: Silvertop, the posh cove with the silver-topped cane who comes with the Purveyor's wagons and has his own key to the big doors, and a big man with a bandaged hand. If asked, he owns up that the boots came off Mister Prout, and that he saw the clerk sewing something into one two nights ago.",
             failure: "Cob clams up and backs towards the water butt: Cob don't know nothing. He'll talk to someone who gives him a real reason to feel safe.",
@@ -217,7 +218,7 @@ export const hangedClerk: Scene = {
         {
           id: "catch-moll", on: "attempt",
           when: "The player presses on the holes in Moll's story, or tries to read what she's hiding, where it could go either way. (Not just asking her to tell it.)",
-          check: { reason: "to learn who paid Moll to lie",
+          check: { reason: "to get the truth out of Moll",
             skill: "insight", dc: 13,
             success: "Moll cracks: a gentleman with a silver-topped cane and a wheat-ear signet ring paid her a silver crown at first light to say she saw the clerk jump, and his big friend with the bandaged hand called him 'Master Sallow'. Pressed, she opens her fist on the coin.",
             failure: "Moll sticks to her story and turns up the abuse, but her eyes keep going to the yard gate, and the holes in her story are still there.",

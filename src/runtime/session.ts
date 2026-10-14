@@ -33,6 +33,10 @@ export interface RulesState {
   status?: string;
   /** A spell with a listed duration is running: story time passing can end it. */
   timed?: boolean;
+  /** The player's gear (engine item instances), mirrored into scene worlds as things they carry. */
+  gear?: Array<{ id: string; name: string; kind: "weapon" | "armor" | "shield" | "item"; slot?: "mainHand" | "offHand" | "armor" | "shield" }>;
+  /** Gear the story has parted them from (given away, dropped, left behind): off the sheet until they get it back. */
+  gone?: string[];
 }
 
 /** Something the last reply left hanging over the player, resolved by the rules at the start of their next turn. */
@@ -144,6 +148,12 @@ export interface SessionState {
   threat?: Threat;
   /** Where this scene's prep no longer matches the story (written at the scene boundary): these override it. */
   adjustments?: string[];
+  /** The scene's opening rewritten at the boundary to start where the story actually is. */
+  opening?: string;
+  /** How the player comes to know where the story goes next, in the fiction (for a game with a map to walk). */
+  lead?: string;
+  /** Combat exits already fought (the scene resumed after the fight on the map). */
+  fought?: string[];
   /** The scene's world: where everything and everyone is, and in what state (scenes with a world spec). */
   world?: SceneWorld;
   /** What the player carried out of the last scene's world, to carry into the next. */

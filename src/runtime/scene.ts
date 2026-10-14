@@ -37,6 +37,8 @@ export interface Character {
   statblock?: string;
   /** What they'd hit someone with (an SRD weapon id: club, dagger, mace...), when it isn't their statblock's usual one. */
   weapon?: string;
+  /** A group's members, who stand, fight and fall separately in the world and the rules (the group speaks through its leader). */
+  members?: Array<{ id: string; name: string; statblock?: string; weapon?: string; look?: string }>;
 }
 
 export interface Check {
@@ -153,6 +155,10 @@ export interface Scene {
   createsCharacter?: boolean;
   /** Time passes before this scene opens: the player gets a short rest (an hour) or a long rest (a night). */
   rest?: "short" | "long";
+  /** Downtime between scenes, standing in for the map: the playable game, which has a map, skips it. */
+  interlude?: boolean;
+  /** When it happens, for the map (the time of day it shows). */
+  time?: "morning" | "afternoon" | "evening" | "night" | "next-morning";
   /** Reaching this scene is a milestone: the player's character goes up a level as it opens. */
   milestone?: boolean;
   /** The place as a world: areas, things and where people start (src/world/scene-world.ts). */

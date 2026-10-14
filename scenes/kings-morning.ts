@@ -1,5 +1,6 @@
 import type { Character, Scene } from "../src/runtime/scene.ts";
 import { hangedClerk } from "./hanged-clerk.ts";
+import { kingsMorningWorld } from "./worlds/kings-morning.ts";
 
 /**
  * The end of the Purveyor's Man arc: the morning of the Centennial Assembly, in the King's dressing
@@ -32,6 +33,7 @@ const kell: Character = {
 export const kingsMorning: Scene = {
   id: "kings-morning",
   title: "The King's Morning",
+  time: "next-morning",
   summary: "The morning of the Assembly: the investigator reports to King Aldren half an hour before the procession, and the night's promises come due.",
   setting: "Early morning on the day of the Centennial Assembly, in the King's dressing room in the palace: a warm, cluttered room off the long gallery, all wardrobes, mirrors and a fire, where King Aldren is being got into his procession robes (purple, ermine, a great deal of both) by two valets with pins in their mouths. Marshal Garran Holt stands by the door with his pocket watch open in his palm. Through the tall windows the city is roaring awake: bells, a band tuning up, bunting everywhere, and in the courtyard below the delegations forming up under their banners (Nine Furrows wheat-sheaves, Saltmere salt-gulls, Kläggenheim axes) with the Purveyor's grain cart, garlanded, waiting to walk fourth 'for the people's confidence'. On a side table, a tea tray: the King takes his tea very seriously. The procession leaves at the ninth bell, in about half an hour. Whatever the King decides in this room, happens: the palace guard is the Marshal's, and the Marshal is the King's.",
   premise: "What does King Aldren do with the truth on the morning of his Assembly, and do the promises the investigator made along the way hold?",
@@ -157,4 +159,5 @@ export const kingsMorning: Scene = {
     },
   ],
   lore: ["World/Royal Palace.md", "Cast/King Aldren/public.md"],
+  world: kingsMorningWorld,
 };

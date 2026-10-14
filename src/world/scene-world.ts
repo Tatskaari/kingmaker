@@ -1,4 +1,5 @@
 import { rng } from "../runtime/dice.ts";
+import { inventory, ownerOf } from "./inventory.ts";
 
 /**
  * The scene's world: an entity tree (the place, its areas, the things and people in them, what
@@ -40,6 +41,12 @@ export interface Entity {
   description?: string;
   /** A person or creature from the scene's cast. */
   cast?: string;
+  /** How many, for a stack (coins, arrows, apples). One when omitted. */
+  quantity?: number;
+  /** The engine item this is, for the player's own gear (so giving it away changes the sheet). */
+  gear?: string;
+  /** Rules stats for people outside the cast (a group's members, someone the story brought in). */
+  stats?: { statblock: string; weapon?: string };
   player?: boolean;
   /** Turn it came into the story, when play created it. */
   created?: number;
@@ -317,6 +324,8 @@ export interface WorldOp {
   text: string;
   add: string[];
   remove: string[];
+  /** For give and drop: how many of a stack (0 or omitted: all of it). */
+  quantity?: number;
 }
 
 const slug = (name: string) => name.toLowerCase().replace(/^(a|an|the) /, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40);
@@ -363,7 +372,11 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
           const how = op.how || "near";
           if (dest.kind === "area" || dest.kind === "place") { e.parent = dest.id; e.at = spread(world, dest, e.id); log(`${e.name} moves to ${dest.name}`); }
           else if (how === "in" || how === "on" || how === "under") {
-            if (how === "in") { e.parent = dest.id; delete e.at; }
+            if (how === "in") {
+              const from = ownerOf(world, e.id);
+              if (from && (dest.tags.includes("container") || dest.kind === "person" || dest.kind === "creature")) inventory(world, turn).transfer(from.id, dest.id, e.id);
+              else { e.parent = dest.id; delete e.at; }
+            }
             else { e.at = { ...(positionOf(world, dest.id)!) }; e.parent = areaOf(world, dest.id)?.id ?? world.root; }
             log(`${e.name} is ${how} ${dest.name}`);
             if (how === "under") note(e, `under ${dest.name}`, turn, by);
@@ -375,15 +388,22 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
             if (how === "behind") { note(e, `behind ${dest.name}`, turn, by); note(dest, `${e.name} is behind it`, turn, by); }
           }
         } else if (op.op === "give") {
+          // Things change hands only through the inventory service: it checks who has them.
           const to = one(op.to, "give");
           if (!to) continue;
-          e.parent = to.id; delete e.at;
-          log(`${to.name} now has ${e.name}`);
+          const from = ownerOf(world, e.id);
+          if (!from) { problems.push(`give: nobody has ${e.name}`); continue; }
+          if (from.id === to.id) continue;
+          inventory(world, turn).transfer(from.id, to.id, e.id, op.quantity ? { quantity: op.quantity } : {});
+          changes.push(`${to.name} now has ${op.quantity ? `${op.quantity} ` : ""}${e.name}`);
         } else if (op.op === "drop") {
-          const near = op.to ? one(op.to, "drop") : heldBy(world, e);
-          const spot = near ? spotNear(world, near.id, 3) : positionOf(world, e.id)!;
-          e.at = spot; e.parent = areaAt(world, spot).id;
-          log(`${e.name} is on the floor${near ? ` by ${near.name}` : ""}`);
+          const from = ownerOf(world, e.id);
+          const near = op.to ? one(op.to, "drop") : from;
+          const room = near ? areaOf(world, near.id) : areaOf(world, e.id);
+          if (!from || !room) { problems.push(`drop: can't tell who has ${e.name}`); continue; }
+          if (from.id !== room.id) inventory(world, turn).transfer(from.id, room.id, e.id, op.quantity ? { quantity: op.quantity } : {});
+          if (near && near.id !== from.id && world.entities[e.id]?.parent === room.id) world.entities[e.id]!.at = spotNear(world, near.id, 3);
+          changes.push(`${e.name} is on the floor${near ? ` by ${near.name}` : ""}`);
         } else if (op.op === "state") {
           const added = (op.add ?? []).filter(s => s && !e.states.includes(s));
           const removed = (op.remove ?? []).filter(s => e.states.includes(s));
@@ -519,7 +539,7 @@ function describeEntity(world: SceneWorld, e: Entity, from?: Point, depth = 0): 
     feet !== undefined && depth === 0 && e.id !== "player" ? `${feet} ft away` : "",
   ].filter(Boolean);
   const held = Object.values(world.entities).filter(c => c.parent === e.id && present(c));
-  const line = `${"  ".repeat(depth)}- ${e.name} [${e.id}]${bits.length ? ` (${bits.join("; ")})` : ""}${e.notes.length ? `: ${e.notes.slice(-2).map(n => n.text).join("; ")}` : ""}`;
+  const line = `${"  ".repeat(depth)}- ${(e.quantity ?? 1) > 1 ? `${e.quantity} ` : ""}${e.name} [${e.id}]${bits.length ? ` (${bits.join("; ")})` : ""}${e.notes.length ? `: ${e.notes.slice(-2).map(n => n.text).join("; ")}` : ""}`;
   return [line, ...held.map(c => describeEntity(world, c, from, depth + 1))].join("\n");
 }
 
@@ -535,7 +555,7 @@ export function worldView(world: SceneWorld, options: { full?: boolean } = {}): 
   const contents = (area: Entity) => Object.values(world.entities).filter(e => e.parent === area.id && present(e) && e.id !== "player");
   const lines = [`${world.entities[world.root]!.name}${here ? `: the player is in ${here.name}` : ""}.`];
   const carried = me ? Object.values(world.entities).filter(e => e.parent === "player" && present(e)) : [];
-  if (carried.length) lines.push(`The player carries: ${carried.map(e => `${e.name} [${e.id}]`).join(", ")}.`);
+  if (carried.length) lines.push(`The player carries: ${carried.map(e => `${(e.quantity ?? 1) > 1 ? `${e.quantity} ` : ""}${e.name} [${e.id}]`).join(", ")}.`);
   for (const area of areas) {
     const inside = contents(area);
     const near = from && area.rect ? Math.round(Math.max(0, Math.hypot(Math.max(area.rect.x - from.x, 0, from.x - area.rect.x - area.rect.w), Math.max(area.rect.y - from.y, 0, from.y - area.rect.y - area.rect.h)))) : 0;
@@ -580,16 +600,25 @@ export function asciiMap(world: SceneWorld): string {
 }
 
 /** People who have come on stage since the world was built (an entrance beat, called in by play) join it at the way in. */
-export function joinWorld(world: SceneWorld, people: Array<{ id: string; name: string }>, turn: number): string[] {
+export function joinWorld(world: SceneWorld, people: Array<{ id: string; name: string; members?: Array<{ id: string; name: string; statblock?: string; weapon?: string; look?: string }> }>, turn: number): string[] {
   const joined: string[] = [];
   for (const p of people) {
-    if (world.entities[p.id]) continue;
-    const way = Object.values(world.entities).find(e => e.tags.includes("door") && present(e) && areaOf(world, e.id)?.id === areaOf(world, "player")?.id)
-      ?? Object.values(world.entities).find(e => e.tags.includes("door") && present(e));
-    const at = way ? spotNear(world, way.id, 5) : spotNear(world, "player", 10);
-    world.entities[p.id] = { id: p.id, name: p.name, kind: "person", parent: areaAt(world, at).id, at, tags: [], states: [], notes: [], cast: p.id, created: turn };
-    world.log.push({ turn, text: `${p.name} arrives`, by: "rules" });
-    joined.push(p.name);
+    if (!world.entities[p.id]) {
+      const way = Object.values(world.entities).find(e => e.tags.includes("door") && present(e) && areaOf(world, e.id)?.id === areaOf(world, "player")?.id)
+        ?? Object.values(world.entities).find(e => e.tags.includes("door") && present(e));
+      const at = way ? spotNear(world, way.id, 5) : spotNear(world, "player", 10);
+      world.entities[p.id] = { id: p.id, name: p.name, kind: "person", parent: areaAt(world, at).id, at, tags: [], states: [], notes: [], cast: p.id, created: turn };
+      world.log.push({ turn, text: `${p.name} arrives`, by: "rules" });
+      joined.push(p.name);
+    }
+    // A group's members come with its leader, each their own person in the world.
+    for (const m of p.members ?? []) {
+      if (world.entities[m.id]) continue;
+      const at = spotNear(world, p.id, 5);
+      world.entities[m.id] = { id: m.id, name: m.name, kind: "person", parent: areaAt(world, at).id, at, tags: [], states: [], notes: [{ text: `with ${p.name}`, turn, by: "rules" }], created: turn,
+        ...(m.statblock ? { stats: { statblock: m.statblock, ...(m.weapon ? { weapon: m.weapon } : {}) } } : {}), ...(m.look ? { description: m.look } : {}) };
+      joined.push(m.name);
+    }
   }
   return joined;
 }
