@@ -152,6 +152,11 @@ const looksLikeWhere = (s: string | undefined) => { const w = words(s)[0] ?? "";
 
 function readThing(entry: Entry, areas: Set<string>): ThingPlan {
   let f = fields(entry);
+  // Its kind, size and material written as fields of their own: one field again.
+  const isWhat = (s: string | undefined) => !!s && words(s).every(w => (THING_KINDS as readonly string[]).includes(w) || (SIZES as string[]).includes(w) || (MATERIALS as string[]).includes(w));
+  let n = 2;
+  while (n < f.length && n < 5 && isWhat(f[n])) n++;
+  if (n > 3) f = [f[0]!, f[1] ?? "", f.slice(2, n).join(" "), ...f.slice(n)];
   // Its kind, size and material left out: the room is where they'd be.
   if (!looksLikeWhat(f[2]) && (areas.has(f[2] ?? "") || looksLikeWhere(f[3]))) f = [f[0]!, f[1] ?? "", "", ...f.slice(2)];
   const what = words(f[2]);

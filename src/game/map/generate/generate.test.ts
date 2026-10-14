@@ -12,8 +12,10 @@ import { generatePlace } from "./generate.ts";
 import { installPlace, uninstallPlace } from "./install.ts";
 import { normalizePlan, type Problem } from "./normalize.ts";
 import { chooseTurn, turnSide } from "./orient.ts";
-import { PLAN_SCHEMA, type PlacePlan, type Planner } from "./plan.ts";
-import { COMPACT_SCHEMA, partialPlan, readPlace, writePlace } from "./compact.ts";
+import { PLAN_SCHEMA, castMember, type PlacePlan, type Planner } from "./plan.ts";
+import { COMPACT_SCHEMA, partialPlan, readPlace, writePlace, type CompactPlan } from "./compact.ts";
+import { drownedRat } from "../../../../scenes/drowned-rat.ts";
+import { heronWarehouse } from "../../../../scenes/heron-warehouse.ts";
 import { sceneCamera } from "./camera.ts";
 import { fitView } from "./pictures.ts";
 import { render } from "../render.ts";
@@ -256,6 +258,23 @@ test("the plan is terse: a line of fields per entry, about half as long, read ba
   const { plan } = normalizePlan(odd);
   assert.deepEqual([plan.walls, plan.floor, plan.surroundings, plan.outside[0]!.ground], ["timber", "boards", "buildings", "planks-over-water"]);
   assert.deepEqual([plan.things[0]!.relation, plan.things[1]!.relation, plan.things[1]!.target, plan.doors[0]!.to], ["overhead", "beside", "lamp", "quay"]);
+  // Fields the model left out, or split in three, still land where they belong.
+  const things = readPlace({ place: ["The Cooper's", "a workshop", "40x30"], outside: [["yard", "the yard", "south", "10", "dirt"]], rooms: [["shop", "the workshop", "main"]], doors: [], windows: [],
+    things: [["bench", "a workbench", "object", "large", "wood", "shop", "against north", "4", "furniture", "A scarred bench."], ["fire", "a fire", "feature large stone", "shop", "corner north-east", "fire hearth lit", "It smokes."], ["cask", "a half-built cask", "shop", "centre"]], people: [], start: "yard" }).things;
+  assert.deepEqual(things.map(t => [t.kind, t.size, t.material, t.in, t.relation, t.tiles]), [["object", "large", "wood", "shop", "against", 4], ["feature", "large", "stone", "shop", "corner", 1], ["object", "medium", "wood", "shop", "centre", 1]]);
+  assert.deepEqual([things[0]!.tags, things[0]!.description, things[1]!.tags, things[1]!.states, things[1]!.description], [["furniture"], "A scarred bench.", ["fire", "hearth"], ["lit"], "It smokes."]);
+});
+
+test("real compact plans from the fast model (first rounds of the final runs, one per place, the cooper's with its kind, size and material split in three) read and pass every check", () => {
+  const plans = JSON.parse(readFileSync(new URL("./model-compact-plans.json", import.meta.url), "utf8")) as Record<string, CompactPlan>;
+  assert.equal(Object.keys(plans).length, 9);
+  for (const [key, raw] of Object.entries(plans)) {
+    const cast = key === "rat" ? drownedRat.cast.map(castMember) : key === "heron" ? heronWarehouse.cast.map(castMember) : undefined;
+    const place = compilePlan(readPlace(raw), { id: `compact-${key}`, ...(cast ? { cast } : {}) });
+    assert.deepEqual(errors(validate(place)), [], `${key}:\n${sketch(place)}`);
+    assert.ok(place.furnished.things.size >= 5, `${key} is furnished`);
+    if (cast) assert.ok(cast.every(c => place.laid.people.some(p => p.id === c.id)), `${key}: the whole cast is there, by their ids`);
+  }
 });
 
 test("streaming: the building is laid out from the rooms before the things arrive, and is the one furnished", async () => {
