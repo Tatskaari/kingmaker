@@ -6,6 +6,7 @@ import { afterTurn } from "../runtime/background.ts";
 import { comeTo } from "../rules/dnd.ts";
 import { loadSession, saveSession, sessionDir, snapshotSession, type Entry, type SessionState } from "../runtime/session.ts";
 import type { CombatResult, StoryState } from "./types.ts";
+import type { Build } from "../rules/dnd.ts";
 
 /**
  * The playable game, without a UI: exploring the town between scenes, playing a scene, fighting,
@@ -89,9 +90,9 @@ export class Game {
     this.fight = fight;
   }
 
-  static async create(options: { player: string; level?: number; id?: string; seed?: number; firstScene?: string; explorer: Explorer; fights: FightFactory }): Promise<Game> {
+  static async create(options: { player: string; level?: number; id?: string; seed?: number; firstScene?: string; build?: Partial<Build>; explorer: Explorer; fights: FightFactory }): Promise<Game> {
     const firstScene = options.firstScene ?? FIRST_SCENE;
-    const session = await createSession({ sceneId: firstScene, approach: "v2", player: options.player, level: options.level ?? 3, ...(options.id ? { id: options.id } : {}), ...(options.seed !== undefined ? { seed: options.seed } : {}) });
+    const session = await createSession({ sceneId: firstScene, approach: "v2", player: options.player, level: options.level ?? 3, ...(options.id ? { id: options.id } : {}), ...(options.seed !== undefined ? { seed: options.seed } : {}), ...(options.build ? { build: options.build } : {}) });
     const first = sceneById(firstScene);
     const state: GameState = { version: 1, id: session.id, mode: "explore", story: { time: first.time ?? "morning", played: [], lead: firstScene, flags: {} }, explore: {}, recent: [] };
     const game = new Game(state, session, options.explorer, options.fights);

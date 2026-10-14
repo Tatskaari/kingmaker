@@ -255,7 +255,7 @@ function gatingRegion(map: TileMap, at: Tile2): PlaceRegion | undefined {
 
 const LOCKED: Record<string, string> = {
   "the-granary": "Padlocked. The warden has the key, and the warden is at the palace counting Assembly provisions.",
-  "corn-exchange": "The Corn Exchange is shut for the Assembly. A notice on the door says so, at length, with footnotes.",
+  "corn-exchange": "A doorkeeper looks you up and down: factors only, and the factors are busy. The prices are on the board outside.",
   "watch-house": "Locked. A note on the door: ALL OUT ON THE PROCESSION ROUTE. CRIMES AFTER THE ASSEMBLY, PLEASE.",
   "porters-lodgings": "Locked. Behind it someone is snoring, in shifts.",
   "heron-wharf-end": "Barred from the inside. Somebody in there doesn't want visitors, which is interesting in itself.",
@@ -355,7 +355,7 @@ export function look(state: ExploreState, world?: SceneWorld): string {
 const TIME_LINES: Record<StoryState["time"], string> = {
   morning: "Morning on the eve of the Assembly: bunting going up on every rope that will hold it, and the smell of wet grain and river mud.",
   afternoon: "Afternoon: sweepers, delegations' servants, bread dearer than last week, and everybody too busy for a hanged clerk.",
-  evening: "Dusk: the lamps are being lit, the bunting's gone grey, and the night shift is going down to the river.",
+  evening: "Dusk: the lamps are being lit, the bunting's gone grey, and the river, paid off early, is going down the stairs to drink it.",
   night: "Night: the river high and black, fog coming off it, lanterns on the barges, and the town gone quiet behind you.",
   "next-morning": "The morning of the Assembly: bells, a band tuning up, crowds, banners, and bunting on everything that stood still.",
 };

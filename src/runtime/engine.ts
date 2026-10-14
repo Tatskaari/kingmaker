@@ -4,19 +4,20 @@ import { recordingWorld } from "../world/dsl.ts";
 import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { approachById } from "./approaches.ts";
-import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntries } from "./brief.ts";
-import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, relocateDirective, STALL_DIRECTIVE, type ActFrom, type Move } from "./director.ts";
+import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntries, unnamed } from "./brief.ts";
+import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type Reaction, type Witness } from "./director.ts";
 import { describeRoll } from "./dice.ts";
-import { applyOps, areaOf, buildWorld, heldBy, joinWorld, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
+import { applyOps, areaOf, buildWorld, heldBy, joinWorld, positionOf, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
 import { inventory, startingPurse } from "../world/inventory.ts";
 import { stageManage } from "../world/stage.ts";
-import { attack as rulesAttack, attackOnPlayer, carryGear, castSpell, comeTo, createCharacter, hazard, levelUp, passTime, rest, wrestle, type Outcome } from "../rules/dnd.ts";
+import { attack as rulesAttack, attackOnPlayer, bystander, carryGear, castSpell, comeTo, createCharacter, hazard, jump, levelUp, passTime, rest, spellInfo, useFeature, wrestle, type Build, type Outcome } from "../rules/dnd.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
 import { newSessionId, saveSession, snapshotSession, type Entry, type EntryKind, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
 import { actorReply, gmReply, narratorReply, type Spoken } from "./voices.ts";
 import { disclose, keepOpened, URGENT } from "../lore/disclosure.ts";
 import { savePlayedScene } from "../lore/docs.ts";
+import { frontsText, moveFronts, type FrontChanges } from "../lore/fronts.ts";
 import { rememberScene } from "../lore/remember.ts";
 import { broadcastEnding } from "../lore/reviews.ts";
 
@@ -70,7 +71,7 @@ async function extractCharacter(scene: Scene, state: SessionState): Promise<void
   }
 }
 
-export async function createSession(options: { sceneId: string; approach: string; player?: string; seed?: number; id?: string; rules?: boolean; level?: number }): Promise<SessionState> {
+export async function createSession(options: { sceneId: string; approach: string; player?: string; seed?: number; id?: string; rules?: boolean; level?: number; build?: Partial<Build> }): Promise<SessionState> {
   approachById(options.approach);
   const scene = sceneById(options.sceneId);
   const playerText = options.player ?? DEFAULT_PLAYER;
@@ -84,7 +85,7 @@ export async function createSession(options: { sceneId: string; approach: string
   };
   // A D&D character sheet from the concept (the rules engine); without it, modifiers from the concept.
   if (options.rules !== false) {
-    try { await createCharacter(state, options.level ?? 3); } catch { delete state.rules; }
+    try { await createCharacter(state, options.level ?? 3, options.build); } catch { delete state.rules; }
   }
   if (!state.rules) state.player.modifiers = await rollUpModifiers(playerText);
   return state;
@@ -203,6 +204,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
 
   state.turn++;
   push(state, hooks, { speaker: "player", kind: "player", text: input });
+  // People whose names the player hasn't heard go by what they'd call them, in the dice too.
+  if (state.rules) state.rules.aliases = unnamed(scene, state);
 
   // Blocking co-GM: review the player's input before deciding, so a new route can fire this turn.
   let repairMs = 0;
@@ -259,7 +262,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (state.threat && state.rules) {
     const threat = state.threat;
     delete state.threat;
-    const attacker = threat.kind === "attack" ? presentCast(scene, state).find(c => c.id === threat.by) : undefined;
+    const bystanding = threat.kind === "attack" ? state.world?.entities[threat.by] : undefined;
+    const attacker = threat.kind === "attack" ? presentCast(scene, state).find(c => c.id === threat.by) ?? (bystanding && !bystanding.states.includes("gone") ? bystander(bystanding) : undefined) : undefined;
     const outcome = threat.kind === "attack"
       ? attacker ? await attackOnPlayer(state, attacker).catch(() => undefined) : undefined
       : await hazard(state, threat.hazard, threat.severity).catch(() => undefined);
@@ -284,7 +288,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     ? quickRepair(authored, state, approach.repairEffort ? { effort: approach.repairEffort } : {}).catch(() => undefined)
     : undefined;
   const disclosing = approach.memory ? disclose(scene, state, input).catch(() => undefined) : undefined;
-  const rules = state.rules ? { spells: state.rules.spells ?? [], weapons: state.rules.weapons ?? [], ...(state.world ? aimable(state) : {}) } : undefined;
+  const rules = state.rules ? { spells: state.rules.spells ?? [], weapons: state.rules.weapons ?? [], features: state.rules.features ?? [], ...(state.world ? aimable(state) : {}) } : undefined;
   const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off", relocate: approach.deciderRelocation === true, pressure: approach.pressureRolls === true, consequences: approach.consequences === true, ...(rules ? { rules } : {}) });
   if (pre.offGraph) state.offGraphTurn = state.turn;
   // A failed roll stands: don't have something else hand over what the dice just withheld.
@@ -332,12 +336,32 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     const m = pre.mechanic;
     const present = presentCast(scene, state);
     // Moved first, in the same turn: the spell or blow comes from where they ended up.
-    if (state.world && m.kind !== "rest" && m.from) moveToAct(state, m.from, m.kind === "cast" ? m.targets.find(t => t !== "self") : m.target);
-    const outcome: Outcome = await (m.kind === "cast" ? castSpell(state, present, m.spell, m.targets, { ritual: /\britual\b/i.test(input) && !/\b(not|no|without|rather than)\b[^.!?]{0,20}\britual/i.test(input) && !/\bspend(ing)? a\b[^.!?]{0,12}\bslot\b/i.test(input) }) : m.kind === "attack" ? rulesAttack(state, present, m.target, m.weapon) : m.kind === "wrestle" ? wrestle(state, present, m.target, m.how) : rest(state, m.length))
+    if (state.world && (m.kind === "cast" || m.kind === "attack" || m.kind === "wrestle") && m.from) moveToAct(state, m.from, m.kind === "cast" ? m.targets.find(t => t !== "self") : m.target);
+    const before = state.world ? Object.fromEntries(Object.values(state.world.entities).map(e => [e.id, [...e.states]])) : undefined;
+    const outcome: Outcome = await (m.kind === "cast" ? castSpell(state, present, m.spell, m.targets, { ritual: /\britual\b/i.test(input) && !/\b(not|no|without|rather than)\b[^.!?]{0,20}\britual/i.test(input) && !/\bspend(ing)? a\b[^.!?]{0,12}\bslot\b/i.test(input) }) : m.kind === "attack" ? rulesAttack(state, present, m.target, m.weapon) : m.kind === "wrestle" ? wrestle(state, present, m.target, m.how) : m.kind === "jump" ? leap(state, m) : m.kind === "feature" ? useFeature(state, present, m.feature, m.target) : rest(state, m.length))
       .catch(error => ({ lines: [`(The rules couldn't resolve that: ${error instanceof Error ? error.message : String(error)})`], directive: "" }));
     for (const text of outcome.lines) push(state, hooks, { speaker: "dice", kind: "roll", text });
     if (outcome.directive) directive.push(outcome.directive);
-    state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `rules:${m.kind}${m.kind === "cast" ? `:${m.spell}` : m.kind === "attack" || m.kind === "wrestle" ? `:${m.target}` : `:${m.length}`}`, source: "pre" });
+    state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `rules:${m.kind}${m.kind === "cast" ? `:${m.spell}` : m.kind === "attack" || m.kind === "wrestle" ? `:${m.target}` : m.kind === "jump" ? `:${m.how}` : m.kind === "feature" ? `:${m.feature}` : `:${m.length}`}`, source: "pre" });
+    // Violence draws a reaction from everyone present: some fight, some flee, some run for help.
+    // An authored fight answers it on its own; an authored ending waits if a fight breaks out first.
+    const act = pre.move?.exit?.kind !== "combat" && !state.brawl ? await violence(scene, state, m, before) : undefined;
+    if (act) {
+      const witnesses = witnessesOf(scene, state, act);
+      if (witnesses.length) {
+        const { reactions, decision } = await decideReactions(decider, scene, state, input, act, witnesses, id => nameIn(scene, state, id));
+        if (decision) { costUsd += decision.costUsd; calls++; }
+        react(scene, state, act, reactions);
+        if (state.brawl && (ended || state.closing?.turn === state.turn || state.pendingExit?.turn === state.turn)) {
+          ended = undefined;
+          if (state.closing?.turn === state.turn) delete state.closing;
+          if (state.pendingExit?.turn === state.turn) delete state.pendingExit;
+          directive = directive.filter(d => !/closes the scene|The dice have decided it|The scene is on the brink/.test(d));
+        }
+        directive.push(reactionDirective(reactions, id => nameIn(scene, state, id)));
+        state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `reactions:${Object.entries(reactions).map(([id, r]) => `${id}=${r}`).join(",")}`, source: "pre" });
+      }
+    }
   }
   if (state.endingLead && !pre.move && !state.closing) {
     const exit = scene.exits.find(e => e.id === state.endingLead!.exitId);
@@ -590,7 +614,7 @@ function finishScene(state: SessionState, scene: Scene, exit: Exit): void {
  */
 export async function resumeAfterFight(state: SessionState, summary: string, hooks: TurnHooks = {}): Promise<Entry[]> {
   const exitId = state.ended?.exitId;
-  delete state.ended; delete state.closing; delete state.pendingExit; delete state.endingLead;
+  delete state.ended; delete state.closing; delete state.pendingExit; delete state.endingLead; delete state.brawl; delete state.threat;
   if (exitId) state.fought = [...(state.fought ?? []), exitId];
   state.established.push(`The fight is over: ${summary}`);
   const before = state.transcript.length;
@@ -627,14 +651,14 @@ export async function chainScene(state: SessionState, combatResult = "the party 
     id = candidate.assumes?.length ? candidate.overtaken : undefined;
   }
   if (!candidates.length) return undefined;
-  const { handoff, sceneId, adjustments, skipped, opening, lead } = await crossBoundary(scene, state, exit, combatResult, candidates);
+  const { handoff, sceneId, adjustments, skipped, opening, lead, fronts } = await crossBoundary(scene, state, exit, combatResult, candidates);
   const memory = approachById(state.approach).memory;
   if (memory === "docs") broadcastEnding(scene, state, exit);
   if (memory === "lite") await rememberScene(scene, state, `${exit.title}: ${exit.outcome}`).catch(() => undefined);
   if (memory) savePlayedScene(state.id, scene, exit.title, handoff);
   const lastMoments = sceneEntries(state).filter(e => e.kind !== "system").slice(-4)
     .map(e => e.kind === "player" ? `${state.player.name} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.text);
-  state.history.push({ sceneId: scene.id, exitId: exit.id, summary: handoff, lastMoments, ...(skipped.length ? { skipped } : {}) });
+  state.history.push({ sceneId: scene.id, exitId: exit.id, summary: handoff, lastMoments, ...(skipped.length ? { skipped } : {}), ...(fronts.length ? { fronts } : {}) });
   const next = sceneById(sceneId);
   // What the player carries goes with them into the next scene's world.
   if (state.world) state.carried = carriedBy(state.world.entities, "player");
@@ -646,6 +670,7 @@ export async function chainScene(state: SessionState, combatResult = "the party 
   });
   delete state.ended;
   delete state.threat;
+  delete state.brawl;
   saveSession(state);
   return state;
 }
@@ -656,9 +681,9 @@ export async function chainScene(state: SessionState, combatResult = "the party 
  * skipped) and where that scene's prep is out of date. Prep is written before play; this is where
  * it catches up.
  */
-async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, combatResult: string, candidates: Scene[]): Promise<{ handoff: string; sceneId: string; adjustments: string[]; skipped: Array<{ sceneId: string; why: string }>; opening?: string; lead?: string }> {
+async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, combatResult: string, candidates: Scene[]): Promise<{ handoff: string; sceneId: string; adjustments: string[]; skipped: Array<{ sceneId: string; why: string }>; opening?: string; lead?: string; fronts: string[] }> {
   const transcript = sceneEntries(state).map(e => e.kind === "player" ? `${state.player.name} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.kind === "narration" ? `GM: ${e.text}` : `[${e.text}]`).join("\n\n");
-  const ended = `${exit.title}. ${exit.outcome}${exit.kind === "combat" ? ` The fight was then played out on the map: ${combatResult}.` : ""}`;
+  const ended = `${exit.title} (${scene.id}: ${exit.id}). ${exit.outcome}${exit.kind === "combat" ? ` The fight was then played out on the map: ${combatResult}.` : ""}`;
   const story = [
     ...(state.history.length ? [`## The story before the last scene\n${state.history.map(h => h.summary).join("\n\n")}`] : []),
     `## The last scene: ${scene.title}\nHow it ended: ${ended}\nThe player character: ${state.player.name}, ${state.player.concept} (the only player character).\n\n${transcript}`,
@@ -675,7 +700,7 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
     operation: "handoff", effort: "low",
     instructions: "You write the hand-off between two scenes of a roleplaying game, for the GM of the next scene. Describe the state of things in the story at the moment the last scene ended, exactly as it was established in play (not as anyone planned it): who is where and in what state, who holds what, what was promised or agreed, what the player character learned, and how people feel. Things that were offered but refused, or threatened but not done, didn't happen. Leave out anything said out of character (questions or agreements about the game itself). Be concrete and brief: a short paragraph, then up to eight bullet points.",
     input: [{ role: "user", content: story }],
-  }).then(r => `Previous scene, "${scene.title}", ended: ${exit.title}.\n${r.text.trim()}`).catch(() => `Previous scene, "${scene.title}", ended: ${ended}`);
+  }).then(r => `Previous scene, "${scene.title}", ended: ${exit.title} (${scene.id}: ${exit.id}).\n${r.text.trim()}`).catch(() => `Previous scene, "${scene.title}", ended: ${ended}`);
   const verdict = respondJson<{ scenes: Array<{ id: string; holds: boolean; why: string }>; adjustments: string[]; opening: string; lead: string }>({
     operation: "boundary", effort: "low",
     instructions: [
@@ -693,7 +718,12 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
       lead: { type: "string" },
     } } },
   }).catch(() => undefined);
-  const [text, result] = await Promise.all([handoff, verdict]);
+  // What's in motion in the world (the GM's fronts), as it stands in this session, moves on here too.
+  const frontsPath = scene.fronts ?? candidates.find(c => c.fronts)?.fronts;
+  const fronts = frontsPath ? frontsText(state.id, frontsPath) : undefined;
+  const moving = fronts ? moveOn(story, candidates[0]!, fronts) : Promise.resolve(undefined);
+  const [text, result, motion] = await Promise.all([handoff, verdict, moving]);
+  const moved = frontsPath && motion ? moveFronts(state.id, frontsPath, motion, scene.title) : [];
   // The first scene that holds: one that takes nothing for granted always does.
   const holds = (c: Scene) => !c.assumes?.length || result?.scenes.find(v => v.id === c.id)?.holds !== false;
   const chosen = candidates.find(holds) ?? candidates.at(-1)!;
@@ -702,13 +732,136 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
   const firstHolding = result ? candidates.find(c => !c.assumes?.length || result.scenes.find(v => v.id === c.id)?.holds !== false) : undefined;
   const opening = firstHolding?.id === chosen.id && result?.opening?.trim() ? result.opening.trim() : undefined;
   const lead = firstHolding?.id === chosen.id && result?.lead?.trim() ? result.lead.trim() : undefined;
-  return { handoff: text, sceneId: chosen.id, adjustments: (result?.adjustments ?? []).map(a => a.trim()).filter(Boolean).slice(0, 10), skipped, ...(opening ? { opening } : {}), ...(lead ? { lead } : {}) };
+  const shows = chosen.id === candidates[0]!.id ? motion?.shows ?? [] : [];
+  const adjustments = [...(result?.adjustments ?? []).slice(0, 10), ...shows.slice(0, 2)].map(a => a.trim()).filter(Boolean);
+  return { handoff: text, sceneId: chosen.id, adjustments, skipped, ...(opening ? { opening } : {}), ...(lead ? { lead } : {}), fronts: moved };
+}
+
+/**
+ * The world's turn at a scene boundary: which steps of what's in motion (the fronts doc) play or
+ * the time passing has made true or meaningless, any new bills to come due, and how what's newly
+ * true shows in the next scene. Runs alongside the boundary verdict.
+ */
+async function moveOn(story: string, next: Scene, fronts: string): Promise<(FrontChanges & { shows: string[] }) | undefined> {
+  const step = { type: "object", additionalProperties: false, required: ["front", "step"], properties: { front: { type: "string" }, step: { type: "string" } } };
+  return respondJson<FrontChanges & { shows: string[] }>({
+    operation: "fronts", effort: "low",
+    instructions: [
+      "You keep a roleplaying game's world moving between scenes, whether or not the player is looking. Below are the story so far, the next scene (its time and place), and what's in motion: fronts, each with a clock of steps.",
+      "- ticked: the unticked steps (\"- [ ]\") that what happened, or the time passing until the next scene opens, has now made true. Give each by its front (the ## heading) and the step's bold opening words. A step ticks because its condition is met or its hour has come, never because it would be dramatic, and nobody acts on what they couldn't have learned (each step says who learns what, and from whom).",
+      "- struck: unticked steps that play has made impossible or meaningless (the person is arrested, dead or gone, the thing destroyed, the matter settled), with why in a few words.",
+      "- bills: usually none. When the player did something reckless, violent or daft in the last scene that the world would answer later, a line for each such consequence: \"If <what happened>: <who answers it, how, and where it will show>\". The bills already listed are on their way: never add one again, and add only what none of them covers. At most two.",
+      "- shows: what's newly true that the player could meet in the next scene, by how it shows there (something seen, or someone who'd say it), as short statements of fact for its GM. Only what fits the next scene's time and place, at most one per front and from no more than two fronts. Often none.",
+    ].join("\n"),
+    input: [{ role: "user", content: `${story}\n\n## The next scene: ${next.title}\nWhen and where: ${next.setting}\nIts opening: ${next.opening}\n\n## What's in motion (GM only)\n${fronts}` }],
+    json: { name: "fronts", schema: { type: "object", additionalProperties: false, required: ["ticked", "struck", "bills", "shows"], properties: {
+      ticked: { type: "array", items: step },
+      struck: { type: "array", items: { ...step, required: ["front", "step", "why"], properties: { ...step.properties, why: { type: "string" } } } },
+      bills: { type: "array", items: { type: "string" } },
+      shows: { type: "array", items: { type: "string" } },
+    } } },
+  }).catch(() => undefined);
 }
 
 export function transcriptMarkdown(state: SessionState, options: { allScenes?: boolean } = {}): string {
   const scene = sceneById(state.sceneId);
   const entries = options.allScenes ? state.transcript : sceneEntries(state);
   return entries.map(e => e.kind === "player" ? `> **${state.player.name}:** ${e.text}` : e.kind === "roll" ? `🎲 *${e.text}*` : e.kind === "system" ? `*— ${e.text} —*` : e.kind === "dialogue" ? `**${(e.scene ? sceneById(e.scene) : scene).cast.find(c => c.id === e.speaker)?.name ?? e.speaker}:** ${e.text}` : e.text).join("\n\n");
+}
+
+/**
+ * A jump in a scene: how far from the world when it knows where they're going (or the decider's
+ * read), the rules decide whether they make it, and the world puts them where they land: across,
+ * or in what they were jumping over (wet, if it was water; prone, after a fall).
+ */
+async function leap(state: SessionState, j: Jumping): Promise<Outcome> {
+  const world = state.world;
+  const landing = world && j.to ? (j.to.near ?? j.to.area) : undefined;
+  const from = world ? positionOf(world, "player") : undefined;
+  const there = world && landing ? positionOf(world, landing) : undefined;
+  // Landing by something, not in it: the gap is the distance less a stride.
+  const measured = from && there && j.how !== "down" ? Math.max(5, Math.round((Math.hypot(there.x - from.x, there.y - from.y) - 5) / 5) * 5) : undefined;
+  const feet = j.how === "high" ? j.feet ?? 5 : measured ?? j.feet ?? 10;
+  const drop = j.how === "down" ? Math.max(j.drop, 10) : j.drop;
+  const result = j.how === "down"
+    ? await jump(state, { feet: Number.POSITIVE_INFINITY, drop }).then(r => ({ ...r, lines: [`Jump down: ${drop} ft`, ...r.lines.slice(1)], account: r.account.replace(/^.*?fall short, and /, "") }))
+    : await jump(state, { feet, high: j.how === "high", runUp: j.runUp, drop });
+  const lines = [...result.lines];
+  if (world) {
+    const blank = { what: "player", to: "", how: "", name: "", kind: "", text: "", add: [], remove: [] };
+    const ops: WorldOp[] = [];
+    if (result.made && j.to?.area) ops.push({ ...blank, op: "move", to: j.to.area });
+    if (result.made && j.to?.near) ops.push({ ...blank, op: "move", to: j.to.near });
+    if (!result.made && j.over && world.entities[j.over]) ops.push({ ...blank, op: "place", to: j.over, how: "on" });
+    if (!result.made && j.water) ops.push({ ...blank, op: "state", add: ["wet"] });
+    if (ops.length) applyOps(world, ops, state.turn, "rules");
+  }
+  const where = j.how === "down" ? "down" : `${j.how === "high" ? "up" : "across"}${j.over && world?.entities[j.over] ? ` over ${world.entities[j.over]!.name}` : ""}${landing && world?.entities[landing] ? ` to ${world.entities[landing]!.name}` : ""}`;
+  return {
+    lines,
+    directive: `Rules: the player jumped ${where}: ${result.account}.${!result.made && j.water ? " They go into the water: soaked, and the cold takes their breath." : ""} Narrate exactly that, and let the people present react.`,
+    ...(result.status ? { status: result.status } : {}),
+  };
+}
+
+const nameIn = (scene: Scene, state: SessionState, id: string) => state.rules?.aliases?.[id] ?? scene.cast.find(c => c.id === id)?.name ?? state.world?.entities[id]?.name ?? id;
+
+/**
+ * Did the player just do violence people would react to? A blow or a grab at a person, a harmful
+ * spell at or around people, or one that set something burning or broke it where people are. The
+ * rules have already decided what it did; this reads it off the mechanic and the world's states.
+ */
+async function violence(scene: Scene, state: SessionState, m: Mechanic, before: Record<string, string[]> | undefined): Promise<Act | undefined> {
+  const world = state.world;
+  const people = new Set([...presentCast(scene, state).map(c => c.id), ...(world ? Object.values(world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !e.states.includes("gone")).map(e => e.id) : [])]);
+  const name = (id: string) => nameIn(scene, state, id);
+  const newly = (e: Entity, states: string[]) => !!before && e.states.some(x => states.includes(x)) && !(before[e.id] ?? []).some(x => states.includes(x));
+  if (m.kind === "attack" || m.kind === "wrestle") {
+    if (people.has(m.target)) return { what: m.kind === "attack" ? `attacked ${name(m.target)}${m.weapon ? ` (${m.weapon.replace(/-/g, " ")})` : ""}` : `laid hands on ${name(m.target)} (${m.how === "grapple" ? "grabbed them" : "shoved them"})`, victims: [m.target], property: [] };
+    const broke = world?.entities[m.target];
+    return broke && newly(broke, ["destroyed", "broken", "burning"]) ? { what: `smashed ${broke.name}`, victims: [], property: [broke.id] } : undefined;
+  }
+  if (m.kind !== "cast") return undefined;
+  const spell = await spellInfo(m.spell);
+  const harmful = (spell?.mechanicalEffects ?? []).some(e => e["damageType"] || ["attack", "auto-hit", "hp-pool-knockout", "save"].includes(String(e["kind"])));
+  if (!spell || !harmful) return undefined;
+  const hurt = world ? Object.values(world.entities).filter(e => people.has(e.id) && newly(e, ["hurt", "badly hurt", "down", "burning", "prone"])).map(e => e.id) : [];
+  const victims = [...new Set([...m.targets.filter(t => people.has(t)), ...hurt])];
+  const property = world ? Object.values(world.entities).filter(e => (e.kind === "object" || e.kind === "item" || e.kind === "feature") && newly(e, ["burning", "destroyed", "broken"])).map(e => e.id) : [];
+  if (!victims.length && !property.length) return undefined;
+  const parts = [victims.length ? `at ${victims.map(name).join(", ")}` : "", property.length ? `setting ${property.slice(0, 4).map(name).join(", ")} burning or breaking it` : ""].filter(Boolean);
+  return { what: `cast ${spell.name} ${parts.join(", ")}`, victims, property };
+}
+
+/** Who saw it: everyone present who isn't out of it (down, gone), the hurt first. */
+function witnessesOf(scene: Scene, state: SessionState, act: Act): Witness[] {
+  const world = state.world;
+  const out = (id: string) => !!world?.entities[id] && ["down", "gone", "dead"].some(s => world.entities[id]!.states.includes(s));
+  const cast = presentCast(scene, state).filter(c => !out(c.id)).map(c => ({ id: c.id, name: c.name, about: `${c.statblock ?? "commoner"}${c.group ? `, ${c.group}` : ""}. ${c.attitude.slice(0, 280)}${c.fears ? ` Fears: ${c.fears.slice(0, 160)}` : ""}` }));
+  const cast_ = new Set(scene.cast.map(c => c.id));
+  const others = world ? Object.values(world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !cast_.has(e.id) && !out(e.id))
+    .map(e => ({ id: e.id, name: e.name, about: `${e.stats?.statblock ?? (e.kind === "creature" ? "beast" : "commoner")}. ${e.description ?? ""}`.trim() })) : [];
+  return [...cast, ...others].sort((a, b) => Number(act.victims.includes(b.id)) - Number(act.victims.includes(a.id))).slice(0, 10);
+}
+
+/** The reactions take effect: the fleeing leave, the cowering cower, and a fight starts if anyone wants one. */
+function react(scene: Scene, state: SessionState, act: Act, reactions: Record<string, Reaction>): void {
+  const world = state.world;
+  const fled: string[] = [];
+  for (const [id, r] of Object.entries(reactions)) {
+    const e = world?.entities[id];
+    if (r === "flee" || r === "raise_alarm") {
+      fled.push(id);
+      if (scene.cast.some(c => c.id === id)) state.absent = [...new Set([...(state.absent ?? []), id])];
+      if (e) { e.states = [...e.states.filter(s => s !== "cowering"), "gone"]; e.notes.push({ text: r === "raise_alarm" ? `ran for help after the player ${act.what}` : `fled when the player ${act.what}`, turn: state.turn, by: "rules" }); }
+    } else if (r === "cower" && e && !e.states.includes("cowering")) e.states.push("cowering");
+  }
+  const against = Object.entries(reactions).filter(([, r]) => r === "fight").map(([id]) => id);
+  if (!against.length) return;
+  const allies = Object.entries(reactions).filter(([, r]) => r === "join_player").map(([id]) => id);
+  state.brawl = { turn: state.turn, cause: act.what, against, allies, fled };
+  // Without a map to fight it out on, the first of them swings at the player next turn.
+  state.threat = { kind: "attack", by: against[0]!, turn: state.turn };
 }
 
 /** What the player could aim a spell or a blow at in the world: things near them, and people outside the cast. */

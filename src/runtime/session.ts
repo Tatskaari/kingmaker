@@ -24,11 +24,15 @@ export interface RulesState {
   pc: string;
   /** Story characters the rules have touched: cast id -> engine id and the weapon they fight with. */
   npcs: Record<string, { id: string; weapon: string }>;
+  /** Cast id -> what the player calls them, for people whose names they haven't heard (the dice name them so). */
+  aliases?: Record<string, string>;
   /** The build's preferences, in order, for choices that come later (level-ups). */
   prefer?: string[];
   /** Kept up to date by the rules, so a turn's decision needn't load the engine. */
   spells?: Array<{ id: string; name: string; level: number }>;
   weapons?: Array<{ id: string; name: string }>;
+  /** Class features the player can use in a scene (Second Wind, Rage...), with whether they take a target. */
+  features?: Array<{ id: string; name: string; target: "self" | "creature" }>;
   /** "HP 13/24, spell slots 1st 2/4": the player's state for the GM's brief. */
   status?: string;
   /** A spell with a listed duration is running: story time passing can end it. */
@@ -146,6 +150,12 @@ export interface SessionState {
   rules?: RulesState;
   /** A blow or a danger the last reply left hanging over the player (rules sessions). */
   threat?: Threat;
+  /**
+   * A fight the player's violence started in the scene (decided reactions: some fight, some flee):
+   * who goes for the player and who's with them. The game plays it out on the map; elsewhere the
+   * first of them swings at the player next turn.
+   */
+  brawl?: { turn: number; cause: string; against: string[]; allies: string[]; fled: string[] };
   /** Where this scene's prep no longer matches the story (written at the scene boundary): these override it. */
   adjustments?: string[];
   /** The scene's opening rewritten at the boundary to start where the story actually is. */
@@ -159,7 +169,11 @@ export interface SessionState {
   /** What the player carried out of the last scene's world, to carry into the next. */
   carried?: Entity[];
   /** Scene chain: previous scenes' exits in this session. */
-  history: Array<{ sceneId: string; exitId: string; summary: string; lastMoments?: string[]; skipped?: Array<{ sceneId: string; why: string }> }>;
+  history: Array<{
+    sceneId: string; exitId: string; summary: string; lastMoments?: string[]; skipped?: Array<{ sceneId: string; why: string }>;
+    /** What moved in the world's fronts at this boundary (ticked and struck steps, new bills). */
+    fronts?: string[];
+  }>;
 }
 
 export const runsDir = () => process.env.KM_RUNS_DIR ?? "runs";

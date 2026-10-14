@@ -43,10 +43,10 @@ export const drownedRat: MapDef = buildMap({
   },
   regions: [
     { id: "drowned-rat", name: "the Drowned Rat", rect: { x: 2, y: 5, w: 10, h: 6 }, sceneId: "drowned-rat", worldOrigin: { x: 2, y: 3 }, trigger: "enter", label: "Step down into the Drowned Rat",
-      shut: "The door is shut. A board nailed to it says: OPENS AT DUSK. NO CREDIT. NO WATCH. N. QUILL.",
+      shut: "The door is shut. A board nailed to it says: OPENS AT DUSK. NO CREDIT. NO WATCH ON DUTY. N. QUILL.",
       description: "One long, low, smoky room under a ceiling hung with eel traps and old oars, a blue driftwood fire in the corner, and a great many big men with a great many bandages." },
     { id: "rat-bar", name: "the skiff-hull bar", rect: { x: 4, y: 5, w: 5, h: 2 }, description: "An upturned skiff for a counter, and on the shelf behind it, in a jar of gin, the original drowned rat." },
-    { id: "rat-fireside", name: "the fireside corner", rect: { x: 8, y: 7, w: 4, h: 4 }, description: "The blue driftwood fire, the champion's chair, Dilly's card table and, back to the wall, the biggest man in the room." },
+    { id: "rat-fireside", name: "the fireside corner", rect: { x: 8, y: 7, w: 4, h: 4 }, description: "The blue driftwood fire, the champion's chair, an old bargewoman's card table and, back to the wall, the biggest man in the room." },
     { id: "rat-scullery", name: "the scullery", rect: { x: 9, y: 5, w: 3, h: 2 }, description: "Pots, steam and eel stew, permanently, and the slop hatch over the river." },
     { id: "rat-landing", name: "the landing on the river stairs", rect: { x: 2, y: 2, w: 10, h: 2 }, description: "A landing halfway down the river stairs, wet and green, the river slapping below. Three steps down to the Rat's door." },
   ],

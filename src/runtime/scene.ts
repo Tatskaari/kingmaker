@@ -19,6 +19,13 @@ export interface Character {
   name: string;
   /** Appearance and manner, for narration. */
   look: string;
+  /**
+   * What the player calls them until they've heard the name ("the landlady", "the big man with the
+   * bandaged hand"). With it, the narration and the dice keep the name back until someone says it.
+   */
+  called?: string;
+  /** Other names people use for them ("Hep" for Hepzibah Grist): hearing one counts as hearing the name. */
+  aka?: string[];
   /** How they talk. */
   voice: string;
   wants: string;
@@ -163,6 +170,12 @@ export interface Scene {
   milestone?: boolean;
   /** The place as a world: areas, things and where people start (src/world/scene-world.ts). */
   world?: WorldSpec;
+  /**
+   * The GM-only doc of what's in motion in this scene's world (fronts: who wants what, a clock of
+   * steps, bills still to come due), e.g. "World/Fronts.md". Its steps tick at this scene's
+   * boundary in the session's copy, when play or the time passing has made them true.
+   */
+  fronts?: string;
   /**
    * What this scene's prep takes for granted about the story so far, in plain words ("the barge
    * hasn't sailed yet"). Checked when the story reaches the scene: if play has already made one

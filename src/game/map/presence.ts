@@ -120,7 +120,7 @@ function town(story: StoryState): MapActor[] {
   }
   if (story.time === "evening") {
     add({ name: "a lamplighter", glyph: "p", color: "#ffd27f", at: { x: 21, y: 32 }, states: ["lit"], text: "A lamplighter with a long pole and a short temper. 'Lamps at dusk, lamps at dusk. Nobody ever says thank you to a lamplighter.' Thank you. 'Don't push it.'" });
-    add({ name: "porters going down to the night shift", glyph: "p", at: { x: 24, y: 33 }, text: "Big men going down the river stairs to the night shift, most of them bandaged somewhere. It's the docks." });
+    add({ name: "porters going down to the Rat", glyph: "p", at: { x: 24, y: 33 }, text: "Big men going down the river stairs, paid off early and off to drink it, most of them bandaged somewhere. It's the docks." });
   }
   if (story.time === "night") {
     for (const at of [{ x: 10, y: 42 }, { x: 38, y: 42 }]) add({ name: "a barge lantern", glyph: "¤", color: "#ffd27f", kind: "object", states: ["lit"], at, text: "A lantern on a moored barge, swinging, making the dark darker everywhere else." });

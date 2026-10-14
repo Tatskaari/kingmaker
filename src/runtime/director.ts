@@ -143,7 +143,15 @@ export type Mechanic =
   | { kind: "cast"; spell: string; targets: string[]; from?: ActFrom }
   | { kind: "wrestle"; target: string; how: "grapple" | "prone" | "push"; from?: ActFrom }
   | { kind: "attack"; target: string; weapon?: string; from?: ActFrom }
-  | { kind: "rest"; length: "short" | "long" };
+  | { kind: "rest"; length: "short" | "long" }
+  | { kind: "feature"; feature: string; target?: string }
+  | Jumping;
+
+/**
+ * A jump (the same rule in a scene, on the map and in a fight): where to (an area, or by
+ * something), over what if they fall short, and how far, from the world when it knows.
+ */
+export interface Jumping { kind: "jump"; how: "long" | "high" | "down"; runUp: boolean; to?: ActFrom; over?: string; water?: boolean; feet?: number; drop: number }
 
 /**
  * Where the player acts from, when they move first in the same turn ("I stride thirty feet down
@@ -156,6 +164,8 @@ export interface ActFrom { area?: string; near?: string; backOff?: number }
 export interface RulesOptions {
   spells: SpellChoice[];
   weapons: WeaponChoice[];
+  /** Class features they can use (Second Wind, Rage...). */
+  features?: Array<{ id: string; name: string; target: "self" | "creature" }>;
   /** Things near the player a spell or a blow could be aimed at (scenes with a world). */
   things?: Array<{ id: string; name: string }>;
   /** People in the world who aren't in the cast (a crowd, someone who walked in). */
@@ -168,8 +178,18 @@ export interface RulesOptions {
 const ORDINAL = ["cantrip", "1st-level", "2nd-level", "3rd-level", "4th-level", "5th-level", "6th-level", "7th-level", "8th-level", "9th-level"];
 
 /** Which spell, at whom; or which blow, at whom: a second small call, only on those turns. */
-async function mechanicDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, kind: "cast" | "attack" | "grapple" | "shove", rules: RulesOptions): Promise<{ mechanic?: Mechanic; decision: Decision }> {
+async function mechanicDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, kind: "cast" | "attack" | "grapple" | "shove" | "jump" | "feature", rules: RulesOptions): Promise<{ mechanic?: Mechanic; decision: Decision }> {
+  if (kind === "jump") return jumpDetails(decider, scene, state, playerTurn, rules);
   const present = [...presentCast(scene, state), ...(rules.bystanders ?? []).map(b => ({ ...b, group: undefined }))];
+  if (kind === "feature") {
+    const features = rules.features ?? [];
+    const q: Record<string, ChoiceQuestion> = { feature: { instructions: "The player is using a class feature in their latest turn. Which?", criteria: Object.fromEntries(features.map(f => [f.id, f.name])) } };
+    if (features.some(f => f.target === "creature")) q.feature_for = { instructions: "If it's one they give to someone else, who?", criteria: { ...Object.fromEntries(present.map(c => [c.id, `${c.name}${c.group ? ` (${c.group})` : ""}`])), nobody: "Nobody else: themselves, or it isn't that kind." } };
+    const decision = await decider.decide(decisionState(scene, state, playerTurn), q, "director.feature");
+    const feature = features.find(f => f.id === decision.answers.feature?.choice);
+    const target = decision.answers.feature_for?.choice;
+    return feature ? { mechanic: { kind: "feature", feature: feature.id, ...(feature.target === "creature" && target && target !== "nobody" ? { target } : {}) }, decision } : { decision };
+  }
   const things = rules.things ?? [];
   const q: Record<string, ChoiceQuestion> = {};
   if (kind === "cast") {
@@ -404,6 +424,8 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
         attack: "Attacking someone or something to hurt or break it right now: a blow, a stab, a shot, a punch, a kick. Threats, grabs, shoves and drawing a weapon aren't attacks.",
         grapple: "Grabbing hold of someone to hold or restrain them against their will (a grapple, a headlock, pinning them).",
         shove: "Shoving someone who'd resist: to knock them down, or push them back or away.",
+        jump: "Jumping: across a gap or over something, up onto something, or down from it.",
+        ...(options.rules.features?.length ? { feature: `Using one of their class features: ${options.rules.features.map(f => f.name).join(", ")}.` } : {}),
         short_rest: "Stopping to rest for an hour or so: catching their breath, binding wounds, a meal and a sit-down.",
         long_rest: "Sleeping the night, or resting for many hours.",
         none: "None of these.",
@@ -461,7 +483,8 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   // the "no, but" answers it and nothing is rolled.
   const limitBlocks = decision.answers.limit?.choice?.startsWith("limit_") && (decision.answers.limit?.probabilities?.[decision.answers.limit.choice] ?? 1) >= SCENE_ENDING_CONFIDENCE;
   // A spell is its own resolution (no Arcana check to cast a cantrip), and a roll needs a confident read.
-  const casting = decision.answers.mechanic?.choice === "cast" && (decision.answers.mechanic?.probabilities?.cast ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  const ruled = decision.answers.mechanic?.choice;
+  const casting = (ruled === "cast" || ruled === "jump") && (decision.answers.mechanic?.probabilities?.[ruled] ?? 1) >= SCENE_ENDING_CONFIDENCE;
   if (answer === "other_risky" && !move && !limitBlocks && !casting && (decision.answers.attempt?.probabilities?.other_risky ?? 1) >= SCENE_ENDING_CONFIDENCE) {
     const extra = await freeformCheck(decider, scene, state, playerTurn);
     freeform = extra.check;
@@ -519,7 +542,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const sure = asked && asked !== "none" && (decision.answers.mechanic?.probabilities?.[asked] ?? 1) >= SCENE_ENDING_CONFIDENCE;
   if (options.rules && sure && !limit && !ooc && move?.exit?.kind !== "combat") {
     if (asked === "short_rest" || asked === "long_rest") mechanic = { kind: "rest", length: asked === "short_rest" ? "short" : "long" };
-    else if (asked === "cast" || asked === "attack" || asked === "grapple" || asked === "shove") {
+    else if (asked === "cast" || asked === "attack" || asked === "grapple" || asked === "shove" || asked === "jump" || asked === "feature") {
       const details = await mechanicDetails(decider, scene, state, playerTurn, asked, options.rules);
       combined = { ...combined, answers: { ...combined.answers, ...details.decision.answers }, latencyMs: combined.latencyMs + details.decision.latencyMs, costUsd: combined.costUsd + details.decision.costUsd };
       mechanic = details.mechanic;
@@ -600,6 +623,96 @@ export function pressureDirective(scene: Scene, p: PressureCheck): string {
 export const EARNED_DIRECTIVE = "The player has just done what it takes for what they've been working towards. Let it land in this reply: the person gives it, shows it or agrees, in their own way, and people react to it. Don't ask the player for it again or add a new condition. (Only what they've earned: anything else stays for later.)";
 
 /** The bill for a daft act: real consequences, in the world's own logic (comic house style). */
+/** A jump's details: where to, over what, how far (one small call, only on jump turns). */
+async function jumpDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, rules: RulesOptions): Promise<{ mechanic?: Mechanic; decision: Decision }> {
+  const world = !!rules.places?.length;
+  const q: Record<string, ChoiceQuestion> = {
+    jump_how: { instructions: "The player is jumping in their latest turn. What kind of jump?", criteria: { long: "Across or over: a gap, a ditch, a table, from one roof or boat to another.", high: "Up: onto something, over something tall, to reach something high.", down: "Down: off something, into somewhere lower." } },
+    jump_run: { instructions: "Do they take a run-up (ten feet or more on foot) before they jump?", criteria: { yes: "Yes, a run-up", no: "No: from a standstill, or there's no room to run" } },
+    jump_drop: { instructions: "If they fell short (or jumped down), how far would they fall?", criteria: { "0": "No real drop: they'd land on the same floor, or in a puddle.", "10": "About a storey, ten feet or so: into a hold, a ditch, the water below a quay.", "20": "Two storeys, twenty feet or so.", "30": "Higher than that." } },
+    jump_water: { instructions: "Is what they'd fall into, if they fell short, water (a river, a canal, a mill-race, a pond)?", criteria: { yes: "Yes, water", no: "No" } },
+  };
+  if (world) {
+    q.jump_to = {
+      instructions: "Where do they mean to land?",
+      criteria: { ...Object.fromEntries((rules.places ?? []).map(p => [`area:${p.id}`, `Somewhere in ${p.name}.`])), ...Object.fromEntries((rules.landmarks ?? []).map(l => [`near:${l.id}`, `On or by ${l.name}.`])), here: "Nowhere in particular: they jump on the spot, or it isn't clear." },
+    };
+    if (rules.things?.length) q.jump_over = { instructions: "What are they jumping over or across, that they'd land in or on if they fell short?", criteria: { ...Object.fromEntries((rules.things ?? []).map(t => [t.id, t.name])), nothing: "Nothing of these: open ground, or a gap that isn't one of them." } };
+  }
+  q.jump_feet = { instructions: "How far is the jump, as the scene has it (across, or up)?", criteria: { "5": "A step: five feet or less.", "10": "About ten feet.", "15": "About fifteen feet.", "20": "About twenty feet.", "30": "Thirty feet or more." } };
+  const decision = await decider.decide({ ...decisionState(scene, state, playerTurn), ...(world && state.world ? { world: worldView(state.world) } : {}) }, q, "director.jump");
+  const a = (id: string) => decision.answers[id]?.choice;
+  const to = a("jump_to");
+  const where: ActFrom | undefined = to?.startsWith("area:") ? { area: to.slice(5) } : to?.startsWith("near:") ? { near: to.slice(5) } : undefined;
+  const over = a("jump_over");
+  return {
+    mechanic: {
+      kind: "jump", how: (a("jump_how") as Jumping["how"]) ?? "long", runUp: a("jump_run") === "yes", drop: Number(a("jump_drop") ?? 0), water: a("jump_water") === "yes",
+      feet: Number(a("jump_feet") ?? 10), ...(where ? { to: where } : {}), ...(over && over !== "nothing" ? { over } : {}),
+    },
+    decision,
+  };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Reactions: violence draws one from everyone present (the user's gameplay notes, BG3-style).
+
+/** How someone takes the player's violence, in the moment. */
+export type Reaction = "fight" | "flee" | "raise_alarm" | "cower" | "intervene" | "join_player" | "unmoved";
+
+/** What the player did that people react to: who it hurt or caught, what it burned or broke. */
+export interface Act { what: string; victims: string[]; property: string[] }
+
+/** Someone who saw it, and what the decider should know about them (their temper, their place here). */
+export interface Witness { id: string; name: string; about: string }
+
+const REACTIONS: Record<Reaction, string> = {
+  fight: "Fights: goes for the player (or whoever did it), now, with whatever they have.",
+  flee: "Flees: gets out of this place, now.",
+  raise_alarm: "Runs or shouts for help (the watch, guards, their friends): gets out to fetch them.",
+  cower: "Cowers or hides where they are: out of it, hands up, under a table.",
+  intervene: "Steps in to stop it without fighting: an order, a shout, getting between.",
+  join_player: "Takes the player's side against whoever comes for them.",
+  unmoved: "Carries on: it doesn't touch them, they didn't see it, or they've seen worse.",
+};
+
+/** Everyone present reacts to what the player just did, each by their own lights: one decider call. */
+export async function decideReactions(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, act: Act, witnesses: Witness[], name: (id: string) => string): Promise<{ reactions: Record<string, Reaction>; decision?: Decision }> {
+  const q: Record<string, ChoiceQuestion> = {};
+  for (const w of witnesses) q[`react_${w.id}`] = { instructions: `How does ${w.name} react, right now, to what the player just did? By who they are, not by what would be dramatic: someone hurt or caught by it takes it hardest, the timid get out, the hard and the angry fight, and the law steps in.`, criteria: REACTIONS };
+  const decision = await decider.decide({
+    ...decisionState(scene, state, playerTurn),
+    what_the_player_did: act.what,
+    ...(act.victims.length ? { hurt_or_caught: act.victims.map(name) } : {}),
+    ...(act.property.length ? { burned_or_broken: act.property.map(name) } : {}),
+    people_here: witnesses.map(w => `${w.name}: ${w.about}`),
+  }, q, "director.reactions").catch(() => undefined);
+  const reactions: Record<string, Reaction> = {};
+  for (const w of witnesses) {
+    const choice = decision?.answers[`react_${w.id}`]?.choice as Reaction | undefined;
+    // Undecided: the hurt hit back if they can, everyone else gets out of the way.
+    reactions[w.id] = choice && choice in REACTIONS ? choice : act.victims.includes(w.id) ? "fight" : "cower";
+  }
+  return { reactions, ...(decision ? { decision } : {}) };
+}
+
+const REACTION_TEXT: Record<Reaction, string> = {
+  fight: "fights: goes for the player",
+  flee: "flees: gets out of the place",
+  raise_alarm: "runs for help (the watch, their friends): gets out to fetch them",
+  cower: "cowers where they are",
+  intervene: "steps in to stop it, without fighting",
+  join_player: "takes the player's side",
+  unmoved: "carries on as if nothing happened",
+};
+
+/** The GM's direction for the reactions the decider chose. */
+export function reactionDirective(reactions: Record<string, Reaction>, name: (id: string) => string): string {
+  const fight = Object.values(reactions).includes("fight");
+  const lines = Object.entries(reactions).filter(([, r]) => r !== "unmoved").map(([id, r]) => `${name(id)} ${REACTION_TEXT[r]}`);
+  return `Rules: that was violence, and everyone here reacts at once, each in their own way (decided: play it so): ${lines.join("; ")}. Show each reaction briefly, in the same reply as the act itself, and keep everyone to their reaction.${fight ? " It's a fight now: end on the moment it breaks out, before anyone's blow lands." : ""}`;
+}
+
 export const CONSEQUENCE_DIRECTIVE = "What the player just did is the kind of thing people in this world would really answer. Let it happen, and follow its logic through to a consequence in this reply, or one that is plainly on its way: whoever it touches reacts as they truly would (offence, alarm, opportunism, admiration), and it changes something, for better or worse. Not every consequence is bad, but this one isn't free.";
 
 export function relocateDirective(scene: Scene, item: { essential: string; carrier: string }): string {
