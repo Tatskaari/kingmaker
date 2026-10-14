@@ -575,6 +575,11 @@ async function offline(): Promise<void> {
     await page.click("#notice-button");
     await waitFor(page, "Continue.*Tamsin Vell", "Play again: Continue is offered on the title screen");
     await shot(page, "continue");
+    // x on a game asks first; any other key keeps it.
+    await press(page, "x");
+    await waitFor(page, "Delete this game\\?.*x again deletes it", "x on a game asks before deleting it");
+    await press(page, "Escape");
+    await waitFor(page, "Continue.*Tamsin Vell", "any other key keeps it (and Esc doesn't quit)");
     await press(page, "Enter");
     await waitFor(page, "The Hanged Clerk ·", "Continue resumed the granary scene where Ctrl+C left it", 30000);
     await sleep(500);

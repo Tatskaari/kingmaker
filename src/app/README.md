@@ -18,7 +18,7 @@ The game is mostly played with the mouse. On the map, click somewhere to walk th
 
 | where | keys |
 |---|---|
-| title | ↑↓ and Enter; Continue resumes the latest game (or click one) |
+| title | ↑↓ and Enter; Continue resumes the latest game (or click one); x deletes the game picked out (x again to be sure: its folder goes to runs/deleted/) |
 | character | Tab between name and concept; Enter; on the sheet, r makes them again (or click the buttons) |
 | the sheet | ←→, Tab or 1–9 turn its pages (or click a tab); ↑↓, PgUp/PgDn or the wheel scroll a long page; Esc, or a click outside it, puts it away |
 | explore | arrows or WASD walk (they move with the screen: up is up; the map's north is up-left); e or Enter interact; g walk to the lead (any key stops); c sheet; j notebook; ? help; Esc menu |

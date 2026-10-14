@@ -5,7 +5,7 @@ import type { Game } from "../game.ts";
 import type { Resumable } from "../save.ts";
 import { timeOf, TIME_WORDS } from "../story.ts";
 import { C } from "../theme.ts";
-import { BOLD, Clickable, ITALIC, Keys, Spinner, useGame } from "./common.tsx";
+import { BOLD, Clickable, ITALIC, Keys, Spinner, useGame, type KeyHint } from "./common.tsx";
 
 const TAGLINES = [
   "Being an account of a murder, a great deal of grain, and the eve of the Centennial Assembly.",
@@ -34,25 +34,50 @@ export function TitleScreen({ game }: { game: Game }) {
   const [loading, setLoading] = useState<string | undefined>();
   const [tagline] = useState(() => TAGLINES[Math.floor(Math.random() * TAGLINES.length)]!);
   useEffect(() => { game.loadSaves(); }, [game]);
-  const items: Array<{ label: string; detail?: string; run: () => void }> = [
+  // The game x was pressed on: x again deletes it, anything else keeps it.
+  const [doomed, setDoomed] = useState<string | undefined>();
+  const items: Array<{ label: string; detail?: string; save?: Resumable; run: () => void }> = [
     ...game.saves.slice(0, 3).map((r, i) => ({
       label: i === 0 ? "Continue" : "Continue an older game",
       detail: describe(r),
+      save: r,
       run: () => { setLoading(`Finding your place in the story…`); void game.resume(r).finally(() => setLoading(undefined)); },
     })),
     { label: "New game", detail: "make a character and take the case", run: () => game.newCharacter() },
     { label: "Quit", detail: "the clerk will keep", run: () => game.quit() },
   ];
-  const pick = (i: number) => { if (!loading && game.screen === "title") items[Math.min(i, items.length - 1)]!.run(); };
+  const at = Math.min(index, items.length - 1);
+  const pick = (i: number) => {
+    if (loading || game.screen !== "title") return;
+    if (doomed) { setDoomed(undefined); return; }
+    items[Math.min(i, items.length - 1)]!.run();
+  };
+  const select = (i: number) => { if (i !== at) setDoomed(undefined); setIndex(i); };
+  const doom = () => {
+    const save = items[at]!.save;
+    if (!save || loading) return;
+    if (doomed !== save.id) { setDoomed(save.id); return; }
+    setDoomed(undefined);
+    game.deleteSave(save);
+  };
   useKeyboard(key => {
     if (game.overlay || loading || key.defaultPrevented || game.screen !== "title") return;
     key.preventDefault();
-    if (key.name === "up" || key.name === "k" || key.name === "w") setIndex(i => (i + items.length - 1) % items.length);
-    else if (key.name === "down" || key.name === "j" || key.name === "s") setIndex(i => (i + 1) % items.length);
-    else if (key.name === "return" || key.name === "space") pick(index);
+    if (doomed) {
+      if (key.name === "x" || key.name === "delete") doom();
+      else setDoomed(undefined);
+      return;
+    }
+    if (key.name === "up" || key.name === "k" || key.name === "w") select((at + items.length - 1) % items.length);
+    else if (key.name === "down" || key.name === "j" || key.name === "s") select((at + 1) % items.length);
+    else if (key.name === "return" || key.name === "space") pick(at);
+    else if (key.name === "x" || key.name === "delete") doom();
     else if (key.name === "n") game.newCharacter();
     else if (key.name === "q" || key.name === "escape") game.quit();
   });
+  const keys: KeyHint[] = doomed
+    ? [["x", "delete it", doom], ["any other key", "keep it", () => setDoomed(undefined)]]
+    : [["↑↓", "choose"], ["Enter", "select", () => pick(at)], ...(items[at]!.save ? [["x", "delete", doom] satisfies KeyHint] : []), ["n", "new game", () => game.newCharacter()], ["q", "quit", () => game.quit()]];
   const wide = width >= 84;
   const w = Math.min(width - 4, 90);
   return <box width={width} height={height} flexDirection="column" alignItems="center" justifyContent="center" backgroundColor={C.bg}>
@@ -62,17 +87,20 @@ export function TitleScreen({ game }: { game: Game }) {
     <box flexDirection="column" marginTop={2} width={w} border borderColor={C.border} paddingX={2} paddingY={1}>
       {/* Each a button: the pointer picks it out, a click does it. */}
       {items.map((item, i) => {
-        const on = i === Math.min(index, items.length - 1);
-        return <Clickable key={i} height={1} flexShrink={0} onClick={() => pick(i)} onHover={() => setIndex(i)}>
+        const on = i === at;
+        const going = !!item.save && item.save.id === doomed;
+        const label = going ? "Delete this game?" : item.label;
+        const detail = going ? `${item.save!.session.player.name}'s, for good: x again deletes it` : item.detail;
+        return <Clickable key={i} height={1} flexShrink={0} onClick={() => pick(i)} onHover={() => select(i)}>
           <text>
-            <span fg={on ? C.lead : C.dim}>{on ? "▶ " : "  "}</span>
-            <span fg={on ? C.title : C.text} {...(on ? { attributes: BOLD } : {})}>{item.label}</span>
-            {item.detail ? <span fg={C.dim}>{truncate(`   ${item.detail}`, Math.max(0, w - 8 - item.label.length))}</span> : null}
+            <span fg={going ? C.danger : on ? C.lead : C.dim}>{on ? "▶ " : "  "}</span>
+            <span fg={going ? C.danger : on ? C.title : C.text} {...(on ? { attributes: BOLD } : {})}>{label}</span>
+            {detail ? <span fg={C.dim}>{truncate(`   ${detail}`, Math.max(0, w - 8 - label.length))}</span> : null}
           </text>
         </Clickable>;
       })}
     </box>
-    <box marginTop={1} height={1}>{loading ? <Spinner label={loading} /> : <Keys items={[["↑↓", "choose"], ["Enter", "select", () => pick(index)], ["n", "new game", () => game.newCharacter()], ["q", "quit", () => game.quit()]]} />}</box>
+    <box marginTop={1} height={1}>{loading ? <Spinner label={loading} /> : <Keys items={keys} />}</box>
     {game.error ? <text fg={C.danger} marginTop={1}>{game.error}</text> : null}
   </box>;
 }

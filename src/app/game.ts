@@ -17,7 +17,7 @@ import type { SceneWorld } from "../world/scene-world.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { talkOf } from "../../scenes/talk.ts";
 import { repairCampaign } from "./rules-repair.ts";
-import { loadExtras, resumable, saveExtras, type JournalEntry, type Resumable } from "./save.ts";
+import { deleteSave, loadExtras, resumable, saveExtras, type JournalEntry, type Resumable } from "./save.ts";
 import { DEFAULT_CONCEPT, DEFAULT_NAME, epilogue, leadWay, LEVEL, notebookLines, TIME_WORDS, type Epilogue } from "./story.ts";
 
 /**
@@ -237,6 +237,12 @@ export class Game {
   loadSaves(): void {
     this.saves = resumable();
     this.emit();
+  }
+
+  /** Off the title screen's list for good (the folder goes to runs/deleted/). */
+  deleteSave(r: Resumable): void {
+    try { deleteSave(r.id); } catch (error) { this.error = `Couldn't delete that game: ${(error as Error).message}`; }
+    this.loadSaves();
   }
 
   newCharacter(): void {

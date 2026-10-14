@@ -54,3 +54,15 @@ export function resumable(limit = 5): Resumable[] {
   }
   return found.sort((a, b) => b.mtime - a.mtime).slice(0, limit);
 }
+
+/**
+ * Deletes a game from the title screen's list: its folder moves to runs/deleted/ (its logs are kept
+ * there, for whoever wants to see what happened), so it's no longer offered.
+ */
+export function deleteSave(id: string): void {
+  const from = sessionDir(id);
+  if (!existsSync(from)) return;
+  const bin = join(runsDir(), "deleted");
+  mkdirSync(bin, { recursive: true });
+  renameSync(from, existsSync(join(bin, id)) ? join(bin, `${id}-${Date.now()}`) : join(bin, id));
+}
