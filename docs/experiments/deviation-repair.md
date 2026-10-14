@@ -55,7 +55,23 @@ Conditions (`src/runtime/approaches.ts`):
 
 ## Qualitative investigation
 
-Four Claude analysts read the transcripts by condition group; the summary follows below.
+Four Claude analysts each read the transcripts for one group of conditions. Their full reports are in [deviation-investigation.md](deviation-investigation.md). The headline findings:
+
+- **With the essentials in its prep, the in-scene GM relocates naturally.** Holt passes on Rowan's diagnosis and Mags names the fix; Skrag answers a player who talks to the hedge; Cob offers to open his own boot; Garrow's fear leaks into the argument. Without the essentials (`gm-rigid`), the hedge stays silent until a scripted cue, the toll truth stays buried, and Kell keeps pointing at the boot. On the four placement cases the criterion passed 2/8 for `gm-rigid`, 6/8 for `gm` and 7/8 for `gm-nudge`.
+- **Decider relocation lands every essential, but often as an info dump.** 47 of 56 relocations were early reveals through the *original* carrier, 24 of them on turn 1. Garrow volunteers his Clause; Cob recites a page he can't read. It had the lowest consistency score. It needs restraint: wait until the player has had a fair chance at the original placement, use a carrier the player is actually engaging with, and move one thing at a time.
+- **Plausible plans the prep didn't foresee get refused without dice.** Lifting the tree off and the skids plan were turned down in-story, and the GM steered back to the authored routes (skids passed 0/8). With rolls tied to edges, the fix is for the co-GM to *add an edge with a roll* (and a reason) for such plans. That's what the blocking co-GM did, and why it scored better on dreamed plans (judge 5/6 against 2/6).
+- **Holding beats served the story but were too long, and the seam with the follow-up was poor.** Of 35 holds, about 26 were real beats (a hesitation, a tell, an action set in motion) and none were canned. But they ran at ~62 words against the 1–2 sentences asked, a quarter already answered the attempt, and only ~40% of follow-ups continued cleanly: a third repeated or rewound the beat. Part of the cause is that the co-GM starts before the beat exists. And with the quick co-GM (~2–3 s), the follow-up arrives while the player is still reading the beat, so the hold buys little that a single 3–4 s reply couldn't.
+- **The background co-GM's status trigger never fired.** The after-reply status said "drifting" or "uncovered" on 0 of 322 turns, so the co-GM ran on its 3-turn timer and missed the moments that define a deviation. When its output arrived, it was used, often nearly verbatim. Its routes fired in 14 sessions and helped in 12. It hurt when it pushed essentials the player's plan didn't need (Corvin's book: 3 of 3 such sessions ended "To find Corvin"), added dice to problems already solved, or whispered the same thing twice.
+- **Blocking isn't worth 12 s.** It rated roughly the same as `gm-stall-quick` (3.7 vs 3.5). What it buys is routes with rolls for new plans before the reply, and a budgeted quick co-GM can do that too.
+
+### Changes made from the investigation (`1331525`)
+
+- Decider relocation only after 3+ player turns, through someone the player is engaging with, one essential per reply.
+- The quick co-GM can open a route **with a roll and a reason** for plausible plans no route covers.
+- **`gm-quick-block`:** on off-graph turns only, wait up to 3 s for the quick co-GM, then give one coherent reply. That fits the 5 s budget with no beat/follow-up seam.
+- Holds only on genuinely off-graph turns, capped at 1–2 sentences.
+- Off-graph turns trigger the background co-GM, and whispers are used once.
+
 
 ## Re-run after the ending fix (leading conditions, n = 20 each)
 
