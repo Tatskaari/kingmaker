@@ -111,6 +111,8 @@ export interface PressureCheck {
 export interface PreDecision {
   /** The player did something daft or reckless that the world would really answer. */
   daft?: boolean;
+  /** The player has just done what it takes to get what they've been working towards: let it land. */
+  earned?: boolean;
   /** A pressure roll for a character's secret. */
   pressure?: PressureCheck;
   /** Essentials to bring to the player now, and through whom (decider relocation). */
@@ -270,6 +272,11 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
       criteria: { ...Object.fromEntries(keepers.map(c => [c.id, `Pressing ${c.name} for what they're hiding`])), none: "No: nobody is being pressed for something they're keeping back." },
     };
   }
+  // Holding back after the player has done the work is the commonest pacing failure we've seen.
+  questions.earned = {
+    instructions: "Has the player, in their latest turn, done what it takes to get something they've been working towards from someone in this scene: met that person's own terms, shown them the proof, made their case in full, or given the help or leverage that person was waiting for? Judge by what the story so far has established that person needs, not by how hard the player is pushing.",
+    criteria: { earned: "Yes: they've just done what it takes; it should land now.", not_yet: "No: they're still working on it, asking, or haven't done what it takes." },
+  };
   if (options.consequences) {
     questions.daft = {
       instructions: "Does the player's latest turn include something daft, reckless or cheeky that people in this world would really react to: a stunt or showing off where there's danger, mocking or making free with what someone holds dear, a scam or a bluff, an insult, a broken promise or a deal walked away from? Judge by how the people here would take it, not by whether it's funny.",
@@ -310,7 +317,9 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const plain = answer?.startsWith("plain:") ?? false;
   // A player's attempt (or something they simply do) outranks a pacing cue: the player acted first.
   // Only a real attempt outranks a pacing cue: talking or simply doing things doesn't hold the world back.
-  const cue = attempt ? undefined : cues.find(t => t.id === decision.answers.cue?.choice);
+  // A pacing cue never interrupts a payoff the player has just earned: the world can wait a reply.
+  const earnedNow = decision.answers.earned?.choice === "earned" && (decision.answers.earned?.probabilities?.earned ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  const cue = attempt || earnedNow ? undefined : cues.find(t => t.id === decision.answers.cue?.choice);
   // Something the player simply does that settles the scene (setting off, handing it over) is
   // their chosen ending: close it in this reply rather than letting the reply run past it.
   const plainOutcome = plain ? outcomes.find(t => `plain:${t.id}` === answer) : undefined;
@@ -331,6 +340,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   }
   const ooc = decision.answers.ooc?.choice === "out_of_character";
   const daft = decision.answers.daft?.choice === "consequential" && (decision.answers.daft?.probabilities?.consequential ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  const earned = decision.answers.earned?.choice === "earned" && (decision.answers.earned?.probabilities?.earned ?? 1) >= SCENE_ENDING_CONFIDENCE;
   let pressure: PressureCheck | undefined;
   const pressed = decision.answers.pressure?.choice;
   const target = pressed && pressed !== "none" && (decision.answers.pressure?.probabilities?.[pressed] ?? 1) >= SCENE_ENDING_CONFIDENCE && !move ? scene.cast.find(c => c.id === pressed) : undefined;
@@ -377,7 +387,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   return {
     ...(move ? { move } : {}), ...(decision.answers.speaker ? { speaker: decision.answers.speaker.choice } : {}), decision: combined,
     ...(plain ? { plain } : {}), ...(plainTransition ? { plainTransition } : {}), ...(freeform ? { freeform } : {}), ...(limit ? { limit } : {}), ...(ooc ? { ooc } : {}),
-    ...(offGraph ? { offGraph } : {}), ...(relocate.length ? { relocate } : {}), ...(pressure ? { pressure } : {}), ...(daft ? { daft } : {}),
+    ...(offGraph ? { offGraph } : {}), ...(relocate.length ? { relocate } : {}), ...(pressure ? { pressure } : {}), ...(daft ? { daft } : {}), ...(earned ? { earned } : {}),
   };
 }
 
@@ -443,6 +453,9 @@ export function pressureDirective(scene: Scene, p: PressureCheck): string {
   if (p.band === "no_but") return `The player pressed ${name}, and the dice go narrowly against them (${describeRoll(p.roll!)}). Not yet, but nearly: ${name} doesn't give it up, but asks a price of their own, or lets slip a partial truth that points somewhere useful. Don't reveal the secret itself. ${always}`;
   return `The player pressed ${name}, and the dice go against them (${describeRoll(p.roll!)}). ${name} holds firm and it costs the player: their attitude hardens and they shut this line down for now (they might call for someone, walk off or warn someone). Their own concerns still show in how they react; they never tell the player what would work. ${always}`;
 }
+
+/** The player has done the work: the payoff lands now, not after another round of asking. */
+export const EARNED_DIRECTIVE = "The player has just done what it takes for what they've been working towards. Let it land in this reply: the person gives it, shows it or agrees, in their own way, and people react to it. Don't ask the player for it again or add a new condition. (Only what they've earned: anything else stays for later.)";
 
 /** The bill for a daft act: real consequences, in the world's own logic (comic house style). */
 export const CONSEQUENCE_DIRECTIVE = "What the player just did is the kind of thing people in this world would really answer. Let it happen, and follow its logic through to a consequence in this reply, or one that is plainly on its way: whoever it touches reacts as they truly would (offence, alarm, opportunism, admiration), and it changes something, for better or worse. Not every consequence is bad, but this one isn't free.";
