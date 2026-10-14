@@ -1,0 +1,451 @@
+import type { SceneWorld } from "../../world/scene-world.ts";
+import type { Interaction, MapActor, StoryState, StyledLine, Tile2, TileMap } from "../types.ts";
+import { CAST } from "./looks.ts";
+import { getMap } from "./maps/index.ts";
+import { PLACES, regionForScene, sceneStart } from "./places.ts";
+import { isLive, leadMarker, presence, regionOpen, sceneTrigger } from "./presence.ts";
+import { actorsFromWorld, captureScene, emptyOverlay, feetToTile, nearestTile, overlayActors, overlayRegionStates, type MapOverlay } from "./reconcile.ts";
+import { render, type RenderOptions, type Viewport } from "./render.ts";
+import { direction, inBounds, inRect, isStructure, regionAt, steps, tileAt, type PlaceRegion } from "./tiles.ts";
+
+/**
+ * Walking about: the player's place on the maps, moving with collision (walls, water, locked
+ * doors, people), doors and paths to other maps, and the story's triggers (step into the granary
+ * yard, talk to Kell, go down the Rat's door at dusk). Everything is a plain object, so the app can
+ * save it with the session.
+ */
+
+export interface Follower { id: string; name: string; glyph: string; color: string; map: string; at: Tile2 }
+
+export interface ExploreState {
+  map: string;
+  at: Tile2;
+  /** The way the player last stepped: what's "in front" for interact(). */
+  facing: Tile2;
+  story: StoryState;
+  overlay: MapOverlay;
+  /** Who walks with the player (Kell, after the granary). */
+  followers: Follower[];
+  /** The scene being played: its world, when passed in, drives its place's actors. */
+  scene?: string;
+  steps: number;
+}
+
+export interface MoveResult {
+  moved: boolean;
+  map: string;
+  at: Tile2;
+  /** For the log: what happened, in the house style. */
+  message?: string;
+  /** Walked into someone or something in the way. */
+  bumped?: MapActor;
+  /** Went through a door or along a path to another map. */
+  travelled?: { from: string; to: string; label: string };
+  /** A scene opens here: the app starts it (openScene). */
+  trigger?: Extract<Interaction, { kind: "scene" }>;
+}
+
+export interface Nearby {
+  at: Tile2;
+  /** Steps away (diagonals count as one). */
+  distance: number;
+  /** A compass word from the player ("north-east"; on screen, north is up-left and east up-right). */
+  direction: string;
+  label: string;
+  actor?: MapActor;
+  interaction?: Interaction;
+}
+
+/** Where a fresh story or a reloaded one puts the player: the lane by the granary gate, or outside the last place. */
+export function newExploration(story: StoryState, options: { overlay?: MapOverlay; map?: string; at?: Tile2 } = {}): ExploreState {
+  const last = story.played.at(-1);
+  const after = last ? PLACES[last]?.after : undefined;
+  const map = options.map ?? after?.map ?? "caerwyn";
+  const at = options.at ?? after?.at ?? { x: 42, y: 9 };
+  const state: ExploreState = { map, at: { ...at }, facing: { x: 0, y: 1 }, story, overlay: options.overlay ?? emptyOverlay(), followers: [], steps: 0 };
+  syncFollowers(state);
+  return state;
+}
+
+/** The story moved on (a scene ended, the time changed): who's about changes with it. */
+export function setStory(state: ExploreState, story: StoryState): void {
+  state.story = story;
+  syncFollowers(state);
+}
+
+/** Kell walks with the investigator once the granary's done, unless the story has parted them (flags.kell === false). */
+function syncFollowers(state: ExploreState): void {
+  const withKell = state.story.played.length > 0 && state.story.flags.kell !== false && state.story.flags.kell !== "absent";
+  const has = state.followers.some(f => f.id === "kell");
+  if (withKell && !has) {
+    const map = getMap(state.map);
+    const at = nearestTile(map, state.at, p => p.x !== state.at.x || p.y !== state.at.y ? walkable(map, p) : false, 3) ?? state.at;
+    state.followers.push({ id: "kell", name: CAST.kell!.name, glyph: CAST.kell!.glyph, color: CAST.kell!.color, map: state.map, at });
+  }
+  if (!withKell && has) state.followers = state.followers.filter(f => f.id !== "kell");
+}
+
+// ---------------------------------------------------------------------------------------------
+// Who's here.
+
+/**
+ * Everyone and everything on the player's map: the town's people and decor by the story, places
+ * as the story has them (waiting, or as their scenes left them), the live scene's world when one
+ * is being played, the followers, and the player.
+ */
+export function actorsHere(state: ExploreState, world?: SceneWorld, mapId = state.map): MapActor[] {
+  const map = getMap(mapId);
+  let actors = [...presence(state.story, mapId), ...overlayActors(state.overlay, mapId, state.story.time)];
+  const live = state.scene && world ? regionForScene(state.scene) : undefined;
+  if (live && live.map.id === mapId && world) {
+    // The scene's own world replaces the preview of its place, and has the player in it.
+    actors = actors.filter(a => !a.id.startsWith(`${state.scene}:`));
+    const fromWorld = actorsFromWorld(live.region, world, { map });
+    const me = fromWorld.find(a => a.kind === "player");
+    if (me) { state.at = { ...me.at }; state.map = mapId; }
+    return [...actors, ...fromWorld.map(a => (a.kind === "player" ? a : { ...a, id: `${state.scene}:${a.id}` }))];
+  }
+  if (!state.scene) for (const f of state.followers) if (f.map === mapId) {
+    actors.push({ id: f.id, name: f.name, kind: "person", glyph: f.glyph, color: f.color, map: mapId, at: f.at, ref: f.id, blocks: true,
+      interaction: { kind: "examine", text: kellLine(state.story), label: `Talk to ${f.name}` } });
+  }
+  if (mapId === state.map) actors.push({ id: "player", name: "you", kind: "player", glyph: "@", color: "#ffffff", map: mapId, at: { ...state.at }, blocks: true });
+  return actors;
+}
+
+/** Kell, between scenes, on where the case is going. */
+function kellLine(story: StoryState): string {
+  const lead = story.lead && !story.played.includes(story.lead) ? story.lead : undefined;
+  if (lead === "drowned-rat") return "Kell taps her pencil on her notebook. 'Big man, bandaged hand, night work for a gentleman. The Drowned Rat, investigator: halfway down the river stairs. Noted.'";
+  if (lead === "heron-warehouse") return "Kell, very quietly for Kell, which is not very quietly: 'The Heron. Downriver end of the wharves. The barge sails on the ebb.' She looks at the river. 'I'd rather we didn't.'";
+  if (lead === "kings-morning") return "Kell straightens a uniform that hasn't been to bed. 'The King will see you before the procession. I've written it all down. All of it, investigator.'";
+  return "Kell looks up from her notebook. 'Investigator.' She waits, pencil ready, as if whatever you say next will be written down. It will.";
+}
+
+// ---------------------------------------------------------------------------------------------
+// Moving.
+
+const walkable = (map: TileMap, p: Tile2) => inBounds(map, p) && !tileAt(map, p).blocks && !isStructure(tileAt(map, p)) || (inBounds(map, p) && tileAt(map, p).terrain === "door" && !tileAt(map, p).blocks);
+
+const BUMPS = [
+  "You walk into the wall. The wall wins.",
+  "The wall declines to move. It has seen off better than you.",
+  "That's a wall. Caerwyn is full of them; it's how you can tell where the buildings are.",
+];
+
+/** A door's state from the actors on it (a scene opened it, or barred it): open, shut, or the tile's own. */
+function doorState(actors: MapActor[], at: Tile2): "open" | "locked" | undefined {
+  const door = actors.find(a => a.at.x === at.x && a.at.y === at.y && a.kind === "object" && (a.states ?? []).some(s => ["open", "closed", "locked", "barred", "bolted"].includes(s)));
+  if (!door) return undefined;
+  const s = door.states ?? [];
+  if (s.includes("destroyed") || s.includes("open")) return "open";
+  if (s.includes("locked") || s.includes("barred") || s.includes("bolted")) return "locked";
+  return undefined;
+}
+
+/** Take a step (dx, dy each -1, 0 or 1; north is -y). Arrow keys: see KEYS. */
+export function move(state: ExploreState, dx: number, dy: number, world?: SceneWorld): MoveResult {
+  dx = Math.sign(dx); dy = Math.sign(dy);
+  const map = getMap(state.map);
+  const here = { ...state.at };
+  const result = (r: Partial<MoveResult>): MoveResult => ({ moved: false, map: state.map, at: { ...state.at }, ...r });
+  if (!dx && !dy) return result({});
+  state.facing = { x: dx, y: dy };
+  if (state.scene) return result({ message: "You're in the middle of something." });
+  const to = { x: here.x + dx, y: here.y + dy };
+  if (!inBounds(map, to)) return result({ message: "That's the edge of the map. The council keeps meaning to put a fence up." });
+  const actors = actorsHere(state, world);
+  const t = tileAt(map, to);
+  const region = regionAt(map, to);
+  // Doors and paths to other maps.
+  const exit = map.exits.find(e => e.at.x === to.x && e.at.y === to.y);
+  if (exit) {
+    if (!regionOpen(state.story, gatingRegion(map, to))) return result({ message: gatingRegion(map, to)!.shut! });
+    return travel(state, exit.to, exit.label);
+  }
+  // Squeezing diagonally between two walls isn't a thing people can do.
+  if (dx && dy && !walkable(map, { x: here.x + dx, y: here.y }) && !walkable(map, { x: here.x, y: here.y + dy })) return result({ message: "Too tight a squeeze, even for an investigator." });
+  const door = doorState(actors, to);
+  if (t.terrain === "door") {
+    if (!regionOpen(state.story, gatingRegion(map, to))) return result({ message: gatingRegion(map, to)!.shut! });
+    if ((t.blocks && door !== "open") || door === "locked") return result({ message: lockedLine(map, to) });
+  } else if (t.terrain === "deep-water") {
+    return result({ message: "The river is high, fast and freezing. You decide to stay the investigator rather than become evidence." });
+  } else if (t.blocks || isStructure(t) || t.terrain === "tree" || t.terrain === "void") {
+    return result({ message: t.terrain === "tree" ? "A tree. It was here first." : BUMPS[state.steps % BUMPS.length]! });
+  }
+  if (!regionOpen(state.story, region)) return result({ message: region!.shut! });
+  const inTheWay = actors.find(a => a.at.x === to.x && a.at.y === to.y && a.kind !== "player" && a.blocks && !(a.states ?? []).includes("overhead") && !(a.states ?? []).includes("hanging"));
+  const follower = inTheWay && state.followers.find(f => f.id === inTheWay.id);
+  if (inTheWay && !follower) return result({ bumped: inTheWay, message: `${capital(inTheWay.name)} ${inTheWay.kind === "person" ? "is in the way" : "is in the way, and doesn't care"}.` });
+  // Step, and whoever follows takes the place you left (or swaps with you, if they were in front).
+  state.at = to;
+  state.steps++;
+  for (const f of state.followers) if (f.map === state.map) {
+    if (f.at.x === to.x && f.at.y === to.y) f.at = here;
+    else if (steps(f.at, to) > 1) f.at = here;
+  }
+  const before = regionAt(map, here);
+  const r = result({ moved: true });
+  const trigger = triggerAt(state, map, to, here);
+  if (trigger) r.trigger = trigger;
+  if (region && region.id !== before?.id) r.message = `You come into ${region.name}.`;
+  return r;
+}
+
+/** Follow a travel interaction (or an exit): the player, and whoever walks with them, arrive on the other map. */
+export function travel(state: ExploreState, to: { map: string; at: Tile2 }, label = "On you go"): MoveResult {
+  const from = state.map;
+  const map = getMap(to.map);
+  state.map = to.map;
+  state.at = { ...to.at };
+  state.steps++;
+  for (const f of state.followers) {
+    f.map = to.map;
+    f.at = nearestTile(map, to.at, p => (p.x !== to.at.x || p.y !== to.at.y) && walkable(map, p) && !(map.exits.some(e => e.at.x === p.x && e.at.y === p.y)), 3) ?? { ...to.at };
+  }
+  const r: MoveResult = { moved: true, map: state.map, at: { ...state.at }, travelled: { from, to: to.map, label }, message: `${label}: ${map.name}.` };
+  const trigger = triggerAt(state, map, to.at, undefined);
+  if (trigger) r.trigger = trigger;
+  return r;
+}
+
+/** Stepping into a live scene's place opens it. */
+function triggerAt(state: ExploreState, map: TileMap, to: Tile2, from: Tile2 | undefined): MoveResult["trigger"] {
+  for (const r of map.regions as PlaceRegion[]) {
+    if (r.trigger !== "enter" || !r.sceneId || !inRect(r.rect, to) || (from && inRect(r.rect, from))) continue;
+    if (isLive(state.story, r.sceneId)) return sceneTrigger(r.sceneId, "enter", r.label ?? `Go into ${r.name}`);
+  }
+  return undefined;
+}
+
+/** The region whose time opens a door here (a one-tile door region, or the place behind it). */
+function gatingRegion(map: TileMap, at: Tile2): PlaceRegion | undefined {
+  return (map.regions as PlaceRegion[]).filter(r => r.shut && inRect(r.rect, at)).sort((a, b) => a.rect.w * a.rect.h - b.rect.w * b.rect.h)[0];
+}
+
+function lockedLine(map: TileMap, at: Tile2): string {
+  const region = regionAt(map, at);
+  if (region?.id === "the-granary") return "Padlocked. The warden has the key, and the warden is at the palace counting Assembly provisions.";
+  if (map.id === "heron") return "Barred from the inside. Somebody in there doesn't want visitors, which is interesting in itself.";
+  return "Locked. Everyone's out hanging bunting.";
+}
+
+/**
+ * The shortest walk from the player to a tile on this map, round walls, water, shut doors and people
+ * (diagonal steps allowed, but no squeezing between two walls), as steps for move(). If the tile
+ * itself can't be stood on (someone's there, it's a door that's shut), the walk ends beside it.
+ */
+export function pathTo(state: ExploreState, target: Tile2, world?: SceneWorld): Array<[number, number]> | undefined {
+  const map = getMap(state.map);
+  const actors = actorsHere(state, world);
+  const occupied = new Set(actors.filter(a => a.blocks && a.kind !== "player" && !state.followers.some(f => f.id === a.id) && !(a.states ?? []).some(s => s === "overhead" || s === "hanging")).map(a => `${a.at.x},${a.at.y}`));
+  const exits = new Set(map.exits.map(e => `${e.at.x},${e.at.y}`));
+  const ok = (p: Tile2) => {
+    const k = `${p.x},${p.y}`;
+    if (!walkable(map, p) || occupied.has(k) || (exits.has(k) && !(p.x === target.x && p.y === target.y))) return false;
+    const t = tileAt(map, p);
+    if (t.terrain === "door" && (doorState(actors, p) === "locked" || (t.blocks && doorState(actors, p) !== "open"))) return false;
+    return regionOpen(state.story, regionAt(map, p)) && regionOpen(state.story, gatingRegion(map, p));
+  };
+  const goal = (p: Tile2) => (p.x === target.x && p.y === target.y) || (!ok(target) && steps(p, target) === 1);
+  const start = `${state.at.x},${state.at.y}`;
+  const came = new Map<string, string | null>([[start, null]]);
+  const queue: Tile2[] = [{ ...state.at }];
+  let end: Tile2 | undefined;
+  while (queue.length) {
+    const p = queue.shift()!;
+    if (goal(p)) { end = p; break; }
+    for (const d of [[0, -1], [1, 0], [0, 1], [-1, 0], [1, -1], [1, 1], [-1, 1], [-1, -1]] as const) {
+      const n = { x: p.x + d[0], y: p.y + d[1] };
+      const k = `${n.x},${n.y}`;
+      if (came.has(k) || !inBounds(map, n) || !ok(n)) continue;
+      if (d[0] && d[1] && !walkable(map, { x: p.x + d[0], y: p.y }) && !walkable(map, { x: p.x, y: p.y + d[1] })) continue;
+      came.set(k, `${p.x},${p.y}`);
+      queue.push(n);
+    }
+  }
+  if (!end) return undefined;
+  const path: Array<[number, number]> = [];
+  for (let k: string | null = `${end.x},${end.y}`; k && came.get(k) !== null; k = came.get(k) ?? null) {
+    const [x, y] = k.split(",").map(Number) as [number, number];
+    const [px, py] = came.get(k)!.split(",").map(Number) as [number, number];
+    path.unshift([x - px, y - py]);
+  }
+  return path;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Looking and touching.
+
+const GROUND: Record<string, string> = {
+  cobbles: "on the cobbles", grass: "on the grass", dirt: "on beaten earth", boards: "on the boards", floor: "on the floor", stairs: "on the steps",
+  water: "up to your ankles in the river", bridge: "on the planks", door: "in the doorway",
+};
+
+/** What the player sees: where they are, what's around them, and where the story's heading. */
+export function look(state: ExploreState, world?: SceneWorld): string {
+  const map = getMap(state.map);
+  const region = regionAt(map, state.at);
+  const t = tileAt(map, state.at);
+  const lines: string[] = [];
+  lines.push(`${region ? `You're in ${region.name}` : `You're in ${map.name}`}, ${GROUND[t.terrain] ?? "standing about"}.${region?.description ? ` ${region.description}` : ""}`);
+  const near = nearby(state, 3, world).filter(n => n.actor);
+  const people = near.filter(n => n.actor!.kind === "person" || n.actor!.kind === "creature");
+  const things = near.filter(n => n.actor!.kind === "object" || n.actor!.kind === "item").filter(n => !(n.actor!.states ?? []).includes("overhead"));
+  if (people.length) lines.push(`About: ${people.map(n => `${n.actor!.name} (${where(n)})`).join(", ")}.`);
+  if (things.length) lines.push(`Here: ${dedupe(things.map(n => `${n.actor!.name}${state_(n.actor!)} (${where(n)})`)).join(", ")}.`);
+  const exits = map.exits.filter(e => steps(e.at, state.at) <= 3);
+  if (exits.length) lines.push(`${dedupe(exits.map(e => `${e.label} (${where({ distance: steps(e.at, state.at), direction: direction(state.at, e.at) })})`)).join("; ")}.`);
+  const lead = leadMarker(state.story, state.map);
+  if (lead) lines.push(`The lead: ${lead.label}, ${steps(lead.at, state.at) <= 1 ? "right here" : `${direction(state.at, lead.at)}, ${steps(lead.at, state.at)} steps`}.`);
+  const time = TIME_LINES[state.story.time];
+  if (time && map.id === "caerwyn") lines.push(time);
+  return lines.join("\n");
+}
+
+const TIME_LINES: Record<StoryState["time"], string> = {
+  morning: "Morning on the eve of the Assembly: bunting going up on every rope that will hold it, and the smell of wet grain and river mud.",
+  afternoon: "Afternoon: sweepers, delegations' servants, bread dearer than last week, and everybody too busy for a hanged clerk.",
+  evening: "Dusk: the lamps are being lit, the bunting's gone grey, and the night shift is going down to the river.",
+  night: "Night: the river high and black, fog coming off it, lanterns on the barges, and the town gone quiet behind you.",
+  "next-morning": "The morning of the Assembly: bells, a band tuning up, crowds, banners, and bunting on everything that stood still.",
+};
+
+const where = (n: { distance: number; direction: string }) => (n.distance === 0 ? "here" : n.distance === 1 ? `just ${n.direction}` : `${n.distance} ${n.direction}`);
+const state_ = (a: MapActor) => { const s = (a.states ?? []).filter(x => ["burning", "destroyed", "smouldering", "open", "locked", "barred", "hanging", "lit", "down", "unconscious"].includes(x)); return s.length ? `, ${s.join(", ")}` : ""; };
+const dedupe = (xs: string[]) => [...new Set(xs)];
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** People, things and ways out within a few steps, nearest first. */
+export function nearby(state: ExploreState, radius = 2, world?: SceneWorld): Nearby[] {
+  const map = getMap(state.map);
+  const out: Nearby[] = [];
+  const seen = new Set<string>();
+  for (const a of actorsHere(state, world)) {
+    if (a.kind === "player" || (a.states ?? []).includes("overhead")) continue;
+    const d = steps(a.at, state.at);
+    if (d > radius) continue;
+    const id = a.id.split("#")[0]!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    out.push({ at: a.at, distance: d, direction: direction(state.at, a.at), label: a.name, actor: a, ...(a.interaction ? { interaction: a.interaction } : {}) });
+  }
+  for (const e of map.exits) {
+    const d = steps(e.at, state.at);
+    if (d > radius || out.some(n => n.label === e.label)) continue;
+    out.push({ at: e.at, distance: d, direction: direction(state.at, e.at), label: e.label, interaction: { kind: "travel", to: e.to, label: e.label } });
+  }
+  return out.sort((a, b) => a.distance - b.distance);
+}
+
+/**
+ * What the player can do with what's in front of them (or, failing that, beside them): talk to
+ * someone (a scene, if theirs is live), go through a door, or look at a thing.
+ */
+export function interact(state: ExploreState, world?: SceneWorld): { interaction: Interaction; actor?: MapActor; at: Tile2 } | undefined {
+  const map = getMap(state.map);
+  const actors = actorsHere(state, world).filter(a => a.kind !== "player" && !(a.states ?? []).includes("overhead"));
+  const front = { x: state.at.x + state.facing.x, y: state.at.y + state.facing.y };
+  const isFront = (a: MapActor) => a.at.x === front.x && a.at.y === front.y;
+  const reach = actors.filter(a => a.interaction && steps(a.at, state.at) <= 1);
+  const person = (a: MapActor) => a.kind === "person" || a.kind === "creature";
+  const pick = (test: (a: MapActor) => boolean) => reach.filter(test).sort((a, b) => Number(isFront(b)) - Number(isFront(a)))[0];
+  const found = (a: MapActor | undefined) => (a ? { interaction: a.interaction!, actor: a, at: a.at } : undefined);
+  // Someone whose scene is waiting comes first, then whoever you're facing, then doors and places
+  // ahead, then things ahead, then whoever's beside you, then things beside you.
+  const scene = found(pick(a => a.interaction!.kind === "scene"));
+  if (scene) return scene;
+  const faced = found(pick(a => isFront(a) && person(a)));
+  if (faced) return faced;
+  const exitAhead = map.exits.find(e => e.at.x === front.x && e.at.y === front.y);
+  if (exitAhead) return { interaction: { kind: "travel", to: exitAhead.to, label: exitAhead.label }, at: front };
+  // A live scene's place right in front of you (the yard through its gate).
+  const region = (map.regions as PlaceRegion[]).find(r => r.trigger === "enter" && r.sceneId && inRect(r.rect, front) && !inRect(r.rect, state.at) && isLive(state.story, r.sceneId));
+  if (region) return { interaction: sceneTrigger(region.sceneId!, "enter", region.label ?? `Go into ${region.name}`), at: front };
+  const ahead = found(pick(a => isFront(a)));
+  if (ahead) return ahead;
+  const beside = found(pick(person)) ?? found(pick(() => true));
+  if (beside) return beside;
+  const t = tileAt(map, front);
+  if (t.terrain === "door") return { interaction: { kind: "examine", text: gatingRegion(map, front)?.shut ?? lockedLine(map, front), label: "Try the door" }, at: front };
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Scenes: in and out of the place a scene is played in.
+
+/** A scene opens: the player stands where its world starts them (the app then shows the place). */
+export function enterScene(state: ExploreState, sceneId: string): { map: string; at: Tile2 } | undefined {
+  const start = sceneStart(sceneId);
+  if (!start) return undefined;
+  state.scene = sceneId;
+  state.map = start.map;
+  state.at = { ...start.at };
+  return start;
+}
+
+/**
+ * The scene is over: keep what it did to its place (pass its world before chainScene drops it),
+ * and put the player back on their feet where the world left them, or outside the place.
+ */
+export function leaveScene(state: ExploreState, world?: SceneWorld): void {
+  const sceneId = state.scene;
+  delete state.scene;
+  if (!sceneId) return;
+  const found = regionForScene(sceneId);
+  if (found && world) {
+    captureScene(state.overlay, found.region, world, state.story.time);
+    const me = world.entities.player;
+    const feet = me?.at;
+    if (feet) {
+      const at = feetToTile(found.region, feet);
+      const ok = nearestTile(found.map, at, p => walkable(found.map, p), 3);
+      if (ok) { state.map = found.map.id; state.at = ok; }
+    }
+  }
+  const after = PLACES[sceneId]?.after;
+  if (after && (!found || !world || state.map !== found.map.id || !inBounds(getMap(state.map), state.at))) { state.map = after.map; state.at = { ...after.at }; }
+  // Followers catch up.
+  for (const f of state.followers) {
+    const map = getMap(state.map);
+    f.map = state.map;
+    f.at = nearestTile(map, state.at, p => (p.x !== state.at.x || p.y !== state.at.y) && walkable(map, p), 3) ?? { ...state.at };
+  }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Drawing.
+
+/** The map round the player, ready for the app: lead marker, time of day, what scenes left behind. */
+export function renderExplore(state: ExploreState, viewport: Viewport, options: RenderOptions & { world?: SceneWorld } = {}): StyledLine[] {
+  const map = getMap(state.map);
+  const { world, ...rest } = options;
+  const actors = actorsHere(state, world);
+  const lead = leadMarker(state.story, state.map);
+  // A scene's place is framed whole when it fits; otherwise (and when exploring) the camera follows the player.
+  let camera = state.at;
+  const place = state.scene ? regionForScene(state.scene) : undefined;
+  if (place && place.map.id === state.map) {
+    const r = place.region.rect;
+    if (2 * (r.w + r.h) + 6 <= viewport.w && r.w + r.h + 6 <= viewport.h) camera = { x: Math.floor(r.x + r.w / 2), y: Math.floor(r.y + r.h / 2) };
+  }
+  // In a scene, every room with someone in it opens up, not just the player's.
+  const reveal = state.scene ? actors.filter(a => a.kind === "person" || a.kind === "creature").map(a => a.at) : [];
+  return render(map, actors, camera, viewport, {
+    focus: state.at,
+    ...(reveal.length ? { reveal } : {}),
+    time: state.story.time,
+    ...(lead && !state.scene ? { lead: lead.at, leadLabel: lead.label } : {}),
+    regionStates: overlayRegionStates(state.overlay, map, state.story.time),
+    tick: state.steps,
+    ...(state.scene ? { roofs: false } : {}),
+    ...rest,
+  });
+}
+
+/** Key to step, for an app that wants one: WASD and arrows by the compass, QEZC (and Home/PgUp/End/PgDn) diagonally. */
+export const KEYS: Record<string, [number, number]> = {
+  up: [0, -1], w: [0, -1], k: [0, -1], down: [0, 1], s: [0, 1], j: [0, 1], left: [-1, 0], a: [-1, 0], h: [-1, 0], right: [1, 0], d: [1, 0], l: [1, 0],
+  q: [-1, -1], home: [-1, -1], e: [1, -1], pageup: [1, -1], z: [-1, 1], end: [-1, 1], c: [1, 1], pagedown: [1, 1],
+};
