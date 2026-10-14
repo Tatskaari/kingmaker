@@ -365,6 +365,9 @@ export class Game {
     } catch (error) {
       // A turn that fails part-way leaves things half-changed: go back to the last save.
       this.core = Core.load(core.state.id, this.explorer, this.fights);
+      // The scene's look saw the half-changed world: it starts again from the saved one, so going back isn't news.
+      this.look = undefined;
+      this.rolled = [];
       this.showSceneSoFar();
       this.lines.push({ kind: "error", speaker: "system", text: `The GM lost the thread (${message(error)}). Your last turn didn't happen; try it again.` });
     }
@@ -602,8 +605,9 @@ export class Game {
     if (!look || !world) return;
     const now = performance.now(), aliases = this.session?.rules?.aliases ?? {};
     look.director.spellsFrom(world, lines, now, aliases);
-    look.director.observe(world, now);
+    // The numbers from the lines first: observe then floats only what they didn't say.
     look.director.rulesLines(world, lines, now, aliases);
+    look.director.observe(world, now);
   }
 
   /** After a turn: who walked where, what caught fire, what broke. */

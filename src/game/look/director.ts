@@ -13,7 +13,8 @@ import { smoothstep } from "./noise.ts";
  *   - lights what caught fire (sparks, a flash), douses what got wet while burning (a splash and a
  *     puff of steam), breaks what was destroyed (debris, smoke if it burned), blows up what
  *     exploded, puffs in what arrived and out what left;
- *   - and, given the rules' lines, floats the damage numbers ("12" in fire orange over the table).
+ *   - and, given the rules' lines, floats the damage numbers ("12" in fire orange over the table):
+ *     pass them to rulesLines() before observe(), which then floats only the hurt the lines didn't.
  *
  * The positions it's tweening are what renderers should draw (positionAt), falling back to the world.
  */
@@ -43,6 +44,8 @@ export class Director {
   readonly tweens: Tweens;
   private seen = new Map<string, Seen>();
   private logSeen = 0;
+  /** Whoever the rules' lines have floated damage over since the last observe (observe doesn't float it again). */
+  private floated = new Set<string>();
   /** Feet per second people walk at on screen. */
   walk = 9;
 
@@ -60,6 +63,7 @@ export class Director {
   prime(world: SceneWorld): void {
     this.seen = snapshot(world);
     this.logSeen = world.log.length;
+    this.floated.clear();
   }
 
   /** Animate what changed since last time. Returns a line per thing it animated (for logs and tests). */
@@ -100,7 +104,7 @@ export class Director {
         did.push(`${e.name} moves`);
       }
       if (cur.states === before.states) {
-        if (before.hp !== undefined && cur.hp !== undefined && cur.hp < before.hp && pos) fx.float({ ...pos }, String(before.hp - cur.hp), { damage: "bludgeoning" }, t);
+        if (before.hp !== undefined && cur.hp !== undefined && cur.hp < before.hp && pos && !this.floated.has(id)) fx.float({ ...pos }, String(before.hp - cur.hp), { damage: "bludgeoning" }, t);
         continue;
       }
       const was = new Set(before.states.split("|")), is = new Set(cur.states.split("|"));
@@ -142,6 +146,7 @@ export class Director {
     }
     this.logSeen = world.log.length;
     this.seen = now;
+    this.floated.clear();
     return did;
   }
 
@@ -150,6 +155,7 @@ export class Director {
    * Crake takes 7 damage", "You take 5 damage", "Odo regains 6 HP", "...: unharmed by the fire").
    * A blow's damage type comes from its "Damage: ..." line. People the player hasn't heard named
    * are in the lines by what the player calls them (aliases: id to that). Returns how many it floated.
+   * The next observe() doesn't float the same hurt again (a fire burning on is one number a turn).
    */
   rulesLines(world: SceneWorld, lines: string[], t: number, aliases: Record<string, string> = {}): number {
     let n = 0, kind = "";
@@ -163,7 +169,7 @@ export class Director {
       const e = name ? whoIs(world, name, aliases) : undefined;
       const p = e ? positionOf(world, e.id) : undefined;
       if (!p) continue;
-      if (dmg) this.effects.float({ ...p }, dmg[2]!, { damage: (dmg[3] ?? (kind || "bludgeoning")).toLowerCase() }, t + n * 90);
+      if (dmg) { this.effects.float({ ...p }, dmg[2]!, { damage: (dmg[3] ?? (kind || "bludgeoning")).toLowerCase() }, t + n * 90); this.floated.add(e!.id); }
       else if (heal) this.effects.float({ ...p }, `+${heal[2]}`, { damage: "heal" }, t + n * 90);
       else this.effects.float({ ...p }, "unharmed", { style: "info", color: "#a8a49c" }, t + n * 90);
       n++;
@@ -252,11 +258,14 @@ export class Director {
       const sentences = reply.slice(Math.max(0, m.index - 200), m.index).toLowerCase().split(/(?<=[.!?…:])\s+|\n+/);
       const lead = (sentences.at(-1)?.trim() ? sentences.at(-1) : sentences.at(-2)) ?? "";
       const after = reply.slice(m.index + m[0].length, m.index + m[0].length + 40).toLowerCase();
+      // The player's own words ("…,” you add) aren't anyone's bark.
+      if (YOU_SAY.test(after)) continue;
       let best: { id: string; at: number } | undefined;
       for (const p of people) {
         for (const n of namesOf(p)) {
-          // Named with a speech verb just after it ("“Oi!” Nan says") is the speaker, whoever else is about.
-          if (after.includes(n) && SPEECH.test(after)) { best = { id: p.id, at: -1 }; break; }
+          // Named in the speech tag ("“Oi!” Nan says", "says the landlady") is the speaker, whoever else is about
+          // ("she says, without looking at Hobb" isn't Hobb).
+          if (taggedBy(after, n)) { best = { id: p.id, at: -1 }; break; }
           // Otherwise the first one named in the lead-in who isn't only mentioned ("One looks from Kell to you." isn't Kell talking).
           for (let i = lead.indexOf(n); i >= 0; i = lead.indexOf(n, i + 1)) {
             if (MENTIONED.test(lead.slice(0, i))) continue;
@@ -274,7 +283,15 @@ export class Director {
 }
 
 /** Words that say someone's talking. */
-const SPEECH = /\b(said|says|shouts|calls|mutters|snaps|adds|asks|cries|yells|whispers|growls|replies)\b/;
+const SPEECH = "said|says|shouts|calls|mutters|snaps|adds|asks|cries|yells|whispers|growls|replies|tells|answers|murmurs|hisses|grunts|barks|warns";
+/** A speech tag that's the player's: "…,” you say. */
+const YOU_SAY = /^[^a-z]*you\s+(say|said|add|added|ask|asked|reply|replied|tell|told|answer|answered|call|called|shout|shouted|mutter|muttered|whisper|whispered|snap|snapped)\b/;
+
+/** Does the speech tag straight after a quote name this speaker? "…,” Nan says", "…,” Big Hobb growls", "…,” says the landlady". */
+function taggedBy(after: string, name: string): boolean {
+  const n = name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^[^a-z]*(?:[a-z']+\\s+){0,2}?${n}\\s+(?:${SPEECH})\\b|^[^a-z]*(?:${SPEECH})\\s+(?:the\\s+)?${n}\\b`).test(after);
+}
 /** Words too common to tell people apart by. */
 const GENERIC = /^(person|people|fellow|figure|someone|stranger|woman|children)$/;
 /** A name after one of these is someone being looked at or talked about, not the speaker. */
