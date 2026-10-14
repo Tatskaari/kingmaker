@@ -192,7 +192,8 @@ async function mechanicDetails(decider: Decider, scene: Scene, state: SessionSta
     };
   }
   // Where they act from: moving first in the same turn changes who an area catches (two more
-  // questions in this call; Jev placed the player right 48/48 on the eval's turns).
+  // questions in this call; on the eval's turns Jev placed the player right 48/48, Luna decisions
+  // 42/48 with the confidence floor below, against 27/48 for the old spot).
   if (rules.places?.length) {
     q.act_from = {
       instructions: "The player is casting a spell or striking in their latest turn. Where are they when they do it? If they move first in the same turn (walk, climb, cross the room, back off), it's where they end up.",
@@ -209,9 +210,11 @@ async function mechanicDetails(decider: Decider, scene: Scene, state: SessionSta
   }
   // The world, so "where they are now" means something.
   const decision = await decider.decide({ ...decisionState(scene, state, playerTurn), ...(q.act_from && state.world ? { world: worldView(state.world) } : {}) }, q, "director.mechanic");
+  // An unsure answer leaves the player where they are (as before) rather than somewhere wrong.
+  const sure = (id: string, otherwise: string) => { const a = decision.answers[id]; return a && (a.probabilities?.[a.choice] ?? 1) >= 0.5 ? a.choice : otherwise; };
   const actFrom = (aim: string | undefined): ActFrom | undefined => {
-    const where = decision.answers.act_from?.choice ?? "here";
-    const back = decision.answers.act_back_off?.choice ?? "no";
+    const where = sure("act_from", "here");
+    const back = sure("act_back_off", "no");
     const from: ActFrom = {
       ...(where.startsWith("area:") ? { area: where.slice(5) } : {}),
       ...(where.startsWith("near:") ? { near: where.slice(5) } : {}),
