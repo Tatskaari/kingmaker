@@ -15,6 +15,9 @@ const { fightEffects, fightView, stageView, townView } = await import("./views.t
 import type { GameState } from "./play.ts";
 import type { SessionState } from "../runtime/session.ts";
 
+// These read letters off the frames: draw with letters whatever this machine has installed.
+process.env.KM_GLYPHS ??= "ascii";
+
 /**
  * The game's views with the look wired in: a scene's place from above and on the map, with its
  * effects; a fight on its battlefield with its dust, its fire and its effects. No model calls.
