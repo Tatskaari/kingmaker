@@ -272,9 +272,9 @@ function layoutOnce(plan: PlacePlan, W: number, D: number, notchCorner: Corner |
     }
   }
   const extent = (s: Side) => strips[s].reduce((n, x) => n + x.depth, 0);
-  // A square of ground on a side with nothing there; behind, among buildings, the neighbours, two
-  // squares deep so they read as houses, not a fence.
-  const margin = (s: Side) => (strips[s].length ? 0 : plan.surroundings === "buildings" && behind(s) ? 2 : 1);
+  // A square of ground on a side with nothing there; behind, the neighbours or the bank, two squares
+  // deep so they read as houses or a hillside, not a fence.
+  const margin = (s: Side) => (strips[s].length ? 0 : (plan.surroundings === "buildings" || plan.surroundings === "earth-bank") && behind(s) ? 2 : 1);
   const west = extent("west") + margin("west"), east = extent("east") + margin("east");
   const north = extent("north") + margin("north"), south = extent("south") + margin("south");
   const width = west + W + east, height = north + D + south;
@@ -318,8 +318,10 @@ function layoutOnce(plan: PlacePlan, W: number, D: number, notchCorner: Corner |
     let offset = 0;
     for (const { o, depth } of strips[side]) {
       const across = side === "north" || side === "south";
-      const lo = across ? Math.max(0, building.x - 1) : Math.max(0, building.y - 1);
-      const hi = across ? Math.min(width, building.x + W + 1) : Math.min(height, building.y + D + 1);
+      // A square past each corner, or to the map's edge where the side beyond has no strips of its own.
+      const past = (s: Side) => (strips[s].length ? 1 : margin(s));
+      const lo = across ? Math.max(0, building.x - past("west")) : Math.max(0, building.y - past("north"));
+      const hi = across ? Math.min(width, building.x + W + past("east")) : Math.min(height, building.y + D + past("south"));
       const r: Rect = side === "north" ? { x: lo, y: building.y - offset - depth, w: hi - lo, h: depth }
         : side === "south" ? { x: lo, y: building.y + D + offset, w: hi - lo, h: depth }
         : side === "west" ? { x: building.x - offset - depth, y: lo, w: depth, h: hi - lo }

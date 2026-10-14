@@ -62,7 +62,8 @@ const BIG_ROOM = 30;
 /** How far a light reaches to light a floor well enough (squares). */
 const LAMP_REACH = 3.2;
 /** Does it shed light (lit, by the look layer's rules)? */
-const sheds = (p: Placement) => !!actorLook({ id: p.id, name: p.name, kind: "object", glyph: "?", map: "", at: { x: 0, y: 0 }, ref: p.id, ...(p.states ? { states: p.states } : {}) }, { t: 0, time: "night", glyphs: "ascii" }).light;
+/** How far it lights a floor well enough, in squares (0: it sheds no light): a fire's reach, an oven's glow. */
+const reachOf = (p: Placement) => { const l = actorLook({ id: p.id, name: p.name, kind: "object", glyph: "?", map: "", at: { x: 0, y: 0 }, ref: p.id, ...(p.states ? { states: p.states } : {}) }, { t: 0, time: "night", glyphs: "ascii" }).light; return l ? Math.min(LAMP_REACH, 0.8 * l.radius) : 0; };
 const COUNTER = /\b(bar|counter|serving|till)\b/i;
 const BIG = new Set(["large", "huge", "gargantuan"]);
 
@@ -223,7 +224,8 @@ export function furnish(site: Site, plan: PlacePlan): Furnished {
         return (both ? 24 : one ? 8 : 0) - 1.5 * Math.hypot(c.x - cx, c.y - cy);
       }
       case "centre": case "overhead": {
-        if (want.dark) return want.dark.filter(q => Math.hypot(q.x - c.x, q.y - c.y) <= LAMP_REACH).length;
+        // A lantern lights most of what nothing else does, hung clear of the walls (one beside a wall blazes on it).
+        if (want.dark) return want.dark.filter(q => Math.hypot(q.x - c.x, q.y - c.y) <= LAMP_REACH).length - (ts.some(p => SIDES.some(s => isWallish(tileAt(add(p, DIR[s]))))) ? 4 : 0);
         const m = centreOf(area.tiles);
         return 10 - 2 * Math.hypot(c.x - m.x, c.y - m.y);
       }
@@ -467,13 +469,13 @@ export function furnish(site: Site, plan: PlacePlan): Furnished {
   const main = plan.rooms.find(r => r.where === "main")?.id;
   for (const area of site.areas.values()) {
     if (!area.room || area.tiles.length < BIG_ROOM) continue;
-    const lightsIn = () => [...things.values()].filter(p => p.area === area.id && p.tiles.length && sheds(p)).flatMap(p => p.tiles);
+    const lightsIn = () => [...things.values()].filter(p => p.area === area.id && p.tiles.length && reachOf(p) > 0).flatMap(p => p.tiles.map(t => ({ ...t, reach: reachOf(p) })));
     const peopled = plan.people.some(p => p.in === area.id) || plan.things.some(t => t.in === area.id && t.kind === "crowd");
     // A room nobody's in, with nothing lit in it, is meant to be dark (a storeroom at night).
     if (!lightsIn().length && area.id !== main && !peopled) continue;
     for (let n = 0; n < 3; n++) {
       const lights = lightsIn();
-      const dark = area.tiles.filter(q => !lights.some(l => Math.hypot(q.x - l.x, q.y - l.y) <= LAMP_REACH));
+      const dark = area.tiles.filter(q => !lights.some(l => Math.hypot(q.x - l.x, q.y - l.y) <= l.reach));
       if (dark.length <= area.tiles.length * 0.2) break;
       let id = `${area.id}-lantern`;
       for (let i = 2; taken.has(id); i++) id = `${area.id}-lantern-${i}`;
