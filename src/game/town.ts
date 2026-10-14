@@ -269,6 +269,18 @@ function goTo(game: GameState, t: Target, andUse: boolean): Done {
   return { text: [...said, done.text].filter(Boolean).join(" "), ...(done.scene ? { scene: true } : {}) };
 }
 
+/** What interact (the app's e) would do now, in words: "Talk to Sergeant Kell", "Go through the gate". */
+export function interactLabel(game: GameState, session?: SessionState): { label: string; scene: boolean } | undefined {
+  const ex = exploreState(game);
+  const it = interact(ex, ex.scene ? session?.world : undefined);
+  if (!it) return undefined;
+  if (!it.actor && it.interaction.kind === "examine" && tileAt(getMap(ex.map), it.at).terrain === "door") {
+    const r = move(structuredClone(ex), ex.facing.x, ex.facing.y);
+    return { label: r.moved || r.trigger ? "Go through" : "Try the door", scene: !!r.trigger };
+  }
+  return { label: it.interaction.label, scene: it.interaction.kind === "scene" };
+}
+
 function walkTowardsLead(game: GameState): Done {
   const ex = exploreState(game);
   const lead = leadTarget(game);
