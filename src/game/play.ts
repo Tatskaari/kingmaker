@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { sceneById } from "../../scenes/index.ts";
 import { chainScene, createSession, forceEnding, openScene, playerTurn, resumeAfterFight, type TurnHooks } from "../runtime/engine.ts";
 import { afterTurn } from "../runtime/background.ts";
+import { comeTo } from "../rules/dnd.ts";
 import { loadSession, saveSession, sessionDir, snapshotSession, type Entry, type SessionState } from "../runtime/session.ts";
 import type { CombatResult, StoryState } from "./types.ts";
 import type { Build } from "../rules/dnd.ts";
@@ -231,8 +232,18 @@ export class Game {
     this.fight = undefined;
     this.state.mode = "scene";
     for (const [k, v] of Object.entries(result.flags ?? {})) this.state.story.flags[k] = v;
+    // Knocked out in the fight, the player comes round as the scene picks up (the aftermath tells it
+    // that way), rather than acting on 0 hit points until the next scene brings them round.
+    const woke = await comeTo(this.session).catch(() => undefined);
+    const came: Entry[] = [];
+    if (woke) {
+      const entry: Entry = { turn: this.session.turn, scene: this.session.sceneId, speaker: "dice", kind: "roll", text: woke };
+      this.session.transcript.push(entry);
+      hooks.onEntry?.(entry);
+      came.push(entry);
+    }
     const entries = await resumeAfterFight(this.session, result.summary, hooks);
-    return render(this.session, entries);
+    return render(this.session, [...came, ...entries]);
   }
 
   private async onward(combatResult: string, hooks: TurnHooks): Promise<string> {

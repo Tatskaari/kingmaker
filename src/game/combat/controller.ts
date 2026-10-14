@@ -124,7 +124,7 @@ class Controller implements CombatController {
       case "attack": m["attack"]!(action.target, action.weapon); break;
       case "cast": m["cast"]!(action.spell, action.target, action.at); break;
       case "use": m["use"]!(action.prop); break;
-      case "dash": case "dodge": case "disengage": case "leave": case "surrender": m[action.kind]!(); break;
+      case "dash": case "dodge": case "disengage": case "leave": case "surrender": case "standDown": m[action.kind]!(); break;
       case "arrest": m["arrest"]!(action.target); break;
       case "nerve": m["nerve"]!(action.dc, action.why, action.test); break;
       case "remark": m["remark"]!(action.line); break;
@@ -350,10 +350,12 @@ export function summarise(G: CombatG): CombatResult {
   else if (G.flags["fire"]) sentences.push("Fire got into the sacks, and the Heron is burning");
   if (villain) sentences.push(`${cap(villain.called)} ${fate(villain)}`);
   const hired = units.filter(u => u.side === "enemy" && u !== villain && u.role !== "coward");
-  const by = (state: Unit["state"]) => hired.filter(u => u.state === state);
+  const walked = (u: Unit) => !!G.flags[`walked:${u.id}`];
+  const by = (state: Unit["state"]) => hired.filter(u => u.state === state && !walked(u));
   const parts = [
     by("down").length ? `${people(by("down"))} went down` : "", by("dead").length ? `${people(by("dead"))} died` : "",
     by("surrendered").length ? `${people(by("surrendered"))} gave up` : "", by("fled").length ? `${people(by("fled"))} ran` : "",
+    hired.some(walked) ? `${people(hired.filter(walked))} walked off once nobody was paying them` : "",
     by("fighting").length ? `${people(by("fighting"))} kept fighting` : "",
   ].filter(Boolean);
   if (parts.length) sentences.push(cap(parts.join("; ")));
@@ -366,7 +368,7 @@ export function summarise(G: CombatG): CombatResult {
   const flags: Record<string, string | number | boolean> = {};
   for (const k of ["dust_exploded", "fire", "lit_by", "pc_dying"]) if (G.flags[k] !== undefined) flags[k] = G.flags[k]!;
   if (G.flags["fire"]) flags["heron_burned"] = true;
-  for (const u of units) if (u.castId && u.id !== G.pc) flags[u.castId] = u.arrested ? "arrested" : u.state === "fighting" ? "standing" : u.state;
+  for (const u of units) if (u.castId && u.id !== G.pc) flags[u.castId] = u.arrested ? "arrested" : walked(u) ? "walked off" : u.state === "fighting" ? "standing" : u.state;
   const rounds = G.round;
   return { outcome: G.outcome!, summary: `${sentences.join(". ")}. It took ${rounds} round${rounds === 1 ? "" : "s"}.`, casualties, rounds, flags };
 }

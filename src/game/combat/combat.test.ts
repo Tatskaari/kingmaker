@@ -5,7 +5,11 @@ import { dnd, statusLine } from "../../rules/dnd.ts";
 import type { SessionState } from "../../runtime/session.ts";
 import type { GameState } from "../play.ts";
 import type { CombatantSetup, CombatSetup, TileMap } from "../types.ts";
+import { decide, freshMemo, type Step } from "./ai.ts";
 import { resumeCombat, startCombat, type CombatController } from "./controller.ts";
+import type { CombatG } from "./model.ts";
+import type { Rules } from "./rules.ts";
+import { Skirmish } from "./skirmish.ts";
 import { tacticalFights } from "./fights.ts";
 import { areaTiles, clearShot, findPath, line, same, steps } from "./grid.ts";
 import { heronMap, HERON_LAYOUT } from "./heron-grid.ts";
@@ -272,5 +276,71 @@ describe("the play loop's Fight", () => {
     const result = fight.result();
     assert.ok(result, "the fight should end");
     assert.ok(result.summary);
+  });
+});
+
+describe("as the cast's notes have it (lore/Cast/Master Josiah Sallow/gm.md, lore/Cast/The Crake Brothers/gm.md)", () => {
+  /** The AI's next step for someone on their turn, on a copy of the fight with whatever changes the test makes. */
+  function next(combat: CombatController, who: string, change: (G: CombatG) => void = () => undefined): Step {
+    const G = structuredClone(combat.state());
+    G.active = G.order.indexOf(who);
+    change(G);
+    const rules = (combat as unknown as { rules: Rules }).rules;
+    return decide(new Skirmish(G, rules), G.units[who]!, freshMemo());
+  }
+  const down = (...ids: string[]) => (G: CombatG) => { for (const id of ids) G.units[id]!.state = "down"; };
+
+  it("the Crakes stop the moment their paymaster is down, yielding or gone", async () => {
+    const session = await heronSession();
+    const combat = await startCombat(placed(session, {}), session);
+    assert.notEqual(next(combat, "crake-1").kind, "standDown", "paid, they fight");
+    for (const state of ["down", "surrendered", "fled"] as const) {
+      assert.equal(next(combat, "crake-1", G => { G.units["sallow"]!.state = state; }).kind, "standDown", `Sallow ${state}`);
+    }
+  });
+
+  it("Sallow with his Crakes down runs for the door if it's clear and nobody's on him; cornered, he yields", async () => {
+    const session = await heronSession();
+    // Sallow by the land door, the player and Kell at the far end.
+    const combat = await startCombat(placed(session, { sallow: { x: 2, y: 6 }, player: { x: 22, y: 6 }, kell: { x: 22, y: 5 }, "crake-1": { x: 12, y: 3 }, "crake-2": { x: 12, y: 8 } }), session);
+    assert.deepEqual(next(combat, "sallow", down("crake-1", "crake-2")), { kind: "remark", line: "flee:sallow" }, "the urgent appointment");
+    const then = next(combat, "sallow", G => { down("crake-1", "crake-2")(G); G.flags["said:flee:sallow:sallow"] = true; });
+    assert.ok(["move", "dash", "leave"].includes(then.kind), `and he goes: ${then.kind}`);
+    // A blade at his throat: the player beside him.
+    assert.equal(next(combat, "sallow", G => { down("crake-1", "crake-2")(G); G.units["player"]!.at = { x: 3, y: 6 }; }).kind, "surrender");
+    // Cornered: somebody standing at the way out.
+    assert.equal(next(combat, "sallow", G => { down("crake-1", "crake-2")(G); G.units["kell"]!.at = { x: 1, y: 5 }; G.units["player"]!.at = { x: 1, y: 7 }; }).kind, "surrender");
+  });
+
+  it("Sallow lunges past a Crake's shoulder at whoever is busy with it", async () => {
+    const session = await heronSession();
+    // The player fighting the talking Crake mid-floor; Sallow a few steps behind his Crake.
+    const combat = await startCombat(placed(session, { player: { x: 14, y: 6 }, "crake-1": { x: 13, y: 6 }, sallow: { x: 10, y: 6 }, kell: { x: 22, y: 5 }, "crake-2": { x: 6, y: 3 } }), session);
+    const step = next(combat, "sallow");
+    assert.equal(step.kind, "move", "in he goes");
+    const to = (step as { to: { x: number; y: number } }).to;
+    assert.equal(steps(to, { x: 14, y: 6 }), 1, "next to the one busy with his Crake");
+    assert.ok(steps(to, { x: 13, y: 6 }) <= 1, "past the Crake's shoulder");
+  });
+
+  it("when Sallow yields, his Crakes walk out: not beaten, so not Kell's to arrest", async () => {
+    const session = await heronSession("fighter", 4);
+    const combat = await startCombat(placed(session, {}), session);
+    for (let i = 0; i < 40 && !combat.over(); i++) {
+      const G = combat.state();
+      if (G.order[G.active] === "sallow") { combat.client.moves["surrender"]!(); break; }
+      if (combat.playerTurn()) combat.act({ kind: "end" });
+      else combat.advance(undefined, 1);
+    }
+    const G = combat.state();
+    assert.equal(G.units["sallow"]!.state, "surrendered");
+    const walked = ["crake-1", "crake-2"].filter(id => G.flags[`walked:${id}`]);
+    assert.ok(walked.length, "at least one Crake was still standing to walk out");
+    for (const id of walked) assert.equal(G.units[id]!.state, "fled");
+    assert.ok(combat.over(), "and that's the fight");
+    const result = combat.result();
+    assert.match(result.summary, /walked off once nobody was paying them/);
+    for (const id of walked) assert.ok(!G.units[id]!.arrested, "Kell doesn't arrest who walked");
+    assert.equal(result.flags?.["sallow"], "arrested");
   });
 });

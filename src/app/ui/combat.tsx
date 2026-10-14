@@ -99,7 +99,7 @@ export function CombatScreen({ game }: { game: Game }) {
             <span fg={C.faint}>{` ${String(o.initiative).padStart(2)} `}</span>
             <span fg={out ? C.faint : look.color} attributes={BOLD}>{`${out ? (o.state === "surrendered" ? "!" : "x") : look.glyph} `}</span>
             <span fg={out ? C.faint : o.id === target?.id ? C.danger : C.text}>{truncate(o.id === G.pc ? `${o.name} (you)` : o.name, inner - 18)}</span>
-            <span fg={out ? C.faint : o.id === G.pc ? C.good : C.dim}>{` ${out ? o.state : o.health}`}</span>
+            <span fg={out ? C.faint : o.id === G.pc ? C.good : C.dim}>{` ${out ? (G.flags[`walked:${o.id}`] ? "walked off" : o.state) : o.health}`}</span>
           </text>;
         })}
         <text fg={C.title} marginTop={1}>Target</text>
