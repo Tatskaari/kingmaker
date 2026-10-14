@@ -240,7 +240,12 @@ function sceneOpens(game: GameState, i: Interaction | undefined): boolean {
 /** Use an interaction (talk, look, go through): what the player sees, and whether the lead scene opens. */
 function use(game: GameState, i: Interaction, actor?: MapActor): Done {
   const ex = exploreState(game);
-  if (i.kind === "examine") return { text: i.text };
+  if (i.kind === "examine") {
+    // Passing the time of day near where the story's heading: the line points the way in.
+    const lead = leadTarget(game);
+    const near = lead && steps(lead.at, ex.at) <= 4 && steps(lead.at, ex.at) > 0;
+    return { text: near ? `${i.text} ${capital(leadWords(lead, ex.at))}: that's where the story's heading.` : i.text };
+  }
   if (i.kind === "travel") {
     const r = travel(ex, i.to, i.label);
     return { text: r.message ?? "", ...(sceneOpens(game, r.trigger) ? { scene: true } : {}) };
