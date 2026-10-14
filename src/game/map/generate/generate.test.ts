@@ -260,8 +260,8 @@ test("the plan is terse: a line of fields per entry, about half as long, read ba
   assert.deepEqual([plan.things[0]!.relation, plan.things[1]!.relation, plan.things[1]!.target, plan.doors[0]!.to], ["overhead", "beside", "lamp", "quay"]);
   // Fields the model left out, or split in three, still land where they belong.
   const things = readPlace({ place: ["The Cooper's", "a workshop", "40x30"], outside: [["yard", "the yard", "south", "10", "dirt"]], rooms: [["shop", "the workshop", "main"]], doors: [], windows: [],
-    things: [["bench", "a workbench", "object", "large", "wood", "shop", "against north", "4", "furniture", "A scarred bench."], ["fire", "a fire", "feature large stone", "shop", "corner north-east", "fire hearth lit", "It smokes."], ["cask", "a half-built cask", "shop", "centre"]], people: [], start: "yard" }).things;
-  assert.deepEqual(things.map(t => [t.kind, t.size, t.material, t.in, t.relation, t.tiles]), [["object", "large", "wood", "shop", "against", 4], ["feature", "large", "stone", "shop", "corner", 1], ["object", "medium", "wood", "shop", "centre", 1]]);
+    things: [["bench", "a workbench", "object", "large", "wood", "shop", "against north", "4", "furniture", "A scarred bench."], ["fire", "a fire", "feature large stone", "shop", "corner north-east", "fire hearth lit", "It smokes."], ["cask", "a half-built cask", "shop", "centre"], ["mark", "a chalk mark", "item", "tiny", "chalk", "shop", "on cask"]], people: [], start: "yard" }).things;
+  assert.deepEqual(things.map(t => [t.kind, t.size, t.material, t.in, t.relation, t.tiles]), [["object", "large", "wood", "shop", "against", 4], ["feature", "large", "stone", "shop", "corner", 1], ["object", "medium", "wood", "shop", "centre", 1], ["item", "tiny", "wood", "shop", "on", 1]]);
   assert.deepEqual([things[0]!.tags, things[0]!.description, things[1]!.tags, things[1]!.states, things[1]!.description], [["furniture"], "A scarred bench.", ["fire", "hearth"], ["lit"], "It smokes."]);
 });
 
