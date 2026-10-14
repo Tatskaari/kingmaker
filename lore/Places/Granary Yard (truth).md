@@ -17,7 +17,10 @@ visibility: "gm"
 
 **Ways in**: the big yard doors (padlocked; the warden and the under-purveyors have keys); the loft door (barred inside, and high up); and a loose board behind the water butt, child-sized (a grown-up can squeeze through with effort), into the granary and up to Cob's "castle", a nest of sacks and candle-ends behind the stacks in the loft. The porters' ladders are locked inside.
 
+**In motion**: what happens to Prout after noon (the cart to the pit, or the cold room as a murder) and what the Captain and Sallow do about it are in [What's in motion](../World/Fronts.md).
+
 ## Read when relevant
 
+- [What's in motion](../World/Fronts.md) — what the watch, the Captain and Sallow do after the dead-cart comes
 - [The Grain Crisis: the truth](../World/Grain%20Crisis%20%28truth%29.md) — why Prout was killed: Sallow's racket, and what the page proves.
 - [The cast](../Cast/index.md) — Prout, Sallow, Hobb, Cob, Moll and Kell: what each knows and remembers.
