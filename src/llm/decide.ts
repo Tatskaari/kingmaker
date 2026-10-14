@@ -91,8 +91,37 @@ export class LunaDecider implements Decider {
   }
 }
 
+/**
+ * Jev first (fast); any answer below the confidence threshold is re-asked of Luna.
+ * Most turns stay at Jev latency; only ambiguous judgements pay for the slower model.
+ */
+export class CascadeDecider implements Decider {
+  readonly name: string;
+  private readonly fast = new JevDecider();
+  private readonly slow: LunaDecider;
+  private readonly threshold: number;
+  constructor(threshold = 0.8, effort: Effort = "none") {
+    this.threshold = threshold;
+    this.slow = new LunaDecider(effort);
+    this.name = `cascade-${threshold}`;
+  }
+  async decide(state: unknown, questions: Record<string, ChoiceQuestion>, operation: string): Promise<Decision> {
+    const first = await this.fast.decide(state, questions, operation);
+    const unsure = Object.keys(questions).filter(id => (first.answers[id]?.confidence ?? 1) < this.threshold);
+    if (!unsure.length) return { ...first, decider: this.name };
+    const second = await this.slow.decide(state, Object.fromEntries(unsure.map(id => [id, questions[id]!])), `${operation}.escalated`);
+    return {
+      answers: { ...first.answers, ...second.answers },
+      latencyMs: first.latencyMs + second.latencyMs,
+      costUsd: first.costUsd + second.costUsd,
+      decider: `${this.name}(escalated:${unsure.join(",")})`,
+    };
+  }
+}
+
 export function deciderFor(name: string): Decider {
   if (name === "jev") return new JevDecider();
+  if (name.startsWith("cascade")) return new CascadeDecider(Number(name.split("-")[1] ?? 0.8) || 0.8);
   if (name.startsWith("luna")) return new LunaDecider((name.split("-")[1] as Effort | undefined) ?? "none");
   throw new Error(`Unknown decider ${name}`);
 }

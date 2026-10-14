@@ -67,8 +67,8 @@ export interface SessionState {
   history: Array<{ sceneId: string; exitId: string; summary: string }>;
 }
 
-export const RUNS_DIR = process.env.KM_RUNS_DIR ?? "runs";
-export const sessionDir = (id: string) => join(RUNS_DIR, "sessions", id);
+export const runsDir = () => process.env.KM_RUNS_DIR ?? "runs";
+export const sessionDir = (id: string) => join(runsDir(), "sessions", id);
 
 export function saveSession(state: SessionState): void {
   const dir = sessionDir(state.id);
@@ -76,6 +76,13 @@ export function saveSession(state: SessionState): void {
   const tmp = join(dir, `state.json.${process.pid}.tmp`);
   writeFileSync(tmp, JSON.stringify(state, null, 1));
   renameSync(tmp, join(dir, "state.json"));
+}
+
+/** Per-turn snapshots so any moment of a QA run can become an eval fixture. */
+export function snapshotSession(state: SessionState): void {
+  const dir = join(sessionDir(state.id), "snapshots");
+  mkdirSync(dir, { recursive: true });
+  writeFileSync(join(dir, `${state.sceneId}-turn-${String(state.turn).padStart(3, "0")}.json`), JSON.stringify(state, null, 1));
 }
 
 export function loadSession(id: string): SessionState {

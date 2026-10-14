@@ -39,9 +39,12 @@ export interface WorldApi {
   startCombat(spec: { enemies: Array<{ asset: Asset; count: number; leader?: string }>; allies?: string[]; at: Place; surprise?: "party" | "enemies" }): void;
   setFlag(name: string, value: string | number | boolean): void;
   journal(entry: string): void;
+  /** Record a change the story needs that this API can't express (feeds DSL design). */
+  unsupported(description: string): void;
 }
 
-export interface CharacterHandle {
+/** A character handle is also a place: things can be scattered around a character. */
+export interface CharacterHandle extends CharacterRef {
   setAttitude(attitude: Attitude, reason: string): void;
   moveTo(place: Place | string): void;
   kill(cause: string): void;
@@ -68,8 +71,9 @@ export function recordingWorld(options: { assets: Asset[]; characters: string[];
     if (!known.has(id) && id !== "player") warnings.push(`unknown character ${id}`);
     const on = (op: string) => (args: Record<string, unknown>) => record(`character.${op}`, { id, ...args });
     return {
+      type: "character", id,
       setAttitude: (attitude, reason) => on("setAttitude")({ attitude, reason }),
-      moveTo: place => on("moveTo")({ place }),
+      moveTo: place => on("moveTo")({ place: typeof place === "string" ? place : ref(place) }),
       kill: cause => on("kill")({ cause }),
       wound: description => on("wound")({ description }),
       giveItem: item => on("giveItem")({ item }),
@@ -80,6 +84,7 @@ export function recordingWorld(options: { assets: Asset[]; characters: string[];
       setHostile: hostile => on("setHostile")({ hostile }),
     };
   };
+  const ref = (place: Place) => `${place.type}:${place.id}`;
   const world: WorldApi = {
     assets: {
       search(query, kind) {
@@ -107,17 +112,18 @@ export function recordingWorld(options: { assets: Asset[]; characters: string[];
     },
     newReadable: spec => ({ ...spec, kind: "readable", description: spec.name }),
     newItem: spec => ({ ...spec }),
-    scatter: spec => record("scatter", { asset: spec.asset.id, count: spec.count, around: spec.around, radius: spec.radius }),
-    place: spec => record("place", { asset: spec.asset.id, at: spec.at, note: spec.note }),
+    scatter: spec => record("scatter", { asset: spec.asset.id, count: spec.count, around: ref(spec.around), radius: spec.radius }),
+    place: spec => record("place", { asset: spec.asset.id, at: ref(spec.at), note: spec.note }),
     quest: id => ({
       start: (title, summary) => record("quest.start", { id, title, summary }),
       advance: (stage, note) => record("quest.advance", { id, stage, note }),
       complete: note => record("quest.complete", { id, note }),
       fail: note => record("quest.fail", { id, note }),
     }),
-    startCombat: spec => record("startCombat", { enemies: spec.enemies.map(e => ({ asset: e.asset.id, count: e.count, leader: e.leader })), allies: spec.allies, at: spec.at, surprise: spec.surprise }),
+    startCombat: spec => record("startCombat", { enemies: spec.enemies.map(e => ({ asset: e.asset.id, count: e.count, leader: e.leader })), allies: spec.allies, at: ref(spec.at), surprise: spec.surprise }),
     setFlag: (name, value) => record("setFlag", { name, value }),
     journal: entry => record("journal", { entry }),
+    unsupported: description => record("unsupported", { description }),
   };
   return { world, operations, warnings };
 }

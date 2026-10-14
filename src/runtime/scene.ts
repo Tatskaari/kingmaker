@@ -116,6 +116,8 @@ export interface Scene {
   background?: string[];
   /** Named spots world scripts can refer to (e.g. "crossroads", "ditch"). */
   anchors?: string[];
+  /** Character creation: on exit, the player's character sheet is extracted from the conversation. */
+  createsCharacter?: boolean;
 }
 
 export function beatOrExit(scene: Scene, id: string): { beat?: Beat; exit?: Exit } {

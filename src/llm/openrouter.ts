@@ -179,11 +179,18 @@ export async function respond(request: RespondRequest): Promise<RespondResult> {
     } else if (event.type === "response.failed" || event.type === "error") {
       const message = event.error?.message ?? event.response?.error?.message ?? "generation failed";
       logCall({ provider: "openrouter", operation: request.operation, model, request: body, error: message });
+      if (!request.noPhaseRetry) return respond({ ...request, noPhaseRetry: true });
       throw new Error(`OpenRouter ${request.operation} failed: ${message}`);
     }
   }
   const latencyMs = performance.now() - started;
-  if (!final) throw new Error(`OpenRouter ${request.operation}: stream ended without a final response`);
+  if (!final) {
+    if (!request.noPhaseRetry) {
+      logCall({ provider: "openrouter", operation: request.operation, model, warning: "stream ended early, retrying" });
+      return respond({ ...request, noPhaseRetry: true });
+    }
+    throw new Error(`OpenRouter ${request.operation}: stream ended without a final response`);
+  }
   if (final.status !== "completed") {
     logCall({ provider: "openrouter", operation: request.operation, model, request: body, error: `status ${final.status}`, details: final.incomplete_details });
     throw new Error(`OpenRouter ${request.operation}: response ${final.status} (${final.incomplete_details?.reason ?? "unknown"})`);

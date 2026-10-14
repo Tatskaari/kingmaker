@@ -70,8 +70,17 @@ export interface PreDecision { move?: Move; speaker?: string; decision?: Decisio
 export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean }): Promise<PreDecision> {
   const attempts = transitionsFor(scene, state, "attempt");
   const cues = transitionsFor(scene, state, "cue");
+  // Outcomes that need no roll are shown as alternatives, so the decider can see that a kind
+  // word might simply work; choosing one means "no attempt now" (it's judged after the reply).
+  const outcomes = transitionsFor(scene, state, "outcome");
   const questions: Record<string, ChoiceQuestion> = {};
-  if (attempts.length) questions.attempt = question("attempt", attempts);
+  if (attempts.length) {
+    const q = question("attempt", attempts);
+    questions.attempt = outcomes.length
+      ? { instructions: `${q.instructions} Some things need no dice: if the player's turn is better described by one of the "simply happens" options, choose that.`,
+        criteria: { ...q.criteria, ...Object.fromEntries(outcomes.map(t => [`plain:${t.id}`, `Simply happens, no dice needed: ${t.when}`])) } }
+      : q;
+  }
   if (cues.length) questions.cue = question("cue", cues);
   if (options.speaker) {
     const cast = presentCast(scene, state);

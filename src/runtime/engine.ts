@@ -9,7 +9,7 @@ import { decideAfter, decideBefore, decideNextSpeaker, moveDirective, type Move 
 import { describeRoll } from "./dice.ts";
 import { applyPendingRepairs } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
-import { newSessionId, saveSession, type Entry, type EntryKind, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
+import { newSessionId, saveSession, snapshotSession, type Entry, type EntryKind, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
 import { actorReply, gmReply, narratorReply, type Spoken } from "./voices.ts";
 
 export interface TurnHooks {
@@ -83,6 +83,7 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}): Pro
     : await narratorReply(scene, state, directive, speakHooks(hooks, "gm", "narration"));
   push(state, hooks, { speaker: "gm", kind: "narration", text: spoken.text });
   saveSession(state);
+  snapshotSession(state);
   return state.transcript.slice(before);
 }
 
@@ -179,6 +180,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   const metric: TurnMetric = { turn: state.turn, preDecisionMs, firstTextMs, replyMs, postDecisionMs, costUsd, calls };
   state.metrics.push(metric);
   saveSession(state);
+  snapshotSession(state);
   return { entries: state.transcript.slice(before), ...(ended ? { ended } : {}), metric };
 }
 
