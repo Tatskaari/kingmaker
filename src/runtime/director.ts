@@ -164,7 +164,7 @@ async function mechanicDetails(decider: Decider, scene: Scene, state: SessionSta
       instructions: "The player is casting a spell in their latest turn. Which of their spells is it?",
       criteria: { ...Object.fromEntries(rules.spells.map(sp => [sp.id, `${sp.name} (${ORDINAL[sp.level]})`])), not_theirs: "A spell or kind of magic that isn't one of these." },
     };
-    for (const c of present) q[`aim_${c.id}`] = { instructions: `Is ${c.name} a target of the spell?`, criteria: { yes: "Yes", no: "No" } };
+    for (const c of present) q[`aim_${c.id}`] = { instructions: `Is ${c.group ? `anyone in this group (${c.group})` : c.name} a target of the spell?`, criteria: { yes: "Yes", no: "No" } };
     q.aim_self = { instructions: "Is the player casting the spell on themselves?", criteria: { yes: "Yes", no: "No" } };
     if (things.length) q.aim_thing = {
       instructions: "Is the spell aimed at a thing or a spot rather than a person (its target, or where its area is centred)? Which?",
