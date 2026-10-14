@@ -1,11 +1,10 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { showLine } from "../../game/combat/index.ts";
 import { direction, SCREEN_KEYS, steps } from "../../game/map/index.ts";
-import { MapView } from "../../game/map/view.tsx";
 import { fightLook, fightView } from "../../game/views.ts";
 import type { Game } from "../game.ts";
 import { C } from "../theme.ts";
-import { BOLD, ITALIC, Keys, Spinner, useGame, wrap } from "./common.tsx";
+import { BOLD, FPS, ITALIC, Keys, Spinner, useGame, wrap } from "./common.tsx";
 
 /** Which way, on screen, a compass direction on the map points (north is up-left). */
 const ARROW: Record<string, string> = { north: "↖", "north-east": "↑", east: "↗", "south-east": "→", south: "↘", "south-west": "↓", west: "↙", "north-west": "←", here: "•" };
@@ -71,9 +70,10 @@ export function CombatScreen({ game }: { game: Game }) {
   const mapH = height - logH - 1;
   const options = myTurn ? fight.options() : undefined;
   const marks = (options && options.movementLeft >= 5 ? options.moves : []).map(at => ({ at, color: "#2f6fb0" }));
-  const lines = fightView(fight, game.session, { w: mapW - 2, h: mapH - 2 }, {
-    centre: me.state === "fighting" ? me.at : view.turn ? G.units[view.turn.id]?.at ?? me.at : me.at, marks, ...(target ? { cursor: target.at } : {}), time: game.story.time, tick: game.tick,
-  });
+  const shown = {
+    centre: me.state === "fighting" ? me.at : view.turn ? G.units[view.turn.id]?.at ?? me.at : me.at, marks, ...(target ? { cursor: target.at } : {}), time: game.story.time,
+  };
+  const fx = game.fightFx();
   const log = view.log.map(showLine).flatMap(l => wrap(l, mapW - 4)).slice(-(logH - 2));
   const inner = sideW - 4;
   const attack = target ? actions.find(a => a.id === `attack_${target.id}`) : undefined;
@@ -82,7 +82,8 @@ export function CombatScreen({ game }: { game: Game }) {
     <box flexDirection="row" height={height - 1}>
       <box width={mapW} flexDirection="column">
         <box height={mapH} border borderColor={C.danger} title={` ${G.map.name} · Round ${view.round} `} titleAlignment="left" overflow="hidden">
-          <MapView lines={lines} />
+          {/* The battlefield, alive: the fire burns, the dust drifts, blows spark and spells fly as they happen. */}
+          <lookCanvas width={mapW - 2} height={mapH - 2} fps={FPS} live={!game.overlay} painter={(w, h, now) => fightView(fight, game.session, { w, h }, { ...shown, t: now, ...(fx ? { effects: fx } : {}) })} />
         </box>
         <box height={logH} border borderColor={C.border} title=" The fight " titleAlignment="left" paddingX={1} flexDirection="column" overflow="hidden">
           {log.map((l, i) => <text key={i} fg={l.startsWith("🎲") ? C.dice : l.startsWith("—") ? C.title : i === log.length - 1 ? C.text : C.dim}>{l}</text>)}

@@ -1,5 +1,6 @@
 import { createCliRenderer } from "@opentui/core";
 import { createRoot } from "@opentui/react";
+import { registerLookCanvas } from "../game/look/opentui.ts";
 import { App } from "./app.tsx";
 import { Game, message } from "./game.ts";
 
@@ -18,6 +19,8 @@ if (!process.stdin.isTTY || !process.stdout.isTTY) {
   process.exit(1);
 }
 
+// The world's views paint themselves, live (<lookCanvas>).
+registerLookCanvas();
 const renderer = await createCliRenderer({ exitOnCtrlC: false, autoFocus: false });
 const game = new Game();
 const root = createRoot(renderer);
