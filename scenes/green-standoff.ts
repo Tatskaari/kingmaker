@@ -45,12 +45,12 @@ export const greenStandoff: Scene = {
         "The Sedgeford folk aren't of the parish, so the ward will turn them out. She's sorry about it, in a dry way, but a ward with holes in it is no ward.",
         "Goblins have been seen in Harrowby's turnip field two nights running; a goose and a sack of turnips are gone.",
         "This morning Pip Callow took the corn mother from the bounds-stone, and Hester caught her at the duck pond with it under her smock. Under the Statutes, theft from the ward is answered with the thief's mark (a grey thumbprint of ash and chalk on the brow that won't wash off for a year and a day, so everyone in the Nine Furrows knows), unless the thief makes amends before the parish. Pip won't apologise.",
-        "A ward-judgment needs a stranger's eye: someone not of the parish must witness it, and may speak to its fairness before it's done. A witness's objection has to be written in the parish book for the Master Warden to read. She has been waiting all afternoon for a stranger to come down the track.",
+        "A ward-judgment needs a stranger's eye: someone not of the parish must witness it, and may speak to its fairness before it's done. A witness's objection doesn't stop the judgment; it has to be written in the parish book for the Master Warden to read, which is all it does (and which Hester dreads). She has been waiting all afternoon for a stranger to come down the track.",
         "Pip is in a stay-ring, the chalk-and-salt circle wardens use to keep a straying cow in one place. It doesn't hurt; you just don't feel like stepping over the line. Anyone outside it can scuff it open.",
       ],
       secrets: [
         "She has never set a thief's mark, or raised the bounds-ward on her own: the Master Warden always did both. She announced the mark in a temper in front of the whole village and is praying Pip will take the way out and apologise, because she doesn't want to mark a child and can't see how to back down without looking weak. An apology, or any face-saving reason, would let her stop with relief.",
-        "The Statutes have an old guest-right: anyone who has broken the parish's bread and salt with a parishioner at the bounds-stone is of the parish to the ward for as long as it stands. It has to be a parishioner's bread (any Harrowby household, Hester included): a stranger's bread counts for nothing. Making the Sedgeford folk guests would let the ward take them in. She knows it and hasn't said, because she's afraid a ward stretched over thirty-one more souls will run thin and she isn't sure she can hold it (in truth it would hold: the Master Warden once stretched it over a whole harvest fair; it's her nerve that's thin), and because half the village already grumbles about feeding them. A general plea or question about shelter or letting them stay gets a deflection (the ward knows its own). She keeps the clause to herself until someone asks about guests, bread and salt or old customs in so many words, catches her out with a hard read, or wins her over; then she won't lie about the Statutes.",
+        "The Statutes have an old guest-right: anyone who has broken the parish's bread and salt with a parishioner at the bounds-stone is of the parish to the ward for as long as it stands. It has to be a parishioner's bread (any Harrowby household, Hester included): a stranger's bread counts for nothing. Making the Sedgeford folk guests would let the ward take them in. She knows it and hasn't said, because she's afraid a ward stretched over thirty-one more souls will run thin and she isn't sure she can hold it (in truth it would hold: the Master Warden once stretched it over a whole harvest fair; it's her nerve that's thin), and because half the village already grumbles about feeding them. A general plea or question about shelter or letting them stay gets a deflection (the ward knows its own). She won't bring the clause up or hint at it herself, however moving the plea. She admits it only if someone asks about guests, bread and salt or old customs in so many words (then she won't lie about the Statutes), or once a roll to win her over has succeeded.",
       ],
       attitude: "Relieved a stranger has turned up to witness; brisk and defensive, and expects them to back the Statutes.",
     },
@@ -130,7 +130,7 @@ export const greenStandoff: Scene = {
           when: "The player pleads, argues or bargains with Hester to spare Pip the mark (mercy, fairness, the parish's good name, speaking as witness to the fairness of it, or offering to pay a price or take Pip's place), in a way where her answer could go either way.",
           check: {
             skill: "persuasion", dc: 13,
-            success: "Hester hesitates, looks at her watching parish, and gives way in her own fashion, setting the mark aside or taking what the player offered in its place. Pip is let out of the ring, stiffly. The ward is another matter.",
+            success: "Hester hesitates, looks at her watching parish, and gives way in her own fashion: she sets the mark aside, or takes what the player offered in its place, and finds her own face-saving words for it (without claiming Pip has said or done anything she hasn't). Pip is let out of the ring, stiffly. The ward is another matter.",
             failure: "Hester refuses, answering what the player actually said or offered in her own terms (the Statute, her watching parish, her own nerve), and steps up to the ring with her thumb raised. The green goes quiet.",
             onSuccess: "terms", onFailure: "the-mark",
           },
@@ -155,7 +155,7 @@ export const greenStandoff: Scene = {
             onSuccess: "judgment",
           },
         },
-        { id: "spared", when: "Hester has set the mark aside for a reason other than being pleaded with, argued round or threatened: Pip has apologised before the parish and Hester has accepted it, someone has offered a price or a substitute that Hester accepts, or she has taken a face-saving way out.", to: "terms" },
+        { id: "spared", when: "Hester has set the mark aside and Pip is no longer about to be marked, whatever did it: Pip's apology before the parish, a price or substitute Hester accepted, a face-saving way out she took. (The party's own pleas and threats are the rolls above until they've worked.)", to: "terms" },
         { id: "defy", on: "attempt", when: "The party defies the judgment by force: openly scuffs or breaks the stay-ring, pulls Pip out of it, or lays hands on Hester or the corn mother.", to: "flashpoint" },
         { id: "stand-aside", on: "attempt", when: "The player backs the judgment (calls it fair, or tells Hester to go ahead) or makes clear they won't intervene, while staying on the green.", to: "the-mark" },
         { id: "hester-proceeds", on: "cue", when: "Several exchanges have passed in this beat and nobody is trying to change Hester's mind or Pip's: the party is watching, stalling or busy with something else. Hester decides her witnesses have seen enough and begins the mark.", to: "the-mark" },
@@ -177,7 +177,7 @@ export const greenStandoff: Scene = {
           when: "The player makes a new appeal to Hester to stop the mark: an argument, offer or plea that hasn't already been tried and failed in this scene.",
           check: {
             skill: "persuasion", dc: 14,
-            success: "Hester's thumb stops a finger's width from Pip's brow. She lowers it and gives way, setting the mark aside or taking what the player offered in its place; Pip is let out of the ring.",
+            success: "Hester's thumb stops a finger's width from Pip's brow. She lowers it and gives way, setting the mark aside or taking what the player offered in its place, in her own face-saving words (without claiming Pip has said or done anything she hasn't); Pip is let out of the ring.",
             failure: "Hester shakes her head at what the player said or offered, without stopping the words, and presses her thumb to Pip's brow: the mark is made, grey and plain for the whole green to see.",
             onSuccess: "terms",
           },
@@ -192,7 +192,7 @@ export const greenStandoff: Scene = {
             onSuccess: "terms",
           },
         },
-        { id: "mark-stopped", when: "Hester has stopped the mark for a reason other than being pleaded with, argued round or threatened: Pip has apologised before the parish, someone has confessed or taken Pip's place, or Hester has taken a face-saving way out.", to: "terms" },
+        { id: "mark-stopped", when: "Hester has stopped the mark and set it aside, whatever did it: Pip's apology before the parish, a confession, someone taking Pip's place, a face-saving way out she took. (The party's own pleas and threats are the rolls above until they've worked.)", to: "terms" },
         { id: "mark-made", when: "Hester has finished the mark: the grey thumbprint is on Pip's brow.", to: "flashpoint", establishes: [PIP_MARKED] },
         { id: "stop-by-force", on: "attempt", when: "The party physically stops the mark: grabs or knocks away Hester's hand, scuffs or breaks the stay-ring, pulls Pip out, or lays hands on the corn mother. (Stepping in front of Pip with open hands, an offer or a plea is an appeal, not force.)", to: "flashpoint" },
         { id: "let-it-happen", on: "attempt", when: "The player lets the mark go ahead: tells Hester to finish it, or stands back and does nothing to stop it.", to: "flashpoint", establishes: [PIP_MARKED] },
@@ -231,7 +231,7 @@ export const greenStandoff: Scene = {
             onSuccess: "terms", onFailure: "brawl",
           },
         },
-        { id: "defused", when: "The crowds have pulled back from the brink (weapons lowered, people talking instead of shoving) because of something other than the party's own calming words or threats: Pip or Oswin stepping between them, Hester or Ned backing off, or an offer that changes things.", to: "terms" },
+        { id: "defused", when: "The crowds have actually pulled back from the brink (weapons lowered, people talking instead of shoving), whatever did it: Pip or Oswin stepping between them, Hester or Ned backing off, an offer that changes things, or something the party did. (The party's own calming words and threats are the rolls above until they've worked.)", to: "terms" },
         { id: "let-it-boil", on: "attempt", when: "The player stands back to let the two crowds fight it out, or eggs them on.", to: "brawl" },
         { id: "first-blow", on: "cue", when: "Nobody is trying to stop it: the party's last attempt to calm things failed and they've tried nothing new since, or they're busy with something else. Someone throws the first real punch.", to: "brawl" },
       ],
@@ -305,17 +305,16 @@ export const greenStandoff: Scene = {
           },
         },
         { id: "seize-ward", on: "attempt", when: "The party tries to stop the ward by force: snatching the corn mother, laying hands on Hester, or blocking her way to the bounds-stone.", to: "flashpoint" },
-        { id: "ward-raised", when: "Hester has set the corn mother in the niche and the ward has risen with the Sedgeford folk outside it.", to: "turned-out" },
         { id: "ward-rises", on: "cue", when: "Nobody is offering anything new (the party is standing back, stalling, or repeating an old plea): Hester sets the corn mother in the niche and the ward rises.", to: "turned-out" },
       ],
     },
   ],
   anytime: [
-    { id: "goblin-errand", on: "attempt", when: "The party sets off now for the burnt mill to deal with the goblins, having got Hester's agreement to hold the ward (and let the Sedgeford folk stay) until they're back.", to: "to-the-mill" },
-    { id: "walk-away", on: "attempt", when: "The party leaves Harrowby green (on down the road, or off towards the burnt mill) with the quarrel still unsettled.", to: "walked-away" },
+    { id: "goblin-errand", on: "attempt", when: "The party sets off now for the burnt mill to deal with the goblins, and Hester has given her word to hold the ward (and let the Sedgeford folk stay) until they're back.", to: "to-the-mill" },
+    { id: "walk-away", on: "attempt", when: "The party leaves Harrowby green with the quarrel still unsettled: on down the road, or off to the burnt mill without Hester's word to hold the ward.", to: "walked-away" },
     { id: "attack", on: "attempt", when: "The party attacks someone on the green (Hester, a bounds-man, Ned, a villager) or throws the first punch.", to: "brawl" },
     { id: "hester-agrees", when: "Hester has agreed that the Sedgeford folk can stay tonight (made guests of the parish by the old guest-right or a rite like it, or with the ward held off), and Pip is no longer waiting on the mark (she has been spared, or it has already been set).", to: "sheltered" },
-    { id: "remedy", when: "The quarrel has actually been resolved by some other means established in play: Pip isn't about to be marked, nobody will be sent off down the drovers' track tonight, and nobody is about to come to blows (for example, the Sedgeford folk camping just outside the bounds for the night under guard).", to: "remedy" },
+    { id: "remedy", when: "The quarrel has actually been resolved by some other means established in play than Hester agreeing to take the Sedgeford folk in or hold the ward off: Pip isn't about to be marked, nobody will be sent off down the drovers' track tonight, and nobody is about to come to blows (for example, the Sedgeford folk camping just outside the bounds for the night under guard).", to: "remedy" },
   ],
   exits: [
     {
@@ -394,7 +393,7 @@ export const greenStandoff: Scene = {
     {
       id: "walked-away", kind: "leave", title: "Left to it",
       outcome: "The party leaves Harrowby green with the quarrel unsettled, and without them it goes the way it was heading: the ward goes up at sundown and the Sedgeford folk are turned out onto the drovers' track.",
-      closing: "The green behind them as they go: voices rising, Hester's thumb lifting, the sun on the hill. Don't resolve it on stage.",
+      closing: "The green behind them as they go (down the road, or up the river path towards the mill): voices rising, Hester's thumb lifting, the sun on the hill. Don't resolve it on stage.",
       script: (world) => {
         world.setFlag("sedgeford_refugees", "turned out of Harrowby");
         world.setFlag("party_left_harrowby_green", true);

@@ -23,7 +23,7 @@ export const warrenFacts = {
 // Moves that stay open while the goblins hold Hester, shared by several beats.
 const snatch = (dc: number): Transition => ({
   id: "snatch", on: "attempt",
-  when: "While the goblins still hold the courier, the player makes a grab for her: a dash along the walkway or the beam, a leap for the chain, or cutting her down onto the stone.",
+  when: "While the goblins still hold the courier, the player makes a grab for her: a dash along the walkway or the beam, a leap for the rope, or cutting her down onto the stone.",
   check: {
     skill: "acrobatics", dc,
     success: "They get to her first and haul her onto the walkway, sack and all; Snikkit's knife comes down on empty rope.",
@@ -38,18 +38,18 @@ const deceive = (beat: string): Transition => ({
   check: {
     skill: "deception", dc: 13,
     success: "The lie lands: they believe it, for now, and act on it at once from their own wants, which may not be what the player hoped for.",
-    failure: "They see through it and take it badly: Snikkit saws through a strand of the rope as a warning (Hester still hangs from it), and the party's word is worth nothing here for a while.",
+    failure: "They see through it and take it badly: Snikkit gives them a warning they can see (a strand of the rope sawn through, or a spear at Hester's back if she's off it), and the party's word is worth nothing here for a while.",
     onSuccess: beat, onFailure: beat,
   },
 });
 
 const persuadeHester = (beat: string): Transition => ({
   id: "persuade-hester", on: "attempt",
-  when: "The player tries to talk Hester into putting her seal to the lie the goblins want (a king-paper for Gubbin, or for anyone else). An honest wording she could read out as whatever they like needs no persuading: she sees it at once.",
+  when: "The player tries to talk Hester into putting her seal to the lie the goblins want (a king-paper for Gubbin, or for anyone else). A proposal that doesn't ask her to lie needs no persuading.",
   check: {
     skill: "persuasion", dc: 13,
     success: "Hester gives in, on terms: wording she can live with, and her feet on dry stone to write it. Someone still has to get the goblins to let her down.",
-    failure: "Hester refuses, louder: her seal is her bond. It would take a better argument, or a way of doing it that isn't a lie.",
+    failure: "Hester refuses, louder: her seal is her bond, and it would take a much better argument than that.",
     onSuccess: beat, onFailure: beat,
   },
 });
@@ -62,7 +62,7 @@ const freed: Transition = {
 
 const intoTheRace: Transition = {
   id: "in-water",
-  when: "The courier has come off the chain and is loose in the mill-race, being carried off by the current (the rope cut, the chain let go, or the sack torn loose). Being lowered until her feet or legs are in the water while she still hangs from the chain doesn't count.",
+  when: "The courier has come off the rope and is loose in the mill-race, being carried off by the current (the rope cut or let go, or the sack torn loose). Being lowered until her feet or legs are in the water while she still hangs from the rope doesn't count.",
   to: "in-the-race",
 };
 
@@ -97,7 +97,7 @@ const frightenSnikkit = (beat: string): Transition => ({
   check: {
     skill: "intimidation", dc: 15,
     success: "Snikkit's nerve goes: he'll deal on the party's terms now, so long as he keeps his skin and his face in front of his band. Give him a way to call it his own idea and he hands her over.",
-    failure: "Snikkit's grin goes thin. He lets the chain down until Hester's toes trail in the race (she still hangs from it), and reminds the party how fast the water runs.",
+    failure: "Snikkit's grin goes thin. He makes Hester's danger plain (the rope paid out until her toes trail in the race, or a spear at her throat if she's off it) and reminds the party how fast the water runs.",
     onSuccess: beat, onFailure: beat,
   },
 });
@@ -116,7 +116,7 @@ const counterHostage = (beat: string): Transition => ({
 
 const buySnikkit = (beat: string): Transition => ({
   id: "release-first", on: "attempt",
-  when: "The player tries to talk or buy Snikkit into handing the courier over before he has what he wants (a bribe, a promise, a show of good faith, an appeal). Asking for her to be let down from the chain while she stays a prisoner (to write, say) is ordinary bargaining, not this.",
+  when: "The player tries to talk or buy Snikkit into handing the courier over before he has what he wants (a bribe, a promise, a show of good faith, an appeal). Asking for her to be let down off the rope while she stays a prisoner (to write, say) is ordinary bargaining, not this.",
   check: {
     skill: "persuasion", dc: 15,
     success: "Snikkit gives ground: he'll take something on account instead of the whole crown, agree to a swap at the foot of the ladder, or have Hester swung onto the walkway as a show of good faith (still a prisoner, with a spear at her back). Settle the rest in play.",
@@ -146,7 +146,7 @@ export const warrenHostage: Scene = {
   id: "warren-hostage",
   title: "The King Under the Mill",
   summary: "A Saltmere courier hangs over a mill-race; the goblin chief wants a king-paper, and his lieutenant wants the chief's crown.",
-  setting: "Under the burnt mill on the river, half a day north of the crossroads, as the light goes on the eve of the Centennial Assembly. The mill above is black ribs and a fallen roof. Through a gap in its floor a rotten ladder drops into the undercroft: one long vaulted cellar of wet stone. The near end is the wheel-pit. The mill-race runs through a channel in the floor, fast, black and loud enough to swallow a shout, past the burnt stump of the waterwheel and out through a low culvert into the river. Plank walkways run along both walls. At the head of the race, where the water comes in under an arch, the old sluice windlass stands rusted stiff. A chain hangs from the sack-hoist beam over the race, and on the chain, in a grain sack tied under her arms, hangs the courier, her bare feet a yard above the water. The far end, through a broad arch, is the old grain cellar: Gubbin's hall, with a throne of grain sacks behind a moth-eaten mill curtain, the shrine niche where Grandmother Bone belongs, and burrows in the bank too small for longlegs. Tallow stubs burn in clay pots. It smells of smoke, river, old flour and goblin.\n\nThe warren is a dozen-odd goblins. Snikkit's band of six holds the wheel-pit, Gubbin's two biggest doze by his throne, and the old ones and the young keep to the burrows. Goblins follow whoever looks biggest: they cheer a winner and laugh at a loser, and a chief they've laughed at is no chief. Paper and seals impress them enormously. If what happened in play says the party has crossed Skrag's band before (fought them, frightened them, fooled them, or given Grandmother Bone back), word has reached the warren and colours every greeting. Otherwise the party are strangers, and the shrine niche is empty.",
+  setting: "Under the burnt mill on the river, half a day north of the crossroads, as the light goes on the eve of the Centennial Assembly. The mill above is black ribs and a fallen roof. Through a gap in its floor a rotten ladder drops into the undercroft: one long vaulted cellar of wet stone. The near end is the wheel-pit. The mill-race runs through a channel in the floor, fast, black and loud enough to drown out talk (only a real commotion carries over it), past the burnt stump of the waterwheel and out through a low culvert into the river. Plank walkways run along both walls. At the head of the race, where the water comes in under an arch, the old sluice windlass stands rusted stiff. Over the race, a rope runs through the old sack-hoist pulley and is tied off on the beam, where Snikkit sits; on its other end, in a grain sack tied under her arms, hangs the courier, her bare feet a yard above the water. Paying the rope out lowers her; cutting it drops her. The far end, through a broad arch, is the old grain cellar: Gubbin's hall, with a throne of grain sacks behind a moth-eaten mill curtain, the shrine niche where Grandmother Bone belongs, and burrows in the bank too small for longlegs. Tallow stubs burn in clay pots. It smells of smoke, river, old flour and goblin.\n\nThe warren is a dozen-odd goblins. Snikkit's band of six holds the wheel-pit, Gubbin's two biggest doze by his throne, and the old ones and the young keep to the burrows. Goblins follow whoever looks biggest: they cheer a winner and laugh at a loser, and a chief they've laughed at is no chief. Paper and seals impress them enormously. If what happened in play says the party has crossed Skrag's band before (fought them, frightened them, fooled them, or given Grandmother Bone back), word has reached the warren and colours every greeting. Otherwise the party are strangers, and the shrine niche is empty.",
   premise: "Can the party get the Saltmere courier out from over the mill-race alive, and who will be king under the mill when they leave?",
   hook: "Goblin tracks led you here: to the burnt mill on the river, half a day north of the crossroads, where something lives under the floor. You've just climbed in through the charred doorway. Beneath the boards, over the roar of the river, someone is lecturing goblins on the law of contracts.",
   opening: "Open with the party inside the burnt mill, looking down through the gap in the floor, unseen: the black race roaring through its channel, tallow lamps on the walkways, six goblins leaning on spears, Snikkit astride the hoist beam with his knife resting on the rope, and Hester hanging below him in her grain sack over the water, mid-lecture. Let the player overhear enough to understand the situation: the chief wants a 'king-paper' from her by moonrise, she won't write it, and the moon is nearly up. At the far end, something large is asleep behind a curtain. If what happened in play brought the party here a particular way (following goblin tracks from the crossroads, say), pick up from it; otherwise assume nothing about why they've come. End with nobody below having looked up yet.",
@@ -159,7 +159,7 @@ export const warrenHostage: Scene = {
       name: "Snikkit",
       group: "Snikkit and his band of six goblins with spears and slings",
       look: "A narrow, quick goblin with a long nose and both ears (he's proud of them), in a jerkin sewn all over with stolen buttons, sitting astride the hoist beam with a knife resting on the rope.",
-      voice: "Soft and quick, almost a purr; leans in rather than shouting over the race. Borrows grand words from travellers and gets them nearly right ('a mutual arrangement', 'perfectly legal-ish'). Calls the party 'tall friends' and himself 'your humble Snikkit'.",
+      voice: "Soft and quick, almost a purr; leans in rather than shouting over the race. Borrows grand words from travellers and gets them nearly right ('a mutual arrangement', 'perfectly legal-ish'). Calls the party 'tall friends' and himself 'your humble Snikkit'. Claims to read 'the important bits' of anything put in front of him.",
       wants: "To be chief of the warren without risking his own skin. The party could be the knife he's been waiting for.",
       fears: "Gubbin, who bit off his cousin's nose for less. Being caught plotting. The party deciding he's the easier goblin to kill.",
       knows: [
@@ -180,12 +180,12 @@ export const warrenHostage: Scene = {
     {
       id: "hester",
       name: "Hester Quayle",
-      look: "Thirties, wiry, in a salt-stiffened blue courier's coat with two buttons missing, barefoot, trussed into a grain sack up to her armpits with a leather satchel strapped across her chest, turning slowly on the hoist chain over the race.",
+      look: "Thirties, wiry, in a salt-stiffened blue courier's coat with two buttons missing, barefoot, trussed into a grain sack up to her armpits with a leather satchel strapped across her chest, turning slowly on the hoist rope over the race.",
       voice: "A crisp Saltmere clip. Talks in terms of accounts, terms and obligations; icy courtesy to her 'hosts'; sarcasm laid over terror like a tarpaulin.",
       wants: "To get out of the sack alive with her letters dry and unopened, and to reach the Saltmere delegation in Caerwyn before the Assembly opens, without forging anything on the way.",
       fears: "Drowning. Her letters getting wet or opened. Putting her seal to a lie.",
       knows: [
-        "The goblins took her at dusk two nights ago at a ford on the King's Road, where any rider has to slow. They took her horse, her boots and her purse; she would rather not think about the horse.",
+        "The goblins took her at dusk two nights ago at a ford on the King's Road, where any rider has to slow. Her horse bolted when they rose out of the reeds and is long gone; they took her boots and her purse.",
         "It was no chance raid: they were waiting at the ford and went straight for her satchel. Somebody told them which rider to take, and she wants to know who.",
         "Gubbin wants her to write him a 'king-paper' saying he is a king. She has refused: a Saltmere courier who puts her seal to a lie is finished, and forging a royal warrant is a hanging matter in Caerwyn.",
         "Her satchel holds letters for the Saltmere delegation at Caerwyn, her writing case and the counting-house seal. She bit the last goblin who tried to take it.",
@@ -193,7 +193,7 @@ export const warrenHostage: Scene = {
         "Saltmere pays its debts: she will settle with her rescuers in Saltmere credit, written out on the spot.",
       ],
       secrets: [
-        "Nobody in the warren can read. Gubbin makes her read her letters aloud every night, and she has been improving them to keep him sweet. It hasn't occurred to her that she could write some harmless, true thing, seal it, and read it out as whatever he likes; if the party suggests it, she sees it at once and fusses over wording that isn't technically a lie.",
+        "Nobody in the warren can read. Gubbin makes her read her letters aloud every night, and she has been improving them to keep him sweet. It hasn't occurred to her that she could write some harmless, true thing, seal it, and read it out as whatever he likes; she won't think of it herself, however the talk goes. If the party suggests it, she sees it at once and fusses over wording that isn't technically a lie.",
         "The sealed letter in her satchel is Saltmere's credit for King Aldren's treasury: the loan that pays for the Centennial Assembly (the feast, the hall, the cushions). She is sworn not to say so, and only a handful of people knew which rider was carrying it.",
         "She can't swim. She would sooner drown than admit it.",
       ],
@@ -212,7 +212,7 @@ export const warrenHostage: Scene = {
         "The longlegs kings are meeting at Caerwyn to agree who is top king (the paper-lady's letters said so). He means to be counted.",
         "The paper-lady reads him her letters every night, and he likes the ones about kings best.",
         "He is the biggest goblin there is, and the warren knows it.",
-        "Nothing said down at the race carries to his throne over the water's roar: he knows only what he has seen and been told since he woke.",
+        "Talk down at the race doesn't carry to his throne over the water's roar (only a real commotion does): he knows only what he has seen and been told since he woke.",
       ],
       secrets: [
         "A longlegs in a grey hood, smelling of lavender water, paid him a purse of new silver pennies, each stamped with a little heron, to take 'the Saltmere rider with the blue satchel' at the ford, with more promised once her letters were burned. The purse is in the sack he sits on. He hasn't burned the letters: he likes the seals, and he wants his king-paper first.",
@@ -228,7 +228,7 @@ export const warrenHostage: Scene = {
     {
       id: "unseen",
       title: "Unseen above the race",
-      direction: "Nobody below has looked up. This beat is for looking, listening and choosing how to go in: openly, quietly, violently or cleverly. Answer questions about the undercroft generously and concretely (the race and the culvert, the hoist chain, the rusted windlass at the head of the race, the walkways, the arch to Gubbin's end, how many goblins and where they stand). Snikkit's band is cold, bored and grumbling about the chief's appetite; Hester is mid-lecture. Preparations the player announces should pay off in position and surprise.",
+      direction: "Nobody below has looked up. This beat is for looking, listening and choosing how to go in: openly, quietly, violently or cleverly. Answer questions about the undercroft generously and concretely (the race and the culvert, the hoist rope and pulley, the rusted sluice windlass at the head of the race, the walkways, the arch to Gubbin's end, how many goblins and where they stand). Snikkit's band is cold, bored and grumbling about the chief's appetite; Hester is mid-lecture. Preparations the player announces should pay off in position and surprise.",
       cast: {
         snikkit: "Needle the courier from the beam, knife on the rope. Hush your band when their grumbling about Gubbin gets too loud.",
         hester: "Keep your courage up by lecturing your captors on contracts and courtesy.",
@@ -248,7 +248,7 @@ export const warrenHostage: Scene = {
         },
         {
           id: "snatch-unseen", on: "attempt",
-          when: "While still unseen, the player makes a grab for the courier: cutting her down onto a walkway, seizing the chain, or swinging her clear before the goblins can react.",
+          when: "While still unseen, the player makes a grab for the courier: cutting her down onto a walkway, seizing the rope, or swinging her clear before the goblins can react.",
           check: {
             skill: "acrobatics", dc: 12,
             success: "They get to her first: she's on the walkway, sack and all, before the goblins know what's happening.",
@@ -278,7 +278,7 @@ export const warrenHostage: Scene = {
     {
       id: "bargain",
       title: "Snikkit's own bargain",
-      direction: "Snikkit's offer is on the table: make him chief, and the courier is theirs for nothing. He wants Gubbin finished (dead, run off, or laughed off his throne in front of the warren) and proof he can wear: the pot-crown. He won't lift a hand against Gubbin himself, and won't let the courier down until he has the crown. This beat is the party's choice: take the deal, refuse it, haggle over the terms, or turn it against him. Snikkit judges every answer by one rule: does it get him the crown without risk to Snikkit? Hester has views on doing business with goblins.",
+      direction: "Snikkit's offer is on the table: make him chief, and the courier is theirs for nothing. He wants Gubbin finished (dead, run off, or laughed off his throne in front of the warren) and proof he can wear: the pot-crown. He won't lift a hand against Gubbin himself, and won't hand the courier over until he has the crown. This beat is the party's choice: take the deal, refuse it, haggle over the terms, or turn it against him. Snikkit judges every answer by one rule: does it get him the crown without risk to Snikkit? Hester has views on doing business with goblins.",
       cast: {
         snikkit: "Make the offer sound like a gift. Haggle over terms, never over the principle: the crown first, then the courier. Flatter, sulk at refusals, go cold at any hint of telling Gubbin.",
         hester: "Object to the ethics of it, loudly, then ask quietly whether it would work.",
@@ -302,13 +302,13 @@ export const warrenHostage: Scene = {
     {
       id: "gubbin",
       title: "Before the King Under the Mill",
-      direction: "Gubbin is awake and holding court, on his sack-throne or out on the walkway over the race, with Lump and Other Lump at his back and the whole warren watching. He wants his king-paper and the warren's awe, and he treats the party as petitioners. This is where it comes to a head: they can pay his price, haggle it down, expose Snikkit, take Snikkit's deal by making Gubbin look small in front of his goblins, or do something nobody planned. The watching goblins decide who is chief: they cheer whoever looks biggest. Snikkit still has his knife on the rope. Play Gubbin as dangerous when cornered and childish when flattered.",
+      direction: "Gubbin is awake and holding court, on his sack-throne or out on the walkway over the race, with Lump and Other Lump at his back and the whole warren watching. He wants his king-paper and the warren's awe, and he treats the party as petitioners. This is where it comes to a head: they can pay his price, haggle it down, expose Snikkit, take Snikkit's deal by making Gubbin look small in front of his goblins, or do something nobody planned. The watching goblins decide who is chief: they cheer whoever looks biggest. Snikkit still has his knife on the rope. Once a price is agreed, let it happen quickly rather than opening another negotiation. Play Gubbin as dangerous when cornered and childish when flattered.",
       cast: {
         gubbin: "Get your king-paper, and be magnificent while you wait. Melt for flattery, shiny things and anything with a seal; rage at insults; never back down in front of the warren unless you're made to.",
         snikkit: "Hang back, smile, and let the party take the risks. If you're exposed, deny it with wounded dignity, then save your own skin.",
-        hester: "Heckle, negotiate and fuss over wording. Don't forge anything unless someone finds you an honest way to do it.",
+        hester: "Heckle and negotiate. You will not put your seal to a lie.",
       },
-      pressure: "Gubbin runs out of patience and orders the paper-lady dunked 'a little, to help her think': the chain drops until she is in the race to her waist, still hanging from it, and she shrieks.",
+      pressure: "Gubbin runs out of patience and orders the paper-lady dunked 'a little, to help her think' (back on the rope first, if she's off it): she goes into the race to her waist, still hanging from it, and shrieks.",
       transitions: [
         { id: "gubbin-lets-go", when: "Gubbin has let the courier go to the party on terms he accepted (his king-paper, Grandmother Bone, a gift, a favour, a show of respect): she has been let down and handed over.", to: "freed", establishes: [warrenFacts.gubbinReleased] },
         { id: "deposed", when: "Gubbin has lost the warren: beaten, faced down or made ridiculous in front of his goblins, he has been laughed off his throne or has fled, and Snikkit has put on the pot-crown.", to: "new-chief", establishes: [warrenFacts.newChief] },
@@ -333,6 +333,7 @@ export const warrenHostage: Scene = {
           },
         },
         { id: "attack-gubbin", on: "attempt", when: "The player attacks Gubbin or his guards.", to: "fight", establishes: [warrenFacts.attackedGubbin] },
+        { id: "moonrise", on: "cue", when: "Moonrise: the talk at court has gone round for several exchanges with no deal made and none about to be, and the moon clears the rafters. Gubbin orders her into the race.", to: "in-the-race" },
         attack, snatch(15), deceive("gubbin"), persuadeHester("gubbin"),
         { id: "got-her-out", when: "The party has got the courier out of the goblins' hands without Gubbin's say-so (snatched, cut down, or by some other means established in play), and she is with them.", to: "freed" },
         intoTheRace, ransomDeal,
@@ -344,7 +345,7 @@ export const warrenHostage: Scene = {
       direction: "Gubbin is finished (dead, fled or disgraced, as it happened) and Snikkit wears the pot-crown. Now he decides whether to keep his bargain, the way he decides everything: what's safest for Snikkit? If the party has dealt straight with him and looks dangerous, he keeps his word with a flourish; he may even hug someone. If they've insulted him, lied to him or look weak, he's tempted to keep the courier to sell back to Saltmere, and tries it on. The warren is watching its new chief find his feet.",
       cast: {
         snikkit: "Enjoy the crown. Weigh the party: keep the bargain if they're dangerous and have treated you well; wriggle out of it if not.",
-        hester: "Remind everyone, pointedly, that she is still in a sack over the water.",
+        hester: "Remind everyone, pointedly, that she is still somebody's prisoner.",
       },
       pressure: "The warren starts chanting Snikkit's name, and he starts to believe it: he wonders aloud whether a chief really has to keep promises to longlegs.",
       transitions: [
@@ -354,7 +355,7 @@ export const warrenHostage: Scene = {
           when: "The player tries to hold Snikkit to his bargain (reminding him, appealing to his new dignity, or sweetening the deal).",
           check: {
             skill: "persuasion", dc: 12,
-            success: "Snikkit sighs, straightens the pot and has Hester swung onto the walkway with a royal flourish: a chief keeps his word, this once.",
+            success: "Snikkit sighs, straightens the pot and lets Hester go to the party with a royal flourish: a chief keeps his word, this once.",
             failure: "Snikkit decides a chief deserves better terms, and names them. He's still open to an argument, or a threat.",
             onSuccess: "freed",
           },
@@ -364,7 +365,7 @@ export const warrenHostage: Scene = {
           when: "The player threatens Snikkit into keeping his bargain.",
           check: {
             skill: "intimidation", dc: 12,
-            success: "Snikkit remembers exactly what happened to the last chief and has Hester let down at once, with a squeak.",
+            success: "Snikkit remembers exactly what happened to the last chief and lets Hester go at once, with a squeak.",
             failure: "Snikkit squeaks for his new subjects, who come slowly but come, and he clutches the rope tighter.",
             onSuccess: "freed",
           },
@@ -375,7 +376,7 @@ export const warrenHostage: Scene = {
     {
       id: "in-the-race",
       title: "Into the race",
-      direction: "Hester is in the water, sack, satchel and all, and the current is carrying her towards the culvert. This beat is a few frantic seconds: whatever the party does, it's now or never. The goblins shriek and scatter along the walkways; whoever dropped her has lost their leverage and knows it. Give the party things to grab at (the chain, the wheel's stump, a walkway post, her hand) and keep the clock very short.",
+      direction: "Hester is in the water, sack, satchel and all, and the current is carrying her towards the culvert. This beat is a few frantic seconds: whatever the party does, it's now or never. The goblins shriek and scatter along the walkways; whoever dropped her has lost their leverage and knows it. Give the party things to grab at (the trailing rope, the wheel's stump, a walkway post, her hand) and keep the clock very short.",
       cast: {
         hester: "Gasp, splutter and grab at anything. You can't swim, and you won't let go of the satchel.",
         snikkit: "Get clear of whatever the party does next.",
@@ -383,7 +384,7 @@ export const warrenHostage: Scene = {
       transitions: [
         {
           id: "save", on: "attempt",
-          when: "The player goes after the courier or reaches for her: diving in, grabbing the chain or the sack, a rope, a spear-shaft, a hand from the walkway.",
+          when: "The player goes after the courier or reaches for her: diving in, grabbing the trailing rope or the sack, a line of their own, a spear-shaft, a hand from the walkway.",
           check: {
             skill: "athletics", dc: 13,
             success: "They get a grip on her and haul her out onto the walkway, half-drowned, furious and still clutching her satchel.",
@@ -399,20 +400,20 @@ export const warrenHostage: Scene = {
     {
       id: "freed",
       title: "Out from under the mill",
-      direction: "Hester is out of the goblins' grip, wherever that leaves everyone (on the walkway, dripping at the race's edge, at the foot of the ladder). Stay in the moment: getting out of the undercroft is the party's to play, and if she was got out without the chief's say-so, the warren is about to wake up to it. This beat is her debrief, played from how she was actually freed (a deal, a snatch, a fishing-out) and given a piece at a time as the player engages, each thing said once: what she's grateful for and what she resents; that the raid was no accident (the goblins were waiting at the ford where riders must slow, and went straight for her satchel); that she must reach the Saltmere delegation in Caerwyn before the Assembly opens; that she pays her debts, on paper; that she would rather not walk the King's Road barefoot and alone. Let the party ask what they like: she answers practical questions freely and guards her letters.",
+      direction: "Hester is out of the goblins' grip, wherever that leaves everyone (on the walkway, dripping at the race's edge, at the foot of the ladder). Stay in the moment: getting out of the undercroft is the party's to play, and if she was got out without the chief's say-so, the warren is about to wake up to it. This beat is her debrief, played from how she was actually freed (a deal, a snatch, a fishing-out). She has three things to land, each said once as the player engages: the raid was no accident (the goblins were waiting at the ford where riders must slow, and went straight for her satchel); she must reach the Saltmere delegation in Caerwyn before the Assembly opens; and she would rather not walk the King's Road barefoot and alone. She settles debts on paper, answers practical questions freely and guards her letters. Once she has said her piece and had an answer, let the scene go where the player takes it.",
       cast: {
-        hester: "Settle accounts in your own precise way, one item at a time: thanks, grievances, what you owe, what you know about the raid. Ask once, briskly, for company on the road to Caerwyn, then wait for the answer.",
+        hester: "Settle accounts in your own precise way: thanks and grievances, in proportion to how you were freed. Ask once, briskly, for company on the road to Caerwyn, then take the answer.",
       },
-      pressure: "The warren starts shouting, and Gubbin's bellow rises over the race. Hester looks towards the ladder, and then at her bare feet.",
+      pressure: "Hester, shivering, looks from the ladder to her bare feet and asks whether they mean to stand about under a goblin mill all night.",
       transitions: [
-        { id: "escort", when: "The party has agreed to travel on with Hester (to Caerwyn, or wherever they are bound together), and they set off.", to: "escorted" },
-        { id: "part", when: "The party and Hester have parted ways: she sets off without them, or they leave her to make her own way.", to: "parted" },
+        { id: "escort", when: "The party has agreed to travel on with Hester (to Caerwyn, or wherever they are bound together).", to: "escorted" },
+        { id: "part", when: "The party and Hester have agreed to go their separate ways, or one of them has gone.", to: "parted" },
         {
           id: "press-hester", on: "attempt",
-          when: "The player presses Hester on what she isn't saying (what's in the sealed letter, or who could have known which rider carried it).",
+          when: "The player presses Hester to tell them what she isn't saying (what's in the sealed letter, or who could have known which rider carried it).",
           check: {
-            skill: "insight", dc: 12,
-            success: "She lowers her voice: the sealed letter is Saltmere's credit for King Aldren's treasury, the loan that pays for the Centennial Assembly, and only a handful of people knew which rider carried it.",
+            skill: "persuasion", dc: 13,
+            success: "She weighs them, decides they've earned it, and tells them in confidence: the sealed letter is Saltmere's credit for King Aldren's treasury, the loan that pays for the Centennial Assembly, and only a handful of people knew which rider carried it.",
             failure: "She shuts like a strongbox: client confidentiality. What she has already told them stands.",
             onSuccess: "freed", onFailure: "freed",
           },
@@ -457,7 +458,7 @@ export const warrenHostage: Scene = {
     {
       id: "fight", kind: "combat", title: "Roll for initiative",
       outcome: "Fighting breaks out in the warren between the party and the goblins.",
-      closing: "Close on the first blow, the warren's shriek, and wherever Hester is at that moment (on her chain over the race, or already in it). End with 'Roll for initiative!'",
+      closing: "Close on the first blow, the warren's shriek, and wherever Hester is at that moment (on her rope over the race, or already in it). End with 'Roll for initiative!'",
       script: (world, outcome) => {
         const atGubbin = outcome.established.includes(warrenFacts.attackedGubbin);
         world.startCombat({
@@ -483,7 +484,7 @@ export const warrenHostage: Scene = {
     },
     {
       id: "gone-for-ransom", kind: "progress", title: "Gone for the ransom",
-      outcome: "The party leaves the mill to fetch the agreed price. Hester stays a prisoner on the chain, and the goblins have promised to keep her alive until the agreed time.",
+      outcome: "The party leaves the mill to fetch the agreed price. Hester stays a prisoner on the rope, and the goblins have promised to keep her alive until the agreed time.",
       closing: "Close on the terms hanging in the air (the price, the time, the threat), Hester's opinion of the arrangement, and the climb back up into the moonlight.",
       script: (world, outcome) => {
         world.quest("saltmere-courier").advance("ransom_agreed", "The goblins under the burnt mill will keep Hester Quayle alive until the party comes back with the agreed price.");
@@ -509,7 +510,7 @@ export const warrenHostage: Scene = {
     "Help from outside (Caerwyn's patrols, the toll-house men, Saltmere's people, anyone the party knows): nobody can be brought in time. The mill is half a day from anywhere, and the moon is nearly up.",
     "A real royal warrant, or the King's seal: Caerwyn is most of a day away and nothing at the mill carries the King's seal. The only seal here is the Saltmere counting-house seal in Hester's satchel.",
     "Another way into or out of the undercroft (a back door, a secret passage, the burrows, the culvert): there's the rotten ladder down from the mill floor, and that's all. The burrows are too small for longlegs. The culvert where the race leaves is a yard high and full of fast water: nobody could climb through it either way, and anyone swept into it is at the river's mercy.",
-    "Hester's horse and boots: gone. The goblins took the horse two nights ago (nobody will say what became of it) and take turns wearing the boots. There's no mount to ride out on.",
+    "Hester's horse and boots: her horse bolted at the ford when the goblins rose out of the reeds, and it is long gone; the goblins take turns wearing her boots. There's no mount to ride out on, and nothing more to find out about the horse.",
     "Loot or treasure: the warren is poor. Beyond whatever Gubbin keeps in his throne-sacks, it's buttons, spoons, tallow and fish bones.",
     "Bringing Skrag (the one-eared goblin who led the band that went after Grandmother Bone) into it: he and his band aren't in this part of the warren tonight, and nobody here will fetch them; Skrag is Snikkit's rival. Whatever happened in play about Skrag stays true.",
     "Making a longlegs chief of the warren (the player, Hester, anyone who isn't a goblin): goblins will cheer a longlegs who beats their chief, but they won't follow one. The pot-crown has to go on a goblin's head.",

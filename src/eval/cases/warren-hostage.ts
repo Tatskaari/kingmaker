@@ -47,7 +47,7 @@ const FREED_BY_PAPER: FixtureSpec = {
   transcript: [
     ...COURT.transcript!,
     ["player", "\"Your king-paper is coming, Majesty.\" I turn to Hester. \"Write him something true. Anything you like. Seal it and read it out like a royal proclamation. Not one of them can read.\""],
-    ["hester", "*Hester goes very still on her chain. Then, slowly, she smiles.* \"Well. That wouldn't be forgery. That would be... interpretation.\""],
+    ["hester", "*Hester goes very still on her rope. Then, slowly, she smiles.* \"Well. That wouldn't be forgery. That would be... interpretation.\""],
     ["gm", "Gubbin has her let down to write. She scratches a line on good paper, presses the Saltmere ship into blue wax and reads it to the whole warren in a herald's voice: by order of all the kings, Gubbin is King Under the Mill. The goblins howl with joy. Gubbin clutches the paper to his chest, weeping, and waves you off with his bone sceptre: \"Take her! A king is generous!\" Snikkit watches from the beam with a face like a slapped fish. Soon you're out on the riverbank under the rising moon, Hester barefoot on the wet grass, her satchel hugged to her chest."],
   ],
 };
@@ -68,7 +68,7 @@ export const warrenHostageCases: EvalCase[] = [
     expect: { roll: "none", exit: "none" }, tags: ["creative", "secrets", "rolls"] },
   { kind: "reply", id: "wh-sell-out-snikkit", about: "Double-cross (T3): the party sells the lieutenant's plot to the boss. Both goblins must react from their own wants, with the hostage still in play.", scene: "warren-hostage", setup: COURT,
     input: "I bow low. \"Your Majesty, a word of warning. Your Snikkit just offered me the lady for nothing if I'd knock you off your throne and bring him your pot.\"",
-    criterion: "The player is selling out Snikkit's plot to Gubbin. A good GM plays both goblins from their own wants and fears, whichever way the dice go: Gubbin has long suspected a plotter (rage, suspicion of the messenger, a demand for proof, or gratitude), while Snikkit denies it with wounded dignity and looks to save his own skin, with his knife still on Hester's rope, so the danger to her goes up. The betrayal has real consequences in the room rather than being brushed aside or settling the scene at once.",
+    criterion: "The player is selling out Snikkit's plot to Gubbin. A good GM plays both goblins from their own wants and fears, whichever way the dice go: Gubbin has long suspected a plotter (rage, suspicion of the messenger, a demand for proof, or gratitude), and Snikkit, who still holds Hester's rope, looks to his own skin (denial with wounded dignity, a counter-accusation, a threat). The betrayal changes the situation in the room (who trusts whom, what each goblin now wants from the party, how safe Hester is) instead of being brushed aside, and it doesn't settle the scene at once.",
     expect: { exit: "none" }, tags: ["tangent", "double-cross", "multi-npc"] },
   { kind: "reply", id: "wh-debrief-after-deal", about: "Sildar's debrief must follow from how the captive was freed (QA round 1: an aftermath assumed a fight after a bargain), and land the lead.", scene: "warren-hostage", setup: FREED_BY_PAPER,
     input: "\"Are you hurt? And how does a Saltmere courier end up in a goblin's sack, anyway?\"",
@@ -76,9 +76,9 @@ export const warrenHostageCases: EvalCase[] = [
     expect: { exit: "none" }, tags: ["aftermath", "consistency", "secrets"] },
 
   // ---- Decisions: the edges that decide where the hostage stands ----
-  { kind: "decision", id: "wh-dec-lowered-not-loose", about: "Lowered on the chain until the water's at her knees is a threat, not 'into the race' (a smoke run moved to the drowning beat here, and the GM then made it true).", scene: "warren-hostage", setup: STANDOFF, phase: "after",
+  { kind: "decision", id: "wh-dec-lowered-not-loose", about: "Lowered on the rope until the water's at her knees is a threat, not 'into the race' (a smoke run moved to the drowning beat here, and the GM then made it true).", scene: "warren-hostage", setup: STANDOFF, phase: "after",
     input: "\"Let her down this instant, or I'm coming up that beam after you.\"",
-    reply: "Snikkit's grin goes thin. He lets the chain down a yard: Hester's feet plunge into the race and the black water piles up to her knees, tugging at the sack, but the chain holds her. \"Up the beam, tall friend? Snikkit's knife is quicker than your feet.\"",
+    reply: "Snikkit's grin goes thin. He pays the rope out a yard: Hester's feet plunge into the race and the black water piles up to her knees, tugging at the sack, but the rope holds her. \"Up the beam, tall friend? Snikkit's knife is quicker than your feet.\"",
     expect: ["none"], tags: ["outcomes"] },
   { kind: "decision", id: "wh-dec-deposed", about: "Laughed off his throne with Snikkit in the pot-crown is the 'deposed' route to the new chief.", scene: "warren-hostage", setup: COURT, phase: "after",
     input: "\"A king who's afraid of an arm-wrestle isn't much of a king.\" I plant my elbow on a grain sack in front of the whole warren and wait.",
