@@ -99,6 +99,8 @@ function resolve(scene: Scene, state: SessionState, transition: Transition, phas
  */
 export interface PressureCheck {
   target: string; skill: Skill; stakes: string; approach: string; disposition: string;
+  /** Which of their secrets the player is after (index), when it's clear: only that one comes out. */
+  secret?: number;
   ruling: "yes" | "no" | "roll";
   /** Why there's no roll: they'd tell anyway, the lever can't move them, too far, the same push again, or already won. */
   why?: "free" | "lever" | "too_far" | "same_again" | "won";
@@ -163,6 +165,12 @@ async function freeformCheck(decider: Decider, scene: Scene, state: SessionState
  */
 async function pressureDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, target: Character): Promise<Decision> {
   const q: Record<string, ChoiceQuestion> = {};
+  if ((target.secrets?.length ?? 0) > 1) {
+    q.pressure_secret = {
+      instructions: `Which of the things ${target.name} is hiding is the player after?`,
+      criteria: { ...Object.fromEntries(target.secrets!.map((t, i) => [`secret_${i}`, t])), several: "More than one of these, or it's unclear which." },
+    };
+  }
   q.pressure_means = {
     instructions: `The player is pressing ${target.name} for what they're hiding. How?`,
     criteria: { persuasion: "An honest appeal, an argument, a bargain or reassurance.", intimidation: "Threats or a show of force.", deception: "A lie, a bluff or a trick.", insight: "Reading them: watching for tells, catching them out." },
@@ -296,7 +304,9 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const candidate = attempts.find(t => t.id === answer);
   const probability = candidate ? decision.answers.attempt?.probabilities?.[candidate.id] ?? 1 : 0;
   // Every attempt needs some confidence (a 0.39 match shouldn't take over a turn); endings need more.
-  const attempt = candidate && probability >= (endsScene(scene, candidate) ? SCENE_ENDING_CONFIDENCE : 0.45) ? candidate : undefined;
+  // A roll forces its outcome into the reply (a reveal, a cost), so it needs the same confidence as
+  // an ending: a weak read of an announcement shouldn't hand over a secret.
+  const attempt = candidate && probability >= (endsScene(scene, candidate) || candidate.check ? SCENE_ENDING_CONFIDENCE : 0.45) ? candidate : undefined;
   const plain = answer?.startsWith("plain:") ?? false;
   // A player's attempt (or something they simply do) outranks a pacing cue: the player acted first.
   // Only a real attempt outranks a pacing cue: talking or simply doing things doesn't hold the world back.
@@ -341,7 +351,8 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     const last = lastPressure(state, target.id);
     const retry = last?.band?.startsWith("no") ? { newAngle: answers.pressure_new_angle?.choice !== "same" } : undefined;
     const ruled = last && (last.band === "yes" || last.band === "yes_and") ? { kind: "yes" as const, why: "won" as const } : pressureRuling(stakes, approach, disposition, retry);
-    pressure = { target: target.id, skill, stakes, approach, disposition, ruling: ruled.kind, ...(ruled.kind !== "roll" && ruled.why ? { why: ruled.why } : {}) };
+    const which = answers.pressure_secret?.choice?.startsWith("secret_") && (answers.pressure_secret.probabilities?.[answers.pressure_secret.choice] ?? 1) >= 0.5 ? Number(answers.pressure_secret.choice.slice(7)) : undefined;
+    pressure = { target: target.id, skill, stakes, approach, disposition, ...(which !== undefined ? { secret: which } : {}), ruling: ruled.kind, ...(ruled.kind !== "roll" && ruled.why ? { why: ruled.why } : {}) };
     if (ruled.kind === "roll") {
       const random = rng(state.seed + 7919 * ++state.rollCount);
       const roll = rollCheck(random, skill, ruled.dc, state.player.modifiers[skill] ?? 0);
@@ -418,7 +429,8 @@ export function pressureReason(scene: Scene, p: PressureCheck): string {
 export function pressureDirective(scene: Scene, p: PressureCheck): string {
   const c = scene.cast.find(x => x.id === p.target);
   const name = c?.name ?? p.target;
-  const secret = c?.secrets?.join(" ") ?? "";
+  // Only the secret the player is after: the rest stay theirs until they're asked about too.
+  const secret = p.secret !== undefined && c?.secrets?.[p.secret] ? `${c.secrets[p.secret]} (Only this: what else they're hiding stays hidden until the player gets to it.)` : `${c?.secrets?.join(" ") ?? ""} (Only what the question reaches, one thing at a time.)`;
   const always = "Nothing already said is taken back. If this is something the scene needs, leave a way to it.";
   const costly = p.stakes === "dangerous" || p.stakes === "ruinous" ? " It still costs them: they ask something in return, or make the player promise." : "";
   const remembers = p.skill === "intimidation" || p.skill === "deception" ? " They talk, but they'll remember how: cooler towards the player from here on." : "";
@@ -462,7 +474,17 @@ export function freeformDirective(check: FreeformCheck): string {
 /** Where the story now stands with respect to the scene's endings (a state, not an event). */
 export interface EndingRead { exitId: string; probability: number }
 
-export async function decideAfter(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, reply: string, options: { hold?: string } = {}): Promise<{ move?: Move; decision?: Decision; status?: SceneStatus; ending?: EndingRead; landed?: string[]; hinted?: string[] }> {
+export const GUARD_STAGES = ["surface", "tell", "stirred", "torn", "settled"] as const;
+export type GuardStage = typeof GUARD_STAGES[number];
+
+/** Staged secrets: who to ask about (people present with secrets, those in the latest exchange first; three at most). */
+function guardHolders(scene: Scene, state: SessionState, text: string): Character[] {
+  const holders = presentCast(scene, state).filter(c => c.secrets?.length && state.guard?.[c.id]?.stage !== "settled");
+  const named = (c: Character) => text.includes(c.name.split(" ").at(-1)!) || text.includes(c.name.split(" ")[0]!);
+  return [...holders.filter(named), ...holders.filter(c => !named(c))].slice(0, 3);
+}
+
+export async function decideAfter(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, reply: string, options: { hold?: string; staging?: boolean } = {}): Promise<{ move?: Move; decision?: Decision; status?: SceneStatus; ending?: EndingRead; landed?: string[]; hinted?: string[]; guard?: Record<string, GuardStage> }> {
   // An ending held back this turn (the player gets a last chance) can't be confirmed by the same reply.
   const leadsTo = (t: Transition) => [t.to, t.check?.onSuccess, t.check?.onFailure];
   // While an ending is held for the player's response, no other ending (not even the improvised one) can fire.
@@ -488,6 +510,19 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
         landed: `Yes: the player now knows or has this: ${e.what}`,
         hinted: "Not yet, but the latest GM reply pointed towards it: a sign, a telltale detail or a remark the player could follow up.",
         not_yet: "Not yet: it hasn't reached the player, and the latest reply didn't point towards it.",
+      },
+    };
+  }
+  const holders = options.staging ? guardHolders(scene, state, `${playerTurn}\n${reply}`) : [];
+  for (const c of holders) {
+    questions[`guard_${c.id}`] = {
+      instructions: `Judge only what has actually happened in the story so far. How far has ${c.name} come towards giving up what they're keeping to themselves (${c.secrets!.join(" ").slice(0, 300)})?`,
+      criteria: {
+        surface: `Nothing has shown: ${c.name} is still their usual public self about it.`,
+        tell: "Something that doesn't fit has shown (a dodge, a slip, a reaction they couldn't hide), and the player could pick at it.",
+        stirred: `The player has picked at it; ${c.name} has got defensive, and something personal has shown (someone or something they care about).`,
+        torn: `${c.name}'s own conflict is out in the open: in their own words, what telling would cost them or what they're torn between.`,
+        settled: "It's settled: they've told it, bargained over it, or refused for good and turned against the player.",
       },
     };
   }
@@ -532,7 +567,8 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
   }
   const landed = pending.filter(e => decision.answers[`landed_${e.id}`]?.choice === "landed").map(e => e.id);
   const hinted = pending.filter(e => decision.answers[`landed_${e.id}`]?.choice === "hinted").map(e => e.id);
-  return { ...(move ? { move } : {}), decision, ...(status ? { status } : {}), ...(ending ? { ending } : {}), ...(landed.length ? { landed } : {}), ...(hinted.length ? { hinted } : {}) };
+  const guard = Object.fromEntries(holders.map(c => [c.id, decision.answers[`guard_${c.id}`]?.choice as GuardStage | undefined]).filter(([, g]) => g)) as Record<string, GuardStage>;
+  return { ...(move ? { move } : {}), decision, ...(status ? { status } : {}), ...(ending ? { ending } : {}), ...(landed.length ? { landed } : {}), ...(hinted.length ? { hinted } : {}), ...(Object.keys(guard).length ? { guard } : {}) };
 }
 
 /** Tier-one scene health, asked alongside the outcome check at no extra latency. */

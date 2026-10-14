@@ -47,6 +47,12 @@ export interface Approach {
    * reviews fired by attention flags write first-person memories. Otherwise: prose hand-offs only.
    */
   memory?: "docs" | "lite";
+  /**
+   * Staged secrets (docs/research/pacing.md, mechanism B): the after-reply decision tracks how far
+   * each secret-holder has opened up (surface, tell, stirred, torn, settled) and the GM moves them
+   * one step per reply at most, unless the player brings proof or real leverage.
+   */
+  staging?: boolean;
   /** House style for the GM voice: "comic" adds prompts/tone-comic.md (Pratchett / Monty Python). */
   tone?: "comic";
   /** Reasoning effort for the voices (GM, narrator, actors). Default "none" for snappy replies. */
@@ -59,6 +65,7 @@ export const APPROACHES: Record<string, Approach> = {
   // off the graph, wait up to 3 s for the quick co-GM (routes with rolls, relocations), then one reply;
   // the full co-GM reviews in the background between turns.
   v2: { id: "v2", description: "Recommended: GM voice in the comic house style with consequences, V1's docs-service memory (lore, per-character memories, Jev disclosure, background reviews), speculative replies, quick co-GM on off-graph turns (3 s), background co-GM.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, tone: "comic", consequences: true, memory: "docs" },
+  "v2-staged": { id: "v2-staged", description: "v2 plus staged secrets: people open up one step per reply (a tell, guard up, torn, then told, bargained or refused).", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, tone: "comic", consequences: true, memory: "docs", staging: true },
   "v2-nomemory": { id: "v2-nomemory", description: "v2 without the docs service: prose hand-offs between scenes only.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, tone: "comic", consequences: true },
   "v2-memory": { id: "v2-memory", description: "v2 plus V1's docs service: lore and per-character memories, Jev opens what matters each turn, Jev-flagged background reviews write memories and record improvised details into the lore.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, tone: "comic", consequences: true, memory: "docs" },
   "v2-memory-lite": { id: "v2-memory-lite", description: "Alternative to v2-memory: one merged memory review per flagged turn (no tools), facts as separate notes, one memory per person at scene end.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, tone: "comic", consequences: true, memory: "lite" },

@@ -5,7 +5,7 @@ import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { approachById } from "./approaches.ts";
 import { currentBeat, effectiveScene, presentCast, sceneEntries } from "./brief.ts";
-import { CONSEQUENCE_DIRECTIVE, decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, relocateDirective, STALL_DIRECTIVE, type Move } from "./director.ts";
+import { CONSEQUENCE_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, relocateDirective, STALL_DIRECTIVE, type Move } from "./director.ts";
 import { describeRoll } from "./dice.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
@@ -104,6 +104,7 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}): Pro
     ? [`Open the scene, picking up exactly from how the last one ended (see what happened just before this scene: it outranks the prep). The author's idea for the opening, to adapt to what actually happened: ${scene.opening} Keep it to a short paragraph or two and end on something the player can respond to.`]
     : [`Open the scene. ${scene.opening} Keep it to a short paragraph or two and end on something the player can respond to.`];
   await settlePresence(scene, state, deciderFor(approach.decider)).catch(() => undefined);
+  if (approach.staging) state.guard ??= {};
   if (approach.memory) {
     // Recurring people walk in remembering: open what bears on this scene before the first line.
     const opening = await disclose(scene, state, "").catch(() => undefined);
@@ -153,6 +154,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   let scene = effectiveScene(authored, state.patches);
   const approach = approachById(state.approach);
   const decider = deciderFor(approach.decider);
+  if (approach.staging) state.guard ??= {};
   const before = state.transcript.length;
   const started = performance.now();
   let costUsd = 0, calls = 0, firstTextMs: number | null = null;
@@ -410,12 +412,17 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     const postStarted = performance.now();
     const replyText = spoken.map(s => s.speaker === "gm" ? s.text : `${scene.cast.find(c => c.id === s.speaker)?.name}: ${s.text}`).join("\n\n");
     const hold = state.pendingExit?.turn === state.turn ? state.pendingExit.exitId : undefined;
-    const post = await decideAfter(decider, scene, state, input, replyText, hold ? { hold } : {});
+    const post = await decideAfter(decider, scene, state, input, replyText, { ...(hold ? { hold } : {}), staging: approach.staging === true });
     postDecisionMs = performance.now() - postStarted;
     if (post.decision) { costUsd += post.decision.costUsd; calls++; }
     if (post.status) state.sceneStatus = post.status;
     if (post.landed?.length) state.landed = [...new Set([...(state.landed ?? []), ...post.landed])];
     if (post.hinted?.length) state.hinted = [...new Set([...(state.hinted ?? []), ...post.hinted])];
+    // Staged secrets never go back: what's out stays out.
+    for (const [id, stage] of Object.entries(post.guard ?? {})) {
+      const was = state.guard?.[id]?.stage ?? "surface";
+      if (GUARD_STAGES.indexOf(stage) > GUARD_STAGES.indexOf(was)) state.guard = { ...(state.guard ?? {}), [id]: { stage, turn: state.turn } };
+    }
     // Where the story stands: an ending that leads twice running (or clearly) closes the scene.
     if (post.ending && !post.move && !state.closing && !state.pendingExit) {
       const lead = state.endingLead?.exitId === post.ending.exitId ? state.endingLead.count + 1 : 1;
@@ -489,7 +496,7 @@ export async function chainScene(state: SessionState, combatResult = "the party 
   const next = sceneById(exit.next);
   Object.assign(state, {
     sceneId: next.id, beat: next.start, turnsInBeat: 0, path: [], established: [], canon: [], notes: null, notesTurn: null,
-    whispers: [], patches: [], repairs: [], entered: [], absent: [], sceneStatus: undefined, memory: { opened: [] }, landed: [], hinted: [],
+    whispers: [], patches: [], repairs: [], entered: [], absent: [], sceneStatus: undefined, memory: { opened: [] }, landed: [], hinted: [], guard: {},
   });
   delete state.ended;
   saveSession(state);

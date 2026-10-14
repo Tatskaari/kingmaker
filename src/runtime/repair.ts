@@ -12,7 +12,7 @@ import { sessionDir, type RepairResult, type ScenePatch, type SessionState } fro
  * endings. Notes expire so they can't harden into a plan the scene railroads towards.
  */
 
-export const NOTE_TTL_TURNS = 3;
+export const NOTE_TTL_TURNS = 2;
 export const WHISPER_TTL_TURNS = 1;
 
 const nullable = (schema: Record<string, unknown>) => ({ anyOf: [schema, { type: "null" }] });

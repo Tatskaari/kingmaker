@@ -1,5 +1,5 @@
 ---
-summary: "Index of the cast for the Caerwyn story that starts with the clerk hanged behind the King's Granary: Sergeant Agnes Kell of the watch, the granary kids Cob and Moll, Corporal Abner Tull, Master Josiah Sallow of the Royal Purveyor's office, and King Aldren."
+summary: "Index of the cast for the Caerwyn story that starts with the clerk hanged behind the King's Granary: Sergeant Agnes Kell of the watch, the granary kids Cob and Moll, Corporal Abner Tull, Master Josiah Sallow of the Royal Purveyor's office, King Aldren, and the people of the Drowned Rat and the Heron warehouse."
 type: "index"
 visibility: "public"
 ---
@@ -20,3 +20,10 @@ The people of the Caerwyn story that starts with the clerk hanged behind the Kin
 - [Corporal Abner Tull](Corporal%20Abner%20Tull/index.md) — read when the watch corporal, the dead-cart or the Captain's order comes up
 - [Master Josiah Sallow](Master%20Josiah%20Sallow/index.md) — read when Master Sallow or the Royal Purveyor's office comes up
 - [King Aldren](King%20Aldren/index.md) — read when the King comes up
+- [Big Hobb Mallory](Big%20Hobb%20Mallory/index.md) — read when the big dock-porter with the bandaged hand, the Rat's champion, comes up
+- [Nan Quill](Nan%20Quill/index.md) — read when the landlady of the Drowned Rat, her house rules or her gossip come up
+- [Arlo Quarry](Arlo%20Quarry/index.md) — read when the young lighterman after the champion's chair comes up
+- [Dilly Sparrow](Dilly%20Sparrow/index.md) — read when the old bargewoman at the Rat's card table comes up
+- [Saul Tench](Saul%20Tench/index.md) — read when the Heron's night watchman or his mastiff Duchess come up
+- [Hepzibah Grist](Hepzibah%20Grist/index.md) — read when the Heron's re-sacking forewoman or her gang come up
+- [Mister Lemuel Scrope](Mister%20Lemuel%20Scrope/index.md) — read when the Heron's clerk or the true book comes up

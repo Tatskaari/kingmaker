@@ -162,6 +162,21 @@ export function spentHere(state: SessionState): Set<string> {
 }
 
 /** The per-turn note: where we are, what moves things on, co-GM notes and this reply's direction. */
+const GUARD_NOTE: Record<string, string> = {
+  surface: "nothing has shown yet. What would show first is something that doesn't fit: a dodge, a slip, a reaction they can't quite hide.",
+  tell: "something has shown. If the player picks at it, their guard goes up, and something personal shows (someone or something they care about that bears on it).",
+  stirred: "guard up. If the player keeps at it, what they're torn between comes out, in their own words: a worry, or a question to the player that shows it, never terms.",
+  torn: "torn, in the open. Next, the thing itself comes out (told, bargained over or refused, depending on how the player has treated them), one piece at a time as the questions reach it.",
+  settled: "settled. They answer follow-ups as far as what they know.",
+};
+
+/** Staged secrets: where each holder present stands, and the one step they can take next. */
+function guardNote(scene: Scene, state: SessionState): string | undefined {
+  const holders = presentCast(scene, state).filter(c => c.secrets?.length);
+  if (!holders.length || !state.guard) return undefined;
+  return `## How far people have opened up\nPeople give up what they're hiding the way they would at a good table: something that doesn't fit shows first; picked at, their guard goes up and something personal shows; kept at, what they're torn between comes out in their own words; only then does the thing itself come out, told, bargained over or refused, depending on how the player has treated them. A reply takes someone one step at most, and only when the player has given them a reason; proof, or leverage that really reaches them, can take them straight to the end. Nothing that's out goes back in.\n${holders.map(c => `- ${c.name}: ${GUARD_NOTE[state.guard?.[c.id]?.stage ?? "surface"]}`).join("\n")}`;
+}
+
 export function nowNote(scene: Scene, state: SessionState, directive: string[], options: { castNotes?: boolean } = {}): string {
   const beat = currentBeat(scene, state);
   const present = new Set(presentCast(scene, state).map(c => c.id));
@@ -178,7 +193,9 @@ export function nowNote(scene: Scene, state: SessionState, directive: string[], 
     ...(beat.pressure && state.turnsInBeat >= 2 && !state.pressureOffered?.includes(beat.id) ? [`The scene has been sitting here a while. If it's stalling or drifting, the world can push: ${beat.pressure}`] : []),
     `(The scene has been at this point for ${state.turnsInBeat} exchange${state.turnsInBeat === 1 ? "" : "s"}.)`,
     `## What moves the scene on from here\n${transitions.map(t => transitionLine(scene, t)).join("\n")}`,
-    ...(state.notes || state.whispers?.length ? [`## Notes from your co-GM (for you, written a moment ago: let them shape what people do, but nobody recites them; if the player has since chosen otherwise, the player's choice wins)\n${[state.notes ?? "", ...(state.whispers ?? []).map(w => `- On ${scene.cast.find(c => c.id === w.to)?.name ?? w.to}'s mind: ${w.note}`)].filter(Boolean).join("\n")}`] : []),
+    ...(guardNote(scene, state) ? [guardNote(scene, state)!] : []),
+    // Co-GM notes steer the middle of a scene; a closing works from what happened, not stale steering.
+    ...(!state.closing && !state.pendingExit && (state.notes || state.whispers?.length) ? [`## Notes from your co-GM (for you, written a moment ago: let them shape what people do, but nobody recites them; if the player has since chosen otherwise, the player's choice wins)\n${[state.notes ?? "", ...(state.whispers ?? []).map(w => `- On ${scene.cast.find(c => c.id === w.to)?.name ?? w.to}'s mind: ${w.note}`)].filter(Boolean).join("\n")}`] : []),
     ...(state.canon.length || state.established.length ? [`## Details established in play (keep them true)\n${bullets([...state.established, ...state.canon])}`] : []),
     ...(directive.length ? [`## For this reply\n${directive.join("\n\n")}`] : []),
   ];

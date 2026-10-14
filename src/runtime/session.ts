@@ -85,6 +85,8 @@ export interface SessionState {
   landed?: string[];
   /** Essentials a reply has already pointed towards: a nudge is given once, not repeated. */
   hinted?: string[];
+  /** Staged secrets: how far each secret-holder has opened up (never goes back). */
+  guard?: Record<string, { stage: "surface" | "tell" | "stirred" | "torn" | "settled"; turn: number }>;
   /** Docs-service memory: notes Jev has opened for this scene (indexes are always in). */
   memory?: { opened: Array<{ path: string; title: string; scope: string; turn: number }> };
   /** Beats whose pressure has already been offered to the GM (it fires once). */
