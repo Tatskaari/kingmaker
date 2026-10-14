@@ -279,6 +279,68 @@ test("the explore state saves and loads as plain JSON", () => {
   assert.equal(a, b);
 });
 
+test("the whole arc through the API, as the app drives it: granary, Rat, Heron, the page, the King", () => {
+  // A stand-in for the scene session: the runtime's createSession/openScene/chainScene would do this.
+  const session = { sceneId: "hanged-clerk", history: [] as Array<{ sceneId: string }> };
+  const casts: Record<string, [WorldSpec, string[]]> = {
+    "hanged-clerk": [hangedClerkWorld, ["kell", "cob", "moll"]], "drowned-rat": [drownedRatWorld, ["kell", "nan-quill", "arlo", "dilly", "hobb", "cob"]],
+    "heron-warehouse": [heronWorld, ["kell", "saul", "hep", "scrope", "hobb"]], "kings-morning": [dressingRoomWorld, ["kell", "king", "holt"]],
+  };
+  const ex = newExploration(storyFromSession(session));
+  const mapNow = (): string => ex.map;
+  /** Walk to a tile, stopping if a scene opens on the way. */
+  const walkTo = (to: Tile2) => {
+    for (const [dx, dy] of pathTo(ex, to) ?? []) { const r = move(ex, dx, dy); if (r.trigger) return r.trigger; }
+    return undefined;
+  };
+  /** Play a scene: open its place, build its world, end it, and move the story on. */
+  const play = (sceneId: string, next: string | undefined) => {
+    enterScene(ex, sceneId);
+    const [spec, cast] = casts[sceneId]!;
+    const w = world(sceneId, spec, cast);
+    const lines = renderExplore(ex, { w: 80, h: 24 }, { world: w });
+    assert.match(toPlain(lines), /@/, `${sceneId}: the player is in the scene view`);
+    leaveScene(ex, w);
+    session.history.push({ sceneId });
+    if (next) session.sceneId = next;
+    setStory(ex, storyFromSession(session));
+  };
+
+  // Morning: through the gate into the yard.
+  let trigger = walkTo({ x: 42, y: 12 });
+  assert.equal(trigger?.sceneId, "hanged-clerk");
+  play("hanged-clerk", "drowned-rat");
+  assert.equal(ex.story.time, "evening");
+  assert.equal(ex.followers[0]?.id, "kell");
+
+  // Dusk: down the river stairs to the Rat's door, and in.
+  assert.equal(walkTo({ x: 25, y: 35 }), undefined);
+  const r = move(ex, 1, 0);
+  assert.equal(r.travelled?.to, "drowned-rat");
+  trigger = walkTo({ x: 3, y: 6 });
+  assert.equal(trigger?.sceneId, "drowned-rat");
+  play("drowned-rat", "heron-warehouse");
+  assert.equal(ex.story.time, "night");
+
+  // Night: out of the Rat (the scene leaves you where its world did), down to the wharves, along to the Heron.
+  if (mapNow() === "drowned-rat") walkTo({ x: 12, y: 3 });
+  assert.equal(mapNow(), "caerwyn", "out of the Rat and back in the town");
+  trigger = walkTo({ x: 47, y: 38 });
+  assert.equal(trigger?.sceneId, "heron-warehouse");
+  play("heron-warehouse", "kings-morning");
+  assert.equal(ex.story.time, "next-morning");
+
+  // The next morning: back along the wharf from the Heron, up through the town to the page at the palace gate.
+  if (mapNow() === "heron") walkTo({ x: 0, y: 5 });
+  assert.equal(mapNow(), "caerwyn");
+  walkTo({ x: 11, y: 15 });
+  const page = interact(ex);
+  assert.equal(page?.interaction.kind, "scene");
+  play("kings-morning", undefined);
+  assert.deepEqual(ex.story.played, ["hanged-clerk", "drowned-rat", "heron-warehouse", "kings-morning"]);
+  assert.equal(ex.story.lead, undefined, "the end of the story: nowhere left to go");
+});
+
 test("storyFromSession: played scenes, the lead and the time of day", () => {
   assert.deepEqual(storyFromSession({ sceneId: "hanged-clerk", history: [] }), { time: "morning", played: [], lead: "hanged-clerk", flags: {} });
   const afterRat = storyFromSession({ sceneId: "heron-warehouse", history: [{ sceneId: "hanged-clerk" }, { sceneId: "drowned-rat" }] });
