@@ -18,7 +18,7 @@ import { sheetText } from "../rules/dnd.ts";
 const USAGE = `Kingmaker V2 scene harness
 
   scene list                                   scenes and approaches
-  scene start <scene> [--approach v2] [--as "Name: concept"] [--seed N] [--session ID]
+  scene start <scene> [--approach v2] [--as "Name: concept"] [--level 3] [--seed N] [--session ID]
                                                start a scene; prints the session id and the opening
   scene say <session> <what you say or do>     take a turn (speech in quotes, actions in plain words)
   scene sheet <session>                        your D&D character sheet (also #sheet while playing)
@@ -104,7 +104,7 @@ async function afterTurn(state: SessionState, hooks: TurnHooks): Promise<void> {
     console.log(`— Next scene: ${sceneById(chained.sceneId).title} —\n`);
     await openScene(chained, hooks);
   } else {
-    console.log("— The session is over. —");
+    console.log("— The End. (The session is over.) —");
   }
 }
 
@@ -126,6 +126,7 @@ async function main(): Promise<void> {
     const player = flag(args, "as");
     const seed = flag(args, "seed");
     const id = flag(args, "session");
+    const level = flag(args, "level");
     const sceneId = args.shift();
     if (!sceneId) throw new Error("Which scene? See `scene list`.");
     let who = player;
@@ -136,7 +137,7 @@ async function main(): Promise<void> {
       ask.close();
       if (answer) who = answer.includes(":") ? answer : `${answer}: an investigator lent to the case by the King`;
     }
-    const state = await createSession({ sceneId, approach, ...(who ? { player: who } : {}), ...(seed ? { seed: Number(seed) } : {}), ...(id ? { id } : {}) });
+    const state = await createSession({ sceneId, approach, ...(who ? { player: who } : {}), ...(seed ? { seed: Number(seed) } : {}), ...(id ? { id } : {}), ...(level ? { level: Math.max(1, Math.min(20, Number(level))) } : {}) });
     setCallLog(join(sessionDir(state.id), "calls.jsonl"));
     saveSession(state);
     console.log(`Session: ${state.id}\nYou are ${state.player.name}: ${state.player.concept}${state.player.build ? `\nIn game terms: ${state.player.build} (#sheet shows your character sheet)` : ""}\n`);
