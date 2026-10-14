@@ -62,6 +62,8 @@ def keys(app, *names, settle=0.12):
 
 
 def say(app, text):
+    # The input takes nothing while the GM has the floor: wait until it's idle (its placeholder shows).
+    app.wait_for(r"Say something or do something", 120)
     app.type(text, 0.2)
     app.send(KEYS["enter"], 0.3)
 
