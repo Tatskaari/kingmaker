@@ -42,8 +42,15 @@ export function leadMarker(story: StoryState, mapId: string): { at: Tile2; label
   if (!place) return undefined;
   if (place.lead.map === mapId) return { at: place.lead.at, label: place.lead.label };
   if (place.map === mapId) {
-    const r = regionForScene(lead!)?.region.rect;
-    return r ? { at: { x: r.x + Math.floor(r.w / 2), y: r.y }, label: place.lead.label } : undefined;
+    const found = regionForScene(lead!);
+    if (!found) return undefined;
+    const r = found.region.rect;
+    // Its way in: a door on the place's edge, or else its middle.
+    for (let y = r.y - 1; y <= r.y + r.h; y++) for (let x = r.x - 1; x <= r.x + r.w; x++) {
+      const edge = x === r.x - 1 || y === r.y - 1 || x === r.x + r.w || y === r.y + r.h;
+      if (edge && inBounds(found.map, { x, y }) && tileAt(found.map, { x, y }).terrain === "door" && !tileAt(found.map, { x, y }).blocks) return { at: { x, y }, label: place.lead.label };
+    }
+    return { at: { x: r.x + Math.floor(r.w / 2), y: r.y + Math.floor(r.h / 2) }, label: place.lead.label };
   }
   return undefined;
 }

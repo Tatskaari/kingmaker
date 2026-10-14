@@ -78,14 +78,14 @@ export const caerwyn: MapDef = buildMap({
     B: T("wall", { style: "brick", height: 3 }), b: T("window", { style: "brick", height: 3 }), D: T("door", { style: "brick", height: 3, ...LOCKED }),
     E: T("wall", { style: "civic", height: 4 }), e: T("window", { style: "civic", height: 4 }), X: T("door", { style: "civic", height: 4, ...LOCKED }),
     // The King's Granary: the tally loft is a floor under its roof, seen when the roof is lifted.
-    G: T("wall", { style: "granary", height: 4 }), g: T("boards", { roof: "granary", height: 4 }),
+    G: T("wall", { style: "granary", height: 4 }), g: T("boards", { roof: "granary", roofHeight: 4 }),
     L: T("door", { style: "granary", height: 4, ...LOCKED }), Y: T("door", { style: "granary", height: 4, ...LOCKED }),
     o: T("wall", { style: "stone", height: 1 }), O: T("door", { style: "stone", height: 1 }), "#": T("wall", { style: "stone", height: 2 }),
     // The bank down to the wharves, with the Drowned Rat's door on the stairs' landing.
     K: T("wall", { style: "bank", height: 2 }), R: T("door", { style: "bank", height: 2 }),
     W: T("wall", { style: "timber", height: 4 }), x: T("door", { style: "timber", height: 4, ...LOCKED }),
     N: T("wall", { style: "tar", height: 4 }), n: T("door", { style: "tar", height: 4, ...LOCKED }),
-    S: T("dirt", { roof: "timber", height: 2 }),
+    S: T("dirt", { roof: "timber", roofHeight: 2 }),
     // Decor.
     "*": T("cobbles", {}, { name: "bunting", glyph: "▾", states: ["overhead"] }),
     l: lamp("cobbles"), j: lamp("boards"),
@@ -93,7 +93,7 @@ export const caerwyn: MapDef = buildMap({
     s: T("cobbles", {}, { id: "caerwyn:statue", name: "the statue of Good King Bertram", glyph: "Å", color: "#b8c4c8", blocks: true, text: "Good King Bertram the Moderately Wise, in bronze, with a pigeon on his head. The pigeon looks more regal." }),
     "1": T("cobbles", {}, { id: "caerwyn:price-board", name: "the Corn Exchange price board", glyph: "▤", color: "#e0c890", blocks: true, text: "BREAD: DEAR. FLOUR: DEARER. GRAIN: ASK. QUESTIONS: NOT TAKEN." }),
     "2": T("cobbles", {}, { id: "caerwyn:no-bunting", name: "a sign", glyph: "▤", color: "#e0c890", blocks: true, text: "NO BUNTING BEYOND THIS POINT. BY ORDER OF THE ASSEMBLY COMMITTEE (DECORATIONS SUB-COMMITTEE)." }),
-    "3": T("dirt", { roof: "timber", height: 2 }, { id: "caerwyn:cart", name: "a grain cart", glyph: "▬", color: "#a07a4a", blocks: true, text: "A granary cart with one wheel off, which is how it gets out of processions." }),
+    "3": T("dirt", { roof: "timber", roofHeight: 2 }, { id: "caerwyn:cart", name: "a grain cart", glyph: "▬", color: "#a07a4a", blocks: true, text: "A granary cart with one wheel off, which is how it gets out of processions." }),
     "4": T("dirt", {}, { name: "a washing line", glyph: "▿", color: "#f0f0e8", states: ["overhead"] }),
     "8": T("cobbles", {}, { id: "caerwyn:palace-notice", name: "a notice by the palace gate", glyph: "▤", color: "#e0c890", blocks: true, text: "THE CENTENNIAL ASSEMBLY. DELEGATIONS BY THE FRONT. TRADES BY THE BACK. PIGS NOT AT ALL." }),
     k: T("boards", {}, { name: "crates", glyph: "▣", color: "#a07a4a", blocks: true, text: "Crates marked FRAGILE, which the porters take as a challenge." }),

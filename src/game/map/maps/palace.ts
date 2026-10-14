@@ -29,9 +29,9 @@ export const palace: MapDef = buildMap({
   legend: {
     P: T("wall", { style: "gilt", height: 4 }), p: T("window", { style: "gilt", height: 4 }),
     "+": T("door", { style: "gilt", height: 4 }), Q: T("door", { style: "gilt", height: 4 }),
-    a: T("floor", { style: "carpet", roof: "palace", height: 4 }),
-    q: T("floor", { style: "carpet", roof: "palace", height: 4 }, { name: "a portrait", glyph: "▯", color: "#c9a94a", blocks: true, text: "A portrait of a previous king, propped against the wall for the Assembly. He looks as if he'd have signed things." }),
-    f: T("floor", { style: "carpet", roof: "palace", height: 4 }),
+    a: T("floor", { style: "carpet", roof: "palace", roofHeight: 4 }),
+    q: T("floor", { style: "carpet", roof: "palace", roofHeight: 4 }, { name: "a portrait", glyph: "▯", color: "#c9a94a", blocks: true, text: "A portrait of a previous king, propped against the wall for the Assembly. He looks as if he'd have signed things." }),
+    f: T("floor", { style: "carpet", roof: "palace", roofHeight: 4 }),
     v: T("stairs"),
   },
   regions: [

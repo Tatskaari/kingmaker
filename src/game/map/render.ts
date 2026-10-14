@@ -85,6 +85,8 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
 
   // The tile currently being painted: cells it touches take its light and depth.
   let light = 1, depth = 0;
+  // Where the player was drawn: if something in front painted over them, they're drawn through it.
+  let me: { x: number; y: number; depth: number } | undefined;
   const put = (sx: number, sy: number, ch: string, fg: string, bg?: string, extra: { bold?: boolean; glow?: boolean } = {}) => {
     if (sx < 0 || sy < 0 || sx >= w || sy >= h) return;
     const cell = cells[sy]![sx]!;
@@ -156,7 +158,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
       block(at, style, 1, sc, sr);
       return;
     }
-    const height = Math.max(1, Math.min(MAX_HEIGHT, t.height ?? 1));
+    const height = Math.max(1, Math.min(MAX_HEIGHT, (roofed ? t.roofHeight ?? 3 : t.height) ?? 1));
     if (t.terrain === "door" && height <= 1) {
       // A gate in a low wall: two posts, and the gate itself when it's shut.
       ground(at, GROUND[groundKey(t)]!, sc, sr);
@@ -258,6 +260,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     const down = states.some(s => s === "down" || s === "unconscious" || s === "dead" || s === "prone");
     if (a.kind === "player") {
       put(sc, r, "@", colour, "#3a3418", { bold: true, glow: true });
+      me = { x: sc, y: r, depth };
       return;
     }
     const lit = states.includes("lit") || states.includes("light");
@@ -271,6 +274,12 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
   /** Something burning lights the cell it's in and stays bright at night. */
   function lightUp(sx: number, sy: number): void {
     if (sx >= 0 && sy >= 0 && sx < w && sy < h) cells[sy]![sx]!.glow = true;
+  }
+
+  // Hidden behind a building: drawn through it, picked out so it's plain that you're back there.
+  if (me && me.x >= 0 && me.y >= 0 && me.x < w && me.y < h && cells[me.y]![me.x]!.depth > me.depth) {
+    depth = 1e9; light = 1;
+    put(me.x, me.y, "@", "#ffffff", "#6a3a8a", { bold: true, glow: true });
   }
 
   // The lead: a marker floating over the place the story is heading for, or an arrow at the edge.
@@ -305,9 +314,10 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
   const day = DAYLIGHT[options.time ?? "afternoon"];
   for (const row of cells) for (const cell of row) {
     if (cell.glow) continue;
-    const k = Math.min(1.08, day.ambient + (1 - day.ambient) * cell.light);
-    const warm = cell.light > 0.05 && day.ambient < 0.9 ? cell.light * 0.35 : 0;
-    const shade = (c: string) => c ? mix(mix(scale(c, k), day.tint, day.tintAmount * (1 - cell.light)), LIGHT_COLOUR, warm * 0.5) : c;
+    // Pools of lamplight: brighter than the dark round them, and warm.
+    const k = Math.min(1.12, day.ambient + (1.12 - day.ambient) * cell.light);
+    const warm = cell.light > 0.05 && day.ambient < 0.9 ? cell.light * 0.28 : 0;
+    const shade = (c: string) => c ? mix(mix(scale(c, k), day.tint, day.tintAmount * (1 - cell.light)), LIGHT_COLOUR, warm) : c;
     cell.fg = shade(cell.fg); cell.bg = shade(cell.bg);
   }
 
@@ -431,7 +441,7 @@ function roofSlopes(map: TileMap): Uint8Array {
   const out = new Uint8Array(map.width * map.height);
   const seen = new Uint8Array(map.width * map.height);
   const styleOf = blockStyle;
-  const raised = (t: MapTile) => (isStructure(t) || isRoofed(t)) && (t.height ?? 0) >= 2;
+  const raised = (t: MapTile) => (isStructure(t) && (t.height ?? 0) >= 2) || (isRoofed(t) && (t.roofHeight ?? 3) >= 2);
   for (let y0 = 0; y0 < map.height; y0++) for (let x0 = 0; x0 < map.width; x0++) {
     const t0 = map.tiles[y0]![x0]! as MapTile;
     if (seen[y0 * map.width + x0] || !raised(t0) || FLAT.has(styleOf(t0))) continue;

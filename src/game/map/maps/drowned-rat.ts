@@ -38,7 +38,7 @@ export const drownedRat: MapDef = buildMap({
     "#": T("wall", { style: "timber", height: 2 }),
     "+": T("door", { style: "timber", height: 2 }),
     h: T("door", { style: "timber", height: 2, blocks: true }),
-    f: T("floor", { style: "flags", roof: "bank", height: 2 }),
+    f: T("floor", { style: "flags", roof: "bank", roofHeight: 2 }),
     u: T("fence", { style: "hull", height: 1 }),
   },
   regions: [

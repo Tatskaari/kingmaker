@@ -4,7 +4,7 @@ import { CAST } from "./looks.ts";
 import { getMap } from "./maps/index.ts";
 import { PLACES, regionForScene, sceneStart } from "./places.ts";
 import { isLive, leadMarker, presence, regionOpen, sceneTrigger } from "./presence.ts";
-import { actorsFromWorld, captureScene, emptyOverlay, feetToTile, nearestTile, overlayActors, overlayRegionStates, type MapOverlay } from "./reconcile.ts";
+import { actorsFromWorld, captureScene, emptyOverlay, feetToTile, nearestTile, nearestWalk, overlayActors, overlayRegionStates, type MapOverlay } from "./reconcile.ts";
 import { render, type RenderOptions, type Viewport } from "./render.ts";
 import { direction, inBounds, inRect, isStructure, regionAt, steps, tileAt, type PlaceRegion } from "./tiles.ts";
 
@@ -78,11 +78,18 @@ function syncFollowers(state: ExploreState): void {
   const withKell = state.story.played.length > 0 && state.story.flags.kell !== false && state.story.flags.kell !== "absent";
   const has = state.followers.some(f => f.id === "kell");
   if (withKell && !has) {
-    const map = getMap(state.map);
-    const at = nearestTile(map, state.at, p => p.x !== state.at.x || p.y !== state.at.y ? walkable(map, p) : false, 3) ?? state.at;
+    const at = besideSpot(state, state.map, state.at);
     state.followers.push({ id: "kell", name: CAST.kell!.name, glyph: CAST.kell!.glyph, color: CAST.kell!.color, map: state.map, at });
   }
   if (!withKell && has) state.followers = state.followers.filter(f => f.id !== "kell");
+}
+
+/** A free spot beside a tile for someone walking with the player: standable, empty, not a way out. */
+function besideSpot(state: ExploreState, mapId: string, at: Tile2): Tile2 {
+  const map = getMap(mapId);
+  const taken = new Set([...presence(state.story, mapId), ...overlayActors(state.overlay, mapId, state.story.time)].filter(a => a.blocks).map(a => `${a.at.x},${a.at.y}`));
+  const ok = (p: Tile2) => (p.x !== at.x || p.y !== at.y) && walkable(map, p) && !taken.has(`${p.x},${p.y}`) && !map.exits.some(e => e.at.x === p.x && e.at.y === p.y);
+  return nearestWalk(map, at, ok, 3) ?? nearestTile(map, at, ok, 3) ?? { ...at };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -202,7 +209,7 @@ export function travel(state: ExploreState, to: { map: string; at: Tile2 }, labe
   state.steps++;
   for (const f of state.followers) {
     f.map = to.map;
-    f.at = nearestTile(map, to.at, p => (p.x !== to.at.x || p.y !== to.at.y) && walkable(map, p) && !(map.exits.some(e => e.at.x === p.x && e.at.y === p.y)), 3) ?? { ...to.at };
+    f.at = besideSpot(state, to.map, to.at);
   }
   const r: MoveResult = { moved: true, map: state.map, at: { ...state.at }, travelled: { from, to: to.map, label }, message: `${label}: ${map.name}.` };
   const trigger = triggerAt(state, map, to.at, undefined);
@@ -400,7 +407,7 @@ export function leaveScene(state: ExploreState, world?: SceneWorld): void {
     const feet = me?.at;
     if (feet) {
       const at = feetToTile(found.region, feet);
-      const ok = nearestTile(found.map, at, p => walkable(found.map, p), 3);
+      const ok = nearestWalk(found.map, at, p => walkable(found.map, p), 3);
       if (ok) { state.map = found.map.id; state.at = ok; }
     }
   }
@@ -408,9 +415,8 @@ export function leaveScene(state: ExploreState, world?: SceneWorld): void {
   if (after && (!found || !world || state.map !== found.map.id || !inBounds(getMap(state.map), state.at))) { state.map = after.map; state.at = { ...after.at }; }
   // Followers catch up.
   for (const f of state.followers) {
-    const map = getMap(state.map);
     f.map = state.map;
-    f.at = nearestTile(map, state.at, p => (p.x !== state.at.x || p.y !== state.at.y) && walkable(map, p), 3) ?? { ...state.at };
+    f.at = besideSpot(state, state.map, state.at);
   }
 }
 

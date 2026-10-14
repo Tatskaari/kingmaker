@@ -13,8 +13,12 @@ import type { Interaction, MapActor, Region, Terrain, Tile, Tile2, TileMap } fro
 export interface MapTile extends Tile {
   /** The renderer's look: a palette key (stone, brick, timber, tar, palace, bank, granary, hedge...). */
   style?: string;
-  /** A roofed floor's roof, seen from outside (its style is the floor's own look). */
+  /**
+   * A floor under a roof (indoors): the roof's look from outside, and how high it is. The floor
+   * itself stays at ground level (its `height` is 0): the roof is drawn only from outside.
+   */
   roof?: string;
+  roofHeight?: number;
 }
 
 export interface PlaceRegion extends Region {
@@ -128,7 +132,7 @@ export function tileAt(map: TileMap, p: Tile2): MapTile {
 export const isStructure = (t: Tile) => t.terrain === "wall" || t.terrain === "window" || t.terrain === "door" || t.terrain === "fence";
 
 /** A floor under a roof: walkable, but drawn as roof from outside (the roof lifts when you go in). */
-export const isRoofed = (t: Tile) => !t.blocks && !isStructure(t) && (t.height ?? 0) > 0;
+export const isRoofed = (t: Tile) => !t.blocks && !isStructure(t) && !!(t as MapTile).roof;
 
 export const inRect = (r: { x: number; y: number; w: number; h: number }, p: Tile2) => p.x >= r.x && p.y >= r.y && p.x < r.x + r.w && p.y < r.y + r.h;
 

@@ -79,7 +79,7 @@ export const DEFAULT_STYLE: Record<string, string> = { wall: "stone", window: "s
 export const DAYLIGHT: Record<StoryState["time"], { ambient: number; tint: string; tintAmount: number }> = {
   morning: { ambient: 1, tint: "#fff2d0", tintAmount: 0.06 },
   afternoon: { ambient: 1, tint: "#ffffff", tintAmount: 0 },
-  evening: { ambient: 0.72, tint: "#ff9a50", tintAmount: 0.16 },
+  evening: { ambient: 0.8, tint: "#d9785a", tintAmount: 0.13 },
   night: { ambient: 0.48, tint: "#14223f", tintAmount: 0.28 },
   "next-morning": { ambient: 1.04, tint: "#e0f0ff", tintAmount: 0.05 },
 };

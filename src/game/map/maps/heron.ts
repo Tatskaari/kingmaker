@@ -41,11 +41,11 @@ export const heron: MapDef = buildMap({
     // The land door is barred on loading nights; the river door is bolted, and opened to a token.
     D: T("door", { style: "tar", height: 4, blocks: true }),
     r: T("door", { style: "tar", height: 4, blocks: true }),
-    F: T("boards", { roof: "tar", height: 4 }),
+    F: T("boards", { roof: "tar", roofHeight: 4 }),
     // The counting-box: glass on two sides, up a short stair, under a lower roof of its own.
     g: T("window", { style: "panel", height: 2 }),
     s: T("door", { style: "panel", height: 2 }),
-    c: T("floor", { roof: "panel", height: 2 }),
+    c: T("floor", { roof: "panel", roofHeight: 2 }),
     u: T("fence", { style: "hull", height: 1 }),
     b: T("boards"),
     o: T("boards", {}, { name: "an open hatch", glyph: "▦", color: "#3a2a1a", text: "An open hatch into the barge's hold, half full of sacks with herons on." }),
