@@ -9,7 +9,7 @@ import { mix, rgbOf } from "./color.ts";
 import { Director } from "./director.ts";
 import { drownedRatDressing, granaryYardDressing, kingsRoomDressing } from "./dressings.ts";
 import { Effects } from "./effects.ts";
-import { glyphFor, type GlyphSet } from "./glyphs.ts";
+import type { GlyphSet } from "./glyphs.ts";
 import { renderStage, type Dressing } from "./stage.ts";
 import { groundCell, type Weather } from "./terrain.ts";
 
@@ -406,7 +406,6 @@ const inventions: Vignette = {
       }
       const source = d.source === "guess" ? "a guess (Luna on the way)" : d.source === "cache" ? "Luna (cached)" : `the rules: ${d.role}`;
       c.text(77, y, source.slice(0, Math.max(0, view.w - 78)), d.source === "guess" ? rgbOf("#c08a5a") : d.source === "cache" ? rgbOf("#9be36b") : dim, undefined, UNLIT);
-      void glyphFor;
     }
     return c;
   },

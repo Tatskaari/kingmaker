@@ -299,7 +299,7 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
   for (const { e, look, c } of order) {
     if (look.light) lights.push({ x: c.x + 0.5, y: c.y + 0.5, radius: look.light.radius / s, color: rgbOf(look.light.color), intensity: look.light.intensity });
     const fp = footprintCells(e, look, s);
-    if (fp && (fp.w > 1 || fp.h > 1) && look.stamp) stamp(canvas, look, e, c, fp, t, tctx, emitters);
+    if (fp && (fp.w > 1 || fp.h > 1) && look.stamp) stamp(canvas, look, e, c, fp, t, tctx);
     else drawOne(canvas, look, e, c, t, set);
     if (look.burning) emitters.push({ kind: "fire", x: c.x, y: c.y, w: fp?.w ?? 1, h: fp?.h ?? 1, seed: seedOf(e.id), strength: look.burning, flame: look.flame ?? "fire" });
     else if (e.states.includes("smouldering")) emitters.push({ kind: "smoulder", x: c.x, y: c.y, w: fp?.w ?? 1, h: 1, seed: seedOf(e.id), strength: 0.5, flame: "fire" });
@@ -489,7 +489,7 @@ function drawOne(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: numbe
 }
 
 /** Big things over several cells: a tabletop, the bar's hull, the hearth, the elm's canopy, a stack of sacks. */
-function stamp(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: number }, fp: { w: number; h: number }, t: number, tctx: TerrainContext, emitters: Emitter[]): void {
+function stamp(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: number }, fp: { w: number; h: number }, t: number, tctx: TerrainContext): void {
   const set = tctx.glyphs ?? "ascii";
   const x0 = c.x - Math.floor(fp.w / 2), y0 = c.y - Math.floor(fp.h / 2);
   const fg = rgbOf(look.fg);
@@ -596,7 +596,6 @@ function stamp(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: number 
     canvas.flags[i] = look.bold ? BOLD : 0;
     canvas.spec[i] = 0;
   }
-  void emitters;
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -685,14 +684,13 @@ function emit(canvas: Canvas, em: Emitter, t: number, set: GlyphSet, wind?: { di
       break;
     }
     case "zzz":
-      beat(1100, 1700, (j, age, f) => {
+      beat(1100, 1700, (_j, age, f) => {
         const x = Math.round(em.x + 1 + f * 1.5), y = Math.round(em.y - 1 - (age / 1000) * 1.4);
         const i = at(x, y);
         if (i < 0) return;
         canvas.glyph[i] = f < 0.5 ? "z" : "Z";
         canvas.fg[i] = mix(rgbOf("#c8c8e8"), rgbOf("#6a6a88"), f);
         canvas.flags[i] = 0;
-        void j;
       });
       break;
   }
