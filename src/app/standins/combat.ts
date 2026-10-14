@@ -144,7 +144,14 @@ class StandInFight implements CombatController {
     // Ties go to the player, then to whoever is quicker on their feet.
     this.order = this.fighters.filter(f => f.setup.side !== "neutral").sort((a, b) => b.initiative - a.initiative || Number(b.player) - Number(a.player));
     this.log.push(`Roll for initiative! ${this.order.map(f => `${f.player ? "You" : f.setup.name} ${f.initiative}`).join(" · ")}`);
-    this.startTurn();
+    // A fight picked up again after a quit starts from its setup, but wounds stay: whoever is
+    // already down stays down.
+    await this.refresh();
+    await this.readHealth();
+    if (!this.over) {
+      if (this.current.out) this.nextTurn();
+      else this.startTurn();
+    }
   }
 
   private startTurn(): void {
