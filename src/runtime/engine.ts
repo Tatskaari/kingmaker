@@ -7,6 +7,8 @@ import { approachById } from "./approaches.ts";
 import { currentBeat, effectiveScene, presentCast, sceneEntries } from "./brief.ts";
 import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, relocateDirective, STALL_DIRECTIVE, type Move } from "./director.ts";
 import { describeRoll } from "./dice.ts";
+import { buildWorld, heldBy, joinWorld, tick, within, type Entity } from "../world/scene-world.ts";
+import { stageManage } from "../world/stage.ts";
 import { attack as rulesAttack, attackOnPlayer, castSpell, comeTo, createCharacter, hazard, levelUp, passTime, rest, type Outcome } from "../rules/dnd.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
@@ -112,6 +114,12 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}): Pro
     : [`Open the scene. ${scene.opening} Keep it to a short paragraph or two and end on something the player can respond to.`];
   await settlePresence(scene, state, deciderFor(approach.decider)).catch(() => undefined);
   if (approach.staging) state.guard ??= {};
+  // The place as a world: where everyone and everything starts, with what the player carried in.
+  if (scene.world) {
+    state.world = buildWorld(scene.id, scene.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name })), state.player);
+    for (const e of state.carried ?? []) state.world.entities[e.id] = { ...e, parent: e.parent && state.carried!.some(c => c.id === e.parent) ? e.parent : "player" };
+  } else delete state.world;
+  delete state.carried;
   // Between scenes: coming to after being knocked down, the rest the gap allows, a milestone level-up.
   if (state.rules) {
     for (const text of await passTime(state, 60).catch(() => [] as string[])) push(state, hooks, { speaker: "dice", kind: "roll", text });
@@ -221,6 +229,12 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     for (const text of ran) push(state, hooks, { speaker: "dice", kind: "roll", text });
     if (ran.length) ruled.push(`Rules: ${ran.join("; ")} (the spell's time is up).`);
   }
+  // The world moves on its own between replies: what's burning burns, and spreads.
+  if (state.world && Object.values(state.world.entities).some(e => e.states.includes("burning"))) {
+    const burned = tick(state.world, state.turn, state.seed + 31337 * state.turn);
+    for (const text of burned) push(state, hooks, { speaker: "dice", kind: "roll", text });
+    if (burned.length) ruled.push(`Rules, since the last reply: ${burned.join("; ")}. The world shows what's burning now; let the fire be felt (smoke, heat, people's reactions).`);
+  }
   if (state.threat && state.rules) {
     const threat = state.threat;
     delete state.threat;
@@ -249,7 +263,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     ? quickRepair(authored, state, approach.repairEffort ? { effort: approach.repairEffort } : {}).catch(() => undefined)
     : undefined;
   const disclosing = approach.memory ? disclose(scene, state, input).catch(() => undefined) : undefined;
-  const rules = state.rules ? { spells: state.rules.spells ?? [], weapons: state.rules.weapons ?? [] } : undefined;
+  const rules = state.rules ? { spells: state.rules.spells ?? [], weapons: state.rules.weapons ?? [], ...(state.world ? aimable(state) : {}) } : undefined;
   const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off", relocate: approach.deciderRelocation === true, pressure: approach.pressureRolls === true, consequences: approach.consequences === true, ...(rules ? { rules } : {}) });
   if (pre.offGraph) state.offGraphTurn = state.turn;
   // A failed roll stands: don't have something else hand over what the dice just withheld.
@@ -457,9 +471,11 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   for (const s of spoken) { costUsd += s.result.costUsd; calls++; }
 
   let postDecisionMs = 0;
+  const replyText = spoken.map(s => s.speaker === "gm" ? s.text : `${scene.cast.find(c => c.id === s.speaker)?.name}: ${s.text}`).join("\n\n");
+  // The stage manager keeps the world in step with what the reply established, alongside the decision.
+  const staging = state.world ? stageManage(state.world, state.player, input, replyText, state.turn).catch(() => undefined) : undefined;
   if (!ended) {
     const postStarted = performance.now();
-    const replyText = spoken.map(s => s.speaker === "gm" ? s.text : `${scene.cast.find(c => c.id === s.speaker)?.name}: ${s.text}`).join("\n\n");
     const hold = state.pendingExit?.turn === state.turn ? state.pendingExit.exitId : undefined;
     const post = await decideAfter(decider, scene, state, input, replyText, { ...(hold ? { hold } : {}), staging: approach.staging === true, rules: !!state.rules });
     postDecisionMs = performance.now() - postStarted;
@@ -496,6 +512,10 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
       }
     }
   }
+  const staged = staging ? await staging : undefined;
+  if (staged) { costUsd += staged.costUsd; calls++; }
+  // Whoever is on stage now (an entrance, someone called in) is in the world too.
+  if (state.world) joinWorld(state.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name })), state.turn);
   if (!state.path.some(p => p.turn === state.turn && p.to !== p.from)) state.turnsInBeat++;
 
   if (ended && authored.createsCharacter) await extractCharacter(authored, state);
@@ -551,6 +571,9 @@ export async function chainScene(state: SessionState, combatResult = "the party 
     .map(e => e.kind === "player" ? `${state.player.name} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.text);
   state.history.push({ sceneId: scene.id, exitId: exit.id, summary: handoff, lastMoments, ...(skipped.length ? { skipped } : {}) });
   const next = sceneById(sceneId);
+  // What the player carries goes with them into the next scene's world.
+  if (state.world) state.carried = carriedBy(state.world.entities, "player");
+  delete state.world;
   Object.assign(state, {
     sceneId: next.id, beat: next.start, turnsInBeat: 0, path: [], established: [], canon: [], notes: null, notesTurn: null,
     whispers: [], patches: [], repairs: [], entered: [], absent: [], sceneStatus: undefined, memory: { opened: [] }, landed: [], hinted: [], guard: {},
@@ -613,4 +636,25 @@ export function transcriptMarkdown(state: SessionState, options: { allScenes?: b
   const scene = sceneById(state.sceneId);
   const entries = options.allScenes ? state.transcript : sceneEntries(state);
   return entries.map(e => e.kind === "player" ? `> **${state.player.name}:** ${e.text}` : e.kind === "roll" ? `🎲 *${e.text}*` : e.kind === "system" ? `*— ${e.text} —*` : e.kind === "dialogue" ? `**${(e.scene ? sceneById(e.scene) : scene).cast.find(c => c.id === e.speaker)?.name ?? e.speaker}:** ${e.text}` : e.text).join("\n\n");
+}
+
+/** What the player could aim a spell or a blow at in the world: things near them, and people outside the cast. */
+function aimable(state: SessionState): { things: Array<{ id: string; name: string }>; bystanders: Array<{ id: string; name: string }> } {
+  const world = state.world!;
+  const cast = new Set(sceneById(state.sceneId).cast.map(c => c.id));
+  // Anything in reach of a spell or a blow, except what other people are holding.
+  const inOthersHands = (e: Entity) => { const h = heldBy(world, e); return !!h && (h.kind === "person" || h.kind === "creature") && !h.player; };
+  const things = within(world, "player", 60, e => (e.kind === "object" || e.kind === "item" || e.kind === "feature") && !e.states.includes("destroyed") && !inOthersHands(e))
+    .slice(0, 16).map(e => ({ id: e.id, name: e.name }));
+  const bystanders = Object.values(world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !cast.has(e.id) && !e.states.includes("gone"))
+    .map(e => ({ id: e.id, name: e.name }));
+  return { things, bystanders };
+}
+
+/** Everything someone holds, and what those things hold. */
+function carriedBy(entities: Record<string, Entity>, holder: string): Entity[] {
+  const out: Entity[] = [];
+  const walk = (id: string) => { for (const e of Object.values(entities).filter(x => x.parent === id && !x.states.includes("gone"))) { out.push({ ...e, notes: e.notes.slice(-2) }); walk(e.id); } };
+  walk(holder);
+  return out;
 }

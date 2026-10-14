@@ -14,6 +14,7 @@ import { rememberTurn } from "../lore/remember.ts";
 import { reviewTurn } from "../lore/reviews.ts";
 import { effectiveScene } from "../runtime/brief.ts";
 import { sheetText } from "../rules/dnd.ts";
+import { asciiMap } from "../world/scene-world.ts";
 
 const USAGE = `Kingmaker V2 scene harness
 
@@ -22,6 +23,7 @@ const USAGE = `Kingmaker V2 scene harness
                                                start a scene; prints the session id and the opening
   scene say <session> <what you say or do>     take a turn (speech in quotes, actions in plain words)
   scene sheet <session>                        your D&D character sheet (also #sheet while playing)
+  scene map <session>                          a top-down sketch of the scene's world (also #map)
   scene transcript <session>                   the scene so far
   scene status <session>                       debug view: beat, path, co-GM notes, latency (not for blind QA)
   scene world <session> [--mode reconcile]     Phase 2: write world-update scripts for every finished scene
@@ -151,6 +153,7 @@ async function main(): Promise<void> {
       if (!line) continue;
       if (line === "/quit") break;
       if (/^[#/]sheet$/i.test(line)) { console.log(`${await sheetText(loadSession(state.id))}\n`); continue; }
+      if (/^[#/]map$/i.test(line)) { const s = loadSession(state.id); console.log(`${s.world ? asciiMap(s.world) : "(This scene has no map yet.)"}\n`); continue; }
       await waitForRepair(state.id);
       const current = loadSession(state.id);
       await playerTurn(current, line, printer(current));
@@ -169,6 +172,7 @@ async function main(): Promise<void> {
     const state = loadSession(id);
     setCallLog(join(sessionDir(id), "calls.jsonl"));
     if (/^[#/]sheet$/i.test(text)) { console.log(await sheetText(state)); return; }
+    if (/^[#/]map$/i.test(text)) { console.log(state.world ? asciiMap(state.world) : "(This scene has no map yet.)"); return; }
     if (state.ended) { console.log("— The story is over: this session has ended. —"); return; }
     const hooks = printer(state);
     await playerTurn(state, text, hooks);
@@ -244,6 +248,12 @@ async function main(): Promise<void> {
       console.log(`\nScript: ${result.check.ok ? "typechecks and runs" : "has problems"} (${result.attempts} attempt${result.attempts === 1 ? "" : "s"})${problems.length ? `\n${problems.join("\n")}` : ""}\n`);
       writeFileSync(join(sessionDir(id), `world-${ended.sceneId}.ts`), `// World update for "${scene.title}" (${exit?.title}), written by the scribe\nfunction update(world: WorldApi): void {\n${result.check.body.replace(/^function update\([^)]*\)[^{]*\{\n?/, "").replace(/\}\s*$/, "")}\n}\n`);
     }
+    return;
+  }
+
+  if (command === "map") {
+    const state = loadSession(args.shift()!);
+    console.log(state.world ? asciiMap(state.world) : "(This scene has no map yet.)");
     return;
   }
 

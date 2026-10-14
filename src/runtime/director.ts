@@ -142,26 +142,38 @@ export type Mechanic =
   | { kind: "attack"; target: string; weapon?: string }
   | { kind: "rest"; length: "short" | "long" };
 
-/** The player's spells and weapons, for the decider (rules sessions only). */
-export interface RulesOptions { spells: SpellChoice[]; weapons: WeaponChoice[] }
+/** The player's spells and weapons, and what's around them in the world, for the decider (rules sessions only). */
+export interface RulesOptions {
+  spells: SpellChoice[];
+  weapons: WeaponChoice[];
+  /** Things near the player a spell or a blow could be aimed at (scenes with a world). */
+  things?: Array<{ id: string; name: string }>;
+  /** People in the world who aren't in the cast (a crowd, someone who walked in). */
+  bystanders?: Array<{ id: string; name: string }>;
+}
 
 const ORDINAL = ["cantrip", "1st-level", "2nd-level", "3rd-level", "4th-level", "5th-level", "6th-level", "7th-level", "8th-level", "9th-level"];
 
 /** Which spell, at whom; or which blow, at whom: a second small call, only on those turns. */
 async function mechanicDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, kind: "cast" | "attack", rules: RulesOptions): Promise<{ mechanic?: Mechanic; decision: Decision }> {
-  const present = presentCast(scene, state);
+  const present = [...presentCast(scene, state), ...(rules.bystanders ?? []).map(b => ({ ...b, group: undefined }))];
+  const things = rules.things ?? [];
   const q: Record<string, ChoiceQuestion> = {};
   if (kind === "cast") {
     q.spell = {
       instructions: "The player is casting a spell in their latest turn. Which of their spells is it?",
       criteria: { ...Object.fromEntries(rules.spells.map(sp => [sp.id, `${sp.name} (${ORDINAL[sp.level]})`])), not_theirs: "A spell or kind of magic that isn't one of these." },
     };
-    for (const c of present) q[`aim_${c.id}`] = { instructions: `Is ${c.name} a target of the spell, or caught in its area?`, criteria: { yes: "Yes", no: "No" } };
+    for (const c of present) q[`aim_${c.id}`] = { instructions: `Is ${c.name} a target of the spell?`, criteria: { yes: "Yes", no: "No" } };
     q.aim_self = { instructions: "Is the player casting the spell on themselves?", criteria: { yes: "Yes", no: "No" } };
+    if (things.length) q.aim_thing = {
+      instructions: "Is the spell aimed at a thing or a spot rather than a person (its target, or where its area is centred)? Which?",
+      criteria: { ...Object.fromEntries(things.map(t => [t.id, t.name])), none: "No: it's aimed at people, at the player, or at nothing in particular." },
+    };
   } else {
     q.target = {
-      instructions: "The player is attacking someone in their latest turn. Whom?",
-      criteria: Object.fromEntries(present.map(c => [c.id, `${c.name}${c.group ? ` (${c.group})` : ""}`])),
+      instructions: "The player is attacking someone or something in their latest turn. Who or what?",
+      criteria: { ...Object.fromEntries(present.map(c => [c.id, `${c.name}${c.group ? ` (${c.group})` : ""}`])), ...Object.fromEntries(things.map(t => [t.id, `${t.name} (a thing)`])) },
     };
     q.weapon = {
       instructions: "With what?",
@@ -171,12 +183,14 @@ async function mechanicDetails(decider: Decider, scene: Scene, state: SessionSta
   const decision = await decider.decide(decisionState(scene, state, playerTurn), q, "director.mechanic");
   if (kind === "cast") {
     const spell = decision.answers.spell?.choice;
-    if (!spell || spell === "not_theirs") return { decision };
-    const targets = [...present.filter(c => decision.answers[`aim_${c.id}`]?.choice === "yes").map(c => c.id), ...(decision.answers.aim_self?.choice === "yes" ? ["self"] : [])];
+    if (!spell) return { decision };
+    const thing = decision.answers.aim_thing?.choice;
+    // The thing first: an area spell centres on what it's aimed at.
+    const targets = [...(thing && thing !== "none" ? [thing] : []), ...present.filter(c => decision.answers[`aim_${c.id}`]?.choice === "yes").map(c => c.id), ...(decision.answers.aim_self?.choice === "yes" ? ["self"] : [])];
     return { mechanic: { kind, spell, targets }, decision };
   }
   const target = decision.answers.target?.choice;
-  if (!target || !present.some(c => c.id === target)) return { decision };
+  if (!target || !(present.some(c => c.id === target) || things.some(t => t.id === target))) return { decision };
   const weapon = decision.answers.weapon?.choice;
   return { mechanic: { kind, target, ...(weapon && weapon !== "other" ? { weapon } : {}) }, decision };
 }

@@ -1,4 +1,5 @@
 import type { WorldScript } from "../world/dsl.ts";
+import type { WorldSpec } from "../world/scene-world.ts";
 
 /**
  * A scene is GM prep, not a script: who is here and what they want, the beats the
@@ -154,6 +155,8 @@ export interface Scene {
   rest?: "short" | "long";
   /** Reaching this scene is a milestone: the player's character goes up a level as it opens. */
   milestone?: boolean;
+  /** The place as a world: areas, things and where people start (src/world/scene-world.ts). */
+  world?: WorldSpec;
   /**
    * What this scene's prep takes for granted about the story so far, in plain words ("the barge
    * hasn't sailed yet"). Checked when the story reaches the scene: if play has already made one

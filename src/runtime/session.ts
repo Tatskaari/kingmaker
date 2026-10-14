@@ -3,6 +3,7 @@ import { join } from "node:path";
 import type { RollResult } from "./dice.ts";
 import type { Beat, Skill, Transition } from "./scene.ts";
 import type { Operation } from "../world/dsl.ts";
+import type { Entity, SceneWorld } from "../world/scene-world.ts";
 
 export type EntryKind = "player" | "narration" | "dialogue" | "roll" | "system";
 export interface Entry { turn: number; speaker: string; kind: EntryKind; text: string; scene?: string }
@@ -143,6 +144,10 @@ export interface SessionState {
   threat?: Threat;
   /** Where this scene's prep no longer matches the story (written at the scene boundary): these override it. */
   adjustments?: string[];
+  /** The scene's world: where everything and everyone is, and in what state (scenes with a world spec). */
+  world?: SceneWorld;
+  /** What the player carried out of the last scene's world, to carry into the next. */
+  carried?: Entity[];
   /** Scene chain: previous scenes' exits in this session. */
   history: Array<{ sceneId: string; exitId: string; summary: string; lastMoments?: string[]; skipped?: Array<{ sceneId: string; why: string }> }>;
 }

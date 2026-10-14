@@ -1,5 +1,6 @@
 import type { Scene, Transition } from "../src/runtime/scene.ts";
 import type { ItemSpec, SceneOutcome, WorldApi } from "../src/world/dsl.ts";
+import { drownedRatWorld } from "./worlds/drowned-rat.ts";
 
 /**
  * Scene two of the Purveyor's Man arc (docs/design/caerwyn-arc.md): hanged-clerk → drowned-rat →
@@ -471,5 +472,6 @@ export const drownedRat: Scene = {
   anchors: ["river-stairs", "rat-door", "bar", "rules-board", "fireside-corner", "card-table", "champions-chair", "scullery", "slop-hatch"],
   lore: ["Places/The Drowned Rat.md"],
   assumes: ["The player hasn't already found Big Hobb Mallory, the big man with the bandaged hand, and got what he knows."],
+  world: drownedRatWorld,
   overtaken: "wharf-night",
 };

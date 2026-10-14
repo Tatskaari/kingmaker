@@ -1,4 +1,5 @@
 import type { Scene } from "../src/runtime/scene.ts";
+import { hangedClerkWorld } from "./worlds/hanged-clerk.ts";
 
 /**
  * Disco Elysium's hanged man's yard (Cuno, Cunoesse, Kim) moved behind the King's Granary in
@@ -383,6 +384,7 @@ export const hangedClerk: Scene = {
     { id: "page", what: "Prout found grain written off as 'lost to goblins' that turned up at the river warehouses, every wagon countersigned 'J. Sallow, for the Royal Purveyor'.", placedWith: ["the page sewn into Prout's left boot (Cob is wearing the boots)", "the tally book in the loft"], carriers: [], unlocks: "the motive, and the name Sallow" },
     { id: "silvertop", what: "A gentleman with a silver-topped cane and a wheat-ear signet ring (Sallow) was in the loft that night.", placedWith: ["Cob ('Silvertop')", "Moll, if she cracks"], carriers: ["cob", "moll"], unlocks: "naming Sallow as the man behind it" },
   ],
+  world: hangedClerkWorld,
   limits: [
     "Getting someone to talk to the dead (a séance, a priest who can call up Prout's ghost): nobody in reach can do it. The Nine Furrows wizards deal in weather, wards and grain, none of them is here, and the temples don't raise the dead for the watch. Prout can only tell what his body shows. (The player's own spells are theirs, and work as the rules say.)",
     "Fetching more help (other watchmen, the watch surgeon, a coroner, a wizard, a tracking dog, the granary warden): nobody can be had before noon. The whole watch is lining the Assembly route, the surgeon is on duty at the palace, and Kell's runner to the warden came back with 'After the Assembly.' The help here is Kell, the kids and whatever the player brought.",

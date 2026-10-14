@@ -4,6 +4,7 @@ import { respondJson } from "../llm/openrouter.ts";
 import { rng, type RollResult } from "../runtime/dice.ts";
 import { SKILLS, type Character, type Skill } from "../runtime/scene.ts";
 import type { SessionState } from "../runtime/session.ts";
+import { caughtIn, damageThing, heldBy, positionOf, type Entity, type SceneWorld } from "../world/scene-world.ts";
 
 /**
  * D&D 5.5e mechanics (SRD 5.2.1) from the vendored dnd-srd-engine: the player's character sheet,
@@ -117,7 +118,8 @@ export interface Build {
 
 async function chooseBuild(concept: string, level: number, content: Dnd.Content): Promise<Build> {
   const list = (m: Map<string, Dnd.Named>) => [...m.values()].map(v => `${v.id} (${v.name})`).join(", ");
-  const spells = [...content.spells.values()].filter(s => s.level <= 2).sort((a, b) => a.level - b.level || a.id.localeCompare(b.id))
+  const maxSpell = Math.min(9, Math.ceil(level / 2));
+  const spells = [...content.spells.values()].filter(s => s.level <= maxSpell).sort((a, b) => a.level - b.level || a.id.localeCompare(b.id))
     .map(s => `${s.id} [${s.level ? `level ${s.level}` : "cantrip"}; ${s.classes.join(" ")}]`).join("\n");
   const feats = [...content.feats.values()].filter(f => f["category"] === "origin").map(f => f.id).join(", ");
   const build = await respondJson<Build>({
@@ -524,7 +526,8 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
   const ready = spell && readySpells(sheetOf(ctx, pcId)).some(sp => sp.id === spellId);
   if (!spell || !ready) {
     close(state, ctx);
-    return { lines: [`(${spell?.name ?? spellId} isn't a spell you have ready.)`], directive: `The player reached for a spell, ${spell?.name ?? spellId}, that their character doesn't have ready. Nothing happens; say so in a few words, in the fiction, and let them choose something else.` };
+    const what = spell?.name ?? "that spell";
+    return { lines: [`(${what === "that spell" ? "That isn't a spell" : `${what} isn't a spell`} ${state.player.name} has ready: #sheet shows what they have.)`], directive: `The player reached for magic their character doesn't have ready (${what}). It doesn't come: nothing happens beyond a gesture, maybe a fizzle. Say so in a few words, in the fiction, without inventing any effect, and let them choose something else.` };
   }
   let slotLevel = 0;
   if (spell.level > 0) {
@@ -536,26 +539,139 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
       return { lines: [`(No spell slots left for ${spell.name}: a long rest restores them.)`], directive: `The player tried to cast ${spell.name}, but their character has no spell slots left for it. The magic doesn't come; show that in a few words and let them do something else.` };
     }
   }
-  const targets = targetIds.map(t => t === "self" ? pcId : (() => { const c = cast.find(x => x.id === t); return c ? ensureNpc(ctx, state, c) : undefined; })()).filter((x): x is string => !!x);
-  let events: Dnd.EngineEvent[];
+  // Who and what it reaches: an area spell catches everything in its shape (the world knows where
+  // things are); otherwise its targets. People go to the engine; things take the rules here.
+  const world = state.world;
+  let beings = targetIds.filter(t => t === "self" || t === "player" || cast.some(c => c.id === t) || (world?.entities[t]?.kind === "person" && !world.entities[t]!.player));
+  let things: Entity[] = world ? targetIds.map(t => world.entities[t]).filter((e): e is Entity => !!e && isThingEntity(e)) : [];
+  let area: string | undefined;
+  const shape = spell["targeting"] as { shape: string; size: number } | undefined;
+  if (world && shape) {
+    const origin = positionOf(world, "player")!;
+    const aimId = targetIds.find(t => t !== "self" && t !== "player" && world.entities[t]);
+    const aim = aimId ? positionOf(world, aimId)! : origin;
+    // A cube from the caster sits in front of them, towards where they aim.
+    const fromCaster = /^self/i.test(spell.range);
+    const centre = fromCaster && shape.shape === "cube" ? towards(origin, aim, shape.size / 2) : aim;
+    const caught = caughtIn(world, shape.shape, shape.size, origin, centre);
+    beings = caught.filter(e => e.kind === "person" || e.kind === "creature").map(e => e.player ? "player" : e.id);
+    if (fromCaster) beings = beings.filter(b => b !== "player");
+    things = caught.filter(isThingEntity);
+    area = `a ${shape.size}-foot ${shape.shape}${aimId ? ` ${fromCaster ? "towards" : "on"} ${world.entities[aimId]!.name}` : ""}`;
+  }
+  const people = beings.map(b => b === "self" || b === "player" ? { id: "player", engine: pcId } : (() => {
+    const c = cast.find(x => x.id === b) ?? (world?.entities[b] ? bystander(world.entities[b]!) : undefined);
+    return c ? { id: b, engine: ensureNpc(ctx, state, c) } : undefined;
+  })()).filter((x): x is { id: string; engine: string } => !!x);
+  let events: Dnd.EngineEvent[] = [];
   try {
-    events = ctx.apply(ctx.engine.plan.castSpell(ctx.campaign.state, { characterId: pcId, spellId, slotLevel, targetIds: targets }).events);
+    events = ctx.apply(ctx.engine.plan.castSpell(ctx.campaign.state, { characterId: pcId, spellId, slotLevel, targetIds: people.map(p => p.engine) }).events);
   } catch (error) {
-    close(state, ctx);
-    const why = error instanceof Error ? error.message : String(error);
-    return { lines: [`(${spell.name} can't be cast like that: ${why})`], directive: `The player tried to cast ${spell.name}, but it can't work that way (${why}). Nothing happens; say so briefly in the fiction.` };
+    // Aimed only at things: the engine wants a creature, so spend the slot ourselves.
+    if (!things.length) {
+      close(state, ctx);
+      const why = error instanceof Error ? error.message : String(error);
+      return { lines: [`(${spell.name} can't be cast like that: ${why})`], directive: `The player tried to cast ${spell.name}, but it can't work that way (${why}). Nothing happens; say so briefly in the fiction.` };
+    }
+    if (slotLevel) ctx.apply([event(ctx.E, "SpellSlotConsumed", { characterId: pcId, slotLevel })]);
   }
   const { lines, account } = describe(ctx, state, events, () => spell.name);
+  // Things: they don't dodge or save; an attack spell still has to hit.
+  if (world && things.length) {
+    const hit = objectDamage(ctx, state, world, spell, slotLevel, things);
+    lines.push(...hit.lines);
+    account.push(...hit.account);
+  }
+  if (world) syncBeings(ctx, state, world, people);
   if (events.some(e => /^(ConcentrationStarted|SpellEffectStarted|ConditionApplied)$/.test(e.type))) state.rules!.timed = true;
   const statusText = status(ctx, pcId);
   close(state, ctx);
-  const head = `${spell.name}${slotLevel ? ` (${ordinal(slotLevel)}-level slot)` : " (cantrip)"}${targets.length ? ` on ${targets.map(t => nameOf(ctx, state, t)).join(", ")}` : ""}`;
+  const named = [...people.map(p => nameOf(ctx, state, p.engine)), ...things.map(t => t.name)];
+  const head = `${spell.name}${slotLevel ? ` (${ordinal(slotLevel)}-level slot)` : " (cantrip)"}${area ? `: ${area}` : named.length ? ` on ${named.join(", ")}` : ""}`;
   const facts = `${spell.name}: ${spell.level ? `${ordinal(spell.level)}-level` : "cantrip"} ${spell.school}; casting time ${spell.castingTime}; range ${spell.range}; duration ${spell.duration}${spell.concentration ? " (concentration)" : ""}`;
   return {
-    lines: [`Cast ${head}`, ...lines, ...(slotLevel ? [`${state.player.name}: ${statusText}`] : [])],
-    directive: `Rules: the player cast ${head}. ${account.length ? `${capitalise(account.join("; "))}.` : "It has no roll: it simply takes effect as the spell describes."} Narrate exactly this, in the fiction: what working the spell looks and sounds like here, its effect as the rules describe it (${facts}), and how the people present react to someone casting a spell at all. Don't add effects the spell doesn't have.`,
+    lines: [`Cast ${head}${area && named.length ? `, catching ${named.join(", ")}` : ""}`, ...lines, ...(slotLevel ? [`${state.player.name}: ${statusText}`] : [])],
+    directive: `Rules: the player cast ${head}${area ? `, which caught ${named.join(", ") || "nobody and nothing"}` : ""}. ${account.length ? `${capitalise(account.join("; "))}.` : "It has no roll: it simply takes effect as the spell describes."} Narrate exactly this, in the fiction: what working the spell looks and sounds like here, its effect as the rules describe it (${facts}), and how the people present react to someone casting a spell at all. The world already shows what it burned or broke. Don't add effects the spell doesn't have.`,
     status: statusText,
   };
+}
+
+const isThingEntity = (e: Entity) => e.kind === "object" || e.kind === "item" || e.kind === "feature";
+
+function towards(from: { x: number; y: number }, to: { x: number; y: number }, feet: number) {
+  const d = Math.hypot(to.x - from.x, to.y - from.y) || 1;
+  return { x: from.x + ((to.x - from.x) / d) * feet, y: from.y + ((to.y - from.y) / d) * feet };
+}
+
+/** Someone the story brought in who isn't in the cast (a crowd, a passer-by): a commoner, for the rules. */
+function bystander(e: Entity): Character {
+  return { id: e.id, name: e.name, look: e.description ?? "", voice: "", wants: "", knows: [], attitude: "", statblock: e.kind === "creature" ? "mastiff" : "commoner" };
+}
+
+/** People's state in the world follows the rules: hurt, badly hurt, down. */
+function syncBeings(ctx: Ctx, state: SessionState, world: SceneWorld, people: Array<{ id: string; engine: string }>): void {
+  for (const p of people) {
+    const e = world.entities[p.id];
+    const c = ctx.campaign.state.characters[p.engine];
+    if (!e || !c) continue;
+    const now = hurt(c);
+    e.states = [...e.states.filter(s => !["hurt", "badly hurt", "down", "unhurt"].includes(s)), ...(now === "unhurt" ? [] : [now])];
+  }
+}
+
+function rollDice(expr: string, random: () => number): { total: number; text: string } {
+  const m = /^(\d+)d(\d+)\s*([+-]\s*\d+)?$/.exec(expr.trim());
+  if (!m) return { total: 0, text: expr };
+  const rolls = Array.from({ length: Number(m[1]) }, () => 1 + Math.floor(random() * Number(m[2])));
+  const mod = m[3] ? Number(m[3].replace(/\s/g, "")) : 0;
+  return { total: Math.max(0, rolls.reduce((a, b) => a + b, 0) + mod), text: `${expr} (${rolls.join("+")}${mod ? signed(mod) : ""})` };
+}
+
+/** A spell's damage to things: they fail their saves; an attack still rolls against the thing's AC. */
+function objectDamage(ctx: Ctx, state: SessionState, world: SceneWorld, spell: Dnd.SpellDef, slotLevel: number, things: Entity[]): { lines: string[]; account: string[] } {
+  const lines: string[] = [];
+  const account: string[] = [];
+  const random = rng(state.seed + 9973 * state.rollCount);
+  const effect = (spell.mechanicalEffects ?? []).find(m => m["damageDice"] || m["damageDicePerDart"]);
+  if (!effect) return { lines, account };
+  const type = String(effect["damageType"] ?? "force");
+  const sheet = sheetOf(ctx, state.rules!.pc);
+  const level = sheet.totalLevel;
+  let dice = String(effect["damageDice"] ?? effect["damageDicePerDart"]);
+  const extra = Number(effect["extraDicePerSlotLevel"] ?? 0) * Math.max(0, slotLevel - spell.level);
+  const cantripTier = spell.level === 0 && effect["cantripScalingDice"] ? (level >= 17 ? 3 : level >= 11 ? 2 : level >= 5 ? 1 : 0) : 0;
+  const m = /^(\d+)d(\d+)(.*)$/.exec(dice);
+  if (m && (extra || cantripTier)) dice = `${Number(m[1]) + extra + cantripTier}d${m[2]}${m[3]}`;
+  // One roll for an area (as the rules have it); darts and single targets roll per thing.
+  const shared = rollDice(dice, random);
+  const attackBonus = sheet.spellcasting?.classes[0]?.attackBonus ?? 0;
+  for (const t of things) {
+    if (effect["kind"] === "attack") {
+      const d20 = 1 + Math.floor(random() * 20);
+      const total = d20 + attackBonus;
+      const hits = d20 === 20 || (d20 !== 1 && total >= (t.ac ?? 10));
+      lines.push(`${spell.name} at ${t.name}: ${d20} ${signed(attackBonus)} = ${total} vs AC ${t.ac ?? 10}: ${hits ? "hit" : "miss"}`);
+      if (!hits) { account.push(`it missed ${t.name}`); continue; }
+      const dmg = rollDice(dice, random);
+      lines.push(`Damage: ${dmg.text} ${type}`);
+      const out = damageThing(world, t, dmg.total, type, state.turn);
+      lines.push(...out);
+      account.push(...out.map(o => o.toLowerCase()));
+    } else if (effect["kind"] === "auto-hit") {
+      const darts = Number(effect["dartsAtBaseSlot"] ?? 3) + Number(effect["extraDartsPerSlotLevel"] ?? 0) * Math.max(0, slotLevel - spell.level);
+      const total = Array.from({ length: darts }, () => rollDice(dice, random).total).reduce((a, b) => a + b, 0);
+      lines.push(`${darts} darts at ${t.name}: ${total} ${type}`);
+      const out = damageThing(world, t, total, type, state.turn);
+      lines.push(...out);
+      account.push(...out.map(o => o.toLowerCase()));
+    } else {
+      const out = damageThing(world, t, shared.total, type, state.turn);
+      lines.push(...out);
+      account.push(...out.map(o => o.toLowerCase()));
+    }
+  }
+  if (effect["kind"] !== "attack" && effect["kind"] !== "auto-hit") lines.unshift(`Damage to things in it: ${shared.text} ${type} (things don't dodge)`);
+  return { lines, account };
 }
 
 const capitalise = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
@@ -582,15 +698,38 @@ export async function weapons(state: SessionState): Promise<WeaponChoice[]> {
 export async function attack(state: SessionState, cast: Character[], targetId: string, weaponId?: string): Promise<Outcome> {
   const ctx = await open(state);
   const pcId = state.rules!.pc;
-  const target = cast.find(c => c.id === targetId);
-  if (!target) { close(state, ctx); return { lines: [], directive: "" }; }
   const me = ctx.campaign.state.characters[pcId]!;
   const weapon = weaponId && me.inventory.includes(weaponId) ? weaponId : me.equipped.mainHand ?? me.inventory.find(i => ctx.campaign.state.itemInstances[i]?.definitionId === "unarmed-strike");
+  const thing = state.world?.entities[targetId];
+  if (thing && isThingEntity(thing)) {
+    // A blow at a thing: the weapon's attack against its armour class, damage to its hit points.
+    const name = ctx.engine.content.items.get(ctx.campaign.state.itemInstances[weapon ?? ""]?.definitionId ?? "")?.name ?? "Unarmed Strike";
+    const sheet = sheetOf(ctx, pcId);
+    const atk = sheet.attacks.find(a => a.name === name) ?? sheet.attacks[0]!;
+    const random = rng(state.seed + 9973 * state.rollCount);
+    const d20 = 1 + Math.floor(random() * 20);
+    const total = d20 + atk.attackBonus;
+    const hits = d20 === 20 || (d20 !== 1 && total >= (thing.ac ?? 10));
+    const lines = [`${name}: your attack on ${thing.name}: ${d20} ${signed(atk.attackBonus)} = ${total} vs AC ${thing.ac ?? 10}: ${hits ? "hit" : "miss"}`];
+    const account = [hits ? `the blow lands on ${thing.name}` : `the blow misses ${thing.name}`];
+    if (hits) {
+      const dmg = rollDice(`${atk.damage.dice}${atk.damage.modifier ? signed(atk.damage.modifier) : ""}`, random);
+      lines.push(`Damage: ${dmg.text} ${atk.damage.type}`);
+      const out = damageThing(state.world!, thing, dmg.total, atk.damage.type, state.turn);
+      lines.push(...out);
+      account.push(...out.map(o => o.toLowerCase()));
+    }
+    close(state, ctx);
+    return { lines, directive: `Rules: the player struck at ${thing.name} with ${name.toLowerCase()}. ${capitalise(account.join("; "))}. Narrate exactly that, and let the people present react.` };
+  }
+  const target = cast.find(c => c.id === targetId) ?? (state.world?.entities[targetId]?.kind === "person" ? bystander(state.world.entities[targetId]!) : undefined);
+  if (!target) { close(state, ctx); return { lines: [], directive: "" }; }
   const npc = ensureNpc(ctx, state, target);
   const events = ctx.apply(ctx.engine.plan.attack(ctx.campaign.state, { attackerId: pcId, targetId: npc, weaponInstanceId: weapon! }).events);
   const weaponName = (id: string) => ctx.engine.content.items.get(ctx.campaign.state.itemInstances[id]?.definitionId ?? id)?.name ?? "Attack";
   const { lines, account } = describe(ctx, state, events, weaponName);
   const after = ctx.campaign.state.characters[npc]!;
+  if (state.world) syncBeings(ctx, state, state.world, [{ id: target.id, engine: npc }]);
   close(state, ctx);
   const down = after.hp.current <= 0 ? ` ${target.name} drops: at 0 hit points they fall, unconscious or dying. If the player plainly meant to kill, they may die; most people here would be knocked senseless. Nobody else in the scene shrugs that off.` : "";
   return {
