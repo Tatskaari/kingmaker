@@ -4,10 +4,9 @@ import { sceneEntries } from "../runtime/brief.ts";
 import { forceEnding, type TurnHooks } from "../runtime/engine.ts";
 import type { Exit } from "../runtime/scene.ts";
 import { loadSession, saveSession, type Entry, type EntryKind, type SessionState } from "../runtime/session.ts";
-import { asciiMap } from "../world/scene-world.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { combat, maps, type CombatAction, type CombatController, type Dir, type Position } from "./adapters.ts";
-import { resumable, saveApp, type Mode, type Resumable } from "./save.ts";
+import { resumable, saveApp, type JournalEntry, type Mode, type Resumable } from "./save.ts";
 import { beginScene, combatSetup, endedExit, epilogue, isInterlude, moveOn, newGame, storyOf, takeTurn, TIME_WORDS, type Epilogue } from "./story.ts";
 
 /**
@@ -39,7 +38,8 @@ export interface Card {
 export type Overlay =
   | { kind: "sheet"; text: string }
   | { kind: "help" }
-  | { kind: "scene-map"; text: string }
+  | { kind: "journal" }
+  | { kind: "scene-map" }
   | { kind: "menu"; index: number }
   | { kind: "spells"; spells: Array<{ id: string; name: string; level: number }>; index: number };
 
@@ -55,6 +55,7 @@ export class Game {
   before?: Position;
   story: StoryState = { time: "morning", played: [], flags: {} };
   messages: string[] = [];
+  journal: JournalEntry[] = [];
   lines: Line[] = [];
   live?: Line;
   busy?: string;
@@ -118,6 +119,7 @@ export class Game {
       this.sheet = await sheetText(session);
       this.story = storyOf(session);
       this.pos = maps.start();
+      this.journal = [];
       this.messages = [`${TIME_WORDS[this.story.time]}. ${sceneById(session.sceneId).hook}`];
       this.screen = "created";
       this.save("explore");
@@ -135,6 +137,7 @@ export class Game {
     this.before = r.save.before;
     this.story = storyOf(session);
     this.messages = r.save.messages ?? [];
+    this.journal = r.save.journal ?? [];
     this.overlay = undefined;
     this.mode = r.save.mode;
     if (r.save.mode === "combat" && r.save.combat) {
@@ -312,8 +315,9 @@ export class Game {
     const session = this.session!;
     switch (verb.toLowerCase()) {
       case "sheet": case "c": await this.showSheet(); return;
-      case "map": this.overlay = { kind: "scene-map", text: session.world ? asciiMap(session.world) : "This scene has no map yet. (The map module will draw the place here.)" }; break;
+      case "map": this.overlay = { kind: "scene-map" }; break;
       case "help": case "?": this.overlay = { kind: "help" }; break;
+      case "journal": case "notebook": case "j": this.overlay = { kind: "journal" }; break;
       case "save": this.save("scene"); this.status = "Saved."; break;
       case "quit": this.save("scene"); this.toTitle(); return;
       case "exits": {
@@ -339,6 +343,10 @@ export class Game {
   async sceneOver(exit: Exit): Promise<void> {
     const session = this.session!;
     this.lines.push({ kind: "system", speaker: "system", text: `Scene ends: ${exit.title}` });
+    // The exit's world script writes the notebook line ("Big Hobb talked..."): keep it, as the
+    // session forgets the script's operations once the story moves on.
+    const notes = (session.ended?.operations ?? []).filter(o => o.op === "journal").map(o => String(o.args["entry"] ?? "")).filter(Boolean);
+    this.note({ sceneId: session.sceneId, title: sceneById(session.sceneId).title, ending: exit.title, lines: notes });
     if (exit.kind === "combat") {
       this.card = { title: "Roll for initiative!", lines: [exit.outcome, "", "Press Enter to fight."], next: "combat" };
       this.screen = "between";
@@ -349,10 +357,17 @@ export class Game {
     await this.chain(`${sceneById(session.sceneId).title}: ${exit.title}`);
   }
 
+  private note(entry: JournalEntry): void {
+    const i = this.journal.findIndex(j => j.sceneId === entry.sceneId);
+    if (i >= 0) this.journal[i] = { ...entry, lines: [...new Set([...this.journal[i]!.lines, ...entry.lines])] };
+    else this.journal.push(entry);
+  }
+
   /** Chain on to the next scene that still holds (interludes skipped) and return to the map. */
   private async chain(title: string, combatSummary?: string): Promise<void> {
     const session = this.session!;
     const played = session.sceneId;
+    const notebook = this.journal.find(j => j.sceneId === played)?.lines ?? [];
     this.screen = "between";
     this.card = { title, lines: [], working: CHAIN_BUSY[this.busyTurn++ % CHAIN_BUSY.length]! };
     this.emit();
@@ -365,11 +380,10 @@ export class Game {
       const next = sceneById(onward.sceneId);
       const where = maps.sceneLocation(onward.sceneId);
       const skipped = onward.skipped.map(id => sceneById(id)).filter(s => !isInterlude(s)).map(s => s.title);
-      const handoff = session.history.at(-1)?.summary.split("\n").slice(1).join("\n").trim();
       this.card = {
         title: `${TIME_WORDS[this.story.time]}`,
         lines: [
-          ...(handoff ? ["How things stand:", ...handoff.split("\n").filter(Boolean).slice(0, 9), ""] : []),
+          ...(notebook.length ? ["Your notebook:", ...notebook.map(l => `  ${l}`), ""] : []),
           ...(skipped.length ? [`(The story has already overtaken ${skipped.join(" and ")}.)`, ""] : []),
           `The lead: ${next.title}${where ? `, at ${where.name}` : ""}.`,
           next.hook,
@@ -465,6 +479,9 @@ export class Game {
     const result = this.fight?.result();
     if (!result) return;
     this.fight = undefined;
+    const session = this.session!;
+    const said = { victory: "We won the fight.", surrender: "They surrendered.", defeat: "We lost the fight, and I woke up on the floor.", fled: "They ran for it." }[result.outcome];
+    this.note({ sceneId: session.sceneId, title: sceneById(session.sceneId).title, ending: endedExit(session)?.title ?? "A fight", lines: [`${said} ${result.summary}`] });
     await this.chain("After the fight", result.summary);
   }
 
@@ -497,7 +514,7 @@ export class Game {
     this.mode = mode;
     try {
       saveApp({
-        sessionId: this.session.id, mode, pos: this.pos, story: this.story, messages: this.messages.slice(-12),
+        sessionId: this.session.id, mode, pos: this.pos, story: this.story, messages: this.messages.slice(-12), journal: this.journal,
         ...(this.before ? { before: this.before } : {}), ...(mode === "combat" && this.setup ? { combat: this.setup } : {}),
       });
     } catch { /* saving is best effort; the session itself is saved by the runtime */ }

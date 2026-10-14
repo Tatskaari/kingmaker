@@ -8,7 +8,7 @@ import { TIME_WORDS } from "../story.ts";
 import { C } from "../theme.ts";
 import { BOLD, ITALIC, Keys, Lines, useGame, wrap } from "./common.tsx";
 
-const KEYS: Record<string, Dir> = { up: "n", down: "s", left: "w", right: "e", w: "n", s: "s", a: "w", d: "e", k: "n", j: "s", h: "w", l: "e" };
+const KEYS: Record<string, Dir> = { up: "n", down: "s", left: "w", right: "e", w: "n", s: "s", a: "w", d: "e" };
 
 function arrow(from: Tile2, to: Tile2): string {
   const dx = Math.sign(to.x - from.x), dy = Math.sign(to.y - from.y);
@@ -25,6 +25,7 @@ export function ExploreScreen({ game }: { game: Game }) {
     key.preventDefault();
     if (key.name === "e" || key.name === "return" || key.name === "space") game.interact();
     else if (key.name === "c") void game.showSheet();
+    else if (key.name === "j") { game.overlay = { kind: "journal" }; game.emit(); }
     else if (key.sequence === "?" || key.name === "f1") { game.overlay = { kind: "help" }; game.emit(); }
     else if (key.name === "escape" || key.name === "q") { game.overlay = { kind: "menu", index: 0 }; game.emit(); }
   });
@@ -75,7 +76,7 @@ export function ExploreScreen({ game }: { game: Game }) {
       {messages.slice(-(msgH - 2)).map((m, i, all) => <text key={i} fg={i === all.length - 1 ? C.text : C.dim}>{m}</text>)}
     </box>
     <box height={1} paddingX={1}>
-      <Keys items={[["←↑→↓/WASD", "walk"], ["e", "interact"], ["c", "sheet"], ["?", "help"], ["Esc", "menu"]]} />
+      <Keys items={[["←↑→↓/WASD", "walk"], ["e", "interact"], ["c", "sheet"], ["j", "notebook"], ["?", "help"], ["Esc", "menu"]]} />
     </box>
   </box>;
 }

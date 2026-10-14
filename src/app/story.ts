@@ -138,7 +138,7 @@ export function combatSetup(session: SessionState, field: CombatField): CombatSe
 
 export interface Epilogue {
   closing: string;
-  chapters: Array<{ title: string; ending: string }>;
+  chapters: Array<{ sceneId: string; title: string; ending: string }>;
   spentUsd: number;
 }
 
@@ -147,7 +147,7 @@ export function epilogue(session: SessionState): Epilogue {
   const last = [...session.transcript].reverse().find(e => e.kind === "narration" && e.scene === session.sceneId);
   const chapter = (sceneId: string, exitId: string) => {
     const scene = sceneById(sceneId);
-    return { title: scene.title, ending: scene.exits.find(e => e.id === exitId)?.title ?? exitId };
+    return { sceneId, title: scene.title, ending: scene.exits.find(e => e.id === exitId)?.title ?? exitId };
   };
   const chapters = session.history.filter(h => !isInterlude(sceneById(h.sceneId))).map(h => chapter(h.sceneId, h.exitId));
   if (session.ended) chapters.push(chapter(session.sceneId, session.ended.exitId));

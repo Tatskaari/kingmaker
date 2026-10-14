@@ -7,6 +7,7 @@ import type { Game, Line } from "../game.ts";
 import { TIME_WORDS } from "../story.ts";
 import { C, PEOPLE } from "../theme.ts";
 import { BOLD, ITALIC, Keys, Spinner, useGame, wrap } from "./common.tsx";
+import { Place } from "./place.tsx";
 
 function Entry({ line, live }: { line: Line; live?: boolean }) {
   const cursor = live ? <span fg={C.title}>▍</span> : null;
@@ -65,10 +66,15 @@ export function SceneScreen({ game }: { game: Game }) {
       {side ? <box width={side} border borderColor={C.border} title=" At the scene " flexDirection="column" paddingX={1} overflow="hidden">
         <text fg={C.player} attributes={BOLD}>{session.player.name}</text>
         <text fg={C.dim}>{wrap(session.rules?.status ?? "", side - 4).join("\n")}</text>
-        <text fg={C.title} marginTop={1}>Here</text>
-        {here.map(c => <text key={c.id} fg={PEOPLE[c.id] ?? C.text}>{truncate(c.name, side - 4)}</text>)}
+        {session.world ? <box flexDirection="column" marginTop={1} flexShrink={0}>
+          <text fg={C.title}>{truncate(session.world.entities[session.world.root]?.name ?? "The place", side - 4)}</text>
+          <Place world={session.world} width={side - 4} height={Math.max(6, Math.floor(height / 3))} />
+        </box> : <box flexDirection="column" marginTop={1} flexShrink={0}>
+          <text fg={C.title}>Here</text>
+          {here.map(c => <text key={c.id} fg={PEOPLE[c.id] ?? C.text}>{truncate(c.name, side - 4)}</text>)}
+        </box>}
         <text fg={C.title} marginTop={1}>Commands</text>
-        <text fg={C.dim}>{"#sheet  your sheet\n#map    the scene\n#help   help\n#save   save\n#quit   to the title"}</text>
+        <text fg={C.dim}>{"#sheet #map #journal\n#help #save #quit"}</text>
         <text fg={C.faint} marginTop={1} wrapMode="word">Speech in quotes, actions in plain words: "Who paid you?" I look at the girl's fist.</text>
       </box> : null}
     </box>

@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import type { Game } from "../game.ts";
 import { C } from "../theme.ts";
 import { BOLD, Keys, useGame } from "./common.tsx";
+import { Place } from "./place.tsx";
 
 const HELP: Record<string, string[]> = {
   explore: [
@@ -62,8 +63,8 @@ export function Overlay({ game }: { game: Game }) {
       game.emit();
       return;
     }
-    // Sheet, help, scene map: any of these keys closes them.
-    if (["escape", "return", "space", "c", "s", "q"].includes(key.name) || key.sequence === "?") game.closeOverlay();
+    // Sheet, help, journal, scene map: any of these keys closes them.
+    if (["escape", "return", "space", "c", "s", "q", "j"].includes(key.name) || key.sequence === "?") game.closeOverlay();
   });
   if (!o) return null;
   const w = Math.min(width - 4, 104);
@@ -77,8 +78,23 @@ export function Overlay({ game }: { game: Game }) {
   switch (o.kind) {
     case "sheet":
       return box("Character sheet", <scrollbox flexGrow={1} scrollX={false}><text fg={C.text} wrapMode="word">{o.text}</text></scrollbox>, [["Esc", "close"]]);
-    case "scene-map":
-      return box("The scene", <scrollbox flexGrow={1} scrollX={false}><text fg={C.text}>{o.text}</text></scrollbox>, [["Esc", "close"]]);
+    case "scene-map": {
+      const world = game.session?.world;
+      return box(world ? world.entities[world.root]?.name ?? "The scene" : "The scene", world
+        ? <scrollbox flexGrow={1} scrollX={false}><Place world={world} width={w - 4} height={h - 8} /></scrollbox>
+        : <text fg={C.dim}>This scene has no map of its own yet: it's all in the telling.</text>, [["Esc", "close"]]);
+    }
+    case "journal": {
+      const history = game.session?.history ?? [];
+      const stood = (sceneId: string) => history.find(h => h.sceneId === sceneId)?.summary.split("\n").slice(1).join("\n").trim();
+      return box("The investigator's notebook", <scrollbox flexGrow={1} scrollX={false}>
+        {game.journal.length ? game.journal.map((j, i) => <box key={i} flexDirection="column" marginBottom={1} flexShrink={0}>
+          <text fg={C.title} attributes={BOLD}>{`${j.title}: ${j.ending}`}</text>
+          {j.lines.map((l, k) => <text key={k} fg={C.text} wrapMode="word">{`· ${l}`}</text>)}
+          {stood(j.sceneId) ? <text fg={C.dim} wrapMode="word">{stood(j.sceneId)!}</text> : null}
+        </box>) : <text fg={C.dim}>Nothing yet. The notebook is new, and smells of it.</text>}
+      </scrollbox>, [["Esc", "close"]]);
+    }
     case "help": {
       const mode = game.screen === "combat" ? "combat" : game.screen === "scene" ? "scene" : "explore";
       return box("How to play", <box flexDirection="column">{HELP[mode]!.map((l, i) => <text key={i} fg={C.text} wrapMode="word" marginBottom={1}>{`· ${l}`}</text>)}</box>, [["Esc", "close"]]);

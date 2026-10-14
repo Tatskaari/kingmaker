@@ -12,6 +12,8 @@ import type { Position } from "./adapters.ts";
 
 export type Mode = "explore" | "scene" | "combat" | "end";
 
+export interface JournalEntry { sceneId: string; title: string; ending: string; lines: string[] }
+
 export interface AppSave {
   version: 1;
   sessionId: string;
@@ -24,6 +26,8 @@ export interface AppSave {
   combat?: CombatSetup;
   /** Explore messages, newest last. */
   messages: string[];
+  /** The investigator's notebook: what each scene came to, in the exit scripts' own words. */
+  journal?: JournalEntry[];
   savedAt: string;
 }
 

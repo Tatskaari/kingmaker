@@ -6,7 +6,7 @@ import type { Character } from "../../runtime/scene.ts";
 import type { SessionState } from "../../runtime/session.ts";
 import type { CombatAction, CombatAdapter, CombatController, CombatOptions, CombatView, CombatantView, Dir } from "../adapters.ts";
 import { add, chebyshev, same, STEP } from "../geometry.ts";
-import { C, PEOPLE } from "../theme.ts";
+import { C, glyphOf, PEOPLE } from "../theme.ts";
 
 /**
  * Stand-in for src/game/combat: a plain turn loop with initiative, walking on the grid and blows
@@ -87,13 +87,9 @@ function asCharacter(c: CombatantSetup): Character {
   return { id: c.id, name: c.name, look: "", voice: "", wants: "", knows: [], attitude: "", ...(c.statblock ? { statblock: c.statblock } : {}), ...(c.weapon ? { weapon: c.weapon } : {}) };
 }
 
-/** How people are known on the map: Kell is K, the Master is S; everyone else by their last name's initial. */
-const GLYPHS: Record<string, string> = { kell: "K", sallow: "S", hep: "H", hobb: "B", saul: "W", scrope: "L", "crake-1": "C", "crake-2": "C" };
-
 function glyphFor(c: CombatantSetup): string {
   if (c.side === "player") return "@";
-  const word = c.name.replace(/\(.*?\)/g, "").trim().split(/\s+/).at(-1) ?? "?";
-  const letter = (GLYPHS[c.castId ?? c.id] ?? word[0] ?? "?").toUpperCase();
+  const letter = glyphOf(c.castId ?? c.id, c.name);
   return c.side === "neutral" ? letter.toLowerCase() : letter;
 }
 

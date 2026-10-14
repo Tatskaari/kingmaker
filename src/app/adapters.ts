@@ -1,5 +1,6 @@
 import type { CombatantSetup, CombatResult, CombatSetup, Interaction, MapActor, Region, StoryState, StyledLine, Tile2, TileMap } from "../game/types.ts";
 import type { SessionState } from "../runtime/session.ts";
+import type { SceneWorld } from "../world/scene-world.ts";
 import { standInMap } from "./standins/map.ts";
 import { standInCombat } from "./standins/combat.ts";
 
@@ -70,6 +71,12 @@ export interface MapAdapter {
   afterScene(sceneId: string, before: Position): Position;
   /** The view: `height` styled lines of `width` cells. The real module draws it isometric. */
   render(view: MapView): StyledLine[];
+  /**
+   * The open scene's place, from its SceneWorld (feet; 5 ft a tile): where everyone and everything
+   * is now, redrawn after every turn as the stage manager moves things. The real module reconciles
+   * the world with the map region the scene is played in.
+   */
+  sceneView(world: SceneWorld, view: { width: number; height: number }): StyledLine[];
   /** The battlefield when a scene ends in a fight. */
   combatField(sceneId: string): CombatField;
 }

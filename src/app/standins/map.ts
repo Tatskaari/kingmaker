@@ -1,7 +1,8 @@
 import type { Interaction, MapActor, Region, StoryState, StyledLine, Terrain, Tile, Tile2, TileMap } from "../../game/types.ts";
+import { heldBy, positionOf, type Entity, type SceneWorld } from "../../world/scene-world.ts";
 import type { CombatField, Dir, MapAdapter, MapView, Position, StepResult } from "../adapters.ts";
 import { add, chebyshev, same, STEP } from "../geometry.ts";
-import { C, PEOPLE } from "../theme.ts";
+import { C, glyphOf, PEOPLE } from "../theme.ts";
 
 /**
  * Stand-in for src/game/map: Caerwyn as one small top-down tile map with the four places of the
@@ -448,6 +449,67 @@ function render(view: MapView): StyledLine[] {
   });
 }
 
+/**
+ * A scene's world drawn top-down at the largest scale that fits (a 5 ft square is two cells wide
+ * and one row tall, or four by two, or six by three): areas as floors, people by initial, things as
+ * marks, what's burning or broken shown as such.
+ */
+function sceneView(world: SceneWorld, view: { width: number; height: number }): StyledLine[] {
+  const root = world.entities[world.root]!;
+  const size = root.rect ?? { x: 0, y: 0, w: 50, h: 40 };
+  const tilesW = Math.ceil(size.w / 5) + 1, tilesH = Math.ceil(size.h / 5) + 1;
+  const sy = [3, 2, 1].find(s => tilesW * 2 * s <= view.width && tilesH * s <= view.height) ?? 1;
+  const sx = tilesW * 2 * sy <= view.width ? 2 * sy : 1;
+  const w = Math.min(view.width, tilesW * sx), h = Math.min(view.height, tilesH * sy);
+  const cellAt = (feet: { x: number; y: number }) => ({ col: Math.floor(((feet.x - size.x) / 5) * sx), row: Math.floor(((feet.y - size.y) / 5) * sy) });
+  const areas = Object.values(world.entities).filter(e => e.kind === "area" && e.rect).sort((a, b) => a.rect!.w * a.rect!.h - b.rect!.w * b.rect!.h);
+  const shades = ["#26231f", "#1f2326", "#24201f", "#1f2421", "#25222a", "#20201c"];
+  const shade = new Map(areas.map((a, i) => [a.id, a.tags.includes("outside") ? "#1b1d22" : shades[i % shades.length]!]));
+  const grid: Cell[][] = Array.from({ length: h }, (_, row) => Array.from({ length: w }, (_, col) => {
+    const feet = { x: size.x + ((col + 0.5) * 5) / sx, y: size.y + ((row + 0.5) * 5) / sy };
+    const area = areas.find(a => feet.x >= a.rect!.x && feet.x < a.rect!.x + a.rect!.w && feet.y >= a.rect!.y && feet.y < a.rect!.y + a.rect!.h);
+    return area ? { ch: (col * 7 + row * 13) % (sy > 1 ? 29 : 11) === 0 ? "·" : " ", fg: "#4a453d", bg: shade.get(area.id)! } : { ch: " ", fg: C.faint };
+  }));
+  // Marks keep the floor colour under them.
+  const put = (feet: { x: number; y: number }, c: Cell) => {
+    const { col, row } = cellAt(feet);
+    const under = grid[row]?.[col];
+    if (!under) return;
+    grid[row]![col] = { ...c, ...(c.bg ?? under.bg ? { bg: c.bg ?? under.bg! } : {}) };
+  };
+  // Room enough: name the areas in their top-left corners.
+  if (sy >= 2) for (const a of areas) {
+    const { col, row } = cellAt({ x: a.rect!.x, y: a.rect!.y });
+    const room = Math.max(0, Math.floor((a.rect!.w / 5) * sx) - 1);
+    [...a.name.replace(/\s*\(.*\)$/, "").slice(0, room)].forEach((ch, i) => { const cell = grid[row]?.[col + i]; if (cell) grid[row]![col + i] = { ...cell, ch, fg: "#7a6f5c" }; });
+  }
+  const gone = (e: Entity) => e.states.includes("gone");
+  const things = Object.values(world.entities).filter(e => (e.kind === "object" || e.kind === "item" || e.kind === "feature") && !gone(e) && !heldBy(world, e));
+  for (const t of things) {
+    const at = positionOf(world, t.id);
+    if (!at) continue;
+    const burning = t.states.includes("burning"), broken = t.states.includes("destroyed");
+    put(at, { ch: burning ? "^" : broken ? "x" : t.kind === "feature" ? "▪" : t.kind === "item" ? "*" : "■", fg: burning ? C.danger : broken ? C.dim : t.tags.includes("evidence") ? C.lead : "#9a8f7a" });
+  }
+  for (const p of Object.values(world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !gone(e))) {
+    const at = positionOf(world, p.id);
+    if (!at) continue;
+    const down = p.states.some(s => ["down", "unconscious", "dead"].includes(s));
+    put(at, p.player
+      ? { ch: "@", fg: "#ffffff", bg: C.playerBg, bold: true }
+      : { ch: down ? "%" : glyphOf(p.cast ?? p.id, p.name), fg: PEOPLE[p.cast ?? p.id] ?? C.neutral, bold: true });
+  }
+  return grid.map(row => {
+    const line: StyledLine = [];
+    for (const c of row) {
+      const last = line.at(-1);
+      if (last && last.fg === c.fg && last.bg === c.bg && !!last.bold === !!c.bold) last.text += c.ch;
+      else line.push({ text: c.ch, fg: c.fg, ...(c.bg ? { bg: c.bg } : {}), ...(c.bold ? { bold: true } : {}) });
+    }
+    return line;
+  });
+}
+
 function combatField(sceneId: string): CombatField {
   void sceneId; // One battlefield in the stand-in: the Heron's floor (the arc's only fight).
   return {
@@ -481,5 +543,6 @@ export const standInMap: MapAdapter = {
   },
   afterScene,
   render,
+  sceneView,
   combatField,
 };
