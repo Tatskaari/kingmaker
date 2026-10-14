@@ -155,7 +155,7 @@ export interface LayoutOptions {
   /** Varies what the plan leaves open (default 1). */
   seed?: number;
   /**
-   * The things on the floor to size the building for, at least (default 16): a building laid out
+   * The things on the floor to size the building for, at least (default 12): a building laid out
    * from its rooms before its things have arrived (a streaming plan's shell) is then the same
    * building as the furnished one, unless it has more than that.
    */
@@ -171,14 +171,15 @@ export function layout(plan: PlacePlan, options: LayoutOptions = {}): Site {
   // Each room as asked (with its walls), and on the main floor a square or two per thing to stand
   // on and get round it, so the main room isn't all furniture.
   const need = plan.rooms.filter(r => r.where !== "main").reduce((n, r) => n + Math.max(MIN_ROOM, tilesOf(r.width)) * Math.max(MIN_ROOM, tilesOf(r.depth)) + 4, 0)
-    + Math.max(onFloor.reduce((n, t) => n + 2 * (t.size === "huge" ? 3 : Math.max(1, t.tiles)), 0), 2 * (options.expectThings ?? 16)) + Math.max(3, plan.people.length) + 9;
+    + Math.max(onFloor.reduce((n, t) => n + 2 * (t.size === "huge" ? 3 : Math.max(1, t.tiles)), 0), 2 * (options.expectThings ?? 12)) + Math.max(3, plan.people.length) + 9;
   const asked = { W, D };
   if ((W - 2) * (D - 2) < need) {
     const k = Math.min(1.5, Math.sqrt(need / ((W - 2) * (D - 2))));
     W = clamp(Math.ceil(W * k), 5, MAX_SIDE); D = clamp(Math.ceil(D * k), 5, MAX_SIDE);
   }
-  // Deep enough for the rooms on each side and a main room of five squares between them.
-  const into = (s: Side) => Math.max(0, ...plan.rooms.filter(r => r.where !== "main" && r.where.split("-").includes(s))
+  // Deep enough for the rooms on each side and a main room of five squares between them:
+  // Rooms along a side take a band of it; a room in a corner takes a corner, and the main room goes round it (the five-square check below grows the building if it doesn't).
+  const into = (s: Side) => Math.max(0, ...plan.rooms.filter(r => r.where === s)
     .map(r => Math.max(MIN_ROOM, s === "north" || s === "south" ? tilesOf(r.depth) : tilesOf(r.width)) + 1));
   W = clamp(Math.max(W, into("west") + into("east") + MAIN_MIN + 2), 7, MAX_SIDE);
   D = clamp(Math.max(D, into("north") + into("south") + MAIN_MIN + 2), 7, MAX_SIDE);
@@ -643,10 +644,12 @@ function carveRooms(rooms: RoomPlan[], inner: Rect, blocked: Rect[], rand: () =>
   const isCorner = (w: string) => w.includes("-");
   const order = [...rooms].sort((a, b) => Number(isCorner(b.where)) - Number(isCorner(a.where)) || b.width * b.depth - a.width * a.depth);
   const clear = (r: Rect) => placed.every(p => !overlaps(r, grow(p.rect, 1))) && blocked.every(b => !overlaps(r, grow(b, 1)));
-  // Leave the main room its squares beside every room. Into the building, a room may take what
-  // leaves the main room five squares (and a wall); along a side, all of it.
-  const maxW = (w: string) => (w === "north" || w === "south" ? inner.w : inner.w - MAIN_MIN - 1);
-  const maxH = (w: string) => (w === "east" || w === "west" ? inner.h : inner.h - MAIN_MIN - 1);
+  // Leave the main room its squares beside every room. Into the building, a room on a side may take
+  // what leaves the main room five squares (and a wall), and along the side all of it; a room in a
+  // corner its size (the main room goes round it, and the five-square check grows the building if not).
+  const corner = (w: string) => w.includes("-");
+  const maxW = (w: string) => (w === "north" || w === "south" ? inner.w : corner(w) ? inner.w - 2 : inner.w - MAIN_MIN - 1);
+  const maxH = (w: string) => (w === "east" || w === "west" ? inner.h : corner(w) ? inner.h - 2 : inner.h - MAIN_MIN - 1);
   for (const room of order) {
     const least = (most: number) => Math.min(MIN_ROOM, Math.max(2, most));
     let w = clamp(tilesOf(room.width), least(maxW(room.where)), Math.max(2, maxW(room.where)));
