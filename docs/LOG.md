@@ -165,3 +165,21 @@ That matches round 1's blind players ("dice with nothing at stake"). Changes:
 - Freeform rolls are off by default (`freeformChecks` approach flag). A risky action that no edge covers is resolved by the GM in the story (the pickpocket attempt: "Tam's hand snaps down over yours"). The co-GM can still add an edge with a roll when a genuinely new approach deserves one.
 - Every authored check has a `reason`, player-facing and generated once per scene, then reviewed in the source. It's shown on the dice line and given to the GM: `🎲 Persuasion check to calm Tam and earn his trust: 20 + 2 = 22 vs DC 10: success (natural 20!)`.
 - Decision suite with edge-only rolls: 100% (38 cases).
+
+### Judge cost: Luna-high vs Sol (user question: is Sol worth it?)
+
+Clarification: the GM has always been Luna (reasoning none). Sol is only the eval judge, and it was ~85% of dev spend. I re-judged 40 replies that Sol had already scored, using Luna at reasoning `high` (`src/eval/rejudge.ts`). Pass/fail agreement was 32/40 (80%), mean-score correlation 0.48 (scores cluster at 4–5, so correlation is range-limited), at about 1/15 of the cost ($0.03 vs ~$0.48 for 40). Six of the eight disagreements were one case (the gibbet tangent, where Luna is stricter about answering "who was hanged here"). Luna-high is fine for cheap screening; keep Sol, or two judges, for headline numbers.
+
+### Challenge: Luna as GM with more reasoning
+
+`gm-low` / `gm-medium` presets (voices use the approach's effort). Reply suite, 16 crossroads and entrance cases × 1 sample, Luna-high judge:
+
+| GM effort | criterion pass | first text median / p90 | reply cost |
+|---|---|---|---|
+| none | 81% | 1.64 s / 2.3 s | $0.00022 |
+| low | 88% | 1.90 s / 3.4 s | $0.00024 |
+| medium | 81% | 3.70 s / 7.3 s | $0.00032 |
+
+There's no measurable quality gain from reasoning, and medium more than doubles time to first text. Luna `low` usually doesn't reason at all (median 0 reasoning tokens), so it behaves like `none` with a worse tail. Keep `none` for the in-scene voice. Runtime cost is negligible at every level (< $0.001 per turn including both decision calls).
+
+Note: OpenRouter account credit ran out (~$0.70 left of $110) partway through the `edge-rolls` regression; its judge calls returned HTTP 402 and need re-running after a top-up.

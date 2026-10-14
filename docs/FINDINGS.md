@@ -14,7 +14,8 @@ What the overnight experiment of 2026-10-14 learned about GM-run scenes. The bri
 6. **Rolls belong on scene edges, and must say why.** This was your steer, and blind QA agreed. Freeform "risky attempt" rolls are now off by default. Every roll shows its reason: `🎲 Persuasion check to calm Tam and earn his trust: 20 + 2 = 22 vs DC 10: success`.
 7. **The authored beat sequence matters less than expected.** The same scene written as a *situation* (cast, secrets, limits, endings, one pressure, no beats) scored as well as the beat graph for the single GM voice, and reached endings faster.
 8. **Phase 2 works as a stub.** A scribe agent writes `update(world)` scripts against a bounded DSL. They compiled 26/26 on the first attempt, with fidelity about 4.1–4.25/5 and boundedness about 5/5. Its `unsupported(...)` escape hatch is a good way to grow the DSL from real play.
-9. **It's snappy and cheap.** First text arrives at about 1.1 s median (p90 about 1.7 s). The decision call takes about 0.28 s. A turn costs under $0.001 in game calls. The night's total of about $25 was mostly the judge model.
+9. **More GM reasoning doesn't help.** Luna as GM at `low` / `medium` reasoning showed no measurable quality gain over `none` (81/88/81% criterion pass), and `medium` more than doubled time to first text (1.6 → 3.7 s median). Keep `none`. A Luna-high *judge* agreed with Sol on 80% of verdicts at about 1/15 of the cost, which makes it good for cheap screening.
+10. **It's snappy and cheap.** First text arrives at about 1.1 s median (p90 about 1.7 s). The decision call takes about 0.28 s. A turn costs under $0.001 in game calls. The night's total of about $25 was mostly the judge model.
 
 ## What was built
 

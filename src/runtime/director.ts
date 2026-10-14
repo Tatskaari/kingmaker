@@ -212,7 +212,7 @@ export function plainDirective(t: Transition): string {
   return `No dice needed: what the player is doing simply works (${t.when.replace(/\.$/, "")}). Let it land in this reply, in a way that fits the people involved.`;
 }
 
-export const OOC_DIRECTIVE = "The player has stepped out of character to ask you something. Answer briefly and helpfully as the GM, out of character, using only what their character could perceive or reasonably guess: don't reveal what anyone is hiding and don't talk about dice or game mechanics. Then hand the moment back to the scene.";
+export const OOC_DIRECTIVE = "The player has stepped out of character to ask you something. Answer briefly and helpfully as the GM, out of character, using only what their character could perceive or reasonably guess: don't reveal what anyone is hiding and don't talk about dice or game mechanics. You don't control the game's structure (which scene comes next, when dice are rolled, skipping ahead), so never promise to change it; talk about what can happen in this scene. Then hand the moment back to the scene.";
 
 /** "No, but": the world answers honestly and keeps the player's underlying idea alive. */
 export function limitDirective(limit: string): string {

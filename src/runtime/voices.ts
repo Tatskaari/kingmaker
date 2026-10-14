@@ -2,8 +2,41 @@ import { respond, type Message, type RespondResult } from "../llm/openrouter.ts"
 import { currentBeat, nowNote, prompt, sceneBrief, sceneEntries, scriptTranscript, speakerName, presentCast } from "./brief.ts";
 import type { Scene } from "./scene.ts";
 import type { SessionState } from "./session.ts";
+import { approachById } from "./approaches.ts";
 
 export interface Spoken { speaker: string; kind: "narration" | "dialogue"; text: string; result: RespondResult }
+
+const voiceEffort = (state: SessionState) => approachById(state.approach).effort ?? "none";
+
+const normalise = (text: string) => text.toLowerCase().replace(/[*_"“”‘’'.,!?;:()\-—–]/g, " ").replace(/\s+/g, " ").trim();
+
+/** A sentence of eight or more words repeated verbatim from recent replies (or within this one). */
+export function repeatedSentence(text: string, recent: string[]): string | undefined {
+  const seen = new Set<string>();
+  for (const earlier of recent) for (const sentence of earlier.split(/(?<=[.!?])\s+|\n+/)) {
+    const n = normalise(sentence);
+    if (n.split(" ").length >= 8) seen.add(n);
+  }
+  for (const sentence of text.split(/(?<=[.!?])\s+|\n+/)) {
+    const n = normalise(sentence);
+    if (n.split(" ").length < 8) continue;
+    if (seen.has(n)) return sentence.trim();
+    seen.add(n);
+  }
+  return undefined;
+}
+
+function recentTexts(state: SessionState, count = 6): string[] {
+  return sceneEntries(state).filter(e => e.kind === "narration" || e.kind === "dialogue").slice(-count).map(e => e.text);
+}
+
+/** Models imitate their last few replies; when a draft repeats one verbatim, ask once for a fresh take. */
+async function withoutRepeats(state: SessionState, draft: Spoken, regenerate: (note: string) => Promise<Spoken>): Promise<Spoken> {
+  const repeat = repeatedSentence(draft.text, recentTexts(state));
+  if (!repeat) return draft;
+  const second = await regenerate(`Your first draft repeated something already said, word for word ("${repeat}"). Don't repeat it: move the moment on with something new.`);
+  return { ...second, result: { ...second.result, costUsd: second.result.costUsd + draft.result.costUsd } };
+}
 
 /** Multi-turn chat history for the single-GM voice: player turns as user, GM replies as assistant. */
 function gmHistory(scene: Scene, state: SessionState): Message[] {
@@ -30,8 +63,10 @@ export async function gmReply(scene: Scene, state: SessionState, directive: stri
   ];
   // The model behaves best with a user turn to answer; the opening has none yet.
   if (!input.some(m => m.role === "user")) input.push({ role: "user", content: "(The player is ready. Begin.)" });
-  const result = await respond({ operation, instructions: prompt("gm"), input, effort: "none", maxOutputTokens: 700, ...(onText ? { onText } : {}) });
-  return { speaker: "gm", kind: "narration", text: result.text.trim(), result };
+  const result = await respond({ operation, instructions: prompt("gm"), input, effort: voiceEffort(state), maxOutputTokens: voiceEffort(state) === "none" ? 700 : 6000, ...(onText ? { onText } : {}) });
+  const draft: Spoken = { speaker: "gm", kind: "narration", text: result.text.trim(), result };
+  if (directive.some(d => d.startsWith("Your first draft repeated"))) return draft;
+  return withoutRepeats(state, draft, note => gmReply(scene, state, [...directive, note], onText, `${operation}.fresh`));
 }
 
 /** Approach "actors": the GM narrates only; it does not voice characters. */
@@ -41,8 +76,10 @@ export async function narratorReply(scene: Scene, state: SessionState, directive
     { role: "user", content: `The scene so far:\n\n${scriptTranscript(scene, state) || "(The scene is just starting.)"}` },
     { role: "developer", content: `${nowNote(scene, state, directive, { castNotes: true })}\n\nNarrate now: the world, what happens and what the player notices. The characters speak for themselves, so don't write their dialogue.` },
   ];
-  const result = await respond({ operation: "narrator.reply", instructions: prompt("narrator"), input, effort: "none", maxOutputTokens: 500, ...(onText ? { onText } : {}) });
-  return { speaker: "gm", kind: "narration", text: result.text.trim(), result };
+  const result = await respond({ operation: "narrator.reply", instructions: prompt("narrator"), input, effort: voiceEffort(state), maxOutputTokens: voiceEffort(state) === "none" ? 500 : 6000, ...(onText ? { onText } : {}) });
+  const draft: Spoken = { speaker: "gm", kind: "narration", text: result.text.trim(), result };
+  if (directive.some(d => d.startsWith("Your first draft repeated"))) return draft;
+  return withoutRepeats(state, draft, note => narratorReply(scene, state, [...directive, note], onText));
 }
 
 /** Approach "actors": one character speaks from their own knowledge only. */
@@ -72,7 +109,9 @@ export async function actorReply(scene: Scene, state: SessionState, characterId:
     { role: "developer", content: context },
     { role: "user", content: `The scene so far:\n\n${scriptTranscript(scene, state) || "(The scene is just starting.)"}\n\nNow, as ${c.name}:` },
   ];
-  const result = await respond({ operation: `actor.${c.id}`, instructions: system, input, effort: "none", maxOutputTokens: 900, ...(onText ? { onText } : {}) });
+  const result = await respond({ operation: `actor.${c.id}`, instructions: system, input, effort: voiceEffort(state), maxOutputTokens: voiceEffort(state) === "none" ? 900 : 6000, ...(onText ? { onText } : {}) });
   const text = result.text.trim().replace(new RegExp(`^${c.name.split(" ")[0]}[^:]{0,20}:\\s*`), "");
-  return { speaker: c.id, kind: "dialogue", text, result };
+  const draft: Spoken = { speaker: c.id, kind: "dialogue", text, result };
+  if (direction.some(d => d.startsWith("Your first draft repeated"))) return draft;
+  return withoutRepeats(state, draft, note => actorReply(scene, state, characterId, [...direction, note], onText));
 }

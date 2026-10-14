@@ -20,12 +20,16 @@ export interface Approach {
    * (authored edges), so the player can see why the dice matter (V1 and QA feedback).
    */
   freeformChecks?: boolean;
+  /** Reasoning effort for the voices (GM, narrator, actors). Default "none" for snappy replies. */
+  effort?: "none" | "low" | "medium" | "high";
 }
 
 export const APPROACHES: Record<string, Approach> = {
   gm: { id: "gm", description: "Single GM voice; Luna decision mode tracks beats, rolls and exits.", voice: "gm", decider: "luna-decisions", repair: "off" },
   "gm-jev": { id: "gm-jev", description: "Single GM voice; Jev tracks beats, rolls and exits.", voice: "gm", decider: "jev", repair: "off" },
   "gm-luna": { id: "gm-luna", description: "Single GM voice; Luna structured output (no reasoning) tracks beats.", voice: "gm", decider: "luna-none", repair: "off" },
+  "gm-low": { id: "gm-low", description: "Single GM voice with Luna reasoning 'low' (quality vs latency).", voice: "gm", decider: "luna-decisions", repair: "off", effort: "low" },
+  "gm-medium": { id: "gm-medium", description: "Single GM voice with Luna reasoning 'medium' (quality vs latency).", voice: "gm", decider: "luna-decisions", repair: "off", effort: "medium" },
   "gm-repair": { id: "gm-repair", description: "Single GM voice plus the background co-GM repair agent.", voice: "gm", decider: "luna-decisions", repair: "background" },
   actors: { id: "actors", description: "A decider picks who speaks; each character is its own Luna actor; GM narrates.", voice: "actors", decider: "luna-decisions", repair: "off" },
   "actors-jev": { id: "actors-jev", description: "Actors with Jev choosing speakers and tracking beats.", voice: "actors", decider: "jev", repair: "off" },
