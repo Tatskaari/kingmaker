@@ -233,6 +233,39 @@ export function spotNear(world: SceneWorld, target: string, feet = 5, away?: Poi
 const sideScore = (centre: Point, away: Point, angle: number) => (Math.cos(angle) * (centre.x - away.x) + Math.sin(angle) * (centre.y - away.y));
 
 /**
+ * `feet` from something, inside the mover's area (areas stand in for walls: backing off down the
+ * lane doesn't put you in the loft): on the side they already are, else wherever there's room;
+ * as far as the area allows when it's too small.
+ */
+export function awayFrom(world: SceneWorld, e: Entity, from: Entity, feet: number): Point {
+  const origin = positionOf(world, from.id)!;
+  const cur = positionOf(world, e.id) ?? origin;
+  const area = areaOf(world, e.id);
+  const r = area?.rect ?? world.entities[world.root]!.rect!;
+  const inside = (p: Point) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+  const room = (angle: number) => { let d = 0; while (d < 200 && inside({ x: origin.x + (d + 1) * Math.cos(angle), y: origin.y + (d + 1) * Math.sin(angle) })) d++; return d; };
+  const gap = (a: number, b: number) => { const d = Math.abs(a - b) % (2 * Math.PI); return d > Math.PI ? 2 * Math.PI - d : d; };
+  const preferred = distance(cur, origin) > 1 ? Math.atan2(cur.y - origin.y, cur.x - origin.x) : undefined;
+  const angles = Array.from({ length: 32 }, (_, i) => (i * Math.PI) / 16)
+    .sort((a, b) => preferred !== undefined ? gap(a, preferred) - gap(b, preferred) : room(b) - room(a));
+  for (const a of angles) {
+    const p = { x: Math.round(origin.x + feet * Math.cos(a)), y: Math.round(origin.y + feet * Math.sin(a)) };
+    if (inside(p)) return p;
+  }
+  const corners = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([i, j]) => ({ x: r.x + i! * r.w, y: r.y + j! * r.h }));
+  return corners.sort((a, b) => distance(b, origin) - distance(a, origin))[0]!;
+}
+
+/** `feet` closer to something, stopping short of walking into it. */
+export function toward(world: SceneWorld, e: Entity, to: Entity, feet: number): Point {
+  const target = positionOf(world, to.id)!;
+  const cur = positionOf(world, e.id) ?? target;
+  const d = distance(cur, target);
+  const step = Math.max(0, Math.min(feet, d - 3));
+  return d ? { x: Math.round(cur.x + ((target.x - cur.x) / d) * step), y: Math.round(cur.y + ((target.y - cur.y) / d) * step) } : cur;
+}
+
+/**
  * Who and what a spell's area catches: a sphere or cube around a point, a cone or line from the
  * caster towards it. (No walls or cover yet: the map will add those.)
  */
@@ -335,13 +368,15 @@ function placeIn(world: SceneWorld, to: string, how: string): { to: string; how:
 }
 
 export interface WorldOp {
-  op: "move" | "place" | "give" | "drop" | "create" | "state" | "note" | "remove" | "destroy";
+  op: "move" | "place" | "give" | "drop" | "create" | "state" | "note" | "forget" | "remove" | "destroy";
   /** What it acts on: a selector. */
   what: string;
   /** Where or to whom: a selector (an area, a person, a thing to be near). */
   to: string;
-  /** For place: near, behind, beside, under, on, in. */
+  /** For place: near, behind, beside, under, on, in; or away (from "to") and toward (it), by `feet`. */
   how: string;
+  /** For place away/toward: how far ("thirty feet back down the lane"). */
+  feet?: number;
   /** For create: its name and kind. */
   name: string;
   kind: string;
@@ -394,6 +429,13 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
           // Where they started, and where they were hiding, no longer holds once they move.
           e.notes = e.notes.filter(n => n.by !== "author" && !/^(behind|under|on|in|beside) /i.test(n.text));
           const how = where.how || "near";
+          // A distance: "thirty feet back down the lane", which decides who a Fireball at the elm catches.
+          if (how === "away" || how === "toward") {
+            e.at = how === "away" ? awayFrom(world, e, dest, op.feet || 30) : toward(world, e, dest, op.feet || 10);
+            e.parent = areaAt(world, e.at).id;
+            log(`${e.name} is ${feetBetween(world, e.id, dest.id)} ft from ${dest.name}`);
+            continue;
+          }
           // Saying where someone already is isn't a move: "Kell is in the doorway" mustn't scatter her
           // to a random spot in it, nor "by the bar" shuffle someone already at the bar.
           if (!heldBy(world, e) && ((dest.kind === "area" || dest.kind === "place") ? areaOf(world, e.id)?.id === dest.id : how === "near" && (feetBetween(world, e.id, dest.id) ?? Infinity) <= 5)) continue;
@@ -432,6 +474,12 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
           const also = op.to ? one(op.to, "note") : undefined;
           if (also) note(also, op.text, turn, by);
           log(`note on ${e.name}${also ? ` and ${also.name}` : ""}: ${op.text}`);
+        } else if (op.op === "forget") {
+          // Notes that have stopped being true ("lobbing stones at the body" once he's dropped them):
+          // those containing the text, or all but the rules' when there's none.
+          const before = e.notes.length;
+          e.notes = e.notes.filter(n => n.by === "rules" || (op.text ? !n.text.toLowerCase().includes(op.text.toLowerCase()) : false));
+          if (e.notes.length < before) changes.push(`forgot ${before - e.notes.length} note${before - e.notes.length === 1 ? "" : "s"} on ${e.name}`);
         } else if (op.op === "remove") {
           e.states = [...e.states.filter(s => s !== "gone"), "gone"];
           if (op.text) note(e, op.text, turn, by);
