@@ -74,6 +74,7 @@ export const hangedClerk: Scene = {
     {
       id: "cob",
       name: "Cob",
+      called: "the boy in the too-big boots",
       statblock: "commoner", weapon: "unarmed-strike",
       look: "A scrawny boy of about eleven in a man's waistcoat and a pair of good black clerk's boots three sizes too big, laced round his ankles with string. Gutter stones in both fists, scabbed knuckles, a yellowing bruise on one cheek.",
       voice: "Loud and cocky, and talks about himself in the third person ('Cob don't talk to bluebottles'). Foul-mouthed in an inventive gutter way (sod off, bleedin', bum-faced palace pigeon) but never truly obscene. Brags, mocks and dares; goes very quiet and very young when he's frightened.",
@@ -99,6 +100,7 @@ export const hangedClerk: Scene = {
     {
       id: "moll",
       name: "Moll",
+      called: "the girl in the shawl",
       statblock: "commoner", weapon: "unarmed-strike",
       look: "A sharp-faced girl of thirteen or so perched on top of the yard wall, heels drumming the bricks, shawl knotted at her chest, one fist kept tightly closed.",
       voice: "Fast, vicious and funny. Swears in Common, Saltmere dock cant and the scraps of Kläggenheim dwarvish she picked up from the carters, and switches when one language isn't rude enough. Answers questions with questions and orders Cob about ('Shut it, Cob'). When it really matters she goes flat and quiet.",
@@ -122,6 +124,7 @@ export const hangedClerk: Scene = {
     {
       id: "tull",
       name: "Corporal Abner Tull",
+      called: "the corporal",
       statblock: "guard", weapon: "club",
       group: "Corporal Tull and two constables with the dead-cart",
       look: "Stout and red-faced in a damp watch cape, with a lunch-shaped bulge in one pocket; he takes his helmet off to the dead as a matter of course, and puts it back on to read his orders. Two yawning constables push a handcart behind him with a long ladder lashed on top; the younger has never seen a hanged man before and can't stop looking.",

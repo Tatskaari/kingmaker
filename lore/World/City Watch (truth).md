@@ -1,5 +1,5 @@
 ---
-summary: "GM only: why Captain Bunce closed Prout's death as a suicide at Master Sallow's request, what he owes the Purveyor's office (Assembly rations, quarter-day hampers, a place at the head of the procession), what he does if the clerk is signed in as a murder and when the case is pressed, what would prove his part, and whether anyone in the watch is bent."
+summary: "GM only: why Captain Bunce closed Prout's death as a suicide at Master Sallow's request, what he owes the Purveyor's office (Assembly rations, quarter-day hampers, a promised place at the head of the procession), what he does if the clerk is signed in as a murder and when the case is pressed, what would prove his part, and whether anyone in the watch is bent."
 type: "world"
 visibility: "gm"
 ---

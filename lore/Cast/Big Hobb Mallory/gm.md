@@ -41,7 +41,7 @@ A believable way to put it right that isn't the noose: swearing for the Crown (K
 - **At the Heron**, with the Master in the room, he can't look at anyone. Given his way out, he says it to the Master's face.
 
 ## How he could change
-He swears for the Crown at the Heron, in front of the Master and the gang, or in front of the King in the morning. It's the bravest thing he'll ever do, and he'll do it politely.
+He swears for the Crown at the Heron, in front of the Master and the gang, or in the cells to Kell's notebook, for the King to read in the morning. It's the bravest thing he'll ever do, and he'll do it politely.
 
 ## Read when relevant
 - [The Master](knowledge/The%20Master.md) — Hobb's own view of Sallow

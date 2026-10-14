@@ -1,7 +1,9 @@
 import type * as Dnd from "../../../vendor/dnd-srd-engine/dnd-srd-engine.js";
 import { dnd } from "../../rules/dnd.ts";
 import type { SessionState } from "../../runtime/session.ts";
+import { areaAt, type SceneWorld } from "../../world/scene-world.ts";
 import type { CombatResult, CombatSetup, MapActor, Tile2 } from "../types.ts";
+import { FEET, fromKey } from "./grid.ts";
 import { decide, freshMemo, type PlayerStyle, type Step } from "./ai.ts";
 import { Client, combatGame, type CombatClient } from "./game.ts";
 import { listing } from "./flavour.ts";
@@ -27,8 +29,11 @@ export interface CombatController {
   options(): PlayerOptions;
   /** A player action on their turn. Lines are what it put in the log. */
   act(action: PlayerAction): ActResult;
-  /** Everyone else's turns (and the player's, while they're down), until the player can act or it's over. */
-  advance(onTurn?: (lines: LogLine[]) => void): LogLine[];
+  /**
+   * Everyone else's turns (and the player's, while they're down), until the player can act or it's
+   * over, or for at most `turns` turns (1: just the next one, for a UI that paces them).
+   */
+  advance(onTurn?: (lines: LogLine[]) => void, turns?: number): LogLine[];
   /** It's the player's turn and they can act. */
   playerTurn(): boolean;
   over(): boolean;
@@ -130,9 +135,9 @@ class Controller implements CombatController {
     return G.error && action.kind !== "end" ? { ok: false, error: G.error, lines } : { ok: true, lines };
   }
 
-  advance(onTurn?: (lines: LogLine[]) => void): LogLine[] {
+  advance(onTurn?: (lines: LogLine[]) => void, turns = 400): LogLine[] {
     const all: LogLine[] = [];
-    for (let guard = 0; guard < 400 && !this.over(); guard++) {
+    for (let guard = 0; guard < Math.min(400, turns) && !this.over(); guard++) {
       const G = this.state();
       const id = G.order[G.active]!;
       if (id === G.pc && this.playerTurn()) break;
@@ -257,12 +262,54 @@ class Controller implements CombatController {
       const now = u.state === "fled" ? "gone" : u.state === "fighting" ? health(u) : u.state;
       e.states = [...e.states.filter(x => !["hurt", "badly hurt", "down", "unhurt", "dead", "surrendered"].includes(x)), ...(now === "unhurt" ? [] : [now]), ...(u.arrested ? ["arrested"] : [])];
     }
+    if (world) placeInWorld(G, world);
   }
 
   save(): SavedCombat { return { version: 1, G: this.state(), seed: this.seed, written: this.written }; }
 }
 
 const ordinal = (n: number) => ["cantrip", "1st", "2nd", "3rd"][n] ?? `${n}th`;
+
+/**
+ * The fight on the map, written into the scene's world, so the scene picks up where the fight left
+ * things: where everyone ended up, the lanterns knocked down, and the fire (the area it's in burns,
+ * the dust has gone up, what stood in the flames is alight). Only on a map that lines up with the
+ * world (a region of the scene's with a world origin): 5 ft a tile, a tile's middle in feet.
+ */
+function placeInWorld(G: CombatG, world: SceneWorld): void {
+  const region = G.map.regions.find(r => r.sceneId === world.scene && r.worldOrigin);
+  if (!region?.worldOrigin) return;
+  const o = region.worldOrigin;
+  const feet = (t: Tile2) => ({ x: (t.x - o.x) * FEET + FEET / 2, y: (t.y - o.y) * FEET + FEET / 2 });
+  const inside = (p: { x: number; y: number }) => { const root = world.entities[world.root]?.rect; return !root || (p.x >= 0 && p.y >= 0 && p.x <= root.w && p.y <= root.h); };
+  for (const u of Object.values(G.units)) {
+    const e = world.entities[u.castId ?? (u.id === G.pc ? "player" : u.id)];
+    if (!e || u.state === "fled" || (e.kind !== "person" && e.kind !== "creature")) continue;
+    const at = feet(u.at);
+    if (!inside(at)) continue;
+    e.at = at;
+    e.parent = areaAt(world, at).id;
+  }
+  for (const p of Object.values(G.props)) {
+    const e = world.entities[p.id];
+    if (!e || p.state === "standing") continue;
+    e.states = [...e.states.filter(s => s !== "hanging" && (p.state !== "broken" || s !== "lit")), p.state === "broken" ? "broken" : "fallen"];
+    const at = feet(p.at);
+    if (inside(at)) { e.at = at; if (e.parent && world.entities[e.parent]?.kind === "area") e.parent = areaAt(world, at).id; }
+  }
+  const fire = G.fire.map(fromKey);
+  if (!fire.length && !G.flags["dust_exploded"]) return;
+  const burning = new Set(fire.map(t => areaAt(world, feet(t)).id));
+  for (const id of burning) { const a = world.entities[id]; if (a && !a.states.includes("burning")) a.states.push("burning"); }
+  if (G.flags["dust_exploded"]) {
+    for (const a of Object.values(world.entities)) if ((a.kind === "area" || a.kind === "place") && a.states.includes("dusty")) a.states = [...a.states.filter(s => s !== "dusty"), "exploded"];
+  }
+  // What stands where the fire is catches.
+  for (const e of Object.values(world.entities)) {
+    if (!e.at || e.kind === "person" || e.kind === "creature" || !e.tags.includes("flammable") || e.states.includes("burning") || e.states.includes("destroyed")) continue;
+    if (fire.some(t => { const f = feet(t); return Math.abs(f.x - e.at!.x) <= FEET && Math.abs(f.y - e.at!.y) <= FEET; })) e.states.push("burning");
+  }
+}
 
 /** The AI's steps that the player could take too (not remarks, nerve or surrender). */
 function asPlayerAction(step: Step): PlayerAction | undefined {

@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import type * as Dnd from "../../vendor/dnd-srd-engine/dnd-srd-engine.js";
 import { respondJson } from "../llm/openrouter.ts";
-import { rng, type RollResult } from "../runtime/dice.ts";
+import { describeRoll, rng, type RollResult } from "../runtime/dice.ts";
 import { SKILLS, type Character, type Skill } from "../runtime/scene.ts";
 import type { SessionState } from "../runtime/session.ts";
 import { caughtIn, damageThing, heldBy, positionOf, type Entity, type SceneWorld } from "../world/scene-world.ts";
@@ -83,6 +83,7 @@ function refresh(ctx: Ctx, state: SessionState): void {
   const sheet = sheetOf(ctx, id);
   state.rules!.spells = readySpells(sheet);
   state.rules!.weapons = weaponsOf(ctx, id).filter(w => !state.rules!.gone?.includes(w.id));
+  state.rules!.features = featuresOf(ctx, id);
   state.rules!.gear = gearOf(ctx, id);
   state.player.modifiers = modifiersFrom(sheet);
   state.player.build = buildLine(ctx, id);
@@ -300,11 +301,67 @@ export async function createCharacter(state: SessionState, level = 3): Promise<s
       resolveChoices(ctx, pc.id, prefer);
     } catch { break; }
   }
+  grantResources(ctx, pc.id);
   state.rules = { campaign: "", pc: pc.id, npcs: {}, prefer };
   refresh(ctx, state);
   close(state, ctx);
   const sheet = sheetOf(ctx, pc.id);
   return `${state.player.name}: ${state.player.build}. AC ${sheet.ac.total}, HP ${sheet.hp.current}/${sheet.effectiveHpMax}.`;
+}
+
+type Formula = number | { kind: string; value?: number; classId?: string; ability?: Dnd.Ability; term?: Formula; terms?: Formula[] };
+type Resource = { resourceId: string; current: number; max: number; recharge?: string };
+
+function formula(f: Formula, levels: Record<string, number>, scores: Record<Dnd.Ability, number>): number {
+  if (typeof f === "number") return f;
+  const terms = (f.terms ?? []).map(t => formula(t, levels, scores));
+  switch (f.kind) {
+    case "const": return f.value ?? 0;
+    case "level": return f.classId ? levels[f.classId] ?? 0 : Object.values(levels).reduce((a, b) => a + b, 0);
+    case "abilityMod": return Math.floor(((f.ability ? scores[f.ability] : 10) - 10) / 2);
+    case "multiply": return terms.reduce((a, b) => a * b, 1);
+    case "add": case "sum": return terms.reduce((a, b) => a + b, 0);
+    case "max": return Math.max(...terms);
+    case "min": return Math.min(...terms);
+    case "ceil": return Math.ceil(formula(f.term ?? 0, levels, scores));
+    case "floor": return Math.floor(formula(f.term ?? 0, levels, scores));
+    default: return 0;
+  }
+}
+
+/**
+ * Class resources (Second Wind's uses, Rage, Bardic Inspiration...): the engine reads them off the
+ * character as created and has no event that grants one, so they go into the character's creation
+ * snapshot, worked out from the class and subclass tables at the levels they have now (on creation
+ * and on every level-up). What was spent since still counts.
+ */
+function grantResources(ctx: Ctx, pcId: string): void {
+  const c = ctx.campaign.state.characters[pcId]!;
+  const content = ctx.engine.content as unknown as { classes: Map<string, { levelTable?: Record<string, { features?: Array<{ effects?: Array<Record<string, unknown>> }> }> }>; subclasses: Map<string, { levelTable?: Record<string, { features?: Array<{ effects?: Array<Record<string, unknown>> }> }> }> };
+  const levels = Object.fromEntries(c.classes.map(k => [k.classId, k.level]));
+  const granted = new Map<string, Resource>();
+  const walk = (table: Record<string, { features?: Array<{ effects?: Array<Record<string, unknown>> }> }> | undefined, upTo: number) => {
+    for (const [lvl, row] of Object.entries(table ?? {}).sort((a, b) => Number(a[0]) - Number(b[0]))) {
+      if (Number(lvl) > upTo) continue;
+      for (const e of (row.features ?? []).flatMap(f => f.effects ?? [])) {
+        if (e["kind"] !== "GrantResource") continue;
+        const max = Math.max(0, formula(e["max"] as Formula, levels, sheetOf(ctx, pcId).abilityScores));
+        granted.set(String(e["resourceId"]), { resourceId: String(e["resourceId"]), current: max, max, ...(e["recharge"] ? { recharge: String(e["recharge"]) } : {}) });
+      }
+    }
+  };
+  for (const k of c.classes) {
+    walk(content.classes.get(k.classId)?.levelTable, k.level);
+    if (k.subclassId) walk(content.subclasses.get(k.subclassId)?.levelTable, k.level);
+  }
+  const have = (c as unknown as { resources?: Resource[] }).resources ?? [];
+  const want = [...granted.values()];
+  if (want.every(r => have.some(h => h.resourceId === r.resourceId && h.max === r.max)) && have.length === want.length) return;
+  const raw = JSON.parse(ctx.E.serializeCampaign(ctx.campaign)) as { events: Array<Record<string, unknown>> };
+  const created = raw.events.find(e => e["type"] === "CharacterCreated" && (e["snapshot"] as { id?: string } | undefined)?.id === pcId);
+  if (!created) return;
+  (created["snapshot"] as { resources?: Resource[] }).resources = want;
+  ctx.campaign = loadWellFormed(ctx.E, JSON.stringify(raw), ctx.engine);
 }
 
 function sheetOf(ctx: Ctx, id: string): Dnd.CharacterSheet {
@@ -464,8 +521,16 @@ function hurt(c: Dnd.EngineCharacter): string {
   return c.hp.current * 2 <= c.hp.max ? "badly hurt" : "hurt";
 }
 
+const possessive = (name: string) => /s$/.test(name) ? `${name}'` : `${name}'s`;
+
+/** A story character as the player knows them: by name once they've heard it, else what they call them. */
+const calledBy = (state: SessionState, c: Character) => state.rules?.aliases?.[c.id] ?? c.name;
+
 function nameOf(ctx: Ctx, state: SessionState, id: string): string {
-  return id === state.rules!.pc ? "you" : ctx.campaign.state.characters[id]?.name ?? "someone";
+  if (id === state.rules!.pc) return "you";
+  // Someone whose name the player hasn't heard goes by what they call them.
+  const castId = Object.entries(state.rules!.npcs).find(([, v]) => v.id === id)?.[0];
+  return (castId && state.rules!.aliases?.[castId]) || (ctx.campaign.state.characters[id]?.name ?? "someone");
 }
 
 /** Dice lines and a plain account of a planner's events. */
@@ -480,7 +545,7 @@ function describe(ctx: Ctx, state: SessionState, events: Dnd.EngineEvent[], weap
         const d20 = (e["d20"] as number[]).join("/");
         const adv = e["used"] && e["used"] !== "none" ? ` (${e["used"]})` : "";
         const verdict = e["critical"] ? "critical hit!" : e["hit"] ? "hit" : "miss";
-        lines.push(`${weaponName(String(e["weaponInstanceId"]))}: ${who("attackerId") === "you" ? "your attack on" : `${who("attackerId")}'s attack on`} ${who("targetId")}: ${d20}${adv} ${signed(Number(e["attackBonus"]))} = ${e["total"]} vs AC ${e["targetAC"]}: ${verdict}`);
+        lines.push(`${weaponName(String(e["weaponInstanceId"]))}: ${who("attackerId") === "you" ? "your attack on" : `${possessive(who("attackerId"))} attack on`} ${who("targetId")}: ${d20}${adv} ${signed(Number(e["attackBonus"]))} = ${e["total"]} vs AC ${e["targetAC"]}: ${verdict}`);
         account.push(`${who("attackerId")} ${e["hit"] ? (e["critical"] ? "landed a critical hit on" : "hit") : "missed"} ${who("targetId")} (${weaponName(String(e["weaponInstanceId"]))})`);
         break;
       }
@@ -493,13 +558,13 @@ function describe(ctx: Ctx, state: SessionState, events: Dnd.EngineEvent[], weap
         const amount = (e["components"] as Array<{ amount: number; type: string }>).map(c => `${c.amount} ${c.type}`).join(" and ");
         const target = chars()[String(e["targetId"])];
         const isPc = String(e["targetId"]) === state.rules!.pc;
-        lines.push(`${isPc ? "You take" : `${target?.name ?? "They"} takes`} ${amount} damage${isPc && target ? ` (HP ${target.hp.current}/${target.hp.max})` : target ? ` (${hurt(target)})` : ""}`);
-        account.push(`${isPc ? "the player" : target?.name ?? "the target"} took ${amount} damage${target ? `, now ${isPc ? `${target.hp.current}/${target.hp.max} HP` : hurt(target)}` : ""}`);
+        lines.push(`${isPc ? "You take" : `${target ? who("targetId") : "They"} takes`} ${amount} damage${isPc && target ? ` (HP ${target.hp.current}/${target.hp.max})` : target ? ` (${hurt(target)})` : ""}`);
+        account.push(`${isPc ? "the player" : target ? who("targetId") : "the target"} took ${amount} damage${target ? `, now ${isPc ? `${target.hp.current}/${target.hp.max} HP` : hurt(target)}` : ""}`);
         break;
       }
       case "SaveRolled": {
         const d20 = (e["d20"] as number[]).join("/");
-        const target = String(e["targetId"]) === state.rules!.pc ? "Your" : `${chars()[String(e["targetId"])]?.name ?? "Their"}'s`;
+        const target = String(e["targetId"]) === state.rules!.pc ? "Your" : chars()[String(e["targetId"])] ? possessive(who("targetId")) : "Their";
         const ability = ABILITY_NAME[e["ability"] as Dnd.Ability] ?? String(e["ability"]);
         lines.push(`${target} ${ability} save: ${d20} ${signed(Number(e["bonus"]))} = ${e["total"]} vs DC ${e["dc"]}: ${e["success"] ? "saved" : "failed"}`);
         account.push(`${target === "Your" ? "the player's" : target} ${ability} save ${e["success"] ? "succeeded" : "failed"}`);
@@ -509,7 +574,7 @@ function describe(ctx: Ctx, state: SessionState, events: Dnd.EngineEvent[], weap
         const condition = ctx.engine.content.conditions.get(String(e["conditionId"]))?.name ?? String(e["conditionId"]);
         if (/active$/i.test(condition)) break;
         lines.push(`${who("targetId") === "you" ? "You are" : `${who("targetId")} is`} ${condition.toLowerCase()}`);
-        account.push(`${who("targetId")} is now ${condition.toLowerCase()}`);
+        account.push(`${who("targetId") === "you" ? "the player" : who("targetId")} is now ${condition.toLowerCase()}`);
         break;
       }
       case "Healed": {
@@ -523,7 +588,7 @@ function describe(ctx: Ctx, state: SessionState, events: Dnd.EngineEvent[], weap
         break;
     }
   }
-  return { lines, account };
+  return { lines: lines.map(l => l.charAt(0).toUpperCase() + l.slice(1)), account };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -593,7 +658,7 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
     if (fromCaster) beings = beings.filter(b => b !== "player");
     things = caught.filter(isThingEntity);
     surfaces = caught.filter(e => e.kind === "surface");
-    area = `a ${shape.size}-foot ${shape.shape}${aimId ? ` ${fromCaster ? "towards" : "on"} ${world.entities[aimId]!.name}` : ""}`;
+    area = `a ${shape.size}-foot ${shape.shape}${aimId ? ` ${fromCaster ? "towards" : "on"} ${state.rules!.aliases?.[aimId] ?? world.entities[aimId]!.name}` : ""}`;
   }
   const people = beings.map(b => b === "self" || b === "player" ? { id: "player", engine: pcId } : (() => {
     const c = cast.find(x => x.id === b) ?? (world?.entities[b] ? bystander(world.entities[b]!) : undefined);
@@ -660,7 +725,7 @@ function towards(from: { x: number; y: number }, to: { x: number; y: number }, f
 }
 
 /** Someone the story brought in who isn't in the cast (a crowd, a passer-by): a commoner, for the rules. */
-function bystander(e: Entity): Character {
+export function bystander(e: Entity): Character {
   return { id: e.id, name: e.name, look: e.description ?? "", voice: "", wants: "", knows: [], attitude: "", statblock: e.stats?.statblock ?? (e.kind === "creature" ? "mastiff" : "commoner"), ...(e.stats?.weapon ? { weapon: e.stats.weapon } : {}) };
 }
 
@@ -827,10 +892,10 @@ export async function attack(state: SessionState, cast: Character[], targetId: s
   const after = ctx.campaign.state.characters[npc]!;
   if (state.world) syncBeings(ctx, state, state.world, [{ id: target.id, engine: npc }]);
   close(state, ctx);
-  const down = after.hp.current <= 0 ? ` ${target.name} drops: at 0 hit points they fall, unconscious or dying. If the player plainly meant to kill, they may die; most people here would be knocked senseless. Nobody else in the scene shrugs that off.` : "";
+  const down = after.hp.current <= 0 ? ` ${calledBy(state, target)} drops: at 0 hit points they fall, unconscious or dying. If the player plainly meant to kill, they may die; most people here would be knocked senseless. Nobody else in the scene shrugs that off.` : "";
   return {
     lines,
-    directive: `Rules: the player attacked ${target.name}. ${capitalise(account.join("; "))}.${down} Narrate exactly this blow and its effect, then let the world answer it: whoever it touches reacts as they truly would. A single blow, not a whole fight: if this becomes a real fight, it will move to the map.`,
+    directive: `Rules: the player attacked ${calledBy(state, target)}. ${capitalise(account.join("; "))}.${down} Narrate exactly this blow and its effect, then let the world answer it: whoever it touches reacts as they truly would. A single blow, not a whole fight: if this becomes a real fight, it will move to the map.`,
   };
 }
 
@@ -860,8 +925,8 @@ export async function wrestle(state: SessionState, cast: Character[], targetId: 
   close(state, ctx);
   const verb = how === "grapple" ? "grab hold of" : how === "prone" ? "shove to the ground" : "shove away";
   return {
-    lines: [`${how === "grapple" ? "Grapple" : "Shove"}: you try to ${verb} ${target.name}`, ...lines],
-    directive: `Rules: the player tried to ${verb} ${target.name}. ${account.length ? `${capitalise(account.join("; "))}.` : ""} ${held ? (how === "grapple" ? `${target.name} is held fast (grappled) until they break free.` : how === "prone" ? `${target.name} goes down.` : `${target.name} is pushed back five feet.`) : `${target.name} resists it.`} Narrate exactly that, and let the people present react.`,
+    lines: [`${how === "grapple" ? "Grapple" : "Shove"}: you try to ${verb} ${calledBy(state, target)}`, ...lines],
+    directive: `Rules: the player tried to ${verb} ${calledBy(state, target)}. ${account.length ? `${capitalise(account.join("; "))}.` : ""} ${held ? (how === "grapple" ? `${calledBy(state, target)} is held fast (grappled) until they break free.` : how === "prone" ? `${calledBy(state, target)} goes down.` : `${calledBy(state, target)} is pushed back five feet.`) : `${calledBy(state, target)} resists it.`} Narrate exactly that, and let the people present react.`,
   };
 }
 
@@ -879,7 +944,7 @@ export async function attackOnPlayer(state: SessionState, attacker: Character): 
   close(state, ctx);
   return {
     lines: [...lines, ...(events.some(e => e.type === "DamageApplied") ? [`${state.player.name}: ${statusText}`] : [])],
-    directive: `Rules, before the player's turn: ${attacker.name}'s attack resolved. ${capitalise(account.join("; "))}.${down} Narrate that first, briefly, then what the player does.`,
+    directive: `Rules, before the player's turn: ${calledBy(state, attacker)}'s attack resolved. ${capitalise(account.join("; "))}.${down} Narrate that first, briefly, then what the player does.`,
     status: statusText,
   };
 }
@@ -1003,6 +1068,7 @@ export async function levelUp(state: SessionState): Promise<string[]> {
   try {
     ctx.apply(ctx.engine.plan.levelUp(ctx.campaign.state, { characterId: pcId, classId: main.classId, hpStrategy: "average" }).events);
     const picked = resolveChoices(ctx, pcId, state.rules.prefer ?? []);
+    grantResources(ctx, pcId);
     const sheet = sheetOf(ctx, pcId);
     refresh(ctx, state);
     close(state, ctx);
@@ -1024,6 +1090,113 @@ export async function comeTo(state: SessionState): Promise<string | undefined> {
   const line = `You come to: ${status(ctx, me.id)}`;
   close(state, ctx);
   return line;
+}
+
+// ---------------------------------------------------------------------------------------------
+// Moving: one jump, the same in a scene, on the map and in a fight.
+
+export interface JumpReach { long: number; standingLong: number; high: number; standingHigh: number }
+
+/** SRD jumping: a long jump covers your Strength score in feet after a 10-foot run-up, half that standing; a high jump 3 + your Strength modifier, half standing. */
+export function jumpReachFor(strength: number): JumpReach {
+  const high = Math.max(0, 3 + Math.floor((strength - 10) / 2));
+  return { long: strength, standingLong: Math.floor(strength / 2), high, standingHigh: Math.floor(high / 2) };
+}
+
+export async function jumpReach(state: SessionState): Promise<JumpReach> {
+  if (!state.rules) return jumpReachFor(10);
+  const { E, engine } = await engineFor(state.seed);
+  const ctx: Ctx = { E, engine, campaign: E.loadCampaign(state.rules.campaign, engine), apply: e => e };
+  return jumpReachFor(sheetOf(ctx, state.rules.pc).abilityScores.STR);
+}
+
+export interface Jump {
+  feet: number;
+  high?: boolean;
+  /** At least 10 feet on foot first. */
+  runUp?: boolean;
+  /** What falling short means: the drop into whatever is between, in feet (0 for a puddle, a table). */
+  drop?: number;
+}
+export interface JumpOutcome { made: boolean; reach: number; roll?: RollResult; lines: string[]; account: string; status?: string }
+
+/**
+ * A jump: within reach it simply happens (no dice); up to half as far again takes Strength
+ * (Athletics) at DC 10 plus a point for every foot over; farther than that falls short. Falling
+ * short with a drop beneath is a fall (1d6 bludgeoning per 10 feet, prone).
+ */
+export async function jump(state: SessionState, j: Jump): Promise<JumpOutcome> {
+  const reachOf = await jumpReach(state);
+  const reach = j.high ? (j.runUp ? reachOf.high : reachOf.standingHigh) : (j.runUp ? reachOf.long : reachOf.standingLong);
+  const what = `${j.high ? "a high jump" : "a long jump"} of ${j.feet} ft (${j.runUp ? "with a run-up" : "standing"}: ${reach} ft is easy)`;
+  if (j.feet <= reach) return { made: true, reach, lines: [`Jump: ${what}: made`], account: `the jump was within their reach (${reach} ft), so they make it` };
+  const over = j.feet - reach;
+  let roll: RollResult | undefined;
+  let made = false;
+  if (over * 2 <= reach) {
+    roll = await rollFor(state, "athletics", 10 + over);
+    made = roll.success;
+  }
+  const lines = [`Jump: ${what}${roll ? "" : ": too far"}`, ...(roll ? [describeRoll(roll)] : [])];
+  if (made) return { made, reach, ...(roll ? { roll } : {}), lines, account: `they make it, just (Athletics ${roll!.total} against DC ${roll!.dc})` };
+  const short = roll ? `they fall short (Athletics ${roll.total} against DC ${roll.dc})` : `it was beyond them (${j.feet} ft against a reach of ${reach} ft), and they fall short`;
+  if (!state.rules || !j.drop) return { made, reach, ...(roll ? { roll } : {}), lines, account: short };
+  const ctx = await open(state);
+  const pcId = state.rules.pc;
+  // The engine's own fall: 1d6 bludgeoning per 10 feet (at most 20d6), landing prone.
+  const events = ctx.apply((ctx.engine.plan["falling"] as (s: Dnd.CampaignState, i: unknown) => Dnd.PlanResult)(ctx.campaign.state, { type: "Falling", characterId: pcId, distanceFeet: j.drop }).events);
+  // A fall that hurts lands you prone (the engine's fall leaves that to us).
+  if (events.some(e => e.type === "DamageApplied") && !events.some(e => e.type === "ConditionApplied" && e["conditionId"] === "prone"))
+    events.push(...ctx.apply([event(ctx.E, "ConditionApplied", { targetId: pcId, conditionId: "prone", appliedConditionId: ctx.E.newEventId() })]));
+  const { lines: more, account } = describe(ctx, state, events, () => "");
+  const statusText = status(ctx, pcId);
+  const down = knockedDown(ctx, state);
+  close(state, ctx);
+  return { made, reach, ...(roll ? { roll } : {}), lines: [...lines, `Fall: ${j.drop} ft`, ...more], account: `${short}, and fall ${j.drop} ft${account.length ? `: ${account.join("; ")}` : " unhurt"}${down}`, status: statusText };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Class features: what a fighter, barbarian, bard or sorcerer can do outside a fight too.
+
+const FEATURES: Array<{ id: string; name: string; classId: string; target: "self" | "creature" }> = [
+  { id: "second-wind", name: "Second Wind", classId: "fighter", target: "self" },
+  { id: "rage", name: "Rage", classId: "barbarian", target: "self" },
+  { id: "bardic-inspiration", name: "Bardic Inspiration", classId: "bard", target: "creature" },
+  { id: "innate-sorcery", name: "Innate Sorcery", classId: "sorcerer", target: "self" },
+];
+
+function featuresOf(ctx: Ctx, id: string): NonNullable<NonNullable<SessionState["rules"]>["features"]> {
+  const c = ctx.campaign.state.characters[id]!;
+  return FEATURES.filter(f => c.classes.some(k => k.classId === f.classId)).map(({ id, name, target }) => ({ id, name, target }));
+}
+
+/** A class feature, through the engine's own intent for it (uses, rests and all). */
+export async function useFeature(state: SessionState, cast: Character[], featureId: string, targetId?: string): Promise<Outcome> {
+  const feature = FEATURES.find(f => f.id === featureId);
+  if (!feature) return { lines: [], directive: "" };
+  const ctx = await open(state);
+  const pcId = state.rules!.pc;
+  const who = feature.target === "creature" ? cast.find(c => c.id === targetId) ?? (targetId && state.world?.entities[targetId]?.kind === "person" ? bystander(state.world.entities[targetId]!) : undefined) : undefined;
+  if (feature.target === "creature" && !who) { close(state, ctx); return { lines: [`(${feature.name} needs someone to give it to.)`], directive: "" }; }
+  let events: Dnd.EngineEvent[];
+  try {
+    const intent = ctx.E.bonusActionIntent(feature.id, pcId, who ? { targetId: ensureNpc(ctx, state, who) } : {});
+    const method = intent.type.charAt(0).toLowerCase() + intent.type.slice(1);
+    events = ctx.apply((ctx.engine.plan[method] as (s: Dnd.CampaignState, i: unknown) => Dnd.PlanResult)(ctx.campaign.state, intent).events);
+  } catch (error) {
+    close(state, ctx);
+    const why = error instanceof Error ? error.message : String(error);
+    return { lines: [`(${feature.name}: ${why})`], directive: `The player reached for ${feature.name}, but it isn't there to use (${why}). Nothing comes of it; say so in a few words, in the fiction.` };
+  }
+  const { lines, account } = describe(ctx, state, events, () => feature.name);
+  const statusText = status(ctx, pcId);
+  if (events.some(e => /^(ConditionApplied|EffectStarted)$/.test(e.type))) state.rules!.timed = true;
+  close(state, ctx);
+  return {
+    lines: [`${feature.name}${who ? ` for ${calledBy(state, who)}` : ""}`, ...lines, `${state.player.name}: ${statusText}`],
+    directive: `Rules: the player used ${feature.name}${who ? ` on ${calledBy(state, who)}` : ""}. ${account.length ? `${capitalise(account.join("; "))}.` : "It takes effect as the feature describes."} Narrate exactly that, in the fiction, briefly.`,
+    status: statusText,
+  };
 }
 
 export { ABILITY_NAME };

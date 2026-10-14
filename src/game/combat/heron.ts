@@ -26,6 +26,15 @@ export interface HeronOptions {
   actors?: MapActor[];
   /** Seed for the dice (from the session when omitted). */
   seed?: number;
+  /**
+   * Where people stand when it starts, by cast id and "player" (the scene's world laid out on the
+   * map: see the map module's battlefield()). Whoever it leaves out stands by their leader, or where
+   * the layout puts them.
+   */
+  at?: Record<string, Tile2>;
+  /** Tiles thick with grain dust, and tiles that burn (the scene's world, on another map than the Heron grid). */
+  dust?: Tile2[];
+  fuel?: Tile2[];
 }
 
 export function heronEncounter(map: TileMap, session: SessionState, options: HeronOptions = {}): CombatSetup {
@@ -35,7 +44,7 @@ export function heronEncounter(map: TileMap, session: SessionState, options: Her
   const sallowHere = options.sallow ?? (startOp?.enemies?.[0]?.leader ? startOp.enemies[0].leader === "sallow" : session.established.includes(MASTER_HERE) || session.beat === "midnight");
   const kellWhere = options.kell ?? (session.absent?.includes("kell") ? "absent" : "inside");
   const ours = map.id === HERON_MAP_ID;
-  const place = placer(map, ours);
+  const place = placer(map, ours, options.at ?? {});
   const combatants: CombatantSetup[] = [];
   combatants.push({ id: "player", name: session.player.name, side: "player", at: place("player"), role: "player" });
   if (kellWhere !== "absent") {
@@ -62,13 +71,16 @@ export function heronEncounter(map: TileMap, session: SessionState, options: Her
     .filter(p => sallowHere || p.ref !== "lantern-boy");
   return {
     map, combatants, sceneId: "heron-warehouse", seed: options.seed ?? (session.seed + 104729 * (session.rollCount + 1)) >>> 0, props,
-    dust: ours ? HERON_LAYOUT.dust(map) : guessDust(map),
-    ...(ours ? { fuel: HERON_LAYOUT.fuel(map) } : {}),
+    dust: options.dust ?? (ours ? HERON_LAYOUT.dust(map) : guessDust(map)),
+    ...(options.fuel ? { fuel: options.fuel } : ours ? { fuel: HERON_LAYOUT.fuel(map) } : {}),
   };
 }
 
-/** The Heron grid's own spots; on another map, the land-door end for Sallow's people, the far end for the player. */
-function placer(map: TileMap, ours: boolean): (who: string) => Tile2 {
+/**
+ * Where everyone starts: where the scene's world has them, if it says; otherwise the Heron grid's
+ * own spots, or on another map the land-door end for Sallow's people and the far end for the player.
+ */
+function placer(map: TileMap, ours: boolean, at: Record<string, Tile2> = {}): (who: string) => Tile2 {
   const taken: Tile2[] = [];
   const free = (t: Tile2) => !solid(map, t) && !taken.some(o => same(o, t));
   const claim = (want: Tile2): Tile2 => {
@@ -78,6 +90,13 @@ function placer(map: TileMap, ours: boolean): (who: string) => Tile2 {
     return spot;
   };
   const s = HERON_LAYOUT.starts;
+  if (Object.keys(at).length) {
+    // Sallow's people stand with him, Hep's porters where her gang is; anyone else as the layout has them.
+    const known = (who: string): Tile2 | undefined => at[who === "kellWharf" ? "kell" : who]
+      ?? (["crake-1", "crake-2", "lantern-boy"].includes(who) ? at["sallow"] : who === "porter" ? at["gang"] ?? at["hep"] : undefined);
+    const layout = placer(map, ours);
+    return who => claim(known(who) ?? layout(who));
+  }
   if (ours) {
     let porter = 0;
     return who => claim(who === "porter" ? s.porters[porter++ % s.porters.length]! : (s as unknown as Record<string, Tile2>)[who] ?? s.player);

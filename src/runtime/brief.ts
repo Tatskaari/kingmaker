@@ -84,6 +84,25 @@ export function presentCast(scene: Scene, state: SessionState): Character[] {
   return scene.cast.filter(c => state.entered?.includes(c.id) || (!state.absent?.includes(c.id) && (!c.enters || visited.has(c.enters))));
 }
 
+const TITLES = new Set(["the", "a", "an", "big", "old", "young", "little", "master", "mister", "mr", "mrs", "miss", "sergeant", "corporal", "captain", "marshal", "king", "queen", "sir", "lady", "lord", "dame"]);
+
+/**
+ * The cast the player has heard named: in anything said or shown so far (the hook, every reply,
+ * their own turns), by any part of the name that isn't a title. People without a `called` aren't
+ * tracked: they count as known.
+ */
+export function knownCast(scene: Scene, state: SessionState): Set<string> {
+  const heard = [scene.hook, ...state.transcript.filter(e => e.kind !== "roll").map(e => e.text)].join("\n");
+  const tokens = (c: Character) => [...c.name.split(/[\s-]+/), ...(c.aka ?? [])].map(t => t.replace(/[^\w']/g, "")).filter(t => t.length >= 3 && !TITLES.has(t.toLowerCase()));
+  return new Set(scene.cast.filter(c => !c.called || tokens(c).some(t => new RegExp(`\\b${t}\\b`).test(heard))).map(c => c.id));
+}
+
+/** What to call the cast whose names the player hasn't heard yet. */
+export function unnamed(scene: Scene, state: SessionState): Record<string, string> {
+  const known = knownCast(scene, state);
+  return Object.fromEntries(scene.cast.filter(c => c.called && !known.has(c.id)).map(c => [c.id, c.called!]));
+}
+
 export function offstageCast(scene: Scene, state: SessionState): Character[] {
   const present = new Set(presentCast(scene, state).map(c => c.id));
   return scene.cast.filter(c => !present.has(c.id));
@@ -189,6 +208,7 @@ export function nowNote(scene: Scene, state: SessionState, directive: string[], 
     .map(([id, note]) => `- ${scene.cast.find(c => c.id === id)?.name ?? id}: ${note}`);
   const spent = spentHere(state);
   const transitions = [...beat.transitions, ...(scene.anytime ?? [])].filter(t => !spent.has(t.id));
+  const strangers = Object.entries(unnamed(scene, state)).filter(([id]) => present.has(id)).map(([id, called]) => `- ${scene.cast.find(c => c.id === id)!.name}: "${called}"`);
   const parts = [
     `## Where the scene is now: ${beat.title}\n${beat.direction}`,
     // Cast notes are a beat's opening agenda: once voiced, re-sending them turns them into repeated lines.
@@ -203,6 +223,7 @@ export function nowNote(scene: Scene, state: SessionState, directive: string[], 
     ...(!state.closing && !state.pendingExit && (state.notes || state.whispers?.length) ? [`## Notes from your co-GM (for you, written a moment ago: let them shape what people do, but nobody recites them; if the player has since chosen otherwise, the player's choice wins)\n${[state.notes ?? "", ...(state.whispers ?? []).map(w => `- On ${scene.cast.find(c => c.id === w.to)?.name ?? w.to}'s mind: ${w.note}`)].filter(Boolean).join("\n")}`] : []),
     ...(state.canon.length || state.established.length ? [`## Details established in play (keep them true)\n${bullets([...state.established, ...state.canon])}`] : []),
     ...(playerNow(state) ? [playerNow(state)!] : []),
+    ...(strangers.length ? [`## Names the player hasn't heard yet\nUntil someone in the story says their name, the narration (and anyone who wouldn't know it) doesn't use it: call them what the player would.\n${strangers.join("\n")}`] : []),
     ...(state.world ? [`## The world right now\nWhere everyone and everything is, and what state it's in (ids in brackets). Keep to it, since it's updated after every reply: people and things are where it says, and what's destroyed, burning or gone stays that way until the story changes it. Details it doesn't list are yours to invent, consistent with it.\n${PHYSICS}\n\n${worldView(state.world)}`] : []),
     ...(directive.length ? [`## For this reply\n${directive.join("\n\n")}`] : []),
   ];

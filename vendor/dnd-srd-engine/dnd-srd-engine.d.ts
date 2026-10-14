@@ -123,6 +123,8 @@ export function loadStarterPack(): unknown;
 export const CharacterSchema: { parse(input: unknown): EngineCharacter };
 export function commit(campaign: Campaign, events: EngineEvent[]): Campaign;
 export function newEventId(): string;
+/** A bonus-action feature's intent ("second-wind", "rage", "bardic-inspiration"...), validated against the engine's list. */
+export function bonusActionIntent(optionId: string, characterId: string, options?: { targetId?: string; amount?: number }): { type: string; [key: string]: unknown };
 export function newCharacterId(): string;
 export function newItemInstanceId(): string;
 export function serializeCampaign(campaign: Campaign): string;

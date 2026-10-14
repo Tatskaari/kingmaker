@@ -80,7 +80,7 @@ def new_game(app, name, concept):
 
 
 def walk(app, plan):
-    """plan: 'right*6 down*9' """
+    """plan: 'right*6 down*9' (screen directions: up is up the screen)"""
     for part in plan.split():
         name, _, count = part.partition("*")
         for _ in range(int(count or 1)):
@@ -88,14 +88,22 @@ def walk(app, plan):
     app.pump(0.3)
 
 
+def to_lead(app, what, timeout=40):
+    """g: walk to the lead, a step at a time, until its scene opens."""
+    keys(app, "g", settle=0.5)
+    return expect(app, what, f"g walks to the lead and the scene opens ({what})", timeout=timeout)
+
+
 def fight(app):
     expect(app, r"Initiative", "combat: the initiative tracker", timeout=30)
-    for _ in range(120):
+    expect(app, r"Round \d", "the battlefield is drawn, the round is up")
+    for _ in range(200):
         screen = app.text()
         if "Press Enter to see what comes of it" in screen:
             break
         if "Your turn" in screen and "action ready" in screen:
-            keys(app, "a", settle=0.6)
+            # Let the dice decide (the fight's own AI plays the player's turn).
+            keys(app, "f", settle=0.8)
         elif "Your turn" in screen:
             keys(app, "e", settle=0.6)
         else:
@@ -108,21 +116,21 @@ def fight(app):
 def offline():
     app = launch()
     new_game(app, "Tamsin Vell", "a disgraced palace auditor with a ledger-keeper's eye and a borrowed rapier")
-    expect(app, r"Sergeant Agnes Kell", "Kell is about")
+    expect(app, r"Sergeant Kell", "Kell is about")
+    expect(app, r"Caerwyn.*The granary lane|The granary lane", "the map: the lane by the granary gate")
     keys(app, "?")
     expect(app, r"How to play", "help overlay")
     keys(app, "esc")
     keys(app, "c")
     expect(app, r"Character sheet.*Skills:", "sheet overlay")
     keys(app, "esc")
-    walk(app, "up*2")
-    expect(app, r"e Talk to Sergeant Kell", "Kell is in reach at the gate")
-    keys(app, "e")
-    expect(app, r"The Hanged Clerk ·", "the scene opens")
+    # A step with the arrows: up the screen, then back.
+    walk(app, "left right")
+    to_lead(app, r"The Hanged Clerk ·")
     expect(app, r"couldn't open the scene", "offline: the GM can't speak (expected)", timeout=40)
-    expect(app, r"The yard behind the King", "the scene's world is drawn in the sidebar")
+    expect(app, r"The yard behind the King", "the scene's place is drawn beside the transcript")
     say(app, "#map")
-    expect(app, r"╔═ The yard behind the King's Granary", "#map shows the scene's world")
+    expect(app, r"╔═ The yard behind the King's Granary", "#map shows the scene's place")
     keys(app, "esc")
     say(app, "#exits")
     expect(app, r"case-made", "the scene's exits are listed")
@@ -145,26 +153,26 @@ def offline():
     app = launch()
     expect(app, r"Continue.*Tamsin Vell", "Continue is offered on the title screen")
     keys(app, "enter")
-    expect(app, r"Evening.*The lead:.*Drowned Rat|The lead:.*Drowned Rat", "resumed on the map, heading for the Rat")
+    expect(app, r"The lead:.*Drowned Rat", "resumed on the map, heading for the Rat")
 
-    walk(app, "right*6 down*9 right")
-    expect(app, r"e Go down into the Drowned Rat", "at the Rat's door")
-    keys(app, "e")
-    expect(app, r"The Drowned Rat ·", "the Rat opens")
+    # Across town, down the river stairs and through the Rat's door, into the Rat: g all the way.
+    to_lead(app, r"The Drowned Rat ·", timeout=60)
     app.wait_for(r"couldn't open the scene", 40)
+    expect(app, r"The Drowned Rat", "the Rat's place is drawn")
     say(app, "#end hobb-talks")
     expect(app, r"The lead: The Heron Warehouse", "on to the Heron (the wharf interlude skipped)", timeout=60)
     keys(app, "enter")
-    walk(app, "down*2 right*45 up*2 right")
-    expect(app, r"e Try the Heron's land door", "at the Heron's land door")
-    keys(app, "e")
-    expect(app, r"The Heron Warehouse ·", "the Heron opens")
+    expect(app, r"Night", "night on the map")
+    to_lead(app, r"The Heron Warehouse ·", timeout=60)
     app.wait_for(r"couldn't open the scene", 40)
     say(app, "#end fight")
     expect(app, r"Roll for initiative!", "Roll for initiative!")
     keys(app, "enter")
-    expect(app, r"Initiative", "the fight starts")
-    # Quit mid-fight and Continue: the fight starts again from its setup.
+    expect(app, r"Initiative", "the fight starts on the Heron's own floor")
+    keys(app, "m")
+    expect(app, r"Your options", "the fight's options menu")
+    keys(app, "esc")
+    # Quit mid-fight and Continue: the fight carries on where it was.
     keys(app, "ctrl-c")
     app.pump(2)
     app.close()
@@ -177,7 +185,7 @@ def offline():
     expect(app, r"The Heron Warehouse ·.*The fight:", "after the fight, back to the Heron for its aftermath", timeout=60)
     say(app, "#end caught-in-the-act")
     expect(app, r"The King's Morning ·", "the King's morning opens straight away (a summons)", timeout=60)
-    app.wait_for(r"couldn't move on|Level up", 40)
+    app.wait_for(r"couldn't move on|Level up|couldn't open", 40)
     say(app, "#end justice")
     expect(app, r"How it went", "The End", timeout=60)
     expect(app, r"Hanged Clerk: The case is made", "the epilogue lists the chapters")
@@ -192,10 +200,7 @@ def offline():
 def live():
     app = launch()
     new_game(app, "Tamsin Vell", "a disgraced palace auditor with a ledger-keeper's eye, a sharp tongue and a borrowed rapier")
-    walk(app, "up*2")
-    expect(app, r"e Talk to Sergeant Kell", "Kell is in reach at the gate")
-    keys(app, "e")
-    expect(app, r"The Hanged Clerk ·", "the scene opens")
+    to_lead(app, r"The Hanged Clerk ·")
     # The opening narration streams in; when it's done the input is ready again.
     expect(app, r"Kell", "the GM's opening mentions Kell", timeout=90)
     app.wait_for(r"Say something or do something", 120)
@@ -216,16 +221,13 @@ def live():
     expect(app, r"Morning, Sergeant", "the scene resumes with its transcript", timeout=30)
     dump(app, "resumed")
     say(app, "#map")
-    expect(app, r"╔═ The yard behind the King's Granary", "#map shows the scene's world")
+    expect(app, r"╔═ The yard behind the King's Granary", "#map shows the scene's place")
     keys(app, "esc")
     # Across a real scene boundary: the hand-off and the boundary check are real model calls.
     say(app, "#end open-case")
     expect(app, r"The lead: The Drowned Rat", "the story moves on to the Drowned Rat", timeout=120)
     keys(app, "enter")
-    walk(app, "right*6 down*9 right")
-    expect(app, r"e Go down into the Drowned Rat", "at the Rat's door")
-    keys(app, "e")
-    expect(app, r"The Drowned Rat ·", "the Rat opens")
+    to_lead(app, r"The Drowned Rat ·", timeout=60)
     app.wait_for(r"Say something or do something", 150)
     dump(app, "rat-opening")
     keys(app, "ctrl-c")
@@ -246,28 +248,19 @@ def live_fight():
     keys(app, "enter")
     expect(app, r"Character sheet.*wizard|Character sheet.*sorcerer|Character sheet.*Spellcasting", "a spellcaster's sheet", timeout=90)
     keys(app, "enter")
-    walk(app, "up*2")
-    keys(app, "e")
-    expect(app, r"The Hanged Clerk ·", "the scene opens")
+    to_lead(app, r"The Hanged Clerk ·")
     app.wait_for(r"Say something or do something", 150)
-    # Not "case-made": the boundary takes a case made at the granary to overtake the Rat and the
-    # Heron (the Heron assumes Sallow is "unexposed"), and the story goes straight to the King.
-    say(app, "#end open-case")
+    say(app, "#end case-made")
     expect(app, r"The lead: The Drowned Rat", "on to the Drowned Rat", timeout=150)
     dump(app, "card-rat")
     keys(app, "enter")
-    walk(app, "right*6 down*9 right")
-    keys(app, "e")
-    expect(app, r"The Drowned Rat ·", "the Rat opens")
+    to_lead(app, r"The Drowned Rat ·", timeout=60)
     app.wait_for(r"Say something or do something", 150)
     say(app, "#end hobb-talks")
     expect(app, r"The lead: The Heron Warehouse", "on to the Heron", timeout=150)
     dump(app, "card-heron")
     keys(app, "enter")
-    walk(app, "down*2 right*45 up*2 right")
-    expect(app, r"e Try the Heron's land door", "at the Heron's land door")
-    keys(app, "e")
-    expect(app, r"The Heron Warehouse ·", "the Heron opens")
+    to_lead(app, r"The Heron Warehouse ·", timeout=60)
     app.wait_for(r"Say something or do something", 150)
     dump(app, "heron-opening")
     say(app, "#end fight")
@@ -279,7 +272,7 @@ def live_fight():
     expect(app, r"Cast a spell", "the spell picker")
     dump(app, "spells")
     keys(app, "enter", settle=1.5)
-    expect(app, r"Cast .* on ", "a spell is cast at the target", timeout=20)
+    expect(app, r"You cast ", "a spell is cast at the target", timeout=20)
     dump(app, "cast")
     keys(app, "ctrl-c")
     app.pump(1)

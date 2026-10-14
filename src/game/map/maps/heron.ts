@@ -53,7 +53,7 @@ export const heron: MapDef = buildMap({
   regions: [
     { id: "heron", name: "the Heron", rect: { x: 0, y: 0, w: 23, h: 19 }, sceneId: "heron-warehouse", worldOrigin: { x: 2, y: 1 }, trigger: "enter", label: "Creep along the wharf to the Heron",
       description: "A tall, tarred timber warehouse standing half on the wharf and half on piles over the river, with a painted heron on its signboard." },
-    { id: "heron-wharf-end", name: "the wharf outside the Heron", rect: { x: 0, y: 1, w: 8, h: 9 }, description: "The end of the wharf, where the lamps give out: Saul's sentry box and brazier by the land door, and the dark." },
+    { id: "heron-wharf-end", name: "the wharf outside the Heron", rect: { x: 0, y: 1, w: 8, h: 9 }, description: "The end of the wharf, where the lamps give out: the watchman's sentry box and brazier by the land door, and the dark." },
     { id: "heron-floor", name: "the re-sacking floor", rect: { x: 9, y: 3, w: 10, h: 10 }, description: "One long floor lit by lanterns and thick with grain dust, which hangs in the light like fog." },
     { id: "counting-box", name: "the counting-box", rect: { x: 16, y: 3, w: 3, h: 3 }, description: "A glass-sided box up a short stair, over the floor: a desk, a lamp, and the true book under a clerk's hand." },
     { id: "plank-walk", name: "the plank walk", rect: { x: 7, y: 10, w: 8, h: 5 }, description: "A slippery plank walk on the piles, round to the river door. The river runs fast and black underneath." },

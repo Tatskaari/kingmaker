@@ -82,7 +82,7 @@ export const wharfNight = interlude({
   setting: "The river stairs and the wharves after dark, before the midnight bells: the river high and black, fog coming off it, barge lanterns, night porters going down to the shifts, eel-sellers packing up, the bunting above gone grey in the dark, and downriver the painted heron of the last warehouse, its hoist working.",
   where: "outside on the river stairs, the Drowned Rat behind them",
   flavour: "the docks at night (the river high and black, fog, barge lanterns, the night shift going down, the Heron's hoist working downriver).",
-  lead: "The Heron warehouse, at the downriver end of the wharves, is loading a barge tonight, and the gentleman comes at midnight to see it off.",
+  lead: "The Heron warehouse, at the downriver end of the wharves, is loading a barge tonight that sails on the ebb at the second bell after midnight; if Hobb talked, the gentleman comes at midnight to see it off.",
   onward: "the Heron warehouse",
   next: "heron-warehouse",
   time: "night",
@@ -91,6 +91,6 @@ export const wharfNight = interlude({
   overtaken: "heron-warehouse",
   limits: [
     "Going anywhere else tonight (the palace, home, the watch house): the barge sails on the ebb after midnight, and whatever is in the Heron goes with it.",
-    "More help: the watch is out on the Assembly route and the night patrol is three streets away; Kell's whistle is the only help in reach.",
+    "More help: the whole watch is lining the Assembly route through the night, the river watch with it, and Kell's whistle brings nobody but Kell.",
   ],
 });

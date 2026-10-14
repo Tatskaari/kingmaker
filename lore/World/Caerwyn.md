@@ -25,7 +25,7 @@ The King's city, where the King's Road meets the river: grain comes in by road a
 **The rules, and who keeps them**
 - The City Watch keeps the King's peace in the streets. Officers of the royal household answer to the palace: the watch may not lay hands on one without a warrant under the royal seal, unless he's caught in the act.
 - The river stairs are the river watch's patch.
-- The palace bells ring the hours and the half hours for the whole city.
+- The palace bells ring the hours, the half hours and the quarters for the whole city.
 - The Mending House takes in strays and wayward children and mends them with porridge, hymns and picking oakum. Every granary rat would sooner take their chances with the goblins.
 
 **Everyday things**

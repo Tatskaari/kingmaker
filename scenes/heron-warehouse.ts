@@ -87,7 +87,8 @@ export const heronWarehouse: Scene = {
     {
       id: "saul",
       name: "Saul Tench",
-      statblock: "guard", weapon: "spear",
+      called: "the old watchman",
+      statblock: "guard", weapon: "club",
       look: "An old river-watchman in a greatcoat over a dozen other coats, a red muffler wound round his head over his left ear, a lantern, a rattle, and a cudgel he mostly uses to poke his brazier. At his feet, or across the land door's threshold, lies Duchess: a vast, elderly brindle mastiff with a face like a collapsed sofa, who snores, drools and has opinions about smells.",
       voice: "Loud, because he can't hear himself on the left. Talks to Duchess more than to people, and answers for her ('She says you smell of sausage'). Repeats things back ('A buyer, you say?'). Ends sentences with 'and all's well', out of forty years' habit, whether it is or not.",
       wants: "A quiet night by his brazier and his place kept: the Heron pays three times what the river watch did, and on loading nights nobody comes in at the land door but the Master. And, though he'd never say it, to see the Master get what's coming to him for kicking Duchess, as long as it isn't Saul who has to do it.",
@@ -109,6 +110,8 @@ export const heronWarehouse: Scene = {
     {
       id: "hep",
       name: "Hepzibah Grist",
+      called: "the forewoman with the sack-needle",
+      aka: ["Hep"],
       statblock: "tough", weapon: "dagger",
       group: "Hep Grist and her re-sacking gang, six porters in grain-white with knives and sack-needles",
       look: "A broad woman in a leather apron with a sack-needle stuck through her collar and a knife on a cord, floured white to the elbows, with a voice like a winch. Her gang work fast, heads down, and don't talk.",
@@ -131,6 +134,7 @@ export const heronWarehouse: Scene = {
     {
       id: "scrope",
       name: "Mister Lemuel Scrope",
+      called: "the clerk in the counting-box",
       statblock: "commoner", weapon: "unarmed-strike",
       look: "A narrow, stooped clerk in rusty black, with sleeve-guards, a green eyeshade and a pen behind each ear, up a short stair in the glass-sided counting-box over the floor. The true book, a fat ledger bound in green calf with a brass clasp, lies open under his left hand, which never leaves it.",
       voice: "A dry murmur of figures. Talks in double entry ('That doesn't balance'). Apologises to the book when he blots it. Calls murder 'an irregularity', if he must call it anything. 'Forty received, forty entered. I beg your pardon,' (to the book, blotting).",
@@ -153,6 +157,7 @@ export const heronWarehouse: Scene = {
     {
       id: "hobb",
       name: "Big Hobb Mallory",
+      called: "the big porter with the bandaged hand",
       statblock: "tough", weapon: "unarmed-strike",
       look: "A dock-porter the size of a door, with a head like a bollard, a nose broken more than once and a leather porter's hood. His right hand is wrapped in a tarry rag, and he works the hoist one-handed, wincing. Where he is tonight follows from how the Drowned Rat ended: on the hoist with Hep's gang as usual; in the watch-house cells if Kell took him in (then he isn't here at all, and the gang is a man shorter); or, if he ran from the Rat to warn his master, with the Master, and he comes in at his heels at the midnight bell.",
       voice: "Slow, low and polite: 'sir', 'missus', and 'Master', which he can't stop saying. Says as little as he can; when it spills, it's how he feels, not how anything works. When frightened he goes very quiet and very still, like a dray-horse in thunder.",
@@ -170,6 +175,7 @@ export const heronWarehouse: Scene = {
     {
       id: "sallow",
       name: "Master Josiah Sallow",
+      called: "the gentleman with the silver-topped cane",
       group: "Master Sallow, his lantern-boy and the Crake brothers, two hired river-bruisers",
       statblock: "bandit-captain", weapon: "rapier",
       members: [
@@ -189,7 +195,7 @@ export const heronWarehouse: Scene = {
       ],
       secrets: [
         "Shows: lavender a minute before him, and more of it the more he's frightened; he finds fault with something the moment he's in (a seam, a count, a smell). Torn: he'd never admit to a crime, and he can't bear to be thought incompetent. Opens: nothing makes him confess to the murder, but get his arrangements wrong in front of him ('lost to goblins, was it? Careless of somebody'; 'the page was in his boot all along') and he corrects the record, in detail, before he can stop himself. First: 'Nothing has ever been lost on my roads through carelessness. Only through goblins.'",
-        "What he knows tonight follows from the day. If Prout went into the Captain's book as a murder this morning, the Captain mentioned it to him at the palace, without fuss: he's wary, the Crakes walked the wharf with a lantern before he came, and there are two lanterns at the land door where there's usually one. If Hobb ran to him from the Rat, he's warned: he comes at the bell sharp and hurrying with Hobb at his heels, wants the true book sewn into oilcloth and aboard the barge before anything else, and has decided that Hobb, who panicked once, is a loose end: when the last sack is down, the Crakes are to walk him home along the wharf, by the water. Otherwise he's unhurried and bored.",
+        "What he knows tonight follows from the day. If Prout went into the Captain's book as a murder this morning, with no granary child taken in for it, the Captain mentioned it to him at the palace, without fuss: he's wary, the Crakes walked the wharf with a lantern before he came, and there are two lanterns at the land door where there's usually one. If Hobb ran to him from the Rat, he's warned: he comes at the bell sharp and hurrying with Hobb at his heels, wants the true book sewn into oilcloth and aboard the barge before anything else, and has decided that Hobb, who panicked once, is a loose end: when the last sack is down, the Crakes are to walk him home along the wharf, by the water. Otherwise he's unhurried and bored.",
         "He killed Wendell Prout in the tally loft last night: a blow from the cane head, then a cord, while Hobb held the clerk's arms. Then Hobb hoisted him for a suicide, a granary girl was paid a crown to swear she saw him jump, and the Captain closed it. He will never admit it, except to someone he believes is about to die.",
         "If Kell says Prout went through the proper channels, his pride answers before his sense does: 'He did, Sergeant. I am the proper channels.' (Prout wrote to the Royal Purveyor, and Sallow opens the Royal Purveyor's letters.)",
         "The racket: King's Road grain wagons that he writes off in the Granary Roll as 'lost to goblins' come here to be re-sacked under the Saltmere factor's heron and sold downriver. He pays the hedge-goblins in the factor's heron pennies to keep the goblin story true.",
@@ -506,7 +512,7 @@ export const heronWarehouse: Scene = {
     "The bargees (Saltmere river-folk aboard the Patience): they speak little Caerwyn, care about the tide and nothing else, and won't hold it for anyone. They don't know or care whose grain it is.",
     "The Saltmere factor who buys the grain: he never comes to Caerwyn. The heron mark is his, and that's all there is of him tonight.",
     "Following the barge once she's gone (a boat, the towpath): there's no boat to be had on the wharves on Assembly eve, and the towpath ends at the city wall. Once the Patience is out on the ebb, she's gone.",
-    "Coming back tomorrow: the barge sails on the ebb at the second bell, and by morning the Heron will be swept and empty and the Assembly procession will fill the wharves. It happens tonight or not at all.",
+    "Coming back tomorrow: the barge sails on the ebb at the second bell, and by morning the Heron will be swept and empty and the docks will be shut for the procession. It happens tonight or not at all.",
   ],
   anchors: ["wharf", "land-door", "sentry-box", "plank-walk", "river-door", "heron-floor", "counting-box", "chute", "hoist", "barge", "river"],
   lore: ["Places/Heron Warehouse.md", "World/Caerwyn now.md"],

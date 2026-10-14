@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { sceneById } from "../../scenes/index.ts";
 import { chainScene, createSession, forceEnding, openScene, playerTurn, resumeAfterFight, type TurnHooks } from "../runtime/engine.ts";
 import { afterTurn } from "../runtime/background.ts";
-import { loadSession, saveSession, sessionDir, type Entry, type SessionState } from "../runtime/session.ts";
+import { loadSession, saveSession, sessionDir, snapshotSession, type Entry, type SessionState } from "../runtime/session.ts";
 import type { CombatResult, StoryState } from "./types.ts";
 
 /**
@@ -46,7 +46,14 @@ export interface Explorer {
   actions(game: GameState, session: SessionState): Action[];
   /** Do it; `scene: true` when it opens the story's lead scene. */
   act(game: GameState, session: SessionState, id: string): { text: string; scene?: boolean };
-  /** A scene has ended: bring the explorer up to date (who went where, what burned). */
+  /** A scene is opening (walked into, or a summons that came to the player): go into its place. */
+  enterScene?(game: GameState, session: SessionState): void;
+  /**
+   * A scene has ended, before the story moves on: its world is still there (who went where, what
+   * burned), and chainScene is about to drop it.
+   */
+  leaveScene?(game: GameState, session: SessionState): void;
+  /** The story has moved on (the next lead, the time of day, or the end): bring the explorer up to date. */
   afterScene?(game: GameState, session: SessionState): void;
 }
 
@@ -95,6 +102,9 @@ export class Game {
 
   static exists(id: string): boolean { return existsSync(gameFile(id)); }
 
+  /** The fight in progress, for a UI that draws it (the QA console reads it through observe()). */
+  get currentFight(): Fight | undefined { return this.fight; }
+
   static load(id: string, explorer: Explorer, fights: FightFactory): Game {
     const session = loadSession(id);
     const state = JSON.parse(readFileSync(gameFile(id), "utf8")) as GameState;
@@ -117,8 +127,11 @@ export class Game {
         const scene = sceneById(this.session.sceneId);
         return { mode: "scene", text: `${recent}[${scene.title}, ${this.state.story.time.replace("-", " ")}]\n\n${sceneView(this.session)}`, actions: [], hint: "You're in a scene: say what your character says or does." };
       }
-      case "combat":
-        return { mode: "combat", text: `${recent}${this.fight?.observe() ?? ""}`, actions: this.fight?.actions() ?? [] };
+      case "combat": {
+        const over = this.fight?.result();
+        return { mode: "combat", text: `${recent}${this.fight?.observe() ?? ""}${over ? `\n\nHow it went: ${over.summary}` : ""}`,
+          actions: over ? [{ id: "continue", label: "See what comes of it (the scene picks up from the fight)", kind: "fight" }] : this.fight?.actions() ?? [] };
+      }
       case "end":
         return { mode: "end", text: `${recent}The End.`, actions: [] };
     }
@@ -134,11 +147,18 @@ export class Game {
       return text;
     }
     if (this.state.mode === "combat" && this.fight) {
+      // The fight is over and the player has seen how: the scene picks up from it.
+      const over = this.fight.result();
+      if (over) {
+        if (id !== "continue") throw new Error(`The fight is over: "continue" to see what comes of it.`);
+        const text = await this.afterFight(over, hooks);
+        this.save();
+        return text;
+      }
       const text = await this.fight.act(id);
       const result = this.fight.result();
-      const after = result ? `\n\n${await this.afterFight(result, hooks)}` : "";
       this.save();
-      return `${text}${after}`;
+      return result ? `${text}\n\nThe fight is over: ${result.summary}` : text;
     }
     throw new Error(this.state.mode === "scene" ? "You're in a scene: say something instead." : "The story is over.");
   }
@@ -160,6 +180,19 @@ export class Game {
   async endScene(exitId: string, hooks: TurnHooks = {}): Promise<string> {
     if (this.state.mode !== "scene") throw new Error("Not in a scene.");
     forceEnding(this.session, exitId);
+    // As a scene that ends in play is: its last snapshot is the one with its ending (the notebook reads it).
+    snapshotSession(this.session);
+    const text = await this.afterScene(hooks);
+    this.save();
+    return text;
+  }
+
+  /**
+   * A scene that has ended but whose story hasn't moved on yet (a game quit in between, or a turn
+   * that failed after the ending): carry on from there. Nothing to do otherwise.
+   */
+  async carryOn(hooks: TurnHooks = {}): Promise<string> {
+    if (this.state.mode !== "scene" || !this.session.ended) return "";
     const text = await this.afterScene(hooks);
     this.save();
     return text;
@@ -169,6 +202,7 @@ export class Game {
     const scene = sceneById(this.session.sceneId);
     this.state.mode = "scene";
     this.state.story.time = scene.time ?? this.state.story.time;
+    this.explorer.enterScene?.(this.state, this.session);
     const entries = await openScene(this.session, hooks);
     return `— ${scene.title} —\n\n${render(this.session, entries)}`;
   }
@@ -177,12 +211,15 @@ export class Game {
   private async afterScene(hooks: TurnHooks): Promise<string> {
     const scene = sceneById(this.session.sceneId);
     const exit = scene.exits.find(e => e.id === this.session.ended?.exitId);
-    this.state.story.played.push(scene.id);
+    // A fight is part of its scene: the scene picks up again afterwards, in the same place.
     if (exit?.kind === "combat") {
       this.state.mode = "combat";
       this.fight = await this.fights.start(this.state, this.session);
       return `Roll for initiative!\n\n${this.fight.observe()}`;
     }
+    if (!this.state.story.played.includes(scene.id)) this.state.story.played.push(scene.id);
+    // The explorer keeps what the scene did to its place before chainScene drops the world.
+    this.explorer.leaveScene?.(this.state, this.session);
     return this.onward("", hooks);
   }
 
@@ -198,11 +235,17 @@ export class Game {
 
   private async onward(combatResult: string, hooks: TurnHooks): Promise<string> {
     const chained = await chainScene(this.session, combatResult || "the party won", { skipInterludes: true });
-    this.explorer.afterScene?.(this.state, this.session);
-    if (!chained) { this.state.mode = "end"; delete this.state.story.lead; return "The End."; }
+    if (!chained) {
+      this.state.mode = "end";
+      delete this.state.story.lead;
+      this.explorer.afterScene?.(this.state, this.session);
+      return "The End.";
+    }
     const next = sceneById(this.session.sceneId);
     this.state.story.lead = next.id;
     this.state.story.time = next.time ?? this.state.story.time;
+    // The time of day, the lead and who walks with the player move on with the story.
+    this.explorer.afterScene?.(this.state, this.session);
     // A scene that comes to the player (a summons the next morning) opens straight away.
     if (next.time === "next-morning") return this.beginScene(hooks);
     this.state.mode = "explore";
