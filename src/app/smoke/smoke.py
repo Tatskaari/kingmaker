@@ -183,6 +183,8 @@ def offline():
     # The scene picks up from the fight (its aftermath: offline the GM can't tell it), then the
     # King's summons opens the next morning straight away.
     expect(app, r"The Heron Warehouse ·.*The fight:", "after the fight, back to the Heron for its aftermath", timeout=60)
+    # The aftermath is a model call (offline it fails): the input takes nothing until it's done.
+    expect(app, r"couldn't tell the aftermath", "offline: the GM can't tell the aftermath (expected)", timeout=60)
     say(app, "#end caught-in-the-act")
     expect(app, r"The King's Morning ·", "the King's morning opens straight away (a summons)", timeout=60)
     app.wait_for(r"couldn't move on|Level up|couldn't open", 40)
