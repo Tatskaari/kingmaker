@@ -1,0 +1,105 @@
+[
+  {
+    "id": "wr-yard-sneak",
+    "scene": "hanged-clerk",
+    "as": "Pell Ambry: a wiry gnome wizard and retired locksmith, nosy, light-fingered and unfailingly polite",
+    "level": 5,
+    "seed": 101,
+    "turns": [
+      "I wander over to the water butt in the far corner of the yard and have a look behind it.",
+      "I get down on my knees and wriggle through the loose board into whatever is behind it.",
+      "I have a good look round up here, then lift the bar off the loft door and push it open so I can see down into the yard.",
+      "I pick up the smashed lantern from the floor and tuck it into my coat.",
+      "I lean out of the loft door and call down: \"Sergeant! Up here, and mind the board behind the water butt, it's a squeeze.\"",
+      "I perch on the edge of the tally desk and wait for her, turning the lantern over in my hands."
+    ]
+  },
+  {
+    "id": "wr-cob-boots",
+    "scene": "hanged-clerk",
+    "as": "Hal Brennick: a big, slow-spoken half-orc fighter, ex-docker, kind to children and terrible at whispering",
+    "level": 5,
+    "seed": 202,
+    "turns": [
+      "I walk over to the boy under the body, crouch down to his height and say, \"Nice boots. Bit big for you, aren't they?\"",
+      "I take a copper penny out and hold it up. \"Swap you the penny for a look at the left boot. Just a look.\"",
+      "I put the penny in his palm and hold out my hand for the boot.",
+      "I turn the boot over, run my thumb along the lining and pick open the stitching where it crackles.",
+      "I hand the page to Kell to read, and give the boot back to the boy.",
+      "The girl on the wall looks ready to bolt. I step across to stand in the gateway, blocking it."
+    ]
+  },
+  {
+    "id": "wr-moll-coin",
+    "scene": "hanged-clerk",
+    "as": "Sabine Marchetti: a brisk human cleric of the Lawgiver, former magistrate's clerk, allergic to nonsense",
+    "level": 5,
+    "seed": 303,
+    "turns": [
+      "I walk over to the yard wall and look up at the girl. \"That's a nice bit of silver in your fist. Where does a wall-sitter get a wheat-ear crown?\"",
+      "I reach up and pluck the coin out of her fingers before she can close them.",
+      "I hand the coin to Kell. \"Evidence, Sergeant. Bag it.\"",
+      "\"Sergeant, would you go to the palace and fetch the warden's key for these doors? I'll mind the yard.\"",
+      "I go and try the padlock on the granary's big yard doors.",
+      "I sit down on the cobbles with my back against the doors and wait."
+    ]
+  },
+  {
+    "id": "wr-fire-yard",
+    "scene": "hanged-clerk",
+    "as": "Corvin Lark: a theatrical tiefling wizard who believes every problem is a stage that needs better lighting",
+    "level": 5,
+    "seed": 404,
+    "turns": [
+      "I climb up onto the yard wall and sit next to the girl, legs dangling.",
+      "I hop down into the lane, stroll to the far end of it, turn round and cast Fireball at the old elm.",
+      "I run back into the yard to the water butt, fill my hat and throw it over the burning branches hanging into the yard.",
+      "\"Sergeant, help me tip the water butt over against the wall to soak the bottom of the tree!\"",
+      "I check on the girl."
+    ]
+  },
+  {
+    "id": "wr-rat-chair",
+    "scene": "drowned-rat",
+    "as": "Oriel Vance: a fastidious elf wizard and former royal archivist who disapproves of everything",
+    "level": 5,
+    "seed": 505,
+    "turns": [
+      "I walk up to the bar, set a silver penny on the skiff hull and ask the landlady for a half measure of gossip.",
+      "I take my drink over to the champion's chair by the fire and sit in it.",
+      "\"If anyone wants this chair back, they may ask nicely.\" I put my feet up on the corner of the card table.",
+      "I cast Fire Bolt at the eel traps hanging over the long table, to make a point about fire safety.",
+      "I point at the ale keg. \"Well, don't just stand there, throw that on it!\"",
+      "I stand up and bow to the room."
+    ]
+  },
+  {
+    "id": "wr-rat-hobb",
+    "scene": "drowned-rat",
+    "as": "Hal Brennick: a big, slow-spoken half-orc fighter, ex-docker, kind to children and terrible at whispering",
+    "level": 5,
+    "seed": 606,
+    "turns": [
+      "I go and sit at the long table with the regulars and buy a round for the bench.",
+      "I stand up and challenge the big man in the corner to an arm-wrestle for the champion's chair, loud enough for the whole room.",
+      "I roll up my sleeve, sit down opposite him at the corner table and plant my elbow on it.",
+      "While everyone's watching the corner, I slip away into the scullery to look for the boy.",
+      "I open the slop hatch and look down at the river.",
+      "\"Cob? It's all right, lad. Kell sent me. Come on out.\""
+    ]
+  },
+  {
+    "id": "wr-rat-bar",
+    "scene": "drowned-rat",
+    "as": "Nimby Fox: a halfling rogue with sticky fingers and a face like a choirboy",
+    "level": 5,
+    "seed": 707,
+    "turns": [
+      "I slip behind the skiff-hull bar while the landlady's back is turned and crouch down out of sight.",
+      "Still crouching, I find the jar marked FOREIGN, take out one of the heron pennies and pocket it.",
+      "I stand up, put the jar on the bar and say, \"You've been taking foreign silver, Mrs Quill. Heron pennies.\"",
+      "I take Manners off its nails and hold it out to her, handle first. \"Before you reach for it. I'm not here for a fight.\"",
+      "I walk over to the table by the door and sit down across from the man with the bandaged elbow."
+    ]
+  }
+]

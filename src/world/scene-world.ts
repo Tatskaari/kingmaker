@@ -245,6 +245,39 @@ export function spotNear(world: SceneWorld, target: string, feet = 5, away?: Poi
 const sideScore = (centre: Point, away: Point, angle: number) => (Math.cos(angle) * (centre.x - away.x) + Math.sin(angle) * (centre.y - away.y));
 
 /**
+ * `feet` from something, inside the mover's area (areas stand in for walls: backing off down the
+ * lane doesn't put you in the loft): on the side they already are, else wherever there's room;
+ * as far as the area allows when it's too small.
+ */
+export function awayFrom(world: SceneWorld, e: Entity, from: Entity, feet: number): Point {
+  const origin = positionOf(world, from.id)!;
+  const cur = positionOf(world, e.id) ?? origin;
+  const area = areaOf(world, e.id);
+  const r = area?.rect ?? world.entities[world.root]!.rect!;
+  const inside = (p: Point) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+  const room = (angle: number) => { let d = 0; while (d < 200 && inside({ x: origin.x + (d + 1) * Math.cos(angle), y: origin.y + (d + 1) * Math.sin(angle) })) d++; return d; };
+  const gap = (a: number, b: number) => { const d = Math.abs(a - b) % (2 * Math.PI); return d > Math.PI ? 2 * Math.PI - d : d; };
+  const preferred = distance(cur, origin) > 1 ? Math.atan2(cur.y - origin.y, cur.x - origin.x) : undefined;
+  const angles = Array.from({ length: 32 }, (_, i) => (i * Math.PI) / 16)
+    .sort((a, b) => preferred !== undefined ? gap(a, preferred) - gap(b, preferred) : room(b) - room(a));
+  for (const a of angles) {
+    const p = { x: Math.round(origin.x + feet * Math.cos(a)), y: Math.round(origin.y + feet * Math.sin(a)) };
+    if (inside(p)) return p;
+  }
+  const corners = [[0, 0], [1, 0], [0, 1], [1, 1]].map(([i, j]) => ({ x: r.x + i! * r.w, y: r.y + j! * r.h }));
+  return corners.sort((a, b) => distance(b, origin) - distance(a, origin))[0]!;
+}
+
+/** `feet` closer to something, stopping short of walking into it. */
+export function toward(world: SceneWorld, e: Entity, to: Entity, feet: number): Point {
+  const target = positionOf(world, to.id)!;
+  const cur = positionOf(world, e.id) ?? target;
+  const d = distance(cur, target);
+  const step = Math.max(0, Math.min(feet, d - 3));
+  return d ? { x: Math.round(cur.x + ((target.x - cur.x) / d) * step), y: Math.round(cur.y + ((target.y - cur.y) / d) * step) } : cur;
+}
+
+/**
  * Who and what a spell's area catches: a sphere or cube around a point, a cone or line from the
  * caster towards it. (No walls or cover yet: the map will add those.)
  */
@@ -292,7 +325,9 @@ export function select(world: SceneWorld, selector: string): Entity[] {
     const exact = world.entities[s] ?? all.find(e => e.id.toLowerCase() === key) ?? all.find(e => e.name.toLowerCase().replace(/^the /, "") === key);
     if (exact) return [exact];
     const loose = all.filter(e => e.kind !== "place" && e.name.toLowerCase().includes(key));
-    return loose.length ? [loose.sort((a, b) => a.name.length - b.name.length)[0]!] : [];
+    if (loose.length) return [loose.sort((a, b) => a.name.length - b.name.length)[0]!];
+    const best = byWords(all.filter(e => e.kind !== "place"), s);
+    return best ? [best] : [];
   }
   let picked = all.filter(e => e.kind !== "place" && e.kind !== "area");
   for (const term of s.replace(/^all\s*/i, "").split(/\s+/).filter(Boolean)) {
@@ -314,14 +349,46 @@ export function select(world: SceneWorld, selector: string): Entity[] {
   return picked;
 }
 
+const STOP_WORDS = new Set(["the", "a", "an", "of", "and", "with", "his", "her", "their", "its", "s", "by", "to", "in", "on", "at"]);
+const wordsOf = (t: string) => t.toLowerCase().replace(/[’']s\b/g, "").replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(w => w && !STOP_WORDS.has(w));
+
+/**
+ * A model's way of naming things: no article or possessive, words in any order ("granary yard
+ * doors" is "the granary's yard doors"). Only a clear winner counts: a guess would put things in
+ * the wrong place, and a selector that matches nothing is reported back as a problem.
+ */
+function byWords(candidates: Entity[], text: string): Entity | undefined {
+  const want = wordsOf(text);
+  if (!want.length) return undefined;
+  const scored = candidates.map(e => {
+    const have = new Set([...wordsOf(e.name), ...wordsOf(e.id.replace(/-/g, " "))]);
+    const hits = want.filter(w => have.has(w) || [...have].some(h => h.length > 3 && w.length > 3 && (h.startsWith(w) || w.startsWith(h)))).length;
+    return { e, score: hits / want.length, size: have.size };
+  }).filter(x => x.score > 0).sort((a, b) => b.score - a.score || a.size - b.size);
+  const [best, next] = scored;
+  return best && best.score >= 0.6 && !(next && next.score === best.score && next.size === best.size) ? best.e : undefined;
+}
+
+const PLACE_WORDS: Record<string, string> = { near: "near", by: "near", at: "near", beside: "beside", next: "beside", behind: "behind", under: "under", beneath: "under", on: "on", onto: "on", in: "in", into: "in", inside: "in", between: "near" };
+/** "beside moll", "behind the bar", "between cob and the gate": a where written into "to" instead of "how". */
+function placeIn(world: SceneWorld, to: string, how: string): { to: string; how: string } {
+  if (select(world, to).length) return { to, how };
+  const m = /^(near|by|at|beside|next to|behind|under|beneath|on|onto|in|into|inside|between)\s+(.+)$/i.exec(to.trim());
+  if (!m) return { to, how };
+  const target = m[1]!.toLowerCase() === "between" ? m[2]!.split(/\s+and\s+/i)[0]! : m[2]!;
+  return { to: target, how: how || PLACE_WORDS[m[1]!.toLowerCase().split(" ")[0]!]! };
+}
+
 export interface WorldOp {
-  op: "move" | "place" | "give" | "drop" | "create" | "state" | "note" | "remove" | "destroy" | "ignite" | "douse" | "spill" | "chill" | "bleed" | "break";
+  op: "move" | "place" | "give" | "drop" | "create" | "state" | "note" | "forget" | "remove" | "destroy" | "ignite" | "douse" | "spill" | "chill" | "bleed" | "break";
   /** What it acts on: a selector. */
   what: string;
   /** Where or to whom: a selector (an area, a person, a thing to be near). */
   to: string;
-  /** For place: near, behind, beside, under, on, in. */
+  /** For place: near, behind, beside, under, on, in; or away (from "to") and toward (it), by `feet`. */
   how: string;
+  /** For place away/toward: how far ("thirty feet back down the lane"). */
+  feet?: number;
   /** For create: its name and kind. */
   name: string;
   kind: string;
@@ -348,11 +415,12 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
   for (let op of ops) {
     try {
       if (op.op === "spill") {
-        const liquid = (["water", "oil", "spirits", "ale", "blood", "grease"].find(l => op.what.toLowerCase().includes(l)) ?? "water") as Liquid;
+        const said = `${op.name ?? ""} ${op.what ?? ""}`.toLowerCase();
+        const liquid = (["water", "oil", "spirits", "ale", "blood", "grease"].find(l => said.includes(l)) ?? "water") as Liquid;
         const where = op.to ? one(op.to, "spill") : world.entities.player;
         const at = where ? positionOf(world, where.id) : undefined;
         if (!at) { problems.push(`spill: nowhere to spill ${op.what}`); continue; }
-        changes.push(`${liquid} spilled by ${where!.name}`, ...spill(world, liquid, at, Math.max(2, Math.min(10, op.quantity || 3)), turn).lines);
+        changes.push(`${liquid} spilled by ${where!.name}`, ...spill(world, liquid, at, Math.max(2, Math.min(10, op.feet || op.quantity || 3)), turn).lines);
         continue;
       }
       if (op.op === "create") {
@@ -378,11 +446,22 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
       if (!targets.length) { problems.push(`${op.op}: nothing matches "${op.what}"`); continue; }
       for (const e of targets) {
         if (op.op === "move" || op.op === "place") {
-          const dest = one(op.to, op.op);
+          const where = placeIn(world, op.to, op.how);
+          const dest = one(where.to, op.op);
           if (!dest) continue;
           // Where they started, and where they were hiding, no longer holds once they move.
-          e.notes = e.notes.filter(n => n.by !== "author" && !/^(behind|under|on|in|beside) /.test(n.text));
-          const how = op.how || "near";
+          e.notes = e.notes.filter(n => n.by !== "author" && !/^(behind|under|on|in|beside) /i.test(n.text));
+          const how = where.how || "near";
+          // A distance: "thirty feet back down the lane", which decides who a Fireball at the elm catches.
+          if (how === "away" || how === "toward") {
+            e.at = how === "away" ? awayFrom(world, e, dest, op.feet || 30) : toward(world, e, dest, op.feet || 10);
+            e.parent = areaAt(world, e.at).id;
+            log(`${e.name} is ${feetBetween(world, e.id, dest.id)} ft from ${dest.name}`);
+            continue;
+          }
+          // Saying where someone already is isn't a move: "Kell is in the doorway" mustn't scatter her
+          // to a random spot in it, nor "by the bar" shuffle someone already at the bar.
+          if (!heldBy(world, e) && ((dest.kind === "area" || dest.kind === "place") ? areaOf(world, e.id)?.id === dest.id : how === "near" && (feetBetween(world, e.id, dest.id) ?? Infinity) <= 5)) continue;
           if (dest.kind === "area" || dest.kind === "place") { e.parent = dest.id; e.at = spread(world, dest, e.id); log(`${e.name} moves to ${dest.name}`); }
           else if (how === "in" || how === "on" || how === "under") {
             if (how === "in") {
@@ -443,6 +522,12 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
           const also = op.to ? one(op.to, "note") : undefined;
           if (also) note(also, op.text, turn, by);
           log(`note on ${e.name}${also ? ` and ${also.name}` : ""}: ${op.text}`);
+        } else if (op.op === "forget") {
+          // Notes that have stopped being true ("lobbing stones at the body" once he's dropped them):
+          // those containing the text, or all but the rules' when there's none.
+          const before = e.notes.length;
+          e.notes = e.notes.filter(n => n.by === "rules" || (op.text ? !n.text.toLowerCase().includes(op.text.toLowerCase()) : false));
+          if (e.notes.length < before) changes.push(`forgot ${before - e.notes.length} note${before - e.notes.length === 1 ? "" : "s"} on ${e.name}`);
         } else if (op.op === "remove") {
           e.states = [...e.states.filter(s => s !== "gone"), "gone"];
           if (op.text) note(e, op.text, turn, by);
@@ -470,7 +555,8 @@ function note(e: Entity, text: string, turn: number, by: Note["by"]): void {
 }
 
 function destroy(world: SceneWorld, e: Entity, turn: number, by: WorldEvent["by"], remains?: string): void {
-  e.states = [...e.states.filter(s => !["damaged", "burning"].includes(s)), "destroyed"];
+  // A charred heap is no longer a door that's closed and barred, nor a lantern that's lit.
+  e.states = [...e.states.filter(s => !["damaged", "burning", "open", "closed", "locked", "barred", "lit"].includes(s)), "destroyed"];
   if (e.hp) e.hp.current = 0;
   if (remains) note(e, remains, turn, by);
   // What it held falls out where it stood; what hung from it falls.
@@ -583,6 +669,12 @@ export function worldView(world: SceneWorld, options: { full?: boolean } = {}): 
   const lines = [`${world.entities[world.root]!.name}${here ? `: the player is in ${here.name}` : ""}.`];
   const carried = me ? Object.values(world.entities).filter(e => e.parent === "player" && present(e)) : [];
   if (carried.length) lines.push(`The player carries: ${carried.map(e => `${(e.quantity ?? 1) > 1 ? `${e.quantity} ` : ""}${e.name} [${e.id}]`).join(", ")}.`);
+  // The player is listed nowhere else: their spot, states (hidden, prone...) and notes go here.
+  if (me && from) {
+    const by = Object.values(world.entities).filter(e => e.id !== "player" && e.at && present(e) && e.kind !== "area" && distance(e.at, from) <= 6).map(e => e.name).slice(0, 3);
+    const states = me.states.filter(s => s !== "gone");
+    if (by.length || states.length || me.notes.length) lines.push(`The player${by.length ? ` is by ${by.join(", ")}` : ""}${states.length ? ` (${states.join(", ")})` : ""}${me.notes.length ? `: ${me.notes.slice(-2).map(n => n.text).join("; ").replace(/\.$/, "")}` : ""}.`);
+  }
   for (const area of areas) {
     const inside = contents(area);
     const near = from && area.rect ? Math.round(Math.max(0, Math.hypot(Math.max(area.rect.x - from.x, 0, from.x - area.rect.x - area.rect.w), Math.max(area.rect.y - from.y, 0, from.y - area.rect.y - area.rect.h)))) : 0;
