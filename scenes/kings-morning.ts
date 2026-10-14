@@ -53,7 +53,7 @@ export const kingsMorning: Scene = {
       knows: [
         "He asked the investigator to see Prout done right by, and lent them a sergeant of the watch.",
         "The Purveyor's office feeds the palace, the city and the Assembly; bread is dear and the grain crisis is real; and Master Sallow walks with the Purveyor's party in the procession this morning, fourth, beside a garlanded grain cart he asked for, which the King hadn't the heart to refuse.",
-        "An arrest inside the palace, or of an officer of the Crown, is the Marshal's to make on the King's word. The Assizes sit after the Assembly.",
+        "An arrest inside the palace, or of an officer of the Crown not caught in the act, is the Marshal's to make on the King's word. The Assizes sit after the Assembly.",
       ],
       secrets: [
         "Shows: he knows a little too much about Prout's last week ('He'd asked to see me, you know'), and stops, and pours tea nobody asked for. Torn: owning up makes him the King who looked away, in front of the people he asked to look for him. Opens: someone else owning up first (Kell, about her own part), or the investigator asking him straight why he chose them. First: 'He wrote to me.'",

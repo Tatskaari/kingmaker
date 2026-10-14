@@ -25,7 +25,7 @@ Each of them, and what would turn them, is in their own GM notes in the cast.
 
 **What would prove it**: the gang slitting wheat-ear sacks beside a stack of heron sacks; the heap of empties waiting for the river; the true book; the night staff, if they'll swear for the Crown; and the Master caught at the loading, which a sergeant may arrest him for on her own authority.
 
-**Dangers**: the river in spate under the floor; the hoists; the grain dust hanging in the lantern light (NO NAKED LIGHTS, says the sign everyone ignores, and a flame in that dust goes up like gunpowder); and the Crakes, who'll put a man in the river for two shillings.
+**Dangers**: the river in spate under the floor; the hoists; the grain dust hanging in the lantern light (NO NAKED LIGHTS, says the sign everyone ignores, and a flame in that dust goes up like gunpowder); and the Crakes, who'll put a man in the river for half a crown.
 
 **In motion**: how the Master comes tonight (on time, wary or warned), and the Patience sailing at the second bell, are in [What's in motion](../World/Fronts.md).
 

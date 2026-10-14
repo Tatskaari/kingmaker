@@ -26,7 +26,7 @@ King Aldren's palace stands on the rise above the river: gilt, tapestries and a 
 - **After dark on the eve** the palace is shut to everyone but the delegations' dinner and the procession rehearsal.
 - **The King's time is the Marshal's to give.** Until the Assembly opens, the King belongs to the timetable. The gate has been told about the King's investigator: the King will see them in the morning, before the procession, and not before.
 - **Messages**: the gate guard takes written messages for the Marshal. He reads them by evening, and acts at first light on whatever he can act on without the King's word.
-- **Arrests**: inside the palace, or of an officer of the Crown, an arrest is the Marshal's to make, at once, on the King's word, and not a moment before.
+- **Arrests**: inside the palace, or of an officer of the Crown not caught in the act, an arrest is the Marshal's to make, at once, on the King's word, and not a moment before.
 
 **How the town's troubles show here**: visitors notice the gilt, and the city notices the bread. The kitchens are short of flour for the feast while the palace's own wagons are "lost to goblins". The cushions for the Assembly seats haven't arrived. And on procession morning the Purveyor's grain cart waits in the courtyard in garlands, to walk fourth "for the people's confidence".
 
