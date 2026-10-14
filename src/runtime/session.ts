@@ -146,6 +146,12 @@ export interface SessionState {
   rules?: RulesState;
   /** A blow or a danger the last reply left hanging over the player (rules sessions). */
   threat?: Threat;
+  /**
+   * A fight the player's violence started in the scene (decided reactions: some fight, some flee):
+   * who goes for the player and who's with them. The game plays it out on the map; elsewhere the
+   * first of them swings at the player next turn.
+   */
+  brawl?: { turn: number; cause: string; against: string[]; allies: string[]; fled: string[] };
   /** Where this scene's prep no longer matches the story (written at the scene boundary): these override it. */
   adjustments?: string[];
   /** The scene's opening rewritten at the boundary to start where the story actually is. */

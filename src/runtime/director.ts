@@ -600,6 +600,65 @@ export function pressureDirective(scene: Scene, p: PressureCheck): string {
 export const EARNED_DIRECTIVE = "The player has just done what it takes for what they've been working towards. Let it land in this reply: the person gives it, shows it or agrees, in their own way, and people react to it. Don't ask the player for it again or add a new condition. (Only what they've earned: anything else stays for later.)";
 
 /** The bill for a daft act: real consequences, in the world's own logic (comic house style). */
+// ---------------------------------------------------------------------------------------------
+// Reactions: violence draws one from everyone present (the user's gameplay notes, BG3-style).
+
+/** How someone takes the player's violence, in the moment. */
+export type Reaction = "fight" | "flee" | "raise_alarm" | "cower" | "intervene" | "join_player" | "unmoved";
+
+/** What the player did that people react to: who it hurt or caught, what it burned or broke. */
+export interface Act { what: string; victims: string[]; property: string[] }
+
+/** Someone who saw it, and what the decider should know about them (their temper, their place here). */
+export interface Witness { id: string; name: string; about: string }
+
+const REACTIONS: Record<Reaction, string> = {
+  fight: "Fights: goes for the player (or whoever did it), now, with whatever they have.",
+  flee: "Flees: gets out of this place, now.",
+  raise_alarm: "Runs or shouts for help (the watch, guards, their friends): gets out to fetch them.",
+  cower: "Cowers or hides where they are: out of it, hands up, under a table.",
+  intervene: "Steps in to stop it without fighting: an order, a shout, getting between.",
+  join_player: "Takes the player's side against whoever comes for them.",
+  unmoved: "Carries on: it doesn't touch them, they didn't see it, or they've seen worse.",
+};
+
+/** Everyone present reacts to what the player just did, each by their own lights: one decider call. */
+export async function decideReactions(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, act: Act, witnesses: Witness[], name: (id: string) => string): Promise<{ reactions: Record<string, Reaction>; decision?: Decision }> {
+  const q: Record<string, ChoiceQuestion> = {};
+  for (const w of witnesses) q[`react_${w.id}`] = { instructions: `How does ${w.name} react, right now, to what the player just did? By who they are, not by what would be dramatic: someone hurt or caught by it takes it hardest, the timid get out, the hard and the angry fight, and the law steps in.`, criteria: REACTIONS };
+  const decision = await decider.decide({
+    ...decisionState(scene, state, playerTurn),
+    what_the_player_did: act.what,
+    ...(act.victims.length ? { hurt_or_caught: act.victims.map(name) } : {}),
+    ...(act.property.length ? { burned_or_broken: act.property.map(name) } : {}),
+    people_here: witnesses.map(w => `${w.name}: ${w.about}`),
+  }, q, "director.reactions").catch(() => undefined);
+  const reactions: Record<string, Reaction> = {};
+  for (const w of witnesses) {
+    const choice = decision?.answers[`react_${w.id}`]?.choice as Reaction | undefined;
+    // Undecided: the hurt hit back if they can, everyone else gets out of the way.
+    reactions[w.id] = choice && choice in REACTIONS ? choice : act.victims.includes(w.id) ? "fight" : "cower";
+  }
+  return { reactions, ...(decision ? { decision } : {}) };
+}
+
+const REACTION_TEXT: Record<Reaction, string> = {
+  fight: "fights: goes for the player",
+  flee: "flees: gets out of the place",
+  raise_alarm: "runs for help (the watch, their friends): gets out to fetch them",
+  cower: "cowers where they are",
+  intervene: "steps in to stop it, without fighting",
+  join_player: "takes the player's side",
+  unmoved: "carries on as if nothing happened",
+};
+
+/** The GM's direction for the reactions the decider chose. */
+export function reactionDirective(reactions: Record<string, Reaction>, name: (id: string) => string): string {
+  const fight = Object.values(reactions).includes("fight");
+  const lines = Object.entries(reactions).filter(([, r]) => r !== "unmoved").map(([id, r]) => `${name(id)} ${REACTION_TEXT[r]}`);
+  return `Rules: that was violence, and everyone here reacts at once, each in their own way (decided: play it so): ${lines.join("; ")}. Show each reaction briefly, in the same reply as the act itself, and keep everyone to their reaction.${fight ? " It's a fight now: end on the moment it breaks out, before anyone's blow lands." : ""}`;
+}
+
 export const CONSEQUENCE_DIRECTIVE = "What the player just did is the kind of thing people in this world would really answer. Let it happen, and follow its logic through to a consequence in this reply, or one that is plainly on its way: whoever it touches reacts as they truly would (offence, alarm, opportunism, admiration), and it changes something, for better or worse. Not every consequence is bad, but this one isn't free.";
 
 export function relocateDirective(scene: Scene, item: { essential: string; carrier: string }): string {

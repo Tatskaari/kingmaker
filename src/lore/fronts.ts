@@ -43,7 +43,10 @@ export function moveFronts(sessionId: string, path: string, changes: FrontChange
       done.push(`ticked: ${front}: ${step[2]}`);
     }
   }
-  const bills = changes.bills.map(b => b.trim()).filter(Boolean).slice(0, 2);
+  // A bill already on its way isn't added twice (the same "If ..." as one listed).
+  const listed = lines.filter(l => /^- \*\*If /i.test(l)).map(l => /^- \*\*(.+?)\*\*/.exec(l)![1]!);
+  const ifPart = (b: string) => /^(?:\*\*)?(If [^:*(]+)/i.exec(b)?.[1] ?? b;
+  const bills = changes.bills.map(b => b.trim()).filter(b => b && !listed.some(l => same(ifPart(l), ifPart(b)))).slice(0, 2);
   if (bills.length) {
     const at = lines.findIndex(l => BILLS.test(l));
     const added = bills.map(b => `- ${/^\*\*/.test(b) ? b : b.replace(/^(If [^:]+):/i, "**$1**:")} *(After ${after}.)*`);
