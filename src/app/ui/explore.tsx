@@ -182,7 +182,7 @@ function MenuBox({ game, menu, width, height }: { game: Game; menu: TileMenu; wi
     {items.map((a, i) => {
       const on = i === menu.index;
       return <box key={a.id} height={1} flexShrink={0} {...(on ? { backgroundColor: C.highlightBg } : {})}
-        onMouseDown={(e: MouseEvent) => { if (e.button === MouseButton.LEFT || e.button === MouseButton.RIGHT) void game.choose(i); }}
+        onMouseDown={(e: MouseEvent) => { if (e.button === MouseButton.LEFT || e.button === MouseButton.RIGHT) void game.chooseFromMenu(i); }}
         onMouseOver={() => { if (menu.index !== i) { menu.index = i; game.emit(); } }}>
         <text>
           <span fg={on ? C.lead : C.faint}>{`${i < 9 ? i + 1 : " "} `}</span>
@@ -200,8 +200,8 @@ function menuKey(game: Game, menu: TileMenu, key: KeyEvent): void {
   const digit = /^[1-9]$/.test(key.sequence ?? "") ? Number(key.sequence) - 1 : -1;
   if (key.name === "up" || key.name === "w") { menu.index = (menu.index + n - 1) % Math.max(1, n); game.emit(); }
   else if (key.name === "down" || key.name === "s" || key.name === "tab") { menu.index = (menu.index + 1) % Math.max(1, n); game.emit(); }
-  else if (key.name === "return" || key.name === "space" || key.name === "e") void game.choose(menu.index);
-  else if (digit >= 0 && digit < n) void game.choose(digit);
+  else if (key.name === "return" || key.name === "space" || key.name === "e") void game.chooseFromMenu(menu.index);
+  else if (digit >= 0 && digit < n) void game.chooseFromMenu(digit);
   else game.closeMenu();
 }
 

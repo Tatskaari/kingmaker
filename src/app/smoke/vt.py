@@ -127,6 +127,20 @@ class Screen:
     def text(self):
         return "\n".join("".join(row).rstrip() for row in self.grid)
 
+    def find(self, text, cols=None):
+        """Where some text is on the screen, as (column, row) from 0, counting wide characters as two; or None. With `cols`, only text wholly left of that column."""
+        for y, row in enumerate(self.grid):
+            line, at = "", []
+            for x, ch in enumerate(row[:cols]):
+                if ch == "":
+                    continue
+                line += ch
+                at.append(x)
+            i = line.find(text)
+            if i >= 0:
+                return at[i], y
+        return None
+
 
 class App:
     """The app under a pty: send keys, wait for text, read the screen."""
@@ -194,15 +208,18 @@ class App:
 
     def find(self, text, cols=None):
         """The cell (0-based x, y) where some text first shows on screen, left of column `cols` if given."""
-        n = len(text)
-        for y, row in enumerate(self.screen.grid):
-            for x in range(len(row[:cols]) - n + 1):
-                if "".join(row[x:x + n]) == text:
-                    return x, y
-        return None
+        return self.screen.find(text, cols)
 
     def text(self):
         return self.screen.text()
+
+    def click_on(self, text, settle=0.3):
+        """Click the middle of some text on the screen; False when it isn't there."""
+        at = self.screen.find(text)
+        if not at:
+            return False
+        self.click(at[0] + len(text) // 2, at[1], settle=settle)
+        return True
 
     def close(self):
         try:
