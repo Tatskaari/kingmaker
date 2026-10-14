@@ -741,6 +741,37 @@ export async function attack(state: SessionState, cast: Character[], targetId: s
   };
 }
 
+/** A grab or a shove (2024 rules: the target saves against the player's Strength DC, or is grappled, knocked prone or pushed away). */
+export async function wrestle(state: SessionState, cast: Character[], targetId: string, how: "grapple" | "prone" | "push"): Promise<Outcome> {
+  const ctx = await open(state);
+  const pcId = state.rules!.pc;
+  const target = cast.find(c => c.id === targetId) ?? (state.world?.entities[targetId]?.kind === "person" ? bystander(state.world.entities[targetId]!) : undefined);
+  if (!target) { close(state, ctx); return { lines: [], directive: "" }; }
+  const npc = ensureNpc(ctx, state, target);
+  let events: Dnd.EngineEvent[];
+  try {
+    events = ctx.apply(how === "grapple"
+      ? ctx.engine.plan.grapple(ctx.campaign.state, { type: "Grapple", attackerId: pcId, targetId: npc }).events
+      : ctx.engine.plan.shove(ctx.campaign.state, { type: "Shove", attackerId: pcId, targetId: npc, mode: how }).events);
+  } catch (error) {
+    close(state, ctx);
+    return { lines: [`(${how === "grapple" ? "A grapple" : "A shove"} can't be done like that: ${error instanceof Error ? error.message : String(error)})`], directive: "" };
+  }
+  const { lines, account } = describe(ctx, state, events, () => "");
+  const held = events.some(e => e.type === "ConditionApplied") || events.some(e => e.type === "CreaturePushed");
+  if (state.world?.entities[target.id]) {
+    const e = state.world.entities[target.id]!;
+    if (held && how === "grapple") e.states = [...e.states.filter(s => s !== "grappled"), "grappled"];
+    if (held && how === "prone") e.states = [...e.states.filter(s => s !== "prone"), "prone"];
+  }
+  close(state, ctx);
+  const verb = how === "grapple" ? "grab hold of" : how === "prone" ? "shove to the ground" : "shove away";
+  return {
+    lines: [`${how === "grapple" ? "Grapple" : "Shove"}: you try to ${verb} ${target.name}`, ...lines],
+    directive: `Rules: the player tried to ${verb} ${target.name}. ${account.length ? `${capitalise(account.join("; "))}.` : ""} ${held ? (how === "grapple" ? `${target.name} is held fast (grappled) until they break free.` : how === "prone" ? `${target.name} goes down.` : `${target.name} is pushed back five feet.`) : `${target.name} resists it.`} Narrate exactly that, and let the people present react.`,
+  };
+}
+
 /** Someone the last reply left swinging at the player gets their attack (start of the player's next turn). */
 export async function attackOnPlayer(state: SessionState, attacker: Character): Promise<Outcome> {
   const ctx = await open(state);

@@ -111,6 +111,8 @@ export interface Engine {
     longRest(state: CampaignState, intent: { participantIds: string[] }): PlanResult;
     levelUp(state: CampaignState, intent: { characterId: string; classId: string; hpStrategy: "average" | "rolled" }): PlanResult;
     expireSpellDurations(state: CampaignState, intent: { type: "ExpireSpellDurations" }): PlanResult | EngineEvent[];
+    grapple(state: CampaignState, intent: { type: "Grapple"; attackerId: string; targetId: string; targetAbility?: "STR" | "DEX" }): PlanResult;
+    shove(state: CampaignState, intent: { type: "Shove"; attackerId: string; targetId: string; mode: "prone" | "push" }): PlanResult;
     [planner: string]: unknown;
   };
 }

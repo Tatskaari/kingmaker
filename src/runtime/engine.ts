@@ -9,7 +9,7 @@ import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, dec
 import { describeRoll } from "./dice.ts";
 import { buildWorld, heldBy, joinWorld, tick, within, type Entity } from "../world/scene-world.ts";
 import { stageManage } from "../world/stage.ts";
-import { attack as rulesAttack, attackOnPlayer, castSpell, comeTo, createCharacter, hazard, levelUp, passTime, rest, type Outcome } from "../rules/dnd.ts";
+import { attack as rulesAttack, attackOnPlayer, castSpell, comeTo, createCharacter, hazard, levelUp, passTime, rest, wrestle, type Outcome } from "../rules/dnd.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
 import { newSessionId, saveSession, snapshotSession, type Entry, type EntryKind, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
@@ -310,11 +310,11 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (pre.mechanic && state.rules) {
     const m = pre.mechanic;
     const present = presentCast(scene, state);
-    const outcome: Outcome = await (m.kind === "cast" ? castSpell(state, present, m.spell, m.targets) : m.kind === "attack" ? rulesAttack(state, present, m.target, m.weapon) : rest(state, m.length))
+    const outcome: Outcome = await (m.kind === "cast" ? castSpell(state, present, m.spell, m.targets) : m.kind === "attack" ? rulesAttack(state, present, m.target, m.weapon) : m.kind === "wrestle" ? wrestle(state, present, m.target, m.how) : rest(state, m.length))
       .catch(error => ({ lines: [`(The rules couldn't resolve that: ${error instanceof Error ? error.message : String(error)})`], directive: "" }));
     for (const text of outcome.lines) push(state, hooks, { speaker: "dice", kind: "roll", text });
     if (outcome.directive) directive.push(outcome.directive);
-    state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `rules:${m.kind}${m.kind === "cast" ? `:${m.spell}` : m.kind === "attack" ? `:${m.target}` : `:${m.length}`}`, source: "pre" });
+    state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `rules:${m.kind}${m.kind === "cast" ? `:${m.spell}` : m.kind === "attack" || m.kind === "wrestle" ? `:${m.target}` : `:${m.length}`}`, source: "pre" });
   }
   if (state.endingLead && !pre.move && !state.closing) {
     const exit = scene.exits.find(e => e.id === state.endingLead!.exitId);

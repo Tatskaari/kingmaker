@@ -139,6 +139,7 @@ export interface PreDecision {
 /** What the player is doing that the D&D rules resolve, and with what. */
 export type Mechanic =
   | { kind: "cast"; spell: string; targets: string[] }
+  | { kind: "wrestle"; target: string; how: "grapple" | "prone" | "push" }
   | { kind: "attack"; target: string; weapon?: string }
   | { kind: "rest"; length: "short" | "long" };
 
@@ -155,7 +156,7 @@ export interface RulesOptions {
 const ORDINAL = ["cantrip", "1st-level", "2nd-level", "3rd-level", "4th-level", "5th-level", "6th-level", "7th-level", "8th-level", "9th-level"];
 
 /** Which spell, at whom; or which blow, at whom: a second small call, only on those turns. */
-async function mechanicDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, kind: "cast" | "attack", rules: RulesOptions): Promise<{ mechanic?: Mechanic; decision: Decision }> {
+async function mechanicDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, kind: "cast" | "attack" | "grapple" | "shove", rules: RulesOptions): Promise<{ mechanic?: Mechanic; decision: Decision }> {
   const present = [...presentCast(scene, state), ...(rules.bystanders ?? []).map(b => ({ ...b, group: undefined }))];
   const things = rules.things ?? [];
   const q: Record<string, ChoiceQuestion> = {};
@@ -170,6 +171,9 @@ async function mechanicDetails(decider: Decider, scene: Scene, state: SessionSta
       instructions: "Is the spell aimed at a thing or a spot rather than a person (its target, or where its area is centred)? Which?",
       criteria: { ...Object.fromEntries(things.map(t => [t.id, t.name])), none: "No: it's aimed at people, at the player, or at nothing in particular." },
     };
+  } else if (kind === "grapple" || kind === "shove") {
+    q.target = { instructions: `Whom is the player trying to ${kind === "grapple" ? "grab" : "shove"}?`, criteria: Object.fromEntries(present.map(c => [c.id, `${c.name}${c.group ? ` (${c.group})` : ""}`])) };
+    if (kind === "shove") q.shove_mode = { instructions: "To do what?", criteria: { prone: "Knock them down", push: "Push them back or away" } };
   } else {
     q.target = {
       instructions: "The player is attacking someone or something in their latest turn. Who or what?",
@@ -190,6 +194,10 @@ async function mechanicDetails(decider: Decider, scene: Scene, state: SessionSta
     return { mechanic: { kind, spell, targets }, decision };
   }
   const target = decision.answers.target?.choice;
+  if (kind === "grapple" || kind === "shove") {
+    if (!target || !present.some(c => c.id === target)) return { decision };
+    return { mechanic: { kind: "wrestle", target, how: kind === "grapple" ? "grapple" : decision.answers.shove_mode?.choice === "push" ? "push" : "prone" }, decision };
+  }
   if (!target || !(present.some(c => c.id === target) || things.some(t => t.id === target))) return { decision };
   const weapon = decision.answers.weapon?.choice;
   return { mechanic: { kind, target, ...(weapon && weapon !== "other" ? { weapon } : {}) }, decision };
@@ -348,7 +356,9 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
       instructions: "Is the player, in their latest turn, doing one of these things the game's rules resolve?",
       criteria: {
         ...(options.rules.spells.length ? { cast: "Casting a spell or working magic (naming a spell, or plainly using one of their magical abilities)." } : {}),
-        attack: "Attacking someone to hurt them right now: a blow, a stab, a shot, a punch, a kick. Threats, grabs, shoves and drawing a weapon aren't attacks.",
+        attack: "Attacking someone or something to hurt or break it right now: a blow, a stab, a shot, a punch, a kick. Threats, grabs, shoves and drawing a weapon aren't attacks.",
+        grapple: "Grabbing hold of someone to hold or restrain them against their will (a grapple, a headlock, pinning them).",
+        shove: "Shoving someone who'd resist: to knock them down, or push them back or away.",
         short_rest: "Stopping to rest for an hour or so: catching their breath, binding wounds, a meal and a sit-down.",
         long_rest: "Sleeping the night, or resting for many hours.",
         none: "None of these.",
@@ -462,7 +472,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const sure = asked && asked !== "none" && (decision.answers.mechanic?.probabilities?.[asked] ?? 1) >= SCENE_ENDING_CONFIDENCE;
   if (options.rules && sure && !limit && !ooc && move?.exit?.kind !== "combat") {
     if (asked === "short_rest" || asked === "long_rest") mechanic = { kind: "rest", length: asked === "short_rest" ? "short" : "long" };
-    else if (asked === "cast" || asked === "attack") {
+    else if (asked === "cast" || asked === "attack" || asked === "grapple" || asked === "shove") {
       const details = await mechanicDetails(decider, scene, state, playerTurn, asked, options.rules);
       combined = { ...combined, answers: { ...combined.answers, ...details.decision.answers }, latencyMs: combined.latencyMs + details.decision.latencyMs, costUsd: combined.costUsd + details.decision.costUsd };
       mechanic = details.mechanic;
