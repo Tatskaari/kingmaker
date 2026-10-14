@@ -1,5 +1,6 @@
 import type { WorldScript } from "../world/dsl.ts";
 import type { WorldOp, WorldSpec } from "../world/scene-world.ts";
+import type { Approach } from "./approaches.ts";
 
 /**
  * A scene is GM prep, not a script: who is here and what they want, the beats the
@@ -79,6 +80,11 @@ export interface Transition {
   check?: Check;
   /** Scene facts that become true when this transition is taken. */
   establishes?: string[];
+  /**
+   * An outcome only someone else can bring about (a secret told when they're ready): judged after
+   * the reply, never offered beforehand as something the player's turn simply achieves.
+   */
+  given?: boolean;
 }
 
 export interface Beat {
@@ -189,6 +195,13 @@ export interface Scene {
   assumes?: string[];
   /** Where the story goes instead when this scene has been overtaken (a later scene, or the ending). */
   overtaken?: string;
+  /**
+   * A word with a companion between scenes (scenes/talk.ts, src/runtime/talk.ts): their cast id.
+   * Nothing in it moves the story, and the scene the story is heading for waits until it's over.
+   */
+  companion?: string;
+  /** How this scene is run where it differs from the session's approach (a talk has no co-GM to keep it on track). */
+  approach?: Partial<Approach>;
 }
 
 export function beatOrExit(scene: Scene, id: string): { beat?: Beat; exit?: Exit } {

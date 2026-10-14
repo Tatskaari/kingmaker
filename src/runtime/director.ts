@@ -37,8 +37,16 @@ function decisionState(scene: Scene, state: SessionState, latestPlayerTurn: stri
   };
 }
 
+/**
+ * How players write a turn (the convention the game gives them): talking is the default, and an
+ * action goes in *asterisks* or (parentheses), though plenty just narrate. Said in the questions it
+ * decides (what they're attempting, what the rules resolve, out of character), not in every
+ * decision's state, where it only unsettles judgements that don't turn on it.
+ */
+const READ_TURN = "plain words are what their character says out loud, and what they do is in *asterisks* or (parentheses), or plainly narrated (\"I open the door\")";
+
 const QUESTION_TEXT = {
-  attempt: "A player in a tabletop roleplaying scene has just taken their turn (latest_player_turn). Which of these is the player attempting or doing in that turn? Judge the player's own words and actions in context; a passing mention is not an attempt. If none clearly applies, choose none.",
+  attempt: `A player in a tabletop roleplaying scene has just taken their turn (latest_player_turn). Which of these is the player attempting or doing in that turn? Judge the player's own words and actions in context: ${READ_TURN}. A passing mention is not an attempt. If none clearly applies, choose none.`,
   cue: "Pacing judgement for a tabletop roleplaying scene. Given the scene so far and the player's latest turn, should one of these happen right now? Choose not_yet unless its condition clearly holds now.",
   outcome: "After the latest exchange in a tabletop roleplaying scene (latest_player_turn and latest_gm_reply), which of these has now actually happened in the story? Count only what has happened in the fiction (said, shown, given, decided), not what was merely offered, hinted at or attempted. If none clearly happened, choose none.",
 } as const;
@@ -52,13 +60,25 @@ export function endsScene(scene: Scene, t: Transition): boolean {
 /** The bar for a mistake scales with its cost: ending the scene needs a committed attempt. */
 const SCENE_ENDING_CONFIDENCE = 0.6;
 
+/**
+ * A check is rolled for the act it tests, so the attempt is judged against that act: getting to
+ * where it can be done (getting him down, getting the door open) is an act of its own, for the
+ * rules or the story, not a reason to roll this.
+ */
+function rollNote(t: Transition): string {
+  const check = t.check!;
+  return `(The ${titleCase(check.skill)} check is ${check.reason ? check.reason.trim().replace(/\.$/, "") : "for this act itself"}: only when the player is doing that now, not something that comes first.)`;
+}
+
 function question(phase: keyof typeof QUESTION_TEXT, transitions: Transition[], scene?: Scene): ChoiceQuestion {
   const none = phase === "cue" ? "not_yet" : "none";
   const describe = (t: Transition) => {
-    if (!(phase === "attempt" && scene && endsScene(scene, t))) return t.when;
+    if (!(phase === "attempt" && scene)) return t.when;
+    const when = t.check ? `${t.when} ${rollNote(t)}` : t.when;
+    if (!endsScene(scene, t)) return when;
     const exit = scene.exits.find(e => e.id === (t.check ? t.check.onSuccess : t.to));
     const violence = exit?.kind === "combat" ? " Only if they are actually trying to hurt someone right now: threats, grabs and taking a hostage are leverage, not an attack." : "";
-    return `${t.when} (This would settle the whole scene: only if the player is clearly committing to it right now, not asking about it, examining things or thinking aloud.${violence})`;
+    return `${when} (This would settle the whole scene: only if the player is clearly committing to it right now, not asking about it, examining things or thinking aloud.${violence})`;
   };
   return {
     instructions: QUESTION_TEXT[phase],
@@ -177,13 +197,36 @@ export interface RulesOptions {
 
 const ORDINAL = ["cantrip", "1st-level", "2nd-level", "3rd-level", "4th-level", "5th-level", "6th-level", "7th-level", "8th-level", "9th-level"];
 
-/** Which spell, at whom; or which blow, at whom: a second small call, only on those turns. */
-async function mechanicDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, kind: "cast" | "attack" | "grapple" | "shove" | "jump" | "feature", rules: RulesOptions): Promise<{ mechanic?: Mechanic; decision: Decision }> {
-  if (kind === "jump") return jumpDetails(decider, scene, state, playerTurn, rules);
+/** The player's acts the rules resolve in a scene (a rest aside): on those turns, the act is the turn's resolution. */
+type RuledAct = "cast" | "attack" | "grapple" | "shove" | "jump" | "feature";
+const RULED_ACTS: readonly string[] = ["cast", "attack", "grapple", "shove", "jump", "feature"] satisfies RuledAct[];
+const ACT_NAMES: Record<RuledAct, string> = { cast: "the spell", attack: "the attack", grapple: "the grab", shove: "the shove", jump: "the jump", feature: "the class feature" };
+
+/**
+ * On a turn the rules resolve the player's act, a route's check is rolled as well only when the
+ * player is also doing exactly what that check is for, and it doesn't hang on how the act turns
+ * out ("I throw my javelin at the rope" isn't examining the body it may bring down: that waits until
+ * it's down). Asked in the act's details call, so ordinary turns pay nothing for it.
+ */
+function alsoQuestion(t: Transition, act: RuledAct): ChoiceQuestion {
+  const check = t.check!;
+  const what = check.reason?.trim().replace(/\.$/, "") || t.when.replace(/\.$/, "");
+  return {
+    instructions: `The game's rules settle ${ACT_NAMES[act]} in the player's latest turn. Besides that, is the player also, in the same turn, doing what this ${titleCase(check.skill)} check is for (${what})? Only if they're doing that act itself now, whatever comes of ${ACT_NAMES[act]}: not if it's what ${ACT_NAMES[act]} is meant to make possible, or something for after it.`,
+    criteria: { yes: "Yes: they're doing that too, this turn, and it doesn't wait on how the rules' act turns out.", no: "No: the rules' act is what they're doing now; that can come after it." },
+  };
+}
+
+/**
+ * Which spell, at whom; or which blow, at whom: a second small call, only on those turns. Any
+ * `extra` questions about the same turn ride along in it.
+ */
+async function mechanicDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, kind: RuledAct, rules: RulesOptions, extra: Record<string, ChoiceQuestion> = {}): Promise<{ mechanic?: Mechanic; decision: Decision }> {
+  if (kind === "jump") return jumpDetails(decider, scene, state, playerTurn, rules, extra);
   const present = [...presentCast(scene, state), ...(rules.bystanders ?? []).map(b => ({ ...b, group: undefined }))];
   if (kind === "feature") {
     const features = rules.features ?? [];
-    const q: Record<string, ChoiceQuestion> = { feature: { instructions: "The player is using a class feature in their latest turn. Which?", criteria: Object.fromEntries(features.map(f => [f.id, f.name])) } };
+    const q: Record<string, ChoiceQuestion> = { ...extra, feature: { instructions: "The player is using a class feature in their latest turn. Which?", criteria: Object.fromEntries(features.map(f => [f.id, f.name])) } };
     if (features.some(f => f.target === "creature")) q.feature_for = { instructions: "If it's one they give to someone else, who?", criteria: { ...Object.fromEntries(present.map(c => [c.id, `${c.name}${c.group ? ` (${c.group})` : ""}`])), nobody: "Nobody else: themselves, or it isn't that kind." } };
     const decision = await decider.decide(decisionState(scene, state, playerTurn), q, "director.feature");
     const feature = features.find(f => f.id === decision.answers.feature?.choice);
@@ -191,7 +234,7 @@ async function mechanicDetails(decider: Decider, scene: Scene, state: SessionSta
     return feature ? { mechanic: { kind: "feature", feature: feature.id, ...(feature.target === "creature" && target && target !== "nobody" ? { target } : {}) }, decision } : { decision };
   }
   const things = rules.things ?? [];
-  const q: Record<string, ChoiceQuestion> = {};
+  const q: Record<string, ChoiceQuestion> = { ...extra };
   if (kind === "cast") {
     q.spell = {
       instructions: "The player is casting a spell in their latest turn. Which of their spells is it?",
@@ -265,7 +308,8 @@ async function mechanicDetails(decider: Decider, scene: Scene, state: SessionSta
   if (!target || !(present.some(c => c.id === target) || things.some(t => t.id === target))) return { decision };
   const weapon = decision.answers.weapon?.choice;
   const from = actFrom(target);
-  return { mechanic: { kind, target, ...(weapon && weapon !== "other" ? { weapon } : {}), ...(from ? { from } : {}) }, decision };
+  // "Something else" (a thrown stone, a bottle) is an improvised weapon, not their main one.
+  return { mechanic: { kind, target, ...(weapon === "other" ? { weapon: "improvised" } : weapon ? { weapon } : {}), ...(from ? { from } : {}) }, decision };
 }
 
 const SKILL_TEXT: Record<Skill, string> = {
@@ -351,8 +395,9 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const cues = transitionsFor(scene, state, "cue");
   // Outcomes that need no roll are shown as alternatives, so the decider can see that a kind
   // word might simply work; choosing one means "no attempt now" (it's judged after the reply).
-  // The built-in improvised ending is only ever judged after the reply, on what happened.
-  const outcomes = transitionsFor(scene, state, "outcome").filter(t => t.to !== IMPROVISED_EXIT_ID);
+  // The built-in improvised ending, and what only someone else can give, are only ever judged
+  // after the reply, on what happened.
+  const outcomes = transitionsFor(scene, state, "outcome").filter(t => t.to !== IMPROVISED_EXIT_ID && !t.given);
   const questions: Record<string, ChoiceQuestion> = {};
   if (attempts.length || outcomes.length || options.freeform === true) {
     const q = question("attempt", attempts, scene);
@@ -418,10 +463,10 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   }
   if (options.rules) {
     questions.mechanic = {
-      instructions: "Is the player, in their latest turn, doing one of these things the game's rules resolve?",
+      instructions: `Is the player, in their latest turn, doing one of these things the game's rules resolve? (In a turn, ${READ_TURN}.)`,
       criteria: {
         ...(options.rules.spells.length ? { cast: "Casting a spell now (naming a spell, or plainly working new magic). Not using what a spell already running gives them (seeing through a familiar's eyes, keeping up an illusion, a light already lit)." } : {}),
-        attack: "Attacking someone or something to hurt or break it right now: a blow, a stab, a shot, a punch, a kick. Threats, grabs, shoves and drawing a weapon aren't attacks.",
+        attack: "Attacking someone or something right now, to hurt a person or break a thing: a blow, a stab, a punch, a kick, a shot or a thrown weapon. Threats, grabs, shoves and drawing a weapon aren't attacks, and nor is tossing something to someone or working on something in hand.",
         grapple: "Grabbing hold of someone to hold or restrain them against their will (a grapple, a headlock, pinning them).",
         shove: "Shoving someone who'd resist: to knock them down, or push them back or away.",
         jump: "Jumping: across a gap or over something, up onto something, or down from it.",
@@ -433,7 +478,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     };
   }
   questions.ooc = {
-    instructions: "Is the player's latest turn spoken out of character, to the GM rather than in the story (e.g. asking what their options are, how something works in the game, or what they know)?",
+    instructions: "Is the player's latest turn spoken out of character, to the GM rather than in the story (e.g. asking what their options are, how something works in the game, or what they know)? An action in *asterisks* or (parentheses) is in character: it's what their character does.",
     criteria: { in_character: "In character: the player's character speaks or acts in the story.", out_of_character: "Out of character: a question or remark to the GM about the game or the situation." },
   };
   if (scene.limits?.length) {
@@ -458,7 +503,12 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const decision = await decider.decide(decisionState(scene, state, playerTurn), questions, "director.before");
   const answer = decision.answers.attempt?.choice;
   const candidate = attempts.find(t => t.id === answer);
-  const probability = candidate ? decision.answers.attempt?.probabilities?.[candidate.id] ?? 1 : 0;
+  // Two routes for the same check (the co-GM's beside another, or one refreshed as things changed)
+  // split the read between them, and neither clears the bar: it's the same roll either way, so their
+  // shares count together. Not towards ending the scene, which needs the player committed to that.
+  const sameRoll = (t: Transition) => !!candidate?.check && t.check?.skill === candidate.check.skill && !endsScene(scene, t);
+  const shared = candidate && sameRoll(candidate) ? attempts.filter(t => t !== candidate && sameRoll(t)).reduce((sum, t) => sum + (decision.answers.attempt?.probabilities?.[t.id] ?? 0), 0) : 0;
+  const probability = candidate ? (decision.answers.attempt?.probabilities?.[candidate.id] ?? 1) + shared : 0;
   // Every attempt needs some confidence (a 0.39 match shouldn't take over a turn); endings need more.
   // A roll forces its outcome into the reply (a reveal, a cost), so it needs the same confidence as
   // an ending: a weak read of an announcement shouldn't hand over a secret.
@@ -476,26 +526,43 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const chosen = attempt ?? plainEnding ?? cue;
   // (a plain action alongside a cue: the cue's beat change carries the reply)
   const means = decision.answers.attempt_means?.choice;
-  const move = chosen ? await resolve(scene, state, chosen, attempt || plainEnding ? "attempt" : "cue", attempt && means && means !== "none" && (decision.answers.attempt_means?.probabilities?.[means] ?? 1) >= SCENE_ENDING_CONFIDENCE ? means as Skill : undefined) : undefined;
+  const method = attempt && means && means !== "none" && (decision.answers.attempt_means?.probabilities?.[means] ?? 1) >= SCENE_ENDING_CONFIDENCE ? means as Skill : undefined;
+  const ooc = decision.answers.ooc?.choice === "out_of_character";
+  // Saying no wrongly costs as much as ending the scene wrongly: same confidence bar.
+  const limitChoice = decision.answers.limit?.choice;
+  const limitConfident = (decision.answers.limit?.probabilities?.[limitChoice ?? ""] ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  const limit = limitChoice?.startsWith("limit_") && limitConfident ? scene.limits?.[Number(limitChoice.slice(6))] : undefined;
+  // What the rules resolve this turn, on a confident read: not when the scene can't offer it, or
+  // when the player is out of character.
+  const asked = decision.answers.mechanic?.choice;
+  const sure = asked && asked !== "none" && (decision.answers.mechanic?.probabilities?.[asked] ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  const ruling = options.rules && sure && !limit && !ooc ? asked : undefined;
+  const act = ruling && RULED_ACTS.includes(ruling) ? ruling as RuledAct : undefined;
+  // When the rules resolve the player's act, that act is the turn: a route's check waits for the
+  // act's details, and is rolled only if the player is also doing what the check is for. Otherwise
+  // the route stays open for when they do.
+  const held = act && attempt?.check ? attempt : undefined;
+  let move = chosen && !held ? await resolve(scene, state, chosen, attempt || plainEnding ? "attempt" : "cue", method) : undefined;
   let freeform: FreeformCheck | undefined;
   let combined = decision;
   // No dice for the impossible: if the player is reaching for something the scene can't offer,
   // the "no, but" answers it and nothing is rolled.
   const limitBlocks = decision.answers.limit?.choice?.startsWith("limit_") && (decision.answers.limit?.probabilities?.[decision.answers.limit.choice] ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  // A spell is its own resolution (no Arcana check to cast a cantrip), and a roll needs a confident read.
+  // An act on the world the rules resolve is its own resolution (no Arcana check to cast a cantrip,
+  // no Athletics check for a throw already rolled to hit), and a roll needs a confident read. (A
+  // class feature isn't such an act: something risky alongside it can still call for a roll.)
   const ruled = decision.answers.mechanic?.choice;
-  const casting = (ruled === "cast" || ruled === "jump") && (decision.answers.mechanic?.probabilities?.[ruled] ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  if (answer === "other_risky" && !move && !limitBlocks && !casting && (decision.answers.attempt?.probabilities?.other_risky ?? 1) >= SCENE_ENDING_CONFIDENCE) {
+  const actSettles = !!ruled && ruled !== "feature" && RULED_ACTS.includes(ruled) && (decision.answers.mechanic?.probabilities?.[ruled] ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  if (answer === "other_risky" && !move && !limitBlocks && !actSettles && (decision.answers.attempt?.probabilities?.other_risky ?? 1) >= SCENE_ENDING_CONFIDENCE) {
     const extra = await freeformCheck(decider, scene, state, playerTurn);
     freeform = extra.check;
     combined = { ...decision, answers: { ...decision.answers, ...extra.decision.answers }, latencyMs: decision.latencyMs + extra.decision.latencyMs, costUsd: decision.costUsd + extra.decision.costUsd };
   }
-  const ooc = decision.answers.ooc?.choice === "out_of_character";
   const daft = decision.answers.daft?.choice === "consequential" && (decision.answers.daft?.probabilities?.consequential ?? 1) >= SCENE_ENDING_CONFIDENCE;
   const earned = decision.answers.earned?.choice === "earned" && (decision.answers.earned?.probabilities?.earned ?? 1) >= SCENE_ENDING_CONFIDENCE;
   let pressure: PressureCheck | undefined;
   const pressed = decision.answers.pressure?.choice;
-  const target = pressed && pressed !== "none" && (decision.answers.pressure?.probabilities?.[pressed] ?? 1) >= SCENE_ENDING_CONFIDENCE && !move ? scene.cast.find(c => c.id === pressed) : undefined;
+  const target = pressed && pressed !== "none" && (decision.answers.pressure?.probabilities?.[pressed] ?? 1) >= SCENE_ENDING_CONFIDENCE && !move && !held ? scene.cast.find(c => c.id === pressed) : undefined;
   if (target) {
     const details = await pressureDetails(decider, scene, state, playerTurn, target);
     combined = { ...combined, answers: { ...combined.answers, ...details.answers }, latencyMs: combined.latencyMs + details.latencyMs, costUsd: combined.costUsd + details.costUsd };
@@ -531,21 +598,21 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     .map(({ e, a }) => ({ essential: e.id, carrier: a!.choice }));
   const offGraph = decision.answers.off_graph?.choice === "off_graph" && (decision.answers.off_graph?.probabilities?.off_graph ?? 1) >= SCENE_ENDING_CONFIDENCE;
   const plainTransition = plain && !plainEnding ? plainOutcome : undefined;
-  // Saying no wrongly costs as much as ending the scene wrongly: same confidence bar.
-  const limitChoice = decision.answers.limit?.choice;
-  const limitConfident = (decision.answers.limit?.probabilities?.[limitChoice ?? ""] ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  const limit = limitChoice?.startsWith("limit_") && limitConfident ? scene.limits?.[Number(limitChoice.slice(6))] : undefined;
   // The rules: a spell or a blow gets its details in a second small call; a rest needs none. Not
-  // when the scene can't offer it, when it's out of character, or when it starts a fight for the map.
+  // when it starts a fight for the map.
   let mechanic: Mechanic | undefined;
-  const asked = decision.answers.mechanic?.choice;
-  const sure = asked && asked !== "none" && (decision.answers.mechanic?.probabilities?.[asked] ?? 1) >= SCENE_ENDING_CONFIDENCE;
-  if (options.rules && sure && !limit && !ooc && move?.exit?.kind !== "combat") {
-    if (asked === "short_rest" || asked === "long_rest") mechanic = { kind: "rest", length: asked === "short_rest" ? "short" : "long" };
-    else if (asked === "cast" || asked === "attack" || asked === "grapple" || asked === "shove" || asked === "jump" || asked === "feature") {
-      const details = await mechanicDetails(decider, scene, state, playerTurn, asked, options.rules);
+  if (options.rules && ruling && move?.exit?.kind !== "combat") {
+    if (ruling === "short_rest" || ruling === "long_rest") mechanic = { kind: "rest", length: ruling === "short_rest" ? "short" : "long" };
+    else if (act) {
+      const details = await mechanicDetails(decider, scene, state, playerTurn, act, options.rules, held ? { also: alsoQuestion(held, act) } : {});
       combined = { ...combined, answers: { ...combined.answers, ...details.decision.answers }, latencyMs: combined.latencyMs + details.decision.latencyMs, costUsd: combined.costUsd + details.decision.costUsd };
       mechanic = details.mechanic;
+      const also = details.decision.answers.also;
+      if (held && also?.choice === "yes" && (also.probabilities?.yes ?? 1) >= SCENE_ENDING_CONFIDENCE) {
+        move = await resolve(scene, state, held, "attempt", method);
+        // A check that tips the scene into a fight hands it to the map, blow and all.
+        if (move.exit?.kind === "combat") mechanic = undefined;
+      }
     }
   }
   return {
@@ -624,9 +691,10 @@ export const EARNED_DIRECTIVE = "The player has just done what it takes for what
 
 /** The bill for a daft act: real consequences, in the world's own logic (comic house style). */
 /** A jump's details: where to, over what, how far (one small call, only on jump turns). */
-async function jumpDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, rules: RulesOptions): Promise<{ mechanic?: Mechanic; decision: Decision }> {
+async function jumpDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, rules: RulesOptions, extra: Record<string, ChoiceQuestion> = {}): Promise<{ mechanic?: Mechanic; decision: Decision }> {
   const world = !!rules.places?.length;
   const q: Record<string, ChoiceQuestion> = {
+    ...extra,
     jump_how: { instructions: "The player is jumping in their latest turn. What kind of jump?", criteria: { long: "Across or over: a gap, a ditch, a table, from one roof or boat to another.", high: "Up: onto something, over something tall, to reach something high.", down: "Down: off something, into somewhere lower." } },
     jump_run: { instructions: "Do they take a run-up (ten feet or more on foot) before they jump?", criteria: { yes: "Yes, a run-up", no: "No: from a standstill, or there's no room to run" } },
     jump_drop: { instructions: "If they fell short (or jumped down), how far would they fall?", criteria: { "0": "No real drop: they'd land on the same floor, or in a puddle.", "10": "About a storey, ten feet or so: into a hold, a ditch, the water below a quay.", "20": "Two storeys, twenty feet or so.", "30": "Higher than that." } },

@@ -861,13 +861,17 @@ export async function attack(state: SessionState, cast: Character[], targetId: s
   const ctx = await open(state);
   const pcId = state.rules!.pc;
   const me = ctx.campaign.state.characters[pcId]!;
-  const weapon = weaponId && me.inventory.includes(weaponId) ? weaponId : me.equipped.mainHand ?? me.inventory.find(i => ctx.campaign.state.itemInstances[i]?.definitionId === "unarmed-strike");
+  // An improvised weapon (a thrown stone, a bottle) isn't their main one: SRD, 1d4 and no proficiency.
+  const improvised = weaponId === "improvised";
+  const unarmed = me.inventory.find(i => ctx.campaign.state.itemInstances[i]?.definitionId === "unarmed-strike");
+  const weapon = improvised ? unarmed : weaponId && me.inventory.includes(weaponId) ? weaponId : me.equipped.mainHand ?? unarmed;
   const thing = state.world?.entities[targetId];
   if (thing && isThingEntity(thing)) {
     // A blow at a thing: the weapon's attack against its armour class, damage to its hit points.
-    const name = ctx.engine.content.items.get(ctx.campaign.state.itemInstances[weapon ?? ""]?.definitionId ?? "")?.name ?? "Unarmed Strike";
+    const name = improvised ? "Improvised weapon" : ctx.engine.content.items.get(ctx.campaign.state.itemInstances[weapon ?? ""]?.definitionId ?? "")?.name ?? "Unarmed Strike";
     const sheet = sheetOf(ctx, pcId);
-    const atk = sheet.attacks.find(a => a.name === name) ?? sheet.attacks[0]!;
+    const str = sheet.abilityModifiers.STR;
+    const atk = improvised ? { attackBonus: str, damage: { dice: "1d4", modifier: str, type: "bludgeoning" } } : sheet.attacks.find(a => a.name === name) ?? sheet.attacks[0]!;
     const random = rng(state.seed + 9973 * state.rollCount);
     const d20 = 1 + Math.floor(random() * 20);
     const total = d20 + atk.attackBonus;
@@ -888,7 +892,7 @@ export async function attack(state: SessionState, cast: Character[], targetId: s
   if (!target) { close(state, ctx); return { lines: [], directive: "" }; }
   const npc = ensureNpc(ctx, state, target);
   const events = ctx.apply(ctx.engine.plan.attack(ctx.campaign.state, { attackerId: pcId, targetId: npc, weaponInstanceId: weapon! }).events);
-  const weaponName = (id: string) => ctx.engine.content.items.get(ctx.campaign.state.itemInstances[id]?.definitionId ?? id)?.name ?? "Attack";
+  const weaponName = (id: string) => improvised ? "Improvised weapon" : ctx.engine.content.items.get(ctx.campaign.state.itemInstances[id]?.definitionId ?? id)?.name ?? "Attack";
   const { lines, account } = describe(ctx, state, events, weaponName);
   const after = ctx.campaign.state.characters[npc]!;
   if (state.world) syncBeings(ctx, state, state.world, [{ id: target.id, engine: npc }]);

@@ -2,7 +2,8 @@ import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { approachById } from "./approaches.ts";
+import { sceneById } from "../../scenes/index.ts";
+import { sceneApproach } from "./approaches.ts";
 import { shouldRepair } from "./repair.ts";
 import { sessionDir, type SessionState } from "./session.ts";
 
@@ -23,7 +24,8 @@ function detached(args: string[]): void {
 }
 
 export function afterTurn(state: SessionState): void {
-  const approach = approachById(state.approach);
+  // As the scene runs it: a talk with a companion has no co-GM.
+  const approach = sceneApproach(state, sceneById(state.sceneId));
   if (approach.memory) {
     writeFileSync(join(sessionDir(state.id), `remember-${state.turn}.lock`), String(state.turn));
     detached(["remember", state.id, "--turn", String(state.turn), "--scene", state.sceneId]);

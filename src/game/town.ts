@@ -1,4 +1,5 @@
 import { sceneById } from "../../scenes/index.ts";
+import { talkable } from "../../scenes/talk.ts";
 import type { SessionState } from "../runtime/session.ts";
 import {
   actorsHere, direction, enterScene, getMap, interact, isLive, leadMarker, leaveScene, look, move, newExploration, pathTo, PLACES, regionAt, regionForScene, regionOpen,
@@ -19,7 +20,9 @@ import { townText } from "./views.ts";
  *   walk_north … walk_northwest            one step (north is up-left on the map, east up-right)
  *   go_to_lead                              walk towards where the story is heading (into it, if it opens by stepping in)
  *   go_to_<someone or somewhere>            walk over to a person, a thing, a way out or a place in sight
- *   talk_<id>, examine_<id>                 talk to someone, look at something (walking over first if need be)
+ *   talk_<id>, examine_<id>                 talk to someone, look at something (walking over first if need be);
+ *                                           someone walking with you (Kell, after the granary) stops for a talk
+ *                                           (src/runtime/talk.ts)
  *   enter_<place>                           step into the lead's place (the granary yard, the Heron)
  *   travel_<way>                            go through a door or along a path to another map
  *   open_door_<direction>                   try a door beside you
@@ -203,7 +206,7 @@ function leadWords(lead: NonNullable<ReturnType<typeof leadTarget>>, from: Tile2
 // ---------------------------------------------------------------------------------------------
 // Doing things.
 
-interface Done { text: string; scene?: boolean }
+interface Done { text: string; scene?: boolean; talk?: { with: string; where: string } }
 
 /** What a walk came to: how far, what was said on the way, and how it stopped. */
 interface Walk { walked: number; said: string[]; scene: boolean; travelled: boolean; blocked?: string }
@@ -240,6 +243,11 @@ function sceneOpens(game: GameState, i: Interaction | undefined): boolean {
 /** Use an interaction (talk, look, go through): what the player sees, and whether the lead scene opens. */
 function use(game: GameState, i: Interaction, actor?: MapActor): Done {
   const ex = exploreState(game);
+  // Someone walking with the player, with a lore entry to be themselves from: a word with them (a talk).
+  if (actor && ex.followers.some(f => f.id === actor.id) && talkable(actor.id)) {
+    const w = whereabouts(ex);
+    return { text: `You go over to ${actor.name}.`, talk: { with: actor.id, where: `${w.place === w.map ? w.map : `${w.place} in ${w.map}`}, ${w.time.replace("-", " ")}` } };
+  }
   if (i.kind === "examine") {
     // Passing the time of day near where the story's heading: the line points the way in.
     const lead = leadTarget(game);
@@ -271,7 +279,7 @@ function goTo(game: GameState, t: Target, andUse: boolean): Done {
   }
   if (!andUse || !t.interaction) return { text: said.join(" ") || "You're already there." };
   const done = use(game, t.interaction, t.actor);
-  return { text: [...said, done.text].filter(Boolean).join(" "), ...(done.scene ? { scene: true } : {}) };
+  return { text: [...said, done.text].filter(Boolean).join(" "), ...(done.scene ? { scene: true } : {}), ...(done.talk ? { talk: done.talk } : {}) };
 }
 
 /** What interact (the app's e) would do now, in words: "Talk to Sergeant Kell", "Go through the gate". */

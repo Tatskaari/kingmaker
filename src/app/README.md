@@ -51,6 +51,8 @@ Exploration and fights plug into the core, and the app uses the real modules:
 
 Every action goes through the core by the same action ids the QA console uses (`walk_northeast`, `interact`, `talk_kell`, `attack_crake-1`, `cast_fire-bolt_sallow`, `end_turn`, `continue`). The screens draw from the core's state: the map module's explore state, the scene's world, and the fight's controller.
 
+Talking to someone who walks with the player between scenes (`talk_kell`, or e beside Kell) opens a talk ([src/runtime/talk.ts](../runtime/talk.ts)): a scene in the core's scene mode, with the story's own scene set aside until it's over. The core's observation offers its dialogue choices as actions: `say_1`… and `say_goodbye` are of kind `say` (the label is the line, and `act(id)` is the same as `say(label)`), and `walk_on` ends the talk without a word. When the talk ends the core is back in explore mode where the player was, with the same lead; `talkOf(sceneId)` ([scenes/talk.ts](../../scenes/talk.ts)) tells a talk's scene from a scene of the story.
+
 ## Smoke tests
 
 ```sh

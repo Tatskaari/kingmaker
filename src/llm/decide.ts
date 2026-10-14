@@ -27,6 +27,13 @@ export class JevDecider implements Decider {
     this.name = name;
   }
   async decide(state: unknown, questions: Record<string, ChoiceQuestion>, operation: string): Promise<Decision> {
+    // A question with one option has one answer (the Decisions API wants at least two: a fighter's
+    // only class feature, the one person in reach of a grab): answered here, and only the rest asked.
+    const settled = Object.fromEntries(Object.entries(questions).filter(([, q]) => Object.keys(q.criteria).length === 1)
+      .map(([id, q]) => [id, { choice: Object.keys(q.criteria)[0]!, probabilities: { [Object.keys(q.criteria)[0]!]: 1 } }])) as Record<string, ChoiceAnswer>;
+    const asked = Object.fromEntries(Object.entries(questions).filter(([id]) => !settled[id]));
+    if (!Object.keys(asked).length) return { answers: settled, latencyMs: 0, costUsd: 0, decider: this.name };
+    if (Object.keys(settled).length) return this.decide(state, asked, operation).then(d => ({ ...d, answers: { ...settled, ...d.answers } }));
     const key = apiKey();
     const request = {
       model: this.model,

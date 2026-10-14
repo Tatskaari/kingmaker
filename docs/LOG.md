@@ -222,3 +222,25 @@ Smoke test latencies: blocking puts the co-GM on the critical path (10–15 s to
 - **Playtest 1 (the user):** characters voiced the GM's plan. The cause was co-GM notes and whispers setting terms, plus a soft-nudge relocation repeating the boot crackle. Fixed in the co-GM prompt, the GM prompt, the card labels and hint tracking. Fresh-session coaching went from 4/49 to 0/52. Imitation persists once it's in the history.
 - **Techniques:** preserve intent failed 0/4 (a threat rolled as Persuasion). A social attempt now rolls the player's method: 3/3.
 - **`v2` now has the comic style plus the consequence flag.** `v2-straight` keeps the old v2, and `v2-pressure` is opt-in.
+
+## 2026-10-14 (evening) — a javelin that rolled Medicine
+
+- **The user's turn:** "Threw my javelin to knock the body down and it gave me a medicine check to examine Prout for signs he was killed before he was hung." The background co-GM had added a route, "Kren gets Prout down or otherwise close enough to examine his neck, head, or hands", with a Medicine check: the precondition bundled with the skilled act. The throw matched it at 0.88. The rules' attack read 0.59 and missed the 0.6 bar, so the rules never saw the throw.
+- **Fixes:**
+  - The co-GM writes a route with a roll as the act the roll tests, and a bundled `when` is restated from the check's reason.
+  - The decider sees what each check route's roll is for.
+  - On a turn the rules resolve the player's act, a route's check is rolled as well only if the player is also doing that act. The question rides in the act's details call. No freeform check rides along, and there's no quick co-GM hold on top of the act.
+  - The attack criterion names throws and things.
+  - Two routes for the same check share the read.
+  - A one-option question (a fighter's only class feature) is answered locally; the Decisions API rejected it, so Second Wind crashed the turn.
+  - Speech/action convention, from the user: talking is normal; *asterisks* or (parentheses) mark actions. It's in the GM, narrator and actor prompts, and in the three decider questions it decides. Put in every decision's state instead, it tipped unrelated borderline judgements (earned, cues): 82/86 then, against 86/86 in the questions.
+- **Replays of turn 16, from the turn-15 snapshot, live (9 runs: old co-GM patch ×4, co-GM re-run ×5, varied seeds):**
+  - The throw was an attack on the hoist rope every time (8 hits, 1 natural 1). Never Medicine, never an extra freeform roll.
+  - Examining the body afterwards rolled Medicine in 8 of 9. Two runs only did so once same-check routes shared the read: the co-GM had refreshed the route after the fall, and the read split 0.57/0.43. The ninth had no examination route in the beat at all (the co-GM added none, and the authored one lives in the yard beat). Base code reads that moment the same way.
+- **Suites:**
+  - Decision suite 82/86 → 86/86 (mean latency 410 → 387 ms).
+  - Roll-related reply cases (20 × 2, `v2`): criterion 70% → 70%, mechanical 100% → 100%.
+  - The moment is now a fixture (`evals/fixtures/playtest-2`). `hc-javelin-at-rope` went 0/3 → 3/3 on both the criterion and the mechanical checks; `hc-dec-javelin-not-exam` went 0/2 → 2/2. Decision cases now see a snapshot's co-GM routes, as play does; none of the older decision fixtures has any.
+- **Still open:**
+  - The co-GM's improvised check routes often lead back to a beat the story has left (motive → doubt), copying the authored route's target.
+  - A rope cut by the rules draws the violence reactions: Kell intervenes, and once Moll fled.

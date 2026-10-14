@@ -446,6 +446,9 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
       if (!targets.length) { problems.push(`${op.op}: nothing matches "${op.what}"`); continue; }
       for (const e of targets) {
         if (op.op === "move" || op.op === "place") {
+          // What's built in or fixed (a door, a beam, a rope tied off over it) stays put: "it's tied off
+          // up there" describes it, it doesn't move it. Breaking or cutting it is how it comes down.
+          if (e.kind === "feature" || e.tags.includes("fixed")) { problems.push(`${op.op}: ${e.name} is fixed where it is`); continue; }
           const where = placeIn(world, op.to, op.how);
           const dest = one(where.to, op.op);
           if (!dest) continue;
