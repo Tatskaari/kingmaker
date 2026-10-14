@@ -564,8 +564,11 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
     return c ? { id: b, engine: ensureNpc(ctx, state, c) } : undefined;
   })()).filter((x): x is { id: string; engine: string } => !!x);
   let events: Dnd.EngineEvent[] = [];
+  // A zone (Zone of Truth, Silence...) sits somewhere: where it's aimed, or where the caster stands (in 5-foot squares).
+  const aimAt = world ? positionOf(world, targetIds.find(t => world.entities[t]) ?? "player") : undefined;
+  const targetPosition = aimAt ? { x: Math.round(aimAt.x / 5), y: Math.round(aimAt.y / 5) } : { x: 0, y: 0 };
   try {
-    events = ctx.apply(ctx.engine.plan.castSpell(ctx.campaign.state, { characterId: pcId, spellId, slotLevel, targetIds: people.map(p => p.engine) }).events);
+    events = ctx.apply(ctx.engine.plan.castSpell(ctx.campaign.state, { characterId: pcId, spellId, slotLevel, targetIds: people.map(p => p.engine), ...((spell.mechanicalEffects ?? []).some(m => /zone/i.test(String(m["kind"]))) || /zone|silence|darkness|fog/i.test(spell.id) ? { targetPosition } : {}) }).events);
   } catch (error) {
     // Aimed only at things: the engine wants a creature, so spend the slot ourselves.
     if (!things.length) {
