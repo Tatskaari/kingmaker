@@ -66,6 +66,8 @@ const term = new Terminal({
   drawBoldTextInBrightColors: false,
   allowProposedApi: true,
   macOptionIsMeta: true,
+  // Right-click is the game's (its action menus), not a word selection.
+  rightClickSelectsWord: false,
   windowOptions: { getWinSizePixels: true, getCellSizePixels: true, getWinSizeChars: true },
 });
 
@@ -75,6 +77,8 @@ term.unicode.activeVersion = "11";
 const fit = new FitAddon();
 term.loadAddon(fit);
 term.open($("terminal"));
+// The browser's own menu would take the right-click: the game's menus need it.
+$("terminal").addEventListener("contextmenu", event => event.preventDefault());
 try {
   const webgl = new WebglAddon();
   webgl.onContextLoss(() => {

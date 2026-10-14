@@ -259,6 +259,22 @@ const glRenderer = (page: Page) =>
     return info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : "unknown";
   })()`) as Promise<string>;
 
+/**
+ * Clicks the middle of where `what` first shows on the screen. Columns are counted in characters,
+ * not UTF-16 units: the map's glyphs from the private-use planes are one cell each, but two units.
+ */
+async function clickOn(page: Page, what: string, button: "left" | "right" = "left"): Promise<void> {
+  const lines = (await text(page)).split("\n");
+  const row = lines.findIndex(line => line.includes(what));
+  if (row < 0) throw new Error(`"${what}" isn't on the screen to click`);
+  const col = [...lines[row]!.slice(0, lines[row]!.indexOf(what))].length + Math.floor(what.length / 2);
+  const cell = await page.evaluate(`(() => {
+    const r = document.querySelector(".xterm-screen").getBoundingClientRect();
+    return { x: r.x, y: r.y, w: r.width / km.term.cols, h: r.height / km.term.rows };
+  })()`) as { x: number; y: number; w: number; h: number };
+  await page.mouse.click(cell.x + (col + 0.5) * cell.w, cell.y + (row + 0.5) * cell.h, { button });
+}
+
 function changed(a: string, b: string): number {
   let count = 0;
   for (let i = 0; i < Math.max(a.length, b.length); i++) if (a[i] !== b[i]) count++;
@@ -363,6 +379,21 @@ async function offline(): Promise<void> {
     else fail(`walking left: ${changed(before, after)} cells changed${/The wall wins/.test(after) ? ", into a wall" : ""}`);
     await press(page, "ArrowRight", "d");
     await sleep(400);
+
+    // Right-click is the game's: someone in Nearby gets its menu of what you can do, and the browser's
+    // own menu (which would cover it, and take the next click) doesn't come up.
+    await page.evaluate(`window.unprevented = 0;
+      document.addEventListener("contextmenu", event => { if (!event.defaultPrevented) window.unprevented++; })`);
+    await clickOn(page, "Sergeant Kell", "right");
+    await waitFor(page, "Talk.*Esc never mind", "right-clicking Kell in Nearby opens the game's menu");
+    await shot(page, "right-click");
+    const unprevented = await page.evaluate("window.unprevented") as number;
+    if (unprevented) fail(`the browser's own menu came up on a right-click (${unprevented})`);
+    else ok("the browser's own menu stayed down");
+    if (await page.evaluate("km.term.getSelection()")) fail("the right-click selected text");
+    await press(page, "Escape");
+    await sleep(300);
+    if (/Esc never mind/.test(await text(page))) fail("Esc didn't close the right-click menu");
 
     // Overlays and the menu: c, ?, Esc.
     await press(page, "c");
