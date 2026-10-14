@@ -17,7 +17,7 @@ import { newSessionId, saveSession, snapshotSession, type Entry, type EntryKind,
 import { actorReply, gmReply, narratorReply, type Spoken } from "./voices.ts";
 import { disclose, keepOpened, URGENT } from "../lore/disclosure.ts";
 import { savePlayedScene } from "../lore/docs.ts";
-import { frontsText, moveFronts, type FrontStep } from "../lore/fronts.ts";
+import { frontsText, moveFronts, type FrontChanges } from "../lore/fronts.ts";
 import { rememberScene } from "../lore/remember.ts";
 import { broadcastEnding } from "../lore/reviews.ts";
 
@@ -677,40 +677,29 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
     instructions: "You write the hand-off between two scenes of a roleplaying game, for the GM of the next scene. Describe the state of things in the story at the moment the last scene ended, exactly as it was established in play (not as anyone planned it): who is where and in what state, who holds what, what was promised or agreed, what the player character learned, and how people feel. Things that were offered but refused, or threatened but not done, didn't happen. Leave out anything said out of character (questions or agreements about the game itself). Be concrete and brief: a short paragraph, then up to eight bullet points.",
     input: [{ role: "user", content: story }],
   }).then(r => `Previous scene, "${scene.title}", ended: ${exit.title}.\n${r.text.trim()}`).catch(() => `Previous scene, "${scene.title}", ended: ${ended}`);
-  // What's in motion in the world (the GM's fronts), as it stands in this session: it moves on here.
-  const frontsPath = scene.fronts ?? candidates.find(c => c.fronts)?.fronts;
-  const fronts = frontsPath ? frontsText(state.id, frontsPath) : undefined;
-  const step = { type: "object", additionalProperties: false, required: ["front", "step"], properties: { front: { type: "string" }, step: { type: "string" } } };
-  const verdict = respondJson<{ scenes: Array<{ id: string; holds: boolean; why: string }>; adjustments: string[]; opening: string; lead: string; ticked?: FrontStep[]; struck?: Array<FrontStep & { why: string }>; bills?: string[] }>({
+  const verdict = respondJson<{ scenes: Array<{ id: string; holds: boolean; why: string }>; adjustments: string[]; opening: string; lead: string }>({
     operation: "boundary", effort: "low",
     instructions: [
       "The upcoming scenes of a roleplaying game were written before play. Check them against what has actually happened in the story.",
       "1. scenes: for each upcoming scene, in order, judge whether what it takes for granted still holds. A scene is overtaken when play has already done, prevented or bypassed what it is about (its central matter is settled, the people it needs are gone, the thing it's built around has already happened).",
-      `2. adjustments: for the first upcoming scene that still holds, list each point where its prep (what it's about, its opening, its background, its people) no longer matches the story: where someone is or what state they're in, who holds what, what people know, what has already happened. The scene's own time and place stand (it may start after a gap, such as the next morning): say what's true by then. Write each as a short statement of what is true instead, so its GM can adapt ("Hobb is in the watch-house cells, not on the hoist.").${fronts ? " Add what's newly in motion that shows there (the steps you tick below, by how they show: something seen, or someone who'd say it), at most one per front and from no more than two fronts." : ""} Leave out everything that still fits. An empty list is fine.`,
+      "2. adjustments: for the first upcoming scene that still holds, list each point where its prep (what it's about, its opening, its background, its people) no longer matches the story: where someone is or what state they're in, who holds what, what people know, what has already happened. The scene's own time and place stand (it may start after a gap, such as the next morning): say what's true by then. Write each as a short statement of what is true instead, so its GM can adapt (\"Hobb is in the watch-house cells, not on the hoist.\"). Leave out everything that still fits. An empty list is fine.",
       "3. opening: that scene's opening direction, rewritten so it starts where the story actually is. Keep the author's intent (the place, the mood, what a first glance shows, what to end on) and drop or change whatever the adjustments make untrue; never replay something that has already happened (an arrival, a first meeting, a discovery). If nothing needs changing, return the author's opening as it is.",
       "4. lead: in one or two sentences of second-person fiction, how the player comes to know where the story goes next (that first scene that holds: its place and why it matters now) and how the time between passes, consistent with what happened: a word from a companion, a message, gossip, something they found. No game talk.",
-      ...(fronts ? [
-        "5. What's in motion moves on between scenes, whether or not the player is looking.",
-        "- ticked: the unticked steps (\"- [ ]\") that what happened, or the time passing until that first scene that holds opens, has now made true. Give each by its front (the ## heading) and the step's bold opening words. A step ticks because its condition is met or its hour has come, never because it would be dramatic, and nobody acts on what they couldn't have learned (each step says who learns what, and from whom).",
-        "- struck: unticked steps that play has made impossible or meaningless (the person is arrested, dead or gone, the thing destroyed, the matter settled), with why in a few words.",
-        "- bills: usually none. When the last scene ended hard, or the player did something reckless or daft that the world would answer later, a line for each such consequence not already listed: \"If <what happened>: <who answers it, how, and where it will show>\". At most two.",
-      ] : []),
     ].join("\n"),
-    input: [{ role: "user", content: `${story}\n\n## Upcoming scenes, in order\n${candidates.map(prep).join("\n\n")}${fronts ? `\n\n## What's in motion (GM only)\n${fronts}` : ""}` }],
-    json: { name: "boundary", schema: { type: "object", additionalProperties: false, required: ["scenes", "adjustments", "opening", "lead", ...(fronts ? ["ticked", "struck", "bills"] : [])], properties: {
+    input: [{ role: "user", content: `${story}\n\n## Upcoming scenes, in order\n${candidates.map(prep).join("\n\n")}` }],
+    json: { name: "boundary", schema: { type: "object", additionalProperties: false, required: ["scenes", "adjustments", "opening", "lead"], properties: {
       scenes: { type: "array", items: { type: "object", additionalProperties: false, required: ["id", "holds", "why"], properties: { id: { type: "string" }, holds: { type: "boolean" }, why: { type: "string" } } } },
       adjustments: { type: "array", items: { type: "string" } },
       opening: { type: "string" },
       lead: { type: "string" },
-      ...(fronts ? {
-        ticked: { type: "array", items: step },
-        struck: { type: "array", items: { ...step, required: ["front", "step", "why"], properties: { ...step.properties, why: { type: "string" } } } },
-        bills: { type: "array", items: { type: "string" } },
-      } : {}),
     } } },
   }).catch(() => undefined);
-  const [text, result] = await Promise.all([handoff, verdict]);
-  const moved = frontsPath && result ? moveFronts(state.id, frontsPath, { ticked: result.ticked ?? [], struck: result.struck ?? [], bills: result.bills ?? [] }, scene.title) : [];
+  // What's in motion in the world (the GM's fronts), as it stands in this session, moves on here too.
+  const frontsPath = scene.fronts ?? candidates.find(c => c.fronts)?.fronts;
+  const fronts = frontsPath ? frontsText(state.id, frontsPath) : undefined;
+  const moving = fronts ? moveOn(story, candidates[0]!, fronts) : Promise.resolve(undefined);
+  const [text, result, motion] = await Promise.all([handoff, verdict, moving]);
+  const moved = frontsPath && motion ? moveFronts(state.id, frontsPath, motion, scene.title) : [];
   // The first scene that holds: one that takes nothing for granted always does.
   const holds = (c: Scene) => !c.assumes?.length || result?.scenes.find(v => v.id === c.id)?.holds !== false;
   const chosen = candidates.find(holds) ?? candidates.at(-1)!;
@@ -719,7 +708,35 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
   const firstHolding = result ? candidates.find(c => !c.assumes?.length || result.scenes.find(v => v.id === c.id)?.holds !== false) : undefined;
   const opening = firstHolding?.id === chosen.id && result?.opening?.trim() ? result.opening.trim() : undefined;
   const lead = firstHolding?.id === chosen.id && result?.lead?.trim() ? result.lead.trim() : undefined;
-  return { handoff: text, sceneId: chosen.id, adjustments: (result?.adjustments ?? []).map(a => a.trim()).filter(Boolean).slice(0, 10), skipped, ...(opening ? { opening } : {}), ...(lead ? { lead } : {}), fronts: moved };
+  const shows = chosen.id === candidates[0]!.id ? motion?.shows ?? [] : [];
+  const adjustments = [...(result?.adjustments ?? []).slice(0, 10), ...shows.slice(0, 2)].map(a => a.trim()).filter(Boolean);
+  return { handoff: text, sceneId: chosen.id, adjustments, skipped, ...(opening ? { opening } : {}), ...(lead ? { lead } : {}), fronts: moved };
+}
+
+/**
+ * The world's turn at a scene boundary: which steps of what's in motion (the fronts doc) play or
+ * the time passing has made true or meaningless, any new bills to come due, and how what's newly
+ * true shows in the next scene. Runs alongside the boundary verdict.
+ */
+async function moveOn(story: string, next: Scene, fronts: string): Promise<(FrontChanges & { shows: string[] }) | undefined> {
+  const step = { type: "object", additionalProperties: false, required: ["front", "step"], properties: { front: { type: "string" }, step: { type: "string" } } };
+  return respondJson<FrontChanges & { shows: string[] }>({
+    operation: "fronts", effort: "low",
+    instructions: [
+      "You keep a roleplaying game's world moving between scenes, whether or not the player is looking. Below are the story so far, the next scene (its time and place), and what's in motion: fronts, each with a clock of steps.",
+      "- ticked: the unticked steps (\"- [ ]\") that what happened, or the time passing until the next scene opens, has now made true. Give each by its front (the ## heading) and the step's bold opening words. A step ticks because its condition is met or its hour has come, never because it would be dramatic, and nobody acts on what they couldn't have learned (each step says who learns what, and from whom).",
+      "- struck: unticked steps that play has made impossible or meaningless (the person is arrested, dead or gone, the thing destroyed, the matter settled), with why in a few words.",
+      "- bills: usually none. When the last scene ended hard, or the player did something reckless or daft that the world would answer later, a line for each such consequence not already listed: \"If <what happened>: <who answers it, how, and where it will show>\". At most two.",
+      "- shows: what's newly true that the player could meet in the next scene, by how it shows there (something seen, or someone who'd say it), as short statements of fact for its GM. Only what fits the next scene's time and place, at most one per front and from no more than two fronts. Often none.",
+    ].join("\n"),
+    input: [{ role: "user", content: `${story}\n\n## The next scene: ${next.title}\nWhen and where: ${next.setting}\nIts opening: ${next.opening}\n\n## What's in motion (GM only)\n${fronts}` }],
+    json: { name: "fronts", schema: { type: "object", additionalProperties: false, required: ["ticked", "struck", "bills", "shows"], properties: {
+      ticked: { type: "array", items: step },
+      struck: { type: "array", items: { ...step, required: ["front", "step", "why"], properties: { ...step.properties, why: { type: "string" } } } },
+      bills: { type: "array", items: { type: "string" } },
+      shows: { type: "array", items: { type: "string" } },
+    } } },
+  }).catch(() => undefined);
 }
 
 export function transcriptMarkdown(state: SessionState, options: { allScenes?: boolean } = {}): string {
