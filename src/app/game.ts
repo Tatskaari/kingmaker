@@ -4,7 +4,7 @@ import { TacticalFight, type CombatController } from "../game/combat/index.ts";
 import { Director } from "../game/look/director.ts";
 import { Effects } from "../game/look/effects.ts";
 import { mapFights } from "../game/fights.ts";
-import { pathTo, SCREEN_KEYS, steer, type ExploreState } from "../game/map/index.ts";
+import { direction, pathTo, SCREEN_KEYS, steer, type ExploreState } from "../game/map/index.ts";
 import { exploreState, leadTarget, town, walkId } from "../game/town.ts";
 import type { StoryState, Tile2 } from "../game/types.ts";
 import { fightEffects } from "../game/views.ts";
@@ -13,6 +13,7 @@ import { sheetText } from "../rules/dnd.ts";
 import { sceneEntries } from "../runtime/brief.ts";
 import type { TurnHooks } from "../runtime/engine.ts";
 import { sessionDir, type Entry, type EntryKind, type SessionState } from "../runtime/session.ts";
+import type { SceneWorld } from "../world/scene-world.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { repairCampaign } from "./rules-repair.ts";
 import { loadExtras, resumable, saveExtras, type JournalEntry, type Resumable } from "./save.ts";
@@ -30,12 +31,15 @@ import { DEFAULT_CONCEPT, DEFAULT_NAME, epilogue, LEVEL, notebookLines, TIME_WOR
 export type Screen = "title" | "create" | "creating" | "created" | "explore" | "scene" | "between" | "combat" | "end";
 
 export interface Line {
-  kind: EntryKind | "header" | "error";
+  /** "info": the rules' word on what changed without a roll (what you carry, what's burning); "roll" keeps the dice. */
+  kind: EntryKind | "header" | "error" | "info";
   /** Speaker id (a cast id, "gm", "player", "dice", "system"). */
   speaker: string;
   /** Display name for dialogue and the player. */
   name?: string;
   text: string;
+  /** The scene it's in: the next scene's opening can stream in while the last one is still on screen. */
+  scene?: string;
 }
 
 export interface Card {
@@ -45,6 +49,51 @@ export interface Card {
   working?: string;
   /** Where Enter goes from here. */
   next?: "explore" | "combat" | "scene" | "end";
+  /** The card told as a conversation, by whoever walks with the player (Kell reads the notebook back). */
+  talk?: Line[];
+}
+
+/** A scene that's over, still on screen until the player goes on. */
+export interface Over {
+  /** The story has finished moving on: where Continue goes is known. */
+  ready: boolean;
+  /** The player asked to go on before it was ready: go as soon as it is. */
+  queued?: boolean;
+  /** How the scene ended (its exit's title), once known. */
+  ending?: string;
+  /** Lines to carry over into the next scene (a summons that went wrong on the way). */
+  carry?: Line[];
+}
+
+/** The scene's commands, typed with a / (or the old #): what each one does, for the help and the hints. */
+export const COMMANDS: Array<{ name: string; what: string; testing?: boolean }> = [
+  { name: "sheet", what: "your character sheet" },
+  { name: "map", what: "the scene's place on the map" },
+  { name: "journal", what: "the investigator's notebook" },
+  { name: "help", what: "how to play" },
+  { name: "save", what: "save the game" },
+  { name: "quit", what: "save, and back to the title" },
+  { name: "exits", what: "the scene's endings (for testing)", testing: true },
+  { name: "end", what: "<exit>: take an ending now (for testing)", testing: true },
+];
+
+/** A typed command by name, alias, or the start of one ("/sh" is the sheet; "/s" could be the sheet or a save, so it's neither). */
+export function commandNamed(typed: string): string | undefined {
+  const t = typed.toLowerCase();
+  const alias: Record<string, string> = { c: "sheet", "?": "help", j: "journal", notebook: "journal" };
+  if (alias[t]) return alias[t];
+  if (COMMANDS.some(c => c.name === t)) return t;
+  const starts = t ? COMMANDS.filter(c => c.name.startsWith(t)) : [];
+  return starts.length === 1 ? starts[0]!.name : undefined;
+}
+
+/**
+ * Does a rules line have a roll in it (a check, a save, an attack, damage, a spell's burst)? The
+ * rest are the rules' word on what changed: what you carry ("You no longer have your javelin"),
+ * what's burning, what you are now. Those get their own mark, so the dice mean dice.
+ */
+export function isRoll(text: string): boolean {
+  return /\d+\s*[+-]\s*\d+\s*=\s*-?\d+|\bvs (?:DC|AC) \d+|\b\d*d\d+\b|\btakes? \d+\b.*\bdamage\b|\bregains? \d+ HP\b|^(?:Cast|Damage|Jump|Fall|Grapple|Shove|Hit Die)\b|: unharmed by\b|\bdarts? at\b/i.test(text);
 }
 
 export type Overlay =
@@ -56,7 +105,10 @@ export type Overlay =
   | { kind: "spells"; spells: Array<{ id: string; name: string; level: number }>; index: number }
   | { kind: "actions"; index: number };
 
-const GM_BUSY = ["The GM is thinking…", "The GM consults their notes…", "The GM rolls something behind the screen and won't say what…", "The GM is doing the voices…", "The GM looks up the rules, then decides against them…"];
+const GM_BUSY = [
+  "The GM is thinking…", "The GM consults their notes…", "The GM rolls something behind the screen and won't say what…", "The GM is doing the voices…",
+  "The GM looks up the rules, then decides against them…", "The GM pretends this was the plan all along…", "The GM consults a table that may not exist…",
+];
 const DELAY = () => Number(process.env.KM_APP_COMBAT_DELAY_MS ?? 450);
 const STEP_MS = () => Number(process.env.KM_APP_STEP_MS ?? 45);
 
@@ -84,14 +136,20 @@ export class Game {
   quitting = false;
   /** Walking to the lead a step at a time: any key stops it. */
   walking = false;
+  /** The scene on screen is over: its last reply stays up until the player goes on. */
+  over?: Over;
+  /** What the core suggests the player might say now (its actions of kind "say"): click one, or press its number. */
+  choices: Action[] = [];
 
   /** The scene the transcript shows (a summons can open the next scene inside a turn). */
   private shown?: string;
   private listeners = new Set<() => void>();
   private pending?: ReturnType<typeof setTimeout>;
   private busyTurn = 0;
-  /** The open scene's look: one Effects and one Director for the scene (see sceneLook). */
-  private look?: { scene: string; fx: Effects; director: Director };
+  /** A turn of the player's is being played: a scene ending now is theirs to read before going on (see notice). */
+  private watching = false;
+  /** The open scene's look: one Effects and one Director for the scene, and its world (see sceneLook). */
+  private look?: { scene: string; fx: Effects; director: Director; world: SceneWorld };
   /** The rules' lines landing in a turn, shown together once a burst of them is in. */
   private rolled: string[] = [];
   /** The fight's effects, and how much of its log they've shown (see fightFx). */
@@ -110,6 +168,14 @@ export class Game {
 
   get session(): SessionState | undefined { return this.core?.session; }
   get story(): StoryState { return this.core?.state.story ?? { time: "morning", played: [], flags: {} }; }
+  /** The scene on the scene screen: the one being played, or the one that has just ended (until the player goes on). */
+  get shownScene(): string | undefined { return this.shown ?? this.session?.sceneId; }
+  /** Its world: the live one, or, once the story has moved on, the world as the scene left it. */
+  get shownWorld(): SceneWorld | undefined {
+    const world = this.session?.world;
+    if (world && world.scene === this.shownScene) return world;
+    return this.look?.world.scene === this.shownScene ? this.look?.world : undefined;
+  }
   /** Where the player is on the map (the map module's explore state, kept in the game). */
   get ex(): ExploreState | undefined { return this.core ? exploreState(this.core.state) : undefined; }
   /** The fight in progress, to draw (view(), options(), area()); act through combatAct. */
@@ -271,12 +337,12 @@ export class Game {
       const text = await run;
       if (!opening && text && (!options.quiet || /^You come into|:/.test(text))) this.say(text);
     } catch (error) {
-      if (opening) this.lines.push({ kind: "error", speaker: "system", text: `The GM couldn't open the scene: ${message(error)}. (#end <exit> skips ahead for testing.)` });
+      if (opening) this.lines.push({ kind: "error", speaker: "system", text: `The GM couldn't open the scene: ${message(error)}. (/end <exit> skips ahead for testing.)` });
       else this.say(message(error));
     }
     this.busy = undefined;
     this.live = undefined;
-    if (opening) this.observeScene();
+    if (opening) { this.observeScene(); this.refreshChoices(); }
     if (!options.quiet) this.saveExtras();
     this.emit();
   }
@@ -291,12 +357,14 @@ export class Game {
   }
 
   private lineOf(e: Entry): Line {
-    return { kind: e.kind, speaker: e.speaker, ...(e.kind === "dialogue" || e.kind === "player" ? { name: this.nameOf(e.speaker) } : {}), text: e.text };
+    // The rules' lines with no roll in them are news, not dice: what you carry, what's burning.
+    const kind = e.kind === "roll" && !isRoll(e.text) ? "info" : e.kind;
+    return { kind, speaker: e.speaker, ...(e.kind === "dialogue" || e.kind === "player" ? { name: this.nameOf(e.speaker) } : {}), text: e.text, ...(e.scene ? { scene: e.scene } : {}) };
   }
 
   private header(): Line {
     const scene = sceneById(this.session!.sceneId);
-    return { kind: "header", speaker: "system", name: scene.title, text: this.session!.lead ?? scene.hook };
+    return { kind: "header", speaker: "system", name: scene.title, text: this.session!.lead ?? scene.hook, scene: scene.id };
   }
 
   private sceneView(busy?: string): void {
@@ -306,58 +374,101 @@ export class Game {
     this.live = undefined;
     this.status = undefined;
     this.busy = busy;
+    this.over = undefined;
+    this.choices = [];
   }
 
   private showSceneSoFar(): void {
     this.shown = this.session!.sceneId;
     this.lines = [this.header(), ...sceneEntries(this.session!).map(e => this.lineOf(e))];
-    this.live = undefined;
-  }
-
-  /** A summons can open the next scene inside a turn: the transcript follows it. */
-  private follow(): void {
-    const id = this.session?.sceneId;
-    if (id && id !== this.shown && this.screen === "scene") { this.shown = id; this.lines = [this.header()]; }
+    // A summons's opening may still be streaming in: it carries on, now on screen.
+    if (this.live?.scene !== this.shown) this.live = undefined;
+    this.over = undefined;
+    this.refreshChoices();
   }
 
   private hooks(): TurnHooks {
     return {
       // The turn stays busy until the core has finished with it (and saved it): the reply streams
-      // first, then the after-reply decision, the stage manager, and maybe the next scene.
+      // first, then the after-reply decision, the stage manager, and maybe the next scene. The next
+      // scene waits while the last one is still on screen: its lines are in the session's
+      // transcript, and showSceneSoFar shows them when the player goes on.
       onSpeaker: (speaker, kind) => {
-        this.follow();
-        this.live = { kind, speaker, ...(kind === "dialogue" ? { name: this.nameOf(speaker) } : {}), text: "" };
-        this.busy = kind === "dialogue" ? `${this.nameOf(speaker)} is speaking…` : "The GM is speaking…";
+        const scene = this.session?.sceneId;
+        this.live = { kind, speaker, ...(kind === "dialogue" ? { name: this.nameOf(speaker) } : {}), text: "", ...(scene ? { scene } : {}) };
+        if (scene === this.shown) this.busy = kind === "dialogue" ? `${this.nameOf(speaker)} is speaking…` : "The GM is speaking…";
+        this.notice();
         this.emit();
       },
       onText: text => {
         if (!this.live) return;
         this.live.text = text;
-        this.emitSoon();
+        if (this.live.scene === this.shown) this.emitSoon();
       },
       onEntry: entry => {
-        this.follow();
         if (entry.kind === "narration" || entry.kind === "dialogue") {
           this.live = undefined;
-          if (this.busy) this.busy = "The GM makes a note…";
+          if (this.busy && !this.over) this.busy = "The GM makes a note…";
         }
-        this.lines.push(this.lineOf(entry));
-        this.animate(entry);
+        if ((entry.scene ?? this.session?.sceneId) === this.shown) {
+          this.lines.push(this.lineOf(entry));
+          this.animate(entry);
+        }
+        this.notice();
         this.emit();
       },
     };
   }
 
-  /** The player's turn in a scene: a #command, or what they say and do. */
+  /**
+   * Has the scene on screen ended (the story moving on, a fight breaking out, the next scene come
+   * for the player)? Then it's over: it stays up, last reply and all, until the player goes on.
+   * Only while a turn of the player's is being played (or `now`): a fight's aftermath reopens its
+   * scene through the same states, and isn't an ending.
+   */
+  private notice(now = false): boolean {
+    const core = this.core;
+    if ((!now && !this.watching) || !core || this.over || this.screen !== "scene" || !this.shown) return false;
+    if (core.state.mode === "scene" && core.session.sceneId === this.shown && !core.session.ended) return false;
+    this.over = { ready: false };
+    this.busy = "The story moves on…";
+    this.choices = [];
+    return true;
+  }
+
+  /** While the core has the turn: notice the scene ending as soon as it does (the hand-off takes a while). Returns the stop. */
+  private watch(): () => void {
+    this.watching = true;
+    const timer = setInterval(() => { if (this.notice()) this.emit(); }, 250);
+    return () => { clearInterval(timer); this.watching = false; };
+  }
+
+  /**
+   * A command that only opens something to look at (/sheet, /map, /journal, /help): it works any
+   * time, with the GM mid-sentence or the scene over. True when the text was one.
+   */
+  peek(raw: string): boolean {
+    const text = raw.trim();
+    if (!/^[/#]/.test(text) || !this.core) return false;
+    const name = commandNamed(text.slice(1).split(/\s+/)[0] ?? "");
+    if (name === "sheet") void this.showSheet();
+    else if (name === "map" || name === "journal" || name === "help") { this.overlay = name === "map" ? { kind: "scene-map" } : { kind: name }; this.emit(); }
+    else return false;
+    return true;
+  }
+
+  /** The player's turn in a scene: a /command (the old #command too), or what they say and do. */
   async input(raw: string): Promise<void> {
     const text = raw.trim();
     const core = this.core;
-    if (!text || !core || this.busy) return;
-    if (text.startsWith("#") || text.startsWith("/")) { await this.command(text.slice(1)); return; }
+    if (!text || !core || this.peek(text) || this.busy || this.over) return;
+    if (text.startsWith("/") || text.startsWith("#")) { await this.command(text.slice(1)); return; }
     this.busy = GM_BUSY[this.busyTurn++ % GM_BUSY.length]!;
     this.status = undefined;
+    this.choices = [];
     this.emit();
     const before = core.session.sceneId;
+    const stop = this.watch();
     try {
       await core.say(text, this.hooks());
       // What the stage manager did after the reply: who walked where, what changed.
@@ -369,95 +480,184 @@ export class Game {
       this.core = Core.load(core.state.id, this.explorer, this.fights);
       this.showSceneSoFar();
       this.lines.push({ kind: "error", speaker: "system", text: `The GM lost the thread (${message(error)}). Your last turn didn't happen; try it again.` });
+    } finally {
+      stop();
     }
     this.busy = undefined;
     this.live = undefined;
     await this.settle(before);
   }
 
+  /** One of the core's suggestions, said as if typed. */
+  choose(action: Action): void {
+    void this.input(action.label);
+  }
+
   private async command(command: string): Promise<void> {
-    const [verb = "", ...rest] = command.trim().split(/\s+/);
+    const [typed = "", ...rest] = command.trim().split(/\s+/);
     const core = this.core!;
     const session = core.session;
-    switch (verb.toLowerCase()) {
-      case "sheet": case "c": await this.showSheet(); return;
-      case "map": this.overlay = { kind: "scene-map" }; break;
-      case "help": case "?": this.overlay = { kind: "help" }; break;
-      case "journal": case "notebook": case "j": this.overlay = { kind: "journal" }; break;
-      case "save": core.save(); this.saveExtras(); this.status = "Saved."; break;
+    // The sheet, the map, the notebook and the help are peek's.
+    switch (commandNamed(typed)) {
+      case "save": core.save(); this.saveExtras(); this.status = "Saved. The clerk will keep."; break;
       case "quit": this.quitToTitle(); return;
       case "exits": {
         const scene = sceneById(session.sceneId);
-        this.lines.push({ kind: "system", speaker: "system", text: `Exits (for testing, #end <id>): ${scene.exits.filter(e => !session.fought?.includes(e.id)).map(e => `${e.id} (${e.title})`).join(", ")}` });
+        this.lines.push({ kind: "system", speaker: "system", text: `Exits (for testing, /end <id>): ${scene.exits.filter(e => !session.fought?.includes(e.id)).map(e => `${e.id} (${e.title})`).join(", ")}`, scene: scene.id });
         break;
       }
       case "end": {
         // For testing: end the scene through an exit now, as if play had reached it.
         const exit = sceneById(session.sceneId).exits.find(e => e.id === rest[0]);
-        if (!exit) { await this.command("exits"); this.status = rest[0] ? `No exit "${rest[0]}" here.` : "Which ending? #end <id>"; this.emit(); return; }
+        if (!exit) { await this.command("exits"); this.status = rest[0] ? `No exit "${rest[0]}" here.` : "Which ending? /end <id>"; this.emit(); return; }
         await this.moveOn(() => core.endScene(exit.id, this.hooks()));
         return;
       }
-      default: this.status = `Unknown command #${verb}. Try #sheet, #map, #journal, #help, #save or #quit.`;
+      default:
+        this.status = typed
+          ? `There's no /${typed}. There's ${COMMANDS.filter(c => !c.testing).map(c => `/${c.name}`).join(", ").replace(/, ([^,]+)$/, " and $1")}.`
+          : "A slash on its own says very little. Try /help.";
     }
     this.emit();
   }
 
-  /** The scene has ended outside a turn (#end, or a resume in between): the core takes the story on. */
+  /** The scene has ended outside a turn (/end, or a resume in between): the core takes the story on. */
   private async moveOn(run: () => Promise<string>): Promise<void> {
     const before = this.session!.sceneId;
     this.busy = "The story moves on…";
+    this.choices = [];
     this.emit();
+    const stop = this.watch();
     try {
-      await run();
+      const running = run();
+      // An /end has ended it by now (and a resume came back after the end): it's over.
+      if (this.notice()) this.emit();
+      await running;
     } catch (error) {
-      this.lines.push({ kind: "error", speaker: "system", text: `The story couldn't move on cleanly: ${message(error)}` });
+      const line: Line = { kind: "error", speaker: "system", text: `The story couldn't move on cleanly: ${message(error)}` };
+      this.lines.push(line);
+      // It went wrong in the next scene (a summons): say so there too.
+      if (this.over && this.session?.sceneId !== this.shown) this.over.carry = [...(this.over.carry ?? []), line];
+    } finally {
+      stop();
     }
     this.busy = undefined;
     this.live = undefined;
     await this.settle(before);
   }
 
-  /** After the core has moved: the notebook catches up, and the screen follows the mode. */
+  /**
+   * After the core has moved: the notebook catches up. A scene that's over stays on screen, its
+   * last reply with it, until the player goes on (continueScene); what comes next is got ready now.
+   */
   private async settle(before: string): Promise<void> {
-    const core = this.core!;
+    const core = this.core;
+    // Gone back to the title while the story was moving on: nothing to settle.
+    if (!core) return;
     const session = core.session;
     for (const h of session.history) {
       const scene = sceneById(h.sceneId);
       if (scene.interlude || this.journal.some(j => j.sceneId === h.sceneId && j.ending !== "A fight")) continue;
       this.note({ sceneId: h.sceneId, title: scene.title, ending: scene.exits.find(e => e.id === h.exitId)?.title ?? h.exitId, lines: notebookLines(session, h.sceneId) });
     }
-    const mode = core.state.mode;
-    if (mode === "end") { this.toEnd(); this.emit(); return; }
-    if (mode === "combat" && this.screen !== "combat") {
-      const exit = sceneById(session.sceneId).exits.find(e => e.id === session.ended?.exitId);
-      this.card = { title: "Roll for initiative!", lines: [...(exit ? [exit.outcome, ""] : []), "Press Enter to fight."], next: "combat" };
-      this.targetIndex = 0;
-      this.screen = "between";
-    } else if (mode === "explore" && this.screen !== "explore") {
-      const next = sceneById(session.sceneId);
-      const where = leadTarget(core.state);
-      const notebook = this.journal.find(j => j.sceneId === before)?.lines ?? [];
-      this.card = {
-        title: TIME_WORDS[core.state.story.time],
-        lines: [
-          ...(notebook.length ? ["Your notebook:", ...notebook, ""] : []),
-          ...(session.lead ? [session.lead, ""] : []),
-          `The lead: ${next.title}.${where ? ` Where: ${where.label}.` : ""}`,
-          "",
-          "Press Enter to walk there (g on the map walks you to the lead).",
-        ],
-        next: "explore",
-      };
-      this.messages = [...this.messages, `${TIME_WORDS[core.state.story.time]}. The lead: ${next.title}.`].slice(-20);
-      this.screen = "between";
-    } else if (mode === "scene" && (this.screen !== "scene" || this.shown !== session.sceneId)) {
-      // A summons opened the next scene straight away (the King's morning).
+    this.notice(true);
+    const over = this.over;
+    if (over) {
+      const shown = this.shown ?? before;
+      over.ready = true;
+      this.busy = undefined;
+      const ending = this.endingOf(shown);
+      if (ending) {
+        over.ending = ending;
+        // How it ended is its last line, as a resumed transcript has it.
+        if (!this.lines.some(l => l.kind === "system" && l.text === `Scene ends: ${ending}`)) this.lines.push({ kind: "system", speaker: "system", text: `Scene ends: ${ending}`, scene: shown });
+      }
+      if (core.state.mode === "explore") {
+        this.card = this.leadCard(shown);
+        this.messages = [...this.messages, `${TIME_WORDS[core.state.story.time]}. The lead: ${sceneById(session.sceneId).title}.`].slice(-20);
+      }
+      if (over.queued) this.continueScene();
+    } else if (core.state.mode === "scene") this.refreshChoices();
+    this.saveExtras();
+    this.emit();
+  }
+
+  /**
+   * The player goes on from a scene that's over: to the fight, to whoever walks with them (then the
+   * map), into the next scene, or to The End. Before the story has finished moving on, they go as
+   * soon as it has; a summons's next scene they can watch come in straight away.
+   */
+  continueScene(): void {
+    const core = this.core, over = this.over;
+    if (!core || !over || this.screen !== "scene") return;
+    if (core.state.mode === "scene" && core.session.sceneId !== this.shown) {
       this.showSceneSoFar();
-      this.screen = "scene";
+      this.lines.push(...(over.carry ?? []));
+      if (!over.ready) this.busy = this.live ? "The GM is speaking…" : "The GM sets the scene…";
+      this.emit();
+      return;
+    }
+    if (!over.ready) { over.queued = true; this.emit(); return; }
+    this.over = undefined;
+    // The story couldn't move on (the hand-off failed): Continue tries it again.
+    if (core.state.mode === "scene" && core.session.sceneId === this.shown && core.session.ended) { void this.moveOn(() => core.carryOn(this.hooks())); return; }
+    switch (core.state.mode) {
+      case "end": this.toEnd(); break;
+      case "combat": this.targetIndex = 0; this.screen = "combat"; break;
+      case "explore": this.screen = this.card ? "between" : "explore"; break;
+      default: this.showSceneSoFar();
     }
     this.saveExtras();
     this.emit();
+  }
+
+  /** How a scene ended: its exit's title (while it's the session's scene, or from the story's history once it has moved on). */
+  private endingOf(sceneId: string): string | undefined {
+    const session = this.session!;
+    const exitId = session.sceneId === sceneId ? session.ended?.exitId : session.history.findLast(h => h.sceneId === sceneId)?.exitId;
+    return exitId ? sceneById(sceneId).exits.find(e => e.id === exitId)?.title ?? exitId : undefined;
+  }
+
+  /** What the core suggests saying now: its actions of kind "say", if it offers any. */
+  private refreshChoices(): void {
+    const core = this.core;
+    try {
+      // "say" is the core's to add to the kinds; until it does, nothing matches.
+      this.choices = core?.state.mode === "scene" && !this.over ? core.observe().actions.filter(a => (a.kind as string) === "say") : [];
+    } catch {
+      this.choices = [];
+    }
+  }
+
+  /**
+   * Between a scene and the map: the notebook, how the time went, where the story goes next. Whoever
+   * walks with the player tells it, Kell reading the entry back in the words of the record; with
+   * nobody there, it's a card.
+   */
+  private leadCard(sceneId: string): Card {
+    const core = this.core!;
+    const session = core.session;
+    const next = sceneById(session.sceneId);
+    const where = leadTarget(core.state);
+    const notebook = this.journal.find(j => j.sceneId === sceneId)?.lines ?? [];
+    const card: Card = {
+      title: TIME_WORDS[core.state.story.time],
+      lines: [
+        ...(notebook.length ? ["Your notebook:", ...notebook, ""] : []),
+        ...(session.lead ? [session.lead, ""] : []),
+        `The lead: ${next.title}.${where ? ` Where: ${where.label}.` : ""}`,
+        "",
+        "Press Enter to walk there (g on the map walks you to the lead).",
+      ],
+      next: "explore",
+    };
+    const ex = exploreState(core.state);
+    const friend = ex.followers.find(f => f.map === ex.map) ?? ex.followers[0];
+    if (friend) {
+      const pointing = where ? direction(ex.at, where.at) : undefined;
+      card.talk = talkBetween(friend, { notebook, lead: session.lead, next, where: where?.label, pointing, time: core.state.story.time });
+    }
+    return card;
   }
 
   private note(entry: JournalEntry): void {
@@ -551,7 +751,7 @@ export class Game {
       this.observeScene();
     } catch (error) {
       this.showSceneSoFar();
-      this.lines.push({ kind: "error", speaker: "system", text: `The GM couldn't tell the aftermath: ${message(error)}. (Say what you do next; #end <exit> skips ahead for testing.)` });
+      this.lines.push({ kind: "error", speaker: "system", text: `The GM couldn't tell the aftermath: ${message(error)}. (Say what you do next; /end <exit> skips ahead for testing.)` });
     }
     this.busy = undefined;
     this.live = undefined;
@@ -564,17 +764,18 @@ export class Game {
   /**
    * The open scene's effects and the director that turns what changes in its world into motion:
    * one of each per scene, primed on its world when first asked for (what's already there isn't
-   * news). The scene's views draw them; undefined when the scene has no world.
+   * news). The scene's views draw them; undefined when the scene has no world. It keeps the world
+   * it last saw, so a scene that's over still shows its place until the player goes on.
    */
   sceneLook(): { fx: Effects; director: Director } | undefined {
-    const world = this.session?.world;
+    const world = this.shownWorld;
     if (!world) return undefined;
     if (this.look?.scene !== world.scene) {
       const fx = new Effects();
       const director = new Director(fx);
       director.prime(world);
-      this.look = { scene: world.scene, fx, director };
-    }
+      this.look = { scene: world.scene, fx, director, world };
+    } else this.look.world = world;
     return this.look;
   }
 
@@ -666,6 +867,9 @@ export class Game {
     this.core = undefined;
     this.lines = [];
     this.walking = false;
+    this.over = undefined;
+    this.choices = [];
+    this.shown = undefined;
     // Another game's scene is news to nobody.
     this.look = undefined;
     this.fightLook = undefined;
@@ -688,6 +892,41 @@ export class Game {
     try { this.core.save(); } catch { /* the runtime saved the session after the last turn */ }
     this.saveExtras();
   }
+}
+
+/** How the time between scenes went, when the story's hand-off didn't say (its lead is its own words for it). */
+const PASSING: Record<StoryState["time"], string> = {
+  morning: "The morning gets on with itself, as mornings in Caerwyn do: loudly, and mostly downhill towards the river.",
+  afternoon: "The rest of the morning goes in statements, signatures and a bun of uncertain age at the watch-house.",
+  evening: "The afternoon goes in paperwork. By the time it’s done, the lamplighters are out along the quay.",
+  night: "Evening turns into night the way it does in Caerwyn: without asking anyone.",
+  "next-morning": "The night passes. Some of it is even spent asleep.",
+};
+
+/**
+ * Between scenes, whoever walks with the player says what the card would: the notebook's new
+ * entry, read back in the words of the record; how the time went; and where the story goes next,
+ * with a point of the pencil the way it lies. Kell has her own way of putting things; anyone else
+ * just says them.
+ */
+export function talkBetween(friend: { id: string; name: string }, what: { notebook: string[]; lead?: string | undefined; next: { id: string; title: string }; where?: string | undefined; pointing?: string | undefined; time: StoryState["time"] }): Line[] {
+  const says = (text: string): Line => ({ kind: "dialogue", speaker: friend.id, name: friend.name, text });
+  const kell = friend.id === "kell";
+  const out: Line[] = [];
+  const entry = what.notebook.join(" ");
+  if (entry) out.push(says(kell
+    ? `“For the record.” She reads the entry back to you, in the words of the record: “${entry}” She looks at it a moment longer. “Noted.”`
+    : `“So,” says ${friend.name}. “${entry}”`));
+  out.push({ kind: "narration", speaker: "gm", text: what.lead ?? PASSING[what.time] });
+  const bare = (t: string) => t.toLowerCase().replace(/^the /, "");
+  const at = what.where && !bare(what.next.title).startsWith(bare(what.where)) ? `, at ${what.where}` : "";
+  const way = what.pointing && what.pointing !== "here" ? what.pointing : undefined;
+  const points = way ? `She points her pencil ${way}${at}.` : "She writes it down.";
+  if (!kell) out.push(says(`“${what.next.title} next${what.where ? `: ${what.where}` : ""}.”${way ? ` ${friend.name} points ${way}.` : ""}`));
+  else if (what.next.id === "drowned-rat") out.push(says(`“The Drowned Rat, then.” ${way ? `She points her pencil ${way}, down towards the river.` : points} “Halfway down the river stairs. I’ll walk with you: somebody has to write it down.”`));
+  else if (what.next.id === "heron-warehouse") out.push(says(`“The Heron. Downriver end of the wharves.” ${points} “If that barge sails on the ebb, so does the evidence. I’d rather it didn’t.”`));
+  else out.push(says(`“${what.next.title}, then.” ${points} “After you, investigator. I’ll be writing.”`));
+  return out;
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));

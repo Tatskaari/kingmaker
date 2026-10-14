@@ -127,6 +127,20 @@ class Screen:
     def text(self):
         return "\n".join("".join(row).rstrip() for row in self.grid)
 
+    def find(self, text):
+        """Where some text is on the screen, as (column, row) from 0, counting wide characters as two; or None."""
+        for y, row in enumerate(self.grid):
+            line, cols = "", []
+            for x, ch in enumerate(row):
+                if ch == "":
+                    continue
+                line += ch
+                cols.append(x)
+            i = line.find(text)
+            if i >= 0:
+                return cols[i], y
+        return None
+
 
 class App:
     """The app under a pty: send keys, wait for text, read the screen."""
@@ -184,6 +198,21 @@ class App:
 
     def text(self):
         return self.screen.text()
+
+    def click(self, x, y, settle=0.3):
+        """A left click at a cell (from 0), as an SGR mouse report: press, then release."""
+        os.write(self.fd, f"\x1b[<0;{x + 1};{y + 1}M".encode())
+        self.pump(0.05)
+        os.write(self.fd, f"\x1b[<0;{x + 1};{y + 1}m".encode())
+        self.pump(settle)
+
+    def click_on(self, text, settle=0.3):
+        """Click the middle of some text on the screen; False when it isn't there."""
+        at = self.screen.find(text)
+        if not at:
+            return False
+        self.click(at[0] + len(text) // 2, at[1], settle)
+        return True
 
     def close(self):
         try:
