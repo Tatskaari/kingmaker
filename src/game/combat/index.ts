@@ -33,8 +33,11 @@
  *   massive damage) leave them out of it and "nearly died", and they're written back at 0 HP,
  *   stable, for the next scene to bring round. Everyone else is out cold (no death saves), except
  *   that massive damage kills a grown combatant outright; the lantern-boy is only ever knocked flat.
- * - Nerve: hirelings and villains test their nerve with the engine's morale roll (d20 + Wisdom)
- *   when the people they're with fall (and Sallow again when badly hurt): yield, run, or fight on.
+ * - Nerve, as the cast's notes have it: the last hired hand standing tests his nerve with the
+ *   engine's morale roll (d20 + Wisdom), and so does Sallow when badly hurt. Hired hands whose
+ *   paymaster is down, yielding or gone walk out (not beaten, so not arrested). Sallow with nobody
+ *   left to fight for him (or his nerve gone) runs if the way out is clear and nobody's on him, and
+ *   otherwise yields.
  * - The end: no enemy able to fight is a victory (a "surrender" when the villain yielded); nobody
  *   able on the player's side is a defeat; the player going out of a door is "fled". On a win, Kell
  *   (if she was in it) arrests the beaten and the yielded.

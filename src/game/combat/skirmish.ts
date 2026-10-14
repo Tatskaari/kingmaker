@@ -517,7 +517,6 @@ export class Skirmish {
     this.G.flags[flag] = held ? "held" : "broke";
     this.log("narration", `${cap(why)}.`, u.id);
     this.log("dice", `${cap(possessive(u.called))} nerve: ${roll?.["d20"]} ${signed(Number(roll?.["bonus"] ?? 0))} = ${roll?.["total"]} vs DC ${dc}: ${held ? "it holds" : "it breaks"}`, u.id);
-    if (held && u.role === "villain" && test === "alone") this.log("narration", `${cap(u.called)} straightens his cuffs and comes on alone, like a cornered rat in a very good coat.`, u.id);
     return undefined;
   }
 
@@ -541,20 +540,45 @@ export class Skirmish {
     if (state === "fled") for (const p of Object.values(this.G.props).filter(p => p.carriedBy === u.id)) delete this.G.props[p.id];
   }
 
-  /** Hands up: out of the fight, standing where they were. A villain who yields takes his hirelings with him. */
+  /** Hands up: out of the fight, standing where they were. A villain who yields loses his hirelings with it. */
   surrender(u: Unit): string | undefined {
     if (u.state !== "fighting") return "They're not fighting.";
     this.offMap(u, "surrendered");
     this.say(u.role === "villain" ? "surrender:sallow" : u.castId && hasFlavour(`surrender:${u.castId}`) ? `surrender:${u.castId}` : "surrender:any", u);
-    if (u.role === "villain") {
-      const hired = this.units.filter(v => v.side === u.side && v.id !== u.id && v.state === "fighting" && (v.role === "bruiser" || v.role === "brawler"));
-      if (hired.length) {
-        this.say("giveup:bruisers");
-        for (const v of hired) this.offMap(v, "surrendered");
-      }
-    }
+    if (u.role === "villain") this.walkOff(this.hiredBy(u));
     this.settle();
     return undefined;
+  }
+
+  /**
+   * Hired hands whose paymaster is down, yielding, taken or gone: nobody pays the second half of a
+   * lost fight, so they put their cudgels down and walk out, leaving the gentleman to it (the Crakes'
+   * notes, lore/Cast/The Crake Brothers/gm.md). All of them at once, on one of their turns.
+   */
+  standDown(u: Unit): string | undefined {
+    const villain = this.units.find(v => v.side === u.side && v.role === "villain");
+    if (!villain || villain.state === "fighting") return "Somebody's still paying them.";
+    const hired = this.hiredBy(villain);
+    if (!hired.includes(u)) return "They're not fighting.";
+    this.walkOff(hired);
+    this.settle();
+    return undefined;
+  }
+
+  /** The villain's hired hands still in the fight (the Crakes; Hep's porters, were they his). */
+  private hiredBy(villain: Unit): Unit[] {
+    return this.units.filter(v => v.side === villain.side && v.id !== villain.id && v.state === "fighting" && (v.role === "bruiser" || v.role === "brawler"));
+  }
+
+  /** Out of the fight and off the map, the way they came: not beaten, so not Kell's to arrest. */
+  private walkOff(hired: Unit[]): void {
+    if (!hired.length) return;
+    const ids = hired.map(v => v.castId ?? v.id).sort().join("+");
+    this.say(hasFlavour(`walkoff:${ids}`) ? `walkoff:${ids}` : hired.length > 1 ? "walkoff:many" : "walkoff:any", hired[0]);
+    for (const v of hired) {
+      this.offMap(v, "fled");
+      this.G.flags[`walked:${v.id}`] = true;
+    }
   }
 
   /** Kell's proper words: someone beaten or yielded is under arrest. */

@@ -1,13 +1,17 @@
 import type { Tile2 } from "../types.ts";
 import { approach, clearShot, explore, FEET, feetBetween, fromKey, key, line, same, solid, steps } from "./grid.ts";
 import type { Unit } from "./model.ts";
-import type { Skirmish, SpellChoice } from "./skirmish.ts";
+import { attackBonus, type Skirmish, type SpellChoice } from "./skirmish.ts";
 
 /**
- * Who does what on their turn. The Crakes close on the nearest foe and gang up on one (Pack
- * Tactics); Master Sallow fences from behind his Crakes, and when badly hurt runs for the land door
- * if it's clear or surrenders if it isn't; the lantern-boy runs; Kell backs the player, and puts the
- * irons on anyone beaten. The player's side has an AI too, for the headless demo: a fighter who
+ * Who does what on their turn, as the cast's notes have them (lore/Cast/Master Josiah Sallow/gm.md,
+ * "In a fight" and "Beaten, caught or cornered"; lore/Cast/The Crake Brothers/gm.md). The Crakes
+ * close on the nearest foe and gang up on one (Pack Tactics), and stop the moment the fight is lost
+ * or their paymaster is down, yielding or gone: they walk out and leave him to it. Master Sallow
+ * fights from behind his Crakes, lunging past a Crake's shoulder at whoever is busy with it; with
+ * nobody left to fight for him (or his nerve gone), he runs for the door if it's clear and nobody's
+ * on him, and otherwise yields, very politely. The lantern-boy runs; Kell backs the player, and puts
+ * the irons on anyone beaten. The player's side has an AI too, for the headless demo: a fighter who
  * goes for Sallow, and a wizard who has noticed the dust.
  *
  * decide() looks at the board (read-only) and returns the next step; the controller makes it as a
@@ -20,14 +24,14 @@ export type Step =
   | { kind: "cast"; spell: string; target?: string; at?: Tile2 }
   | { kind: "use"; prop: string }
   | { kind: "dash" } | { kind: "dodge" } | { kind: "disengage" }
-  | { kind: "leave" } | { kind: "surrender" }
+  | { kind: "leave" } | { kind: "surrender" } | { kind: "standDown" }
   | { kind: "arrest"; target: string }
   | { kind: "nerve"; dc: number; why: string; test?: string }
   | { kind: "remark"; line: string }
   | { kind: "end" };
 
 /** What this turn has done so far, so the AI doesn't go round in circles. */
-export interface Memo { moves: number; steps: number; remarked: boolean; dashed: boolean; failed: string[] }
+export interface Memo { moves: number; steps: number; remarked: boolean; dashed: boolean; failed: string[]; lunged?: boolean }
 export const freshMemo = (): Memo => ({ moves: 0, steps: 0, remarked: false, dashed: false, failed: [] });
 
 export type PlayerStyle = "fighter" | "wizard";
@@ -60,13 +64,22 @@ function canAttack(s: Skirmish, u: Unit): boolean {
   return !use.actionUsed || (use.attacksMadeThisTurn > 0 && use.attacksMadeThisTurn < s.attacksPerAction(u));
 }
 
-/** The best foe to hit from here: a villain first, then whoever an ally is already on (Pack Tactics), then the weakest. */
+/**
+ * The best foe to hit from here. The Crakes gang up on one (Pack Tactics: whoever a friend is
+ * already on), the weakest first. The player's side goes for whoever drops soonest (hit points over
+ * the chance to hit, a ready parry counted), a little keener on whoever a friend is already hitting:
+ * as the cast's notes have it, dropping the Crakes ends the fight as surely as dropping Sallow.
+ */
 function pickTarget(s: Skirmish, u: Unit, among: Unit[]): Unit | undefined {
   const packed = (v: Unit) => s.units.some(o => o.id !== u.id && s.friendly(o, u) && s.able(o) && steps(o.at, v.at) <= 1);
-  return [...among].sort((a, b) =>
-    Number(b.role === "villain") - Number(a.role === "villain") ||
-    Number(packed(b)) - Number(packed(a)) ||
-    a.hp / a.maxHp - b.hp / b.maxHp)[0];
+  if (u.side !== "player" && u.side !== "ally") {
+    return [...among].sort((a, b) => Number(packed(b)) - Number(packed(a)) || a.hp / a.maxHp - b.hp / b.maxHp)[0];
+  }
+  const weapon = meleeWeapon(s, u);
+  const bonus = weapon ? attackBonus(s.t.sheet(u.engineId), weapon) : 0;
+  const hits = (v: Unit) => Math.min(0.95, Math.max(0.05, (21 + bonus - v.ac - (v.parry?.ready ? v.parry.bonus : 0)) / 20));
+  const swings = (v: Unit) => (v.hp / hits(v)) * (packed(v) ? 0.8 : 1);
+  return [...among].sort((a, b) => swings(a) - swings(b))[0];
 }
 
 /** Walk towards a tile where `good` holds, as far as this turn's movement goes; never stopping on someone. */
@@ -90,11 +103,11 @@ function reachCost(s: Skirmish, u: Unit, v: Unit): number {
   return steps(u.at, v.at) === 1 ? 0 : best;
 }
 
-/** Close in and hit: the core of every melee AI. */
+/** Close in and hit: the core of every melee AI. The target, if given, is who to go for (and hit, if they're in reach). */
 function closeAndHit(s: Skirmish, u: Unit, memo: Memo, target?: Unit): Step {
   const near = adjacentFoes(s, u);
   if (near.length && canAttack(s, u)) {
-    const t = pickTarget(s, u, near)!;
+    const t = target && near.includes(target) ? target : pickTarget(s, u, near)!;
     return { kind: "attack", target: t.id, weapon: meleeWeapon(s, u) };
   }
   const goal = target ?? [...foes(s, u)].sort((a, b) => reachCost(s, u, a) - reachCost(s, u, b))[0];
@@ -145,9 +158,14 @@ function clearRun(s: Skirmish, u: Unit): boolean {
 // ---------------------------------------------------------------------------------------------
 // The other side.
 
+/** A line already said in this fight (a remark is remembered by the move that says it). */
+const said = (s: Skirmish, u: Unit, line: string) => !!s.G.flags[`said:${line}:${u.id}`];
+
 function bruiser(s: Skirmish, u: Unit, memo: Memo): Step {
   const villain = s.units.find(v => v.side === u.side && v.role === "villain");
-  const paid = !villain || villain.state === "fighting";
+  // Hired for the fee: the moment whoever pays them is down, yielding, taken or gone, nobody pays the
+  // second half, and they leave him to it.
+  if (villain && villain.state !== "fighting") return { kind: "standDown" };
   const brothers = s.units.filter(v => v.side === u.side && v.id !== u.id && (v.role === "bruiser" || v.role === "brawler"));
   const alone = brothers.length > 0 && brothers.every(b => b.state !== "fighting");
   const nerve = s.G.flags[`nerve:alone:${u.id}`];
@@ -156,44 +174,50 @@ function bruiser(s: Skirmish, u: Unit, memo: Memo): Step {
     const fallen = brothers.find(b => b.state === "down" || b.state === "dead");
     return { kind: "nerve", dc: 10, why: fallen ? `${u.called} looks at ${fallen.called} on the floor` : `${u.called} finds himself on his own` };
   }
-  const breaking = nerve === "broke" || (u.role === "brawler" ? u.hp * 2 <= u.maxHp : u.hp * 4 <= u.maxHp && !paid);
-  if (breaking) {
+  // The fight is lost, for them: their nerve gone with their brother, or beaten nearly senseless.
+  const lost = nerve === "broke" || (u.role === "brawler" ? u.hp * 2 <= u.maxHp : u.hp * 4 <= u.maxHp);
+  if (lost) {
     if (adjacentFoes(s, u).length) return { kind: "surrender" };
-    if (!memo.remarked) { memo.remarked = true; return { kind: "remark", line: "flee:bruiser" }; }
+    if (!said(s, u, "flee:bruiser")) return { kind: "remark", line: "flee:bruiser" };
     return run(s, u, memo);
   }
-  return closeAndHit(s, u, memo);
+  // They go for whoever the gentleman points at (whoever he's at), and a uniform gets them going
+  // for the extra shilling: whichever they can get to this turn.
+  const within = (v: Unit) => reachCost(s, u, v) * FEET <= s.movementLeft(u);
+  const pointed = villain ? foes(s, u).filter(v => steps(v.at, villain.at) <= 1 && within(v)) : [];
+  const uniform = foes(s, u).find(v => v.castId === "kell" && within(v));
+  return closeAndHit(s, u, memo, pickTarget(s, u, pointed) ?? uniform);
 }
 
+/**
+ * Master Sallow doesn't fight while he has people to fight for him: he fences from behind his
+ * Crakes, a lunge past a Crake's shoulder at whoever is busy with it, never a fair fight if he can
+ * help it. With nobody left to fight for him, or his nerve gone, he gets out (see getAway).
+ */
 function villain(s: Skirmish, u: Unit, memo: Memo): Step {
   const near = adjacentFoes(s, u);
-  const hired = s.units.filter(v => v.side === u.side && v.id !== u.id && (v.role === "bruiser" || v.role === "brawler"));
-  const alone = s.G.flags[`nerve:alone:${u.id}`];
-  const hurt = s.G.flags[`nerve:hurt:${u.id}`];
-  // His last Crake is down or gone: a coward's nerve, tested once.
-  if (hired.length && hired.every(v => v.state !== "fighting") && alone === undefined) {
-    return { kind: "nerve", dc: 12, why: `${u.called} looks at his Crakes, and then at you`, test: "alone" };
-  }
-  // Badly hurt: tested once more. If it breaks he yields on the spot; if it holds he runs for the
-  // door (when it's clear and nobody's on him) or fights on, cornered.
-  if (u.hp * 2 <= u.maxHp && hurt === undefined && alone !== "broke") {
-    return { kind: "nerve", dc: 12, why: `${u.called} looks at the blood on his good coat`, test: "hurt" };
-  }
-  if (alone === "broke" || hurt === "broke") {
-    if (!near.length && alone === "broke" && clearRun(s, u)) {
-      if (!memo.remarked) { memo.remarked = true; return { kind: "remark", line: "flee:sallow" }; }
-      return run(s, u, memo);
-    }
-    return { kind: "surrender" };
-  }
-  if (hurt === "held" && !near.length && clearRun(s, u)) {
-    if (!memo.remarked) { memo.remarked = true; return { kind: "remark", line: "flee:sallow" }; }
-    return run(s, u, memo);
-  }
-  if (near.length && canAttack(s, u)) return { kind: "attack", target: pickTarget(s, u, near)!.id, weapon: meleeWeapon(s, u) };
   const guards = s.units.filter(v => v.side === u.side && v.id !== u.id && v.state === "fighting" && (v.role === "bruiser" || v.role === "brawler"));
-  if (!guards.length) return closeAndHit(s, u, memo);
+  const hurt = s.G.flags[`nerve:hurt:${u.id}`];
+  if (!guards.length) return getAway(s, u, memo, near);
+  // Badly hurt with his Crakes still at it: his nerve, tested once. Broken, he gets out the same way.
+  if (u.hp * 2 <= u.maxHp && hurt === undefined) return { kind: "nerve", dc: 12, why: `${u.called} looks at the blood on his good coat`, test: "hurt" };
+  if (hurt === "broke") return getAway(s, u, memo, near);
+  // The lunge: in past a Crake's shoulder, one thrust, and back behind the Crake if he can get there.
+  if (memo.lunged) {
+    if (near.length && canAttack(s, u) && !s.usage(u)?.attacksMadeThisTurn) return { kind: "attack", target: pickTarget(s, u, near)!.id, weapon: meleeWeapon(s, u) };
+    const back = memo.moves < 2 && s.movementLeft(u) >= FEET ? recoverSpot(s, u, guards) : undefined;
+    memo.lunged = false;
+    if (back) { memo.moves++; return { kind: "move", to: back }; }
+    return { kind: "end" };
+  }
+  // Someone has come at him with his Crakes about him: he fences (two thrusts, and a parry).
+  if (near.length && canAttack(s, u)) return { kind: "attack", target: pickTarget(s, u, near)!.id, weapon: meleeWeapon(s, u) };
   if (near.length) return { kind: "end" };
+  // Somebody busy with a Crake: he lunges past its shoulder.
+  if (canAttack(s, u) && memo.moves < 1 && s.movementLeft(u) >= FEET) {
+    const spot = lungeSpot(s, u, guards);
+    if (spot) { memo.moves++; memo.lunged = true; return { kind: "move", to: spot }; }
+  }
   // Behind the Crakes: no foe in reach, a Crake nearer the trouble than he is, and no fire.
   const threat = (t: Tile2) => Math.min(...foes(s, u).map(f => steps(f.at, t)));
   const safe = (t: Tile2) => threat(t) >= 3 && guards.some(g => threat(g.at) < threat(t)) && !s.hotAt(t);
@@ -208,6 +232,53 @@ function villain(s: Skirmish, u: Unit, memo: Memo): Step {
   const reachable = foes(s, u).some(f => steps(f.at, u.at) <= f.speed / FEET + 1);
   if (reachable && s.actionLeft(u)) return { kind: "dodge" };
   return { kind: "end" };
+}
+
+/**
+ * Where Sallow can lunge from this turn: next to someone busy with one of his Crakes, beside that
+ * Crake (past its shoulder) if he can, and next to as few others as possible.
+ */
+function lungeSpot(s: Skirmish, u: Unit, guards: Unit[]): Tile2 | undefined {
+  const busy = foes(s, u).filter(f => guards.some(g => steps(g.at, f.at) <= 1));
+  if (!busy.length) return undefined;
+  const seen = explore(s.G.map, u.at, { ...s.pathRules(u), maxSteps: Math.floor(s.movementLeft(u) / FEET) });
+  let best: { at: Tile2; score: number } | undefined;
+  for (const [k, r] of seen) {
+    const t = fromKey(k);
+    if (s.occupant(t, u.id) || s.hotAt(t)) continue;
+    const marks = busy.filter(f => steps(t, f.at) === 1);
+    if (!marks.length) continue;
+    const shoulder = marks.some(f => guards.some(g => steps(g.at, f.at) <= 1 && steps(g.at, t) <= 1));
+    const exposed = foes(s, u).filter(f => steps(t, f.at) <= 1).length;
+    const score = (shoulder ? 0 : 10) + (exposed - 1) * 6 + r.steps;
+    if (!best || score < best.score) best = { at: t, score };
+  }
+  return best?.at;
+}
+
+/** After a lunge: a step back out of everyone's reach, beside one of his Crakes, as short as it can be. */
+function recoverSpot(s: Skirmish, u: Unit, guards: Unit[]): Tile2 | undefined {
+  const seen = explore(s.G.map, u.at, { ...s.pathRules(u), maxSteps: Math.floor(s.movementLeft(u) / FEET) });
+  let best: { at: Tile2; steps: number } | undefined;
+  for (const [k, r] of seen) {
+    const t = fromKey(k);
+    if (s.occupant(t, u.id) || s.hotAt(t) || foes(s, u).some(f => steps(f.at, t) <= 1) || !guards.some(g => steps(g.at, t) <= 1)) continue;
+    if (!best || r.steps < best.steps) best = { at: t, steps: r.steps };
+  }
+  return best?.at;
+}
+
+/**
+ * With nobody left to fight for him, or his nerve gone: if the way out is clear and nobody's on him,
+ * he remembers an urgent appointment and runs for it; cornered, or with a blade at his throat, he
+ * drops the sword and asks, very politely, to surrender.
+ */
+function getAway(s: Skirmish, u: Unit, memo: Memo, near: Unit[]): Step {
+  if (!near.length && clearRun(s, u)) {
+    if (!said(s, u, "flee:sallow")) return { kind: "remark", line: "flee:sallow" };
+    return run(s, u, memo);
+  }
+  return { kind: "surrender" };
 }
 
 /** Keeps its distance and shoots; up close, it fights with what it has. */
@@ -302,8 +373,9 @@ function fighter(s: Skirmish, u: Unit, memo: Memo): Step {
       if (t && reachCost(s, u, t) * FEET > s.movementLeft(u)) return { kind: "cast", spell: sp.id, target: t.id };
     }
   }
-  const villainNear = foes(s, u).find(v => v.role === "villain" && reachCost(s, u, v) * FEET <= s.movementLeft(u));
-  return closeAndHit(s, u, memo, villainNear);
+  // Whoever drops soonest among those within reach this turn (see pickTarget).
+  const reach = foes(s, u).filter(v => reachCost(s, u, v) * FEET <= s.movementLeft(u));
+  return closeAndHit(s, u, memo, pickTarget(s, u, reach));
 }
 
 /**

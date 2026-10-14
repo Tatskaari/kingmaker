@@ -49,10 +49,11 @@ export function combatGame(initial: CombatG, rules: Rules): Game<CombatG> {
       disengage: ({ G }) => act(G, s => s.simple(me(s), "disengage")),
       leave: ({ G }) => act(G, s => s.leave(me(s))),
       surrender: ({ G }) => act(G, s => s.surrender(me(s))),
+      standDown: ({ G }) => act(G, s => s.standDown(me(s))),
       arrest: ({ G }, target: string) => act(G, s => s.arrest(me(s), target)),
       nerve: ({ G }, dc: number, why: string, test?: string) => act(G, s => s.nerve(me(s), dc, why, test)),
-      /** A line of flavour the AI wants said (Sallow keeping a Crake between himself and the sharp end). */
-      remark: ({ G }, kind: string) => act(G, s => { s.say(kind, me(s)); return undefined; }),
+      /** A line of flavour the AI wants said (Sallow keeping a Crake between himself and the sharp end); remembered, for lines said once. */
+      remark: ({ G }, kind: string) => act(G, s => { const u = me(s); s.say(kind, u); G.flags[`said:${kind}:${u.id}`] = true; return undefined; }),
       endTurn: ({ G, events }) => { delete G.error; events.endTurn(); },
     },
     endIf: ({ G }) => (G.outcome ? { outcome: G.outcome } : undefined),
