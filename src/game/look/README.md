@@ -71,7 +71,7 @@ const director = new Director(fx); director.prime(world);     // when a scene op
 director.observe(world, now);                                 // after every turn: walks, fires, douses, spills, wrecks
 director.spellsFrom(world, ruleLines, now, aliases);          // "Cast Fireball ...: a 20-foot sphere on X": a ball of fire from the player to X
 director.rulesLines(world, ruleLines, now, aliases);          // "X takes 7 fire damage", "the big man takes 7 damage" float a 7
-director.barksFrom(world, gmReply, now);                      // short quoted lines over their speakers
+director.barksFrom(world, gmReply, now, called);              // short quoted lines over their speakers (called: "the landlady")
 director.barkLine(world, "kell", line, now);                  // a cast member's own short line
 
 renderStage(world, dressing, { w, h, t: now, time, effects: fx, positions: id => director.tweens.at(id, now) });  // a Canvas

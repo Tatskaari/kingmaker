@@ -251,6 +251,8 @@ test("the director reads the rules' lines: spells cast, damage to people (by ali
   assert.deepEqual(said("Two men built like bollards bar the way. One looks from Kell to you. “You two asking after Big Hobb?”"), [], "a stranger asks; Kell is only looked at");
   assert.deepEqual(said("Kell taps her pencil against her notebook. “Investigator.”"), ["kell: Investigator."]);
   assert.deepEqual(said("Hobb doesn't look up. “That was a full keg,” Kell says."), ["kell: That was a full keg"], "the speech verb after the quote wins");
+  // Before the player knows their names, people go by what the story calls them.
+  assert.deepEqual(director.barksFrom(w, "The big man with the bandaged hand flexes it. “Who's asking?”", 2600, { hobb: "the big man with the bandaged hand" }).map(b => b.id), ["hobb"]);
   // A cast member's short line, over their head; a long one isn't a bark.
   assert.ok(director.barkLine(w, "kell", "Calmly. CALMLY, everyone.", 3000));
   assert.ok(!director.barkLine(w, "kell", "I have written down every word of this, investigator, and I will be reading it back to you at length.", 3000));

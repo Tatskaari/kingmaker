@@ -585,8 +585,14 @@ export class Game {
       // A spell and what it did land as a burst of lines: show them together.
       if (!this.rolled.length) setTimeout(() => this.animateRolls(), 0);
       this.rolled.push(entry.text);
-    } else if (entry.kind === "narration") look.director.barksFrom(world, entry.text, performance.now());
+    } else if (entry.kind === "narration") look.director.barksFrom(world, entry.text, performance.now(), this.called());
     else if (entry.kind === "dialogue") look.director.barkLine(world, entry.speaker, entry.text, performance.now());
+  }
+
+  /** What the scene's cast are called before the player knows their names ("the landlady"), by id. */
+  private called(): Record<string, string> {
+    const scene = this.session ? sceneById(this.session.sceneId) : undefined;
+    return Object.fromEntries((scene?.cast ?? []).filter(c => c.called).map(c => [c.id, c.called!]));
   }
 
   private animateRolls(): void {

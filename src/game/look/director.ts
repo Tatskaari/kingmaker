@@ -227,11 +227,20 @@ export class Director {
   }
 
   /**
-   * Barks from a GM reply: short quoted lines, put over whoever the reply says is speaking (the
-   * nearest name before the quote). A heuristic: good enough for "Oi!" and "No credit."
+   * Barks from a GM reply: short quoted lines, put over whoever the reply says is speaking. A
+   * heuristic: good enough for "Oi!" and "No credit." People go by their names, or by what the
+   * story calls them before the player knows them (`called`: id to "the landlady", "the girl in the
+   * shawl"), whole or by its last word when that's distinctive.
    */
-  barksFrom(world: SceneWorld, reply: string, t: number, maxChars = 60): Array<{ id: string; text: string }> {
+  barksFrom(world: SceneWorld, reply: string, t: number, called: Record<string, string> = {}, maxChars = 60): Array<{ id: string; text: string }> {
     const people = Object.values(world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !e.states.includes("gone"));
+    const namesOf = (p: Entity) => {
+      const name = p.name.toLowerCase();
+      const alias = called[p.cast ?? p.id]?.toLowerCase().replace(/^(the|a|an)\s+/, "");
+      const head = alias?.split(/\s+(with|in|by|from|at|on)\s+/)[0]!.split(/\s+/).at(-1);
+      return [name, ...name.split(/\s+/).filter(w => w.length > 3 && !/^(the|sergeant|corporal|master|mister|big)$/.test(w)),
+        ...(alias ? [alias] : []), ...(head && head.length >= 6 && !GENERIC.test(head) ? [head] : [])];
+    };
     const out: Array<{ id: string; text: string }> = [];
     const quote = /[“"]([^”"]{2,200})[”"]/g;
     let m: RegExpExecArray | null;
@@ -245,8 +254,7 @@ export class Director {
       const after = reply.slice(m.index + m[0].length, m.index + m[0].length + 40).toLowerCase();
       let best: { id: string; at: number } | undefined;
       for (const p of people) {
-        const names = [p.name.toLowerCase(), ...p.name.toLowerCase().split(/\s+/).filter(w => w.length > 3 && !/^(the|sergeant|corporal|master|mister|big)$/.test(w))];
-        for (const n of names) {
+        for (const n of namesOf(p)) {
           // Named with a speech verb just after it ("“Oi!” Nan says") is the speaker, whoever else is about.
           if (after.includes(n) && SPEECH.test(after)) { best = { id: p.id, at: -1 }; break; }
           // Otherwise the first one named in the lead-in who isn't only mentioned ("One looks from Kell to you." isn't Kell talking).
@@ -267,6 +275,8 @@ export class Director {
 
 /** Words that say someone's talking. */
 const SPEECH = /\b(said|says|shouts|calls|mutters|snaps|adds|asks|cries|yells|whispers|growls|replies)\b/;
+/** Words too common to tell people apart by. */
+const GENERIC = /^(person|people|fellow|figure|someone|stranger|woman|children)$/;
 /** A name after one of these is someone being looked at or talked about, not the speaker. */
 const MENTIONED = /\b(at|to|from|with|toward|towards|past|beside|behind|for|of|about|over|by|than|like|and)\s+$/;
 
