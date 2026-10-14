@@ -91,6 +91,8 @@ export interface CombatantSetup {
   at: Tile2;
   /** Cast id in the scene it came from, if any. */
   castId?: string;
+  /** How the AI fights them: "bruiser", "villain", "coward", "ally", "brawler", "archer" (combat module; defaults by side). */
+  role?: string;
 }
 
 export interface CombatSetup {
@@ -100,6 +102,10 @@ export interface CombatSetup {
   sceneId?: string;
   /** Seed for the dice. */
   seed: number;
+  /** Things on the map that matter in a fight (lanterns, a brazier): objects that can be knocked over or set alight. */
+  props?: MapActor[];
+  /** Tiles thick with grain dust: fire there makes it explode (the Heron). */
+  dust?: Tile2[];
 }
 
 export interface CombatResult {
@@ -108,4 +114,6 @@ export interface CombatResult {
   summary: string;
   casualties: Array<{ id: string; name: string; state: "dead" | "down" | "fled" | "surrendered" | "standing" }>;
   rounds: number;
+  /** Facts for the story and the map: { heron_burned: true, sallow: "arrested" }. */
+  flags?: Record<string, string | number | boolean>;
 }
