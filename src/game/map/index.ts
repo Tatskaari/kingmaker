@@ -4,12 +4,12 @@
  * between a scene's world (feet) and the map (5-ft tiles).
  *
  * Coordinates: x runs east, y south, a tile is 5 ft. On screen the viewer stands to the south-west:
- * the map's north runs up-left and its east up-right (KEYS steps by the compass; the app may prefer
- * to rotate arrows to the screen).
+ * the map's north runs up-left and its east up-right. SCREEN_KEYS moves with the screen (up is
+ * straight up: a north-east step); KEYS moves by the compass, if the app would rather.
  *
  * Exploring (the app's explore mode):
  *   const ex = newExploration(storyFromSession(session));          // the lane by the granary gate
- *   key:      const r = move(ex, ...KEYS[key]);                      // r.message for the log; r.bumped
+ *   key:      const r = move(ex, ...SCREEN_KEYS[key]);               // r.message for the log; r.bumped
  *             if (r.trigger) { enterScene(ex, r.trigger.sceneId); await openScene(session) }
  *   use/talk: const it = interact(ex);                               // scene -> as above; travel -> travel(ex, it.interaction.to);
  *                                                                    // examine -> show it.interaction.text
@@ -31,7 +31,7 @@
 
 export { MAPS, getMap, decorOf } from "./maps/index.ts";
 export { PLACES, scenePlace, regionForScene, sceneStart, storyFromSession, timeFor, leadScene, type ScenePlace } from "./places.ts";
-export { newExploration, setStory, actorsHere, move, travel, pathTo, look, nearby, interact, enterScene, leaveScene, renderExplore, KEYS, type ExploreState, type Follower, type MoveResult, type Nearby } from "./explore.ts";
+export { newExploration, setStory, actorsHere, move, travel, pathTo, look, nearby, interact, enterScene, leaveScene, renderExplore, KEYS, SCREEN_KEYS, type ExploreState, type Follower, type MoveResult, type Nearby } from "./explore.ts";
 export { presence, liveScenes, isLive, leadMarker, regionOpen } from "./presence.ts";
 export { actorsFromWorld, captureScene, overlayActors, overlayRegionStates, emptyOverlay, feetToTile, tileToFeet, nearestTile, nearestWalk, FEET_PER_TILE, type MapOverlay, type OverlayScene, type FromWorldOptions } from "./reconcile.ts";
 export { battlefield, spotsNear, reachable, type Battlefield } from "./setup.ts";

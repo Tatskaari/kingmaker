@@ -5,7 +5,7 @@ import { hangedClerkWorld } from "../../../scenes/worlds/hanged-clerk.ts";
 import { drownedRatWorld } from "../../../scenes/worlds/drowned-rat.ts";
 import type { MapActor, StoryState, Tile2 } from "../types.ts";
 import {
-  CAST, MAPS, actorsFromWorld, battlefield, captureScene, emptyOverlay, enterScene, feetToTile, getMap, heronWorld, dressingRoomWorld, interact, isStructure, leaveScene,
+  CAST, MAPS, SCREEN_KEYS, actorsFromWorld, battlefield, captureScene, emptyOverlay, enterScene, feetToTile, getMap, heronWorld, dressingRoomWorld, interact, isStructure, leaveScene,
   move, newExploration, nearby, overlayActors, overlayRegionStates, pathTo, reachable, regionForScene, render, renderExplore, screenOf, setStory, spotsNear, storyFromSession, tileAt, tileAtScreen, tileToFeet, toPlain,
   type PlaceRegion,
 } from "./index.ts";
@@ -274,6 +274,20 @@ test("for combat: the battlefield, free spots for the Crakes, a move range, mark
   const lines = render(field.map, [], field.people.hep!, { w: 80, h: 24 }, { roofs: false, marks: range.map(r => ({ at: r.at, color: "#3a78c8" })), cursor: field.people.sallow! });
   assert.match(toPlain(lines), /\[.\]/, "the cursor brackets its tile");
   assert.ok(lines.flat().filter(s => s.bg && s.bg !== "").length > 10);
+});
+
+test("screen keys move with the screen: up is up, right is right", () => {
+  const camera = { x: 30, y: 20 }, viewport = { w: 80, h: 24 };
+  const from = screenOf(camera, camera, viewport);
+  const delta = (k: string) => { const [dx, dy] = SCREEN_KEYS[k]!; const s = screenOf({ x: 30 + dx, y: 20 + dy }, camera, viewport); return [s.x - from.x, s.y - from.y] as [number, number]; };
+  assert.ok(delta("up")[0] === 0 && delta("up")[1] < 0);
+  assert.ok(delta("down")[0] === 0 && delta("down")[1] > 0);
+  assert.ok(delta("left")[0] < 0 && delta("left")[1] === 0);
+  assert.ok(delta("right")[0] > 0 && delta("right")[1] === 0);
+  // And they get you through a door: down the river stairs and into the Rat by screen keys alone.
+  const ex = newExploration(DUSK, { map: "drowned-rat", at: { x: 2, y: 3 } });
+  assert.ok(move(ex, ...SCREEN_KEYS.right!).moved, "a diagonal step onto the Rat's door");
+  assert.equal(move(ex, ...SCREEN_KEYS.down!).trigger?.sceneId, "drowned-rat", "and down into the room");
 });
 
 test("the player is drawn through a wall that hides them, picked out", () => {

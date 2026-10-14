@@ -509,7 +509,16 @@ function keepInView(camera: Tile2, who: Tile2, viewport: Viewport): Tile2 {
   return c;
 }
 
-/** Key to step, for an app that wants one: WASD and arrows by the compass, QEZC (and Home/PgUp/End/PgDn) diagonally. */
+/**
+ * Arrow keys by the screen (recommended): up goes straight up the screen, which on the map is a
+ * diagonal step (north-east), right is south-east, and so on. Doors and streets all take diagonal
+ * steps, so this gets everywhere.
+ */
+export const SCREEN_KEYS: Record<string, [number, number]> = {
+  up: [1, -1], w: [1, -1], down: [-1, 1], s: [-1, 1], left: [-1, -1], a: [-1, -1], right: [1, 1], d: [1, 1],
+};
+
+/** Keys by the compass, for an app that prefers them: WASD and arrows north/south/west/east, QEZC diagonally. */
 export const KEYS: Record<string, [number, number]> = {
   up: [0, -1], w: [0, -1], k: [0, -1], down: [0, 1], s: [0, 1], j: [0, 1], left: [-1, 0], a: [-1, 0], h: [-1, 0], right: [1, 0], d: [1, 0], l: [1, 0],
   q: [-1, -1], home: [-1, -1], e: [1, -1], pageup: [1, -1], z: [-1, 1], end: [-1, 1], c: [1, 1], pagedown: [1, 1],
