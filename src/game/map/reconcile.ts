@@ -1,4 +1,4 @@
-import { areaAt, heldBy, positionOf, type Entity, type Point, type Rect, type SceneWorld } from "../../world/scene-world.ts";
+import { heldBy, positionOf, type Entity, type Point, type Rect, type SceneWorld } from "../../world/scene-world.ts";
 import type { MapActor, Region, StoryState, Tile2, TileMap } from "../types.ts";
 import { CAST, isCrowd, lookForEntity, raiseFor } from "./looks.ts";
 import { inBounds, isStructure, tileAt, type PlaceRegion } from "./tiles.ts";
@@ -249,29 +249,6 @@ export function overlaySurfaces(overlay: MapOverlay, map: TileMap, now?: StorySt
     const entities: Record<string, Entity> = { [root]: { id: root, name: sceneId, kind: "place", parent: null, rect: s.surfaces.place, tags: [], states: [], notes: [] } };
     for (const e of patches) entities[e.id] = e;
     out.push({ region, world: { scene: sceneId, root, entities, log: [] } });
-  }
-  return out;
-}
-
-/**
- * A world's areas on its map: the tiles of areas on fire, thick with dust (the Heron's floor) or
- * scorched (where the dust went up), each tile by the area its middle is in, as the battlefield has
- * them. Only open ground: walls and water are the map's.
- */
-export function areaHazards(region: Region, world: SceneWorld, map: TileMap): { fire: Tile2[]; dust: Tile2[]; scorched: Tile2[] } {
-  const out = { fire: [] as Tile2[], dust: [] as Tile2[], scorched: [] as Tile2[] };
-  const marked = Object.values(world.entities).some(e => (e.kind === "area" || e.kind === "place") && e.states.some(s => s === "burning" || s === "dusty" || s === "exploded" || s === "scorched" || s === "burnt"));
-  const place = world.entities[world.root]?.rect;
-  if (!marked || !place) return out;
-  const a = feetToTile(region, { x: place.x, y: place.y }), b = feetToTile(region, { x: place.x + place.w - 0.01, y: place.y + place.h - 0.01 });
-  for (let y = a.y; y <= b.y; y++) for (let x = a.x; x <= b.x; x++) {
-    const p = { x, y };
-    const t = tileAt(map, p);
-    if (!inBounds(map, p) || t.blocks || isStructure(t) || t.terrain === "void" || t.terrain === "water" || t.terrain === "deep-water") continue;
-    const states = areaAt(world, tileToFeet(region, p)).states;
-    if (states.includes("burning")) out.fire.push(p);
-    if (states.includes("dusty") && !states.includes("exploded")) out.dust.push(p);
-    if (states.includes("exploded") || states.includes("scorched") || states.includes("burnt")) out.scorched.push(p);
   }
   return out;
 }

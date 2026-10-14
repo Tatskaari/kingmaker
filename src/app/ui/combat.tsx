@@ -1,7 +1,7 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { showLine } from "../../game/combat/index.ts";
 import { direction, SCREEN_KEYS, steps } from "../../game/map/index.ts";
-import { fightLook, fightView } from "../../game/views.ts";
+import { fightLooks, fightView } from "../../game/views.ts";
 import type { Game } from "../game.ts";
 import { C } from "../theme.ts";
 import { BOLD, FPS, ITALIC, Keys, Spinner, useGame, wrap } from "./common.tsx";
@@ -76,6 +76,8 @@ export function CombatScreen({ game }: { game: Game }) {
   const fx = game.fightFx();
   const log = view.log.map(showLine).flatMap(l => wrap(l, mapW - 4)).slice(-(logH - 2));
   const inner = sideW - 4;
+  // Everyone's letter, as the battlefield has them.
+  const looks = fightLooks(G.units);
   const attack = target ? actions.find(a => a.id === `attack_${target.id}`) : undefined;
   const turnName = view.turn ? (view.turn.isPlayer ? "Your turn" : `${view.turn.name}'s turn`) : "";
   return <box width={width} height={height} flexDirection="column" backgroundColor={C.bg}>
@@ -91,8 +93,7 @@ export function CombatScreen({ game }: { game: Game }) {
       </box>
       <box width={sideW} border borderColor={C.border} title=" Initiative " flexDirection="column" paddingX={1} overflow="hidden">
         {view.order.map(o => {
-          const u = G.units[o.id]!;
-          const look = o.id === G.pc ? { glyph: "@", color: "#ffffff" } : fightLook(u);
+          const look = o.id === G.pc ? { glyph: "@", color: "#ffffff" } : looks[o.id]!;
           const now = o.active && !view.over;
           const out = o.state !== "fighting";
           return <text key={o.id}>

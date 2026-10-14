@@ -4,8 +4,9 @@ import { CAST } from "./looks.ts";
 import { getMap } from "./maps/index.ts";
 import { PLACES, regionForScene, sceneStart } from "./places.ts";
 import { isLive, leadMarker, presence, regionOpen, sceneTrigger } from "./presence.ts";
-import { actorsFromWorld, areaHazards, captureScene, emptyOverlay, feetToTile, nearestTile, nearestWalk, overlayActors, overlayRegionStates, overlaySurfaces, type MapOverlay } from "./reconcile.ts";
+import { actorsFromWorld, captureScene, emptyOverlay, feetToTile, nearestTile, nearestWalk, overlayActors, overlayRegionStates, overlaySurfaces, type MapOverlay } from "./reconcile.ts";
 import { render, screenOf, type RenderOptions, type Viewport } from "./render.ts";
+import { areaHazards } from "./setup.ts";
 import { direction, inBounds, inRect, isStructure, regionAt, steps, tileAt, type PlaceRegion } from "./tiles.ts";
 
 /**

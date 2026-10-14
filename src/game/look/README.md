@@ -102,7 +102,7 @@ The plug-in point is `src/game/views.ts`: every picture of the world the game dr
 ## Open issues
 
 - **Unauthored worlds.** The four worlds of the arc have dressings (the Rat, the yard and loft, the Heron, the King's room). A new world without one renders with default floors and no walls: give it a dressing, or have the stage read its map's tiles.
-- **Combat's own letters.** The app draws a fight's cast from the one cast table (`fightLook`), but the combat module's text grid (the QA console's view of a fight, `gridText`) still has letters of its own (Hep is H there, G on the map).
+- **Combat's own letters.** The app draws a fight's cast from the one cast table, and the others with no letter twice (`fightLooks`: a porter's S is Saul's, so he's L), but the combat module's text grid (the QA console's view of a fight, `gridText`) still has letters of its own (Hep is H there, G on the map).
 - **The map's light is per tile.** Walls stop it whole tiles at a time, and a block's faces take the light of the tile they stand on.
 - **Nerd icons overhang in non-Mono fonts.** The nerd set is opt-in for that reason.
 - **The model's looks aren't reviewed.** The menu keeps them sane, but a bad answer stays cached until `runs/look-cache.json` is edited or deleted.

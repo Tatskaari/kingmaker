@@ -11,7 +11,7 @@ const { mapFights } = await import("./fights.ts");
 const { Effects } = await import("./look/effects.ts");
 const { toPlain } = await import("./map/index.ts");
 const { town } = await import("./town.ts");
-const { fightEffects, fightView, stageView, townView } = await import("./views.ts");
+const { fightEffects, fightLooks, fightView, stageView, townView } = await import("./views.ts");
 import type { GameState } from "./play.ts";
 import type { SessionState } from "../runtime/session.ts";
 
@@ -81,4 +81,19 @@ test("a fight on its battlefield: the dust hangs, the fire burns, the lanterns a
   assert.ok(frame.sprites.length > 0 && frame.texts.some(t => t.text === "8"), "the bolt, the sparks, and the 8");
   const lines = fightView(c, session, size, { t: 400, time: "night", effects: fx });
   assert.notDeepEqual(lines, fightView(c, session, size, { t: 400, time: "night" }), "and they're drawn on the battlefield");
+});
+
+test("everyone in a fight has a letter of their own: the cast as everywhere, and a porter's S isn't Saul's", () => {
+  const looks = fightLooks({
+    pc: { name: "Wren Ashdown", glyph: "@", color: "#ffffff" },
+    kell: { name: "Sergeant Agnes Kell", castId: "kell", glyph: "K", color: "#6d9eeb" },
+    "crake-1": { name: "the talking Crake", castId: "crake-1", glyph: "C", color: "#9a8f80" },
+    floury: { name: "a floury porter", glyph: "F", color: "#c04040" },
+    small: { name: "a small, fierce porter", glyph: "S", color: "#c04040" },
+    boy: { name: "a boy with a lantern", glyph: "d", color: "#c0c040" },
+  });
+  assert.deepEqual([looks.pc!.glyph, looks.kell!.glyph, looks["crake-1"]!.glyph, looks.floury!.glyph], ["@", "K", "C", "F"], "the player, the cast, and a letter nobody else has, as they were");
+  assert.ok(looks.small!.glyph !== "S" && looks.small!.glyph === looks.small!.glyph.toUpperCase(), `the small porter's S is Saul's: now ${looks.small!.glyph}, still a capital (the other side)`);
+  assert.ok(looks.boy!.glyph !== "d" && looks.boy!.glyph === looks.boy!.glyph.toLowerCase(), `an ally's d is Duchess's: now ${looks.boy!.glyph}, still small`);
+  assert.equal(new Set(Object.values(looks).map(l => l.glyph)).size, 6, "no letter twice");
 });

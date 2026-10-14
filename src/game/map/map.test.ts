@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { applyOps, buildWorld, damageThing, positionOf, tick, type WorldSpec } from "../../world/scene-world.ts";
-import { douse } from "../../world/systems.ts";
+import { douse, spill } from "../../world/systems.ts";
 import { Effects } from "../look/effects.ts";
 import { hangedClerkWorld } from "../../../scenes/worlds/hanged-clerk.ts";
 import { drownedRatWorld } from "../../../scenes/worlds/drowned-rat.ts";
@@ -288,6 +288,21 @@ test("for combat: the battlefield, free spots for the Crakes, a move range, mark
 });
 
 test("screen keys move with the screen: up is up, right is right", () => {
+test("a fight's fuel: flammable things that stand in the way, and flammable spills on the floor", () => {
+  const w = world("heron-warehouse", heronWorld, ["kell", "saul", "hep"]);
+  const { region } = regionForScene("heron-warehouse")!;
+  const before = battlefield("heron-warehouse", w)!.fuel;
+  assert.ok(before.length > 5, "the sack stacks burn");
+  const place = w.entities[w.root]!.rect!;
+  const { surface } = spill(w, "oil", { x: place.x + place.w / 2, y: place.y + place.h / 2 }, 4, 1);
+  const slick = feetToTile(region, positionOf(w, surface.id)!);
+  assert.ok(!before.some(p => p.x === slick.x && p.y === slick.y), "nothing burned there before");
+  const after = battlefield("heron-warehouse", w)!.fuel;
+  assert.ok(after.some(p => p.x === slick.x && p.y === slick.y), "an oil slick on the floor is fuel");
+  spill(w, "water", { x: place.x + 4, y: place.y + 4 }, 4, 1);
+  assert.equal(battlefield("heron-warehouse", w)!.fuel.length, after.length, "a puddle of water isn't");
+});
+
   const camera = { x: 30, y: 20 }, viewport = { w: 80, h: 24 };
   const from = screenOf(camera, camera, viewport);
   const delta = (k: string) => { const [dx, dy] = SCREEN_KEYS[k]!; const s = screenOf({ x: 30 + dx, y: 20 + dy }, camera, viewport); return [s.x - from.x, s.y - from.y] as [number, number]; };
@@ -486,6 +501,7 @@ test("a world's areas on its map: the Heron's floor hangs with dust; when it goe
   assert.ok(before.dust.length > 40 && !before.fire.length && !before.scorched.length, "the re-sacking floor is thick with dust");
   assert.ok(before.dust.every(p => p.x >= 9 && p.x <= 18 && p.y >= 3 && p.y <= 12), "and only the floor");
   damageThing(w, w.entities["heron-sacks"]!, 4, "fire", 1);
+  assert.deepEqual(before.dust, battlefield("heron-warehouse", w)!.dust, "the dust a fight here will use, no more (none under the stacks)");
   tick(w, 2, 11);
   const after = areaHazards(region, w, map);
   assert.ok(!after.dust.length && after.scorched.length > 40 && after.fire.length > 40, "the dust went up: scorched, and burning");
