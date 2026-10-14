@@ -110,6 +110,9 @@ function town(story: StoryState): MapActor[] {
     add({ name: "a goose", glyph: "ɞ", color: "#f0f0e8", kind: "creature", at: { x: 23, y: 27 }, text: "A goose. It belongs to nobody and fears nothing. It looks at you as if you owe it money." });
     add({ name: "a pie-seller", glyph: "p", color: "#e0a060", at: { x: 18, y: 22 }, text: "A pie-seller. 'Assembly pies! Commemorative! Mostly pork!' You decide not to ask about the rest." });
     add({ name: "a porter", glyph: "p", at: { x: 36, y: 9 }, text: "A granary porter with a sack on his shoulder. 'Shocking business, the clerk. Shocking. Mind your back.'" });
+    add({ name: "a woman haggling over cabbages", glyph: "q", color: "#c4a484", at: { x: 30, y: 22 }, text: "'How much? For a cabbage? I could buy a goose for that.' Somewhere behind you, the goose takes this personally." });
+    add({ name: "an official with a clipboard", glyph: "p", color: "#a8b4c4", at: { x: 27, y: 30 }, text: "An official of the Assembly Committee (Decorations Sub-Committee), measuring the bunting with a ruler. 'Seven inches between flags. SEVEN. Is that so very hard?'" });
+    add({ name: "a boy selling programmes", glyph: "b", color: "#e0c070", at: { x: 16, y: 28 }, text: "'Programme! Order of procession! The Purveyor's grain cart! The King's speech!' Quieter: 'It's the same as last century's. They just change the date.'" });
   }
   if (story.time === "afternoon" || story.time === "evening") {
     add({ name: "a delegation's servant", glyph: "p", color: "#7ab8d8", at: { x: 29, y: 25 }, text: "A Saltmere servant in salt-gull livery, haggling for bread and losing. 'This is what you charge for a loaf?' 'It's the Assembly, love.'" });

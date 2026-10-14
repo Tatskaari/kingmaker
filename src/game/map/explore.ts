@@ -241,10 +241,23 @@ function gatingRegion(map: TileMap, at: Tile2): PlaceRegion | undefined {
   return (map.regions as PlaceRegion[]).filter(r => r.shut && inRect(r.rect, at)).sort((a, b) => a.rect.w * a.rect.h - b.rect.w * b.rect.h)[0];
 }
 
+const LOCKED: Record<string, string> = {
+  "the-granary": "Padlocked. The warden has the key, and the warden is at the palace counting Assembly provisions.",
+  "corn-exchange": "The Corn Exchange is shut for the Assembly. A notice on the door says so, at length, with footnotes.",
+  "watch-house": "Locked. A note on the door: ALL OUT ON THE PROCESSION ROUTE. CRIMES AFTER THE ASSEMBLY, PLEASE.",
+  "porters-lodgings": "Locked. Behind it someone is snoring, in shifts.",
+  "heron-wharf-end": "Barred from the inside. Somebody in there doesn't want visitors, which is interesting in itself.",
+  "plank-walk": "Bolted, with a grille in it and a smell of grain behind. The gang get in by holding something up to the grille.",
+};
+
 function lockedLine(map: TileMap, at: Tile2): string {
+  const near = (map.regions as PlaceRegion[]).filter(r => inRect({ x: r.rect.x - 1, y: r.rect.y - 1, w: r.rect.w + 2, h: r.rect.h + 2 }, at) && LOCKED[r.id]);
   const region = regionAt(map, at);
-  if (region?.id === "the-granary") return "Padlocked. The warden has the key, and the warden is at the palace counting Assembly provisions.";
-  if (map.id === "heron") return "Barred from the inside. Somebody in there doesn't want visitors, which is interesting in itself.";
+  if (region && LOCKED[region.id]) return LOCKED[region.id]!;
+  if (near[0]) return LOCKED[near[0].id]!;
+  if (map.id === "drowned-rat") return "The slop hatch. It opens straight onto the river, it's Cob-sized, and the river under it is fast and cold.";
+  if (map.id === "heron") return LOCKED["heron-wharf-end"]!;
+  if (map.id === "caerwyn" && at.y >= 33 && at.y <= 36) return "A warehouse door, locked, with a notice: NO LOITERING. NO HOOKS. NO QUESTIONS.";
   return "Locked. Everyone's out hanging bunting.";
 }
 

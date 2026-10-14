@@ -20,7 +20,7 @@ export interface GroundLook {
 }
 
 export const GROUND: Record<string, GroundLook> = {
-  cobbles: { bg: "#2f2d33", fg: "#45424b", fg2: "#524e58", face: "   ∙  ", tip: "·" },
+  cobbles: { bg: "#3a383e", fg: "#535058", fg2: "#5f5b64", face: "   ∙  ", tip: "·" },
   floor: { bg: "#3a3631", fg: "#57514a", face: "  · ", tip: "·" },
   flags: { bg: "#3b3a40", fg: "#5a5862", face: " ▫  ", tip: "·" },
   boards: { bg: "#3d2c1d", fg: "#5c4430", fg2: "#4a3624", face: "──═─", tip: "╌" },

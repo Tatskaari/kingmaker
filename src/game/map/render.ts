@@ -83,7 +83,9 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
   const cells: Cell[][] = Array.from({ length: h }, () => Array.from({ length: w }, blank));
   const focus = options.focus ?? camera;
   const open = opening(map, focus, options);
-  const lights = lighting(map, actors, options, tick);
+  // A lamp under a roof that's on lights nothing outside it (and not the roof).
+  const shut = (p: Tile2) => isRoofed(tileAt(map, p)) && options.roofs !== false && !open.lifted.has(key(p));
+  const lights = lighting(map, actors.filter(a => !shut(a.at)), options, tick);
   const slopes = roofSlopes(map);
   const regionStates = options.regionStates ?? {};
 

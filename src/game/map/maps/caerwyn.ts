@@ -34,15 +34,15 @@ t,PPPPPPPPPPPPPPPPPPP,,BBBBBB,HHHHHHHHHH,,,,,,,,HHHHHHHHHHH:4:::
 ,HHHHHHHH..*..,HHhHdHHHHHHHH....::::::::::::::::::::::::::::::::
 ,HHHHHHHH............................:::::::::::::::::::::::::::
 ,HHHHHHHh.....l*.*.*.*.*.*.*.*.*.*.*l.EEEEEEEEEE:,,,,,,,,,,:::::
-,HHHHHHHH.............................EEEEEEEEEE:HHHHHHHHHH:::::
+,HHHHHHHH....................z........EEEEEEEEEE:HHHHHHHHHH:::::
 ,HHHHhHHH............m................eEEEEEEEEE:HHHHHHHHHH:::::
 ,::::::::........m.............m.....1EEEEEEEEEE:dHHHHHHHHH:::::
-,::::::::.............................XEEEEEEEEE:HHHHHHHHHH:t:::
+,::::::::......*.*.*.*.*...*.*.*.*.*..XEEEEEEEEE:HHHHHHHHHH:t:::
 ,BBBbBBBB................s............EEEEEEEEEE:HHHHHHHHHH:::::
 ,BBBBBBBB........m....................EEEEEEEEEE:HHHHHHHHHH:::::
-,BBBBBBBD......................m......eEEEEEEEEE:hHHHHHHHHH:::::
+,BBBBBBBD..........u...........m......eEEEEEEEEE:hHHHHHHHHH:::::
 ,BBBBBBBB.............................EEEEEEEEEE:HHHHHHHHHH:::::
-,BBBBBBBb............m.....m..........EEEeEEeEEE:HHHHHHHHHH:::::
+,BBBBBBBb............m.....m.....y....EEEeEEeEEE:HHHHHHHHHH:::::
 tBBBBBBBB.......................................................
 ,BBBBBBBB.....l*.*.*.*.*.*.*.*.*.*.*l...........................
 ......................l.................l.......................
@@ -96,6 +96,9 @@ export const caerwyn: MapDef = buildMap({
     "3": T("dirt", { roof: "timber", roofHeight: 2 }, { id: "caerwyn:cart", name: "a grain cart", glyph: "▬", color: "#a07a4a", blocks: true, text: "A granary cart with one wheel off, which is how it gets out of processions." }),
     "4": T("dirt", {}, { name: "a washing line", glyph: "▿", color: "#f0f0e8", states: ["overhead"] }),
     "8": T("cobbles", {}, { id: "caerwyn:palace-notice", name: "a notice by the palace gate", glyph: "▤", color: "#e0c890", blocks: true, text: "THE CENTENNIAL ASSEMBLY. DELEGATIONS BY THE FRONT. TRADES BY THE BACK. PIGS NOT AT ALL." }),
+    u: T("cobbles", {}, { id: "caerwyn:well", name: "the town well", glyph: "◘", color: "#8aa0b0", blocks: true, text: "The town well. A sign says NO WISHING, BY ORDER: it was causing a shortage of pennies." }),
+    y: T("cobbles", {}, { id: "caerwyn:stocks", name: "the stocks", glyph: "╥", color: "#a0703a", blocks: true, text: "The stocks, freshly painted for the Assembly. A sign on them says RESERVED." }),
+    z: T("cobbles", {}, { id: "caerwyn:cabbages", name: "a cabbage cart", glyph: "▬", color: "#7ab05a", blocks: true, text: "A cart of cabbages at Assembly prices. The cabbages are the bargain; the cart is also for sale, and so, if you ask nicely, is the donkey." }),
     k: T("boards", {}, { name: "crates", glyph: "▣", color: "#a07a4a", blocks: true, text: "Crates marked FRAGILE, which the porters take as a challenge." }),
     c: T("boards", {}, { name: "a bollard", glyph: "▪", color: "#7a7a7a" }),
     r: T("boards", {}, { id: "caerwyn:crane", name: "the wharf crane", glyph: "╤", color: "#8a6a48", blocks: true, text: "A treadwheel crane. A sign on the wheel says NO HAMSTERS." }),
