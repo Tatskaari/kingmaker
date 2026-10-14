@@ -38,7 +38,7 @@
 export { MAPS, getMap, decorOf } from "./maps/index.ts";
 export { PLACES, scenePlace, regionForScene, sceneStart, storyFromSession, timeFor, leadScene, type ScenePlace } from "./places.ts";
 export {
-  newExploration, setStory, actorsHere, actorsAt, move, steer, travel, pathTo, walkPlan, look, lookAt, tileName, whereabouts, nearby, interact, enterScene, leaveScene, renderExplore, exploreCamera, KEYS, SCREEN_KEYS,
+  newExploration, setStory, actorsHere, actorsAt, move, steer, travel, pathTo, walkPlan, look, lookAt, tileName, whereabouts, nearby, interact, enterScene, leaveScene, renderExplore, exploreFrame, exploreCamera, KEYS, SCREEN_KEYS,
   type ExploreState, type Follower, type MoveResult, type Nearby,
 } from "./explore.ts";
 export { bumpLine, placeLine, quip, type Bump, type QuipMemory } from "./quips.ts";

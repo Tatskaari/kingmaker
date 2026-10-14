@@ -1,13 +1,9 @@
 import type { SceneWorld } from "../../world/scene-world.ts";
 import type { MapActor, Span, StyledLine, Tile2, TileMap } from "../types.ts";
-import { actorsHere, type ExploreState } from "./explore.ts";
+import { exploreFrame, type ExploreState } from "./explore.ts";
 import { raiseFor } from "./looks.ts";
-import { getMap } from "./maps/index.ts";
 import { hex, mix, rgb } from "./palette.ts";
-import { regionForScene } from "./places.ts";
-import { leadMarker } from "./presence.ts";
-import { overlayRegionStates } from "./reconcile.ts";
-import { render, screenOf, type RenderOptions, type Viewport } from "./render.ts";
+import { Picks, render, screenOf, type RenderOptions, type Viewport } from "./render.ts";
 import { inBounds, isRoofed, isStructure, tileAt, type MapTile } from "./tiles.ts";
 
 /**
@@ -47,6 +43,9 @@ export interface XrayStyle {
   grey: number;
 }
 
+/** The explore view's frame, as renderExplore draws it (explore.ts): x-ray draws the same one. */
+export { exploreFrame };
+
 export const XRAY_STYLE: XrayStyle = { rx: 10, ry: 4.5, things: 0.6, clear: 0.25, core: 0.35, outline: 0.8, turn: 0.16, grey: 0.35 };
 
 /** A renderer with render()'s shape (the look layer's, once it has one). */
@@ -81,11 +80,18 @@ export function xrayExplore(state: ExploreState, viewport: Viewport, options: Re
 export function xray(map: TileMap, actors: MapActor[], camera: Tile2, viewport: Viewport, options: RenderOptions = {}, how: XrayHow = {}): XrayFrame {
   const draw = how.draw ?? render, style = how.style ?? XRAY_STYLE;
   const front = draw(map, actors, camera, viewport, options);
-  const found = findHidden(front, map, actors, camera, viewport, options, how);
+  // For the mouse: the frame without the buildings says what's drawn where behind them, in picks of
+  // its own; a cell takes them where what's behind shows through (a click on Kell seen through the
+  // warehouse is on Kell), and keeps the building's where the building shows.
+  const behindPicks = options.pick ? new Picks() : undefined;
+  const found = findHidden(front, map, actors, camera, viewport, behindPicks ? { ...options, pick: behindPicks } : options, how);
   if (!found.hidden.length || !found.behind) return { lines: front, hidden: [] };
   // Everyone drawn in the patches comes through as themselves (a door is drawn as its tile).
   const figures = actors.filter(a => a.map === map.id && !(a.kind === "object" && tileAt(map, a.at).terrain === "door")).map(a => cellOf(map, a, camera, viewport));
-  return { lines: composite(front, found.behind, found.hidden, figures, viewport, options.color !== false, style), hidden: found.hidden };
+  const through = new Set<number>();
+  const lines = composite(front, found.behind, found.hidden, figures, viewport, options.color !== false, style, through);
+  if (options.pick && behindPicks) options.pick.take(behindPicks, through);
+  return { lines, hidden: found.hidden };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -335,9 +341,10 @@ const SCREEN = "#101014";
 /**
  * In a soft patch round each hidden one, the cells where the frames differ (the building in the
  * way) show the frame without it, tinted towards the building's colour and shading; the building's
- * outline stays; the patch fades out into the frame as drawn. The hidden go greyer.
+ * outline stays; the patch fades out into the frame as drawn. The hidden go greyer. `through` gets
+ * the cells (y * w + x) that show what's behind, glyph and all.
  */
-function composite(front: StyledLine[], behind: StyledLine[], hidden: Hidden[], figures: Array<{ x: number; y: number }>, viewport: Viewport, color: boolean, style: XrayStyle): StyledLine[] {
+function composite(front: StyledLine[], behind: StyledLine[], hidden: Hidden[], figures: Array<{ x: number; y: number }>, viewport: Viewport, color: boolean, style: XrayStyle, through?: Set<number>): StyledLine[] {
   const { w, h } = viewport;
   const patches = hidden.map(c => ({ ...c.cell, ...reach(c.actor, style), you: c.actor.kind === "player" }));
   const top = Math.max(0, Math.min(...patches.map(p => p.y - Math.ceil(p.ry))) - 1);
@@ -385,11 +392,14 @@ function composite(front: StyledLine[], behind: StyledLine[], hidden: Hidden[], 
       if (op >= 1 || !differs(x, y)) return a;
       changed = true;
       const b = at(B, x, y)!;
-      if (patchAt(x, y)?.you) return you(b, a, op, color);
-      if (patchAt(x, y) || figure(x, y)) return greyer(b, a, op, color);
+      const shows = (cell: Cell) => { through?.add(y * w + x); return cell; };
+      if (patchAt(x, y)?.you) return shows(you(b, a, op, color));
+      if (patchAt(x, y) || figure(x, y)) return shows(greyer(b, a, op, color));
       if (!beside(x, y) && edge(x, y)) return blend(a, b, Math.max(op, style.outline), false, color, style.grey);
       // What's behind shows through the clearer middle; the building's own texture comes back, raggedly, as it fades in.
-      return blend(a, b, op, op < 0.62 + dither(x, y), color, style.grey);
+      const behindGlyph = op < 0.62 + dither(x, y);
+      const cell = blend(a, b, op, behindGlyph, color, style.grey);
+      return behindGlyph ? shows(cell) : cell;
     });
     if (changed) out[y] = spansOf(row);
   }
@@ -479,55 +489,3 @@ function cellAt(lines: StyledLine[], p: { x: number; y: number }): Cell | undefi
 
 const sameCell = (a: Cell | undefined, b: Cell | undefined) => !!a && !!b && a.ch === b.ch && a.fg === b.fg && a.bg === b.bg && a.bold === b.bold;
 const key = (t: Tile2) => `${t.x},${t.y}`;
-
-// ---------------------------------------------------------------------------------------------
-// The explore view's frame.
-
-/**
- * What renderExplore (explore.ts) hands render(): the map, everyone on it, the camera and the
- * options. A test holds the two to the same frame, byte for byte.
- */
-export function exploreFrame(state: ExploreState, viewport: Viewport, options: RenderOptions & { world?: SceneWorld } = {}): { map: TileMap; actors: MapActor[]; camera: Tile2; options: RenderOptions } {
-  const map = getMap(state.map);
-  const { world, ...rest } = options;
-  const actors = actorsHere(state, world);
-  const lead = leadMarker(state.story, state.map);
-  let camera = state.at;
-  const place = state.scene ? regionForScene(state.scene) : undefined;
-  if (place && place.map.id === state.map) {
-    const r = place.region.rect;
-    const fits = (w: number, h: number) => 2 * (w + h) + 6 <= viewport.w && w + h + 6 <= viewport.h;
-    if (fits(r.w, r.h)) camera = { x: Math.floor(r.x + r.w / 2), y: Math.floor(r.y + r.h / 2) };
-    else {
-      const people = actors.filter(a => a.kind === "person" || a.kind === "creature" || a.kind === "player");
-      if (people.length) camera = keepInView({ x: Math.round(mean(people.map(a => a.at.x))), y: Math.round(mean(people.map(a => a.at.y))) }, state.at, viewport);
-    }
-  }
-  const reveal = state.scene ? actors.filter(a => a.kind === "person" || a.kind === "creature").map(a => a.at) : [];
-  return {
-    map, actors, camera,
-    options: {
-      focus: state.at,
-      ...(reveal.length ? { reveal } : {}),
-      time: state.story.time,
-      ...(lead && !state.scene ? { lead: lead.at, leadLabel: lead.label } : {}),
-      regionStates: overlayRegionStates(state.overlay, map, state.story.time),
-      tick: state.steps,
-      ...(state.scene ? { roofs: false } : {}),
-      ...rest,
-    },
-  };
-}
-
-const mean = (xs: number[]) => xs.reduce((a, b) => a + b, 0) / xs.length;
-
-/** Move a camera towards someone until they're comfortably on screen (as renderExplore does). */
-function keepInView(camera: Tile2, who: Tile2, viewport: Viewport): Tile2 {
-  let c = { ...camera };
-  for (let i = 0; i < 40; i++) {
-    const s = screenOf(who, c, viewport);
-    if (s.x >= 6 && s.x < viewport.w - 6 && s.y >= 3 && s.y < viewport.h - 3) break;
-    c = { x: c.x + Math.sign(who.x - c.x), y: c.y + Math.sign(who.y - c.y) };
-  }
-  return c;
-}

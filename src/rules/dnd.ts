@@ -867,7 +867,7 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
   if (!spell || !ready) {
     close(state, ctx);
     const what = spell?.name ?? "that spell";
-    return { lines: [`(${what === "that spell" ? "That isn't a spell" : `${what} isn't a spell`} ${state.player.name} has ready: #sheet shows what they have.)`], directive: `The player reached for magic their character doesn't have ready (${what}). It doesn't come: nothing happens beyond a gesture, maybe a fizzle. Say so in a few words, in the fiction, without inventing any effect, and let them choose something else.` };
+    return { lines: [`(${what === "that spell" ? "That isn't a spell" : `${what} isn't a spell`} ${state.player.name} has ready: /sheet shows what they have.)`], directive: `The player reached for magic their character doesn't have ready (${what}). It doesn't come: nothing happens beyond a gesture, maybe a fizzle. Say so in a few words, in the fiction, without inventing any effect, and let them choose something else.` };
   }
   // A ritual takes ten minutes longer and no slot (if the spell is one).
   const ritual = options.ritual === true && spell.ritual;

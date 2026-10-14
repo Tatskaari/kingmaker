@@ -1,7 +1,7 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import type { Game } from "../game.ts";
 import { C } from "../theme.ts";
-import { BOLD, ITALIC, Keys, useGame, wrap } from "./common.tsx";
+import { BOLD, ITALIC, Keys, SCROLLBAR, useGame, wrap } from "./common.tsx";
 
 export function EndScreen({ game }: { game: Game }) {
   useGame(game);
@@ -22,7 +22,8 @@ export function EndScreen({ game }: { game: Game }) {
   return <box width={width} height={height} flexDirection="column" alignItems="center" backgroundColor={C.bg} paddingTop={1}>
     {big ? <ascii-font text="THE END" font="block" color={[C.title, "#c98a3a"]} /> : <text fg={C.title} attributes={BOLD}>T H E   E N D</text>}
     <box width={w} height={narration} marginTop={1} border borderColor={C.border} title={` ${game.session?.player.name ?? "The investigator"} `} paddingX={1}>
-      <scrollbox flexGrow={1} minHeight={0} scrollX={false}>
+      {/* The scrollbar over a column kept for it (see SCROLLBAR): a long closing doesn't lose a character a line under it. */}
+      <scrollbox flexGrow={1} minHeight={0} scrollX={false} paddingRight={1} verticalScrollbarOptions={SCROLLBAR}>
         <text fg={C.gm} wrapMode="word">{end?.closing ?? ""}</text>
       </scrollbox>
     </box>

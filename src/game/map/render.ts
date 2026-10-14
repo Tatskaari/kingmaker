@@ -97,6 +97,15 @@ export class Picks {
     this.w = w; this.h = h; this.map = map.id; this.width = map.width; this.tiles = tiles; this.actors = actors;
   }
 
+  /**
+   * Some cells' picks from another frame of the same view, by index (y * w + x): x-ray shows what's
+   * behind a building through it, and a click there is on what shows.
+   */
+  take(from: Picks, cells: Iterable<number>): void {
+    if (from.map !== this.map || from.w !== this.w || from.h !== this.h) return;
+    for (const i of cells) { this.tiles[i] = from.tiles[i]!; this.actors[i] = from.actors[i]; }
+  }
+
   /** The tile drawn at a viewport cell and who or what is drawn there; undefined where nothing of the map is. */
   at(sx: number, sy: number): { at: Tile2; actor?: MapActor } | undefined {
     if (sx < 0 || sy < 0 || sx >= this.w || sy >= this.h) return undefined;

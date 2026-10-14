@@ -583,6 +583,16 @@ function canWalkOut(state: ExploreState, after: { map: string; at: Tile2 }): boo
  * puddles and smoke, its areas on fire or thick with dust).
  */
 export function renderExplore(state: ExploreState, viewport: Viewport, options: RenderOptions & { world?: SceneWorld } = {}): StyledLine[] {
+  const f = exploreFrame(state, viewport, options);
+  return render(f.map, f.actors, f.camera, viewport, f.options);
+}
+
+/**
+ * What renderExplore hands render(): the map, everyone on it, the camera and the options. X-ray
+ * (xray.ts) draws the same frame its own way, so the two can't drift apart: a scene's puddles and
+ * fires reach the town view whichever draws it.
+ */
+export function exploreFrame(state: ExploreState, viewport: Viewport, options: RenderOptions & { world?: SceneWorld } = {}): { map: TileMap; actors: MapActor[]; camera: Tile2; options: RenderOptions } {
   const map = getMap(state.map);
   const { world, ...rest } = options;
   const actors = actorsHere(state, world);
@@ -594,18 +604,21 @@ export function renderExplore(state: ExploreState, viewport: Viewport, options: 
   const hazards = live ? areaHazards(live.region, live.world, map) : undefined;
   // In a scene, every room with someone in it opens up, not just the player's.
   const reveal = state.scene ? actors.filter(a => a.kind === "person" || a.kind === "creature").map(a => a.at) : [];
-  return render(map, actors, camera, viewport, {
-    focus: state.at,
-    ...(reveal.length ? { reveal } : {}),
-    time: state.story.time,
-    ...(lead && !state.scene ? { lead: lead.at, leadLabel: lead.label } : {}),
-    regionStates: overlayRegionStates(state.overlay, map, state.story.time),
-    tick: state.steps,
-    ...(state.scene ? { roofs: false } : {}),
-    ...(worlds.length ? { worlds } : {}),
-    ...(hazards && (hazards.fire.length || hazards.dust.length || hazards.scorched.length) ? { hazards } : {}),
-    ...rest,
-  });
+  return {
+    map, actors, camera,
+    options: {
+      focus: state.at,
+      ...(reveal.length ? { reveal } : {}),
+      time: state.story.time,
+      ...(lead && !state.scene ? { lead: lead.at, leadLabel: lead.label } : {}),
+      regionStates: overlayRegionStates(state.overlay, map, state.story.time),
+      tick: state.steps,
+      ...(state.scene ? { roofs: false } : {}),
+      ...(worlds.length ? { worlds } : {}),
+      ...(hazards && (hazards.fire.length || hazards.dust.length || hazards.scorched.length) ? { hazards } : {}),
+      ...rest,
+    },
+  };
 }
 
 /**

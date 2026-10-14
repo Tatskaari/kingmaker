@@ -1,10 +1,11 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { buildWorld } from "../../world/scene-world.ts";
+import { buildWorld, damageThing } from "../../world/scene-world.ts";
+import { douse } from "../../world/systems.ts";
 import { drownedRatWorld } from "../../../scenes/worlds/drowned-rat.ts";
 import type { MapActor, StoryState, StyledLine, Tile2 } from "../types.ts";
 import { hex } from "./palette.ts";
-import { CAST, MAPS, enterScene, getMap, isStructure, move, newExploration, pathTo, render, renderExplore, screenOf, tileAt, toAnsi, toPlain, travel, type ExploreState } from "./index.ts";
+import { CAST, MAPS, enterScene, getMap, isStructure, leaveScene, move, newExploration, pathTo, Picks, render, renderExplore, screenOf, tileAt, toAnsi, toPlain, travel, type ExploreState } from "./index.ts";
 import { exploreFrame, findHidden, matters, renderXray, xray, xrayExplore } from "./xray.ts";
 
 const MORNING: StoryState = { time: "morning", played: [], lead: "hanged-clerk", flags: {} };
@@ -217,4 +218,54 @@ test("what matters: people, the player, items and scene things; not the town's l
   assert.ok(!matters({ ...base, kind: "object", interaction: { kind: "examine", text: "A lamp post.", label: "Look" } }), "the town's dressing");
   assert.ok(!matters({ ...base, kind: "object", states: ["overhead"] }), "bunting");
   assert.ok(!matters({ ...base, kind: "person", states: ["gone"] }));
+});
+
+test("x-ray keeps what scenes lay on the ground: the Rat's burning table and its puddle, in the scene and after it", () => {
+  const ex = newExploration(DUSK, { map: "drowned-rat", at: { x: 3, y: 5 } });
+  enterScene(ex, "drowned-rat");
+  const world = buildWorld("drowned-rat", drownedRatWorld, [{ id: "nan-quill", name: CAST["nan-quill"]!.name }], { name: "Tester" });
+  damageThing(world, world.entities["long-table"]!, 3, "fire", 1);
+  douse(world, world.entities["long-table"]!, 2);
+  const vp = { w: 80, h: 24 };
+  const during = exploreFrame(ex, vp, { world });
+  assert.ok(during.options.worlds?.some(l => l.world === world), "the scene's world lies on its place");
+  assert.deepEqual(xray(during.map, during.actors, during.camera, vp, during.options).hidden, [], "nobody's behind anything in the open room");
+  assert.equal(JSON.stringify(xrayExplore(ex, vp, { world, t: 2000 })), JSON.stringify(renderExplore(ex, vp, { world, t: 2000 })), "drawn as renderExplore draws it");
+  leaveScene(ex, world);
+  const after = exploreFrame(ex, vp);
+  assert.ok(after.options.worlds?.some(l => Object.values(l.world.entities).some(e => e.kind === "surface")), "the puddle stays after the scene");
+  // The porter asleep on the steps is behind the Rat's wall: outside his patch, it's renderExplore's frame.
+  const { hidden } = xray(after.map, after.actors, after.camera, vp, after.options);
+  const drawn = renderExplore(ex, vp, { t: 2000 }), rayed = xrayExplore(ex, vp, { t: 2000 });
+  for (let y = 0; y < vp.h; y++) for (let x = 0; x < vp.w; x++) {
+    if (hidden.some(h => ((x - h.cell.x) / 10) ** 2 + ((y - h.cell.y) / 4.5) ** 2 < 1)) continue;
+    assert.deepEqual(cellAt(rayed, { x, y }), cellAt(drawn, { x, y }), `(${x}, ${y}) as renderExplore draws it`);
+  }
+});
+
+test("the mouse picks what the x-rayed frame shows: what's behind where it shows through, the building where the building shows", () => {
+  for (const ex of [behindTheHouse(), kellBehindTheWarehouse()]) {
+    const f = exploreFrame(ex, VP);
+    const frontPicks = new Picks(), behindPicks = new Picks(), pick = new Picks();
+    const front = render(f.map, f.actors, f.camera, VP, { ...f.options, pick: frontPicks });
+    const { behind } = findHidden(front, f.map, f.actors, f.camera, VP, { ...f.options, pick: behindPicks });
+    assert.ok(behind, "someone's hidden: there's a frame without the buildings");
+    const lines = xrayExplore(ex, VP, { pick });
+    let through = 0, building = 0;
+    for (let y = 0; y < VP.h; y++) for (let x = 0; x < VP.w; x++) {
+      const shown = cellAt(lines, { x, y }).ch, a = cellAt(front, { x, y }).ch, b = cellAt(behind!, { x, y }).ch;
+      const got = JSON.stringify(pick.at(x, y));
+      if (shown === a && shown !== b) { assert.equal(got, JSON.stringify(frontPicks.at(x, y)), `(${x}, ${y}) shows the building: a click there is on it`); building++; }
+      else if (shown === b && shown !== a) { assert.equal(got, JSON.stringify(behindPicks.at(x, y)), `(${x}, ${y}) shows what's behind: a click there is on that`); through++; }
+    }
+    assert.ok(through > 0 && building > 0, `some cells show what's behind (${through}), some the building (${building})`);
+  }
+  // Kell, through the warehouse: a click on her K is a click on her.
+  const ex = kellBehindTheWarehouse();
+  const pick = new Picks();
+  const lines = xrayExplore(ex, VP, { pick });
+  const f = exploreFrame(ex, VP);
+  const at = screenOf(f.actors.find(a => a.id === "kell")!.at, f.camera, VP);
+  assert.equal(cellAt(lines, at).ch, "K");
+  assert.equal(pick.at(at.x, at.y)?.actor?.id, "kell");
 });
