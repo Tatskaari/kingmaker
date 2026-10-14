@@ -48,6 +48,16 @@ export const multiply = (c: RGB, lr: number, lg: number, lb: number): RGB => pac
 /** Perceived brightness, 0..1. */
 export const luminance = (c: RGB) => (0.2126 * ((c >> 16) & 255) + 0.7152 * ((c >> 8) & 255) + 0.0722 * (c & 255)) / 255;
 
+/** A channel in linear light (sRGB decoded), by its byte. */
+const LINEAR = Array.from({ length: 256 }, (_, i) => { const s = i / 255; return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4; });
+
+/** How readable one colour is on another: the WCAG contrast ratio, 1 (not at all) to 21 (black on white). */
+export function contrast(a: RGB, b: RGB): number {
+  const la = 0.2126 * LINEAR[(a >> 16) & 255]! + 0.7152 * LINEAR[(a >> 8) & 255]! + 0.0722 * LINEAR[a & 255]!;
+  const lb = 0.2126 * LINEAR[(b >> 16) & 255]! + 0.7152 * LINEAR[(b >> 8) & 255]! + 0.0722 * LINEAR[b & 255]!;
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
 export function desaturate(c: RGB, k: number): RGB {
   const l = luminance(c) * 255;
   return mix(c, pack(l, l, l), k);

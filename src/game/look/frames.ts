@@ -73,8 +73,8 @@ const director = new Director(fx);
 director.prime(ratWorld);
 applyOps(ratWorld, [op({ op: "create", name: "a guttering candle", kind: "item", to: "long-table", how: "in", add: ["lit"] })], 1, "stage");
 const lines = damageThing(ratWorld, ratWorld.entities["long-table"]!, 3, "fire", 1);
-director.observe(ratWorld, 2000);
 director.rulesLines(ratWorld, lines, 2000);
+director.observe(ratWorld, 2000);
 fx.bark("regulars", "FIRE!", {}, 2100);
 for (const t of [2600, 3100]) {
   save(`rat-burning-${t}-map`, renderExplore(rat, size, { world: ratWorld, t, glyphs, effects: { region: ratRegion(), frame: fx.frame(t, id => positionOf(ratWorld, id)) } }), `the long table alight on the map, at ${t} ms (the next frame is 500 ms on)`);

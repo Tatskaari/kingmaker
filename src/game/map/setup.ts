@@ -1,7 +1,7 @@
-import { areaAt, type Entity, type SceneWorld } from "../../world/scene-world.ts";
-import type { MapActor, Tile, Tile2, TileMap } from "../types.ts";
+import { areaAt, positionOf, type Entity, type SceneWorld } from "../../world/scene-world.ts";
+import type { MapActor, Region, Tile, Tile2, TileMap } from "../types.ts";
 import { regionForScene } from "./places.ts";
-import { actorsFromWorld, nearestWalk, tileToFeet } from "./reconcile.ts";
+import { actorsFromWorld, feetToTile, nearestWalk, tileToFeet } from "./reconcile.ts";
 import { inBounds, isStructure, tileAt } from "./tiles.ts";
 
 /**
@@ -104,13 +104,17 @@ export function battlefield(sceneId: string, world: SceneWorld): Battlefield | u
   // Fuel: where something flammable stands (a stack's every tile), and flammable spills.
   const fuel: Tile2[] = [];
   const seen = new Set<string>();
+  const burns = (at: Tile2) => { const k = `${at.x},${at.y}`; if (inBounds(map, at) && !seen.has(k)) { seen.add(k); fuel.push({ ...at }); } };
   for (const a of actors) {
     const e = entity(a);
-    if (!e || a.kind === "player" || a.kind === "person" || a.kind === "creature" || !e.tags.includes("flammable") || e.states.includes("destroyed")) continue;
-    const solidThing = a.blocks || e.kind === "surface";
-    if (!solidThing) continue;
-    const k = `${a.at.x},${a.at.y}`;
-    if (!seen.has(k)) { seen.add(k); fuel.push({ ...a.at }); }
+    if (!e || !a.blocks || a.kind === "player" || a.kind === "person" || a.kind === "creature" || !e.tags.includes("flammable") || e.states.includes("destroyed")) continue;
+    burns(a.at);
+  }
+  // Spills aren't actors (they lie on the floor), so they come from the world: an oil slick, spilled spirits.
+  for (const e of Object.values(world.entities)) {
+    if (e.kind !== "surface" || !e.tags.includes("flammable") || e.states.includes("gone") || e.states.includes("destroyed")) continue;
+    const at = positionOf(world, e.id);
+    if (at) burns(feetToTile(found.region, at));
   }
   return { map, people, obstacles, things, actors, lights, dust, fuel };
 }
@@ -180,6 +184,32 @@ export function spotsNear(map: TileMap, at: Tile2, count: number, taken: Tile2[]
     out.push(spot);
     used.add(`${spot.x},${spot.y}`);
   }
+  return out;
+}
+
+/**
+ * A world's areas on its map, for drawing the scene's place: the tiles of areas on fire or scorched
+ * (where the dust went up), each tile by the area its middle is in, and the dust where a fight here
+ * would find it (the battlefield's own dust: so #map shows the dust the fight will use). Only open
+ * ground: walls and water are the map's.
+ */
+export function areaHazards(region: Region, world: SceneWorld, map: TileMap): { fire: Tile2[]; dust: Tile2[]; scorched: Tile2[] } {
+  const out = { fire: [] as Tile2[], dust: [] as Tile2[], scorched: [] as Tile2[] };
+  const marked = Object.values(world.entities).some(e => (e.kind === "area" || e.kind === "place") && e.states.some(s => s === "burning" || s === "dusty" || s === "exploded" || s === "scorched" || s === "burnt"));
+  const place = world.entities[world.root]?.rect;
+  if (!marked || !place) return out;
+  let dusty = false;
+  const a = feetToTile(region, { x: place.x, y: place.y }), b = feetToTile(region, { x: place.x + place.w - 0.01, y: place.y + place.h - 0.01 });
+  for (let y = a.y; y <= b.y; y++) for (let x = a.x; x <= b.x; x++) {
+    const p = { x, y };
+    const t = tileAt(map, p);
+    if (!inBounds(map, p) || t.blocks || isStructure(t) || t.terrain === "void" || t.terrain === "water" || t.terrain === "deep-water") continue;
+    const states = areaAt(world, tileToFeet(region, p)).states;
+    if (states.includes("burning")) out.fire.push(p);
+    if (states.includes("dusty") && !states.includes("exploded")) dusty = true;
+    if (states.includes("exploded") || states.includes("scorched") || states.includes("burnt")) out.scorched.push(p);
+  }
+  if (dusty) out.dust = battlefield(world.scene, world)?.dust ?? [];
   return out;
 }
 

@@ -74,9 +74,9 @@ fx.float(atOrId, "12", { damage: "fire" }); fx.bark("kell", "Was that strictly n
 const frame = fx.frame(now, id => positionOf(world, id));     // sprites, areas, texts, lights, shake: all in feet
 
 const director = new Director(fx); director.prime(world);     // when a scene opens
-director.observe(world, now);                                 // after every turn: walks, fires, douses, spills, wrecks
 director.spellsFrom(world, ruleLines, now, aliases);          // "Cast Fireball ...: a 20-foot sphere on X": a ball of fire from the player to X
 director.rulesLines(world, ruleLines, now, aliases);          // "X takes 7 fire damage", "the big man takes 7 damage" float a 7
+director.observe(world, now);                                 // after every turn: walks, fires, douses, spills, wrecks (and hurt the lines didn't float)
 director.barksFrom(world, gmReply, now, called);              // short quoted lines over their speakers (called: "the landlady")
 director.barkLine(world, "kell", line, now);                  // a cast member's own short line
 
@@ -93,11 +93,11 @@ The plug-in point is `src/game/views.ts`: every picture of the world the game dr
 - **Ground** is `groundAt(terrain, px, py, frame)` per cell, in projected-plane coordinates so it doesn't crawl with the camera; rivers run the way each map's river runs.
 - **Surfaces** are `surfaceLayer(world, frame)` for each scene world on the map (`RenderOptions.worlds`): the live scene's, and what played scenes spilled (the map's overlay keeps them; smoke clears and fires burn out by a later hour). They lie over the ground and under actors; smoke and steam veil everything. `reconcile.actorsFromWorld` skips them: they're patches, not actors.
 - **Hazards** (`RenderOptions.hazards`) are tiles on fire (`fireAt`), thick with dust (`dustAt`) or scorched: a fight's own, or a world's areas (`areaHazards`: the Heron's dusty floor, where it went up).
-- **Light** is per tile and coloured, Brogue-style: the time of day's daylight (`DAYLIGHT` in the map's palette: dimmer in a room whose roof is lifted), plus every source in reach (lamps and fires by `actorLook`'s light, burning patches, effects, a fight's fire, lit windows at night and daylight through them by day), falling off softly and stopped by opaque tiles. People and buildings keep a floor of light. The Rat's driftwood fire lights it blue.
+- **Light** is per tile and coloured, Brogue-style: the time of day's daylight (`DAYLIGHT` in the map's palette: dimmer in a room whose roof is lifted), plus every source in reach (lamps and fires by `actorLook`'s light, burning patches, effects, a fight's fire, lit windows at night and daylight through them by day), falling off softly and stopped by opaque tiles. Buildings keep a floor of light; people (on the map and on the stage: `shadeBeing`) take only half the light's colour, so they stay who they are (Hobb by the blue fire is still orange), and never sink below 3.5:1 against their ground, so they stay findable at night. The Rat's driftwood fire lights it blue.
 - **Effects** (`RenderOptions.effects`: an `EffectFrame` in a region's world feet) are projected: sprites by their feet and height, areas cell by cell, the frame's shake on the camera, and floating text (barks, damage numbers) last and unlit.
 - **Plain text** (`color: false`, the QA console's `townText`) stays quiet: the palette's static ground, no motion, no effects, no icons, single-width glyphs.
 
-**A scene's place from above** is `stageView` (the stage with `dressingFor(scene)`). The app keeps one `Effects` and one `Director` per scene (`Game.sceneLook()` in `src/app/game.ts`): primed when the scene's place is first drawn; the rules' lines go to `spellsFrom`, `observe` and `rulesLines` as they land; the GM's reply to `barksFrom` (and a cast member's own line to `barkLine`); and after every turn `observe` animates what the stage manager changed. The scene screen draws the stage beside the transcript (a live `<lookCanvas>`); `#map` shows the same place on the isometric map with the same effects.
+**A scene's place from above** is `stageView` (the stage with `dressingFor(scene)`). The app keeps one `Effects` and one `Director` per scene (`Game.sceneLook()` in `src/app/game.ts`): primed when the scene's place is first drawn; the rules' lines go to `spellsFrom`, `rulesLines` and `observe` as they land (in that order: a number floats once); the GM's reply to `barksFrom` (and a cast member's own line to `barkLine`); and after every turn `observe` animates what the stage manager changed. The scene screen draws the stage beside the transcript (a live `<lookCanvas>`); `#map` shows the same place on the isometric map with the same effects.
 
 **A fight** plays its log as effects (`fightEffects`: a spell from its caster, a ball of fire for fire in an area, sparks where a blow lands, damage numbers, the dust going up), with its dust hanging and its fire burning on the battlefield.
 
@@ -108,7 +108,7 @@ The plug-in point is `src/game/views.ts`: every picture of the world the game dr
 ## Open issues
 
 - **Unauthored worlds.** The four worlds of the arc have dressings (the Rat, the yard and loft, the Heron, the King's room). A new world without one renders with default floors and no walls: give it a dressing, or have the stage read its map's tiles.
-- **Combat's own letters.** The app draws a fight's cast from the one cast table (`fightLook`), but the combat module's text grid (the QA console's view of a fight, `gridText`) still has letters of its own (Hep is H there, G on the map).
+- **Combat's own letters.** The app draws a fight's cast from the one cast table, and the others with no letter twice (`fightLooks`: a porter's S is Saul's, so he's L), but the combat module's text grid (the QA console's view of a fight, `gridText`) still has letters of its own (Hep is H there, G on the map).
 - **The map's light is per tile.** Walls stop it whole tiles at a time, and a block's faces take the light of the tile they stand on.
 - **Nerd icons overhang in non-Mono fonts.** The nerd set is opt-in for that reason.
 - **The kingmaker set needs its font where the terminal runs.** No terminal query says whether a font is installed, so it's opt-in (`KM_GLYPHS=kingmaker`). Without the font, the sprites show as boxes. On the map, sprites appear where the renderer draws its actors through `actorLook`. They match Adwaita Mono's cell, a screen pixel a design pixel at 11 point; a terminal font with another advance draws them a little wide or narrow.

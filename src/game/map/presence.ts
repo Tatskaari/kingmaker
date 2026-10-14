@@ -124,7 +124,7 @@ function town(story: StoryState): MapActor[] {
   }
   if (story.time === "night") {
     for (const at of [{ x: 10, y: 42 }, { x: 38, y: 42 }]) add({ name: "a barge lantern", glyph: "¤", color: "#ffd27f", kind: "object", states: ["lit"], at, text: "A lantern on a moored barge, swinging, making the dark darker everywhere else." });
-    add({ name: "a watchman's brazier", glyph: "Ψ", color: "#ff8c00", kind: "object", states: ["lit"], at: { x: 51, y: 37 }, text: "A brazier glowing outside the Heron's land door, at the very end of the wharf where the lamps give out." });
+    add({ name: "a watchman's brazier", glyph: "¥", color: "#ff8c00", kind: "object", states: ["lit"], at: { x: 51, y: 37 }, text: "A brazier glowing outside the Heron's land door, at the very end of the wharf where the lamps give out." });
     add({ name: "an eel-seller packing up", glyph: "p", color: "#a0b090", at: { x: 15, y: 38 }, text: "An eel-seller packing up. 'Last eels! Lively ones!' They are, alarmingly." });
   }
   if (story.time === "next-morning") {

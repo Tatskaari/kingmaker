@@ -4,6 +4,7 @@ import type { CombatController } from "./combat/index.ts";
 import type { Canvas } from "./look/canvas.ts";
 import { dressingFor } from "./look/dressings.ts";
 import { ELEMENTS, spellElement } from "./look/director.ts";
+import { CAST_LOOKS } from "./look/people.ts";
 import type { Effects } from "./look/effects.ts";
 import { glyphSet, type GlyphSet } from "./look/glyphs.ts";
 import { renderStage } from "./look/stage.ts";
@@ -98,8 +99,9 @@ export function fightView(fight: CombatController, session: SessionState | undef
   const active = view.turn ? G.units[view.turn.id]?.at : undefined;
   const centre = options.centre ?? active ?? G.units[G.pc]?.at ?? { x: Math.floor(G.map.width / 2), y: Math.floor(G.map.height / 2) };
   // The badly hurt are bloodied; the lanterns and braziers are the world's own (the look knows them by it).
+  const looks = fightLooks(G.units);
   const actors = [...scenery, ...view.actors.map(a => ({
-    ...a, map: G.map.id, ...(a.kind !== "object" ? fightLook({ castId: a.ref, glyph: a.glyph, color: a.color ?? "" }) : session?.world?.entities[a.id] ? { ref: a.id } : {}),
+    ...a, map: G.map.id, ...(a.kind !== "object" ? looks[a.id] ?? fightLook({ castId: a.ref, glyph: a.glyph, color: a.color ?? "" }) : session?.world?.entities[a.id] ? { ref: a.id } : {}),
     ...(a.states?.includes("badly hurt") ? { states: [...a.states, "bloodied"] } : {}),
   }))];
   // The scene's world lines up with the fight's map: its surfaces lie on the floor, and effects land where the fighters stand.
@@ -166,6 +168,28 @@ export function fightEffects(fx: Effects, fight: CombatController, lines: Array<
 export function fightLook(u: { castId?: string | undefined; glyph: string; color: string }): { glyph: string; color: string } {
   const look = u.castId ? castOf(u.castId) : undefined;
   return look ? { glyph: look.glyph, color: look.color } : { glyph: u.glyph, color: u.color };
+}
+
+/**
+ * How everyone in a fight looks, by unit id (fightLook), with no letter twice on the map: someone
+ * the cast table doesn't know keeps the fight's letter unless a cast member has it (a porter's S is
+ * Saul's, and Saul's standing by), and then takes the first letter of their name, or failing that
+ * of the alphabet, that nobody has (in the fight's case: allies small, the other side capitals).
+ */
+export function fightLooks(units: Record<string, { name: string; castId?: string | undefined; glyph: string; color: string }>): Record<string, { glyph: string; color: string }> {
+  const out: Record<string, { glyph: string; color: string }> = {};
+  const taken = new Set(Object.values(CAST_LOOKS).map(c => c.glyph));
+  for (const [id, u] of Object.entries(units)) if (u.castId || u.glyph === "@" || !taken.has(u.glyph)) out[id] = fightLook(u);
+  for (const look of Object.values(out)) taken.add(look.glyph);
+  for (const [id, u] of Object.entries(units)) {
+    if (out[id]) continue;
+    const small = u.glyph !== u.glyph.toUpperCase();
+    const letters = [...u.name.replace(/^(the|a|an) /i, "").replace(/[^A-Za-z]/g, ""), ..."ABCDEFGHIJKLMNOPQRSTUVWXYZ"].map(l => (small ? l.toLowerCase() : l.toUpperCase()));
+    const glyph = letters.find(l => !taken.has(l)) ?? u.glyph;
+    taken.add(glyph);
+    out[id] = { glyph, color: u.color };
+  }
+  return out;
 }
 
 function pick(options: ViewOptions): Pick<RenderOptions, "t" | "tick" | "color" | "glyphs"> {

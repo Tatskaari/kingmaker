@@ -2,8 +2,8 @@ import type { SceneWorld } from "../../world/scene-world.ts";
 import type { MapActor, Region, Span, StoryState, StyledLine, Tile2, TileMap } from "../types.ts";
 import { FLAME_RAMPS, hexOf, mix as mixRGB, ramp, rgbOf, scale as scaleRGB, type FlameName, type RGB } from "../look/color.ts";
 import { areaCell, type EffectFrame, type FloatText } from "../look/effects.ts";
-import { glyphSet, inSet, type GlyphSet } from "../look/glyphs.ts";
-import { shadeBy } from "../look/light.ts";
+import { glyphSet, inSet, plainText, type GlyphSet } from "../look/glyphs.ts";
+import { shadeBeing, shadeBy } from "../look/light.ts";
 import { actorLook, dustAt, fireAt, groundAt, surfaceLayer, type ActorLook, type LookFrame, type SurfaceLayer } from "../look/map.ts";
 import { clamp01, hash01, noise2, seedOf } from "../look/noise.ts";
 import { BLOCKS, DAYLIGHT, DEFAULT_STYLE, FIRE, GROUND, TREE, WINDOW_LIGHT, hash, pick, scale, type BlockLook, type GroundLook } from "./palette.ts";
@@ -70,8 +70,8 @@ export interface RenderOptions {
 /** Light falling on a tile: three multipliers (1 is as authored). */
 interface Light { r: number; g: number; b: number }
 
-/** A cell being composed: colours packed (NONE for the terminal's own), its tile's light, whether it glows. */
-interface Cell { ch: string; fg: RGB; bg: RGB; bold: boolean; light: Light; glow: boolean; depth: number; floor: number }
+/** A cell being composed: colours packed (NONE for the terminal's own), its tile's light, whether it glows, the glyph of someone drawn there (if anyone). */
+interface Cell { ch: string; fg: RGB; bg: RGB; bold: boolean; light: Light; glow: boolean; depth: number; floor: number; being: string }
 
 const NONE = -1;
 const FULL: Light = { r: 1, g: 1, b: 1 };
@@ -145,7 +145,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
   const shake = fx?.frame.shake ?? { dx: 0, dy: 0 };
   const base = origin(camera, viewport);
   const ox = base.ox + shake.dx, oy = base.oy + shake.dy;
-  const blank = (): Cell => ({ ch: " ", fg: NONE, bg: NONE, bold: false, light: FULL, glow: false, depth: -1e9, floor: 0 });
+  const blank = (): Cell => ({ ch: " ", fg: NONE, bg: NONE, bold: false, light: FULL, glow: false, depth: -1e9, floor: 0, being: "" });
   const cells: Cell[][] = Array.from({ length: h }, () => Array.from({ length: w }, blank));
   const focus = options.focus ?? camera;
   const open = opening(map, focus, options);
@@ -176,13 +176,14 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
   let light: Light = FULL, depth = 0;
   // Where the player was drawn: if something in front painted over them, they're drawn through it.
   let me: { x: number; y: number; depth: number } | undefined;
-  const put = (sx: number, sy: number, ch: string, fg: string | RGB, bg?: string | RGB, extra: { bold?: boolean; glow?: boolean; floor?: number } = {}) => {
+  const put = (sx: number, sy: number, ch: string, fg: string | RGB, bg?: string | RGB, extra: { bold?: boolean; glow?: boolean; floor?: number; being?: boolean } = {}) => {
     if (sx < 0 || sy < 0 || sx >= w || sy >= h) return;
     const cell = cells[sy]![sx]!;
     cell.ch = plain ? inSet(ch, "plain") : ch;
     cell.fg = typeof fg === "string" ? (fg ? rgbOf(fg) : NONE) : fg;
     if (bg !== undefined) cell.bg = typeof bg === "string" ? (bg ? rgbOf(bg) : NONE) : bg;
     cell.bold = !!extra.bold; cell.glow = !!extra.glow; cell.light = light; cell.depth = depth; cell.floor = extra.floor ?? 0;
+    cell.being = extra.being ? cell.ch : "";
   };
   /** A cell as the look layer takes one (hex), for laying something over it. */
   const under = (sx: number, sy: number) => { const c = cells[sy]![sx]!; return { glyph: c.ch, fg: hexOf(c.fg === NONE ? INK : c.fg), bg: hexOf(c.bg === NONE ? INK : c.bg) }; };
@@ -450,7 +451,8 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     const look = lookFor(a);
     // Hidden from the player, or gone.
     if (look.alpha < 0.35) return;
-    const r = sr - standing - Math.max(raiseFor(a.name, states), look.lift);
+    // The map's own height where it has one (a hanged man under his beam, the beam above him), else the look's (a bird on the wing).
+    const r = sr - standing - (raiseFor(a.name, states) || look.lift);
     if (states.includes("overhead")) {
       // Bunting and the like: a string of little flags across the tile.
       for (const dx of [-1, 0, 1]) put(sc + dx, r, dx ? a.glyph : "‿", dx ? bunting(at, dx) : "#8a8070");
@@ -478,7 +480,11 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     // Sacks and crates come in stacks.
     const stacked = !look.look.wreck && (look.glyph === "■" || look.glyph === "▣" || (!!a.blocks && STACKS.has(look.look.role)));
     if (stacked) { put(sc, r - 1, look.glyph, scaleRGB(rgbOf(look.fg), 1.1), undefined, { floor: BLOCK_FLOOR }); put(sc + (hash(at.x, at.y) % 2 ? 1 : -1), r, look.glyph, scaleRGB(rgbOf(look.fg), 0.85), undefined, { floor: BLOCK_FLOOR }); }
-    put(sc, r, look.glyph, fg, look.bg, { bold: !!look.bold, glow: look.glow, floor: person ? BEING_FLOOR : 0 });
+    // Someone you can see stays findable in any light (the light pass's shadeBeing); the hidden stay faint.
+    const being = person && look.alpha >= 1;
+    put(sc, r, look.glyph, fg, look.bg, { bold: !!look.bold, glow: look.glow, floor: person ? BEING_FLOOR : 0, being });
+    // The fallen have a mark at their feet, so they don't pass for the standing.
+    if (person && states.some(s => FALLEN.has(s))) put(sc + 1, r, "_", fg, undefined, { floor: BEING_FLOOR, being });
     if (look.above) put(sc, r - (stacked ? 2 : 1), look.above.glyph, look.above.fg, undefined, { bold: true, glow: true });
   }
 
@@ -622,12 +628,14 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
   }
 
   // The light: daylight by the time of day (dimmer in a room you can see into), and whatever is lit
-  // near each tile, coloured, falling off softly and stopped by walls. What glows stays bright.
+  // near each tile, coloured, falling off softly and stopped by walls. What glows stays bright, and
+  // people (still showing: nothing drew over them since) keep their colour and stay findable.
   if (!text) for (const row of cells) for (const cell of row) {
     if (cell.glow) continue;
     const l = cell.light;
-    if (cell.fg !== NONE) cell.fg = shadeBy(cell.fg, l.r, l.g, l.b, cell.floor);
     if (cell.bg !== NONE) cell.bg = shadeBy(cell.bg, l.r, l.g, l.b, cell.floor * 0.7);
+    if (cell.fg === NONE) continue;
+    cell.fg = cell.being && cell.being === cell.ch ? shadeBeing(cell.fg, l.r, l.g, l.b, cell.floor, cell.bg === NONE ? INK : cell.bg) : shadeBy(cell.fg, l.r, l.g, l.b, cell.floor);
   }
 
   // Floating text last, never darkened: barks over whoever said them, damage numbers rising.
@@ -657,8 +665,9 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
       const cell = cells[y]![x]!;
       cell.ch = plain ? inSet(ch, "plain") : ch; cell.fg = fg; if (bg !== undefined) cell.bg = bg; cell.bold = bold; cell.glow = true;
     };
+    const body = plain ? plainText(tx.text) : tx.text;
     if (tx.style === "bark") {
-      const lines = wrapBark(tx.text, Math.max(12, Math.min(28, w - 6)));
+      const lines = wrapBark(body, Math.max(12, Math.min(28, w - 6)));
       const width = Math.max(...lines.map(l => [...l].length)) + 3;
       const left = Math.max(0, Math.min(w - width, cx - Math.floor(width / 2)));
       const top = Math.max(0, free(left, cy - Math.round(tx.rows) - lines.length + 1, width, lines.length));
@@ -677,7 +686,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
       if (ty < cy + 1 && cx >= 0 && cx < w && ty >= 0 && ty < h) ink(cx, ty, "▾", mixRGB(cells[ty]![cx]!.bg === NONE ? INK : cells[ty]![cx]!.bg, tx.fg, tx.alpha));
       return;
     }
-    const chars = [...tx.text];
+    const chars = [...body];
     const left = Math.max(0, Math.min(w - chars.length, cx - Math.floor(chars.length / 2)));
     const y = free(left, cy - Math.round(tx.rows), chars.length, 1);
     claim(left, y, chars.length, 1);
@@ -695,6 +704,8 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
 
 /** Sacks, crates and grain heaped high enough to be in the way. */
 const STACKS = new Set(["sack", "crate", "grain"]);
+/** States that put someone on the floor. */
+const FALLEN = new Set(["down", "unconscious", "dead", "prone"]);
 
 function wrapBark(text: string, width: number): string[] {
   const out: string[] = [];
