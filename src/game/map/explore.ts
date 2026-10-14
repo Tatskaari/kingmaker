@@ -133,7 +133,12 @@ function kellLine(story: StoryState): string {
 // ---------------------------------------------------------------------------------------------
 // Moving.
 
-const walkable = (map: TileMap, p: Tile2) => inBounds(map, p) && !tileAt(map, p).blocks && !isStructure(tileAt(map, p)) || (inBounds(map, p) && tileAt(map, p).terrain === "door" && !tileAt(map, p).blocks);
+/** Somewhere a person can stand: open ground, or a doorway that isn't locked. */
+function walkable(map: TileMap, p: Tile2): boolean {
+  if (!inBounds(map, p)) return false;
+  const t = tileAt(map, p);
+  return !t.blocks && (!isStructure(t) || t.terrain === "door");
+}
 
 const BUMPS = [
   "You walk into the wall. The wall wins.",
@@ -151,7 +156,10 @@ function doorState(actors: MapActor[], at: Tile2): "open" | "locked" | undefined
   return undefined;
 }
 
-/** Take a step (dx, dy each -1, 0 or 1; north is -y). Arrow keys: see KEYS. */
+/**
+ * Take a step (dx, dy each -1, 0 or 1; north is -y; for arrow keys see SCREEN_KEYS). Walking into
+ * someone whose scene is waiting (Kell, the palace page) opens it, as talking to them would.
+ */
 export function move(state: ExploreState, dx: number, dy: number, world?: SceneWorld): MoveResult {
   dx = Math.sign(dx); dy = Math.sign(dy);
   const map = getMap(state.map);
@@ -187,7 +195,10 @@ export function move(state: ExploreState, dx: number, dy: number, world?: SceneW
   if (locked) return result({ message: locked });
   const inTheWay = actors.find(a => a.at.x === to.x && a.at.y === to.y && a.kind !== "player" && a.blocks && !(a.states ?? []).includes("overhead") && !(a.states ?? []).includes("hanging"));
   const follower = inTheWay && state.followers.find(f => f.id === inTheWay.id);
-  if (inTheWay && !follower) return result({ bumped: inTheWay, message: `${capital(inTheWay.name)} ${inTheWay.kind === "person" ? "is in the way" : "is in the way, and doesn't care"}.` });
+  if (inTheWay && !follower) {
+    if (inTheWay.interaction?.kind === "scene") return result({ bumped: inTheWay, trigger: inTheWay.interaction, message: inTheWay.interaction.label });
+    return result({ bumped: inTheWay, message: `${capital(inTheWay.name)} ${inTheWay.kind === "person" ? "is in the way" : "is in the way, and doesn't care"}.` });
+  }
   // Step, and whoever follows takes the place you left (or swaps with you, if they were in front).
   state.at = to;
   state.steps++;
@@ -352,6 +363,12 @@ const where = (n: { distance: number; direction: string }) => (n.distance === 0 
 const state_ = (a: MapActor) => { const s = (a.states ?? []).filter(x => ["burning", "destroyed", "smouldering", "open", "locked", "barred", "hanging", "lit", "down", "unconscious"].includes(x)); return s.length ? `, ${s.join(", ")}` : ""; };
 const dedupe = (xs: string[]) => [...new Set(xs)];
 const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** For a status line: the map, the place on it, and the time of day ("Caerwyn", "the granary lane", "morning"). */
+export function whereabouts(state: ExploreState): { map: string; place: string; time: StoryState["time"] } {
+  const map = getMap(state.map);
+  return { map: map.name, place: regionAt(map, state.at)?.name ?? map.name, time: state.story.time };
+}
 
 /** People, things and ways out within a few steps, nearest first. */
 export function nearby(state: ExploreState, radius = 2, world?: SceneWorld): Nearby[] {

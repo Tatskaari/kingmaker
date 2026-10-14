@@ -126,6 +126,12 @@ test("walking: walls stop you, the yard opens the scene, Kell waits to be talked
   const yard = move(ex, 0, 1);
   assert.equal(yard.trigger?.sceneId, "hanged-clerk");
   assert.equal(yard.trigger?.verb, "enter");
+  // Walking into Kell is talking to her.
+  const bump = newExploration(MORNING, { at: { x: 42, y: 10 } });
+  const r = move(bump, 1, 1);
+  assert.equal(r.moved, false);
+  assert.equal(r.bumped?.ref, "kell");
+  assert.equal(r.trigger?.verb, "talk");
 });
 
 test("places keep their hours: the Rat is shut in the morning and opens at dusk", () => {
