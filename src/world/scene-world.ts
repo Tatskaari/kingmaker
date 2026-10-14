@@ -465,8 +465,7 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
           if (dest.kind === "area" || dest.kind === "place") { e.parent = dest.id; e.at = spread(world, dest, e.id); log(`${e.name} moves to ${dest.name}`); }
           else if (how === "in" || how === "on" || how === "under") {
             if (how === "in") {
-              const from = ownerOf(world, e.id);
-              if (from && (dest.tags.includes("container") || dest.kind === "person" || dest.kind === "creature")) inventory(world, turn).transfer(from.id, dest.id, e.id);
+              if (dest.tags.includes("container") || dest.kind === "person" || dest.kind === "creature") inventory(world, turn).settle(e.id, dest.id);
               else { e.parent = dest.id; delete e.at; }
             }
             else { e.at = { ...(positionOf(world, dest.id)!) }; e.parent = areaOf(world, dest.id)?.id ?? world.root; }
@@ -480,21 +479,19 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
             if (how === "behind") { note(e, `behind ${dest.name}`, turn, by); note(dest, `${e.name} is behind it`, turn, by); }
           }
         } else if (op.op === "give") {
-          // Things change hands only through the inventory service: it checks who has them.
+          // The story already handed it over: the inventory finds it wherever it is and moves it.
           const to = one(op.to, "give");
           if (!to) continue;
-          const from = ownerOf(world, e.id);
-          if (!from) { problems.push(`give: nobody has ${e.name}`); continue; }
-          if (from.id === to.id) continue;
-          inventory(world, turn).transfer(from.id, to.id, e.id, op.quantity ? { quantity: op.quantity } : {});
+          if (ownerOf(world, e.id)?.id === to.id) continue;
+          inventory(world, turn).settle(e.id, to.id, op.quantity ? { quantity: op.quantity } : {});
           changes.push(`${to.name} now has ${op.quantity ? `${op.quantity} ` : ""}${e.name}`);
         } else if (op.op === "drop") {
-          const from = ownerOf(world, e.id);
-          const near = op.to ? one(op.to, "drop") : from;
+          const holder = ownerOf(world, e.id);
+          const near = op.to ? one(op.to, "drop") : holder;
           const room = near ? areaOf(world, near.id) : areaOf(world, e.id);
-          if (!from || !room) { problems.push(`drop: can't tell who has ${e.name}`); continue; }
-          if (from.id !== room.id) inventory(world, turn).transfer(from.id, room.id, e.id, op.quantity ? { quantity: op.quantity } : {});
-          if (near && near.id !== from.id && world.entities[e.id]?.parent === room.id) world.entities[e.id]!.at = spotNear(world, near.id, 3);
+          if (!room) { problems.push(`drop: can't tell where ${e.name} is`); continue; }
+          const dropped = holder?.id === room.id ? e.id : inventory(world, turn).settle(e.id, room.id, op.quantity ? { quantity: op.quantity } : {});
+          if (near && near.id !== holder?.id && world.entities[dropped]?.parent === room.id) world.entities[dropped]!.at = spotNear(world, near.id, 3);
           changes.push(`${e.name} is on the floor${near ? ` by ${near.name}` : ""}`);
         } else if (op.op === "ignite") {
           changes.push(...ignite(world, e, turn));

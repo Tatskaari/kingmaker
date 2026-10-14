@@ -12,7 +12,7 @@ import { applyOps, worldView, type SceneWorld, type WorldOp } from "./scene-worl
 export const WORLD_LANGUAGE = `Operations. Every operation has every field; leave the ones it doesn't use as "", 0 or []. "what" and "to" are always ids from the world (in brackets), never names.
 - move: "what" (someone or something) goes to an area ("to" = an area id), or to beside someone or something ("to" = their id).
 - place: "what" goes near, behind, beside, under, on or in something ("to", "how"). "behind" also notes it on both. Also distances: "how": "away" puts "what" "feet" feet from "to" (on the far side from where it was, or wherever there's room), "toward" moves "what" "feet" feet closer to "to".
-- give: "what" (a thing) is now held by someone, or put in a container ("to"); "quantity" for part of a stack (two of the pennies), 0 for all of it. Only things someone actually has can change hands.
+- give: "what" (a thing) is now held by someone, or put in a container ("to"), wherever it was before (in someone's hands, inside their things, on the floor): the world finds it. "quantity" for part of a stack (two of the pennies), 0 for all of it.
 - drop: "what" is put down ("to": near something, or "" where its holder stands); "quantity" as for give.
 - create: someone or something new the story has just brought in: "name", "kind" (person, creature, object, item), "to" (an area, someone or something to be near; for an item, a person "to" means it's in their hands), "text" (who or what they are).
 - state: "what" gains ("add") or loses ("remove") states: burning, wet, broken, open, closed, locked, barred, overturned, hidden, prone, unconscious, asleep, lit, dark, slick, poisoned, tied-up, sitting, crouching...

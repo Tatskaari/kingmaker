@@ -71,3 +71,23 @@ test("what's inside someone's own things can change hands (the page sewn into th
   // Something inside another owner's things still isn't theirs to give.
   assert.throws(() => inventory(world, 13).transfer("kell", "player", "boots"), InventoryError);
 });
+
+test("the stage manager's hand-overs are permissive: found wherever it is, refused only when impossible", () => {
+  const world = rat();
+  const blank = { to: "", how: "", name: "", kind: "", text: "", add: [], remove: [] };
+  inventory(world, 1).add("player", { name: "pennies", quantity: 3 });
+  // More than there is: what there is goes.
+  const paid = applyOps(world, [{ ...blank, op: "give", what: "pennies", to: "nan-quill", quantity: 5 }], 2);
+  assert.deepEqual(paid.problems, []);
+  assert.equal(inventory(world, 2).read("nan-quill").items.find(i => i.name === "pennies")!.quantity, 3);
+  // Something on the floor, or in someone else's hands: the story says the player has it now.
+  const dropped = applyOps(world, [{ ...blank, op: "drop", what: "pennies" }], 3);
+  assert.deepEqual(dropped.problems, []);
+  const picked = applyOps(world, [{ ...blank, op: "give", what: "pennies", to: "player" }], 4);
+  assert.deepEqual(picked.problems, []);
+  assert.equal(inventory(world, 4).read("player").items.find(i => i.name === "pennies")!.quantity, 3);
+  // The impossible is still refused: a fixed thing doesn't go in a pocket.
+  const fixed = Object.values(world.entities).find(e => e.tags.includes("fixed") || e.size === "huge")!;
+  const heavy = applyOps(world, [{ ...blank, op: "give", what: fixed.id, to: "player" }], 5);
+  assert.equal(heavy.problems.length, 1);
+});

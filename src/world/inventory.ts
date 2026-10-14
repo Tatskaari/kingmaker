@@ -26,6 +26,13 @@ export interface InventoryService {
   transfer(from: string, to: string, itemId: string, options?: { quantity?: number; reveal?: boolean }): string;
   /** Rearrange several owners' items at once, if nobody's inventory changed since it was read. */
   commit(changes: Array<{ ownerId: string; expectedVersion: string; items: string[] }>): void;
+  /**
+   * After the fact: the story has already put it in someone's hands (or on the table, or in the
+   * sack). Find it wherever it is (anyone's inventory, inside their things, on the floor) and move
+   * it there. Refuses only the impossible: what's gone, fixed in place or too big to carry, or a
+   * thing put inside itself. Part of a stack moves what's there, up to the amount.
+   */
+  settle(itemId: string, toId: string, options?: { quantity?: number }): string;
 }
 
 const OWNER_KINDS = new Set(["person", "creature", "area", "place"]);
@@ -116,6 +123,31 @@ export function inventory(world: SceneWorld, turn: number): InventoryService {
       place(moved, to, from);
       if (options.reveal) moved.states = moved.states.filter(s => s !== "hidden");
       log(`${from.name} gives ${move < have ? `${move} ` : ""}${moved.name} to ${to.name}`);
+      return moved.id;
+    },
+    settle(itemId, toId, options = {}) {
+      const item = world.entities[itemId];
+      if (!item || !live(item)) throw new InventoryError(`${itemId} isn't here any more`);
+      if (!portable(item)) throw new InventoryError(`${item.name} can't be carried`);
+      const to = world.entities[toId];
+      if (!to || !live(to)) throw new InventoryError(`Unknown recipient ${toId}`);
+      if (to.id === item.id || isWithin(world, to.id, item.id)) throw new InventoryError(`${item.name} can't go inside itself`);
+      if (item.parent === to.id) return item.id;
+      const from = ownerOf(world, item.id);
+      const have = item.quantity ?? 1;
+      const move = Math.min(have, options.quantity === undefined ? have : Math.max(1, Math.floor(options.quantity)));
+      let moved = item;
+      if (move < have) {
+        item.quantity = have - move;
+        const like = Object.values(world.entities).find(i => i.parent === to.id && live(i) && i.name === item.name);
+        if (like) { like.quantity = (like.quantity ?? 1) + move; log(`${to.name} now has ${move} more ${item.name}`); return like.id; }
+        moved = { ...item, id: freshId(item.id), quantity: move, notes: [], created: turn };
+        world.entities[moved.id] = moved;
+      }
+      place(moved, to, from);
+      // Handed over, it's out in the open.
+      moved.states = moved.states.filter(s => s !== "hidden");
+      log(`${from && from.id !== to.id ? `${from.name} → ` : ""}${to.name}: ${move < have ? `${move} ` : ""}${moved.name}`);
       return moved.id;
     },
     commit(changes) {
