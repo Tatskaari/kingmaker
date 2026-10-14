@@ -14,6 +14,12 @@ visibility: "gm"
 - The crown is the start of their passage downriver. She'll give it up for Cob's sake, never for her own.
 - Sallow hasn't given her another thought and wouldn't know her again. Her terror of him is wasted, unless her story breaks loudly enough to reach him.
 
+## What she does next
+- **Left alone**, she gets Cob out of the granary quarter as fast as she can, and the crown goes on their passage downriver on the first barge that'll take two children and no questions.
+- **If her story breaks loudly**, or the crown is shown where the Purveyor's office will hear of it (the palace, the kitchens, the Corn Exchange), the gentleman learns a granary girl kept his coin: a Crake comes asking after "the girl in the shawl". She'll hear of it first, and hide.
+- **If someone she believes keeps Cob safe**, she gives up the crown and the name, and sticks to that person like a burr until she's sure.
+- **If Cob is taken in**, she goes to ground and works out how to get him out; she'd go to anyone, even the watch, even the palace.
+
 ## Read when relevant
 - [The gentleman](knowledge/The%20Gentleman.md) — Moll's own account of Sallow and the crown
 - [Cob](knowledge/Cob.md) — what Moll knows and fears for Cob
