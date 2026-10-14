@@ -254,8 +254,8 @@ function layoutOnce(plan: PlacePlan, W: number, D: number, notchCorner: Corner |
       problems.push({ check: "plan", subject: boat.id, message: `${boat.name} is a boat but there's no water outside for it to float in: add the river (ground water) on its side.`, severity: "error" });
       continue;
     }
-    // A deck of a square or two between its rails, like the Heron's barge; two if there's cargo, hatches or a crew aboard.
-    const beam = clamp(tilesOf(boat.depth) - 1, thingsIn(boat.id) >= 2 ? 2 : 1, 2);
+    // A deck of a square or two between its rails, like the Heron's barge; two if there's anything aboard (cargo, hatches, a crew).
+    const beam = clamp(tilesOf(boat.depth) - 1, thingsIn(boat.id) >= 1 ? 2 : 1, 2);
     // A row of water between the bank and the boat; more behind the building, out of its shadow.
     const off = behind(water.o.side) ? shadow + 1 : 1;
     water.depth = Math.max(water.depth, off + beam + 2 + 1);
