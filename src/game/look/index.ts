@@ -9,7 +9,7 @@
  * - Light: LightField (ambient by time of day, coloured sources, soft falloff, walls cast shadows).
  * - Effects: Effects (fireball, bolt, explosion, splash, douse, smoke, steam...) and floating text.
  * - The director: animates what changed in a world between turns (walks, ignitions, douses...).
- * - For the map renderer (src/game/map/render.ts): map.ts (actorLook, groundAt, surfaceLayer).
+ * - For the map renderer (src/game/map/render.ts): map.ts (actorLook, groundAt, surfaceLayer, fireAt, dustAt).
  * - A top-down stage renderer for scene worlds (renderStage) and the gallery (gallery.tsx).
  */
 export { lookOf, baseLook, describeLook, resetLooks, type Look, type Lookable, type LookContext, type Cell, type TimeOfDay } from "./appearance.ts";
@@ -23,9 +23,9 @@ export { groundCell, wallCell, surfaceCell, puddleOver, flameCell, cloudCell, cl
 export { surfacesOf, type SurfacePatch, type CloudPatch } from "./surfaces.ts";
 export { LightField, DAYLIGHT, ambientOf, shade, glint, type LightSource } from "./light.ts";
 export { Effects, areaCell, type EffectKind, type EffectOptions, type EffectFrame, type Anchor, type Sprite, type FloatText } from "./effects.ts";
-export { Director, Tweens } from "./director.ts";
+export { Director, Tweens, ELEMENTS, spellElement } from "./director.ts";
 export { Canvas } from "./canvas.ts";
 export { renderStage, layoutOf, type Dressing, type StageView, type StageLayout } from "./stage.ts";
 export { DRESSINGS, dressingFor, drownedRatDressing, granaryYardDressing, heronDressing, kingsRoomDressing } from "./dressings.ts";
-export { actorLook, lightOf, groundAt, surfaceLayer, lookFrame, tileFeet, type ActorLook, type LookFrame, type SurfaceLayer } from "./map.ts";
+export { actorLook, lightOf, groundAt, fireAt, dustAt, surfaceLayer, lookFrame, tileFeet, type ActorLook, type LookFrame, type SurfaceLayer } from "./map.ts";
 export { VIGNETTES, VignettePlayer, frameAt, type Vignette } from "./vignettes.ts";
