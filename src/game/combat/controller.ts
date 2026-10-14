@@ -39,7 +39,7 @@ export interface CombatController {
   /** What the AI would do for the player now (the demo plays itself with this). */
   suggest(style?: PlayerStyle): PlayerAction;
   /** The player's whole turn played by the AI (the demo; a "let the dice decide" button). */
-  autoTurn(style: PlayerStyle): LogLine[];
+  autoTurn(style?: PlayerStyle): LogLine[];
   /** Everything needed to carry on later (JSON). */
   save(): SavedCombat;
 }
@@ -121,7 +121,7 @@ class Controller implements CombatController {
       case "use": m["use"]!(action.prop); break;
       case "dash": case "dodge": case "disengage": case "leave": case "surrender": m[action.kind]!(); break;
       case "arrest": m["arrest"]!(action.target); break;
-      case "nerve": m["nerve"]!(action.dc, action.why); break;
+      case "nerve": m["nerve"]!(action.dc, action.why, action.test); break;
       case "remark": m["remark"]!(action.line); break;
       case "end": m["endTurn"]!(); break;
     }
@@ -161,15 +161,23 @@ class Controller implements CombatController {
     }
   }
 
-  suggest(style: PlayerStyle = "fighter"): PlayerAction {
+  suggest(style?: PlayerStyle): PlayerAction {
     const memo = freshMemo();
     const s = this.look();
-    const step = decide(s, s.pc(), memo, style);
+    const step = decide(s, s.pc(), memo, style ?? this.style());
     return asPlayerAction(step) ?? { kind: "end" };
   }
 
+  /** How the AI would play this character: a caster at range, or into the thick of it. */
+  private style(): PlayerStyle {
+    const s = this.look();
+    const classes = s.t.char(s.pc().engineId)?.classes.map(c => c.classId) ?? [];
+    return classes.some(c => ["wizard", "sorcerer", "warlock"].includes(c)) ? "wizard" : "fighter";
+  }
+
   /** The player's whole turn, played by the AI (the demo). */
-  autoTurn(style: PlayerStyle): LogLine[] {
+  autoTurn(style?: PlayerStyle): LogLine[] {
+    style ??= this.style();
     const memo = freshMemo();
     const lines: LogLine[] = [];
     for (let i = 0; i < 12 && this.playerTurn(); i++) {

@@ -76,12 +76,12 @@ export const HERON_LAYOUT = {
     { id: "lantern-west", name: "hanging lantern", kind: "object", glyph: "o", color: "#ffd966", map: map.id, at: at(8, 4), states: ["lit"] },
     { id: "lantern-middle", name: "hanging lantern", kind: "object", glyph: "o", color: "#ffd966", map: map.id, at: at(13, 8), states: ["lit"] },
     { id: "lantern-east", name: "hanging lantern", kind: "object", glyph: "o", color: "#ffd966", map: map.id, at: at(19, 3), states: ["lit"] },
-    { id: "boys-lantern", name: "lantern on a pole", kind: "object", glyph: "o", color: "#ffd966", map: map.id, at: at(11, 7), ref: "lantern-boy", states: ["lit", "carried"] },
+    { id: "boys-lantern", name: "lantern on a pole", kind: "object", glyph: "o", color: "#ffd966", map: map.id, at: at(4, 7), ref: "lantern-boy", states: ["lit", "carried"] },
   ],
-  /** Where people stand when it starts: the player and Kell at the river end, Sallow mid-floor behind his Crakes. */
+  /** Where people stand when it starts: the player and Kell at the river end, Sallow mid-floor behind his Crakes, the boy hanging back by the land door. */
   starts: {
     player: at(22, 6), kell: at(22, 5), kellWharf: at(1, 5),
-    sallow: at(12, 6), "crake-1": at(15, 5), "crake-2": at(15, 7), "lantern-boy": at(11, 7),
+    sallow: at(12, 6), "crake-1": at(15, 5), "crake-2": at(15, 7), "lantern-boy": at(4, 7),
     hep: at(13, 6), porters: [at(15, 4), at(15, 8), at(16, 6), at(12, 4)],
   },
 };

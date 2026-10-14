@@ -22,7 +22,7 @@ export type Step =
   | { kind: "dash" } | { kind: "dodge" } | { kind: "disengage" }
   | { kind: "leave" } | { kind: "surrender" }
   | { kind: "arrest"; target: string }
-  | { kind: "nerve"; dc: number; why: string }
+  | { kind: "nerve"; dc: number; why: string; test?: string }
   | { kind: "remark"; line: string }
   | { kind: "end" };
 
@@ -47,7 +47,8 @@ export function decide(s: Skirmish, u: Unit, memo: Memo, style?: PlayerStyle): S
 // ---------------------------------------------------------------------------------------------
 // Looking around.
 
-const foes = (s: Skirmish, u: Unit) => s.units.filter(v => s.hostile(u, v) && v.state === "fighting");
+/** Who to fight: anyone standing on the other side, except a child running for the door. */
+const foes = (s: Skirmish, u: Unit) => s.units.filter(v => s.hostile(u, v) && v.state === "fighting" && v.role !== "coward");
 const adjacentFoes = (s: Skirmish, u: Unit) => foes(s, u).filter(v => steps(u.at, v.at) <= 1);
 const meleeWeapon = (s: Skirmish, u: Unit) => u.weapons.find(w => s.t.item(w)?.attackKind !== "ranged") ?? u.weapons[0];
 const rangedWeapon = (s: Skirmish, u: Unit) => u.weapons.find(w => s.t.item(w)?.attackKind === "ranged");
@@ -148,7 +149,7 @@ function bruiser(s: Skirmish, u: Unit, memo: Memo): Step {
   const paid = !villain || villain.state === "fighting";
   const brothers = s.units.filter(v => v.side === u.side && v.id !== u.id && (v.role === "bruiser" || v.role === "brawler"));
   const alone = brothers.length > 0 && brothers.every(b => b.state !== "fighting");
-  const nerve = s.G.flags[`nerve:${u.id}`];
+  const nerve = s.G.flags[`nerve:alone:${u.id}`];
   // The last one standing of the hired hands: do they fancy it on their own?
   if (alone && nerve === undefined && u.role === "bruiser") {
     const fallen = brothers.find(b => b.state === "down" || b.state === "dead");
@@ -166,18 +167,27 @@ function bruiser(s: Skirmish, u: Unit, memo: Memo): Step {
 function villain(s: Skirmish, u: Unit, memo: Memo): Step {
   const near = adjacentFoes(s, u);
   const hired = s.units.filter(v => v.side === u.side && v.id !== u.id && (v.role === "bruiser" || v.role === "brawler"));
-  const nerve = s.G.flags[`nerve:${u.id}`];
+  const alone = s.G.flags[`nerve:alone:${u.id}`];
+  const hurt = s.G.flags[`nerve:hurt:${u.id}`];
   // His last Crake is down or gone: a coward's nerve, tested once.
-  if (hired.length && hired.every(v => v.state !== "fighting") && nerve === undefined) {
-    return { kind: "nerve", dc: 12, why: `${u.called} looks at his Crakes, and then at you` };
+  if (hired.length && hired.every(v => v.state !== "fighting") && alone === undefined) {
+    return { kind: "nerve", dc: 12, why: `${u.called} looks at his Crakes, and then at you`, test: "alone" };
   }
-  if (u.hp * 2 <= u.maxHp || nerve === "broke") {
-    // Badly hurt: run if the door's clear, otherwise yield (very politely).
-    if (!near.length && clearRun(s, u)) {
+  // Badly hurt: tested once more. If it breaks he yields on the spot; if it holds he runs for the
+  // door (when it's clear and nobody's on him) or fights on, cornered.
+  if (u.hp * 2 <= u.maxHp && hurt === undefined && alone !== "broke") {
+    return { kind: "nerve", dc: 12, why: `${u.called} looks at the blood on his good coat`, test: "hurt" };
+  }
+  if (alone === "broke" || hurt === "broke") {
+    if (!near.length && alone === "broke" && clearRun(s, u)) {
       if (!memo.remarked) { memo.remarked = true; return { kind: "remark", line: "flee:sallow" }; }
       return run(s, u, memo);
     }
     return { kind: "surrender" };
+  }
+  if (hurt === "held" && !near.length && clearRun(s, u)) {
+    if (!memo.remarked) { memo.remarked = true; return { kind: "remark", line: "flee:sallow" }; }
+    return run(s, u, memo);
   }
   if (near.length && canAttack(s, u)) return { kind: "attack", target: pickTarget(s, u, near)!.id, weapon: meleeWeapon(s, u) };
   const guards = s.units.filter(v => v.side === u.side && v.id !== u.id && v.state === "fighting" && (v.role === "bruiser" || v.role === "brawler"));
@@ -258,6 +268,20 @@ function fighter(s: Skirmish, u: Unit, memo: Memo): Step {
     if (memo.moves < 1 && (!adjacentFoes(s, u).length || u.hp * 2 > u.maxHp)) {
       const to = walk(s, u, t => steps(t, brazier.at) === 1 && !s.dustAt(t) && !s.G.dust.includes(key(t)), brazier.at);
       if (to && steps(to, brazier.at) <= 1) { memo.moves++; return { kind: "move", to }; }
+    }
+  }
+  // A caster who fights in armour (a cleric): heal when it's going badly, and use a spell at range.
+  const spells = s.spellChoices(u);
+  const use = s.usage(u);
+  const free = (sp: SpellChoice) => (sp.bonus ? !use?.bonusActionUsed : !use?.actionUsed);
+  const heal = spells.find(sp => sp.heal && free(sp) && (sp.spell.mechanicalEffects ?? []).some(m => m.kind === "heal"));
+  if (heal && u.hp * 3 <= u.maxHp && !memo.failed.some(f => f.startsWith("cast"))) return { kind: "cast", spell: heal.id, target: u.id };
+  if (!adjacentFoes(s, u).length && !use?.actionUsed && !memo.failed.some(f => f.startsWith("cast"))) {
+    const shots = spells.filter(sp => !sp.heal && !sp.bonus && sp.targeting === "unit").sort((a, b) => b.level - a.level);
+    for (const sp of shots) {
+      const t = [...foes(s, u)].sort((a, b) => Number(b.role === "villain") - Number(a.role === "villain"))
+        .find(v => feetBetween(u.at, v.at) <= sp.range && clearShot(s.G.map, u.at, v.at) && (!sp.fire || dustWorthIt(s, u) || !line(u.at, v.at).some(x => s.dustAt(x))));
+      if (t && reachCost(s, u, t) * FEET > s.movementLeft(u)) return { kind: "cast", spell: sp.id, target: t.id };
     }
   }
   const villainNear = foes(s, u).find(v => v.role === "villain" && reachCost(s, u, v) * FEET <= s.movementLeft(u));

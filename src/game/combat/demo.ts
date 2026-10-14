@@ -30,26 +30,32 @@ async function fight(pregen: string, level: number, seed: number, print: boolean
   const setup = heronEncounter(heronMap(), session, { sallow: !hep, kell: opt("kell", "inside") as "inside" | "wharf" | "absent", seed });
   const combat = await startCombat(setup, session);
   const style: PlayerStyle = pregen === "wizard" ? "wizard" : "fighter";
+  // Each round's log once it's done, then the board as the next one starts.
   let shown = 0;
-  let lastRound = 0;
-  const flush = (G: CombatG, force = false) => {
+  let boardAt = 0;
+  const flush = (G: CombatG, final = false) => {
     if (!print) return;
-    if (G.round === lastRound && !force) return;
-    const lines = G.log.slice(shown);
-    shown = G.log.length;
-    for (const l of lines) console.log(show(l));
-    console.log(`\n${gridText(G, { rulers: true })}\n${legend(G).join("\n")}\n`);
-    lastRound = G.round;
+    const next = final ? -1 : G.log.findIndex((l, i) => i >= shown && l.round >= G.round);
+    const end = next < 0 ? G.log.length : next;
+    for (const l of G.log.slice(shown, end)) console.log(show(l));
+    shown = end;
+    console.log(`\n${final ? "At the end" : `Round ${G.round} begins`}:\n${gridText(G, { rulers: true })}\n${legend(G).join("\n")}`);
+    boardAt = G.round;
   };
   if (print) {
     console.log(`=== The Heron, seed ${seed}: ${session.player.name}, ${session.player.build}. ${session.rules!.status} ===\n${KEY}\n`);
+    // The roll for initiative, then the board as the first round begins.
+    const G = combat.state();
+    const first = G.log.findIndex(l => l.kind === "turn");
+    for (const l of G.log.slice(0, first < 0 ? G.log.length : first)) console.log(show(l));
+    shown = first < 0 ? G.log.length : first;
   }
-  flush(combat.state(), true);
+  flush(combat.state());
   for (let guard = 0; guard < 400 && !combat.over(); guard++) {
     if (combat.playerTurn()) combat.autoTurn(style);
     else combat.advance();
     const G = combat.state();
-    if (G.round !== lastRound) flush(G);
+    if (G.round > boardAt && !combat.over()) flush(G);
     if (G.round > 40) break;
   }
   const G = combat.state();

@@ -182,10 +182,11 @@ export class Skirmish {
   }
 
   private fall(u: Unit, c: Dnd.EngineCharacter): void {
-    // Massive damage kills outright; the player character can't die in this fight (the story needs them).
-    const dead = c.deathSaves.failures >= 3 && !this.isYou(u);
+    // Massive damage kills a grown combatant outright; the player can't die in this fight (the story
+    // needs them), and nobody kills the lantern-boy: he's knocked flat.
+    const dead = c.deathSaves.failures >= 3 && !this.isYou(u) && u.role !== "coward" && u.role !== "bystander";
     u.state = dead ? "dead" : "down";
-    if (!c.appliedConditions.some(a => a.conditionId === "unconscious")) this.t.apply([this.event("ConditionApplied", { targetId: u.engineId, conditionId: "unconscious" })]);
+    if (!c.appliedConditions.some(a => a.conditionId === "unconscious")) this.t.apply([this.event("ConditionApplied", { targetId: u.engineId, conditionId: "unconscious", appliedConditionId: (this.t.kit.E as unknown as { newAppliedConditionId(): string }).newAppliedConditionId() })]);
     // Everyone but the player is out cold, not dying: no death saves for them.
     if (!this.isYou(u) && !dead) this.t.apply([this.event("Stabilized", { targetId: u.engineId })]);
     if (dead) this.log("narration", `${cap(u.called)} is dead.`, u.id);
@@ -223,10 +224,10 @@ export class Skirmish {
       if (now) this.G.active = this.G.order.indexOf(now.id);
       if (events.some(e => e.type === "RoundEnded")) { this.G.round = enc.round; this.endOfRound(); }
       this.G.round = enc.round;
-      // A death save belongs to the turn it starts: shown after that turn's header (beginTurn).
+      // A death save belongs to the turn it starts: shown after that turn's header, and what it
+      // leads to (back up, stable, dying) is settled there too (beginTurn).
       const saves = diceLines(this.t, events.filter(e => e.type === "DeathSaveRolled"), this.namer());
       if (saves.length) this.G.queued = [...(this.G.queued ?? []), ...saves];
-      this.settle();
       if (this.G.outcome) return;
       if (now && this.takesTurn(now)) return;
     }
@@ -506,16 +507,17 @@ export class Skirmish {
    * Nerve: when the people paying for (or standing beside) them are gone, the engine's morale roll
    * (a d20 plus Wisdom against a DC) says whether they fight on like a cornered rat or give it up.
    */
-  nerve(u: Unit, dc: number, why: string): string | undefined {
-    if (this.G.flags[`nerve:${u.id}`] !== undefined) return "Their nerve has already been tested.";
+  nerve(u: Unit, dc: number, why: string, test = "alone"): string | undefined {
+    const flag = `nerve:${test}:${u.id}`;
+    if (this.G.flags[flag] !== undefined) return "Their nerve has already been tested.";
     let events: Dnd.EngineEvent[];
     try { events = this.t.plan("moraleCheck", { npcId: u.engineId, dc }); } catch (e) { return reason(e); }
     const roll = events.find(e => e.type === "MoraleCheckRolled");
     const held = roll?.["success"] === true;
-    this.G.flags[`nerve:${u.id}`] = held ? "held" : "broke";
+    this.G.flags[flag] = held ? "held" : "broke";
     this.log("narration", `${cap(why)}.`, u.id);
     this.log("dice", `${cap(possessive(u.called))} nerve: ${roll?.["d20"]} ${signed(Number(roll?.["bonus"] ?? 0))} = ${roll?.["total"]} vs DC ${dc}: ${held ? "it holds" : "it breaks"}`, u.id);
-    if (held && u.role === "villain") this.log("narration", `${cap(u.called)} straightens his cuffs and comes on alone, like a cornered rat in a very good coat.`, u.id);
+    if (held && u.role === "villain" && test === "alone") this.log("narration", `${cap(u.called)} straightens his cuffs and comes on alone, like a cornered rat in a very good coat.`, u.id);
     return undefined;
   }
 
@@ -679,7 +681,7 @@ export class Skirmish {
     const pc = this.pc();
     if (pc.state === "fled") return this.end("fled");
     const enemies = this.units.filter(u => u.side === "enemy");
-    if (!enemies.some(u => this.able(u))) {
+    if (!enemies.some(u => this.able(u) && u.role !== "coward")) {
       const villain = enemies.find(u => u.role === "villain");
       return this.end(villain?.state === "surrendered" ? "surrender" : "victory");
     }
@@ -689,6 +691,17 @@ export class Skirmish {
   private end(outcome: NonNullable<CombatResult["outcome"]>): void {
     this.G.outcome = outcome;
     this.say(outcome);
+    // Won: the sergeant (on her feet, or come round with a lump like a hen's egg) puts the irons on the beaten.
+    const sergeant = this.units.find(u => u.side === "ally" && u.castId === "kell" && u.state !== "fled");
+    if (sergeant && (outcome === "victory" || outcome === "surrender")) {
+      const beaten = this.units.filter(v => v.side === "enemy" && (v.state === "down" || v.state === "surrendered") && !v.arrested && v.role !== "coward");
+      if (beaten.length && sergeant.state !== "fighting") this.log("narration", "Kell comes round, sits up, finds her notebook, and gets on with it.", sergeant.id);
+      const villain = beaten.find(v => v.role === "villain");
+      for (const v of beaten) v.arrested = true;
+      if (villain) this.say("arrest:sallow", villain);
+      const rest = beaten.filter(v => v !== villain);
+      if (rest.length) this.log("narration", `Kell puts the irons on ${rest.map(v => v.called).join(" and ")}, by the book and out loud.`, sergeant.id);
+    }
     // Whoever's still dying on the floor when it ends is seen to (Kell, the gang, or the Crakes' indifference).
     for (const u of this.units) if (u.state === "down" && !this.t.char(u.engineId)?.deathSaves.stable) this.t.apply([this.event("Stabilized", { targetId: u.engineId })]);
   }
@@ -703,7 +716,7 @@ export class Skirmish {
     const empty: PlayerOptions = { ready: false, movementLeft: 0, actionUsed: true, moves: [], attacks: [], spells: [], props: [], dash: false, dodge: false, disengage: false };
     if (!ready || !use) return empty;
     const canAttack = !use.actionUsed || (use.attacksMadeThisTurn > 0 && use.attacksMadeThisTurn < this.attacksPerAction(u));
-    const targets = this.units.filter(v => v.state === "fighting" && this.hostile(u, v));
+    const targets = this.units.filter(v => v.state === "fighting" && this.hostile(u, v) && v.role !== "coward");
     const attacks: PlayerOptions["attacks"] = [];
     if (canAttack) {
       const sheet = this.t.sheet(u.engineId);
@@ -721,7 +734,7 @@ export class Skirmish {
     const spells = this.spellChoices(u).filter(s => (s.bonus ? !use.bonusActionUsed : !use.actionUsed)).map(s => ({
       id: s.id, name: s.name, level: s.level, slot: s.slot, targeting: s.targeting, range: s.range, fire: s.fire,
       ...(s.spell["targeting"] ? { area: s.spell["targeting"] as { shape: string; size: number } } : {}),
-      targets: s.targeting === "self" ? [] : this.units.filter(v => v.state !== "fled" && v.state !== "dead" && (s.heal ? this.friendly(v, u) || v.id === u.id : this.hostile(u, v) && v.state === "fighting"))
+      targets: s.targeting === "self" ? [] : this.units.filter(v => v.state !== "fled" && v.state !== "dead" && (s.heal ? this.friendly(v, u) || v.id === u.id : this.hostile(u, v) && v.state === "fighting" && v.role !== "coward"))
         .filter(v => feetBetween(u.at, v.at) <= Math.max(s.range, 5) && (same(v.at, u.at) || clearShot(this.G.map, u.at, v.at)) && (!/^self/i.test(s.spell.range) || steps(u.at, v.at) * FEET <= ((s.spell["targeting"] as { size: number } | undefined)?.size ?? 5)))
         .map(v => ({ id: v.id, name: v.name })),
     }));

@@ -50,7 +50,7 @@ export function combatGame(initial: CombatG, rules: Rules): Game<CombatG> {
       leave: ({ G }) => act(G, s => s.leave(me(s))),
       surrender: ({ G }) => act(G, s => s.surrender(me(s))),
       arrest: ({ G }, target: string) => act(G, s => s.arrest(me(s), target)),
-      nerve: ({ G }, dc: number, why: string) => act(G, s => s.nerve(me(s), dc, why)),
+      nerve: ({ G }, dc: number, why: string, test?: string) => act(G, s => s.nerve(me(s), dc, why, test)),
       /** A line of flavour the AI wants said (Sallow keeping a Crake between himself and the sharp end). */
       remark: ({ G }, kind: string) => act(G, s => { s.say(kind, me(s)); return undefined; }),
       endTurn: ({ G, events }) => { delete G.error; events.endTurn(); },

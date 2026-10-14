@@ -31,8 +31,9 @@ export class Table {
   constructor(kit: Kit, campaign: Dnd.Campaign) { this.kit = kit; this.campaign = campaign; }
   get state(): Dnd.CampaignState { return this.campaign.state; }
   apply(events: Dnd.EngineEvent[]): Dnd.EngineEvent[] {
-    if (events.length) this.campaign = this.kit.E.commit(this.campaign, events);
-    return events;
+    const fixed = wellFormed(events);
+    if (fixed.length) this.campaign = this.kit.E.commit(this.campaign, fixed);
+    return fixed;
   }
   /** Ask a planner and commit what it decided. Throws the engine's reason when it says no. */
   plan(name: string, intent: Record<string, unknown>): Dnd.EngineEvent[] {
@@ -64,6 +65,20 @@ export class Table {
     const mod = r.modifier ? signed(r.modifier) : "";
     return { total: r.total, text: `${expression} (${r.rolls.map(x => x.value).join("+")}${mod})` };
   }
+}
+
+const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/;
+const NO_ITEM = "00000000000000000000000000";
+
+/**
+ * The engine records a spell attack with the spell's id ("fire-bolt") where an item instance id
+ * belongs, and then refuses to load its own campaign ("Expected a ULID"). Nothing reads that field
+ * back (the events change no state), so it gets a well-formed placeholder before it's committed.
+ * (src/rules/dnd.ts has the same problem: see the combat module's integration notes.)
+ */
+export function wellFormed(events: Dnd.EngineEvent[]): Dnd.EngineEvent[] {
+  return events.map(e => (e.type === "AttackRolled" || e.type === "DamageRolled") && typeof e["weaponInstanceId"] === "string" && !ULID.test(e["weaponInstanceId"] as string)
+    ? { ...e, weaponInstanceId: NO_ITEM } : e);
 }
 
 export interface EngineCombatant {
