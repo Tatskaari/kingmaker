@@ -16,4 +16,4 @@ The size of a door: a head like a bollard, a nose broken more than once, shoulde
 - Being polite to a fault: "sir", "missus", "Mrs Quill". He has never broken one of Nan's rules.
 - Playing cards at Dilly Sparrow's table every night.
 - Sending his wages to his mum in the Shambles every week, without fail. Everybody on the stairs knows it.
-- Lately: drinking for two, and keeping his right hand out of sight.
+- Lately: drinking for two, and keeping his right hand out of sight. Arlo Quarry says the champion has gone soft; Dilly Sparrow says he is sickening for something, and feeds him.
