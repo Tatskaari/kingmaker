@@ -5,7 +5,7 @@ import type { Game } from "../game.ts";
 import type { Resumable } from "../save.ts";
 import { timeOf, TIME_WORDS } from "../story.ts";
 import { C } from "../theme.ts";
-import { BOLD, ITALIC, Keys, Spinner, useGame } from "./common.tsx";
+import { BOLD, Clickable, ITALIC, Keys, Spinner, useGame } from "./common.tsx";
 
 const TAGLINES = [
   "Being an account of a murder, a great deal of grain, and the eve of the Centennial Assembly.",
@@ -43,31 +43,38 @@ export function TitleScreen({ game }: { game: Game }) {
     { label: "New game", detail: "make a character and take the case", run: () => game.newCharacter() },
     { label: "Quit", detail: "the clerk will keep", run: () => game.quit() },
   ];
+  const pick = (i: number) => { if (!loading && game.screen === "title") items[Math.min(i, items.length - 1)]!.run(); };
   useKeyboard(key => {
     if (game.overlay || loading || key.defaultPrevented || game.screen !== "title") return;
     key.preventDefault();
     if (key.name === "up" || key.name === "k" || key.name === "w") setIndex(i => (i + items.length - 1) % items.length);
     else if (key.name === "down" || key.name === "j" || key.name === "s") setIndex(i => (i + 1) % items.length);
-    else if (key.name === "return" || key.name === "space") items[Math.min(index, items.length - 1)]!.run();
+    else if (key.name === "return" || key.name === "space") pick(index);
     else if (key.name === "n") game.newCharacter();
     else if (key.name === "q" || key.name === "escape") game.quit();
   });
   const wide = width >= 84;
+  const w = Math.min(width - 4, 90);
   return <box width={width} height={height} flexDirection="column" alignItems="center" justifyContent="center" backgroundColor={C.bg}>
     {wide ? <ascii-font text="KINGMAKER" font="block" color={[C.title, "#c98a3a"]} /> : <text fg={C.title} attributes={BOLD}>K I N G M A K E R</text>}
     <text fg={C.text} attributes={BOLD} marginTop={1}>The Hanged Clerk of Caerwyn</text>
     <text fg={C.dim} attributes={ITALIC}>{tagline}</text>
-    <box flexDirection="column" marginTop={2} width={Math.min(width - 4, 90)} border borderColor={C.border} paddingX={2} paddingY={1}>
+    <box flexDirection="column" marginTop={2} width={w} border borderColor={C.border} paddingX={2} paddingY={1}>
+      {/* Each a button: the pointer picks it out, a click does it. */}
       {items.map((item, i) => {
         const on = i === Math.min(index, items.length - 1);
-        return <text key={i}>
-          <span fg={on ? C.lead : C.dim}>{on ? "▶ " : "  "}</span>
-          <span fg={on ? C.title : C.text} {...(on ? { attributes: BOLD } : {})}>{item.label}</span>
-          {item.detail ? <span fg={C.dim}>{`   ${item.detail}`}</span> : null}
-        </text>;
+        return <Clickable key={i} height={1} flexShrink={0} onClick={() => pick(i)} onHover={() => setIndex(i)}>
+          <text>
+            <span fg={on ? C.lead : C.dim}>{on ? "▶ " : "  "}</span>
+            <span fg={on ? C.title : C.text} {...(on ? { attributes: BOLD } : {})}>{item.label}</span>
+            {item.detail ? <span fg={C.dim}>{truncate(`   ${item.detail}`, Math.max(0, w - 8 - item.label.length))}</span> : null}
+          </text>
+        </Clickable>;
       })}
     </box>
-    <box marginTop={1} height={1}>{loading ? <Spinner label={loading} /> : <Keys items={[["↑↓", "choose"], ["Enter", "select"], ["n", "new game"], ["q", "quit"]]} />}</box>
+    <box marginTop={1} height={1}>{loading ? <Spinner label={loading} /> : <Keys items={[["↑↓", "choose"], ["Enter", "select", () => pick(index)], ["n", "new game", () => game.newCharacter()], ["q", "quit", () => game.quit()]]} />}</box>
     {game.error ? <text fg={C.danger} marginTop={1}>{game.error}</text> : null}
   </box>;
 }
+
+const truncate = (t: string, n: number) => (t.length > n ? `${t.slice(0, Math.max(1, n - 1))}…` : t);

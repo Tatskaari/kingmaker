@@ -1,12 +1,13 @@
-import type { ScrollBoxRenderable } from "@opentui/core";
+import type { InputRenderable, ScrollBoxRenderable } from "@opentui/core";
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useRef, useState } from "react";
+import type { Action } from "../../game/play.ts";
 import { presentCast } from "../../runtime/brief.ts";
 import { sceneById } from "../../../scenes/index.ts";
 import { COMMANDS, commandNamed, type Game, type Line, type Over } from "../game.ts";
 import { TIME_WORDS } from "../story.ts";
 import { C, personColor } from "../theme.ts";
-import { BOLD, Clickable, ITALIC, Keys, SCROLLBAR, Spinner, useGame, wrap, type KeyHint } from "./common.tsx";
+import { BOLD, Clickable, ITALIC, Keys, SCROLLBAR, Spinner, useGame, wayOnKey, wrap, type KeyHint } from "./common.tsx";
 import { Place } from "./place.tsx";
 
 /** The edge of a turn gone by; the latest has the panels' own. */
@@ -114,8 +115,21 @@ function Entry({ line, live, gap }: { line: Line; live?: boolean; gap: number })
   }
 }
 
-/** Something to pick above the box: one of the core's suggestions (a line to say), or a command being typed. */
+/** Something to pick above the box: one of the core's choices (a line to say, or walking on), or a command being typed. */
 interface Pick { key: string; label: string; color: string; run: () => void }
+
+/** A choice that ends a talk (its goodbye, walking on): always listed, however short the screen. */
+const wayOut = (a: Action) => a.kind !== "say" || a.id === "say_goodbye";
+
+/**
+ * The core's choices that fit in `room` rows, in its order (a talk's lines, then its goodbye, then
+ * walking on): the lines to say first give way, never the ways out; nine at most, one a number key.
+ */
+export function fitChoices(all: Action[], room: number): Action[] {
+  const ways = all.filter(wayOut);
+  const keep = new Set([...all.filter(a => !wayOut(a)).slice(0, Math.max(0, room - ways.length)), ...ways]);
+  return all.filter(a => keep.has(a)).slice(0, 9);
+}
 
 function Picks({ picks, width }: { picks: Pick[]; width: number }) {
   return <box flexDirection="column" paddingX={1} flexShrink={0}>
@@ -144,10 +158,10 @@ function onward(game: Game, over: Over): { title: string; go: string; ready: boo
 }
 
 /** In place of the box once the scene is over: the way on, to press or click when the player has finished reading. */
-function Continue({ game, over }: { game: Game; over: Over }) {
+function Continue({ game, over, onGo }: { game: Game; over: Over; onGo: () => void }) {
   const { title, go, ready, fight } = onward(game, over);
   return <Clickable height={3} flexShrink={0} border borderColor={!ready ? C.border : fight ? C.danger : C.borderHot}
-    title={` ${title} `} titleAlignment="left" titleColor={fight ? C.danger : C.title} paddingX={1} onClick={() => game.continueScene()}>
+    title={` ${title} `} titleAlignment="left" titleColor={fight ? C.danger : C.title} paddingX={1} onClick={onGo}>
     <text>
       <span fg={ready ? C.lead : C.faint}>{"▶ "}</span>
       <span fg={!ready ? C.dim : fight ? C.danger : C.lead} attributes={ready ? BOLD : 0}>{go}</span>
@@ -161,36 +175,52 @@ export function SceneScreen({ game }: { game: Game }) {
   const { width, height } = useTerminalDimensions();
   const [draft, setDraft] = useState("");
   const scroll = useRef<ScrollBoxRenderable>(null);
+  const input = useRef<InputRenderable>(null);
+  /** The scene that's over whose keys have been looked at (to see what was in the box as it ended). */
+  const seen = useRef<Over | undefined>(undefined);
   const session = game.session;
   const shown = game.shownScene;
   const over = game.over;
+  /**
+   * What's in the box now. The draft is as of the last render: keys that came in the same read as
+   * this one (a paste, a fast typist, a browser's terminal) are in the input but not the draft yet.
+   */
+  const typed = () => input.current?.value ?? draft;
+  // Emptied directly too: a draft that went "#exits" and back to "" between two renders never changes the prop.
+  const clear = () => { setDraft(""); if (input.current) input.current.value = ""; };
   const send = (value: string) => {
     if (!value.trim()) return;
     // The sheet, the map, the notebook and the help open any time; the rest waits for the GM.
-    if (game.peek(value)) { setDraft(""); return; }
+    if (game.peek(value)) { clear(); return; }
     if (game.busy || game.over) return;
-    setDraft("");
+    clear();
     void game.input(value);
   };
-  // What to pick above the box: a command being typed, or the core's suggestions to say.
+  // What to pick above the box: a command being typed, or the core's choices (a talk's lines, its goodbye, walking on).
   const typing = /^[/#]/.test(draft) ? draft.slice(1).split(/\s+/)[0]!.toLowerCase() : undefined;
   const commands = typing === undefined || draft.includes(" ") ? [] : COMMANDS.filter(c => c.name.startsWith(typing) || commandNamed(typing) === c.name);
   // As many as leave the conversation room to be read (a short terminal shows fewer).
   const room = Math.min(9, Math.max(3, height - 18));
-  const choices = game.choices.slice(0, room);
-  const say = (i: number) => { const choice = choices[i]; if (choice) { setDraft(""); game.choose(choice); } };
+  const choices = fitChoices(game.choices, room);
+  const say = (i: number) => { const choice = choices[i]; if (choice) { clear(); game.choose(choice); } };
   const picks: Pick[] = typing !== undefined ? commands.slice(0, room).map(c => ({ key: `/${c.name}`, label: c.what, color: c.testing ? C.faint : C.dim, run: () => send(`/${c.name}`) }))
     : over || game.busy ? []
-    : choices.map((a, i) => ({ key: String(i + 1), label: a.label, color: C.player, run: () => say(i) }));
+    : choices.map((a, i) => ({ key: String(i + 1), label: a.label, color: a.kind === "say" ? C.player : C.dim, run: () => say(i) }));
   useKeyboard(key => {
     if (game.overlay || game.screen !== "scene" || key.defaultPrevented) return;
     if (key.name === "pageup" || key.name === "pagedown") {
       scroll.current?.scrollBy((key.name === "pageup" ? -1 : 1) * Math.max(3, height - 12));
     } else if (key.name === "escape") { key.preventDefault(); game.overlay = { kind: "menu", index: 0 }; game.emit(); }
     else if (game.over) {
-      if (key.name === "return" || key.name === "space") { key.preventDefault(); game.continueScene(); }
-    } else if (!draft && !game.busy && /^[1-9]$/.test(key.sequence ?? "") && choices[Number(key.sequence) - 1]) {
-      // A number picks one of the suggestions, while nothing's been typed.
+      // Over: an Enter of its own goes on (or a click). A line was in the box as it ended? Its Enter only ends it.
+      if (seen.current !== game.over) { seen.current = game.over; if (typed().trim()) game.typing = true; }
+      const what = wayOnKey(game, key);
+      if (!what) return;
+      key.preventDefault();
+      if (what === "go") { clear(); game.continueScene(); }
+      else if (what === "line") { clear(); game.status = "The scene was over, so that went unsaid. Enter goes on."; game.emit(); }
+    } else if (!typed() && !game.busy && /^[1-9]$/.test(key.sequence ?? "") && choices[Number(key.sequence) - 1]) {
+      // A number picks one of the choices, while nothing's been typed.
       key.preventDefault();
       say(Number(key.sequence) - 1);
     }
@@ -216,7 +246,7 @@ export function SceneScreen({ game }: { game: Game }) {
   ];
   const placeH = Math.max(8, height - 13 - wrap(status, inner).length - talk.length - picks.length);
   const keys: KeyHint[] = [
-    ...(over ? [["Enter", "go on"] as KeyHint] : choices.length && !busy ? [[`1–${choices.length}`, "say one"] as KeyHint] : []),
+    ...(over ? [["Enter", "go on", () => { clear(); game.continueScene(); }] as KeyHint] : choices.length && !busy ? [[`1–${choices.length}`, "choose one"] as KeyHint] : []),
     ...(["sheet", "map", "journal", "help"] as const).map((name): KeyHint => [`/${name}`, "", () => { game.peek(`/${name}`); }]),
     ["PgUp/PgDn", "scroll"], ["Esc", "menu"],
   ];
@@ -248,9 +278,10 @@ export function SceneScreen({ game }: { game: Game }) {
       {busy ? <Spinner label={busy} /> : <text fg={game.status ? C.warn : C.faint}>{game.status ?? " "}</text>}
     </box>
     {picks.length ? <Picks picks={picks} width={width - 2} /> : null}
-    {over ? <Continue game={game} over={over} /> : <box height={3} flexShrink={0} border borderColor={busy ? C.border : C.borderHot} title=" What do you say? " titleAlignment="left" paddingX={1}>
+    {over ? <Continue game={game} over={over} onGo={() => { clear(); game.continueScene(); }} /> : <box height={3} flexShrink={0} border borderColor={busy ? C.border : C.borderHot} title=" What do you say? " titleAlignment="left" paddingX={1}>
       {/* Talking is the default: plain words are said out loud; asterisks and brackets are things done. */}
-      <input value={draft} onInput={setDraft} onSubmit={() => send(draft)} focused={!game.overlay && game.screen === "scene"}
+      {/* What's submitted is what the input holds as Enter comes: the letters before it in the same read are in it, and not yet in the draft. */}
+      <input ref={input} value={draft} onInput={setDraft} onSubmit={(value: unknown) => send(typeof value === "string" ? value : typed())} focused={!game.overlay && game.screen === "scene"}
         placeholder={busy ? "The GM has the floor…" : width >= 100
           ? "Say it out loud. Do things in *asterisks* or (brackets): *looks over my shoulder*, (I cast Fireball)"
           : "Say it out loud; *asterisks* or (brackets) to do things"} />

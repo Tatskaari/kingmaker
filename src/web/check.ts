@@ -179,10 +179,10 @@ async function press(page: Page, ...keys: string[]): Promise<void> {
 }
 
 async function say(page: Page, line: string): Promise<void> {
-  await waitFor(page, "Say something or do something", "the input is ready", 150000);
+  await waitFor(page, "Say it out loud", "the input is ready", 150000);
   await page.keyboard.type(line, { delay: 8 });
-  // An Enter in the same read as the last letters would send the line without them (the scene's
-  // input submits what it last drew).
+  // The scene's input submits what it holds as Enter comes, so an Enter in the same read as the last
+  // letters sends them too; the pause is only to let the screen catch up before it moves on.
   await sleep(150);
   await press(page, "Enter");
 }
@@ -366,7 +366,7 @@ async function offline(): Promise<void> {
 
     // Overlays and the menu: c, ?, Esc.
     await press(page, "c");
-    await waitFor(page, "Character sheet.*Skills:", "c opens the sheet");
+    await waitFor(page, "Character sheet.*Saving throws.*Skills", "c opens the sheet");
     await press(page, "Escape");
     await press(page, "?");
     await waitFor(page, "How to play", "? opens the help");
@@ -449,7 +449,10 @@ async function offline(): Promise<void> {
         rows.push(row);
       }
       const at = rows.findIndex(row => row.dice >= 0);
-      return { width: rows[at].width, edges: [rows[at - 1].edges, rows[at].edges, rows[at + 1].edges].map(e => e.join(",")) };
+      // The help box's own sides either side of the die: the scene's place, drawn beside the box, has walls of its own.
+      const d = rows[at].dice;
+      const sides = edges => [Math.max(...edges.filter(x => x < d)), Math.min(...edges.filter(x => x > d))];
+      return { width: rows[at].width, edges: [rows[at - 1].edges, rows[at].edges, rows[at + 1].edges].map(e => sides(e).join(",")) };
     })()`)) as { width: number; edges: string[] };
     if (dice.width === 2 && dice.edges[0] === dice.edges[1] && dice.edges[1] === dice.edges[2]) ok(`🎲 takes two cells in xterm as in the game (the borders on its row line up: columns ${dice.edges[1]})`);
     else fail(`🎲 is ${dice.width} cells wide; borders above, on and below its row: ${dice.edges.join(" / ")}`);
@@ -632,7 +635,7 @@ async function live(keyForm: boolean): Promise<void> {
     await press(page, "g");
     await waitFor(page, "The Hanged Clerk ·", "g walks to the granary scene", 60000);
     await waitFor(page, "Kell", "the GM's opening mentions Kell", 150000);
-    await waitFor(page, "Say something or do something", "the GM's opening is done", 150000);
+    await waitFor(page, "Say it out loud", "the GM's opening is done", 150000);
     await shot(page, "gm-opening");
     // With the key from the page, a line the cast will remember (without leaving the scene): the GM's
     // notes on it, a background job with the key in its environment, are then likely to be still
@@ -643,7 +646,7 @@ async function live(keyForm: boolean): Promise<void> {
     await say(page, line);
     await waitFor(page, line.slice(0, 16).replace(/[".?]/g, "."), "the player's line is in the transcript", 20000);
     await sleep(2000);
-    await waitFor(page, "Say something or do something", "the GM replied", 180000);
+    await waitFor(page, "Say it out loud", "the GM replied", 180000);
     await sleep(500);
     await shot(page, "gm-reply");
     if (/couldn't/.test(await text(page))) fail("the GM couldn't answer (look at the screenshot)");

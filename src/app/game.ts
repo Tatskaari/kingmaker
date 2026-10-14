@@ -4,7 +4,7 @@ import { TacticalFight, type CombatController } from "../game/combat/index.ts";
 import { Director } from "../game/look/director.ts";
 import { Effects } from "../game/look/effects.ts";
 import { mapFights } from "../game/fights.ts";
-import { direction, getMap, isDoorway, pathTo, SCREEN_KEYS, steer, steps, tileName, walkPlan, type ExploreState } from "../game/map/index.ts";
+import { getMap, isDoorway, pathTo, SCREEN_KEYS, steer, steps, tileName, walkPlan, type ExploreState } from "../game/map/index.ts";
 import { actionsAt, exploreState, leadTarget, town, walkId, type TileActions } from "../game/town.ts";
 import type { StoryState, Tile2 } from "../game/types.ts";
 import { fightEffects } from "../game/views.ts";
@@ -15,9 +15,10 @@ import type { TurnHooks } from "../runtime/engine.ts";
 import { sessionDir, type Entry, type EntryKind, type SessionState } from "../runtime/session.ts";
 import type { SceneWorld } from "../world/scene-world.ts";
 import { sceneById } from "../../scenes/index.ts";
+import { talkOf } from "../../scenes/talk.ts";
 import { repairCampaign } from "./rules-repair.ts";
 import { loadExtras, resumable, saveExtras, type JournalEntry, type Resumable } from "./save.ts";
-import { DEFAULT_CONCEPT, DEFAULT_NAME, epilogue, LEVEL, notebookLines, TIME_WORDS, type Epilogue } from "./story.ts";
+import { DEFAULT_CONCEPT, DEFAULT_NAME, epilogue, leadWay, LEVEL, notebookLines, TIME_WORDS, type Epilogue } from "./story.ts";
 
 /**
  * The game as the terminal UI sees it. The story flow is the game core's (src/game/play.ts: explore,
@@ -150,8 +151,17 @@ export class Game {
   menu?: TileMenu;
   /** The scene on screen is over: its last reply stays up until the player goes on. */
   over?: Over;
-  /** What the core suggests the player might say now (its actions of kind "say"): click one, or press its number. */
+  /**
+   * What the core offers in a scene (a talk's dialogue choices): lines to say (kind "say": the label
+   * is the line, said as if typed), and walking on without a word. Click one, or press its number.
+   */
   choices: Action[] = [];
+  /**
+   * A way on (a scene that's over, the moment between scenes) is being typed at: characters since it
+   * came up (or the line that was in the box as the scene ended). The Enter that ends them ends the
+   * line, not the scene: it takes an Enter of its own (or a click) to go on. See wayOnKey (ui/common.tsx).
+   */
+  typing = false;
 
   /** Each walk's number: a new walk takes over from the one before. */
   private walkNo = 0;
@@ -452,7 +462,8 @@ export class Game {
       said = !opening && !!text && (!options.quiet || /^You come into|:/.test(text));
       if (said) this.say(text);
     } catch (error) {
-      if (opening) this.lines.push({ kind: "error", speaker: "system", text: `The GM couldn't open the scene: ${message(error)}. (/end <exit> skips ahead for testing.)` });
+      // A talk's greeting that never came isn't saved (the game is still on the map): walking on goes back to it.
+      if (opening) this.lines.push({ kind: "error", speaker: "system", text: core.session.talk ? `The GM couldn't open the talk: ${message(error)}. (Walk on to go back to the map.)` : `The GM couldn't open the scene: ${message(error)}. (/end <exit> skips ahead for testing.)` });
       else this.say(message(error));
     }
     this.busy = undefined;
@@ -547,8 +558,10 @@ export class Game {
     if ((!now && !this.watching) || !core || this.over || this.screen !== "scene" || !this.shown) return false;
     if (core.state.mode === "scene" && core.session.sceneId === this.shown && !core.session.ended) return false;
     this.over = { ready: false };
-    this.busy = "The story moves on…";
+    this.busy = talkOf(this.shown) ? "The talk winds up…" : "The story moves on…";
     this.choices = [];
+    // Whether the player was typing as it ended is the scene screen's to say (what's in its box).
+    this.typing = false;
     return true;
   }
 
@@ -597,8 +610,13 @@ export class Game {
       // The scene's look saw the half-changed world: it starts again from the saved one, so going back isn't news.
       this.look = undefined;
       this.rolled = [];
-      this.showSceneSoFar();
-      this.lines.push({ kind: "error", speaker: "system", text: `The GM lost the thread (${message(error)}). Your last turn didn't happen; try it again.` });
+      if (this.core.state.mode === "scene") {
+        this.showSceneSoFar();
+        this.lines.push({ kind: "error", speaker: "system", text: `The GM lost the thread (${message(error)}). Your last turn didn't happen; try it again.` });
+      } else {
+        // The last save is from before the scene (a talk whose greeting never came): back where it was.
+        this.toMap(`The GM lost the thread (${message(error)}), and the talk with it.`);
+      }
     } finally {
       stop();
     }
@@ -607,9 +625,46 @@ export class Game {
     await this.settle(before);
   }
 
-  /** One of the core's suggestions, said as if typed. */
+  /**
+   * One of the core's choices: a line to say (a talk's suggestions and its goodbye), said as if
+   * typed; or walking on without a word, straight back to the map.
+   */
   choose(action: Action): void {
-    void this.input(action.label);
+    if (action.kind === "say") void this.input(action.label);
+    else void this.walkOn(action);
+  }
+
+  /** Walking on from a talk without a word (the core's walk_on): back on the map at once, as its label says. Nothing to read, so no way on to press. */
+  private async walkOn(action: Action): Promise<void> {
+    const core = this.core;
+    if (!core || this.busy || this.over || core.state.mode !== "scene") return;
+    let text: string;
+    try {
+      text = await core.act(action.id, this.hooks());
+    } catch (error) {
+      this.status = message(error);
+      this.emit();
+      return;
+    }
+    this.saveExtras();
+    // The act changed the mode (the narrowing above can't know that).
+    if ((core.state.mode as Core["state"]["mode"]) === "explore") this.toMap(text.replace(/^\((.*)\)$/, "$1"));
+    else { this.refreshChoices(); this.emit(); }
+  }
+
+  /** Off the scene screen and onto the map, with a word in "What happens" (a talk that's over, or never was). */
+  private toMap(said: string): void {
+    this.over = undefined;
+    this.card = undefined;
+    this.busy = undefined;
+    this.live = undefined;
+    this.status = undefined;
+    this.choices = [];
+    this.typing = false;
+    this.screen = "explore";
+    this.say(said);
+    this.saveExtras();
+    this.emit();
   }
 
   private async command(command: string): Promise<void> {
@@ -691,24 +746,31 @@ export class Game {
         // How it ended is its last line, as a resumed transcript has it.
         if (!this.lines.some(l => l.kind === "system" && l.text === `Scene ends: ${ending}`)) this.lines.push({ kind: "system", speaker: "system", text: `Scene ends: ${ending}`, scene: shown });
       }
-      if (core.state.mode === "explore") {
+      // A talk moves nothing on (the lead is still the lead): its way on goes straight back to the map.
+      // After a scene of the story, the moment between scenes: Kell with the news, or the card.
+      if (core.state.mode === "explore" && talkOf(shown)) this.card = undefined;
+      else if (core.state.mode === "explore") {
         this.card = this.leadCard(shown);
         this.messages = [...this.messages, `${TIME_WORDS[core.state.story.time]}. The lead: ${sceneById(session.sceneId).title}.`].slice(-20);
       }
-      if (over.queued) this.continueScene();
+      if (over.queued) this.continueScene({ queued: true });
     } else if (core.state.mode === "scene") this.refreshChoices();
     this.saveExtras();
     this.emit();
   }
 
   /**
-   * The player goes on from a scene that's over: to the fight, to whoever walks with them (then the
-   * map), into the next scene, or to The End. Before the story has finished moving on, they go as
-   * soon as it has; a summons's next scene they can watch come in straight away.
+   * The player goes on from a scene that's over (an Enter of its own, or a click): to the fight, to
+   * whoever walks with them (then the map), into the next scene, or to The End; from a talk, back to
+   * the map. Before the story has finished moving on, they go as soon as it has (`queued`: it has
+   * now, and anything typed while they waited is still being typed); a summons's next scene they can
+   * watch come in straight away.
    */
-  continueScene(): void {
+  continueScene(options: { queued?: boolean } = {}): void {
     const core = this.core, over = this.over;
     if (!core || !over || this.screen !== "scene") return;
+    if (!options.queued) this.typing = false;
+    this.status = undefined;
     if (core.state.mode === "scene" && core.session.sceneId !== this.shown) {
       this.showSceneSoFar();
       this.lines.push(...(over.carry ?? []));
@@ -730,19 +792,23 @@ export class Game {
     this.emit();
   }
 
-  /** How a scene ended: its exit's title (while it's the session's scene, or from the story's history once it has moved on). */
+  /**
+   * How a scene ended: its exit's title (while it's the session's scene, or from the story's history
+   * once it has moved on). A talk that's over has gone from both (the story's scene is back): it
+   * ended the one way a talk ends.
+   */
   private endingOf(sceneId: string): string | undefined {
     const session = this.session!;
+    if (talkOf(sceneId) && session.sceneId !== sceneId) return sceneById(sceneId).exits[0]?.title;
     const exitId = session.sceneId === sceneId ? session.ended?.exitId : session.history.findLast(h => h.sceneId === sceneId)?.exitId;
     return exitId ? sceneById(sceneId).exits.find(e => e.id === exitId)?.title ?? exitId : undefined;
   }
 
-  /** What the core suggests saying now: its actions of kind "say", if it offers any. */
+  /** What the core offers in a scene now (a talk's lines to say, its goodbye, walking on), if anything. */
   private refreshChoices(): void {
     const core = this.core;
     try {
-      // "say" is the core's to add to the kinds; until it does, nothing matches.
-      this.choices = core?.state.mode === "scene" && !this.over ? core.observe().actions.filter(a => (a.kind as string) === "say") : [];
+      this.choices = core?.state.mode === "scene" && !this.over ? core.observe().actions : [];
     } catch {
       this.choices = [];
     }
@@ -751,31 +817,30 @@ export class Game {
   /**
    * Between a scene and the map: the notebook, how the time went, where the story goes next. Whoever
    * walks with the player tells it, Kell reading the entry back in the words of the record; with
-   * nobody there, it's a card.
+   * nobody there, it's a card. Where next is the core's lead, in the map's own words (leadWay): what
+   * the sidebar will say, arrow and all, when the map comes up.
    */
   private leadCard(sceneId: string): Card {
     const core = this.core!;
     const session = core.session;
     const next = sceneById(session.sceneId);
+    const ex = exploreState(core.state);
     const where = leadTarget(core.state);
+    const way = where ? leadWay(ex.at, where) : undefined;
     const notebook = this.journal.find(j => j.sceneId === sceneId)?.lines ?? [];
     const card: Card = {
       title: TIME_WORDS[core.state.story.time],
       lines: [
         ...(notebook.length ? ["Your notebook:", ...notebook, ""] : []),
         ...(session.lead ? [session.lead, ""] : []),
-        `The lead: ${next.title}.${where ? ` Where: ${where.label}.` : ""}`,
+        `The lead: ${next.title}.${way ? ` The way: ${way}.` : ""}`,
         "",
         "Press Enter to walk there (g on the map walks you to the lead).",
       ],
       next: "explore",
     };
-    const ex = exploreState(core.state);
     const friend = ex.followers.find(f => f.map === ex.map) ?? ex.followers[0];
-    if (friend) {
-      const pointing = where ? direction(ex.at, where.at) : undefined;
-      card.talk = talkBetween(friend, { notebook, lead: session.lead, next, where: where?.label, pointing, time: core.state.story.time });
-    }
+    if (friend) card.talk = talkBetween(friend, { notebook, lead: session.lead, next, way, time: core.state.story.time });
     return card;
   }
 
@@ -785,10 +850,12 @@ export class Game {
     else this.journal.push(entry);
   }
 
+  /** On from the moment between scenes (an Enter of its own, or a click): to the map. */
   continueFromCard(): void {
     const card = this.card;
     if (!card || card.working) return;
     this.card = undefined;
+    this.typing = false;
     this.screen = card.next === "combat" ? "combat" : card.next === "end" ? "end" : card.next === "scene" ? "scene" : "explore";
     this.emit();
   }
@@ -993,6 +1060,7 @@ export class Game {
     this.menu = undefined;
     this.over = undefined;
     this.choices = [];
+    this.typing = false;
     this.shown = undefined;
     // Another game's scene is news to nobody.
     this.look = undefined;
@@ -1027,13 +1095,21 @@ const PASSING: Record<StoryState["time"], string> = {
   "next-morning": "The night passes. Some of it is even spent asleep.",
 };
 
+/** What Kell adds once she's shown you the way: her view of the place the story goes next (not how to get there: that's the map's). */
+const KELL_ON: Record<string, string> = {
+  "drowned-rat": "I’ll walk with you: somebody has to write it down.",
+  "heron-warehouse": "If that barge sails on the ebb, so does the evidence. I’d rather it didn’t.",
+};
+
 /**
  * Between scenes, whoever walks with the player says what the card would: the notebook's new
- * entry, read back in the words of the record; how the time went; and where the story goes next,
- * with a point of the pencil the way it lies. Kell has her own way of putting things; anyone else
- * just says them.
+ * entry, read back in the words of the record; how the time went (the story's own lead, when the
+ * hand-off wrote one); and where the story goes next. Where next is the core's lead and nothing
+ * else: the next scene, and `way`, the way there as the map says it (leadWay: "Up the river stairs,
+ * then on to the Heron ← 3 paces"), drawn in the notebook's margin. Kell has her own way of putting
+ * things; anyone else just says them.
  */
-export function talkBetween(friend: { id: string; name: string }, what: { notebook: string[]; lead?: string | undefined; next: { id: string; title: string }; where?: string | undefined; pointing?: string | undefined; time: StoryState["time"] }): Line[] {
+export function talkBetween(friend: { id: string; name: string }, what: { notebook: string[]; lead?: string | undefined; next: { id: string; title: string }; way?: string | undefined; time: StoryState["time"] }): Line[] {
   const says = (text: string): Line => ({ kind: "dialogue", speaker: friend.id, name: friend.name, text });
   const kell = friend.id === "kell";
   const out: Line[] = [];
@@ -1042,14 +1118,9 @@ export function talkBetween(friend: { id: string; name: string }, what: { notebo
     ? `“For the record.” She reads the entry back to you, in the words of the record: “${entry}” She looks at it a moment longer. “Noted.”`
     : `“So,” says ${friend.name}. “${entry}”`));
   out.push({ kind: "narration", speaker: "gm", text: what.lead ?? PASSING[what.time] });
-  const bare = (t: string) => t.toLowerCase().replace(/^the /, "");
-  const at = what.where && !bare(what.next.title).startsWith(bare(what.where)) ? `, at ${what.where}` : "";
-  const way = what.pointing && what.pointing !== "here" ? what.pointing : undefined;
-  const points = way ? `She points her pencil ${way}${at}.` : "She writes it down.";
-  if (!kell) out.push(says(`“${what.next.title} next${what.where ? `: ${what.where}` : ""}.”${way ? ` ${friend.name} points ${way}.` : ""}`));
-  else if (what.next.id === "drowned-rat") out.push(says(`“The Drowned Rat, then.” ${way ? `She points her pencil ${way}, down towards the river.` : points} “Halfway down the river stairs. I’ll walk with you: somebody has to write it down.”`));
-  else if (what.next.id === "heron-warehouse") out.push(says(`“The Heron. Downriver end of the wharves.” ${points} “If that barge sails on the ebb, so does the evidence. I’d rather it didn’t.”`));
-  else out.push(says(`“${what.next.title}, then.” ${points} “After you, investigator. I’ll be writing.”`));
+  const way = what.way?.trim();
+  if (!kell) out.push(says(`“${what.next.title} next.”${way ? ` ${friend.name} shows you the way: ${way}.` : ""}`));
+  else out.push(says(`“${what.next.title}, then.” ${way ? `She draws you the way in her notebook’s margin: ${way}.` : "She writes it down."} “${KELL_ON[what.next.id] ?? "After you, investigator. I’ll be writing."}”`));
   return out;
 }
 

@@ -35,6 +35,7 @@ export function EndScreen({ game }: { game: Game }) {
       ])}
       {tab.map((l, i) => <text key={`t${i}`} fg={C.faint} attributes={ITALIC} flexShrink={0}>{l}</text>)}
     </box>
-    <box height={1} marginTop={1} flexShrink={0}><Keys items={[["Enter", "back to the title"], ["q", "quit"]]} /></box>
+    {/* Buttons too: a click goes back to the title, or quits. */}
+    <box height={1} marginTop={1} flexShrink={0}><Keys items={[["Enter", "back to the title", () => game.toTitle()], ["q", "quit", () => game.quit()]]} /></box>
   </box>;
 }

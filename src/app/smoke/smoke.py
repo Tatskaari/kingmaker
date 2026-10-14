@@ -1,13 +1,15 @@
 """
 Headless smoke test of the playable game: run the real OpenTUI app under a pseudo-terminal, drive
-it with keystrokes and the mouse (xterm's SGR 1006 reports: a click to walk, a right-click menu,
-clicks on the way on and on commands), and grep the screen. By default it plays the whole arc
-offline (an invalid API key, so the GM can't speak: scenes are ended with the /end testing
-command), including a save, quit and Continue, and a full stand-in fight. With --live it plays one
-real scene turn against the GM instead.
+it with keystrokes and the mouse (xterm's SGR 1006 reports: the title's buttons, a click to walk, a
+right-click menu, a talk's choice, clicks on the way on, on commands and on the map's keys, and in
+the fight a blue tile, someone to aim at and the end-turn button), and grep the screen. By default
+it plays the whole arc offline (an invalid API key, so the GM can't speak: scenes are ended with
+the /end testing command), including typing on as a scene ends (it goes nowhere), a save, quit and
+Continue, and a whole fight. With --live it plays real scene turns against the GM instead, a real
+scene boundary, and a real talk with Kell.
 
   python3 src/app/smoke/smoke.py            # offline, the whole story (about two minutes)
-  python3 src/app/smoke/smoke.py --live     # needs OPENROUTER_API_KEY: one real GM turn, then resume
+  python3 src/app/smoke/smoke.py --live     # needs OPENROUTER_API_KEY: real GM turns, resume, a boundary, a talk
 
 Screens are dumped to runs/app-smoke/<run>/ for reading afterwards.
 """
@@ -110,9 +112,13 @@ def say(app, text):
     app.send(KEYS["enter"], 0.3)
 
 
-def new_game(app, name, concept):
+def new_game(app, name, concept, by_click=False):
     expect(app, r"Hanged Clerk of Caerwyn", "title screen")
-    keys(app, "n")
+    if by_click:
+        # The title's choices are buttons (SGR 1006 mouse reports, as xterm sends them).
+        click(app, "New game", "a click on New game")
+    else:
+        keys(app, "n")
     expect(app, r"Who are you\?", "character creation")
     app.type(name)
     keys(app, "enter")
@@ -192,13 +198,128 @@ def mouse(app):
     expect(app, r"The Hanged Clerk ·", "choosing it walks over to her and her scene opens", timeout=40)
 
 
+def kell_way(app):
+    """The way Kell draws in her notebook between scenes: (arrow, paces), or None."""
+    m = re.search(r"notebook’s\s+margin:\s+(.*?)\s([↖↑↗→↘↓↙←•])\s+(\d+)\s+paces", re.sub(r"[│╭╮╰╯]", " ", app.text()), re.S)
+    return (m.group(2), m.group(3)) if m else None
+
+
+def same_way(app, way, what):
+    """The map's lead says the way as Kell drew it: the same arrow, the same paces (the sidebar, right of the map)."""
+    side = re.sub(r"\s+", " ", re.sub(r"[│┃]", " ", " ".join(row[MAP_COLS:] for row in app.text().split("\n"))))
+    if not way or f"{way[0]} {way[1]} paces" not in side:
+        path = dump(app, "way-differs")
+        print(f"FAIL: {what} (Kell drew {way}; the map's lead says otherwise; screen in {path})")
+        app.close()
+        sys.exit(1)
+    print(f"ok: {what} ({way[0]} {way[1]} paces)")
+
+
 def with_kell(app, said, what, timeout=60):
-    """A scene that's over stays up until the player goes on; then Kell tells the news, and back to the map."""
+    """A scene that's over stays up until the player goes on; then Kell tells the news, and back to the map, which agrees with her."""
     expect(app, r"On, with Sergeant Kell", "the scene is over: its last word stays up, the way on is Kell", timeout=timeout)
     keys(app, "enter")
     expect(app, said, what)
     expect(app, r"Back to the map", "Kell has said her piece")
+    way = kell_way(app)
     keys(app, "enter")
+    expect(app, r"The lead:", "back on the map")
+    same_way(app, way, "the map's lead says the way Kell drew it")
+
+
+def open_talk(app):
+    """A word with Kell between scenes: right-click her in the Nearby list, and click what the menu offers."""
+    app.click(*app.find("Sergeant Kell"), button=2)
+    expect(app, r"1 Talk to Sergeant Kell", "a right-click on Kell in the Nearby list offers a word with her")
+    click(app, "1 Talk to Sergeant Kell", "click to talk to Kell")
+    expect(app, r"A word with Sergeant (?:Agnes )?Kell", "talking to Kell between scenes opens a talk", timeout=40)
+
+
+def talk_live(app):
+    """A real talk with Kell: click one of her suggested lines, then the goodbye; back on the map, with no card between."""
+    open_talk(app)
+    app.wait_for(IDLE, 150)
+    m = expect(app, r"(?m)^ 1 (\S.{8,}?)\s*$", "the talk's lines to say, numbered", timeout=60)
+    expect(app, r"I'll leave you to it\..*Walk on without a word", "the goodbye and walking on are there too")
+    line = m.group(1).strip()
+    click(app, line[:24], "a click on the first line")
+    expect(app, r"is speaking|The GM", "the line is said, and Kell answers", timeout=30)
+    app.wait_for(IDLE, 180)
+    dump(app, "talk-reply")
+    print("ok: a real reply in the talk" if re.search(re.escape(line[:24]), app.text()) else "WARN: the line said isn't on screen")
+    click(app, "I'll leave you to it.", "a click on the goodbye")
+    # Said (the choices go while she answers), then the talk's over, or it goes on with new ones.
+    expect(app, r"is speaking|The GM|The talk winds up", "the goodbye is said", timeout=30)
+    ended = app.wait_for(r"Goodbye for now.*Back to the map|\n \d Walk on without a word", 180)
+    if ended and "Back to the map" in app.text():
+        print("ok: the goodbye ends the talk: her last word stays up, the way on is the map")
+        keys(app, "enter")
+    else:
+        print("WARN: the GM didn't take the goodbye as the end this time: walking on instead")
+        click(app, "Walk on without a word", "a click on walking on")
+    expect(app, r"The lead:.*Drowned Rat", "after the talk, straight back to the map, the lead as it was")
+    if "For the record" in app.text():
+        print("FAIL: a between-scenes card after a talk")
+        app.close()
+        sys.exit(1)
+    print("ok: no between-scenes card after a talk")
+
+
+def saved_fight():
+    """The fight as the game last saved it (boardgame.io's G), or None."""
+    for path in glob.glob(os.path.join(ROOT, ENV["KM_RUNS_DIR"], "sessions", "*", "game.json")):
+        with open(path) as f:
+            combat = json.load(f).get("combat")
+        if combat and combat.get("combat"):
+            return combat["combat"]["G"]
+    return None
+
+
+# At 130 columns the battlefield's box is everything left of the side panel.
+FIGHT_COLS = 86
+
+
+def fight_clicks(app):
+    """The fight by mouse: a click on a blue tile moves there, a click on someone on the other side aims at them, and the end-turn button ends the turn."""
+    expect(app, r"Your turn.*action ready", "the player's turn", timeout=30)
+    G = saved_fight()
+    me = G["units"][G["pc"]]["at"]
+    taken = {(u["at"]["x"], u["at"]["y"]) for u in G["units"].values() if u["state"] != "fled"}
+    mx, my = app.find("@", FIGHT_COLS)
+    # A tile next to the player that the pointer says a click would move to.
+    moved = None
+    for dx, dy in [(1, 0), (0, 1), (-1, 0), (0, -1), (1, 1), (-1, -1), (1, -1), (-1, 1)]:
+        x, y = me["x"] + dx, me["y"] + dy
+        if (x, y) in taken or not (0 <= y < len(G["map"]["tiles"]) and 0 <= x < len(G["map"]["tiles"][y])) or G["map"]["tiles"][y][x].get("blocks"):
+            continue
+        app.point(mx + 2 * (dx + dy), my + (dy - dx), settle=0.4)
+        if app.wait_for(r"click to move here", 1.5):
+            moved = (x, y)
+            app.click(mx + 2 * (dx + dy), my + (dy - dx), settle=0.5)
+            break
+    if not moved:
+        path = dump(app, "no-tile-to-move-to")
+        print(f"FAIL: a blue tile next to the player, the pointer saying a click moves there (screen in {path})")
+        app.close()
+        sys.exit(1)
+    expect(app, r"You move 5 ft", "a click on a blue tile moves the player there")
+    # Someone on the other side who isn't the target yet (the furthest): a click aims at them.
+    G = saved_fight()
+    me = G["units"][G["pc"]]["at"]
+    foes = sorted((u for u in G["units"].values() if u["side"] == "enemy" and u["state"] == "fighting" and u["role"] != "coward"),
+                  key=lambda u: max(abs(u["at"]["x"] - me["x"]), abs(u["at"]["y"] - me["y"])))
+    foe = foes[-1]
+    mx, my = app.find("@", FIGHT_COLS)
+    dx, dy = foe["at"]["x"] - me["x"], foe["at"]["y"] - me["y"]
+    app.point(mx + 2 * (dx + dy), my + (dy - dx), settle=0.4)
+    expect(app, re.escape(foe["name"]) + r" · \d+ ft", f"pointing at {foe['name']} says who and how far")
+    app.click(mx + 2 * (dx + dy), my + (dy - dx), settle=0.5)
+    expect(app, r"Aiming at " + re.escape(foe["name"]), f"a click on {foe['name']} aims at them")
+    expect(app, r"Target\s.{0,300}?" + re.escape(foe["name"]) + r" ·", "the target panel shows them")
+    # The side panel's options are buttons: end the turn with a click.
+    rnd = int(re.search(r"Round (\d+)", app.text()).group(1))
+    click(app, "e end turn", "a click on the end-turn button")
+    expect(app, rf"Round {rnd + 1}|It's over", "a click on end turn ends it (the others go, and the round comes round)", timeout=30)
 
 
 def fight(app):
@@ -206,7 +327,7 @@ def fight(app):
     expect(app, r"Round \d", "the battlefield is drawn, the round is up")
     for _ in range(200):
         screen = app.text()
-        if "Press Enter to see what comes of it" in screen:
+        if "See what comes of it" in screen:
             break
         if "Your turn" in screen and "action ready" in screen:
             # Let the dice decide (the fight's own AI plays the player's turn).
@@ -215,14 +336,14 @@ def fight(app):
             keys(app, "e", settle=0.6)
         else:
             app.pump(0.4)
-    expect(app, r"Press Enter to see what comes of it", "the fight is over", timeout=20)
+    expect(app, r"See what comes of it\s+Enter, or click", "the fight is over", timeout=20)
     dump(app, "fight-over")
-    keys(app, "enter")
+    click(app, "See what comes of it", "a click on the way on from the fight")
 
 
 def offline():
     app = launch()
-    new_game(app, "Tamsin Vell", "a disgraced palace auditor with a ledger-keeper's eye and a borrowed rapier")
+    new_game(app, "Tamsin Vell", "a disgraced palace auditor with a ledger-keeper's eye and a borrowed rapier", by_click=True)
     expect(app, r"Sergeant Kell", "Kell is about")
     expect(app, r"Caerwyn.*The granary lane|The granary lane", "the map: the lane by the granary gate")
     keys(app, "?")
@@ -249,23 +370,66 @@ def offline():
     say(app, "/help")
     expect(app, r"How to play.*\*Asterisks\* or \(brackets\) are what you do.*/sheet your character sheet", "/help: how to talk, and the slash commands")
     keys(app, "esc")
-    # The old # still works, for the nostalgic.
-    say(app, "#exits")
-    expect(app, r"case-made", "the scene's exits are listed (#exits, the old way)")
+    # The old # still works, for the nostalgic; and a line with its Enter in one read (a paste, the
+    # browser's terminal) is sent whole, not lost to the draft of the render before.
+    app.wait_for(IDLE, 120)
+    app.send("#exits\r", 0.5)
+    expect(app, r"case-made", "the scene's exits are listed (#exits and its Enter written at once, the old way)")
     app.type("/jo", 0.3)
     expect(app, r"/journal\s+the investigator's notebook", "typing a / offers the commands that fit")
     for _ in range(3):
         keys(app, "backspace")
+    # Its placeholder shows only when the box is empty: nothing of either line is left in it.
+    expect(app, IDLE, "the box is empty again")
     say(app, "/end case-made")
     expect(app, r"The case is made.*On, with Sergeant Kell", "the clerk's scene is over, and stays up: the way on is Kell", timeout=60)
+    # Typing on as it ends (the next line, a space, w/a/s/d, e): none of it goes on, and the Enter that
+    # ends it only ends the line. Nobody walks on the map, either.
+    here = saved_at()
+    app.type("and the boy with the stones? wasd e ", 0.2)
+    keys(app, "enter")
+    expect(app, r"went unsaid\. Enter goes on", "typing on as the scene ends: the Enter ends the line, not the scene")
+    if "For the record" in app.text() or "On, with Sergeant Kell" not in app.text():
+        path = dump(app, "carried-on")
+        print(f"FAIL: typing carried the player past the scene's last word (screen in {path})")
+        app.close()
+        sys.exit(1)
+    print("ok: typed characters don't go on from a scene that's over")
     # A click on the way on goes on.
     click(app, "On, with Sergeant Kell", "click to go on")
     expect(app, r"Evening, on the eve.*For the record.*didn't hang himself", "Kell reads the notebook line back (the case made)")
-    expect(app, r"The Drowned Rat, then", "Kell names the lead: the Drowned Rat (afternoon skipped)")
+    expect(app, r"The Drowned Rat, then\.", "Kell names the lead: the Drowned Rat (afternoon skipped)")
     expect(app, r"Back to the map", "Kell has said her piece")
+    way = kell_way(app)
+    # Typing at Kell goes nowhere either: an Enter of its own goes on.
+    app.type("wasd e ", 0.2)
+    keys(app, "enter")
+    expect(app, r"that typing went nowhere: Enter goes on", "typing at Kell between scenes doesn't go on")
     keys(app, "enter")
     expect(app, r"Evening", "back on the map, evening")
-    keys(app, "j")
+    expect(app, r"The lead:.*Drowned Rat", "the lead on the map")
+    if saved_at() != here:
+        print(f"FAIL: the typing walked on the map (from {here} to {saved_at()})")
+        app.close()
+        sys.exit(1)
+    print("ok: nothing typed at the scene's end or at Kell walked on the map")
+    same_way(app, way, "the map's lead says the way Kell drew it")
+    # A word with Kell between scenes (right-click her in the Nearby list): offline the GM can't
+    # greet, but the talk's choices are there to click, and walking on is straight back to the map.
+    open_talk(app)
+    expect(app, r"couldn't open the talk", "offline: the GM can't greet (expected)", timeout=40)
+    expect(app, r"1 I'll leave you to it\..*2 Walk on without a word", "the talk's choices: its goodbye and walking on, numbered")
+    click(app, "Walk on without a word", "a click on walking on")
+    expect(app, r"The lead:.*Drowned Rat", "walking on from the talk: straight back to the map")
+    expect(app, r"The talk with Sergeant (?:Agnes )?Kell is over", "the map says the talk is over")
+    if re.search(r"For the record|Back to the map", app.text()):
+        path = dump(app, "card-after-talk")
+        print(f"FAIL: a between-scenes card after a talk (screen in {path})")
+        app.close()
+        sys.exit(1)
+    print("ok: no between-scenes card after a talk")
+    # The keys at the bottom of the map are buttons.
+    click(app, "j notebook", "a click on the notebook at the bottom of the map")
     expect(app, r"The investigator's notebook.*The case is made", "the notebook overlay")
     keys(app, "esc")
 
@@ -278,7 +442,7 @@ def offline():
     app.close()
     app = launch()
     expect(app, r"Continue.*Tamsin Vell", "Continue is offered on the title screen")
-    keys(app, "enter")
+    click(app, "Continue", "a click on Continue")
     expect(app, r"The lead:.*Drowned Rat", "resumed on the map, heading for the Rat")
 
     # Across town, down the river stairs and through the Rat's door, into the Rat: g all the way.
@@ -291,7 +455,7 @@ def offline():
     app.click(1, 1)
     gone(app, r"The investigator's notebook", "a click outside the notebook closes it", timeout=5)
     say(app, "/end hobb-talks")
-    with_kell(app, r"The Heron\. Downriver end of the wharves", "Kell names the lead: the Heron (the wharf interlude skipped)")
+    with_kell(app, r"The Heron Warehouse, then\..*then on to the Heron", "Kell names the lead: the Heron, the way the map gives it (the wharf interlude skipped)")
     expect(app, r"Night", "night on the map")
     to_lead(app, r"The Heron Warehouse ·", timeout=60)
     app.wait_for(r"couldn't open the scene", 40)
@@ -312,6 +476,7 @@ def offline():
     app = launch()
     expect(app, r"Continue.*fighting at The Heron", "Continue offers the fight in progress")
     keys(app, "enter")
+    fight_clicks(app)
     fight(app)
     # The scene picks up from the fight (its aftermath: offline the GM can't tell it), then the
     # King's summons opens the next morning: the Heron stays up until the player goes on.
@@ -330,7 +495,7 @@ def offline():
     keys(app, "enter")
     expect(app, r"How it went", "The End", timeout=60)
     expect(app, r"Hanged Clerk: The case is made", "the epilogue lists the chapters")
-    keys(app, "enter")
+    click(app, "back to the title", "a click on the way back to the title")
     expect(app, r"Hanged Clerk of Caerwyn", "back to the title")
     keys(app, "q")
     app.pump(1)
@@ -387,6 +552,8 @@ def live():
     dump(app, "scene-over")
     with_kell(app, r"Drowned Rat", "Kell names the lead: the Drowned Rat", timeout=180)
     expect(app, r"The lead:.*Drowned Rat", "back on the map, the lead is the Rat")
+    # A word with Kell between scenes, by mouse: one of her suggested lines, then the goodbye.
+    talk_live(app)
     to_lead(app, r"The Drowned Rat ·", timeout=60)
     app.wait_for(IDLE, 150)
     dump(app, "rat-opening")

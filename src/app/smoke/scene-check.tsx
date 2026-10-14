@@ -6,6 +6,12 @@
  * below it), and Kell telling the news between scenes. Each line's words are looked for in what was
  * drawn, whole; only a line scrolled partly off the top may be cut.
  *
+ * Then the keys and clicks on them: a suggestion by its number and by a click; a command as it's
+ * typed; a line and its Enter in one read (sent whole, the box emptied); the way on from a scene
+ * that's over by Enter and by a click, but not by typing (nor by the Enter that ends the typing, nor
+ * by the Enter meant for a line left in the box as the scene ended); a talk's lines, its goodbye and
+ * walking on, numbered and clicked, at 80x24 too; and Kell between scenes, typed at and gone on from.
+ *
  *   KM_RUNS_DIR=runs/check node --experimental-ffi --no-warnings --import tsx src/app/smoke/scene-check.tsx [--show]
  */
 import { act } from "react";
@@ -19,7 +25,7 @@ import { presentCast } from "../../runtime/brief.ts";
 import { buildWorld, joinWorld } from "../../world/scene-world.ts";
 import { Game, talkBetween, type Line } from "../game.ts";
 import { BetweenScreen } from "../ui/between.tsx";
-import { SceneScreen } from "../ui/scene.tsx";
+import { fitChoices, SceneScreen } from "../ui/scene.tsx";
 
 process.env.KM_APP_TALK_MS = "0";
 registerLookCanvas();
@@ -42,15 +48,15 @@ const lines: Line[] = [
   { kind: "dialogue", speaker: "kell", name: "Sergeant Agnes Kell", text: "“That's a javelin in the King's granary wall, investigator.” She writes it down. “Noted.” Abcdefghij klmnopqrst uvwxyz0123 ABCDEFGHIJ KLMNOPQRST UVWXYZ4567 abcdefghij klmnopqrst uvwxyz8901 ABCDEFGHIJ KLMNOPQRST" },
 ];
 const choices: Action[] = [
-  { id: "say-1", label: "“Who cut him down last time, Sergeant?”", kind: "say" as Action["kind"] },
-  { id: "say-2", label: "*looks at the girl's fist*", kind: "say" as Action["kind"] },
-  { id: "say-3", label: "(I cast Detect Magic on the rope, because you never know, and the King is paying)", kind: "say" as Action["kind"] },
+  { id: "say_1", label: "“Who cut him down last time, Sergeant?”", kind: "say" },
+  { id: "say_2", label: "*looks at the girl's fist*", kind: "say" },
+  { id: "say_3", label: "(I cast Detect Magic on the rope, because you never know, and the King is paying)", kind: "say" },
 ];
 const ended: Line = { kind: "system", speaker: "system", text: "Scene ends: The case is made" };
 const talk = talkBetween({ id: "kell", name: "Sergeant Kell" }, {
   notebook: ["Wendell Prout didn't hang himself. The trail leads to Master Sallow of the Royal Purveyor's office."],
   lead: "Kell stays beside you as the yard empties; by dusk the watch-house has a name for the big man with the bandaged hand, and a place: the Drowned Rat, halfway down the river stairs.",
-  next: { id: "drowned-rat", title: "The Drowned Rat" }, where: "the Drowned Rat", pointing: "south-west", time: "evening",
+  next: { id: "drowned-rat", title: "The Drowned Rat" }, way: "the Drowned Rat ↓ 22 paces", time: "evening",
 });
 
 function gameFor(mode: "scene" | "explore"): Game {
@@ -190,6 +196,116 @@ const checks: Array<[string, boolean]> = [];
   const on = at(setup.captureCharFrame(), "On, with Sergeant Kell");
   await act(async () => { await setup.mockMouse.click(on.x, on.y); });
   checks.push(["a click on the way on goes on", went === 2]);
+  await setup.dispose();
+}
+{
+  // A line and its Enter in the same read (a paste, a fast typist, the browser's terminal): what's
+  // sent is what the box holds, not the draft of the render before; and the next line isn't doubled.
+  const game = gameFor("scene");
+  game.screen = "scene"; game.lines = lines;
+  const said: string[] = [];
+  game.input = async (text: string) => { said.push(text); };
+  const setup = await testRender(<SceneScreen game={game} />, { width: 100, height: 40 });
+  await setup.renderOnce();
+  await act(async () => { await setup.mockInput.pressKeys(["#exits\r"]); });
+  await setup.renderOnce();
+  await act(async () => { await setup.mockInput.pressKeys(["/end case-made\r"]); });
+  await setup.renderOnce();
+  checks.push([`"#exits\\r" in one read sends #exits, and the next line once (sent: ${JSON.stringify(said)})`, said.join("|") === "#exits|/end case-made"]);
+  checks.push(["the box is empty after", !/#exits|case-made/.test(setup.captureCharFrame())]);
+  await setup.dispose();
+}
+{
+  // Typing on as a scene ends: nothing goes on but an Enter of its own (or a click), and nothing typed leaks on.
+  const game = gameFor("explore");
+  game.screen = "scene"; game.lines = [...lines, ended]; game.over = { ready: true, ending: "The case is made" };
+  game.card = { title: "Evening", lines: [], next: "explore", talk };
+  let went = 0;
+  game.continueScene = () => { went++; };
+  const setup = await testRender(<SceneScreen game={game} />, { width: 100, height: 40 });
+  await setup.renderOnce();
+  await act(async () => { await setup.mockInput.typeText("and the boy, wasd e "); });
+  checks.push(["typed characters, spaces too, don't go on from a scene that's over", went === 0]);
+  act(() => setup.mockInput.pressEnter());
+  await setup.renderOnce();
+  checks.push(["the Enter that ends a typed line ends the line, not the scene", went === 0]);
+  checks.push(["... and the screen says so", /went unsaid\. Enter goes on/.test(setup.captureCharFrame())]);
+  act(() => setup.mockInput.pressEnter());
+  checks.push(["then an Enter of its own goes on", went === 1]);
+  await setup.dispose();
+}
+{
+  // A line in the box as the scene ends (typed while the GM had the floor): the Enter was meant for it.
+  const game = gameFor("scene");
+  game.screen = "scene"; game.lines = lines;
+  let went = 0;
+  game.continueScene = () => { went++; };
+  const setup = await testRender(<SceneScreen game={game} />, { width: 100, height: 40 });
+  await setup.renderOnce();
+  await act(async () => { await setup.mockInput.typeText("Who cut him down"); });
+  await setup.renderOnce();
+  act(() => { game.lines = [...lines, ended]; game.over = { ready: true, ending: "The case is made" }; game.emit(); });
+  await setup.renderOnce();
+  act(() => setup.mockInput.pressEnter());
+  checks.push(["a line in the box as the scene ended: its Enter doesn't go on", went === 0]);
+  act(() => setup.mockInput.pressEnter());
+  checks.push(["the next Enter does", went === 1]);
+  await setup.dispose();
+}
+{
+  // A talk: its lines to say, its goodbye and walking on, numbered and clickable; a short screen keeps the ways out.
+  const talking: Action[] = [
+    { id: "say_1", label: "How long have you been with the watch?", kind: "say" },
+    { id: "say_2", label: "What do you make of Sallow?", kind: "say" },
+    { id: "say_3", label: "Who was the boy with the stones?", kind: "say" },
+    { id: "say_4", label: "Does the Captain always call it suicide?", kind: "say" },
+    { id: "say_goodbye", label: "I'll leave you to it.", kind: "say" },
+    { id: "walk_on", label: "Walk on without a word (back to the map)", kind: "move" },
+  ];
+  checks.push(["a short screen lists fewer lines, never fewer ways out", fitChoices(talking, 3).map(a => a.id).join() === "say_1,say_goodbye,walk_on" && fitChoices(talking, 9).length === 6]);
+  for (const [w, h] of [[80, 24], [100, 40]] as const) {
+    const game = gameFor("scene");
+    game.screen = "scene";
+    game.lines = [{ kind: "header", speaker: "system", name: "A word with Sergeant Kell", text: "A word with Sergeant Kell, between one thing and the next." }, { kind: "narration", speaker: "gm", text: "Kell is writing on the steps of the watch-house. “Investigator.”" }];
+    game.choices = talking;
+    const chosen: string[] = [];
+    game.choose = (a: Action) => { chosen.push(a.id); };
+    const setup = await testRender(<SceneScreen game={game} />, { width: w, height: h });
+    await setup.renderOnce();
+    const frame = setup.captureCharFrame();
+    checks.push([`${w}x${h}: a talk's lines, its goodbye and walking on are listed, numbered`, /1 How long.*4 Does the Captain.*5 I'll leave you to it\..*6 Walk on without a word/s.test(frame)]);
+    act(() => setup.mockInput.pressKey("2"));
+    checks.push([`${w}x${h}: 2 says the second line`, chosen.at(-1) === "say_2"]);
+    act(() => setup.mockInput.pressKey("6"));
+    checks.push([`${w}x${h}: 6 walks on`, chosen.at(-1) === "walk_on"]);
+    const goodbye = at(frame, "I'll leave you to it.");
+    await act(async () => { await setup.mockMouse.click(goodbye.x, goodbye.y); });
+    checks.push([`${w}x${h}: a click on the goodbye says it`, chosen.at(-1) === "say_goodbye"]);
+    const walk = at(frame, "Walk on without a word");
+    await act(async () => { await setup.mockMouse.click(walk.x, walk.y); });
+    checks.push([`${w}x${h}: a click on walking on walks on`, chosen.at(-1) === "walk_on"]);
+    await setup.dispose();
+  }
+}
+{
+  // Kell between scenes: typing at her goes nowhere; an Enter of its own (or a click) goes on.
+  const game = gameFor("explore");
+  game.screen = "between"; game.card = { title: "Evening", lines: [], next: "explore", talk };
+  let went = 0;
+  game.continueFromCard = () => { went++; };
+  const setup = await testRender(<BetweenScreen game={game} />, { width: 100, height: 40 });
+  await setup.renderOnce();
+  await act(async () => { await setup.mockInput.typeText("wasd e "); });
+  checks.push(["typed characters don't go on from Kell between scenes", went === 0]);
+  act(() => setup.mockInput.pressEnter());
+  await setup.renderOnce();
+  checks.push(["nor does the Enter that ends them", went === 0]);
+  checks.push(["... which the way on says", /that typing went nowhere: Enter goes on/.test(setup.captureCharFrame())]);
+  act(() => setup.mockInput.pressEnter());
+  checks.push(["an Enter of its own goes on to the map", went === 1]);
+  const back = at(setup.captureCharFrame(), "Back to the map");
+  await act(async () => { await setup.mockMouse.click(back.x, back.y); });
+  checks.push(["and so does a click", went === 2]);
   await setup.dispose();
 }
 for (const [what, ok] of checks) {
