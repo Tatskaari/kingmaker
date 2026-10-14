@@ -683,7 +683,7 @@ export async function chainScene(state: SessionState, combatResult = "the party 
  */
 async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, combatResult: string, candidates: Scene[]): Promise<{ handoff: string; sceneId: string; adjustments: string[]; skipped: Array<{ sceneId: string; why: string }>; opening?: string; lead?: string; fronts: string[] }> {
   const transcript = sceneEntries(state).map(e => e.kind === "player" ? `${state.player.name} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.kind === "narration" ? `GM: ${e.text}` : `[${e.text}]`).join("\n\n");
-  const ended = `${exit.title}. ${exit.outcome}${exit.kind === "combat" ? ` The fight was then played out on the map: ${combatResult}.` : ""}`;
+  const ended = `${exit.title} (${scene.id}: ${exit.id}). ${exit.outcome}${exit.kind === "combat" ? ` The fight was then played out on the map: ${combatResult}.` : ""}`;
   const story = [
     ...(state.history.length ? [`## The story before the last scene\n${state.history.map(h => h.summary).join("\n\n")}`] : []),
     `## The last scene: ${scene.title}\nHow it ended: ${ended}\nThe player character: ${state.player.name}, ${state.player.concept} (the only player character).\n\n${transcript}`,
@@ -700,7 +700,7 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
     operation: "handoff", effort: "low",
     instructions: "You write the hand-off between two scenes of a roleplaying game, for the GM of the next scene. Describe the state of things in the story at the moment the last scene ended, exactly as it was established in play (not as anyone planned it): who is where and in what state, who holds what, what was promised or agreed, what the player character learned, and how people feel. Things that were offered but refused, or threatened but not done, didn't happen. Leave out anything said out of character (questions or agreements about the game itself). Be concrete and brief: a short paragraph, then up to eight bullet points.",
     input: [{ role: "user", content: story }],
-  }).then(r => `Previous scene, "${scene.title}", ended: ${exit.title}.\n${r.text.trim()}`).catch(() => `Previous scene, "${scene.title}", ended: ${ended}`);
+  }).then(r => `Previous scene, "${scene.title}", ended: ${exit.title} (${scene.id}: ${exit.id}).\n${r.text.trim()}`).catch(() => `Previous scene, "${scene.title}", ended: ${ended}`);
   const verdict = respondJson<{ scenes: Array<{ id: string; holds: boolean; why: string }>; adjustments: string[]; opening: string; lead: string }>({
     operation: "boundary", effort: "low",
     instructions: [

@@ -10,7 +10,7 @@ The watch keeps the King's peace in Caerwyn's streets: a Captain who likes a par
 **Why it's like this**
 - The city pays for the watch and has never paid for much of one.
 - The palace looks after its own. Officers of the royal household answer to the palace, so the watch keeps the streets and leaves the palace's people to the palace.
-- The Captain, Aubrey Bunce, is a fine figure on a horse, fond of a parade, the palace and a quiet life. He likes a short report, and a case closed before it's opened.
+- The Captain, Aubrey Bunce, is a fine figure on a horse, fond of a parade, the palace and a quiet life. His favourite words are "without fuss": he likes a short report, and a case closed before it's opened.
 
 **Who does well out of it**: the Captain, who gets a quiet life and a hamper from the Purveyor's office every quarter-day (the men have never seen more of it than the straw); and the palace's officers, whom the watch can't touch.
 **Who pays for it**: a sergeant who signs a death in against the Captain's word, and answers to him for it; the dead nobody signs for; constables lining the route all night on watch pay; and the river stairs, which the watch leaves to the river watch.
