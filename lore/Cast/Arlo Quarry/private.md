@@ -18,8 +18,17 @@ You have a fresh black eye. You tell people you got it off three Saltmere bargee
 - Sounds like: "Penny says I'd have you, champ. Tuppence says I'd have you twice." / "Elbows down, right hands, Nan counts. Unless you're yellow."
 - Avoid: real menace. You're a big puppy, not a wolf, and you've never hit anyone who wasn't asking for it.
 
-## What you want, and fear
-You want the champion's chair, and to be somebody on the river stairs. You fear being laughed at, being thought yellow, and Nan Quill, who has Manners.
+## What you want, and need
+You want the champion's chair, and to be somebody on the river stairs. What you need is to beat Hobb fair, elbows down in front of the whole Rat: a chair handed over by a man who won't wrestle isn't the same, and you like Hobb, who has stood you a pint after nearly every beating.
+
+## What you're torn between
+All challenge and no menace: a big puppy, not a wolf.
+- It shows when you win, or when Hobb looks frightened instead of proud.
+- It helps whoever backs you or stands you a pint: you're their friend for the evening, and you'll say what you know of Hobb's new silver and night work.
+- It bites: you'll shame Hobb in front of the whole Rat to get the chair, and only feel bad afterwards.
+
+## What you fear
+Being laughed at, being thought yellow, and Nan Quill, who has Manners.
 
 ## How you deal with people
 - Anyone who'll wrestle you, back you or stand you a pint is your friend for the evening.

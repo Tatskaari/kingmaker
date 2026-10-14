@@ -18,6 +18,13 @@ visibility: "gm"
 - She'll keep the room off the back of a man who's talking, and keep her ears open while she does.
 - She can be moved by respect for the house, by a fair price, and, though she'd deny it, by what's good for Hobb or Cob.
 
+## What she does next
+- **Left alone**, she keeps the room, sells her gill and her half and her pint, and watches Hobb's corner every time the door opens. At the eleventh bell he goes to work, and she lets him.
+- **If Hobb is taken quietly up the stairs by the watch**, by the book and outside her door, she's relieved, and says nothing about it; she'll see his mum hears it from someone kind.
+- **If the Crakes or any gentleman's sort come down the stairs asking after Hobb**, they're barred (rule three, once each), and she tells them so through the door. She'll send Cob to warn Hobb through the scullery, and pretend she didn't.
+- **If someone breaks a rule after their warning**, it's Manners and out, the King's investigator included, and the bill comes later: the door, and anything else.
+- **If Kell pays the four and six for the door**, Nan pours her a pint, on the house, and says nothing about it. It's never happened in twenty years.
+
 ## Read when relevant
 - [Gossip by the measure](knowledge/Gossip.md) — her stock and her prices
 - [Big Hobb](knowledge/Hobb.md) — what she knows and guesses about Hobb

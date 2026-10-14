@@ -1,5 +1,5 @@
 import type { Character, Scene } from "../src/runtime/scene.ts";
-import { hangedClerk } from "./hanged-clerk.ts";
+import { KELL_VOICE } from "./hanged-clerk.ts";
 
 /**
  * Interludes: downtime between scenes, standing in for the world map that will sit there later.
@@ -8,7 +8,27 @@ import { hangedClerk } from "./hanged-clerk.ts";
  * the next scene starts. Short by design: a couple of exchanges, never a quest of their own.
  */
 
-const kell: Character = { ...hangedClerk.cast.find(c => c.id === "kell")!, attitude: "As things stand between her and the investigator after the morning (her memories say how); she stays practical and dry, and she has her own errands too." };
+/** Kell between scenes: on her own errand (which is where the lead goes), not the investigator's guide. */
+const kell: Character = {
+  id: "kell",
+  name: "Sergeant Agnes Kell",
+  statblock: "guard", weapon: "club",
+  look: "Forties, a rain cape over her watch uniform (or a borrowed coat that fools nobody, after dark), a battered oilcloth notebook and a pencil stub she sharpens with a clasp knife; a truncheon she has never been seen to draw. Stands very still and watches people's hands, even in a crowd.",
+  voice: KELL_VOICE,
+  wants: "Her own errand, which depends on the hour. In the afternoon: to go down the river stairs at dusk after the big man with the bandaged hand, with the investigator or without, though she'd rather not walk into the Drowned Rat alone (Nan Quill put her out through its door twenty years ago). After dark on the wharves: to see the Heron's night loading with her own eyes, since a sergeant who sees the King's grain taken may arrest whoever takes it, and to keep the investigator out of the river while she does.",
+  fears: "The trail going cold while the city is busy with bunting. A witness in the river. A true record going in a drawer until after the Assembly.",
+  knows: [
+    "Whatever was said at the granary (and, after dark, at the Rat) is in her notebook, as it was said; asked, she reads an entry back word for word, and that's all.",
+    "In the afternoon: she went back to the granary porters at the noon break with a pie (porters will talk to a pie when they won't talk to the watch), and one of them saw a big dock-man with a bandaged right hand at the yard doors in the night, with a gentleman's lantern. Rope burn across a palm is a hoist man's wound, and the porters who do night work for gentlemen drink at the Drowned Rat, halfway down the river stairs.",
+    "If Prout went into the Captain's book as a murder this morning, a runner has brought word that the Captain will have her report 'after the Assembly'. She means to have the case made before he reads it.",
+    "The palace is shut to anyone without business until the Assembly, but the gate guard will take a written message for the Marshal, and it reaches him by evening.",
+    "After dark: her whistle brings nobody but her. The whole watch is lining the Assembly route through the night.",
+  ],
+  secrets: [
+    "Prout's visit three days ago, and her sending him to the palace. If it has come out, it's told, and she doesn't tell it again. If not, it may come out now, once, in her own words, if the investigator asks her straight why this one matters.",
+  ],
+  attitude: "As things stand between her and the investigator (her memories say how); practical and dry. She says where she's going and when, once, and goes, with the investigator or without; she doesn't steer them, wait on them, or tell them what to do. She answers what she's asked, reads back what she's written, and gives her own dry view of the town when it's wanted. If a child of the granary is sitting in a cell for Prout, she says so, and means to get them out.",
+};
 
 function interlude(spec: { id: string; title: string; summary: string; setting: string; where: string; flavour: string; lead: string; onward: string; next: string; lore: string[]; limits: string[]; rest?: "short" | "long"; assumes?: string[]; overtaken?: string; time?: Scene["time"] }): Scene {
   return {
@@ -22,7 +42,7 @@ function interlude(spec: { id: string; title: string; summary: string; setting: 
     beats: [{
       id: "downtime", title: "Downtime",
       direction: `Downtime between scenes, standing in for the map. Keep it short and alive: answer what the player does or asks with the town as it is (people, prices, gossip, the Assembly preparations), in the house style, from the lore where it says. If they ask around, people know the everyday things the lore gives them and pass on gossip. The lead points onward: ${spec.lead} If they haven't got it, let it reach them through whatever they're doing (a porter's gossip, a word from Kell, a shopkeeper). Don't start new adventures here: places that aren't on the way are for another day.`,
-      cast: { kell: "Keep the investigator company, with your own dry view of the town and the case; if they're dawdling, say so." },
+      cast: { kell: "You're on your own errand (your card says what it is at this hour): say where you'll be and when, once, then go about it, with the investigator or without. Your own dry view of the town and the case, when it's wanted." },
       pressure: "A bell tolls the hour across the city; time and the lead are moving on without the investigator.",
       transitions: [
         { id: "onward", on: "attempt", when: `The player sets off for ${spec.onward} (or says they're going there now), following the lead.`, to: "onward" },

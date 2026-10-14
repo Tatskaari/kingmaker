@@ -1,5 +1,5 @@
 ---
-summary: "Index of the cast for the Caerwyn story that starts with the clerk hanged behind the King's Granary: Sergeant Agnes Kell of the watch, the granary kids Cob and Moll, Corporal Abner Tull, Master Josiah Sallow of the Royal Purveyor's office, King Aldren, and the people of the Drowned Rat and the Heron warehouse."
+summary: "Index of the cast for the Caerwyn story that starts with the clerk hanged behind the King's Granary: Sergeant Agnes Kell of the watch, the granary kids Cob and Moll, Corporal Abner Tull, Master Josiah Sallow of the Royal Purveyor's office and the Crake brothers he hires, King Aldren and Marshal Holt, and the people of the Drowned Rat and the Heron warehouse."
 type: "index"
 visibility: "public"
 ---
@@ -19,7 +19,9 @@ The people of the Caerwyn story that starts with the clerk hanged behind the Kin
 - [Moll](Moll/index.md) — read when the granary girl who swears in three languages comes up
 - [Corporal Abner Tull](Corporal%20Abner%20Tull/index.md) — read when the watch corporal, the dead-cart or the Captain's order comes up
 - [Master Josiah Sallow](Master%20Josiah%20Sallow/index.md) — read when Master Sallow or the Royal Purveyor's office comes up
+- [The Crake brothers](The%20Crake%20Brothers/index.md) — read when the two river-bruisers for hire, or the muscle on the Heron's wharf, come up
 - [King Aldren](King%20Aldren/index.md) — read when the King comes up
+- [Marshal Garran Holt](Marshal%20Garran%20Holt/index.md) — read when the Marshal, the palace guard, the Assembly timetable or the order of procession comes up
 - [Big Hobb Mallory](Big%20Hobb%20Mallory/index.md) — read when the big dock-porter with the bandaged hand, the Rat's champion, comes up
 - [Nan Quill](Nan%20Quill/index.md) — read when the landlady of the Drowned Rat, her house rules or her gossip come up
 - [Arlo Quarry](Arlo%20Quarry/index.md) — read when the young lighterman after the champion's chair comes up
