@@ -5,6 +5,7 @@ import { rng, type RollResult } from "../runtime/dice.ts";
 import { SKILLS, type Character, type Skill } from "../runtime/scene.ts";
 import type { SessionState } from "../runtime/session.ts";
 import { caughtIn, damageThing, heldBy, positionOf, type Entity, type SceneWorld } from "../world/scene-world.ts";
+import { bleed, elemental, spill } from "../world/systems.ts";
 
 /**
  * D&D 5.5e mechanics (SRD 5.2.1) from the vendored dnd-srd-engine: the player's character sheet,
@@ -549,6 +550,7 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
   const world = state.world;
   let beings = targetIds.filter(t => t === "self" || t === "player" || cast.some(c => c.id === t) || (world?.entities[t]?.kind === "person" && !world.entities[t]!.player));
   let things: Entity[] = world ? targetIds.map(t => world.entities[t]).filter((e): e is Entity => !!e && isThingEntity(e)) : [];
+  let surfaces: Entity[] = world ? targetIds.map(t => world.entities[t]).filter((e): e is Entity => !!e && e.kind === "surface") : [];
   let area: string | undefined;
   const shape = spell["targeting"] as { shape: string; size: number } | undefined;
   if (world && shape) {
@@ -562,6 +564,7 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
     beings = caught.filter(e => e.kind === "person" || e.kind === "creature").map(e => e.player ? "player" : e.id);
     if (fromCaster) beings = beings.filter(b => b !== "player");
     things = caught.filter(isThingEntity);
+    surfaces = caught.filter(e => e.kind === "surface");
     area = `a ${shape.size}-foot ${shape.shape}${aimId ? ` ${fromCaster ? "towards" : "on"} ${world.entities[aimId]!.name}` : ""}`;
   }
   const people = beings.map(b => b === "self" || b === "player" ? { id: "player", engine: pcId } : (() => {
@@ -590,6 +593,13 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
     lines.push(...hit.lines);
     account.push(...hit.account);
   }
+  // The world's physics: the spell's element meets the surfaces it reached, and some spells make one.
+  if (world) {
+    const element = String((spell.mechanicalEffects ?? []).find(m => m["damageType"])?.["damageType"] ?? "");
+    const physics = [...(element ? elemental(world, surfaces, element, state.turn) : []), ...spellSurface(world, spell.id, targetIds, state.turn)];
+    lines.push(...physics);
+    account.push(...physics.map(p => p.toLowerCase()));
+  }
   if (world) syncBeings(ctx, state, world, people);
   if (events.some(e => /^(ConcentrationStarted|SpellEffectStarted|ConditionApplied)$/.test(e.type))) state.rules!.timed = true;
   const statusText = status(ctx, pcId);
@@ -605,6 +615,16 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
 }
 
 const isThingEntity = (e: Entity) => e.kind === "object" || e.kind === "item" || e.kind === "feature";
+
+/** Spells that make a surface: water from nowhere, a patch of grease. */
+function spellSurface(world: SceneWorld, spellId: string, targetIds: string[], turn: number): string[] {
+  const aim = targetIds.find(t => world.entities[t]) ?? "player";
+  const at = positionOf(world, aim);
+  if (!at) return [];
+  if (spellId === "create-or-destroy-water") return ["Water pours out of the air", ...spill(world, "water", at, 6, turn).lines];
+  if (spellId === "grease") return ["A slick of grease spreads over the floor", ...spill(world, "grease", at, 5, turn).lines];
+  return [];
+}
 
 function towards(from: { x: number; y: number }, to: { x: number; y: number }, feet: number) {
   const d = Math.hypot(to.x - from.x, to.y - from.y) || 1;
@@ -623,7 +643,11 @@ function syncBeings(ctx: Ctx, state: SessionState, world: SceneWorld, people: Ar
     const c = ctx.campaign.state.characters[p.engine];
     if (!e || !c) continue;
     const now = hurt(c);
+    const wasDown = e.states.includes("down");
     e.states = [...e.states.filter(s => !["hurt", "badly hurt", "down", "unhurt"].includes(s)), ...(now === "unhurt" ? [] : [now])];
+    // Going down leaves blood on the floor; a bad wound bloodies them.
+    if (now === "down" && !wasDown) bleed(world, e, state.turn, true);
+    else if (now === "badly hurt" && !e.states.includes("bloodied")) bleed(world, e, state.turn, false);
   }
 }
 

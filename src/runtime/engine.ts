@@ -712,7 +712,7 @@ function aimable(state: SessionState): { things: Array<{ id: string; name: strin
   const cast = new Set(sceneById(state.sceneId).cast.map(c => c.id));
   // Anything in reach of a spell or a blow, except what other people are holding.
   const inOthersHands = (e: Entity) => { const h = heldBy(world, e); return !!h && (h.kind === "person" || h.kind === "creature") && !h.player; };
-  const things = within(world, "player", 60, e => (e.kind === "object" || e.kind === "item" || e.kind === "feature") && !e.states.includes("destroyed") && !inOthersHands(e))
+  const things = within(world, "player", 60, e => (e.kind === "object" || e.kind === "item" || e.kind === "feature" || e.kind === "surface") && !e.states.includes("destroyed") && !inOthersHands(e))
     .slice(0, 16).map(e => ({ id: e.id, name: e.name }));
   const bystanders = Object.values(world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !cast.has(e.id) && !e.states.includes("gone"))
     .map(e => ({ id: e.id, name: e.name }));
