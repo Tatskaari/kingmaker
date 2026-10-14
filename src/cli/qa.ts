@@ -25,7 +25,7 @@ const USAGE = `Kingmaker playable game: headless QA
   qa new --session <id> --as "Name: concept" [--level 3] [--seed N]   start a game (builds your D&D character)
   qa observe --session <id>                     what you see, and the actions you can take
   qa act --session <id> --id <action id>        take an action from the latest observation
-  qa say --session <id> <what you say or do>    in a scene: speak (in quotes) or act (plain words)
+  qa say --session <id> <what you say or do>    in a scene: speak (plain words) or act (*asterisks* or (parentheses))
   qa sheet --session <id>                       your character sheet
   qa map --session <id> [--w 100] [--h 30]      the map where you are (in a scene: its place, and its world from above)
   qa transcript --session <id>                  the story so far

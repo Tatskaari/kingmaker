@@ -21,7 +21,7 @@ const USAGE = `Kingmaker V2 scene harness
   scene list                                   scenes and approaches
   scene start <scene> [--approach v2] [--as "Name: concept"] [--level 3] [--seed N] [--session ID]
                                                start a scene; prints the session id and the opening
-  scene say <session> <what you say or do>     take a turn (speech in quotes, actions in plain words)
+  scene say <session> <what you say or do>     take a turn (talk as your character; actions in *asterisks* or (parentheses))
   scene sheet <session>                        your D&D character sheet (also #sheet while playing)
   scene map <session>                          a top-down sketch of the scene's world (also #map)
   scene transcript <session>                   the scene so far
