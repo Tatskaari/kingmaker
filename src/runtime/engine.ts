@@ -4,7 +4,7 @@ import { recordingWorld } from "../world/dsl.ts";
 import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { approachById } from "./approaches.ts";
-import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntries } from "./brief.ts";
+import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntries, unnamed } from "./brief.ts";
 import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type Reaction, type Witness } from "./director.ts";
 import { describeRoll } from "./dice.ts";
 import { applyOps, areaOf, buildWorld, heldBy, joinWorld, positionOf, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
@@ -204,6 +204,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
 
   state.turn++;
   push(state, hooks, { speaker: "player", kind: "player", text: input });
+  // People whose names the player hasn't heard go by what they'd call them, in the dice too.
+  if (state.rules) state.rules.aliases = unnamed(scene, state);
 
   // Blocking co-GM: review the player's input before deciding, so a new route can fire this turn.
   let repairMs = 0;
@@ -802,7 +804,7 @@ async function leap(state: SessionState, j: Jumping): Promise<Outcome> {
   };
 }
 
-const nameIn = (scene: Scene, state: SessionState, id: string) => scene.cast.find(c => c.id === id)?.name ?? state.world?.entities[id]?.name ?? id;
+const nameIn = (scene: Scene, state: SessionState, id: string) => state.rules?.aliases?.[id] ?? scene.cast.find(c => c.id === id)?.name ?? state.world?.entities[id]?.name ?? id;
 
 /**
  * Did the player just do violence people would react to? A blow or a grab at a person, a harmful

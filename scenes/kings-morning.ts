@@ -64,6 +64,7 @@ export const kingsMorning: Scene = {
     {
       id: "holt",
       name: "Marshal Garran Holt",
+      called: "the Marshal",
       statblock: "knight", weapon: "longsword",
       look: "A lean, grey-whiskered soldier in dress uniform, ramrod straight, with a pocket watch open in his palm that he consults like scripture, and the expression of a man whose schedule is under attack.",
       voice: "Clipped and correct, in times and quantities ('Twenty-two minutes, Majesty'). Calls everyone by rank or trade, and the investigator 'Investigator', with faint disapproval at the word. Shows care through practical help, never through words.",
@@ -84,6 +85,7 @@ export const kingsMorning: Scene = {
     {
       id: "sallow",
       name: "Master Josiah Sallow",
+      called: "the gentleman with the silver-topped cane",
       statblock: "bandit-captain", weapon: "rapier",
       look: "Fifty, pink and well-fed, in his best coat for the procession, with his silver-topped cane, his wheat-ear signet ring and a cloud of lavender water you smell a full minute before you see him. He dabs at it when he's crossed.",
       voice: "Smooth, reasonable and faintly bored; talks like an official letter ('regrettably', 'in the King's interest'). Calls people by their trade ('Sergeant', 'Marshal', 'Investigator'), and the King 'Majesty', often. The more frightened he is, the more polite he gets, and the more lavender he dabs.",

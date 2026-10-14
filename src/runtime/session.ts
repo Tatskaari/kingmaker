@@ -24,6 +24,8 @@ export interface RulesState {
   pc: string;
   /** Story characters the rules have touched: cast id -> engine id and the weapon they fight with. */
   npcs: Record<string, { id: string; weapon: string }>;
+  /** Cast id -> what the player calls them, for people whose names they haven't heard (the dice name them so). */
+  aliases?: Record<string, string>;
   /** The build's preferences, in order, for choices that come later (level-ups). */
   prefer?: string[];
   /** Kept up to date by the rules, so a turn's decision needn't load the engine. */

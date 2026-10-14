@@ -87,6 +87,7 @@ export const heronWarehouse: Scene = {
     {
       id: "saul",
       name: "Saul Tench",
+      called: "the old watchman",
       statblock: "guard", weapon: "spear",
       look: "An old river-watchman in a greatcoat over a dozen other coats, a red muffler wound round his head over his left ear, a lantern, a rattle, and a cudgel he mostly uses to poke his brazier. At his feet, or across the land door's threshold, lies Duchess: a vast, elderly brindle mastiff with a face like a collapsed sofa, who snores, drools and has opinions about smells.",
       voice: "Loud, because he can't hear himself on the left. Talks to Duchess more than to people, and answers for her ('She says you smell of sausage'). Repeats things back ('A buyer, you say?'). Ends sentences with 'and all's well', out of forty years' habit, whether it is or not.",
@@ -109,6 +110,8 @@ export const heronWarehouse: Scene = {
     {
       id: "hep",
       name: "Hepzibah Grist",
+      called: "the forewoman with the sack-needle",
+      aka: ["Hep"],
       statblock: "tough", weapon: "dagger",
       group: "Hep Grist and her re-sacking gang, six porters in grain-white with knives and sack-needles",
       look: "A broad woman in a leather apron with a sack-needle stuck through her collar and a knife on a cord, floured white to the elbows, with a voice like a winch. Her gang work fast, heads down, and don't talk.",
@@ -131,6 +134,7 @@ export const heronWarehouse: Scene = {
     {
       id: "scrope",
       name: "Mister Lemuel Scrope",
+      called: "the clerk in the counting-box",
       statblock: "commoner", weapon: "unarmed-strike",
       look: "A narrow, stooped clerk in rusty black, with sleeve-guards, a green eyeshade and a pen behind each ear, up a short stair in the glass-sided counting-box over the floor. The true book, a fat ledger bound in green calf with a brass clasp, lies open under his left hand, which never leaves it.",
       voice: "A dry murmur of figures. Talks in double entry ('That doesn't balance'). Apologises to the book when he blots it. Calls murder 'an irregularity', if he must call it anything. 'Forty received, forty entered. I beg your pardon,' (to the book, blotting).",
@@ -153,6 +157,7 @@ export const heronWarehouse: Scene = {
     {
       id: "hobb",
       name: "Big Hobb Mallory",
+      called: "the big porter with the bandaged hand",
       statblock: "tough", weapon: "unarmed-strike",
       look: "A dock-porter the size of a door, with a head like a bollard, a nose broken more than once and a leather porter's hood. His right hand is wrapped in a tarry rag, and he works the hoist one-handed, wincing. Where he is tonight follows from how the Drowned Rat ended: on the hoist with Hep's gang as usual; in the watch-house cells if Kell took him in (then he isn't here at all, and the gang is a man shorter); or, if he ran from the Rat to warn his master, with the Master, and he comes in at his heels at the midnight bell.",
       voice: "Slow, low and polite: 'sir', 'missus', and 'Master', which he can't stop saying. Says as little as he can; when it spills, it's how he feels, not how anything works. When frightened he goes very quiet and very still, like a dray-horse in thunder.",
@@ -170,6 +175,7 @@ export const heronWarehouse: Scene = {
     {
       id: "sallow",
       name: "Master Josiah Sallow",
+      called: "the gentleman with the silver-topped cane",
       group: "Master Sallow, his lantern-boy and the Crake brothers, two hired river-bruisers",
       statblock: "bandit-captain", weapon: "rapier",
       members: [

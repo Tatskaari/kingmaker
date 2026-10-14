@@ -464,8 +464,16 @@ function hurt(c: Dnd.EngineCharacter): string {
   return c.hp.current * 2 <= c.hp.max ? "badly hurt" : "hurt";
 }
 
+const possessive = (name: string) => /s$/.test(name) ? `${name}'` : `${name}'s`;
+
+/** A story character as the player knows them: by name once they've heard it, else what they call them. */
+const calledBy = (state: SessionState, c: Character) => state.rules?.aliases?.[c.id] ?? c.name;
+
 function nameOf(ctx: Ctx, state: SessionState, id: string): string {
-  return id === state.rules!.pc ? "you" : ctx.campaign.state.characters[id]?.name ?? "someone";
+  if (id === state.rules!.pc) return "you";
+  // Someone whose name the player hasn't heard goes by what they call them.
+  const castId = Object.entries(state.rules!.npcs).find(([, v]) => v.id === id)?.[0];
+  return (castId && state.rules!.aliases?.[castId]) || (ctx.campaign.state.characters[id]?.name ?? "someone");
 }
 
 /** Dice lines and a plain account of a planner's events. */
@@ -480,7 +488,7 @@ function describe(ctx: Ctx, state: SessionState, events: Dnd.EngineEvent[], weap
         const d20 = (e["d20"] as number[]).join("/");
         const adv = e["used"] && e["used"] !== "none" ? ` (${e["used"]})` : "";
         const verdict = e["critical"] ? "critical hit!" : e["hit"] ? "hit" : "miss";
-        lines.push(`${weaponName(String(e["weaponInstanceId"]))}: ${who("attackerId") === "you" ? "your attack on" : `${who("attackerId")}'s attack on`} ${who("targetId")}: ${d20}${adv} ${signed(Number(e["attackBonus"]))} = ${e["total"]} vs AC ${e["targetAC"]}: ${verdict}`);
+        lines.push(`${weaponName(String(e["weaponInstanceId"]))}: ${who("attackerId") === "you" ? "your attack on" : `${possessive(who("attackerId"))} attack on`} ${who("targetId")}: ${d20}${adv} ${signed(Number(e["attackBonus"]))} = ${e["total"]} vs AC ${e["targetAC"]}: ${verdict}`);
         account.push(`${who("attackerId")} ${e["hit"] ? (e["critical"] ? "landed a critical hit on" : "hit") : "missed"} ${who("targetId")} (${weaponName(String(e["weaponInstanceId"]))})`);
         break;
       }
@@ -493,13 +501,13 @@ function describe(ctx: Ctx, state: SessionState, events: Dnd.EngineEvent[], weap
         const amount = (e["components"] as Array<{ amount: number; type: string }>).map(c => `${c.amount} ${c.type}`).join(" and ");
         const target = chars()[String(e["targetId"])];
         const isPc = String(e["targetId"]) === state.rules!.pc;
-        lines.push(`${isPc ? "You take" : `${target?.name ?? "They"} takes`} ${amount} damage${isPc && target ? ` (HP ${target.hp.current}/${target.hp.max})` : target ? ` (${hurt(target)})` : ""}`);
-        account.push(`${isPc ? "the player" : target?.name ?? "the target"} took ${amount} damage${target ? `, now ${isPc ? `${target.hp.current}/${target.hp.max} HP` : hurt(target)}` : ""}`);
+        lines.push(`${isPc ? "You take" : `${target ? who("targetId") : "They"} takes`} ${amount} damage${isPc && target ? ` (HP ${target.hp.current}/${target.hp.max})` : target ? ` (${hurt(target)})` : ""}`);
+        account.push(`${isPc ? "the player" : target ? who("targetId") : "the target"} took ${amount} damage${target ? `, now ${isPc ? `${target.hp.current}/${target.hp.max} HP` : hurt(target)}` : ""}`);
         break;
       }
       case "SaveRolled": {
         const d20 = (e["d20"] as number[]).join("/");
-        const target = String(e["targetId"]) === state.rules!.pc ? "Your" : `${chars()[String(e["targetId"])]?.name ?? "Their"}'s`;
+        const target = String(e["targetId"]) === state.rules!.pc ? "Your" : chars()[String(e["targetId"])] ? possessive(who("targetId")) : "Their";
         const ability = ABILITY_NAME[e["ability"] as Dnd.Ability] ?? String(e["ability"]);
         lines.push(`${target} ${ability} save: ${d20} ${signed(Number(e["bonus"]))} = ${e["total"]} vs DC ${e["dc"]}: ${e["success"] ? "saved" : "failed"}`);
         account.push(`${target === "Your" ? "the player's" : target} ${ability} save ${e["success"] ? "succeeded" : "failed"}`);
@@ -523,7 +531,7 @@ function describe(ctx: Ctx, state: SessionState, events: Dnd.EngineEvent[], weap
         break;
     }
   }
-  return { lines, account };
+  return { lines: lines.map(l => l.charAt(0).toUpperCase() + l.slice(1)), account };
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -593,7 +601,7 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
     if (fromCaster) beings = beings.filter(b => b !== "player");
     things = caught.filter(isThingEntity);
     surfaces = caught.filter(e => e.kind === "surface");
-    area = `a ${shape.size}-foot ${shape.shape}${aimId ? ` ${fromCaster ? "towards" : "on"} ${world.entities[aimId]!.name}` : ""}`;
+    area = `a ${shape.size}-foot ${shape.shape}${aimId ? ` ${fromCaster ? "towards" : "on"} ${state.rules!.aliases?.[aimId] ?? world.entities[aimId]!.name}` : ""}`;
   }
   const people = beings.map(b => b === "self" || b === "player" ? { id: "player", engine: pcId } : (() => {
     const c = cast.find(x => x.id === b) ?? (world?.entities[b] ? bystander(world.entities[b]!) : undefined);
@@ -827,10 +835,10 @@ export async function attack(state: SessionState, cast: Character[], targetId: s
   const after = ctx.campaign.state.characters[npc]!;
   if (state.world) syncBeings(ctx, state, state.world, [{ id: target.id, engine: npc }]);
   close(state, ctx);
-  const down = after.hp.current <= 0 ? ` ${target.name} drops: at 0 hit points they fall, unconscious or dying. If the player plainly meant to kill, they may die; most people here would be knocked senseless. Nobody else in the scene shrugs that off.` : "";
+  const down = after.hp.current <= 0 ? ` ${calledBy(state, target)} drops: at 0 hit points they fall, unconscious or dying. If the player plainly meant to kill, they may die; most people here would be knocked senseless. Nobody else in the scene shrugs that off.` : "";
   return {
     lines,
-    directive: `Rules: the player attacked ${target.name}. ${capitalise(account.join("; "))}.${down} Narrate exactly this blow and its effect, then let the world answer it: whoever it touches reacts as they truly would. A single blow, not a whole fight: if this becomes a real fight, it will move to the map.`,
+    directive: `Rules: the player attacked ${calledBy(state, target)}. ${capitalise(account.join("; "))}.${down} Narrate exactly this blow and its effect, then let the world answer it: whoever it touches reacts as they truly would. A single blow, not a whole fight: if this becomes a real fight, it will move to the map.`,
   };
 }
 
@@ -860,8 +868,8 @@ export async function wrestle(state: SessionState, cast: Character[], targetId: 
   close(state, ctx);
   const verb = how === "grapple" ? "grab hold of" : how === "prone" ? "shove to the ground" : "shove away";
   return {
-    lines: [`${how === "grapple" ? "Grapple" : "Shove"}: you try to ${verb} ${target.name}`, ...lines],
-    directive: `Rules: the player tried to ${verb} ${target.name}. ${account.length ? `${capitalise(account.join("; "))}.` : ""} ${held ? (how === "grapple" ? `${target.name} is held fast (grappled) until they break free.` : how === "prone" ? `${target.name} goes down.` : `${target.name} is pushed back five feet.`) : `${target.name} resists it.`} Narrate exactly that, and let the people present react.`,
+    lines: [`${how === "grapple" ? "Grapple" : "Shove"}: you try to ${verb} ${calledBy(state, target)}`, ...lines],
+    directive: `Rules: the player tried to ${verb} ${calledBy(state, target)}. ${account.length ? `${capitalise(account.join("; "))}.` : ""} ${held ? (how === "grapple" ? `${calledBy(state, target)} is held fast (grappled) until they break free.` : how === "prone" ? `${calledBy(state, target)} goes down.` : `${calledBy(state, target)} is pushed back five feet.`) : `${calledBy(state, target)} resists it.`} Narrate exactly that, and let the people present react.`,
   };
 }
 
@@ -879,7 +887,7 @@ export async function attackOnPlayer(state: SessionState, attacker: Character): 
   close(state, ctx);
   return {
     lines: [...lines, ...(events.some(e => e.type === "DamageApplied") ? [`${state.player.name}: ${statusText}`] : [])],
-    directive: `Rules, before the player's turn: ${attacker.name}'s attack resolved. ${capitalise(account.join("; "))}.${down} Narrate that first, briefly, then what the player does.`,
+    directive: `Rules, before the player's turn: ${calledBy(state, attacker)}'s attack resolved. ${capitalise(account.join("; "))}.${down} Narrate that first, briefly, then what the player does.`,
     status: statusText,
   };
 }

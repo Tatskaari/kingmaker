@@ -19,6 +19,13 @@ export interface Character {
   name: string;
   /** Appearance and manner, for narration. */
   look: string;
+  /**
+   * What the player calls them until they've heard the name ("the landlady", "the big man with the
+   * bandaged hand"). With it, the narration and the dice keep the name back until someone says it.
+   */
+  called?: string;
+  /** Other names people use for them ("Hep" for Hepzibah Grist): hearing one counts as hearing the name. */
+  aka?: string[];
   /** How they talk. */
   voice: string;
   wants: string;

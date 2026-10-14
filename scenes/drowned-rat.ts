@@ -111,6 +111,7 @@ export const drownedRat: Scene = {
     {
       id: "hobb",
       name: "Big Hobb Mallory",
+      called: "the big man with the bandaged hand",
       statblock: "tough", weapon: "unarmed-strike",
       look: "A dock-porter the size of a door: a head like a bollard, a nose broken more than once, shoulders that fill the corner, a leather porter's hood pushed back. His right hand is wrapped in a tarry rag, and he keeps it under the table. A greasy string round his thick neck disappears into his shirt, and every time the door opens, he flinches.",
       voice: "Slow, low and polite: 'sir', 'missus', 'Mrs Quill', and 'Master', which he can't stop saying and stops himself after. Says as little as he can; when it spills, what spills is how he feels (the clerk's stockinged feet, the rope, his mum), not how anything works. Frightened, he goes very quiet and very still, like a dray-horse in thunder. 'Not tonight, Arlo.'",
@@ -134,6 +135,7 @@ export const drownedRat: Scene = {
     {
       id: "nan-quill",
       name: "Nan Quill",
+      called: "the landlady",
       statblock: "tough", weapon: "club",
       look: "A small, square woman of sixty with forearms like hams, a man's flat cap pinned to her grey bun and a leather apron with a coin pouch on it. Behind the bar, on two nails, hangs Manners: a blackthorn cudgel polished by use. Beside it, on hooks, a row of pewter measures from a gill to a quart, which she uses for beer and gossip alike.",
       voice: "Flat, unhurried river-stairs talk. Speaks in rules and prices and quotes rule numbers. Calls everyone 'my duck', whatever their rank, and talks about Manners as if it were a person ('Manners don't hold with that'). 'Rule four, my duck. Are you on duty?'",
@@ -181,6 +183,7 @@ export const drownedRat: Scene = {
     {
       id: "cob",
       name: "Cob",
+      called: "the pot-boy",
       statblock: "commoner", weapon: "unarmed-strike",
       look: "A scrawny boy of about eleven in a man's waistcoat, with a pot-boy's sacking apron over it that reaches his ankles. On his feet, either Prout's good black clerk's boots, three sizes too big and laced on with string, or nothing much, depending on how the morning went. Scabbed knuckles, a yellowing bruise on one cheek, a tray of empty pots.",
       voice: "Loud and cocky, and talks about himself in the third person ('Cob don't talk to bluebottles'). Foul-mouthed in an inventive gutter way (sod off, bleedin', bum-faced palace pigeon) but never truly obscene. Brags, mocks and dares; goes very quiet and very young when he's frightened.",
@@ -201,6 +204,7 @@ export const drownedRat: Scene = {
     {
       id: "arlo",
       name: "Arlo Quarry",
+      called: "the young lighterman with the black eye",
       statblock: "tough", weapon: "unarmed-strike",
       look: "A young lighterman built like a water butt, with rolled sleeves, a fresh black eye and forearms he keeps flexing. His elbow is on the nearest table at all times, in case.",
       voice: "Loud, cheerful and spoiling for it. Talks in challenges and wagers ('Penny says I'd have you'). Calls everyone 'champ', sarcastically. Goes quiet and sulky when he's laughed at.",
@@ -220,6 +224,7 @@ export const drownedRat: Scene = {
     {
       id: "dilly",
       name: "Dilly Sparrow",
+      called: "the old bargewoman with the cards",
       statblock: "commoner", weapon: "unarmed-strike",
       look: "A tiny, ancient bargewoman in a man's coat and three shawls, with a clay pipe, a pack of cards worn soft as cloth, and a pile of coppers and new silver in front of her. Her barge, the Dabchick, is tied up at the foot of the stairs.",
       voice: "Croaky, sly and motherly at once. Calls everyone 'my lamb', sergeants included. Deals as she talks and never looks at her cards. 'Sit down, my lamb, and lose a little. It's good for the soul.'",
