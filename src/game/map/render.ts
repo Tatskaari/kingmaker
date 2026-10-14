@@ -364,7 +364,7 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
         put(sx, sy, faces[f]!, look.fg2 && hash(at.x, at.y, dx, 7) % 4 === 0 ? look.fg2 : look.fg, look.bg);
       }
       for (const l of near) {
-        const over = l.layer.at(feetOf(l.o, px, py), under(sx, sy), px, py);
+        const over = l.layer.at(feetOf(l.o, px, py), under(sx, sy), px, py, isRoofed(tileAt(map, at)));
         if (over) put(sx, sy, over.glyph, over.fg, over.bg, { ...(over.glow ? { glow: true } : {}) });
       }
       if (fire) { const f = fireAt(under(sx, sy), px, py, lf, 0.8, i); put(sx, sy, f.glyph, f.fg, f.bg, { bold: true, ...(f.glow ? { glow: true } : {}) }); }
@@ -469,6 +469,11 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
       }
     }
     if (heat > 0) burning.push({ sc, sr: r, seed: seedOf(a.id), strength: heat, flame: look.look.flame ?? "fire" });
+    // Tongues of flame over it, each on its own beat.
+    if (heat > 0 && !person && (a.blocks || look.look.wreck)) for (const dx of [-1, 1]) {
+      const tongue = noise2(beat * 0.37 + dx * 3.1, seedOf(a.id) % 97, 13);
+      if (tongue > 0.5) put(sc + dx, r - 1, tongue > 0.75 ? "▲" : "^", ramp(FLAME_RAMPS[look.look.flame ?? "fire"], clamp01(0.45 + tongue * 0.5)), undefined, { bold: true, glow: true });
+    }
     // Sacks and crates come in stacks.
     const stacked = !look.look.wreck && (look.glyph === "■" || look.glyph === "▣" || (!!a.blocks && STACKS.has(look.look.role)));
     if (stacked) { put(sc, r - 1, look.glyph, scaleRGB(rgbOf(look.fg), 1.1), undefined, { floor: BLOCK_FLOOR }); put(sc + (hash(at.x, at.y) % 2 ? 1 : -1), r, look.glyph, scaleRGB(rgbOf(look.fg), 0.85), undefined, { floor: BLOCK_FLOOR }); }

@@ -103,8 +103,8 @@ export function groundAt(terrainOrStyle: string, px: number, py: number, frame: 
 export interface SurfaceLayer {
   surfaces: SurfacePatch[];
   clouds: CloudPatch[];
-  /** What lies at a spot of ground (feet), drawn over the ground's cell; undefined where nothing does. */
-  at(feet: Point, under: Cell, px: number, py: number): (Cell & { glow?: boolean }) | undefined;
+  /** What lies at a spot of ground (feet), drawn over the ground's cell (indoors: under a roof); undefined where nothing does. */
+  at(feet: Point, under: Cell, px: number, py: number, indoor?: boolean): (Cell & { glow?: boolean }) | undefined;
   /** Smoke or steam over a spot (feet), drawn over whatever is there. */
   cloud(feet: Point, under: Cell): Cell | undefined;
   /** Light from burning patches (feet). */
@@ -117,13 +117,14 @@ export function surfaceLayer(world: SceneWorld, frame: LookFrame): SurfaceLayer 
   const fromT = (c: TCell) => ({ glyph: c.glyph, fg: hexOf(c.fg), bg: hexOf(c.bg), ...(c.glow ? { glow: true } : {}) });
   return {
     surfaces, clouds,
-    at(feet, under, px, py) {
+    at(feet, under, px, py, indoor) {
       let cell: TCell | undefined;
+      const here = indoor ? { ...ctx, indoor: true } : ctx;
       for (const sp of surfaces) {
         const d = Math.hypot(feet.x - sp.x, feet.y - sp.y) / sp.radius;
         const depth = clamp01((1 - d) * 2.4 + (noise2(feet.x * 0.45, feet.y * 0.45, sp.seed) - 0.5) * 0.9);
         if (depth <= 0.02) continue;
-        cell = surfaceCell(sp.states.includes("frozen") ? "ice" : sp.kind, cell ?? toT(under), px, py, depth, ctx);
+        cell = surfaceCell(sp.states.includes("frozen") ? "ice" : sp.kind, cell ?? toT(under), px, py, depth, here);
         if (sp.states.includes("burning") && depth > 0.15) cell = flameCell(sp.kind === "spirits" ? "blue" : "fire", cell, px, py, clamp01(depth * 1.2), { ...ctx, seed: sp.seed });
       }
       return cell ? fromT(cell) : undefined;

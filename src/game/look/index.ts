@@ -26,6 +26,6 @@ export { Effects, areaCell, type EffectKind, type EffectOptions, type EffectFram
 export { Director, Tweens } from "./director.ts";
 export { Canvas } from "./canvas.ts";
 export { renderStage, layoutOf, type Dressing, type StageView, type StageLayout } from "./stage.ts";
-export { drownedRatDressing, granaryYardDressing, kingsRoomDressing } from "./dressings.ts";
+export { DRESSINGS, dressingFor, drownedRatDressing, granaryYardDressing, heronDressing, kingsRoomDressing } from "./dressings.ts";
 export { actorLook, lightOf, groundAt, surfaceLayer, lookFrame, tileFeet, type ActorLook, type LookFrame, type SurfaceLayer } from "./map.ts";
 export { VIGNETTES, VignettePlayer, frameAt, type Vignette } from "./vignettes.ts";

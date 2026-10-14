@@ -1,4 +1,4 @@
-import { positionOf, select, type Point, type SceneWorld } from "../../world/scene-world.ts";
+import { positionOf, select, type Entity, type Point, type SceneWorld } from "../../world/scene-world.ts";
 import type { Effects, Vec } from "./effects.ts";
 import { lookOf } from "./appearance.ts";
 import { smoothstep } from "./noise.ts";
@@ -146,24 +146,84 @@ export class Director {
   }
 
   /**
-   * Float the numbers from the rules' lines ("The long table takes 7 fire damage", "...: unharmed
-   * by the fire"). Returns how many it floated.
+   * Float the numbers from the rules' lines ("The long table takes 7 fire damage", "the talking
+   * Crake takes 7 damage", "You take 5 damage", "Odo regains 6 HP", "...: unharmed by the fire").
+   * A blow's damage type comes from its "Damage: ..." line. People the player hasn't heard named
+   * are in the lines by what the player calls them (aliases: id to that). Returns how many it floated.
    */
-  rulesLines(world: SceneWorld, lines: string[], t: number): number {
-    let n = 0;
+  rulesLines(world: SceneWorld, lines: string[], t: number, aliases: Record<string, string> = {}): number {
+    let n = 0, kind = "";
     for (const line of lines) {
-      const dmg = /^(.+?) takes (\d+) (\w+) damage/i.exec(line);
+      const roll = /^Damage(?: to things in it)?: .* (\w+)(?: \(things don't dodge\))?$/i.exec(line);
+      if (roll) { kind = roll[1]!.toLowerCase(); continue; }
+      const dmg = /^(.+?) takes? (\d+)(?: (\w+))? damage/i.exec(line);
+      const heal = /^(.+?) regains? (\d+) HP/i.exec(line);
       const immune = /^(.+?): unharmed by the (\w+)/i.exec(line);
-      const name = dmg?.[1] ?? immune?.[1];
-      if (!name) continue;
-      const e = select(world, name.replace(/^the /i, ""))[0] ?? select(world, name)[0];
+      const name = dmg?.[1] ?? heal?.[1] ?? immune?.[1];
+      const e = name ? whoIs(world, name, aliases) : undefined;
       const p = e ? positionOf(world, e.id) : undefined;
       if (!p) continue;
-      if (dmg) this.effects.float({ ...p }, dmg[2]!, { damage: dmg[3]!.toLowerCase() }, t + n * 90);
+      if (dmg) this.effects.float({ ...p }, dmg[2]!, { damage: (dmg[3] ?? (kind || "bludgeoning")).toLowerCase() }, t + n * 90);
+      else if (heal) this.effects.float({ ...p }, `+${heal[2]}`, { damage: "heal" }, t + n * 90);
       else this.effects.float({ ...p }, "unharmed", { style: "info", color: "#a8a49c" }, t + n * 90);
       n++;
     }
     return n;
+  }
+
+  /**
+   * The player's spells, from the rules' lines ("Cast Fireball (3rd-level slot): a 20-foot sphere
+   * on the old elm, catching ...", "Cast Fire Bolt (cantrip) on the talking Crake"): an effect from
+   * the caster to the aim, by the spell's shape and what it does (its damage line says the element).
+   * A ball of fire for fire in an area, a bolt for a single target, lightning, a shockwave for
+   * thunder, a sparkle for healing and for spells that do no damage. Returns how many it played.
+   */
+  spellsFrom(world: SceneWorld, lines: string[], t: number, aliases: Record<string, string> = {}): number {
+    let n = 0;
+    lines.forEach((line, i) => {
+      const cast = /^Cast (.+?) \(([^)]*)\)(?::\s*a (\d+)-foot (\w+)(?: (on|towards) (.+?))?(?:, catching .*)?| on (.+))?$/.exec(line);
+      const caster = positionOf(world, "player");
+      if (!cast || !caster) return;
+      const [, spell = "", , size, shape, way, aimName, targets] = cast;
+      // What it did, from the lines that follow it (up to the next spell).
+      const after: string[] = [];
+      for (const l of lines.slice(i + 1)) { if (/^Cast /.test(l)) break; after.push(l); }
+      const element = after.map(l => /^Damage(?: to things in it)?: .* (\w+)(?: \(things don't dodge\))?$/i.exec(l)?.[1]?.toLowerCase()).find(Boolean)
+        ?? (after.some(l => /darts at /i.test(l)) ? "force" : spellElement(spell));
+      const heals = element === "heal" || after.some(l => /regains? \d+ HP/i.test(l));
+      const target = (aimName ?? targets?.split(", ")[0]) ? whoIs(world, (aimName ?? targets!.split(", ")[0])!, aliases) : undefined;
+      const aim = target ? positionOf(world, target.id) : undefined;
+      const color = ELEMENTS[element ?? ""] ?? "#c79bf2";
+      const at = (p: Point | undefined) => (p ? { ...p } : { ...caster });
+      if (size && shape) {
+        const feet = Number(size);
+        // From the caster (a cone, a cube, a line) it fills the space towards the aim; aimed, it lands there.
+        const centre = way === "towards" && aim ? along(caster, aim, Math.min(feet / 2, Math.hypot(aim.x - caster.x, aim.y - caster.y))) : at(aim);
+        if (element === "fire") this.effects.effect("fireball", { ...(way === "towards" ? {} : { from: { ...caster } }), at: centre, radius: way === "towards" ? feet / 2 : feet }, t);
+        else if (element === "lightning") this.effects.effect("lightning", { from: { ...caster }, to: at(aim) }, t);
+        else if (element === "thunder") this.effects.effect("shockwave", { at: centre, radius: feet, color }, t);
+        else { this.effects.effect("shockwave", { at: centre, radius: feet, color }, t); this.effects.effect("flash", { at: centre, radius: feet / 2, color }, t); }
+      } else if (heals) this.effects.effect("sparks", { at: at(aim), color: ELEMENTS.heal! }, t);
+      else if (aim && element === "lightning") this.effects.effect("lightning", { from: { ...caster }, to: { ...aim } }, t);
+      else if (aim && element) {
+        // Magic Missile is three darts; anything else one bolt.
+        const darts = /missile/i.test(spell) ? 3 : 1;
+        for (let k = 0; k < darts; k++) this.effects.effect("bolt", { from: { ...caster }, to: { ...aim }, color, delay: k * 140 }, t);
+      } else this.effects.effect("sparks", { at: at(aim), color }, t);
+      n++;
+    });
+    return n;
+  }
+
+  /** A short line someone said, over their head (a cast member's line from a voiced reply). */
+  barkLine(world: SceneWorld, id: string, text: string, t: number, maxChars = 60): boolean {
+    const e = world.entities[id];
+    if (!e || e.states.includes("gone")) return false;
+    const quoted = /[“"]([^”"]{2,200})[”"]/.exec(text)?.[1];
+    const line = (quoted ?? /^[^.!?]*[.!?]/.exec(text.trim())?.[0] ?? text).trim();
+    if (!line || line.length > maxChars) return false;
+    this.effects.bark(id, line, {}, t);
+    return true;
   }
 
   /**
@@ -194,6 +254,34 @@ export class Director {
     out.forEach((b, i) => this.effects.bark(b.id, b.text, {}, t + i * 700));
     return out;
   }
+}
+
+/** A spell's colour by what it does (Cogmind and Brogue: colour carries the kind). */
+export const ELEMENTS: Record<string, string> = {
+  fire: "#ffa040", cold: "#bfefff", lightning: "#e8f0ff", thunder: "#a0a8ff", acid: "#b0f040", poison: "#8fdc3a",
+  necrotic: "#9a7ab0", radiant: "#ffe680", force: "#d07aff", psychic: "#f08ad0", heal: "#6ae07a",
+};
+
+/** What a spell does by its name, for when the lines don't say (it missed, or does no damage). */
+const SPELL_ELEMENTS: Array<[RegExp, string]> = [
+  [/fire|flame|burning|scorching|hellish/i, "fire"], [/frost|cold|\bice\b|freez/i, "cold"], [/lightning|shock|witch bolt/i, "lightning"],
+  [/thunder|shatter/i, "thunder"], [/acid/i, "acid"], [/poison/i, "poison"], [/chill touch|necrot|blight|inflict/i, "necrotic"],
+  [/sacred|radiant|guiding|sunbeam/i, "radiant"], [/eldritch|missile/i, "force"], [/mockery|psychic/i, "psychic"], [/cure|heal/i, "heal"],
+];
+export const spellElement = (name: string): string | undefined => SPELL_ELEMENTS.find(([re]) => re.test(name))?.[1];
+
+/** Someone or something named in the rules' lines: "You", what the player calls them (an alias), or by name. */
+function whoIs(world: SceneWorld, name: string, aliases: Record<string, string>): Entity | undefined {
+  const key = name.trim().toLowerCase().replace(/^the /, "");
+  if (key === "you" || key === "your") return world.entities.player;
+  for (const [id, alias] of Object.entries(aliases)) if (alias.toLowerCase().replace(/^the /, "") === key && world.entities[id]) return world.entities[id];
+  return select(world, name.trim().replace(/^the /i, ""))[0] ?? select(world, name.trim())[0];
+}
+
+/** A point some feet along the way from one point towards another. */
+function along(from: Point, to: Point, feet: number): Point {
+  const d = Math.hypot(to.x - from.x, to.y - from.y) || 1;
+  return { x: from.x + ((to.x - from.x) / d) * feet, y: from.y + ((to.y - from.y) / d) * feet };
 }
 
 function snapshot(world: SceneWorld): Map<string, Seen> {

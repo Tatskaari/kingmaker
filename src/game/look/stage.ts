@@ -73,7 +73,7 @@ export interface StageLayout {
 }
 
 const GROUNDS: Ground[] = ["cobbles", "flags", "boards", "loft", "dirt", "mud", "grass", "straw", "carpet", "steps", "sand", "rubble", "scorched", "void", "water", "deep-water", "river", "puddle"];
-const WALLS: WallStyle[] = ["stone", "timber", "bank", "brick", "plaster", "palace", "hedge"];
+const WALLS: WallStyle[] = ["stone", "timber", "bank", "brick", "plaster", "palace", "hedge", "glass"];
 const SURFACE_KINDS: SurfaceKind[] = ["water", "oil", "spirits", "blood", "ale", "wine", "slops", "milk", "honey", "ink", "mud", "ash", "char", "ice", "snow", "dust", "grain", "straw", "acid", "slime", "vomit", "tar", "grease", "scorch"];
 
 export function layoutOf(world: SceneWorld, w: number, h: number, scale?: number, focus?: Point): StageLayout {
@@ -209,7 +209,7 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
     const flow = st.flowX[si] || st.flowY[si] ? { x: st.flowX[si]!, y: st.flowY[si]! } : undefined;
     let cell = groundCell(g, cx - shake.dx, cy - shake.dy, flow ? { ...tctx, flow } : tctx);
     const pk = st.patch[si]!;
-    if (pk) cell = surfaceCell(SURFACE_KINDS[pk - 1]!, cell, cx, cy, st.depth[si]!, tctx);
+    if (pk) cell = surfaceCell(SURFACE_KINDS[pk - 1]!, cell, cx, cy, st.depth[si]!, st.indoor[si] ? { ...tctx, indoor: true } : tctx);
     put(canvas, cx, cy, cell);
   }
 
@@ -228,7 +228,8 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
       if (depth <= 0.02) continue;
       const i = cy * w + cx;
       const under: TCell = { glyph: canvas.glyph[i]!, fg: canvas.fg[i]!, bg: canvas.bg[i]! };
-      let cell = surfaceCell(frozen ? "ice" : sp.kind, under, cx, cy, depth, tctx);
+      const si = at(cx, cy);
+      let cell = surfaceCell(frozen ? "ice" : sp.kind, under, cx, cy, depth, si >= 0 && st.indoor[si] ? { ...tctx, indoor: true } : tctx);
       if (burning && depth > 0.15) cell = flameCell(sp.kind === "spirits" ? "blue" : "fire", cell, cx, cy, clamp01(depth * 1.2), { ...tctx, seed: sp.seed });
       put(canvas, cx, cy, cell);
     }
@@ -270,9 +271,11 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
       canvas.spec[i] = 0.4;
       continue;
     }
-    put(canvas, cx, cy, wallCell(WALLS[st.wall[si]! - 1]!, cx - shake.dx, cy - shake.dy, tctx));
+    const style = WALLS[st.wall[si]! - 1]!;
+    put(canvas, cx, cy, wallCell(style, cx - shake.dx, cy - shake.dy, tctx));
     canvas.flags[i] = canvas.flags[i]! | WALL;
-    opaque[i] = 1;
+    // Glass lets the light through.
+    if (style !== "glass") opaque[i] = 1;
   }
 
   // 4. Things and people, big things first, people last, the player on top.

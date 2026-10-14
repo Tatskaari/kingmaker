@@ -1,6 +1,13 @@
 import type { SessionState } from "../runtime/session.ts";
+import { positionOf, type Point } from "../world/scene-world.ts";
 import type { CombatController } from "./combat/index.ts";
-import { battlefield, render, renderExplore, toPlain, type RenderOptions, type Viewport } from "./map/index.ts";
+import type { Canvas } from "./look/canvas.ts";
+import { dressingFor } from "./look/dressings.ts";
+import { ELEMENTS, spellElement } from "./look/director.ts";
+import type { Effects } from "./look/effects.ts";
+import { glyphSet, type GlyphSet } from "./look/glyphs.ts";
+import { renderStage } from "./look/stage.ts";
+import { battlefield, regionForScene, render, renderExplore, tileToFeet, toPlain, type RenderOptions, type Viewport } from "./map/index.ts";
 import { castOf } from "./map/looks.ts";
 import type { GameState } from "./play.ts";
 import { exploreState } from "./town.ts";
@@ -8,25 +15,59 @@ import type { MapActor, StoryState, StyledLine, Tile2 } from "./types.ts";
 
 /**
  * Every picture of the world the game draws, in one place: the town as you walk it, a scene's place
- * with its world, and a fight on its battlefield. The app shows these as styled lines (MapView),
- * the QA console as plain text. The look layer (src/game/look) plugs in here, behind these calls.
+ * with its world (on the map, or from above as the look layer's stage), and a fight on its
+ * battlefield. The app shows these as live views, the QA console as plain text. The look layer
+ * (src/game/look) decides how everything in them looks, alive, by one clock: `t`, in milliseconds.
  */
 
 export interface ViewOptions {
-  /** Animation frame (water, fire, the lead's pulse). */
+  /** The animation clock in milliseconds: water runs, fire flickers, effects play. */
+  t?: number;
+  /** The clock in the map's old 100 ms ticks, when there's no `t`. */
   tick?: number;
-  /** false: plain characters only (logs, tests). */
+  /** false: plain characters only (logs, tests): no motion, no effects, no icons. */
   color?: boolean;
+  /** The glyph set (default: KM_GLYPHS, or what the terminal suggests). */
+  glyphs?: GlyphSet;
+  /** What's playing (the scene's or the fight's Effects), drawn over the place. */
+  effects?: Effects;
 }
 
-/** The town round the player; in a scene, the scene's place with its world (where everyone is now). */
+/** The town round the player; in a scene, the scene's place with its world (where everyone is now) and its effects. */
 export function townView(game: GameState, session: SessionState | undefined, size: Viewport, options: ViewOptions = {}): StyledLine[] {
   const ex = exploreState(game);
   const world = ex.scene && session?.world && session.world.scene === ex.scene ? session.world : undefined;
-  return renderExplore(ex, size, { ...(world ? { world } : {}), ...pick(options) });
+  const place = world ? regionForScene(world.scene) : undefined;
+  const effects = place && world && options.effects ? { region: place.region, frame: options.effects.frame(options.t ?? 0, id => positionOf(world, id)) } : undefined;
+  return renderExplore(ex, size, { ...(world ? { world } : {}), ...(effects ? { effects } : {}), ...pick(options) });
 }
 
 export const townText = (game: GameState, session: SessionState | undefined, size: Viewport) => toPlain(townView(game, session, size, { color: false }));
+
+export interface StageOptions {
+  /** The animation clock in milliseconds. */
+  t: number;
+  time: StoryState["time"];
+  glyphs?: GlyphSet;
+  /** The scene's effects: fireballs, splashes, barks, damage numbers. */
+  effects?: Effects;
+  /** Where people are drawn mid-walk (the director's tweens), in the world's feet. */
+  positions?: (id: string) => Point | undefined;
+}
+
+/**
+ * A scene's place from above, Caves of Qud style: its world on the look layer's stage, dressed
+ * with what the place is built of (src/game/look/dressings.ts), its people walking where the
+ * director has them, its effects, barks and damage numbers. A Canvas, for a live view to paint.
+ */
+export function stageView(session: SessionState | undefined, size: Viewport, options: StageOptions): Canvas | undefined {
+  const world = session?.world;
+  if (!world) return undefined;
+  return renderStage(world, dressingFor(world.scene), {
+    w: size.w, h: size.h, t: options.t, time: options.time, glyphs: options.glyphs ?? glyphSet(),
+    ...(options.effects ? { effects: options.effects } : {}), ...(options.positions ? { positions: options.positions } : {}),
+  });
+}
 
 export interface FightViewOptions extends ViewOptions {
   /** Where the camera looks (default: whoever's turn it is, or the player). */
@@ -41,8 +82,9 @@ export interface FightViewOptions extends ViewOptions {
 
 /**
  * A fight on its battlefield, drawn by the map's renderer: the fighters and the lights from the
- * fight, the dust and the fire as tints, and the rest of the scene's place as its world has it (the
- * people not in the fight stand back, the furniture stays put). The roof is off: you need to see.
+ * fight, its grain dust hanging in the air and its fire burning, what the scene's world has spilled,
+ * and the rest of the scene's place as its world has it (the people not in the fight stand back,
+ * the furniture stays put). The roof is off: you need to see.
  */
 export function fightView(fight: CombatController, session: SessionState | undefined, size: Viewport, options: FightViewOptions = {}): StyledLine[] {
   const view = fight.view();
@@ -51,18 +93,67 @@ export function fightView(fight: CombatController, session: SessionState | undef
   const field = session?.world ? battlefield(session.sceneId, session.world) : undefined;
   // The place round the fight: everything the world has but the fighters and the lights the fight now owns.
   const scenery: MapActor[] = (field?.actors ?? []).filter(a => a.map === G.map.id && a.kind !== "player" && !fighters.has(a.ref ?? a.id) && !G.props[a.ref ?? a.id] && !G.props[a.id]);
-  const hazards = [
-    ...view.hazards.dust.map(at => ({ at, color: "#6b5a2a" })),
-    ...view.hazards.fire.map(at => ({ at, color: "#c0401a", glyph: "^" })),
-  ];
   const active = view.turn ? G.units[view.turn.id]?.at : undefined;
   const centre = options.centre ?? active ?? G.units[G.pc]?.at ?? { x: Math.floor(G.map.width / 2), y: Math.floor(G.map.height / 2) };
-  const actors = [...scenery, ...view.actors.map(a => ({ ...a, map: G.map.id, ...(a.kind !== "object" ? fightLook({ castId: a.ref, glyph: a.glyph, color: a.color ?? "" }) : {}) }))];
-  const marks = [...hazards, ...(options.marks ?? [])];
+  // The badly hurt are bloodied; the lanterns and braziers are the world's own (the look knows them by it).
+  const actors = [...scenery, ...view.actors.map(a => ({
+    ...a, map: G.map.id, ...(a.kind !== "object" ? fightLook({ castId: a.ref, glyph: a.glyph, color: a.color ?? "" }) : session?.world?.entities[a.id] ? { ref: a.id } : {}),
+    ...(a.states?.includes("badly hurt") ? { states: [...a.states, "bloodied"] } : {}),
+  }))];
+  // The scene's world lines up with the fight's map: its surfaces lie on the floor, and effects land where the fighters stand.
+  const region = session?.world ? G.map.regions.find(r => r.sceneId === session.world!.scene && r.worldOrigin) : undefined;
+  const world = region && session?.world ? { region, world: session.world } : undefined;
+  const effects = region && options.effects ? { region, frame: options.effects.frame(options.t ?? 0, id => { const u = G.units[id] ?? G.props[id]; return u ? tileToFeet(region, u.at) : undefined; }) } : undefined;
+  // Where the dust went up, the floor is scorched.
+  const hazards = { dust: view.hazards.dust, fire: view.hazards.fire, ...(G.flags["dust_exploded"] && field ? { scorched: field.dust } : {}) };
   return render(G.map, actors, centre, size, {
-    roofs: false, time: options.time ?? "night", focus: centre, reveal: view.units.map(u => u.at),
-    ...(marks.length ? { marks } : {}), ...(options.cursor ? { cursor: options.cursor } : {}), ...pick(options),
+    roofs: false, time: options.time ?? "night", focus: centre, reveal: view.units.map(u => u.at), hazards,
+    ...(world ? { worlds: [world] } : {}), ...(effects ? { effects } : {}),
+    ...(options.marks?.length ? { marks: options.marks } : {}), ...(options.cursor ? { cursor: options.cursor } : {}), ...pick(options),
   });
+}
+
+/**
+ * A fight's log as it happens, shown on its map (for fightView's effects): a bolt from whoever cast
+ * to whoever they aimed at (a ball of fire for fire in an area), sparks where a blow lands, damage
+ * numbers over the hurt, and the grain dust going up over where it hung (`dust`: the tiles it hung
+ * over before these lines). Lines it doesn't know pass. Returns how many it showed.
+ */
+export function fightEffects(fx: Effects, fight: CombatController, lines: Array<{ text: string }>, t: number, dust: Tile2[] = []): number {
+  const G = fight.state();
+  const region = G.map.regions.find(r => r.worldOrigin);
+  if (!region) return 0;
+  const bare = (s: string) => s.trim().toLowerCase().replace(/^the /, "");
+  const unit = (name: string) => { const n = bare(name); return n === "you" ? G.units[G.pc] : Object.values(G.units).find(u => bare(u.called) === n || bare(u.name) === n); };
+  const feet = (u: { at: Tile2 } | undefined) => (u ? tileToFeet(region, u.at) : undefined);
+  const middle = (ps: Point[]) => ({ x: ps.reduce((a, p) => a + p.x, 0) / ps.length, y: ps.reduce((a, p) => a + p.y, 0) / ps.length });
+  let shown = 0;
+  lines.forEach(({ text }, i) => {
+    const cast = /^(?:You cast|(.+?) casts) (.+?) \([^)]*\)(?:: a (\d+)-foot \w+(?:, catching (.+))?| at (.+))?$/.exec(text);
+    if (cast) {
+      const [, who, spell = "", size, caught, aim] = cast;
+      const from = feet(who ? unit(who) : G.units[G.pc]);
+      const element = lines.slice(i + 1).map(l => /^Damage: .* (\w+)$/.exec(l.text)?.[1]?.toLowerCase()).find(Boolean) ?? spellElement(spell);
+      const hit = (caught && caught !== "nobody" ? caught.split(", ") : aim ? [aim] : []).map(n => feet(unit(n))).filter((p): p is Point => !!p);
+      const to = hit.length ? middle(hit) : undefined;
+      const color = ELEMENTS[element ?? ""] ?? "#c79bf2";
+      if (!from) return;
+      if (size && element === "fire") fx.effect("fireball", { from, at: to ?? from, radius: Number(size) }, t);
+      else if (size) fx.effect("shockwave", { at: to ?? from, radius: Number(size), color }, t);
+      else if (to && element === "lightning") fx.effect("lightning", { from, to }, t);
+      else if (to) fx.effect("bolt", { from, to, color }, t);
+      else fx.effect("sparks", { at: from, color }, t);
+      shown++;
+      return;
+    }
+    const hit = /attack on (.+?)(?: \(opportunity attack\))?: .* vs AC \d+: (critical hit!|hit)$/.exec(text);
+    const hurt = /^(.+?) takes? (\d+) (\w+)(?: and \d+ \w+)* damage/.exec(text);
+    const at = feet(hit ? unit(hit[1]!) : hurt ? unit(hurt[1]!) : undefined);
+    if (hit && at) { fx.effect("sparks", { at, ...(hit[2]!.startsWith("critical") ? { amount: 2 } : {}) }, t); shown++; }
+    else if (hurt && at) { fx.float(at, hurt[2]!, { damage: hurt[3]!.toLowerCase() }, t + 150); shown++; }
+    else if (/^Grain dust explosion/.test(text) && dust.length) { fx.effect("explosion", { at: middle(dust.map(d => tileToFeet(region, d))), radius: 30 }, t); shown++; }
+  });
+  return shown;
 }
 
 /**
@@ -75,6 +166,9 @@ export function fightLook(u: { castId?: string | undefined; glyph: string; color
   return look ? { glyph: look.glyph, color: look.color } : { glyph: u.glyph, color: u.color };
 }
 
-function pick(options: ViewOptions): Pick<RenderOptions, "tick" | "color"> {
-  return { ...(options.tick !== undefined ? { tick: options.tick } : {}), ...(options.color !== undefined ? { color: options.color } : {}) };
+function pick(options: ViewOptions): Pick<RenderOptions, "t" | "tick" | "color" | "glyphs"> {
+  return {
+    ...(options.t !== undefined ? { t: options.t } : {}), ...(options.tick !== undefined ? { tick: options.tick } : {}),
+    ...(options.color !== undefined ? { color: options.color } : {}), ...(options.glyphs ? { glyphs: options.glyphs } : {}),
+  };
 }
