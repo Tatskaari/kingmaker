@@ -166,6 +166,14 @@ function computeBase(thing: Lookable): BaseLook {
   }
 
   const match = matchRole(parsed, tags, kind);
+  // Someone with a name of their own ("Dilly Sparrow", "Mara Wick", "Captain Brine") is drawn as
+  // themselves, an initial and a colour as the cast are (people.ts), not as what their surname means
+  // (a sparrow, a candle). Royalty keeps the crown, and a crowd (the Patience's bargees) stays a crowd.
+  if (kind === "person" && !thing.glyph && !parsed.plural && properName(thing.name) && match?.role.id !== "royal" && match?.role.id !== "crowd") {
+    const look = castLook(thing.id ?? thing.name, thing.name);
+    const sprite = look.km ?? kmFor(parsed, "person", true, thing.name, kind);
+    return person(parsed, { glyph: { ascii: look.glyph, ...(sprite ? { km: sprite } : {}) }, fg: look.color, bold: true, source: "rule" });
+  }
   let role: Role;
   let source: LookSource;
   let glyph: Glyph;
@@ -226,6 +234,16 @@ function computeBase(thing: Lookable): BaseLook {
     group, source, being, ...(role.footprint ? { footprint: role.footprint } : {}), ...(role.stamp ? { stamp: role.stamp } : {}), ...stacked,
     ...(role.overhead || tags.includes("overhead") ? { overhead: true } : {}), ...(role.liquid ? { liquid: role.liquid } : {}), parsed, person: isPerson,
   };
+}
+
+const TITLED = /^(sergeant|corporal|captain|master|mister|mistress|missus|mrs|mr|miss|big|little|old|young|lady|lord|sir|dame|father|mother|brother|sister|doctor|dr|goodwife|goodman|granny|uncle|aunt|widow)\s+/i;
+
+/** A name of someone's own: after any title, a capitalised word ("Old Tam", "Dilly Sparrow"); with an article it's a description ("a Sea Captain", "the biggest man"). */
+function properName(name: string): boolean {
+  let s = name.replace(/\(.*?\)/g, "").trim();
+  if (/^(the|a|an)\s/i.test(s)) return false;
+  for (let i = 0; i < 3 && TITLED.test(s); i++) s = s.replace(TITLED, "");
+  return /^[A-Z][a-z'’-]+/.test(s);
 }
 
 function person(parsed: ParsedName, look: { glyph: Glyph; fg: string; bold: boolean; source: LookSource }): BaseLook {

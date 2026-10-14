@@ -145,7 +145,10 @@ const SCHEMA = {
 export const LOOK_MODEL = "openai/gpt-6-luna";
 
 /** Luna, no reasoning, one call for a batch of things. */
-export const lunaInventor: Inventor = async items => {
+export const lunaInventor: Inventor = async items => (await askLuna(items)).looks;
+
+/** Luna's looks for a batch, and what the call cost. */
+async function askLuna(items: InventRequest[]): Promise<{ looks: Record<string, Invention>; costUsd: number }> {
   type Answer = { key: string; glyph: string; letter: string; nerd: string; color: string; motion: string; light: boolean; being: boolean; group: boolean; material: string };
   const result = await respondJson<{ looks: Answer[] }>({
     model: LOOK_MODEL, effort: "none", operation: "look.invent", instructions: INSTRUCTIONS,
@@ -165,8 +168,8 @@ export const lunaInventor: Inventor = async items => {
       ...(a.material && a.material !== "none" ? { material: a.material } : {}),
     };
   }
-  return out;
-};
+  return { looks: out, costUsd: result._meta.costUsd };
+}
 
 function defaultInventor(): Inventor | undefined {
   if (process.env.KM_LOOK_MODEL === "off") return undefined;
@@ -241,6 +244,43 @@ export async function flushInventions(): Promise<number> {
   };
   flushing = run();
   try { return await flushing; } finally { flushing = undefined; }
+}
+
+/** What inventing some looks now cost: model calls, dollars, wall-clock milliseconds. */
+export interface InventSpend { landed: number; calls: number; costUsd: number; ms: number }
+
+/**
+ * Looks for these names now, not through the queue, and what they cost: for a caller that counts
+ * the model calls it causes (a place generated at runtime counts its looks in its own time and
+ * cost). Names already cached are skipped; one call per 20.
+ */
+export async function inventNow(requests: InventRequest[]): Promise<InventSpend> {
+  const spend: InventSpend = { landed: 0, calls: 0, costUsd: 0, ms: 0 };
+  const make = currentInventor();
+  const todo = [...new Map(requests.filter(r => !lookCache().has(r.key)).map(r => [r.key, r])).values()];
+  if (!make || !todo.length) return spend;
+  for (const r of todo) pending.delete(r.key); // the queue won't ask again
+  const started = performance.now();
+  for (let i = 0; i < todo.length; i += 20) {
+    const batch = todo.slice(i, i + 20);
+    try {
+      spent++; spend.calls++;
+      const { looks, costUsd } = make === lunaInventor ? await askLuna(batch) : { looks: await make(batch), costUsd: 0 };
+      spend.costUsd += costUsd;
+      for (const item of batch) {
+        const a = looks[item.key];
+        if (!a) { failed.set(item.key, Date.now()); continue; }
+        lookCache().set(item.key, { ...a, name: item.name, ...(item.kind ? { kind: item.kind } : {}), model: make === lunaInventor ? LOOK_MODEL : "custom", at: new Date().toISOString() });
+        spend.landed++;
+      }
+    } catch (error) {
+      lastError = error instanceof Error ? error.message.slice(0, 300) : String(error);
+      for (const item of batch) failed.set(item.key, Date.now());
+    }
+  }
+  if (spend.landed) { lookCache().save(); version++; }
+  spend.ms = performance.now() - started;
+  return spend;
 }
 
 /** A named colour's hex. */
