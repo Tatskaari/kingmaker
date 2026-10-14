@@ -47,7 +47,7 @@ export interface XrayStyle {
   grey: number;
 }
 
-export const XRAY_STYLE: XrayStyle = { rx: 10, ry: 4.5, things: 0.6, clear: 0.4, core: 0.35, outline: 0.8, turn: 0.16, grey: 0.35 };
+export const XRAY_STYLE: XrayStyle = { rx: 10, ry: 4.5, things: 0.6, clear: 0.25, core: 0.35, outline: 0.8, turn: 0.16, grey: 0.35 };
 
 /** A renderer with render()'s shape (the look layer's, once it has one). */
 export type Draw = (map: TileMap, actors: MapActor[], camera: Tile2, viewport: Viewport, options?: RenderOptions) => StyledLine[];
@@ -95,11 +95,13 @@ export function xray(map: TileMap, actors: MapActor[], camera: Tile2, viewport: 
  * Worth seeing through a wall for: you, people and creatures, items, and things a scene put there or
  * that lead somewhere. Not the town's dressing (lamp posts, stalls, notices), nor bunting overhead.
  */
-export function matters(a: MapActor): boolean {
+export function matters(a: MapActor, player?: Tile2): boolean {
   const states = a.states ?? [];
   if (states.includes("gone") || states.includes("overhead")) return false;
-  if (a.kind === "player" || a.kind === "person" || a.kind === "creature" || a.kind === "item") return true;
-  return !!a.ref || a.interaction?.kind === "scene" || a.interaction?.kind === "travel";
+  if (a.kind === "player" || a.kind === "person" || a.kind === "creature") return true;
+  // Things only close by: a clue behind the water butt isn't spotlighted from the lane.
+  const near = !player || Math.max(Math.abs(a.at.x - player.x), Math.abs(a.at.y - player.y)) <= 3;
+  return near && (a.kind === "item" || !!a.ref || a.interaction?.kind === "scene" || a.interaction?.kind === "travel");
 }
 
 /**
@@ -116,8 +118,9 @@ export function findHidden(front: StyledLine[], map: TileMap, actors: MapActor[]
   const isDoor = (a: MapActor) => a.kind === "object" && tileAt(map, a.at).terrain === "door";
   let rooms: Rooms | undefined;
   const candidates: Hidden[] = [];
+  const player = here.find(a => a.kind === "player")?.at;
   for (const a of here) {
-    if (!matters(a) || isDoor(a)) continue;
+    if (!matters(a, player) || isDoor(a)) continue;
     const cell = cellOf(map, a, camera, viewport);
     if (cell.x < 0 || cell.y < 0 || cell.x >= viewport.w || cell.y >= viewport.h) continue;
     if (!coverable(map, a.at, cell.raised, options)) continue;
@@ -396,7 +399,11 @@ function composite(front: StyledLine[], behind: StyledLine[], hidden: Hidden[], 
 /** A building's cell over what's behind it: whose glyph shows, and the colours mixed by how solid it is there. */
 function blend(a: Cell, b: Cell, op: number, behindGlyph: boolean, color: boolean, greyed: number): Cell {
   if (!color) return behindGlyph ? b : a;
-  const abg = a.bg || SCREEN, bbg = grey(b.bg || SCREEN, greyed, 1);
+  const abg = a.bg || SCREEN;
+  // A floor under what shows through: the hole reads as a hole on dark roofs and at night too.
+  let bbg = grey(b.bg || SCREEN, greyed, 1);
+  const need = lum(abg) + 22 - lum(bbg);
+  if (need > 0) bbg = mix(bbg, "#9a96a0", Math.min(1, need / Math.max(1, lum("#9a96a0") - lum(bbg))));
   const bg = mix(bbg, abg, op);
   if (behindGlyph) return { ch: b.ch, fg: mix(b.fg ? grey(b.fg, greyed, 1) : bbg, abg, op), bg, bold: b.bold };
   return { ch: a.ch, fg: mix(bbg, a.fg || abg, op), bg, bold: a.bold };
@@ -409,9 +416,10 @@ function greyer(b: Cell, a: Cell, op: number, color: boolean): Cell {
   return { ch: b.ch, fg: b.fg ? legible(grey(b.fg, 0.55, 0.86), bg) : b.fg, bg, bold: b.bold };
 }
 
+const lum = (c: string) => { const [r, g, b] = hex(c); return 0.3 * r + 0.59 * g + 0.11 * b; };
+
 /** A colour lifted towards a light grey until it stands out from the background it's on. */
 function legible(fg: string, bg: string): string {
-  const lum = (c: string) => { const [r, g, b] = hex(c); return 0.3 * r + 0.59 * g + 0.11 * b; };
   const need = lum(bg) + 70 - lum(fg);
   return need <= 0 ? fg : mix(fg, "#d0d0d0", Math.min(1, need / Math.max(1, lum("#d0d0d0") - lum(fg))));
 }
@@ -419,7 +427,7 @@ function legible(fg: string, bg: string): string {
 /** You behind a building: a touch greyer, but on your own mark, so you're found at a glance. */
 function you(b: Cell, a: Cell, op: number, color: boolean): Cell {
   if (!color) return b;
-  return { ch: b.ch, fg: b.fg ? grey(b.fg, 0.5, 0.9) : b.fg, bg: mix(b.bg || SCREEN, a.bg || SCREEN, op * 0.25), bold: true };
+  return { ch: b.ch, fg: b.fg ? grey(b.fg, 0.5, 0.9) : b.fg, bg: mix(b.bg || SCREEN, "#6a3a8a", 0.6), bold: true };
 }
 
 /** A colour desaturated by `amount` (0..1) and dimmed by `k`. */

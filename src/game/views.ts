@@ -7,10 +7,11 @@ import { ELEMENTS, spellElement } from "./look/director.ts";
 import type { Effects } from "./look/effects.ts";
 import { glyphSet, type GlyphSet } from "./look/glyphs.ts";
 import { renderStage } from "./look/stage.ts";
-import { battlefield, regionForScene, render, renderExplore, tileToFeet, toPlain, type RenderOptions, type Viewport } from "./map/index.ts";
+import { battlefield, regionForScene, render, tileToFeet, toPlain, type RenderOptions, type Viewport } from "./map/index.ts";
 import { castOf } from "./map/looks.ts";
 import type { GameState } from "./play.ts";
 import { exploreState } from "./town.ts";
+import { xrayExplore } from "./map/xray.ts";
 import type { MapActor, StoryState, StyledLine, Tile2 } from "./types.ts";
 
 /**
@@ -39,7 +40,8 @@ export function townView(game: GameState, session: SessionState | undefined, siz
   const world = ex.scene && session?.world && session.world.scene === ex.scene ? session.world : undefined;
   const place = world ? regionForScene(world.scene) : undefined;
   const effects = place && world && options.effects ? { region: place.region, frame: options.effects.frame(options.t ?? 0, id => positionOf(world, id)) } : undefined;
-  return renderExplore(ex, size, { ...(world ? { world } : {}), ...(effects ? { effects } : {}), ...pick(options) });
+  // Whoever's behind a building shows through it, a little greyer (the user's call): see map/xray.ts.
+  return xrayExplore(ex, size, { ...(world ? { world } : {}), ...(effects ? { effects } : {}), ...pick(options) });
 }
 
 export const townText = (game: GameState, session: SessionState | undefined, size: Viewport) => toPlain(townView(game, session, size, { color: false }));
