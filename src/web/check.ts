@@ -275,6 +275,72 @@ async function clickOn(page: Page, what: string, button: "left" | "right" = "lef
   await page.mouse.click(cell.x + (col + 0.5) * cell.w, cell.y + (row + 0.5) * cell.h, { button });
 }
 
+/**
+ * The glyph atlas stays bounded. xterm's WebGL renderer keeps a glyph for each pair of colours it's
+ * drawn in, merging its texture pages into ever bigger ones; the page starts a fresh atlas when a
+ * merge reaches 2048 px. Screens of random colour pairs (far more than the map's animation draws)
+ * until it does; then the text drawn before them must look as it did.
+ */
+async function atlasChurn(page: Page): Promise<void> {
+  const clip = (await page.evaluate(`(() => {
+    const r = document.querySelector(".xterm-screen").getBoundingClientRect();
+    return { x: r.x, y: r.y, width: r.width, height: 2 * r.height / km.term.rows };
+  })()`)) as { x: number; y: number; width: number; height: number };
+  await page.evaluate(`new Promise(done => km.term.write("\\x1b[H\\x1b[2K\\x1b[38;2;200;190;160mThe quick brown fox jumps over the lazy dog. 0123456789\\r\\n\\x1b[2K\\x1b[38;2;120;200;120m╭──────────╮ Sphinx of black quartz, judge my vow!\\x1b[0m", done))`);
+  await sleep(400);
+  const before = await page.screenshot({ clip });
+  const t0 = performance.now();
+  let screens = 0;
+  while (screens < 120 && !(await page.evaluate("km.atlas.resets"))) {
+    await page.evaluate(`new Promise(done => {
+      const chars = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,;:!?#%&*~^";
+      let out = "\\x1b[3;1H";
+      for (let y = 2; y < km.term.rows; y++) {
+        for (let x = 0; x < km.term.cols; x++) {
+          const f = (Math.random() * 0xffffff) | 0, b = (Math.random() * 0xffffff) | 0;
+          out += "\\x1b[38;2;" + (f >> 16 & 255) + ";" + (f >> 8 & 255) + ";" + (f & 255) + ";48;2;" + (b >> 16 & 255) + ";" + (b >> 8 & 255) + ";" + (b & 255) + "m" + chars[(Math.random() * chars.length) | 0];
+        }
+        if (y < km.term.rows - 1) out += "\\r\\n";
+      }
+      km.term.write(out + "\\x1b[0m", () => requestAnimationFrame(() => requestAnimationFrame(done)));
+    })`);
+    screens++;
+  }
+  await sleep(600);
+  const atlas = (await page.evaluate("km.atlas")) as { pages: number; merged: number; resets: number; widest: number };
+  const renderer = await page.evaluate("km.renderer");
+  const what = `${screens} screens of random colour pairs in ${((performance.now() - t0) / 1000).toFixed(0)} s: ${atlas.pages} pages made, ${atlas.merged} merged away, widest merged page ${atlas.widest} px, ${atlas.resets} fresh atlas`;
+  if (atlas.resets && atlas.widest <= 2048 && renderer === "webgl") ok(`the glyph atlas stays bounded (${what})`);
+  else fail(`the glyph atlas: ${what}; renderer ${renderer}`);
+  const after = await page.screenshot({ clip });
+  const differ = await page.evaluate(differing, [before.toString("base64"), after.toString("base64")]);
+  if (differ === 0) ok("the text drawn before the fresh atlas looks just as it did");
+  else {
+    await shot(page, "atlas-after");
+    fail(`the text drawn before the fresh atlas changed (${differ} pixels)`);
+  }
+}
+
+/** In the page: how many pixels of two PNGs (base64) differ by more than a shade. */
+async function differing([a, b]: string[]): Promise<number> {
+  // The page's own globals (this file is typed for Node).
+  const page = globalThis as unknown as { Image: new () => { onload: () => void; src: string; width: number; height: number }; document: { createElement(tag: "canvas"): { width: number; height: number; getContext(kind: "2d"): { drawImage(image: unknown, x: number, y: number): void; clearRect(x: number, y: number, w: number, h: number): void; getImageData(x: number, y: number, w: number, h: number): { data: Uint8ClampedArray } } } } };
+  const load = (src: string) => new Promise<InstanceType<typeof page.Image>>(done => { const image = new page.Image(); image.onload = () => done(image); image.src = `data:image/png;base64,${src}`; });
+  const [first, second] = await Promise.all([load(a!), load(b!)]);
+  const canvas = page.document.createElement("canvas");
+  canvas.width = first.width;
+  canvas.height = first.height;
+  const draw = canvas.getContext("2d");
+  draw.drawImage(first, 0, 0);
+  const x = draw.getImageData(0, 0, canvas.width, canvas.height).data;
+  draw.clearRect(0, 0, canvas.width, canvas.height);
+  draw.drawImage(second, 0, 0);
+  const y = draw.getImageData(0, 0, canvas.width, canvas.height).data;
+  let count = 0;
+  for (let i = 0; i < x.length; i += 4) if (Math.abs(x[i]! - y[i]!) + Math.abs(x[i + 1]! - y[i + 1]!) + Math.abs(x[i + 2]! - y[i + 2]!) > 30) count++;
+  return count;
+}
+
 function changed(a: string, b: string): number {
   let count = 0;
   for (let i = 0; i < Math.max(a.length, b.length); i++) if (a[i] !== b[i]) count++;
@@ -502,6 +568,8 @@ async function offline(): Promise<void> {
     const saved = sessions(runs);
     if (saved.length && saved.some(s => !savedBefore.find(b => b.id === s.id && b.mtime === s.mtime))) ok("Ctrl+C saved the game");
     else fail("no save after Ctrl+C");
+    // The game's gone, so nothing else draws while the atlas fills.
+    await atlasChurn(page);
 
     // Play again: Continue is offered, and closing the tab mid-game saves and ends the process.
     await page.click("#notice-button");

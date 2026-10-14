@@ -79,17 +79,59 @@ term.loadAddon(fit);
 term.open($("terminal"));
 // The browser's own menu would take the right-click: the game's menus need it.
 $("terminal").addEventListener("contextmenu", event => event.preventDefault());
-try {
-  const webgl = new WebglAddon();
-  webgl.onContextLoss(() => {
-    webgl.dispose();
-    renderer = "dom";
-  });
-  term.loadAddon(webgl);
-  renderer = "webgl";
-} catch (error) {
-  console.warn("No WebGL here: the terminal draws with the DOM, and box and block characters come from the font.", error);
+// xterm's WebGL renderer keeps every glyph it has drawn, in each pair of colours it was drawn in, on
+// texture pages, and merges full pages four at a time into bigger ones (512 px, 1024, 2048, ... up to
+// the GPU's limit). The map draws in new colours all the time (fire, lamplight, water), so in a long
+// game the pages grow until they break: Chromium throws on every frame, and Firefox draws everything
+// on a page it couldn't upload as bits of other glyphs. A merge up to ATLAS_LIMIT starts a fresh
+// atlas instead: a new WebGL addon, as the old one's atlas goes with it (a frame or two of work).
+const ATLAS_LIMIT = 2048;
+// (For the browser check: pages made, pages merged away, fresh atlases, the widest merged page.)
+const atlas = { pages: 0, merged: 0, resets: 0, widest: 0 };
+let webgl;
+let fresh = false;
+function useWebgl() {
+  try {
+    const addon = new WebglAddon();
+    addon.onContextLoss(() => {
+      addon.dispose();
+      if (webgl === addon) webgl = undefined;
+      renderer = "dom";
+    });
+    // A merge removes the pages it took, then adds the page it made; a page added on its own is a
+    // new one (or, for a glyph too big for any page, one the size of the GPU's limit: not a merge).
+    let merging = 0;
+    addon.onRemoveTextureAtlasCanvas(() => {
+      merging++;
+      atlas.merged++;
+    });
+    addon.onAddTextureAtlasCanvas(canvas => {
+      atlas.pages++;
+      if (merging) atlas.widest = Math.max(atlas.widest, canvas.width);
+      if (merging && canvas.width >= ATLAS_LIMIT) freshAtlas();
+      merging = 0;
+    });
+    term.loadAddon(addon);
+    webgl = addon;
+    renderer = "webgl";
+  } catch (error) {
+    console.warn("No WebGL here: the terminal draws with the DOM, and box and block characters come from the font.", error);
+  }
 }
+function freshAtlas() {
+  if (fresh) return;
+  fresh = true;
+  // Not inside the draw the merge came from.
+  setTimeout(() => {
+    fresh = false;
+    if (!webgl) return;
+    webgl.dispose();
+    webgl = undefined;
+    atlas.resets++;
+    useWebgl();
+  });
+}
+useWebgl();
 // No cursor until the game asks for one (it hides it anyway; this covers the moments before it starts).
 term.write("\x1b[?25l");
 resize();
@@ -128,6 +170,7 @@ window.km = {
   get renderer() {
     return renderer;
   },
+  atlas,
   get playing() {
     return playing;
   },
