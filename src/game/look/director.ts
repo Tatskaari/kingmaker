@@ -236,18 +236,27 @@ export class Director {
     const quote = /[“"]([^”"]{2,200})[”"]/g;
     let m: RegExpExecArray | null;
     while ((m = quote.exec(reply))) {
-      const text = m[1]!.trim();
+      // A line broken off for the speech tag ("That was a full keg," Kell says) loses its comma.
+      const text = m[1]!.trim().replace(/[,;:]+$/, "");
       if (text.length > maxChars) continue;
-      const before = reply.slice(Math.max(0, m.index - 160), m.index).toLowerCase();
-      const after = reply.slice(m.index + m[0].length, m.index + m[0].length + 60).toLowerCase();
+      // The sentence leading into the quote: the one it's in, or the one before when it opens one.
+      const sentences = reply.slice(Math.max(0, m.index - 200), m.index).toLowerCase().split(/(?<=[.!?…:])\s+|\n+/);
+      const lead = (sentences.at(-1)?.trim() ? sentences.at(-1) : sentences.at(-2)) ?? "";
+      const after = reply.slice(m.index + m[0].length, m.index + m[0].length + 40).toLowerCase();
       let best: { id: string; at: number } | undefined;
       for (const p of people) {
         const names = [p.name.toLowerCase(), ...p.name.toLowerCase().split(/\s+/).filter(w => w.length > 3 && !/^(the|sergeant|corporal|master|mister|big)$/.test(w))];
         for (const n of names) {
-          const i = before.lastIndexOf(n);
-          if (i >= 0 && (!best || i > best.at)) best = { id: p.id, at: i };
-          if (after.includes(n) && /\b(said|says|shouts|calls|mutters|snaps|adds|asks|cries|yells)\b/.test(after) && !best) best = { id: p.id, at: 0 };
+          // Named with a speech verb just after it ("“Oi!” Nan says") is the speaker, whoever else is about.
+          if (after.includes(n) && SPEECH.test(after)) { best = { id: p.id, at: -1 }; break; }
+          // Otherwise the first one named in the lead-in who isn't only mentioned ("One looks from Kell to you." isn't Kell talking).
+          for (let i = lead.indexOf(n); i >= 0; i = lead.indexOf(n, i + 1)) {
+            if (MENTIONED.test(lead.slice(0, i))) continue;
+            if (!best || (best.at >= 0 && i < best.at)) best = { id: p.id, at: i };
+            break;
+          }
         }
+        if (best?.at === -1) break;
       }
       if (best && !out.some(o => o.id === best!.id)) out.push({ id: best.id, text });
     }
@@ -255,6 +264,11 @@ export class Director {
     return out;
   }
 }
+
+/** Words that say someone's talking. */
+const SPEECH = /\b(said|says|shouts|calls|mutters|snaps|adds|asks|cries|yells|whispers|growls|replies)\b/;
+/** A name after one of these is someone being looked at or talked about, not the speaker. */
+const MENTIONED = /\b(at|to|from|with|toward|towards|past|beside|behind|for|of|about|over|by|than|like|and)\s+$/;
 
 /** A spell's colour by what it does (Cogmind and Brogue: colour carries the kind). */
 export const ELEMENTS: Record<string, string> = {

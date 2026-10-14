@@ -246,6 +246,11 @@ test("the director reads the rules' lines: spells cast, damage to people (by ali
   const over = (p: { x: number; y: number }, text: string) => texts.some(t => t.text === text && Math.hypot(t.x - p.x, t.y - p.y) < 0.5);
   assert.ok(over(hobb, "7"), "Hobb takes 7 (fire, from the roll before it)");
   assert.ok(over(w.entities.player!.at!, "3") && over(w.entities.player!.at!, "+5"), "the player's damage and healing float over the player");
+  // Barks from a reply go over whoever is speaking, not whoever is only mentioned.
+  const said = (reply: string) => director.barksFrom(w, reply, 2500).map(b => `${b.id}: ${b.text}`);
+  assert.deepEqual(said("Two men built like bollards bar the way. One looks from Kell to you. “You two asking after Big Hobb?”"), [], "a stranger asks; Kell is only looked at");
+  assert.deepEqual(said("Kell taps her pencil against her notebook. “Investigator.”"), ["kell: Investigator."]);
+  assert.deepEqual(said("Hobb doesn't look up. “That was a full keg,” Kell says."), ["kell: That was a full keg"], "the speech verb after the quote wins");
   // A cast member's short line, over their head; a long one isn't a bark.
   assert.ok(director.barkLine(w, "kell", "Calmly. CALMLY, everyone.", 3000));
   assert.ok(!director.barkLine(w, "kell", "I have written down every word of this, investigator, and I will be reading it back to you at length.", 3000));
