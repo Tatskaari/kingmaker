@@ -217,6 +217,25 @@ test("the map adapter: rules for world things, authored looks for decor, ground 
   assert.equal(groundAt("wall", 0, 0, frame), undefined, "walls are the renderer's own");
 });
 
+test("the map adapter takes the map module's own actors: every one of the Rat's gets a look", async () => {
+  const { regionForScene, actorsFromWorld } = await import("../map/index.ts");
+  const place = regionForScene("drowned-rat")!;
+  const w = rat();
+  spill(w, "oil", { x: 12, y: 30 }, 4, 1);
+  damageThing(w, w.entities["card-table"]!, 3, "fire", 1);
+  const actors = actorsFromWorld(place.region, w, { map: place.map });
+  assert.ok(actors.length > 10);
+  for (const frame of [lookFrame(0, "evening"), lookFrame(7, "night", "nerd"), lookFrame(3, "morning", "plain")]) {
+    for (const a of actors) {
+      const look = actorLook(a, frame);
+      assert.ok(look.glyph.length > 0, a.name);
+      assert.match(look.fg, /^#[0-9a-f]{6}$/, a.name);
+    }
+  }
+  const table = actors.find(a => a.ref === "card-table")!;
+  assert.ok(actorLook(table, lookFrame(1, "night")).glow, "the burning card table glows on the map");
+});
+
 test("vignette frames are exact and fill the view", () => {
   for (const v of VIGNETTES) {
     const t = Math.round(v.length * 0.4);

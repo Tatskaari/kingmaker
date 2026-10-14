@@ -103,7 +103,7 @@ function Gallery({ start, glyphs, onQuit }: { start: number; glyphs: GlyphSet; o
   return <box width={width} height={height} flexDirection="column" backgroundColor={C.bg}>
     <text height={1} flexShrink={0}>
       <span fg={C.title} attributes={TextAttributes.BOLD}>{" Kingmaker · the look "}</span>
-      {VIGNETTES.map((x, i) => <span key={x.id} fg={i === index ? C.title : C.dim} {...(i === index ? { bg: C.tabOn, attributes: TextAttributes.BOLD } : {})}>{` ${i + 1} ${x.title} `}</span>)}
+      {VIGNETTES.map((x, i) => <span key={x.id} fg={i === index ? C.title : C.dim} {...(i === index ? { bg: C.tabOn, attributes: TextAttributes.BOLD } : {})}>{` ${i + 1} ${x.short} `}</span>)}
     </text>
     <box width={width} height={canvasH + 2} border borderColor={C.border} title={` ${v.title} `} titleAlignment="left" flexShrink={0}>
       <lookCanvas width={canvasW} height={canvasH} painter={(w, h, now) => ctl.frame(w, h, now)} />

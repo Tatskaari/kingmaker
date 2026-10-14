@@ -47,6 +47,8 @@ export interface View { w: number; h: number; glyphs: GlyphSet; time?: TimeOfDay
 export interface Vignette {
   id: string;
   title: string;
+  /** For tabs. */
+  short: string;
   /** What to look for. */
   blurb: string;
   /** Milliseconds per loop. */
@@ -120,7 +122,7 @@ const PLAYER = { name: "the investigator" };
 // 1. The Drowned Rat at night: the blue driftwood fire, candles, a table catching fire and spreading.
 
 const rat: Vignette = {
-  id: "rat", title: "The Drowned Rat, night", length: 34_000,
+  id: "rat", title: "The Drowned Rat, night", short: "The Rat", length: 34_000,
   blurb: "Night at the Rat. The driftwood burns blue with the salt in it; candles the GM put on the tables; the river slapping at the foot of the stairs. A candle goes over, the long table catches (the rules), the fire spreads to the benches, Nan douses them with slops and Hobb empties the ale keg over the table.",
   build: clock => {
     const world = buildWorld("drowned-rat", drownedRatWorld, RAT_CAST, PLAYER);
@@ -177,7 +179,7 @@ const rat: Vignette = {
 // 2. The granary yard by day: puddles, the elm, pigeons; a Fireball on the elm.
 
 const yard: Vignette = {
-  id: "yard", title: "The granary yard, morning", length: 32_000,
+  id: "yard", title: "The granary yard, morning", short: "The yard", length: 32_000,
   blurb: "It rained in the night: the puddles hold the morning sky. The elm sways, the GM's pigeons flutter in it, Prout hangs from the hoist and Cob lobs gutter stones at him. Then a Fireball on the elm: the bolt, the burst, the elm alight (the rules), the GM's burning branch and singed pigeon, damage numbers, and a bucket from the water butt.",
   build: clock => {
     const world = buildWorld("hanged-clerk", hangedClerkWorld, YARD_CAST, PLAYER);
@@ -232,7 +234,7 @@ const yard: Vignette = {
 // 3. Grain dust: the tally loft goes up.
 
 const dust: Vignette = {
-  id: "dust", title: "Grain dust", length: 24_000,
+  id: "dust", title: "Grain dust", short: "Dust", length: 24_000,
   blurb: "Up in the tally loft: dust motes in the light from a gap in the boards. Cob jumps on the grain stacks (the stage manager makes the loft dusty), lights a candle-end, drops it in his nest, and the rules do the rest: the dust goes up.",
   build: clock => {
     const world = buildWorld("hanged-clerk", hangedClerkWorld, YARD_CAST, PLAYER);
@@ -303,7 +305,7 @@ const grapesDressing: Dressing = {
 };
 
 const surfaces: Vignette = {
-  id: "surfaces", title: "Douse and burn", length: 30_000,
+  id: "surfaces", title: "Douse and burn", short: "Douse & burn", length: 30_000,
   blurb: "Surfaces, BG3-style, through the world's physics (src/world/systems.ts): blood (dark and still), an oil slick (a rainbow sheen), spilled gin, an old scorch mark. A table catches fire; a bucket of water leaves it scorched, wet and in a puddle, with a puff of steam. Fireball on the oil: a burning puddle, the gin burns blue, the wet table won't catch; the oil burns itself out to a scorch mark and smoke. Ray of Frost turns a puddle to ice.",
   build: clock => {
     const world = buildWorld("grapes-yard", grapesYard, [], PLAYER);
@@ -370,7 +372,7 @@ const INVENTIONS: Array<{ name: string; kind: string; states?: string[] }> = [
 ];
 
 const inventions: Vignette = {
-  id: "inventions", title: "New things", length: 12_000,
+  id: "inventions", title: "New things", short: "New things", length: 12_000,
   blurb: "Things the GM invents get looks without art: the rules read the name (a head noun, adjectives that are states or colours, \"a flock of\", \"a pool of\"). Names the rules don't know get a guess now and a look from Luna later (one small call per kind of thing, cached on disk, never per frame).",
   build: clock => scene(buildWorld("void", { name: "nowhere", description: "", size: { w: 10, h: 10 }, areas: [], things: [], people: {} }, [], PLAYER), {}, clock, "afternoon"),
   beats: [],
@@ -414,11 +416,11 @@ const inventions: Vignette = {
 // 6. Glyph sets side by side: the King's dressing room in the morning sun.
 
 const glyphs: Vignette = {
-  id: "glyphs", title: "Glyph sets", length: 16_000,
+  id: "glyphs", title: "Glyph sets", short: "Glyphs", length: 16_000,
   blurb: "The King's dressing room in the morning, in all three glyph sets: ascii (CP437-flavoured Unicode, the default), nerd (Nerd Font icons where they help: needs a Nerd Font, Mono variant best, or kitty/WezTerm), and plain seven-bit ASCII. Sun through the tall windows.",
   build: clock => {
     const world = buildWorld("kings-morning", dressingRoomWorld, KING_CAST, PLAYER);
-    return scene(world, kingsRoomDressing, clock, "morning", { focus: { x: 39, y: 20 } });
+    return scene(world, kingsRoomDressing, clock, "morning", { focus: { x: 44, y: 20 } });
   },
   beats: [
     { at: 1500, run: (s, t) => say(s, t, "king", "Is that shortbread for me?") },
@@ -431,7 +433,7 @@ const glyphs: Vignette = {
     const sets: GlyphSet[] = ["ascii", "nerd", "plain"];
     const pw = Math.floor((view.w - 2) / 3);
     sets.forEach((set, k) => {
-      const panel = renderStage(s.world, s.dressing, { w: pw, h: view.h - 1, t, time: s.time, glyphs: set, effects: s.fx, positions: id => s.director.tweens.at(id, t), ...(s.focus ? { focus: s.focus, scale: Math.max(0.9, 44 / pw) } : {}) });
+      const panel = renderStage(s.world, s.dressing, { w: pw, h: view.h - 1, t, time: s.time, glyphs: set, effects: s.fx, positions: id => s.director.tweens.at(id, t), ...(s.focus ? { focus: s.focus, scale: Math.max(0.62, 30 / pw) } : {}) });
       for (let y = 0; y < panel.h; y++) for (let x = 0; x < panel.w; x++) {
         const i = y * panel.w + x;
         c.put(k * (pw + 1) + x, y + 1, panel.glyph[i]!, panel.fg[i]!, panel.bg[i]!, panel.flags[i]!);
@@ -447,7 +449,7 @@ const glyphs: Vignette = {
 
 const TIMES: TimeOfDay[] = ["morning", "afternoon", "evening", "night"];
 const weather: Vignette = {
-  id: "weather", title: "Time and weather", length: 24_000,
+  id: "weather", title: "Time and weather", short: "Weather", length: 24_000,
   blurb: "The granary lane through the day: morning sun, afternoon, an evening with the lamp lit, a drizzly night. Darkness falls where nothing lights it; the lamp's pool flickers; drizzle rings the puddles.",
   build: clock => {
     const world = buildWorld("hanged-clerk", hangedClerkWorld, YARD_CAST, PLAYER);

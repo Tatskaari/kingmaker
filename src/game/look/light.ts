@@ -77,13 +77,16 @@ export class LightField {
     const x0 = Math.max(0, Math.floor(light.x - R)), x1 = Math.min(this.w - 1, Math.ceil(light.x + R));
     const y0 = Math.max(0, Math.floor(light.y - R / 2)), y1 = Math.min(this.h - 1, Math.ceil(light.y + R / 2));
     const lr = ((light.color >> 16) & 255) / 255 * light.intensity, lg = ((light.color >> 8) & 255) / 255 * light.intensity, lb = (light.color & 255) / 255 * light.intensity;
-    const mask = this.opaque ? this.shadow(Math.round(light.x), Math.round(light.y), Math.ceil(R)) : undefined;
+    // The cell the light is in (positions are often cell centres, x.5: rounding would put a lamp
+    // beside a wall inside it, and light only the far side).
+    const sx = Math.floor(light.x), sy = Math.floor(light.y);
+    const mask = this.opaque ? this.shadow(sx, sy, Math.ceil(R)) : undefined;
     const mw = Math.ceil(R) * 2 + 1;
     for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) {
-      const q2 = ((x - light.x) ** 2 + ((y - light.y) * 2) ** 2) / (R * R);
+      const q2 = ((x + 0.5 - light.x) ** 2 + ((y + 0.5 - light.y) * 2) ** 2) / (R * R);
       if (q2 >= 1) continue;
       if (mask) {
-        const mx = x - Math.round(light.x) + Math.ceil(R), my = y - Math.round(light.y) + Math.ceil(R);
+        const mx = x - sx + Math.ceil(R), my = y - sy + Math.ceil(R);
         if (mx < 0 || my < 0 || mx >= mw || my >= mw || !mask[my * mw + mx]) continue;
       }
       const f = (1 - q2) * (1 - q2);
