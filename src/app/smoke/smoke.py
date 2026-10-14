@@ -27,7 +27,8 @@ LIVE = "--live" in sys.argv or "--live-fight" in sys.argv
 RUN = time.strftime("%Y%m%d-%H%M%S")
 OUT = os.path.join(ROOT, "runs", "app-smoke", RUN)
 os.makedirs(OUT, exist_ok=True)
-ENV = {"KM_RUNS_DIR": os.path.join("runs", "app-smoke", RUN, "runs"), "KM_APP_COMBAT_DELAY_MS": "30", "KM_APP_TALK_MS": "150"}
+# It reads letters off the screen (Kell's K, your @): letters, whatever fonts this machine has installed.
+ENV = {"KM_RUNS_DIR": os.path.join("runs", "app-smoke", RUN, "runs"), "KM_APP_COMBAT_DELAY_MS": "30", "KM_APP_TALK_MS": "150", "KM_GLYPHS": "ascii"}
 if not LIVE:
     ENV["OPENROUTER_API_KEY"] = "offline-smoke-test"
 ARGV = ["node", "--experimental-ffi", "--no-warnings", "--import", "tsx", "src/app/main.tsx"]
