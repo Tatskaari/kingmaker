@@ -231,9 +231,11 @@ export class Game {
 
   private hooks(): TurnHooks {
     return {
+      // The turn stays busy until the runtime has finished with it (and saved it): the reply
+      // streams first, then the after-reply decision and the stage manager run.
       onSpeaker: (speaker, kind) => {
         this.live = { kind, speaker, ...(kind === "dialogue" ? { name: this.nameOf(speaker) } : {}), text: "" };
-        this.busy = undefined;
+        this.busy = kind === "dialogue" ? `${this.nameOf(speaker)} is speaking…` : "The GM is speaking…";
         this.emit();
       },
       onText: text => {
@@ -242,7 +244,10 @@ export class Game {
         this.emitSoon();
       },
       onEntry: entry => {
-        if (entry.kind === "narration" || entry.kind === "dialogue") this.live = undefined;
+        if (entry.kind === "narration" || entry.kind === "dialogue") {
+          this.live = undefined;
+          if (this.busy) this.busy = "The GM makes a note…";
+        }
         this.lines.push(this.lineOf(entry));
         this.emit();
       },

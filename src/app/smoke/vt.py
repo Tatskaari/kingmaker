@@ -93,6 +93,11 @@ class Screen:
         data = self.pending + data
         self.pending = ""
         data = OSC.sub("", data)
+        # An OSC split across reads: keep its start for the next one.
+        cut = re.search(r"\x1b[\]P_^][^\x07\x1b]*$", data)
+        if cut:
+            self.pending = data[cut.start():]
+            data = data[:cut.start()]
         i = 0
         while i < len(data):
             ch = data[i]
