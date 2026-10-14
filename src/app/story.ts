@@ -1,32 +1,20 @@
+import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { CombatantSetup, CombatSetup, StoryState } from "../game/types.ts";
-import { sessionSpend, setCallLog } from "../llm/openrouter.ts";
+import { sessionSpend } from "../llm/openrouter.ts";
 import { presentCast } from "../runtime/brief.ts";
-import { chainScene, createSession, forceEnding, openScene, playerTurn, type TurnHooks, type TurnResult } from "../runtime/engine.ts";
-import type { Exit, Scene } from "../runtime/scene.ts";
-import { saveSession, sessionDir, type Entry, type SessionState } from "../runtime/session.ts";
+import { sessionDir, type SessionState } from "../runtime/session.ts";
 import { sceneById } from "../../scenes/index.ts";
 import type { CombatField } from "./adapters.ts";
-import { afterTurn } from "./background.ts";
-import { repairCampaign } from "./rules-repair.ts";
 
 /**
- * The story flow of the playable game (docs/design/playable.md), with no UI in it: make the
- * character, open the lead scene, take turns, and at a scene's end chain on to the next scene that
- * still holds, skipping interludes (walking the map replaces them), into a fight or to The End.
+ * What the app adds to the game core's story flow (src/game/play.ts owns the flow itself): the
+ * fight's line-up, the notebook lines a scene's ending writes, the epilogue, and words for the time.
  */
 
-/** Where the story starts. KM_APP_START=<scene id> starts a new game later in the arc (for testing). */
-export const FIRST_SCENE = process.env.KM_APP_START ?? "hanged-clerk";
-export const APPROACH = process.env.KM_APPROACH ?? "v2";
 export const LEVEL = 3;
 export const DEFAULT_NAME = "Wren Ashdown";
 export const DEFAULT_CONCEPT = "a quick-witted half-elf ranger with a longbow, a dry sense of humour and a soft spot for underdogs";
-
-const TIME: Record<string, StoryState["time"]> = {
-  "hanged-clerk": "morning", "caerwyn-afternoon": "afternoon", "drowned-rat": "evening", "wharf-night": "night", "heron-warehouse": "night", "kings-morning": "next-morning",
-};
-export const timeOf = (sceneId: string): StoryState["time"] => TIME[sceneId] ?? "morning";
 
 export const TIME_WORDS: Record<StoryState["time"], string> = {
   morning: "Morning, on the eve of the Assembly",
@@ -36,80 +24,14 @@ export const TIME_WORDS: Record<StoryState["time"], string> = {
   "next-morning": "The morning of the Assembly",
 };
 
-/** Downtime scenes that stand in for the map between the real ones: the map replaces them. */
-export function isInterlude(scene: Scene): boolean {
-  return scene.beats.length === 1 && scene.beats[0]!.id === "downtime" && scene.exits.some(e => e.id === "onward");
-}
+export const timeOf = (sceneId: string): StoryState["time"] => {
+  try { return sceneById(sceneId).time ?? "morning"; } catch { return "morning"; }
+};
 
-/** Where the story is, as the map needs it. The lead is the scene that opens next (or is open now). */
-export function storyOf(session: SessionState, over = false): StoryState {
-  const played = session.history.map(h => h.sceneId);
-  if (over && !played.includes(session.sceneId)) played.push(session.sceneId);
-  return { time: timeOf(session.sceneId), played, ...(over ? {} : { lead: session.sceneId }), flags: {} };
-}
-
-/** Character creation: the rules engine builds a level 3 sheet from the concept. */
-export async function newGame(name: string, concept: string): Promise<SessionState> {
-  const who = `${(name.trim() || DEFAULT_NAME).replace(/:/g, " ")}: ${concept.trim() || DEFAULT_CONCEPT}`;
-  const session = await createSession({ sceneId: FIRST_SCENE, approach: APPROACH, player: who, level: LEVEL });
-  setCallLog(join(sessionDir(session.id), "calls.jsonl"));
-  saveSession(session);
-  return session;
-}
-
-/** Open the lead scene: people and things are placed in its world, time passes, the GM sets the scene. */
-export async function beginScene(session: SessionState, hooks: TurnHooks): Promise<Entry[]> {
-  setCallLog(join(sessionDir(session.id), "calls.jsonl"));
-  return openScene(session, hooks);
-}
-
-export async function takeTurn(session: SessionState, input: string, hooks: TurnHooks): Promise<TurnResult> {
-  setCallLog(join(sessionDir(session.id), "calls.jsonl"));
-  const result = await playerTurn(session, input, hooks);
-  // A spell attack this turn can leave the rules campaign unloadable (see rules-repair.ts).
-  if (repairCampaign(session)) saveSession(session);
-  afterTurn(session);
-  return result;
-}
-
-export type Onward =
-  | { kind: "combat"; exit: Exit }
-  | { kind: "scene"; exit: Exit; sceneId: string; skipped: string[] }
-  | { kind: "end"; exit: Exit };
-
-/** The exit the current scene ended through. */
-export function endedExit(session: SessionState): Exit | undefined {
-  return session.ended ? sceneById(session.sceneId).exits.find(e => e.id === session.ended!.exitId) : undefined;
-}
-
-/**
- * A scene has ended: a fight goes to the map first; otherwise chain on to the next scene that still
- * holds. Interludes are ended at once and chained past. No next scene means The End.
- */
-export async function moveOn(session: SessionState, combatSummary?: string): Promise<Onward> {
-  const exit = endedExit(session);
-  if (!exit) throw new Error(`Scene ${session.sceneId} hasn't ended.`);
-  if (exit.kind === "combat" && combatSummary === undefined) return { kind: "combat", exit };
-  const skipped: string[] = [];
-  if (!await chainScene(session, combatSummary ?? "the party won")) return { kind: "end", exit };
-  skipped.push(...(session.history.at(-1)?.skipped ?? []).map(s => s.sceneId));
-  for (let guard = 0; guard < 4 && isInterlude(sceneById(session.sceneId)); guard++) {
-    skipped.push(session.sceneId);
-    forceEnding(session, "onward");
-    if (!await chainScene(session)) return { kind: "end", exit };
-    skipped.push(...(session.history.at(-1)?.skipped ?? []).map(s => s.sceneId));
-  }
-  saveSession(session);
-  return { kind: "scene", exit, sceneId: session.sceneId, skipped };
-}
-
-/** Who fights alongside the player, and how a cast member's group expands on the map. */
+/** Who fights alongside the player. */
 const ALLIES = new Set(["kell"]);
-const GROUPS: Record<string, Array<Omit<CombatantSetup, "at" | "side">>> = {
-  sallow: [
-    { id: "crake-1", name: "Crake (the one who talks)", statblock: "bandit", weapon: "club" },
-    { id: "crake-2", name: "Crake (the one who doesn't)", statblock: "bandit", weapon: "club" },
-  ],
+/** Groups the scene data doesn't break into members yet (Sallow's comes from his cast card). */
+const GROUPS: Record<string, Array<{ id: string; name: string; statblock: string; weapon: string }>> = {
   hep: [
     { id: "porter-1", name: "a porter with a sack-needle", statblock: "commoner", weapon: "dagger" },
     { id: "porter-2", name: "a porter with a knife", statblock: "commoner", weapon: "dagger" },
@@ -121,7 +43,8 @@ const LEADERS = ["sallow", "hep"];
 
 /**
  * The fight when a scene ends in "Roll for initiative!": the scene's present cast with statblocks,
- * the leader's group expanded (Sallow and the two Crakes), Kell as an ally if she's there.
+ * the leader's group as its members (Sallow and the two Crakes; the lantern-boy keeps out of it),
+ * Kell as an ally if she's there, and everyone else standing by.
  */
 export function combatSetup(session: SessionState, field: CombatField): CombatSetup {
   const scene = sceneById(session.sceneId);
@@ -129,15 +52,40 @@ export function combatSetup(session: SessionState, field: CombatField): CombatSe
   const leader = LEADERS.map(id => present.find(c => c.id === id)).find(Boolean)
     ?? present.find(c => !ALLIES.has(c.id) && c.statblock && c.statblock !== "commoner");
   const spot = (list: typeof field.spots.allies, i: number) => list[i % list.length] ?? field.spots.player;
+  const stats = (c: { statblock?: string; weapon?: string }) => ({ ...(c.statblock ? { statblock: c.statblock } : {}), ...(c.weapon ? { weapon: c.weapon } : {}) });
   const combatants: CombatantSetup[] = [{ id: "player", name: session.player.name, side: "player", at: field.spots.player }];
-  present.filter(c => ALLIES.has(c.id)).forEach((c, i) => combatants.push({ id: c.id, name: c.name, side: "ally", at: spot(field.spots.allies, i), castId: c.id, ...(c.statblock ? { statblock: c.statblock } : {}), ...(c.weapon ? { weapon: c.weapon } : {}) }));
+  present.filter(c => ALLIES.has(c.id)).forEach((c, i) => combatants.push({ id: c.id, name: c.name, side: "ally", at: spot(field.spots.allies, i), castId: c.id, ...stats(c) }));
+  // A group's fighters stand with its leader; its children and hangers-on keep out of the way.
+  const members = leader ? (leader.members ?? GROUPS[leader.id] ?? []) : [];
+  const fighters = members.filter(m => m.statblock && m.statblock !== "commoner" || !leader?.members);
+  const bystanders = members.filter(m => !fighters.includes(m));
   const enemies: CombatantSetup[] = leader ? [
-    { id: leader.id, name: leader.name, side: "enemy", at: field.spots.player, castId: leader.id, ...(leader.statblock ? { statblock: leader.statblock } : {}), ...(leader.weapon ? { weapon: leader.weapon } : {}) },
-    ...(GROUPS[leader.id] ?? []).map(g => ({ ...g, side: "enemy" as const, at: field.spots.player })),
+    { id: leader.id, name: leader.name, side: "enemy", at: field.spots.player, castId: leader.id, ...stats(leader) },
+    ...fighters.map(m => ({ id: m.id, name: m.name, side: "enemy" as const, at: field.spots.player, ...stats(m) })),
   ] : [];
   enemies.forEach((e, i) => combatants.push({ ...e, at: spot(field.spots.enemies, i) }));
-  present.filter(c => !ALLIES.has(c.id) && c.id !== leader?.id).forEach((c, i) => combatants.push({ id: c.id, name: c.name, side: "neutral", at: spot(field.spots.neutrals, i), castId: c.id, ...(c.statblock ? { statblock: c.statblock } : {}) }));
+  const neutrals = [
+    ...present.filter(c => !ALLIES.has(c.id) && c.id !== leader?.id).map(c => ({ id: c.id, name: c.name, castId: c.id, ...stats(c) })),
+    ...bystanders.map(m => ({ id: m.id, name: m.name, ...stats(m) })),
+  ];
+  neutrals.forEach((c, i) => combatants.push({ ...c, side: "neutral", at: spot(field.spots.neutrals, i) }));
   return { map: field.map, combatants, sceneId: session.sceneId, seed: session.seed + 4242 + session.turn };
+}
+
+/**
+ * What the investigator's notebook says about how a scene ended: the exit's world script writes it
+ * ("Big Hobb talked..."). The session forgets the script's operations once the story moves on, so
+ * read them from the scene's last snapshot, the one taken as it ended.
+ */
+export function notebookLines(session: SessionState, sceneId: string): string[] {
+  const dir = join(sessionDir(session.id), "snapshots");
+  if (!existsSync(dir)) return [];
+  const last = readdirSync(dir).filter(f => f.startsWith(`${sceneId}-turn-`)).sort().at(-1);
+  if (!last) return [];
+  try {
+    const snapshot = JSON.parse(readFileSync(join(dir, last), "utf8")) as SessionState;
+    return (snapshot.ended?.operations ?? []).filter(o => o.op === "journal").map(o => String(o.args["entry"] ?? "")).filter(Boolean);
+  } catch { return []; }
 }
 
 export interface Epilogue {
@@ -153,7 +101,7 @@ export function epilogue(session: SessionState): Epilogue {
     const scene = sceneById(sceneId);
     return { sceneId, title: scene.title, ending: scene.exits.find(e => e.id === exitId)?.title ?? exitId };
   };
-  const chapters = session.history.filter(h => !isInterlude(sceneById(h.sceneId))).map(h => chapter(h.sceneId, h.exitId));
+  const chapters = session.history.filter(h => !sceneById(h.sceneId).interlude).map(h => chapter(h.sceneId, h.exitId));
   if (session.ended) chapters.push(chapter(session.sceneId, session.ended.exitId));
   return { closing: last?.text ?? "And that, as they say in Caerwyn, was that.", chapters, spentUsd: sessionSpend() };
 }

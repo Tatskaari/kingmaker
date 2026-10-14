@@ -23,8 +23,8 @@ function ago(ms: number): string {
 
 function describe(r: Resumable): string {
   const scene = (() => { try { return sceneById(r.session.sceneId).title; } catch { return r.session.sceneId; } })();
-  const where = r.save.mode === "scene" ? `in ${scene}` : r.save.mode === "combat" ? `fighting at ${scene}` : `heading for ${scene}`;
-  return `${r.session.player.name}: ${TIME_WORDS[timeOf(r.session.sceneId)].split(",")[0]}, ${where} (${ago(r.mtime)})`;
+  const where = r.game.mode === "scene" ? `in ${scene}` : r.game.mode === "combat" ? `fighting at ${scene}` : `heading for ${scene}`;
+  return `${r.session.player.name}: ${TIME_WORDS[r.game.story.time ?? timeOf(r.session.sceneId)].split(",")[0]}, ${where} (${ago(r.mtime)})`;
 }
 
 export function TitleScreen({ game }: { game: Game }) {
