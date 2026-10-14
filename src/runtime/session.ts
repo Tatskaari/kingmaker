@@ -147,6 +147,8 @@ export interface SessionState {
   lateRepairs?: number;
   /** Speculative replies kept vs discarded (gm-fast). */
   speculation?: { used: number; discarded: number };
+  /** A sentence the last reply repeated word for word: the next reply is told not to (a reply already on screen isn't rewritten). */
+  repeated?: string;
   /** Essentials the decider chose to bring to the player through another carrier. */
   decidedRelocations?: Array<{ essential: string; carrier: string; turn: number }>;
   /** Essentials the player has come across (judged after each reply). */

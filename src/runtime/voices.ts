@@ -32,9 +32,12 @@ function recentTexts(state: SessionState, count = 6): string[] {
 }
 
 /** Models imitate their last few replies; when a draft repeats one verbatim, ask once for a fresh take. */
-async function withoutRepeats(state: SessionState, draft: Spoken, regenerate: (note: string) => Promise<Spoken>): Promise<Spoken> {
+async function withoutRepeats(state: SessionState, draft: Spoken, regenerate: (note: string) => Promise<Spoken>, streamed: boolean): Promise<Spoken> {
   const repeat = repeatedSentence(draft.text, recentTexts(state));
   if (!repeat) return draft;
+  // On screen already (streamed): rewriting it would show the player a reply being taken back.
+  // It stands, and the next reply is told not to repeat it.
+  if (streamed) { state.repeated = repeat; return draft; }
   const second = await regenerate(`Your first draft repeated something already said, word for word ("${repeat}"). Don't repeat it: move the moment on with something new.`);
   return { ...second, result: { ...second.result, costUsd: second.result.costUsd + draft.result.costUsd } };
 }
@@ -57,6 +60,10 @@ function gmHistory(scene: Scene, state: SessionState): Message[] {
 
 /** Approach "gm": one call, the GM narrates and voices everyone (Friends & Fables style). */
 export async function gmReply(scene: Scene, state: SessionState, directive: string[], onText?: (t: string) => void, operation = "gm.reply", signal?: AbortSignal, maxTokens?: number): Promise<Spoken> {
+  if (state.repeated) {
+    directive = [...directive, `Your last reply repeated something already said, word for word ("${state.repeated}"). Don't repeat yourself: move the moment on with something new.`];
+    delete state.repeated;
+  }
   const docs = Boolean(approachById(state.approach).memory);
   const lore = docs ? memoryBrief(scene, state, "stable") : undefined;
   const memory = docs ? memoryBrief(scene, state, "live") : undefined;
@@ -73,7 +80,7 @@ export async function gmReply(scene: Scene, state: SessionState, directive: stri
   const result = await respond({ operation, instructions: prompt("gm", { tone: tone ? prompt(`tone-${tone}`) : "" }), input, effort: voiceEffort(state), maxOutputTokens: maxTokens ?? (voiceEffort(state) === "none" ? 700 : 6000), ...(onText ? { onText } : {}), ...(signal ? { signal } : {}) });
   const draft: Spoken = { speaker: "gm", kind: "narration", text: prose(result.text), result };
   if (directive.some(d => d.startsWith("Your first draft repeated"))) return draft;
-  return withoutRepeats(state, draft, note => gmReply(scene, state, [...directive, note], onText, `${operation}.fresh`));
+  return withoutRepeats(state, draft, note => gmReply(scene, state, [...directive, note], onText, `${operation}.fresh`), !!onText);
 }
 
 /** The reply as prose: stray model tokens ("RGCTX:VEVENT") don't reach the transcript. */
@@ -89,7 +96,7 @@ export async function narratorReply(scene: Scene, state: SessionState, directive
   const result = await respond({ operation: "narrator.reply", instructions: prompt("narrator"), input, effort: voiceEffort(state), maxOutputTokens: voiceEffort(state) === "none" ? 500 : 6000, ...(onText ? { onText } : {}) });
   const draft: Spoken = { speaker: "gm", kind: "narration", text: prose(result.text), result };
   if (directive.some(d => d.startsWith("Your first draft repeated"))) return draft;
-  return withoutRepeats(state, draft, note => narratorReply(scene, state, [...directive, note], onText));
+  return withoutRepeats(state, draft, note => narratorReply(scene, state, [...directive, note], onText), !!onText);
 }
 
 /** Approach "actors": one character speaks from their own knowledge only. */
@@ -123,5 +130,5 @@ export async function actorReply(scene: Scene, state: SessionState, characterId:
   const text = result.text.trim().replace(new RegExp(`^${c.name.split(" ")[0]}[^:]{0,20}:\\s*`), "");
   const draft: Spoken = { speaker: c.id, kind: "dialogue", text, result };
   if (direction.some(d => d.startsWith("Your first draft repeated"))) return draft;
-  return withoutRepeats(state, draft, note => actorReply(scene, state, characterId, [...direction, note], onText));
+  return withoutRepeats(state, draft, note => actorReply(scene, state, characterId, [...direction, note], onText), !!onText);
 }

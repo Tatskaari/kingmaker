@@ -42,7 +42,7 @@ npm run scene -- world demo       # Phase 2: world-update scripts for the finish
 
 | approach | what it tests |
 |---|---|
-| **`v2`** (default) | **Recommended.** GM voice with essentials in the comic house style (Pratchett / Monty Python: the world plays it straight, daft acts send a bill), speculative replies, quick co-GM on off-graph turns (3 s), background co-GM. |
+| **`v2`** (default) | **Recommended.** GM voice with essentials in the comic house style (Pratchett / Monty Python: the world plays it straight, daft acts send a bill), quick co-GM on off-graph turns (3 s), background co-GM. |
 | `v2-straight` | The same, played straight (the `v2` of the deviation experiment). |
 | `v2-pressure` | `v2` plus pressure rolls: pressing someone for what they're hiding is ruled yes, no, or a roll at DC 12/15/18 ([research](docs/research/dc-guidance.md)). |
 | `v2-comic`, `v2-comic-bill` | Absurdity experiment conditions: the comic style without and with the consequence flag. |
