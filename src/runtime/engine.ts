@@ -5,7 +5,7 @@ import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { approachById } from "./approaches.ts";
 import { currentBeat, effectiveScene, presentCast, sceneEntries } from "./brief.ts";
-import { decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, relocateDirective, STALL_DIRECTIVE, type Move } from "./director.ts";
+import { decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, relocateDirective, STALL_DIRECTIVE, type Move } from "./director.ts";
 import { describeRoll } from "./dice.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
@@ -183,7 +183,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   const quickEarly = approach.repair === "quick-block" && approach.voice === "gm" && !state.closing
     ? quickRepair(authored, state, approach.repairEffort ? { effort: approach.repairEffort } : {}).catch(() => undefined)
     : undefined;
-  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off", relocate: approach.deciderRelocation === true });
+  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off", relocate: approach.deciderRelocation === true, pressure: approach.pressureRolls === true });
   if (pre.offGraph) state.offGraphTurn = state.turn;
   // A failed roll stands: don't have something else hand over what the dice just withheld.
   if (pre.move?.roll && !pre.move.roll.success && pre.relocate) delete pre.relocate;
@@ -218,6 +218,11 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (state.endingLead && !pre.move && !state.closing) {
     const exit = scene.exits.find(e => e.id === state.endingLead!.exitId);
     if (exit) directive.push(`The scene may be reaching its end (${exit.title}). Stay at the threshold: don't narrate journeys or arrivals somewhere else; if the player is leaving or the matter is settled, let it close here.`);
+  }
+  if (pre.pressure && !pre.ooc && !pre.move) {
+    push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.pressure.roll, pressureReason(scene, pre.pressure)) });
+    state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `pressure:${pre.pressure.target}`, source: "pre", roll: pre.pressure.roll });
+    directive.push(pressureDirective(scene, pre.pressure));
   }
   if (pre.relocate?.length && !pre.ooc) {
     for (const r of pre.relocate) directive.push(relocateDirective(scene, r));

@@ -85,7 +85,12 @@ function resolve(scene: Scene, state: SessionState, transition: Transition, phas
   return { transition, phase, to, chosen, ...(roll ? { roll } : {}), ...(exit ? { exit } : {}) };
 }
 
+/** The player pressing someone for what they're hiding: rolled, so secrets are earned. */
+export interface PressureCheck { target: string; skill: Skill; dc: number; value: string; approach: string; roll: RollResult }
+
 export interface PreDecision {
+  /** A pressure roll for a character's secret. */
+  pressure?: PressureCheck;
   /** Essentials to bring to the player now, and through whom (decider relocation). */
   relocate?: Array<{ essential: string; carrier: string }>;
   /** The player is pursuing a way through the scene that none of its routes covers. */
@@ -132,7 +137,7 @@ async function freeformCheck(decider: Decider, scene: Scene, state: SessionState
 }
 
 /** Before the reply: is the player attempting a transition, or should a pacing cue fire? Plus who speaks first. */
-export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean; freeform?: boolean; offGraph?: boolean; relocate?: boolean }): Promise<PreDecision> {
+export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean; freeform?: boolean; offGraph?: boolean; relocate?: boolean; pressure?: boolean }): Promise<PreDecision> {
   const attempts = transitionsFor(scene, state, "attempt");
   const cues = transitionsFor(scene, state, "cue");
   // Outcomes that need no roll are shown as alternatives, so the decider can see that a kind
@@ -176,6 +181,28 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
         not_now: "Not now.",
       },
     };
+  }
+  // Pressure: is the player pressing someone for what they're keeping to themselves?
+  const keepers = options.pressure ? presentCast(scene, state).filter(c => c.secrets?.length) : [];
+  if (keepers.length) {
+    questions.pressure = {
+      instructions: "Is the player, in their latest turn, pressing someone to give up something they're keeping to themselves (a secret, a hidden reason, something they've refused or dodged), by persuading, threatening, tricking or reading them? Ordinary questions someone would happily answer don't count.",
+      criteria: { ...Object.fromEntries(keepers.map(c => [c.id, `Pressing ${c.name} for what they're hiding`])), none: "No: nobody is being pressed for something they're keeping back." },
+    };
+    questions.pressure_means = {
+      instructions: "If the player is pressing someone for what they're hiding, how?",
+      criteria: { persuasion: "An honest appeal, an argument, a bargain or reassurance.", intimidation: "Threats or a show of force.", deception: "A lie, a bluff or a trick.", insight: "Reading them: watching for tells, catching them out." },
+    };
+    questions.pressure_approach = {
+      instructions: "How strong is the player's approach in their latest turn, judged as a tabletop GM would: do they have real leverage, a good argument, an appeal that fits this person's wants and fears, or excellent in-character play?",
+      criteria: { weak: "Weak: no leverage, a bare demand, or it ignores what this person wants and fears.", plausible: "Plausible: a reasonable attempt with some grip.", strong: "Strong: real leverage or an appeal aimed squarely at what this person wants or fears.", excellent: "Excellent: compelling leverage and great in-character play that would sway a real person." },
+    };
+    for (const c of keepers) {
+      questions[`secret_value_${c.id}`] = {
+        instructions: `How much does ${c.name} stand to lose by giving up what they're hiding (${c.secrets!.join(" ")})?`,
+        criteria: { trivial: "Little: embarrassment at most.", guarded: "Something real: their standing, a friend, a deal.", dangerous: "A lot: their safety, livelihood or someone they protect.", ruinous: "Everything: their life or what they care about most." },
+      };
+    }
   }
   questions.ooc = {
     instructions: "Is the player's latest turn spoken out of character, to the GM rather than in the story (e.g. asking what their options are, how something works in the game, or what they know)?",
@@ -228,6 +255,16 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     combined = { ...decision, answers: { ...decision.answers, ...extra.decision.answers }, latencyMs: decision.latencyMs + extra.decision.latencyMs, costUsd: decision.costUsd + extra.decision.costUsd };
   }
   const ooc = decision.answers.ooc?.choice === "out_of_character";
+  let pressure: PressureCheck | undefined;
+  const pressed = decision.answers.pressure?.choice;
+  if (pressed && pressed !== "none" && (decision.answers.pressure?.probabilities?.[pressed] ?? 1) >= SCENE_ENDING_CONFIDENCE && !move) {
+    const skill = (decision.answers.pressure_means?.choice ?? "persuasion") as Skill;
+    const value = decision.answers[`secret_value_${pressed}`]?.choice ?? "guarded";
+    const approach = decision.answers.pressure_approach?.choice ?? "plausible";
+    const dc = pressureDc(value, approach);
+    const random = rng(state.seed + 7919 * ++state.rollCount);
+    pressure = { target: pressed, skill, dc, value, approach, roll: rollCheck(random, skill, dc, state.player.modifiers[skill] ?? 0) };
+  }
   // One at a time: several essentials in one reply reads as an info dump.
   const relocate = missing.map(e => ({ e, a: decision.answers[`relocate_${e.id}`] }))
     .filter(({ a }) => a && a.choice !== "not_now" && (a.probabilities?.[a.choice] ?? 1) >= SCENE_ENDING_CONFIDENCE)
@@ -243,13 +280,41 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   return {
     ...(move ? { move } : {}), ...(decision.answers.speaker ? { speaker: decision.answers.speaker.choice } : {}), decision: combined,
     ...(plain ? { plain } : {}), ...(plainTransition ? { plainTransition } : {}), ...(freeform ? { freeform } : {}), ...(limit ? { limit } : {}), ...(ooc ? { ooc } : {}),
-    ...(offGraph ? { offGraph } : {}), ...(relocate.length ? { relocate } : {}),
+    ...(offGraph ? { offGraph } : {}), ...(relocate.length ? { relocate } : {}), ...(pressure ? { pressure } : {}),
   };
 }
 
 /** Say yes: no roll needed, so what the player is doing simply works. */
 export function plainDirective(t: Transition): string {
   return `No dice needed: what the player is doing simply works (${t.when.replace(/\.$/, "")}). Let it land in this reply, in a way that fits the people involved.`;
+}
+
+/**
+ * DC for prising a secret loose: what it would cost them to give it up, eased by how good the
+ * player's approach is. Placeholder numbers pending docs/research/dc-guidance.md.
+ */
+export function pressureDc(value: string, approach: string): number {
+  const base: Record<string, number> = { trivial: 8, guarded: 12, dangerous: 15, ruinous: 18 };
+  const ease: Record<string, number> = { weak: 2, plausible: 0, strong: -3, excellent: -5 };
+  return Math.max(5, Math.min(22, (base[value] ?? 12) + (ease[approach] ?? 0)));
+}
+
+const PRESSURE_REASON: Record<string, (name: string) => string> = {
+  persuasion: n => `to talk ${n} into telling you what they're holding back`,
+  intimidation: n => `to frighten ${n} into talking`,
+  deception: n => `to trick ${n} into letting it slip`,
+  insight: n => `to read what ${n} isn't saying`,
+};
+export function pressureReason(scene: Scene, p: PressureCheck): string {
+  const name = scene.cast.find(c => c.id === p.target)?.name ?? p.target;
+  return (PRESSURE_REASON[p.skill] ?? PRESSURE_REASON.persuasion!)(name);
+}
+export function pressureDirective(scene: Scene, p: PressureCheck): string {
+  const c = scene.cast.find(x => x.id === p.target);
+  const name = c?.name ?? p.target;
+  return p.roll.success
+    ? `The player pressed ${name} for what they're hiding, and the dice favour them (${describeRoll(p.roll)}). ${name} gives up some or all of it now, in their own way and voice: ${c?.secrets?.join(" ") ?? ""}`
+    : `The player pressed ${name} for what they're hiding, and the dice go against them (${describeRoll(p.roll)}). ${name} holds firm this time and it costs the player something (suspicion, a cooler welcome, a door closing for now), but not forever: show what might work instead. Don't reveal the secret.`;
 }
 
 export function relocateDirective(scene: Scene, item: { essential: string; carrier: string }): string {

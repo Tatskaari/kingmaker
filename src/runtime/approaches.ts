@@ -31,6 +31,8 @@ export interface Approach {
   repairKind?: "full" | "quick";
   /** Stall mode: how long the follow-up waits for the co-GM before going ahead without it. */
   repairDeadlineMs?: number;
+  /** When the player presses a character for a secret, roll for it (DC from the secret's value and the approach). */
+  pressureRolls?: boolean;
   /** Start the GM reply alongside the decision; keep it if the decision changes nothing. */
   speculative?: boolean;
   /** Relocate missed essentials through the per-turn decider (no co-GM, no added latency). */
@@ -47,6 +49,7 @@ export const APPROACHES: Record<string, Approach> = {
   // off the graph, wait up to 3 s for the quick co-GM (routes with rolls, relocations), then one reply;
   // the full co-GM reviews in the background between turns.
   v2: { id: "v2", description: "Recommended: GM voice, speculative replies, quick co-GM on off-graph turns (3 s), background co-GM.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true },
+  "v2-pressure": { id: "v2-pressure", description: "v2 plus pressure rolls: pressing someone for a secret is rolled, DC from the secret's value and the player's approach.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, pressureRolls: true },
   "gm-rigid": { id: "gm-rigid", description: "Baseline: single GM voice without the scene's essentials and without a co-GM.", voice: "gm", decider: "luna-decisions", repair: "off", hideEssentials: true },
   gm: { id: "gm", description: "Single GM voice; Luna decision mode tracks beats, rolls and exits.", voice: "gm", decider: "luna-decisions", repair: "off" },
   "gm-jev": { id: "gm-jev", description: "Single GM voice; Jev tracks beats, rolls and exits.", voice: "gm", decider: "jev", repair: "off" },
