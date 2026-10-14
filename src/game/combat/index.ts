@@ -49,7 +49,7 @@
 export { engineReady, resumeCombat, startCombat, summarise, type CombatController, type SavedCombat } from "./controller.ts";
 export { heronEncounter, type HeronOptions } from "./heron.ts";
 export { HERON_LAYOUT, HERON_MAP_ID, heronMap } from "./heron-grid.ts";
-export { arenaMap, encounterFor, show as showLine, tacticalFights, type TacticalOptions } from "./fights.ts";
+export { arenaMap, encounterFor, show as showLine, tacticalFights, TacticalFight, type Field, type TacticalFights, type TacticalOptions } from "./fights.ts";
 export { gridStyled, gridText, KEY, legend, type GridOptions } from "./render.ts";
 export { pregenSession, PREGENS } from "./pregen.ts";
 export { STATBLOCKS, wellFormed, type CombatStatblock } from "./rules.ts";

@@ -339,8 +339,9 @@ export function look(state: ExploreState, world?: SceneWorld): string {
   const things = near.filter(n => n.actor!.kind === "object" || n.actor!.kind === "item").filter(n => !(n.actor!.states ?? []).includes("overhead"));
   if (people.length) lines.push(`About: ${people.map(n => `${n.actor!.name} (${where(n)})`).join(", ")}.`);
   if (things.length) lines.push(`Here: ${dedupe(things.map(n => `${n.actor!.name}${state_(n.actor!)} (${where(n)})`)).join(", ")}.`);
-  const exits = map.exits.filter(e => steps(e.at, state.at) <= 3);
-  if (exits.length) lines.push(`${dedupe(exits.map(e => `${e.label} (${where({ distance: steps(e.at, state.at), direction: direction(state.at, e.at) })})`)).join("; ")}.`);
+  // A way out that's several tiles wide (the stairs, the wharf) is one way: its nearest tile.
+  const exits = [...map.exits].filter(e => steps(e.at, state.at) <= 3).sort((a, b) => steps(a.at, state.at) - steps(b.at, state.at)).filter((e, i, all) => all.findIndex(o => o.label === e.label) === i);
+  if (exits.length) lines.push(`${exits.map(e => `${e.label} (${where({ distance: steps(e.at, state.at), direction: direction(state.at, e.at) })})`).join("; ")}.`);
   const lead = leadMarker(state.story, state.map);
   if (lead) {
     const d = steps(lead.at, state.at);
