@@ -4,7 +4,7 @@ import assert from "node:assert/strict";
 import { buildWorld } from "../../../world/scene-world.ts";
 import type { StoryState, Tile2 } from "../../types.ts";
 import { enterScene, leaveScene, newExploration, renderExplore, sceneStart, regionForScene, getMap, actorsFromWorld, feetToTile, toPlain, isStructure } from "../index.ts";
-import { raiseFor } from "../looks.ts";
+import { liftOf } from "./camera.ts";
 import { compilePlan } from "./compile.ts";
 import { MUDDLED, MUDDLED_FIXED, TAVERN, WAREHOUSE } from "./fixtures.ts";
 import { generatePlace } from "./generate.ts";
@@ -97,7 +97,7 @@ test("one actor to a screen cell: nothing hung up is drawn over anyone, and crow
     const actors = actorsFromWorld(place.region, world, { map: place.map }).filter(a => !place.site.doors.some(d => d.id === a.ref));
     const cells = new Map<string, string>();
     for (const a of actors) {
-      const k = `${a.at.x + a.at.y},${a.at.y - a.at.x - raiseFor(a.name, a.states)}`;
+      const k = `${a.at.x + a.at.y},${a.at.y - a.at.x - liftOf(a)}`;
       assert.ok(!cells.has(k), `${a.name} and ${cells.get(k)} share a cell`);
       cells.set(k, a.name);
     }

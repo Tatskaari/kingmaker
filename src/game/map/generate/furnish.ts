@@ -1,6 +1,7 @@
 import type { Tile2 } from "../../types.ts";
 import type { Entity } from "../../../world/scene-world.ts";
-import { isCrowd, raiseFor } from "../looks.ts";
+import { isCrowd } from "../looks.ts";
+import { liftOf as drawnLift } from "./camera.ts";
 import { tile, type MapTile } from "../tiles.ts";
 import { TERRAIN_NAMES, type Problem } from "./normalize.ts";
 import { dir } from "./orient.ts";
@@ -70,7 +71,7 @@ export const isTerrainThing = (t: Pick<ThingPlan, "kind" | "size" | "name" | "ma
   t.kind === "feature" && (t.size === "huge" || t.size === "gargantuan") && (TERRAIN_NAMES.test(t.name) || t.material === "liquid");
 
 /** How far up the screen a thing is drawn (hanging, overhead), as the renderer will draw it. */
-export const liftOf = (name: string, states: string[]) => raiseFor(name, states);
+export const liftOf = (name: string, states: string[], kind: "object" | "item" = "object") => drawnLift({ id: name, name, kind, states, ref: name });
 
 export function furnish(site: Site, plan: PlacePlan): Furnished {
   const problems: Problem[] = [];
@@ -307,8 +308,9 @@ export function furnish(site: Site, plan: PlacePlan): Furnished {
       if (things.has(t.target) || people.has(t.target) || plan.things.some(x => x.id === t.target) || plan.people.some(p => p.id === t.target)) return { id: t.id, name: t.name, area: area.id, tiles: [], heldBy: t.target };
     }
     const aloft = t.relation === "overhead";
-    const states = aloft && liftOf(t.name, t.states) < 2 ? [...t.states, "hanging"] : t.states;
-    const lift = liftOf(t.name, states);
+    const as = t.kind === "item" ? "item" as const : "object" as const;
+    const states = aloft && liftOf(t.name, t.states, as) < 2 ? [...t.states, "hanging"] : t.states;
+    const lift = liftOf(t.name, states, as);
     // The map draws huge things over three squares (a gargantuan stack is drawn as a huge one);
     // what hangs overhead, or is a long fixture, isn't spread.
     const huge = (t.size === "huge" || t.size === "gargantuan") && !aloft && t.tiles < 2 && t.kind !== "item" && t.kind !== "crowd" && t.kind !== "creature";

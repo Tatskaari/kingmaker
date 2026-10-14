@@ -1,15 +1,13 @@
 import { buildWorld } from "../../../world/scene-world.ts";
-import type { MapActor, Tile2, TileMap } from "../../types.ts";
-import { raiseFor } from "../looks.ts";
+import type { MapActor, Tile2 } from "../../types.ts";
 import { actorsFromWorld, feetToTile } from "../reconcile.ts";
-import { render, screenOf } from "../render.ts";
+import { liftOf, sceneCamera } from "./camera.ts";
 import type { CompiledPlace } from "./compile.ts";
 import { isStructureTile, isWallish, type Placement } from "./furnish.ts";
 import { DIR, add, tkey } from "./layout.ts";
 import type { Problem } from "./normalize.ts";
 import { dir, sayBack } from "./orient.ts";
 import { SIDES, type Side, type ThingPlan } from "./plan.ts";
-import { fitView } from "./pictures.ts";
 
 /**
  * Checking a compiled place the way the game will use it: its world is built and drawn onto the
@@ -23,7 +21,7 @@ import { fitView } from "./pictures.ts";
  *   relation  the plan's relations hold (against its wall, in its corner, near what it's near...)
  *   hidden    nothing that matters is out of sight: in each room's own view (the scene view with
  *             the player in that room) and in the scene's opening view, every thing and person
- *             is drawn where it stands
+ *             changes the picture when it's taken away (camera.ts: the renderer is the judge)
  *   world     the world's feet land on the squares the things were put on
  *
  * Messages are written for the model to act on, in its own compass.
@@ -50,7 +48,7 @@ export function validate(place: CompiledPlace): Problem[] {
     return furnished.things.get(id) ?? furnished.people.get(id);
   };
   const isDoorThing = (a: MapActor) => site.doors.some(d => d.id === a.ref);
-  const aloft = (a: MapActor) => !!placement(a)?.aloft || (a.states ?? []).some(s => s === "hanging" || s === "overhead") || raiseFor(a.name, a.states) >= 3;
+  const aloft = (a: MapActor) => !!placement(a)?.aloft || (a.states ?? []).some(s => s === "hanging" || s === "overhead") || liftOf(a) >= 3;
 
   // world: the feet in the world come back to the squares things were put on.
   for (const spec of place.world.things) {
@@ -122,7 +120,7 @@ export function validate(place: CompiledPlace): Problem[] {
   const cells = new Map<string, MapActor[]>();
   for (const a of actors) {
     if (isDoorThing(a) || (a.states ?? []).includes("overhead")) continue;
-    const k = `${a.at.x + a.at.y},${a.at.y - a.at.x - raiseFor(a.name, a.states)}`;
+    const k = `${a.at.x + a.at.y},${a.at.y - a.at.x - liftOf(a)}`;
     cells.set(k, [...(cells.get(k) ?? []), a]);
   }
   for (const here of cells.values()) {
@@ -245,7 +243,7 @@ export function validate(place: CompiledPlace): Problem[] {
   }
 
   // hidden: drawn where it stands, in its room's own view and in the scene's opening view.
-  const { seen } = sceneCamera(map, actors);
+  const cam = sceneCamera(map, actors);
   const top = (a: MapActor) => {
     const here = (byTile.get(tkey(a.at)) ?? []).filter(b => aloft(b) === aloft(a));
     const rank = (b: MapActor) => (b.kind === "player" ? 3 : b.kind === "person" || b.kind === "creature" ? 2 : b.kind === "object" ? 0 : 1);
@@ -256,12 +254,23 @@ export function validate(place: CompiledPlace): Problem[] {
     const m = centreOf(a.tiles);
     return [...a.tiles].filter(p => reached.has(tkey(p))).sort((p, q) => Math.hypot(p.x - m.x, p.y - m.y) - Math.hypot(q.x - m.x, q.y - m.y))[0] ?? a.tiles[0]!;
   };
-  for (const a of actors) {
-    if (isDoorThing(a) || a.id.includes("#") || (a.states ?? []).includes("overhead") || !top(a)) continue;
+  // Who's looked for in which view: each in its own area's, people also in the opening view; one
+  // batch of renders per view.
+  const looked = actors.filter(a => !isDoorThing(a) && !a.id.includes("#") && !(a.states ?? []).includes("overhead") && top(a));
+  const areaOfActor = (a: MapActor) => placement(a)?.area ?? areaAt(a.at);
+  const byFocus = new Map<string, { focus: Tile2; who: MapActor[] }>();
+  const want = (focus: Tile2, a: MapActor) => { const k = tkey(focus); if (!byFocus.has(k)) byFocus.set(k, { focus, who: [] }); byFocus.get(k)!.who.push(a); };
+  for (const a of looked) {
+    const area = areaOfActor(a);
+    if (area && site.areas.has(area)) want(focusOf(area), a);
+    if (a.kind === "person" || a.kind === "creature" || a.kind === "player") want(furnished.start, a);
+  }
+  for (const { focus, who } of byFocus.values()) cam.check(focus, who);
+  for (const a of looked) {
     const p = placement(a);
-    const area = p?.area ?? areaAt(a.at);
-    const inItsRoom = area && site.areas.has(area) ? seen(a, focusOf(area)) : true;
-    const atStart = a.kind === "person" || a.kind === "creature" || a.kind === "player" ? seen(a, furnished.start) : true;
+    const area = areaOfActor(a);
+    const inItsRoom = area && site.areas.has(area) ? cam.seen(a, focusOf(area)) : true;
+    const atStart = a.kind === "person" || a.kind === "creature" || a.kind === "player" ? cam.seen(a, furnished.start) : true;
     if (!inItsRoom || !atStart) {
       const id = (a.ref ?? a.id).split("#")[0]!;
       const by = blocker(a);
@@ -291,37 +300,7 @@ export function validate(place: CompiledPlace): Problem[] {
   return [...unique.values()];
 }
 
-/**
- * The default camera on a map: render.ts's scene view (roofs off, the rooms people are in opened
- * up, as renderExplore draws a scene), focused on a square (its room opens too), and whether an
- * actor is drawn where it stands, its glyph on its own cell.
- */
-export function sceneCamera(map: TileMap, actors: MapActor[]) {
-  const { camera, viewport } = fitView(map);
-  const reveal = actors.filter(a => a.kind === "person" || a.kind === "creature").map(a => a.at);
-  const screens = new Map<string, string[][]>();
-  const view = (focus: Tile2) => {
-    const k = tkey(focus);
-    let cells = screens.get(k);
-    if (!cells) {
-      const lines = render(map, actors, camera, viewport, { time: "afternoon", roofs: false, focus, ...(reveal.length ? { reveal } : {}), color: false });
-      cells = lines.map(line => [...line.map(s => s.text).join("")]);
-      screens.set(k, cells);
-    }
-    return cells;
-  };
-  const seen = (a: MapActor, focus: Tile2) => {
-    const s = screenOf(a.at, camera, viewport);
-    const t = map.tiles[a.at.y]?.[a.at.x];
-    const glyph = a.kind === "player" ? "@" : a.glyph;
-    const lift = raiseFor(a.name, a.states);
-    // Someone on a wall top (Moll on the yard wall) is drawn standing on it, unless it's cut down.
-    const standing = t && isStructureTile(t) && t.blocks ? t.height ?? 0 : 0;
-    const cells = view(focus);
-    return [s.y - lift, s.y - lift - standing].some(row => cells[row]?.[s.x] === glyph);
-  };
-  return { view, seen };
-}
+export { sceneCamera } from "./camera.ts";
 
 /** A thing's relation in words, by names. */
 export function sayRelation(t: ThingPlan, nameOf: (id: string) => string): string {
