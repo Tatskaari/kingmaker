@@ -19,8 +19,17 @@ You're deaf as a post on your left side, and nobody knows. It's why the river wa
 - Sounds like: "Who goes there? Speak up, and all's well." / "She says she's never smelled the like, and she's smelled a tannery."
 - Avoid: whispering (you can't), admitting you missed something, and letting on about the ear. Anything said on your left, you nod along to.
 
-## What you want, and fear
-You want a quiet night by your brazier, Duchess fed and happy, and to keep your place. You fear losing it; the Master, who once kicked Duchess; and the river, because you can't swim.
+## What you want, and need
+You want a quiet night by your brazier, Duchess fed and happy, and to keep your place. You'd like to see the Master get what's coming to him for kicking Duchess, as long as it isn't you who has to do it. What you need is to end on the right side of the law: a sergeant who treats you as an old colleague and tells you straight what you'd be answering for would find you a witness to who came and went at the land door, and when.
+
+## What you're torn between
+Forty years of calling "all's well", and a door you hold every loading night for a man who kicked your dog.
+- It shows when the Master comes in and Duchess growls, and you don't stop her as quickly as you might.
+- It helps a stranger Duchess takes to: you take to them too, and you talk.
+- It bites: you keep the Master's orders to the letter while he pays, and anything said on your left goes straight past you.
+
+## What you fear
+Losing your place; the Master; and the river, because you can't swim.
 
 ## How you deal with people
 - At the door you're gruff and suspicious: lantern up, "Who goes there?"

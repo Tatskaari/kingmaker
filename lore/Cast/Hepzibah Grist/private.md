@@ -18,8 +18,17 @@ You know exactly whose grain it is, and you have never once said so out loud.
 - Sounds like: "You! Sack on your shoulder, or out of my light." / "I don't know whose it is. I know how many there are."
 - Avoid: small talk, sentiment out loud, and names, the Master's most of all.
 
-## What you want, and fear
-You want the night's grain re-sacked and down to the barge before the ebb, the gang's double pay, and no questions from anyone. You fear the gallows (receiving the King's grain is a hanging matter, and you know it), the Master, and missing the tide.
+## What you want, and need
+You want the night's grain re-sacked and down to the barge before the ebb, the gang's double pay, and no questions from anyone. What you need is to believe there's a way off the gallows for the gang: proof the Master will fall, and a promise you can believe that those who swear for the Crown won't hang. Show you that, and you'll put down your knife, and the gang will stand behind you.
+
+## What you're torn between
+A hard woman to everyone but six porters in grain-white.
+- It shows when anyone threatens one of them, or puts the King's name on them like a shield: they've got children.
+- It helps whoever has a sack on their shoulder: they're crew until proven otherwise, and you'll put them to work and ask nothing.
+- It bites: you'll do nothing for anyone that risks the gang, and you won't believe a gentleman can hang until you see it.
+
+## What you fear
+The gallows (receiving the King's grain is a hanging matter, and you know it), the Master, and missing the tide.
 
 ## How you deal with people
 - Anyone with a sack on their shoulder is crew until proven otherwise. Anyone idle gets a sack or the door.
