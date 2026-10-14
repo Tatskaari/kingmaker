@@ -40,6 +40,7 @@ export function decide(s: Skirmish, u: Unit, memo: Memo, style?: PlayerStyle): S
     case "villain": return villain(s, u, memo);
     case "coward": return coward(s, u, memo);
     case "bystander": return { kind: "end" };
+    case "archer": return archer(s, u, memo);
     default: return bruiser(s, u, memo);
   }
 }
@@ -206,6 +207,23 @@ function villain(s: Skirmish, u: Unit, memo: Memo): Step {
   // Somebody could get at him next turn: he keeps moving (Dodge). Otherwise he consults his watch.
   const reachable = foes(s, u).some(f => steps(f.at, u.at) <= f.speed / FEET + 1);
   if (reachable && s.actionLeft(u)) return { kind: "dodge" };
+  return { kind: "end" };
+}
+
+/** Keeps its distance and shoots; up close, it fights with what it has. */
+function archer(s: Skirmish, u: Unit, memo: Memo): Step {
+  const bow = rangedWeapon(s, u);
+  if (!bow || adjacentFoes(s, u).length) return closeAndHit(s, u, memo);
+  if (canAttack(s, u)) {
+    const t = pickTarget(s, u, foes(s, u).filter(v => !s.attackCheck(u, v, bow).error));
+    if (t) return { kind: "attack", target: t.id, weapon: bow };
+  }
+  // No shot from here: find one, not too close.
+  const goal = foes(s, u).sort((a, b) => steps(u.at, a.at) - steps(u.at, b.at))[0];
+  if (goal && memo.moves < 1 && s.movementLeft(u) >= FEET) {
+    const to = walk(s, u, t => steps(t, goal.at) >= 3 && clearShot(s.G.map, t, goal.at) && feetBetween(t, goal.at) <= Number(s.t.item(bow)?.["rangeNormal"] ?? 60), goal.at);
+    if (to) { memo.moves++; return { kind: "move", to }; }
+  }
   return { kind: "end" };
 }
 

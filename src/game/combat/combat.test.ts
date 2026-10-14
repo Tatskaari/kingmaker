@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { join } from "node:path";
 import { describe, it } from "node:test";
 import { dnd, statusLine } from "../../rules/dnd.ts";
 import type { SessionState } from "../../runtime/session.ts";
@@ -237,6 +238,20 @@ describe("a fight", () => {
       return combat.state().log.map(l => l.text).join("\n");
     };
     assert.equal(await run(), await run());
+  });
+});
+
+describe("any other scene's fight", () => {
+  it("plays in a plain room with the scene's leader and their people (the crossroads goblins)", async () => {
+    const { forceEnding } = await import("../../runtime/engine.ts");
+    const session = await pregenSession({ pregen: "fighter", seed: 12, sceneId: "crossroads-ambush" });
+    process.env.KM_RUNS_DIR ??= join("runs", "test-combat"); // forceEnding saves the session (runs/ is gitignored)
+    forceEnding(session, "fight");
+    const game: GameState = { version: 1, id: "t", mode: "combat", story: { time: "afternoon", played: [], flags: {} }, explore: {}, recent: [] };
+    const fight = await tacticalFights().start(game, session);
+    assert.match(fight.observe(), /goblin/i);
+    for (let i = 0; i < 60 && !fight.result(); i++) await fight.act("auto");
+    assert.ok(fight.result(), "the goblin fight should end");
   });
 });
 

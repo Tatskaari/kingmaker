@@ -94,7 +94,7 @@ class TacticalFight implements Fight {
     const o = this.combat.options();
     const pc = G.units[G.pc]!;
     const out: Action[] = [];
-    const named = (id: string) => G.units[id]?.name ?? G.props[id]?.name ?? id;
+    const named = (id: string) => G.units[id]?.name ?? (G.props[id] ? `the ${G.props[id]!.name}` : id);
     const seen = new Set<string>();
     for (const a of o.attacks) {
       if (seen.has(a.target)) continue;
@@ -145,7 +145,8 @@ class TacticalFight implements Fight {
       if (action.kind !== "end" && this.combat.playerTurn() && o.actionUsed && o.movementLeft < FEET) lines.push(...this.combat.act({ kind: "end" }).lines);
     }
     if (!this.combat.over() && !this.combat.playerTurn()) lines.push(...this.combat.advance());
-    if (this.combat.over()) lines.push({ round: 0, kind: "system", text: this.combat.result().summary });
+    // Over: result() writes the story back (the play loop shows its summary as "The fight: ...").
+    if (this.combat.over()) this.combat.result();
     return lines.map(show).join("\n");
   }
 
@@ -234,6 +235,16 @@ export function arenaMap(name: string): TileMap {
   };
 }
 
+/** World assets (src/world/assets.ts) as SRD statblocks, with what they fight with and how. */
+const ASSET_STATBLOCK: Record<string, { statblock: string; weapon?: string; role: string }> = {
+  "goblin-archer": { statblock: "goblin-warrior", weapon: "shortbow", role: "archer" },
+  "goblin-boss": { statblock: "goblin-boss", weapon: "scimitar", role: "bruiser" },
+  goblin: { statblock: "goblin-warrior", weapon: "scimitar", role: "brawler" },
+  wolf: { statblock: "wolf", role: "bruiser" },
+  bandit: { statblock: "bandit", role: "brawler" },
+  "town-guard": { statblock: "guard", role: "ally" },
+};
+
 function arenaEncounter(session: SessionState): CombatSetup {
   const scene = sceneById(session.sceneId);
   const op = session.ended?.operations.find(o => o.op === "startCombat")?.args as { enemies?: Array<{ asset?: string; count?: number; leader?: string }>; allies?: string[] } | undefined;
@@ -246,9 +257,13 @@ function arenaEncounter(session: SessionState): CombatSetup {
   }
   let row = 2;
   for (const e of op?.enemies ?? [{ count: 1 }]) {
+    const kind = ASSET_STATBLOCK[e.asset ?? ""] ?? { statblock: e.asset ?? "bandit", role: "brawler" };
     const leader = e.leader ? scene.cast.find(x => x.id === e.leader) : undefined;
-    if (leader) combatants.push({ id: leader.id, castId: leader.id, name: leader.name, side: "enemy", role: "bruiser", statblock: leader.statblock ?? "bandit", ...(leader.weapon ? { weapon: leader.weapon } : {}), at: { x: 4, y: 4 } });
-    for (let i = 0; i < Math.min(4, e.count ?? 0); i++) combatants.push({ id: `${e.asset ?? "foe"}-${i + 1}`, name: `${e.asset ?? "a ruffian"} ${i + 1}`, side: "enemy", role: "brawler", statblock: e.asset ?? "bandit", at: { x: 5, y: row++ % 7 + 1 } });
+    if (leader) combatants.push({ id: leader.id, castId: leader.id, name: leader.name, side: "enemy", role: "bruiser", statblock: leader.statblock ?? kind.statblock, ...(leader.weapon ?? kind.weapon ? { weapon: (leader.weapon ?? kind.weapon)! } : {}), at: { x: 4, y: 4 } });
+    // The leader counts among the number; the rest are their people.
+    const rest = Math.min(4, Math.max(0, (e.count ?? 0) - (leader ? 1 : 0)));
+    const label = (e.asset ?? "ruffian").replace(/-/g, " ");
+    for (let i = 0; i < rest; i++) combatants.push({ id: `${e.asset ?? "foe"}-${i + 1}`, name: `a ${label}${rest > 1 ? ` (${i + 1})` : ""}`, side: "enemy", role: kind.role, statblock: kind.statblock, ...(kind.weapon ? { weapon: kind.weapon } : {}), at: { x: kind.role === "archer" ? 2 : 5, y: row++ % 7 + 1 } });
   }
   return { map, combatants: combatants.filter(c => !solid(map, c.at)), sceneId: session.sceneId, seed: (session.seed + 7 * (session.rollCount + 1)) >>> 0 };
 }
