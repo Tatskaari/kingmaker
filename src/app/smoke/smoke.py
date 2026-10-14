@@ -61,13 +61,16 @@ def expect(app, pattern, what, timeout=30.0):
     return m
 
 
-def expect_gone(app, text, what, timeout=5.0):
+def gone(app, pattern, what, timeout=10.0):
+    """Pump until a regex no longer matches the screen."""
+    rx = re.compile(pattern, re.S | re.I)
     end = time.time() + timeout
-    while text in app.text() and time.time() < end:
+    while time.time() < end and rx.search(app.text()):
         app.pump(0.2)
     path = dump(app, re.sub(r"[^a-z0-9]+", "-", what.lower()).strip("-")[:40])
-    if text in app.text():
-        print(f"FAIL: {what} ({text!r} still on screen after {timeout}s; screen in {path})")
+    if rx.search(app.text()):
+        print(f"FAIL: {what} (/{pattern}/ still there after {timeout}s; screen in {path})")
+        print(app.text())
         app.close()
         sys.exit(1)
     print(f"ok: {what}")
@@ -115,6 +118,9 @@ def new_game(app, name, concept):
     app.type(concept)
     keys(app, "enter")
     expect(app, r"Character sheet.*AC \d+", "the rules engine made a sheet", timeout=90)
+    expect(app, r"1 Character.*2 Combat.*HP .*\d+/\d+.*STR.*DEX.*CON.*Saving throws", "the sheet: in pages, the numbers and the six abilities")
+    keys(app, "right")
+    expect(app, r"2 Combat.*Attacks.*Purse", "→ turns the sheet's page")
     keys(app, "enter")
     expect(app, r"The lead:.*Hanged Clerk", "exploring Caerwyn, the lead is the hanged clerk")
 
@@ -222,8 +228,13 @@ def offline():
     expect(app, r"How to play", "help overlay")
     keys(app, "esc")
     keys(app, "c")
-    expect(app, r"Character sheet.*Skills:", "sheet overlay")
+    expect(app, r"Character sheet.*Saving throws.*Skills", "sheet overlay")
+    keys(app, "2")
+    expect(app, r"Attacks.*Features", "the sheet overlay's second page")
+    click(app, "1 Character", "a click on the sheet's first tab")
+    expect(app, r"Character sheet.*Saving throws", "a click on a tab turns back to it")
     keys(app, "esc")
+    gone(app, r"Saving throws", "Esc puts the sheet away")
     # A step with the arrows: up the screen, then back.
     walk(app, "left right")
     # Then the mouse: a click to walk, a right-click for what to do; Kell's scene opens from hers (g opens the later ones).
@@ -277,7 +288,7 @@ def offline():
     click(app, "/journal", "click /journal at the bottom")
     expect(app, r"The investigator's notebook", "a click on /journal opens the notebook")
     app.click(1, 1)
-    expect_gone(app, "The investigator's notebook", "a click outside the notebook closes it")
+    gone(app, r"The investigator's notebook", "a click outside the notebook closes it", timeout=5)
     say(app, "/end hobb-talks")
     with_kell(app, r"The Heron\. Downriver end of the wharves", "Kell names the lead: the Heron (the wharf interlude skipped)")
     expect(app, r"Night", "night on the map")
@@ -289,6 +300,9 @@ def offline():
     expect(app, r"Initiative", "the fight starts on the Heron's own floor")
     keys(app, "m")
     expect(app, r"Your options", "the fight's options menu")
+    keys(app, "esc")
+    keys(app, "s")
+    expect(app, r"Character sheet.*HP .*\d+/\d+", "the sheet in a fight")
     keys(app, "esc")
     # Quit mid-fight and Continue: the fight carries on where it was.
     keys(app, "ctrl-c")

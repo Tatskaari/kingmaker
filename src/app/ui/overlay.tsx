@@ -5,6 +5,8 @@ import type { Game } from "../game.ts";
 import { C } from "../theme.ts";
 import { BOLD, Clickable, Keys, SCROLLBAR, useGame, type KeyHint } from "./common.tsx";
 import { Place } from "./place.tsx";
+import { sheetHeight } from "./sheet-layout.ts";
+import { SheetView } from "./sheet.tsx";
 
 const HELP: Record<string, string[]> = {
   explore: [
@@ -35,6 +37,7 @@ const HELP: Record<string, string[]> = {
 };
 
 const MENU = ["Back to the game", "Save and return to the title", "Save and quit"];
+const CLOSE = ["escape", "return", "space", "c", "s", "q"];
 
 export function Overlay({ game }: { game: Game }) {
   useGame(game);
@@ -43,6 +46,11 @@ export function Overlay({ game }: { game: Game }) {
   useKeyboard(key => {
     const o = game.overlay;
     if (!o || key.defaultPrevented) return;
+    // The sheet takes its own keys (pages, scrolling); these close it.
+    if (o.kind === "sheet") {
+      if (CLOSE.includes(key.name)) { key.preventDefault(); game.closeOverlay(); }
+      return;
+    }
     key.preventDefault();
     if (o.kind === "menu") {
       if (key.name === "up") o.index = (o.index + MENU.length - 1) % MENU.length;
@@ -69,8 +77,8 @@ export function Overlay({ game }: { game: Game }) {
       game.emit();
       return;
     }
-    // Sheet, help, journal, scene map: any of these keys closes them.
-    if (["escape", "return", "space", "c", "s", "q", "j"].includes(key.name) || key.sequence === "?") game.closeOverlay();
+    // Help, journal, scene map: any of these keys closes them.
+    if (CLOSE.includes(key.name) || key.name === "j" || key.sequence === "?") game.closeOverlay();
   });
   if (!o) return null;
   const w = Math.min(width - 4, 104);
@@ -86,8 +94,22 @@ export function Overlay({ game }: { game: Game }) {
     </box>
   </>;
   switch (o.kind) {
-    case "sheet":
-      return box("Character sheet", <scrollbox flexGrow={1} scrollX={false}><text fg={C.text} wrapMode="word">{o.text}</text></scrollbox>, [["Esc", "close"]]);
+    case "sheet": {
+      // As much of the screen as it can use (all of a small one), and no taller than the sheet.
+      const sw = width <= 100 ? width : Math.min(width - 4, 160);
+      const sh = game.session && !o.error ? sheetHeight(o.sheet, game.session.player, sw - 4, (height <= 30 ? height : Math.min(height - 2, 56)) - 2, { bar: true }) + 2 : Math.min(height, 8);
+      const close = () => game.closeOverlay();
+      return <>
+        {/* A click outside the sheet puts it away. */}
+        <box position="absolute" left={0} top={0} width={width} height={height} zIndex={99} onMouseDown={close} />
+        <box position="absolute" left={Math.floor((width - sw) / 2)} top={Math.floor((height - sh) / 2)} width={sw} height={sh} zIndex={100}
+          border borderStyle="double" borderColor={C.borderHot} title=" Character sheet " backgroundColor={C.panel} flexDirection="column" paddingX={1}>
+          {o.error || !game.session
+            ? <box flexDirection="column" flexGrow={1}><text fg={C.danger} wrapMode="word" flexGrow={1}>{o.error ?? "No character yet."}</text><Keys items={[["Esc", "close"]]} /></box>
+            : <SheetView data={o.sheet} who={game.session.player} width={sw - 4} height={sh - 2} active onClose={close} keys={[["Esc", "close", close]]} />}
+        </box>
+      </>;
+    }
     case "scene-map": {
       const world = game.shownWorld;
       return box(world ? world.entities[world.root]?.name ?? "The scene" : "The scene", world

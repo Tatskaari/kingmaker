@@ -4,6 +4,8 @@ import type { Game } from "../game.ts";
 import { DEFAULT_CONCEPT, DEFAULT_NAME, LEVEL } from "../story.ts";
 import { C } from "../theme.ts";
 import { BOLD, ITALIC, Keys, Spinner, useGame, wrap } from "./common.tsx";
+import { sheetHeight } from "./sheet-layout.ts";
+import { SheetView } from "./sheet.tsx";
 
 const ROLLING = [
   "Consulting the Standard Array…",
@@ -67,31 +69,34 @@ export function CreatingScreen({ game }: { game: Game }) {
   </box>;
 }
 
-/** The sheet the rules engine made, then on to the map. */
+/** The sheet the rules engine made (the portrait, the lot), then on to the map. */
 export function CreatedScreen({ game }: { game: Game }) {
   useGame(game);
   const { width, height } = useTerminalDimensions();
+  // Not who you meant (or the build fell back to the defaults): make them again.
+  const remake = () => { if (game.creating) void game.create(game.creating.name, game.creating.concept); };
   useKeyboard(key => {
     if (game.overlay || key.defaultPrevented || game.screen !== "created") return;
     if (key.name === "return" || key.name === "space") { key.preventDefault(); game.begin(); }
-    // Not who you meant (or the build fell back to the defaults): make them again.
-    else if (key.name === "r" && game.creating) { key.preventDefault(); void game.create(game.creating.name, game.creating.concept); }
+    else if (key.name === "r") { key.preventDefault(); remake(); }
   });
   const session = game.session;
-  const w = Math.min(width - 4, 110);
-  // Centred columns don't measure wrapped text reliably: wrap it here and size the boxes to fit.
-  const sheet = (game.sheet ?? "").split("\n").flatMap(l => wrap(l, w - 4));
-  const intro = wrap(game.messages.at(-1) ?? "", w);
-  const room = Math.max(4, height - intro.length - 9);
+  const w = Math.min(width - 2, 160);
+  // Where the story starts, over the sheet (the map's "What happens" has all of it). Centred columns
+  // don't measure wrapped text reliably: wrap it here and size the boxes to fit.
+  const said = wrap(game.messages.at(-1) ?? "", w - 2);
+  const most = height > 30 ? 5 : 3;
+  const intro = said.length > most ? [...said.slice(0, most - 1), `${said[most - 1]!.slice(0, w - 3)}…`] : said;
+  const who = session?.player ?? { name: game.creating?.name ?? "", concept: game.creating?.concept ?? "" };
+  const sheetH = sheetHeight(game.sheet, who, w - 4, Math.max(8, Math.min(height - intro.length - (height > 30 ? 2 : 0), 58)) - 2) + 2;
   return <box width={width} height={height} flexDirection="column" alignItems="center" justifyContent="center" backgroundColor={C.bg}>
-    <text fg={C.title} attributes={BOLD} flexShrink={0}>{`${session?.player.name ?? "You"}, ${session?.player.build ?? "adventurer"}`}</text>
-    <text fg={C.dim} attributes={ITALIC} flexShrink={0}>{wrap(session?.player.concept ?? "", w)[0] ?? ""}</text>
-    <box width={w} height={Math.min(room, sheet.length) + 2} marginTop={1} border borderColor={C.border} title=" Character sheet " paddingX={1} flexDirection="column" flexShrink={0}>
-      {sheet.slice(0, room).map((l, i) => <text key={i} fg={C.text} flexShrink={0}>{l}</text>)}
-    </box>
-    <box width={w} height={intro.length} marginTop={1} flexDirection="column" flexShrink={0}>
+    <box width={w} height={intro.length} flexDirection="column" flexShrink={0} paddingX={1} {...(height > 30 ? { marginBottom: 1 } : {})}>
       {intro.map((l, i) => <text key={i} fg={C.text} flexShrink={0}>{l}</text>)}
     </box>
-    <box height={1} marginTop={1} flexShrink={0}><Keys items={[["Enter", "set off"], ["r", "not who you meant? make them again"], ["c", "on the map shows this sheet again"]]} /></box>
+    <box width={w} height={sheetH} border borderColor={C.border} title=" Character sheet " titleAlignment="left" paddingX={1} flexDirection="column" flexShrink={0}>
+      {/* A new character (made again) starts on the first page. */}
+      <SheetView key={game.core?.state.id} data={game.sheet} who={who} width={w - 4} height={sheetH - 2}
+        active={!game.overlay && game.screen === "created"} keys={[["Enter", "Set off", () => game.begin()], ["r", "Make them again", remake]]} />
+    </box>
   </box>;
 }
