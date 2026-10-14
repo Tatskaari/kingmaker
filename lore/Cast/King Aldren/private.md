@@ -50,4 +50,5 @@ You won't make a scene in front of the delegations. You won't lie about Wendell.
 - [Wendell Prout](knowledge/Wendell%20Prout.md) — read when Prout, his tea, the grain accounts, his letter or how he died comes up
 - [Master Sallow](knowledge/Master%20Sallow.md) — read when Sallow, the Purveyor's office, the feast, the grain cart or the order of procession comes up
 - [Garran Holt](knowledge/Garran%20Holt.md) — read when the Marshal, an arrest, the palace guard or the time comes up
+- [Sergeant Kell](knowledge/Sergeant%20Kell.md) — read when the sergeant, the watch, her notebook or a sworn record comes up
 - [The Centennial Assembly](../../World/Centennial%20Assembly.md) — read when the Assembly, the delegations or the procession comes up

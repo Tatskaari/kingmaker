@@ -14,3 +14,4 @@ Scene cast id `king`. His private notes are his lore entry in every scene he's i
 - [Wendell Prout](knowledge/Wendell%20Prout.md) — his knowledge of Prout, and the letter
 - [Master Sallow](knowledge/Master%20Sallow.md) — his view of Sallow
 - [Garran Holt](knowledge/Garran%20Holt.md) — his view of his Marshal
+- [Sergeant Kell](knowledge/Sergeant%20Kell.md) — what he knows of the sergeant he lent to his investigator
