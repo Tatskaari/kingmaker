@@ -539,6 +539,12 @@ export function worldView(world: SceneWorld, options: { full?: boolean } = {}): 
   const lines = [`${world.entities[world.root]!.name}${here ? `: the player is in ${here.name}` : ""}.`];
   const carried = me ? Object.values(world.entities).filter(e => e.parent === "player" && present(e)) : [];
   if (carried.length) lines.push(`The player carries: ${carried.map(e => `${e.name} [${e.id}]`).join(", ")}.`);
+  // The player is listed nowhere else: their spot, states (hidden, prone...) and notes go here.
+  if (me && from) {
+    const by = Object.values(world.entities).filter(e => e.id !== "player" && e.at && present(e) && e.kind !== "area" && distance(e.at, from) <= 6).map(e => e.name).slice(0, 3);
+    const states = me.states.filter(s => s !== "gone");
+    if (by.length || states.length || me.notes.length) lines.push(`The player${by.length ? ` is by ${by.join(", ")}` : ""}${states.length ? ` (${states.join(", ")})` : ""}${me.notes.length ? `: ${me.notes.slice(-2).map(n => n.text).join("; ").replace(/\.$/, "")}` : ""}.`);
+  }
   for (const area of areas) {
     const inside = contents(area);
     const near = from && area.rect ? Math.round(Math.max(0, Math.hypot(Math.max(area.rect.x - from.x, 0, from.x - area.rect.x - area.rect.w), Math.max(area.rect.y - from.y, 0, from.y - area.rect.y - area.rect.h)))) : 0;
