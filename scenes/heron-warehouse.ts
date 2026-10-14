@@ -161,9 +161,9 @@ export const heronWarehouse: Scene = {
     {
       id: "sallow",
       name: "Master Josiah Sallow",
-      statblock: "tough", weapon: "club",
       group: "Master Sallow, his lantern-boy and the Crake brothers, two hired river-bruisers",
-      look: "Fifty, pink and well-fed, in a good dark coat with a fur collar, with a silver-topped cane, a wheat-ear signet ring (the Royal Purveyor's office's mark) and the soft hands of a man who signs things. He wears so much lavender water that you smell him a full minute before you see him. Behind him come a yawning lantern-boy and the Crakes: two enormous, identical river-bruisers, one of whom talks.",
+      statblock: "bandit-captain", weapon: "rapier",
+      look: "Fifty, pink and well-fed, in a good dark coat with a fur collar, with a silver-topped cane, a wheat-ear signet ring (the Royal Purveyor's office's mark) and the soft hands of a man who signs things, except that they're very quick. He wears so much lavender water that you smell him a full minute before you see him. Behind him come a yawning lantern-boy and the Crakes: two enormous, identical river-bruisers, one of whom talks.",
       voice: "Smooth, reasonable and faintly bored; talks like an official letter ('It has come to my attention', 'regrettably', 'in the King's interest'). Never raises his voice. Calls people by their trade ('Clerk', 'Porter', 'Sergeant'). The more frightened he is, the more polite he gets.",
       wants: "The barge loaded and away on the ebb, tonight's page initialled and his share in his purse, and the business of the clerk Prout closed for good, tidily, with no loose ends.",
       fears: "The King's attention. A scandal on the eve of the Assembly. The true book in the wrong hands. Being laughed at. Dogs.",
@@ -178,8 +178,9 @@ export const heronWarehouse: Scene = {
         "The racket: King's Road grain wagons that he writes off in the Granary Roll as 'lost to goblins' come here to be re-sacked under the Saltmere factor's heron and sold downriver. He pays the hedge-goblins in the factor's heron pennies to keep the goblin story true.",
         "The true book is the one thing that can hang him, and he lets it exist only because the factor won't deal without it. Cornered with it, he'd sooner put it in the brazier or the river than see it taken.",
         "If Hobb ran to him from the Rat, he knows the King's investigator and a watch sergeant are asking about the loft. Then he comes at the bell with Hobb at his heels, sharp and hurrying, has the Crakes look along the wharf, and wants the true book sewn into oilcloth and aboard the barge, out of Caerwyn's reach, before anything else.",
+        "The silver-topped cane is a sword-cane, and thirty years ago he was the best fencer of his year at the Purveyor's school. Nobody at the Heron has ever seen it drawn. Cornered with proof in front of witnesses he can't buy, he stops being polite: he draws it, and sets the Crakes on whoever is holding the proof.",
       ],
-      attitude: "Courteous, superior and unhurried, as if everyone were a junior clerk who has made an error. Faced with trouble he tries his office first (papers, titles, the Captain's name), then money (heron pennies, a post in the Purveyor's office), then the Crakes and the river. He never fights himself. Under the courtesy is a coward: proof in front of witnesses he can't buy or drown unmans him.",
+      attitude: "Courteous, superior and unhurried, as if everyone were a junior clerk who has made an error. Faced with trouble he tries his office first (papers, titles, the Captain's name), then money (heron pennies, a post in the Purveyor's office), then the Crakes and the river. Under the courtesy is a coward who fights like a cornered rat: exposed with proof he can't buy or drown, he draws the sword from his cane, and it comes to blades. Beaten, he surrenders at once, very politely.",
       enters: "midnight",
     },
   ],
@@ -352,6 +353,7 @@ export const heronWarehouse: Scene = {
           },
         },
         { id: "overpowered", when: "The player has been overpowered and thrown in the river, or shut up somewhere in the Heron, by the Crakes or the gang, and nobody has got them out.", to: "caught" },
+        { id: "cornered", on: "outcome", when: "Sallow, exposed with proof in front of witnesses he can't buy, has drawn the sword from his cane and set the Crakes on the player: blades are out and the fight has started.", to: "fight" },
         fight,
         { id: "cast-off", on: "cue", when: "The Master has been here a good while (at least six exchanges at this point), or the player is still hiding, waiting or dithering: the second bell, the last sacks go down, and the barge casts off on the ebb with the King's grain aboard.", to: "barge-sails" },
       ],
@@ -444,8 +446,8 @@ export const heronWarehouse: Scene = {
     {
       id: "fight", kind: "combat", title: "Roll for initiative",
       next: "kings-morning",
-      outcome: "A fight breaks out in the Heron between the player (and Kell, if she's with them) and the Master's Crakes, or Hep's gang, in the grain dust and the swinging lantern light.",
-      closing: "Close on the first blow, the dust, the lanterns swinging dangerously close to it, and anyone with any sense stepping smartly out of the way. End with 'Roll for initiative!'",
+      outcome: "A fight breaks out in the Heron between the player (and Kell, if she's with them) and Master Sallow with his sword-cane and the Crakes (or Hep's gang, if Sallow hasn't come yet), in the grain dust and the swinging lantern light.",
+      closing: "Close on the moment the blades come out: Sallow's cane sliding apart into a thin bright sword, the Crakes rolling their shoulders, the dust in the lantern light, the lanterns swinging dangerously close to it, and anyone with any sense stepping smartly out of the way. End with 'Roll for initiative!'",
       script: (world, outcome) => {
         world.startCombat({
           enemies: has(outcome.established, MASTER_HERE)
