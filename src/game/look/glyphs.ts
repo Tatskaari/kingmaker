@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { KINGMAKER_GLYPHS, type KingmakerGlyph } from "./kingmaker-glyphs.ts";
 
 /**
@@ -103,6 +106,9 @@ export function inSet(ascii: string, set: GlyphSet): string {
 /** True for a Nerd Font private-use icon (they may draw wider than a cell in non-Mono fonts). */
 export const isNerdIcon = (ch: string) => { const c = ch.codePointAt(0) ?? 0; return (c >= 0xe000 && c <= 0xf8ff) || (c >= 0xf0000 && c <= 0xfffff); };
 
+/** Is the Kingmaker Glyphs font installed for this user (where npm run glyphs puts it)? */
+export const kingmakerFontHere = () => existsSync(join(homedir(), ".local", "share", "fonts", "kingmaker", "KingmakerGlyphs-Regular.ttf"));
+
 let chosen: GlyphSet | undefined;
 /** The glyph set this process draws with (KM_GLYPHS, or the environment's best guess), decided once. */
 export const glyphSet = (): GlyphSet => (chosen ??= detectGlyphSet().set);
@@ -112,13 +118,15 @@ export const glyphSet = (): GlyphSet => (chosen ??= detectGlyphSet().set);
  * is configuration first (KM_GLYPHS=ascii|nerd|plain|kingmaker), then a guess from the environment:
  * seven-bit for dumb terminals and non-UTF-8 locales; "ascii" otherwise, with a note when the
  * terminal is known to bundle the Nerd Font symbols (kitty, WezTerm), so the player can opt in.
- * The kingmaker set is opt-in too: the font has to be installed where the terminal runs.
+ * The kingmaker set when its font is installed here (npm run glyphs) and the terminal is local:
+ * over SSH the terminal is somewhere else, and so are its fonts.
  */
-export function detectGlyphSet(env: Record<string, string | undefined> = process.env): { set: GlyphSet; reason: string; nerdLikely: boolean } {
+export function detectGlyphSet(env: Record<string, string | undefined> = process.env, sprites = env === process.env && kingmakerFontHere()): { set: GlyphSet; reason: string; nerdLikely: boolean } {
   const asked = env.KM_GLYPHS?.toLowerCase();
   const nerdLikely = !!env.KITTY_WINDOW_ID || env.TERM === "xterm-kitty" || env.TERM_PROGRAM === "WezTerm" || !!env.WEZTERM_EXECUTABLE;
   if (asked === "ascii" || asked === "nerd" || asked === "plain" || asked === "kingmaker") return { set: asked, reason: "KM_GLYPHS", nerdLikely };
   const locale = env.LC_ALL || env.LC_CTYPE || env.LANG || "";
   if (env.TERM === "dumb" || env.TERM === "linux" || (locale && !/utf-?8/i.test(locale))) return { set: "plain", reason: `no Unicode here (TERM=${env.TERM ?? ""}, locale ${locale || "unset"})`, nerdLikely: false };
+  if (sprites && !env.SSH_CONNECTION && !env.SSH_TTY) return { set: "kingmaker", reason: "Kingmaker Glyphs is installed (KM_GLYPHS=ascii for letters)", nerdLikely };
   return { set: "ascii", reason: nerdLikely ? "this terminal bundles Nerd Font symbols: KM_GLYPHS=nerd turns them on" : "the default (KM_GLYPHS=kingmaker with Kingmaker Glyphs installed for sprites, or nerd with a Nerd Font for icons)", nerdLikely };
 }
