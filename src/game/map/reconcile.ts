@@ -1,6 +1,6 @@
 import { heldBy, positionOf, type Entity, type Point, type SceneWorld } from "../../world/scene-world.ts";
 import type { MapActor, Region, StoryState, Tile2, TileMap } from "../types.ts";
-import { CAST, isCrowd, lookForEntity } from "./looks.ts";
+import { CAST, isCrowd, lookForEntity, raiseFor } from "./looks.ts";
 import { inBounds, isStructure, tileAt, type PlaceRegion } from "./tiles.ts";
 
 /**
@@ -106,8 +106,8 @@ export function actorsFromWorld(region: Region, world: SceneWorld, options: From
     }
     // Things: big ones take up room (and stand in the way), huge stacks spread over three tiles.
     const big = e.size === "large" || e.size === "huge" || e.size === "gargantuan";
-    // Things hung from the ceiling (eel traps, a lantern on a beam) are over everyone's heads.
-    const aloft = e.states.includes("hanging") || e.tags.includes("overhead");
+    // Things hung from the ceiling (eel traps, a lantern on a beam, a hoist) are over everyone's heads.
+    const aloft = e.states.includes("hanging") || e.tags.includes("overhead") || raiseFor(e.name, e.states) >= 3;
     if (blocked(at) && !door && !aloft) at = nearestTile(map, at, p => !blocked(p), 2) ?? at;
     const blocks = big && !door && !aloft && !e.states.includes("destroyed") && e.kind !== "item";
     const actor: MapActor = {

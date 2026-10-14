@@ -4,15 +4,16 @@
  *   2. dusk, and a walk (pathfound) through the town to the Drowned Rat's door;
  *   3. into the Rat, its scene world reconciled onto the map, and Dilly's card table set alight;
  *      then the Rat again later, as the scene left it;
- *   4. night at the Heron: from the wharf, then with its world (the roof off, the dust in the air).
+ *   4. night at the Heron: from the wharf, then with its world (the roof off, the dust in the air);
+ *   5. the Heron as a battlefield for combat: a move range, a target, the Crakes placed.
  *
  * node --no-warnings src/game/map/demo.ts [--plain] [--w 80] [--h 24]
  */
-import { buildWorld, damageThing, tick, type SceneWorld } from "../../world/scene-world.ts";
+import { applyOps, buildWorld, damageThing, joinWorld, tick, type SceneWorld } from "../../world/scene-world.ts";
 import { drownedRatWorld } from "../../../scenes/worlds/drowned-rat.ts";
-import type { StoryState } from "../types.ts";
+import type { MapActor, StoryState } from "../types.ts";
 import {
-  CAST, actorsHere, enterScene, heronWorld, interact, leaveScene, look, move, newExploration, pathTo, renderExplore, setStory, toAnsi, toPlain, travel,
+  CAST, actorsHere, battlefield, enterScene, heronWorld, interact, leaveScene, look, move, newExploration, pathTo, reachable, render, renderExplore, setStory, spotsNear, toAnsi, toPlain, travel,
   type ExploreState,
 } from "./index.ts";
 
@@ -113,3 +114,24 @@ rule("4b. The Heron, its world on the map (the scene view lifts the roof): the f
 frame(ex, heron);
 legend(ex, heron);
 out(`The re-sacking floor: ${heron.entities.floor!.states.join(", ")}. The brazier under the NO NAKED LIGHTS sign is lit. Nobody here has thought this through.`);
+
+// 5. For the fight: the Master comes, the scene ends in "Roll for initiative!", and combat takes the map.
+rule("5. Roll for initiative: the Heron as a battlefield (move range, a target, the Crakes placed)");
+joinWorld(heron, [{ id: "sallow", name: CAST.sallow!.name }], 9);
+applyOps(heron, [
+  { op: "move", what: "player", to: "trestles", how: "near", name: "", kind: "", text: "", add: [], remove: [] },
+  { op: "move", what: "kell", to: "player", how: "near", name: "", kind: "", text: "", add: [], remove: [] },
+  { op: "move", what: "sallow", to: "floor-brazier", how: "near", name: "", kind: "", text: "", add: [], remove: [] },
+], 9);
+const field = battlefield("heron-warehouse", heron)!;
+const crakes = spotsNear(field.map, field.people.sallow!, 2, Object.values(field.people)).map((at, i): MapActor => ({ id: `crake-${i + 1}`, name: "a Crake", kind: "person", glyph: CAST.crake!.glyph, color: CAST.crake!.color, map: field.map.id, at, blocks: true }));
+const everyone = [...actorsHere(ex, heron), ...crakes];
+const occupied = new Set(everyone.filter(a => a.kind !== "player" && a.blocks).map(a => `${a.at.x},${a.at.y}`));
+const range = reachable(field.map, field.people.player!, 6, p => occupied.has(`${p.x},${p.y}`));
+const fight = render(field.map, everyone, field.people.player!, viewport, {
+  time: "night", roofs: false, focus: field.people.player!, reveal: Object.values(field.people), tick: 5,
+  marks: range.map(r => ({ at: r.at, color: "#3a78c8" })), cursor: field.people.sallow!,
+});
+out(plain ? toPlain(fight) : toAnsi(fight));
+out(`Combatants: ${Object.entries(field.people).filter(([id]) => CAST[id]).map(([id, at]) => `${CAST[id]!.name} (${at.x}, ${at.y})`).join(", ")}, and the Crakes at ${crakes.map(c => `(${c.at.x}, ${c.at.y})`).join(" and ")}.`);
+out(`In the way (and cover): ${[...new Set(field.obstacles.map(o => o.name))].join(", ")}. Blue: where you can get to in 30 feet.`);

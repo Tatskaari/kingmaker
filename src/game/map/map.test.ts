@@ -5,8 +5,8 @@ import { hangedClerkWorld } from "../../../scenes/worlds/hanged-clerk.ts";
 import { drownedRatWorld } from "../../../scenes/worlds/drowned-rat.ts";
 import type { MapActor, StoryState, Tile2 } from "../types.ts";
 import {
-  CAST, MAPS, actorsFromWorld, captureScene, emptyOverlay, enterScene, feetToTile, getMap, heronWorld, dressingRoomWorld, interact, isStructure, leaveScene,
-  move, newExploration, nearby, overlayActors, pathTo, regionForScene, render, renderExplore, screenOf, setStory, storyFromSession, tileAt, tileAtScreen, tileToFeet, toPlain,
+  CAST, MAPS, actorsFromWorld, battlefield, captureScene, emptyOverlay, enterScene, feetToTile, getMap, heronWorld, dressingRoomWorld, interact, isStructure, leaveScene,
+  move, newExploration, nearby, overlayActors, pathTo, reachable, regionForScene, render, renderExplore, screenOf, setStory, spotsNear, storyFromSession, tileAt, tileAtScreen, tileToFeet, toPlain,
   type PlaceRegion,
 } from "./index.ts";
 
@@ -218,6 +218,44 @@ test("the overlay: what a scene did stays on the map after it, and fires burn ou
   assert.equal(later.some(a => a.ref === "nan-quill"), false, "people move on with the story");
   // And the town shows nothing from it unless the place itself burned.
   assert.deepEqual(captureScene(emptyOverlay(), regionForScene("drowned-rat")!.region, w).scenes["drowned-rat"]!.states, []);
+});
+
+test("for combat: the battlefield, free spots for the Crakes, a move range, marks and a cursor", () => {
+  const w = world("heron-warehouse", heronWorld, ["kell", "saul", "hep", "scrope", "hobb", "sallow"]);
+  const field = battlefield("heron-warehouse", w)!;
+  assert.equal(field.map.id, "heron");
+  for (const id of ["player", "kell", "saul", "hep", "scrope", "hobb", "sallow"]) assert.ok(field.people[id], `${id} has a tile`);
+  assert.ok(field.obstacles.some(o => o.id === "wheat-ear-sacks"), "the sack stacks stand in the way");
+  assert.ok(!field.obstacles.some(o => o.id === "hoist"), "the hoist is overhead, not in the way");
+  const crakes = spotsNear(field.map, field.people.sallow!, 2, Object.values(field.people));
+  assert.equal(crakes.length, 2);
+  for (const c of crakes) {
+    assert.ok(walkable("heron", c));
+    assert.ok(!Object.values(field.people).some(p => p.x === c.x && p.y === c.y), "nobody's already there");
+  }
+  const range = reachable(field.map, field.people.hep!, 6);
+  assert.ok(range.length > 20 && range.every(r => r.steps <= 6 && walkable("heron", r.at)));
+  assert.ok(!range.some(r => r.at.y >= 14), "nobody walks through the Heron's south wall onto the river side");
+  const lines = render(field.map, [], field.people.hep!, { w: 80, h: 24 }, { roofs: false, marks: range.map(r => ({ at: r.at, color: "#3a78c8" })), cursor: field.people.sallow! });
+  assert.match(toPlain(lines), /\[.\]/, "the cursor brackets its tile");
+  assert.ok(lines.flat().filter(s => s.bg && s.bg !== "").length > 10);
+});
+
+test("the player is drawn through a wall that hides them, picked out", () => {
+  const ex = newExploration(DUSK, { map: "drowned-rat", at: { x: 3, y: 3 } });
+  const lines = renderExplore(ex, { w: 80, h: 24 });
+  const me = lines.flat().find(s => s.text.includes("@"));
+  assert.ok(me, "the player is on screen");
+  assert.equal(me!.bg, "#6a3a8a", "drawn through the Rat's front wall");
+});
+
+test("the explore state saves and loads as plain JSON", () => {
+  const ex = newExploration(DUSK, { at: { x: 42, y: 9 } });
+  for (const [dx, dy] of pathTo(ex, { x: 30, y: 20 })!.slice(0, 8)) move(ex, dx, dy);
+  const loaded = JSON.parse(JSON.stringify(ex)) as typeof ex;
+  assert.deepEqual(loaded, ex);
+  const a = toPlain(renderExplore(ex, { w: 60, h: 18 })), b = toPlain(renderExplore(loaded, { w: 60, h: 18 }));
+  assert.equal(a, b);
 });
 
 test("storyFromSession: played scenes, the lead and the time of day", () => {

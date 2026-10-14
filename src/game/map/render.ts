@@ -38,6 +38,10 @@ export interface RenderOptions {
   cutaway?: boolean;
   /** More tiles whose rooms open up like the focus's (a scene view: wherever its people are). */
   reveal?: Tile2[];
+  /** Tiles to tint (combat: where you can move, what's in reach, a fire's spread), with an optional glyph. */
+  marks?: Array<{ at: Tile2; color: string; glyph?: string }>;
+  /** A selected tile, bracketed: [K] (targeting, looking). */
+  cursor?: Tile2;
 }
 
 interface Cell { ch: string; fg: string; bg: string; bold: boolean; light: number; glow: boolean; depth: number }
@@ -94,6 +98,17 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
     cell.bold = !!extra.bold; cell.glow = !!extra.glow; cell.light = light; cell.depth = depth;
   };
 
+  const marks = new Map((options.marks ?? []).map(m => [key(m.at), m]));
+  /** A tinted tile: its floor takes the mark's colour (it isn't darkened at night: you need to see it). */
+  const paintMark = (m: { color: string; glyph?: string }, sc: number, sr: number) => {
+    for (const [dx, dy] of [[-1, 0], [0, 0], [1, 0], [0, 1]] as const) {
+      const sx = sc + dx, sy = sr + dy;
+      if (sx < 0 || sy < 0 || sx >= w || sy >= h) continue;
+      const cell = cells[sy]![sx]!;
+      cell.bg = mix(cell.bg || "#101014", m.color, 0.45); cell.glow = true;
+    }
+    if (m.glyph) put(sc, sr, m.glyph, m.color, undefined, { bold: true, glow: true });
+  };
   const byTile = new Map<string, MapActor[]>();
   // A door in the scene's world says how its door tile looks (open, shut, barred); it isn't drawn itself.
   const doors = new Map<string, string[]>();
@@ -120,7 +135,13 @@ export function render(map: TileMap, actors: MapActor[], camera: Tile2, viewport
       const region = regionAt(map, at);
       const states = region ? regionStates[region.id] ?? [] : [];
       paintTile(at, t, sc, sr, states);
+      const mark = marks.get(key(at));
+      if (mark) paintMark(mark, sc, sr);
       for (const a of order(byTile.get(key(at)) ?? [])) paintActor(a, t, at, sc, sr);
+      if (options.cursor && options.cursor.x === x && options.cursor.y === y) {
+        const glow = { bold: true, glow: true };
+        put(sc - 1, sr, "[", "#ffe680", undefined, glow); put(sc + 1, sr, "]", "#ffe680", undefined, glow);
+      }
     }
   }
 
