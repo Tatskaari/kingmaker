@@ -94,3 +94,21 @@ No run ended in the improvised "ending of their own" any more (0/60, against sev
 | **`gm-quick-block`** | **19/20** | **20/20** | 14/20 | **4.15** | **6.8** | 1.29 / 4.18 s | 95% |
 
 **`gm-quick-block` is the best design within the 5 s budget.** On ordinary turns it replies at once, speculatively. When the decider judges the player has gone off the graph, it waits up to 3 s for the quick co-GM: a compact, no-reasoning call that opens a route (with a roll and a stated reason when the outcome should be uncertain) or relocates a missed essential. Then it sends one coherent reply. It reached the intended ending 19/20 times, ended every scene in the fewest turns, and scored highest on "intent" (the player's idea taken seriously, 4.2). Because the wait only happens on the few off-graph turns, the median reply stays at 1.3 s.
+
+### Round 3 checks (2 Claude analysts; [deviation-round3-checks.md](deviation-round3-checks.md))
+
+The analysts tempered the round 3 headline:
+
+- **Quick-block barely ran.** It fired on 6 of 135 turns. Its 19/20 against stall-quick's 17/20 comes down to one case where neither off-graph path fired and the in-scene GM decided alone. So that gap is noise. Three causes:
+  - plans phrased as questions ("could we…?") didn't count as off-graph;
+  - the decider's relocations pre-empted it;
+  - the quick co-GM only saw the current beat's routes.
+- **Relocation still wasn't relocation.** Only 5 of 31 were genuine. The other 26 pulled the essential out of *its own authored carrier* as soon as the turn gate opened, including in scenes where the player wasn't avoiding anything. Holt's signed order was pushed six times; Corvin's book was pushed and steered a player to "To find Corvin". Those two are options, not clues.
+- **What worked:** all 21 rolls sat on edges and showed a readable reason, and one quick-co-GM note turned a refusal without dice into a yes ("We can take the cart apart from the outside, piece by piece, love").
+
+Changes for round 4 (`2350645`):
+- Essentials list their authored carriers, and decider relocation excludes them: relocation means someone *else*.
+- Relocation is framed on avoidance ("has the player passed up where it was placed?"), skips a turn whose roll failed, and never pre-empts the quick co-GM. Options and secrets moved out of essentials.
+- Off-graph detection counts plans put as questions. Attempts that don't end the scene need 0.45 confidence.
+- The quick co-GM sees every beat's routes plus the cast's wants and secrets. It gives uncertain plans a roll with a specific failure consequence, and adds scene-wide routes.
+- Quick-block starts the quick co-GM alongside the decision, with a deadline from the start of the turn. A late result keeps the speculative reply.
