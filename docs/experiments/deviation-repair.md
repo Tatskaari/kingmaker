@@ -139,3 +139,5 @@ Single rounds of 20 are noisy: the same `gm` configuration scored 16, 16, 14 and
 6. **Rolls stay on edges and always say why.** That includes the quick co-GM's new routes: "Athletics check to work with the porters and lever the cart onto a timber track…".
 
 **Recommended configuration: `v2`** (now the CLI default). Single GM voice with essentials in its prep, Luna decision mode, speculative replies, the quick co-GM on off-graph turns with a 3 s deadline, and the full co-GM in the background.
+
+**`v2` on its own (n = 20):** target ending 15/20, scene ended 19/20, judge criterion 15/20 (the highest criterion score of any condition), progress 4.00, 8.2 turns, resolving text p50 1.16 s / p90 3.00 s, **100% within 5 s**. The quick co-GM was waited for on 13 turns. The target-ending figure is within round-to-round noise of the pooled quick co-GM results.
