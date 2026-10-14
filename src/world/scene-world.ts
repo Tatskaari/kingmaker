@@ -426,7 +426,8 @@ function note(e: Entity, text: string, turn: number, by: Note["by"]): void {
 }
 
 function destroy(world: SceneWorld, e: Entity, turn: number, by: WorldEvent["by"], remains?: string): void {
-  e.states = [...e.states.filter(s => !["damaged", "burning"].includes(s)), "destroyed"];
+  // A charred heap is no longer a door that's closed and barred, nor a lantern that's lit.
+  e.states = [...e.states.filter(s => !["damaged", "burning", "open", "closed", "locked", "barred", "lit"].includes(s)), "destroyed"];
   if (e.hp) e.hp.current = 0;
   if (remains) note(e, remains, turn, by);
   // What it held falls out where it stood; what hung from it falls.
