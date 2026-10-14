@@ -469,7 +469,8 @@ export function furnish(site: Site, plan: PlacePlan): Furnished {
     if (!area.room || area.tiles.length < BIG_ROOM) continue;
     const lightsIn = () => [...things.values()].filter(p => p.area === area.id && p.tiles.length && sheds(p)).flatMap(p => p.tiles);
     const peopled = plan.people.some(p => p.in === area.id) || plan.things.some(t => t.in === area.id && t.kind === "crowd");
-    if (lightsIn().length > 1 || (!lightsIn().length && area.id !== main && !peopled)) continue;
+    // A room nobody's in, with nothing lit in it, is meant to be dark (a storeroom at night).
+    if (!lightsIn().length && area.id !== main && !peopled) continue;
     for (let n = 0; n < 3; n++) {
       const lights = lightsIn();
       const dark = area.tiles.filter(q => !lights.some(l => Math.hypot(q.x - l.x, q.y - l.y) <= LAMP_REACH));

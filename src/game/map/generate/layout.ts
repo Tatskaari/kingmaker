@@ -101,6 +101,7 @@ export const WALL_STYLE: Record<WallKind, string> = { stone: "civic", brick: "br
  * walls of its room, and turf there would look like the firelight was out on the bank.
  */
 const WALLS_OF: Partial<Record<WallKind, string>> = { "earth-bank": "timber" };
+const PARTITIONS: Partial<Record<WallKind, string>> = { "earth-bank": "timber", "fine-stone": "gilt" };
 
 /** How far out a strip of each kind of ground goes, at most, in squares (things in it get more room). */
 const STRIP_DEPTH: Record<Ground, number> = { cobbles: 3, boards: 3, "planks-over-water": 2, dirt: 3, grass: 3, steps: 2, water: 3, boat: 0 };
@@ -154,7 +155,7 @@ export interface LayoutOptions {
   /** Varies what the plan leaves open (default 1). */
   seed?: number;
   /**
-   * The things on the floor to size the building for, at least (default 12): a building laid out
+   * The things on the floor to size the building for, at least (default 16): a building laid out
    * from its rooms before its things have arrived (a streaming plan's shell) is then the same
    * building as the furnished one, unless it has more than that.
    */
@@ -170,7 +171,7 @@ export function layout(plan: PlacePlan, options: LayoutOptions = {}): Site {
   // Each room as asked (with its walls), and on the main floor a square or two per thing to stand
   // on and get round it, so the main room isn't all furniture.
   const need = plan.rooms.filter(r => r.where !== "main").reduce((n, r) => n + Math.max(MIN_ROOM, tilesOf(r.width)) * Math.max(MIN_ROOM, tilesOf(r.depth)) + 4, 0)
-    + Math.max(onFloor.reduce((n, t) => n + 2 * (t.size === "huge" ? 3 : Math.max(1, t.tiles)), 0), 2 * (options.expectThings ?? 12)) + Math.max(3, plan.people.length) + 9;
+    + Math.max(onFloor.reduce((n, t) => n + 2 * (t.size === "huge" ? 3 : Math.max(1, t.tiles)), 0), 2 * (options.expectThings ?? 16)) + Math.max(3, plan.people.length) + 9;
   const asked = { W, D };
   if ((W - 2) * (D - 2) < need) {
     const k = Math.min(1.5, Math.sqrt(need / ((W - 2) * (D - 2))));
@@ -222,9 +223,12 @@ function layoutOnce(plan: PlacePlan, W: number, D: number, notchCorner: Corner |
   const style = WALL_STYLE[plan.walls];
   // What the walls are built of (a burrow's are timber, in the bank); the roof is the building's style.
   const walls = WALLS_OF[plan.walls] ?? style;
-  // Rows high, as the town draws them: a burrow 2, a house of one or two storeys 3 (an upper floor
-  // is the roof's pitch), anything taller 4.
-  const wallHeight = plan.walls === "earth-bank" ? 2 : plan.storeys >= 3 ? 4 : 3;
+  // Walls between rooms: panelling (as the Heron's counting-box is), timber in a burrow, gilt in a palace.
+  const partition = PARTITIONS[plan.walls] ?? "panel";
+  // Rows high: a burrow or a house of one storey 2 (as the Rat is: its walls don't swallow a small
+  // room in the scene view), of two 3 (an upper floor is the roof's pitch, as the town draws it),
+  // anything taller 4 (the Heron).
+  const wallHeight = plan.walls === "earth-bank" || plan.storeys <= 1 ? 2 : plan.storeys >= 3 ? 4 : 3;
   const behind = (s: Side) => s === "north" || s === "east";
   const shadow = Math.floor(wallHeight / 2);
 
@@ -268,7 +272,9 @@ function layoutOnce(plan: PlacePlan, W: number, D: number, notchCorner: Corner |
     }
   }
   const extent = (s: Side) => strips[s].reduce((n, x) => n + x.depth, 0);
-  const margin = (s: Side) => (strips[s].length ? 0 : 1);
+  // A square of ground on a side with nothing there; behind, among buildings, the neighbours, two
+  // squares deep so they read as houses, not a fence.
+  const margin = (s: Side) => (strips[s].length ? 0 : plan.surroundings === "buildings" && behind(s) ? 2 : 1);
   const west = extent("west") + margin("west"), east = extent("east") + margin("east");
   const north = extent("north") + margin("north"), south = extent("south") + margin("south");
   const width = west + W + east, height = north + D + south;
@@ -395,8 +401,66 @@ function layoutOnce(plan: PlacePlan, W: number, D: number, notchCorner: Corner |
   const roomById = new Map(plan.rooms.map(r => [r.id, r]));
   for (const [k, v] of grid) {
     const p = parse(k);
-    if (v === "#") set(p, tile("wall", { style: walls, height: outerAt(p) ? wallHeight : PARTITION }));
+    if (v === "#") set(p, outerAt(p) ? tile("wall", { style: walls, height: wallHeight }) : tile("wall", { style: partition, height: PARTITION }));
     else set(p, roomTile(roomById.get(v)!), v);
+  }
+
+  // The outside is joined up: an area cut off from the way in (the quay at the back of a burrow, the
+  // landing at the front, the bank between) gets a way round the building, cut through what's in
+  // the way: steps or a path through a bank, planks over water, never through a neighbour's house.
+  for (const o of plan.outside) {
+    if (o.ground === "water" || o.ground === "boat" || o.id === entranceArea.id) continue;
+    joinUp(o);
+  }
+  function joinUp(o: OutsidePlan): void {
+    const standable = (p: Tile2) => { const t = tiles[p.y]?.[p.x]; return !!t && walkable(t) && t.terrain !== "water" && t.terrain !== "deep-water" && !inRect(p, building); };
+    const from: Tile2[] = [];
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (area[y * width + x] === entranceArea.id && standable({ x, y })) from.push({ x, y });
+    const seen = new Set(from.map(tkey));
+    for (const queue = [...from]; queue.length;) {
+      const p = queue.pop()!;
+      for (const s of SIDES) { const n = add(p, DIR[s]); if (!seen.has(tkey(n)) && standable(n)) { seen.add(tkey(n)); queue.push(n); } }
+    }
+    const mine: Tile2[] = [];
+    for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) if (area[y * width + x] === o.id) mine.push({ x, y });
+    if (!mine.length || mine.some(p => seen.has(tkey(p)))) return;
+    // The cheapest way from it to anywhere joined: open ground costs a step, a bank three, water four.
+    const cost = (p: Tile2) => {
+      if (p.x < 0 || p.y < 0 || p.x >= width || p.y >= height || inRect(p, building)) return Infinity;
+      const t = tiles[p.y]![p.x]!;
+      if (standable(p)) return 1;
+      if (t.terrain === "fence") return Infinity;
+      if (t.terrain === "wall" && t.style === "bank") return 3;
+      if (t.terrain === "water" || t.terrain === "deep-water") return 4;
+      if (t.terrain === "void") return 3;
+      return Infinity;
+    };
+    const dist = new Map<string, number>(mine.map(p => [tkey(p), 0]));
+    const prev = new Map<string, string>();
+    const open = mine.map(p => ({ p, d: 0 }));
+    let end: Tile2 | undefined;
+    while (open.length) {
+      open.sort((a, b) => a.d - b.d);
+      const { p, d } = open.shift()!;
+      if (d > (dist.get(tkey(p)) ?? Infinity)) continue;
+      if (seen.has(tkey(p))) { end = p; break; }
+      for (const s of SIDES) {
+        const n = add(p, DIR[s]);
+        const c = cost(n);
+        if (c === Infinity) continue;
+        const nd = d + c;
+        if (nd < (dist.get(tkey(n)) ?? Infinity)) { dist.set(tkey(n), nd); prev.set(tkey(n), tkey(p)); open.push({ p: n, d: nd }); }
+      }
+    }
+    if (!end) return;
+    const path = entranceArea.ground === "steps" || o.ground === "steps" ? "steps" : o.ground === "planks-over-water" ? "boards" : o.ground;
+    for (let k: string | undefined = tkey(end); k; k = prev.get(k)) {
+      const p = parse(k);
+      if (standable(p)) continue;
+      const t = tiles[p.y]![p.x]!;
+      set(p, t.terrain === "water" || t.terrain === "deep-water" ? tile("bridge") : groundTile(path, 0), o.id);
+    }
+    notes.push(`${o.name} was cut off from the way in: a way round the building joins them.`);
   }
 
   // Areas: rooms and outside, with their tiles.
@@ -469,7 +533,7 @@ function layoutOnce(plan: PlacePlan, W: number, D: number, notchCorner: Corner |
     const locked = d.states.some(s => s === "locked" || s === "barred" || s === "bolted");
     const outer = outerAt(best.at);
     // A door is of what its wall is (a burrow's is timber, as the Rat's is).
-    set(best.at, tile("door", { style: walls, height: outer ? wallHeight : PARTITION, ...(locked ? { blocks: true } : {}) }));
+    set(best.at, tile("door", { style: outer ? walls : partition, height: outer ? wallHeight : PARTITION, ...(locked ? { blocks: true } : {}) }));
     grid.set(tkey(best.at), `door:${d.id}`);
     return { id: d.id, plan: d, at: best.at, inside: best.inside, outside: best.outside, from, to, side: best.side };
   }
@@ -524,7 +588,9 @@ function layoutOnce(plan: PlacePlan, W: number, D: number, notchCorner: Corner |
   // Windows: spaced along the room's stretch of outside wall, clear of doors and corners.
   const windows: Site["windows"] = [];
   for (const w of plan.windows) {
-    const run = wallRun(building, w.wall).filter(at => grid.get(tkey(at)) === "#" && roomAt(add(at, DIR[OPPOSITE[w.wall]])) === w.room && !isDoorNear(at) && !windows.some(x => x.at.x === at.x && x.at.y === at.y));
+    // Looking out on something: not into a bank or a neighbour's wall (a fire would shine through it onto the turf).
+    const outlook = (at: Tile2) => { const t = tiles[add(at, DIR[w.wall]).y]?.[add(at, DIR[w.wall]).x]; return !!t && t.terrain !== "wall" && t.terrain !== "void"; };
+    const run = wallRun(building, w.wall).filter(at => grid.get(tkey(at)) === "#" && outlook(at) && roomAt(add(at, DIR[OPPOSITE[w.wall]])) === w.room && !isDoorNear(at) && !windows.some(x => x.at.x === at.x && x.at.y === at.y));
     if (!run.length) { problems.push({ check: "relation", subject: w.room, message: `${roomById.get(w.room)?.name ?? w.room} has no ${dir(w.wall)} outside wall for its windows: they were left out.`, severity: "warning" }); continue; }
     const count = Math.min(w.count, Math.ceil(run.length / 2));
     for (let i = 0; i < count; i++) {

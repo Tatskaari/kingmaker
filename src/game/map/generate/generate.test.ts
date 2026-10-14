@@ -18,6 +18,7 @@ import { sceneCamera } from "./camera.ts";
 import { fitView } from "./pictures.ts";
 import { render } from "../render.ts";
 import { castOf } from "../looks.ts";
+import { actorLook } from "../../look/map.ts";
 import type { MapTile } from "../tiles.ts";
 import { sketch } from "./sketch.ts";
 import { errorsOf, validate } from "./validate.ts";
@@ -57,7 +58,8 @@ test("the hand-written plans pass every check; the muddled one doesn't, and says
   const muddled = errors(validate(compilePlan(MUDDLED, { id: "test-muddled" })));
   assert.ok(muddled.some(e => /Only one room can be "main"/.test(e)), "two main rooms");
   assert.ok(muddled.some(e => /store's back door can't open from the store onto the street: the store doesn't touch the building's south wall/.test(e)), "a door on the wrong side");
-  assert.ok(muddled.some(e => /till is on something that isn't in the plan/.test(e)), "a missing target");
+  // A thing on something the plan forgot is put down in the room: a warning, not worth a repair round.
+  assert.ok(validate(compilePlan(MUDDLED, { id: "test-muddled" })).some(p => p.severity === "warning" && /till is on something that isn't in the plan/.test(p.message)), "a missing target");
   assert.ok(!muddled.some(e => /counter/.test(e)), "a room referred to by name is found");
 });
 
@@ -355,6 +357,33 @@ test("variety: the seed moves doors off the middle, picks a side room's end, and
   }
   assert.ok(doors.size >= 3, `the street door in ${doors.size} places`);
   assert.ok(notches.size >= 1, "some buildings are an L");
+});
+
+test("light from inside stays inside: no fire or lamp in a room reaches the turf outside (as render.ts walks a light's line, walls stop it)", () => {
+  for (const [key, plan] of [...allPlans(), ["TAVERN-L", { ...TAVERN, width: 80, depth: 60 }] as [string, PlacePlan]]) {
+    for (const seed of [1, 2]) {
+      const place = compilePlan(plan, { id: `test-light-${key}`, seed });
+      const tiles = place.map.tiles as MapTile[][];
+      const open = new Set(place.world.things.filter(t => t.tags?.includes("door") && t.states?.includes("open")).map(t => `${Math.floor(t.at![0] / 5)},${Math.floor(t.at![1] / 5)}`));
+      const passes = (x: number, y: number) => { const t = tiles[y]?.[x]; return !!t && (!t.opaque || open.has(`${x},${y}`)); };
+      const room = (x: number, y: number) => { const a = place.site.area[y * place.map.width + x]; return !!a && !!place.site.areas.get(a)?.room; };
+      for (const a of worldActors(place)) {
+        const light = actorLook(a, { t: 0, time: "night", glyphs: "ascii" }).light;
+        if (!light || !room(a.at.x, a.at.y)) continue;
+        const r = light.radius;
+        for (let y = Math.floor(a.at.y - r); y <= a.at.y + r; y++) for (let x = Math.floor(a.at.x - r); x <= a.at.x + r; x++) {
+          const t = tiles[y]?.[x];
+          const turf = t && (t.style === "bank" || t.terrain === "grass");
+          if (!turf || Math.hypot(x - a.at.x, y - a.at.y) >= r) continue;
+          // render.ts: every tile between the light and this one must let it through.
+          const steps = Math.max(Math.abs(x - a.at.x), Math.abs(y - a.at.y));
+          let clear = true;
+          for (let i = 1; i < steps && clear; i++) clear = passes(Math.round(a.at.x + ((x - a.at.x) * i) / steps), Math.round(a.at.y + ((y - a.at.y) * i) / steps));
+          assert.ok(!clear, `${key} (seed ${seed}): ${a.name} at ${at(a.at)} lights the turf at ${x},${y}\n${sketch(place)}`);
+        }
+      }
+    }
+  }
 });
 
 test("light: a big room by one fire gets lanterns where it's darkest; a small room doesn't", () => {

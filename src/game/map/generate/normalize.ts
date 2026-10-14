@@ -94,7 +94,7 @@ export function normalizePlan(raw: PlacePlan, cast: CastMember[] = []): { plan: 
   const doors = new Set(plan.doors.map(d => d.id));
   const things = new Set(plan.things.map(t => t.id));
   const people = new Set(plan.people.map(p => p.id));
-  const named = [...plan.rooms, ...plan.outside, ...plan.doors, ...plan.things, ...plan.people].map(e => ({ id: e.id, words: new Set([...words(e.name), ...words(e.id)]) }));
+  const named = [...plan.rooms, ...plan.outside, ...plan.doors, ...plan.things, ...plan.people].map(e => ({ id: e.id, words: new Set([...words(e.name), ...words(e.id)]), head: parseName(e.name).head, parts: new Set(e.id.split("-")) }));
   /** A reference: the id as written, renamed, or the best match by name among the allowed kinds. */
   const resolve = (ref: string, allowed: Set<string>[]): string | undefined => {
     if (!ref) return undefined;
@@ -102,8 +102,9 @@ export function normalizePlan(raw: PlacePlan, cast: CastMember[] = []): { plan: 
     for (const id of [ref, renamed.get(ref), slugId(ref)]) if (id && ok(id)) return id;
     const want = words(ref);
     if (!want.length) return undefined;
-    const scored = named.filter(e => ok(e.id)).map(e => ({ id: e.id, hits: want.filter(w => e.words.has(w)).length })).filter(x => x.hits > 0).sort((a, b) => b.hits - a.hits);
-    return scored[0] && scored[0].hits / want.length >= 0.5 && scored[1]?.hits !== scored[0].hits ? scored[0].id : undefined;
+    // Most words in common; a tie goes to what it is (its head noun: "the bar" is the skiff-hull bar, not the shelf behind the bar), then to its id.
+    const scored = named.filter(e => ok(e.id)).map(e => ({ id: e.id, hits: want.filter(w => e.words.has(w)).length + (want.includes(e.head) ? 0.5 : 0) + (want.some(w => e.parts.has(w)) ? 0.25 : 0) })).filter(x => x.hits >= 1).sort((a, b) => b.hits - a.hits);
+    return scored[0] && Math.floor(scored[0].hits) / want.length >= 0.5 && scored[1]?.hits !== scored[0].hits ? scored[0].id : undefined;
   };
 
   // Outside: at least one, so there's a street to arrive by.
@@ -154,6 +155,11 @@ export function normalizePlan(raw: PlacePlan, cast: CastMember[] = []): { plan: 
   plan.doors = plan.doors.filter(d => {
     let from = resolve(d.from, [rooms, outside]), to = resolve(d.to, [rooms, outside]);
     if (from && to && outside.has(from) && rooms.has(to)) [from, to] = [to, from];
+    // Two outside areas (the stairs up to the quay): the layout joins the outside up anyway.
+    if (from && to && outside.has(from) && outside.has(to)) {
+      problem("door", d.id, `${d.name} joins two outside areas: they're joined by a way round the building instead.`, "warning");
+      return false;
+    }
     if (!from || !to || from === to || !rooms.has(from)) {
       problem("door", d.id, `The door ${d.name} must join a room to another room or to an outside area (it says from "${d.from}" to "${d.to}"): it was left out.`);
       return false;
@@ -296,7 +302,7 @@ function fixRelation(t: ThingPlan, target: string | undefined, target2: string |
   switch (t.relation) {
     case "near": case "beside": case "behind": case "by-door": case "on": case "in": case "under":
       if (!t.target) {
-        if (t.relation === "on" || t.relation === "in" || t.relation === "under") problem("relation", t.id, `${t.name} is ${t.relation} something that isn't in the plan: it was put in the middle of the room.`);
+        if (t.relation === "on" || t.relation === "in" || t.relation === "under") problem("relation", t.id, `${t.name} is ${t.relation} something that isn't in the plan: it was put in the middle of the room.`, "warning");
         t.relation = "centre";
       }
       break;

@@ -209,7 +209,7 @@ function summary(records: Record_[]): string {
   for (const prompt of [...new Set(records.map(r => r.prompt))]) lines.push(row(prompt, records.filter(r => r.prompt === prompt)));
   lines.push(row("all", records));
   const outTokens = records.map(r => median(r.rounds.map(x => x.outputTokens)));
-  lines.push("", `Times: median ${s1(median(records.map(r => r.ms)))} s, p90 ${s1(p90(records.map(r => r.ms)))} s, max ${s1(Math.max(...records.map(r => r.ms)))} s. Output tokens per call, median: ${median(outTokens)}. The building laid out from the rooms was the one furnished in ${records.filter(r => r.shellKept).length} of ${records.filter(r => r.shellKept !== undefined).length} first-try runs. Total cost $${records.reduce((n, r) => n + r.costUsd, 0).toFixed(4)}.`);
+  lines.push("", `Times: median ${s1(median(records.map(r => r.ms)))} s, p90 ${s1(p90(records.map(r => r.ms)))} s, max ${s1(Math.max(...records.map(r => r.ms)))} s. Output tokens per call, median: ${median(outTokens)}. The building laid out from the rooms was the one furnished in ${records.filter(r => r.shellKept).length} of ${records.filter(r => r.shellKept !== undefined && r.repairs === 0).length} first-try runs. Total cost $${records.reduce((n, r) => n + r.costUsd, 0).toFixed(4)}.`);
   return `${lines.join("\n")}\n`;
 }
 
