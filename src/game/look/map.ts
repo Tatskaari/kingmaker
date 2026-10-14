@@ -1,7 +1,7 @@
 import type { Point, SceneWorld } from "../../world/scene-world.ts";
 import type { MapActor, Tile2 } from "../types.ts";
 import { lookOf, type Cell, type Look, type TimeOfDay } from "./appearance.ts";
-import { FLAME_LIGHT, hexOf, mix, rgbOf } from "./color.ts";
+import { FLAME_LIGHT, hexOf, mix, rgbOf, type FlameName } from "./color.ts";
 import type { GlyphSet } from "./glyphs.ts";
 import { clamp01, noise1, noise2, seedOf } from "./noise.ts";
 import { CAST_LOOKS } from "./people.ts";
@@ -114,7 +114,6 @@ export interface SurfaceLayer {
 export function surfaceLayer(world: SceneWorld, frame: LookFrame): SurfaceLayer {
   const { surfaces, clouds } = surfacesOf(world);
   const ctx = { t: frame.t, time: frame.time, glyphs: frame.glyphs };
-  const toT = (c: Cell): TCell => ({ glyph: c.glyph, fg: rgbOf(c.fg), bg: rgbOf(c.bg ?? "#0e0d12") });
   const fromT = (c: TCell) => ({ glyph: c.glyph, fg: hexOf(c.fg), bg: hexOf(c.bg), ...(c.glow ? { glow: true } : {}) });
   return {
     surfaces, clouds,
@@ -144,6 +143,28 @@ export function surfaceLayer(world: SceneWorld, frame: LookFrame): SurfaceLayer 
       x: sp.x, y: sp.y, radius: sp.radius + 10, color: sp.kind === "spirits" ? FLAME_LIGHT.blue : FLAME_LIGHT.fire, intensity: 1.1 + 0.25 * noise1(frame.t / 120, sp.seed),
     })),
   };
+}
+
+const toT = (c: Cell): TCell => ({ glyph: c.glyph, fg: rgbOf(c.fg), bg: rgbOf(c.bg ?? "#0e0d12") });
+
+/**
+ * Fire on a spot of ground (a fight's burning tile, a burning floor): flames rising through what's
+ * there, its cooler cells embers. px, py: the projected plane's col and row, as for groundAt.
+ */
+export function fireAt(under: Cell, px: number, py: number, frame: LookFrame, intensity = 0.85, seed = 0, flame: FlameName = "fire"): Cell & { glow?: boolean } {
+  const cell = flameCell(flame, toT(under), px, py, intensity, { t: frame.t, time: frame.time, glyphs: frame.glyphs, seed });
+  return { glyph: cell.glyph, fg: hexOf(cell.fg), bg: hexOf(cell.bg), ...(cell.glow ? { glow: true } : {}) };
+}
+
+/** Grain dust hanging over a spot (the Heron's floor): a slow drifting haze, and motes where the light catches them. */
+export function dustAt(under: Cell, px: number, py: number, frame: LookFrame): Cell {
+  const T = frame.t / 1000;
+  const density = 0.3 + 0.55 * noise2(px * 0.12 + T * 0.18, py * 0.3 - T * 0.05, 4711);
+  const cell = cloudCell("dust", toT(under), density, { t: frame.t, time: frame.time, glyphs: frame.glyphs });
+  // A mote: a speck that twinkles in and out where it drifts.
+  const mote = noise2(px * 0.9 + T * 0.6, py * 1.7, 4712);
+  if (mote > 0.86 && (under.glyph === " " || under.glyph === "·")) return { glyph: frame.glyphs === "plain" ? "." : mote > 0.93 ? "∙" : "·", fg: hexOf(mix(rgbOf("#8a7a54"), rgbOf("#f0e0a8"), (mote - 0.86) * 12)), bg: hexOf(cell.bg) };
+  return { glyph: cell.glyph, fg: hexOf(cell.fg), bg: hexOf(cell.bg) };
 }
 
 /** A tile's centre in a region's feet (for asking the surface layer about a tile). */

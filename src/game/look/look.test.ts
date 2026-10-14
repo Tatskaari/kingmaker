@@ -40,8 +40,13 @@ test("names: head nouns, states and colours in adjectives, groups, piles, surfac
   assert.equal(parseName("a singed pigeon").key, parseName("the pigeon").key);
 });
 
-test("every authored thing in the scene worlds gets a look from the rules, not a guess", () => {
-  for (const world of [rat(), yard()]) {
+test("every authored thing in the scene worlds gets a look from the rules, not a guess", async () => {
+  const { heronWorld } = await import("../../../scenes/worlds/heron-warehouse.ts");
+  const { dressingRoomWorld } = await import("../../../scenes/worlds/kings-morning.ts");
+  const heron = buildWorld("heron-warehouse", heronWorld, [], { name: "Odo" }), king = buildWorld("kings-morning", dressingRoomWorld, [], { name: "Odo" });
+  // Sacks hold grain here (not the old wine): the Heron's stacks are sacks.
+  assert.equal(describeLook(heron.entities["heron-sacks"]!).role, "sack");
+  for (const world of [rat(), yard(), heron, king]) {
     for (const e of Object.values(world.entities)) {
       if (e.kind === "place" || e.kind === "area") continue;
       const d = describeLook(e);

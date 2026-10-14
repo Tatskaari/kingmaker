@@ -16,7 +16,7 @@ export { lookOf, baseLook, describeLook, resetLooks, type Look, type Lookable, t
 export { parseName, singular, type ParsedName } from "./names.ts";
 export { matchRole, roleById, type Role, type Motion, type Stamp } from "./roles.ts";
 export { CAST_LOOKS, castLook, isCast } from "./people.ts";
-export { detectGlyphSet, glyphFor, nerd, plainOf, type GlyphSet } from "./glyphs.ts";
+export { detectGlyphSet, glyphFor, glyphSet, inSet, nerd, plainOf, type GlyphSet } from "./glyphs.ts";
 export { PALETTE, QUD, FLAMES, hexOf, rgbOf, mix, type RGB } from "./color.ts";
 export { LookCache, lookCache, setLookCache, setInventor, requestInvention, flushInventions, inventionVersion, lastInventionError, type Invention, type Inventor } from "./invent.ts";
 export { groundCell, wallCell, surfaceCell, puddleOver, flameCell, cloudCell, cloudDensity, rainAt, type Ground, type SurfaceKind, type CloudKind, type Weather, type TCell } from "./terrain.ts";

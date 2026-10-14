@@ -1,12 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { applyOps, buildWorld, damageThing, tick, type WorldSpec } from "../../world/scene-world.ts";
+import { applyOps, buildWorld, damageThing, positionOf, tick, type WorldSpec } from "../../world/scene-world.ts";
+import { douse } from "../../world/systems.ts";
+import { Effects } from "../look/effects.ts";
 import { hangedClerkWorld } from "../../../scenes/worlds/hanged-clerk.ts";
 import { drownedRatWorld } from "../../../scenes/worlds/drowned-rat.ts";
 import type { MapActor, StoryState, Tile2 } from "../types.ts";
 import {
-  CAST, MAPS, SCREEN_KEYS, actorsFromWorld, battlefield, captureScene, emptyOverlay, enterScene, feetToTile, getMap, heronWorld, dressingRoomWorld, interact, isStructure, leaveScene,
-  move, newExploration, nearby, overlayActors, overlayRegionStates, pathTo, reachable, regionForScene, render, renderExplore, screenOf, setStory, spotsNear, storyFromSession, tileAt, tileAtScreen, tileToFeet, toPlain,
+  CAST, MAPS, SCREEN_KEYS, actorsFromWorld, areaHazards, battlefield, captureScene, emptyOverlay, enterScene, feetToTile, getMap, heronWorld, dressingRoomWorld, interact, isStructure, leaveScene,
+  move, newExploration, nearby, overlayActors, overlayRegionStates, overlaySurfaces, pathTo, reachable, regionForScene, render, renderExplore, screenOf, setStory, spotsNear, storyFromSession, tileAt, tileAtScreen, tileToFeet, toPlain,
   type PlaceRegion,
 } from "./index.ts";
 
@@ -19,6 +21,9 @@ const world = (scene: string, spec: WorldSpec, cast: string[]) => buildWorld(sce
 const at = (a: MapActor | undefined) => a && `${a.at.x},${a.at.y}`;
 const walkable = (mapId: string, p: Tile2) => { const t = tileAt(getMap(mapId), p); return !t.blocks && (!isStructure(t) || t.terrain === "door"); };
 const width = (line: { text: string }[]) => line.reduce((n, s) => n + [...s.text].length, 0);
+const rgb = (hex: string) => { const n = parseInt(hex.slice(1), 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255] as const; };
+/** A fire's colour: red well over green and blue. */
+const fiery = (hex: string) => { const [r, g, b] = rgb(hex); return r > 110 && r > g * 1.6 && r > b * 2.5; };
 
 test("every map is well formed: rows, regions inside, exits to real, standable tiles, unique region ids", () => {
   const ids = new Set<string>();
@@ -206,7 +211,7 @@ test("render: exact viewport, the player drawn, fire and wreckage shown, plain m
   const lines = render(map, actors, { x: 6, y: 7 }, { w: 80, h: 24 }, { time: "evening", roofs: false, tick: 3 });
   const text = toPlain(lines);
   assert.match(text, /@/);
-  assert.ok(lines.flat().some(s => s.bg === "#ff4500" || s.bg === "#ff8c00" || s.bg === "#ffd000" || s.bg === "#ff6a00"), "something burns in fire colours");
+  assert.ok(lines.flat().some(s => !!s.bg && fiery(s.bg)), "something burns in fire colours");
   assert.match(text, /[∴%]/, "the wrecked table is rubble");
   const plain = render(map, actors, { x: 6, y: 7 }, { w: 80, h: 24 }, { color: false });
   assert.ok(plain.flat().every(s => !s.fg && !s.bg));
@@ -387,4 +392,115 @@ test("storyFromSession: played scenes, the lead and the time of day", () => {
   assert.deepEqual(ex.at, { x: 42, y: 9 }, "after the granary, back in the lane");
   setStory(ex, { ...ex.story, flags: { kell: false } });
   assert.equal(ex.followers.length, 0, "the story can part the player and Kell");
+});
+
+// ---------------------------------------------------------------------------------------------
+// The look on the map (src/game/look): things, ground, surfaces, light and effects, alive.
+
+/** The character and colours at a viewport cell. */
+function cellAt(lines: Array<Array<{ text: string; fg?: string; bg?: string }>>, x: number, y: number): { ch: string; fg?: string; bg?: string } {
+  let n = 0;
+  for (const span of lines[y]!) {
+    const chars = [...span.text];
+    if (x < n + chars.length) return { ch: chars[x - n]!, ...(span.fg ? { fg: span.fg } : {}), ...(span.bg ? { bg: span.bg } : {}) };
+    n += chars.length;
+  }
+  return { ch: " " };
+}
+
+test("the look on the map: a burning thing flickers, the Rat's driftwood fire lights it blue, and walls stop the light", () => {
+  const map = getMap("drowned-rat");
+  const { region } = regionForScene("drowned-rat")!;
+  const w = world("drowned-rat", drownedRatWorld, ["nan-quill", "dilly", "hobb"]);
+  damageThing(w, w.entities["long-table"]!, 3, "fire", 1);
+  const actors = actorsFromWorld(region, w);
+  const camera = { x: 6, y: 7 }, size = { w: 80, h: 24 };
+  const frame = (t: number) => render(map, actors, camera, size, { time: "night", roofs: false, t, worlds: [{ region, world: w }] });
+  const table = screenOf(actors.find(a => a.ref === "long-table")!.at, camera, size);
+  const a = frame(1000), b = frame(1500);
+  assert.notDeepEqual(cellAt(a, table.x, table.y), cellAt(b, table.x, table.y), "half a second later the burning table looks different");
+  assert.ok([-1, 0, 1].some(dx => fiery(cellAt(a, table.x + dx, table.y).bg!)), "and it's in fire colours");
+  // The blue driftwood fire (11, 8): the floor beside it is lit blue; the floor across the room isn't.
+  const bg = (p: Tile2) => { const s = screenOf(p, camera, size); return rgb(cellAt(a, s.x, s.y).bg!); };
+  const lit = bg({ x: 10, y: 8 }), far = bg({ x: 3, y: 9 });
+  assert.ok(lit[2] > lit[0] && lit[2] > far[2] + 20, `the fireside is blue (${lit}) and brighter than the far wall's floor (${far})`);
+  // Put the fire out: the floor beside it goes dark, the river outside the east wall doesn't change.
+  const out = structuredClone(w);
+  out.entities.fire!.states = ["unlit"];
+  const dark = render(map, actorsFromWorld(region, out), camera, size, { time: "night", roofs: false, t: 1000, worlds: [{ region, world: out }] });
+  const at = (lines: typeof a, p: Tile2) => { const s = screenOf(p, camera, size); return cellAt(lines, s.x, s.y); };
+  assert.notDeepEqual(at(a, { x: 10, y: 8 }), at(dark, { x: 10, y: 8 }), "the fire lights the floor beside it");
+  assert.deepEqual(at(a, { x: 13, y: 10 }), at(dark, { x: 13, y: 10 }), "the wall keeps its light in");
+});
+
+test("surfaces lie on the ground, not as actors: a douse leaves a puddle the map draws, kept after the scene", () => {
+  const { map, region } = regionForScene("drowned-rat")!;
+  const w = world("drowned-rat", drownedRatWorld, ["nan-quill"]);
+  const table = w.entities["long-table"]!;
+  damageThing(w, table, 3, "fire", 1);
+  douse(w, table, 2);
+  const surfaces = Object.values(w.entities).filter(e => e.kind === "surface");
+  assert.ok(surfaces.some(e => e.tags.includes("water")) && surfaces.some(e => e.tags.includes("steam")), "a puddle and a puff of steam");
+  const actors = actorsFromWorld(region, w);
+  assert.ok(!actors.some(a => w.entities[a.ref ?? ""]?.kind === "surface"), "surfaces aren't actors");
+  const camera = { x: 6, y: 7 }, size = { w: 80, h: 24 };
+  const wet = render(map, actors, camera, size, { time: "evening", roofs: false, t: 2000, worlds: [{ region, world: w }] });
+  const dry = render(map, actors, camera, size, { time: "evening", roofs: false, t: 2000 });
+  const s = screenOf(feetToTile(region, surfaces.find(e => e.tags.includes("water"))!.at!), camera, size);
+  const changed = [-3, -2, -1, 1, 2, 3].filter(dx => JSON.stringify(cellAt(wet, s.x + dx, s.y)) !== JSON.stringify(cellAt(dry, s.x + dx, s.y)));
+  assert.ok(changed.length >= 2, "the puddle lies on the floor round the table");
+  // The scene ends: the place keeps its puddle (the steam has gone by a later hour).
+  const ex = newExploration(DUSK, { map: "drowned-rat", at: { x: 3, y: 5 } });
+  enterScene(ex, "drowned-rat");
+  leaveScene(ex, w);
+  const kept = overlaySurfaces(JSON.parse(JSON.stringify(ex.overlay)), map, "night")[0]!;
+  const patches = Object.values(kept.world.entities).filter(e => e.kind === "surface");
+  assert.ok(patches.some(e => e.tags.includes("water")) && !patches.some(e => e.tags.includes("cloud")), "the puddle stays, the steam doesn't");
+});
+
+test("effects play on the map: a fireball bursts over its aim, Kell's bark floats over her, plain text stays quiet", () => {
+  const { map, region } = regionForScene("drowned-rat")!;
+  const w = world("drowned-rat", drownedRatWorld, ["kell", "dilly"]);
+  const actors = actorsFromWorld(region, w);
+  const fx = new Effects({ now: () => 0, seed: 2 });
+  const aim = positionOf(w, "card-table")!;
+  fx.effect("fireball", { from: positionOf(w, "player")!, at: aim, radius: 15 }, 0);
+  fx.bark("kell", "Was that strictly necessary?", {}, 0);
+  const camera = { x: 6, y: 7 }, size = { w: 80, h: 24 };
+  const effects = { region, frame: fx.frame(900, id => positionOf(w, id)) };
+  const quiet = render(map, actors, camera, size, { time: "evening", roofs: false, t: 900 });
+  const loud = render(map, actors, camera, size, { time: "evening", roofs: false, t: 900, effects });
+  assert.match(toPlain(loud), /strictly/, "the bark is drawn over the map");
+  const s = screenOf(feetToTile(region, aim), camera, size);
+  let burst = 0;
+  for (let dy = -2; dy <= 2; dy++) for (let dx = -5; dx <= 5; dx++) if (JSON.stringify(cellAt(loud, s.x + dx, s.y + dy)) !== JSON.stringify(cellAt(quiet, s.x + dx, s.y + dy))) burst++;
+  assert.ok(burst > 15, `the fireball's burst covers the cells round its aim (${burst} changed)`);
+  const plain = (extra: object) => toPlain(render(map, actors, camera, size, { time: "evening", roofs: false, t: 900, color: false, ...extra }));
+  assert.equal(plain({ effects }), plain({}), "plain text has no effects in it");
+});
+
+test("a world's areas on its map: the Heron's floor hangs with dust; when it goes up, it's scorched and on fire", () => {
+  const { map, region } = regionForScene("heron-warehouse")!;
+  const w = world("heron-warehouse", heronWorld, ["saul", "hep"]);
+  const before = areaHazards(region, w, map);
+  assert.ok(before.dust.length > 40 && !before.fire.length && !before.scorched.length, "the re-sacking floor is thick with dust");
+  assert.ok(before.dust.every(p => p.x >= 9 && p.x <= 18 && p.y >= 3 && p.y <= 12), "and only the floor");
+  damageThing(w, w.entities["heron-sacks"]!, 4, "fire", 1);
+  tick(w, 2, 11);
+  const after = areaHazards(region, w, map);
+  assert.ok(!after.dust.length && after.scorched.length > 40 && after.fire.length > 40, "the dust went up: scorched, and burning");
+  const ex = newExploration(NIGHT);
+  enterScene(ex, "heron-warehouse");
+  const lines = renderExplore(ex, { w: 80, h: 24 }, { world: w, t: 500 });
+  assert.ok(lines.flat().filter(s => !!s.bg && fiery(s.bg)).length > 20, "the Heron's floor burns on the map");
+});
+
+test("glyph sets on the map: plain is seven-bit; plain text stays single-width whatever the set", () => {
+  const ex = newExploration(DUSK, { at: { x: 30, y: 30 } });
+  const plain = toPlain(renderExplore(ex, { w: 100, h: 30 }, { glyphs: "plain", t: 700 }));
+  assert.deepEqual([...plain].filter(ch => ch !== "\n" && ch.charCodeAt(0) >= 128), [], "seven-bit only");
+  assert.match(plain, /@/);
+  const icons = /[-]|[\u{f0000}-\u{fffff}]/u;
+  assert.ok(icons.test(toPlain(renderExplore(ex, { w: 100, h: 30 }, { glyphs: "nerd", t: 700 }))), "the nerd set draws icons in colour (the lamp posts)");
+  assert.ok(!icons.test(toPlain(renderExplore(ex, { w: 100, h: 30 }, { glyphs: "nerd", color: false }))), "but plain text never does");
 });
