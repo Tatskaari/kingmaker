@@ -280,7 +280,9 @@ export function select(world: SceneWorld, selector: string): Entity[] {
     const exact = world.entities[s] ?? all.find(e => e.id.toLowerCase() === key) ?? all.find(e => e.name.toLowerCase().replace(/^the /, "") === key);
     if (exact) return [exact];
     const loose = all.filter(e => e.kind !== "place" && e.name.toLowerCase().includes(key));
-    return loose.length ? [loose.sort((a, b) => a.name.length - b.name.length)[0]!] : [];
+    if (loose.length) return [loose.sort((a, b) => a.name.length - b.name.length)[0]!];
+    const best = byWords(all.filter(e => e.kind !== "place"), s);
+    return best ? [best] : [];
   }
   let picked = all.filter(e => e.kind !== "place" && e.kind !== "area");
   for (const term of s.replace(/^all\s*/i, "").split(/\s+/).filter(Boolean)) {
@@ -300,6 +302,36 @@ export function select(world: SceneWorld, selector: string): Entity[] {
     }
   }
   return picked;
+}
+
+const STOP_WORDS = new Set(["the", "a", "an", "of", "and", "with", "his", "her", "their", "its", "s", "by", "to", "in", "on", "at"]);
+const wordsOf = (t: string) => t.toLowerCase().replace(/[’']s\b/g, "").replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(w => w && !STOP_WORDS.has(w));
+
+/**
+ * A model's way of naming things: no article or possessive, words in any order ("granary yard
+ * doors" is "the granary's yard doors"). Only a clear winner counts: a guess would put things in
+ * the wrong place, and a selector that matches nothing is reported back as a problem.
+ */
+function byWords(candidates: Entity[], text: string): Entity | undefined {
+  const want = wordsOf(text);
+  if (!want.length) return undefined;
+  const scored = candidates.map(e => {
+    const have = new Set([...wordsOf(e.name), ...wordsOf(e.id.replace(/-/g, " "))]);
+    const hits = want.filter(w => have.has(w) || [...have].some(h => h.length > 3 && w.length > 3 && (h.startsWith(w) || w.startsWith(h)))).length;
+    return { e, score: hits / want.length, size: have.size };
+  }).filter(x => x.score > 0).sort((a, b) => b.score - a.score || a.size - b.size);
+  const [best, next] = scored;
+  return best && best.score >= 0.6 && !(next && next.score === best.score && next.size === best.size) ? best.e : undefined;
+}
+
+const PLACE_WORDS: Record<string, string> = { near: "near", by: "near", at: "near", beside: "beside", next: "beside", behind: "behind", under: "under", beneath: "under", on: "on", onto: "on", in: "in", into: "in", inside: "in", between: "near" };
+/** "beside moll", "behind the bar", "between cob and the gate": a where written into "to" instead of "how". */
+function placeIn(world: SceneWorld, to: string, how: string): { to: string; how: string } {
+  if (select(world, to).length) return { to, how };
+  const m = /^(near|by|at|beside|next to|behind|under|beneath|on|onto|in|into|inside|between)\s+(.+)$/i.exec(to.trim());
+  if (!m) return { to, how };
+  const target = m[1]!.toLowerCase() === "between" ? m[2]!.split(/\s+and\s+/i)[0]! : m[2]!;
+  return { to: target, how: how || PLACE_WORDS[m[1]!.toLowerCase().split(" ")[0]!]! };
 }
 
 export interface WorldOp {
@@ -356,11 +388,12 @@ export function applyOps(world: SceneWorld, ops: WorldOp[], turn: number, by: Wo
       if (!targets.length) { problems.push(`${op.op}: nothing matches "${op.what}"`); continue; }
       for (const e of targets) {
         if (op.op === "move" || op.op === "place") {
-          const dest = one(op.to, op.op);
+          const where = placeIn(world, op.to, op.how);
+          const dest = one(where.to, op.op);
           if (!dest) continue;
           // Where they started, and where they were hiding, no longer holds once they move.
           e.notes = e.notes.filter(n => n.by !== "author" && !/^(behind|under|on|in|beside) /i.test(n.text));
-          const how = op.how || "near";
+          const how = where.how || "near";
           // Saying where someone already is isn't a move: "Kell is in the doorway" mustn't scatter her
           // to a random spot in it, nor "by the bar" shuffle someone already at the bar.
           if (!heldBy(world, e) && ((dest.kind === "area" || dest.kind === "place") ? areaOf(world, e.id)?.id === dest.id : how === "near" && (feetBetween(world, e.id, dest.id) ?? Infinity) <= 5)) continue;
