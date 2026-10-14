@@ -106,5 +106,7 @@ export function surfacesOf(world: SceneWorld, locate?: (id: string) => { x: numb
     const radius = num(loose.radius) ?? SIZE_RADIUS[e.size ?? "medium"] ?? 5;
     add(e.id, e.name, p.x, p.y, radius, e.states);
   }
+  // Drawn in this order: what's burning goes last, so a puddle beside a fire never hides it.
+  surfaces.sort((a, b) => Number(a.states.includes("burning")) - Number(b.states.includes("burning")));
   return { surfaces, clouds };
 }

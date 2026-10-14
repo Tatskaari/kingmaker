@@ -339,8 +339,8 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
 
   // 5. Effects: things on the ground, then in the air, then areas (rings, fireballs, flashes).
   if (fx) {
-    for (const sp of fx.sprites) if (sp.layer === 0) sprite(canvas, sp, L, s);
-    for (const sp of fx.sprites) if (sp.layer > 0) sprite(canvas, sp, L, s);
+    for (const sp of fx.sprites) if (sp.layer === 0) sprite(canvas, sp, L, s, set);
+    for (const sp of fx.sprites) if (sp.layer > 0) sprite(canvas, sp, L, s, set);
     for (const area of fx.areas) {
       const c = L.toCell(area);
       const rx = Math.ceil((area.radius + area.width) / s) + 1, ry = Math.ceil((area.radius + area.width) / (2 * s)) + 1;
@@ -426,7 +426,7 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
   // first: what people say matters most; numbers find room round them).
   if (fx) {
     const taken = new Uint8Array(w * h);
-    for (const tx of [...fx.texts].sort((a, b) => (a.style === "bark" ? 0 : 1) - (b.style === "bark" ? 0 : 1))) text(canvas, tx, L, taken);
+    for (const tx of [...fx.texts].sort((a, b) => (a.style === "bark" ? 0 : 1) - (b.style === "bark" ? 0 : 1))) text(canvas, tx, L, taken, set);
   }
   return canvas;
 }
@@ -484,7 +484,7 @@ function drawOne(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: numbe
   }
   if (e.states.includes("hanging") && canvas.inside(c.x, c.y - 1)) {
     const sway = noise1(t / 1300, seedOf(e.id)) > 0.5;
-    canvas.put(c.x, c.y - 1, sway ? "│" : "╎", rgbOf("#c8a878"));
+    canvas.put(c.x, c.y - 1, inSet(sway ? "│" : "╎", set), rgbOf("#c8a878"));
   }
 }
 
@@ -698,7 +698,7 @@ function emit(canvas: Canvas, em: Emitter, t: number, set: GlyphSet, wind?: { di
   }
 }
 
-function sprite(canvas: Canvas, sp: { x: number; y: number; z: number; glyph: string; fg: RGB; bg?: RGB; bgAlpha?: number; alpha: number; glow: boolean }, L: StageLayout, s: number): void {
+function sprite(canvas: Canvas, sp: { x: number; y: number; z: number; glyph: string; fg: RGB; bg?: RGB; bgAlpha?: number; alpha: number; glow: boolean }, L: StageLayout, s: number, set: GlyphSet): void {
   const c = L.toCell(sp);
   const x = c.x, y = c.y - Math.round(sp.z / (2 * s));
   if (!canvas.inside(x, y)) return;
@@ -707,17 +707,17 @@ function sprite(canvas: Canvas, sp: { x: number; y: number; z: number; glyph: st
     // Translucent (smoke, steam, dust): veil the cell; only the thicker part of a puff draws its wisp.
     const k = (sp.bgAlpha ?? 0.5) * sp.alpha;
     canvas.bg[i] = mix(canvas.bg[i]!, sp.bg, k);
-    if (k > 0.18) { canvas.glyph[i] = sp.glyph; canvas.fg[i] = mix(canvas.bg[i]!, sp.fg, Math.min(1, k * 2.2)); }
+    if (k > 0.18) { canvas.glyph[i] = inSet(sp.glyph, set); canvas.fg[i] = mix(canvas.bg[i]!, sp.fg, Math.min(1, k * 2.2)); }
     else canvas.fg[i] = mix(canvas.fg[i]!, sp.fg, k);
   } else {
-    canvas.glyph[i] = sp.glyph;
+    canvas.glyph[i] = inSet(sp.glyph, set);
     canvas.fg[i] = sp.alpha < 1 ? mix(canvas.bg[i]!, sp.fg, sp.alpha) : sp.fg;
   }
   if (sp.glow) canvas.flags[i] = (canvas.flags[i]! & BOLD) | GLOW;
 }
 
 /** Floating text: barks in a dark bubble with the speaker's colour down the side, numbers rising. */
-function text(canvas: Canvas, tx: { x: number; y: number; rows: number; text: string; fg: RGB; bg?: RGB; alpha: number; style: string; bold: boolean }, L: StageLayout, taken: Uint8Array): void {
+function text(canvas: Canvas, tx: { x: number; y: number; rows: number; text: string; fg: RGB; bg?: RGB; alpha: number; style: string; bold: boolean }, L: StageLayout, taken: Uint8Array, set: GlyphSet): void {
   if (tx.alpha <= 0.02) return;
   const c = L.toCell(tx);
   const parchment = rgbOf("#efe6d2");
@@ -740,7 +740,7 @@ function text(canvas: Canvas, tx: { x: number; y: number; rows: number; text: st
     const bg = tx.bg ?? rgbOf("#16141c");
     lines.forEach((line, k) => {
       const y = Math.max(0, top + k);
-      const row = `▌${line.padEnd(width - 2)} `;
+      const row = `${inSet("▌", set)}${line.padEnd(width - 2)} `;
       [...row].forEach((ch, j) => {
         const x = left + j;
         if (!canvas.inside(x, y)) return;
@@ -754,7 +754,7 @@ function text(canvas: Canvas, tx: { x: number; y: number; rows: number; text: st
     });
     // The tail, pointing down at whoever's talking.
     const ty = top + lines.length;
-    if (canvas.inside(c.x, ty) && ty < c.y) { const i = ty * canvas.w + c.x; canvas.glyph[i] = "▾"; canvas.fg[i] = mix(canvas.bg[i]!, tx.fg, tx.alpha); canvas.flags[i] = UNLIT; }
+    if (canvas.inside(c.x, ty) && ty < c.y) { const i = ty * canvas.w + c.x; canvas.glyph[i] = inSet("▾", set); canvas.fg[i] = mix(canvas.bg[i]!, tx.fg, tx.alpha); canvas.flags[i] = UNLIT; }
     return;
   }
   const chars = [...tx.text];

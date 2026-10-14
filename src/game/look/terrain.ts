@@ -367,7 +367,8 @@ export function flameCell(flame: FlameName, under: TCell, cx: number, cy: number
   const fg = ramp(ramp8, clamp01(0.3 + 0.75 * heat));
   const bg = mix(under.bg, ramp(ramp8, clamp01(0.06 + 0.32 * heat)), clamp01(0.4 + intensity * 0.6));
   const glyph = heat > 0.68 ? "▲" : heat > 0.5 ? "^" : heat > 0.38 ? "'" : heat > 0.3 ? "·" : under.glyph;
-  return { glyph: set === "plain" ? inSet(glyph, "plain") : glyph, fg: heat > 0.3 ? fg : mix(under.fg, fg, 0.5), bg, glow: heat > 0.3 };
+  // The whole patch is alight (its cooler cells are embers): none of it goes dark at night.
+  return { glyph: set === "plain" ? inSet(glyph, "plain") : glyph, fg: heat > 0.3 ? fg : mix(under.fg, fg, 0.5), bg, glow: heat > 0.3 || intensity > 0.25 };
 }
 
 // ---------------------------------------------------------------------------------------------
