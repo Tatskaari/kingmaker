@@ -145,11 +145,18 @@ export class Game {
       await this.beginCombat(r.save.combat);
       return;
     }
+    // The scene ended but the story hadn't moved on yet (quit on the card, or mid-chain): carry on.
+    if (session.ended && endedExit(session)) {
+      this.screen = "scene";
+      this.showSceneSoFar();
+      this.emit();
+      await this.sceneOver(endedExit(session)!);
+      return;
+    }
     if (r.save.mode === "scene") {
       this.screen = "scene";
       this.showSceneSoFar();
       this.emit();
-      if (session.ended) { await this.sceneOver(endedExit(session)!); return; }
       if (!sceneEntries(session).some(e => e.kind === "narration")) await this.openLead();
       return;
     }
@@ -189,6 +196,11 @@ export class Game {
 
   interact(): void {
     const target = maps.reachable(this.pos, this.actors)[0];
+    // A lead the map has no place for (a scene the map module doesn't know): it opens from anywhere.
+    if (!target?.interaction && this.story.lead && !maps.sceneLocation(this.story.lead)) {
+      void this.openLead();
+      return;
+    }
     if (!target?.interaction) {
       const near = maps.nearby(this.pos, this.actors, 4).find(n => n.actor.interaction);
       this.say(near ? `Nothing within reach. (${capital(near.actor.name)} is ${near.distance} paces away.)` : "There's nothing here to interact with but the weather.");
@@ -328,7 +340,7 @@ export class Game {
       case "end": {
         // For testing: end the scene through an exit now, as if play had reached it.
         const exit = sceneById(session.sceneId).exits.find(e => e.id === rest[0]);
-        if (!exit) { this.status = `No exit "${rest[0] ?? ""}" here. #exits lists them.`; break; }
+        if (!exit) { await this.command("exits"); this.status = rest[0] ? `No exit "${rest[0]}" here.` : "Which ending? #end <id>"; this.emit(); return; }
         forceEnding(session, exit.id);
         this.emit();
         await this.sceneOver(exit);
