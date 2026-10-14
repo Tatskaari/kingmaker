@@ -18,13 +18,20 @@ export const WORLD_LANGUAGE = `Operations. Every operation has every field; leav
 - note: something worth remembering about "what" ("text"), also noted on "to" when it's about both ("Cob is hiding behind the bar").
 - remove: someone or something leaves the scene ("text": where to).
 - destroy: "what" is wrecked ("text": what's left of it).
+- ignite: "what" is set alight (the physics decides whether it catches: metal and stone only scorch, wet things won't).
+- douse: water thrown over "what" (it goes out, gets wet and scorched, and stands in a puddle).
+- spill: a liquid ("what": water, oil, spirits, ale, blood or grease) is spilled at "to" (someone or something), "quantity" its size in feet.
+- chill: "what" is frozen by cold (water to ice).
+- bleed: "what" (someone) is badly wounded or killed: blood on the ground ("how": "light" for a lesser wound).
+- break: "what" is broken (a container spills what it held).
+Use the physics verbs for fire, water, spills and wounds rather than writing states by hand: they keep the world consistent.
 Selectors ("what", "to"): an id from the world, a name, "player", or a group: "all <filters>" with kind:object, tag:flammable, state:burning, in:<area id>, held:<id>, name:<word>, within:<feet>:<id> (e.g. "all tag:flammable within:10:card-table").`;
 
 const OP_SCHEMA = {
   type: "object", additionalProperties: false,
   required: ["op", "what", "to", "how", "name", "kind", "text", "add", "remove", "quantity"],
   properties: {
-    op: { type: "string", enum: ["move", "place", "give", "drop", "create", "state", "note", "remove", "destroy"] },
+    op: { type: "string", enum: ["move", "place", "give", "drop", "create", "state", "note", "remove", "destroy", "ignite", "douse", "spill", "chill", "bleed", "break"] },
     what: { type: "string" }, to: { type: "string" }, how: { type: "string" }, name: { type: "string" }, kind: { type: "string" }, text: { type: "string" },
     add: { type: "array", items: { type: "string" } }, remove: { type: "array", items: { type: "string" } },
     quantity: { type: "integer" },
