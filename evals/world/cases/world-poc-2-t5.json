@@ -50,6 +50,12 @@
    "move": "kell",
    "near": "prout",
    "within": 8
+  },
+  {
+   "state": "player",
+   "add": [
+    "standing"
+   ]
   }
  ],
  "forbid": [

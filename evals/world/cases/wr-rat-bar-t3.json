@@ -51,6 +51,16 @@
     "open",
     "opened"
    ]
+  },
+  {
+   "state": "player",
+   "add": [
+    "standing"
+   ]
+  },
+  {
+   "held": "cards",
+   "by": "dilly"
   }
  ],
  "forbid": [

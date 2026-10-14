@@ -21,6 +21,12 @@
    "within": 8
   }
  ],
+ "allow": [
+  {
+   "create": "padlock",
+   "count": 1
+  }
+ ],
  "forbid": [
   {
    "state": "yard-doors",

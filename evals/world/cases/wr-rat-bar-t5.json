@@ -52,6 +52,17 @@
     "seated",
     "sitting"
    ]
+  },
+  {
+   "held": "cards",
+   "by": "dilly"
+  }
+ ],
+ "forbid": [
+  {
+   "create": "bandaged|man with",
+   "fail": "duplicate",
+   "why": "the man with the bandaged elbow is Arlo"
   }
  ],
  "world": {

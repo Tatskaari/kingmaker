@@ -31,8 +31,9 @@ export const WORLD_LANGUAGE_V2 = `Operations. Every operation has every field; l
 - remove: someone or something leaves the scene ("text": where to).
 - destroy: "what" is wrecked ("text": what's left of it).`;
 
-export function opSchemaV2(world: SceneWorld): Record<string, unknown> {
+export function opSchemaV2(world: SceneWorld, options: { freeIds?: boolean } = {}): Record<string, unknown> {
   const ids = ["", ...Object.keys(world.entities).filter(id => id !== world.root)];
+  const id = options.freeIds ? { type: "string" } : { type: "string", enum: ids };
   return {
     type: "object", additionalProperties: false, required: ["ops"],
     properties: {
@@ -42,7 +43,7 @@ export function opSchemaV2(world: SceneWorld): Record<string, unknown> {
           required: ["op", "what", "to", "how", "feet", "name", "kind", "text", "add", "remove"],
           properties: {
             op: { type: "string", enum: [...OPS_V2] },
-            what: { type: "string", enum: ids }, to: { type: "string", enum: ids },
+            what: id, to: id,
             how: { type: "string", enum: [...HOWS_V2] }, feet: { type: "integer" },
             name: { type: "string" }, kind: { type: "string", enum: ["", "person", "creature", "object", "item"] }, text: { type: "string" },
             add: { type: "array", items: { type: "string" } }, remove: { type: "array", items: { type: "string" } },
@@ -53,11 +54,73 @@ export function opSchemaV2(world: SceneWorld): Record<string, unknown> {
   };
 }
 
-/** Apply the extended operations in order: the extensions here, the rest through the world module. */
-export function applyOpsV2(world: SceneWorld, ops: WorldOpV2[], turn: number, by: "stage" | "rules" = "stage"): { changes: string[]; problems: string[] } {
+const STOP = new Set(["the", "a", "an", "of", "and", "with", "his", "her", "their", "its", "s", "by", "to", "in", "on", "at"]);
+const words = (t: string) => t.toLowerCase().replace(/[’']s\b/g, "").replace(/[^a-z0-9]+/g, " ").trim().split(" ").filter(w => w && !STOP.has(w));
+const HOW_WORDS: Record<string, string> = { near: "near", by: "near", beside: "beside", next: "beside", behind: "behind", under: "under", beneath: "under", on: "on", onto: "on", atop: "on", in: "in", into: "in", inside: "in", at: "near", to: "" };
+
+/**
+ * A forgiving reading of a selector written by a model: an id, a name without its article or
+ * possessive ("granary yard doors" is "the granary's yard doors"), or a preposition and a name
+ * ("beside moll" is how "beside", to "moll"). Word overlap decides between names, and only a
+ * clear winner counts: an ambiguous selector is reported, not guessed.
+ */
+export function resolveSelector(world: SceneWorld, selector: string): { id?: string; how?: string } {
+  let s = selector.trim();
+  if (!s) return {};
+  if (world.entities[s]) return { id: s };
+  let how: string | undefined;
+  const away = /^(away from|towards?)\s+(.+)$/i.exec(s);
+  const m = away ? undefined : /^(near|by|beside|next to|behind|under|beneath|on|onto|atop|in|into|inside|at|to)\s+(.+)$/i.exec(s);
+  if (away) { how = /^away/i.test(away[1]!) ? "away" : "toward"; s = away[2]!; }
+  else if (m) { how = HOW_WORDS[m[1]!.toLowerCase().split(" ")[0]!]; s = m[2]!; }
+  // "between player and moll": the first of them.
+  s = s.replace(/^between\s+/i, "").split(/\s+and\s+/i)[0]!;
+  if (world.entities[s]) return { id: s, ...(how ? { how } : {}) };
+  const want = words(s);
+  if (!want.length) return {};
+  const live = Object.values(world.entities).filter(e => !e.states.includes("gone") && e.kind !== "place");
+  const scored = live.map(e => {
+    const have = new Set([...words(e.name), ...words(e.id.replace(/-/g, " "))]);
+    const hits = want.filter(w => have.has(w) || [...have].some(h => h.length > 3 && w.length > 3 && (h.startsWith(w) || w.startsWith(h)))).length;
+    return { e, score: hits / want.length, extra: have.size };
+  }).filter(x => x.score > 0).sort((a, b) => b.score - a.score || a.extra - b.extra);
+  const [best, next] = scored;
+  if (!best || best.score < 0.6 || (next && next.score === best.score && next.extra === best.extra)) return {};
+  return { id: best.e.id, ...(how ? { how } : {}) };
+}
+
+/** A free-text operation resolved to ids against the world as it stands (the alternative to enforcing ids in the schema). */
+export function resolveOp(world: SceneWorld, op: WorldOpV2): { op?: WorldOpV2; problem?: string } {
+  const next = { ...op };
+  if (op.op !== "create" && op.what) {
+    const r = resolveSelector(world, op.what);
+    if (!r.id) return { problem: `${op.op}: nothing matches "${op.what}"` };
+    next.what = r.id;
+  }
+  if (op.to) {
+    const r = resolveSelector(world, op.to);
+    if (!r.id) {
+      if (op.op !== "create") return { problem: `${op.op}: nothing matches "${op.to}"` };
+      next.to = "";
+    } else {
+      next.to = r.id;
+      if (r.how && !op.how && (op.op === "move" || op.op === "place")) { next.op = "place"; next.how = r.how; }
+    }
+  }
+  return { op: next };
+}
+
+/** Apply the extended operations in order: the extensions here, the rest through the world module. With `resolve`, free-text selectors are read forgivingly first. */
+export function applyOpsV2(world: SceneWorld, input: WorldOpV2[], turn: number, by: "stage" | "rules" = "stage", options: { resolve?: boolean } = {}): { changes: string[]; problems: string[] } {
   const changes: string[] = [];
   const problems: string[] = [];
-  for (const op of ops) {
+  for (const raw of input) {
+    let op = raw;
+    if (options.resolve) {
+      const r = resolveOp(world, raw);
+      if (!r.op) { problems.push(r.problem!); continue; }
+      op = r.op;
+    }
     const e = op.what ? world.entities[op.what] : undefined;
     if ((op.op === "move" || op.op === "place") && (op.how === "away" || op.how === "toward")) {
       const ref = world.entities[op.to];
@@ -70,6 +133,20 @@ export function applyOpsV2(world: SceneWorld, ops: WorldOpV2[], turn: number, by
       changes.push(text);
       world.log.push({ turn, text, by });
       continue;
+    }
+    // Saying where someone already is isn't a move: "Kell is in the doorway" mustn't scatter her to
+    // a random spot in it, and "beside the bar" when they're at the bar mustn't shuffle them.
+    if ((op.op === "move" || op.op === "place") && e && (op.how === "" || op.how === "near")) {
+      const dest = world.entities[op.to];
+      const here = positionOf(world, e.id), there = dest ? positionOf(world, dest.id) : undefined;
+      const holder = e.parent ? world.entities[e.parent] : undefined;
+      const loose = !holder || holder.kind === "area" || holder.kind === "place";
+      const stays = dest && loose && ((dest.kind === "area" || dest.kind === "place") ? areaOf(world, e.id)?.id === dest.id : !!here && !!there && distance(here, there) <= 5);
+      if (stays) {
+        // They stay put, but the story has moved them on from the opening tableau: its notes go, as on any move.
+        e.notes = e.notes.filter(n => n.by !== "author" && !/^(behind|under|on|in|beside) /i.test(n.text));
+        continue;
+      }
     }
     if (op.op === "forget") {
       if (!e) { problems.push(`forget: unknown "${op.what}"`); continue; }
@@ -85,28 +162,29 @@ export function applyOpsV2(world: SceneWorld, ops: WorldOpV2[], turn: number, by
   return { changes, problems };
 }
 
-function bounds(world: SceneWorld) {
-  const r = world.entities[world.root]!.rect!;
+/** Inside a rect (an area, or the whole place). Areas stand in for walls: backing off down a lane doesn't put you in the loft. */
+function bounds(world: SceneWorld, within?: Entity) {
+  const r = (within?.rect ?? world.entities[world.root]!.rect)!;
   return (p: Point) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
 }
 
-/** `feet` from a reference, on the side the mover already is (or wherever there's room), inside the place. */
+/** `feet` from a reference, inside the mover's area: on the side they already are, or wherever there's room; as far as the area allows if it's too small. */
 function awayFrom(world: SceneWorld, e: Entity, ref: Entity, feet: number): Point {
   const from = positionOf(world, ref.id)!;
   const cur = positionOf(world, e.id) ?? from;
-  const inside = bounds(world);
+  const area = areaOf(world, e.id);
+  const inside = bounds(world, area);
   const preferred = Math.atan2(cur.y - from.y, cur.x - from.x);
   const hasPreference = distance(cur, from) > 1;
-  const angles = Array.from({ length: 16 }, (_, i) => (i * Math.PI) / 8)
-    .sort((a, b) => hasPreference ? angleGap(a, preferred) - angleGap(b, preferred) : room(world, from, b) - room(world, from, a));
+  const angles = Array.from({ length: 32 }, (_, i) => (i * Math.PI) / 16)
+    .sort((a, b) => hasPreference ? angleGap(a, preferred) - angleGap(b, preferred) : room(inside, from, b) - room(inside, from, a));
   for (const a of angles) {
     const p = { x: Math.round(from.x + feet * Math.cos(a)), y: Math.round(from.y + feet * Math.sin(a)) };
     if (inside(p)) return p;
   }
-  // No room for the whole distance: as far as the place allows.
-  const best = angles.sort((a, b) => room(world, from, b) - room(world, from, a))[0]!;
-  const reach = room(world, from, best);
-  return { x: Math.round(from.x + reach * Math.cos(best)), y: Math.round(from.y + reach * Math.sin(best)) };
+  // The area is too small for the whole distance: the farthest point in it.
+  const corners = area?.rect ? [[0, 0], [1, 0], [0, 1], [1, 1]].map(([i, j]) => ({ x: area.rect!.x + i! * area.rect!.w, y: area.rect!.y + j! * area.rect!.h })) : [cur];
+  return corners.sort((a, b) => distance(b, from) - distance(a, from))[0]!;
 }
 
 function toward(world: SceneWorld, e: Entity, ref: Entity, feet: number): Point {
@@ -118,8 +196,7 @@ function toward(world: SceneWorld, e: Entity, ref: Entity, feet: number): Point 
 }
 
 const angleGap = (a: number, b: number) => { const d = Math.abs(a - b) % (2 * Math.PI); return d > Math.PI ? 2 * Math.PI - d : d; };
-function room(world: SceneWorld, from: Point, angle: number): number {
-  const inside = bounds(world);
+function room(inside: (p: Point) => boolean, from: Point, angle: number): number {
   let r = 0;
   while (r < 200 && inside({ x: from.x + (r + 1) * Math.cos(angle), y: from.y + (r + 1) * Math.sin(angle) })) r++;
   return r;

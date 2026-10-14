@@ -23,6 +23,10 @@
  "allow": [
   {
    "move": "moll"
+  },
+  {
+   "create": "notebook",
+   "count": 1
   }
  ],
  "world": {

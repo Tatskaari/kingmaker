@@ -28,6 +28,12 @@
    ]
   }
  ],
+ "allow": [
+  {
+   "create": "\\bbar\\b",
+   "count": 1
+  }
+ ],
  "world": {
   "scene": "hanged-clerk",
   "root": "hanged-clerk:place",

@@ -9,7 +9,7 @@
  "playerTurn": "I reach up and pluck the coin out of her fingers before she can close them.",
  "rules": [],
  "reply": "Your fingers reach the wall, but Moll jerks back and snaps her fist shut against her chest. You get no coin—only a sharp slap across the knuckles from her free hand.\n\n“Touch me again and I’ll take a finger for the collection,” she says, voice gone flat.\n\nCob stops throwing stones. One rolls from his fist and clicks across the cobbles. “Oi! Leave Moll be!” He squares up from beneath the hanging clerk, boots flapping at his ankles.\n\nKell steps between you and the wall, not drawing her truncheon. “Investigator. Don’t take evidence out of a witness’s hand by force.” Her pencil moves in the notebook. “Moll, did someone pay you that coin?”",
- "why": "The grab fails: Moll keeps the crown and slaps the player's knuckles, so the player is at the foot of the wall below her (they walked over last turn, which the world missed). Kell steps between the player and the wall. Cob squares up under the body: one stone rolls away, but he still has his fistful.",
+ "why": "The grab fails: Moll keeps the crown and slaps the player's knuckles, so the player is at the foot of the wall below her (they walked over last turn, which the world missed). Kell steps between the player and the wall (allowed rather than required: she is already at the player's elbow, so in feet it may not register as a move). Cob squares up under the body: one stone rolls away, but he still has his fistful.",
  "tags": [
   "move",
   "drift"
@@ -19,9 +19,6 @@
    "move": "player",
    "near": "moll",
    "within": 8
-  },
-  {
-   "move": "kell"
   }
  ],
  "allow": [
@@ -34,6 +31,9 @@
     "angry",
     "defiant"
    ]
+  },
+  {
+   "move": "kell"
   }
  ],
  "forbid": [

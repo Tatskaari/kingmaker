@@ -52,25 +52,26 @@ export const STAGE_V2 = [
 const stageInput = (c: WorldCase, world: SceneWorld) =>
   `## The world before this exchange\n${stageView(world)}\n\nThe player character is ${c.player.name} (id "player").\n\n## The latest exchange\n${exchange(c)}`;
 
-export function opsV2(options: { name: string; effort?: Effort; check?: boolean; model?: string; about?: string }): System {
+export function opsV2(options: { name: string; effort?: Effort; check?: boolean; model?: string; about?: string; freeIds?: boolean }): System {
   return {
     name: options.name,
     about: options.about ?? `JSON operations in the proposed language (ids enforced by the schema, distances, forget), reasoning ${options.effort ?? "none"}${options.check ? ", one correction round when an operation fails" : ""}.`,
     async run(c) {
       const started = performance.now();
       const input: Message[] = [{ role: "user", content: stageInput(c, c.world) }];
-      const ask = (messages: Message[]) => respondJson<{ ops: WorldOpV2[] }>({ operation: "eval.world.ops", effort: options.effort ?? "none", ...(options.model ? { model: options.model } : {}), instructions: STAGE_V2, input: messages, json: { name: "world_ops", schema: opSchemaV2(c.world) } });
+      const ask = (messages: Message[]) => respondJson<{ ops: WorldOpV2[] }>({ operation: "eval.world.ops", effort: options.effort ?? "none", ...(options.model ? { model: options.model } : {}), instructions: STAGE_V2, input: messages, json: { name: "world_ops", schema: opSchemaV2(c.world, { freeIds: options.freeIds === true }) } });
       let result = await ask(input);
       let costUsd = result._meta.costUsd, calls = 1, inputTokens = result._meta.inputTokens, outputTokens = result._meta.outputTokens;
       let world = clone(c.world);
-      let applied = applyOpsV2(world, (result.ops ?? []).slice(0, 16), c.turn);
+      const resolve = { resolve: options.freeIds === true };
+      let applied = applyOpsV2(world, (result.ops ?? []).slice(0, 16), c.turn, "stage", resolve);
       const trace: unknown[] = [result.ops];
       if (options.check && applied.problems.length) {
         // One correction round, only when something didn't apply: the model sees what failed.
         result = await ask([...input, { role: "assistant", content: JSON.stringify({ ops: result.ops }) }, { role: "user", content: `These operations couldn't be applied: ${applied.problems.join("; ")}. Write the full corrected list.` }]);
         costUsd += result._meta.costUsd; calls++; inputTokens += result._meta.inputTokens; outputTokens += result._meta.outputTokens;
         world = clone(c.world);
-        applied = applyOpsV2(world, (result.ops ?? []).slice(0, 16), c.turn);
+        applied = applyOpsV2(world, (result.ops ?? []).slice(0, 16), c.turn, "stage", resolve);
         trace.push(result.ops);
       }
       return { world, trace, problems: applied.problems, costUsd, latencyMs: performance.now() - started, calls, inputTokens, outputTokens };
@@ -134,6 +135,47 @@ function look(world: SceneWorld, id: string): unknown {
   };
 }
 
+/** A write tool's call as an operation in the extended language. */
+export function toolOp(name: string, args: Record<string, unknown>): WorldOpV2 {
+  const op: WorldOpV2 = { op: "note", what: "", to: "", how: "", feet: 0, name: "", kind: "", text: "", add: [], remove: [] };
+  const s = (v: unknown) => (typeof v === "string" ? v : "");
+  const strings = (v: unknown) => (Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
+  if (name === "move") Object.assign(op, { op: args.how ? "place" : "move", what: s(args.id), to: s(args.to), how: s(args.how), feet: Number(args.feet) || 0 });
+  else if (name === "give") Object.assign(op, { op: "give", what: s(args.id), to: s(args.to) });
+  else if (name === "drop") Object.assign(op, { op: "drop", what: s(args.id), to: s(args.near) });
+  else if (name === "create") Object.assign(op, { op: "create", name: s(args.name), kind: s(args.kind), to: s(args.to), text: s(args.text), add: strings(args.states) });
+  else if (name === "set_state") Object.assign(op, { op: "state", what: s(args.id), add: strings(args.add), remove: strings(args.remove) });
+  else if (name === "note") Object.assign(op, { op: "note", what: s(args.id), text: s(args.text) });
+  else if (name === "forget") Object.assign(op, { op: "forget", what: s(args.id), text: s(args.text) });
+  else if (name === "leave") Object.assign(op, { op: "remove", what: s(args.id), text: s(args.text) });
+  else if (name === "destroy") Object.assign(op, { op: "destroy", what: s(args.id), text: s(args.text) });
+  return op;
+}
+
+/**
+ * Re-derive a run's world from its recorded operations with the current language code (so a fix
+ * to the language is measured without new model calls). Undefined for systems that don't record
+ * operations in the extended language.
+ */
+export function reapply(system: string, c: WorldCase, trace: unknown): { world: SceneWorld; problems: string[] } | undefined {
+  const world = clone(c.world);
+  if (system.startsWith("tools")) {
+    // Call by call, as the loop applied them; it refused unknown ids outright.
+    const calls = (trace as { calls?: Array<Record<string, Record<string, unknown>>> }).calls ?? [];
+    for (const [name, args] of calls.flatMap(call => Object.entries(call)).filter(([name]) => name !== "look")) {
+      const op = toolOp(name, args);
+      if ((op.what && !world.entities[op.what]) || (op.to && !world.entities[op.to])) continue;
+      applyOpsV2(world, [op], c.turn);
+    }
+    return { world, problems: [] };
+  }
+  if (!system.startsWith("ops") && !system.startsWith("decider") && system !== "gm-block") return undefined;
+  const t = trace as unknown[];
+  const ops = (Array.isArray(t[0]) ? t.at(-1) : t) as WorldOpV2[];
+  const applied = applyOpsV2(world, ops.slice(0, 16), c.turn, "stage", { resolve: system.startsWith("ops-free") });
+  return { world, problems: applied.problems };
+}
+
 export function toolLoop(options: { name: string; effort?: Effort }): System {
   return {
     name: options.name,
@@ -144,17 +186,7 @@ export function toolLoop(options: { name: string; effort?: Effort }): System {
       const started = performance.now();
       const call = async (name: string, args: Record<string, unknown>) => {
         if (name === "look") return look(world, String(args.id ?? ""));
-        const op: WorldOpV2 = { op: "note", what: "", to: "", how: "", feet: 0, name: "", kind: "", text: "", add: [], remove: [] };
-        const s = (v: unknown) => (typeof v === "string" ? v : "");
-        if (name === "move") Object.assign(op, { op: args.how ? "place" : "move", what: s(args.id), to: s(args.to), how: s(args.how), feet: Number(args.feet) || 0 });
-        else if (name === "give") Object.assign(op, { op: "give", what: s(args.id), to: s(args.to) });
-        else if (name === "drop") Object.assign(op, { op: "drop", what: s(args.id), to: s(args.near) });
-        else if (name === "create") Object.assign(op, { op: "create", name: s(args.name), kind: s(args.kind), to: s(args.to), text: s(args.text), add: Array.isArray(args.states) ? args.states : [] });
-        else if (name === "set_state") Object.assign(op, { op: "state", what: s(args.id), add: Array.isArray(args.add) ? args.add : [], remove: Array.isArray(args.remove) ? args.remove : [] });
-        else if (name === "note") Object.assign(op, { op: "note", what: s(args.id), text: s(args.text) });
-        else if (name === "forget") Object.assign(op, { op: "forget", what: s(args.id), text: s(args.text) });
-        else if (name === "leave") Object.assign(op, { op: "remove", what: s(args.id), text: s(args.text) });
-        else if (name === "destroy") Object.assign(op, { op: "destroy", what: s(args.id), text: s(args.text) });
+        const op = toolOp(name, args);
         // Ids only: a name or a phrase comes straight back as an error the model can fix.
         for (const ref of [op.what, op.to]) if (ref && !world.entities[ref]) { problems.push(`${name}: unknown id "${ref}"`); return { ok: false, error: `No "${ref}" in the world: use an id in brackets.` }; }
         const r = applyOpsV2(world, [op], c.turn);
@@ -266,6 +298,8 @@ export const SYSTEMS: Record<string, () => System> = {
   ops: () => opsV2({ name: "ops" }),
   "ops-check": () => opsV2({ name: "ops-check", check: true }),
   "ops-low": () => opsV2({ name: "ops-low", effort: "low" }),
+  "ops-free": () => opsV2({ name: "ops-free", freeIds: true, about: "The proposed prompt and language with free-text ids, read by the forgiving resolver (no enum in the schema)." }),
+  "ops-free-low": () => opsV2({ name: "ops-free-low", freeIds: true, effort: "low" }),
   tools: () => toolLoop({ name: "tools" }),
   "tools-low": () => toolLoop({ name: "tools-low", effort: "low" }),
   "gm-block": () => gmBlock({ name: "gm-block" }),

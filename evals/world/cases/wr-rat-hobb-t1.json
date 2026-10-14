@@ -42,6 +42,10 @@
     "seated",
     "sitting"
    ]
+  },
+  {
+   "create": "tray",
+   "count": 1
   }
  ],
  "forbid": [

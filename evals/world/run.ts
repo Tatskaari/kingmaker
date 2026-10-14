@@ -4,7 +4,7 @@ import { setCallLog } from "../../src/llm/openrouter.ts";
 import type { SceneWorld } from "../../src/world/scene-world.ts";
 import { loadCases } from "./cases.ts";
 import { kindOf, met, scoreCase, summarise, type CaseScore } from "./score.ts";
-import { SYSTEMS, type System } from "./systems.ts";
+import { reapply, SYSTEMS, type System } from "./systems.ts";
 import type { WorldCase } from "./types.ts";
 
 /**
@@ -61,12 +61,13 @@ function byKind(cases: WorldCase[], results: Result[]): Record<string, { hit: nu
 
 function table(cases: WorldCase[], results: Result[]): string {
   const systems = [...new Set(results.map(r => r.system))];
-  const lines = ["system | cases passed | precision | recall | F1 | notes found | extra notes | errors | cost/turn | latency p50 / p90 | model calls/turn", "---|---|---|---|---|---|---|---|---|---|---"];
+  const lines = ["system | cases passed | passed, stale notes aside | precision | recall | F1 | notes found | extra notes | errors | cost/turn | latency p50 / p90 | model calls/turn", "---|---|---|---|---|---|---|---|---|---|---|---"];
   for (const s of systems) {
     const rs = results.filter(r => r.system === s);
     const sum = summarise(rs.filter(r => r.score).map(r => r.score!));
     const lat = rs.filter(r => !r.error).map(r => r.latencyMs);
-    lines.push(`${s} | ${sum.passed}/${sum.cases} | ${pct(sum.precision)} (${sum.explained}/${sum.explained + sum.unexplained}) | ${pct(sum.recall)} (${sum.hits}/${sum.expected}) | ${pct(sum.f1)} | ${sum.notes.found}/${sum.notes.expected} | ${sum.notes.extra} | ${rs.filter(r => r.error).length} | $${(rs.reduce((a, r) => a + r.costUsd, 0) / Math.max(1, rs.length - rs.filter(r => r.error).length)).toFixed(5)} | ${(quantile(lat, 0.5) / 1000).toFixed(1)} s / ${(quantile(lat, 0.9) / 1000).toFixed(1)} s | ${(rs.reduce((a, r) => a + r.calls, 0) / rs.length).toFixed(1)}`);
+    const lenient = rs.filter(r => r.score && r.score.failures.every(f => f.class === "stale-note" || f.class === "missed-note")).length;
+    lines.push(`${s} | ${sum.passed}/${sum.cases} | ${lenient}/${sum.cases} | ${pct(sum.precision)} (${sum.explained}/${sum.explained + sum.unexplained}) | ${pct(sum.recall)} (${sum.hits}/${sum.expected}) | ${pct(sum.f1)} | ${sum.notes.found}/${sum.notes.expected} | ${sum.notes.extra} | ${rs.filter(r => r.error).length} | $${(rs.reduce((a, r) => a + r.costUsd, 0) / Math.max(1, rs.length - rs.filter(r => r.error).length)).toFixed(5)} | ${(quantile(lat, 0.5) / 1000).toFixed(1)} s / ${(quantile(lat, 0.9) / 1000).toFixed(1)} s | ${(rs.reduce((a, r) => a + r.calls, 0) / rs.length).toFixed(1)}`);
   }
   lines.push("", "Failures by class (summed over samples):");
   for (const s of systems) {
@@ -101,7 +102,11 @@ async function main(): Promise<void> {
     const cases = loadCases();
     for (const r of data.results) {
       const c = cases.find(x => x.id === r.case);
-      if (c && r.world) r.score = scoreCase(c, r.world, r.problems ?? []);
+      if (!c) continue;
+      // --reapply: re-derive the world from the recorded operations with today's language code.
+      const again = args.includes("--reapply") && r.trace ? reapply(r.system, c, r.trace) : undefined;
+      if (again) { r.world = again.world; r.problems = again.problems; }
+      if (r.world) r.score = scoreCase(c, r.world, r.problems ?? []);
     }
     writeFileSync(join(rescore, "results.json"), JSON.stringify(data, null, 1));
     const summary = table(cases, data.results);
