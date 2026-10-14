@@ -127,3 +127,18 @@ The round 1 analyst (blind QA, 3 sessions; full write-up in `docs/qa/round-1-ana
 New structural idea: **every scene gets a built-in "ending of their own"** (`own-ending`). It's an exit for resolutions the prep didn't foresee, at the same 0.6 confidence bar, and the world scribe makes them true afterwards. Motivation: the GM improvised "walk with Skrag to the warren", no exit covered it, and the limit "the warren isn't reachable in this scene" made it retract its own offer. The limit cue also now needs 0.6 confidence and respects what a limit allows ("can set off for it").
 
 Reply suite after OOC + say-yes directives: gm 94%, actors 96% criterion pass (16 cases × 3).
+
+### Representation experiment: beat graph vs situation
+
+`crossroads-situation` reuses the crossroads cast, secrets, limits and endings, but replaces the four-beat graph with a single "situation" beat. That beat holds every route to an ending, one escalating pressure ("the hedges rustle… then Skrag steps out"), and no beat-to-beat transitions (rolls on uncovered attempts become freeform checks).
+
+| format (gm voice, 3 personas × 3) | progress | criterion | turns to an ending | consistency |
+|---|---|---|---|---|
+| beat graph (`crossroads-ambush`) | 4.10 | 8/9 | 9.0 | 3.57 |
+| situation (`crossroads-situation`) | **4.57** | **9/9** | **7.2** | 3.77 |
+
+With good cast cards, limits, endings and a pressure, the authored beat sequence adds little for the single-GM voice. It may even slow scenes down (the GM waits for beat transitions the tracker hasn't confirmed). The beats still help the *actors* approach, which has no central narrator to pace things.
+
+### Bug worth remembering: plain actions suppressed pacing cues
+
+Adding the built-in improvised ending as an "outcome" also made it appear as a "simply happens" option in every before-reply decision. When the player walked off with Tam, the decider half-picked it (below the ending threshold). That counted as "the player simply did something", and my rule "the player's action outranks a pacing cue" then suppressed the goblins' cue for eight turns. The GM voice hid it by bringing the goblins on itself; actors couldn't, and actors endings fell to 1/9. Fix: the improvised ending is only judged after the reply, and only a real *attempt* outranks a cue. Actors endings came back to 7/10 (progress 3.8; gm 4.0).

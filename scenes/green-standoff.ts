@@ -280,7 +280,33 @@ export const greenStandoff: Scene = {
         },
         { id: "seize-ward", on: "attempt", when: "The party tries to stop the ward by force: snatching the corn mother, laying hands on Hester, or blocking her way to the bounds-stone.", to: "flashpoint" },
         { id: "sent-on", when: "It has been settled, with the party's backing, that the Sedgeford folk will go: Oswin has agreed to lead his people out before sundown, or the party has sided with the ward.", to: "turned-out" },
-        { id: "sundown", on: "cue", when: "The bargaining has gone round for several exchanges with no settlement and nothing new on the table, or the party has stopped trying to find one: the sun is on the hill, and Hester sets off for the bounds-stone to raise the ward.", to: "turned-out" },
+        { id: "sundown", on: "cue", when: "The bargaining has gone round for several exchanges with no settlement and nothing new on the table, or the party has stopped trying to find one: the sun is on the hill, and Hester sets off for the bounds-stone to raise the ward.", to: "the-ward" },
+      ],
+    },
+    {
+      id: "the-ward",
+      title: "Sundown at the bounds-stone",
+      direction: "Hester has set off to raise the ward: the corn mother in both hands, walking the bounds in the last of the light towards the bounds-stone, half the green trailing after her and the Sedgeford folk loading their carts. This beat is the party's last chance to change who the ward counts, and it should feel like one. Something genuinely new (the guest-right, the parish's say-so, an offer Hester can accept with dignity) can still stop her or change the rite; an old plea repeated can't, and neither can wishing. If Hester herself offers a way in at the last moment, let the party take it. She only sets the corn mother in the niche if nothing they try works, or they let her.",
+      cast: {
+        hester: "Walk the bounds by the book. Stop for something genuinely new; if you've been given a way to take them in that you can live with, take it.",
+        oswin: "Get your people ready to go with what dignity they have left, and thank the party for trying.",
+        ned: "Gather the angriest lads and look north towards the mill.",
+        pip: "Hold on to the party's sleeve and watch the corn mother.",
+      },
+      transitions: [
+        {
+          id: "last-plea", on: "attempt",
+          when: "The player makes a last, new appeal (to Hester, or to the whole green) to take the Sedgeford folk in or hold the ward off: an argument, offer or plea that hasn't already been tried and failed.",
+          check: {
+            skill: "persuasion", dc: 15,
+            success: "Hester stops with the corn mother a hand's breadth from the niche, and gives way: the Sedgeford folk can stay. If nobody has found the old guest-right yet, she admits it now, and Harrowby's bread and salt are fetched at a run.",
+            failure: "Hester hears the player out, shakes her head, and lifts the corn mother towards the niche.",
+            onSuccess: "sheltered", onFailure: "turned-out",
+          },
+        },
+        { id: "seize-ward", on: "attempt", when: "The party tries to stop the ward by force: snatching the corn mother, laying hands on Hester, or blocking her way to the bounds-stone.", to: "flashpoint" },
+        { id: "ward-raised", when: "Hester has set the corn mother in the niche and the ward has risen with the Sedgeford folk outside it.", to: "turned-out" },
+        { id: "ward-rises", on: "cue", when: "Nobody is offering anything new (the party is standing back, stalling, or repeating an old plea): Hester sets the corn mother in the niche and the ward rises.", to: "turned-out" },
       ],
     },
   ],
@@ -295,7 +321,7 @@ export const greenStandoff: Scene = {
     {
       id: "sheltered", kind: "persuaded", title: "Guests of Harrowby",
       outcome: "Hester agrees that the Sedgeford folk can stay: at sundown the ward goes up with them counted as guests of the parish, or it's held off for now, and nobody is turned out tonight.",
-      closing: "Relief with a dry edge, at sundown. If the guest-right is used: bread and salt broken at the bounds-stone, the corn mother back in its niche, and the ward going up like heat-shimmer along the hedges while the Sedgeford folk feel nothing at all. A last moment for whoever matters most to how it went, and a dry word from Hester to her witnesses.",
+      closing: "Relief with a dry edge, at sundown. If the guest-right is used: Harrowby households breaking bread and salt with the Sedgeford folk at the bounds-stone, a family at a time, then Hester walking the last of the bounds and setting the corn mother in its niche, and the ward going up like heat-shimmer along the hedges while its new guests feel nothing at all. A last moment for whoever matters most to how it went, and a dry word from Hester to her witnesses.",
       script: (world, outcome) => {
         world.setFlag("sedgeford_refugees", "sheltered at Harrowby");
         world.character("oswin").setAttitude("devoted", "The party kept Sedgeford from being turned out onto the drovers' track.");

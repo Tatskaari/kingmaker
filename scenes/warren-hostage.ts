@@ -90,16 +90,17 @@ const ransomDeal: Transition = {
   to: "gone-for-ransom",
 };
 
-const frightenSnikkit: Transition = {
+// Social rolls win ground, not the hostage: Snikkit lets her go for a deal, a swap or a rescue.
+const frightenSnikkit = (beat: string): Transition => ({
   id: "intimidate", on: "attempt",
   when: "The player tries to frighten Snikkit into letting the courier go with threats against him or his band, or a show of force. Seizing leverage of their own and offering a swap is the counter-hostage move, not this.",
   check: {
     skill: "intimidation", dc: 15,
-    success: "Snikkit's nerve breaks: he has his goblins swing Hester onto the walkway and backs off along the beam, hands up, insisting he was only minding her.",
+    success: "Snikkit's nerve goes: he'll deal on the party's terms now, so long as he keeps his skin and his face in front of his band. Give him a way to call it his own idea and he hands her over.",
     failure: "Snikkit's grin goes thin. He lets the chain down until Hester's toes trail in the race (she still hangs from it), and reminds the party how fast the water runs.",
-    onSuccess: "freed",
+    onSuccess: beat, onFailure: beat,
   },
-};
+});
 
 /** A hostage for a hostage changes Snikkit's sums; it doesn't make him fold. */
 const counterHostage = (beat: string): Transition => ({
@@ -113,16 +114,16 @@ const counterHostage = (beat: string): Transition => ({
   },
 });
 
-const buySnikkit: Transition = {
+const buySnikkit = (beat: string): Transition => ({
   id: "release-first", on: "attempt",
-  when: "The player tries to talk or buy Snikkit into letting the courier go before he has what he wants (a bribe, a promise, a show of good faith, an appeal).",
+  when: "The player tries to talk or buy Snikkit into handing the courier over before he has what he wants (a bribe, a promise, a show of good faith, an appeal). Asking for her to be let down from the chain while she stays a prisoner (to write, say) is ordinary bargaining, not this.",
   check: {
     skill: "persuasion", dc: 15,
-    success: "Snikkit decides it's worth his while: his goblins swing Hester onto the walkway with a great show of generosity, and he makes it plain he expects to be repaid.",
+    success: "Snikkit gives ground: he'll take something on account instead of the whole crown, agree to a swap at the foot of the ladder, or have Hester swung onto the walkway as a show of good faith (still a prisoner, with a spear at her back). Settle the rest in play.",
     failure: "Snikkit wags a finger: proof first, tall friends. He's still open to a better offer.",
-    onSuccess: "freed",
+    onSuccess: beat, onFailure: beat,
   },
-};
+});
 
 const startLead = (world: WorldApi) => world.quest("who-sold-the-courier").start(
   "Who Sold the Courier?",
@@ -270,7 +271,7 @@ export const warrenHostage: Scene = {
       pressure: "The first edge of the moon shows through the burnt rafters. Snikkit saws through one strand of the rope, slowly, without taking his eyes off the party.",
       transitions: [
         { id: "snikkit-offers", on: "cue", when: "Snikkit makes the party his own, quieter offer (make him chief and the courier is theirs): he has had a couple of exchanges to size them up, or they have balked at the chief's price, or asked what he wants for himself.", to: "bargain" },
-        snatch(15), frightenSnikkit, counterHostage("standoff"), buySnikkit, deceive("standoff"), persuadeHester("standoff"),
+        snatch(15), frightenSnikkit("standoff"), counterHostage("standoff"), buySnikkit("standoff"), deceive("standoff"), persuadeHester("standoff"),
         attack, toGubbin, gubbinComes, freed, intoTheRace, ransomDeal,
       ],
     },
@@ -294,7 +295,7 @@ export const warrenHostage: Scene = {
             onSuccess: "bargain", onFailure: "bargain",
           },
         },
-        snatch(15), frightenSnikkit, counterHostage("bargain"), buySnikkit, deceive("bargain"), persuadeHester("bargain"),
+        snatch(15), frightenSnikkit("bargain"), counterHostage("bargain"), buySnikkit("bargain"), deceive("bargain"), persuadeHester("bargain"),
         attack, toGubbin, gubbinComes, freed, intoTheRace, ransomDeal,
       ],
     },
@@ -398,11 +399,11 @@ export const warrenHostage: Scene = {
     {
       id: "freed",
       title: "Out from under the mill",
-      direction: "Hester is free. Let the party get clear (the goblins let them go, or don't dare follow) unless they have business left in the warren. This beat is her debrief, played from how she was actually freed (a deal, a snatch, a fishing-out) and given a piece at a time as the player engages, each thing said once: what she's grateful for and what she resents; that the raid was no accident (the goblins were waiting at the ford where riders must slow, and went straight for her satchel); that she must reach the Saltmere delegation in Caerwyn before the Assembly opens; that she pays her debts, on paper; that she would rather not walk the King's Road barefoot and alone. Let the party ask what they like: she answers practical questions freely and guards her letters.",
+      direction: "Hester is out of the goblins' grip, wherever that leaves everyone (on the walkway, dripping at the race's edge, at the foot of the ladder). Stay in the moment: getting out of the undercroft is the party's to play, and if she was got out without the chief's say-so, the warren is about to wake up to it. This beat is her debrief, played from how she was actually freed (a deal, a snatch, a fishing-out) and given a piece at a time as the player engages, each thing said once: what she's grateful for and what she resents; that the raid was no accident (the goblins were waiting at the ford where riders must slow, and went straight for her satchel); that she must reach the Saltmere delegation in Caerwyn before the Assembly opens; that she pays her debts, on paper; that she would rather not walk the King's Road barefoot and alone. Let the party ask what they like: she answers practical questions freely and guards her letters.",
       cast: {
         hester: "Settle accounts in your own precise way, one item at a time: thanks, grievances, what you owe, what you know about the raid. Ask once, briskly, for company on the road to Caerwyn, then wait for the answer.",
       },
-      pressure: "Under the mill the goblins start shouting again. Hester looks at the dark road south, and then at her bare feet.",
+      pressure: "The warren starts shouting, and Gubbin's bellow rises over the race. Hester looks towards the ladder, and then at her bare feet.",
       transitions: [
         { id: "escort", when: "The party has agreed to travel on with Hester (to Caerwyn, or wherever they are bound together), and they set off.", to: "escorted" },
         { id: "part", when: "The party and Hester have parted ways: she sets off without them, or they leave her to make her own way.", to: "parted" },
@@ -417,6 +418,7 @@ export const warrenHostage: Scene = {
           },
         },
         attack,
+        { id: "brawl", when: "A real fight has broken out between the party and the goblins (blows traded, not just threats or a chase).", to: "fight" },
       ],
     },
   ],

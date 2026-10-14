@@ -1,12 +1,19 @@
 import type { Scene } from "../src/runtime/scene.ts";
 import { withImprovisedEnding } from "../src/runtime/brief.ts";
+import { strangerCrossroads } from "./stranger-crossroads.ts";
 import { crossroadsAmbush } from "./crossroads-ambush.ts";
 import { crossroadsAftermath } from "./crossroads-aftermath.ts";
-import { strangerCrossroads } from "./stranger-crossroads.ts";
-import { blockedEntrance } from "./blocked-entrance.ts";
 import { crossroadsSituation } from "./crossroads-situation.ts";
+import { garrowsToll } from "./garrows-toll.ts";
+import { warrenHostage } from "./warren-hostage.ts";
+import { blockedEntrance } from "./blocked-entrance.ts";
+import { greenStandoff } from "./green-standoff.ts";
+import { hangedClerk } from "./hanged-clerk.ts";
 
-export const SCENES: Scene[] = [strangerCrossroads, crossroadsAmbush, crossroadsAftermath, blockedEntrance, crossroadsSituation];
+export const SCENES: Scene[] = [
+  strangerCrossroads, crossroadsAmbush, crossroadsAftermath, crossroadsSituation,
+  garrowsToll, warrenHostage, blockedEntrance, greenStandoff, hangedClerk,
+];
 
 /** Scenes as the runtime sees them: authored, plus the built-in "ending of their own". */
 export function sceneById(id: string): Scene {

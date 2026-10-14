@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline/promises";
 import { setCallLog, sessionSpend } from "../llm/openrouter.ts";
@@ -8,6 +8,7 @@ import { chainScene, createSession, openScene, playerTurn, transcriptMarkdown, t
 import { applyRepair, runRepair, shouldRepair, writeRepair } from "../runtime/repair.ts";
 import { loadSession, saveSession, sessionDir, type Entry, type SessionState } from "../runtime/session.ts";
 import { SCENES, sceneById } from "../../scenes/index.ts";
+import { describeOperations, scribe } from "../world/scribe.ts";
 
 const USAGE = `Kingmaker V2 scene harness
 
@@ -17,6 +18,7 @@ const USAGE = `Kingmaker V2 scene harness
   scene say <session> <what you say or do>     take a turn (speech in quotes, actions in plain words)
   scene transcript <session>                   the scene so far
   scene status <session>                       debug view: beat, path, co-GM notes, latency (not for blind QA)
+  scene world <session> [--mode reconcile]     Phase 2: write world-update scripts for every finished scene
   scene play <scene> [--approach gm]           interactive play on a terminal
 `;
 
@@ -157,6 +159,30 @@ async function main(): Promise<void> {
       writeRepair(state, result);
     } finally {
       rmSync(lockFile(id), { force: true });
+    }
+    return;
+  }
+
+  if (command === "world") {
+    const id = args.shift()!;
+    const mode = (flag(args, "mode") ?? "reconcile") as "append" | "reconcile";
+    setCallLog(join(sessionDir(id), "calls.jsonl"));
+    const dir = join(sessionDir(id), "snapshots");
+    const endings = (existsSync(dir) ? readdirSync(dir) : []).sort()
+      .map(f => JSON.parse(readFileSync(join(dir, f), "utf8")) as SessionState).filter(s => s.ended);
+    if (!endings.length) { console.log("No finished scenes in this session yet."); return; }
+    for (const ended of endings) {
+      const scene = sceneById(ended.sceneId);
+      const exit = scene.exits.find(e => e.id === ended.ended!.exitId);
+      console.log(`## ${scene.title}: ended "${exit?.title ?? ended.ended!.exitId}"\n`);
+      const result = await scribe(scene, ended, ended.ended!.operations, { mode });
+      console.log("What changes, and why:");
+      for (const c of result.changes) console.log(`- ${c.what} (${c.why})`);
+      console.log(`\nWorld operations (${mode === "append" ? "after the authored script" : "reconciled with the authored defaults"}):`);
+      console.log(describeOperations(result.check.operations));
+      const problems = [...result.check.typeErrors, ...(result.check.runtimeError ? [result.check.runtimeError] : []), ...result.check.warnings];
+      console.log(`\nScript: ${result.check.ok ? "typechecks and runs" : "has problems"} (${result.attempts} attempt${result.attempts === 1 ? "" : "s"})${problems.length ? `\n${problems.join("\n")}` : ""}\n`);
+      writeFileSync(join(sessionDir(id), `world-${ended.sceneId}.ts`), `// World update for "${scene.title}" (${exit?.title}), written by the scribe\nfunction update(world: WorldApi): void {\n${result.check.body.replace(/^function update\([^)]*\)[^{]*\{\n?/, "").replace(/\}\s*$/, "")}\n}\n`);
     }
     return;
   }
