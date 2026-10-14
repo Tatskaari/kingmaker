@@ -1,6 +1,6 @@
 import { useKeyboard, useTerminalDimensions } from "@opentui/react";
 import { useEffect } from "react";
-import { direction, nearby, steps, whereabouts } from "../../game/map/index.ts";
+import { direction, look, nearby, steps, whereabouts } from "../../game/map/index.ts";
 import { MapView } from "../../game/map/view.tsx";
 import { interactLabel, leadTarget } from "../../game/town.ts";
 import { townView } from "../../game/views.ts";
@@ -47,6 +47,8 @@ export function ExploreScreen({ game }: { game: Game }) {
   const mapH = height - msgH - 1;
   const lines = townView(core.state, session, { w: mapW - 2, h: mapH - 2 }, { tick: game.tick });
   const where = whereabouts(ex);
+  // What the place is like (look()'s first line, without the "You're in ..." part the title already says).
+  const about = (look(ex).split("\n")[0] ?? "").replace(/^You're [^.]*\.\s*/, "");
   const lead = leadTarget(core.state);
   const leadScene = game.story.lead ? sceneById(game.story.lead) : undefined;
   const front = interactLabel(core.state, session);
@@ -63,6 +65,7 @@ export function ExploreScreen({ game }: { game: Game }) {
       <box width={sideW} height={mapH} border borderColor={C.border} title=" The investigation " flexDirection="column" paddingX={1} overflow="hidden">
         <text fg={C.title} attributes={BOLD}>{capital(where.place)}</text>
         <text fg={C.dim}>{TIME_WORDS[game.story.time]}</text>
+        {about ? <text fg={C.faint} wrapMode="word">{wrap(about, sideW - 4).slice(0, 3).join("\n")}</text> : null}
         <text marginTop={1}><span fg={C.player} attributes={BOLD}>{session.player.name}</span><span fg={C.dim}>{` · ${status.split(",")[0] ?? ""}`}</span></text>
         <text fg={C.faint}>{wrap(session.player.build ?? session.player.concept, inner).slice(0, 2).join("\n")}</text>
         {leadScene ? <box flexDirection="column" marginTop={1} flexShrink={0}>
