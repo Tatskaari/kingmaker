@@ -1,0 +1,194 @@
+import { spawn } from "node:child_process";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { createInterface } from "node:readline/promises";
+import { setCallLog, sessionSpend } from "../llm/openrouter.ts";
+import { APPROACHES, approachById } from "../runtime/approaches.ts";
+import { chainScene, createSession, openScene, playerTurn, transcriptMarkdown, type TurnHooks } from "../runtime/engine.ts";
+import { applyRepair, runRepair, writeRepair } from "../runtime/repair.ts";
+import { loadSession, saveSession, sessionDir, type Entry, type SessionState } from "../runtime/session.ts";
+import { SCENES, sceneById } from "../../scenes/index.ts";
+
+const USAGE = `Kingmaker V2 scene harness
+
+  scene list                                   scenes and approaches
+  scene start <scene> [--approach gm] [--as "Name: concept"] [--seed N] [--session ID]
+                                               start a scene; prints the session id and the opening
+  scene say <session> <what you say or do>     take a turn (speech in quotes, actions in plain words)
+  scene transcript <session>                   the scene so far
+  scene status <session>                       debug view: beat, path, co-GM notes, latency (not for blind QA)
+  scene play <scene> [--approach gm]           interactive play on a terminal
+`;
+
+function flag(args: string[], name: string): string | undefined {
+  const i = args.indexOf(`--${name}`);
+  if (i === -1) return undefined;
+  const value = args[i + 1];
+  args.splice(i, 2);
+  return value;
+}
+
+function nameOf(state: SessionState, speaker: string): string {
+  if (speaker === "player") return state.player.name;
+  return sceneById(state.sceneId).cast.find(c => c.id === speaker)?.name ?? speaker;
+}
+
+function render(state: SessionState, e: Entry): string {
+  switch (e.kind) {
+    case "player": return `> ${e.text}`;
+    case "roll": return `🎲 ${e.text}`;
+    case "system": return `— ${e.text} —`;
+    case "dialogue": return `${nameOf(state, e.speaker)}: ${e.text}`;
+    default: return e.text;
+  }
+}
+
+/** Print finished entries; stream text on a real terminal. */
+function printer(state: SessionState): TurnHooks {
+  if (!process.stdout.isTTY) return { onEntry: e => { if (e.kind !== "player") console.log(`${render(state, e)}\n`); } };
+  let shown = 0;
+  return {
+    onSpeaker: (speaker, kind) => { shown = 0; if (kind === "dialogue") process.stdout.write(`${nameOf(state, speaker)}: `); },
+    onText: text => { process.stdout.write(text.slice(shown)); shown = text.length; },
+    onEntry: e => {
+      if (e.kind === "player") return;
+      if (e.kind === "roll" || e.kind === "system") console.log(`${render(state, e)}\n`);
+      else process.stdout.write("\n\n");
+    },
+  };
+}
+
+const lockFile = (id: string) => join(sessionDir(id), "repair.lock");
+
+function spawnRepair(state: SessionState): void {
+  const approach = approachById(state.approach);
+  if (approach.repair !== "background" || state.ended) return;
+  writeFileSync(lockFile(state.id), String(state.turn));
+  const child = spawn(process.execPath, [import.meta.filename, "repair", state.id, "--turn", String(state.turn)], { detached: true, stdio: "ignore", env: process.env });
+  child.unref();
+}
+
+async function waitForRepair(id: string): Promise<void> {
+  const limit = Date.now() + Number(process.env.KM_REPAIR_WAIT_MS ?? 30_000);
+  while (existsSync(lockFile(id)) && Date.now() < limit) await new Promise(r => setTimeout(r, 250));
+}
+
+async function afterTurn(state: SessionState, hooks: TurnHooks): Promise<void> {
+  if (!state.ended) { spawnRepair(state); return; }
+  const scene = sceneById(state.sceneId);
+  const exit = scene.exits.find(e => e.id === state.ended!.exitId)!;
+  if (exit.kind === "combat") console.log("(The fight plays out on the map. For this PoC, the party wins.)\n");
+  const chained = chainScene(state);
+  if (chained) {
+    console.log(`— Next scene: ${sceneById(chained.sceneId).title} —\n`);
+    await openScene(chained, hooks);
+  } else {
+    console.log("— The session is over. —");
+  }
+}
+
+async function main(): Promise<void> {
+  const args = process.argv.slice(2);
+  const command = args.shift();
+  if (!command || command === "help" || command === "--help") { console.log(USAGE); return; }
+
+  if (command === "list") {
+    console.log("Scenes:");
+    for (const s of SCENES) console.log(`  ${s.id.padEnd(24)} ${s.summary}`);
+    console.log("\nApproaches:");
+    for (const a of Object.values(APPROACHES)) console.log(`  ${a.id.padEnd(24)} ${a.description}`);
+    return;
+  }
+
+  if (command === "start" || command === "play") {
+    const approach = flag(args, "approach") ?? "gm";
+    const player = flag(args, "as");
+    const seed = flag(args, "seed");
+    const id = flag(args, "session");
+    const sceneId = args.shift();
+    if (!sceneId) throw new Error("Which scene? See `scene list`.");
+    const state = await createSession({ sceneId, approach, ...(player ? { player } : {}), ...(seed ? { seed: Number(seed) } : {}), ...(id ? { id } : {}) });
+    setCallLog(join(sessionDir(state.id), "calls.jsonl"));
+    saveSession(state);
+    console.log(`Session: ${state.id}\nYou are ${state.player.name}: ${state.player.concept}\n`);
+    console.log(`${sceneById(sceneId).hook}\n`);
+    const hooks = printer(state);
+    await openScene(state, hooks);
+    if (command === "start") return;
+    const rl = createInterface({ input: process.stdin, output: process.stdout });
+    for (;;) {
+      const line = (await rl.question("> ")).trim();
+      if (!line) continue;
+      if (line === "/quit") break;
+      await waitForRepair(state.id);
+      const current = loadSession(state.id);
+      await playerTurn(current, line, printer(current));
+      await afterTurn(current, printer(current));
+      if (current.ended && !current.history.length) break;
+    }
+    rl.close();
+    return;
+  }
+
+  if (command === "say") {
+    const id = args.shift();
+    const text = args.join(" ").trim();
+    if (!id || !text) throw new Error("Usage: scene say <session> <what you say or do>");
+    await waitForRepair(id);
+    const state = loadSession(id);
+    setCallLog(join(sessionDir(id), "calls.jsonl"));
+    if (state.ended) { console.log("— This scene has ended. —"); return; }
+    const hooks = printer(state);
+    await playerTurn(state, text, hooks);
+    await afterTurn(state, hooks);
+    return;
+  }
+
+  if (command === "repair") {
+    const id = args.shift()!;
+    const turn = Number(flag(args, "turn"));
+    setCallLog(join(sessionDir(id), "calls.jsonl"));
+    try {
+      const state = loadSession(id);
+      const scene = sceneById(state.sceneId);
+      const result = await runRepair(scene, state, { effort: approachById(state.approach).repairEffort ?? "medium" });
+      result.turn = Number.isFinite(turn) ? turn : state.turn;
+      writeRepair(state, result);
+    } finally {
+      rmSync(lockFile(id), { force: true });
+    }
+    return;
+  }
+
+  if (command === "transcript") {
+    const state = loadSession(args.shift()!);
+    console.log(transcriptMarkdown(state));
+    return;
+  }
+
+  if (command === "status") {
+    const state = loadSession(args.shift()!);
+    const turns = state.metrics;
+    const avg = (xs: number[]) => xs.length ? Math.round(xs.reduce((a, b) => a + b, 0) / xs.length) : 0;
+    console.log(JSON.stringify({
+      scene: state.sceneId, approach: state.approach, turn: state.turn, beat: state.beat, turnsInBeat: state.turnsInBeat,
+      path: state.path.map(p => `${p.turn}: ${p.from} -> ${p.to} via ${p.via} (${p.source})${p.roll ? ` [${p.roll.skill} ${p.roll.total}/${p.roll.dc}]` : ""}`),
+      ended: state.ended?.exitId, notes: state.notes, canon: state.canon, established: state.established,
+      patches: state.patches.map(p => p.beat ? `beat ${p.beat.id}` : `${p.transition!.beat} + ${p.transition!.transition.when}`),
+      repairs: state.repairs.map(r => `${r.turn}: ${r.status} — ${r.assessment}`),
+      latency: { avgFirstTextMs: avg(turns.map(t => t.firstTextMs ?? t.replyMs)), avgPreDecisionMs: avg(turns.map(t => t.preDecisionMs)), avgReplyMs: avg(turns.map(t => t.replyMs)) },
+      costUsd: turns.reduce((a, t) => a + t.costUsd, 0).toFixed(5),
+      operations: state.ended?.operations,
+      history: state.history,
+    }, null, 1));
+    return;
+  }
+
+  console.log(USAGE);
+  process.exitCode = 1;
+}
+
+main().catch(error => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+}).finally(() => { void sessionSpend; void readFileSync; void applyRepair; });
