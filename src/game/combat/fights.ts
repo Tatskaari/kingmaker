@@ -1,5 +1,6 @@
 import { sceneById } from "../../../scenes/index.ts";
 import type { SessionState } from "../../runtime/session.ts";
+import { standinFights } from "../fight-standin.ts";
 import type { Action, Fight, FightFactory, GameState } from "../play.ts";
 import type { CombatantSetup, CombatSetup, TileMap, Tile2 } from "../types.ts";
 import { engineReady, resumeCombat, startCombat, type CombatController, type SavedCombat } from "./controller.ts";
@@ -37,7 +38,9 @@ export function tacticalFights(options: TacticalOptions = {}): FightFactory {
       return fight;
     },
     load(saved: unknown, session: SessionState): Fight {
-      const s = saved as { combat: SavedCombat; unseen?: LogLine[] };
+      const s = saved as { combat?: SavedCombat; unseen?: LogLine[] } | undefined;
+      // A game saved mid-fight by the stand-in carries on as one.
+      if (!s?.combat) return standinFights.load(saved, session);
       return new TacticalFight(resumeCombat(s.combat, session, loaded), s.unseen ?? []);
     },
   };
@@ -118,7 +121,7 @@ class TacticalFight implements Fight {
         if (o.moves.some(m => same(m, to))) out.push({ id: `step_${dir}`, label: `Step ${dir} (5 ft)`, kind: "move" });
       }
     }
-    if (o.leave) out.push({ id: "leave", label: `Go out through ${o.leave}`, kind: "travel" as Action["kind"] });
+    if (o.leave) out.push({ id: "leave", label: `Go out through ${o.leave}`, kind: "travel" });
     if (o.dash) out.push({ id: "dash", label: "Dash (double movement this turn)", kind: "move" });
     if (o.dodge) out.push({ id: "dodge", label: "Dodge (attacks on you have disadvantage)", kind: "wait" });
     if (o.disengage) out.push({ id: "disengage", label: "Disengage (move away safely)", kind: "wait" });

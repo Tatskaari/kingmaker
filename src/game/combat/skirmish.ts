@@ -22,7 +22,7 @@ const INCAPACITATING = /unconscious|paralyz|stunned|petrified|incapacitated|held
 const ordinal = (n: number) => ["cantrip", "1st", "2nd", "3rd"][n] ?? `${n}th`;
 const cap = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 const possessive = (name: string) => (name === "you" ? "your" : name.endsWith("s") ? `${name}'` : `${name}'s`);
-const reason =(e: unknown) => (e instanceof Error ? e.message : String(e)).replace(/^Error:\s*/, "");
+const reason = (e: unknown) => (e instanceof Error ? e.message : String(e)).replace(/^Error:\s*/, "");
 /** The spell effects a fight on the map can play out (summons, zones and teleports aren't here yet). */
 const SUPPORTED = new Set(["attack", "save", "auto-hit", "heal", "hp-pool-knockout", "buff"]);
 /** The sheet's attack bonus with a weapon (the engine calls the instance weaponInstanceId; the typings say instanceId). */
@@ -249,8 +249,8 @@ export class Skirmish {
     const dodging = this.t.char(u.engineId)?.appliedConditions.filter(a => a.conditionId === "dodged") ?? [];
     if (dodging.length) this.t.apply(dodging.map(() => this.event("ConditionRemoved", { targetId: u.engineId, conditionId: "dodged" })));
     if (this.onBoard(u) && this.hotAt(u.at)) this.scorch(u);
-    if (this.isYou(u) && u.state === "down" && !this.G.flags["pc_dying"] && !u.deathSaves?.stable) this.log("system", "You're on the floor, fighting for breath.", u.id);
     this.settle();
+    if (this.isYou(u) && u.state === "down" && !this.G.flags["pc_dying"] && !u.deathSaves?.stable) this.log("system", "You're on the floor, fighting for breath.", u.id);
   }
 
   private endOfRound(): void {
@@ -379,7 +379,7 @@ export class Skirmish {
     if (check.error) return check.error;
     const use = this.usage(u);
     if (use?.actionUsed && use.attacksMadeThisTurn === 0) return "You've already used your action this turn.";
-    if (use && use.attacksMadeThisTurn >= 1) return "You've already attacked this turn.";
+    if (use && use.attacksMadeThisTurn >= this.attacksPerAction(u)) return "You've no attacks left this turn.";
     this.t.apply([
       ...(use?.actionUsed ? [] : [this.event("ActionEconomyConsumed", { encounterId: this.G.encounterId, combatantId: u.engineId, kind: "action" })]),
       this.event("ActionEconomyConsumed", { encounterId: this.G.encounterId, combatantId: u.engineId, kind: "attack" }),
