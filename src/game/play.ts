@@ -110,7 +110,7 @@ export class Game {
     const recent = this.state.recent.length ? `${this.state.recent.join("\n\n")}\n\n` : "";
     switch (this.state.mode) {
       case "explore":
-        return { mode: "explore", text: `${recent}${this.explorer.observe(this.state, this.session)}`, actions: this.explorer.actions(this.state, this.session) };
+        return { mode: "explore", text: `${recent}${this.explorer.observe(this.state, this.session)}${carrying(this.session)}`, actions: this.explorer.actions(this.state, this.session) };
       case "scene":
         return { mode: "scene", text: `${recent}${sceneView(this.session)}`, actions: [], hint: "You're in a scene: say what your character says or does." };
       case "combat":
@@ -189,6 +189,12 @@ export class Game {
     this.state.mode = "explore";
     return `${next.title}: that's where the story goes next.`;
   }
+}
+
+/** What the player has on them between scenes (their purse, their gear, what they picked up). */
+function carrying(session: SessionState): string {
+  const items = session.world ? Object.values(session.world.entities).filter(e => e.parent === "player" && !e.states.includes("gone")) : session.carried?.filter(e => e.parent === "player") ?? [];
+  return items.length ? `\n\nYou carry: ${items.map(e => `${(e.quantity ?? 1) > 1 ? `${e.quantity} ` : ""}${e.name}`).join(", ")}.` : "";
 }
 
 /** The current scene so far, as the player sees it (the last few exchanges). */
