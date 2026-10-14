@@ -37,7 +37,7 @@ function interlude(spec: { id: string; title: string; summary: string; setting: 
 
 export const caerwynAfternoon = interlude({
   id: "caerwyn-afternoon", title: "Caerwyn, the afternoon", summary: "Downtime in the market square on the eve of the Assembly, between the granary and the river.",
-  setting: "Caerwyn's market square and the streets off it, afternoon on the eve of the Centennial Assembly: bunting going up on the procession route, sweepers, delegation banners (Nine Furrows wheat-sheaves, Saltmere herons, Kläggenheim axes), bread dearer than last week and grumbled about, the dead-cart's bell somewhere behind, the Corn Exchange posting prices, and everybody too busy for a hanged clerk.",
+  setting: "Caerwyn's market square and the streets off it, afternoon on the eve of the Centennial Assembly: bunting going up on the procession route, sweepers, delegation banners (Nine Furrows wheat-sheaves, Saltmere salt-gulls, Kläggenheim axes), bread dearer than last week and grumbled about, the dead-cart's bell somewhere behind, the Corn Exchange posting prices, and everybody too busy for a hanged clerk.",
   where: "the market square, an hour or two after the granary",
   flavour: "the Assembly eve (bunting, sweepers, delegation banners, dear bread, the Corn Exchange's price board) and the city too busy to care about a hanged clerk.",
   lead: "Big men with bandaged hands who do night work for gentlemen drink at the Drowned Rat, halfway down the river stairs (a porter told Kell; dock gossip says the same).",
