@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { applyOps, buildWorld, damageThing, positionOf, tick, type WorldSpec } from "../../world/scene-world.ts";
 import { douse, spill } from "../../world/systems.ts";
 import { Effects } from "../look/effects.ts";
+import { contrast, rgbOf } from "../look/color.ts";
 import { hangedClerkWorld } from "../../../scenes/worlds/hanged-clerk.ts";
 import { drownedRatWorld } from "../../../scenes/worlds/drowned-rat.ts";
 import type { MapActor, StoryState, Tile2 } from "../types.ts";
@@ -287,7 +288,6 @@ test("for combat: the battlefield, free spots for the Crakes, a move range, mark
   assert.ok(lines.flat().filter(s => s.bg && s.bg !== "").length > 10);
 });
 
-test("screen keys move with the screen: up is up, right is right", () => {
 test("a fight's fuel: flammable things that stand in the way, and flammable spills on the floor", () => {
   const w = world("heron-warehouse", heronWorld, ["kell", "saul", "hep"]);
   const { region } = regionForScene("heron-warehouse")!;
@@ -303,6 +303,7 @@ test("a fight's fuel: flammable things that stand in the way, and flammable spil
   assert.equal(battlefield("heron-warehouse", w)!.fuel.length, after.length, "a puddle of water isn't");
 });
 
+test("screen keys move with the screen: up is up, right is right", () => {
   const camera = { x: 30, y: 20 }, viewport = { w: 80, h: 24 };
   const from = screenOf(camera, camera, viewport);
   const delta = (k: string) => { const [dx, dy] = SCREEN_KEYS[k]!; const s = screenOf({ x: 30 + dx, y: 20 + dy }, camera, viewport); return [s.x - from.x, s.y - from.y] as [number, number]; };
@@ -500,8 +501,8 @@ test("a world's areas on its map: the Heron's floor hangs with dust; when it goe
   const before = areaHazards(region, w, map);
   assert.ok(before.dust.length > 40 && !before.fire.length && !before.scorched.length, "the re-sacking floor is thick with dust");
   assert.ok(before.dust.every(p => p.x >= 9 && p.x <= 18 && p.y >= 3 && p.y <= 12), "and only the floor");
-  damageThing(w, w.entities["heron-sacks"]!, 4, "fire", 1);
   assert.deepEqual(before.dust, battlefield("heron-warehouse", w)!.dust, "the dust a fight here will use, no more (none under the stacks)");
+  damageThing(w, w.entities["heron-sacks"]!, 4, "fire", 1);
   tick(w, 2, 11);
   const after = areaHazards(region, w, map);
   assert.ok(!after.dust.length && after.scorched.length > 40 && after.fire.length > 40, "the dust went up: scorched, and burning");
@@ -516,7 +517,38 @@ test("glyph sets on the map: plain is seven-bit; plain text stays single-width w
   const plain = toPlain(renderExplore(ex, { w: 100, h: 30 }, { glyphs: "plain", t: 700 }));
   assert.deepEqual([...plain].filter(ch => ch !== "\n" && ch.charCodeAt(0) >= 128), [], "seven-bit only");
   assert.match(plain, /@/);
+  // Every glyph has a stand-in (the Corn Exchange's price board), and a bark in the GM's punctuation is seven-bit too.
+  const board = toPlain(renderExplore(newExploration(MORNING, { at: { x: 35, y: 22 } }), { w: 120, h: 40 }, { glyphs: "plain", t: 1000 }));
+  assert.doesNotMatch(board, /\?/, "no glyph without a stand-in");
+  const w = world("drowned-rat", drownedRatWorld, ["kell", "nan-quill"]);
+  const rat = newExploration(DUSK);
+  enterScene(rat, "drowned-rat");
+  const fx = new Effects({ now: () => 0 });
+  fx.bark("nan-quill", "No credit—not for bluebottles… “not ever”", {}, 0);
+  const barked = toPlain(renderExplore(rat, { w: 100, h: 30 }, { world: w, glyphs: "plain", t: 400, effects: { region: regionForScene("drowned-rat")!.region, frame: fx.frame(400, id => positionOf(w, id)) } }));
+  assert.match(barked, /No credit-not for/);
+  assert.deepEqual([...barked].filter(ch => ch !== "\n" && (ch.charCodeAt(0) >= 128 || ch === "?")), [], "the bark is seven-bit, no ?");
   const icons = /[-]|[\u{f0000}-\u{fffff}]/u;
   assert.ok(icons.test(toPlain(renderExplore(ex, { w: 100, h: 30 }, { glyphs: "nerd", t: 700 }))), "the nerd set draws icons in colour (the lamp posts)");
   assert.ok(!icons.test(toPlain(renderExplore(ex, { w: 100, h: 30 }, { glyphs: "nerd", color: false }))), "but plain text never does");
+});
+
+test("the fallen have a mark at their feet, in plain text and in colour; the hanged clerk hangs under his beam", () => {
+  const w = world("drowned-rat", drownedRatWorld, ["kell", "hobb"]);
+  const ex = newExploration(DUSK);
+  enterScene(ex, "drowned-rat");
+  const size = { w: 80, h: 24 }, glyphs = "ascii" as const;
+  assert.doesNotMatch(toPlain(renderExplore(ex, size, { world: w, color: false, glyphs })), /K_/, "standing, Kell is a K");
+  w.entities.kell!.states.push("unconscious");
+  assert.match(toPlain(renderExplore(ex, size, { world: w, color: false, glyphs })), /K_/, "knocked out, she has a mark at her feet");
+  const lines = renderExplore(ex, size, { world: w, t: 500, glyphs });
+  const y = lines.findIndex(l => l.map(s => s.text).join("").includes("K_"));
+  const x = [...lines[y]!.map(s => s.text).join("")].indexOf("K") + 1;
+  const mark = cellAt(lines, x, y);
+  assert.ok(contrast(rgbOf(mark.fg!), rgbOf(mark.bg!)) >= 3, `and in colour the mark shows in the dusk (${mark.fg} on ${mark.bg})`);
+  // The hoist in the granary lane: the beam, the rope down from it, Prout's body on the end of it.
+  const lane = newExploration(MORNING, { at: { x: 44, y: 14 } });
+  const rows = toPlain(renderExplore(lane, { w: 60, h: 24 }, { color: false, glyphs: "ascii" })).split("\n");
+  const s = screenOf({ x: 46, y: 13 }, lane.at, { w: 60, h: 24 });
+  assert.deepEqual([-4, -3].map(dy => [...rows[s.y + dy]!][s.x]), ["╤", "│"], "the beam above, the rope from it");
 });

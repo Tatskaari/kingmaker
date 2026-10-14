@@ -7,7 +7,7 @@ const { drownedRatWorld } = await import("../../../scenes/worlds/drowned-rat.ts"
 const { hangedClerkWorld } = await import("../../../scenes/worlds/hanged-clerk.ts");
 const { lookOf, describeLook } = await import("./appearance.ts");
 const { parseName } = await import("./names.ts");
-const { plainOf, glyphFor, nerd, detectGlyphSet } = await import("./glyphs.ts");
+const { plainOf, plainText, glyphFor, nerd, detectGlyphSet } = await import("./glyphs.ts");
 const { surfacesOf } = await import("./surfaces.ts");
 const { Effects } = await import("./effects.ts");
 const { Director } = await import("./director.ts");
@@ -156,10 +156,21 @@ test("glyph sets: nerd icons where they help, plain ASCII always, ascii as the d
     assert.ok(/^[\x20-\x7e]$/.test(g), `${name}: "${g}" isn't seven-bit`);
   }
   assert.equal(plainOf("≈"), "~");
+  assert.equal(plainText("No credit—not for bluebottles… “not ever”"), "No credit-not for bluebottles... \"not ever\"", "the GM's typography, plain");
   assert.equal(glyphFor({ ascii: "♣" }, "nerd"), "♣"); // no icon: falls back
   assert.equal(detectGlyphSet({ KM_GLYPHS: "nerd" }).set, "nerd");
   assert.equal(detectGlyphSet({ TERM: "dumb" }).set, "plain");
   assert.equal(detectGlyphSet({ TERM: "xterm-256color", LANG: "en_GB.UTF-8" }).set, "ascii");
+});
+
+test("plain is seven-bit on the stage too: a bark in the GM's own punctuation", async () => {
+  const { dressingFor } = await import("./dressings.ts");
+  const { renderStage } = await import("./stage.ts");
+  const fx = new Effects({ now: () => 0 });
+  fx.bark("kell", "No credit—not for bluebottles… “not ever”", {}, 0);
+  const plain = renderStage(rat(), dressingFor("drowned-rat"), { w: 80, h: 30, t: 400, time: "evening", glyphs: "plain", effects: fx }).toPlain();
+  assert.match(plain, /No credit-not for/);
+  assert.deepEqual([...plain].filter(ch => ch !== "\n" && ch.charCodeAt(0) >= 128), [], "seven-bit only");
 });
 
 test("surfaces from the world's physics: spills, a douse's puddle and steam, burning patches", () => {

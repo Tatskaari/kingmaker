@@ -62,10 +62,18 @@ const PLAIN: Record<string, string> = {
   "▼": "v", "▾": "|", "╲": "\\", "╱": "/", "ʌ": "^", "∵": ":", "˛": ",", "‚": ",", "‘": "'", "’": "'", "`": "'", "¨": "\"", "¸": ",",
   "†": "+", "‡": "+", "♀": "o", "♂": "o", "ı": "i", "í": "i", "Ш": "W", "▣": "#", "╳": "x", "×": "x", "✦": "*", "✧": "*", "∗": "*",
   "╬": "+", "╎": ":", "◄": "<", "►": ">", "▁": "_", "æ": "=", "ò": "o", "◊": "o",
-  // The map's own: roofs, steps, ledges, the lead and its arrows, decor glyphs.
+  // The map's own: roofs, steps, ledges, the lead and its arrows, decor glyphs (signs, books, hatches, cupboards, trays, coins).
   "▚": "#", "▞": "#", "▂": "_", "▃": "_", "▔": "-", "╌": "-", "╷": "|", "▙": "#", "‿": "_", "▽": "v", "▿": "v", "▸": ">",
   "↘": "\\", "↙": "/", "↖": "\\", "↗": "/", "ɞ": "g", "Å": "A", "Π": "n", "Ψ": "Y", "┃": "|", "━": "-",
+  "▤": "=", "▦": "#", "▥": "#", "ū": "u", "¢": "c",
+  // The GM's typography, a cell at a time (plainText does whole lines better: "…" is three dots).
+  "“": "\"", "”": "\"", "—": "-", "–": "-", "…": ".",
 };
+
+/** A line of text in seven bits (barks): the GM's dashes, ellipses and curly quotes made plain, the rest by plainOf. */
+export function plainText(text: string): string {
+  return [...text.replace(/…/g, "...")].map(plainOf).join("");
+}
 
 /** The seven-bit stand-in for a glyph (Nerd icons have no plain form of their own: callers pass one). */
 export function plainOf(ch: string): string {

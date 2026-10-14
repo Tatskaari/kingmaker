@@ -9,10 +9,13 @@ const { pregenSession } = await import("./combat/pregen.ts");
 const { TacticalFight } = await import("./combat/index.ts");
 const { mapFights } = await import("./fights.ts");
 const { Effects } = await import("./look/effects.ts");
-const { toPlain } = await import("./map/index.ts");
+const { contrast, rgbOf } = await import("./look/color.ts");
+const { BEING_CONTRAST } = await import("./look/light.ts");
+const { CAST, enterScene, newExploration, renderExplore, toPlain } = await import("./map/index.ts");
 const { town } = await import("./town.ts");
 const { fightEffects, fightLooks, fightView, stageView, townView } = await import("./views.ts");
 import type { GameState } from "./play.ts";
+import type { StyledLine } from "./types.ts";
 import type { SessionState } from "../runtime/session.ts";
 
 /**
@@ -39,6 +42,33 @@ test("a scene's place: from above (the stage, dressed), and on the map with the 
   const plain = toPlain(townView(game, session, { w: 80, h: 24 }, { t: 500, effects: fx }));
   assert.match(plain, /full keg/, "the bark is over the map of the place");
   assert.doesNotMatch(toPlain(townView(game, session, { w: 80, h: 24 }, { color: false, effects: fx })), /full keg/, "but not in plain text");
+});
+
+test("people stay findable in the dark and keep their colours: the Rat in the evening and at night, the Heron at night, from above and on the map", () => {
+  const cells = (lines: StyledLine[]) => lines.flatMap((line, y) => { let x = 0; return line.flatMap(s => [...s.text].map(ch => ({ ch, x: x++, y, fg: s.fg ?? "", bg: s.bg ?? "" }))); });
+  const views: Array<[string, "evening" | "night", string[]]> = [["drowned-rat", "evening", ["kell", "nan-quill", "arlo", "cob", "hobb"]], ["drowned-rat", "night", ["kell", "hobb"]], ["heron-warehouse", "night", ["kell", "saul", "hep", "hobb"]]];
+  for (const [sceneId, time, ids] of views) {
+    const scene = sceneById(sceneId);
+    const world = buildWorld(sceneId, scene.world!, ids.map(id => ({ id, name: scene.cast.find(c => c.id === id)!.name })), { name: "Odo" });
+    const session = { sceneId, world } as unknown as SessionState;
+    const ex = newExploration({ time, played: [], lead: sceneId, flags: {} });
+    enterScene(ex, sceneId);
+    // Letters (whatever glyph fonts this machine has), read off the frames.
+    const glyphs = "ascii" as const;
+    for (const [view, lines] of [["from above", stageView(session, { w: 58, h: 30 }, { t: 2400, time, glyphs })!.toLines()], ["on the map", renderExplore(ex, { w: 120, h: 40 }, { world, t: 2400, glyphs })]] as const) {
+      for (const id of ids) {
+        const drawn = cells(lines).filter(c => c.ch === CAST[id]!.glyph);
+        assert.ok(drawn.length, `${id} is drawn ${view} (${sceneId}, ${time})`);
+        for (const c of drawn) assert.ok(contrast(rgbOf(c.fg), rgbOf(c.bg)) >= BEING_CONTRAST, `${id} ${view} (${sceneId}, ${time}) stands out: ${c.fg} on ${c.bg}`);
+      }
+    }
+    if (sceneId === "drowned-rat" && time === "night") {
+      // By the blue driftwood fire, Hobb is still Hobb: orange, only cooler (the light's colour doesn't wash him grey).
+      const hobb = cells(renderExplore(ex, { w: 120, h: 40 }, { world, t: 2400, glyphs })).find(c => c.ch === "H")!;
+      const [r, , b] = [16, 8, 0].map(k => (rgbOf(hobb.fg) >> k) & 255);
+      assert.ok(r! > b! + 40, `Hobb by the blue fire is warm: ${hobb.fg}`);
+    }
+  }
 });
 
 test("a fight on its battlefield: the dust hangs, the fire burns, the lanterns are lanterns, and its log plays as effects", async () => {
