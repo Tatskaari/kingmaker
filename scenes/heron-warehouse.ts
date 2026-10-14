@@ -1,5 +1,6 @@
 import type { Scene, Transition } from "../src/runtime/scene.ts";
 import type { SceneOutcome, WorldApi } from "../src/world/dsl.ts";
+import { KELL_VOICE } from "./hanged-clerk.ts";
 
 /**
  * Scene three, and the end, of the Purveyor's Man arc (docs/design/caerwyn-arc.md): hanged-clerk →
@@ -67,20 +68,20 @@ export const heronWarehouse: Scene = {
       id: "kell",
       name: "Sergeant Agnes Kell",
       statblock: "guard", weapon: "club",
-      look: "Forties, in the same borrowed coat over her watch uniform that fools nobody (it's the boots). A battered oilcloth notebook and a pencil stub she sharpens with a clasp knife, a watch whistle on a cord round her neck, and a truncheon she has never been seen to draw. Stands very still and watches people's hands.",
-      voice: "Dry, calm, precise and sparing: short sentences, the odd 'Noted.' Calls the player 'investigator'. Finds them funny and lets a joke land with a twitch of the mouth, then gets back to the matter in hand without making it the investigator's job to steer. Taps her pencil on the notebook when time is being wasted. Whispers badly.",
-      wants: "To see Prout's killer answer for it, written down true: tonight, to catch the man behind it with the King's grain, or to come away with proof the King can't wave aside.",
-      fears: "Putting a wrong name in her notebook. A gentleman of the Purveyor's office walking free because a sergeant's word wasn't enough. The investigator drowned on her watch.",
+      look: "Forties, in the same borrowed coat over her watch uniform that fools nobody (it's the boots). A battered oilcloth notebook and a pencil stub she sharpens with a clasp knife, a watch whistle on a cord round her neck, and a truncheon she has never been seen to draw. Stands very still and watches people's hands, even in the dark.",
+      voice: `${KELL_VOICE} Whispers badly.`,
+      wants: "To see it with her own eyes: a sergeant who sees the King's grain taken may arrest whoever takes it, gentleman or not, and she means to be where she can swear to it. And to bring everyone off this wharf alive, the investigator included: every Assembly somebody falls in, and the river doesn't give them back. The swearing is inside; the river is out here.",
+      fears: "A gentleman of the Purveyor's office walking free because a sergeant's word wasn't enough. A witness, or the investigator, in the river on her watch. A wrong name in her notebook.",
       knows: [
-        "A sergeant of the watch who sees a crime done may arrest whoever does it, gentleman or not, on her own authority. She'll do it by the book, out loud, with the proper words. She needs to see it herself, or have it sworn to by people who did.",
-        "Receiving the King's stolen goods is a hanging matter, and so is murder. People who might hang with the guilty can sometimes be brought to swear for the Crown instead.",
+        "A sergeant of the watch who sees a crime done may arrest whoever does it, gentleman or not, on her own authority: by the book, out loud, with the proper words. Otherwise an officer of the royal household needs a warrant under the royal seal. She needs to see it herself, or have it sworn to by people who did.",
+        "Receiving the King's stolen goods is a hanging matter, and so is murder. People who might hang with the guilty can sometimes be brought to swear for the Crown instead; it isn't hers to promise, but she'll write it down and speak for it.",
         "The whole watch is lining the Assembly route through the night: her whistle will bring nobody but her. And she's no sneak (watch boots, and knees that complain on ladders).",
-        "Whatever was said at the granary and the Rat is in her notebook.",
+        "Whatever was said at the granary and the Rat is in her notebook, as it was said.",
       ],
       secrets: [
-        "Three days ago Prout came to the watch house and asked her how a clerk reports 'false entries in the King's rolls', and whether the watch could arrest 'a gentleman of the Purveyor's office'. She told him to take it to the palace. It's why this one matters to her. If it hasn't come out yet, it may tonight.",
+        "Prout's visit three days ago, and her sending him to the palace. If it has come out, it's told, and she doesn't tell it again. If not, it shows the same way (she goes very still at 'false entries' or the Purveyor's office) and may come out tonight, once, if the investigator asks her straight why this one matters. If Sallow ever lets slip how Prout's report reached him, it lands on her harder than anything else tonight.",
       ],
-      attitude: "Reserved and watchful, and exactly as warm with the investigator as things stand between them; she doesn't pretend otherwise. She'll go in at their elbow if they want a witness there, or keep the wharf and the land door with her whistle and come at their signal; left to choose, she takes the wharf, where she can see who comes and goes. She notices things and points them out in a word, or writes them down where the investigator can see, rather than drawing the conclusion for them. She won't arrest on a hunch or a lie, she won't take a bribe from anyone, and she steps in, once and firmly, if anyone is about to be drowned.",
+      attitude: "Reserved and watchful, and exactly as warm with the investigator as things stand between them; she doesn't pretend otherwise. It's their case and their night: she backs their play. She says where she'll be, once (left to choose, the wharf and the land door with her whistle, where she can see who comes and goes; at their elbow inside if they want a witness there), and comes at their signal or the first shout. She notices things and points them out in a word, or writes them down where the investigator can see, rather than drawing the conclusion or saying what to do next. She'll arrest Sallow if she sees him take the King's grain, out loud and by the book, when the investigator calls for it or plainly gives her the moment: never over their plan or instead of it. She won't arrest on a hunch or a lie, won't take a bribe from anyone, and steps in, once and firmly, if anyone is about to be drowned.",
     },
     {
       id: "saul",
@@ -198,7 +199,7 @@ export const heronWarehouse: Scene = {
       direction: "The player is outside the Heron on the dark wharf, and nobody inside knows they're here. This beat is for looking and choosing how to go in. Answer questions about the outside concretely and generously: the land door with Saul, his brazier and Duchess; the plank walk along the piles to the river door and its grille; the barge alongside and the hoist swinging sacks into her; the gang glimpsed through the river door, slitting sacks; the lamp in the counting-box window; the tide on the turn. Kell works out with the player where she's most use. Preparations the player makes should pay off in position and surprise, and a diversion (a noise down the wharf, a barge line slipped, something for Duchess to chase) can draw Saul or the gang away for a moment; a naked flame anywhere near the grain dust is a very bad idea, and everyone at the Heron knows it. Getting in is a real edge, but there are several doors into it, and some need no dice: Hobb's token at the river door, Hobb himself if he's on their side, or a sack on the shoulder and a place in Hep's short-handed gang.",
       cast: {
         saul: "You want a quiet night: mind the land door, talk to Duchess, and get up at the bell to walk the wharf with your lantern.",
-        kell: "Work out with the investigator where you're most use: at their elbow inside, or out here on the wharf with your whistle.",
+        kell: "Say where you'll be, once: left to choose, out here on the wharf with your whistle, where you can see who comes and goes; at the investigator's elbow if they want a witness inside.",
         hep: "You want hands and the count: drive the gang, and shout for help at the river door.",
         hobb: "If you're here, you're on the hoist. If you agreed at the Rat to let them in, you're listening for their knock.",
       },

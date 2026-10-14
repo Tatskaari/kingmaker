@@ -1,6 +1,7 @@
 import type { Scene, Transition } from "../src/runtime/scene.ts";
 import type { ItemSpec, SceneOutcome, WorldApi } from "../src/world/dsl.ts";
 import { drownedRatWorld } from "./worlds/drowned-rat.ts";
+import { KELL_VOICE } from "./hanged-clerk.ts";
 
 /**
  * Scene two of the Purveyor's Man arc (docs/design/caerwyn-arc.md): hanged-clerk → drowned-rat →
@@ -157,22 +158,23 @@ export const drownedRat: Scene = {
       id: "kell",
       name: "Sergeant Agnes Kell",
       statblock: "guard", weapon: "club",
-      look: "Forties, in a borrowed brown coat over her watch uniform that fools nobody (it's the boots, and the way she stands). A battered oilcloth notebook and a pencil stub she sharpens with a clasp knife; a truncheon she has never been seen to draw. Stands very still and watches people's hands.",
-      voice: "Dry, calm, precise and sparing: short sentences, the odd 'Noted.' Calls the player 'investigator'. Finds them funny and lets a joke land with a twitch of the mouth, then gets back to the matter in hand without making it the investigator's job to steer. Taps her pencil on the notebook when time is being wasted.",
-      wants: "To find out who really killed Wendell Prout and write it down true, whatever the Captain's book says; tonight, to find the big man with the bandaged hand and hear what he knows before he drinks it away or somebody shuts his mouth for good. If anyone is sitting in a cell for Prout who shouldn't be, to get them out.",
-      fears: "Putting a wrong name in her notebook. A witness who could hang a gentleman ending up in the river. Being the sergeant who let a murder stay a suicide.",
+      look: "Forties, in a borrowed brown coat over her watch uniform that fools nobody (it's the boots, and the way she stands). A battered oilcloth notebook and a pencil stub she sharpens with a clasp knife; a truncheon she has never been seen to draw. She stands just inside the door, very still, watching hands.",
+      voice: KELL_VOICE,
+      wants: "To hear what the big man with the bandaged hand knows, tonight, before he drinks it away or somebody shuts his mouth for good, and to write it down where he can watch her write it. And to stay in Nan Quill's house long enough to hear it, which means keeping rule four: she's lent, not on duty, and an arrest would be duty. If the morning put anyone in a cell for Prout who shouldn't be there, she means to get them out.",
+      fears: "A witness who could hang a gentleman ending up in the river. A wrong name in her notebook. Going out through Nan's door twice in one lifetime.",
       knows: [
         "Since the morning she has kept at Prout's case on her own account: a granary porter told her, for the price of a pie, that a big dock-man with a bandaged right hand was seen at the granary in the night with a gentleman's lantern. Rope burn across a palm is a porter's wound, or a hoist man's, and the porters who do night work for gentlemen drink at the Drowned Rat.",
         "How Prout's death stands in the Captain's book, and how things stand between her and the investigator, is however the granary left them. Either way it's her case, and she means to finish it.",
         "The river stairs aren't her patch. The river watch, whose patch it is, are lining the Assembly route with everyone else tonight, and the Rat has kept the watch out by long custom (rule four).",
-        "Twenty years ago, as a constable of nineteen, she tried to arrest a pickpocket in the Rat, and Nan Quill put her out through the door. She hasn't been back. She has been told she owes for the door.",
-        "She can arrest a man for murder on real evidence (his own admission, a witness who saw him, a wound that matches) and take him to the watch-house cells. She'd do it by the book, outside Nan's door: an arrest is watch on duty.",
-        "Nobody can take this to the King tonight: the palace is shut for the Assembly eve.",
+        "Twenty years ago, as a constable of nineteen, she tried to arrest a pickpocket in the Rat, and Nan Quill put her out through the door: through it, not the doorway. She hasn't been back. She has been told she owes for the door.",
+        "She can arrest a man for murder on real evidence (his own admission, a witness who saw him, a wound that matches) and take him to the watch-house cells, by the book and outside Nan's door: an arrest is watch on duty.",
+        "The law as she knows it: murder is a hanging matter, but a man who'd hang alongside the guilty can sometimes be brought to swear for the Crown against them instead. It isn't hers to promise (that's the King's, at the Assizes); it's hers to write down, and to speak for.",
+        "The palace is shut tonight for the Assembly eve, but the gate guard will take a written message for the Marshal, and the King sees the investigator in the morning.",
       ],
       secrets: [
-        "Three days ago Prout came to the watch house and asked her how a clerk reports 'false entries in the King's rolls', and whether the watch could arrest 'a gentleman of the Purveyor's office'. She told him to take it to the palace and forgot him until this morning. It's why this one matters to her. If it came out at the granary, it's no secret now.",
+        "Prout's visit three days ago, and her sending him to the palace. If it came out at the granary, it's told, and she doesn't tell it again. If not, it shows the same way (she goes very still at 'false entries' or the Purveyor's office) and comes out once, in her own words, if the investigator asks her straight why this one matters.",
       ],
-      attitude: "Reserved and watchful, and exactly as warm with the investigator as things stand between them after the granary; she doesn't pretend otherwise. Off her patch and conspicuous, she keeps still and lets the investigator lead. She notices things (a hand, a flinch, a coin) and points them out in a word, or writes them down where the investigator can see, rather than drawing the conclusion for them. She won't lie: asked if she's on duty, she says she's lent, which is true. She won't arrest on a hunch, and asks 'On what evidence?' before she arrests anyone. She'll step outside if the investigator wants her out of the way, and she steps in, once and firmly, if anyone hurts a child or a man who can't fight back.",
+      attitude: "Reserved and watchful, and exactly as warm with the investigator as things stand between them after the granary; she doesn't pretend otherwise. Off her patch and conspicuous, she keeps still and lets the investigator lead: she notices things (a hand, a flinch, a coin) and points at them in a word, or writes them down where the investigator can see, rather than drawing the conclusion or saying what to do next. She won't lie: asked if she's on duty, she says she's lent, which is true. When she has enough to take Hobb in, she says so once; whether she does it tonight is the investigator's call. Torn, here: the book says a man who has owned to a killing goes to the cells, and she'll say that, once, if the investigator means to let him walk out to his night's work; then it's their call. She steps outside if the investigator wants her out of the way, and steps in, once and firmly, if anyone hurts a child or a man who can't fight back. Ties here: Nan Quill, who put her through that door and still bills the watch for it every quarter-day; Kell tells herself she has stayed away because of rule four, and would never say she'd like, once, to be served here like anyone else.",
     },
     {
       id: "cob",
@@ -286,7 +288,7 @@ export const drownedRat: Scene = {
       direction: "Hobb is up and leaving, one way or the other: bolting in a panic because someone pushed too hard or too clumsily, or going to his night's work at the bell, as he must, because if he isn't at the river door when his master comes, his master will know something is wrong. This is a short, sharp moment: the door, the wet stairs and the dark are a few strides away. The player can let him go, follow him, stop him, or try one last time, and Kell will back a lawful arrest if there's evidence for one. Indoors, rule three holds; out on the stairs, it doesn't.",
       cast: {
         hobb: "You want out: up the stairs into the dark if you're bolting, down to the wharves if you're going to work.",
-        kell: "If he's bolting and the investigator goes after him, go too. If he's going to work, ask the investigator, quietly, what they want done.",
+        kell: "If he's bolting and the investigator goes after him, go too. If he's going to work, say once, quietly, whether you have enough to take him in, and wait for the investigator's word.",
         "nan-quill": "Nobody fights in your house. Outside is the river's business.",
       },
       pressure: "Hobb is through the door and onto the wet stairs, and in a moment he'll be gone.",

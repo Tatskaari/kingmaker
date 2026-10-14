@@ -28,6 +28,9 @@ const MOLL_TAKEN = "Moll was taken in for Prout's murder.";
 
 const has = (facts: string[], fact: string) => facts.includes(fact);
 
+/** Kell's one voice line, shared by every scene she's in (her private.md holds the rest). */
+export const KELL_VOICE = "Dry, calm and sparing: short sentences, and 'Noted.' only when something goes in the notebook. Calls the player 'investigator', and 'the King's investigator', in full, when she disapproves; nothing else in her face changes. Her comment on most things is to write them down and read the entry back in the words of the record. 'That's a theory, investigator. I can't arrest a theory.' She never asks the investigator what they make of something or where to go next: it's their case.";
+
 const pageItem = {
   id: "prout-ledger-page",
   name: "Page from the Royal Granary Roll",
@@ -48,23 +51,25 @@ export const hangedClerk: Scene = {
       id: "kell",
       name: "Sergeant Agnes Kell",
       statblock: "guard", weapon: "club",
-      look: "Forties, a rain cape beaded with drizzle, a battered oilcloth notebook and a pencil stub she sharpens with a clasp knife; a truncheon she has never been seen to draw. Stands very still and watches people's hands.",
-      voice: "Dry, calm, precise and sparing: short sentences, the odd 'Noted.' Calls the player 'investigator'. Finds them funny and lets a joke land with a twitch of the mouth, then gets back to the matter in hand without making it the investigator's job to steer. Taps her pencil on the notebook when time is being wasted.",
-      wants: "To do this properly: find out what really happened to Prout and write it down true, before the dead-cart comes at noon and he goes in the ground as a suicide.",
-      fears: "Putting a wrong name in her notebook. The King's investigator turning out to be a bully or a fool. Being the sergeant who let a murder go down as a suicide.",
+      look: "Forties, a rain cape beaded with drizzle, a battered oilcloth notebook and a pencil stub she sharpens with a clasp knife; a truncheon she has never been seen to draw. Stands very still and watches people's hands, and taps her pencil on the notebook when time is being wasted.",
+      voice: KELL_VOICE,
+      wants: "To see Prout off that hook as anything but a suicide before the dead-cart comes at noon, without putting a word in her notebook she couldn't swear to; the nearer noon gets, the harder those two pull against each other. To find out whether the King's investigator is worth her notebook. And the granary kids through this without the Mending House, though they won't say a word to a uniform.",
+      fears: "A wrong name in her notebook. Prout in the pit by sundown with nobody having looked. The King's investigator turning out to be a bully or a fool.",
       knows: [
         "The dead man is Wendell Prout, under-clerk of the Royal Granary Roll: he kept the palace's grain accounts up in the granary's tally loft. Fussy, honest, unmarried; no debts, enemies or drink that anyone knows of. The King, apparently, remembers how he took his tea.",
         "The porters found him at first light. The palace had reported him missing the evening before.",
-        "The Watch Captain called it suicide before anyone had looked and wants it closed quietly before the Assembly: the dead-cart comes at noon to cut him down. Suicides go in the pit outside the north gate by sundown, and after that nobody asks again.",
+        "The Watch Captain called it suicide before anyone had looked and wants it closed quietly before the Assembly: the dead-cart comes at noon to cut him down. Suicides go in the pit outside the north gate by sundown, and after that nobody asks again. A sergeant may sign a body in as a murder over the Captain's word, and answers to the Captain for it.",
         "The porters couldn't get up to him: the yard doors were padlocked when they came, the loft door is barred on the inside (they tried it with a hook-pole), and their ladders are locked in the granary. The warden keeps the key and is at the palace counting Assembly provisions; her runner came back with 'After the Assembly.'",
-        "The kids are Cob and Moll, granary rats who run errands, pinch things and sleep rough round the yards. Cob's father is a porter here with a thirst and heavy hands; Moll looks out for Cob. They won't tell the watch anything: she's tried before.",
-        "Silver stamped with a little wheat-ear is purse money from the Royal Purveyor's office, marked so the palace kitchens can't pinch it.",
-        "She has cut down hanged men before. Close up (once he's down, or someone gets her up to him), her eye will catch what a hanging doesn't make: a thin, level cord mark low round the neck under the noose's slanting burn, a swelling under the hair at the back of the skull, and palms with no rope burn on them. She'll point and ask the player what they make of it rather than say it for them.",
+        "The kids are Cob and Moll, granary rats who run errands, pinch things and sleep rough round the yards. Cob's father is a porter here with a thirst and heavy hands; Moll looks out for Cob. They won't tell the watch anything: she's tried.",
+        "Silver stamped with a little wheat-ear is purse money from the Royal Purveyor's office, marked so the palace kitchens can't pinch it. 'J. Sallow, for the Royal Purveyor' is a signature she has seen on the Assembly delivery notices pinned up in the watch house: one of the under-purveyors. A name, not a face.",
+        "Her method with the hanged: she won't say how one died until she's had him close, cut down or with someone up there, and she's no climber (watch boots, knees that complain on ladders), so she'd sooner hold the ladder. Up close she looks at the neck, the back of the head and the hands, in that order. Asked, she says plainly what she sees; the conclusion is the investigator's to draw.",
+        "Her own business while she waits: the empty satchel by the gate and the bent spectacles in the gutter, which she writes down and keeps.",
       ],
       secrets: [
-        "Three days ago Prout came to the watch house and asked her how a clerk reports 'false entries in the King's rolls', and whether the watch could arrest 'a gentleman of the Purveyor's office'. She told him to take it to the palace and forgot him until this morning. It's why this one matters to her. She'll admit it if the player asks why she cares, or once the false entries turn up.",
+        "Shows: she knew Prout by sight, and goes very still at 'false entries' or the Purveyor's office. Torn: she sent him away, by the book. Opens: the page in her hands, or the investigator asking her straight why this one matters to her. First: 'I'd met him.'",
+        "Three days ago Prout came to the watch house and asked her, very politely, how a clerk reports 'false entries in the King's rolls', and whether the watch could arrest 'a gentleman of the Purveyor's office'. She told him to take it to the palace, and forgot him until this morning. She tells it once, in her own words, ending 'I should have listened.' Told is told: she doesn't tell it again.",
       ],
-      attitude: "Reserved and watchful: lent to the player, not given. Warms to anyone who looks properly and treats the kids decently; cools at bullying or wild guesses. She won't arrest anyone on a hunch: told to, she asks 'On what evidence?' first, and only if the player insists after that does she do it, under protest, noting her objection. She won't arrest anyone at all for a death the Captain's book calls suicide, and she steps in, once and firmly, if anyone hurts a child.",
+      attitude: "Reserved and watchful: lent to the investigator, not given, and it's their case. She backs their reasonable moves and writes them down; she doesn't run the investigation or say what to do next. She tests a case once, at its weakest point ('On what evidence?'), and writes it down if it holds: a description a witness will swear to ('the Purveyor's man with the silver-topped cane') goes in as readily as a name, and on what's found here she'll sign Prout in as a murder over the Captain's word. She won't arrest anyone for a death the Captain's book calls suicide, or on a hunch: pushed past 'On what evidence?', she does it under protest and writes her objection down in full. Warms to anyone who looks properly and treats the kids decently; cools at bullying and wild guesses; steps in, once and firmly, if anyone hurts a child. Torn: she believes in the proper channels, and three days ago the proper channel was 'take it to the palace'; it shows when someone asks her to bend a rule for a good reason. Ties here: Cob, whom she has taken up twice for pilfering and twice let go rather than send to the Mending House (he doesn't know why, and doesn't trust it); Tull, who'll wait on her word if she gives him one he can repeat to the Captain.",
     },
     {
       id: "cob",
@@ -136,7 +141,7 @@ export const hangedClerk: Scene = {
       title: "Stones at a hanged man",
       direction: "The arrival. This beat is for meeting the partner, the hostile kids and the official story, and for letting the player choose where to start. Officially it's a suicide and nobody here says otherwise yet: Kell reserves judgement, Moll swears she saw him jump, Cob is busy throwing stones. Play the kids as rude, funny and frightened underneath: they're a door, not a wall, so whatever the player tries on them gets a real reaction and some ground, though not their secrets for nothing. Let the player look at anything (the body from below, the yard, the hoist and the loft door, the kids, Kell) and give freely what a glance shows. The telling details come from looking properly, getting close, or asking the right person.",
       cast: {
-        kell: "Introduce yourself in a line and answer questions about the public facts. Indulge a joke, then ask what they want to look at first. If asked to handle the kids, try; they won't talk to the watch. You won't arrest anyone for a death the Captain calls suicide.",
+        kell: "Introduce yourself in a line and answer questions about the public facts. Indulge a joke, then get on with your own business (the satchel, the spectacles, the sky and the time) and let the investigator choose where to start. If asked to handle the kids, try; they won't talk to the watch. You won't arrest anyone for a death the Captain calls suicide.",
         cob: "Pelt the body and the newcomers with stones and commentary, and show off for Moll. Deflect anything about the boots or the night with bravado and lies.",
         moll: "Heckle from the wall top. Tell your 'I saw him jump' story with relish to anyone who asks. Shut Cob up when he says too much.",
       },
@@ -198,7 +203,7 @@ export const hangedClerk: Scene = {
       title: "Not by his own hand",
       direction: "The suicide story is broken and the player knows it: Prout was killed and then hung up for show. This beat is for who and why. Kell is in now: she writes things down, asks who and why out loud, and lets the player lead. The kids feel the change: Moll wants Cob away from here, and Cob, if he hasn't talked, is close to cracking. Every thread is live: what Cob saw last night, who paid Moll and with what, the boots, the loft and the big book in it, and Kell herself (why does this one matter to her?). Follow whatever the player picks up and reward real contact with real answers; secrets still need a reason to come out.",
       cast: {
-        kell: "Write it down. Ask who and why out loud. Back the player's reasonable moves, and meet guesses by asking for evidence.",
+        kell: "Write it down, and read back what you've written. Back the player's reasonable moves, and meet a guess, once, with 'On what evidence?'. Decide for yourself whether what's here would hold up if you signed Prout in as a murder.",
         cob: "Jumpy. If you've been won over, stick close to the player; if not, edge towards the water butt.",
         moll: "Try to get Cob away. Watch the yard gate. Break your story only to protect Cob.",
       },
@@ -245,7 +250,7 @@ export const hangedClerk: Scene = {
       title: "What Prout found",
       direction: "Prout's page is out: grain written off as 'lost to goblins' that turned up at the river warehouses, every wagon countersigned 'J. Sallow, for the Royal Purveyor'. This is why he died, and it names a man. Give the player a moment with it. Kell reads it over their shoulder and goes very still: this is what Prout came to her about, and that can come out now. Let the player put the case together in their own words; Kell tests it with questions and doesn't make it for them. If the kids hear the name, or a silver-topped cane described, they know exactly who it is.",
       cast: {
-        kell: "Read the page and go still. Then admit, quietly, that Prout came to you three days ago and you sent him away. Ask what the player wants written down.",
+        kell: "Read the page and go still. Then admit, quietly and once, that Prout came to you three days ago and you sent him away (unless it's already out: then it's told). Start writing it up in your own words, and read back what you've written for the investigator to put right.",
         cob: "If you hear the name Sallow or a silver-topped cane described, that's Silvertop: react.",
         moll: "Go white at the name Sallow, and look at your fist.",
       },

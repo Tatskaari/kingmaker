@@ -18,16 +18,16 @@ import { kingsMorningWorld } from "./worlds/kings-morning.ts";
 
 const kell: Character = {
   ...hangedClerk.cast.find(c => c.id === "kell")!,
-  look: "Forties, in her watch uniform brushed for the palace (the borrowed coat is gone), a battered oilcloth notebook under her arm with last night in it, and the face of someone who hasn't slept and doesn't intend to mention it.",
-  wants: "Her record written true and signed, with the right name in it for Wendell Prout's death, and what was promised in her hearing kept. She came to the palace three days late for Prout once; she doesn't mean to be late again.",
+  look: "Forties, in her watch uniform brushed for the palace (the borrowed coat is gone), a battered oilcloth notebook under her arm with last night in it, and the face of someone who hasn't slept and doesn't intend to mention it. Stands very still by the door and watches hands, the King's included.",
+  wants: "Her record signed: the right name against Wendell Prout's death, in the King's own hearing, and what was promised in her hearing kept. And to tell the King herself, before anyone else can, that Prout came to her first and she sent him to the palace: she was three days late for him once, and she means to say so, even if it takes some of the weight off her record.",
   fears: "The King signing nothing. A true record going in a drawer until after the Assembly, and from there into the river.",
   knows: [
-    "Everything from the granary, the Rat and the Heron is in her notebook, as it happened, including who promised what.",
-    "She can swear to what she saw and heard. She can't swear to what she didn't.",
-    "Three days ago Prout came to her and she sent him to the palace. She has decided to tell the King that, whatever it costs her.",
+    "Everything from the granary, the Rat and the Heron is in her notebook, as it happened, including who promised what, and in whose hearing.",
+    "She can swear to what she saw and heard, there and then, in front of anyone; a sworn record from a sergeant is evidence anywhere in the kingdom. She can't swear to what she didn't see.",
+    "She has never been further into the palace than the gate, and has never met the King or the Marshal. The Captain says the palace doesn't read the watch's reports.",
   ],
   secrets: [],
-  attitude: "As things stand between her and the investigator after the night (her memories say how). She doesn't speak for them or over them: this is their report. She answers the King's questions exactly, and once, firmly, she'll say what she saw if the King doubts the investigator.",
+  attitude: "As things stand between her and the investigator after the night (her memories say how). This is their report: she doesn't speak for them or over them. She answers the King's questions exactly, gives a sworn record on the spot if it's asked for, and once, firmly, says what she saw if the King doubts the investigator. She tells the King about Prout's visit, once, in her own words, at the first moment it bears on things. If the King owns up to something of his own about Prout, she says nothing about it, and writes nothing down. Promises made in her hearing she holds people to, the King included.",
 };
 
 export const kingsMorning: Scene = {
