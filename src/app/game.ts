@@ -461,6 +461,8 @@ export class Game {
     this.emit();
     for (let i = 0; i < 50 && !fight.result() && fight.view().current !== "player"; i++) {
       await fight.advance();
+      // The moment it's the player's turn, hand it over: no pause with the keys still locked.
+      if (fight.result() || fight.view().current === "player") break;
       this.emit();
       await sleep(Number(process.env.KM_APP_COMBAT_DELAY_MS ?? 450));
     }

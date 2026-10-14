@@ -16,7 +16,8 @@ import { repairCampaign } from "./rules-repair.ts";
  * still holds, skipping interludes (walking the map replaces them), into a fight or to The End.
  */
 
-export const FIRST_SCENE = "hanged-clerk";
+/** Where the story starts. KM_APP_START=<scene id> starts a new game later in the arc (for testing). */
+export const FIRST_SCENE = process.env.KM_APP_START ?? "hanged-clerk";
 export const APPROACH = process.env.KM_APPROACH ?? "v2";
 export const LEVEL = 3;
 export const DEFAULT_NAME = "Wren Ashdown";

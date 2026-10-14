@@ -88,8 +88,8 @@ export function CombatScreen({ game }: { game: Game }) {
         {target ? <text wrapMode="word"><span fg={C.danger} attributes={BOLD}>{target.name}</span><span fg={C.dim}>{` · ${target.distance * 5} ft · ${target.inReach ? "in reach" : "out of reach"}`}</span></text>
           : <text fg={C.faint}>Nobody left to aim at.</text>}
         <text fg={C.faint}>Tab or 1–9 to change</text>
-        <text fg={C.title} marginTop={1}>{view.over ? "It's over" : view.current === "player" ? "Your turn" : `${current?.name ?? "Someone"}'s turn`}</text>
-        {view.over ? <text fg={C.text} wrapMode="word">{view.over.summary}</text> : view.current === "player"
+        <text fg={C.title} marginTop={1}>{view.over ? "It's over" : myTurn ? "Your turn" : `${current?.name ?? "Someone"}'s turn`}</text>
+        {view.over ? <text fg={C.text} wrapMode="word">{view.over.summary}</text> : myTurn
           ? <text fg={C.dim}>{`${view.movementLeft} ft of movement · action ${view.actionUsed ? "used" : "ready"}`}</text>
           : <text fg={C.faint} attributes={ITALIC}>Wait for it…</text>}
         {view.over ? <text fg={C.lead} marginTop={1}>Press Enter to see what comes of it.</text> : <box flexDirection="column" marginTop={1}>

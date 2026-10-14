@@ -74,6 +74,8 @@ export function CreatedScreen({ game }: { game: Game }) {
   useKeyboard(key => {
     if (game.overlay || key.defaultPrevented || game.screen !== "created") return;
     if (key.name === "return" || key.name === "space") { key.preventDefault(); game.begin(); }
+    // Not who you meant (or the build fell back to the defaults): make them again.
+    else if (key.name === "r" && game.creating) { key.preventDefault(); void game.create(game.creating.name, game.creating.concept); }
   });
   const session = game.session;
   const w = Math.min(width - 4, 110);
@@ -90,6 +92,6 @@ export function CreatedScreen({ game }: { game: Game }) {
     <box width={w} height={intro.length} marginTop={1} flexDirection="column" flexShrink={0}>
       {intro.map((l, i) => <text key={i} fg={C.text} flexShrink={0}>{l}</text>)}
     </box>
-    <box height={1} marginTop={1} flexShrink={0}><Keys items={[["Enter", "set off for the granary"], ["", "(c on the map or #sheet in a scene shows this again)"]]} /></box>
+    <box height={1} marginTop={1} flexShrink={0}><Keys items={[["Enter", "set off"], ["r", "not who you meant? make them again"], ["c", "on the map shows this sheet again"]]} /></box>
   </box>;
 }

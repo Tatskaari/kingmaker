@@ -20,7 +20,7 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, HERE)
 from vt import App, KEYS  # noqa: E402
 
-LIVE = "--live" in sys.argv
+LIVE = "--live" in sys.argv or "--live-fight" in sys.argv
 RUN = time.strftime("%Y%m%d-%H%M%S")
 OUT = os.path.join(ROOT, "runs", "app-smoke", RUN)
 os.makedirs(OUT, exist_ok=True)
@@ -236,5 +236,42 @@ def live():
     print(f"PASS (screens in {OUT})")
 
 
+def live_fight():
+    """A live-built wizard starts at the Heron (KM_APP_START), and casts from the spell picker in the fight."""
+    ENV["KM_APP_START"] = "heron-warehouse"
+    app = launch()
+    expect(app, r"Hanged Clerk of Caerwyn", "title screen")
+    keys(app, "n")
+    expect(app, r"Who are you\?", "character creation")
+    app.type("Pell Marrow")
+    keys(app, "enter")
+    app.type("a Nine Furrows hedge-wizard with a scorched hat, a head full of cantrips and no sense of self-preservation")
+    keys(app, "enter")
+    expect(app, r"Character sheet.*wizard|Character sheet.*sorcerer|Character sheet.*Spellcasting", "a spellcaster's sheet", timeout=90)
+    keys(app, "enter")
+    expect(app, r"The lead:.*Heron", "night, heading for the Heron")
+    walk(app, "right*6 down*3 right*43 down*4 right*3 down right")
+    expect(app, r"e Try the Heron's land door", "at the Heron's land door")
+    keys(app, "e")
+    expect(app, r"The Heron Warehouse ·", "the Heron opens")
+    app.wait_for(r"Say something or do something", 150)
+    dump(app, "heron-opening")
+    say(app, "#end fight")
+    expect(app, r"Roll for initiative!", "Roll for initiative!")
+    keys(app, "enter")
+    expect(app, r"Initiative", "the fight starts")
+    expect(app, r"Your turn", "the player's turn", timeout=30)
+    keys(app, "c")
+    expect(app, r"Cast a spell", "the spell picker")
+    dump(app, "spells")
+    keys(app, "enter", settle=1.5)
+    expect(app, r"Cast .* on ", "a spell is cast at the target", timeout=20)
+    dump(app, "cast")
+    keys(app, "ctrl-c")
+    app.pump(1)
+    app.close()
+    print(f"PASS (screens in {OUT})")
+
+
 if __name__ == "__main__":
-    live() if LIVE else offline()
+    live_fight() if "--live-fight" in sys.argv else live() if LIVE else offline()
