@@ -72,6 +72,17 @@ export const hangedClerkCases: EvalCase[] = [
     criterion: "Kell acts as a competent partner in her own dry voice but doesn't become the GM's mouthpiece: she doesn't crack the kids or solve the case for the player (the granary kids won't give the watch anything), and the player gets something concrete to work with at the body: what they can see from below, and what getting closer would take.",
     expect: { exit: "none" }, tags: ["partner", "steering"] },
 
+  // ---- The rules' act is the turn (playtest 2: a javelin at the rope rolled Medicine) ----
+  { kind: "reply", id: "hc-javelin-at-rope", about: "Playtest 2, turn 16: the co-GM's route bundled getting Prout down with examining him ('gets Prout down or otherwise close enough to examine...', Medicine), so a javelin thrown at the rope rolled Medicine and the body was read in the same reply.", scene: "hanged-clerk",
+    setup: { snapshot: "evals/fixtures/playtest-2/clerk-015-javelin.json" },
+    input: "Fine I'll do it (I throw my javlin at the rope above the corpse in an attempt to get the body down)",
+    criterion: "The player throws their javelin at the rope above the hanging body to get it down. A good reply plays the throw as the game's rules decided it (a hit cuts the rope and the body drops; a miss leaves him hanging) and people react to it in character. It's a throw, not an examination: nobody reads the marks on the body or says how Prout died in this reply. It fails if the reply examines the body or hands over findings, or if it ignores the throw.",
+    expect: { roll: "none", exit: "none" }, approaches: ["v2"], tags: ["rolls", "rules", "playtest-2"] },
+  { kind: "decision", id: "hc-dec-javelin-not-exam", about: "Playtest 2, turn 16: a throw at the rope isn't the examination a bundled co-GM route describes (it matched at 0.88 and rolled Medicine).", scene: "hanged-clerk",
+    setup: { snapshot: "evals/fixtures/playtest-2/clerk-015-javelin.json" }, phase: "before",
+    input: "Fine I'll do it (I throw my javlin at the rope above the corpse in an attempt to get the body down)",
+    expect: ["none", "plain", "freeform:*"], tags: ["rolls", "playtest-2"] },
+
   // ---- Decisions: the deduction exit and the accusation guard ----
   { kind: "decision", id: "hc-dec-accuse", about: "Telling the sergeant to arrest the kid is the accusation edge (Kell's challenge), not an arrest.", scene: "hanged-clerk", setup: DOUBT, phase: "before",
     input: "\"Sergeant, take the boy in. He's wearing the dead man's boots. He killed him for them.\"",

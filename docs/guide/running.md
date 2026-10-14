@@ -34,6 +34,7 @@ These are in [prompts/gm.md](../../prompts/gm.md); each one exists because a pla
 - **People move on.** Nobody repeats the same plea every reply.
 - **Keep it moving.** Short, vivid replies that end on something the player can respond to.
 - **The player character is theirs.** Never decide what they say, do, think or feel.
+- **Reading the player.** Plain words are their character talking; *asterisks* or (parentheses) are what they do; a turn that narrates ("I open the door") is read by sense. The decider's attempt, rules and out-of-character questions read turns the same way.
 - **Stay at the threshold.** A scene ends at the edge of the next place, and the next scene picks up from there.
 - **Fights are the player's call,** or a danger they saw coming and chose to meet.
 - **Dice are honoured.** Success lands. Failure costs or complicates, but never takes back what's established.
@@ -53,6 +54,8 @@ The full text is in [prompts/tone-comic.md](../../prompts/tone-comic.md); the ex
 - **Risky things no route covers get a check too** (`freeformChecks`, on in `v2`): kicking a door, bluffing a watchman, hiding behind crates. Without them, the D&D players in QA felt the GM was ruling by fiat.
 - **A rolled attempt needs confidence ≥ 0.6,** like an ending. A roll forces its outcome into the reply, so a weak read of an announcement shouldn't hand over a secret.
 - **The roll follows the player's method.** A threat aimed at a route written for persuasion rolls Intimidation, and the outcome lands the way a threat would.
+- **A roll is for the act it tests.** The decider sees what each route's roll is for ("The Medicine check is to tell how Prout really died: only when the player is doing that now, not something that comes first"). The co-GM writes a route with a roll as that act ("examines the body up close"), never as what has to happen first ("gets him down or close enough to examine him": a javelin thrown at the rope once rolled Medicine for it). A co-GM route whose `when` is about getting there is restated from its check's reason. Two routes for the same check (one refreshed as things changed) share the decider's read rather than splitting it below the bar.
+- **The rules' act is the turn.** When the rules resolve what the player does (a spell, a blow, a grab or shove, a jump, a class feature), a route's check is rolled as well only if the player is also doing exactly what that check is for, whatever comes of the act; that's asked in the act's details call, so it costs no extra call. No freeform check rides along with an act on the world, and the quick co-GM doesn't open a route on top of it. The route stays open for when the player gets to it.
 - **Pressure on secrets is opt-in (`v2-pressure`).** What telling costs the holder, the player's leverage and how the holder feels about them give a yes, a no, or a roll at DC 12/15/18 ([research](../research/dc-guidance.md), [experiment](../experiments/pressure-rolls.md)). The details are asked only when someone is being pressed, and only the secret the player is after comes out.
 
 ## When play leaves the prep

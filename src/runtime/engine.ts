@@ -400,7 +400,9 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   // Stall mode: off the graph, with nothing else decided this turn. Hold the moment, let the co-GM
   // work in parallel, then resolve it with whatever it adds.
   // Only a genuinely off-graph turn earns a hold (a stale "stuck" from last turn made holds misfire).
-  const offGraphTurn = approach.voice === "gm" && !pre.move && !pre.limit && !pre.ooc && !ended && pre.offGraph === true;
+  // A turn the rules resolve (a spell, a blow, a rest) is already answered: a route the co-GM opens
+  // for it waits for the next turn rather than rolling on top of the act.
+  const offGraphTurn = approach.voice === "gm" && !pre.move && !pre.mechanic && !pre.limit && !pre.ooc && !ended && pre.offGraph === true;
   const stall = approach.repair === "stall" && offGraphTurn && !pre.relocate?.length;
   if (approach.repair === "quick-block" && offGraphTurn && quickEarly) {
     // One coherent reply: wait for the quick co-GM until the deadline (from the start of the turn),

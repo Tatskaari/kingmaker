@@ -67,7 +67,7 @@ function repairSchema(scene: Scene) {
           required: ["beat", "when", "on", "to", "check", "why"],
           properties: {
             beat: { type: "string", enum: [...beats, "new_beat"], description: "Beat this route leaves from." },
-            when: { type: "string", description: "What the player does or what happens, in prose." },
+            when: { type: "string", description: "What the player does or what happens, in prose. With a check: the act the check tests, as the player attempts it, not what has to happen first." },
             on: { type: "string", enum: ["attempt", "cue", "outcome"] },
             to: { type: "string", enum: targets, description: "Beat or ending (or new_beat). With a check, the success destination." },
             check: nullable({
@@ -98,6 +98,19 @@ interface RepairJson {
   move_to: string | null;
   add_beat: { id: string; title: string; direction: string; pressure: string; transitions: Array<{ when: string; to: string }> } | null;
   add_transitions: Array<{ beat: string; when: string; on: "attempt" | "cue" | "outcome"; to: string; check: null | { skill: typeof SKILLS[number]; dc: number; reason: string; success: string; failure: string; on_failure: string | null }; why: string }>;
+}
+
+/**
+ * A route with a roll is the act the roll tests. One whose `when` is about getting to that act
+ * ("gets him down or otherwise close enough to examine him") matches whatever gets the player there,
+ * so the roll comes with the wrong act (a javelin thrown at the rope rolled Medicine). Restated as the
+ * act itself, from the check's reason ("to examine Prout for..."); without a reason it can't be.
+ */
+const GETTING_THERE = /\b(?:enough|in order|so as|in a position) to\b|\bso (?:that )?[\w']+ (?:can|could)\b/i;
+export function checkedWhen(when: string, reason: string | undefined): string | undefined {
+  if (!GETTING_THERE.test(when)) return when;
+  const act = reason?.trim().replace(/\.$/, "");
+  return act && /^to\s/i.test(act) ? `The player tries ${act}.` : undefined;
 }
 
 function graphOutline(scene: Scene): string {
@@ -153,8 +166,10 @@ function toRepairResult(scene: Scene, state: SessionState, json: RepairJson, met
   for (const [i, t] of json.add_transitions.entries()) {
     const from = resolveId(t.beat), to = resolveId(t.to);
     if (!from || !to || !ids.has(from) || !ids.has(to) || scene.exits.some(e => e.id === from)) { problems.push(`transition ${t.beat} -> ${t.to} rejected`); continue; }
+    const when = t.check ? checkedWhen(t.when, t.check.reason) : t.when;
+    if (!when) { problems.push(`transition ${t.beat} -> ${t.to} rejected: its roll is about getting there, not the act`); continue; }
     const transition: Transition = {
-      id: `improv-${state.turn}-${i}`, when: t.when, on: t.on,
+      id: `improv-${state.turn}-${i}`, when, on: t.on,
       ...(t.check
         ? { check: { skill: t.check.skill, dc: Math.max(5, Math.min(25, t.check.dc)), reason: t.check.reason, success: t.check.success, failure: t.check.failure, onSuccess: to, ...(t.check.on_failure && ids.has(t.check.on_failure) ? { onFailure: t.check.on_failure } : {}) } }
         : { to }),
@@ -258,14 +273,14 @@ export async function quickRepair(authored: Scene, state: SessionState, options:
       essential: { type: "string", enum: [...essentials.map(e => e.id), "none"] },
       carrier: { type: "string", enum: [...presentCast(scene, state).map(c => c.id), "world", "none"] },
       target: { type: "string", enum: [...targets, "none"] },
-      when: { type: "string", description: "For open_route: what the player does or what happens, in prose." },
+      when: { type: "string", description: "For open_route: what the player does or what happens, in prose. With a roll: the act the roll tests, not what has to happen first." },
       note: { type: "string", description: "One or two sentences to the GM on how to resolve the player's attempt now." },
     },
   };
   const started = performance.now();
   const result = await respondJson<{ move: string; essential: string; carrier: string; target: string; when: string; roll_skill: string; roll_dc: number; roll_reason: string; failure: string; note: string }>({
     operation: "repair.quick", effort: options.effort ?? "none",
-    instructions: "You are the co-GM of a live roleplaying scene. The player has just tried or proposed something the prep didn't plan for, and you have a few seconds to decide. Choose the smallest move that lets the scene follow the player and pay off what they're doing: let their approach lead to an existing beat or ending, bring something the scene needs to them through whatever they're engaging with, or tell the GM how to resolve it honestly. A plausible plan deserves a real chance: don't steer the player back to the routes the prep expected. If whether it works is uncertain, give it a roll (and say what failing costs, so the story moves on either way); only a plan that addresses the real cause of the problem and can't really go wrong may reach an ending without one. Describe the route by the state of things it brings about. Keep the player's idea theirs (the credit and their conditions stay with them). Never refuse flatly; if the world can't do it, say what it can do instead.",
+    instructions: "You are the co-GM of a live roleplaying scene. The player has just tried or proposed something the prep didn't plan for, and you have a few seconds to decide. Choose the smallest move that lets the scene follow the player and pay off what they're doing: let their approach lead to an existing beat or ending, bring something the scene needs to them through whatever they're engaging with, or tell the GM how to resolve it honestly. A plausible plan deserves a real chance: don't steer the player back to the routes the prep expected. If whether it works is uncertain, give it a roll (and say what failing costs, so the story moves on either way); only a plan that addresses the real cause of the problem and can't really go wrong may reach an ending without one. Describe a route without a roll by the state of things it brings about, and a route with a roll by the act the roll tests, as the player attempts it ('examines the body up close'), never what has to happen first ('gets him down so he can be examined'). Keep the player's idea theirs (the credit and their conditions stay with them). Never refuse flatly; if the world can't do it, say what it can do instead.",
     input: [{ role: "user", content: [
       `Scene: ${scene.title}. ${scene.premise}`,
       `Current beat: ${beat.title}. ${beat.direction}`,
@@ -288,11 +303,13 @@ export async function quickRepair(authored: Scene, state: SessionState, options:
     if (result.carrier !== "world" && result.carrier !== "none") whispers.push({ to: result.carrier, note: `If it fits the moment, this comes out through you, in your own way and only as far as you'd really say it: ${e?.what ?? result.essential}` });
     else notes.push(`Let this reach the player through the world: ${e?.what ?? result.essential}`);
   }
-  if (result.move === "open_route" && result.target !== "none" && targets.includes(result.target) && result.when.trim()) {
-    const roll = result.roll_skill !== "none" && (SKILLS as readonly string[]).includes(result.roll_skill);
+  const roll = result.roll_skill !== "none" && (SKILLS as readonly string[]).includes(result.roll_skill);
+  // (A roll's route is the act it tests: one about getting there is restated, or left to the note.)
+  const when = roll ? checkedWhen(result.when, result.roll_reason) : result.when;
+  if (result.move === "open_route" && result.target !== "none" && targets.includes(result.target) && when?.trim()) {
     const transition: Transition = roll
-      ? { id: `quick-${state.turn}`, when: result.when, on: "attempt", check: { skill: result.roll_skill as typeof SKILLS[number], dc: Math.max(8, Math.min(18, result.roll_dc || 13)), reason: result.roll_reason, success: result.note, failure: result.failure?.trim() || "It doesn't work out as hoped: the situation gets harder, but the story goes on.", onSuccess: result.target } }
-      : { id: `quick-${state.turn}`, when: result.when, on: "outcome", to: result.target };
+      ? { id: `quick-${state.turn}`, when, on: "attempt", check: { skill: result.roll_skill as typeof SKILLS[number], dc: Math.max(8, Math.min(18, result.roll_dc || 13)), reason: result.roll_reason, success: result.note, failure: result.failure?.trim() || "It doesn't work out as hoped: the situation gets harder, but the story goes on.", onSuccess: result.target } }
+      : { id: `quick-${state.turn}`, when, on: "outcome", to: result.target };
     patches.push({ turn: state.turn, transition: { beat: "*", transition }, why: result.note });
   }
   return {
