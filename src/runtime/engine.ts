@@ -8,8 +8,9 @@ import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntr
 import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, relocateDirective, STALL_DIRECTIVE, type Move } from "./director.ts";
 import { describeRoll } from "./dice.ts";
 import { areaOf, buildWorld, heldBy, joinWorld, tick, within, type Entity } from "../world/scene-world.ts";
+import { inventory, startingPurse } from "../world/inventory.ts";
 import { stageManage } from "../world/stage.ts";
-import { attack as rulesAttack, attackOnPlayer, castSpell, comeTo, createCharacter, hazard, levelUp, passTime, rest, wrestle, type Outcome } from "../rules/dnd.ts";
+import { attack as rulesAttack, attackOnPlayer, carryGear, castSpell, comeTo, createCharacter, hazard, levelUp, passTime, rest, wrestle, type Outcome } from "../rules/dnd.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
 import { newSessionId, saveSession, snapshotSession, type Entry, type EntryKind, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
@@ -119,6 +120,18 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}): Pro
     state.world = buildWorld(scene.id, scene.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name })), state.player);
     joinWorld(state.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name, ...(c.members ? { members: c.members } : {}) })), 0);
     for (const e of state.carried ?? []) state.world.entities[e.id] = { ...e, parent: e.parent && state.carried!.some(c => c.id === e.parent) ? e.parent : "player" };
+    // A purse at the start of the story (and from then on, whatever they carry).
+    if (!state.history.length && !Object.values(state.world.entities).some(e => e.parent === "player" && /pennies|shillings|crowns/.test(e.name))) {
+      for (const coin of startingPurse()) inventory(state.world, 0).add("player", coin);
+    }
+    // The player's own gear is in the world too, so the story can part them from it.
+    const first = state.player.name.split(" ")[0]!;
+    for (const g of state.rules?.gear ?? []) {
+      if (state.rules?.gone?.includes(g.id) || Object.values(state.world.entities).some(e => e.gear === g.id)) continue;
+      let id = `${first}-${g.name}`.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      for (let n = 2; state.world.entities[id]; n++) id = `${id}-${n}`;
+      state.world.entities[id] = { id, name: `${first}'s ${g.name.toLowerCase()}`, kind: "item", parent: "player", tags: [g.kind], states: g.slot ? [g.slot === "mainHand" || g.slot === "offHand" ? "in hand" : "worn"] : [], notes: [], gear: g.id };
+    }
   } else delete state.world;
   delete state.carried;
   // Between scenes: coming to after being knocked down, the rest the gap allows, a milestone level-up.
@@ -527,6 +540,16 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (!ended && !state.closing && state.world?.entities.player?.states.includes("gone")) {
     ended = scene.exits.find(e => e.id === IMPROVISED_EXIT_ID);
     if (ended) state.path.push({ turn: state.turn, from: state.beat, to: ended.id, via: "left-the-place", source: "post" });
+  }
+  // Gear the story moved away from the player (or back) changes their sheet.
+  if (state.world && state.rules) {
+    for (const e of Object.values(state.world.entities).filter(x => x.gear)) {
+      let holder = e.parent ? state.world.entities[e.parent] : undefined;
+      while (holder && holder.kind !== "person" && holder.kind !== "area" && holder.kind !== "place" && holder.parent) holder = state.world.entities[holder.parent];
+      const carried = holder?.player === true && !e.states.includes("destroyed") && !e.states.includes("gone");
+      const line = await carryGear(state, e.gear!, carried).catch(() => undefined);
+      if (line) push(state, hooks, { speaker: "dice", kind: "roll", text: line });
+    }
   }
   // Whoever is on stage now (an entrance, someone called in) is in the world too.
   if (state.world) joinWorld(state.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name, ...(c.members ? { members: c.members } : {}) })), state.turn);

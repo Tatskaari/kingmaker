@@ -53,7 +53,8 @@ function refresh(ctx: Ctx, state: SessionState): void {
   const id = state.rules!.pc;
   const sheet = sheetOf(ctx, id);
   state.rules!.spells = readySpells(sheet);
-  state.rules!.weapons = weaponsOf(ctx, id);
+  state.rules!.weapons = weaponsOf(ctx, id).filter(w => !state.rules!.gone?.includes(w.id));
+  state.rules!.gear = gearOf(ctx, id);
   state.player.modifiers = modifiersFrom(sheet);
   state.player.build = buildLine(ctx, id);
 }
@@ -324,6 +325,8 @@ export async function sheetText(state: SessionState): Promise<string> {
   const c = ctx.campaign.state.characters[id]!;
   const s = sheetOf(ctx, id);
   const content = engine.content;
+  // Gear the story has parted them from: off the sheet (a second one of the same kind would stay, but that's rare).
+  const goneNames = new Set((state.rules.gone ?? []).map(g => content.items.get(ctx.campaign.state.itemInstances[g]?.definitionId ?? "")?.name).filter((n): n is string => !!n));
   const lines = [
     `${c.name}: ${buildLine(ctx, id)}`,
     `AC ${s.ac.total} · HP ${c.hp.current}/${s.effectiveHpMax}${c.hp.temp ? ` (+${c.hp.temp} temp)` : ""} · Speed ${s.speeds["walk"] ?? 30} ft · Initiative ${signed(s.initiative.modifier)} · Proficiency ${signed(s.proficiencyBonus)} · Hit Dice ${c.classes.map(k => `${k.hitDiceRemaining}/${k.level} d${content.classes.get(k.classId)?.hitDie ?? "?"}`).join(", ")}`,
@@ -332,7 +335,7 @@ export async function sheetText(state: SessionState): Promise<string> {
     `Skills: ${s.skills.filter(k => k.proficiency !== "none").map(k => `${titleSkill(k.skill)} ${signed(k.modifier)}${k.proficiency === "expertise" ? " (expertise)" : ""}`).join(", ") || "none trained"}`,
     `Other skills: ${s.skills.filter(k => k.proficiency === "none").map(k => `${titleSkill(k.skill)} ${signed(k.modifier)}`).join(", ")}`,
     `Passive: ${Object.entries(s.passiveScores).map(([k, v]) => `${titleSkill(k)} ${v}`).join(", ")}`,
-    `Attacks: ${s.attacks.filter((a, i) => s.attacks.findIndex(b => b.name === a.name) === i).map(a => `${a.name} ${signed(a.attackBonus)} (${a.damage.dice}${a.damage.modifier ? signed(a.damage.modifier) : ""} ${a.damage.type})`).join("; ")}`,
+    `Attacks: ${s.attacks.filter((a, i) => s.attacks.findIndex(b => b.name === a.name) === i).filter(a => !goneNames.has(a.name)).map(a => `${a.name} ${signed(a.attackBonus)} (${a.damage.dice}${a.damage.modifier ? signed(a.damage.modifier) : ""} ${a.damage.type})`).join("; ")}`,
   ];
   if (s.spellcasting?.classes.length) {
     const sc = s.spellcasting.classes[0]!;
@@ -346,7 +349,7 @@ export async function sheetText(state: SessionState): Promise<string> {
   if (feats.length) lines.push(`Feats: ${feats.join(", ")}`);
   const conditions = c.appliedConditions.map(a => content.conditions.get(a.conditionId)?.name ?? a.conditionId).filter(n => !/active$/i.test(n));
   lines.push(`Conditions: ${conditions.join(", ") || "none"}${c.heroicInspiration ? " · Heroic Inspiration" : ""}`);
-  lines.push(`Equipment: ${s.inventory.items.map(i => `${i.name}${i.equippedSlot ? ` (${i.equippedSlot === "mainHand" ? "in hand" : "worn"})` : ""}`).filter(n => !/^Unarmed/.test(n)).join(", ") || "nothing"}`);
+  lines.push(`Equipment: ${s.inventory.items.filter(i => !state.rules!.gone?.includes(i.instanceId)).map(i => `${i.name}${i.equippedSlot ? ` (${i.equippedSlot === "mainHand" ? "in hand" : "worn"})` : ""}`).filter(n => !/^Unarmed/.test(n)).join(", ") || "nothing"}`);
   lines.push(`Languages: ${s.knownLanguages.map(l => l[0]!.toUpperCase() + l.slice(1)).join(", ")}`);
   return lines.join("\n");
 }
@@ -685,6 +688,39 @@ const capitalise = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 // Blows: one attack at a time outside a fight on the map.
 
 export interface WeaponChoice { id: string; name: string }
+
+function gearOf(ctx: Ctx, id: string): NonNullable<NonNullable<SessionState["rules"]>["gear"]> {
+  const c = ctx.campaign.state.characters[id]!;
+  const slotOf = (instance: string) => (Object.entries(c.equipped).find(([slot, v]) => slot !== "attuned" && v === instance)?.[0]) as "mainHand" | "offHand" | "armor" | "shield" | undefined;
+  return c.inventory.map(i => ctx.campaign.state.itemInstances[i]).filter((i): i is Dnd.ItemInstance => !!i && i.definitionId !== "unarmed-strike").map(i => {
+    const def = ctx.engine.content.items.get(i.definitionId);
+    const kind = def?.itemKind === "weapon" ? "weapon" : def?.itemKind === "armor" ? (i.definitionId === "shield" || def?.["armorCategory"] === "shield" ? "shield" : "armor") : "item";
+    const slot = slotOf(i.id);
+    return { id: i.id, name: def?.name ?? i.definitionId, kind, ...(slot ? { slot } : {}) };
+  });
+}
+
+/** The story has parted the player from a piece of gear (given, dropped, left behind), or given it back. */
+export async function carryGear(state: SessionState, instanceId: string, carried: boolean): Promise<string | undefined> {
+  if (!state.rules) return undefined;
+  const gone = new Set(state.rules.gone ?? []);
+  if (carried === !gone.has(instanceId)) return undefined;
+  const ctx = await open(state);
+  const pcId = state.rules.pc;
+  const me = ctx.campaign.state.characters[pcId]!;
+  const name = ctx.engine.content.items.get(ctx.campaign.state.itemInstances[instanceId]?.definitionId ?? "")?.name ?? "that";
+  if (carried) gone.delete(instanceId);
+  else {
+    gone.add(instanceId);
+    const slot = (Object.entries(me.equipped).find(([s, v]) => s !== "attuned" && v === instanceId)?.[0]);
+    if (slot) ctx.apply([event(ctx.E, "ItemUnequipped", { characterId: pcId, slot })]);
+  }
+  state.rules.gone = [...gone];
+  refresh(ctx, state);
+  const ac = sheetOf(ctx, pcId).ac.total;
+  close(state, ctx);
+  return carried ? `You have your ${name.toLowerCase()} again` : `You no longer have your ${name.toLowerCase()} (AC ${ac})`;
+}
 
 function weaponsOf(ctx: Ctx, id: string): WeaponChoice[] {
   const state = ctx.campaign.state;

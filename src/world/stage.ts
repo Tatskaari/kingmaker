@@ -11,8 +11,8 @@ import { applyOps, worldView, type SceneWorld, type WorldOp } from "./scene-worl
 export const WORLD_LANGUAGE = `Operations. Every operation has every field; leave the ones it doesn't use as "" or [].
 - move: "what" goes to an area, or to beside someone or something ("to").
 - place: "what" goes near, behind, beside, under, on or in something ("to", "how"). "behind" also notes it on both.
-- give: "what" (a thing) is now held by someone ("to").
-- drop: "what" is put down ("to": near something, or "" where its holder stands).
+- give: "what" (a thing) is now held by someone ("to"); "quantity" for part of a stack (two of the pennies), 0 for all of it. Only things someone actually has can change hands.
+- drop: "what" is put down ("to": near something, or "" where its holder stands); "quantity" as for give.
 - create: someone or something the story has just brought in: "name", "kind" (person, creature, object, item), "to" (an area, or near someone or something), "text" (who or what they are).
 - state: "what" gains ("add") or loses ("remove") states: burning, wet, broken, open, closed, locked, overturned, hidden, prone, unconscious, asleep, lit, dark, slick, poisoned, tied-up...
 - note: something worth remembering about "what" ("text"), also noted on "to" when it's about both ("Cob is hiding behind the bar").
@@ -22,11 +22,12 @@ Selectors ("what", "to"): an id from the world, a name, "player", or a group: "a
 
 const OP_SCHEMA = {
   type: "object", additionalProperties: false,
-  required: ["op", "what", "to", "how", "name", "kind", "text", "add", "remove"],
+  required: ["op", "what", "to", "how", "name", "kind", "text", "add", "remove", "quantity"],
   properties: {
     op: { type: "string", enum: ["move", "place", "give", "drop", "create", "state", "note", "remove", "destroy"] },
     what: { type: "string" }, to: { type: "string" }, how: { type: "string" }, name: { type: "string" }, kind: { type: "string" }, text: { type: "string" },
     add: { type: "array", items: { type: "string" } }, remove: { type: "array", items: { type: "string" } },
+    quantity: { type: "integer" },
   },
 };
 

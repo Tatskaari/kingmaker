@@ -33,6 +33,10 @@ export interface RulesState {
   status?: string;
   /** A spell with a listed duration is running: story time passing can end it. */
   timed?: boolean;
+  /** The player's gear (engine item instances), mirrored into scene worlds as things they carry. */
+  gear?: Array<{ id: string; name: string; kind: "weapon" | "armor" | "shield" | "item"; slot?: "mainHand" | "offHand" | "armor" | "shield" }>;
+  /** Gear the story has parted them from (given away, dropped, left behind): off the sheet until they get it back. */
+  gone?: string[];
 }
 
 /** Something the last reply left hanging over the player, resolved by the rules at the start of their next turn. */
