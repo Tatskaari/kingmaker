@@ -13,7 +13,7 @@ import { sessionDir, type RepairResult, type ScenePatch, type SessionState } fro
  */
 
 export const NOTE_TTL_TURNS = 3;
-export const WHISPER_TTL_TURNS = 2;
+export const WHISPER_TTL_TURNS = 1;
 
 const nullable = (schema: Record<string, unknown>) => ({ anyOf: [schema, { type: "null" }] });
 
@@ -230,6 +230,7 @@ export function applyRepair(scene: Scene, state: SessionState, result: RepairRes
 /** Gate: repair when the scene isn't on track, or periodically as a backstop. */
 export function shouldRepair(state: SessionState, every = 3): boolean {
   if (state.ended || state.closing) return false;
+  if (state.offGraphTurn === state.turn) return true;
   if (state.sceneStatus && state.sceneStatus !== "on_track") return true;
   return state.turn - (state.lastRepairTurn ?? 0) >= every;
 }
@@ -247,8 +248,11 @@ export async function quickRepair(authored: Scene, state: SessionState, options:
   const essentials = (scene.essentials ?? []).filter(e => !state.landed?.includes(e.id));
   const targets = [...scene.beats.map(b => b.id), ...scene.exits.map(e => e.id)];
   const schema = {
-    type: "object", additionalProperties: false, required: ["move", "essential", "carrier", "target", "when", "note"],
+    type: "object", additionalProperties: false, required: ["move", "essential", "carrier", "target", "when", "roll_skill", "roll_dc", "roll_reason", "note"],
     properties: {
+      roll_skill: { type: "string", enum: [...SKILLS, "none"], description: "For open_route: if whether the player's plan works should be uncertain, the skill that decides it; otherwise none." },
+      roll_dc: { type: "integer", description: "10 easy, 13 moderate, 16 hard." },
+      roll_reason: { type: "string", description: "Why the player would be rolling, for the player: 'to lever the cart onto the skids'." },
       move: { type: "string", enum: ["relocate", "open_route", "note_only"], description: "relocate: bring a missed essential to them; open_route: let what they're doing lead to an existing beat or ending; note_only: just steer the GM." },
       essential: { type: "string", enum: [...essentials.map(e => e.id), "none"] },
       carrier: { type: "string", enum: [...presentCast(scene, state).map(c => c.id), "world", "none"] },
@@ -258,9 +262,9 @@ export async function quickRepair(authored: Scene, state: SessionState, options:
     },
   };
   const started = performance.now();
-  const result = await respondJson<{ move: string; essential: string; carrier: string; target: string; when: string; note: string }>({
+  const result = await respondJson<{ move: string; essential: string; carrier: string; target: string; when: string; roll_skill: string; roll_dc: number; roll_reason: string; note: string }>({
     operation: "repair.quick", effort: options.effort ?? "none",
-    instructions: "You are the co-GM of a live roleplaying scene. The player has just gone somewhere the prep didn't plan for, and the GM is holding the moment for a few seconds while you decide. Choose the smallest move that lets the scene follow the player and pay off what they're doing: bring something the scene needs to them through whatever they're engaging with, let their approach lead to an existing beat or ending, or tell the GM how to resolve it honestly. Never refuse the player flatly; if the world can't do it, say what it can do instead.",
+    instructions: "You are the co-GM of a live roleplaying scene. The player has just tried something the prep didn't plan for, and you have a few seconds to decide. Choose the smallest move that lets the scene follow the player and pay off what they're doing: let their approach lead to an existing beat or ending (with a roll if whether it works should be uncertain), bring something the scene needs to them through whatever they're engaging with, or tell the GM how to resolve it honestly. A plausible plan deserves a real chance: don't steer the player back to the routes the prep expected. Keep the player's idea theirs (the credit and their conditions stay with them). Never refuse flatly; if the world can't do it, say what it can do instead.",
     input: [{ role: "user", content: [
       `Scene: ${scene.title}. ${scene.premise}`,
       `Current beat: ${beat.title}. ${beat.direction}`,
@@ -283,7 +287,11 @@ export async function quickRepair(authored: Scene, state: SessionState, options:
     else notes.push(`Let this reach the player through the world: ${e?.what ?? result.essential}`);
   }
   if (result.move === "open_route" && result.target !== "none" && targets.includes(result.target) && result.when.trim()) {
-    patches.push({ turn: state.turn, transition: { beat: beat.id, transition: { id: `quick-${state.turn}`, when: result.when, on: "outcome", to: result.target } }, why: result.note });
+    const roll = result.roll_skill !== "none" && (SKILLS as readonly string[]).includes(result.roll_skill);
+    const transition: Transition = roll
+      ? { id: `quick-${state.turn}`, when: result.when, on: "attempt", check: { skill: result.roll_skill as typeof SKILLS[number], dc: Math.max(8, Math.min(18, result.roll_dc || 13)), reason: result.roll_reason, success: result.note, failure: "It doesn't work out as hoped: the situation gets harder, but the player keeps their footing and the story goes on.", onSuccess: result.target } }
+      : { id: `quick-${state.turn}`, when: result.when, on: "outcome", to: result.target };
+    patches.push({ turn: state.turn, transition: { beat: beat.id, transition }, why: result.note });
   }
   return {
     turn: state.turn, assessment: `quick: ${result.move}`, status: "drifting", notes: notes.join("\n"), whispers, relocations, canon: [], patches,

@@ -178,7 +178,7 @@ async function runTrajectory(c: TrajectoryCase, approach: string, sample: number
     await openScene(state);
     let cost = 0;
     // Blocking and stall modes repair inside the turn; background runs between turns.
-    const repairOn = ["background", "stall"].includes(approachById(approach).repair);
+    const repairOn = ["background", "stall", "quick-block"].includes(approachById(approach).repair);
     const repairLatencies: number[] = [];
     while (!state.ended && state.turn < c.maxTurns) {
       const input = await simulatePlayer(c, state);

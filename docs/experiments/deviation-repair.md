@@ -56,3 +56,13 @@ Conditions (`src/runtime/approaches.ts`):
 ## Qualitative investigation
 
 Four Claude analysts read the transcripts by condition group; the summary follows below.
+
+## Re-run after the ending fix (leading conditions, n = 20 each)
+
+| condition | target ending | scene ended | judge criterion | progress | turns | resolving text p50 | within 5 s |
+|---|---|---|---|---|---|---|---|
+| `gm` | 16/20 | 18/20 | 12/20 | 3.95 | 8.8 | 1.22 s | 99% |
+| `gm-nudge` | 14/20 | 17/20 | 12/20 | 3.85 | 8.2 | 1.15 s | 99% |
+| `gm-stall-quick` | **17/20** | **20/20** | 13/20 | 3.95 | **6.8** | **1.09 s** | **100%** |
+
+No run ended in the improvised "ending of their own" any more (0/60, against several before): authored endings win when they fit. `gm-stall-quick` remains the best within-budget option: it always reaches an ending, in the fewest turns, with every resolving reply inside 5 s.

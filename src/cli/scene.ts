@@ -64,7 +64,7 @@ const lockFile = (id: string) => join(sessionDir(id), "repair.lock");
 
 function spawnRepair(state: SessionState): void {
   const approach = approachById(state.approach);
-  if (!["background", "stall"].includes(approach.repair) || state.ended || !shouldRepair(state)) return;
+  if (!["background", "stall", "quick-block"].includes(approach.repair) || state.ended || !shouldRepair(state)) return;
   writeFileSync(lockFile(state.id), String(state.turn));
   const child = spawn(process.execPath, [import.meta.filename, "repair", state.id, "--turn", String(state.turn)], { detached: true, stdio: "ignore", env: process.env });
   child.unref();

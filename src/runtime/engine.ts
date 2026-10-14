@@ -177,7 +177,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     spec.promise = gmReply(scene, state, [], onText, "gm.speculative", controller.signal).catch(() => undefined);
     speculation = spec;
   }
-  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair === "stall", relocate: approach.deciderRelocation === true });
+  const pre = await decideBefore(decider, scene, state, input, { speaker: approach.voice === "actors", freeform: approach.freeformChecks === true, offGraph: approach.repair !== "off", relocate: approach.deciderRelocation === true });
+  if (pre.offGraph) state.offGraphTurn = state.turn;
   const preDecisionMs = performance.now() - started;
   if (pre.decision) { costUsd += pre.decision.costUsd; calls++; }
   let ended: Exit | undefined;
@@ -235,14 +236,44 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   let followUpMs: number | null = null;
   // Stall mode: off the graph, with nothing else decided this turn. Hold the moment, let the co-GM
   // work in parallel, then resolve it with whatever it adds.
-  const stall = approach.repair === "stall" && approach.voice === "gm" && !pre.move && !pre.limit && !pre.ooc && !ended && !pre.relocate?.length
-    && (pre.offGraph === true || state.sceneStatus === "stuck" || state.sceneStatus === "uncovered");
+  // Only a genuinely off-graph turn earns a hold (a stale "stuck" from last turn made holds misfire).
+  const offGraphTurn = approach.voice === "gm" && !pre.move && !pre.limit && !pre.ooc && !ended && !pre.relocate?.length && pre.offGraph === true;
+  const stall = approach.repair === "stall" && offGraphTurn;
+  if (approach.repair === "quick-block" && offGraphTurn) {
+    // One coherent reply: wait (up to the deadline) for the quick co-GM, re-decide, then answer.
+    const repairStarted = performance.now();
+    const repairing = quickRepair(authored, state, approach.repairEffort ? { effort: approach.repairEffort } : {}).catch(() => undefined);
+    let late = false;
+    const deadline = approach.repairDeadlineMs ?? 3000;
+    const repair = await Promise.race([repairing, new Promise<undefined>(r => setTimeout(() => { late = true; r(undefined); }, deadline))]);
+    repairMs = performance.now() - repairStarted;
+    if (late) {
+      const turn = state.turn;
+      void repairing.then(r => { if (r) { try { writeRepair(state, { ...r, turn }); } catch { /* best effort */ } } });
+      state.lateRepairs = (state.lateRepairs ?? 0) + 1;
+    }
+    if (repair) {
+      applyRepair(authored, state, repair);
+      costUsd += repair.costUsd; calls++;
+      scene = effectiveScene(authored, state.patches);
+      const again = await decideBefore(decider, scene, state, input, { speaker: false });
+      if (again.decision) { costUsd += again.decision.costUsd; calls++; }
+      if (again.move) {
+        directive.push(...moveDirective(scene, state, again.move));
+        if (again.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(again.move.roll, again.move.transition.check?.reason) });
+        applyMove(state, scene, again.move, "pre");
+        if (again.move.exit && again.move.chosen) ended = again.move.exit;
+        else if (again.move.exit) state.pendingExit = { exitId: again.move.exit.id, turn: state.turn, via: again.move.transition.id, extended: false };
+      } else if (again.plainTransition) directive.push(plainDirective(again.plainTransition));
+    }
+    if (speculation) { speculation.controller.abort(); speculation = undefined; }
+  }
   if (stall) {
     const repairStarted = performance.now();
     const repairing = (approach.repairKind === "quick"
       ? quickRepair(authored, state, approach.repairEffort ? { effort: approach.repairEffort } : {})
       : runRepair(authored, state, { effort: approach.repairEffort ?? "medium" })).catch(() => undefined);
-    const beat = await gmReply(scene, state, [STALL_DIRECTIVE], speakHooks(textHooks, "gm", "narration"), "gm.stall");
+    const beat = await gmReply(scene, state, [STALL_DIRECTIVE], speakHooks(textHooks, "gm", "narration"), "gm.stall", undefined, 140);
     spoken.push(beat);
     push(state, hooks, { speaker: "gm", kind: "narration", text: beat.text });
     // Budget: wait for the co-GM only until its deadline; a late result lands next turn instead.

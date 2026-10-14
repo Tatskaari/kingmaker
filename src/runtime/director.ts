@@ -160,13 +160,16 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
       criteria: { off_graph: "Yes: a real attempt to resolve or change the situation by a means none of the routes describes.", covered: "No: it matches a route, or it's ordinary play." },
     };
   }
-  const missing = options.relocate ? (scene.essentials ?? []).filter(e => !state.landed?.includes(e.id)).slice(0, 3) : [];
+  // Relocation is for when play has gone elsewhere: not before the player has had a fair chance
+  // at where the author placed it (early reveals through the original carrier aren't relocation).
+  const playerTurns = sceneEntries(state).filter(e => e.kind === "player").length;
+  const missing = options.relocate && playerTurns >= 3 ? (scene.essentials ?? []).filter(e => !state.landed?.includes(e.id)).slice(0, 3) : [];
   const present = presentCast(scene, state);
   for (const e of missing) {
     questions[`relocate_${e.id}`] = {
-      instructions: `In a roleplaying scene the player needs to come across this: "${e.what}" The author placed it with: ${e.placedWith.join("; ")}. Judging by what the player is doing now, should it reach them in this reply through something they are already engaging with? Choose who or what, or not_now if they are heading towards where it was placed anyway, it has nothing to do with what they're doing, or it would feel forced.`,
+      instructions: `In a roleplaying scene the player needs to come across this: "${e.what}" The author placed it with: ${e.placedWith.join("; ")}. The player has had a few exchanges to find it there. Is the player clearly busy elsewhere, so that it should now reach them through someone or something they are engaging with in their latest turn? The carrier must plausibly know or show it (nobody gains knowledge they couldn't have), and it must never be someone the player is avoiding. Choose not_now if the player is still heading towards where it was placed, if it has nothing to do with what they're doing, or if in doubt.`,
       criteria: {
-        ...Object.fromEntries(present.map(c => [c.id, `${c.name}: could plausibly know it or let it slip, given what the player is doing with them`])),
+        ...Object.fromEntries(present.map(c => [c.id, `${c.name}: the player is engaging with them now, and they could plausibly know it or let it slip`])),
         world: "Something in the scene itself (an object, a sound, a telltale detail) shows it, through what the player is doing.",
         not_now: "Not now.",
       },
@@ -222,8 +225,11 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     combined = { ...decision, answers: { ...decision.answers, ...extra.decision.answers }, latencyMs: decision.latencyMs + extra.decision.latencyMs, costUsd: decision.costUsd + extra.decision.costUsd };
   }
   const ooc = decision.answers.ooc?.choice === "out_of_character";
+  // One at a time: several essentials in one reply reads as an info dump.
   const relocate = missing.map(e => ({ e, a: decision.answers[`relocate_${e.id}`] }))
     .filter(({ a }) => a && a.choice !== "not_now" && (a.probabilities?.[a.choice] ?? 1) >= SCENE_ENDING_CONFIDENCE)
+    .sort((x, y) => (y.a!.probabilities?.[y.a!.choice] ?? 0) - (x.a!.probabilities?.[x.a!.choice] ?? 0))
+    .slice(0, 1)
     .map(({ e, a }) => ({ essential: e.id, carrier: a!.choice }));
   const offGraph = decision.answers.off_graph?.choice === "off_graph" && (decision.answers.off_graph?.probabilities?.off_graph ?? 1) >= SCENE_ENDING_CONFIDENCE;
   const plainTransition = plain && !plainEnding ? plainOutcome : undefined;

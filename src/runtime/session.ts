@@ -73,6 +73,8 @@ export interface SessionState {
   whispers?: Array<{ to: string; note: string; turn: number }>;
   /** The ending the story has been leaning towards, and for how many replies in a row. */
   endingLead?: { exitId: string; count: number; probability: number };
+  /** Turn on which the decider last judged the player off the graph (gates the co-GM). */
+  offGraphTurn?: number;
   /** Stall-mode co-GM results that missed the deadline (they land next turn). */
   lateRepairs?: number;
   /** Speculative replies kept vs discarded (gm-fast). */

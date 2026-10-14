@@ -17,8 +17,10 @@ export interface Approach {
    *  "blocking": it reviews the player's input before the reply (upper bound on repair, slower).
    *  "stall": when the player goes off the graph, the GM replies at once with a short beat that
    *  takes it seriously without resolving it, the co-GM works in parallel, and a follow-up reply
-   *  resolves it once the co-GM reports back. On-graph turns are normal (background co-GM). */
-  repair: "off" | "background" | "blocking" | "stall";
+   *  resolves it once the co-GM reports back. On-graph turns are normal (background co-GM).
+   *  "quick-block": on off-graph turns only, wait (up to a deadline) for the quick co-GM, then
+   *  give one reply; other turns are normal. Fits the 5 s budget without a two-part seam. */
+  repair: "off" | "background" | "blocking" | "stall" | "quick-block";
   repairEffort?: "low" | "medium" | "high";
   /**
    * Roll for risky attempts no scene route covers. Off by default: rolls belong to plot beats
@@ -50,6 +52,7 @@ export const APPROACHES: Record<string, Approach> = {
   "gm-repair-blocking": { id: "gm-repair-blocking", description: "Single GM voice; the co-GM reviews every player turn before the reply (accuracy upper bound, slower).", voice: "gm", decider: "luna-decisions", repair: "blocking" },
   "gm-repair-stall": { id: "gm-repair-stall", description: "Single GM voice; off-graph turns get a quick holding beat while the co-GM works, then a follow-up that resolves them.", voice: "gm", decider: "luna-decisions", repair: "stall" },
   "gm-stall-quick": { id: "gm-stall-quick", description: "5 s budget: off-graph turns get a holding beat while a quick co-GM (3 s deadline) decides; speculative replies; decider relocation.", voice: "gm", decider: "luna-decisions", repair: "stall", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, deciderRelocation: true },
+  "gm-quick-block": { id: "gm-quick-block", description: "5 s budget: on off-graph turns, wait up to 3 s for the quick co-GM (new routes with rolls, relocations), then one coherent reply; speculative replies and decider relocation otherwise.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, deciderRelocation: true },
   "gm-fast": { id: "gm-fast", description: "Single GM voice with speculative replies: the reply starts alongside the decision and is kept when the decision changes nothing.", voice: "gm", decider: "luna-decisions", repair: "off", speculative: true },
   "gm-nudge": { id: "gm-nudge", description: "Single GM voice; the per-turn decider moves missed essentials to whoever the player is engaging with (no co-GM).", voice: "gm", decider: "luna-decisions", repair: "off", deciderRelocation: true },
   "gm-repair-low": { id: "gm-repair-low", description: "Background co-GM at low reasoning (faster notes).", voice: "gm", decider: "luna-decisions", repair: "background", repairEffort: "low" },
