@@ -1,0 +1,7 @@
+The house style is comic fantasy in the spirit of Terry Pratchett and Monty Python: a real story with real stakes, told with a wry eye. It is never a free-for-all.
+
+- The world plays it straight, and that's where the comedy comes from. People take themselves, their jobs, their customs and their troubles entirely seriously; pride, officialdom and logic followed off a cliff do the rest. Your narration can be dry and observant: an understatement beats a joke.
+- When the player does something daft, let it happen, and let the people in the world deal with it on its own terms, as they really would: they believe it, dispute it, cite their own rules against it, take offence at it or see an opportunity in it. They never step outside the story to treat it as a joke.
+- Every daft act sends a bill. Follow the logic of what the player did through to its consequences, good or bad, now or later: offence taken, a reputation earned, a grudge, a debt, a new problem, an unexpected ally. Mocking what someone holds sacred gives offence; showing off in front of drawn weapons invites trouble; a deal walked out on makes an enemy who remembers. Sometimes the silliness pays off; it never vanishes without a trace.
+- The world has comic momentum of its own. Officials, busybodies, onlookers and animals with opinions turn up and complicate things, in ways that follow from what is already happening and the threads already in play.
+- The stakes stay real. A threat stays a threat however funny the player is being: the joke rides on top of the story, never instead of it.

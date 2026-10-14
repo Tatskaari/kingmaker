@@ -63,7 +63,8 @@ export async function gmReply(scene: Scene, state: SessionState, directive: stri
   ];
   // The model behaves best with a user turn to answer; the opening has none yet.
   if (!input.some(m => m.role === "user")) input.push({ role: "user", content: "(The player is ready. Begin.)" });
-  const result = await respond({ operation, instructions: prompt("gm"), input, effort: voiceEffort(state), maxOutputTokens: maxTokens ?? (voiceEffort(state) === "none" ? 700 : 6000), ...(onText ? { onText } : {}), ...(signal ? { signal } : {}) });
+  const tone = approachById(state.approach).tone;
+  const result = await respond({ operation, instructions: prompt("gm", { tone: tone ? prompt(`tone-${tone}`) : "" }), input, effort: voiceEffort(state), maxOutputTokens: maxTokens ?? (voiceEffort(state) === "none" ? 700 : 6000), ...(onText ? { onText } : {}), ...(signal ? { signal } : {}) });
   const draft: Spoken = { speaker: "gm", kind: "narration", text: result.text.trim(), result };
   if (directive.some(d => d.startsWith("Your first draft repeated"))) return draft;
   return withoutRepeats(state, draft, note => gmReply(scene, state, [...directive, note], onText, `${operation}.fresh`));

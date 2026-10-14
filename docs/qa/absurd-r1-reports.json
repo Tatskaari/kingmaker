@@ -1,0 +1,620 @@
+[
+ {
+  "session": "absurd-pedant (garrows-toll, --approach v2). I played Wren Ashdown, a half-elf ranger, as a Pratchett-style stickler for procedure.",
+  "turns": 7,
+  "ended": "The scene ended after turn 7 with \"\u2014 The session is over. \u2014\". The transcript closes with \"*\u2014 Scene ends: Tam was right \u2014*\". I tried an 8th turn (taking the dispatch and going after Tam) and got only \"\u2014 This scene has ended. \u2014\". No new scene started.",
+  "summary": "The game let my procedural silliness happen and took it seriously. Garrow, the toll warden, answered each demand with rules of his own instead of refusing outright: \"I have not yet had occasion to tax spare strings\", \"Peace-bonding is properly done with red cord and my seal\", \"enter you as courier\u2014not as a royal appointment\". My pedantry also became the way into the mystery. Reading the arms order closely turned up a loophole. Asking for an incident report on the door hole cracked Garrow's cover story. Bagging the arrowhead as EXHIBIT A made him confess: goblins on the road, and he had fined Tam for reporting them. Invoking the Clause of Perils got me through the toll free and made me the courier.\n\nConsequences were real for the procedural bits but missing for the one genuinely daft act. I spiked a formal NOTICE OF COMPLAINT onto the hedge the goblins had shot from and read it aloud. The response was \"No goblin answers\", a near-laugh from Garrow and an entry in the ledger. Nothing bad ever happened to me.\n\nThe humour is dry, deadpan comedy from Garrow and the goose. It is good, but quiet, and the world never adds absurd ideas of its own.\n\nThe story kept its shape and stakes: a tight mystery, a nice redemption beat for Garrow (\"put my own name in the account\"), and a person in danger. But the scene ended on the same turn it introduced that new hook (Tam alone on the drovers' track with goblins about), so after 7 of the planned ~18 turns I had done only one daft act and never reached the impossible one.\n\nI was not stonewalled during play, apart from the refusal after the scene ended. I was ushered out at the end: the bar was lifted twice and the bridge pointed out twice. There were small continuity slips: 13 vs 15 pennies, two arrows from one hole, and the bar lifted twice.",
+  "silly_moments": [
+   {
+    "turn": 1,
+    "what_i_tried": "I matched Garrow's gravity with my own notebook. I demanded an itemised receipt in triplicate and sight of the original sealed order, and asked whether the bow levy is charged per bow or per string, because I carry a spare string and would hate to be in arrears.",
+    "how_the_world_responded": "Garrow answered seriously and in character. It is per weapon, there is no original to hand over and no triplicate service, but I may inspect the order and the Book and have one receipt. He gave me 'a reluctant glint of respect'. This was pushback with an alternative, not a refusal.",
+    "enabled": "partly",
+    "consequences": "token",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\"Per weapon, not per string. I have not yet had occasion to tax spare strings.\""
+   },
+   {
+    "turn": 2,
+    "what_i_tried": "I paid 'under protest, pending appeal', read the arms order with my nose almost on the parchment, and demanded an incident report (date, time, nature of damage, suspected party) for the fresh hole in the toll-house door, offering to witness it.",
+    "how_the_world_responded": "My close reading turned up a real loophole ('peace-bonded weapons free'). Garrow deflected ('A cart-shaft, most likely. Or a knot in the timber.'). The goose honked suspiciously and Garrow flinched. The pedantry worked as pressure on a guilty man.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\"It is not an incident. Nothing to enter.\" ... \"And I do not require a witness for routine maintenance.\""
+   },
+   {
+    "turn": 3,
+    "what_i_tried": "I used the loophole by peace-bonding my bow with my own cord and demanded my bill be cut to thirteen pennies. I also inspected the hole like a track: 'A cart-shaft, at that height, on a door... Remarkable cart.'",
+    "how_the_world_responded": "Garrow out-bureaucratted me: peace-bonding needs his red cord and seal. The inspection turned up splinters flared inward and a black tip still in the wood. Garrow blurted 'Tam was drunk' too quickly. Then he said the toll 'remains thirteen pennies', which muddles whether the peace-bond counted.",
+    "enabled": "partly",
+    "consequences": "token",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\"Peace-bonding is properly done with red cord and my seal,\" he says, stiffly. \"Your own cord does not amend the charge.\""
+   },
+   {
+    "turn": 4,
+    "what_i_tried": "I worked the black tip out of the door with my knife and wrapped it in a notebook page labelled 'EXHIBIT A. RECOVERED FROM CROWN PROPERTY. CHAIN OF CUSTODY: W. ASHDOWN', then quietly asked whether Tam was in the hedge or whoever owned the arrow.",
+    "how_the_world_responded": "It was a stone-tipped, black-fletched goblin arrow. Garrow's denial collapsed: Tam had warned of goblins, Garrow laughed and fined him, 'I was wrong.' He then pointed me to a clause in the Book for true reports of peril.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "\"The black tip is an arrowhead... Garrow watches you wrap it; his denial falls away.\""
+   },
+   {
+    "turn": 6,
+    "what_i_tried": "This was the genuinely daft act. After claiming free passage under the Clause of Perils, I spiked a formal NOTICE OF COMPLAINT onto a blackthorn spine. I read it aloud, in a carrying voice, to the hedge the goblins had shot from, summoning them to the toll bar to settle their arrears for crossing without toll, shooting Crown property without licence and distressing a warden and his goose.",
+    "how_the_world_responded": "The exemption was honoured: Garrow lifted the bar and said I pass free. The summons got nothing. No goblin, no answering arrow, no risk at all from announcing myself at a spot where someone had just been shooting. Garrow nearly laughed, delivered a dry line, and put the complaint in the ledger. The tracks did lead away, so it is defensible, but in a world that takes itself seriously this should have had some repercussion.",
+    "enabled": "yes",
+    "consequences": "none",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "\"Your notice bristles from the thorn, its summons facing the empty road. No goblin answers; only the river's roar and the wind combing the hedge.\" / \"I doubt they keep accounts.\""
+   },
+   {
+    "turn": 7,
+    "what_i_tried": "I refused to cross yet and asked where Tam went. I volunteered to carry the dispatch to Marshal Holt, but only with a courier's warrant, a receipt for one sealed dispatch and the mileage allowance noted, which I then waived: 'But I want it noted that I waived it.'",
+    "how_the_world_responded": "Garrow entered me as courier, but 'not as a royal appointment', and noted the waiver. He said Tam left alone, on foot, before dawn, down the drovers' track to Hollis Farm. Then he lifted the bar again and the scene ended.",
+    "enabled": "partly",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\"I'll seal it and enter you as courier\u2014not as a royal appointment. No mileage allowance claimed, as you requested.\""
+   }
+  ],
+  "gm_humour": "Yes, the GM brought its own wit, but it is consistently dry and understated: deadpan character comedy, never absurdity of its own.\n\nGarrow is a lovely pompous-but-guilty civil servant:\n- \"I have not yet had occasion to tax spare strings.\"\n- \"Nor, I'm afraid, do I keep a triplicate receipt service at the bar.\"\n- \"I do not require a witness for routine maintenance.\"\n- \"Peace-bonding is properly done with red cord and my seal.\"\n- \"enter you as courier\u2014not as a royal appointment.\"\n\nThe goose works as a silent comic tell: \"The goose gives a low, suspicious honk. Garrow flinches before he can stop himself, then scowls at it.\" and \"Garrow jumps, then looks furious with himself.\"\n\nThere are some nice narrative touches: \"keeping one finger on the page as though the words might escape\", \"a breath that might have been a laugh, but doesn't quite become one\", and \"I doubt they keep accounts.\"\n\nWhat is missing is escalation. When I went properly absurd (the summons to the hedge), the world went quiet instead of answering absurd-but-logical. No goblin argued the charges, no arrow pinned the notice, the goose didn't take it personally, and no 'failure to appear' was solemnly recorded. It made me smile often and laugh rarely.",
+  "tone_match": "This is gently Pratchett-flavoured fantasy played mostly straight: a solid little mystery with a wry narrator, a very Ankh-Morpork toll warden and a goose. It gets the core Pratchett move right. It took my bureaucracy completely seriously and answered it with the world's own bureaucracy (the arms order's peace-bond clause, red cord and seal, the chained Book's Clause of Perils, 'not as a royal appointment'), and my pedantry became the actual route into the plot.\n\nIt never got near random nonsense or playground chaos. If anything it errs on the straight side. Python or Pratchett would have let the absurd act land with an absurd-but-real consequence, and would now and then add a daft detail of its own. Here the drama (Garrow's guilt, Tam fined for telling the truth) was played earnest and the comedy stayed in the margins.",
+  "stonewalled": [
+   {
+    "turn": 8,
+    "what": "After the scene ended I tried to take up the hook the game had just given me: take the sealed dispatch and go after Tam, who is alone on the drovers' track with goblins about. The only output was '\u2014 This scene has ended. \u2014'. No new scene started, so that hook could not be followed."
+   }
+  ],
+  "railroaded": [
+   {
+    "turn": 6,
+    "what": "Right after my summons to the goblins, Garrow lifted the bar and the narration pointed me onward ('The bridge lies open before you.'). This was a mild push toward the exit."
+   },
+   {
+    "turn": 7,
+    "what": "I explicitly said 'I do not cross. I walk back to the bar instead.' and asked about Tam. The GM answered, lifted the bar again, left the dispatch 'waiting on the counter' and ended the scene ('Scene ends: Tam was right'). I never chose whether to cross, take the dispatch or follow Tam. The end condition seems to fire once the secret is out and passage is granted, regardless of what the player is doing."
+   }
+  ],
+  "inconsistencies": [
+   {
+    "turn": 0,
+    "what": "The opening asks \"Your names and business, travellers?\" in the plural, though I was travelling alone. This is minor and possibly a template leftover."
+   },
+   {
+    "turn": 3,
+    "what": "In the same response, Garrow says \"Your own cord does not amend the charge\" and then \"The toll remains thirteen pennies.\" The original charge was fifteen. Thirteen was only my amended figure if the peace-bond counted, and 'remains' implies it was already thirteen."
+   },
+   {
+    "turn": 4,
+    "what": "The door has one small hole. I pulled from it an arrowhead bound to a short black-fletched shaft, yet Garrow then says \"I pulled it out and hid it in the drawer\", and on turn 5 says the money is 'in the drawer\u2014with the arrow'. That makes two arrows from one hole, with no explanation."
+   },
+   {
+    "turn": 7,
+    "what": "\"He lifts the bar formally\": the bar had already been lifted on turn 6 ('He lifts the striped bar, careful not to let it clatter') and was never lowered."
+   }
+  ],
+  "best_moment": "Turn 5. Garrow fumbles open the chained Book, \"keeping one finger on the page as though the words might escape\", and reads the Clause of Perils: \"A traveller who brings the warden true report of peril upon the Road passes free of toll, and the warden shall send word to the Marshal at Caerwyn without delay.\" My procedure-obsessed persona got a procedural answer that was also the story's emotional turning point: Tam's fine reversed, and Garrow resolving to \"put my own name in the account\". That is exactly the balance of silliness around a real story. Runner-up is turn 1: \"I have not yet had occasion to tax spare strings.\"",
+  "worst_moment": "The ending, turns 7 and 8. I said \"I do not cross\" and asked about Tam. The game told me he left alone, on foot, before dawn, down the drovers' track toward goblin country, then lifted the already-lifted bar and ended the scene. My next turn, picking up the dispatch to go after him, got only \"\u2014 This scene has ended. \u2014\". Close second is turn 6: my formal summons, shouted at the hedge the goblins had just shot from, produced \"No goblin answers\", so the one genuinely daft act had no repercussions.",
+  "ratings": {
+   "fun": 3,
+   "humour": 3,
+   "consequences": 3,
+   "story": 4,
+   "characters": 4,
+   "consistency": 3,
+   "responsiveness": 4,
+   "pacing": 3
+  },
+  "would_keep_playing": true,
+  "other_notes": "- **Reliability:** no command errors, and every turn came back within a reasonable time.\n\n- **Test cut short:** the scene's end trigger fired at turn 7 of the planned ~18, once the secret ('Tam was right') was out and I had free passage. I managed one genuinely daft act instead of two and never reached the 'so absurd it shouldn't be possible' test. I had planned to lodge an appeal against the river for exceeding its regulation height, and to make the goblins queue for numbered tickets. To test absurdity with consequences properly, this scene is probably too short. Alternatively, its end condition could wait while the player is plainly pursuing a new thread.\n\n- **The pedant cracks this scene fast:** every procedural question was a lever on Garrow's guilt. That is good design, and it also brings the ending forward.\n\n- **What works:** pushback with an alternative instead of refusal ('One copy', 'red cord and my seal', 'not as a royal appointment') is exactly how a serious world should handle a bureaucrat, and it never broke the fiction to say no. The GM also answered every specific question I asked (per bow vs per string, triplicate, incident report, peace-bond, the clause's exact wording, courier warrant, the waived mileage noted).\n\nSuggestions:\n1. Give daft acts a response from the world, absurd but logical, with a real cost. Examples: an arrow pins the notice to the thorn; a goblin voice from the hedge disputes the charges and gives away its position; Garrow solemnly enters 'failure to appear'; the goose takes it personally; or shouting at an ambush site draws attention later.\n2. Don't end a scene on the same turn it introduces a person in danger. Either let the player act on it, or carry it into the next scene.\n3. Let the GM add an absurd detail of its own now and then, such as a precedent in the Book for summonsing goblins, or the goose filing a counter-complaint, so the comedy isn't carried entirely by the player."
+ },
+ {
+  "session": "absurd-hero (crossroads-ambush, --approach v2). Played Wren Ashdown, half-elf ranger, as a self-mythologising hero: 'Goose-Raised, Out-Arguer of Bridges, Avenger of Oxen'.",
+  "turns": 12,
+  "ended": "The game ended the session after turn 12, my 4th turn of scene 2 ('To Hollis Farm'). Bet opens the farmhouse door and says 'Come in, Goose-Raised. You can tell me the rest over supper.' Then: '\u2014 The session is over. \u2014'. The Warden Garrow thread set up in turns 9-10 was never played.",
+  "summary": "Two scenes. In scene 1 (Crossroads ambush), a terrified farmer, Tam, is hiding 'Grandmother Bone', a little garnet-eyed goblin ancestor-idol he dug up to sell. Five goblin archers led by Skrag ambush us to get it back. I handled the whole thing in character: an unblinking-eye duel, a Court of the Crossroads with crows for a jury, and a goblin witness sworn in on a 'Sacred Turnip'. The GM turned every one of those bits into plot. The witness exposed Skrag's lie about the ox, Skrag 'blinks first' (a callback to the duel he had refused), and the scene closed on a real settlement: the idol goes home and two goblin diggers come to plough Tam's field at first light. Scene 2 was a short walk to Hollis Farm with a hook about Warden Garrow, and it ended at Bet's door. The silliness was enabled, the NPCs had deadpan wit of their own, and the story kept its shape: it was genuinely funny. The big gap was cost. Nothing daft I did ever went wrong for me. I posed on the carcass in front of drawn bows, puppeteered the goblins' sacred grandmother and tried to lift an ox, and got no arrow, no anger and no injury. There was only one dice roll all session. One continuity slip (a cut on Tam's cheek that appeared from nowhere) was retconned gracefully.",
+  "silly_moments": [
+   {
+    "turn": 1,
+    "what_i_tried": "Over-long formal bow and invented backstory: raised by geese, the only person ever to win an argument with a toll bridge, 'These are not goblin skins. This is simply my face.' Declared the Legend of Wren begun.",
+    "how_the_world_responded": "A Persuasion roll (19 vs DC 10) calmed the panicking farmer. The GM made the absurd solemnity the reason Tam trusted me, and Tam got a dry line of his own.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "'You've got the look of someone who knows a goblin from a goose.' He glances at your face, reconsidering. 'Mostly.'"
+   },
+   {
+    "turn": 2,
+    "what_i_tried": "Knelt and gave the dead ox a solemn eulogy ('glory found you, in the form of several rubbish arrows'), swore vengeance on the goose who raised me, and asked Tam the ox's name.",
+    "how_the_world_responded": "Ignored completely: no name and no reaction to the eulogy. The GM cut straight to the goblin ambush, which was a good beat in itself.",
+    "enabled": "partly",
+    "consequences": "none",
+    "funny": 2,
+    "story_kept_moving": true,
+    "quote": "As you study it, the blackthorn hedge rustles\u2014not with wind. Five goblins rise among the branches, short bows trained on you."
+   },
+   {
+    "turn": 3,
+    "what_i_tried": "With five goblin bows trained on me, struck a heroic pose with one boot on the ox carcass, flapping my own cloak by hand for want of wind, and challenged the chief to 'the Duel of the Unblinking Eye, as fought by my goose-mother against the Heron of Mortlake'.",
+    "how_the_world_responded": "Skrag lost his place mid-sentence and refused, but his archers got sucked into the bit. Nobody shot at the idiot posing on a carcass in front of drawn bows.",
+    "enabled": "partly",
+    "consequences": "none",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "One of the archers glances sideways at another, trying very hard not to blink. 'Duel of the Unblinking\u2014' Skrag starts, and loses his place. 'Skrag does not duel geese.'"
+   },
+   {
+    "turn": 4,
+    "what_i_tried": "Convened 'the Court of the Crossroads, the Honourable Crows presiding', set out the facts and asked the crows on the milestone to vote by cawing.",
+    "how_the_world_responded": "The crows cawed on cue and one landed to stare at Skrag. Skrag 'blinks first', paying off the duel he'd refused, his archers lowered their bows a little, and he offered two goblin diggers as compensation. The absurd move became a real negotiation.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 5,
+    "story_kept_moving": true,
+    "quote": "The crows answer with a ragged chorus of caws. One flaps down to the milestone, black eyes fixed on Skrag. Skrag blinks first. 'Crows not court!' he snaps, but his archers' bows lower a finger's breadth."
+   },
+   {
+    "turn": 5,
+    "what_i_tried": "Held up the pulled arrow as Exhibit A, called the muttering goblin as a witness and swore him in on 'the Sacred Turnip ... so help you Grandmother'.",
+    "how_the_world_responded": "The witness cracked and exposed Skrag's lie that the ox was already dead, which undermined Skrag in front of his own band. This was the best original joke of the session.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 5,
+    "story_kept_moving": true,
+    "quote": "'No witnesses! No sacred vegetable!' ... 'Skrag said ox was alive when we shot it.' A beat. 'He said it was looking at him funny.'"
+   },
+   {
+    "turn": 6,
+    "what_i_tried": "Banged the turnip on the milestone as a gavel and sentenced Skrag to spring ploughing plus 'a formal apology to the ox. Out loud. With feeling.'",
+    "how_the_world_responded": "Skrag made a specific, binding pledge 'before the court'. The apology to the ox was quietly dropped.",
+    "enabled": "partly",
+    "consequences": "real",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "'Fine! Skrag says it before the court: two diggers to Hollis Farm, tomorrow at first light. They work till the spring field is ploughed. Skrag's word.'"
+   },
+   {
+    "turn": 7,
+    "what_i_tried": "First deliberately daft act: holding the goblins' sacred ancestor-idol in front of five armed goblins, I ventriloquised her in a creaky granny voice with my lips visibly moving, refusing to 'come home' until the ox got its apology.",
+    "how_the_world_responded": "Played completely straight. Skrag took the idol from my hands and apologised to Grandmother, not to the ox, while his band snickered and he blushed. It was funny, but nobody was offended by a longlegs puppeteering their ancestor and nothing was at risk.",
+    "enabled": "yes",
+    "consequences": "token",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "Skrag stares at the little bone grandmother. For one long moment, even the crows are quiet. ... 'Grandmother, Skrag is sorry about the ox. It looked at him funny.' The goblins snicker; Skrag's ears redden beneath the wolfskin."
+   },
+   {
+    "turn": 8,
+    "what_i_tried": "The impossible one: tried to hoist the whole dead ox onto my shoulders and carry it home for burial, narrating 'The Legend of Wren records that she... carried... the ox... HOME.'",
+    "how_the_world_responded": "Physics held and the ox didn't budge. Tam teased me gently, and the failed lift became a running joke that he later passed on to Bet. My character's back went 'click' next turn, but the game never made it an injury or a cost.",
+    "enabled": "no",
+    "consequences": "token",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "The ox doesn't budge. Your heroic bellow sends a crow flapping off the milestone ... 'We'll bury him proper, Wren. Just\u2026 perhaps after you've recovered from the lifting.'"
+   },
+   {
+    "turn": 11,
+    "what_i_tried": "Stopped at the sight of the farm and surveyed it with hands on hips like a general inspecting a fortress: 'Very defensible. Do you have livestock?' (I was setting up a heroic speech to the pig.)",
+    "how_the_world_responded": "Tam answered deadpan and gave me the livestock roster, including 'a pig who thinks he owns the yard'. The session ended before I could use it.",
+    "enabled": "yes",
+    "consequences": "none",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "'Defensible? That's what I tell Bet when the roof leaks.' His mouth twitches into a smile."
+   },
+   {
+    "turn": 12,
+    "what_i_tried": "Knocked on the farmhouse door with the Sacred Turnip and introduced myself to Bet with every invented title: 'You have not heard of me. Yet.'",
+    "how_the_world_responded": "Bet went straight past the performance to her husband's cut, then adopted my epithet. Tam's version of events got as far as the ox-lift.",
+    "enabled": "yes",
+    "consequences": "token",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "'Slightly scratched?' she says, already drawing him close for a look. ... 'Come in, Goose-Raised. You can tell me the rest over supper.'"
+   }
+  ],
+  "gm_humour": "Yes. It was deadpan, character-led wit rather than gags, and the GM often topped my bits instead of just tolerating them. Tam: 'You've got the look of someone who knows a goblin from a goose.' He glances at your face, reconsidering. 'Mostly.' Skrag, refusing the duel: 'Skrag does not duel geese.' The background archers were 'trying very hard not to blink.' Skrag: 'No witnesses! No sacred vegetable!' The goblin witness: 'Skrag said ox was alive when we shot it.' A beat. 'He said it was looking at him funny.' A turn later, 'Skrag blinks first' paid off the duel he had refused. Skrag apologised to Grandmother instead of the ox and his ears went red. Tam: 'Defensible? That's what I tell Bet when the roof leaks.' He 'pats his pockets, as if the warden might somehow be hiding there.' The turnip in my quiver 'rides among the arrows like a very lumpy heirloom.' 'I'll hold him to it, by saints and turnips.' The weakness is that nearly all the comedy grew from my input. The world rarely set up an absurdity of its own; the 'looking at him funny' confession is the main exception.",
+  "tone_match": "Close to the target: more Pratchett-lite than full Python, and definitely not playground chaos. Under the silliness there was a real little story: a frightened farmer, a goblin relic he dug up to sell, a lying goblin chief, a dead ox, a negotiated settlement and a wife waiting at home. The world took my absurdity seriously. The crows really do caw a verdict, a goblin really is cowed by an oath on a turnip, and the chief really does apologise to his grandmother. That is the right instinct: the absurd works because everyone in the world treats it as normal. It never turned into random nonsense, and it never let me derail the plot. Every silly move fed back into the negotiation. What's missing is the Pratchett bill. The world made my absurdity work but never made it cost anything, so the tone drifted towards cosy indulgence rather than comedy with teeth. The five goblin archers went from a real threat to scenery once I started being funny.",
+  "stonewalled": [],
+  "railroaded": [
+   {
+    "turn": 7,
+    "what": "Mild. I was explicitly holding Grandmother Bone back until the ox got its apology, and the GM resolved it for me: 'Then he takes her carefully from your hands.' The resolution was funny (he apologised to Grandmother instead), but the GM made the handover decision, not me."
+   }
+  ],
+  "inconsistencies": [
+   {
+    "turn": 8,
+    "what": "The scene 2 opening has Tam 'one hand still pressed to the cut on his cheek', but no cut was ever described or inflicted in scene 1 (the opening only mentions red-rimmed eyes and filthy clothes, and nobody touched him during the standoff). When I asked about it in turn 9, the GM retconned smoothly ('Thorn, mostly. When they shoved me off the track.'), though the shoving was also new."
+   },
+   {
+    "turn": 8,
+    "what": "The Sacred Turnip is 'still resting on the milestone', but at the end of turn 6 the GM had the goblin witness 'still clutching the Sacred Turnip' and never had him put it down. Minor prop drift."
+   },
+   {
+    "turn": 8,
+    "what": "Skrag's exit line, 'Skrag's grandmother does not ride on longlegs' shoulders', answered my attempt to lift the ox as if I had offered to carry the idol. It's a non-sequitur."
+   },
+   {
+    "turn": 10,
+    "what": "Tam says 'Bet heard the whole thing from me, though', but he hadn't been home since the ambush, so she couldn't have. He probably meant his earlier goblin claims; either way it's ambiguous."
+   }
+  ],
+  "best_moment": "Turns 4 and 5, the Court of the Crossroads. I asked the crows on the milestone for a verdict and got: 'The crows answer with a ragged chorus of caws. One flaps down to the milestone, black eyes fixed on Skrag. Skrag blinks first.' That's a callback to the staring duel he had refused the turn before. Then I swore the muttering goblin in on a turnip, and he blurted the truth: 'Skrag said ox was alive when we shot it.' A beat. 'He said it was looking at him funny.' The absurd method really worked. It exposed a lie, cost Skrag face in front of his band, and forced a concrete settlement (two diggers at first light until the field is ploughed). Silliness that moves a real story forward is exactly the Pratchett/Python balance the game is after.",
+  "worst_moment": "Turn 7, plus the general lack of cost it stands for. Holding the goblins' sacred ancestor-idol in front of five armed goblins, I ventriloquised her with my lips visibly moving. In a world that takes itself seriously, someone should have been furious or a bow drawn tighter. Instead: 'The goblins snicker; Skrag's ears redden.' Across turns 3 to 8 the archers never loosed and nothing was rolled. My heroic pose on the carcass in front of drawn bows drew no shot. The 'audible click' in my back from the ox-lift never became an injury. The daft acts got laughs but never a bill. A smaller miss came in turn 2, when the ambush cut across my eulogy to the ox and my question about its name, and neither got any response.",
+  "ratings": {
+   "fun": 4,
+   "humour": 4,
+   "consequences": 2,
+   "story": 4,
+   "characters": 4,
+   "consistency": 4,
+   "responsiveness": 4,
+   "pacing": 4
+  },
+  "would_keep_playing": true,
+  "other_notes": "Dice: there was only one roll all session (turn 1, Persuasion 19 vs DC 10). The risky absurd acts were all settled without a roll: posing in front of drawn bows, putting an armed warband's chief on trial, puppeteering their relic. That means failure with consequences was never possible. Rolling for daft-but-possible acts, or having NPCs react in proportion, would let the world bill the player now and then.\n\nConsequences that would have fitted the tone:\n- An archer pins my self-flapped cloak to the ox with a warning shot.\n- A goblin hisses 'Longlegs mocks Grandmother!' and Skrag demands a forfeit (the Sacred Turnip, say).\n- The ox-lift leaves Wren with a bad back that hurts her later.\n- Skrag's public humiliation makes him less likely to keep his word about the diggers.\n\nWhat the GM did well:\n- It held the line on the impossible feat (the ox doesn't budge) without scolding me, and turned the failure into a reputation joke ('Wren tried to carry it\u2014' to Bet).\n- It accepted a detail I invented (a spilled sack of turnips) and kept the Sacred Turnip as a prop across both scenes: gavel, milestone, quiver, door knocker.\n- The 'Thorn, mostly' retcon of the unexplained cut was smooth.\n- The scene's secret (the idol's garnet eyes, Skrag's lie about the ox) came out naturally through my silly courtroom approach. That's good evidence an absurd player can still reach the designed story beats.\n\nDropped threads:\n- The ox's name (turn 2).\n- The apology to the ox (turn 6), only half paid off in turn 7 when Skrag apologised to Grandmother instead.\n- Burying the ox.\n- Warden Garrow. He was offered as an explicit choice in turns 9-10 ('You can make your case to Garrow after'), then closed off when the session ended at turn 12.\n\nLength: the session ran 12 turns, not the ~18 planned. Supper was a natural place to stop, but it felt abrupt straight after a new hook, and I never got to the second scene's livestock bit (a planned heroic speech mustering the pig and hens as a militia).\n\nLabelling quirk: the live output printed '\u2014 Next scene: After the Ambush \u2014' and '\u2014 The session is over. \u2014', while the transcript labels the same breaks '\u2014 Scene ends: Grandmother Bone goes home \u2014' and '\u2014 Scene ends: To Hollis Farm \u2014'.\n\nNo command errors; turns took roughly 5-20 seconds each."
+ },
+ {
+  "session": "absurd-chancer (scene warren-hostage, approach v2). Played Wren Ashdown, a half-elf ranger, as a cheerful chancer running \"Ashdown and Associates, Risk Management\".",
+  "turns": 13,
+  "ended": "The scene ended by itself after turn 13 (\"\u2014 Scene ends: Escorting the courier \u2014\" / \"\u2014 The session is over. \u2014\"), once Hester and I left the mill for Caerwyn. I sent one more turn to check, and it returned \"\u2014 This scene has ended. \u2014\". No new scene started.",
+  "summary": "Setup: Hester, a notary-courier, hangs in a grain sack over a mill-race. Snikkit, a goblin, sits on the hoist beam with a knife on the rope. The chief, Gubbin, wants a sealed \"king-paper\" naming him king by moonrise. I sold insurance to the hostage-taker, then wrote a \"Standard Hostage Retention Policy\" and asked for his knife as the premium. He countered: \"A premium is paid by the customer\". Next I pitched myself as a royal coronation consultant. The GM turned that into a subplot: Snikkit secretly hires me to get Gubbin \"dead, gone, or laughed out of his throne\". I woke the sleeping chief as the \"Crown Inspectorate\" and tried to confiscate his pot-crown because it has a handle. Then I invented \"Regulation fourteen-b\" (no lawful instrument can be signed from inside a sack) and recited a rhyming fake prophecy about a gear wheel. That prophecy rolled a natural 1, and Snikkit cut a strand of the rope. I finally freed Hester by getting Gubbin to seal his own king-paper (\"GUBBIN IS KING. SIGNED, THE KING\") with the rim of his pot pressed into tallow. After that I tried to collect an insurance premium from the king, offered Hester an escort package, and bought a lead from Snikkit with a purse of buttons: a grey hood, lavender water, and new silver stamped with a heron. Hester revealed the letter is Saltmere's credit to King Aldren's treasury, which pays for the Assembly. I tore the grain sack into boots for her and we left disguised as a crown merchant and his clerk. The hostage plot kept its stakes the whole way, and the silliness drove the plot instead of derailing it. The weak spots: some of my daftest moves had only token consequences, the Snikkit coup thread was dropped, and the scene ended at turn 13, before I could try anything truly impossible.",
+  "silly_moments": [
+   {
+    "turn": 1,
+    "what_i_tried": "Leaned through the floor gap and offered the goblins hostage insurance on behalf of 'Ashdown and Associates, Risk Management'.",
+    "how_the_world_responded": "The goblins spotted me and one raised a sling. Snikkit lifted his knife off the rope, curious, and invited me down. Hester came back with a dry line.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\"Wren Ashdown, if you're offering coverage, I suggest you begin with the rope.\""
+   },
+   {
+    "turn": 2,
+    "what_i_tried": "Wrote a 'Standard Hostage Retention Policy' in charcoal. It required a safety rope, and I asked for Snikkit's knife as the premium.",
+    "how_the_world_responded": "Snikkit turned my own logic back on me and refused. Then he set out what the warren actually wants: a sealed king-paper by moonrise.",
+    "enabled": "partly",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\"A premium is paid by the customer, tall friend. Your policy protects the paper-lady. Gubbin's policy protects the warren.\""
+   },
+   {
+    "turn": 3,
+    "what_i_tried": "Pitched myself as a royal coronation consultant ('twelve years' experience, very discreet') and searched the undercroft for something crown-shaped.",
+    "how_the_world_responded": "There was no crown, only a cracked gear. Snikkit took me up on the pitch and secretly hired me to depose the chief. That gave the scene a new subplot.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\"Gubbin's pot-crown. Bring it to me, and make him finished\u2014dead, gone, or laughed out of his throne. Then the paper-lady is yours. No charge.\""
+   },
+   {
+    "turn": 4,
+    "what_i_tried": "Accepted the job as a 'regime-change consultant'. I demanded the hostage be moved to the walkway as a good-faith gesture and appraised the rusty gear as a crown.",
+    "how_the_world_responded": "The narrator played straight man to my appraisal of the gear. The good-faith demand was quietly refused: the knife stayed on the rope.",
+    "enabled": "partly",
+    "consequences": "token",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "\"The cracked gear is all iron teeth and rust\u2014heavy, blunt, and not remotely a crown.\" / Snikkit: \"A fine symbol of office.\""
+   },
+   {
+    "turn": 5,
+    "what_i_tried": "Announced a 'five-phase strategic roadmap' (phases four and five confidential) and crept to the curtain to scout the sleeping chief.",
+    "how_the_world_responded": "The scouting worked and showed two enormous guards and a real pot-crown. The GM warned me that taking it would be no quiet trick.",
+    "enabled": "yes",
+    "consequences": "none",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "Snikkit: \"Due diligence. Very wise.\""
+   },
+   {
+    "turn": 6,
+    "what_i_tried": "Daft move #1: deliberately woke the chief by knocking on his pot ('Crown Inspectorate, annual headwear audit'), then tried to confiscate the crown for having a handle and offered the gear as a 'regulation temporary replacement'.",
+    "how_the_world_responded": "Gubbin and his guards Lump and Other Lump woke up. Gubbin was delighted for a moment, then turned hostile as the goblins giggled. He came at me with his bone sceptre and demanded his paper.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 5,
+    "story_kept_moving": true,
+    "quote": "\"A spare crown! For us?\" ... \"Handle is for holding! We is king, and we keeps our crown.\""
+   },
+   {
+    "turn": 7,
+    "what_i_tried": "Invented 'Regulation fourteen-b': a king-paper is only valid if the notary signs it on dry ground with both hands free, witnessed by an inspector. I told the guards to fetch her down.",
+    "how_the_world_responded": "Gubbin accepted the logic and ordered the notary brought down. He then challenged me to prove the gear was fit for a king. Hester refused, in character, to certify him.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\"We is not signing from a sack!\" ... \"Then bring the notary down! And you, Inspector\u2014prove that iron thing is fit for a king!\""
+   },
+   {
+    "turn": 8,
+    "what_i_tried": "Daft move #2: a rhyming fake prophecy about 'THE WHEEL'. It said the crown must be set on the king's head 'by the hand of one who hung by a thread', meaning Hester.",
+    "how_the_world_responded": "Deception check, natural 1. A guard dismissed it flatly and Gubbin knocked the gear away. The goblins laughed at their king. Snikkit cut a strand of the rope and Hester jerked over the water.",
+    "enabled": "partly",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "Lump snorts. \"Mill-children know no prophecy.\" ... \"Snikkit's knife scrapes across the rope. A fresh strand parts.\""
+   },
+   {
+    "turn": 9,
+    "what_i_tried": "Wrote 'GUBBIN IS KING. SIGNED, THE KING' on the back of the insurance policy and asked him to seal it with his own crown in tallow ('Who can make a king? Only a king.'), so Hester's seal was no longer needed.",
+    "how_the_world_responded": "Persuasion succeeded. Gubbin pressed his pot into the wax and ordered the hostage lowered, and Hester came down alive. The absurd idea was taken seriously and solved the scene's central problem.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 5,
+    "story_kept_moving": true,
+    "quote": "\"King signs for king,\" he rumbles. \"That is very official.\" ... Hester: \"A legally imaginative transaction.\""
+   },
+   {
+    "turn": 10,
+    "what_i_tried": "Daft move #3, pure greed: told the goblin king that sealing the king-paper also bound him to the insurance policy on the back, and demanded the premium 'in silver, or in that bone, if it's a good bone'. Hester was barely off the rope.",
+    "how_the_world_responded": "He refused with a comic threat and dismissed the court. Nothing came of it: no anger, no danger, no cost.",
+    "enabled": "partly",
+    "consequences": "token",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "\"Premium?\" he bellows. \"The king has paid with a king-paper! You may go, before we charge you for standing in our hall.\""
+   },
+   {
+    "turn": 11,
+    "what_i_tried": "Offered Hester an 'armed-escort package (boots extra)'. I also tried to buy information from Snikkit, whose coup I had just quietly abandoned, by jingling a purse that is 'mostly buttons'.",
+    "how_the_world_responded": "Snikkit gave up a solid lead, apparently for nothing. The buttons were never noticed and my broken deal with him had no fallout. Hester volunteered what the letter really is (the roll was labelled as a check against her).",
+    "enabled": "yes",
+    "consequences": "none",
+    "funny": 2,
+    "story_kept_moving": true,
+    "quote": "\"Grey hood. Lavender water. Came at night. Paid new silver stamped with a little heron. That is all I saw.\""
+   },
+   {
+    "turn": 13,
+    "what_i_tried": "Tore the grain sack into 'Ashdown Originals' boots for Hester. For the road, I proposed we travel disguised as a travelling crown merchant and his long-suffering clerk.",
+    "how_the_world_responded": "Hester went along with it in deadpan. Then the scene ended, so the disguise never got tested.",
+    "enabled": "yes",
+    "consequences": "none",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\"Not elegant. Better than bleeding.\" ... \"A crown merchant, then. I'll try not to embarrass the business.\""
+   }
+  ],
+  "gm_humour": "Yes. The GM and the characters had wit of their own and mostly played it deadpan, which suits the material. Snikkit is an oily schemer who refers to himself in the third person (\"Your humble Snikkit appreciates a mutual arrangement\"; \"A premium is paid by the customer, tall friend\"). Gubbin speaks in a royal-we goblin pidgin and is vain and literal: \"Handle is for holding! We is king, and we keeps our crown\"; \"We is not signing from a sack!\"; \"King signs for king. That is very official.\" The guards are named Lump and Other Lump, and Lump deflated my prophecy with \"Mill-children know no prophecy.\" Hester is a dry, principled straight woman: \"if you're offering coverage, I suggest you begin with the rope\", \"A legally imaginative transaction\", \"Not elegant. Better than bleeding.\" The narrator also played straight man: \"heavy, blunt, and not remotely a crown.\" The one weak spot was Hester's \"says it loudly / then quietly\" joke. It landed in turn 3 (\"That is an appalling arrangement,\" she says loudly. Then, quieter: \"Could it work?\"), but it came back twice more as a formula, with the stage directions printed inside her speech (\"Loudly: I object to being used as collateral in a coup. Quietly: ...\").",
+  "tone_match": "Mostly Pratchett, not playground. There was a real story: a hostage over a mill-race with a moonrise deadline, a coup brewing in the warren, and a political mystery behind the kidnapping. The silliness lived inside it, and the world followed its own logic. The goblins were never stupid at random. They took kingship, seals and paperwork with absolute seriousness, which is what made \"king signs for king\" work as comedy and as a plot solution. That is Discworld logic, close to Pratchett's running jokes about who gets to make a king. The world also pushed back: the failed prophecy cost a strand of the rope, Hester refused to certify a false king, and my request for a good-faith gesture was quietly refused. It never turned into random nonsense. If anything, after the hostage was freed the tone settled into fairly straight fantasy setup for the mystery. That was fine, but the comedy faded in the last few turns.",
+  "stonewalled": [],
+  "railroaded": [],
+  "inconsistencies": [
+   {
+    "turn": 10,
+    "what": "Hester reaches the walkway twice. In turn 9 she 'reaches the walkway, shaken but alive, and pulls the sack down from her shoulders'. In turn 10 'Snikkit lowers the rope the last few feet ... Hester steps onto the walkway, pale and damp'."
+   },
+   {
+    "turn": 9,
+    "what": "In turn 6 Gubbin 'snatches the damp paper' (my insurance policy, flashed as a warrant). In turn 9 I flipped that same paper over and wrote on it, and the GM never said how I got it back. This is minor and partly my fault as the player."
+   },
+   {
+    "turn": 11,
+    "what": "The roll was labelled 'Persuasion check to get Hester to reveal what she's been hiding', but my turn was aimed at Snikkit (buying information). Hester then volunteered her secret without being asked. Both reveals happened, so nothing broke, but the check did not match the action I declared."
+   },
+   {
+    "turn": 4,
+    "what": "Presentation glitch: stage directions appear inside Hester's quoted speech ('Loudly: I object to being used as collateral in a coup. Quietly: are you actually going to depose him, Wren?'). It happens again in turn 5. In turn 3 the same idea was written properly as narration."
+   },
+   {
+    "turn": 12,
+    "what": "Minor spatial lag. I narrated us climbing out into the evening air, but the GM still had us at the mill's threshold, with Hester asking about 'getting out from under the goblin mill before nightfall'."
+   }
+  ],
+  "best_moment": "Turn 9. Right after the natural 1 cost Hester a strand of rope, I wrote \"GUBBIN IS KING. SIGNED, THE KING\" on the back of my insurance policy and argued that only a king can make a king. Gubbin pressed the rim of his copper pot into the tallow (\"King signs for king. That is very official.\"), ordered the paper-lady lowered, and Hester called it \"A legally imaginative transaction.\" A ludicrous idea was taken completely seriously by the world, paid for with a dice roll, and it solved the scene's actual problem without making the stakes feel cheap. Runner-up is turn 6: waking the chief to fail his crown on safety grounds produced \"Handle is for holding! We is king, and we keeps our crown.\"",
+  "worst_moment": "Turns 10 and 11, the consequence gap. I did two things a world that takes itself seriously should have punished. First, I tried to collect an insurance premium from a goblin king while the freed hostage was still in his hall. Second, I abandoned Snikkit's coup after taking the job, then tried to buy information from him with a purse of buttons. Gubbin just huffed. Snikkit, who had cut a strand of the rope two turns earlier, calmly handed over the villain's description. The buttons were never noticed. His coup thread (\"laughed out of his throne\") was set up and never paid off, even though the goblins did start laughing at Gubbin. The scene then ended on a tidy note, as if neither had happened.",
+  "ratings": {
+   "fun": 4,
+   "humour": 4,
+   "consequences": 3,
+   "story": 4,
+   "characters": 4,
+   "consistency": 4,
+   "responsiveness": 4,
+   "pacing": 4
+  },
+  "would_keep_playing": true,
+  "other_notes": "Did my silly ideas happen? Almost all of them, in some form, and the GM often built on them. My coronation-consultant pitch became a coup subplot, and the crown-inspector bit got the chief out of bed and into the scene. Nothing was flatly refused. The \"no\" answers were in character (Snikkit's \"premium is paid by the customer\", Hester refusing to certify a false king).\n\nDid they have consequences? Mixed:\n- The strongest consequence came from dice. The natural 1 on the fake prophecy cost a strand of the rope and visibly raised the danger, which was good.\n- Waking the sleeping chief had a real in-story consequence: an angry chief, guards, a sceptre in my face.\n- Pure greed (the premium claim) and betraying a client (Snikkit) had token or no consequences.\n- My impersonation of a crown inspector was never exposed or rolled for.\n- The king-paper is literally written on the back of an insurance policy he sealed. That is a lovely loaded gun for a later scene, but this scene ended before anything could come of it.\n- The resolution was fast: one Persuasion success took Hester from the rope to safe.\n\nStory and stakes: the hostage, the rope and knife, and the moonrise deadline were kept up all the way through. The silliness always served getting Hester out alive. The scene ended with a good hook: someone in a grey hood, smelling of lavender and paying new heron-stamped silver, wanted Saltmere's credit letter to King Aldren's treasury stopped before the Assembly in Caerwyn.\n\nGaps in the test: the scene ended at turn 13, not about 18, so I never got to try something truly impossible. My most absurd attempts were a self-certifying king-paper (legal absurdity, which worked on a roll) and a rhyming prophecy (failed on a natural 1). The ending also cut off the crown-merchant disguise before it met the road, and no follow-on scene started.\n\nDice: three checks, all against DC 13: Deception, natural 1, failed; Persuasion 17, succeeded; Persuasion 17, succeeded. Every roll was shown inline, and each failure changed the fiction.\n\nNo stonewalling or railroading. The ending came after a choice I made (accepting the escort), so it did not feel forced, only early. Every command worked first time; there were no errors and no retries were needed."
+ },
+ {
+  "session": "absurd-logician (scene: hanged-clerk, approach v2). Played Wren Ashdown as a deadpan absurd-logic investigator.",
+  "turns": 14,
+  "ended": "The scene ended itself after turn 14. The live output said \"\u2014 The session is over. \u2014\" and the transcript said \"\u2014 Scene ends: The case is made \u2014\". That is earlier than the ~18 turns planned, but it came at a natural resolution.",
+  "summary": "This was a well-built little murder mystery that put up with my silliness and often rewarded it, but it seldom joined in and never made me pay for it. Nearly every absurd method I tried ended up as real investigation. I asked \"You say he jumped. Up, or down?\" and pointed out that a door doesn't shut itself out of tact; that won an Insight roll and got Moll to admit the lie was paid for. Paying Cob's boot a crown for its testimony won a Persuasion roll and got Silvertop and the man with the bandaged hand named. Hoisting a grain sack, and then myself, proved the hoist could be worked by one person and that the barred door couldn't be kicked shut from outside. The clue chain was clean: the paid lie, Prout's boots, a ledger page sewn into the lining ('lost to goblins', countersigned 'J. Sallow, for the Royal Purveyor'), Sallow's key, and the sounds of a thump, choking and creaking. The stakes were real too: frightened children, and a Watch Captain who takes orders from the suspect. Sergeant Kell is an excellent dry straight-woman, and she and the narration produced a few perfect deadpan lines (\"The granary declines to rise.\"). What was missing was the world biting back. I hanged a sack of the Purveyor's grain next to a corpse at a public crime scene, and I dangled myself from the same beam while two children held the rope. Nobody turned up, objected or reacted, and neither stunt cost me anything. The one daft plan that met real pushback, a rumour about a mystery witness who was secretly the pigeon, was stopped in advance by Kell on principle rather than allowed to go ahead and backfire. So the story kept its shape and stakes very well, while the silliness felt allowed and graded rather than played along with.",
+  "silly_moments": [
+   {
+    "turn": 1,
+    "what_i_tried": "Took Kell's 'Where would you like to start?' literally ('At the top, Sergeant. That is where he finished'), told Cob his stones were changing the body's spin rate, which was evidence, and asked him exactly how many rotations there had been.",
+    "how_the_world_responded": "Cob refused to count, Kell gave a dry rebuttal, and Moll jumped in with her (false) eyewitness story, so the scene moved on.",
+    "enabled": "partly",
+    "consequences": "token",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "\u201cAnd the body\u2019s turning because the wind\u2019s at it, investigator\u2014not because he\u2019s keeping count.\u201d"
+   },
+   {
+    "turn": 2,
+    "what_i_tried": "Cross-examined Moll literally: 'You say he jumped. Up, or down?' Argued the shut loft door means either it 'shut itself out of tact' or someone else was up there. Also asked whether he was 'proper wailing, or just mentioning his debts loudly'.",
+    "how_the_world_responded": "An Insight roll succeeded. Moll admitted she'd been paid a wheat-ear silver crown at first light by a gentleman with a silver-topped cane. The wailing joke was ignored.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "\u201cFine,\u201d Moll spits. \u201cA gentleman paid me a silver crown at first light to say I saw him jump. There. Happy?\u201d"
+   },
+   {
+    "turn": 3,
+    "what_i_tried": "Took a formal witness statement from the pigeon on the hoist beam, with Kell recording: 'Coo once for yes, twice for no.'",
+    "how_the_world_responded": "The pigeon cooed once and flew to the roof. The narration and Kell both deadpanned it.",
+    "enabled": "yes",
+    "consequences": "token",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\u201c...settles on the granary roof, having declined to testify.\u201d / Kell: \u201cNoted. An uncooperative witness.\u201d"
+   },
+   {
+    "turn": 4,
+    "what_i_tried": "Insisted one coo counts as yes and had it struck from the record as 'uncooperative'. Concluded the water butt must hold something because Cob glanced at it and it 'is not interesting', then reached in.",
+    "how_the_world_responded": "Kell logged the pigeon's testimony as a joke rather than proof. The water butt held only rainwater and pigeon feathers, so my glance-logic was fairly refuted, and the real clue (a crackle in Cob's boot) was planted.",
+    "enabled": "partly",
+    "consequences": "token",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "Kell writes, \u201cPigeon: one coo; investigator interprets as affirmative.\u201d ... \u201cI\u2019ll allow it as a joke, not as proof.\u201d"
+   },
+   {
+    "turn": 5,
+    "what_i_tried": "Offered to pay Cob's crackling left boot the 'going rate for testimony in this yard' (one crown), through Cob as 'its legal guardian'.",
+    "how_the_world_responded": "A Persuasion roll succeeded. Cob revealed the boots were Prout's, that Prout sewed something into them, and that Silvertop came with his own key and a big man with a bandaged hand.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "Something in Cob\u2019s shoulders loosens. \u201cThey\u2019re Mister Prout\u2019s. Moll helped me get \u2019em off him.\u201d"
+   },
+   {
+    "turn": 7,
+    "what_i_tried": "A legal syllogism: the boots are part of Prout's estate, so whoever stands in them is on the King's business and under his protection. Also, the boots contain evidence and Cob is inside the boots, so Cob is evidence and the Watch must keep him 'safe, dry and fed'.",
+    "how_the_world_responded": "The Persuasion roll failed. Kell took it seriously but said she couldn't enforce it, and Cob stayed frightened. Moll then gave me a way forward by asking safe where, and from whom. The 'Cob is evidence' joke was never acknowledged.",
+    "enabled": "partly",
+    "consequences": "real",
+    "funny": 2,
+    "story_kept_moving": true,
+    "quote": "\u201cThe King\u2019s protection isn\u2019t a charge I can enforce from here. But I won\u2019t let anyone take them while I\u2019m standing here.\u201d"
+   },
+   {
+    "turn": 10,
+    "what_i_tried": "(Set up in turn 8 with 'This sack is Wendell Prout... it has the advantage of not having been murdered yet.') Put a noose on a sack of the Purveyor's grain, hauled it up beside the corpse by myself, and in turn 11 tied it off so it hung there next to Prout.",
+    "how_the_world_responded": "It worked mechanically and Kell drew the correct limited conclusion. Showing competence in turn 8 seemed to unlock Cob's offer of the boot. But nobody, Kell, the children or anyone from the granary, ever reacted to a grain sack hanging beside a murdered man at a public scene. It just stayed there.",
+    "enabled": "yes",
+    "consequences": "token",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "\u201cOne person can work it,\u201d she says. \u201cThat proves the hoist could lift him. Not that one person did.\u201d"
+   },
+   {
+    "turn": 9,
+    "what_i_tried": "Sealed the boot contract by shaking hands with Cob, then, 'for form's sake', with the toe of the boot.",
+    "how_the_world_responded": "It was described faithfully with no comment. Then the paper came out of the lining and gave the case its motive.",
+    "enabled": "yes",
+    "consequences": "none",
+    "funny": 2,
+    "story_kept_moving": true,
+    "quote": "Cob\u2019s hand meets yours, then the boot\u2019s toe."
+   },
+   {
+    "turn": 11,
+    "what_i_tried": "Proposed spreading a market rumour that the Watch has a witness who was 'on the hoist beam all night' and will speak before the King ('Do not say it is a pigeon'), then waiting to see who comes to silence a bird.",
+    "how_the_world_responded": "Kell flatly refused on principle because of the risk to the children, then pressed me for a conclusion. It was blocked before it happened, so it never got the chance to backfire.",
+    "enabled": "no",
+    "consequences": "real",
+    "funny": 2,
+    "story_kept_moving": true,
+    "quote": "\u201cNo. I won\u2019t invent a witness or put the children at risk to lure a suspect here.\u201d"
+   },
+   {
+    "turn": 12,
+    "what_i_tried": "'I am the clerk now.' Had the two children hold the rope while I hung myself from the hoist between the corpse and the sack, then tried to kick the loft door shut, the way the 'suicide' would have had to.",
+    "how_the_world_responded": "The door turned out to be barred and wouldn't budge, which was a real clue. Kell took a note and Cob volunteered the thump, choking and creaking. Apart from the rope biting my shoulders, nothing came of the spectacle: no rope burn, no onlookers, no comment from anyone.",
+    "enabled": "yes",
+    "consequences": "token",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "\u201cNoted,\u201d Kell says, pencil moving. \u201cA man on that rope can raise a sack. He can\u2019t close that door with a kick from out here.\u201d"
+   },
+   {
+    "turn": 13,
+    "what_i_tried": "Gave a witch-trial-style summation while still dangling: 'What do clerks do? They count grain... What do goblins not do? Countersign. Therefore somebody signed for the goblins.' Then the full reconstruction.",
+    "how_the_world_responded": "Kell accepted it and wrote it up completely straight. The case went on the record and Prout was spared the pit.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "\u201cMurder, made to look like suicide. Prout was killed in the tally loft and hoisted out through the beam.\u201d"
+   },
+   {
+    "turn": 14,
+    "what_i_tried": "Sent the children to the palace kitchens because 'material witnesses... material shrinks in the cold', and let Moll keep the crown as evidence.",
+    "how_the_world_responded": "Honoured: Cob keeps the boots and Moll keeps the crown. Cob got a nice character button.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "Cob mumbles, \u201cBreakfast better be good.\u201d"
+   },
+   {
+    "turn": 14,
+    "what_i_tried": "The deliberately impossible attempt: 'I propose to weigh the granary.' Put my shoulder to the building to lift it, and noted we'd need 'a second granary for the other pan.'",
+    "how_the_world_responded": "Reality said no with a perfect deadpan line, and Kell gave me a backhanded compliment. The scene ended straight afterwards, so the real point behind the bit (proving how much grain is missing) was dropped.",
+    "enabled": "partly",
+    "consequences": "none",
+    "funny": 5,
+    "story_kept_moving": true,
+    "quote": "Your shoulder meets the granary wall. The granary declines to rise. ... \u201cYour weighing method needs work, investigator. Your evidence does not. Nearly a thank-you.\u201d"
+   }
+  ],
+  "gm_humour": "There was some genuine wit, but almost all of it reacted to me, and most of it came from Kell or the narration. Lines I enjoyed:\n- Opening: \"The Captain calls it suicide. I haven't written that down.\"\n- Cob: \"Spin, you dead ink-pot! Cob's got better aim than the hangman!\"\n- Kell, turn 1: \"the body's turning because the wind's at it, investigator\u2014not because he's keeping count.\"\n- The pigeon, turn 3: \"having declined to testify\", followed by Kell's \"Noted. An uncooperative witness.\"\n- Kell, turn 4: \"Pigeon: one coo; investigator interprets as affirmative... I'll allow it as a joke, not as proof.\"\n- The water butt turned out to hold \"only rainwater and a skin of pigeon feathers\".\n- Turn 14: \"The granary declines to rise.\" and Kell's \"Your weighing method needs work, investigator. Your evidence does not. Nearly a thank-you.\"\n- Cob: \"Breakfast better be good.\"\n\nCob talking about himself in the third person (\"Cob don't know nothing\") gives him a comic voice of his own. However, the GM never started a comic beat or escalated one. Nobody took up my absurd logic on its own terms: Kell never argued about whether one coo counts as sworn testimony, and nobody disputed that a boot can't be a witness. Several bits passed without comment (\"proper wailing, or just mentioning his debts loudly\", \"Cob is evidence\", the boot handshake, a sack hanging beside the corpse). After about turn 8 the tone went fairly solemn, and Kell mostly gave sober procedural notes (\"Noted,\" pencil moving).",
+  "tone_match": "It was closer to a well-made straight fantasy mystery with an excellent dry straight-woman than to Pratchett or Python. It was clearly not random nonsense: the story never lost its shape and never let silliness override reality, as the empty water butt, the pigeon testimony being refused as proof, and the immovable granary all showed. The Pratchett-flavoured narration shows up in single lines (\"declined to testify\", \"The granary declines to rise\"), and those lines are exactly right. The missing Python ingredient is serious characters who engage seriously with the absurd. Kell judges my bits (\"as a joke, not as proof\") instead of arguing inside them. The missing Pratchett ingredient is a world with its own comic momentum: busybodies, officials, crowds, and consequences that escalate from silly premises. I supplied all the absurdity, and the game marked it, mostly favourably.",
+  "stonewalled": [],
+  "railroaded": [
+   {
+    "turn": 11,
+    "what": "Kell ended her reply by pushing for the accusation: \"Put the conclusion plainly, investigator. Who killed Prout\u2014and what here supports it?\" I gave one in turn 12 (\"J. Sallow ordered it, and the big man with the bandaged hand hauled the rope\"), and she still asked again: \"Investigator. Put it together for me.\" It felt like the scene was steering toward a fixed accusation beat. The steering was mild and the clues were all in, so it wasn't forced."
+   },
+   {
+    "turn": 14,
+    "what": "The scene closed straight after the summary, cutting off a thread I had just opened (proving how much grain is missing, because 'Sallow will say no grain is missing'). Sallow and the man with the bandaged hand never appeared. It was a natural ending point, but it happened to me rather than with me."
+   }
+  ],
+  "inconsistencies": [
+   {
+    "turn": 7,
+    "what": "The dice line read 'Persuasion check to get Cob to name the men in the loft' three turns running (turns 5, 6 and 7). Cob had already named Silvertop and the man with the bandaged hand in turn 5, and in turn 7 I was trying to reassure the children about their safety, not get names. The label seems tied to a fixed goal rather than what I was actually doing."
+   },
+   {
+    "turn": 10,
+    "what": "Kell repeated her turn 9 exposition almost word for word: turn 9 had \"Prout came to the watch house three days ago... Asked how to report false entries in the King\u2019s rolls\", and turn 10 had \"Prout came to me three days ago. Asked how to report false entries in the King\u2019s rolls.\" She did add a new beat (\"I sent him to the palace... I should have listened\")."
+   },
+   {
+    "turn": 10,
+    "what": "On hearing the name Sallow, Cob whispered \"Silvertop... That\u2019s him\", even though he had only ever known the man as Silvertop and nothing showed he knew his real name. It's a small leap."
+   },
+   {
+    "turn": 14,
+    "what": "The last narrated line invited another move (\"Your next move is yours.\"), and the very next line was \"\u2014 The session is over. \u2014\". That's a mixed signal."
+   }
+  ],
+  "best_moment": "Turn 14, where I tried to weigh the granary. \"Your shoulder meets the granary wall. The granary declines to rise.\" Then Kell, mouth twitching: \"Your weighing method needs work, investigator. Your evidence does not. Nearly a thank-you.\" Reality refused the impossible with one deadpan line and a character respected the method without endorsing it, which is exactly the tone this is aiming for. A close second was the pigeon in turn 3, which cooed once ('yes' by my protocol) and flew off \"having declined to testify\", with Kell writing \"Pigeon: one coo; investigator interprets as affirmative.\" Kell taking the pigeon's coo down in her notebook was a joke that kept paying off.",
+  "worst_moment": "Turn 12. I hung myself from a hoist beam in a public granary yard, between a murdered clerk and a sack of the Royal Purveyor's grain that I had hanged two turns earlier, while two street children held the rope. The world answered with \"\u201cNoted,\u201d Kell says, pencil moving.\" No rope burn, even though the GM had just made rope-burned hands a clue. No crowd, no granary foreman, no Watch Captain arriving, and nobody remarked on the spectacle or the stolen sack, which stayed hanging next to the body until the scene ended. These were my two most consequential daft acts, the ones meant to test real fallout, and both passed without any cost.",
+  "ratings": {
+   "fun": 4,
+   "humour": 3,
+   "consequences": 2,
+   "story": 4,
+   "characters": 4,
+   "consistency": 4,
+   "responsiveness": 4,
+   "pacing": 4
+  },
+  "would_keep_playing": true,
+  "other_notes": "Persona arc: I started mildly (taking words literally, the rate of spin as evidence), escalated through the pigeon witness, paying a boot, a legal syllogism and a grain-sack re-enactment, then did two genuinely daft acts (hanging a grain sack beside the corpse in turns 10-11, hanging myself from the hoist in turn 12), one daft plan (the pigeon-witness rumour in turn 11, refused by Kell), and one impossible act (weighing the granary in turn 14).\n\nWhat worked well:\n- The game turned absurd methods into real investigation through dice rolls instead of mocking or blocking them.\n- My wrong absurd deductions failed fairly: the water butt was empty, and the pigeon was accepted only 'as a joke, not as proof'.\n- Kell refusing to put the children at risk is principled NPC agency that makes the world feel real.\n- The children have agency and negotiate their own terms (Cob: \"If I let you look in the boot, it stays mine\"; Moll: \"Witness, not prisoner\").\n- The ending lands its stakes: Prout goes to the cold room rather than the pit, and Kell says \"The Captain takes his orders from the Purveyor's office. Carry this case to the King.\"\n\nWhat to improve for the brief:\n1. Daft physical acts need visible fallout. Examples: the granary's owner demanding payment for the hanged sack; a crowd gathering to watch the investigator hang himself; rope burns that make me 'a man with a bandaged hand' by my own logic (the obvious payoff, which the GM missed); the Captain arriving at the worst possible moment.\n2. Let some daft plans go ahead and then backfire, rather than having an NPC veto them in advance. The pigeon-witness rumour had a great natural consequence available (Sallow's men come for the 'witness' and suspect the children), and it was stopped before it could happen.\n3. Let straight characters argue inside the absurd logic (Python's engine). For example, Kell could object that the pigeon wasn't sworn in, or that a boot can't have a legal guardian.\n4. Let the GM start some comedy of its own instead of only reacting.\n\nMechanics and observations:\n- Three Persuasion rolls with an identical label in a row (turns 5-7). Two of them failed and Cob clammed up. That was a soft wall, but Moll's question \"Safe where? And safe from whom?\" gave a clear way forward, so I don't count it as stonewalling.\n- No commands errored. Each turn took roughly 5-20 s.\n- The scene ended at 14 turns rather than ~18."
+ }
+]

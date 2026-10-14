@@ -12,7 +12,7 @@ export function prompt(name: string, vars: Record<string, string> = {}): string 
     text = readFileSync(join(PROMPTS_DIR, `${name}.md`), "utf8").trim();
     cache.set(name, text);
   }
-  return text.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "");
+  return text.replace(/\{\{(\w+)\}\}/g, (_, key: string) => vars[key] ?? "").replace(/\n{3,}/g, "\n\n");
 }
 
 /**
@@ -142,13 +142,30 @@ function skillSummary(state: SessionState): string {
   return `\nGood at: ${show(mods.slice(0, 4))}. Weak at: ${show(mods.slice(-3).reverse())}. (Skill modifiers for the dice; talk about them in plain words, not numbers, unless the player asks out of character.)`;
 }
 
+/**
+ * Routes already achieved in this visit to the current beat: they looped back here having done
+ * their work (a check won, a thing done). Offering them again invites a second roll for something
+ * already settled, and a failure that takes back what was said. Failed checks stay open.
+ */
+export function spentHere(state: SessionState): Set<string> {
+  const spent = new Set<string>();
+  for (let i = state.path.length - 1; i >= 0; i--) {
+    const p = state.path[i]!;
+    if (p.to !== state.beat) break;
+    if (p.from !== state.beat) break;
+    if (p.roll?.success !== false) spent.add(p.via);
+  }
+  return spent;
+}
+
 /** The per-turn note: where we are, what moves things on, co-GM notes and this reply's direction. */
 export function nowNote(scene: Scene, state: SessionState, directive: string[], options: { castNotes?: boolean } = {}): string {
   const beat = currentBeat(scene, state);
   const present = new Set(presentCast(scene, state).map(c => c.id));
   const castNotes = Object.entries(beat.cast ?? {}).filter(([id]) => present.has(id))
     .map(([id, note]) => `- ${scene.cast.find(c => c.id === id)?.name ?? id}: ${note}`);
-  const transitions = [...beat.transitions, ...(scene.anytime ?? [])];
+  const spent = spentHere(state);
+  const transitions = [...beat.transitions, ...(scene.anytime ?? [])].filter(t => !spent.has(t.id));
   const parts = [
     `## Where the scene is now: ${beat.title}\n${beat.direction}`,
     // Cast notes are a beat's opening agenda: once voiced, re-sending them turns them into repeated lines.

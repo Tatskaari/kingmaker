@@ -35,6 +35,8 @@ export interface DecisionCase {
   reply?: string;
   /** Acceptable transition ids, or "none". */
   expect: string[];
+  /** Ask the pressure questions too (choices "pressure:<roll|free|no_chance>:<who>"). */
+  pressure?: boolean;
   tags?: string[];
 }
 

@@ -120,7 +120,7 @@ async function runReply(c: ReplyCase, approach: string, sample: number): Promise
   }
 }
 
-interface DecisionRun { case: string; decider: string; sample: number; ok: boolean; choice?: string; correct?: boolean; latencyMs?: number; error?: string; probabilities?: Record<string, number> }
+interface DecisionRun { case: string; decider: string; sample: number; ok: boolean; choice?: string; correct?: boolean; latencyMs?: number; error?: string; probabilities?: Record<string, number>; detail?: string }
 
 async function runDecision(c: DecisionCase, decider: string, sample: number): Promise<DecisionRun> {
   try {
@@ -131,9 +131,12 @@ async function runDecision(c: DecisionCase, decider: string, sample: number): Pr
     const started = performance.now();
     let choice = "none";
     let probabilities: Record<string, number> | undefined;
+    let detail: string | undefined;
     if (c.phase === "before") {
-      const pre = await decideBefore(d, scene, state, c.input, { speaker: false });
-      choice = pre.move?.transition.id ?? (pre.freeform ? `freeform:${pre.freeform.skill}` : pre.plain ? "plain" : "none");
+      const pre = await decideBefore(d, scene, state, c.input, { speaker: false, ...(c.pressure ? { pressure: true } : {}) });
+      const pressure = pre.pressure ? `pressure:${pre.pressure.roll ? "roll" : pre.pressure.fit}:${pre.pressure.target}` : undefined;
+      choice = pre.move?.transition.id ?? pressure ?? (pre.freeform ? `freeform:${pre.freeform.skill}` : pre.plain ? "plain" : "none");
+      if (pre.pressure) detail = `${pre.pressure.skill} ${pre.pressure.fit}/${pre.pressure.stakes}${pre.pressure.dc ? ` DC ${pre.pressure.dc}` : ""}`;
       probabilities = { ...pre.decision?.answers.attempt?.probabilities, ...pre.decision?.answers.cue?.probabilities };
     } else {
       const post = await decideAfter(d, scene, state, c.input, c.reply ?? "");
@@ -142,7 +145,7 @@ async function runDecision(c: DecisionCase, decider: string, sample: number): Pr
     }
     // "none" means no roll and no move: something that simply happens counts too.
     const correct = c.expect.includes(choice) || (choice === "plain" && c.expect.includes("none")) || c.expect.some(e => e.endsWith("*") && choice.startsWith(e.slice(0, -1)));
-    return { case: c.id, decider, sample, ok: true, choice, correct, latencyMs: performance.now() - started, ...(probabilities ? { probabilities } : {}) };
+    return { case: c.id, decider, sample, ok: true, choice, correct, latencyMs: performance.now() - started, ...(probabilities ? { probabilities } : {}), ...(detail ? { detail } : {}) };
   } catch (error) {
     return { case: c.id, decider, sample, ok: false, error: error instanceof Error ? error.message : String(error) };
   }

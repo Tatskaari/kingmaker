@@ -39,6 +39,10 @@ export interface Approach {
   deciderRelocation?: boolean;
   /** Hide the scene's essentials from the in-scene GM (baseline for the deviation experiment). */
   hideEssentials?: boolean;
+  /** The decider flags daft or reckless acts the world would answer, and the GM is told to follow them through. */
+  consequences?: boolean;
+  /** House style for the GM voice: "comic" adds prompts/tone-comic.md (Pratchett / Monty Python). */
+  tone?: "comic";
   /** Reasoning effort for the voices (GM, narrator, actors). Default "none" for snappy replies. */
   effort?: "none" | "low" | "medium" | "high";
 }
@@ -49,6 +53,8 @@ export const APPROACHES: Record<string, Approach> = {
   // off the graph, wait up to 3 s for the quick co-GM (routes with rolls, relocations), then one reply;
   // the full co-GM reviews in the background between turns.
   v2: { id: "v2", description: "Recommended: GM voice, speculative replies, quick co-GM on off-graph turns (3 s), background co-GM.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true },
+  "v2-comic": { id: "v2-comic", description: "v2 with the comic house style: the world plays it straight, daft acts get real consequences, stakes stay real.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, tone: "comic" },
+  "v2-comic-bill": { id: "v2-comic-bill", description: "v2-comic plus consequences: the decider flags daft or reckless acts the world would answer, and the GM follows them through.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, tone: "comic", consequences: true },
   "v2-pressure": { id: "v2-pressure", description: "v2 plus pressure rolls: pressing someone for a secret is rolled, DC from the secret's value and the player's approach.", voice: "gm", decider: "luna-decisions", repair: "quick-block", repairKind: "quick", repairDeadlineMs: 3000, speculative: true, pressureRolls: true },
   "gm-rigid": { id: "gm-rigid", description: "Baseline: single GM voice without the scene's essentials and without a co-GM.", voice: "gm", decider: "luna-decisions", repair: "off", hideEssentials: true },
   gm: { id: "gm", description: "Single GM voice; Luna decision mode tracks beats, rolls and exits.", voice: "gm", decider: "luna-decisions", repair: "off" },
