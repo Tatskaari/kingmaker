@@ -484,6 +484,17 @@ function sceneView(world: SceneWorld, view: { width: number; height: number }): 
     [...a.name.replace(/\s*\(.*\)$/, "").slice(0, room)].forEach((ch, i) => { const cell = grid[row]?.[col + i]; if (cell) grid[row]![col + i] = { ...cell, ch, fg: "#7a6f5c" }; });
   }
   const gone = (e: Entity) => e.states.includes("gone");
+  // Surfaces first, under everything else: puddles, slicks, blood, smoke (src/world/systems.ts).
+  for (const s of Object.values(world.entities).filter(e => e.kind === "surface" && !gone(e) && e.at)) {
+    const look = surfaceLook(s);
+    const r = s.radius ?? 2;
+    for (let row = 0; row < h; row++) for (let col = 0; col < w; col++) {
+      const feet = { x: size.x + ((col + 0.5) * 5) / sx, y: size.y + ((row + 0.5) * 5) / sy };
+      if (Math.hypot(feet.x - s.at!.x, feet.y - s.at!.y) > Math.max(r, 2.5)) continue;
+      const cell = grid[row]![col]!;
+      grid[row]![col] = { ch: (col + row) % 2 === 0 ? look.ch : cell.ch === "·" ? " " : cell.ch, fg: look.fg, bg: look.bg };
+    }
+  }
   const things = Object.values(world.entities).filter(e => (e.kind === "object" || e.kind === "item" || e.kind === "feature") && !gone(e) && !heldBy(world, e));
   for (const t of things) {
     const at = positionOf(world, t.id);
@@ -508,6 +519,17 @@ function sceneView(world: SceneWorld, view: { width: number; height: number }): 
     }
     return line;
   });
+}
+
+/** How a surface looks: burning ones as flames, the rest by what they are. */
+export function surfaceLook(s: Entity): { ch: string; fg: string; bg: string } {
+  if (s.states.includes("burning")) return { ch: "^", fg: "#ffb347", bg: "#5a1a0a" };
+  const looks: Record<string, { ch: string; fg: string; bg: string }> = {
+    water: { ch: "~", fg: "#6fa8dc", bg: "#16324d" }, oil: { ch: "≈", fg: "#8a7a3a", bg: "#2a2610" }, spirits: { ch: "~", fg: "#d8d0a8", bg: "#2e2c22" },
+    ale: { ch: "~", fg: "#d8a040", bg: "#3a2a10" }, blood: { ch: "·", fg: "#d04040", bg: "#3a0e0e" }, grease: { ch: "≈", fg: "#a09a70", bg: "#2a2818" },
+    ice: { ch: "░", fg: "#bfe6ff", bg: "#2a4a5a" }, ash: { ch: "·", fg: "#6a6a6a", bg: "#222222" }, smoke: { ch: "░", fg: "#9a9a9a", bg: "#2e2e2e" }, steam: { ch: "░", fg: "#d8e8f0", bg: "#3a4248" },
+  };
+  return looks[s.tags.find(t => looks[t]) ?? ""] ?? { ch: "~", fg: "#9a9a9a", bg: "#2a2a2a" };
 }
 
 function combatField(sceneId: string): CombatField {
