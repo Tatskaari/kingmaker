@@ -44,13 +44,11 @@ export class TacticalFight implements Fight {
   controller?: CombatController;
   /** Set up (initiative rolled, everyone ahead of the player has acted). */
   ready: Promise<void>;
-  private session: SessionState;
   private pace: () => Promise<void>;
   private options: CombatOptions = { spells: [], targets: [] };
 
   constructor(setup: CombatSetup, session: SessionState, combat: CombatAdapter, pace: () => Promise<void>) {
     this.setup = setup;
-    this.session = session;
     this.pace = pace;
     this.ready = (async () => {
       this.controller = await combat.start(setup, session);
