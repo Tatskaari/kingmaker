@@ -5,12 +5,12 @@ import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { approachById } from "./approaches.ts";
 import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntries } from "./brief.ts";
-import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Mechanic, type Move, type Reaction, type Witness } from "./director.ts";
+import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, decideReactions, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, reactionDirective, relocateDirective, STALL_DIRECTIVE, type Act, type ActFrom, type Jumping, type Mechanic, type Move, type Reaction, type Witness } from "./director.ts";
 import { describeRoll } from "./dice.ts";
-import { applyOps, areaOf, buildWorld, heldBy, joinWorld, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
+import { applyOps, areaOf, buildWorld, heldBy, joinWorld, positionOf, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
 import { inventory, startingPurse } from "../world/inventory.ts";
 import { stageManage } from "../world/stage.ts";
-import { attack as rulesAttack, attackOnPlayer, bystander, carryGear, castSpell, comeTo, createCharacter, hazard, levelUp, passTime, rest, spellInfo, wrestle, type Outcome } from "../rules/dnd.ts";
+import { attack as rulesAttack, attackOnPlayer, bystander, carryGear, castSpell, comeTo, createCharacter, hazard, jump, levelUp, passTime, rest, spellInfo, wrestle, type Outcome } from "../rules/dnd.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
 import { SKILLS, type Exit, type Scene, type Skill } from "./scene.ts";
 import { newSessionId, saveSession, snapshotSession, type Entry, type EntryKind, type PlayerCharacter, type SessionState, type TurnMetric } from "./session.ts";
@@ -334,13 +334,13 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     const m = pre.mechanic;
     const present = presentCast(scene, state);
     // Moved first, in the same turn: the spell or blow comes from where they ended up.
-    if (state.world && m.kind !== "rest" && m.from) moveToAct(state, m.from, m.kind === "cast" ? m.targets.find(t => t !== "self") : m.target);
+    if (state.world && m.kind !== "rest" && m.kind !== "jump" && m.from) moveToAct(state, m.from, m.kind === "cast" ? m.targets.find(t => t !== "self") : m.target);
     const before = state.world ? Object.fromEntries(Object.values(state.world.entities).map(e => [e.id, [...e.states]])) : undefined;
-    const outcome: Outcome = await (m.kind === "cast" ? castSpell(state, present, m.spell, m.targets, { ritual: /\britual\b/i.test(input) && !/\b(not|no|without|rather than)\b[^.!?]{0,20}\britual/i.test(input) && !/\bspend(ing)? a\b[^.!?]{0,12}\bslot\b/i.test(input) }) : m.kind === "attack" ? rulesAttack(state, present, m.target, m.weapon) : m.kind === "wrestle" ? wrestle(state, present, m.target, m.how) : rest(state, m.length))
+    const outcome: Outcome = await (m.kind === "cast" ? castSpell(state, present, m.spell, m.targets, { ritual: /\britual\b/i.test(input) && !/\b(not|no|without|rather than)\b[^.!?]{0,20}\britual/i.test(input) && !/\bspend(ing)? a\b[^.!?]{0,12}\bslot\b/i.test(input) }) : m.kind === "attack" ? rulesAttack(state, present, m.target, m.weapon) : m.kind === "wrestle" ? wrestle(state, present, m.target, m.how) : m.kind === "jump" ? leap(state, m) : rest(state, m.length))
       .catch(error => ({ lines: [`(The rules couldn't resolve that: ${error instanceof Error ? error.message : String(error)})`], directive: "" }));
     for (const text of outcome.lines) push(state, hooks, { speaker: "dice", kind: "roll", text });
     if (outcome.directive) directive.push(outcome.directive);
-    state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `rules:${m.kind}${m.kind === "cast" ? `:${m.spell}` : m.kind === "attack" || m.kind === "wrestle" ? `:${m.target}` : `:${m.length}`}`, source: "pre" });
+    state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `rules:${m.kind}${m.kind === "cast" ? `:${m.spell}` : m.kind === "attack" || m.kind === "wrestle" ? `:${m.target}` : m.kind === "jump" ? `:${m.how}` : `:${m.length}`}`, source: "pre" });
     // Violence draws a reaction from everyone present: some fight, some flee, some run for help.
     // An authored fight answers it on its own; an authored ending waits if a fight breaks out first.
     const act = pre.move?.exit?.kind !== "combat" && !state.brawl ? await violence(scene, state, m, before) : undefined;
@@ -765,6 +765,41 @@ export function transcriptMarkdown(state: SessionState, options: { allScenes?: b
   const scene = sceneById(state.sceneId);
   const entries = options.allScenes ? state.transcript : sceneEntries(state);
   return entries.map(e => e.kind === "player" ? `> **${state.player.name}:** ${e.text}` : e.kind === "roll" ? `🎲 *${e.text}*` : e.kind === "system" ? `*— ${e.text} —*` : e.kind === "dialogue" ? `**${(e.scene ? sceneById(e.scene) : scene).cast.find(c => c.id === e.speaker)?.name ?? e.speaker}:** ${e.text}` : e.text).join("\n\n");
+}
+
+/**
+ * A jump in a scene: how far from the world when it knows where they're going (or the decider's
+ * read), the rules decide whether they make it, and the world puts them where they land: across,
+ * or in what they were jumping over (wet, if it was water; prone, after a fall).
+ */
+async function leap(state: SessionState, j: Jumping): Promise<Outcome> {
+  const world = state.world;
+  const landing = world && j.to ? (j.to.near ?? j.to.area) : undefined;
+  const from = world ? positionOf(world, "player") : undefined;
+  const there = world && landing ? positionOf(world, landing) : undefined;
+  // Landing by something, not in it: the gap is the distance less a stride.
+  const measured = from && there && j.how !== "down" ? Math.max(5, Math.round((Math.hypot(there.x - from.x, there.y - from.y) - 5) / 5) * 5) : undefined;
+  const feet = j.how === "high" ? j.feet ?? 5 : measured ?? j.feet ?? 10;
+  const drop = j.how === "down" ? Math.max(j.drop, 10) : j.drop;
+  const result = j.how === "down"
+    ? await jump(state, { feet: Number.POSITIVE_INFINITY, drop }).then(r => ({ ...r, lines: [`Jump down: ${drop} ft`, ...r.lines.slice(1)], account: r.account.replace(/^.*?fall short, and /, "") }))
+    : await jump(state, { feet, high: j.how === "high", runUp: j.runUp, drop });
+  const lines = [...result.lines];
+  if (world) {
+    const blank = { what: "player", to: "", how: "", name: "", kind: "", text: "", add: [], remove: [] };
+    const ops: WorldOp[] = [];
+    if (result.made && j.to?.area) ops.push({ ...blank, op: "move", to: j.to.area });
+    if (result.made && j.to?.near) ops.push({ ...blank, op: "move", to: j.to.near });
+    if (!result.made && j.over && world.entities[j.over]) ops.push({ ...blank, op: "place", to: j.over, how: "on" });
+    if (!result.made && j.water) ops.push({ ...blank, op: "state", add: ["wet"] });
+    if (ops.length) applyOps(world, ops, state.turn, "rules");
+  }
+  const where = j.how === "down" ? "down" : `${j.how === "high" ? "up" : "across"}${j.over && world?.entities[j.over] ? ` over ${world.entities[j.over]!.name}` : ""}${landing && world?.entities[landing] ? ` to ${world.entities[landing]!.name}` : ""}`;
+  return {
+    lines,
+    directive: `Rules: the player jumped ${where}: ${result.account}.${!result.made && j.water ? " They go into the water: soaked, and the cold takes their breath." : ""} Narrate exactly that, and let the people present react.`,
+    ...(result.status ? { status: result.status } : {}),
+  };
 }
 
 const nameIn = (scene: Scene, state: SessionState, id: string) => scene.cast.find(c => c.id === id)?.name ?? state.world?.entities[id]?.name ?? id;

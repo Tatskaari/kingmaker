@@ -143,7 +143,14 @@ export type Mechanic =
   | { kind: "cast"; spell: string; targets: string[]; from?: ActFrom }
   | { kind: "wrestle"; target: string; how: "grapple" | "prone" | "push"; from?: ActFrom }
   | { kind: "attack"; target: string; weapon?: string; from?: ActFrom }
-  | { kind: "rest"; length: "short" | "long" };
+  | { kind: "rest"; length: "short" | "long" }
+  | Jumping;
+
+/**
+ * A jump (the same rule in a scene, on the map and in a fight): where to (an area, or by
+ * something), over what if they fall short, and how far, from the world when it knows.
+ */
+export interface Jumping { kind: "jump"; how: "long" | "high" | "down"; runUp: boolean; to?: ActFrom; over?: string; water?: boolean; feet?: number; drop: number }
 
 /**
  * Where the player acts from, when they move first in the same turn ("I stride thirty feet down
@@ -168,7 +175,8 @@ export interface RulesOptions {
 const ORDINAL = ["cantrip", "1st-level", "2nd-level", "3rd-level", "4th-level", "5th-level", "6th-level", "7th-level", "8th-level", "9th-level"];
 
 /** Which spell, at whom; or which blow, at whom: a second small call, only on those turns. */
-async function mechanicDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, kind: "cast" | "attack" | "grapple" | "shove", rules: RulesOptions): Promise<{ mechanic?: Mechanic; decision: Decision }> {
+async function mechanicDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, kind: "cast" | "attack" | "grapple" | "shove" | "jump", rules: RulesOptions): Promise<{ mechanic?: Mechanic; decision: Decision }> {
+  if (kind === "jump") return jumpDetails(decider, scene, state, playerTurn, rules);
   const present = [...presentCast(scene, state), ...(rules.bystanders ?? []).map(b => ({ ...b, group: undefined }))];
   const things = rules.things ?? [];
   const q: Record<string, ChoiceQuestion> = {};
@@ -404,6 +412,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
         attack: "Attacking someone or something to hurt or break it right now: a blow, a stab, a shot, a punch, a kick. Threats, grabs, shoves and drawing a weapon aren't attacks.",
         grapple: "Grabbing hold of someone to hold or restrain them against their will (a grapple, a headlock, pinning them).",
         shove: "Shoving someone who'd resist: to knock them down, or push them back or away.",
+        jump: "Jumping: across a gap or over something, up onto something, or down from it.",
         short_rest: "Stopping to rest for an hour or so: catching their breath, binding wounds, a meal and a sit-down.",
         long_rest: "Sleeping the night, or resting for many hours.",
         none: "None of these.",
@@ -461,7 +470,8 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   // the "no, but" answers it and nothing is rolled.
   const limitBlocks = decision.answers.limit?.choice?.startsWith("limit_") && (decision.answers.limit?.probabilities?.[decision.answers.limit.choice] ?? 1) >= SCENE_ENDING_CONFIDENCE;
   // A spell is its own resolution (no Arcana check to cast a cantrip), and a roll needs a confident read.
-  const casting = decision.answers.mechanic?.choice === "cast" && (decision.answers.mechanic?.probabilities?.cast ?? 1) >= SCENE_ENDING_CONFIDENCE;
+  const ruled = decision.answers.mechanic?.choice;
+  const casting = (ruled === "cast" || ruled === "jump") && (decision.answers.mechanic?.probabilities?.[ruled] ?? 1) >= SCENE_ENDING_CONFIDENCE;
   if (answer === "other_risky" && !move && !limitBlocks && !casting && (decision.answers.attempt?.probabilities?.other_risky ?? 1) >= SCENE_ENDING_CONFIDENCE) {
     const extra = await freeformCheck(decider, scene, state, playerTurn);
     freeform = extra.check;
@@ -519,7 +529,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const sure = asked && asked !== "none" && (decision.answers.mechanic?.probabilities?.[asked] ?? 1) >= SCENE_ENDING_CONFIDENCE;
   if (options.rules && sure && !limit && !ooc && move?.exit?.kind !== "combat") {
     if (asked === "short_rest" || asked === "long_rest") mechanic = { kind: "rest", length: asked === "short_rest" ? "short" : "long" };
-    else if (asked === "cast" || asked === "attack" || asked === "grapple" || asked === "shove") {
+    else if (asked === "cast" || asked === "attack" || asked === "grapple" || asked === "shove" || asked === "jump") {
       const details = await mechanicDetails(decider, scene, state, playerTurn, asked, options.rules);
       combined = { ...combined, answers: { ...combined.answers, ...details.decision.answers }, latencyMs: combined.latencyMs + details.decision.latencyMs, costUsd: combined.costUsd + details.decision.costUsd };
       mechanic = details.mechanic;
@@ -600,6 +610,37 @@ export function pressureDirective(scene: Scene, p: PressureCheck): string {
 export const EARNED_DIRECTIVE = "The player has just done what it takes for what they've been working towards. Let it land in this reply: the person gives it, shows it or agrees, in their own way, and people react to it. Don't ask the player for it again or add a new condition. (Only what they've earned: anything else stays for later.)";
 
 /** The bill for a daft act: real consequences, in the world's own logic (comic house style). */
+/** A jump's details: where to, over what, how far (one small call, only on jump turns). */
+async function jumpDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, rules: RulesOptions): Promise<{ mechanic?: Mechanic; decision: Decision }> {
+  const world = !!rules.places?.length;
+  const q: Record<string, ChoiceQuestion> = {
+    jump_how: { instructions: "The player is jumping in their latest turn. What kind of jump?", criteria: { long: "Across or over: a gap, a ditch, a table, from one roof or boat to another.", high: "Up: onto something, over something tall, to reach something high.", down: "Down: off something, into somewhere lower." } },
+    jump_run: { instructions: "Do they take a run-up (ten feet or more on foot) before they jump?", criteria: { yes: "Yes, a run-up", no: "No: from a standstill, or there's no room to run" } },
+    jump_drop: { instructions: "If they fell short (or jumped down), how far would they fall?", criteria: { "0": "No real drop: they'd land on the same floor, or in a puddle.", "10": "About a storey, ten feet or so: into a hold, a ditch, the water below a quay.", "20": "Two storeys, twenty feet or so.", "30": "Higher than that." } },
+    jump_water: { instructions: "Is what they'd fall into, if they fell short, water (a river, a canal, a mill-race, a pond)?", criteria: { yes: "Yes, water", no: "No" } },
+  };
+  if (world) {
+    q.jump_to = {
+      instructions: "Where do they mean to land?",
+      criteria: { ...Object.fromEntries((rules.places ?? []).map(p => [`area:${p.id}`, `Somewhere in ${p.name}.`])), ...Object.fromEntries((rules.landmarks ?? []).map(l => [`near:${l.id}`, `On or by ${l.name}.`])), here: "Nowhere in particular: they jump on the spot, or it isn't clear." },
+    };
+    if (rules.things?.length) q.jump_over = { instructions: "What are they jumping over or across, that they'd land in or on if they fell short?", criteria: { ...Object.fromEntries((rules.things ?? []).map(t => [t.id, t.name])), nothing: "Nothing of these: open ground, or a gap that isn't one of them." } };
+  }
+  q.jump_feet = { instructions: "How far is the jump, as the scene has it (across, or up)?", criteria: { "5": "A step: five feet or less.", "10": "About ten feet.", "15": "About fifteen feet.", "20": "About twenty feet.", "30": "Thirty feet or more." } };
+  const decision = await decider.decide({ ...decisionState(scene, state, playerTurn), ...(world && state.world ? { world: worldView(state.world) } : {}) }, q, "director.jump");
+  const a = (id: string) => decision.answers[id]?.choice;
+  const to = a("jump_to");
+  const where: ActFrom | undefined = to?.startsWith("area:") ? { area: to.slice(5) } : to?.startsWith("near:") ? { near: to.slice(5) } : undefined;
+  const over = a("jump_over");
+  return {
+    mechanic: {
+      kind: "jump", how: (a("jump_how") as Jumping["how"]) ?? "long", runUp: a("jump_run") === "yes", drop: Number(a("jump_drop") ?? 0), water: a("jump_water") === "yes",
+      feet: Number(a("jump_feet") ?? 10), ...(where ? { to: where } : {}), ...(over && over !== "nothing" ? { over } : {}),
+    },
+    decision,
+  };
+}
+
 // ---------------------------------------------------------------------------------------------
 // Reactions: violence draws one from everyone present (the user's gameplay notes, BG3-style).
 
