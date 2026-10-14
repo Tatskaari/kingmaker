@@ -13,8 +13,9 @@ import type { SceneOutcome, WorldApi } from "../src/world/dsl.ts";
  * her re-sacking gang, and Scrope, the clerk who keeps the true book and was Prout's oldest friend.
  * The recurring people are written neutral to how the Drowned Rat ended: Hobb's card says where he is
  * in each case (on the hoist, in the cells, or at his master's heels), Sallow's says what changes if
- * Hobb warned him, and Kell is as warm as things stand between her and the player. No next: the demo
- * ends here.
+ * Hobb warned him, and Kell is as warm as things stand between her and the player. Every ending goes
+ * on to the King's morning (kings-morning), and so does the story if play has already overtaken this
+ * scene (the night's business settled before the player got here).
  */
 
 const MASTER_HERE = "Master Sallow has come to the Heron.";
@@ -295,7 +296,7 @@ export const heronWarehouse: Scene = {
       direction: "Master Sallow is here, a minute behind his lavender, with his lantern-boy and the Crakes: in at the land door to see the last sacks down, take his share and initial tonight's page in the true book. Everything on the floor changes: the gang work faster and quieter, Scrope stands, Saul holds the door, Duchess growls, and Hobb (if he's here) can't look at anyone. If he has been warned, he's sharp and hurried, wants the book aboard the barge, and has the Crakes look along the wharf. If he finds the player held, or finds them at all, he deals with them his way: his office first, then money, then the Crakes and the river. This is the climax: hide and watch him sign, catch him in the act before witnesses who'll swear (Kell, Hep's gang, Scrope, Hobb), take the book from under his nose, bluff him, or be caught by him. The barge goes at the second bell, whoever has said what.",
       cast: {
         sallow: "You want the barge loaded, the page initialled and your share in your purse. Find fault with something. If you find intruders: papers, then money, then the Crakes. Keep the book out of their hands.",
-        kell: "If you see him take the King's grain for his own, you can arrest him, and you will: by the book, out loud. If you're on the wharf, come at the investigator's signal or the first shout.",
+        kell: "This is the investigator's case and their moment: back their play. You can arrest Sallow if you see him take the King's grain, by the book and out loud, and you will when the investigator calls for it or plainly gives you the moment; never over their plan or instead of it. If they mean to slip away with the proof, go with them. If you're on the wharf, come at their signal or the first shout.",
         hep: "Keep the gang working and your head down, and watch who looks likeliest to keep your gang off the gallows.",
         scrope: "Present the book to the Master with shaking hands.",
         hobb: "If you're here, you can't look at the Master, or at the player.",
@@ -365,6 +366,7 @@ export const heronWarehouse: Scene = {
   exits: [
     {
       id: "proof-taken", kind: "progress", title: "Out with the true book",
+      next: "kings-morning",
       outcome: "The player has got out of the Heron alive with the true book: every 'lost' wagon by its Granary Roll number, with Sallow's initials on every page. Whatever becomes of the barge, the proof is in their hands.",
       closing: "Close on the player in the dark with the book under their arm: the Heron's lanterns behind them, the river running, and whoever is with them. Let Kell read one page by whatever light there is and say something dry that is very nearly triumph.",
       script: (world, outcome) => {
@@ -379,6 +381,7 @@ export const heronWarehouse: Scene = {
     },
     {
       id: "caught-in-the-act", kind: "progress", title: "Caught in the act",
+      next: "kings-morning",
       outcome: "Master Sallow has been caught at the Heron with the King's grain, before witnesses who'll swear to it, and Kell has arrested him (or he's being held for her) for theft from the Crown, and for Prout's murder if the proof will stretch that far.",
       closing: "Close on the arrest done by the book: Kell's proper words, Sallow's courtesy curdling into threats, the gang watching, Duchess growling at his ankles, the lavender. Land it on the player.",
       script: (world, outcome) => {
@@ -395,6 +398,7 @@ export const heronWarehouse: Scene = {
     },
     {
       id: "caught", kind: "other", title: "The wharves are dangerous at night",
+      next: "kings-morning",
       outcome: "The player was caught at the Heron and has been thrown in the river or locked up in the warehouse by the Master's people, and the night's work goes on without them. They're alive, and they keep what they saw, and anything the Crakes didn't find on them.",
       closing: "Close on the cold: the black river closing over their head and the wharf lights sliding away, or a bolted door, grain dust settling and the sound of hatches going on. Leave them one thread to pull another night: something seen, something held, something overheard.",
       script: (world, outcome) => {
@@ -408,6 +412,7 @@ export const heronWarehouse: Scene = {
     },
     {
       id: "up-in-smoke", kind: "other", title: "Up in smoke",
+      next: "kings-morning",
       outcome: "The Heron is burning (grain dust goes up like gunpowder) or the barge has gone down with the King's grain in her. Whatever the player didn't carry out is gone, the whole waterfront is awake, and on the eve of the Assembly somebody is going to have to explain it.",
       closing: "Close on the spectacle, played absolutely straight: the light on the water, the bells, bargees swearing in Saltmere, Saul hauling Duchess clear, the Master's lavender lost in the smoke. Kell, soot on her notebook, says what she'll have to write.",
       script: (world, outcome) => {
@@ -426,6 +431,7 @@ export const heronWarehouse: Scene = {
     },
     {
       id: "barge-sails", kind: "leave", title: "The barge sails",
+      next: "kings-morning",
       outcome: "The Patience has cast off on the ebb with the King's grain aboard (and anything Sallow sent with her), and is away downriver into the dark. By morning the Heron will be swept and empty. Whatever the player holds, they hold; the rest is gone.",
       closing: "Close on the barge's stern lantern dwindling down the black river, the bargees singing, and the Heron's doors swinging shut. Let Kell say one dry thing, and leave the player on the wharf with whatever they have.",
       script: (world, outcome) => {
@@ -437,6 +443,7 @@ export const heronWarehouse: Scene = {
     },
     {
       id: "fight", kind: "combat", title: "Roll for initiative",
+      next: "kings-morning",
       outcome: "A fight breaks out in the Heron between the player (and Kell, if she's with them) and the Master's Crakes, or Hep's gang, in the grain dust and the swinging lantern light.",
       closing: "Close on the first blow, the dust, the lanterns swinging dangerously close to it, and anyone with any sense stepping smartly out of the way. End with 'Roll for initiative!'",
       script: (world, outcome) => {
@@ -485,4 +492,9 @@ export const heronWarehouse: Scene = {
   ],
   anchors: ["wharf", "land-door", "sentry-box", "plank-walk", "river-door", "heron-floor", "counting-box", "chute", "hoist", "barge", "river"],
   lore: ["Places/Heron Warehouse.md"],
+  assumes: [
+    "Tonight's loading at the Heron is still going on: the barge hasn't sailed or been stopped, and the true book is still in the Heron.",
+    "Master Sallow is still free and unexposed, and still coming to the Heron at the midnight bell.",
+  ],
+  overtaken: "kings-morning",
 };

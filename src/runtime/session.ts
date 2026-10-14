@@ -141,10 +141,10 @@ export interface SessionState {
   rules?: RulesState;
   /** A blow or a danger the last reply left hanging over the player (rules sessions). */
   threat?: Threat;
-  /** System lines to show when the next scene opens (a level-up at a milestone). */
-  announce?: string[];
+  /** Where this scene's prep no longer matches the story (written at the scene boundary): these override it. */
+  adjustments?: string[];
   /** Scene chain: previous scenes' exits in this session. */
-  history: Array<{ sceneId: string; exitId: string; summary: string; lastMoments?: string[] }>;
+  history: Array<{ sceneId: string; exitId: string; summary: string; lastMoments?: string[]; skipped?: Array<{ sceneId: string; why: string }> }>;
 }
 
 export const runsDir = () => process.env.KM_RUNS_DIR ?? "runs";

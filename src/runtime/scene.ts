@@ -97,8 +97,6 @@ export interface Exit {
   next?: string;
   /** Authored world update for this exit. */
   script?: WorldScript;
-  /** A milestone: the player's character goes up a level when the story ends this way. */
-  milestone?: boolean;
 }
 
 /**
@@ -154,6 +152,16 @@ export interface Scene {
   createsCharacter?: boolean;
   /** Time passes before this scene opens: the player gets a short rest (an hour) or a long rest (a night). */
   rest?: "short" | "long";
+  /** Reaching this scene is a milestone: the player's character goes up a level as it opens. */
+  milestone?: boolean;
+  /**
+   * What this scene's prep takes for granted about the story so far, in plain words ("the barge
+   * hasn't sailed yet"). Checked when the story reaches the scene: if play has already made one
+   * untrue (settled, prevented or bypassed what the scene is about), it's skipped for `overtaken`.
+   */
+  assumes?: string[];
+  /** Where the story goes instead when this scene has been overtaken (a later scene, or the ending). */
+  overtaken?: string;
 }
 
 export function beatOrExit(scene: Scene, id: string): { beat?: Beat; exit?: Exit } {

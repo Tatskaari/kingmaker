@@ -10,7 +10,7 @@ import { hangedClerk } from "./hanged-clerk.ts";
 
 const kell: Character = { ...hangedClerk.cast.find(c => c.id === "kell")!, attitude: "As things stand between her and the investigator after the morning (her memories say how); she stays practical and dry, and she has her own errands too." };
 
-function interlude(spec: { id: string; title: string; summary: string; setting: string; where: string; flavour: string; lead: string; onward: string; next: string; lore: string[]; limits: string[]; rest?: "short" | "long" }): Scene {
+function interlude(spec: { id: string; title: string; summary: string; setting: string; where: string; flavour: string; lead: string; onward: string; next: string; lore: string[]; limits: string[]; rest?: "short" | "long"; assumes?: string[]; overtaken?: string }): Scene {
   return {
     id: spec.id, title: spec.title, summary: spec.summary,
     setting: spec.setting,
@@ -33,6 +33,7 @@ function interlude(spec: { id: string; title: string; summary: string; setting: 
     limits: spec.limits,
     lore: spec.lore,
     ...(spec.rest ? { rest: spec.rest } : {}),
+    ...(spec.assumes ? { assumes: spec.assumes, overtaken: spec.overtaken! } : {}),
   };
 }
 
@@ -48,7 +49,7 @@ export const caerwynAfternoon = interlude({
   lore: ["World/Caerwyn.md", "World/Centennial Assembly.md"],
   limits: [
     "Places that aren't on the way (the palace, the Corn Exchange's back rooms, the watch house cells, anywhere outside the walls): they're for another day. The Assembly has the palace shut to anyone without business, and the trail goes to the river.",
-    "Fetching help or authority (the Watch Captain, a warrant, the King): the Captain takes his orders from the Purveyor's office and the King is at the Assembly rehearsals; nobody with a seal can be reached today.",
+    "Fetching help or authority (the Watch Captain, a warrant, the King): the Captain takes his orders from the Purveyor's office and the King is at the Assembly rehearsals; nobody with a seal can be reached today. A written message left at the palace gate will reach the Marshal by evening.",
   ],
 });
 
@@ -61,6 +62,8 @@ export const wharfNight = interlude({
   onward: "the Heron warehouse",
   next: "heron-warehouse",
   lore: ["Places/River Stairs.md"],
+  assumes: ["The player hasn't yet gone into the Heron warehouse or dealt with what happens there tonight (the loading, the true book, the Master's visit)."],
+  overtaken: "heron-warehouse",
   limits: [
     "Going anywhere else tonight (the palace, home, the watch house): the barge sails on the ebb after midnight, and whatever is in the Heron goes with it.",
     "More help: the watch is out on the Assembly route and the night patrol is three streets away; Kell's whistle is the only help in reach.",
