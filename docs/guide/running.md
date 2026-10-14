@@ -123,7 +123,7 @@ Talking to someone who walks with the player on the map (Kell, after the granary
 
 The vendored [dnd-srd-engine](../../vendor/dnd-srd-engine/README.md) (SRD 5.2.1) decides what the rules decide, and the GM narrates exactly that (`src/rules/dnd.ts`).
 
-- **The sheet.** One model call turns the player's concept into a build: class, species, background, skills, spells and kit. The engine makes it legal: level-1 choices, class skills and level-ups. `#sheet` shows it.
+- **The sheet.** One model call turns the player's concept into a build: class, species, background, skills, spells and kit. The engine makes it legal: level-1 choices, class skills and level-ups. `/sheet` shows it (the old `#sheet` still works).
 - **Each turn the decider also asks:** is this a spell, a blow, a grapple or shove, or a rest? A second small call (only on those turns) gets the details: which spell, at whom or what, which weapon.
 - **What the engine rolls:**
   - checks with real bonuses and conditions;

@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import type { StoryState } from "../game/types.ts";
+import { direction, steps } from "../game/map/index.ts";
+import type { StoryState, Tile2 } from "../game/types.ts";
 import { sessionSpend } from "../llm/openrouter.ts";
 import { sessionDir, type SessionState } from "../runtime/session.ts";
 import { sceneById } from "../../scenes/index.ts";
@@ -26,6 +27,19 @@ export const TIME_WORDS: Record<StoryState["time"], string> = {
 export const timeOf = (sceneId: string): StoryState["time"] => {
   try { return sceneById(sceneId).time ?? "morning"; } catch { return "morning"; }
 };
+
+/** Which way, on screen, a compass direction on the map points (north is up-left). */
+export const ARROW: Record<string, string> = { north: "↖", "north-east": "↑", east: "↗", "south-east": "→", south: "↘", "south-west": "↓", west: "↙", "north-west": "←", here: "•" };
+
+/**
+ * The way to the lead from where the player stands, as the map says it (the game core's lead target:
+ * src/game/town.ts leadTarget): "the Drowned Rat ↓ 24 paces", or "Up the river stairs, then on to the
+ * Heron ← 3 paces". The map's sidebar shows it, and Kell reads it out between scenes, so the two
+ * can't disagree.
+ */
+export function leadWay(from: Tile2, lead: { at: Tile2; label: string; via?: string | undefined }): string {
+  return `${lead.via ? `${lead.via}, then on to ` : ""}${lead.label} ${ARROW[direction(from, lead.at)] ?? ""} ${steps(from, lead.at)} paces`.replace(/ {2,}/g, " ");
+}
 
 /**
  * What the investigator's notebook says about how a scene ended: the exit's world script writes it

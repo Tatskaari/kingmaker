@@ -22,7 +22,7 @@ const USAGE = `Kingmaker V2 scene harness
   scene start <scene> [--approach v2] [--as "Name: concept"] [--level 3] [--seed N] [--session ID]
                                                start a scene; prints the session id and the opening
   scene say <session> <what you say or do>     take a turn (talk as your character; actions in *asterisks* or (parentheses))
-  scene sheet <session>                        your D&D character sheet (also #sheet while playing)
+  scene sheet <session>                        your D&D character sheet (also /sheet while playing)
   scene map <session>                          a top-down sketch of the scene's world (also #map)
   scene transcript <session>                   the scene so far
   scene status <session>                       debug view: beat, path, co-GM notes, latency (not for blind QA)
@@ -142,7 +142,7 @@ async function main(): Promise<void> {
     const state = await createSession({ sceneId, approach, ...(who ? { player: who } : {}), ...(seed ? { seed: Number(seed) } : {}), ...(id ? { id } : {}), ...(level ? { level: Math.max(1, Math.min(20, Number(level))) } : {}) });
     setCallLog(join(sessionDir(state.id), "calls.jsonl"));
     saveSession(state);
-    console.log(`Session: ${state.id}\nYou are ${state.player.name}: ${state.player.concept}${state.player.build ? `\nIn game terms: ${state.player.build} (#sheet shows your character sheet)` : ""}\n`);
+    console.log(`Session: ${state.id}\nYou are ${state.player.name}: ${state.player.concept}${state.player.build ? `\nIn game terms: ${state.player.build} (/sheet shows your character sheet)` : ""}\n`);
     console.log(`${sceneById(sceneId).hook}\n`);
     const hooks = printer(state);
     await openScene(state, hooks);

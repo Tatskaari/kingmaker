@@ -157,7 +157,7 @@ export function sceneBrief(scene: Scene, state: SessionState, options: { secrets
     ...(scene.limits?.length ? [`## What this scene can't offer\nIf the player reaches for one of these, let the world say no honestly, in the fiction, and show them what is possible instead.\n${bullets(scene.limits)}`] : []),
     `## The player character\n${state.player.name}: ${state.player.concept}.${state.player.build ? ` In game terms: ${state.player.build}; their spells, weapons and gear are what their sheet says.` : ""} They are the only player character. Other people only know their name if they've been told it.${skillSummary(state)}`,
     `## Table rules (for out-of-character questions)\n${state.rules
-      ? "- The game runs D&D rules: it rolls the dice for checks, saving throws, spells, attacks and rests, and you're told each result (🎲). You never roll, ask for a roll or invent numbers.\n- The player can see their character sheet out of game (#sheet). Levels come at story milestones. A real fight moves to the battle map."
+      ? "- The game runs D&D rules: it rolls the dice for checks, saving throws, spells, attacks and rests, and you're told each result (🎲). You never roll, ask for a roll or invent numbers.\n- The player can see their character sheet out of game (/sheet). Levels come at story milestones. A real fight moves to the battle map."
       : "- The game rolls a d20 plus a skill modifier at the scene's key moments; you'll be told the result. You don't roll or promise rolls yourself.\n- There's no experience or loot system yet."}\n- Scenes play in order; a scene can be brief, but it can't be skipped.\n- Your prep (what the scene is about, secrets, how it can end) stays behind the screen.`,
   ].join("\n\n");
 }

@@ -10,15 +10,12 @@ import type { Tile2 } from "../../game/types.ts";
 import { townView } from "../../game/views.ts";
 import { sceneById } from "../../../scenes/index.ts";
 import type { Game, TileMenu } from "../game.ts";
-import { TIME_WORDS } from "../story.ts";
+import { ARROW, leadWay, TIME_WORDS } from "../story.ts";
 import { C } from "../theme.ts";
-import { BOLD, FPS, ITALIC, Keys, useGame, wrap } from "./common.tsx";
+import { BOLD, fit, FPS, ITALIC, Keys, useGame, wrap, type KeyHint } from "./common.tsx";
 
 /** Arrow keys and WASD move with the screen (up is straight up), steered along the streets; the numpad's corners go along them exactly. */
 const WALK = new Set(["up", "down", "left", "right", "w", "a", "s", "d", "home", "pageup", "end", "pagedown"]);
-
-/** Which way, on screen, a compass direction on the map points (north is up-left). */
-const ARROW: Record<string, string> = { north: "↖", "north-east": "↑", east: "↗", "south-east": "→", south: "↘", "south-west": "↓", west: "↙", "north-west": "←", here: "•" };
 
 /**
  * Caerwyn on the map, mostly by mouse: click somewhere to walk there (a step at a time; any key or
@@ -69,12 +66,36 @@ export function ExploreScreen({ game }: { game: Game }) {
   const leadScene = game.story.lead ? sceneById(game.story.lead) : undefined;
   const front = interactLabel(core.state, session);
   const inner = sideW - 4;
-  const near = nearby(ex, 7).filter(n => n.actor && n.actor.kind !== "object" || n.interaction?.kind === "travel").slice(0, Math.max(3, height - 28));
   const status = session.rules?.status ?? "";
+  const you = truncate(session.player.name, Math.max(8, inner - 12));
   const messages = game.messages.slice(-4).flatMap(m => wrap(m, width - 6));
-  const leadWords = lead ? `${lead.via ? `${lead.via}, then on to ` : ""}${lead.label} ${ARROW[direction(ex.at, lead.at)] ?? ""} ${steps(ex.at, lead.at)} paces` : "";
+  // The way to the lead: the words Kell drew it in between scenes (leadWay), so the two agree.
+  const way = lead ? wrap(leadWay(ex.at, lead), inner) : [];
+  const when = wrap(TIME_WORDS[game.story.time], inner);
+  const fronts = front ? wrap(front.label, inner - 2) : [];
+  // One row, however narrow: two would squeeze out who's about.
+  const walkingLines = game.walking ? [inner >= 33 ? "Walking… (any key or click stops)" : "Walking… (any key stops)"] : [];
+  // The sidebar, a row at a time in the rows it has (a squeezed box draws its lines over each other):
+  // first what's needed (where, when, you, the lead and the way, who's about, what e does), then
+  // what fills the room (who you are, what the place is like, more of who's about).
+  const everyone = nearby(ex, 7).filter(n => n.actor && n.actor.kind !== "object" || n.interaction?.kind === "travel");
+  let spare = mapH - 2 - (1 + when.length + 2 + (leadScene ? 2 + way.length : 0) + 2 + (fronts.length ? 1 + fronts.length : 0) + (walkingLines.length ? 1 + walkingLines.length : 0));
+  const take = (want: number) => { const n = Math.max(0, Math.min(want, spare)); spare -= n; return n; };
+  const nearFirst = take(Math.max(1, Math.min(3, everyone.length)));
+  const build = upTo(wrap(session.player.build ?? session.player.concept, inner), take(2), inner);
+  const aboutLines = about ? upTo(wrap(about, inner), take(3), inner) : [];
+  const near = everyone.slice(0, nearFirst + take(everyone.length - nearFirst));
   // The tile lit up on the map: the menu's while it's open, else the pointer's.
   const lit = game.menu?.at ?? hover?.at;
+  // The keys at the bottom, the ones that do something as buttons too; as many as fit, the mouse's
+  // first. Like any key, a click on one while walking only stops the walk.
+  const button = (run: () => void) => () => { if (game.walking) { game.walking = false; game.emit(); } else run(); };
+  const overlay = (kind: "help" | "journal" | "menu") => button(() => { game.overlay = kind === "menu" ? { kind, index: 0 } : { kind }; game.emit(); });
+  const gap = width < 100 ? " · " : "  ·  ";
+  const hints: KeyHint[] = [
+    ["click", "walk"], ["right-click", "act"], ["g", "the lead", button(() => void game.toLead())], ["c", "sheet", button(() => void game.showSheet())],
+    ["j", "notebook", overlay("journal")], ["Esc", "menu", overlay("menu")], ["?", "help", overlay("help")], ["e", "interact", button(() => game.interact())], ["←↑→↓", "walk"],
+  ];
 
   /** What's drawn in the map cell a mouse event is over (as last drawn: a frame of the map you were on before a door doesn't count). */
   const pickAt = (e: MouseEvent) => {
@@ -111,16 +132,16 @@ export function ExploreScreen({ game }: { game: Game }) {
           onMouseDown={onMapDown} onMouseMove={onMapMove} onMouseOut={() => setHover(h => (h?.from === "map" ? undefined : h))} />
       </box>
       <box width={sideW} height={mapH} border borderColor={C.border} title=" The investigation " flexDirection="column" paddingX={1} overflow="hidden">
-        <text fg={C.title} attributes={BOLD}>{capital(where.place)}</text>
-        <text fg={C.dim}>{TIME_WORDS[game.story.time]}</text>
-        {about ? <text fg={C.faint} wrapMode="word">{wrap(about, sideW - 4).slice(0, 3).join("\n")}</text> : null}
-        <text marginTop={1}><span fg={C.player} attributes={BOLD}>{session.player.name}</span><span fg={C.dim}>{` · ${status.split(",")[0] ?? ""}`}</span></text>
-        <text fg={C.faint}>{wrap(session.player.build ?? session.player.concept, inner).slice(0, 2).join("\n")}</text>
+        <text fg={C.title} attributes={BOLD} height={1} flexShrink={0}>{truncate(capital(where.place), inner)}</text>
+        <text fg={C.dim} height={when.length} flexShrink={0}>{when.join("\n")}</text>
+        {aboutLines.length ? <text fg={C.faint} height={aboutLines.length} flexShrink={0}>{aboutLines.join("\n")}</text> : null}
+        <text marginTop={1} height={1} flexShrink={0}><span fg={C.player} attributes={BOLD}>{you}</span><span fg={C.dim}>{truncate(` · ${status.split(",")[0] ?? ""}`, Math.max(0, inner - you.length))}</span></text>
+        {build.length ? <text fg={C.faint} height={build.length} flexShrink={0}>{build.join("\n")}</text> : null}
         {leadScene ? <box flexDirection="column" marginTop={1} flexShrink={0}>
-          <text><span fg={C.lead} attributes={BOLD}>{"The lead: "}</span><span fg={C.text}>{leadScene.title}</span></text>
-          {lead ? <text fg={C.dim}>{wrap(leadWords, inner).join("\n")}</text> : null}
+          <text height={1} flexShrink={0}><span fg={C.lead} attributes={BOLD}>{"The lead: "}</span><span fg={C.text}>{truncate(leadScene.title, inner - 10)}</span></text>
+          {way.length ? <text fg={C.dim} height={way.length} flexShrink={0}>{way.join("\n")}</text> : null}
         </box> : null}
-        <text fg={C.title} marginTop={1}>Nearby</text>
+        <text fg={C.title} marginTop={1} height={1} flexShrink={0}>Nearby</text>
         {near.length ? near.map(n => {
           const scene = n.interaction?.kind === "scene" && n.interaction.sceneId === game.story.lead;
           // As the map draws them (the player keeps their @).
@@ -140,9 +161,11 @@ export function ExploreScreen({ game }: { game: Game }) {
               <span fg={C.faint}>{` ${n.distance <= 1 ? "here" : `${ARROW[n.direction] ?? ""} ${n.distance}`}`}</span>
             </text>
           </box>;
-        }) : <text fg={C.faint} attributes={ITALIC}>Nobody. Caerwyn is busy elsewhere.</text>}
-        {front ? <text marginTop={1} wrapMode="word"><span fg={C.title} attributes={BOLD}>{"e "}</span><span fg={front.scene ? C.lead : C.text}>{front.label}</span></text> : null}
-        {game.walking ? <text fg={C.lead} marginTop={1}>Walking… (any key or click stops)</text> : null}
+        }) : nearFirst ? <text fg={C.faint} attributes={ITALIC} height={1} flexShrink={0}>{truncate("Nobody. Caerwyn is busy elsewhere.", inner)}</text> : null}
+        {fronts.length ? <box flexDirection="column" marginTop={1} flexShrink={0}>
+          {fronts.map((l, i) => <text key={i} height={1} flexShrink={0}><span fg={C.title} attributes={BOLD}>{i ? "  " : "e "}</span><span fg={front?.scene ? C.lead : C.text}>{l}</span></text>)}
+        </box> : null}
+        {walkingLines.length ? <text fg={C.lead} marginTop={1} height={walkingLines.length} flexShrink={0}>{walkingLines.join("\n")}</text> : null}
       </box>
     </box>
     <box height={msgH} border borderColor={C.border} title=" What happens " titleAlignment="left" paddingX={1} flexDirection="column" overflow="hidden">
@@ -150,7 +173,7 @@ export function ExploreScreen({ game }: { game: Game }) {
     </box>
     <box height={1} paddingX={1}>
       {info && !game.menu ? <Pointer title={info.title} distance={steps(ex.at, info.at)} arrow={ARROW[direction(ex.at, info.at)] ?? ""} actions={info.actions.map(a => a.label)} width={width - 2} />
-        : <Keys items={fit([["click", "walk"], ["right-click", "act"], ["←↑→↓", "walk"], ["e", "interact"], ["g", "the lead"], ["?", "help"], ["Esc", "menu"], ["c", "sheet"], ["j", "notebook"]], width - 2)} />}
+        : <Keys items={fit(hints, width - 2, gap.length)} gap={gap} />}
     </box>
     {game.menu ? <MenuBox game={game} menu={game.menu} width={width} height={height} /> : null}
   </box>;
@@ -205,18 +228,7 @@ function menuKey(game: Game, menu: TileMenu, key: KeyEvent): void {
   else game.closeMenu();
 }
 
-/** As many key hints as fit the line, in order. */
-function fit(items: Array<[string, string]>, width: number): Array<[string, string]> {
-  const out: Array<[string, string]> = [];
-  let used = 0;
-  for (const [k, what] of items) {
-    const w = k.length + 1 + what.length + (out.length ? 5 : 0);
-    if (used + w > width) break;
-    out.push([k, what]);
-    used += w;
-  }
-  return out;
-}
-
+/** At most n of some wrapped lines, the last cut short with an ellipsis when there was more. */
+const upTo = (lines: string[], n: number, width: number) => (lines.length <= n ? lines : n <= 0 ? [] : [...lines.slice(0, n - 1), `${lines[n - 1]!.slice(0, Math.max(0, width - 1))}…`]);
 const capital = (t: string) => t.charAt(0).toUpperCase() + t.slice(1);
 const truncate = (t: string, n: number) => (t.length > n ? `${t.slice(0, Math.max(1, n - 1))}…` : t);
