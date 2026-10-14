@@ -15,7 +15,7 @@
 export { lookOf, baseLook, describeLook, resetLooks, type Look, type Lookable, type LookContext, type Cell, type TimeOfDay } from "./appearance.ts";
 export { parseName, singular, type ParsedName } from "./names.ts";
 export { matchRole, roleById, type Role, type Motion, type Stamp } from "./roles.ts";
-export { CAST_LOOKS, castLook } from "./people.ts";
+export { CAST_LOOKS, castLook, isCast } from "./people.ts";
 export { detectGlyphSet, glyphFor, nerd, plainOf, type GlyphSet } from "./glyphs.ts";
 export { PALETTE, QUD, FLAMES, hexOf, rgbOf, mix, type RGB } from "./color.ts";
 export { LookCache, lookCache, setLookCache, setInventor, requestInvention, flushInventions, inventionVersion, lastInventionError, type Invention, type Inventor } from "./invent.ts";

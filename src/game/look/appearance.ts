@@ -3,7 +3,7 @@ import { glyphFor, nerd, type Glyph, type GlyphSet } from "./glyphs.ts";
 import { inventionColor, inventionVersion, invented, requestInvention } from "./invent.ts";
 import { parseName, type ParsedName } from "./names.ts";
 import { clamp01, flicker, hash01, noise1, seedOf } from "./noise.ts";
-import { CAST_LOOKS, PLAYER_LOOK, castLook } from "./people.ts";
+import { PLAYER_LOOK, castLook, isCast } from "./people.ts";
 import { KIND_ROLES, matchRole, roleById, type LightSpec, type Motion, type Role, type Stamp } from "./roles.ts";
 
 /**
@@ -157,7 +157,7 @@ function computeBase(thing: Lookable): BaseLook {
     const role: Role = { id: `surface:${stuff[0]}`, glyph: { ascii, ...(stuff[0] === "water" ? { nerd: nerd("water")! } : stuff[0] === "smoke" || stuff[0] === "steam" ? { nerd: nerd("smoke")! } : {}) }, fg, motion, liquid: stuff[0] };
     return { role, glyph: role.glyph, fg, motion, flame, implied: [], group: 0, source: "rule", being: false, liquid: stuff[0], parsed, person: false };
   }
-  const cast = thing.cast ?? (beingKind && thing.id && CAST_LOOKS[thing.id] ? thing.id : undefined);
+  const cast = thing.cast ?? (beingKind && thing.id && isCast(thing.id) ? thing.id : undefined);
   if (cast && beingKind) {
     const look = castLook(cast, thing.name);
     return person(parsed, { glyph: { ascii: look.glyph }, fg: look.color, bold: true, source: "cast" });

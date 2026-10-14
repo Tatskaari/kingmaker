@@ -1,6 +1,7 @@
 import type { SessionState } from "../runtime/session.ts";
 import type { CombatController } from "./combat/index.ts";
-import { battlefield, CAST, render, renderExplore, toPlain, type RenderOptions, type Viewport } from "./map/index.ts";
+import { battlefield, render, renderExplore, toPlain, type RenderOptions, type Viewport } from "./map/index.ts";
+import { castOf } from "./map/looks.ts";
 import type { GameState } from "./play.ts";
 import { exploreState } from "./town.ts";
 import type { MapActor, StoryState, StyledLine, Tile2 } from "./types.ts";
@@ -66,10 +67,11 @@ export function fightView(fight: CombatController, session: SessionState | undef
 
 /**
  * How someone in a fight looks: as they do in the town and in their scene (Kell's blue K, Hep's G,
- * Sallow's $), and as the fight has them otherwise (the Crakes, the porters).
+ * Sallow's $, the Crakes' C), from the one cast table; and as the fight has them otherwise (the
+ * lantern-boy, the porters).
  */
 export function fightLook(u: { castId?: string | undefined; glyph: string; color: string }): { glyph: string; color: string } {
-  const look = u.castId ? CAST[u.castId] : undefined;
+  const look = u.castId ? castOf(u.castId) : undefined;
   return look ? { glyph: look.glyph, color: look.color } : { glyph: u.glyph, color: u.color };
 }
 

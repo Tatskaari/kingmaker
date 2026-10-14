@@ -5,6 +5,9 @@ import type { MapActor } from "../types.ts";
  * How people and things look on the map. People are coloured letters (the cast of the Caerwyn arc
  * by id), things are glyphs picked from what they are. Scene-world entities and story presence both
  * come through here, so Kell is the same blue K in the lane, in the Rat and in the fight.
+ *
+ * CAST is the one cast table: the look layer (src/game/look/people.ts) and the app (src/app/theme.ts)
+ * take their letters and colours from it.
  */
 
 export interface Look { glyph: string; color: string; name?: string }
@@ -31,6 +34,9 @@ export const CAST: Record<string, Look & { name: string }> = {
   page: { name: "a palace page", glyph: "p", color: "#e6a0ff" },
   player: { name: "you", glyph: "@", color: "#ffffff" },
 };
+
+/** Someone in the cast by id; a numbered one ("crake-2") is one of a kind ("crake"). */
+export const castOf = (id: string): (Look & { name: string }) | undefined => CAST[id] ?? CAST[id.replace(/-\d+$/, "")];
 
 export const PLAYER_COLOR = "#ffffff";
 export const TOWNSFOLK_COLOR = "#b8ad9c";

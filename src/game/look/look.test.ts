@@ -122,6 +122,24 @@ test("blue fire burns blue: colour words in names change flames and their light"
   assert.equal(spirits.flame, "blue");
 });
 
+test("one cast table: the look, the map and the app all take the map's CAST", async () => {
+  const { CAST } = await import("../map/looks.ts");
+  const { castLook } = await import("./people.ts");
+  const { glyphOf, personColor } = await import("../../app/theme.ts");
+  for (const [id, cast] of Object.entries(CAST)) {
+    if (id === "player") continue;
+    assert.deepEqual([castLook(id, cast.name).glyph, castLook(id, cast.name).color], [cast.glyph, cast.color], id);
+    assert.equal(lookOf({ name: cast.name, kind: "person", cast: id, id }, { glyphs: "ascii" }).glyph, cast.glyph, id);
+    assert.equal(glyphOf(id, cast.name), cast.glyph, id);
+    assert.equal(personColor(id), cast.color, id);
+  }
+  // Hobb is H everywhere (the app had him as B); the Crakes are one of a kind.
+  assert.equal(glyphOf("hobb", "Big Hobb Mallory"), "H");
+  assert.equal(castLook("crake-2", "the silent Crake").glyph, CAST.crake!.glyph);
+  assert.equal(lookOf({ name: "the talking Crake", kind: "person", id: "crake-1" }).glyph, CAST.crake!.glyph);
+  assert.equal(lookOf({ name: "you", kind: "person", player: true }).glyph, CAST.player!.glyph);
+});
+
 test("glyph sets: nerd icons where they help, plain ASCII always, ascii as the default", () => {
   const pigeon = { name: "a pigeon", kind: "creature" };
   assert.equal(lookOf(pigeon, { glyphs: "nerd" }).glyph, nerd("bird"));
