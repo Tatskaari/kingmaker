@@ -103,6 +103,24 @@ export interface PersonPlan {
   note: string;
 }
 
+/**
+ * Someone in the scene's cast, as the planner is told about them: the plan's people use these ids,
+ * so the scene's world (buildWorld, the GM's cast cards) and the map agree on who's who.
+ */
+export interface CastMember {
+  id: string;
+  name: string;
+  /** A line on who they are ("the old watchman. A bent old man in a watchman's coat"). */
+  who?: string;
+}
+
+/** A scene's cast card as the planner needs it: its id, name, what they're called, the first sentence of their look. */
+export function castMember(c: { id: string; name: string; called?: string; look?: string; enters?: string }): CastMember {
+  const look = (c.look ?? "").split(/(?<=[.!?])\s/)[0]?.trim() ?? "";
+  const who = [c.called, look, c.enters ? "(arrives later in the scene)" : ""].filter(Boolean).join(". ").replace(/\.\./g, ".");
+  return { id: c.id, name: c.name, ...(who ? { who } : {}) };
+}
+
 export interface PlacePlan {
   name: string;
   description: string;
@@ -197,19 +215,29 @@ export interface PlanCall { plan: PlacePlan; meta: RespondResult }
 
 export interface PlannerOptions { model?: string; effort?: Effort; signal?: AbortSignal }
 
+/** What a planner is asked: the place, the scene's cast, and for a repair the last plan and what's wrong with it. */
+export interface PlanRequest { text: string; cast?: CastMember[]; previous?: PlacePlan; problems?: string[] }
+
 /** A planner: the model by default; tests and offline runs pass their own. */
-export type Planner = (request: { text: string; previous?: PlacePlan; problems?: string[] }) => Promise<PlanCall>;
+export type Planner = (request: PlanRequest) => Promise<PlanCall>;
+
+/** The scene's cast, as the planner is told it. */
+export function castBrief(cast: CastMember[] | undefined): string {
+  if (!cast?.length) return "";
+  return `\n\nThe scene's cast. Each of them who is here is one of the people, with exactly this id; anyone else you add gets an id of their own:\n${cast.map(c => `- ${c.id}: ${c.name}${c.who ? `, ${c.who}` : ""}`).join("\n")}`;
+}
 
 /** The model writes a plan from a description; with a previous plan and problems, it repairs it. */
 export function modelPlanner(options: PlannerOptions = {}): Planner {
-  return async ({ text, previous, problems }) => {
+  return async ({ text, cast, previous, problems }) => {
+    const place = `The place:\n${text}${castBrief(cast)}`;
     const input = previous && problems?.length
       ? [
-        { role: "user" as const, content: `The place:\n${text}` },
+        { role: "user" as const, content: place },
         { role: "assistant" as const, content: JSON.stringify(previous) },
         { role: "user" as const, content: `The program laid out your plan and checked it. Fix these problems and return the whole plan again (keep what works):\n${problems.map(p => `- ${p}`).join("\n")}` },
       ]
-      : [{ role: "user" as const, content: `The place:\n${text}` }];
+      : [{ role: "user" as const, content: place }];
     const result = await respondJson<PlacePlan>({
       operation: previous ? "map.plan.repair" : "map.plan",
       ...(options.model ? { model: options.model } : {}),

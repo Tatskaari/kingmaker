@@ -25,10 +25,32 @@ const PLAIN: LookFrame = { t: 0, time: "afternoon", glyphs: "ascii" };
  * states, or the look's lift (something hanging is 7 ft up, three rows), whichever is higher.
  */
 export function liftOf(a: Pick<MapActor, "id" | "name" | "kind" | "states" | "ref">): number {
-  const raise = raiseFor(a.name, a.states ?? []);
-  if (a.kind === "player") return raise;
+  return rowsOf(a)[0] ?? 0;
+}
+
+/** What render.ts heaps up (sacks, crates, grain): drawn with a second one on top. */
+const STACKS = new Set(["sack", "crate", "grain"]);
+
+/**
+ * Every row above its tile's cell where render.ts paints an actor, its own cell first: the lifted
+ * cell, the rope above something hanging, the top of a stack, the flame over a fire. Another actor
+ * whose cell is one of these is painted over (a lantern's rope lands two squares behind it). Empty:
+ * it isn't drawn at all (hidden things are faint to nothing).
+ */
+export function rowsOf(a: Pick<MapActor, "id" | "name" | "kind" | "states" | "ref" | "blocks">): number[] {
+  const states = a.states ?? [];
+  const raise = raiseFor(a.name, states);
+  if (a.kind === "player") return [raise];
   const look = actorLook({ ...a, glyph: "?", map: "", at: { x: 0, y: 0 } } as MapActor, PLAIN);
-  return Math.max(raise, look.lift);
+  if (look.alpha < 0.35) return [];
+  const lift = Math.max(raise, look.lift);
+  if (states.includes("overhead")) return [lift];
+  const rows = [lift];
+  if (states.includes("hanging")) rows.push(lift + 1);
+  const stacked = !look.look.wreck && (look.glyph === "■" || look.glyph === "▣" || (!!a.blocks && STACKS.has(look.look.role)));
+  if (stacked) rows.push(lift + 1);
+  if (look.above) rows.push(lift + (stacked ? 2 : 1));
+  return [...new Set(rows)];
 }
 
 /** The cells an actor can be drawn on: its lifted cell, and higher when it stands on a wall top. */

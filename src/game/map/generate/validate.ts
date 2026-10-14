@@ -1,7 +1,7 @@
 import { buildWorld } from "../../../world/scene-world.ts";
 import type { MapActor, Tile2 } from "../../types.ts";
 import { actorsFromWorld, feetToTile } from "../reconcile.ts";
-import { liftOf, sceneCamera } from "./camera.ts";
+import { liftOf, rowsOf, sceneCamera } from "./camera.ts";
 import type { CompiledPlace } from "./compile.ts";
 import { isStructureTile, isWallish, type Placement } from "./furnish.ts";
 import { DIR, add, tkey } from "./layout.ts";
@@ -117,18 +117,28 @@ export function validate(place: CompiledPlace): Problem[] {
   }
   // One to a cell on screen: something hung up is drawn on the cell of a square behind it (render.ts
   // draws column x + y, row y - x - lift), so a lantern can hide whoever stands there.
-  const cells = new Map<string, MapActor[]>();
+  // What else it paints counts too: a hanging lantern's rope, a stack's top, a fire's flame.
+  const owners = new Map<string, MapActor[]>(), painters = new Map<string, MapActor[]>();
   for (const a of actors) {
     if (isDoorThing(a) || (a.states ?? []).includes("overhead")) continue;
-    const k = `${a.at.x + a.at.y},${a.at.y - a.at.x - liftOf(a)}`;
-    cells.set(k, [...(cells.get(k) ?? []), a]);
+    const rows = rowsOf(a);
+    rows.forEach((r, i) => {
+      const k = `${a.at.x + a.at.y},${a.at.y - a.at.x - r}`;
+      if (i === 0) owners.set(k, [...(owners.get(k) ?? []), a]);
+      painters.set(k, [...(painters.get(k) ?? []), a]);
+    });
   }
-  for (const here of cells.values()) {
-    const tiles = new Set(here.map(a => tkey(a.at)));
-    if (here.length < 2 || tiles.size < 2) continue;
-    const [front, ...rest] = [...here].sort((a, b) => (b.at.y - b.at.x) - (a.at.y - a.at.x));
-    const hit = rest.find(b => tkey(b.at) !== tkey(front!.at));
-    if (hit) problem("overlap", (front!.ref ?? front!.id).split("#")[0]!, `${front!.name} is drawn over ${hit.name} and hides it: move one of them.`);
+  const reported = new Set<string>();
+  for (const [k, here] of owners) {
+    for (const behind of here) {
+      // Painted later (nearer the viewer) by something on another square: it's covered.
+      const front = (painters.get(k) ?? []).find(a => tkey(a.at) !== tkey(behind.at) && a.at.y - a.at.x >= behind.at.y - behind.at.x && (a.ref ?? a.id).split("#")[0] !== (behind.ref ?? behind.id).split("#")[0]);
+      if (!front) continue;
+      const id = (front.ref ?? front.id).split("#")[0]!;
+      if (reported.has(`${id}|${behind.name}`)) continue;
+      reported.add(`${id}|${behind.name}`);
+      problem("overlap", id, `${front.name} is drawn over ${behind.name} and hides it: move one of them.`);
+    }
   }
   const standable = (p: Tile2) => reached.has(tkey(p)) && !blocking.has(tkey(p));
   for (const p of [...furnished.things.values(), ...furnished.people.values()]) {

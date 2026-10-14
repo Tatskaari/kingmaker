@@ -1,4 +1,6 @@
-import { CORNERS, DOOR_STATES, FLOORS, GROUNDS, RELATIONS, SIDES, SURROUNDINGS, THING_KINDS, WALLS, type PlacePlan, type ThingPlan } from "./plan.ts";
+import { parseName, singular } from "../../look/names.ts";
+import { castOf } from "../looks.ts";
+import { CORNERS, DOOR_STATES, FLOORS, GROUNDS, RELATIONS, SIDES, SURROUNDINGS, THING_KINDS, WALLS, type CastMember, type PersonPlan, type PlacePlan, type ThingPlan } from "./plan.ts";
 
 /**
  * Cleaning a model's plan before it's laid out: ids made safe and unique, references resolved
@@ -26,7 +28,7 @@ const clamp = (n: unknown, lo: number, hi: number, fallback: number) => { const 
 /** Names of terrain the map already draws: a thing called this is the ground itself, not furniture. */
 export const TERRAIN_NAMES = /\b(river|harbou?r|sea|canal|water(?!\s*butt)|steps|stairs?|staircase|walls?|windows?|floor|ceiling|roof|sky|bank|quay|wharf|street|lane|square|yard)\b/i;
 
-export function normalizePlan(raw: PlacePlan): { plan: PlacePlan; problems: Problem[] } {
+export function normalizePlan(raw: PlacePlan, cast: CastMember[] = []): { plan: PlacePlan; problems: Problem[] } {
   const problems: Problem[] = [];
   const problem = (check: Problem["check"], subject: string, message: string, severity: Problem["severity"] = "error") => problems.push({ check, subject, message, severity });
   const plan: PlacePlan = structuredClone(raw);
@@ -39,23 +41,36 @@ export function normalizePlan(raw: PlacePlan): { plan: PlacePlan; problems: Prob
   plan.floor = pick(FLOORS, plan.floor, "boards");
   plan.surroundings = pick(SURROUNDINGS, plan.surroundings, "open");
   for (const key of ["outside", "rooms", "doors", "windows", "things", "people"] as const) if (!Array.isArray(plan[key])) (plan as unknown as Record<string, unknown[]>)[key] = [];
+  for (const p of plan.people) { p.id = String(p.id || ""); p.name = String(p.name || p.id); }
 
-  // Ids: safe and unique across everything, so a reference can only mean one thing.
+  // Ids: safe and unique across everything, so a reference can only mean one thing. The scene's
+  // cast keep their own ids (Dilly Sparrow is dilly, however the plan wrote her), claimed first.
   const taken = new Set<string>();
   const renamed = new Map<string, string>();
-  const claim = (id: string, name: string) => {
+  const claim = (id: string, name: string, avoid?: (id: string) => boolean) => {
     const base = slugId(id || name);
     let unique = base;
-    for (let i = 2; taken.has(unique); i++) unique = `${base}-${i}`;
+    // A letter, not a number: the cast table reads "crake-2" as one of the Crakes.
+    for (let i = 0; taken.has(unique) || avoid?.(unique); i++) unique = `${base}-${"bcdefghijklmnopqrstuvwxyz"[i % 25]}${i >= 25 ? i : ""}`;
     taken.add(unique);
     if (id && !renamed.has(id)) renamed.set(id, unique);
     return unique;
   };
+  const castOfPerson = matchCast(plan.people, cast);
+  for (const [p, c] of castOfPerson) {
+    if (p.id !== c.id) renamed.set(p.id, c.id);
+    p.id = c.id;
+    taken.add(c.id);
+  }
+  plan.people = plan.people.filter(p => castOfPerson.has(p) || !cast.some(c => c.id === p.id) || (problem("plan", p.id, `${p.name} is a second ${p.id}: left out.`, "warning"), false));
   for (const o of plan.outside) o.id = claim(o.id, o.name);
   for (const r of plan.rooms) r.id = claim(r.id, r.name);
   for (const d of plan.doors) d.id = claim(d.id, d.name);
   for (const t of plan.things) t.id = claim(t.id, t.name);
-  for (const p of plan.people) p.id = claim(p.id, p.name);
+  // Anyone else gets an id of their own: not one the game's cast table already gives to someone else
+  // (a porter called "kell" would be drawn as Sergeant Kell).
+  const elsewhere = (id: string, name: string) => { const known = castOf(id); return !!known && !sameName(known.name, name); };
+  for (const p of plan.people) if (!castOfPerson.has(p)) p.id = claim(p.id, p.name, id => elsewhere(id, p.name));
 
   const rooms = new Set(plan.rooms.map(r => r.id));
   const outside = new Set(plan.outside.map(o => o.id));
@@ -199,7 +214,63 @@ export function normalizePlan(raw: PlacePlan): { plan: PlacePlan; problems: Prob
 
   const start = resolve(plan.start, [rooms, outside]);
   plan.start = start ?? plan.outside.find(o => o.ground !== "water" && o.ground !== "boat")!.id;
+
+  // The cast the plan left out stand by what their line mentions (Nan by the bar, Cob by the pots),
+  // else at the door the player comes in by: placed like everyone else, not dropped in the middle.
+  for (const c of cast) {
+    if (plan.people.some(p => p.id === c.id)) continue;
+    // What a thing is (its head noun: "a brazier for cold hands" is a brazier), in their line.
+    const want = significant(`${c.name} ${c.who ?? ""}`);
+    const score = (name: string) => (want.has(parseName(name).head) ? 1 : 0);
+    const thing = plan.things.filter(t => t.kind !== "item" && t.relation !== "overhead" && !["on", "in", "under"].includes(t.relation)).map(t => ({ t, s: score(t.name) })).sort((a, b) => b.s - a.s)[0];
+    const entrance = plan.doors.find(d => d.to === plan.start || d.from === plan.start) ?? plan.doors.find(d => outside.has(d.to));
+    const person: PersonPlan = thing && thing.s > 0
+      ? { id: c.id, name: c.name, in: thing.t.in, relation: "near", target: thing.t.id, note: "" }
+      : entrance
+        ? { id: c.id, name: c.name, in: rooms.has(plan.start) || outside.has(plan.start) ? plan.start : entrance.to, relation: "by-door", target: entrance.id, note: "" }
+        : { id: c.id, name: c.name, in: plan.start, relation: "centre", target: "", note: "" };
+    plan.people.push(person);
+    problem("plan", c.id, `${c.name} (${c.id}) isn't among the people: put ${person.relation === "near" ? `near ${plan.things.find(t => t.id === person.target)?.name}` : person.relation === "by-door" ? "by the door" : "in the middle"}. Put them where the description has them, with the id ${c.id}.`, "warning");
+  }
   return { plan, problems };
+}
+
+const TITLE_WORDS = new Set(["the", "and", "mister", "master", "mistress", "missus", "mrs", "miss", "sergeant", "corporal", "captain", "marshal", "sir", "lady", "lord", "dame", "old", "young", "big", "little"]);
+const STOP_WORDS = new Set([...TITLE_WORDS, "with", "her", "his", "their", "she", "him", "them", "who", "that", "this", "for", "from", "into", "onto", "over", "under", "behind", "beside", "near", "about", "all", "one", "two", "very", "good", "man", "woman", "boy", "girl", "back", "out", "off", "its", "has", "had", "was", "are", "not", "but", "any", "than", "then", "too", "keeps", "kept", "like", "what", "when", "where"]);
+/** A name's words that say who someone is (titles and articles aside). */
+const nameWords = (s: string) => s.toLowerCase().split(/[^a-z0-9]+/).filter(w => w.length > 2 && !TITLE_WORDS.has(w));
+/** Words worth matching a line about someone against a thing's name: nouns, mostly, singular. */
+const significant = (s: string) => new Set(s.toLowerCase().split(/[^a-z]+/).filter(w => w.length > 2 && !STOP_WORDS.has(w)).map(singular));
+/** Two names for one person: every word of the shorter is in the longer ("Duchess", "Duchess the dog"). */
+export function sameName(a: string, b: string): boolean {
+  const wa = nameWords(a), wb = new Set(nameWords(b));
+  return wa.length > 0 && wa.every(w => wb.has(w)) || nameWords(b).length > 0 && nameWords(b).every(w => new Set(wa).has(w));
+}
+
+/**
+ * The plan's people who are the scene's cast, by id or by name ("Dilly Sparrow", id dilly-sparrow,
+ * is dilly; "Hep Grist" is Hepzibah Grist, hep): best matches first, each cast member once.
+ */
+export function matchCast(people: PersonPlan[], cast: CastMember[]): Map<PersonPlan, CastMember> {
+  const pairs: Array<{ p: PersonPlan; c: CastMember; s: number }> = [];
+  for (const p of people) {
+    const words = nameWords(p.name);
+    for (const c of cast) {
+      if (p.id === c.id) { pairs.push({ p, c, s: 100 }); continue; }
+      const theirs = new Set([...nameWords(c.name), ...nameWords(c.id.replace(/-/g, " ")), c.id]);
+      const hits = new Set([...words, ...nameWords(p.id.replace(/-/g, " "))].filter(w => theirs.has(w))).size;
+      const s = hits / Math.max(1, words.length);
+      if (hits >= 1 && s >= 0.5) pairs.push({ p, c, s });
+    }
+  }
+  const out = new Map<PersonPlan, CastMember>();
+  const used = new Set<string>();
+  for (const { p, c } of pairs.sort((a, b) => b.s - a.s)) {
+    if (out.has(p) || used.has(c.id)) continue;
+    out.set(p, c);
+    used.add(c.id);
+  }
+  return out;
 }
 
 function fixRelation(t: ThingPlan, target: string | undefined, target2: string | undefined, problem: (check: Problem["check"], subject: string, message: string, severity?: Problem["severity"]) => void): void {

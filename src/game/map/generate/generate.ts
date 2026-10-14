@@ -1,7 +1,7 @@
 import type { Tile2 } from "../../types.ts";
 import { compilePlan, type CompiledPlace } from "./compile.ts";
 import type { Problem } from "./normalize.ts";
-import { modelPlanner, type PlacePlan, type Planner } from "./plan.ts";
+import { modelPlanner, type CastMember, type PlacePlan, type Planner } from "./plan.ts";
 import { errorsOf, validate } from "./validate.ts";
 
 /**
@@ -45,6 +45,8 @@ export interface GenerateOptions {
   /** The map's id. */
   id: string;
   sceneId?: string;
+  /** The scene's cast: the planner is told who they are, and the plan's people use their ids. */
+  cast?: CastMember[];
   exitTo?: { map: string; at: Tile2; label?: string };
   /** The model by default (the fast one, reasoning low). */
   planner?: Planner;
@@ -72,7 +74,8 @@ export async function generatePlace(text: string, options: GenerateOptions): Pro
     let call: Awaited<ReturnType<Planner>>;
     try {
       const errors = errorsOf(problems).sort((a, b) => ORDER.indexOf(a.check) - ORDER.indexOf(b.check)).slice(0, MAX_PROBLEMS).map(p => p.message);
-      call = await planner(previous && errors.length ? { text, previous, problems: errors } : { text });
+      const cast = options.cast?.length ? { cast: options.cast } : {};
+      call = await planner(previous && errors.length ? { text, ...cast, previous, problems: errors } : { text, ...cast });
     } catch (error) {
       const failed = error instanceof Error ? error.message : String(error);
       rounds.push({ plan: previous ?? ({} as PlacePlan), problems: [], errors: -1, modelMs: performance.now() - asked, compileMs: 0, costUsd: 0, inputTokens: 0, outputTokens: 0, failed });

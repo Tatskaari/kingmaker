@@ -3,6 +3,7 @@ import { MAPS } from "../maps/index.ts";
 import { PLACES, type ScenePlace } from "../places.ts";
 import { registerMaps } from "../reconcile.ts";
 import type { CompiledPlace } from "./compile.ts";
+import { registerPeople, unregisterPeople } from "./people.ts";
 
 /**
  * Putting a generated place into play: its map among the game's maps (getMap, travel, exits), its
@@ -29,6 +30,8 @@ export function installPlace(place: CompiledPlace, options: InstallOptions = {})
   if (MAPS[place.id] && MAPS[place.id]!.map !== place.map) throw new Error(`A map called ${place.id} is already in the game`);
   MAPS[place.id] = place.def;
   registerMaps([place.map]);
+  // Its people who aren't in the game's cast table get theirs (their own letters and colours).
+  registerPeople(place.id, place.looks);
   const sceneId = place.region.sceneId;
   if (!sceneId) return undefined;
   const street = place.site.entrance?.outside ?? place.furnished.start;
@@ -47,6 +50,7 @@ export function installPlace(place: CompiledPlace, options: InstallOptions = {})
 /** Take a generated place out of play again (a scene that's over, a test). */
 export function uninstallPlace(place: CompiledPlace): void {
   if (MAPS[place.id]?.map === place.map) delete MAPS[place.id];
+  unregisterPeople(place.id);
   const sceneId = place.region.sceneId;
   if (!sceneId || PLACES[sceneId]?.map !== place.id) return;
   const before = replaced.get(sceneId);

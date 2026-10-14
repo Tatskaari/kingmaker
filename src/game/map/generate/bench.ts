@@ -22,13 +22,14 @@ import { compilePlan } from "./compile.ts";
 import { stagePicture } from "./dressing.ts";
 import { generatePlace, type Generated } from "./generate.ts";
 import { picture, stageCompiled, stageHandMade, writePicture, type View } from "./pictures.ts";
-import { modelPlanner, type PlacePlan } from "./plan.ts";
+import { registerPeople, unregisterPeople } from "./people.ts";
+import { castMember, modelPlanner, type CastMember, type PlacePlan } from "./plan.ts";
 import { sketch } from "./sketch.ts";
 import { errorsOf, validate } from "./validate.ts";
 
-export const PROMPTS: Record<string, { text: string; sceneId?: string; handMade?: string }> = {
-  rat: { text: drownedRat.setting, sceneId: "drowned-rat", handMade: "drowned-rat" },
-  heron: { text: heronWarehouse.setting, sceneId: "heron-warehouse", handMade: "heron-warehouse" },
+export const PROMPTS: Record<string, { text: string; sceneId?: string; handMade?: string; cast?: CastMember[] }> = {
+  rat: { text: drownedRat.setting, sceneId: "drowned-rat", handMade: "drowned-rat", cast: drownedRat.cast.map(castMember) },
+  heron: { text: heronWarehouse.setting, sceneId: "heron-warehouse", handMade: "heron-warehouse", cast: heronWarehouse.cast.map(castMember) },
   chandler: { text: "a chandler's shop on the wharves, cluttered with rope and lamp oil" },
   chapel: { text: "a small chapel off the market square, its saint's statue missing a hand" },
   // Unseen: never used while the compiler was being written (--only tannery,watch,bathhouse,stables,bakery).
@@ -59,10 +60,16 @@ interface Record_ {
 }
 
 function draw(key: string, place: ReturnType<typeof compilePlan>): void {
-  const staged = stageCompiled(place);
-  for (const [view, time] of VIEWS) writePicture(picture(staged, view, time), join(out, `${key}-${view}-${time === "afternoon" ? "day" : "night"}.png`));
-  // And top-down, as the look layer's stage draws a scene world, from the dressing the compiler made.
-  writePicture(stagePicture(place, "night", { w: 4 * place.map.width + 4, h: 2 * place.map.height + 2 }), join(out, `${key}-stage-night.png`));
+  // Its people with their own letters while it's drawn, as installPlace would have them.
+  registerPeople(place.id, place.looks);
+  try {
+    const staged = stageCompiled(place);
+    for (const [view, time] of VIEWS) writePicture(picture(staged, view, time), join(out, `${key}-${view}-${time === "afternoon" ? "day" : "night"}.png`));
+    // And top-down, as the look layer's stage draws a scene world, from the dressing the compiler made.
+    writePicture(stagePicture(place, "night", { w: 4 * place.map.width + 4, h: 2 * place.map.height + 2 }), join(out, `${key}-stage-night.png`));
+  } finally {
+    unregisterPeople(place.id);
+  }
 }
 
 async function main(): Promise<void> {
@@ -83,7 +90,7 @@ async function main(): Promise<void> {
       let result: Generated;
       try {
         result = await generatePlace(p.text, {
-          id: `generated-${key}`, ...(p.sceneId ? { sceneId: p.sceneId } : {}), planner,
+          id: `generated-${key}`, ...(p.sceneId ? { sceneId: p.sceneId } : {}), ...(p.cast ? { cast: p.cast } : {}), planner,
           onRound: (r, i) => {
             writeFileSync(join(dir, `plan-${i}.json`), JSON.stringify(r.plan, null, 1));
             writeFileSync(join(dir, `problems-${i}.txt`), r.problems.map(x => `[${x.severity}] ${x.check} ${x.subject}: ${x.message}`).join("\n") + "\n");
@@ -142,7 +149,7 @@ function redraw(): void {
       const plan = JSON.parse(readFileSync(join(dir, f), "utf8")) as PlacePlan;
       if (!plan.rooms) continue;
       const prompt = PROMPTS[key.replace(/-\d+$/, "")]!;
-      const place = compilePlan(plan, { id: `generated-${key}`, ...(prompt.sceneId ? { sceneId: prompt.sceneId } : {}) });
+      const place = compilePlan(plan, { id: `generated-${key}`, ...(prompt.sceneId ? { sceneId: prompt.sceneId } : {}), ...(prompt.cast ? { cast: prompt.cast } : {}) });
       const problems = validate(place);
       const errors = errorsOf(problems).length;
       if (!best || errors <= best.errors) best = { place, errors, problems };

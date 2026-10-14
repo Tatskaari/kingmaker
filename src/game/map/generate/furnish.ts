@@ -1,7 +1,7 @@
 import type { Tile2 } from "../../types.ts";
 import type { Entity } from "../../../world/scene-world.ts";
 import { isCrowd } from "../looks.ts";
-import { liftOf as drawnLift } from "./camera.ts";
+import { liftOf as drawnLift, rowsOf as thingRows } from "./camera.ts";
 import { tile, type MapTile } from "../tiles.ts";
 import { TERRAIN_NAMES, type Problem } from "./normalize.ts";
 import { dir } from "./orient.ts";
@@ -283,12 +283,18 @@ export function furnish(site: Site, plan: PlacePlan): Furnished {
     return ts.some(p => near8(p).some(n => !own.has(tkey(n)) && reached.has(tkey(n)) && !blocked.has(tkey(n))));
   };
   // Where each thing and person is drawn on screen: column x + y, row y - x - lift (render.ts's
-  // projection). One to a cell, or one hides the other: a lantern hung two rows up is drawn on the
-  // cell of the square behind it (north-east), a hoist beam four rows up on the next one again.
-  const drawn = new Map<string, string>();
-  const cellOf = (p: Tile2, lift = 0) => `${p.x + p.y},${p.y - p.x - lift}`;
-  const clearCells = (ts: Tile2[], lift: number) => ts.every(p => !drawn.has(cellOf(p, lift)));
-  const draw = (ts: Tile2[], lift: number, id: string) => { for (const p of ts) drawn.set(cellOf(p, lift), id); };
+  // projection), and what else it paints above (a hanging lantern's rope, a stack's top, a fire's
+  // flame). Nobody's own cell is painted by anything else, or one hides the other: a lantern hung
+  // three rows up is drawn on the cell of the square behind it (north-east), its rope on the next.
+  const own = new Map<string, string>(), paint = new Map<string, string>();
+  const cellOf = (p: Tile2, row = 0) => `${p.x + p.y},${p.y - p.x - row}`;
+  const clearCells = (ts: Tile2[], rows: number[]) => ts.every(p => (!rows.length || !paint.has(cellOf(p, rows[0]!))) && rows.every(r => !own.has(cellOf(p, r))));
+  const draw = (ts: Tile2[], rows: number[], id: string) => {
+    for (const p of ts) {
+      if (rows.length) own.set(cellOf(p, rows[0]!), id);
+      for (const r of rows) paint.set(cellOf(p, r), id);
+    }
+  };
   /** Every placed thing still has a free square beside it (a new blocker mustn't wall one in). */
   const stillReachable = (extra: Tile2[]) => {
     const now = new Set(extra.map(tkey));
@@ -318,13 +324,15 @@ export function furnish(site: Site, plan: PlacePlan): Furnished {
     const run = !aloft && !huge && !small && t.tiles >= 2;
     const length = huge ? 3 : run ? Math.min(t.tiles, Math.max(2, Math.max(area.bbox.w, area.bbox.h) - 2)) : 1;
     const blocks = run || (!aloft && t.kind !== "item" && t.kind !== "crowd" && BIG.has(t.size));
+    // What the renderer paints for it, rows up from its square's cell (a run of low wall is terrain, not drawn as a thing).
+    const rows = run ? [] : thingRows({ id: t.id, name: t.name, kind: as, states, ref: t.id, ...(blocks ? { blocks: true } : {}) });
     const counter = run && COUNTER.test(t.name) && t.relation === "against";
     const want: Want = { relation: t.relation === "on" || t.relation === "in" || t.relation === "under" ? "centre" : t.relation, wall: t.wall, corner: t.corner, target: t.target, target2: t.target2 };
     const targets = new Set([want.target, want.target2]);
     let options = runsIn(area, length, { aloft });
     if (huge) options = options.filter(ts => spreadsLikeTheMap(ts));
-    // Drawn where nothing else is; a run of low wall is terrain, not drawn as a thing.
-    if (!run) options = options.filter(ts => clearCells(ts, lift));
+    // Drawn where nothing else is, and drawing over nobody.
+    if (!run) options = options.filter(ts => clearCells(ts, rows));
     const scored = options.map(ts => {
       let s = relationScore(ts, want, area, counter);
       if (ts.some(p => hidden(p, area.id, lift))) s -= 60;
@@ -343,7 +351,7 @@ export function furnish(site: Site, plan: PlacePlan): Furnished {
       if (blocks && (cutsOff(ts) || !stillReachable(ts))) continue;
       for (const p of ts) (aloft ? aloftAt : occupied).set(tkey(p), t.id);
       if (!aloft && t.kind === "item") for (const p of ts) items.add(tkey(p));
-      if (!run) draw(ts, lift, t.id);
+      if (!run) draw(ts, rows, t.id);
       if (blocks) { for (const p of ts) blocked.add(tkey(p)); reached = reach(); }
       const anchor = run ? ts[Math.floor((ts.length - 1) / 2)]! : ts[0]!;
       if (run) for (const p of ts) tiles[p.y]![p.x] = tile("fence", { style: /hull|skiff|boat/i.test(t.name) ? "hull" : RUN_STYLE[t.material] ?? "fence", height: 1 });
@@ -389,13 +397,13 @@ export function furnish(site: Site, plan: PlacePlan): Furnished {
   const placePerson = (p: PersonPlan) => {
     const area = site.areas.get(p.in) ?? site.areas.get(startArea)!;
     const want: Want = { relation: p.relation, wall: "none", corner: "none", target: p.target, target2: "" };
-    const scored = area.tiles.filter(q => free(q, area.id, { person: true }) && !blocked.has(tkey(q)) && reached.has(tkey(q)) && clearCells([q], 0))
+    const scored = area.tiles.filter(q => free(q, area.id, { person: true }) && !blocked.has(tkey(q)) && reached.has(tkey(q)) && clearCells([q], [0]))
       .map(q => ({ q, s: relationScore([q], want, area, false) - (hidden(q, area.id) ? 60 : 0) - near8(q).filter(n => peopleAt.has(tkey(n))).length + 0.01 * hashOf(strHash(p.id), q.x, q.y) }))
       .sort((a, b) => b.s - a.s);
     const best = scored[0]?.q;
     if (!best) { problems.push({ check: "fit", subject: p.id, message: `There was no room for ${p.name} in ${area.name}.`, severity: "error" }); return; }
     peopleAt.set(tkey(best), p.id);
-    draw([best], 0, p.id);
+    draw([best], [0], p.id);
     people.set(p.id, { id: p.id, name: p.name, area: area.id, tiles: [best], anchor: best, person: true });
   };
   for (const p of plan.people) placePerson(p);
@@ -422,16 +430,16 @@ export function furnish(site: Site, plan: PlacePlan): Furnished {
   for (const t of plan.things.filter(x => x.kind === "crowd" && x.relation !== "on" && x.relation !== "in" && x.relation !== "under")) {
     const area = site.areas.get(t.in) ?? site.areas.get(startArea)!;
     const want: Want = { relation: t.relation === "overhead" ? "centre" : t.relation, wall: t.wall, corner: t.corner, target: t.target, target2: t.target2 };
-    const scored = area.tiles.filter(q => free(q, area.id, { person: true }) && reached.has(tkey(q)) && clearCells([q], 0))
+    const scored = area.tiles.filter(q => free(q, area.id, { person: true }) && reached.has(tkey(q)) && clearCells([q], [0]))
       .map(q => ({ q, s: relationScore([q], want, area, false) + 0.01 * hashOf(strHash(t.id), q.x, q.y) }))
       .sort((a, b) => b.s - a.s);
     let done = false;
     for (const { q } of scored) {
       const members = membersAt(q, t.name);
       // Every member on clear floor, in sight, off the doorways and off the player's square.
-      if (members.some(m => reserved.has(tkey(m)) || items.has(tkey(m)) || !clearCells([m], 0) || areaAt(m) !== area.id || !reached.has(tkey(m)) || hidden(m, area.id) || tileAt(m)!.terrain === "water")) continue;
+      if (members.some(m => reserved.has(tkey(m)) || items.has(tkey(m)) || !clearCells([m], [0]) || areaAt(m) !== area.id || !reached.has(tkey(m)) || hidden(m, area.id) || tileAt(m)!.terrain === "water")) continue;
       for (const m of members) peopleAt.set(tkey(m), t.id);
-      draw(members, 0, t.id);
+      draw(members, [0], t.id);
       things.set(t.id, { id: t.id, name: t.name, area: area.id, tiles: members, anchor: q, person: true });
       done = true;
       break;

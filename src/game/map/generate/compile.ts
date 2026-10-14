@@ -5,7 +5,8 @@ import { furnish, type Furnished } from "./furnish.ts";
 import { layout, type Rect, type Site } from "./layout.ts";
 import { normalizePlan, type Problem } from "./normalize.ts";
 import { chooseTurn, sayBack, turnPlan, type Turn } from "./orient.ts";
-import type { PlacePlan } from "./plan.ts";
+import { peopleLooks, type PersonLook } from "./people.ts";
+import type { CastMember, PlacePlan } from "./plan.ts";
 
 /**
  * The compiler: a semantic plan in, a place out, deterministically. The plan is cleaned
@@ -20,6 +21,8 @@ export interface CompileOptions {
   id: string;
   /** The scene played here, if any. */
   sceneId?: string;
+  /** The scene's cast: the plan's people take their ids, and those it left out are placed anyway. */
+  cast?: CastMember[];
   /** Where the street leads: exits on the street's edge squares. */
   exitTo?: { map: string; at: Tile2; label?: string };
 }
@@ -35,8 +38,10 @@ export interface CompiledPlace {
   map: TileMap;
   region: PlaceRegion;
   world: WorldSpec;
-  /** The plan's people, as a cast for buildWorld. */
+  /** The plan's people, as a cast for buildWorld (the scene's cast by their ids, and anyone else). */
   cast: Array<{ id: string; name: string }>;
+  /** Letters and colours for the people the game's cast table doesn't know (people.ts registers them). */
+  looks: Record<string, PersonLook>;
   site: Site;
   furnished: Furnished;
   /** What compiling found wrong with the plan (in the plan's compass). */
@@ -51,7 +56,7 @@ export const feetOf = (p: Tile2): [number, number] => [p.x * FEET + 2, p.y * FEE
 const feetRect = (r: Rect) => ({ x: r.x * FEET, y: r.y * FEET, w: r.w * FEET, h: r.h * FEET });
 
 export function compilePlan(raw: PlacePlan, options: CompileOptions): CompiledPlace {
-  const { plan, problems: planProblems } = normalizePlan(raw);
+  const { plan, problems: planProblems } = normalizePlan(raw, options.cast);
   const entrance = plan.doors.find(d => plan.outside.some(o => o.id === d.to) && (d.to === plan.start || d.from === plan.start))?.to
     ?? plan.doors.find(d => plan.outside.some(o => o.id === d.to))?.to ?? plan.start;
   const turn = chooseTurn(plan, entrance);
@@ -118,6 +123,7 @@ export function compilePlan(raw: PlacePlan, options: CompileOptions): CompiledPl
   return {
     id, plan, laid, turn, def: { map, decor: [] }, map, region, world,
     cast: laid.people.map(p => ({ id: p.id, name: p.name })),
+    looks: peopleLooks(laid.people),
     site, furnished, problems, notes: [...site.notes, ...furnished.notes].map(n => sayBack(turn, n)),
   };
 }
