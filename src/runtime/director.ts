@@ -233,6 +233,11 @@ async function mechanicDetails(decider: Decider, scene: Scene, state: SessionSta
     const target = decision.answers.feature_for?.choice;
     return feature ? { mechanic: { kind: "feature", feature: feature.id, ...(feature.target === "creature" && target && target !== "nobody" ? { target } : {}) }, decision } : { decision };
   }
+  // No spells at all: whatever they reach for isn't theirs (no call needed for which).
+  if (kind === "cast" && !rules.spells.length) {
+    const decision = Object.keys(extra).length ? await decider.decide(decisionState(scene, state, playerTurn), extra, "director.mechanic") : { answers: {}, latencyMs: 0, costUsd: 0, decider: decider.name };
+    return { mechanic: { kind: "cast", spell: "not_theirs", targets: [] }, decision };
+  }
   const things = rules.things ?? [];
   const q: Record<string, ChoiceQuestion> = { ...extra };
   if (kind === "cast") {
@@ -465,7 +470,8 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
     questions.mechanic = {
       instructions: `Is the player, in their latest turn, doing one of these things the game's rules resolve? (In a turn, ${READ_TURN}.)`,
       criteria: {
-        ...(options.rules.spells.length ? { cast: "Casting a spell now (naming a spell, or plainly working new magic). Not using what a spell already running gives them (seeing through a familiar's eyes, keeping up an illusion, a light already lit)." } : {}),
+        // Offered to everyone: a character without magic who tries it gets the rules' "it doesn't come", not a fireball.
+        cast: "Casting a spell now (naming a spell, or plainly working new magic). Not using what a spell already running gives them (seeing through a familiar's eyes, keeping up an illusion, a light already lit).",
         attack: "Attacking someone or something right now, to hurt a person or break a thing: a blow, a stab, a punch, a kick, a shot or a thrown weapon. Threats, grabs, shoves and drawing a weapon aren't attacks, and nor is tossing something to someone or working on something in hand.",
         grapple: "Grabbing hold of someone to hold or restrain them against their will (a grapple, a headlock, pinning them).",
         shove: "Shoving someone who'd resist: to knock them down, or push them back or away.",
