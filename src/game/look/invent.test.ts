@@ -110,3 +110,23 @@ test("when the model fails or is off, the guess stands and nothing breaks", asyn
     assert.equal(await flushInventions(), 0);
   } finally { box.done(); }
 });
+
+test("inventing now: a caller that counts its model calls gets the looks at once and what they cost", async () => {
+  const box = sandbox();
+  const model = fakeModel();
+  setInventor(model.inventor);
+  const { inventNow } = await import("./invent.ts");
+  try {
+    // Asked about (a render queued it), then invented now: one call, not two.
+    describeLook({ name: "a sackbut", kind: "item" });
+    const spend = await inventNow([{ key: "sackbut", name: "a sackbut", kind: "item" }, { key: "marzipan", name: "some marzipan", kind: "item" }, { key: "sackbut", name: "the sackbut", kind: "item" }]);
+    assert.equal(spend.calls, 1);
+    assert.equal(spend.landed, 2);
+    assert.ok(spend.ms >= 0);
+    await flushInventions();
+    assert.equal(model.asked.length, 1, "the queue doesn't ask again");
+    assert.equal(describeLook({ name: "a sackbut", kind: "item" }).source, "cache");
+    // Cached: nothing to do, nothing spent.
+    assert.deepEqual(await inventNow([{ key: "sackbut", name: "a sackbut" }]), { landed: 0, calls: 0, costUsd: 0, ms: 0 });
+  } finally { box.done(); }
+});

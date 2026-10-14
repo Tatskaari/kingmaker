@@ -36,7 +36,7 @@ export interface ParsedName {
 }
 
 const GROUP = new Set(["flock", "crowd", "swarm", "pack", "herd", "gang", "mob", "throng", "band", "troupe", "school", "colony", "murder", "parliament", "knot", "party", "posse", "gaggle", "litter", "brood", "drove", "host", "horde", "rabble", "family", "clutch", "bevy", "covey", "skein"]);
-const PILE = new Set(["pile", "heap", "stack", "handful", "fistful", "bundle", "bunch", "scattering", "armful", "pair", "brace", "set", "couple", "lot", "load", "mound", "drift", "litter", "string", "row", "line", "ring", "basketful", "sackful", "bagful", "pocketful", "few"]);
+const PILE = new Set(["pile", "heap", "stack", "tangle", "cluster", "bank", "handful", "fistful", "bundle", "bunch", "scattering", "armful", "pair", "brace", "set", "couple", "lot", "load", "mound", "drift", "litter", "string", "row", "line", "ring", "basketful", "sackful", "bagful", "pocketful", "few"]);
 const SURFACE = new Set(["puddle", "pool", "slick", "spill", "splash", "stain", "smear", "trail", "patch", "film", "sheet", "cloud", "plume", "puff", "column", "wisp", "haze", "pall", "spatter", "splatter", "slop", "drift", "layer", "carpet", "blanket"]);
 /** "a stub of candle", "a wheel of cheese": the look is the stuff, not the measure of it. */
 const PART = new Set(["stub", "end", "scrap", "slice", "piece", "bit", "lump", "chunk", "shard", "sliver", "drop", "sip", "swig", "length", "coil", "roll", "bolt", "loaf", "wheel", "side", "sprig", "lock", "strip", "splinter", "fragment", "crumb", "morsel", "wedge", "hunk", "knob", "dab", "dash", "pinch", "speck", "fleck", "ball", "twist", "wad", "tuft", "stalk", "ear", "clump", "clod", "bar", "ingot", "nugget", "leg", "joint", "rasher", "round", "quarter", "half", "spoonful", "mouthful", "dollop", "smidgen", "trace", "whiff", "gust", "shower", "rain", "hail", "storm", "spray", "jet", "spurt", "trickle", "stream", "quantity", "amount", "portion", "helping", "serving", "measure", "dose", "batch", "supply", "share", "kind", "sort", "type", "variety"]);
@@ -95,7 +95,7 @@ export function singular(word: string): string {
   return word;
 }
 
-const CLAUSE = /\s+(with|that|which|who|whose|marked|stamped|sewn|labelled|labeled|bearing|holding|containing|from|behind|under|beneath|beside|near|by|on|upon|in|inside|at|for|belonging|to|over|against|left|lying|hung|where|while|as|going|coming|walking|running|sitting|standing|waiting|sleeping|playing|drinking|singing|dancing|watching|carrying|pushing|pulling|leaning|looking|circling|flying|swimming|perched|perching|roosting|nesting|clustered|gathered|huddled|crowded|piled|stacked|scattered|strewn|floating|drifting|rising|spreading|pooling)\b.*$/;
+const CLAUSE = /\s+(with|that|which|who|whose|marked|stamped|sewn|labelled|labeled|bearing|showing|depicting|announcing|advertising|proclaiming|holding|containing|from|behind|under|beneath|beside|near|by|on|upon|in|inside|at|for|belonging|to|over|against|left|lying|hung|where|while|as|going|coming|walking|running|sitting|standing|waiting|sleeping|playing|drinking|singing|dancing|watching|carrying|pushing|pulling|leaning|looking|circling|flying|swimming|perched|perching|roosting|nesting|clustered|gathered|huddled|crowded|piled|stacked|scattered|strewn|floating|drifting|rising|spreading|pooling)\b.*$/;
 
 export function parseName(name: string): ParsedName {
   let s = name.toLowerCase().replace(/[“”"«»]/g, "").replace(/\(.*?\)/g, " ").replace(/[,;:].*$/, "").replace(/\s+/g, " ").trim();
@@ -120,7 +120,8 @@ export function parseName(name: string): ParsedName {
   // "an oil slick", "a blood stain", "spilled gin": the surface word after (or the adjective before) the stuff.
   let words = s.split(" ").filter(Boolean);
   const last = words.at(-1) ?? "";
-  if (!surface && words.length >= 2 && SURFACE.has(singular(last))) { surface = singular(last); words = words.slice(0, -1); }
+  // Not a pool: "a plunge pool", "the fish pool" are pools (what's in a pool comes after "of").
+  if (!surface && words.length >= 2 && SURFACE.has(singular(last)) && singular(last) !== "pool") { surface = singular(last); words = words.slice(0, -1); }
   const states: string[] = [];
   const colors: string[] = [];
   const kept: string[] = [];

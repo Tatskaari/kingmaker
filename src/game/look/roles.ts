@@ -77,7 +77,9 @@ function r(id: string, words: string, ascii: string, fg: string, opts: Opts & { 
 // Fire and light. (Before furniture: "a fire" isn't a fireplace, "a torch" isn't a stick.)
 const FIRE_LIGHT: LightSpec = { radius: 22, color: "#ff9a3c", intensity: 1.15, flicker: 0.35, when: "always" };
 r("fire", "fire|bonfire|campfire|blaze|flame|flames|inferno|pyre|conflagration|firepit|fire-pit", "▲", P.orange, { nerd: "fire", plain: "^", motion: "flicker", light: FIRE_LIGHT, states: ["lit"], stamp: "hearth", footprint: [5, 4] });
-r("hearth", "hearth|fireplace|grate|stove|oven|forge|kiln|range|chimney-piece|inglenook", "▲", P.orange, { nerd: "fireplace", plain: "^", motion: "flicker", light: { ...FIRE_LIGHT, when: "lit" }, stamp: "hearth", footprint: [6, 4], material: "stone" });
+r("hearth", "hearth|fireplace|grate|forge|chimney-piece|inglenook", "▲", P.orange, { nerd: "fireplace", plain: "^", motion: "flicker", light: { ...FIRE_LIGHT, when: "lit" }, stamp: "hearth", footprint: [6, 4], material: "stone" });
+// An oven or a stove is a brick or iron box with the fire inside it: a warm dome, not a blaze.
+r("oven", "oven|stove|kiln|range|furnace|bread-oven|cookstove|cooking-range", "∩", "#c8643a", { plain: "n", motion: "pulse", light: { radius: 10, color: "#ff8a3c", intensity: 0.7, flicker: 0.12, when: "lit" }, stamp: "hearth", footprint: [6, 4], material: "stone" });
 r("brazier", "brazier|firebasket|fire-basket|cresset|firebowl", "¥", P.iron, { nerd: "campfire", plain: "Y", motion: "flicker", light: { radius: 18, color: "#ffa040", intensity: 1.05, flicker: 0.3, when: "lit" }, material: "iron" });
 r("torch", "torch|firebrand|brand|link|flambeau|rushlight", "¡", P.walnut, { nerd: "torch", plain: "i", motion: "flicker", light: { radius: 15, color: "#ffa448", intensity: 1, flicker: 0.32, when: "lit" }, material: "wood" });
 r("lamp-post", "", "¤", P.brass, { nerd: "oil_lamp", plain: "*", phrase: "lamp post|street lamp|lamp-post|lamppost", motion: "flicker", light: { radius: 18, color: "#ffc070", intensity: 1, flicker: 0.08, when: "lit" }, material: "iron" });
@@ -97,7 +99,7 @@ r("crowd", "crowd|regulars|gang|mob|throng|townsfolk|porters|bargees|onlookers|s
 r("child", "child|kid|boy|girl|urchin|lad|lass|brat|youngster|toddler|baby|infant|waif|scamp|guttersnipe|page|pageboy|squire|apprentice|footboy", "☺", "#e8c890", { nerd: "human_child", plain: "c", being: true });
 r("guard", "guard|watchman|watch|soldier|sergeant|corporal|constable|marshal|sentry|guardsman|captain|officer|bailiff|warden|halberdier|knight", "☻", "#8fa8c8", { nerd: "shield", plain: "g", being: true });
 r("royal", "king|queen|prince|princess|monarch|majesty|duke|duchess|lord|lady|baron|baroness|count|countess|earl", "♔", P.gold, { nerd: "crown", plain: "K", being: true, bold: true });
-r("person", "person|man|woman|fellow|figure|stranger|traveller|traveler|merchant|clerk|landlady|landlord|innkeeper|barmaid|barman|bartender|tapster|porter|bargee|lighterman|docker|thief|cutpurse|beggar|priest|monk|nun|wizard|witch|mage|sorcerer|scholar|cook|maid|servant|valet|butler|herald|minstrel|bard|drunk|drunkard|sailor|fisherman|fishwife|farmer|labourer|smith|blacksmith|carter|ostler|groom|footman|steward|purveyor|official|noble|nobleman|gentleman|gent|hag|crone|old-timer|gossip|regular|patron|customer|thug|bruiser|ruffian|villain|assassin|rogue|bandit|brigand|cultist|pilgrim|healer|physician|surgeon|apothecary|alchemist|tailor|seamstress|washerwoman|lamplighter|watchmaker|baker|butcher|brewer|vintner|miller|chandler|cooper|mason|carpenter|jeweller|banker|moneylender|lawyer|magistrate|judge|jailer|executioner|hangman|gravedigger|undertaker|ratcatcher|chimney-sweep|sweep|crier", "☻", "#c8b89a", { nerd: "account", plain: "p", being: true });
+r("person", "person|man|woman|fellow|figure|stranger|traveller|traveler|merchant|clerk|landlady|landlord|innkeeper|barmaid|barman|bartender|tapster|porter|bargee|lighterman|docker|dockworker|dockhand|stevedore|longshoreman|thief|cutpurse|beggar|priest|monk|nun|wizard|witch|mage|sorcerer|scholar|cook|maid|servant|valet|butler|herald|minstrel|bard|drunk|drunkard|sailor|fisherman|fishwife|farmer|labourer|smith|blacksmith|carter|ostler|groom|footman|steward|purveyor|official|noble|nobleman|gentleman|gent|hag|crone|old-timer|gossip|regular|patron|customer|thug|bruiser|ruffian|villain|assassin|rogue|bandit|brigand|cultist|pilgrim|healer|physician|surgeon|apothecary|alchemist|tailor|seamstress|washerwoman|lamplighter|watchmaker|baker|butcher|brewer|vintner|miller|chandler|cooper|mason|carpenter|jeweller|banker|moneylender|lawyer|magistrate|judge|jailer|executioner|hangman|gravedigger|undertaker|ratcatcher|chimney-sweep|sweep|crier", "☻", "#c8b89a", { nerd: "account", plain: "p", being: true });
 r("body", "body|corpse|cadaver|carcass|remains|dead|deceased|stiff|skeleton-remains", "%", "#b8b0a0", { nerd: "emoticon_dead", plain: "%", material: "flesh" });
 r("ghost", "ghost|spirit|spectre|specter|wraith|phantom|shade|poltergeist|apparition|banshee", "G", "#c8e0ff", { nerd: "ghost", being: true, motion: "pulse", bold: true });
 r("skeleton", "skeleton|skull|bones|bone", "Z", P.bone, { nerd: "skull", being: true });
@@ -191,18 +193,18 @@ r("net", "net|nets|trap|traps|snare|snares|eel-trap|lobster-pot|creel|weir", "#"
 
 // Furniture.
 r("hull-bar", "", "▬", "#4a4038", { phrase: "skiff-hull|upturned skiff|upturned boat|boat-hull|hull", plain: "=", footprint: [12, 3], stamp: "hull", material: "wood", bold: true });
-r("table", "table|desk|counter|workbench|bench-table|trestle|bar|sideboard|lectern|altar|board-table|dresser-table|card-table|tally-desk|bureau|escritoire|stall", "π", P.oak, { nerd: "table_furniture", plain: "T", byMaterial: true, footprint: [8, 3], stamp: "top" });
+r("table", "table|desk|counter|workbench|worktable|bench-table|trestle|bar|sideboard|lectern|altar|board-table|dresser-table|card-table|tally-desk|bureau|escritoire|stall", "π", P.oak, { nerd: "table_furniture", plain: "T", byMaterial: true, footprint: [8, 3], stamp: "top" });
 r("armchair", "armchair|throne|chair-of-state|settle|sofa|couch|chaise|wingchair|seat-of-honour", "╥", "#b07a3a", { nerd: "sofa_single", plain: "h", byMaterial: true, bold: true });
-r("chair", "chair|stool|seat|pew-chair|rocking-chair|footstool|cushion|hassock|ottoman", "╥", P.oak, { nerd: "seat", plain: "h", byMaterial: true });
+r("chair", "chair|stool|seat|pew-chair|rocking-chair|footstool|cushion|hassock|ottoman|kneeler", "╥", P.oak, { nerd: "seat", plain: "h", byMaterial: true });
 r("bench", "bench|pew|form", "═", "#8a6038", { plain: "=", byMaterial: true, footprint: [8, 1.5], stamp: "bench" });
 r("bed", "bed|cot|bunk|hammock|pallet|mattress|cradle|berth|four-poster|truckle", "Θ", "#a85a5a", { nerd: "bed", plain: "0", footprint: [4, 7], stamp: "bed" });
 r("wardrobe", "wardrobe|cupboard|cabinet|armoire|closet|press|dresser|chest-of-drawers|tallboy|bookcase|shelf|shelves|rack|cabinetry|dresser-unit", "▓", "#5e3e24", { nerd: "wardrobe", plain: "#", byMaterial: false, footprint: [6, 2.5], stamp: "block" });
 r("chest", "chest|trunk|coffer|strongbox|footlocker|casket|lockbox|ark|kist|safe|money-box|cashbox|reliquary", "⌂", "#b0803a", { nerd: "treasure_chest", plain: "=", material: "wood" });
-r("crate", "crate|box|case|package|parcel|packing-case|tea-chest|coffin-box|bale|bundle", "■", "#a07a4a", { nerd: "package_variant_closed", plain: "#", byMaterial: true });
+r("crate", "crate|box|case|package|parcel|packing-case|tea-chest|coffin-box|bale|bundle|tin|can|canister|caddy", "■", "#a07a4a", { nerd: "package_variant_closed", plain: "#", byMaterial: true });
 r("sack", "sack|bag|satchel|pouch|knapsack|pack|rucksack|haversack|purse|sporran|valise|portmanteau|holdall|saddlebag|grain-sack", "δ", P.sacking, { nerd: "sack", plain: "s", byMaterial: true });
-r("grain", "grain|wheat|barley|oats|rye|corn|flour|meal|malt|chaff|seed|seeds|hay|straw|fodder|haystack|hay-bale|stack|stacks|sheaf|sheaves", "▒", P.straw, { nerd: "barley", plain: ":", footprint: [8, 6], stamp: "stack" });
+r("grain", "grain|wheat|barley|oats|rye|corn|flour|meal|malt|chaff|seed|seeds|hay|straw|fodder|haystack|hay-bale|stack|stacks|sheaf|sheaves", "▒", P.straw, { nerd: "barley", plain: ":", phrase: "hay bale|straw bale|bale of hay|bale of straw", footprint: [8, 6], stamp: "stack" });
 r("barrel", "barrel|keg|cask|tun|vat|butt|hogshead|firkin|puncheon|rain-barrel|water-butt|drum", "Ö", "#9a6a3a", { nerd: "barrel", plain: "O", byMaterial: true });
-r("bucket", "bucket|pail|tub|trough|basin|washtub|bathtub|bath|cistern|font", "Ü", P.walnut, { nerd: "bucket", plain: "U", byMaterial: true });
+r("bucket", "bucket|pail|tub|trough|basin|washtub|bathtub|bath|cistern|font|sink", "Ü", P.walnut, { nerd: "bucket", plain: "U", byMaterial: true });
 r("basket", "basket|hamper|creel-basket|pannier|trug|punnet|crib|manger", "Ü", "#c8a060", { nerd: "basket", plain: "U" });
 r("pot", "pot|pots|kettle|cauldron|pan|skillet|saucepan|stockpot|wok|griddle|crock|stewpot", "ö", P.iron, { nerd: "pot", plain: "o", material: "iron" });
 r("teapot", "teapot|coffeepot|samovar|urn|tea-urn", "ö", P.silver, { nerd: "kettle", plain: "o", material: "silver" });
@@ -226,7 +228,7 @@ r("grave", "grave|tombstone|headstone|gravestone|tomb|crypt|memorial", "∩", P.
 
 // Clothes.
 r("robes", "robe|robes|gown|vestments|cope|mantle|ermine|regalia|finery", "[", P.royal, { nerd: "hanger", plain: "[", material: "cloth" });
-r("clothing", "cloak|coat|jacket|shirt|tunic|dress|apron|smock|jerkin|doublet|breeches|trousers|hose|stockings|scarf|shawl|blanket|rug|cloth|sheet|towel|rag|rags|handkerchief|kerchief|glove|gloves|belt|sash|uniform|livery|cape|hood|veil|wig|clothes|laundry|washing|tablecloth|curtain|curtains|tapestry|drape|drapes|bedding|quilt", "[", "#b8a888", { nerd: "hanger", plain: "[", byMaterial: true, material: "cloth" });
+r("clothing", "cloak|coat|jacket|shirt|tunic|dress|apron|smock|jerkin|doublet|breeches|trousers|hose|stockings|scarf|shawl|blanket|rug|cloth|sheet|towel|rag|rags|handkerchief|kerchief|glove|gloves|belt|sash|uniform|livery|cape|hood|veil|wig|clothes|laundry|washing|tablecloth|curtain|curtains|tapestry|drape|drapes|bedding|quilt|mat|doormat", "[", "#b8a888", { nerd: "hanger", plain: "[", byMaterial: true, material: "cloth" });
 r("hat", "hat|cap|bonnet|tricorn|bicorne|beret|helm-cap|mitre|fez|turban|hood-hat|wizard-hat|top-hat|bowler", "ⁿ", "#6a5a8a", { nerd: "hat_fedora", plain: "n" });
 r("boots", "boot|boots|shoe|shoes|clog|clogs|slipper|slippers|sandal|sandals|galoshes|footwear", "⌡", "#4a3a30", { nerd: "shoe_formal", plain: "j", material: "leather" });
 r("spectacles", "spectacles|glasses|monocle|lens|lenses|eyeglasses|pince-nez|goggles|telescope|spyglass", "∞", "#c8d8e8", { nerd: "glasses", plain: "8", material: "glass", motion: "shimmer" });
@@ -242,11 +244,13 @@ r("pillar", "pillar|column|post|pole|stake|mast|pile-post|bollard|mooring-post|g
 r("beam", "beam|hoist|pulley|crane|gibbet|gallows|winch|windlass|derrick|yardarm|joist|rafter|lintel", "╤", "#8a6a48", { plain: "T", material: "wood" });
 r("cleat", "cleat|hook-cleat|bracket|peg|nail|nails|hinge|bolt-lock|latch|hasp|ring-bolt", "¬", P.iron, { plain: "-", material: "iron" });
 r("passage", "passage|hole|gap|crack|crevice|tunnel|burrow|crawlway|loose-board|panel", "▫", "#2a2420", { plain: ".", bg: "#141010" });
+// A pit is a hole in the ground, whatever's in it ("a lime pit" isn't a lime tree).
+r("pit", "pit|sump|cesspit|cesspool|soakaway|sawpit|tanpit|tan-pit|lime-pit", "▫", "#4a3c2c", { plain: "o", bg: "#16120e" });
 r("plank", "plank|board-plank|timber|beam-plank|log|logs|lumber|stave|staves|board", "▬", "#8a6038", { plain: "=", material: "wood" });
 r("screen", "screen|folding-screen|dressing-screen|room-divider|partition-screen|fire-screen|firescreen", "▒", "#a06a48", { plain: ":", material: "wood" });
 r("chute", "chute|slide|ramp|spout|flume|sluice", "╲", "#8a6a48", { plain: "\\", material: "wood" });
-r("oar", "oar|oars|tiller|rudder|paddle|sweep-oar|punt-pole|quant", "/", "#9a7048", { plain: "/", material: "wood" });
-r("hut", "hut|shed|shack|cabin|kiosk|privy|outhouse|lean-to|sentry-box", "⌂", "#7a6048", { plain: "n", phrase: "sentry box|watch box|watchman's box", material: "wood" });
+r("oar", "oar|oars|tiller|rudder|paddle|sweep-oar|punt-pole|quant|peel", "/", "#9a7048", { plain: "/", material: "wood" });
+r("hut", "hut|shed|shack|cabin|kiosk|privy|outhouse|lean-to|sentry-box|counting-box|tollbooth", "⌂", "#7a6048", { plain: "n", phrase: "sentry box|watch box|watchman's box", material: "wood" });
 
 // Nature.
 r("tree", "tree|elm|oak|ash-tree|willow|beech|birch|chestnut-tree|plane|sycamore|lime|alder|hawthorn|rowan|apple-tree|pear-tree|cherry-tree|poplar|maple|hornbeam|sapling|treetop", "♣", "#3f7a2e", { nerd: "tree", plain: "T", motion: "sway", footprint: [11, 11], stamp: "canopy", material: "wood" });
@@ -314,6 +318,9 @@ export function matchRole(parsed: ParsedName, tags: readonly string[] = [], kind
   for (const rules of kind ? [narrowed, RULES] : [RULES]) {
     for (const rule of rules) if (rule.phrase && rule.phrase.test(parsed.phrase)) return { role: rule.role, how: "phrase" };
     for (const rule of rules) if (rule.head && rule.head.test(parsed.head)) return { role: rule.role, how: "head" };
+    // A compound's last part is what it is ("a rope-counter" is a counter, "a hide-stretching frame" isn't hide).
+    const tail = parsed.head.includes("-") ? singular(parsed.head.split("-").at(-1)!) : "";
+    if (tail) for (const rule of rules) if (rule.head && rule.head.test(tail)) return { role: rule.role, how: "head" };
     // The phrase's other words, last first ("grain stacks": grain; "gutter stones": stones).
     const words = parsed.phrase.split(" ").reverse().slice(1).map(singular);
     for (const w of words) for (const rule of rules) if (rule.head && rule.head.test(w)) return { role: rule.role, how: "phrase" };

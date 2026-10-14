@@ -82,6 +82,30 @@ test("the rules read what things are", () => {
   assert.equal(lookOf(w.entities.player!).glyph, "@");
 });
 
+test("names the rules used to misread, from generated places", () => {
+  const look = (name: string, kind = "object") => describeLook({ name, kind });
+  // An oven is a warm dome, not a blaze; its peel is a paddle; a lime pit is a pit, not a lime tree.
+  assert.equal(look("the brick oven").role, "oven");
+  assert.notEqual(look("the brick oven").ascii, look("a driftwood fire").ascii);
+  assert.equal(look("a squat stone stove").role, "oven");
+  assert.equal(look("a wooden oven peel").role, "oar");
+  assert.equal(look("a lime pit").role, "pit");
+  // A sign showing a lamp is a sign; tins of oil aren't oil; a plunge pool is a pool; a rope-counter is a counter.
+  assert.equal(look("a sign showing a lamp and a length of rope").role, "sign");
+  assert.equal(look("a stack of oil tins").role, "crate");
+  assert.equal(look("the cold plunge pool").role, "puddle");
+  assert.equal(look("the rope-counter").role, "table");
+  assert.equal(look("a stack of hay bales").role, "grain");
+  // People with names of their own are themselves (an initial), not their surnames; crowds and royalty stay.
+  assert.equal(look("Dilly Sparrow", "person").ascii, "D");
+  assert.equal(look("Mara Wick", "person").ascii, "M");
+  assert.equal(look("Captain Brine", "person").ascii, "B");
+  assert.equal(look("the biggest man in the room", "person").role, "person");
+  assert.equal(look("the Patience's bargees", "person").role, "person");
+  assert.equal(look("Hep Grist's gang", "person").role, "crowd");
+  assert.equal(look("the Queen", "person").role, "royal");
+});
+
 test("states change the look: burning, burnt out, wet, hidden, hanging, lit, open", () => {
   const w = yard();
   const elm = w.entities.elm!;

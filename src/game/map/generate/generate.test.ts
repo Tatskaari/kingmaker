@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+process.env.KM_LOOK_MODEL = "off";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildWorld } from "../../../world/scene-world.ts";

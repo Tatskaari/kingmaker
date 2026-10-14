@@ -2,6 +2,7 @@ import type { Tile2 } from "../../types.ts";
 import { compilePlan, type CompiledPlace } from "./compile.ts";
 import type { Problem } from "./normalize.ts";
 import { modelPlanner, type CastMember, type PlacePlan, type Planner } from "./plan.ts";
+import { inventLooks, type LookSpend } from "./looks.ts";
 import { errorsOf, validate } from "./validate.ts";
 
 /**
@@ -37,8 +38,11 @@ export interface Generated {
   rounds: Round[];
   /** Rounds after the first. */
   repairs: number;
+  /** All of it: the plan's rounds and the looks. */
   ms: number;
   costUsd: number;
+  /** The look layer's model call for the names it didn't know (in ms and costUsd too). */
+  looks?: LookSpend;
 }
 
 export interface GenerateOptions {
@@ -54,6 +58,8 @@ export interface GenerateOptions {
   maxRepairs?: number;
   /** Called after each round, for progress. */
   onRound?: (round: Round, index: number) => void;
+  /** Ask the look layer's model for the looks it doesn't have yet, before the place is shown (default true). */
+  looks?: boolean;
 }
 
 /** How many problems to send back in one repair: the first are the ones that matter most. */
@@ -107,8 +113,10 @@ export async function generatePlace(text: string, options: GenerateOptions): Pro
     previous = place.plan;
   }
 
+  // The looks the place still needs (a brick oven nobody has drawn before), before it's shown.
+  const looks = best && options.looks !== false ? await inventLooks(best.place) : undefined;
   const ms = performance.now() - started;
-  const costUsd = rounds.reduce((n, r) => n + r.costUsd, 0);
+  const costUsd = rounds.reduce((n, r) => n + r.costUsd, 0) + (looks?.costUsd ?? 0);
   return {
     ok: !!best && best.errors === 0,
     ...(best ? { place: best.place } : {}),
@@ -117,5 +125,6 @@ export async function generatePlace(text: string, options: GenerateOptions): Pro
     repairs: Math.max(0, rounds.length - 1),
     ms,
     costUsd,
+    ...(looks ? { looks } : {}),
   };
 }
