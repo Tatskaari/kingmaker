@@ -159,7 +159,7 @@ Eval: `pc-ox-eulogy-first`.
 
 ### F6. Straight, turns 4–6: Hester's plea three times running
 
-**What happened.** During the standoff (Gubbin waking, Snikkit's knife out), Hester said "I must reach the Saltmere delegation in Caerwyn before the Assembly opens… I would rather not walk there barefoot and alone" at t4. At t5: "Wren, I must reach the Saltmere delegation in Caerwyn before the Assembly opens. I would prefer not to make the journey barefoot and alone." At t6: "…or walk the King's Road barefoot and alone." It came back at t10 and t13. The player: "The frightened hostage read like a quest-giver stuck on a loop… at exactly the moment it mattered most."
+**What happened.** During the standoff (Gubbin waking, Snikkit's knife out), Hester said "I must reach the Saltmere delegation in Caerwyn before the Assembly opens… I would rather not walk there barefoot and alone" at t4. At t5: "Wren, I must reach the Saltmere delegation in Caerwyn before the Assembly opens. I would prefer not to make the journey barefoot and alone." At t6: "…or walk the King's Road barefoot and alone." Her Assembly deadline came back at t10 and t13. The player: "The frightened hostage read like a quest-giver stuck on a loop… at exactly the moment it mattered most."
 
 **Category.** Drag: rung 1 (her needs) replayed during rung 4.
 
@@ -194,7 +194,9 @@ Eval: `pc-snikkit-price`.
 
 **What happened.** The player blocks the gate: "Open the hand first." An Intimidation success: "Moll's fist opens. A silver crown clatters across the cobbles… Cob's stones slip from his hands. He breaks into sobs and, between them, tells you: last night, in the loft, Prout argued with Silvertop and a big man whose hand was bandaged. Then came a thump, a choking noise—and the hoist creaked." Then Moll pleads. The player: "the one place where pacing turned into an info-dump."
 
-**Category.** Info dump, authored. The doubt-beat `scare-kids` success reads: "They crack under it. Cob sobs out what he saw (Silvertop and the big man with the bandaged hand); Moll flings down her silver crown". The GM followed its prep.
+**Category.** Info dump, authored. The GM followed its prep.
+
+**What the prep said.** The doubt-beat `scare-kids` success reads: "They crack under it. Cob sobs out what he saw (Silvertop and the big man with the bandaged hand); Moll flings down her silver crown". So one roll against one child's fist opens both children's secrets.
 
 **Well paced.** The pressure was on Moll's fist. The coin comes out, Moll is furious, and Cob is visibly at breaking point but not yet talking. Prep fix: one success line per holder.
 
@@ -251,7 +253,11 @@ Eval: `pc-case-lands`.
 - **t42:** the player lays out Sallow's case (the order, the key, the coin, Cob's account). Kell: "Silvertop is not yet a name, investigator… If you know Silvertop's proper name, give it to me." Tull can't swear to the cane, and Cob can't point at a man he's never seen named.
 - **t45:** "Kell has written murder by persons unknown. The case remains open." The scene never ended.
 
-**Category.** Fizzle: rung 5 never arrives. This is the opposite of F1. The scene's own ending accepts "the kids' 'Silvertop', or just 'the Purveyor's man'", and the evidence was in hand.
+**Category.** Fizzle: rung 5 never arrives. This is the opposite of F1.
+
+**What the prep said.**
+- Moll's secret includes the name: the big man "called him 'Master Sallow'".
+- The `make-case` ending accepts "the kids' 'Silvertop', or just 'the Purveyor's man'", backed by something found here. By t42 the page, the order and the coin were all in hand.
 
 **Well paced.** At t13 Moll's crack includes the name she heard. Or at t42, with Moll standing right there, she supplies it ("His mate called him Master Sallow"), or Kell accepts "the Purveyor's man". Either way the climax lands.
 
@@ -324,6 +330,11 @@ Eval: `pc-ward-moment`.
 
 **Category.** Rushed by the scene closing: a new rung 2 opened, then cut off.
 
+**What the prep said.**
+- garrows-toll's `tam-was-right` closing leaves "where the party goes… theirs to choose", but the scene has no `next`.
+- blocked-entrance's cart beat is "the heart of the scene… Let the people argue among themselves a little". Its authored charm route is Arcana at DC 15.
+- warren-hostage's freed beat has a `press-hester` route for exactly this question (Persuasion, DC 13). Its success: she "decides they've earned it, and tells them in confidence".
+
 **Well paced.** Hold the threshold for one more exchange when the reply has just opened a person in danger or a promised answer. Or deliver the answer as the parting hook.
 
 These are mostly structural (endings fire as soon as the matter is settled, and some scenes have no `next`), so there are no reply cases for them.
@@ -387,7 +398,7 @@ These are mostly structural (endings fire as soon as the matter is settled, and 
 5. **Closings fed the wrong material.** The wind-down gets the authored closing (written as a list of events), stale co-GM notes and "a few sentences", but no list of what has already been narrated. So it re-tells and summarises (F14). Dice-decided endings used to close in the same reply (F13, since fixed). A tracker misfire can open the wind-down early (`ab-ward-petition`).
 6. **Over-gating at the other end.** "Secrets need a reason" and "Kell tests it with questions" get read as licence to keep holding after the player has done the work: terms met (F3), the case made (F10), the evidence in hand (F11). In the smoke run, the fresh co-GM review guarded a failed roll ("Don't let the failed check reveal the page… otherwise leave the clue where it is"), and the GM stopped with the boot in Cob's hands and the page still sewn in. A pacing fix that only slows reveals down would make these worse, which is why four of the ten eval cases demand delivery.
 
-**Hypotheses to try (not yet tested):**
+**Hypotheses to try (not yet tested).** The mechanisms themselves (a revelation list, staged secrets, authored tells) are designed in [pacing.md](pacing.md). These are what the transcripts point at:
 - One revelation per reply: the one the player's action earned. Anything else in the same secret waits for the next exchange.
 - A reveal has three parts: the information, a reaction (cost, emotion or consequence), and the moment handed back.
 - Split bundled secrets in prep (paymaster, name, coin), and write success lines as the outcome: "she cracks and admits she was paid".
