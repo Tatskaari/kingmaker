@@ -48,7 +48,7 @@ async function discloseScope(scene: Scene, state: SessionState, scope: Scope, pl
   let frontier = [...scope.initial, ...[...already].map(p => readDoc(state.id, p)).filter((d): d is Doc => !!d)];
   for (let round = 0; round < MAX_ROUNDS && frontier.length; round++) {
     const candidates = [...new Map(frontier.flatMap(d => linksIn(state.id, d)).map(l => [l.path, l])).values()]
-      .filter(l => !already.has(l.path) && !scope.initial.some(d => d.path === l.path))
+      .filter(l => !already.has(l.path) && !scope.initial.some(d => d.path === l.path) && !state.memory?.withheld?.includes(l.path))
       .filter(l => { const d = readDoc(state.id, l.path); return !!d && permitted(d, scope.id); });
     if (!candidates.length) break;
     const result = await askJev(scene, state, scope, playerTurn, candidates, decider);
@@ -93,6 +93,11 @@ async function askJev(scene: Scene, state: SessionState, scope: Scope, playerTur
 
 export function keepOpened(state: SessionState, notes: OpenedNote[]): void {
   state.memory = { ...(state.memory ?? {}), opened: [...opened(state), ...notes.map(({ p, ...n }) => { void p; return n; })].slice(-MAX_OPEN) };
+}
+
+/** Keep a note out of this scene however relevant it gets (closed again if it was open). */
+export function withhold(state: SessionState, path: string): void {
+  state.memory = { ...(state.memory ?? { opened: [] }), opened: opened(state).filter(n => n.path !== path), withheld: [...new Set([...(state.memory?.withheld ?? []), path])] };
 }
 
 /** A note worth restarting the reply for: clearly about this moment (the speculative reply is otherwise kept). */

@@ -64,14 +64,43 @@ export interface TurnMetric {
   calls: number;
 }
 
-/** Changes the background repair agent made to the scene graph, kept separate from authored data. */
+/** Changes made to the scene's prep during play (the co-GM's, a talk's), kept separate from authored data. */
 export interface ScenePatch {
   turn: number;
   /** Improvised beat bridging back to the authored ones. */
   beat?: Beat;
   /** Extra transition on an existing beat (e.g. letting the player's approach count). */
   transition?: { beat: string; transition: Transition };
+  /** What someone is keeping back now, in place of their card's secrets (a talk's one thing to open up about). */
+  cast?: { id: string; secrets: string[] };
   why: string;
+}
+
+/** How far someone has opened up about what they're keeping back (staged secrets): it never goes back. */
+export type Stage = "surface" | "tell" | "stirred" | "torn" | "settled";
+
+/** A companion's talks with the player between scenes (src/runtime/talk.ts), kept for the whole story. */
+export interface TalkRecord {
+  /** How many times the player has stopped for a word with them. */
+  count: number;
+  /** What they've told the player of themselves: each note of their lore once, in the order told. */
+  told: Array<{ note: string; topic: string; turn: number }>;
+  /** How far they'd come with things not yet told, carried to the next talk that turns to them. */
+  stages?: Record<string, Stage>;
+}
+
+/** A talk in progress: the scene the story is heading for is put aside until it's over. */
+export interface TalkState {
+  /** The companion's cast id. */
+  with: string;
+  /** Where and when, as the map has it. */
+  where: string;
+  /** The waiting scene's own state (everything a session doesn't keep across scenes), put back afterwards. */
+  waiting: Partial<SessionState>;
+  /** The one thing they might open up about this time: a note of their lore, what it is, and how they'd remember telling it. */
+  confide?: { note: string; topic: string; what: string; memory: string };
+  /** What the player might say next: the talk's dialogue choices. */
+  suggestions: string[];
 }
 
 export type SceneStatus = "on_track" | "drifting" | "stuck" | "uncovered";
@@ -125,9 +154,13 @@ export interface SessionState {
   /** Essentials a reply has already pointed towards: a nudge is given once, not repeated. */
   hinted?: string[];
   /** Staged secrets: how far each secret-holder has opened up (never goes back). */
-  guard?: Record<string, { stage: "surface" | "tell" | "stirred" | "torn" | "settled"; turn: number }>;
+  guard?: Record<string, { stage: Stage; turn: number }>;
   /** Docs-service memory: notes Jev has opened for this scene (indexes are always in). */
-  memory?: { opened: Array<{ path: string; title: string; scope: string; turn: number }> };
+  memory?: {
+    opened: Array<{ path: string; title: string; scope: string; turn: number }>;
+    /** Notes kept out of this scene however relevant (a talk keeps back what isn't theirs to tell yet). */
+    withheld?: string[];
+  };
   /** Beats whose pressure has already been offered to the GM (it fires once). */
   pressureOffered?: string[];
   /** Characters brought on stage early by play (before their authored entrance beat). */
@@ -168,6 +201,10 @@ export interface SessionState {
   world?: SceneWorld;
   /** What the player carried out of the last scene's world, to carry into the next. */
   carried?: Entity[];
+  /** A word with a companion between scenes, in progress (the scene the story is heading for waits). */
+  talk?: TalkState;
+  /** Each companion's talks with the player so far, by cast id. */
+  talks?: Record<string, TalkRecord>;
   /** Scene chain: previous scenes' exits in this session. */
   history: Array<{
     sceneId: string; exitId: string; summary: string; lastMoments?: string[]; skipped?: Array<{ sceneId: string; why: string }>;

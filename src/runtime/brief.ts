@@ -59,7 +59,12 @@ export function effectiveScene(authored: Scene, patches: ScenePatch[]): Scene {
     const beat = beats.find(b => b.id === patch.transition!.beat);
     if (beat && !beat.transitions.some(t => t.id === patch.transition!.transition.id)) beat.transitions.push(patch.transition.transition);
   }
-  return { ...scene, beats, anytime };
+  // What someone is keeping back now (the latest word on it wins).
+  const cast = !patches.some(p => p.cast) ? scene.cast : scene.cast.map(c => {
+    const amended = patches.filter(p => p.cast?.id === c.id).at(-1)?.cast;
+    return amended ? { ...c, secrets: [...amended.secrets] } : c;
+  });
+  return { ...scene, beats, anytime, cast };
 }
 
 export function currentBeat(scene: Scene, state: SessionState): Beat {
@@ -93,8 +98,12 @@ const TITLES = new Set(["the", "a", "an", "big", "old", "young", "little", "mast
  */
 export function knownCast(scene: Scene, state: SessionState): Set<string> {
   const heard = [scene.hook, ...state.transcript.filter(e => e.kind !== "roll").map(e => e.text)].join("\n");
-  const tokens = (c: Character) => [...c.name.split(/[\s-]+/), ...(c.aka ?? [])].map(t => t.replace(/[^\w']/g, "")).filter(t => t.length >= 3 && !TITLES.has(t.toLowerCase()));
-  return new Set(scene.cast.filter(c => !c.called || tokens(c).some(t => new RegExp(`\\b${t}\\b`).test(heard))).map(c => c.id));
+  return new Set(scene.cast.filter(c => !c.called || nameTokens(c).some(t => new RegExp(`\\b${t}\\b`).test(heard))).map(c => c.id));
+}
+
+/** The parts of someone's names that mean them in text ("Kell", "Agnes"; not "Sergeant"). */
+export function nameTokens(c: Pick<Character, "name" | "aka">): string[] {
+  return [...c.name.split(/[\s-]+/), ...(c.aka ?? [])].map(t => t.replace(/[^\w']/g, "")).filter(t => t.length >= 3 && !TITLES.has(t.toLowerCase()));
 }
 
 /** What to call the cast whose names the player hasn't heard yet. */

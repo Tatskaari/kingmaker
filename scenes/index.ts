@@ -14,6 +14,7 @@ import { kingsMorning } from "./kings-morning.ts";
 import { heronWarehouse } from "./heron-warehouse.ts";
 import { caerwynAfternoon, wharfNight } from "./interludes.ts";
 import { crossroadsHoled, entranceHoled, tollHoled } from "./holed.ts";
+import { talkScene } from "./talk.ts";
 
 export const SCENES: Scene[] = [
   strangerCrossroads, crossroadsAmbush, crossroadsAftermath, crossroadsSituation,
@@ -21,9 +22,12 @@ export const SCENES: Scene[] = [
   crossroadsHoled, entranceHoled, tollHoled,
 ];
 
-/** Scenes as the runtime sees them: authored, plus the built-in "ending of their own". */
+/** Scenes as the runtime sees them: authored (or a talk with a companion), plus the built-in "ending of their own". */
 export function sceneById(id: string): Scene {
-  const scene = SCENES.find(s => s.id === id);
+  const scene = SCENES.find(s => s.id === id) ?? talkScene(id, castCard);
   if (!scene) throw new Error(`Unknown scene ${id}. Known: ${SCENES.map(s => s.id).join(", ")}`);
   return withImprovisedEnding(scene);
 }
+
+/** Someone's card in the authored scenes (a talk takes the rules' stats from it). */
+const castCard = (id: string) => SCENES.flatMap(s => s.cast).find(c => c.id === id);

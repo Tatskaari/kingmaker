@@ -137,6 +137,26 @@ test("the whole arc on foot: the granary, dusk at the Rat, the Heron at night, t
   assert.deepEqual(exploreState(game).story.played, ["hanged-clerk", "drowned-rat", "heron-warehouse", "kings-morning"]);
 });
 
+test("between scenes, talking to someone who walks with you stops for a word with them (a talk), not the story's scene", () => {
+  const { game, session } = newGame();
+  walkToLead(game, session);
+  endScene(game, session);
+  assert.equal(exploreState(game).followers[0]?.id, "kell");
+  assert.ok(town.actions(game, session).some(a => a.id === "talk_kell"), "Kell is there to talk to");
+  const at = { ...exploreState(game).at };
+  const done = town.act(game, session, "talk_kell");
+  assert.deepEqual(done.talk?.with, "kell", done.text);
+  assert.ok(!done.scene, "the story's scene waits");
+  assert.match(done.text, /You go over to Sergeant Kell/);
+  assert.match(done.talk!.where, /Caerwyn, evening$/);
+  assert.deepEqual(exploreState(game).at, at, "Kell is beside you: no walk");
+  assert.equal(game.story.lead, "drowned-rat", "the lead stays the lead");
+  // The app's e does the same.
+  const facing = exploreState(game).followers[0]!.at;
+  exploreState(game).facing = { x: Math.sign(facing.x - at.x), y: Math.sign(facing.y - at.y) };
+  assert.equal(town.act(game, session, "interact").talk?.with, "kell");
+});
+
 test("a scene's place keeps what the scene did to it (leaveScene before the world goes)", () => {
   const { game, session } = newGame();
   walkToLead(game, session);

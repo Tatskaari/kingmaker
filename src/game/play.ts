@@ -1,8 +1,10 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { sceneById } from "../../scenes/index.ts";
+import { FAREWELL } from "../../scenes/talk.ts";
 import { chainScene, createSession, forceEnding, openScene, playerTurn, resumeAfterFight, type TurnHooks } from "../runtime/engine.ts";
 import { afterTurn } from "../runtime/background.ts";
+import { endTalk, leaveTalk, openTalk, startTalk, talkTurn } from "../runtime/talk.ts";
 import { comeTo } from "../rules/dnd.ts";
 import { loadSession, saveSession, sessionDir, snapshotSession, type Entry, type SessionState } from "../runtime/session.ts";
 import type { CombatResult, StoryState } from "./types.ts";
@@ -21,8 +23,13 @@ export type Mode = "explore" | "scene" | "combat" | "end";
 export interface Action {
   /** Stable, readable id the QA agent passes back: "talk_kell", "go_river_stairs", "attack_crake_1". */
   id: string;
+  /** What it does; for "say", the line itself. */
   label: string;
-  kind: "move" | "talk" | "enter" | "travel" | "examine" | "use" | "fight" | "wait";
+  /**
+   * "say": a line the player can say in a scene (a talk's dialogue choices): its label is the line,
+   * and choosing it is the same as saying it.
+   */
+  kind: "move" | "talk" | "enter" | "travel" | "examine" | "use" | "fight" | "wait" | "say";
 }
 
 export interface Observation { mode: Mode; text: string; actions: Action[]; hint?: string }
@@ -46,8 +53,11 @@ export interface Explorer {
   start(game: GameState): void;
   observe(game: GameState, session: SessionState): string;
   actions(game: GameState, session: SessionState): Action[];
-  /** Do it; `scene: true` when it opens the story's lead scene. */
-  act(game: GameState, session: SessionState, id: string): { text: string; scene?: boolean };
+  /**
+   * Do it; `scene: true` when it opens the story's lead scene, `talk` when it stops the player for a
+   * word with someone walking with them (who, and where and when, as the map has it).
+   */
+  act(game: GameState, session: SessionState, id: string): { text: string; scene?: boolean; talk?: { with: string; where: string } };
   /** A scene is opening (walked into, or a summons that came to the player): go into its place. */
   enterScene?(game: GameState, session: SessionState): void;
   /**
@@ -127,7 +137,11 @@ export class Game {
         return { mode: "explore", text: `${recent}${this.explorer.observe(this.state, this.session)}${carrying(this.session)}`, actions: this.explorer.actions(this.state, this.session) };
       case "scene": {
         const scene = sceneById(this.session.sceneId);
-        return { mode: "scene", text: `${recent}[${scene.title}, ${this.state.story.time.replace("-", " ")}]\n\n${sceneView(this.session)}`, actions: [], hint: "You're in a scene: say what your character says or does." };
+        const talk = this.session.talk;
+        return {
+          mode: "scene", text: `${recent}[${scene.title}, ${this.state.story.time.replace("-", " ")}]\n\n${sceneView(this.session)}`, actions: this.choices(),
+          hint: talk ? `You're talking with ${scene.cast.find(c => c.id === talk.with)?.name ?? talk.with}: say anything, or choose a line.` : "You're in a scene: say what your character says or does.",
+        };
       }
       case "combat": {
         const over = this.fight?.result();
@@ -139,14 +153,28 @@ export class Game {
     }
   }
 
-  /** An explore or combat action, by id. */
+  /** An explore or combat action, or a talk's dialogue choice, by id. */
   async act(id: string, hooks: TurnHooks = {}): Promise<string> {
     this.state.recent = [];
     if (this.state.mode === "explore") {
       const done = this.explorer.act(this.state, this.session, id);
-      const text = done.scene ? `${done.text}\n\n${await this.beginScene(hooks)}` : done.text;
+      const text = done.scene ? `${done.text}\n\n${await this.beginScene(hooks)}`
+        : done.talk ? `${done.text}\n\n${await this.beginTalk(done.talk, hooks)}`
+        : done.text;
       this.save();
       return text;
+    }
+    if (this.state.mode === "scene") {
+      // A dialogue choice is the same as saying its line; walking on ends the talk without a word.
+      const choice = this.choices().find(a => a.id === id);
+      if (choice?.kind === "say") return this.say(choice.label, hooks);
+      if (choice) {
+        const text = this.afterTalk(true);
+        this.save();
+        return text;
+      }
+      const talk = this.session.talk;
+      throw new Error(talk ? `You're in a talk: say something, or choose one of ${this.choices().map(a => a.id).join(", ")}.` : "You're in a scene: say something instead.");
     }
     if (this.state.mode === "combat" && this.fight) {
       // The fight is over and the player has seen how: the scene picks up from it.
@@ -162,18 +190,20 @@ export class Game {
       this.save();
       return result ? `${text}\n\nThe fight is over: ${result.summary}` : text;
     }
-    throw new Error(this.state.mode === "scene" ? "You're in a scene: say something instead." : "The story is over.");
+    throw new Error("The story is over.");
   }
 
-  /** Something the player says or does in a scene. */
+  /** Something the player says or does in a scene (or in a talk). */
   async say(text: string, hooks: TurnHooks = {}): Promise<string> {
     if (this.state.mode !== "scene") throw new Error("You're not in a scene: pick an action instead.");
     this.state.recent = [];
-    const turn = await playerTurn(this.session, text, hooks);
+    const talk = this.session.talk;
+    const turn = talk ? await talkTurn(this.session, text, hooks) : await playerTurn(this.session, text, hooks);
     // The co-GM and the memory reviews run in the background, as in the scene CLI.
     afterTurn(this.session);
     const shown = render(this.session, turn.entries.filter(e => e.kind !== "player"));
-    const after = turn.ended || this.session.ended ? `\n\n${await this.afterScene(hooks)}` : "";
+    const over = turn.ended || this.session.ended;
+    const after = over ? `\n\n${talk ? this.afterTalk() : await this.afterScene(hooks)}` : "";
     this.save();
     return `${shown}${after}`;
   }
@@ -184,7 +214,7 @@ export class Game {
     forceEnding(this.session, exitId);
     // As a scene that ends in play is: its last snapshot is the one with its ending (the notebook reads it).
     snapshotSession(this.session);
-    const text = await this.afterScene(hooks);
+    const text = this.session.talk ? this.afterTalk() : await this.afterScene(hooks);
     this.save();
     return text;
   }
@@ -195,8 +225,38 @@ export class Game {
    */
   async carryOn(hooks: TurnHooks = {}): Promise<string> {
     if (this.state.mode !== "scene" || !this.session.ended) return "";
-    const text = await this.afterScene(hooks);
+    const text = this.session.talk ? this.afterTalk() : await this.afterScene(hooks);
     this.save();
+    return text;
+  }
+
+  /**
+   * In a talk, its dialogue choices: the suggested lines (choosing one is the same as saying it),
+   * a goodbye, and walking on. Nothing otherwise.
+   */
+  private choices(): Action[] {
+    const talk = this.session.talk;
+    if (!talk || this.session.ended) return [];
+    return [
+      ...talk.suggestions.map((line, i): Action => ({ id: `say_${i + 1}`, label: line, kind: "say" })),
+      { id: "say_goodbye", label: FAREWELL, kind: "say" },
+      { id: "walk_on", label: "Walk on without a word (back to the map)", kind: "move" },
+    ];
+  }
+
+  /** A word with someone walking with the player: the story's scene waits until it's over. */
+  private async beginTalk(talk: { with: string; where: string }, hooks: TurnHooks): Promise<string> {
+    // The talk is the scene from now (the app shows it at once, as the greeting streams in).
+    startTalk(this.session, talk.with, talk.where);
+    this.state.mode = "scene";
+    const entries = await openTalk(this.session, hooks);
+    return `— ${sceneById(this.session.sceneId).title} —\n\n${render(this.session, entries)}`;
+  }
+
+  /** The talk is over (said, or `walking` on without a word): back to the map where the player was. */
+  private afterTalk(walking = false): string {
+    const text = walking ? leaveTalk(this.session) : endTalk(this.session);
+    this.state.mode = "explore";
     return text;
   }
 
