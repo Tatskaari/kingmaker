@@ -59,6 +59,15 @@ The shared types are in `src/game/types.ts`. Extend them if you must, but keep t
 
 The map can show the time and who is about. Keep it simple.
 
+## How it's wired (integrate/playable)
+
+One story loop, `src/game/play.ts`, under both the app and the QA console (`npm run qa`):
+
+- **Exploring:** `src/game/town.ts` puts the map module's exploration behind the loop's Explorer. Its state is the map's ExploreState, kept in the game. The loop calls `enterScene` as a scene opens, `leaveScene` before `chainScene` drops the world, and `afterScene` once the story has moved on.
+- **Fights:** `src/game/fights.ts` runs tactical combat on the scene's own place. `battlefield()` lays out the scene's world for it: everyone where the world has them, its lights to knock over, its dusty floor and what burns, and its doors as the world has them. After the fight, the world shows where everyone ended up and what burned. A fight's end is its own beat (`continue`), and then the scene's aftermath picks up.
+- **Pictures:** `src/game/views.ts` draws the town, a scene's place and a fight through the map's isometric renderer. The look layer plugs in there.
+- **The King's morning** is a summons: it opens straight after the Heron, with no walk to the palace.
+
 ## Ground rules
 
 - Node 26. No new runtime dependencies without a reason in your report.
