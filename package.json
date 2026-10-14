@@ -8,6 +8,7 @@
     "node": ">=26.4.0"
   },
   "scripts": {
+    "game": "node --experimental-ffi --no-warnings --import tsx src/app/main.tsx",
     "play": "node --no-warnings src/cli/scene.ts play hanged-clerk",
     "scene": "node --no-warnings src/cli/scene.ts",
     "eval": "node --no-warnings src/eval/run.ts",
