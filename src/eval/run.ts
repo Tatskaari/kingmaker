@@ -134,9 +134,9 @@ async function runDecision(c: DecisionCase, decider: string, sample: number): Pr
     let detail: string | undefined;
     if (c.phase === "before") {
       const pre = await decideBefore(d, scene, state, c.input, { speaker: false, ...(c.pressure ? { pressure: true } : {}) });
-      const pressure = pre.pressure ? `pressure:${pre.pressure.roll ? "roll" : pre.pressure.fit}:${pre.pressure.target}` : undefined;
+      const pressure = pre.pressure ? `pressure:${pre.pressure.ruling}:${pre.pressure.target}` : undefined;
       choice = pre.move?.transition.id ?? pressure ?? (pre.freeform ? `freeform:${pre.freeform.skill}` : pre.plain ? "plain" : "none");
-      if (pre.pressure) detail = `${pre.pressure.skill} ${pre.pressure.fit}/${pre.pressure.stakes}${pre.pressure.dc ? ` DC ${pre.pressure.dc}` : ""}`;
+      if (pre.pressure) detail = `${pre.pressure.skill} ${pre.pressure.stakes}/${pre.pressure.approach}/${pre.pressure.disposition}${pre.pressure.dc ? ` DC ${pre.pressure.dc}` : ""}${pre.pressure.why ? ` (${pre.pressure.why})` : ""}`;
       probabilities = { ...pre.decision?.answers.attempt?.probabilities, ...pre.decision?.answers.cue?.probabilities };
     } else {
       const post = await decideAfter(d, scene, state, c.input, c.reply ?? "");

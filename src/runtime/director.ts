@@ -1,7 +1,7 @@
 import type { ChoiceQuestion, Decider, Decision } from "../llm/decide.ts";
 import { currentBeat, IMPROVISED_EXIT_ID, offstageCast, presentCast, scriptTranscript, sceneEntries, spentHere } from "./brief.ts";
 import { describeRoll, rng, rollCheck, titleCase, type RollResult } from "./dice.ts";
-import { SKILLS, type Exit, type Scene, type Skill, type Transition } from "./scene.ts";
+import { SKILLS, type Character, type Exit, type Scene, type Skill, type Transition } from "./scene.ts";
 import type { SceneStatus, SessionState } from "./session.ts";
 
 /** What the director decided this turn, and what the GM must make happen. */
@@ -73,12 +73,17 @@ function transitionsFor(scene: Scene, state: SessionState, phase: "attempt" | "c
   return [...beat.transitions, ...(scene.anytime ?? [])].filter(t => phaseOf(t) === phase && !spent.has(t.id));
 }
 
-function resolve(scene: Scene, state: SessionState, transition: Transition, phase: Move["phase"]): Move {
+/** Social means are interchangeable ways to reach the same goal: the roll follows the player's method. */
+const SOCIAL: Skill[] = ["persuasion", "intimidation", "deception", "performance"];
+
+function resolve(scene: Scene, state: SessionState, transition: Transition, phase: Move["phase"], means?: Skill): Move {
   let to = transition.to ?? state.beat;
   let roll: RollResult | undefined;
   if (transition.check) {
     const random = rng(state.seed + 7919 * ++state.rollCount);
-    roll = rollCheck(random, transition.check.skill, transition.check.dc, state.player.modifiers[transition.check.skill] ?? 0);
+    // Preserve intent, change method: a threat aimed at a route written for persuasion rolls intimidation.
+    const skill = means && means !== transition.check.skill && SOCIAL.includes(means) && SOCIAL.includes(transition.check.skill) ? means : transition.check.skill;
+    roll = rollCheck(random, skill, transition.check.dc, state.player.modifiers[skill] ?? 0);
     to = roll.success ? transition.check.onSuccess : transition.check.onFailure ?? state.beat;
   }
   const exit = scene.exits.find(e => e.id === to);
@@ -87,11 +92,19 @@ function resolve(scene: Scene, state: SessionState, transition: Transition, phas
 }
 
 /**
- * The player pressing someone for what they're hiding. Rolled when the outcome is genuinely
- * uncertain, so secrets are earned; no roll when the person would tell anyway ("free") or when the
- * approach can't move them ("no_chance").
+ * The player pressing someone for what they're hiding (docs/research/dc-guidance.md). The ruling
+ * comes from what telling would cost them (stakes), what the player says, offers or shows
+ * (approach) and how they feel about the player now (disposition): say yes, say no and show what
+ * would reach them, or roll at DC 12/15/18.
  */
-export interface PressureCheck { target: string; skill: Skill; fit: string; stakes: string; dc?: number; roll?: RollResult }
+export interface PressureCheck {
+  target: string; skill: Skill; stakes: string; approach: string; disposition: string;
+  ruling: "yes" | "no" | "roll";
+  /** Why there's no roll: they'd tell anyway, the lever can't move them, too far, the same push again, or already won. */
+  why?: "free" | "lever" | "too_far" | "same_again" | "won";
+  dc?: number; roll?: RollResult;
+  band?: "yes_and" | "yes" | "no_but" | "no_and";
+}
 
 export interface PreDecision {
   /** The player did something daft or reckless that the world would really answer. */
@@ -144,6 +157,52 @@ async function freeformCheck(decider: Decider, scene: Scene, state: SessionState
 }
 
 /** Before the reply: is the player attempting a transition, or should a pacing cue fire? Plus who speaks first. */
+/**
+ * The pressure details (means, approach, disposition, stakes), asked in a second small call only
+ * when someone is being pressed: in the main decision they cost every turn ~0.7 s.
+ */
+async function pressureDetails(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, target: Character): Promise<Decision> {
+  const q: Record<string, ChoiceQuestion> = {};
+  q.pressure_means = {
+    instructions: `The player is pressing ${target.name} for what they're hiding. How?`,
+    criteria: { persuasion: "An honest appeal, an argument, a bargain or reassurance.", intimidation: "Threats or a show of force.", deception: "A lie, a bluff or a trick.", insight: "Reading them: watching for tells, catching them out." },
+  };
+  const cards = [target].map(c => `${c.name}: wants ${c.wants.replace(/\.$/, "")}; fears ${(c.fears ?? "nothing in particular").replace(/\.$/, "")}; how they deal with people: ${c.attitude ?? "as their wants and fears suggest"}`).join("\n");
+  q.pressure_approach = {
+    instructions: `The player is pressing ${target.name} for what they're hiding. Judge what the player's character says, offers or shows, against who ${target.name} is. Judge the content, not how long or polished the writing is: a terse line with real leverage is strong; a fine speech with no reason in it is plausible at best.\n${cards}`,
+    criteria: {
+      free: "No roll needed: they'd tell this person anyway. It costs them nothing to say, their card says they'll share it if asked, or the player has already given them what they wanted.",
+      no_chance: "It can't work on them: it pulls a lever that, by who they are, doesn't move them (their card says so, or no one could get it out of them this way), and nothing has changed that.",
+      weak: "No real reason to tell: a bare demand or a repeat, a bribe or threat with no grip on this person, or a lie they can see through.",
+      plausible: "A fair appeal, offer, threat or bluff that gives them some reason, but isn't aimed at what this person in particular wants or fears.",
+      strong: "Real leverage on this person: it offers what they want, protects what they fear for, or uses evidence or something learned in play that they can't brush off.",
+      excellent: "Strong leverage, played in character and aimed squarely at this person (their wants, their fears, what they just said): the kind of case that would sway a real person.",
+    },
+  };
+  q.pressure_disposition = {
+    instructions: `How does ${target.name} feel about the player right now? Judge by the scene so far: their starting attitude, then what has happened.`,
+    criteria: { hostile: "Dislikes, distrusts or fears the player right now, or wants them gone.", wary: "Neutral, guarded, or not yet sure of them.", friendly: "Likes or trusts them, owes them, or has been won over in this scene." },
+  };
+  if (lastPressure(state, target.id)?.band?.startsWith("no")) {
+    q.pressure_new_angle = {
+      instructions: `The player already pressed ${target.name} once in this scene and it didn't work. Is this a new angle?`,
+      criteria: { new: "A new angle: new leverage or evidence, a different lever, or something important has changed since the last try.", same: "The same push again, reworded or louder." },
+    };
+  }
+  for (const c of [target]) {
+    q[`stakes_${c.id}`] = {
+      instructions: `What would it cost ${c.name}, as they see it, to give up what the player is after? (What they're hiding: ${c.secrets!.join(" ")})`,
+      criteria: {
+        trivial: "Costs them nothing much to say: gossip, a mild embarrassment, something they'd tell anyone who asked nicely.",
+        guarded: "Costs them something real but survivable: pride, a scolding, money, a favour or a deal, a friend's annoyance.",
+        dangerous: "Puts something big at risk: their safety, livelihood or standing, or someone they protect.",
+        ruinous: "Could destroy them: their life, a sworn oath or their deepest loyalty, or the person they love most.",
+      },
+    };
+  }
+  return decider.decide({ ...decisionState(scene, state, playerTurn), person_being_pressed: target.name }, q, "director.pressure");
+}
+
 export async function decideBefore(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, options: { speaker: boolean; freeform?: boolean; offGraph?: boolean; relocate?: boolean; pressure?: boolean; consequences?: boolean }): Promise<PreDecision> {
   const attempts = transitionsFor(scene, state, "attempt");
   const cues = transitionsFor(scene, state, "cue");
@@ -162,6 +221,12 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
         ...Object.fromEntries(outcomes.map(t => [`plain:${t.id}`, `Simply happens, no dice needed: ${t.when}`])),
         ...(options.freeform === true ? { other_risky: "The player attempts something risky whose outcome is genuinely uncertain (sneaky, physical, magical or social), where failure would change the situation, and that none of the options above covers. Not risky: ordinary talk and questions, accepting something someone has just offered, looking around or searching when nothing is pressing, or anything where failing would only mean trying again." } : {}),
       },
+    };
+  }
+  if (attempts.some(t => t.check && SOCIAL.includes(t.check.skill))) {
+    questions.attempt_means = {
+      instructions: "If the player is working on someone in their latest turn, by what means?",
+      criteria: { persuasion: "Persuading: an appeal, an argument, a bargain, reassurance or flattery.", intimidation: "Intimidating: threats, menace or a show of force.", deception: "Deceiving: a lie, a bluff, a disguise or a trick.", performance: "Performing: a speech, a song or a show for a crowd.", none: "Not working on anyone, or something else." },
     };
   }
   if (cues.length) questions.cue = question("cue", cues);
@@ -196,28 +261,6 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
       instructions: "Is the player, in their latest turn, pressing someone to give up something they're keeping to themselves (a secret, a hidden reason, something they've refused or dodged), by persuading, threatening, tricking or reading them? Ordinary questions someone would happily answer don't count.",
       criteria: { ...Object.fromEntries(keepers.map(c => [c.id, `Pressing ${c.name} for what they're hiding`])), none: "No: nobody is being pressed for something they're keeping back." },
     };
-    questions.pressure_means = {
-      instructions: "If the player is pressing someone for what they're hiding, how?",
-      criteria: { persuasion: "An honest appeal, an argument, a bargain or reassurance.", intimidation: "Threats or a show of force.", deception: "A lie, a bluff or a trick.", insight: "Reading them: watching for tells, catching them out." },
-    };
-    const cards = keepers.map(c => `${c.name}: wants ${c.wants.replace(/\.$/, "")}; fears ${(c.fears ?? "nothing in particular").replace(/\.$/, "")}; how they deal with people: ${c.attitude ?? "as their wants and fears suggest"}`).join("\n");
-    questions.pressure_fit = {
-      instructions: `If the player is pressing someone for what they're hiding, judge their latest turn against who that person is, as a fair tabletop GM would: does it have real leverage, a good argument, an appeal to what this person wants or fears, or excellent in-character play?\n${cards}`,
-      criteria: {
-        free: "No roll needed: from who they are and how things now stand, they'd tell this player anyway (or already have).",
-        no_chance: "It can't work on them: it pulls a lever that, by who they are, doesn't move them (and nothing has changed that).",
-        weak: "Weak: a bare demand or no leverage; it hardly touches what they want or fear.",
-        plausible: "Plausible: a reasonable attempt with some grip.",
-        strong: "Strong: real leverage, or aimed squarely at what they want or fear.",
-        excellent: "Excellent: compelling leverage and great in-character play that would sway a real person.",
-      },
-    };
-    for (const c of keepers) {
-      questions[`stakes_${c.id}`] = {
-        instructions: `How much would ${c.name} stand to lose, right now, by giving up what they're hiding? (${c.secrets!.join(" ")})`,
-        criteria: { trivial: "Little: embarrassment at most.", guarded: "Something real: their standing, a friend, a deal.", dangerous: "A lot: their safety, livelihood or someone they protect.", ruinous: "Everything: their life or what they care about most." },
-      };
-    }
   }
   if (options.consequences) {
     questions.daft = {
@@ -264,7 +307,8 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const plainEnding = plainOutcome && endsScene(scene, plainOutcome) && (decision.answers.attempt?.probabilities?.[answer!] ?? 1) >= SCENE_ENDING_CONFIDENCE ? plainOutcome : undefined;
   const chosen = attempt ?? plainEnding ?? cue;
   // (a plain action alongside a cue: the cue's beat change carries the reply)
-  const move = chosen ? resolve(scene, state, chosen, attempt || plainEnding ? "attempt" : "cue") : undefined;
+  const means = decision.answers.attempt_means?.choice;
+  const move = chosen ? resolve(scene, state, chosen, attempt || plainEnding ? "attempt" : "cue", attempt && means && means !== "none" && (decision.answers.attempt_means?.probabilities?.[means] ?? 1) >= SCENE_ENDING_CONFIDENCE ? means as Skill : undefined) : undefined;
   let freeform: FreeformCheck | undefined;
   let combined = decision;
   // No dice for the impossible: if the player is reaching for something the scene can't offer,
@@ -279,16 +323,33 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const daft = decision.answers.daft?.choice === "consequential" && (decision.answers.daft?.probabilities?.consequential ?? 1) >= SCENE_ENDING_CONFIDENCE;
   let pressure: PressureCheck | undefined;
   const pressed = decision.answers.pressure?.choice;
-  if (pressed && pressed !== "none" && (decision.answers.pressure?.probabilities?.[pressed] ?? 1) >= SCENE_ENDING_CONFIDENCE && !move) {
-    const skill = (decision.answers.pressure_means?.choice ?? "persuasion") as Skill;
-    const stakes = decision.answers[`stakes_${pressed}`]?.choice ?? "guarded";
-    const fit = decision.answers.pressure_fit?.choice ?? "plausible";
-    pressure = { target: pressed, skill, fit, stakes };
-    if (fit !== "free" && fit !== "no_chance") {
-      const dc = pressureDc(stakes, fit);
+  const target = pressed && pressed !== "none" && (decision.answers.pressure?.probabilities?.[pressed] ?? 1) >= SCENE_ENDING_CONFIDENCE && !move ? scene.cast.find(c => c.id === pressed) : undefined;
+  if (target) {
+    const details = await pressureDetails(decider, scene, state, playerTurn, target);
+    combined = { ...combined, answers: { ...combined.answers, ...details.answers }, latencyMs: combined.latencyMs + details.latencyMs, costUsd: combined.costUsd + details.costUsd };
+    const answers = details.answers;
+    // An uncertain judgement steps towards the middle (plausible, wary).
+    const settled = (q: string, toward: Record<string, string>) => {
+      const a = answers[q];
+      if (!a) return undefined;
+      return (a.probabilities?.[a.choice] ?? 1) < 0.5 ? (toward[a.choice] ?? a.choice) : a.choice;
+    };
+    const skill = (answers.pressure_means?.choice ?? "persuasion") as Skill;
+    const stakes = answers[`stakes_${target.id}`]?.choice ?? "guarded";
+    const approach = settled("pressure_approach", { weak: "plausible", strong: "plausible", excellent: "strong" }) ?? "plausible";
+    const disposition = settled("pressure_disposition", { hostile: "wary", friendly: "wary" }) ?? "wary";
+    const last = lastPressure(state, target.id);
+    const retry = last?.band?.startsWith("no") ? { newAngle: answers.pressure_new_angle?.choice !== "same" } : undefined;
+    const ruled = last && (last.band === "yes" || last.band === "yes_and") ? { kind: "yes" as const, why: "won" as const } : pressureRuling(stakes, approach, disposition, retry);
+    pressure = { target: target.id, skill, stakes, approach, disposition, ruling: ruled.kind, ...(ruled.kind !== "roll" && ruled.why ? { why: ruled.why } : {}) };
+    if (ruled.kind === "roll") {
       const random = rng(state.seed + 7919 * ++state.rollCount);
-      pressure = { ...pressure, dc, roll: rollCheck(random, skill, dc, state.player.modifiers[skill] ?? 0) };
-    }
+      const roll = rollCheck(random, skill, ruled.dc, state.player.modifiers[skill] ?? 0);
+      const band = roll.success
+        ? (roll.critical === "success" || roll.total - ruled.dc >= 5 ? "yes_and" : "yes")
+        : (roll.critical === "failure" || ruled.dc - roll.total >= 5 ? "no_and" : "no_but");
+      pressure = { ...pressure, dc: ruled.dc, roll, band };
+    } else pressure = { ...pressure, band: ruled.kind === "yes" ? "yes" : "no_but" };
   }
   // One at a time: several essentials in one reply reads as an info dump.
   const relocate = missing.map(e => ({ e, a: decision.answers[`relocate_${e.id}`] }))
@@ -314,35 +375,61 @@ export function plainDirective(t: Transition): string {
   return `No dice needed: what the player is doing simply works (${t.when.replace(/\.$/, "")}). Let it land in this reply, in a way that fits the people involved.`;
 }
 
-/**
- * DC for prising a secret loose: what giving it up would cost them, eased by how well the player
- * plays it. Placeholder numbers pending docs/research/dc-guidance.md.
- */
-export function pressureDc(stakes: string, fit: string): number {
-  const base: Record<string, number> = { trivial: 8, guarded: 12, dangerous: 15, ruinous: 18 };
-  const ease: Record<string, number> = { weak: 2, plausible: 0, strong: -3, excellent: -5 };
-  return Math.max(5, Math.min(22, (base[stakes] ?? 12) + (ease[fit] ?? 0)));
+const RESIST: Record<string, number> = { guarded: 1, dangerous: 2, ruinous: 3 };
+const LEVERAGE: Record<string, number> = { weak: -1, plausible: 0, strong: 1, excellent: 2 };
+const WARMTH: Record<string, number> = { hostile: -1, wary: 0, friendly: 1 };
+
+/** docs/research/dc-guidance.md §3.2: say yes, say no (and show what would reach them), or roll at 12/15/18. */
+export function pressureRuling(stakes: string, approach: string, disposition: string, retry?: { newAngle: boolean }):
+  { kind: "yes"; why?: "free" } | { kind: "no"; why: "lever" | "too_far" | "same_again" } | { kind: "roll"; dc: number } {
+  if (approach === "free" || stakes === "trivial") return { kind: "yes", why: "free" };
+  if (approach === "no_chance") return { kind: "no", why: "lever" };
+  if (retry && !retry.newAngle) return { kind: "no", why: "same_again" };
+  const gap = (RESIST[stakes] ?? 1) - (LEVERAGE[approach] ?? 0) - (WARMTH[disposition] ?? 0);
+  if (gap <= 0) return { kind: "yes" };
+  if (gap >= 4) return { kind: "no", why: "too_far" };
+  return { kind: "roll", dc: 9 + 3 * gap };
 }
 
-const PRESSURE_REASON: Record<string, (name: string) => string> = {
+/** The most recent pressure on this person in the current scene (from the path). */
+export function lastPressure(state: SessionState, target: string): { band?: string } | undefined {
+  const step = [...state.path].reverse().find(p => p.via.startsWith(`pressure:${target}:`));
+  return step ? { band: step.via.split(":")[2] } : undefined;
+}
+
+const PRESSURE_GOAL: Record<string, (name: string) => string> = {
   persuasion: n => `to talk ${n} into telling you what they're holding back`,
   intimidation: n => `to frighten ${n} into talking`,
   deception: n => `to trick ${n} into letting it slip`,
   insight: n => `to read what ${n} isn't saying`,
 };
+const STAKES_GLOSS: Record<string, string> = { guarded: "a sore point", dangerous: "dangerous to admit", ruinous: "it could ruin them" };
+const MODIFIER_GLOSS: Record<string, string> = { strong: "your leverage helps", excellent: "you've given them every reason", weak: "you've given them no reason to", hostile: "they don't trust you", friendly: "they like you" };
+
+/** The dice line's reason: the goal, then what's at stake for them and what helped or hurt (§3.6). */
 export function pressureReason(scene: Scene, p: PressureCheck): string {
   const name = scene.cast.find(c => c.id === p.target)?.name ?? p.target;
-  return (PRESSURE_REASON[p.skill] ?? PRESSURE_REASON.persuasion!)(name);
+  const goal = (PRESSURE_GOAL[p.skill] ?? PRESSURE_GOAL.persuasion!)(name);
+  const modifier = MODIFIER_GLOSS[p.approach] ?? MODIFIER_GLOSS[p.disposition];
+  const gloss = [STAKES_GLOSS[p.stakes], modifier].filter(Boolean).join("; ");
+  return gloss ? `${goal} (${gloss})` : goal;
 }
+
 export function pressureDirective(scene: Scene, p: PressureCheck): string {
   const c = scene.cast.find(x => x.id === p.target);
   const name = c?.name ?? p.target;
   const secret = c?.secrets?.join(" ") ?? "";
-  if (p.fit === "free") return `The player is asking ${name} about what they've been keeping back, and ${name} would tell this person anyway: no dice needed. Let them give up what fits the question, in their own way and voice: ${secret}`;
-  if (p.fit === "no_chance") return `The player is pressing ${name} in a way that, given who they are, can't move them: no dice. ${name} doesn't give it up, and their reaction shows what kind of thing might reach them instead (what they want, what they fear). Don't reveal what they're hiding.`;
-  return p.roll!.success
-    ? `The player pressed ${name} for what they're hiding, and the dice favour them (${describeRoll(p.roll!)}). ${name} gives up what fits the question now, in their own way and voice: ${secret}`
-    : `The player pressed ${name} for what they're hiding, and the dice go against them (${describeRoll(p.roll!)}). ${name} holds firm this time, and it costs the player something (suspicion, a cooler welcome, a door closing for now), but not for good: their reaction shows what might reach them instead. Nothing already said is taken back. Don't reveal what they're hiding.`;
+  const always = "Nothing already said is taken back. If this is something the scene needs, leave a way to it.";
+  const costly = p.stakes === "dangerous" || p.stakes === "ruinous" ? " It still costs them: they ask something in return, or make the player promise." : "";
+  const remembers = p.skill === "intimidation" || p.skill === "deception" ? " They talk, but they'll remember how: cooler towards the player from here on." : "";
+  if (p.ruling === "yes") return p.why === "won"
+    ? `${name} has already given this up to the player: they answer follow-up questions about it, in their own way and voice. What they're hiding: ${secret}`
+    : `No dice needed: ${name} gives up what fits the question, in their own way and voice, as far as the question reaches.${costly} What they're hiding: ${secret}`;
+  if (p.ruling === "no") return `${name} doesn't give it up${p.why === "same_again" ? ": the same push again gets the same answer, and their patience is wearing thin" : ""}. Don't reveal what they're hiding. Their reaction shows their own concerns (what they want, what they fear), in their own words; they never tell the player what would work. ${always}`;
+  if (p.band === "yes_and") return `The player pressed ${name}, and the dice favour them handsomely (${describeRoll(p.roll!)}). ${name} gives up what fits the question, and a little more than asked: a name, a detail, the next thing they know.${remembers} What they're hiding: ${secret}`;
+  if (p.band === "yes") return `The player pressed ${name}, and the dice favour them (${describeRoll(p.roll!)}). ${name} gives up what fits the question, in their own way and voice.${remembers} What they're hiding: ${secret}`;
+  if (p.band === "no_but") return `The player pressed ${name}, and the dice go narrowly against them (${describeRoll(p.roll!)}). Not yet, but nearly: ${name} doesn't give it up, but asks a price of their own, or lets slip a partial truth that points somewhere useful. Don't reveal the secret itself. ${always}`;
+  return `The player pressed ${name}, and the dice go against them (${describeRoll(p.roll!)}). ${name} holds firm and it costs the player: their attitude hardens and they shut this line down for now (they might call for someone, walk off or warn someone). Their own concerns still show in how they react; they never tell the player what would work. ${always}`;
 }
 
 /** The bill for a daft act: real consequences, in the world's own logic (comic house style). */
@@ -375,7 +462,7 @@ export function freeformDirective(check: FreeformCheck): string {
 /** Where the story now stands with respect to the scene's endings (a state, not an event). */
 export interface EndingRead { exitId: string; probability: number }
 
-export async function decideAfter(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, reply: string, options: { hold?: string } = {}): Promise<{ move?: Move; decision?: Decision; status?: SceneStatus; ending?: EndingRead; landed?: string[] }> {
+export async function decideAfter(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, reply: string, options: { hold?: string } = {}): Promise<{ move?: Move; decision?: Decision; status?: SceneStatus; ending?: EndingRead; landed?: string[]; hinted?: string[] }> {
   // An ending held back this turn (the player gets a last chance) can't be confirmed by the same reply.
   const leadsTo = (t: Transition) => [t.to, t.check?.onSuccess, t.check?.onFailure];
   // While an ending is held for the player's response, no other ending (not even the improvised one) can fire.
@@ -397,7 +484,11 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
   for (const e of pending) {
     questions[`landed_${e.id}`] = {
       instructions: "In this roleplaying scene, has the player now come across this, by any means (told, shown, found, worked out), as of the latest exchange?",
-      criteria: { landed: `Yes: the player now knows or has this: ${e.what}`, not_yet: "Not yet: it hasn't reached the player." },
+      criteria: {
+        landed: `Yes: the player now knows or has this: ${e.what}`,
+        hinted: "Not yet, but the latest GM reply pointed towards it: a sign, a telltale detail or a remark the player could follow up.",
+        not_yet: "Not yet: it hasn't reached the player, and the latest reply didn't point towards it.",
+      },
     };
   }
   if (outcomes.length) {
@@ -440,7 +531,8 @@ export async function decideAfter(decider: Decider, scene: Scene, state: Session
     if (authored && authored.p >= 0.2) ending = { exitId: authored.id, probability: authored.p + ending.probability };
   }
   const landed = pending.filter(e => decision.answers[`landed_${e.id}`]?.choice === "landed").map(e => e.id);
-  return { ...(move ? { move } : {}), decision, ...(status ? { status } : {}), ...(ending ? { ending } : {}), ...(landed.length ? { landed } : {}) };
+  const hinted = pending.filter(e => decision.answers[`landed_${e.id}`]?.choice === "hinted").map(e => e.id);
+  return { ...(move ? { move } : {}), decision, ...(status ? { status } : {}), ...(ending ? { ending } : {}), ...(landed.length ? { landed } : {}), ...(hinted.length ? { hinted } : {}) };
 }
 
 /** Tier-one scene health, asked alongside the outcome check at no extra latency. */
@@ -475,7 +567,7 @@ export function moveDirective(scene: Scene, state: SessionState, move: Move): st
   const lines: string[] = [];
   if (move.roll && move.transition.check) {
     const check = move.transition.check;
-    lines.push(`The player's attempt called for a ${titleCase(move.roll.skill)} check${check.reason ? ` ${check.reason.replace(/\.$/, "")}` : ` (${move.transition.when.replace(/\.$/, "")})`}. ${describeRoll(move.roll)}. ${move.roll.success ? check.success : check.failure} Narrate this result so the player can see what was at stake and why it went the way it did.`);
+    lines.push(`The player's attempt called for a ${titleCase(move.roll.skill)} check${check.reason ? ` ${check.reason.replace(/\.$/, "")}` : ` (${move.transition.when.replace(/\.$/, "")})`}. ${describeRoll(move.roll)}. ${move.roll.success ? check.success : check.failure}${move.roll.skill !== check.skill ? ` The player went about it by ${move.roll.skill} rather than ${check.skill}: the outcome is the same, but it lands the way their method would (a threat that works frightens and leaves resentment; a lie that works is believed, for now).` : ""} Narrate this result so the player can see what was at stake and why it went the way it did.`);
   }
   if (move.exit && !move.chosen) {
     lines.push(`Things are escalating towards this: ${move.exit.outcome} Don't let it happen yet. In this reply, escalate (a warning, a last demand, a countdown, a weapon raised) and stop with the moment hanging: the next move is the player's.`);

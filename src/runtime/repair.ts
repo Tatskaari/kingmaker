@@ -285,7 +285,7 @@ export async function quickRepair(authored: Scene, state: SessionState, options:
   if (result.move === "relocate" && result.essential !== "none") {
     const e = scene.essentials?.find(x => x.id === result.essential);
     relocations!.push({ essential: result.essential, technique: "move", to: result.carrier === "none" ? "world" : result.carrier, how: result.note });
-    if (result.carrier !== "world" && result.carrier !== "none") whispers.push({ to: result.carrier, note: `If it fits the moment, this reaches the player through you: ${e?.what ?? result.essential}` });
+    if (result.carrier !== "world" && result.carrier !== "none") whispers.push({ to: result.carrier, note: `If it fits the moment, this comes out through you, in your own way and only as far as you'd really say it: ${e?.what ?? result.essential}` });
     else notes.push(`Let this reach the player through the world: ${e?.what ?? result.essential}`);
   }
   if (result.move === "open_route" && result.target !== "none" && targets.includes(result.target) && result.when.trim()) {

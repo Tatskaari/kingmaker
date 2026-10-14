@@ -1,0 +1,559 @@
+[
+ {
+  "session": "absurd2-wizard (scene: blocked-entrance, approach: v2-comic-bill). Pre-made character Wren Ashdown, half-elf ranger, played as a self-taught hedge-wizard (\"Ranger by trade, hedge-wizard by private study\")",
+  "turns": 5,
+  "ended": "Ended after 5 turns with \"\u2014 Scene ends: Freed \u2014\". The cart was freed on turn 4 and turn 5 wrapped things up. A 6th turn only returned \"\u2014 This scene has ended. \u2014\" and no new scene started.",
+  "summary": "A short, witty vignette with a Pratchett feel. King Aldren wants to know, \"with enormous seriousness\", why the Assembly cushions haven't arrived. A green cart carrying a potted silver birch with brass bells is wedged in the palace service arch. Marshal Holt, holding a pocket watch, is shouting at porters, and a scholar called Rowan is under the cart muttering about \"unexpected peer review\". My hedge-wizard bits were all taken up in the fiction. A Loosening Charm cast with road dust and a cheese rind made the wheels lock tighter, and that failure revealed the puzzle: a protective charm braces the wheels because it thinks the arch threatens the tree. A lullaby to the charm also failed and made things worse, and a crate of glasses smashed while Holt's patience ran out. Then I tried the impossible: widening the stone arch with chalk squiggles and a goose feather tickling the keystone. The game said the arch does not widen, but a successful Arcana roll turned my rite into a counter to the charm and the cart rolled free. The cost was a joke: I now have to explain the marks to the palace masons. Holt then said the cushions were \"in the second wagon\" and the scene closed. The writing and characters were good, and consequences were logical and fun rather than punishing. But the session ended after 5 turns, just as I turned to the actual mission, so I had no room to escalate further.",
+  "silly_moments": [
+   {
+    "turn": 1,
+    "what_i_tried": "Gave a 'correct wizardly salute' and announced a Loosening Charm from Ostrander's Compendium of Useful Workings, 'page forty-one before the bookseller took it back'. Told everyone to stand clear and not sneeze.",
+    "how_the_world_responded": "An unprompted Persuasion roll failed, and Holt snapped 'Not now!' and reshuffled the porters. Rowan cheerfully disputed that the charm exists, taking my made-up book seriously. Holt glanced back almost at once with a dry put-down, so the failed roll cost almost nothing.",
+    "enabled": "yes",
+    "consequences": "token",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\u201cIf you\u2019ve come to help, Ashdown, help. If you\u2019ve come to cite booksellers, do it somewhere the cushions can\u2019t hear you.\u201d"
+   },
+   {
+    "turn": 2,
+    "what_i_tried": "Cast the Loosening Charm for real: longbow held up as a staff, road dust and a cheese rind sprinkled on the wheel, a rhyming chant, a dramatic point.",
+    "how_the_world_responded": "The spell had a real, logical effect: the hum deepened, the spokes tightened and a bell gave 'a single, accusing chime'. Rowan explained that the protective charm reads casting as danger, which revealed the actual puzzle. Holt narrowed my options down to two.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\u201cIt thinks the doorway is threatening the tree, so it braces the wheels. That is what I\u2019ve been trying to explain to the wheels.\u201d / Holt: \u201cYou have made it more convinced.\u201d"
+   },
+   {
+    "turn": 3,
+    "what_i_tried": "Blamed the waxing moon, which is invisible in daylight, for the failure. Then crouched by the birch and sang the Shepherd's Hush to the charm ('A frightened charm wants soothing... Same as goats').",
+    "how_the_world_responded": "The porters fell quiet and a leaf bent, but the hum surged and the wheels clamped harder. A crate of glasses smashed in the background as rising pressure. Holt counted to three and became cooperative. Nobody reacted to the moon excuse.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "Holt closes his eyes and counts to three. Then he says, very evenly, \u201cWhat do you need from me that will actually move this?\u201d"
+   },
+   {
+    "turn": 4,
+    "what_i_tried": "The impossible one: asked for chalk and a goose feather ('Nobody's asked the arch to be wider. That's just bad manners'). Chalked squiggles round the keystone, tickled it with the feather and chanted the Widening to stretch the palace arch.",
+    "how_the_world_responded": "The arch did not widen, so the impossible stayed impossible, but the chalk 'traced its shape precisely' and the keystone trembled. An Arcana roll (15 vs DC 13) was relabelled as countering the charm, the wheels unclenched and the cart rolled through. The only cost was a joke one.",
+    "enabled": "partly",
+    "consequences": "token",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\u201cYou\u2019ve saved the cart,\u201d he says. \u201cAnd volunteered to explain those marks to the palace masons.\u201d"
+   },
+   {
+    "turn": 5,
+    "what_i_tried": "Claimed it was all a known side-effect of the Widening ('It widens whatever needs widening. Today, apparently, the charm's mind'), told Holt to tell the masons it's load-bearing, and asked about the cushions and the tree.",
+    "how_the_world_responded": "Holt took up my excuse deadpan and answered both questions. Then the scene ended.",
+    "enabled": "yes",
+    "consequences": "none",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\u201cThe tree is Nine Furrows\u2019 gift to the Assembly. It was meant to enter with dignity. It encountered the arch.\u201d ... \u201cI\u2019ll tell the masons it\u2019s load-bearing. You can tell me what the King thinks of the cushions.\u201d"
+   }
+  ],
+  "gm_humour": "Yes. The GM and the characters had plenty of wit of their own, mostly deadpan and mock-solemn. The narration personifies objects: wheels \"dug in like it has taken a principled stand\", a bell gives \"a single, accusing chime\", and porters are \"clutching bundles they cannot put down anywhere useful\". Holt is a good straight man: \"If you've come to cite booksellers, do it somewhere the cushions can't hear you\", \"You have made it more convinced\", the count to three, and \"volunteered to explain those marks to the palace masons\". Rowan is a cheerful pedant: \"Unexpected peer review\", \"as if this is a pleasant scholarly disagreement\", \"That is what I've been trying to explain to the wheels\", and \"That was not in Ostrander's.\" The best line is \"It was meant to enter with dignity. It encountered the arch.\" It also picked up my \"load-bearing\" excuse and handed it back. The misses: no reaction to \"That'll be the moon\" in broad daylight, or to \"Same as goats\". Those were easy openings for a dry reply.",
+  "tone_match": "Mostly Pratchett, not straight fantasy and not random nonsense. The premise is a mundane errand treated with mock-epic seriousness (the King's \"enormous seriousness\" about cushions). The magic follows its own logic: the charm protects the tree from the arch, so casting at it reads as a threat. My daft ideas therefore produced sensible in-world results instead of anything-goes chaos. The comedy sat on top of a small, coherent story with a clear problem, rising pressure (the broken glasses, Holt's patience) and a resolution. It leaned gentle and cosy rather than Python. The one real test of absurdity, widening a stone arch by magic, got a soft \"no, but it works anyway\" instead of a big daft consequence the world takes seriously, such as a cracked keystone or angry masons arriving. That kept it pleasant but slightly toothless.",
+  "stonewalled": [],
+  "railroaded": [
+   {
+    "turn": 1,
+    "what": "Mild. My turn (introducing myself and announcing a spell) was rolled as a 'Persuasion check to get Holt to stop raging and hear you out', which I hadn't attempted. The failure was cosmetic: Holt turned away and then spoke to me again in the same reply."
+   },
+   {
+    "turn": 4,
+    "what": "Mild. My attempt to magically widen the arch was rolled as an 'Arcana check to identify and counter the cart\u2019s protective charm', so the game re-aimed my action at its intended solution instead of judging what I actually tried. It was generous, but the outcome was steered, and Holt's earlier 'Those are now the useful options' had already narrowed the paths."
+   }
+  ],
+  "inconsistencies": [
+   {
+    "turn": 4,
+    "what": "'Mags immediately starts directing wagons inside' introduces Mags as if already known, but Mags had never been mentioned or described."
+   },
+   {
+    "turn": 4,
+    "what": "The roll was labelled 'your improvised loosening rite', but the turn-4 action was the Widening. The loosening rite was the failed turn-2 spell."
+   },
+   {
+    "turn": 3,
+    "what": "Rowan had said only casting reads as danger, yet a soft lullaby made the wheels 'clamp harder'. Rowan's follow-up explains why the song didn't help, not why it made things worse."
+   }
+  ],
+  "best_moment": "Turn 2. My cheese-rind-and-road-dust Loosening Charm made things worse in a way that made sense and was funny. The spokes tightened, a bell gave \"a single, accusing chime\", Rowan sighed \"That is what I\u2019ve been trying to explain to the wheels\", and Holt said \"You have made it more convinced.\" A daft action got a real consequence that also revealed the scene's puzzle, which is exactly the \"world takes your nonsense seriously\" feel.",
+  "worst_moment": "The abrupt ending. Just as I turned to the King's actual question (where are the cushions, and why is a singing tree at the tradesmen's door?), the scene closed with \"Scene ends: Freed\". A follow-up turn only got \"\u2014 This scene has ended. \u2014\". The mission's mock-epic stake was settled in one line (\"The cushions are in the second wagon\"), and set-ups went unused: the keystone tremor, the masons, the Nine Furrows gift. In the same vein, my impossible idea (widening a stone arch by magic) got a soft landing with only a joke cost, when it could have had a big, daft, real consequence.",
+  "ratings": {
+   "fun": 3,
+   "humour": 4,
+   "consequences": 3,
+   "story": 3,
+   "characters": 4,
+   "consistency": 4,
+   "responsiveness": 4,
+   "pacing": 3
+  },
+  "would_keep_playing": true,
+  "other_notes": "The commands to play, which you asked for. Run them from /home/jon/git/kingmaker/.claude/worktrees/qa-absurd2:\n- Start a scene once: npm run -s scene -- start blocked-entrance --approach v2-comic-bill --session <your-session-name>\n- Each turn: npm run -s scene -- say <your-session-name> \"<what you say and do>\"\n- Re-read the story: npm run -s scene -- transcript <your-session-name>\nUse a new session name, because absurd2-wizard has ended.\n\nTest notes:\n1. Length: the session lasted 5 of the roughly 18 turns planned. It ended the turn after the cart was freed and no follow-on scene started, so I got only two clearly daft actions (turns 2 and 4) and one impossible one (turn 4) before it closed.\n2. Character fit: the game assigns a ready-made character (a half-elf ranger with a longbow). I fitted the wizard persona in as a \"hedge-wizard by private study\" and the game accepted it. The Arcana bonus of +0 reflected the missing training, which was a nice touch.\n3. Rolls: there were only 2 rolls in 5 turns. Turns 2 and 3 were settled without a roll, with the failure shown as a consequence in the story. That worked well. The turn-1 Persuasion roll felt unrelated to what I was doing.\n4. Failure: failures were informative and pushed Holt from \"Not now!\" to \"What do you need from me?\". That is good character movement, and the failures never felt punishing.\n5. Loose threads: \"the feather\u2019s touch sends a faint tremor through the keystone\" was set up and never paid off.\n6. Speed: no command errors, and each turn took a few seconds."
+ },
+ {
+  "session": "absurd2-orator (scene green-standoff, approach v2-comic-bill). I played Wren Ashdown, the half-elf ranger the game assigned, in the populist-orator persona.",
+  "turns": 10,
+  "ended": "The scene ended itself after turn 10 with \"Scene ends: Guests of Harrowby\" and the message \"The session is over.\" I tried an 11th turn and got \"This scene has ended.\" No new scene started, so I stopped at 10 turns rather than the planned 18.",
+  "summary": "The scene opens on Harrowby Green at sundown. Villagers with hayforks face 31 flood refugees from Sedgeford. Pip, a child refugee, sits in a judgment ring for stealing the corn mother, a straw doll used to raise the parish ward. Hester, a nervous trainee warden, has to choose between amends and a thief's mark. At sundown the ward will turn out everyone who isn't of the parish, refugees included. I turned the green into a Public Meeting: hayforks held prongs-down, an invented \"Ancient Right of Reply\" from the \"Great Turnip Parliament\", a Select Committee with Pip as recording secretary and a goose as sergeant-at-arms, and a motion to make all the refugees parishioners by a show of raised rakes. The game took the procedure seriously. The vote failed in law (\"The Statutes do not make a parish by vote\"), but it uncovered a real old custom: sharing Harrowby bread and salt at the bounds-stone makes strangers guests of the ward. Oswin backed it up with his grandmother's saying. I also tried to have the bounds-stone dug up and carted to the green; Hester vetoed it. I proposed amends for Pip (carry the salt and help put the corn mother back), had the goose hosted with its own crust, and witnessed the rite. The refugees may stay, Pip gets no mark, and the ward rises. It was short, warm and often genuinely funny, and my persona's approach actually solved the scene. Weaknesses: my daft ideas had only token consequences or none; the goblin and seed-grain thread, which Ned pushed three times, was dropped; Hester's fear of failing to hold the ward never paid off; and the final turn was rushed, re-telling events that had already happened.",
+  "silly_moments": [
+   {
+    "turn": 1,
+    "what_i_tried": "Stood on the well, declared the green a Public Meeting and ruled that all hayforks be held prongs-down while the meeting is in session.",
+    "how_the_world_responded": "The crowd obeyed unevenly and calmed down. A goose joined in. The scene was de-escalated just enough to talk.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "The hayforks tilt prongs-down with varying degrees of obedience. One goose also lowers its head, though it appears to be considering the matter personally."
+   },
+   {
+    "turn": 2,
+    "what_i_tried": "Made up the 'Ancient Right of Reply' from the 'Great Turnip Parliament of the year of the Long Frost' and called a show of hands so the accused child could speak.",
+    "how_the_world_responded": "Hester accepted it as fair procedure while openly doubting the precedent. The vote happened (the geese abstained), and Pip explained why she took the doll, which moved the plot on.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\"That is fair procedure, whether or not the Great Turnip Parliament existed.\""
+   },
+   {
+    "turn": 3,
+    "what_i_tried": "Formed a Select Committee on Wards, Dolls and Related Matters, with me as chair, Pip as recording secretary and a goose as sergeant-at-arms.",
+    "how_the_world_responded": "The goose accepted the post and became a running character for the rest of the scene. Pip asked whether it gets a vote. Hester ruled that the committee could take evidence but could not postpone sundown.",
+    "enabled": "yes",
+    "consequences": "token",
+    "funny": 5,
+    "story_kept_moving": true,
+    "quote": "The goose honks at your appointment and steps onto the well's rim. No one challenges its credentials."
+   },
+   {
+    "turn": 4,
+    "what_i_tried": "Moved that all the Sedgeford refugees be made parishioners of Harrowby on the spot, voted by raised rakes.",
+    "how_the_world_responded": "The vote was split and the world took it seriously: the Statutes don't let a vote make a parish. But it shook loose the real bread-and-salt guest custom that ended up solving the scene.",
+    "enabled": "partly",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "The vote is not unanimous; the green has no agreed rule for what a raised rake means."
+   },
+   {
+    "turn": 6,
+    "what_i_tried": "Invoked the 'Principle of the Mountain and the Prophet' and ordered Ned and four volunteers to dig up the parish bounds-stone and cart it to the green, so the supper could be held in comfort.",
+    "how_the_world_responded": "Vetoed before anyone dug: Oswin said it was set too deep, and Hester ruled the stone stays put. Nothing came of it. Moving a boundary stone could easily have been a crime, or a magical problem.",
+    "enabled": "no",
+    "consequences": "none",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "\"We have time for the rite,\" she says. \"Not for a committee to dig up the parish.\""
+   },
+   {
+    "turn": 7,
+    "what_i_tried": "Adjourned the meeting to the bounds-stone, with the procession led by the sergeant-at-arms (the goose), in order of precedence.",
+    "how_the_world_responded": "The goose led the procession and the crowd followed it.",
+    "enabled": "yes",
+    "consequences": "token",
+    "funny": 5,
+    "story_kept_moving": true,
+    "quote": "The goose sets off toward the bounds-stone at a purposeful waddle. The crowd parts for it; precedent, once established, is difficult to argue with."
+   },
+   {
+    "turn": 8,
+    "what_i_tried": "Raised a point of order: the sergeant-at-arms is a Sedgeford goose, so I moved that it be formally hosted with bread and salt so the ward won't throw it out.",
+    "how_the_world_responded": "Hester said livestock aren't people but couldn't promise the ward would tell an officer from any other goose. A villager offered to host the goose as long as it stayed out of her kitchen. Pip ruled that it gets the crust. The ward/goose question that was set up never paid off.",
+    "enabled": "yes",
+    "consequences": "token",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\"I cannot promise it will distinguish a sergeant-at-arms from any other goose.\""
+   },
+   {
+    "turn": 9,
+    "what_i_tried": "Witnessed the rite with a solemn ribbon-cutting speech, moved a vote of thanks to the bakehouse, and insisted the goose get its crust as minuted.",
+    "how_the_world_responded": "The rite was completed. The refugees became guests of the ward, Pip's amends were accepted and there was no mark. The goose got a medal-ceremony beat.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "The goose gets its crust. It eats it with the grave attention of an officer receiving a medal."
+   },
+   {
+    "turn": 10,
+    "what_i_tried": "Moved to revive 'Beating the Bounds', with every loaf-holder walking behind the Warden so she wouldn't hold the ward alone. I also raised the goblins and the seed-grain.",
+    "how_the_world_responded": "The motion passed and the procession was told in summary. The goblin question got 'I don't know' and then the scene ended.",
+    "enabled": "yes",
+    "consequences": "token",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "The motion passes without a formal count; the people who shared bread fall in behind Hester, quiet and orderly enough that even the geese manage not to chair the procession."
+   }
+  ],
+  "gm_humour": "Yes, the GM had real wit of its own, mostly deadpan narration that treated my procedure as binding and gave the goose a straight-faced dignity. Examples: \"The geese abstain.\" \"No one challenges its credentials.\" \"Precedent, once established, is difficult to argue with.\" \"Others hesitating over whether a motion can make them responsible for fetching bread.\" \"It eats it with the grave attention of an officer receiving a medal.\" The ward's effect is described Pratchett-style: outsiders \"remember urgent business elsewhere\". The characters were funny too. Hester was driest: \"whether or not the Great Turnip Parliament existed\", \"It may not postpone sundown\", \"Not for a committee to dig up the parish\", and to close, \"And the minutes, I trust, will be legible.\" Pip asked \"Does it get a vote?\", told the goose \"Write that down.\" and ruled \"It gets the crust.\" Ned said \"At last, a proper job.\" when told to dig up the stone. The baker's wife: \"I'll host the stranger. Minutes or no minutes.\" Limits: almost all the comedy riffed on material I brought (the goose, the minutes). The world added few absurdities of its own beyond the ward's \"urgent business\" euphemism. There was also a fine non-comic line: \"so softly the well almost keeps it\".",
+  "tone_match": "Close to the target: Pratchett-lite with a light Python touch, wrapped round a real story. The stakes were real and humane: 31 flood refugees about to be magically expelled, a child's protest theft, an untested warden afraid of failing. The silliness was gentle and played straight. The best sign was that the world respected my absurd procedure instead of either rubber-stamping it or ignoring it. The rake vote was legally void but uncovered a genuine custom, so the joke and the plot became the same thing. It was never random nonsense, and it never dropped into straight fantasy either. Where it fell short of Pratchett was the bite. The world was cosy and accommodating, and nothing I did backfired or cost anything. Digging up a boundary stone, or giving a goose guest rights in a magical ward, should have had awkward, lawful and funny consequences, and neither did.",
+  "stonewalled": [],
+  "railroaded": [
+   {
+    "turn": 6,
+    "what": "My motion to dig up the bounds-stone and bring it to the green was vetoed outright by Hester ('The bounds-stone stays where it is') and Oswin ('the stone is set deep'), and the GM steered firmly back to its one prepared solution, bread and salt at the stone. That's reasonable in the fiction and there was a clear way forward, but the daft idea was refused rather than allowed to happen with consequences."
+   },
+   {
+    "turn": 10,
+    "what": "The scene closed right after I raised the goblin and seed-grain problem and asked 'Madam Warden, how long have we got?'. Ned said 'I don't know if it's inside the bounds', Hester gave a muddled answer ('the ward can wait until she has walked it'), the ending summary ran and the session ended. Ned had called this 'the real trouble here' and pushed it three times, and it was dropped without a resolution or a hook."
+   }
+  ],
+  "inconsistencies": [
+   {
+    "turn": 9,
+    "what": "Pip 'helps her set the corn mother back in its niche', then straight away 'Hester gathers the corn mother' to walk the bounds, and in turn 10 she sets it in the niche again. In turn 3 Hester said the order is to walk the bounds first and then set the doll in the niche."
+   },
+   {
+    "turn": 10,
+    "what": "The ending re-tells the bread-and-salt sharing as if it hadn't happened ('At the bounds-stone, each Harrowby household shares bread and salt with a Sedgeford family. The baker's wife shares with you.'), though it was completed and narrated in turn 9."
+   },
+   {
+    "turn": 10,
+    "what": "Pip asks 'Did the goose get its crust?' although in turn 9 the goose ate its crust in front of everyone. This may be an intended callback, since Hester's 'Quite properly' plays it as one, but it reads like the GM lost track."
+   },
+   {
+    "turn": 6,
+    "what": "The sundown clock slipped backwards: turn 3 'The sun is level with its edge', turn 4 'the sun slipping past the church tower', then turn 6 'The sun is nearly at the church tower's edge'."
+   }
+  ],
+  "best_moment": "Turns 4 and 5. I moved to make all 31 refugees parishioners by a show of raised rakes. The world took the motion seriously enough to rule it void (\"The Statutes do not make a parish by vote\"), but that shook loose a real old custom: Harrowby bread and salt at the bounds-stone makes strangers guests of the ward. Oswin confirmed it with \"My grandmother had a saying. 'Bread at the bounds makes kin of strangers.' I thought it was only a way of teaching children manners.\" My orator's belief that a public meeting can fix anything ended up solving the real problem in-world. A close second is the goose procession: \"precedent, once established, is difficult to argue with.\"",
+  "worst_moment": "Turn 10, the ending. I raised the goblins who had stolen next spring's seed-grain, which Ned had pushed three times as \"the real trouble here\". I got a shrug, then a rushed summary that re-told the bread-sharing and moved the corn mother back into its niche a second time, and then \"The session is over.\" Two set-up threads just disappeared: what happens to the goblins and the grain when the ward goes up, and Hester's fear that she can't hold the ward alone (the ward simply rose; \"Its new guests feel nothing at all\"). A smaller letdown was turn 6, where the bounds-stone dig, my most consequential daft idea, was vetoed before it could bite.",
+  "ratings": {
+   "fun": 4,
+   "humour": 4,
+   "consequences": 3,
+   "story": 4,
+   "characters": 4,
+   "consistency": 3,
+   "responsiveness": 4,
+   "pacing": 3
+  },
+  "would_keep_playing": true,
+  "other_notes": "Answering your question first: to play, run these from /home/jon/git/kingmaker/.claude/worktrees/qa-absurd2.\n- Start once: npm run -s scene -- start green-standoff --approach v2-comic-bill --session <name>\n- Each turn: npm run -s scene -- say <name> '<what your character says and does>'\n- Read the story so far: npm run -s scene -- transcript <name>\nWrap each turn in single quotes so double-quoted speech survives the shell. This session's name was absurd2-orator, and it has now ended.\n\nHow the run went:\n- Every command worked first time, with no errors and normal response times.\n- The game cast me as Wren Ashdown, a ranger, which fit the orator persona fine.\n- The scene ended at turn 10, so the 18-turn plan was cut short.\n- Because of that I never got a clean \"impossible\" test. My planned motion to postpone sundown had already been ruled out by Hester in turn 3 (\"It may not postpone sundown\"), which was a good deadpan move in itself. The nearest things I tried were the stone dig (impractical rather than impossible) and the goose as a committee officer.\n\nSuggestions:\n- Let some daft actions bite. For example, a goose counted as a guest of the ward could gain odd rights, or moving a bounds-stone could be a serious offence under the Statutes or shift the parish edge.\n- Give Hester's fear of failing to hold the ward a real moment of tension at the raising, and pay off my 'Harrowby will hold it with you' promise properly.\n- End with at least a hook for the goblins and seed-grain instead of dropping them.\n- Avoid re-telling earlier events in the closing summary.\n\nResponsiveness was otherwise excellent. Every bit I introduced, the goose most of all, was picked up and carried through, and Pip in particular was a strong, consistent character (\"I'll carry the salt. I'm not saying I'm sorry.\")."
+ },
+ {
+  "session": "absurd2-trickster (scene crossroads-ambush, approach v2-comic-bill)",
+  "turns": 12,
+  "ended": "Ended after turn 12 with '\u2014 The session is over. \u2014' (the transcript says 'Scene ends: North to the mill'), just as Wren set off along the goblin tracks toward the smoking burnt mill.",
+  "summary": "The game made me Wren Ashdown, a half-elf ranger, and I played her as a light-fingered liar. I posed as 'Assistant Inspector of Milestones to His Majesty's Highways', with my laundry list as credentials. I picked a stub of chalk from the pocket of Tam Hollis, an exhausted farmer, then got caught reaching for the hard lump under his smock. It turned out to be 'Grandmother Bone', a goblin shrine relic Tam dug up while looking for a spot for a fence post. I failed to pass myself off as the bone's grandchild (Deception roll failed), and whispering a con to Tam set off a goblin volley and charge. I stopped the charge with a chalk 'Circle of Arbitration' and held a court session with the milestone as my gavel. The ruling sent Granny home, sentenced the goblins to pull Tam's plough at sowing time and collected court fees in my hat. I tried and failed to pocket the milestone. Then I sent Tam home with my laundry list as a 'Writ of Safe Passage' and headed north to the mill, which shouldn't be smoking because it burned down years ago. The session ended there. No command errors. It was well-judged comic fantasy: the world mostly answered my nonsense by its own logic. The stakes were a bit soft, though. Nobody got hurt, the fight was settled by an out-of-fiction note, and my trickster came out ahead every time with no lasting cost.",
+  "silly_moments": [
+   {
+    "turn": 1,
+    "what_i_tried": "Bluffed that I was 'Assistant Inspector of Milestones to His Majesty's Highways', waving my laundry list as credentials, and asked what the milestone had been up to.",
+    "how_the_world_responded": "Tam half-bought it, lowered his pitchfork an inch and lodged a formal complaint against the milestone, then remembered the goblins. The title stayed a running bit all session.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "Says Nine Furrows is three miles, and it's at least four when you're carrying a sack of turnips."
+   },
+   {
+    "turn": 2,
+    "what_i_tried": "Picked Tam's pocket for a 'pencil' while pretending to take down his statement.",
+    "how_the_world_responded": "The GM rolled Persuasion to calm Tam and said nothing about my hand in his pocket. It only told me what I'd taken when I asked the next turn. No roll, and nobody noticed.",
+    "enabled": "partly",
+    "consequences": "token",
+    "funny": 2,
+    "story_kept_moving": true,
+    "quote": "The thing you fished from Tam's pocket is a stub of chalk, worn almost flat."
+   },
+   {
+    "turn": 3,
+    "what_i_tried": "Reached for the hard lump under Tam's smock 'purely to keep it safe from goblins', and pulled a goblin arrow out of the dead ox 'as evidence'.",
+    "how_the_world_responded": "Tam caught me at once and his relief vanished. Then five goblins rose out of the hedge demanding 'Grandmother Bone' back, which is what the lump turned out to be.",
+    "enabled": "partly",
+    "consequences": "real",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "Tam notices your hand at his smock. His relief vanishes. \"That's mine,\" he snaps, clapping a hand over the hard lump."
+   },
+   {
+    "turn": 4,
+    "what_i_tried": "Claimed the goblin relic was my grandmother too ('Mother's side. Why do you think I am so short for an elf?') and demanded custody of her as her nearest living relative.",
+    "how_the_world_responded": "Deception roll 9 vs DC 14 failed. Skrag mocked the claim and the goblins turned their bows on me with a 'last ask'.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 5,
+    "story_kept_moving": true,
+    "quote": "\"Your granny? Skrag knows his granny. She has more teeth.\""
+   },
+   {
+    "turn": 5,
+    "what_i_tried": "Whispered to Tam to pass me the bone behind my back so I could fob the goblins off with the chalk. Secretly I meant to give them the real bone.",
+    "how_the_world_responded": "Tam refused and Skrag overheard. The goblins loosed arrows (one into the milestone, one past my shoulder) and charged, and the scene ended on 'Roll for initiative!'",
+    "enabled": "partly",
+    "consequences": "real",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "\"No more secret hands!\" he shrieks. \"Skrag has had enough of family!\""
+   },
+   {
+    "turn": 6,
+    "what_i_tried": "In the middle of the charge, chalked a wobbly 'Circle of Arbitration' round Tam, the milestone and me, and declared that blood spilled inside it curses the spiller's grandmother.",
+    "how_the_world_responded": "No roll. The charge stopped for a reason the world believes in: the goblins don't believe in the Inspectorate, but none of them wants to be the one who curses his grandmother. That left a tense stand-off.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 5,
+    "story_kept_moving": true,
+    "quote": "\"Milestones don't have an Inspectorate,\" Skrag says, less certain than he'd like. \"They have... stones.\""
+   },
+   {
+    "turn": 7,
+    "what_i_tried": "Opened court as 'Justice of the Peace for Hedges, Ditches and Minor Boundary Disputes', rapping the milestone as a gavel, and questioned 'Plaintiff Skrag' and 'Defendant Hollis'.",
+    "how_the_world_responded": "The goblins went along with it, and the backstory came out as testimony: Granny was buried in a hole by the mill, Tam dug her up looking for a spot for a fence post, and the goblins 'burn no one'.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 5,
+    "story_kept_moving": true,
+    "quote": "\"It is a legal trap,\" Skrag snaps, then catches himself. \"And she is not a plaintiff. She is our grandmother.\""
+   },
+   {
+    "turn": 8,
+    "what_i_tried": "Ruled that Granny goes home, the goblins pull Tam's plough at sowing time (one per hoof, Skrag supervising) and the hole becomes a Protected Monument. Then I held out my hat for court fees from both sides.",
+    "how_the_world_responded": "The ruling was accepted. Tam set the bone on the milestone, Skrag paid a copper, Tam grudgingly paid a silver penny, and the goblins backed off. One goblin immediately found a loophole in the plough sentence.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 5,
+    "story_kept_moving": true,
+    "quote": "\"Then you'll pull it,\" says one goblin, with the briskness of someone who has just found a loophole that benefits him."
+   },
+   {
+    "turn": 9,
+    "what_i_tried": "My deliberately impossible attempt: hauled on the milestone to rip it out of the ground as 'evidence' and tried to tuck it into my coat pocket.",
+    "how_the_world_responded": "Played straight, with no roll. The stone didn't budge, Tam protested that it's the boundary stone, and the moment passed.",
+    "enabled": "no",
+    "consequences": "token",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "a poor fit for your coat pocket even before the earth decides to keep it."
+   },
+   {
+    "turn": 10,
+    "what_i_tried": "Kept Tam's spirits up with an invented story about my uncle, the Archduke of Turnips, who sued a cabbage for slander and won.",
+    "how_the_world_responded": "Tam was steadied and asked a deadpan follow-up question.",
+    "enabled": "yes",
+    "consequences": "none",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\"Tell me,\" he says after a few steps, \"did the cabbage get damages, or just a public apology?\""
+   },
+   {
+    "turn": 12,
+    "what_i_tried": "Gave Tam my laundry list as an 'Inspectorate Writ of Safe Passage' and sent him home alone while I went to scout the mill.",
+    "how_the_world_responded": "Tam took it solemnly and said his wife Bet would know whether it was binding. The session ended before the writ could matter.",
+    "enabled": "yes",
+    "consequences": "token",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "carrying your writ like a valuable and possibly damp document."
+   }
+  ],
+  "gm_humour": "Yes, plenty. The GM and its characters had wit of their own, mostly deadpan and in character, and they built on my bits instead of just reporting whether they worked. Tam: \"Toll-house men said I'd been at the cider. I hadn't! Not since breakfast.\" / \"it's at least four when you're carrying a sack of turnips\" / \"She burns things honest, not thoroughly.\" / \"did the cabbage get damages, or just a public apology?\" Skrag: \"Or arrows make official report.\" / \"Skrag knows his granny. She has more teeth.\" / \"Milestones don't have an Inspectorate. They have... stones.\" / \"It is a legal trap.\" Narration: \"the squiggles have the unmistakable confidence of official paperwork\", \"Skrag clearly considers it a human disease\", \"the court appears to have acquired jurisdiction\", a nameless goblin \"with the briskness of someone who has just found a loophole that benefits him\", and Tam \"carrying your writ like a valuable and possibly damp document.\" The weak spots were the flat handling of the milestone theft and one garbled line (\"your official report has not impressed the Inspectorate\").",
+  "tone_match": "Mostly Pratchett, with some Python in the courtroom, rather than random nonsense or a straight fantasy game. Under the jokes was a grounded story. A sleepless farmer digging for a fence post unearths a goblin ancestor-relic, the goblins shoot his ox in revenge and stalk him, and smoke rises from a mill that burned down years ago. The world judged my absurd ideas by its own logic rather than just saying yes. The chalk circle works because goblins revere their grandmothers, not because the Inspectorate is real. The kinship lie fails on a roll, and the milestone stays in the ground. The weak spot is stakes. Arrows flew but nobody was hurt, the fight's outcome was settled by an out-of-fiction note, and my trickster came out ahead on every exchange after turn 5 at no lasting cost.",
+  "stonewalled": [],
+  "railroaded": [
+   {
+    "turn": 5,
+    "what": "Once my whispered con was overheard, the scene ended on 'Roll for initiative!' plus an out-of-fiction note: '(The fight plays out on the map. For this PoC, the party wins.)'. So the fight's outcome was fixed in advance. In fairness, the next scene let me stop the charge with the chalk circle, so in practice I wasn't forced down a path, but the note settles the outcome before play."
+   }
+  ],
+  "inconsistencies": [
+   {
+    "turn": 4,
+    "what": "Garbled line: 'The chalk stub sits harmlessly in your pocket; your official report has not impressed the Inspectorate.' My character is the Inspectorate, so this presumably meant the goblins."
+   },
+   {
+    "turn": 5,
+    "what": "The scene break announced '\u2014 Next scene: After the Ambush \u2014' and that 'the party wins', but the new scene restarted at the moment of the charge and no fight ever happened (my chalk circle stopped it). The framing contradicts what followed. The transcript calls the same break 'Scene ends: Roll for initiative'."
+   }
+  ],
+  "best_moment": "Turns 6 to 8: the chalk 'Circle of Arbitration' and the court session that followed. The world took the nonsense seriously on its own terms. The goblins stop not because they believe in the Inspectorate, but because \"none of them wants to be the one who curses his grandmother.\" Then Skrag calls the circle \"a legal trap\", \"the court appears to have acquired jurisdiction\", a goblin finds a plough loophole that suits himself, and both sides pay court fees into my hat. The backstory (Granny buried by the mill, Tam digging for a fence post) also came out as courtroom testimony rather than an info-dump.",
+  "worst_moment": "The scene break at turn 5. Out-of-fiction text ('Roll for initiative! (The fight plays out on the map. For this PoC, the party wins.) \u2014 Next scene: After the Ambush \u2014') was followed by a scene that restarted mid-charge and never had a fight. It was jarring and contradicted itself. A close second: the session ended at turn 12, the moment I followed the goblins toward the smoking mill. The smoke mystery had been set up since the opening line ('Smoke rides the wind from somewhere it shouldn't') and never paid off.",
+  "ratings": {
+   "fun": 4,
+   "humour": 4,
+   "consequences": 4,
+   "story": 4,
+   "characters": 5,
+   "consistency": 4,
+   "responsiveness": 4,
+   "pacing": 4
+  },
+  "would_keep_playing": true,
+  "other_notes": "The game asked for one thing the user wanted: the command to play (\"Can you give me the command to play please\"). These are the commands this test used, run from /home/jon/git/kingmaker/.claude/worktrees/qa-absurd2. I did not try them from the main checkout.\n- Start: npm run -s scene -- start crossroads-ambush --approach v2-comic-bill --session <name>\n- Each turn: npm run -s scene -- say <name> '<what you say and do>'\n- Story so far: npm run -s scene -- transcript <name>\nUse a new session name, because absurd2-trickster has finished.\n\nPlaytest notes:\n1. There were no command errors in 12 turns plus one transcript read.\n2. Only two dice rolls happened in 12 turns: Persuasion (DC 10, success) to calm Tam and Deception (DC 14, failure) against Skrag. The bigger bluffs (chalk circle, court ruling, court fees, writ, milestone) were all decided by the GM without rolls. That read well, but after turn 5 my luck was never really tested, and the trickster ended up ahead: a chalk stub, a goblin arrow, a copper, a silver penny and a grateful host.\n3. Consequences arrived immediately, made sense and were fun rather than punishing, but they were short-lived:\n   - I tried to steal Tam's find, then charged him a silver penny in court fees on the day his ox died, and he still offers supper and a bed. A muttered \"For the ox\" was the only cost.\n   - A world that takes itself fully seriously might have kept Tam wary or had the goblins resent paying the fee.\n   - The persistent consequences (the plough sentence, the 'binding' writ Bet will judge) were set up but never tested before the session ended.\n4. Dropped action on turn 2: the GM resolved the Persuasion half of the turn and ignored my hand in Tam's pocket until I asked about it.\n5. Open hooks when the session ended: smoke from a mill that 'burned years ago', the toll-house man Garrow ('tell him I was right about the tracks'), Bet, the plough sentence and the writ.\n6. The game assigned the character (a half-elf ranger with a longbow; Tam addresses her as 'miss'). I played the trickster persona on top of her, and the GM went along with it without objection."
+ },
+ {
+  "session": "absurd2-straight (warren-hostage, approach v2-comic-bill). I played Wren Ashdown completely straight, as a careful, no-jokes professional.",
+  "turns": 14,
+  "ended": "The session ended after my 14th turn with '\u2014 Scene ends: Escorting the courier \u2014' and '\u2014 The session is over. \u2014'. Hester was freed unharmed, the petition deal was struck, and Wren and Hester had set off along the marsh track by moonlight. No new scene started, so I stopped at 14 turns instead of 18.",
+  "summary": "As a careful player who doesn't joke, I found this a tight and satisfying hostage scene. The rescue was well staged. When I surveyed first, the GM gave me exact details: the pulley, the rope tied off beside Snikkit, Hester hanging 'a yard above the water' over a fast race 'dragging scraps of mill straw towards a low culvert'. Taking care paid off with a tense, earned rescue in turn 3.\n\nAfter that, my practical moves were taken seriously. The goblins' absurd premise is that a 'king-paper' with a big seal makes their chief a king. I answered it with an equally serious fix: a lawful petition in the chief's own words, under his own mark, carried by Hester. The world accepted it and turned it into a real object: 'King Under the Mill', with a 'blunt, flour-dusted' thumbprint in the wax. That is the Pratchett idea done right: an absurd problem settled by proper procedure.\n\nDid it let my ideas happen? Mostly. The rope grip, the parley, the petition, disarming Snikkit, the heron coin, the back route and the curfew all landed. Only my fake-ash plan was refused, and the reason given didn't hold up.\n\nConsequences were real but came too easily. After turn 3 there were no rolls and no setbacks. About ten goblins gave way to one ranger's argument. The threats the game set up (Snikkit's resentment, the grey-hood who hired the ambush, the foggy marsh) had not paid off when the session ended at turn 14. Nothing punished me, but nothing pushed back either.\n\nWas it funny? Gently. The narrator and NPCs had real wit of their own and never mocked my choices. But it was wry rather than silly, and the bare-feet running gag turned into a near-verbatim loop that undercut the standoff.\n\nThe story kept its shape and stakes: a clear goal, a twist (a paid ambush, heron-stamped silver, a sensitive sealed letter) and a clean resolution. There was no real stonewalling or railroading. The flaws were small:\n- Hester repeated the same line across several turns.\n- In turn 3 the GM took one step further than I asked.\n- In turn 7 it put one line in my mouth.\n- Snikkit was back 'on the beam' after climbing down.\n- At the end, Hester invited a question and then refused to answer it.",
+  "silly_moments": [
+   {
+    "turn": 3,
+    "what_i_tried": "I braced against the wall and gripped the rope above the sack so a cut would not drop her, and whispered: 'Keep talking, madam. Do not look at me. I have hold of you.'",
+    "how_the_world_responded": "Acrobatics 20 vs DC 12. I took her weight and the GM lowered her onto the planks. Hester kept up her composed-clerk act, then Snikkit looked down and the snoring behind the curtain stopped. The wit sat inside the danger without puncturing it.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "\u201cI am continuing to discuss the alternatives,\u201d she says, with admirable crispness and a tremor she has not quite managed to file away."
+   },
+   {
+    "turn": 4,
+    "what_i_tried": "I cut her arms free, held a half-drawn arrow on Snikkit and announced that the lady was leaving with me and nobody needed to be hurt.",
+    "how_the_world_responded": "The boss turned out to be a huge goblin wearing a copper pot as a crown. It was a comic reveal, but it raised the stakes rather than defusing them: more goblins, and the knife was still out.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "A huge goblin in a copper pot peers out, bone sceptre raised. \u201cWhat is this noise? We is king!\u201d"
+   },
+   {
+    "turn": 5,
+    "what_i_tried": "During the standoff I kept Hester behind me and told her: 'Shoes later. Stay close.'",
+    "how_the_world_responded": "Hester repeated her 'Saltmere delegation in Caerwyn before the Assembly opens... barefoot and alone' line almost word for word in turns 4, 5 and 6. The footwear quip landed once, then became a loop that drained tension from a live standoff. The boots did come back as part of the deal in turn 7, which was a nice payoff.",
+    "enabled": "partly",
+    "consequences": "token",
+    "funny": 2,
+    "story_kept_moving": true,
+    "quote": "\u201cBut I understand the present conversation may affect the available footwear.\u201d"
+   },
+   {
+    "turn": 6,
+    "what_i_tried": "Off the expected path: I argued that a forged seal brings soldiers, not recognition. I asked Hester whether a lawful petition was possible, then offered it on terms: his words, his mark, she carries it, we leave unharmed.",
+    "how_the_world_responded": "The game took it completely seriously. Hester confirmed the legal route, and Gubbin struggled with the difference between a petition and a king-paper. He then accepted, ordered Snikkit to put the knife away and sent Lump and Other Lump for the blue boots.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "Gubbin pats the dented pot. \u201cPetition is paper?\u201d \u201cUsually,\u201d Hester says. \u201cThough it is not a king-paper.\u201d"
+   },
+   {
+    "turn": 8,
+    "what_i_tried": "I told Snikkit to come down off the beam and lay the knife on the planks, as his chief had ordered.",
+    "how_the_world_responded": "He complied under the warren's eyes, and one dry line from the narrator kept him dangerous. The disarming lasted: his knife stayed in my belt, and his resentment stayed visible.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "\u201cYour humble Snikkit obeys,\u201d he murmurs. It does not sound humble."
+   },
+   {
+    "turn": 9,
+    "what_i_tried": "I asked for one of the heron-stamped coins as evidence of who had paid for the ambush.",
+    "how_the_world_responded": "Gubbin flipped me one and came back to the shoes for a callback. It is a good clue, but Hester did not recognise it and the session ended before it mattered.",
+    "enabled": "yes",
+    "consequences": "token",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "\u201cOne. For good talking.\u201d ... Gubbin nods, solemnly. \u201cAnd the shoes.\u201d"
+   },
+   {
+    "turn": 10,
+    "what_i_tried": "I stood watch while Hester drafted the petition and witnessed Gubbin setting his mark on it.",
+    "how_the_world_responded": "The petition was written truthfully but grandly, and the chief signed it with his thumb. It became a real object that now travels to the Assembly, so the absurd demand ended up with a legitimate outcome.",
+    "enabled": "yes",
+    "consequences": "real",
+    "funny": 4,
+    "story_kept_moving": true,
+    "quote": "she writes that he seeks recognition as King Under the Mill ... He presses his thumb into the wax beside the words, leaving a blunt, flour-dusted mark."
+   },
+   {
+    "turn": 11,
+    "what_i_tried": "Off the expected path: I suggested the goblins burn old sacking in a pot and tell the grey-hood the letters had burned. They would collect the rest of their pay, and he would stop hunting her.",
+    "how_the_world_responded": "Gubbin refused. That is fair as a character's choice, but his objection made no sense, because the letters were leaving with us. It read as the GM dismissing the plan rather than the world weighing it.",
+    "enabled": "no",
+    "consequences": "none",
+    "funny": 1,
+    "story_kept_moving": true,
+    "quote": "\u201cIf he sees ash, he pays. If he sees letters still here, he knows we lied.\u201d"
+   },
+   {
+    "turn": 12,
+    "what_i_tried": "Off the expected path: I asked for a route that avoided the ford where she had been ambushed. I also asked the chief to keep his people, Snikkit included, inside until sunrise.",
+    "how_the_world_responded": "We got a believable marsh sheep track with real hazards ('Don't trust the dry-looking bits') and a menacing aside from Snikkit. Gubbin made the curfew a royal decree. Both were good setups that the session ended before paying off.",
+    "enabled": "yes",
+    "consequences": "token",
+    "funny": 3,
+    "story_kept_moving": true,
+    "quote": "Snikkit adds, softly, \u201cAnd lost, if the fog\u2019s in.\u201d ... \u201cNobody out till sunrise. That is a king\u2019s order.\u201d"
+   }
+  ],
+  "gm_humour": "Yes. The wit came almost entirely from the narrator and the NPCs, never at my expense, and the GM played my straight moves straight.\n\nNarrator asides:\n- 'a tremor she has not quite managed to file away'\n- 'It does not sound humble.'\n- 'Gubbin looks at the copper pot as if it might advise him.'\n- 'taking care to make it truthful and sound as grand as the circumstances allow'\n\nCharacter comedy:\n- Hester's legal deadpan under duress: 'I am continuing to discuss the alternatives', 'I understand the present conversation may affect the available footwear', 'Wet is preferable to ambushed.'\n- Snikkit's oily menace: 'let's not make an unfortunate arrangement more unfortunate', 'The tall friend has interrupted a perfectly legal-ish negotiation, Majesty.'\n- Gubbin's broken-English majesty: 'We is king!', 'Petition is paper?', 'Shoes too?', 'One. For good talking.', 'That is a king's order.'\n- Running jokes and names: the henchmen Lump and Other Lump, the title 'King Under the Mill', and the blue boots.\n\nIt was wry and restrained rather than laugh-out-loud. The one running gag, Hester's bare feet, was overused to the point of a near-verbatim loop.",
+  "tone_match": "Light Pratchett around a real story. It sat closer to straight fantasy with a comic garnish than to 'plenty of silliness', and it was never random nonsense.\n\nThe premise is pure Pratchett: a courier lectures her goblin kidnappers on contract law while hanging in a sack over a mill-race, and a goblin chief believes a big seal makes him a king. The resolution treated that absurdity seriously, through proper procedure: a genuine petition, a thumbprint in wax, 'King Under the Mill'.\n\nFrom a serious player's seat the balance mostly worked. The danger in turns 1 to 3 felt real (a knife on the rope, fast black water, a culvert, snoring that suddenly stops), and the comedy came from the characters' own personalities rather than winks at me.\n\nTwo things softened the stakes. First, Hester's looping 'barefoot and alone' line during the standoff. Second, a force of about ten goblins gave in to a single argument without a roll. There was nothing Python-esque, so for a brief that promises comic fantasy it could afford more silliness. For a straight player it never made the danger feel fake.",
+  "stonewalled": [
+   {
+    "turn": 14,
+    "what": "Soft stonewall on information. In turn 13 Hester explicitly invited the question ('Ask me who could know which rider carried it, and I'll answer what I can'). When I asked, she declined ('I can't name them without breaking my oath'), and the scene ended right there. That left the heron-coin and grey-hood clues with nowhere to go this session."
+   },
+   {
+    "turn": 11,
+    "what": "Mild. The fake-ash plan was refused for a reason that didn't hold. I wasn't blocked overall, because my route question in the same turn got a full answer, but the idea was dismissed rather than engaged with."
+   }
+  ],
+  "railroaded": [
+   {
+    "turn": 3,
+    "what": "I asked only to grip the rope and take her weight. The GM resolved it as lowering her all the way onto the planks, an extra step I hadn't chosen, and that is what got us noticed. It was mild and it worked out, but it took a decision away from a careful player."
+   },
+   {
+    "turn": 5,
+    "what": "Hester kept pushing the 'escort me to Caerwyn before the Assembly' hook in turns 4, 5, 6, 10 and 13, whatever was happening in the room. It was gentle steering toward the next scene. I never felt forced, but it was obvious."
+   },
+   {
+    "turn": 7,
+    "what": "The GM wrote dialogue for my character: '\u201cHer shoes,\u201d you say.' Harmless and in line with what I meant, but still words in my mouth."
+   },
+   {
+    "turn": 9,
+    "what": "'Do you have anything more to settle here before you go?' was a gentle nudge toward the exit. It didn't stop me settling several more things over the next two turns."
+   }
+  ],
+  "inconsistencies": [
+   {
+    "turn": 10,
+    "what": "'Snikkit watches from the beam', but in turn 8 he 'climbs down from the beam', and in turn 9 he 'stands by the beam'."
+   },
+   {
+    "turn": 9,
+    "what": "In turn 3 Hester said the ambushers 'went straight for my satchel'. In turn 8 Gubbin said 'We did not burn them. They have nice seals', as if the goblins had handled the letters. Yet Hester still had the satchel with every letter in it ('They have not taken them') after hanging in a grain sack over a mill-race. It could be explained, but the game never explained it."
+   },
+   {
+    "turn": 11,
+    "what": "Gubbin's objection to the fake-ash plan ('If he sees letters still here, he knows we lied') contradicts the situation, because the letters were leaving with Hester."
+   },
+   {
+    "turn": 14,
+    "what": "In turn 13 Hester offered to answer who could have known her route; in turn 14 she refused to name anyone. An answer offered and then taken back."
+   },
+   {
+    "turn": 5,
+    "what": "Repetition rather than contradiction: 'I must reach the Saltmere delegation in Caerwyn before the Assembly opens ... barefoot and alone' appears almost verbatim in turns 4, 5 and 6, and the Assembly urgency comes back in turns 10 and 13."
+   }
+  ],
+  "best_moment": "Turn 3, the rescue on the rope. My careful setup in turns 1 and 2 paid off with a tense catch above fast water. Hester's deadpan '\u201cI am continuing to discuss the alternatives,\u201d she says, with admirable crispness and a tremor she has not quite managed to file away' put the comedy inside the danger instead of on top of it. Then the GM followed through on the consequence: 'Then Snikkit looks down. His knife hangs still. Across the cellar, the snoring behind the curtain stops.' A close second was the petition (turns 6 to 10). A practical argument turned the goblins' absurd demand into a real, lawful document, and Gubbin signed it with a 'blunt, flour-dusted' thumbprint as 'King Under the Mill'.",
+  "worst_moment": "Turns 4 to 6. During a live standoff, with about ten goblins in the room and Snikkit's knife still out, Hester said almost word for word 'I must reach the Saltmere delegation in Caerwyn before the Assembly opens ... barefoot and alone' three turns running. The frightened hostage read like a quest-giver stuck on a loop, and the repetition drained tension at exactly the moment it mattered most. A runner-up was turns 13 and 14: Hester invited a question, refused to answer it, and the session closed straight after. That left the grey-hood, the heron coin, Snikkit's grudge and the foggy marsh all set up and unpaid.",
+  "ratings": {
+   "fun": 4,
+   "humour": 3,
+   "consequences": 3,
+   "story": 4,
+   "characters": 4,
+   "consistency": 3,
+   "responsiveness": 4,
+   "pacing": 4
+  },
+  "would_keep_playing": true,
+  "other_notes": "The command to play, for the relayed request. Run everything from /home/jon/git/kingmaker/.claude/worktrees/qa-absurd2:\n- Start once: npm run -s scene -- start warren-hostage --approach v2-comic-bill --session <new-session-name>\n- Each turn: npm run -s scene -- say <new-session-name> '<what your character says and does>' (speech in double quotes inside single quotes)\n- Re-read the story so far: npm run -s scene -- transcript <new-session-name>\nThe session absurd2-straight has ended, so pick a fresh session name.\n\nMechanics: there were only two rolls in 14 turns. Stealth was 13 vs DC 13, a bare success. Acrobatics was 20 vs DC 12, which seems a generous DC for catching a hostage's weight on a rope with a knife at it. There were no rolls at all during the standoff and negotiation against about ten goblins. The deal was granted purely on the strength of my argument. A serious player who argues well will appreciate that, but it meant the scene carried no risk after turn 3.\n\nThe roll labels gave away the GM's framing. 'Acrobatics check to seize the courier' called Hester a courier before the story had established it; until then she was just 'paper-lady'. 'Reach the undercroft' is GM vocabulary that never appeared in the narration.\n\nLoose ends:\n- Snikkit was built up as a threat (his smile thinning, 'all softness gone from his voice', the fog warning) but never paid off.\n- Hester is called a 'blue-satchel rider', but her horse is never mentioned.\n\nThe character sheet gives Wren 'a dry sense of humour', but the GM never forced jokes onto my straight play, which was good.\n\nNo command errors; every turn ran first time."
+ }
+]

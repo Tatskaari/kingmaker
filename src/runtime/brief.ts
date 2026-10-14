@@ -95,7 +95,7 @@ function castBlock(scene: Scene, c: Character, present: boolean): string {
     ...(c.fears ? [`- Fears: ${c.fears}`] : []),
     `- Knows:\n${c.knows.map(k => `  - ${k}`).join("\n")}`,
     ...(c.secrets?.length ? [`- Secrets (they come out only when earned):\n${c.secrets.map(s => `  - ${s}`).join("\n")}`] : []),
-    `- Attitude to the party at the start: ${c.attitude}`,
+    `- Attitude at the start, and what brings them round (your prep: they never spell it out): ${c.attitude}`,
   ];
   if (!present && c.enters) lines.push(`- Not on stage yet: arrives when the scene reaches "${targetTitle(scene, c.enters)}".`);
   return lines.join("\n");
@@ -119,7 +119,7 @@ export function sceneBrief(scene: Scene, state: SessionState, options: { secrets
     ...(last ? [`## What happened just before this scene\nThis is what actually happened in the story. Where it disagrees with this prep about the state of the fiction (who is where, who has what, what was said), what happened wins: adapt the prep to it. It doesn't change what this scene is about.\n\n${state.history.map(h => h.summary).join("\n\n")}${last.lastMoments?.length ? `\n\nThe last moments, word for word:\n${last.lastMoments.map(m => `> ${m}`).join("\n")}` : ""}`] : []),
     `## The people here\n${cast}`,
     `## Ways this scene can end\nThese are the only ways it can close. The player's choices decide which; don't force one.\n${scene.exits.map(exitBlock).join("\n")}`,
-    ...(scene.essentials?.length && !options.hideEssentials ? [`## What the player needs to come across\nThe author placed these somewhere specific. Players often go elsewhere: when they do, don't let the scene starve. Move the thing to whatever they are engaging with (another person who could know it, an object, an event), or nudge softly (a remark, a telltale detail, a chance to notice or remember), so it reaches them through the path they chose.\n${scene.essentials.map(e => `- ${e.what} (placed with: ${e.placedWith.join("; ")}). It opens up: ${e.unlocks}${state.landed?.includes(e.id) ? " [already come across]" : ""}`).join("\n")}`] : []),
+    ...(scene.essentials?.length && !options.hideEssentials ? [`## What the player needs to come across\nThe author placed these somewhere specific. Players often go elsewhere: when they do, don't let the scene starve. Move the thing to whatever they are engaging with (another person who could know it, an object, an event), or nudge softly (a remark, a telltale detail, a chance to notice or remember), so it reaches them through the path they chose.\n${scene.essentials.map(e => `- ${e.what} (placed with: ${e.placedWith.join("; ")}). It opens up: ${e.unlocks}${state.landed?.includes(e.id) ? " [already come across]" : state.hinted?.includes(e.id) ? " [already hinted at: the player has had a sign of it. Don't point at it again; let them take it up, or let it reach them another way]" : ""}`).join("\n")}`] : []),
     ...(scene.limits?.length ? [`## What this scene can't offer\nIf the player reaches for one of these, let the world say no honestly, in the fiction, and show them what is possible instead.\n${bullets(scene.limits)}`] : []),
     `## The player character\n${state.player.name}: ${state.player.concept}. They are the only player character. Other people only know their name if they've been told it.${skillSummary(state)}`,
     `## Table rules (for out-of-character questions)\n- The game rolls a d20 plus a skill modifier at the scene's key moments; you'll be told the result. You don't roll or promise rolls yourself.\n- Scenes play in order; a scene can be brief, but it can't be skipped.\n- There's no experience or loot system yet.\n- Your prep (what the scene is about, secrets, how it can end) stays behind the screen.`,
@@ -175,7 +175,7 @@ export function nowNote(scene: Scene, state: SessionState, directive: string[], 
     ...(beat.pressure && state.turnsInBeat >= 2 && !state.pressureOffered?.includes(beat.id) ? [`The scene has been sitting here a while. If it's stalling or drifting, the world can push: ${beat.pressure}`] : []),
     `(The scene has been at this point for ${state.turnsInBeat} exchange${state.turnsInBeat === 1 ? "" : "s"}.)`,
     `## What moves the scene on from here\n${transitions.map(t => transitionLine(scene, t)).join("\n")}`,
-    ...(state.notes || state.whispers?.length ? [`## Notes from your co-GM (written a moment ago: if the player has since chosen otherwise, the player's choice wins)\n${[state.notes ?? "", ...(state.whispers ?? []).map(w => `- ${scene.cast.find(c => c.id === w.to)?.name ?? w.to}: ${w.note}`)].filter(Boolean).join("\n")}`] : []),
+    ...(state.notes || state.whispers?.length ? [`## Notes from your co-GM (for you, written a moment ago: let them shape what people do, but nobody recites them; if the player has since chosen otherwise, the player's choice wins)\n${[state.notes ?? "", ...(state.whispers ?? []).map(w => `- On ${scene.cast.find(c => c.id === w.to)?.name ?? w.to}'s mind: ${w.note}`)].filter(Boolean).join("\n")}`] : []),
     ...(state.canon.length || state.established.length ? [`## Details established in play (keep them true)\n${bullets([...state.established, ...state.canon])}`] : []),
     ...(directive.length ? [`## For this reply\n${directive.join("\n\n")}`] : []),
   ];

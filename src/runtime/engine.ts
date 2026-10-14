@@ -222,7 +222,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (pre.daft && !pre.ooc) directive.push(CONSEQUENCE_DIRECTIVE);
   if (pre.pressure && !pre.ooc && !pre.move) {
     if (pre.pressure.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(pre.pressure.roll, pressureReason(scene, pre.pressure)) });
-    state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `pressure:${pre.pressure.target}:${pre.pressure.fit}`, source: "pre", ...(pre.pressure.roll ? { roll: pre.pressure.roll } : {}) });
+    state.path.push({ turn: state.turn, from: state.beat, to: state.beat, via: `pressure:${pre.pressure.target}:${pre.pressure.band}`, source: "pre", ...(pre.pressure.roll ? { roll: pre.pressure.roll } : {}) });
     directive.push(pressureDirective(scene, pre.pressure));
   }
   if (pre.relocate?.length && !pre.ooc) {
@@ -378,6 +378,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     if (post.decision) { costUsd += post.decision.costUsd; calls++; }
     if (post.status) state.sceneStatus = post.status;
     if (post.landed?.length) state.landed = [...new Set([...(state.landed ?? []), ...post.landed])];
+    if (post.hinted?.length) state.hinted = [...new Set([...(state.hinted ?? []), ...post.hinted])];
     // Where the story stands: an ending that leads twice running (or clearly) closes the scene.
     if (post.ending && !post.move && !state.closing && !state.pendingExit) {
       const lead = state.endingLead?.exitId === post.ending.exitId ? state.endingLead.count + 1 : 1;

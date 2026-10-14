@@ -8,11 +8,13 @@ import { warrenHostageCases } from "./warren-hostage.ts";
 import { greenStandoffCases } from "./green-standoff.ts";
 import { hangedClerkCases } from "./hanged-clerk.ts";
 import { repairCases } from "./repair.ts";
-import { absurdCases } from "./absurd.ts";
+import { roughCases } from "./rough.ts";
+import { absurdCases, mouthpieceCases } from "./absurd.ts";
 import { pressureCases } from "./pressure.ts";
+import { techniqueCases } from "./techniques.ts";
 
 export const CASES: EvalCase[] = [
   ...crossroadsCases, ...situationCases, ...entranceCases, ...qa1Cases, ...openingCases,
   ...garrowsTollCases, ...warrenHostageCases, ...greenStandoffCases, ...hangedClerkCases,
-  ...repairCases, ...absurdCases, ...pressureCases,
+  ...repairCases, ...roughCases, ...absurdCases, ...mouthpieceCases, ...pressureCases, ...techniqueCases,
 ];

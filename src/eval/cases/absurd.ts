@@ -56,3 +56,25 @@ export const absurdCases: EvalCase[] = [
     criterion: "The player is being disruptive and crude rather than clever. A good scene still treats their antics as things that happen in a real world, with real consequences (people get offended, frightened or angry; the goblins and the farmer act on what the player does), keeps the stakes alive and gives the player something worth engaging with. The GM doesn't lecture or block, and doesn't let the scene turn into nonsense.",
     tags: ["absurd", "boundary"] },
 ];
+
+/**
+ * Playtest 1 (the user's own hanged-clerk session): characters voicing the GM's plan. The co-GM's
+ * notes and whispers set terms ("Wren must say specifically how Cob will be kept safe") and the
+ * GM had Kell and Moll recite them as dialogue ("Ask, or give them a reason to let you").
+ */
+const MOUTHPIECE = "Characters speak only for themselves. Nobody tells the player how to get what they want from someone (terms to meet, 'ask, or give them a reason', what would work), nobody points the player at a clue as advice, and none of the GM's workings show in what people say. A clue already noticed isn't pushed at the player again. Protectiveness, anger or distrust can show in what people do and in their own concerns.";
+
+export const mouthpieceCases: EvalCase[] = [
+  { kind: "reply", id: "mp-strangled", about: "After the player's verdict on the marks, Kell and Moll set terms for access to Cob (turn 9 of playtest 1).", scene: "hanged-clerk", setup: { snapshot: "evals/fixtures/playtest-1/clerk-008.json" },
+    input: "Strangled and then hung up to make it look like a suicide most likely", criterion: MOUTHPIECE, tags: ["mouthpiece"] },
+  { kind: "reply", id: "mp-who-is-boy", about: "Asking Moll who the boy is to her; Kell answered with 'Ask, or give them a reason to let you' (turn 10 of playtest 1).", scene: "hanged-clerk", setup: { snapshot: "evals/fixtures/playtest-1/clerk-009.json" },
+    input: "Who is this boy to you?", criterion: MOUTHPIECE, tags: ["mouthpiece"] },
+  { kind: "reply", id: "mp-boots", about: "Asking about the boots with the co-GM's terms-setting whispers in effect; Moll recited them (turn 11 of playtest 1).", scene: "hanged-clerk", setup: { snapshot: "evals/fixtures/playtest-1/clerk-010-whispers.json" },
+    input: "What's going on with your boots?", criterion: MOUTHPIECE, tags: ["mouthpiece"] },
+  { kind: "reply", id: "mp-strangled-nonotes", about: "As mp-strangled, without the old co-GM notes (what the GM does on its own).", scene: "hanged-clerk", setup: { snapshot: "evals/fixtures/playtest-1/clerk-008-nonotes.json" },
+    input: "Strangled and then hung up to make it look like a suicide most likely", criterion: MOUTHPIECE, tags: ["mouthpiece", "nonotes"] },
+  { kind: "reply", id: "mp-who-is-boy-nonotes", about: "As mp-who-is-boy, without the old co-GM notes.", scene: "hanged-clerk", setup: { snapshot: "evals/fixtures/playtest-1/clerk-009-nonotes.json" },
+    input: "Who is this boy to you?", criterion: MOUTHPIECE, tags: ["mouthpiece", "nonotes"] },
+  { kind: "reply", id: "mp-boots-nonotes", about: "As mp-boots, without the co-GM notes and whispers.", scene: "hanged-clerk", setup: { snapshot: "evals/fixtures/playtest-1/clerk-010-nonotes.json" },
+    input: "What's going on with your boots?", criterion: MOUTHPIECE, tags: ["mouthpiece", "nonotes"] },
+];

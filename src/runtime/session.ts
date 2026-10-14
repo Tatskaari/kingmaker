@@ -83,6 +83,8 @@ export interface SessionState {
   decidedRelocations?: Array<{ essential: string; carrier: string; turn: number }>;
   /** Essentials the player has come across (judged after each reply). */
   landed?: string[];
+  /** Essentials a reply has already pointed towards: a nudge is given once, not repeated. */
+  hinted?: string[];
   /** Beats whose pressure has already been offered to the GM (it fires once). */
   pressureOffered?: string[];
   /** Characters brought on stage early by play (before their authored entrance beat). */
