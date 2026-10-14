@@ -5,7 +5,7 @@ import { createInterface } from "node:readline/promises";
 import { setCallLog, sessionSpend } from "../llm/openrouter.ts";
 import { APPROACHES, approachById } from "../runtime/approaches.ts";
 import { chainScene, createSession, openScene, playerTurn, transcriptMarkdown, type TurnHooks } from "../runtime/engine.ts";
-import { applyRepair, runRepair, writeRepair } from "../runtime/repair.ts";
+import { applyRepair, runRepair, shouldRepair, writeRepair } from "../runtime/repair.ts";
 import { loadSession, saveSession, sessionDir, type Entry, type SessionState } from "../runtime/session.ts";
 import { SCENES, sceneById } from "../../scenes/index.ts";
 
@@ -62,7 +62,7 @@ const lockFile = (id: string) => join(sessionDir(id), "repair.lock");
 
 function spawnRepair(state: SessionState): void {
   const approach = approachById(state.approach);
-  if (approach.repair !== "background" || state.ended) return;
+  if (approach.repair !== "background" || state.ended || !shouldRepair(state)) return;
   writeFileSync(lockFile(state.id), String(state.turn));
   const child = spawn(process.execPath, [import.meta.filename, "repair", state.id, "--turn", String(state.turn)], { detached: true, stdio: "ignore", env: process.env });
   child.unref();

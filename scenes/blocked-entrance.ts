@@ -49,7 +49,6 @@ export const blockedEntrance: Scene = {
         "He's embarrassed to ask Corvin: Corvin left Nine Furrows after the faculty refused him a chair, and Rowan voted with the faculty.",
       ],
       attitude: "Friendly and chatty, defensive about the cart, happy to accept help that lets him fix it himself.",
-      enters: "holt-briefs",
     },
     {
       id: "mags",
@@ -64,7 +63,6 @@ export const blockedEntrance: Scene = {
         "She could carry a few small things through the gap under the cart, but not wagonloads.",
       ],
       attitude: "Sympathetic to anyone who might actually get the cart moving.",
-      enters: "holt-briefs",
     },
   ],
   start: "holt-raging",

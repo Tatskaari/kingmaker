@@ -4,7 +4,7 @@ import { respondJson, LUNA, type Effort } from "../llm/openrouter.ts";
 import { prompt, sceneBrief, scriptTranscript } from "../runtime/brief.ts";
 import type { Scene } from "../runtime/scene.ts";
 import type { SessionState } from "../runtime/session.ts";
-import { ASSETS } from "./assets.ts";
+import { ASSETS, LOCATIONS } from "./assets.ts";
 import type { Operation } from "./dsl.ts";
 import { checkScript, type ScriptCheck } from "./sandbox.ts";
 
@@ -35,15 +35,23 @@ const SCHEMA = {
   },
 };
 
-export async function scribe(scene: Scene, state: SessionState, authored: Operation[], options: { effort?: Effort; model?: string } = {}): Promise<ScribeResult> {
+export type ScribeMode = "append" | "reconcile";
+
+const AUTHORED_GUIDANCE: Record<ScribeMode, string> = {
+  append: "These have already been applied. Don't repeat them; add what they couldn't know about.",
+  reconcile: "These are the author's defaults, written before the scene was played; they have NOT been applied. Your script is the whole update for this ending: keep the defaults that match what actually happened, change or drop the ones that don't (e.g. someone the default sends home is still on the road), and add what's missing.",
+};
+
+export async function scribe(scene: Scene, state: SessionState, authored: Operation[], options: { effort?: Effort; model?: string; mode?: ScribeMode } = {}): Promise<ScribeResult> {
+  const mode = options.mode ?? "append";
   const exit = scene.exits.find(e => e.id === state.ended?.exitId);
-  const context = { assets: ASSETS, characters: [...scene.cast.map(c => c.id), "player"], anchors: scene.anchors ?? [] };
+  const context = { assets: ASSETS, characters: [...scene.cast.map(c => c.id), "player"], anchors: scene.anchors ?? [], locations: LOCATIONS.map(l => l.id) };
   const input = [
     { role: "developer" as const, content: `## World API\n\`\`\`ts\n${API_REFERENCE}\n\`\`\`\n\n## Asset catalogue (id: name [tags])\n${ASSETS.map(a => `- ${a.id} (${a.kind}): ${a.name} [${a.tags.join(", ")}]`).join("\n")}` },
-    { role: "developer" as const, content: `${sceneBrief(scene, state, { secrets: true })}\n\n## Ids you can use\nCharacters: ${context.characters.join(", ")}\nAnchors (named spots in this place): ${context.anchors.join(", ") || "(none)"}` },
+    { role: "developer" as const, content: `${sceneBrief(scene, state, { secrets: true })}\n\n## Ids you can use\nCharacters: ${context.characters.join(", ")}\nAnchors (named spots in this place): ${context.anchors.join(", ") || "(none)"}\nKnown locations elsewhere: ${LOCATIONS.map(l => `${l.id} (${l.name})`).join("; ")}` },
     { role: "user" as const, content: [
       `## How the scene ended\n${exit ? `${exit.title}: ${exit.outcome}` : "(unknown)"}`,
-      `## Already applied by the authored ending script\n${describeOperations(authored)}`,
+      `## The author's default changes for this ending\n${AUTHORED_GUIDANCE[mode]}\n${describeOperations(authored)}`,
       `## Established during play\n${[...state.established, ...state.canon].map(f => `- ${f}`).join("\n") || "- (nothing recorded)"}`,
       `## The scene as played\n${scriptTranscript(scene, state)}`,
     ].join("\n\n") },

@@ -7,7 +7,7 @@ import { approachById } from "../runtime/approaches.ts";
 import { effectiveScene, prompt, scriptTranscript } from "../runtime/brief.ts";
 import { decideAfter, decideBefore } from "../runtime/director.ts";
 import { openScene, playerTurn } from "../runtime/engine.ts";
-import { applyRepair, runRepair } from "../runtime/repair.ts";
+import { applyRepair, expireNotes, runRepair, shouldRepair } from "../runtime/repair.ts";
 import type { SessionState } from "../runtime/session.ts";
 import { buildFixture } from "./fixtures.ts";
 import { DIMENSIONS, judgeTrajectory, judgeTurn, judgeWorldUpdate, type Dimension } from "./judge.ts";
@@ -180,7 +180,7 @@ async function runTrajectory(c: TrajectoryCase, approach: string, sample: number
       const input = await simulatePlayer(c, state);
       const result = await playerTurn(state, input);
       cost += result.metric.costUsd;
-      if (repairOn && !state.ended) {
+      if (repairOn && !state.ended && shouldRepair(state)) {
         const repair = await runRepair(scene, state, { effort: approachById(approach).repairEffort ?? "medium" });
         applyRepair(scene, state, repair);
         cost += repair.costUsd;
@@ -220,8 +220,12 @@ if (worldSuite) {
       try {
         const scene = sceneById(ending.state.sceneId);
         const authored = ending.state.ended!.operations;
-        const result = await scribe(scene, ending.state, authored);
-        const verdict = await judgeWorldUpdate(scene, ending.state, `### Authored ending script\n${describeOperations(authored)}\n\n### Scribe update\n${describeOperations(result.check.operations)}`);
+        const mode = (opt("mode") ?? "append") as "append" | "reconcile";
+        const result = await scribe(scene, ending.state, authored, { mode });
+        const changes = mode === "append"
+          ? `### Authored ending script\n${describeOperations(authored)}\n\n### Scribe update\n${describeOperations(result.check.operations)}`
+          : `### Final update (the scribe reconciled the author's defaults)\n${describeOperations(result.check.operations)}`;
+        const verdict = await judgeWorldUpdate(scene, ending.state, changes);
         return {
           case: name, ok: true, exit: ending.state.ended!.exitId, compiled: result.check.ok, attempts: result.attempts, warnings: result.check.warnings,
           operations: result.check.operations.length, unsupported: result.check.operations.filter(o => o.op === "unsupported").map(o => String(o.args.description)),

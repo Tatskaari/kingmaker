@@ -95,3 +95,18 @@ export const ASSETS: Asset[] = [
   a("magic-glow", "effect", "Magical glow", "magic", "light", "aura"),
   a("flies", "effect", "Buzzing flies", "flies", "death", "rot", "ambient"),
 ];
+
+/** Known places in the wider world that characters can be moved to. */
+export const LOCATIONS: Array<{ id: string; name: string }> = [
+  { id: "caerwyn-palace", name: "The royal palace at Caerwyn" },
+  { id: "palace-service-entrance", name: "The palace service entrance" },
+  { id: "palace-great-hall", name: "The palace Great Hall" },
+  { id: "corvins-chamber", name: "Magister Corvin's chamber in the palace" },
+  { id: "kings-road", name: "The King's Road between the crossroads and Caerwyn" },
+  { id: "crossroads", name: "The crossroads on the King's Road" },
+  { id: "toll-house", name: "Garrow's toll house on the King's Road" },
+  { id: "hollis-farm", name: "Hollis Farm, an hour down the drovers' track" },
+  { id: "burnt-mill", name: "The burnt mill on the river, half a day north (goblin warren beneath)" },
+  { id: "nine-furrows-green", name: "A village green in the Nine Furrows farmlands" },
+  { id: "caerwyn-granary", name: "The great granary in Caerwyn" },
+];

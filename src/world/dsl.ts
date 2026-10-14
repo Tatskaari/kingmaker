@@ -8,6 +8,8 @@ export type AssetKind = "decal" | "prop" | "item" | "creature" | "effect";
 export interface Asset { id: string; kind: AssetKind; name: string; tags: string[] }
 
 export interface Anchor { type: "anchor"; id: string }
+/** A known place in the wider world (beyond this scene's anchors). */
+export interface Location { type: "location"; id: string }
 export interface CharacterRef { type: "character"; id: string }
 export type Place = Anchor | CharacterRef;
 
@@ -35,6 +37,14 @@ export interface WorldApi {
   newItem(spec: Omit<ItemSpec, "content">): ItemSpec;
   scatter(spec: { asset: Asset; count: number; around: Place; radius?: number }): void;
   place(spec: { asset: Asset; at: Place; note?: string }): void;
+  /** Something specific the story created that the catalogue doesn't have: drawn with the closest asset. */
+  improvisedProp(spec: { name: string; description: string; looksLike: Asset; at: Place }): void;
+  /** Writing, carving or a sign left on something in the scene. */
+  mark(spec: { text: string; on: Place; how: "carved" | "written" | "chalked" | "painted" }): void;
+  /** A known place elsewhere in the world (e.g. "hollis-farm", "burnt-mill"); see the location list. */
+  location(id: string): Location;
+  /** An obligation someone took on that the world should remember (a debt, a promise, a deal). */
+  promise(spec: { by: string; to: string; what: string; due?: string }): void;
   quest(id: string): { start(title: string, summary: string): void; advance(stage: string, note: string): void; complete(note: string): void; fail(note: string): void };
   startCombat(spec: { enemies: Array<{ asset: Asset; count: number; leader?: string }>; allies?: string[]; at: Place; surprise?: "party" | "enemies" }): void;
   setFlag(name: string, value: string | number | boolean): void;
@@ -46,7 +56,8 @@ export interface WorldApi {
 /** A character handle is also a place: things can be scattered around a character. */
 export interface CharacterHandle extends CharacterRef {
   setAttitude(attitude: Attitude, reason: string): void;
-  moveTo(place: Place | string): void;
+  /** Where they end up. Use a scene anchor, a known location, or the road between ("on the road to hollis-farm"). */
+  moveTo(place: Place | Location | string): void;
   kill(cause: string): void;
   wound(description: string): void;
   giveItem(item: ItemSpec): void;
@@ -60,7 +71,7 @@ export interface CharacterHandle extends CharacterRef {
 export type WorldScript = (world: WorldApi, outcome: SceneOutcome) => void;
 
 /** A world that records operations against a fixed asset catalogue and known ids. */
-export function recordingWorld(options: { assets: Asset[]; characters: string[]; anchors: string[] }): { world: WorldApi; operations: Operation[]; warnings: string[] } {
+export function recordingWorld(options: { assets: Asset[]; characters: string[]; anchors: string[]; locations?: string[] }): { world: WorldApi; operations: Operation[]; warnings: string[] } {
   const operations: Operation[] = [];
   const warnings: string[] = [];
   const record = (op: string, args: Record<string, unknown>) => { operations.push({ op, args }); };
@@ -73,7 +84,7 @@ export function recordingWorld(options: { assets: Asset[]; characters: string[];
     return {
       type: "character", id,
       setAttitude: (attitude, reason) => on("setAttitude")({ attitude, reason }),
-      moveTo: place => on("moveTo")({ place: typeof place === "string" ? place : ref(place) }),
+      moveTo: place => on("moveTo")({ place: typeof place === "string" ? place : `${place.type}:${place.id}` }),
       kill: cause => on("kill")({ cause }),
       wound: description => on("wound")({ description }),
       giveItem: item => on("giveItem")({ item }),
@@ -124,6 +135,13 @@ export function recordingWorld(options: { assets: Asset[]; characters: string[];
     setFlag: (name, value) => record("setFlag", { name, value }),
     journal: entry => record("journal", { entry }),
     unsupported: description => record("unsupported", { description }),
+    improvisedProp: spec => record("improvisedProp", { name: spec.name, description: spec.description, looksLike: spec.looksLike.id, at: ref(spec.at) }),
+    mark: spec => record("mark", { text: spec.text, on: ref(spec.on), how: spec.how }),
+    location(id) {
+      if (options.locations && !options.locations.includes(id)) warnings.push(`unknown location ${id}`);
+      return { type: "location", id };
+    },
+    promise: spec => record("promise", { by: spec.by, to: spec.to, what: spec.what, due: spec.due }),
   };
   return { world, operations, warnings };
 }

@@ -4,7 +4,7 @@ import { recordingWorld } from "../world/dsl.ts";
 import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { approachById } from "./approaches.ts";
-import { effectiveScene, sceneEntries } from "./brief.ts";
+import { currentBeat, effectiveScene, presentCast, sceneEntries } from "./brief.ts";
 import { decideAfter, decideBefore, decideNextSpeaker, freeformDirective, limitDirective, moveDirective, type Move } from "./director.ts";
 import { describeRoll } from "./dice.ts";
 import { applyPendingRepairs } from "./repair.ts";
@@ -158,6 +158,12 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (pre.decision) { costUsd += pre.decision.costUsd; calls++; }
   let ended: Exit | undefined;
   let directive: string[] = [];
+  // Someone not yet on stage was called into the scene by the player's turn.
+  if (pre.speaker && scene.cast.some(c => c.id === pre.speaker) && !presentCast(scene, state).some(c => c.id === pre.speaker)) {
+    state.entered = [...(state.entered ?? []), pre.speaker];
+  }
+  // Momentum: the last exchange was judged stuck, so this reply has to break the loop.
+  const wasStuck = state.sceneStatus === "stuck";
   const pending = state.pendingExit;
   if (pending) delete state.pendingExit;
   if (pre.move) {
@@ -172,6 +178,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     directive = [freeformDirective(pre.freeform)];
   }
   if (pre.limit) directive.push(limitDirective(pre.limit));
+  if (wasStuck && !pre.move) directive.push(`The scene has been going in circles. Break the loop in this reply: let someone act on what they want, let the world push${currentBeat(scene, state).pressure ? ` (${currentBeat(scene, state).pressure})` : ""}, or reveal something that opens a way forward. Don't just repeat the last exchange.`);
   if (pending && !pre.move) {
     const exit = scene.exits.find(e => e.id === pending.exitId)!;
     if ((pre.plain || pre.freeform) && !pending.extended) {
@@ -196,7 +203,10 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     for (let i = 0; i < 4 && next !== "player"; i++) {
       const line = next === "gm"
         ? await narratorReply(scene, state, i === 0 ? directive : [], speakHooks(textHooks, "gm", "narration"))
-        : await actorReply(scene, state, next, i === 0 && pre.limit ? [limitDirective(pre.limit)] : [], speakHooks(textHooks, next, "dialogue"));
+        : await actorReply(scene, state, next, [
+          ...(i === 0 && pre.limit ? [limitDirective(pre.limit)] : []),
+          ...(state.whispers ?? []).filter(w => w.to === next).map(w => w.note),
+        ], speakHooks(textHooks, next, "dialogue"));
       spoken.push(line);
       push(state, hooks, { speaker: line.speaker, kind: line.kind, text: line.text });
       responded.push(next === "gm" ? "GM" : scene.cast.find(c => c.id === next)?.name ?? next);
@@ -219,6 +229,7 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
     const post = await decideAfter(decider, scene, state, input, replyText, hold ? { hold } : {});
     postDecisionMs = performance.now() - postStarted;
     if (post.decision) { costUsd += post.decision.costUsd; calls++; }
+    if (post.status) state.sceneStatus = post.status;
     if (post.move) {
       if (post.move.roll) push(state, hooks, { speaker: "dice", kind: "roll", text: describeRoll(post.move.roll) });
       applyMove(state, scene, post.move, "post");

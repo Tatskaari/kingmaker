@@ -49,7 +49,12 @@ export function visitedBeats(state: SessionState): Set<string> {
 
 export function presentCast(scene: Scene, state: SessionState): Character[] {
   const visited = visitedBeats(state);
-  return scene.cast.filter(c => !c.enters || visited.has(c.enters));
+  return scene.cast.filter(c => !c.enters || visited.has(c.enters) || state.entered?.includes(c.id));
+}
+
+export function offstageCast(scene: Scene, state: SessionState): Character[] {
+  const present = new Set(presentCast(scene, state).map(c => c.id));
+  return scene.cast.filter(c => !present.has(c.id));
 }
 
 const bullets = (items: readonly string[] | undefined, none = "- (nothing in particular)") => items?.length ? items.map(i => `- ${i}`).join("\n") : none;
@@ -112,7 +117,7 @@ export function nowNote(scene: Scene, state: SessionState, directive: string[], 
     ...(beat.pressure && state.turnsInBeat >= 2 ? [`The scene has been sitting here a while. If it's stalling or drifting, the world can push: ${beat.pressure}`] : []),
     `(The scene has been at this point for ${state.turnsInBeat} exchange${state.turnsInBeat === 1 ? "" : "s"}.)`,
     `## What moves the scene on from here\n${transitions.map(t => transitionLine(scene, t)).join("\n")}`,
-    ...(state.notes ? [`## Notes from your co-GM\n${state.notes}`] : []),
+    ...(state.notes || state.whispers?.length ? [`## Notes from your co-GM\n${[state.notes ?? "", ...(state.whispers ?? []).map(w => `- ${scene.cast.find(c => c.id === w.to)?.name ?? w.to}: ${w.note}`)].filter(Boolean).join("\n")}`] : []),
     ...(state.canon.length || state.established.length ? [`## Details established in play (keep them true)\n${bullets([...state.established, ...state.canon])}`] : []),
     ...(directive.length ? [`## For this reply\n${directive.join("\n\n")}`] : []),
   ];

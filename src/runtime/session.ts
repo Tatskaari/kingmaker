@@ -29,12 +29,16 @@ export interface ScenePatch {
   why: string;
 }
 
+export type SceneStatus = "on_track" | "drifting" | "stuck" | "uncovered";
+
 export interface RepairResult {
   /** Turn the repair agent analysed. */
   turn: number;
   assessment: string;
   status: "on_track" | "drifting" | "stuck";
   notes: string;
+  /** Per-character steering for the next exchange or two. */
+  whispers?: Array<{ to: string; note: string }>;
   canon: string[];
   patches: ScenePatch[];
   moveTo?: string;
@@ -58,8 +62,14 @@ export interface SessionState {
   canon: string[];
   notes: string | null;
   notesTurn: number | null;
+  whispers?: Array<{ to: string; note: string; turn: number }>;
+  /** Characters brought on stage early by play (before their authored entrance beat). */
+  entered?: string[];
+  /** Cheap per-turn status from the after-reply decision; gates the repair agent. */
+  sceneStatus?: SceneStatus;
+  lastRepairTurn?: number;
   patches: ScenePatch[];
-  repairs: Array<Omit<RepairResult, "patches" | "canon"> & { patches: number; canon: number }>;
+  repairs: Array<Omit<RepairResult, "patches" | "canon" | "whispers"> & { patches: number; canon: number; whispers: number }>;
   transcript: Entry[];
   metrics: TurnMetric[];
   ended?: { exitId: string; turn: number; operations: Operation[]; warnings: string[] };

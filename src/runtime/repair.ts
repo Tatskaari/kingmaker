@@ -1,68 +1,87 @@
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { respondJson, LUNA, type Effort } from "../llm/openrouter.ts";
-import { currentBeat, effectiveScene, prompt, sceneBrief, scriptTranscript, targetTitle } from "./brief.ts";
+import { currentBeat, effectiveScene, presentCast, prompt, sceneBrief, scriptTranscript, targetTitle } from "./brief.ts";
 import { SKILLS, type Beat, type Scene, type Transition } from "./scene.ts";
 import { sessionDir, type RepairResult, type ScenePatch, type SessionState } from "./session.ts";
 
-/** The co-GM: a slower, reasoning model that reviews the scene between turns and leaves notes and patches. */
+/**
+ * The co-GM: a slower, reasoning model that reviews the scene between turns. Its output is
+ * steering, not plot: short-lived notes for the GM, whispers to individual characters (their
+ * wants this moment), canon to keep true, and additive routes that only lead to existing beats or
+ * endings. Notes expire so they can't harden into a plan the scene railroads towards.
+ */
+
+export const NOTE_TTL_TURNS = 3;
+export const WHISPER_TTL_TURNS = 2;
 
 const nullable = (schema: Record<string, unknown>) => ({ anyOf: [schema, { type: "null" }] });
-const checkSchema = {
-  type: "object", additionalProperties: false,
-  required: ["skill", "dc", "success", "failure", "on_failure"],
-  properties: {
-    skill: { type: "string", enum: [...SKILLS] },
-    dc: { type: "integer" },
-    success: { type: "string", description: "What success looks like in the fiction." },
-    failure: { type: "string", description: "What failure looks like in the fiction." },
-    on_failure: nullable({ type: "string", description: "Beat or ending id on failure; null to stay." }),
-  },
-};
-const REPAIR_SCHEMA = {
-  type: "object", additionalProperties: false,
-  required: ["assessment", "status", "notes", "canon", "move_to", "add_beat", "add_transitions"],
-  properties: {
-    assessment: { type: "string", description: "One or two sentences: what the player is doing and how the scene is going." },
-    status: { type: "string", enum: ["on_track", "drifting", "stuck"] },
-    notes: { type: "string", description: "Whispered notes to the GM for the next few replies." },
-    canon: { type: "array", items: { type: "string" }, description: "New improvised details that must now stay true. Only new ones." },
-    move_to: nullable({ type: "string", description: "Beat id the story has actually reached, if the tracker is behind." }),
-    add_beat: nullable({
-      type: "object", additionalProperties: false,
-      required: ["id", "title", "direction", "pressure", "transitions"],
-      properties: {
-        id: { type: "string" }, title: { type: "string" }, direction: { type: "string" }, pressure: { type: "string" },
-        transitions: {
-          type: "array", items: {
-            type: "object", additionalProperties: false, required: ["when", "to"],
-            properties: { when: { type: "string" }, to: { type: "string", description: "Existing beat or ending id." } },
+
+/** Ids are enums built from this scene, so the agent can only point at things that exist. */
+function repairSchema(scene: Scene) {
+  const beats = scene.beats.map(b => b.id);
+  const targets = [...beats, ...scene.exits.map(e => e.id), "new_beat"];
+  const cast = scene.cast.map(c => c.id);
+  return {
+    type: "object", additionalProperties: false,
+    required: ["assessment", "status", "notes", "whispers", "no_but", "canon", "move_to", "add_beat", "add_transitions"],
+    properties: {
+      assessment: { type: "string", description: "One or two sentences: what the player is doing or enjoying, and how the scene is going." },
+      status: { type: "string", enum: ["on_track", "drifting", "stuck"] },
+      notes: { type: "string", description: "Whispered notes to the GM for the next couple of replies. Empty if things are going well." },
+      whispers: {
+        type: "array", description: "What individual characters want or should try in the next exchange or two (a want, a concession, an offer, a deadline). Not lines of dialogue.",
+        items: { type: "object", additionalProperties: false, required: ["to", "note"], properties: { to: { type: "string", enum: cast }, note: { type: "string" } } },
+      },
+      no_but: {
+        type: "array", description: "Player approaches the world can't support: the in-fiction reason and the real alternative they can act on now.",
+        items: { type: "object", additionalProperties: false, required: ["approach", "reason_in_fiction", "alternative", "alternative_route"], properties: {
+          approach: { type: "string" }, reason_in_fiction: { type: "string" }, alternative: { type: "string" },
+          alternative_route: { type: "string", enum: targets.filter(t => t !== "new_beat"), description: "Beat or ending the alternative leads towards." },
+        } },
+      },
+      canon: { type: "array", items: { type: "string" }, description: "New improvised details that must now stay true. Only new ones." },
+      move_to: nullable({ type: "string", enum: beats, description: "Beat the story has actually reached, if the tracker is behind." }),
+      add_beat: nullable({
+        type: "object", additionalProperties: false,
+        required: ["id", "title", "direction", "pressure", "transitions"],
+        properties: {
+          id: { type: "string" }, title: { type: "string" }, direction: { type: "string" }, pressure: { type: "string" },
+          transitions: { type: "array", items: { type: "object", additionalProperties: false, required: ["when", "to"], properties: { when: { type: "string" }, to: { type: "string", enum: targets.filter(t => t !== "new_beat") } } } },
+        },
+      }),
+      add_transitions: {
+        type: "array",
+        items: {
+          type: "object", additionalProperties: false,
+          required: ["beat", "when", "on", "to", "check", "why"],
+          properties: {
+            beat: { type: "string", enum: [...beats, "new_beat"], description: "Beat this route leaves from." },
+            when: { type: "string", description: "What the player does or what happens, in prose." },
+            on: { type: "string", enum: ["attempt", "cue", "outcome"] },
+            to: { type: "string", enum: targets, description: "Beat or ending (or new_beat). With a check, the success destination." },
+            check: nullable({
+              type: "object", additionalProperties: false, required: ["skill", "dc", "success", "failure", "on_failure"],
+              properties: {
+                skill: { type: "string", enum: [...SKILLS] }, dc: { type: "integer" },
+                success: { type: "string" }, failure: { type: "string" },
+                on_failure: nullable({ type: "string", enum: targets.filter(t => t !== "new_beat") }),
+              },
+            }),
+            why: { type: "string" },
           },
         },
       },
-    }),
-    add_transitions: {
-      type: "array",
-      items: {
-        type: "object", additionalProperties: false,
-        required: ["beat", "when", "on", "to", "check", "why"],
-        properties: {
-          beat: { type: "string", description: "Beat id this route leaves from." },
-          when: { type: "string", description: "What the player does or what happens, in prose." },
-          on: { type: "string", enum: ["attempt", "cue", "outcome"] },
-          to: { type: "string", description: "Existing beat or ending id (or the id of add_beat). With a check, the success destination." },
-          check: nullable(checkSchema),
-          why: { type: "string" },
-        },
-      },
     },
-  },
-};
+  };
+}
 
 interface RepairJson {
   assessment: string;
   status: "on_track" | "drifting" | "stuck";
   notes: string;
+  whispers: Array<{ to: string; note: string }>;
+  no_but: Array<{ approach: string; reason_in_fiction: string; alternative: string; alternative_route: string }>;
   canon: string[];
   move_to: string | null;
   add_beat: { id: string; title: string; direction: string; pressure: string; transitions: Array<{ when: string; to: string }> } | null;
@@ -81,19 +100,20 @@ function graphOutline(scene: Scene): string {
 export async function runRepair(authored: Scene, state: SessionState, options: { effort?: Effort; model?: string } = {}): Promise<RepairResult> {
   const scene = effectiveScene(authored, state.patches);
   const beat = currentBeat(scene, state);
+  const sinceMove = state.turn - Math.max(0, ...state.path.filter(p => p.to !== p.from).map(p => p.turn));
   const input = [
     { role: "developer" as const, content: sceneBrief(scene, state) },
     { role: "developer" as const, content: `## The scene's beats and routes (ids in quotes)\n${graphOutline(scene)}` },
     { role: "user" as const, content: [
-      `## Tracker: the scene is at beat "${beat.id}" (${beat.title}) and has been there for ${state.turnsInBeat} exchanges.`,
-      `## Your previous notes\n${state.notes ?? "(none yet)"}`,
+      `## Tracker: the scene is at beat "${beat.id}" (${beat.title}); ${state.turnsInBeat} exchanges here, ${sinceMove} since anything moved.`,
+      `## Your notes still in effect\n${state.notes ?? "(none)"}${state.whispers?.length ? `\n${state.whispers.map(w => `- to ${w.to}: ${w.note}`).join("\n")}` : ""}`,
       `## Established so far\n${[...state.established, ...state.canon].map(x => `- ${x}`).join("\n") || "(nothing yet)"}`,
       `## Transcript\n${scriptTranscript(scene, state)}`,
     ].join("\n\n") },
   ];
   const result = await respondJson<RepairJson>({
     operation: "repair", model: options.model ?? LUNA, effort: options.effort ?? "medium",
-    instructions: prompt("repair"), input, json: { name: "co_gm_notes", schema: REPAIR_SCHEMA }, maxOutputTokens: 6000,
+    instructions: prompt("repair"), input, json: { name: "co_gm_notes", schema: repairSchema(scene) }, maxOutputTokens: 8000,
   });
   return toRepairResult(scene, state, result, result._meta);
 }
@@ -102,33 +122,40 @@ function toRepairResult(scene: Scene, state: SessionState, json: RepairJson, met
   const ids = new Set([...scene.beats.map(b => b.id), ...scene.exits.map(e => e.id)]);
   const patches: ScenePatch[] = [];
   const problems: string[] = [];
-  let newBeat: Beat | undefined;
-  if (json.add_beat && !ids.has(json.add_beat.id)) {
+  let newBeatId: string | undefined;
+  if (json.add_beat) {
+    const id = ids.has(json.add_beat.id) ? `${json.add_beat.id}-improv-${state.turn}` : json.add_beat.id;
     const valid = json.add_beat.transitions.filter(t => ids.has(t.to));
     if (valid.length) {
-      newBeat = {
-        id: json.add_beat.id, title: json.add_beat.title, direction: json.add_beat.direction, pressure: json.add_beat.pressure,
-        transitions: valid.map((t, i) => ({ id: `${json.add_beat!.id}-to-${t.to}-${i}`, when: t.when, to: t.to })),
+      const beat: Beat = {
+        id, title: json.add_beat.title, direction: json.add_beat.direction, pressure: json.add_beat.pressure,
+        transitions: valid.map((t, i) => ({ id: `${id}-to-${t.to}-${i}`, when: t.when, to: t.to })),
       };
-      patches.push({ turn: state.turn, beat: newBeat, why: `Bridging beat: ${json.add_beat.title}` });
-      ids.add(newBeat.id);
+      patches.push({ turn: state.turn, beat, why: `Bridging beat: ${json.add_beat.title}` });
+      newBeatId = id;
+      ids.add(id);
     } else problems.push(`add_beat ${json.add_beat.id} had no valid targets`);
   }
+  const resolveId = (id: string) => id === "new_beat" ? newBeatId : id;
   for (const [i, t] of json.add_transitions.entries()) {
-    if (!ids.has(t.beat) || !ids.has(t.to) || scene.exits.some(e => e.id === t.beat)) { problems.push(`transition ${t.beat} -> ${t.to} rejected (unknown id)`); continue; }
-    if (t.check?.on_failure && !ids.has(t.check.on_failure)) { problems.push(`transition failure target ${t.check.on_failure} unknown`); continue; }
+    const from = resolveId(t.beat), to = resolveId(t.to);
+    if (!from || !to || !ids.has(from) || !ids.has(to) || scene.exits.some(e => e.id === from)) { problems.push(`transition ${t.beat} -> ${t.to} rejected`); continue; }
     const transition: Transition = {
       id: `improv-${state.turn}-${i}`, when: t.when, on: t.on,
       ...(t.check
-        ? { check: { skill: t.check.skill, dc: Math.max(5, Math.min(25, t.check.dc)), success: t.check.success, failure: t.check.failure, onSuccess: t.to, ...(t.check.on_failure ? { onFailure: t.check.on_failure } : {}) } }
-        : { to: t.to }),
+        ? { check: { skill: t.check.skill, dc: Math.max(5, Math.min(25, t.check.dc)), success: t.check.success, failure: t.check.failure, onSuccess: to, ...(t.check.on_failure && ids.has(t.check.on_failure) ? { onFailure: t.check.on_failure } : {}) } }
+        : { to }),
     };
-    patches.push({ turn: state.turn, transition: { beat: t.beat, transition }, why: t.why });
+    patches.push({ turn: state.turn, transition: { beat: from, transition }, why: t.why });
   }
-  const moveTo = json.move_to && ids.has(json.move_to) && json.move_to !== state.beat && !scene.exits.some(e => e.id === json.move_to) ? json.move_to : undefined;
+  const noBut = json.no_but.map(n => `"No, but" for ${n.approach}: ${n.reason_in_fiction} Instead: ${n.alternative} (towards ${targetTitle(scene, n.alternative_route)}).`);
+  const notes = [json.notes.trim(), ...noBut].filter(Boolean).join("\n");
+  const present = new Set(presentCast(scene, state).map(c => c.id));
+  const moveTo = json.move_to && ids.has(json.move_to) && json.move_to !== state.beat ? json.move_to : undefined;
   return {
     turn: state.turn, assessment: json.assessment + (problems.length ? ` [rejected: ${problems.join("; ")}]` : ""), status: json.status,
-    notes: json.notes, canon: json.canon, patches, ...(moveTo ? { moveTo } : {}), costUsd: meta.costUsd, latencyMs: meta.latencyMs,
+    notes, whispers: json.whispers.filter(w => present.has(w.to) || scene.cast.some(c => c.id === w.to)), canon: json.canon, patches,
+    ...(moveTo ? { moveTo } : {}), costUsd: meta.costUsd, latencyMs: meta.latencyMs,
   };
 }
 
@@ -153,12 +180,22 @@ export function applyPendingRepairs(scene: Scene, state: SessionState): RepairRe
     applyRepair(scene, state, result);
     merged.push(result);
   }
+  expireNotes(state);
   return merged;
 }
 
+/** Notes and whispers are short-lived steering, not a plan. */
+export function expireNotes(state: SessionState): void {
+  if (state.notesTurn !== null && state.turn - state.notesTurn >= NOTE_TTL_TURNS) { state.notes = null; state.notesTurn = null; }
+  if (state.whispers?.length) state.whispers = state.whispers.filter(w => state.turn - w.turn < WHISPER_TTL_TURNS);
+}
+
 export function applyRepair(scene: Scene, state: SessionState, result: RepairResult): void {
-  // Notes are only as fresh as the turn they analysed; newer notes win.
-  if (state.notesTurn === null || result.turn >= state.notesTurn) { state.notes = result.notes; state.notesTurn = result.turn; }
+  if (state.notesTurn === null || result.turn >= state.notesTurn) {
+    state.notes = result.notes || null;
+    state.notesTurn = result.notes ? result.turn : null;
+    state.whispers = (result.whispers ?? []).map(w => ({ ...w, turn: result.turn }));
+  }
   for (const fact of result.canon) if (!state.canon.includes(fact)) state.canon.push(fact);
   state.patches.push(...result.patches);
   if (result.moveTo && result.turn === state.turn) {
@@ -169,8 +206,16 @@ export function applyRepair(scene: Scene, state: SessionState, result: RepairRes
       state.turnsInBeat = 0;
     }
   }
-  const { patches, canon, ...rest } = result;
-  state.repairs.push({ ...rest, patches: patches.length, canon: canon.length });
+  const { patches, canon, whispers, ...rest } = result;
+  state.repairs.push({ ...rest, patches: patches.length, canon: canon.length, whispers: whispers?.length ?? 0 });
+  state.lastRepairTurn = result.turn;
+}
+
+/** Gate: repair when the scene isn't on track, or periodically as a backstop. */
+export function shouldRepair(state: SessionState, every = 3): boolean {
+  if (state.ended || state.closing) return false;
+  if (state.sceneStatus && state.sceneStatus !== "on_track") return true;
+  return state.turn - (state.lastRepairTurn ?? 0) >= every;
 }
 
 export const describeTarget = targetTitle;

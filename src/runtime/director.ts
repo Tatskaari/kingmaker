@@ -1,8 +1,8 @@
 import type { ChoiceQuestion, Decider, Decision } from "../llm/decide.ts";
-import { currentBeat, presentCast, scriptTranscript, sceneEntries } from "./brief.ts";
+import { currentBeat, offstageCast, presentCast, scriptTranscript, sceneEntries } from "./brief.ts";
 import { describeRoll, rng, rollCheck, titleCase, type RollResult } from "./dice.ts";
 import { SKILLS, type Exit, type Scene, type Skill, type Transition } from "./scene.ts";
-import type { SessionState } from "./session.ts";
+import type { SceneStatus, SessionState } from "./session.ts";
 
 /** What the director decided this turn, and what the GM must make happen. */
 export interface Move {
@@ -41,12 +41,24 @@ const QUESTION_TEXT = {
   outcome: "After the latest exchange in a tabletop roleplaying scene (latest_player_turn and latest_gm_reply), which of these has now actually happened in the story? Count only what has happened in the fiction (said, shown, given, decided), not what was merely offered, hinted at or attempted. If none clearly happened, choose none.",
 } as const;
 
-function question(phase: keyof typeof QUESTION_TEXT, transitions: Transition[]): ChoiceQuestion {
+/** Does taking this transition (on success, for a check) end the scene? */
+export function endsScene(scene: Scene, t: Transition): boolean {
+  const target = t.check ? t.check.onSuccess : t.to;
+  return scene.exits.some(e => e.id === target);
+}
+
+/** The bar for a mistake scales with its cost: ending the scene needs a committed attempt. */
+const SCENE_ENDING_CONFIDENCE = 0.6;
+
+function question(phase: keyof typeof QUESTION_TEXT, transitions: Transition[], scene?: Scene): ChoiceQuestion {
   const none = phase === "cue" ? "not_yet" : "none";
+  const describe = (t: Transition) => phase === "attempt" && scene && endsScene(scene, t)
+    ? `${t.when} (This would settle the whole scene: only if the player is clearly committing to it right now, not asking about it, examining things or thinking aloud.)`
+    : t.when;
   return {
     instructions: QUESTION_TEXT[phase],
     criteria: {
-      ...Object.fromEntries(transitions.map(t => [t.id, t.when])),
+      ...Object.fromEntries(transitions.map(t => [t.id, describe(t)])),
       [none]: phase === "cue" ? "None of these should happen yet." : "None of the above clearly applies.",
     },
   };
@@ -117,7 +129,7 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   const outcomes = transitionsFor(scene, state, "outcome");
   const questions: Record<string, ChoiceQuestion> = {};
   if (options.freeform !== false || attempts.length) {
-    const q = question("attempt", attempts);
+    const q = question("attempt", attempts, scene);
     questions.attempt = {
       instructions: `${q.instructions} Some things need no dice: if the player's turn is better described by one of the "simply happens" options, choose that. Choose other_risky only for a genuinely uncertain attempt that none of the listed options covers.`,
       criteria: {
@@ -136,15 +148,22 @@ export async function decideBefore(decider: Decider, scene: Scene, state: Sessio
   }
   if (options.speaker) {
     const cast = presentCast(scene, state);
+    const offstage = offstageCast(scene, state);
     questions.speaker = {
       instructions: "Who should respond first to the player's latest turn? Pick the character the player addressed, or whose reaction matters most. Pick gm when the player's turn is mainly a physical action, a look around, or something only narration can answer.",
-      criteria: { ...Object.fromEntries(cast.map(c => [c.id, `${c.name}${c.group ? ` (${c.group})` : ""}`])), gm: "The GM narrates what happens or what the player notices." },
+      criteria: {
+        ...Object.fromEntries(cast.map(c => [c.id, `${c.name}${c.group ? ` (${c.group})` : ""}`])),
+        ...Object.fromEntries(offstage.map(c => [c.id, `${c.name}${c.group ? ` (${c.group})` : ""}, not yet on stage: only if the player's turn would plausibly bring them in now (calling out to them, finding them).`])),
+        gm: "The GM narrates what happens or what the player notices.",
+      },
     };
   }
   if (!Object.keys(questions).length) return {};
   const decision = await decider.decide(decisionState(scene, state, playerTurn), questions, "director.before");
   const answer = decision.answers.attempt?.choice;
-  const attempt = attempts.find(t => t.id === answer);
+  const candidate = attempts.find(t => t.id === answer);
+  const probability = candidate ? decision.answers.attempt?.probabilities?.[candidate.id] ?? 1 : 0;
+  const attempt = candidate && (!endsScene(scene, candidate) || probability >= SCENE_ENDING_CONFIDENCE) ? candidate : undefined;
   const plain = answer?.startsWith("plain:") ?? false;
   // A player's attempt (or something they simply do) outranks a pacing cue: the player acted first.
   const cue = attempt || plain ? undefined : cues.find(t => t.id === decision.answers.cue?.choice);
@@ -175,16 +194,29 @@ export function freeformDirective(check: FreeformCheck): string {
  * After the reply: has an outcome now happened in the fiction? Cues count too: the GM often
  * brings the next beat in on their own, and the tracker should follow rather than replay it.
  */
-export async function decideAfter(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, reply: string, options: { hold?: string } = {}): Promise<{ move?: Move; decision?: Decision }> {
+export async function decideAfter(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, reply: string, options: { hold?: string } = {}): Promise<{ move?: Move; decision?: Decision; status?: SceneStatus }> {
   // An ending held back this turn (the player gets a last chance) can't be confirmed by the same reply.
   const leadsTo = (t: Transition) => [t.to, t.check?.onSuccess, t.check?.onFailure];
   const outcomes = [...transitionsFor(scene, state, "outcome"), ...transitionsFor(scene, state, "cue")]
     .filter(t => !options.hold || !leadsTo(t).includes(options.hold));
-  if (!outcomes.length) return {};
-  const decision = await decider.decide(decisionState(scene, state, playerTurn, reply), { outcome: question("outcome", outcomes) }, "director.after");
+  const questions: Record<string, ChoiceQuestion> = { status: STATUS_QUESTION };
+  if (outcomes.length) questions.outcome = question("outcome", outcomes);
+  const decision = await decider.decide(decisionState(scene, state, playerTurn, reply), questions, "director.after");
   const chosen = outcomes.find(t => t.id === decision.answers.outcome?.choice);
-  return { ...(chosen ? { move: resolve(scene, state, chosen, "outcome") } : {}), decision };
+  const status = decision.answers.status?.choice as SceneStatus | undefined;
+  return { ...(chosen ? { move: resolve(scene, state, chosen, "outcome") } : {}), decision, ...(status ? { status } : {}) };
 }
+
+/** Tier-one scene health, asked alongside the outcome check at no extra latency. */
+const STATUS_QUESTION: ChoiceQuestion = {
+  instructions: "How is this tabletop roleplaying scene going right now, judging by the recent transcript and the latest exchange?",
+  criteria: {
+    on_track: "Moving: the player is engaged with what the scene is about, or something new and promising is developing.",
+    drifting: "The player is off on a tangent the scene hasn't absorbed yet; it isn't connecting back to anything.",
+    stuck: "The same exchange is repeating, someone keeps refusing or deferring, or the player seems unsure what to do next.",
+    uncovered: "The player is pursuing a reasonable approach to the scene's central problem that the scene doesn't seem to have a way to resolve.",
+  },
+};
 
 /** Next speaker in the actors approach, after someone has spoken. */
 export async function decideNextSpeaker(decider: Decider, scene: Scene, state: SessionState, playerTurn: string, spoken: string[]): Promise<string> {
