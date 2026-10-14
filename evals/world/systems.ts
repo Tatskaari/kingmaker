@@ -34,6 +34,24 @@ export const current: System = {
   },
 };
 
+/**
+ * The branch's own stage manager, called as the engine calls it: with this turn's dice lines and
+ * the people present (a stage manager that takes no context ignores them). On a branch with the
+ * proposals applied, this is the proposed stage manager in place.
+ */
+export const staged: System = {
+  name: "stage",
+  about: "Whatever src/world/stage.ts is on this branch, given the dice lines and the cast as the engine gives them.",
+  async run(c) {
+    const { sceneById } = await import("../../scenes/index.ts");
+    const cast = sceneById(c.scene).cast.map(x => ({ id: x.id, name: x.name, look: x.look }));
+    const world = clone(c.world);
+    const started = performance.now();
+    const r = await (Reflect.apply(stageManage, undefined, [world, c.player, c.playerTurn, c.reply, c.turn, { rules: c.rules, cast }]) as ReturnType<typeof stageManage>);
+    return { world, trace: r.changes, problems: r.problems, costUsd: r.costUsd, latencyMs: performance.now() - started, calls: 1 };
+  },
+};
+
 // ---------------------------------------------------------------------------------------------
 // 2. JSON operations, with the proposed language (ids enforced by the schema, distances, forget)
 //    and a prompt that says what the record is for.
@@ -294,6 +312,7 @@ export function deciderSystem(options: { name: string; decider: Decider }): Syst
 
 export const SYSTEMS: Record<string, () => System> = {
   current: () => current,
+  stage: () => staged,
   "current+view": () => currentPromptNewView,
   ops: () => opsV2({ name: "ops" }),
   "ops-check": () => opsV2({ name: "ops-check", check: true }),
