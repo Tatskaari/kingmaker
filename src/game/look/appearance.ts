@@ -171,7 +171,8 @@ function computeBase(thing: Lookable): BaseLook {
   // (a sparrow, a candle). Royalty keeps the crown, and a crowd (the Patience's bargees) stays a crowd.
   if (kind === "person" && !thing.glyph && !parsed.plural && properName(thing.name) && match?.role.id !== "royal" && match?.role.id !== "crowd") {
     const look = castLook(thing.id ?? thing.name, thing.name);
-    return person(parsed, { glyph: { ascii: look.glyph }, fg: look.color, bold: true, source: "rule" });
+    const sprite = look.km ?? kmFor(parsed, "person", true, thing.name, kind);
+    return person(parsed, { glyph: { ascii: look.glyph, ...(sprite ? { km: sprite } : {}) }, fg: look.color, bold: true, source: "rule" });
   }
   let role: Role;
   let source: LookSource;
@@ -235,11 +236,12 @@ function computeBase(thing: Lookable): BaseLook {
   };
 }
 
-const TITLED = /^(the|a|an|sergeant|corporal|captain|master|mister|mistress|missus|mrs|mr|miss|big|little|old|young|lady|lord|sir|dame|father|mother|brother|sister|doctor|dr|goodwife|goodman|granny|uncle|aunt|widow)\s+/i;
+const TITLED = /^(sergeant|corporal|captain|master|mister|mistress|missus|mrs|mr|miss|big|little|old|young|lady|lord|sir|dame|father|mother|brother|sister|doctor|dr|goodwife|goodman|granny|uncle|aunt|widow)\s+/i;
 
-/** A name of someone's own: after any article and title, a capitalised word ("Old Tam", "Dilly Sparrow"; not "the biggest man"). */
+/** A name of someone's own: after any title, a capitalised word ("Old Tam", "Dilly Sparrow"); with an article it's a description ("a Sea Captain", "the biggest man"). */
 function properName(name: string): boolean {
   let s = name.replace(/\(.*?\)/g, "").trim();
+  if (/^(the|a|an)\s/i.test(s)) return false;
   for (let i = 0; i < 3 && TITLED.test(s); i++) s = s.replace(TITLED, "");
   return /^[A-Z][a-z'’-]+/.test(s);
 }

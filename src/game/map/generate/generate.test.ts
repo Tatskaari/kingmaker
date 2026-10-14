@@ -1,5 +1,7 @@
 import { readFileSync } from "node:fs";
 process.env.KM_LOOK_MODEL = "off";
+// Letters, whatever fonts the machine has (the tests read people off frames).
+process.env.KM_GLYPHS ??= "ascii";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildWorld } from "../../../world/scene-world.ts";

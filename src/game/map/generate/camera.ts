@@ -26,7 +26,9 @@ const walkable = (t: MapTile) => !isStructure(t) && t.terrain !== "void" && t.te
 
 /**
  * How many rows up render.ts draws an actor above its tile's cell: the map's raise for its name and
- * states, or the look's lift (something hanging is 7 ft up, three rows), whichever is higher.
+ * states where it has one (something hanging two rows, a hoist beam four), else the look's lift (a
+ * bird on the wing). This copies render.ts's rule, for the furnisher's predictions; the camera check
+ * itself asks the renderer.
  */
 export function liftOf(a: Pick<MapActor, "id" | "name" | "kind" | "states" | "ref">): number {
   return rowsOf(a)[0] ?? 0;
@@ -47,7 +49,8 @@ export function rowsOf(a: Pick<MapActor, "id" | "name" | "kind" | "states" | "re
   if (a.kind === "player") return [raise];
   const look = actorLook({ ...a, glyph: "?", map: "", at: { x: 0, y: 0 } } as MapActor, PLAIN);
   if (look.alpha < 0.35) return [];
-  const lift = Math.max(raise, look.lift);
+  // As render.ts has it: the map's own height where it has one (a hanged man under his beam), else the look's.
+  const lift = raise || look.lift;
   if (states.includes("overhead")) return [lift];
   const rows = [lift];
   if (states.includes("hanging")) rows.push(lift + 1);

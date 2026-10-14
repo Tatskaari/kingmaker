@@ -308,6 +308,8 @@ export function furnish(site: Site, plan: PlacePlan): Furnished {
       for (const r of rows) paint.set(cellOf(p, r), id);
     }
   };
+  // The player's square is theirs on screen too: a sign hung two rows up in front of it would hide them.
+  draw([start], [0], "player");
   /** Every placed thing still has a free square beside it (a new blocker mustn't wall one in). */
   const stillReachable = (extra: Tile2[]) => {
     const now = new Set(extra.map(tkey));
