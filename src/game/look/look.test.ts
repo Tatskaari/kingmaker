@@ -7,7 +7,7 @@ const { drownedRatWorld } = await import("../../../scenes/worlds/drowned-rat.ts"
 const { hangedClerkWorld } = await import("../../../scenes/worlds/hanged-clerk.ts");
 const { lookOf, describeLook } = await import("./appearance.ts");
 const { parseName } = await import("./names.ts");
-const { plainOf, glyphFor, nerd, detectGlyphSet } = await import("./glyphs.ts");
+const { plainOf, plainText, glyphFor, nerd, detectGlyphSet } = await import("./glyphs.ts");
 const { surfacesOf } = await import("./surfaces.ts");
 const { Effects } = await import("./effects.ts");
 const { Director } = await import("./director.ts");
@@ -180,10 +180,21 @@ test("glyph sets: nerd icons where they help, plain ASCII always, ascii as the d
     assert.ok(/^[\x20-\x7e]$/.test(g), `${name}: "${g}" isn't seven-bit`);
   }
   assert.equal(plainOf("≈"), "~");
+  assert.equal(plainText("No credit—not for bluebottles… “not ever”"), "No credit-not for bluebottles... \"not ever\"", "the GM's typography, plain");
   assert.equal(glyphFor({ ascii: "♣" }, "nerd"), "♣"); // no icon: falls back
   assert.equal(detectGlyphSet({ KM_GLYPHS: "nerd" }).set, "nerd");
   assert.equal(detectGlyphSet({ TERM: "dumb" }).set, "plain");
   assert.equal(detectGlyphSet({ TERM: "xterm-256color", LANG: "en_GB.UTF-8" }).set, "ascii");
+});
+
+test("plain is seven-bit on the stage too: a bark in the GM's own punctuation", async () => {
+  const { dressingFor } = await import("./dressings.ts");
+  const { renderStage } = await import("./stage.ts");
+  const fx = new Effects({ now: () => 0 });
+  fx.bark("kell", "No credit—not for bluebottles… “not ever”", {}, 0);
+  const plain = renderStage(rat(), dressingFor("drowned-rat"), { w: 80, h: 30, t: 400, time: "evening", glyphs: "plain", effects: fx }).toPlain();
+  assert.match(plain, /No credit-not for/);
+  assert.deepEqual([...plain].filter(ch => ch !== "\n" && ch.charCodeAt(0) >= 128), [], "seven-bit only");
 });
 
 test("surfaces from the world's physics: spills, a douse's puddle and steam, burning patches", () => {
@@ -275,12 +286,36 @@ test("the director reads the rules' lines: spells cast, damage to people (by ali
   assert.deepEqual(said("Two men built like bollards bar the way. One looks from Kell to you. “You two asking after Big Hobb?”"), [], "a stranger asks; Kell is only looked at");
   assert.deepEqual(said("Kell taps her pencil against her notebook. “Investigator.”"), ["kell: Investigator."]);
   assert.deepEqual(said("Hobb doesn't look up. “That was a full keg,” Kell says."), ["kell: That was a full keg"], "the speech verb after the quote wins");
+  assert.deepEqual(said("“Not here,” says Hobb, and Kell writes it down."), ["hobb: Not here"]);
+  assert.deepEqual(said("Kell sets down her pencil. “That's a penny,” she says, without looking at Hobb."), ["kell: That's a penny"], "Hobb is only named after the tag: the lead-in says who");
+  assert.deepEqual(said("You ask Kell what she makes of it. “Suicide, the Captain says,” you add."), [], "the player's own words are nobody's bark");
   // Before the player knows their names, people go by what the story calls them.
   assert.deepEqual(director.barksFrom(w, "The big man with the bandaged hand flexes it. “Who's asking?”", 2600, { hobb: "the big man with the bandaged hand" }).map(b => b.id), ["hobb"]);
   // A cast member's short line, over their head; a long one isn't a bark.
   assert.ok(director.barkLine(w, "kell", "Calmly. CALMLY, everyone.", 3000));
   assert.ok(!director.barkLine(w, "kell", "I have written down every word of this, investigator, and I will be reading it back to you at length.", 3000));
   assert.ok(fx.frame(3200, id => w.entities[id]?.at).texts.some(t => t.style === "bark" && /^Calmly\./.test(t.text)));
+});
+
+test("a fire burning on floats one number a turn: the rules' line, not the line and the hurt again", () => {
+  const w = rat();
+  const fx = new Effects({ now: () => 0, seed: 1 });
+  const director = new Director(fx);
+  director.prime(w);
+  // The table catches; then, between replies, it burns on (the engine's tick): each a burst of lines, as the app animates them.
+  const burst = (t: number, lines: string[]) => { director.spellsFrom(w, lines, t); director.rulesLines(w, lines, t); director.observe(w, t); };
+  burst(1000, damageThing(w, w.entities["long-table"]!, 3, "fire", 1));
+  director.observe(w, 1500);
+  burst(5000, tick(w, 2, 69));
+  const where = (id: string) => w.entities[id]?.at;
+  const table = where("long-table")!;
+  const over = fx.frame(5300, where).texts.filter(t => t.style === "damage" && Math.hypot(t.x - table.x, t.y - table.y) < 0.5);
+  assert.equal(over.length, 1, `one number over the table as it burns on (${over.map(t => t.text).join(", ")})`);
+  // Hurt the lines don't speak of still floats.
+  const chair = w.entities["champions-chair"]!;
+  chair.hp!.current -= 4;
+  director.observe(w, 9000);
+  assert.ok(fx.frame(9200, where).texts.some(t => t.text === "4"), "the hurt the lines didn't speak of floats");
 });
 
 test("the stage: the Heron is dressed (walls, glass, the river), its sacks are stacks, and puddles indoors hold the room", async () => {

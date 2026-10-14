@@ -7,6 +7,9 @@ import { hex } from "./palette.ts";
 import { CAST, MAPS, enterScene, getMap, isStructure, move, newExploration, pathTo, render, renderExplore, screenOf, tileAt, toAnsi, toPlain, travel, type ExploreState } from "./index.ts";
 import { exploreFrame, findHidden, matters, renderXray, xray, xrayExplore } from "./xray.ts";
 
+// These read letters off the frames: draw with letters whatever this machine has installed.
+process.env.KM_GLYPHS ??= "ascii";
+
 const MORNING: StoryState = { time: "morning", played: [], lead: "hanged-clerk", flags: {} };
 const AFTERNOON: StoryState = { time: "afternoon", played: ["hanged-clerk"], lead: "drowned-rat", flags: {} };
 const DUSK: StoryState = { time: "evening", played: ["hanged-clerk"], lead: "drowned-rat", flags: {} };

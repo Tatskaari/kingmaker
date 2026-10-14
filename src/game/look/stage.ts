@@ -1,10 +1,10 @@
 import { heldBy, positionOf, type Entity, type Point, type Rect, type SceneWorld } from "../../world/scene-world.ts";
 import { lookOf, type Look, type TimeOfDay } from "./appearance.ts";
-import { BEING, BOLD, Canvas, GLOW, INK, UNLIT, WALL } from "./canvas.ts";
+import { BEING, BOLD, Canvas, FAINT, GLOW, INK, UNLIT, WALL } from "./canvas.ts";
 import { FLAME_LIGHT, FLAME_RAMPS, mix, ramp, rgbOf, scale, type FlameName, type RGB } from "./color.ts";
 import { areaCell, type Effects } from "./effects.ts";
-import { inSet, type GlyphSet } from "./glyphs.ts";
-import { LightField, ambientOf, glint, shade } from "./light.ts";
+import { inSet, plainText, type GlyphSet } from "./glyphs.ts";
+import { LightField, ambientOf, glint, shade, shadeBeing } from "./light.ts";
 import { clamp01, hash, hash01, noise1, noise2, noise3, seedOf, smoothstep } from "./noise.ts";
 import { SIZE_SCALE } from "./roles.ts";
 import { surfacesOf } from "./surfaces.ts";
@@ -420,9 +420,10 @@ export function renderStage(world: SceneWorld, dressing: Dressing, view: StageVi
   for (let i = 0; i < w * h; i++) {
     const f = canvas.flags[i]!;
     if (f & (GLOW | UNLIT)) continue;
-    canvas.fg[i] = shade(canvas.fg[i]!, field, i, f & BEING ? 0.42 : f & WALL ? 0.3 : 0);
-    if (canvas.spec[i]!) canvas.fg[i] = glint(canvas.fg[i]!, field, i, canvas.spec[i]!);
     canvas.bg[i] = shade(canvas.bg[i]!, field, i, f & WALL ? 0.22 : 0);
+    // People keep their colour in coloured light and stay findable in the dark (the hidden only keep a floor).
+    canvas.fg[i] = f & BEING && !(f & FAINT) ? shadeBeing(canvas.fg[i]!, field.r[i]!, field.g[i]!, field.b[i]!, 0.42, canvas.bg[i]!) : shade(canvas.fg[i]!, field, i, f & BEING ? 0.42 : f & WALL ? 0.3 : 0);
+    if (canvas.spec[i]!) canvas.fg[i] = glint(canvas.fg[i]!, field, i, canvas.spec[i]!);
   }
 
   // 9. Floating text: damage, alerts, barks. Never darkened, never on top of one another (barks
@@ -459,8 +460,9 @@ function footprintCells(e: Entity, look: Look, s: number): { w: number; h: numbe
 
 /** One glyph (or a scattered group of them: a flock, a crowd), with a rope above if it hangs. */
 function drawOne(canvas: Canvas, look: Look, e: Entity, c: { x: number; y: number }, t: number, set: GlyphSet): void {
-  const flags = (look.bold ? BOLD : 0) | (look.glow ? GLOW : 0) | (look.being ? BEING : 0) | (e.player ? GLOW : 0);
   const alpha = look.alpha ?? 1;
+  // Someone you can see stays findable in any light; the hidden stay faint.
+  const flags = (look.bold ? BOLD : 0) | (look.glow ? GLOW : 0) | (look.being ? BEING | (alpha < 1 ? FAINT : 0) : 0) | (e.player ? GLOW : 0);
   const n = look.group ?? 1;
   for (let k = 0; k < n; k++) {
     let x = c.x, y = c.y;
@@ -732,8 +734,9 @@ function text(canvas: Canvas, tx: { x: number; y: number; rows: number; text: st
     return top;
   };
   const claim = (left: number, top: number, width: number, height: number) => { for (let y = top; y < top + height; y++) for (let x = left; x < left + width; x++) if (canvas.inside(x, y)) taken[y * canvas.w + x] = 1; };
+  const body = set === "plain" ? plainText(tx.text) : tx.text;
   if (tx.style === "bark") {
-    const lines = wrap(tx.text, 28);
+    const lines = wrap(body, 28);
     const width = Math.max(...lines.map(l => [...l].length)) + 3;
     const left = Math.max(0, Math.min(canvas.w - width, c.x - Math.floor(width / 2)));
     const top = Math.max(0, free(left, c.y - Math.round(tx.rows) - lines.length + 1, width, lines.length));
@@ -758,7 +761,7 @@ function text(canvas: Canvas, tx: { x: number; y: number; rows: number; text: st
     if (canvas.inside(c.x, ty) && ty < c.y) { const i = ty * canvas.w + c.x; canvas.glyph[i] = inSet("▾", set); canvas.fg[i] = mix(canvas.bg[i]!, tx.fg, tx.alpha); canvas.flags[i] = UNLIT; }
     return;
   }
-  const chars = [...tx.text];
+  const chars = [...body];
   const left = Math.max(0, Math.min(canvas.w - chars.length, c.x - Math.floor(chars.length / 2)));
   const y = free(left, c.y - Math.round(tx.rows), chars.length, 1);
   claim(left, y, chars.length, 1);

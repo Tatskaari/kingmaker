@@ -1,6 +1,16 @@
+import { existsSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
+import { KINGMAKER_GLYPHS, type KingmakerGlyph } from "./kingmaker-glyphs.ts";
+
 /**
- * Glyph sets. Three, from richest to safest:
+ * Glyph sets. Four, from richest to safest:
  *
+ * - "kingmaker": our own font, Kingmaker Glyphs (assets/fonts/, `npm run glyphs` builds and installs
+ *   it), of pixel-art people and creatures at U+10E000 up, in Unicode's Supplementary Private Use
+ *   Area-B, where no Nerd Font or other common font has anything. The terminal falls back to it for
+ *   those characters, and each fills exactly one cell. Every named person and every creature it has a
+ *   sprite for gets one (kingmaker.ts says which); everything else is "ascii".
  * - "ascii": CP437-flavoured Unicode, the default. Code page 437's pictographs (☻ ♣ ♠ ≈ ▲ ⌂ Θ δ ∩ ⌐
  *   ⌡ ¡ ° ∙ · ░▒▓ █ and the box drawing) plus a few friends (¤ ♔ ●). All single width, all in every
  *   terminal font worth having, none with an emoji presentation (emoji widths are a minefield).
@@ -14,10 +24,16 @@
  * Material Design range (U+F500-U+FD46) was retired in v3 and isn't used.
  */
 
-export type GlyphSet = "ascii" | "nerd" | "plain";
-export const GLYPH_SETS: GlyphSet[] = ["ascii", "nerd", "plain"];
+export type GlyphSet = "ascii" | "nerd" | "plain" | "kingmaker";
+export const GLYPH_SETS: GlyphSet[] = ["ascii", "nerd", "plain", "kingmaker"];
 
-export interface Glyph { ascii: string; nerd?: string; plain?: string }
+export interface Glyph { ascii: string; nerd?: string; plain?: string; /** A Kingmaker Glyphs sprite (a character). */ km?: string }
+
+/** A Kingmaker Glyphs sprite by name ("kell", "pigeon"), as a character. */
+export const km = (name: KingmakerGlyph): string => String.fromCodePoint(KINGMAKER_GLYPHS[name][0]);
+
+/** True for a Kingmaker Glyphs sprite (one cell wide, by construction). */
+export const isKingmaker = (ch: string) => { const c = ch.codePointAt(0) ?? 0; return c >= 0x10e000 && c <= 0x10efff; };
 
 /** Nerd Font icons by their nf-md-* names (without the prefix), as characters. */
 const NERD_CODES: Record<string, number> = {
@@ -62,10 +78,18 @@ const PLAIN: Record<string, string> = {
   "▼": "v", "▾": "|", "╲": "\\", "╱": "/", "ʌ": "^", "∵": ":", "˛": ",", "‚": ",", "‘": "'", "’": "'", "`": "'", "¨": "\"", "¸": ",",
   "†": "+", "‡": "+", "♀": "o", "♂": "o", "ı": "i", "í": "i", "Ш": "W", "▣": "#", "╳": "x", "×": "x", "✦": "*", "✧": "*", "∗": "*",
   "╬": "+", "╎": ":", "◄": "<", "►": ">", "▁": "_", "æ": "=", "ò": "o", "◊": "o",
-  // The map's own: roofs, steps, ledges, the lead and its arrows, decor glyphs.
+  // The map's own: roofs, steps, ledges, the lead and its arrows, decor glyphs (signs, books, hatches, cupboards, trays, coins).
   "▚": "#", "▞": "#", "▂": "_", "▃": "_", "▔": "-", "╌": "-", "╷": "|", "▙": "#", "‿": "_", "▽": "v", "▿": "v", "▸": ">",
   "↘": "\\", "↙": "/", "↖": "\\", "↗": "/", "ɞ": "g", "Å": "A", "Π": "n", "Ψ": "Y", "┃": "|", "━": "-",
+  "▤": "=", "▦": "#", "▥": "#", "ū": "u", "¢": "c",
+  // The GM's typography, a cell at a time (plainText does whole lines better: "…" is three dots).
+  "“": "\"", "”": "\"", "—": "-", "–": "-", "…": ".",
 };
+
+/** A line of text in seven bits (barks): the GM's dashes, ellipses and curly quotes made plain, the rest by plainOf. */
+export function plainText(text: string): string {
+  return [...text.replace(/…/g, "...")].map(plainOf).join("");
+}
 
 /** The seven-bit stand-in for a glyph (Nerd icons have no plain form of their own: callers pass one). */
 export function plainOf(ch: string): string {
@@ -73,20 +97,25 @@ export function plainOf(ch: string): string {
   return PLAIN[ch] ?? "?";
 }
 
-/** A glyph in a set, falling back nerd -> ascii -> plain. */
+/** A glyph in a set, falling back kingmaker or nerd -> ascii -> plain. */
 export function glyphFor(g: Glyph, set: GlyphSet): string {
   if (set === "nerd" && g.nerd) return g.nerd;
+  if (set === "kingmaker" && g.km) return g.km;
   if (set === "plain") return g.plain ?? plainOf(g.ascii);
   return g.ascii;
 }
 
-/** Translate a glyph already chosen in the ascii set to another set (terrain, particles). */
+/** Translate a glyph already chosen in the ascii set to another set (terrain, particles; a crowd's faces). */
 export function inSet(ascii: string, set: GlyphSet): string {
+  if (set === "kingmaker") return ascii === "☻" ? km("man") : ascii === "☺" ? km("child") : ascii;
   return set === "plain" ? plainOf(ascii) : ascii;
 }
 
 /** True for a Nerd Font private-use icon (they may draw wider than a cell in non-Mono fonts). */
 export const isNerdIcon = (ch: string) => { const c = ch.codePointAt(0) ?? 0; return (c >= 0xe000 && c <= 0xf8ff) || (c >= 0xf0000 && c <= 0xfffff); };
+
+/** Is the Kingmaker Glyphs font installed for this user (where npm run glyphs puts it)? */
+export const kingmakerFontHere = () => existsSync(join(homedir(), ".local", "share", "fonts", "kingmaker", "KingmakerGlyphs-Regular.ttf"));
 
 let chosen: GlyphSet | undefined;
 /** The glyph set this process draws with (KM_GLYPHS, or the environment's best guess), decided once. */
@@ -94,15 +123,18 @@ export const glyphSet = (): GlyphSet => (chosen ??= detectGlyphSet().set);
 
 /**
  * Which glyph set to use. There is no terminal query that says whether a font has a glyph, so this
- * is configuration first (KM_GLYPHS=ascii|nerd|plain), then a guess from the environment:
+ * is configuration first (KM_GLYPHS=ascii|nerd|plain|kingmaker), then a guess from the environment:
  * seven-bit for dumb terminals and non-UTF-8 locales; "ascii" otherwise, with a note when the
  * terminal is known to bundle the Nerd Font symbols (kitty, WezTerm), so the player can opt in.
+ * The kingmaker set when its font is installed here (npm run glyphs) and the terminal is local:
+ * over SSH the terminal is somewhere else, and so are its fonts.
  */
-export function detectGlyphSet(env: Record<string, string | undefined> = process.env): { set: GlyphSet; reason: string; nerdLikely: boolean } {
+export function detectGlyphSet(env: Record<string, string | undefined> = process.env, sprites = env === process.env && kingmakerFontHere()): { set: GlyphSet; reason: string; nerdLikely: boolean } {
   const asked = env.KM_GLYPHS?.toLowerCase();
   const nerdLikely = !!env.KITTY_WINDOW_ID || env.TERM === "xterm-kitty" || env.TERM_PROGRAM === "WezTerm" || !!env.WEZTERM_EXECUTABLE;
-  if (asked === "ascii" || asked === "nerd" || asked === "plain") return { set: asked, reason: "KM_GLYPHS", nerdLikely };
+  if (asked === "ascii" || asked === "nerd" || asked === "plain" || asked === "kingmaker") return { set: asked, reason: "KM_GLYPHS", nerdLikely };
   const locale = env.LC_ALL || env.LC_CTYPE || env.LANG || "";
   if (env.TERM === "dumb" || env.TERM === "linux" || (locale && !/utf-?8/i.test(locale))) return { set: "plain", reason: `no Unicode here (TERM=${env.TERM ?? ""}, locale ${locale || "unset"})`, nerdLikely: false };
-  return { set: "ascii", reason: nerdLikely ? "this terminal bundles Nerd Font symbols: KM_GLYPHS=nerd turns them on" : "the default (KM_GLYPHS=nerd with a Nerd Font for icons)", nerdLikely };
+  if (sprites && !env.SSH_CONNECTION && !env.SSH_TTY) return { set: "kingmaker", reason: "Kingmaker Glyphs is installed (KM_GLYPHS=ascii for letters)", nerdLikely };
+  return { set: "ascii", reason: nerdLikely ? "this terminal bundles Nerd Font symbols: KM_GLYPHS=nerd turns them on" : "the default (KM_GLYPHS=kingmaker with Kingmaker Glyphs installed for sprites, or nerd with a Nerd Font for icons)", nerdLikely };
 }

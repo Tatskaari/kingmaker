@@ -6,7 +6,7 @@ The OpenTUI React terminal app that runs the whole story (docs/design/playable.m
 npm run game        # node --experimental-ffi --no-warnings --import tsx src/app/main.tsx
 ```
 
-It needs a real terminal and `OPENROUTER_API_KEY` (or `~/secrets/kingmaker-dev-openrouter.txt`). Saves go under `runs/sessions/<id>/`, and `KM_RUNS_DIR` moves them:
+It needs a real terminal and `OPENROUTER_API_KEY` (or `~/secrets/kingmaker-dev-openrouter.txt`). The world is lit in 24-bit colour: where `COLORTERM` isn't set (macOS Terminal, and ssh doesn't pass it on), OpenTUI falls back to 256 colours and the lamplight goes grey, so set `COLORTERM=truecolor` if the terminal can take it. Saves go under `runs/sessions/<id>/`, and `KM_RUNS_DIR` moves them:
 
 - `game.json`: the game core's save, with the mode, the story, the map (where the player stands, what scenes did to their places) and the fight.
 - `state.json`: the runtime's session.

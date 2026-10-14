@@ -1,4 +1,4 @@
-import { mix, pack, rgbOf, type RGB } from "./color.ts";
+import { contrast, mix, pack, rgbOf, type RGB } from "./color.ts";
 import type { TimeOfDay } from "./appearance.ts";
 
 /**
@@ -142,6 +142,39 @@ export function shadeBy(color: RGB, lr: number, lg: number, lb: number, floor = 
   }
   return pack(r, g, b);
 }
+
+/** How readable someone stays in any light: 3.5 to 1 against what's behind them (findable, and still in the dark). */
+export const BEING_CONTRAST = 3.5;
+
+/**
+ * Someone (a person, a dog) in the light. Lit by only half the light's colour, so they stay who
+ * they are (Hobb by the blue fire is still orange, only cooler), never below `floor` of their own
+ * colour, and never less than BEING_CONTRAST against the ground behind them (`bg`, already lit):
+ * where the dark takes more than that, they come back towards their own colour, as far as it needs.
+ */
+export function shadeBeing(color: RGB, lr: number, lg: number, lb: number, floor: number, bg: RGB): RGB {
+  const m = Math.max(lr, lg, lb);
+  return legible(shadeBy(color, (lr + m) / 2, (lg + m) / 2, (lb + m) / 2, floor), bg, color);
+}
+
+/**
+ * A colour moved just far enough to stand `min` to 1 against `bg`: towards `own` (who it is), and on
+ * past it towards white (black, on a ground too bright for white) when even `own` won't do (Moll in
+ * pink on a sunlit wall top).
+ */
+export function legible(fg: RGB, bg: RGB, own: RGB, min = BEING_CONTRAST): RGB {
+  if (contrast(fg, bg) >= min) return fg;
+  const toward = (from: RGB, to: RGB): RGB => {
+    let lo = 0, hi = 1;
+    for (let i = 0; i < 7; i++) { const k = (lo + hi) / 2; if (contrast(mix(from, to, k), bg) >= min) hi = k; else lo = k; }
+    return mix(from, to, hi);
+  };
+  if (contrast(own, bg) >= min) return toward(fg, own);
+  const edge = contrast(WHITE, bg) >= min ? WHITE : 0;
+  return contrast(edge, bg) > contrast(own, bg) ? toward(own, edge) : own;
+}
+
+const WHITE = 0xffffff;
 
 /** A glint (water, wet stone) takes the colour of the strongest light on it. */
 export function glint(color: RGB, field: LightField, i: number, specular: number): RGB {

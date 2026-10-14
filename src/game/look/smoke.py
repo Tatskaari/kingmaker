@@ -4,7 +4,8 @@ app's VT harness, src/app/smoke/vt.py), check that it draws, that it animates on
 scripted barks show over the speakers, that keys switch vignettes and glyph sets, and that it quits.
 Offline (KM_LOOK_MODEL=off). Screens go to runs/look-smoke/<run>/.
 
-  python3 src/game/look/smoke.py
+  python3 src/game/look/smoke.py                       # in the ascii glyph set
+  python3 src/game/look/smoke.py --glyphs kingmaker    # in another (and with sprites: the cast on screen as them)
 """
 import os
 import re
@@ -16,10 +17,14 @@ ROOT = os.path.abspath(os.path.join(HERE, "..", "..", ".."))
 sys.path.insert(0, os.path.join(ROOT, "src", "app", "smoke"))
 from vt import App  # noqa: E402
 
-RUN = time.strftime("%Y%m%d-%H%M%S")
+SETS = ["ascii", "nerd", "plain", "kingmaker"]
+GLYPHS = sys.argv[sys.argv.index("--glyphs") + 1] if "--glyphs" in sys.argv else "ascii"
+RUN = time.strftime("%Y%m%d-%H%M%S") + ("" if GLYPHS == "ascii" else f"-{GLYPHS}")
 OUT = os.path.join(ROOT, "runs", "look-smoke", RUN)
 os.makedirs(OUT, exist_ok=True)
 ARGV = ["node", "--experimental-ffi", "--no-warnings", "--import", "tsx", "src/game/look/gallery.tsx"]
+# Kingmaker Glyphs sprites (src/game/look/kingmaker-glyphs.ts): Kell, Nan Quill, Big Hobb.
+KELL, NAN, HOBB = "\U0010E000", "\U0010E002", "\U0010E001"
 shots = 0
 
 
@@ -44,9 +49,16 @@ def expect(app, pattern, what, timeout=20.0):
 
 
 def main():
-    app = App(ARGV, ROOT, env={"KM_LOOK_MODEL": "off", "KM_GLYPHS": "ascii"}, cols=140, rows=44)
+    if GLYPHS not in SETS:
+        print(f"FAIL: no glyph set {GLYPHS!r} (have {', '.join(SETS)})")
+        sys.exit(1)
+    app = App(ARGV, ROOT, env={"KM_LOOK_MODEL": "off", "KM_GLYPHS": GLYPHS}, cols=140, rows=44)
     expect(app, r"Kingmaker · the look", "the gallery starts")
     expect(app, r"The Drowned Rat, night", "on the Drowned Rat")
+    expect(app, rf"glyphs: {GLYPHS}", f"in the {GLYPHS} glyph set (KM_GLYPHS)")
+    if GLYPHS == "kingmaker":
+        expect(app, NAN, "Nan Quill is her sprite")
+        expect(app, HOBB, "Big Hobb is his sprite")
     # It animates by itself: two snapshots a moment apart differ (fire, water, smoke).
     a = app.text()
     app.pump(0.7)
@@ -60,11 +72,14 @@ def main():
     app.send("2", 0.5)
     expect(app, r"The granary yard, morning", "key 2: the granary yard")
     expect(app, r"Cob\. Stop that\.", "Kell's bark in the yard")
-    app.send("g", 0.5)
-    expect(app, r"glyphs: nerd", "g: the nerd glyph set")
-    app.send("g", 0.5)
-    expect(app, r"glyphs: plain", "g: the plain glyph set")
-    app.send("g", 0.3)
+    if GLYPHS == "kingmaker":
+        expect(app, KELL, "Kell is her sprite in the yard")
+    # g goes round the glyph sets, back to the one it started in.
+    start = SETS.index(GLYPHS)
+    for k in range(1, len(SETS) + 1):
+        name = SETS[(start + k) % len(SETS)]
+        app.send("g", 0.5)
+        expect(app, rf"glyphs: {name}", f"g: the {name} glyph set")
     app.send("4", 0.5)
     expect(app, r"Douse and burn", "key 4: douse and burn")
     expect(app, r"Don't step in that", "Kell's warning in the stable yard")
@@ -72,6 +87,11 @@ def main():
     expect(app, r"a flock of pigeons.*the rules: pigeon", "key 5: the GM's inventions and how they were decided")
     app.send("t", 0.3)
     expect(app, r"time: morning", "t: time of day override")
+    app.send("8", 0.5)
+    expect(app, r"Kingmaker Glyphs", "key 8: the Kingmaker Glyphs board")
+    expect(app, r"lantern-boy", "the board lists the cast")
+    expect(app, r"duchess-asleep", "and the postures")
+    expect(app, r"U\+10E0", "and shows a sprite's pixels, big")
     app.send("q", 0.5)
     app.pump(1.0)
     if app.alive:

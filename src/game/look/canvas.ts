@@ -7,8 +7,12 @@ import { hexOf, mix, rgbOf, type RGB } from "./color.ts";
  * dump, or plain text for tests.
  */
 
-/** Cell flags: BOLD text; GLOW emissive (not darkened); BEING and WALL get a light floor (people and a room's outline stay findable in the dark); UNLIT text drawn after lighting. */
-export const BOLD = 1, GLOW = 2, BEING = 4, UNLIT = 8, ITALIC = 16, WALL = 32;
+/**
+ * Cell flags: BOLD text; GLOW emissive (not darkened); BEING and WALL get a light floor (people and
+ * a room's outline stay findable in the dark), and a BEING keeps its colour and stands out from its
+ * ground (shadeBeing) unless it's FAINT (half-seen: the hidden); UNLIT text drawn after lighting.
+ */
+export const BOLD = 1, GLOW = 2, BEING = 4, UNLIT = 8, ITALIC = 16, WALL = 32, FAINT = 64;
 export const INK = rgbOf("#0e0d12");
 
 export class Canvas {
