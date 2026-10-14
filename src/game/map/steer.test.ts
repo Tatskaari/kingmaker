@@ -6,7 +6,8 @@ import { move, newExploration, SCREEN_KEYS, steer } from "./index.ts";
 const stairs = () => Object.assign(newExploration({ time: "evening", played: ["hanged-clerk"], lead: "drowned-rat", flags: {} }), { map: "caerwyn", at: { x: 24, y: 34 } });
 
 test("an arrow key follows the street where its bare step would catch on a corner", () => {
-  for (const key of ["right", "down", "left"]) {
+  // (Left used to catch on the lamp post at the top of the stairs; lamp posts are walked past now.)
+  for (const key of ["right", "down"]) {
     const bare = stairs(), steered = stairs();
     let bareMoves = 0, steeredMoves = 0;
     for (let i = 0; i < 5; i++) {

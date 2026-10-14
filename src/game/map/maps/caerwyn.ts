@@ -62,7 +62,8 @@ wwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwwww
 `;
 
 const LOCKED = { blocks: true };
-const lamp = (ground: "cobbles" | "boards") => T(ground, {}, { name: "a lamp post", glyph: "¤", color: "#e8c070", blocks: true, states: ["lamp"], text: "A lamp post, freshly painted for the Assembly and already leant on." });
+// Small things stand up on posts ("post"): you walk past them. Big things in the way fill their square.
+const lamp = (ground: "cobbles" | "boards") => T(ground, {}, { name: "a lamp post", glyph: "¤", color: "#e8c070", states: ["lamp", "post"], text: "A lamp post, freshly painted for the Assembly and already leant on." });
 
 export const caerwyn: MapDef = buildMap({
   id: "caerwyn",
@@ -91,11 +92,11 @@ export const caerwyn: MapDef = buildMap({
     l: lamp("cobbles"), j: lamp("boards"),
     m: T("cobbles", {}, { name: "a market stall", glyph: "Π", color: "#d9a066", blocks: true, text: "A stall selling Assembly souvenirs: commemorative mugs with the King's face on, the face slightly wrong." }),
     s: T("cobbles", {}, { id: "caerwyn:statue", name: "the statue of Good King Bertram", glyph: "Å", color: "#b8c4c8", blocks: true, text: "Good King Bertram the Moderately Wise, in bronze, with a pigeon on his head. The pigeon looks more regal." }),
-    "1": T("cobbles", {}, { id: "caerwyn:price-board", name: "the Corn Exchange price board", glyph: "▤", color: "#e0c890", blocks: true, text: "BREAD: DEAR. FLOUR: DEARER. GRAIN: ASK. QUESTIONS: NOT TAKEN." }),
-    "2": T("cobbles", {}, { id: "caerwyn:no-bunting", name: "a sign", glyph: "▤", color: "#e0c890", blocks: true, text: "NO BUNTING BEYOND THIS POINT. BY ORDER OF THE ASSEMBLY COMMITTEE (DECORATIONS SUB-COMMITTEE)." }),
+    "1": T("cobbles", {}, { id: "caerwyn:price-board", name: "the Corn Exchange price board", glyph: "▤", color: "#e0c890", states: ["post"], text: "BREAD: DEAR. FLOUR: DEARER. GRAIN: ASK. QUESTIONS: NOT TAKEN." }),
+    "2": T("cobbles", {}, { id: "caerwyn:no-bunting", name: "a sign", glyph: "▤", color: "#e0c890", states: ["post"], text: "NO BUNTING BEYOND THIS POINT. BY ORDER OF THE ASSEMBLY COMMITTEE (DECORATIONS SUB-COMMITTEE)." }),
     "3": T("dirt", { roof: "timber", roofHeight: 2 }, { id: "caerwyn:cart", name: "a grain cart", glyph: "▬", color: "#a07a4a", blocks: true, text: "A granary cart with one wheel off, which is how it gets out of processions." }),
     "4": T("dirt", {}, { name: "a washing line", glyph: "▿", color: "#f0f0e8", states: ["overhead"] }),
-    "8": T("cobbles", {}, { id: "caerwyn:palace-notice", name: "a notice by the palace gate", glyph: "▤", color: "#e0c890", blocks: true, text: "THE CENTENNIAL ASSEMBLY. DELEGATIONS BY THE FRONT. TRADES BY THE BACK. PIGS NOT AT ALL." }),
+    "8": T("cobbles", {}, { id: "caerwyn:palace-notice", name: "a notice by the palace gate", glyph: "▤", color: "#e0c890", states: ["post"], text: "THE CENTENNIAL ASSEMBLY. DELEGATIONS BY THE FRONT. TRADES BY THE BACK. PIGS NOT AT ALL." }),
     u: T("cobbles", {}, { id: "caerwyn:well", name: "the town well", glyph: "◘", color: "#8aa0b0", blocks: true, text: "The town well. A sign says NO WISHING, BY ORDER: it was causing a shortage of pennies." }),
     y: T("cobbles", {}, { id: "caerwyn:stocks", name: "the stocks", glyph: "╥", color: "#a0703a", blocks: true, text: "The stocks, freshly painted for the Assembly. A sign on them says RESERVED." }),
     z: T("cobbles", {}, { id: "caerwyn:cabbages", name: "a cabbage cart", glyph: "▬", color: "#7ab05a", blocks: true, text: "A cart of cabbages at Assembly prices. The cabbages are the bargain; the cart is also for sale, and so, if you ask nicely, is the donkey." }),

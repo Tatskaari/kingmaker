@@ -4,6 +4,7 @@ import { respondJson } from "../llm/openrouter.ts";
 import { describeRoll, rng, type RollResult } from "../runtime/dice.ts";
 import { SKILLS, type Character, type Skill } from "../runtime/scene.ts";
 import type { SessionState } from "../runtime/session.ts";
+import { startingPurse } from "../world/inventory.ts";
 import { caughtIn, damageThing, heldBy, positionOf, type Entity, type SceneWorld } from "../world/scene-world.ts";
 import { bleed, elemental, spill } from "../world/systems.ts";
 
@@ -443,6 +444,247 @@ export async function sheetText(state: SessionState): Promise<string> {
 
 const titleSkill = (id: string) => id.replace(/-/g, " ").replace(/\b\w/g, ch => ch.toUpperCase()).replace(/ Of /g, " of ");
 
+/** Uses of a feature (the engine's class resources): Second Wind 2/2, back on a short rest. */
+export interface Uses {
+  current: number;
+  max: number;
+  /** "short rest", "long rest", "one back per short rest" (Channel Divinity). */
+  recharge?: string;
+}
+
+/**
+ * The character sheet as data, for a laid-out sheet (src/app/ui/sheet-layout.ts): everything sheetText
+ * says, in fields, and what it leaves out (save proficiencies, features and their uses, spell slots
+ * spent, what they carry and their purse).
+ */
+export interface SheetData {
+  name: string;
+  concept: string;
+  species: string;
+  background: string;
+  classes: Array<{ id: string; name: string; level: number; subclass?: string }>;
+  level: number;
+  hp: { current: number; max: number; temp: number };
+  ac: number;
+  /** In feet: walk, and climb or swim if they have them. */
+  speeds: Record<string, number>;
+  initiative: number;
+  proficiency: number;
+  hitDice: Array<{ die: number; left: number; total: number }>;
+  inspiration: boolean;
+  /** Only while they're down. */
+  deathSaves?: { successes: number; failures: number; stable: boolean };
+  abilities: Array<{ id: Dnd.Ability; name: string; score: number; modifier: number; save: number; proficient: boolean }>;
+  skills: Array<{ id: string; name: string; ability: Dnd.Ability; modifier: number; proficiency: string; advantage: boolean; disadvantage: boolean }>;
+  /** Passive Perception, Insight and Investigation. */
+  passive: Record<string, number>;
+  attacks: Array<{ name: string; kind: string; bonus: number; damage: string; type: string; versatile?: string; range?: { normal: number; long: number }; properties: string[]; mastery?: string; held: boolean }>;
+  spellcasting?: {
+    className: string; ability: Dnd.Ability; saveDC: number; attackBonus: number;
+    slots: Array<{ level: number; max: number; used: number }>;
+    /** A warlock's: all of one level, back on a short rest. */
+    pact?: { level: number; max: number; used: number };
+    spells: Array<{ level: number; spells: Array<{ id: string; name: string; ready: boolean; always: boolean; concentration: boolean; ritual: boolean }> }>;
+  };
+  /** Class and subclass features to their level, with what was chosen for them and their uses. */
+  features: Array<{ name: string; from: string; level: number; choice?: string; uses?: Uses }>;
+  feats: string[];
+  /** The species' gifts: darkvision, resistances, a lineage. */
+  traits: string[];
+  conditions: string[];
+  equipment: Array<{ name: string; kind: string; slot?: "in hand" | "off hand" | "worn"; quantity: number }>;
+  /** Anything else on them in the story's world (a letter, a key), and what it's in. */
+  carrying: Array<{ name: string; quantity: number; in?: string }>;
+  purse: Array<{ name: string; quantity: number }>;
+  languages: string[];
+  proficiencies: { armor: string[]; weapons: string[]; tools: string[] };
+}
+
+type Feature = { id: string; name: string; effects?: Array<Record<string, unknown>> };
+type Grants = Record<string, Feature[] | { features?: Feature[] }>;
+const RECHARGE: Record<string, string> = { shortRest: "short rest", longRest: "long rest", partialShortFullLong: "one back per short rest" };
+const COIN = /\b(crowns?|shillings?|penn(y|ies)|coins?|groats?|farthings?|marks?)$/i;
+/** Proficiencies in a kind of tool rather than a tool (a class's "musical"). */
+const TOOL_KIND: Record<string, string> = { musical: "A musical instrument", gaming: "A gaming set", herbalism: "Herbalism Kit" };
+const ARMOR_ORDER = ["light", "medium", "heavy", "shield"];
+const capitalWords = (t: string) => t.replace(/-/g, " ").replace(/\b\w/g, ch => ch.toUpperCase());
+
+/**
+ * The sheet as data (undefined for a session from before the rules engine). In a fight, pass the
+ * fight's campaign (its G.campaign) to see the player as the fight has left them so far.
+ */
+export async function sheetData(state: SessionState, options: { campaign?: string } = {}): Promise<SheetData | undefined> {
+  if (!state.rules) return undefined;
+  const { E, engine } = await engineFor(state.seed);
+  const ctx: Ctx = { E, engine, campaign: loadWellFormed(E, options.campaign ?? state.rules.campaign, engine), apply: e => e };
+  const id = state.rules.pc;
+  const c = ctx.campaign.state.characters[id]!;
+  const s = sheetOf(ctx, id);
+  const content = engine.content;
+  const gone = new Set(state.rules.gone ?? []);
+  const goneNames = new Set([...gone].map(g => content.items.get(ctx.campaign.state.itemInstances[g]?.definitionId ?? "")?.name).filter((n): n is string => !!n));
+  // What the character chose along the way, by the prompt's key ("fighting-style-fighter": Archery).
+  const chosen = new Map<string, Dnd.ChoiceOption[]>();
+  for (const p of Object.values(ctx.campaign.state.pendingChoices)) {
+    if (p.forCharacterId !== id || !p.resolution || !p.promptKey) continue;
+    const picked = (p.resolution as { selectedOptionIds?: string[] }).selectedOptionIds ?? [];
+    chosen.set(p.promptKey, p.options.filter(o => picked.includes(o.id)));
+  }
+  const isFeat = (o: Dnd.ChoiceOption) => content.feats.has(o.id) || ((o["effects"] as Array<Record<string, unknown>> | undefined) ?? []).some(e => e["kind"] === "GrantFeat");
+  const choiceOf = (effects: Array<Record<string, unknown>> | undefined) => effects?.filter(e => e["kind"] === "OfferChoice").flatMap(e => chosen.get(String(e["choiceId"])) ?? []);
+
+  // Features from the class and subclass tables, to the levels they have; one of the same name from
+  // a later level ("Sneak Attack (2d6)") replaces the earlier, and one that grants a resource carries its uses.
+  const resources = ((c as unknown as { resources?: Array<{ resourceId: string; current: number; max: number; recharge?: string }> }).resources ?? []);
+  const usesOf = (r: (typeof resources)[number]): Uses => ({ current: r.current, max: r.max, ...(r.recharge ? { recharge: RECHARGE[r.recharge] ?? r.recharge } : {}) });
+  const features: SheetData["features"] = [];
+  const shown = new Set<string>();
+  // Choices shown on their feature (an invocation the engine models as a feat) stay off the feats list.
+  const onFeatures = new Set<string>();
+  const base = (name: string) => name.replace(/\s*\(.*\)$/, "");
+  const addFeatures = (grants: Grants | undefined, upTo: number, from: string) => {
+    for (const [lvl, row] of Object.entries(grants ?? {}).sort((a, b) => Number(a[0]) - Number(b[0]))) {
+      if (Number(lvl) > upTo) continue;
+      for (const f of Array.isArray(row) ? row : row.features ?? []) {
+        const granted = f.effects?.find(e => e["kind"] === "GrantResource");
+        const r = granted ? resources.find(x => x.resourceId === String(granted["resourceId"])) : undefined;
+        if (r) shown.add(r.resourceId);
+        const picks = choiceOf(f.effects) ?? [];
+        if (!/^ability-score-improvement/.test(f.id)) for (const o of picks) onFeatures.add(o.id);
+        const entry = {
+          // Uses show as pips, so "(3/long rest)" and "(3 uses)" say nothing more.
+          name: r ? f.name.replace(/\s*\(\d[^)]*\)$/, "") : f.name, from, level: Number(lvl),
+          ...(picks.length ? { choice: picks.map(o => o.label.replace(/\s*\(.*\)$/, "")).join(", ") } : {}),
+          ...(r ? { uses: usesOf(r) } : {}),
+        };
+        // Two parts of one feature at the same level ("Draconic Resilience (HP)", "(Unarmored AC)") are both kept.
+        const before = features.findIndex(x => x.from === from && x.level < entry.level && base(x.name) === base(f.name));
+        if (before < 0) { features.push(entry); continue; }
+        const was = features[before]!;
+        features[before] = { ...entry, ...(!entry.uses && was.uses ? { uses: was.uses, name: was.name } : {}), ...(!entry.choice && was.choice ? { choice: was.choice } : {}) };
+      }
+    }
+  };
+  for (const k of c.classes) {
+    const cls = content.classes.get(k.classId);
+    addFeatures(cls?.["levelTable"] as Grants | undefined, k.level, cls?.name ?? capitalWords(k.classId));
+    if (k.subclassId) addFeatures(content.subclasses.get(k.subclassId)?.["levelGrants"] as Grants | undefined, k.level, content.subclasses.get(k.subclassId)?.name ?? capitalWords(k.subclassId));
+  }
+  // Resources no feature above grants (a species' own): under their own names.
+  for (const r of resources.filter(r => !shown.has(r.resourceId))) features.push({ name: capitalWords(r.resourceId.replace(/-points$/, "")), from: "", level: 0, uses: usesOf(r) });
+
+  // Feats: the background's, and any chosen (a human's Versatile, an Ability Score Improvement).
+  const background = content.backgrounds.get(c.backgroundId);
+  const featIds = [String(background?.["originFeatId"] ?? ""), ...c.featsTaken, ...[...chosen.values()].flat().filter(o => isFeat(o) && !onFeatures.has(o.id)).map(o => {
+    const grant = ((o["effects"] as Array<Record<string, unknown>> | undefined) ?? []).find(e => e["kind"] === "GrantFeat");
+    return grant ? String(grant["featId"]) : o.id;
+  })].filter(Boolean);
+  const feats = [...new Set(featIds.map(f => content.feats.get(f)?.name ?? capitalWords(f)))];
+
+  // The species' traits: senses, resistances, its own resources, and what was chosen (not the size, not a feat).
+  const species = content.species.get(c.speciesId);
+  const traits: string[] = [];
+  for (const t of (species?.["traits"] as Array<Record<string, unknown>> | undefined) ?? []) {
+    if (t["kind"] === "GrantSense") traits.push(`${capitalWords(String(t["sense"]))} ${t["range"]} ft`);
+    else if (t["kind"] === "GrantResistance") traits.push(`${capitalWords(String(t["damageType"]))} resistance`);
+    else if (t["kind"] === "GrantHeroicInspirationOnLongRest") traits.push("Resourceful");
+    else if (t["kind"] === "GrantHalflingLuck") traits.push("Luck");
+    else if (t["kind"] === "GrantResource") traits.push(capitalWords(String(t["resourceId"]).replace(/^dragonborn-/, "")));
+    else if (t["kind"] === "OfferChoice") {
+      const key = String(t["choiceId"]);
+      const picks = (chosen.get(key) ?? []).filter(o => !isFeat(o));
+      if (/-size$/.test(key) || !picks.length) continue;
+      traits.push(`${capitalWords(key.replace(new RegExp(`^${c.speciesId}-`), ""))}: ${picks.map(o => o.label.replace(/\s*\(.*\)$/, "")).join(", ")}`);
+    }
+  }
+
+  // Proficiencies: the class's (the first class's armour and weapons), the background's tools, and any chosen or granted since.
+  const first = content.classes.get(c.classes[0]?.classId ?? "");
+  const prof = {
+    armor: [...((first?.["armorProficiencies"] as string[] | undefined) ?? [])],
+    weapons: [...((first?.["weaponProficiencies"] as string[] | undefined) ?? [])],
+    tools: [...((first?.["toolProficiencies"] as string[] | undefined) ?? []), ...((background?.["toolProficiencies"] as string[] | undefined) ?? [])],
+  };
+  const granted = [...[...chosen.values()].flat().flatMap(o => (o["effects"] as Array<Record<string, unknown>> | undefined) ?? []),
+    ...c.classes.flatMap(k => Object.entries((content.subclasses.get(k.subclassId ?? "")?.["levelGrants"] as Grants | undefined) ?? {}).filter(([l]) => Number(l) <= k.level)
+      .flatMap(([, row]) => (Array.isArray(row) ? row : row.features ?? []).flatMap(f => f.effects ?? [])))];
+  for (const e of granted.filter(e => e["kind"] === "GrantProficiency")) {
+    const list = e["target"] === "armor" ? prof.armor : e["target"] === "weapon" ? prof.weapons : e["target"] === "tool" ? prof.tools : undefined;
+    if (list && !list.includes(String(e["id"]))) list.push(String(e["id"]));
+  }
+  const toolName = (t: string) => content.items.get(t)?.name ?? TOOL_KIND[t] ?? capitalWords(t);
+
+  // What they carry in the story's world (or carried out of the last one), apart from their gear: coins go in the purse.
+  const entities = state.world?.entities ?? Object.fromEntries((state.carried ?? []).map(e => [e.id, e]));
+  const onPlayer = (e: Entity) => {
+    for (let p = e.parent, n = 0; p && n < 20; p = entities[p]?.parent ?? null, n++) {
+      if (p === "player") return true;
+      // In someone else's hands, or put down somewhere: not theirs to carry.
+      const up = entities[p];
+      if (!up || up.kind === "person" || up.kind === "area" || up.kind === "place") return false;
+    }
+    return false;
+  };
+  const things = Object.values(entities).filter(e => e.id !== "player" && !e.gear && !e.states.includes("gone") && onPlayer(e));
+  const purse = things.filter(e => COIN.test(e.name)).map(e => ({ name: e.name, quantity: e.quantity ?? 1 }));
+  const carrying = things.filter(e => !COIN.test(e.name)).map(e => ({ name: e.name, quantity: e.quantity ?? 1, ...(e.parent && e.parent !== "player" ? { in: entities[e.parent]?.name ?? e.parent } : {}) }));
+  // Before the story begins, the purse it starts them with.
+  if (!state.world && !state.carried && !state.history.length) purse.push(...startingPurse().map(p => ({ name: p.name, quantity: p.quantity })));
+
+  const held = new Set([c.equipped.mainHand, c.equipped.offHand].filter(Boolean));
+  const attacks = (s.attacks as Array<Dnd.CharacterSheet["attacks"][number] & { weaponInstanceId?: string; versatileDamage?: { dice: string; modifier: number }; range?: { normal: number; long: number }; properties?: string[]; mastery?: string }>)
+    .filter((a, i, all) => all.findIndex(b => b.name === a.name) === i)
+    .filter(a => (a.weaponInstanceId ? !gone.has(a.weaponInstanceId) : !goneNames.has(a.name)))
+    .map(a => ({
+      name: a.name, kind: a.attackKind, bonus: a.attackBonus, damage: `${a.damage.dice}${a.damage.modifier ? signed(a.damage.modifier) : ""}`, type: a.damage.type,
+      ...(a.versatileDamage ? { versatile: `${a.versatileDamage.dice}${a.versatileDamage.modifier ? signed(a.versatileDamage.modifier) : ""}` } : {}),
+      ...(a.range ? { range: a.range } : {}), properties: a.properties ?? [], ...(a.mastery ? { mastery: a.mastery } : {}),
+      held: !!a.weaponInstanceId && held.has(a.weaponInstanceId),
+    }));
+
+  const sc = s.spellcasting?.classes[0];
+  const pact = (s.spellSlots as { pactSlots?: { level: number; count: number } }).pactSlots;
+  const saves = s.savingThrows as Record<Dnd.Ability, { total: number; breakdown?: Array<{ source: string }> }>;
+  const conditions = [
+    ...c.appliedConditions.filter(a => !/-active$/.test(a.conditionId)).map(a => content.conditions.get(a.conditionId)?.name ?? capitalWords(a.conditionId)).filter(n => !/active$/i.test(n)),
+    ...(Number(c["exhaustion"] ?? 0) > 0 ? [`Exhaustion ${c["exhaustion"]}`] : []),
+  ];
+  const slotOf = (instance: string) => c.equipped.mainHand === instance ? "in hand" as const : c.equipped.offHand === instance ? "off hand" as const : c.equipped.armor === instance || c.equipped.shield === instance ? "worn" as const : undefined;
+  return {
+    name: c.name, concept: state.player.concept,
+    species: species?.name ?? capitalWords(c.speciesId), background: background?.name ?? capitalWords(c.backgroundId),
+    classes: c.classes.map(k => ({ id: k.classId, name: content.classes.get(k.classId)?.name ?? capitalWords(k.classId), level: k.level, ...(k.subclassId ? { subclass: content.subclasses.get(k.subclassId)?.name ?? capitalWords(k.subclassId) } : {}) })),
+    level: s.totalLevel,
+    hp: { current: Math.max(0, c.hp.current), max: s.effectiveHpMax, temp: c.hp.temp },
+    ac: s.ac.total, speeds: s.speeds, initiative: s.initiative.modifier, proficiency: s.proficiencyBonus,
+    hitDice: c.classes.map(k => ({ die: Number(content.classes.get(k.classId)?.hitDie ?? 8), left: k.hitDiceRemaining, total: k.level })),
+    inspiration: c.heroicInspiration,
+    ...(c.hp.current <= 0 ? { deathSaves: c.deathSaves } : {}),
+    abilities: ABILITIES.map(a => ({ id: a, name: ABILITY_NAME[a], score: s.abilityScores[a], modifier: s.abilityModifiers[a], save: saves[a].total, proficient: !!saves[a].breakdown?.some(b => b.source === "proficiency") })),
+    skills: s.skills.map(k => ({ id: k.skill, name: titleSkill(k.skill), ability: k.ability, modifier: k.modifier, proficiency: k.proficiency, advantage: k.hasAdvantage, disadvantage: k.hasDisadvantage })),
+    passive: s.passiveScores,
+    attacks,
+    ...(sc ? { spellcasting: {
+      className: sc.className, ability: sc.ability, saveDC: sc.saveDC, attackBonus: sc.attackBonus,
+      slots: s.spellSlots.slotsByLevel.map((max, i) => ({ level: i + 1, max, used: c.spellSlotsUsed[String(i + 1)] ?? 0 })).filter(x => x.max > 0),
+      ...(pact?.count ? { pact: { level: pact.level, max: pact.count, used: Number(c["pactSlotsUsed"] ?? 0) } } : {}),
+      spells: s.spellcasting!.spellsByLevel.filter(g => g.spells.length).map(g => ({ level: g.level, spells: g.spells.map(sp => {
+        const def = content.spells.get(sp.spellId);
+        return { id: sp.spellId, name: sp.name, ready: g.level === 0 || sp.prepared || sp.alwaysPrepared, always: sp.alwaysPrepared && g.level > 0, concentration: !!def?.concentration, ritual: !!def?.ritual };
+      }) })),
+    } } : {}),
+    features, feats, traits, conditions,
+    equipment: s.inventory.items.filter(i => !gone.has(i.instanceId) && i.definitionId !== "unarmed-strike").map(i => ({ name: i.name, kind: i.itemKind, ...(slotOf(i.instanceId) ? { slot: slotOf(i.instanceId)! } : {}), quantity: i.quantity })),
+    carrying, purse,
+    languages: s.knownLanguages.map(l => (l === "thieves-cant" ? "Thieves' Cant" : capitalWords(l))),
+    proficiencies: {
+      armor: [...ARMOR_ORDER.filter(a => prof.armor.includes(a)), ...prof.armor.filter(a => !ARMOR_ORDER.includes(a))].map(a => (a === "shield" ? "Shields" : capitalWords(a))),
+      weapons: prof.weapons.map(w => capitalise(w.replace(/^martial-(\w+)$/, "martial ($1)"))),
+      tools: [...new Set(prof.tools.map(toolName))],
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------------------------
 // Checks and saves.
 
@@ -625,7 +867,7 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
   if (!spell || !ready) {
     close(state, ctx);
     const what = spell?.name ?? "that spell";
-    return { lines: [`(${what === "that spell" ? "That isn't a spell" : `${what} isn't a spell`} ${state.player.name} has ready: #sheet shows what they have.)`], directive: `The player reached for magic their character doesn't have ready (${what}). It doesn't come: nothing happens beyond a gesture, maybe a fizzle. Say so in a few words, in the fiction, without inventing any effect, and let them choose something else.` };
+    return { lines: [`(${what === "that spell" ? "That isn't a spell" : `${what} isn't a spell`} ${state.player.name} has ready: /sheet shows what they have.)`], directive: `The player reached for magic their character doesn't have ready (${what}). It doesn't come: nothing happens beyond a gesture, maybe a fizzle. Say so in a few words, in the fiction, without inventing any effect, and let them choose something else.` };
   }
   // A ritual takes ten minutes longer and no slot (if the spell is one).
   const ritual = options.ritual === true && spell.ritual;

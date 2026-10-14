@@ -1,6 +1,7 @@
 import { lookOf } from "../../game/look/appearance.ts";
 import { glyphSet } from "../../game/look/glyphs.ts";
 import { stageView, townView } from "../../game/views.ts";
+import { sceneById } from "../../../scenes/index.ts";
 import type { Game } from "../game.ts";
 import { C } from "../theme.ts";
 import { BOLD, FPS } from "./common.tsx";
@@ -14,18 +15,20 @@ import { BOLD, FPS } from "./common.tsx";
 export function Place({ game, width, height, legend = true, view = "stage" }: { game: Game; width: number; height: number; legend?: boolean; view?: "stage" | "map" }) {
   const core = game.core;
   const session = game.session;
-  const world = session?.world;
+  // The scene on screen: the one being played, or one just over, its place as it was left, in its own light.
+  const world = game.shownWorld;
+  const stage = world && session ? { ...session, world } : session;
   if (!core) return null;
   const people = world ? Object.values(world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.states.includes("gone")) : [];
   const surfaces = world ? Object.values(world.entities).filter(e => e.kind === "surface" && !e.states.includes("gone")) : [];
   const shown = legend ? Math.max(0, Math.min(people.length + surfaces.length, height - 8)) : 0;
   const listed = [...people, ...surfaces].slice(0, shown);
   const look = game.sceneLook();
-  const time = game.story.time;
+  const time = (game.shownScene ? sceneById(game.shownScene).time : undefined) ?? game.story.time;
   const glyphs = glyphSet();
   return <box flexDirection="column" flexShrink={0}>
     <lookCanvas width={width} height={Math.max(6, height - shown)} fps={FPS} live={view === "map" || !game.overlay} painter={view === "stage"
-      ? (w, h, now) => stageView(session, { w, h }, { t: now, time, glyphs, ...(look ? { effects: look.fx, positions: id => look.director.tweens.at(id, now) } : {}) }) ?? []
+      ? (w, h, now) => stageView(stage, { w, h }, { t: now, time, glyphs, ...(look ? { effects: look.fx, positions: id => look.director.tweens.at(id, now) } : {}) }) ?? []
       : (w, h, now) => townView(core.state, session, { w, h }, { t: now, ...(look ? { effects: look.fx } : {}) })} />
     {listed.map(e => {
       const seen = lookOf(e, { glyphs });

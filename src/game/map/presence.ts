@@ -93,7 +93,7 @@ function places(story: StoryState, mapId: string): MapActor[] {
   return out;
 }
 
-interface Extra { name: string; glyph: string; at: Tile2; color?: string; text: string; states?: string[]; kind?: MapActor["kind"] }
+interface Extra { name: string; glyph: string; at: Tile2; color?: string; text: string; states?: string[]; kind?: MapActor["kind"]; blocks?: boolean }
 
 /** The town by time of day: the people who make it Caerwyn on the eve of the Assembly. */
 function town(story: StoryState): MapActor[] {
@@ -123,7 +123,7 @@ function town(story: StoryState): MapActor[] {
     add({ name: "porters going down to the Rat", glyph: "p", at: { x: 24, y: 33 }, text: "Big men going down the river stairs, paid off early and off to drink it, most of them bandaged somewhere. It's the docks." });
   }
   if (story.time === "night") {
-    for (const at of [{ x: 10, y: 42 }, { x: 38, y: 42 }]) add({ name: "a barge lantern", glyph: "¤", color: "#ffd27f", kind: "object", states: ["lit"], at, text: "A lantern on a moored barge, swinging, making the dark darker everywhere else." });
+    for (const at of [{ x: 10, y: 42 }, { x: 38, y: 42 }]) add({ name: "a barge lantern", glyph: "¤", color: "#ffd27f", kind: "object", states: ["lit", "post"], blocks: false, at, text: "A lantern on a moored barge, swinging, making the dark darker everywhere else." });
     add({ name: "a watchman's brazier", glyph: "¥", color: "#ff8c00", kind: "object", states: ["lit"], at: { x: 51, y: 37 }, text: "A brazier glowing outside the Heron's land door, at the very end of the wharf where the lamps give out." });
     add({ name: "an eel-seller packing up", glyph: "p", color: "#a0b090", at: { x: 15, y: 38 }, text: "An eel-seller packing up. 'Last eels! Lively ones!' They are, alarmingly." });
   }
@@ -137,7 +137,7 @@ function town(story: StoryState): MapActor[] {
   }
   const out: MapActor[] = extras.map((e, i) => ({
     id: `town:${slugOf(e.name)}#${i}`, name: e.name, kind: e.kind ?? "person", glyph: e.glyph, color: e.color ?? TOWNSFOLK_COLOR, map: "caerwyn",
-    at: freeSpot(map, e.at), ...(e.states ? { states: e.states } : {}), blocks: true,
+    at: freeSpot(map, e.at), ...(e.states ? { states: e.states } : {}), blocks: e.blocks ?? true,
     interaction: { kind: "examine", text: e.text, label: e.kind === "creature" || e.kind === "object" ? `Look at ${e.name}` : `Talk to ${e.name}` },
   }));
   // The palace page the next morning: the King will see the investigator now.

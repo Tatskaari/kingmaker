@@ -138,6 +138,9 @@ export const isRoofed = (t: Tile) => !t.blocks && !isStructure(t) && !!(t as Map
 
 export const inRect = (r: { x: number; y: number; w: number; h: number }, p: Tile2) => p.x >= r.x && p.y >= r.y && p.x < r.x + r.w && p.y < r.y + r.h;
 
+/** A door, or a way out to another map (the stairs, along the wharf). */
+export const isDoorway = (map: TileMap, p: Tile2) => tileAt(map, p).terrain === "door" || map.exits.some(e => e.at.x === p.x && e.at.y === p.y);
+
 /** The smallest region containing a tile. */
 export function regionAt(map: TileMap, p: Tile2): PlaceRegion | undefined {
   return (map.regions as PlaceRegion[]).filter(r => inRect(r.rect, p)).sort((a, b) => a.rect.w * a.rect.h - b.rect.w * b.rect.h)[0];
