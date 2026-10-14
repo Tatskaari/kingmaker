@@ -126,7 +126,7 @@ export function normalizePlan(raw: PlacePlan, cast: CastMember[] = []): { plan: 
     const id = claim("main-room", "the main room");
     plan.rooms.push({ id, name: plan.name, description: plan.description, where: "main", width: 0, depth: 0, floor: "same" });
     rooms.add(id);
-    problem("plan", id, "The plan has no rooms: the whole building was made one room.");
+    problem("plan", id, "The plan has no rooms: the whole building was made one room.", "warning");
   }
   for (const r of plan.rooms) {
     r.where = pick(["main", ...SIDES, ...CORNERS] as const, r.where, "north");

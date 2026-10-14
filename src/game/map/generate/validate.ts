@@ -209,7 +209,9 @@ export function validate(place: CompiledPlace): Problem[] {
         const target = tilesOf(t.target, p.area);
         if (!target) break;
         const d = Math.min(...p.tiles.flatMap(q => target.map(r => cheb(q, r))));
-        const limit = t.relation === "beside" ? 1 : t.relation === "by-door" ? 2 : 2;
+        // Within reach, or as near as its own area comes (sacks on the barge, by the river door: the barge is out in the river).
+        const nearest = Math.min(...(site.areas.get(p.area)?.tiles ?? p.tiles).flatMap(q => target.map(r => cheb(q, r))));
+        const limit = Math.max(t.relation === "beside" ? 1 : 2, nearest);
         if (d > limit + 1) wrong(`it's ${d} squares from ${nameOf(t.target)}: there wasn't room by it`);
         else if (d > limit) wrong(`it's ${d} squares from ${nameOf(t.target)}`, "warning");
         if (t.relation === "behind" && d <= limit + 1) {
