@@ -4,7 +4,7 @@ import { recordingWorld } from "../world/dsl.ts";
 import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { approachById } from "./approaches.ts";
-import { currentBeat, effectiveScene, presentCast, sceneEntries } from "./brief.ts";
+import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntries } from "./brief.ts";
 import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, relocateDirective, STALL_DIRECTIVE, type Move } from "./director.ts";
 import { describeRoll } from "./dice.ts";
 import { areaOf, buildWorld, heldBy, joinWorld, tick, within, type Entity } from "../world/scene-world.ts";
@@ -117,6 +117,7 @@ export async function openScene(state: SessionState, hooks: TurnHooks = {}): Pro
   // The place as a world: where everyone and everything starts, with what the player carried in.
   if (scene.world) {
     state.world = buildWorld(scene.id, scene.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name })), state.player);
+    joinWorld(state.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name, ...(c.members ? { members: c.members } : {}) })), 0);
     for (const e of state.carried ?? []) state.world.entities[e.id] = { ...e, parent: e.parent && state.carried!.some(c => c.id === e.parent) ? e.parent : "player" };
   } else delete state.world;
   delete state.carried;
@@ -521,8 +522,14 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   }
   const staged = staging ? await staging : undefined;
   if (staged) { costUsd += staged.costUsd; calls++; }
+  // The player has walked out of this place altogether: the scene ends here, and the boundary decides
+  // what comes next (rather than the scene's own endings chasing them across town).
+  if (!ended && !state.closing && state.world?.entities.player?.states.includes("gone")) {
+    ended = scene.exits.find(e => e.id === IMPROVISED_EXIT_ID);
+    if (ended) state.path.push({ turn: state.turn, from: state.beat, to: ended.id, via: "left-the-place", source: "post" });
+  }
   // Whoever is on stage now (an entrance, someone called in) is in the world too.
-  if (state.world) joinWorld(state.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name })), state.turn);
+  if (state.world) joinWorld(state.world, presentCast(scene, state).map(c => ({ id: c.id, name: c.name, ...(c.members ? { members: c.members } : {}) })), state.turn);
   if (!state.path.some(p => p.turn === state.turn && p.to !== p.from)) state.turnsInBeat++;
 
   if (ended && authored.createsCharacter) await extractCharacter(authored, state);

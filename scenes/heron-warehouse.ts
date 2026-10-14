@@ -163,6 +163,11 @@ export const heronWarehouse: Scene = {
       name: "Master Josiah Sallow",
       group: "Master Sallow, his lantern-boy and the Crake brothers, two hired river-bruisers",
       statblock: "bandit-captain", weapon: "rapier",
+      members: [
+        { id: "crake-1", name: "the talking Crake", statblock: "tough", weapon: "club", look: "An enormous river-bruiser in a reefer jacket, with a cudgel and a great deal to say about it." },
+        { id: "crake-2", name: "the silent Crake", statblock: "tough", weapon: "club", look: "His identical brother, who has never been heard to say anything at all." },
+        { id: "lantern-boy", name: "the lantern-boy", statblock: "commoner", weapon: "unarmed-strike", look: "A yawning boy of ten with a lantern on a pole, who would very much like to be somewhere else." },
+      ],
       look: "Fifty, pink and well-fed, in a good dark coat with a fur collar, with a silver-topped cane, a wheat-ear signet ring (the Royal Purveyor's office's mark) and the soft hands of a man who signs things, except that they're very quick. He wears so much lavender water that you smell him a full minute before you see him. Behind him come a yawning lantern-boy and the Crakes: two enormous, identical river-bruisers, one of whom talks.",
       voice: "Smooth, reasonable and faintly bored; talks like an official letter ('It has come to my attention', 'regrettably', 'in the King's interest'). Never raises his voice. Calls people by their trade ('Clerk', 'Porter', 'Sergeant'). The more frightened he is, the more polite he gets.",
       wants: "The barge loaded and away on the ebb, tonight's page initialled and his share in his purse, and the business of the clerk Prout closed for good, tidily, with no loose ends.",

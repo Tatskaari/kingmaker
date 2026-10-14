@@ -610,7 +610,7 @@ function towards(from: { x: number; y: number }, to: { x: number; y: number }, f
 
 /** Someone the story brought in who isn't in the cast (a crowd, a passer-by): a commoner, for the rules. */
 function bystander(e: Entity): Character {
-  return { id: e.id, name: e.name, look: e.description ?? "", voice: "", wants: "", knows: [], attitude: "", statblock: e.kind === "creature" ? "mastiff" : "commoner" };
+  return { id: e.id, name: e.name, look: e.description ?? "", voice: "", wants: "", knows: [], attitude: "", statblock: e.stats?.statblock ?? (e.kind === "creature" ? "mastiff" : "commoner"), ...(e.stats?.weapon ? { weapon: e.stats.weapon } : {}) };
 }
 
 /** People's state in the world follows the rules: hurt, badly hurt, down. */

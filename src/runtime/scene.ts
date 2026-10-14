@@ -37,6 +37,8 @@ export interface Character {
   statblock?: string;
   /** What they'd hit someone with (an SRD weapon id: club, dagger, mace...), when it isn't their statblock's usual one. */
   weapon?: string;
+  /** A group's members, who stand, fight and fall separately in the world and the rules (the group speaks through its leader). */
+  members?: Array<{ id: string; name: string; statblock?: string; weapon?: string; look?: string }>;
 }
 
 export interface Check {

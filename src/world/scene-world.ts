@@ -40,6 +40,8 @@ export interface Entity {
   description?: string;
   /** A person or creature from the scene's cast. */
   cast?: string;
+  /** Rules stats for people outside the cast (a group's members, someone the story brought in). */
+  stats?: { statblock: string; weapon?: string };
   player?: boolean;
   /** Turn it came into the story, when play created it. */
   created?: number;
@@ -580,16 +582,25 @@ export function asciiMap(world: SceneWorld): string {
 }
 
 /** People who have come on stage since the world was built (an entrance beat, called in by play) join it at the way in. */
-export function joinWorld(world: SceneWorld, people: Array<{ id: string; name: string }>, turn: number): string[] {
+export function joinWorld(world: SceneWorld, people: Array<{ id: string; name: string; members?: Array<{ id: string; name: string; statblock?: string; weapon?: string; look?: string }> }>, turn: number): string[] {
   const joined: string[] = [];
   for (const p of people) {
-    if (world.entities[p.id]) continue;
-    const way = Object.values(world.entities).find(e => e.tags.includes("door") && present(e) && areaOf(world, e.id)?.id === areaOf(world, "player")?.id)
-      ?? Object.values(world.entities).find(e => e.tags.includes("door") && present(e));
-    const at = way ? spotNear(world, way.id, 5) : spotNear(world, "player", 10);
-    world.entities[p.id] = { id: p.id, name: p.name, kind: "person", parent: areaAt(world, at).id, at, tags: [], states: [], notes: [], cast: p.id, created: turn };
-    world.log.push({ turn, text: `${p.name} arrives`, by: "rules" });
-    joined.push(p.name);
+    if (!world.entities[p.id]) {
+      const way = Object.values(world.entities).find(e => e.tags.includes("door") && present(e) && areaOf(world, e.id)?.id === areaOf(world, "player")?.id)
+        ?? Object.values(world.entities).find(e => e.tags.includes("door") && present(e));
+      const at = way ? spotNear(world, way.id, 5) : spotNear(world, "player", 10);
+      world.entities[p.id] = { id: p.id, name: p.name, kind: "person", parent: areaAt(world, at).id, at, tags: [], states: [], notes: [], cast: p.id, created: turn };
+      world.log.push({ turn, text: `${p.name} arrives`, by: "rules" });
+      joined.push(p.name);
+    }
+    // A group's members come with its leader, each their own person in the world.
+    for (const m of p.members ?? []) {
+      if (world.entities[m.id]) continue;
+      const at = spotNear(world, p.id, 5);
+      world.entities[m.id] = { id: m.id, name: m.name, kind: "person", parent: areaAt(world, at).id, at, tags: [], states: [], notes: [{ text: `with ${p.name}`, turn, by: "rules" }], created: turn,
+        ...(m.statblock ? { stats: { statblock: m.statblock, ...(m.weapon ? { weapon: m.weapon } : {}) } } : {}), ...(m.look ? { description: m.look } : {}) };
+      joined.push(m.name);
+    }
   }
   return joined;
 }

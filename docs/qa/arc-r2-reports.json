@@ -1,0 +1,2311 @@
+[
+ {
+  "run": {
+   "session": "arc2-evoker",
+   "level": 5,
+   "character": "Vesper Quillon: a fussy court evoker on loan from the Nine Furrows wizards, who believes most problems are improved by a small, controlled fire",
+   "persona": "You solve problems with magic first and ask questions second, and you are delighted to finally have spell slots. Cast often and creatively: on people, on locks and doors, on signboards and furniture, on the weather if you can. Set things on fire when it seems even slightly justified, and see what the world does about it (and whether it stays burned). Try at least one big spell like Fireball somewhere it is a terrible idea. Rincewind-style chaos is fine, but you still want to solve the murder and you care what the King thinks of you."
+  },
+  "report": {
+   "session": "arc2-evoker",
+   "turns": 38,
+   "character_sheet": "The game made Vesper Quillon a human wizard 5 (Evoker) with the sage background. Stats: AC 11, HP 32, INT 19, spell save DC 15, spell attack +7. Skills: Arcana, History and Investigation +7, Medicine +4. Slots 4/3/2. Cantrips: Fire Bolt, Mage Hand, Prestidigitation. 1st level: Burning Hands, Detect Magic, Find Familiar, Identify, Magic Missile, Shield. 2nd level: Flaming Sphere, Scorching Ray. Equipment: Quarterstaff, Dagger. Languages: Common.\n\nThe fire-heavy evoker list fits the \"small, controlled fire\" concept very well. Gaps:\n- It lists 3rd-level slots (2/2, then 3/3 at level 6) but no 3rd-level spells at all, so no Fireball.\n- It has 3 cantrips where a 5th-level wizard has 4.\n- There is no spellbook, component pouch, focus or money.\n- Common is the only language, although sage plus human should give extras. The opening scene even has Moll swearing \"in another tongue\".\n\nThe level-up to 6 at the start of the last scene was correct on HP (32 to 38), Hit Dice (6/6) and 3rd-level slots (3/3), and it added \"Heroic Inspiration\". It learned no new spells, though, and there were still no 3rd-level spells.",
+   "scenes_played": [
+    "1. The granary yard: the hanged clerk (ends 'Murder by persons unknown'), turns 1-14",
+    "2. Caerwyn, the afternoon: market square transition (ends 'Onward'), turn 15",
+    "3. The Drowned Rat (ends 'What Big Hobb knows'), turns 16-26",
+    "4. The Heron Warehouse (ends 'Up in smoke'), turns 27-35",
+    "5. The King's Morning (ends 'Done right by'), turns 36-38"
+   ],
+   "ended": "\"The End. (The session is over.)\" came after turn 38 in the King's dressing room. The epilogue said: \"Sallow is held for the Assizes; Hobb's account will be heard, with you beside him. Cob and Moll will not be punished for helping. Kell's record is signed and placed in the King's keeping.\" The King held the fire over for \"the law\". The session ended at 38 turns, a little short of the 40-60 estimate.",
+   "summary": "This is a strong, coherent little murder mystery. The clues fit together across scenes: the scene-1 forensics (cane blow, thin cord, clean palms, rope hauled up) were later confirmed exactly by Hobb's confession. The NPCs have good voices: Kell, Nan, Cob, the King. Skill checks were excellent: every one showed dice that matched the sheet and fitted the story. The world remembered physical changes within and across scenes: the melted lock, the dressed hand, the stolen ledger, and the burned warehouse and barge.\n\nSpellcasting beyond cantrips was badly handled:\n- Detect Magic cast explicitly as a ritual spent a slot. The GM then admitted the mistake, but the sheet never changed back.\n- Find Familiar showed no cast line and spent no slot.\n- Arcane Recovery was ignored.\n- Fireball, which is not on my sheet, went off with no dice, no saves, no slot spent and no resolution of its 20-ft radius.\n- Magic Missile showed no dice.\n- The Dagger I gave away stayed on the sheet.\n- Combat never started, even after Sallow shouted \"Seize him!\".\n\nThe last two scenes were rushed. The Heron scene cut away one turn after the Fireball, and Sallow escaped off-screen. The finale then declared him \"held for the Assizes\" one turn after the Marshal said he hadn't been found.",
+   "rules_checks": [
+    {
+     "scene": "1 Granary yard",
+     "turn": 1,
+     "what_you_did": "Mage Hand to pluck a stone from Cob's hand",
+     "dice_shown": "\ud83c\udfb2 Cast Mage Hand (cantrip) on Cob",
+     "narration": "It plucks the stone cleanly from his fingers and drops it into the gutter.",
+     "verdict": "worked"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 2,
+     "what_you_did": "Examined the hanged body",
+     "dice_shown": "\ud83c\udfb2 Medicine check to tell how Prout really died: 18 + 4 = 22 vs DC 12: success",
+     "narration": "a second mark: thin, level, and low around the neck... a swelling beneath the hair... His palms are clean",
+     "verdict": "worked",
+     "note": "+4 matches the sheet"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 3,
+     "what_you_did": "Prestidigitation to warm Cob's hands and boots, plus a flame-sparrow",
+     "dice_shown": "\ud83c\udfb2 Cast Prestidigitation (cantrip) on Cob",
+     "narration": "The warmth seeps into the oversized boots; the sparrow gives a soft crackle and vanishes.",
+     "verdict": "worked"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 4,
+     "what_you_did": "Promise to Moll, asked Cob about the men in the loft",
+     "dice_shown": "\ud83c\udfb2 Persuasion check to get Cob to name the men in the loft: 16 + 0 = 16 vs DC 12: success",
+     "narration": "'Two... Silvertop. Posh cove with the silver cane... And a big man with a bandaged hand.'",
+     "verdict": "worked"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 6,
+     "what_you_did": "Asked to see the crackling paper in Cob's boot",
+     "dice_shown": "\ud83c\udfb2 Investigation check to find out what is stiff inside the boot lining: 15 + 7 = 22 vs DC 12: success",
+     "narration": "wagon entries marked 'lost to goblins'... countersigned: J. Sallow, for the Royal Purveyor.",
+     "verdict": "worked"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 7,
+     "what_you_did": "Fire Bolt at the granary door lock",
+     "dice_shown": "\ud83c\udfb2 Cast Fire Bolt (cantrip)",
+     "narration": "the lock drops to the cobbles, its metal glowing at the edges. The doors remain shut, but no longer locked.",
+     "verdict": "partly",
+     "note": "No attack roll or 2d10 damage, and no target named. That is acceptable for an unattended object, but the dice line gives no information."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 10,
+     "what_you_did": "Cast Detect Magic explicitly as a ritual ('taking the extra ten minutes')",
+     "dice_shown": "\ud83c\udfb2 Cast Detect Magic (1st-level slot) on you / \ud83c\udfb2 Vesper Quillon: HP 32/32, spell slots 1st 3/4, 2nd 3/3, 3rd 2/2",
+     "narration": "You murmur the ritual's measured phrases, taking the long minutes over them",
+     "verdict": "broken",
+     "note": "A ritual casting should not spend a slot. The narration called it a ritual but the engine took the slot."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 11,
+     "what_you_did": "Pointed out out of character that it was a ritual",
+     "dice_shown": "none",
+     "narration": "'You're right: a ritual casting of Detect Magic takes ten minutes and uses no spell slot; the earlier slot deduction was a mistake. Your slot remains available.'",
+     "verdict": "broken",
+     "note": "The sheet still said 1st 3/4 right after, and at the scene-1 short rest. It was only fixed by the long rest at the end of scene 4."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 11,
+     "what_you_did": "Mage Hand through a gap to lift the loft bar",
+     "dice_shown": "none",
+     "narration": "no gap wide enough for the spectral hand to pass through",
+     "verdict": "worked",
+     "note": "Reasonable refusal. The hand was never cast, so the game didn't spend the cantrip."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 12,
+     "what_you_did": "Convinced the dead-cart man to wait",
+     "dice_shown": "\ud83c\udfb2 Persuasion check to convince Tull to wait before taking Prout away: 12 + 0 = 12 vs DC 12: success",
+     "narration": "'All right, sir. I'll wait for Sarge's word.'",
+     "verdict": "worked"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 14,
+     "what_you_did": "Cast Find Familiar (no ritual stated), ember-orange lizard 'Kindling'",
+     "dice_shown": "none",
+     "narration": "The ember-orange lizard appears at your call.",
+     "verdict": "missing",
+     "note": "No cast line, no slot spent and no 10 gp of components consumed. The familiar did exist afterwards."
+    },
+    {
+     "scene": "1 to 2 transition",
+     "turn": 14,
+     "what_you_did": "(automatic) short rest",
+     "dice_shown": "\ud83c\udfb2 Short rest (an hour): HP 32/32, spell slots 1st 3/4, 2nd 3/3, 3rd 2/2",
+     "narration": "An hour or two later, you're in the market square",
+     "verdict": "partly",
+     "note": "The rest happened, but Arcane Recovery was neither offered nor applied, and the slot the GM had conceded was still missing."
+    },
+    {
+     "scene": "2 Caerwyn afternoon",
+     "turn": 15,
+     "what_you_did": "Out of character: asked to use Arcane Recovery during that short rest",
+     "dice_shown": "none",
+     "narration": "(No acknowledgement at all.)",
+     "verdict": "missing",
+     "note": "Ignored completely, and the slot was not restored."
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 18,
+     "what_you_did": "Offered to dress Hobb's hand and pressed him about the rope",
+     "dice_shown": "\ud83c\udfb2 Persuasion check to get Big Hobb to tell you what he did: 9 + 0 = 9 vs DC 14: failure",
+     "narration": "'I caught it on a hook, sir... Not here. Not yet.'",
+     "verdict": "worked",
+     "note": "A failure that moved the story forward."
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 19,
+     "what_you_did": "Dressed the hand anyway, offered him my promise",
+     "dice_shown": "\ud83c\udfb2 Persuasion check to get Big Hobb to tell you what he did: 19 + 0 = 19 vs DC 14: success",
+     "narration": "'I only held the rope.'",
+     "verdict": "worked"
+    },
+    {
+     "scene": "4 Heron",
+     "turn": 27,
+     "what_you_did": "Snuffed the watchman's lantern with Prestidigitation and slipped in",
+     "dice_shown": "\ud83c\udfb2 Stealth check to slip into the Heron unseen: 16 + 1 = 17 vs DC 13: success / \ud83c\udfb2 Cast Prestidigitation (cantrip)",
+     "narration": "The watchman's lantern goes out with a small, unmistakable puff of magic. He swears at the river wind",
+     "verdict": "worked"
+    },
+    {
+     "scene": "4 Heron",
+     "turn": 28,
+     "what_you_did": "Carried a heavy grain sack at STR 8",
+     "dice_shown": "none",
+     "narration": "The sack is heavier than your dignity, though the two are close.",
+     "verdict": "worked",
+     "note": "No check needed, and the comedy landed."
+    },
+    {
+     "scene": "4 Heron",
+     "turn": 29,
+     "what_you_did": "Bluffed being Sallow's auditor",
+     "dice_shown": "\ud83c\udfb2 Deception check to bluff your way through a challenge on the floor: 16 + 0 = 16 vs DC 13: success",
+     "narration": "Scrope's fingers lift from the ledger. 'Certainly... If the Master sent you.'",
+     "verdict": "worked"
+    },
+    {
+     "scene": "4 Heron",
+     "turn": 30,
+     "what_you_did": "Prestidigitation to heat the ledger's brass clasp under Scrope's hand",
+     "dice_shown": "\ud83c\udfb2 Cast Prestidigitation (cantrip) on Mister Lemuel Scrope",
+     "narration": "The brass clasp warms... to the heat of a teapot. He jerks his hand away",
+     "verdict": "worked",
+     "note": "The creative use was honoured."
+    },
+    {
+     "scene": "4 Heron",
+     "turn": 34,
+     "what_you_did": "Cast Fireball (NOT on my sheet) through the river door at the loaded barge, inside a grain-dust warehouse",
+     "dice_shown": "none",
+     "narration": "Fireball blooms over the Patience; flame races across the grain-dusted loading floor and climbs the Heron's timber walls.",
+     "verdict": "broken",
+     "note": "The spell is not known or prepared, but it was allowed. No 3rd-level slot was spent: the sheet still said 3rd 2/2 afterwards. There was no 8d6 roll, no DEX saves, and no account of who was in the 20-ft radius, although Hobb stood at the hoist right by the river door and the bargees were on the barge."
+    },
+    {
+     "scene": "4 Heron",
+     "turn": 35,
+     "what_you_did": "Magic Missile at a Crake rushing me",
+     "dice_shown": "none",
+     "narration": "The three darts strike the Crake in the chest, driving him back",
+     "verdict": "missing",
+     "note": "No cast line, no 3d4+3 damage and no slot shown. Sallow had shouted 'Seize him!' but initiative never started, and the scene ended right after."
+    },
+    {
+     "scene": "4 to 5 transition",
+     "turn": 35,
+     "what_you_did": "(automatic) long rest and level up",
+     "dice_shown": "\ud83c\udfb2 Long rest (a night): HP 32/32, spell slots 1st 4/4, 2nd 3/3, 3rd 2/2 / \u2014 Level up! ... HP max 32 \u2192 38. \u2014",
+     "narration": "Morning finds you in the King's dressing room",
+     "verdict": "partly",
+     "note": "HP, Hit Dice and slots were correct after the level-up. No new spells were learned and there were still no 3rd-level spells. Heroic Inspiration was granted but never offered or used."
+    },
+    {
+     "scene": "All",
+     "turn": 38,
+     "what_you_did": "Checked the sheet after giving the Dagger to Moll (turn 14)",
+     "dice_shown": "none",
+     "narration": "'Moll takes the dagger by its sheath... I'll keep it sharp.'",
+     "verdict": "broken",
+     "note": "The sheet still listed 'Dagger' under Equipment and as a 'Dagger +4' attack through the end. The ledger page and the green ledger never appeared on the sheet."
+    }
+   ],
+   "world_interactions": [
+    {
+     "scene": "1 Granary yard",
+     "turn": 1,
+     "what_you_did": "Mage Hand took the stone out of Cob's hand and dropped it in the gutter",
+     "what_happened": "'Oi! Cheating with wizard hands!'",
+     "did_it_stick": "Yes. Turn 2: 'Cob's stone-throwing has stopped.'"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 6,
+     "what_you_did": "Took the hidden ledger page from Cob's boot and put it in my inner pocket",
+     "what_happened": "Kell reads it over my shoulder. Turn 13: 'the page goes with you to the King.'",
+     "did_it_stick": "Yes in the story. Turn 9: the page was matched to the cut stub. Turn 36: I took it 'out of my inner pocket' and 'The King looks first at Prout's page'. It never appeared on the sheet."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 7,
+     "what_you_did": "Fire Bolt melted the granary door lock",
+     "what_happened": "'the lock drops to the cobbles, its metal glowing at the edges.' Kell: 'The warden will want that explained.'",
+     "did_it_stick": "Yes, within the scene. Turn 8: 'Your melted lock stays behind in the wet cobbles.' Turn 12: a constable asks 'That yours, sir?' Turn 13: 'Very tidy, sir.' The warden never followed it up later."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 13,
+     "what_you_did": "Took the Captain's order from Tull and handed it to Kell",
+     "what_happened": "'Tull hands you the order. You read it and pass it to Kell.' She logs it.",
+     "did_it_stick": "Yes for that scene; it was not referenced again."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 14,
+     "what_you_did": "Gave my dagger, sheath and all, to Moll",
+     "what_happened": "'Moll takes the dagger by its sheath, testing the weight... I'll keep it sharp.'",
+     "did_it_stick": "Not on the sheet: the Dagger stayed in Equipment and Attacks. The story never mentioned it again."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 14,
+     "what_you_did": "Summoned a lizard familiar 'Kindling' to squeeze under the barred loft door",
+     "what_happened": "'It scrambles up the wall and noses at the narrow gap... but there's no room to slip through.'",
+     "did_it_stick": "Yes. The familiar was tracked across scenes. Turn 15: 'Kindling settles on your shoulder'. Turn 17: under Hobb's table, and Nan says 'I'll thank you not to put little creatures under my customers'. Turn 21: 'keeps its perch on the doorframe'. Turn 27: on the Heron roof. Turn 38: 'No lizard answers your whistle', which fits leaving it on a burning roof, but its fate was never narrated."
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 19,
+     "what_you_did": "Cleaned and bandaged Hobb's rope-burned hand",
+     "what_happened": "'his good hand closes around the clean bandage'",
+     "did_it_stick": "Yes. Turn 21: 'His bandaged hand curls against his coat.' Turn 23: 'Beneath the fresh bandage, his fingers curl...'"
+    },
+    {
+     "scene": "4 Heron",
+     "turn": 27,
+     "what_you_did": "Snuffed the watchman's lantern with Prestidigitation",
+     "what_happened": "'He swears at the river wind and fumbles for his tinderbox.' We slip past.",
+     "did_it_stick": "The story never came back to it."
+    },
+    {
+     "scene": "4 Heron",
+     "turn": 28,
+     "what_you_did": "Picked up a heron sack and carried it to the stair",
+     "what_happened": "I staggered with it unchallenged.",
+     "did_it_stick": "Yes. Turn 29: I dropped it 'at the foot of the stair', with no contradiction."
+    },
+    {
+     "scene": "4 Heron",
+     "turn": 30,
+     "what_you_did": "Heated the clasp and took Scrope's green 'true book'",
+     "what_happened": "'You close the ledger and tuck it under your arm.'",
+     "did_it_stick": "Yes, strongly. Turn 35: 'The green book is clamped beneath your arm.' Turn 36: it is laid on the King's dressing table, and the valet rescues the teacup 'from the papers'. Kell: 'I saw the investigator take Scrope out with the ledger.'"
+    },
+    {
+     "scene": "4 Heron",
+     "turn": 34,
+     "what_you_did": "Fireball at the loaded Saltmere barge, through the river door of a dust-filled grain warehouse",
+     "what_happened": "'Fireball blooms over the Patience; flame races across the grain-dusted loading floor and climbs the Heron's timber walls. The painted heron outside catches first at the wings.' Sallow: 'Seize him!'",
+     "did_it_stick": "Yes. Turn 35: 'the Heron is already burning... The Patience blazes'. Scene 5, Kell: 'The Heron warehouse and the Patience are burning, Majesty.' The King: 'You also burned the barge and the warehouse... The law will have its say about the fire.' However, nobody in the blast radius (Hobb at the hoist, the bargees) was ever resolved."
+    },
+    {
+     "scene": "4 Heron",
+     "turn": 35,
+     "what_you_did": "Hustled Scrope down the stair and out toward the river door",
+     "what_happened": "This was not shown directly, because the scene cut away.",
+     "did_it_stick": "Yes. Scene 5, Kell: 'Scrope came out with you; I saw you get him clear.'"
+    },
+    {
+     "scene": "5 King's Morning",
+     "turn": 36,
+     "what_you_did": "Laid the Roll page and the green ledger on the King's dressing table",
+     "what_happened": "'The King looks first at Prout's page, then at the ledger. He doesn't touch either.'",
+     "did_it_stick": "Yes, they were treated as evidence until the end."
+    }
+   ],
+   "continuity_checks": [
+    {
+     "scene": "2 Caerwyn, the afternoon",
+     "what_you_expected": "Kell with me, Prout taken to the cold room, the children left in the yard, the page in my pocket, Kindling with me",
+     "what_the_game_did": "'you're in the market square with Sergeant Kell beside you. The constables have taken Prout to the watch-house cold room; Moll and Cob stayed behind in the granary yard.' Kindling came to my shoulder when called. The unresolved barred-loft puzzle was silently dropped until Hobb explained it in scene 3.",
+     "verdict": "consistent"
+    },
+    {
+     "scene": "3 The Drowned Rat",
+     "what_you_expected": "Arrive with Kell and the familiar, following the bandaged-hand lead",
+     "what_the_game_did": "'the din drops by half as you and Kell step inside.' The familiar was usable at once. The rules board and Kell's 'not on duty' line fit her being lent to me.",
+     "verdict": "consistent"
+    },
+    {
+     "scene": "4 The Heron Warehouse",
+     "what_you_expected": "Kell beside me, Hobb gone ahead with the brass token, Sallow due at midnight",
+     "what_the_game_did": "'Sergeant Kell stands beside you'. 'Hobb's brass token flashes at the grille; the bolt draws back.' Hobb is working the hoist, and Sallow arrives on the first stroke of midnight. It kept up when I took the ledger before Sallow arrived: his entrance line addressed the book in my hand.",
+     "verdict": "consistent"
+    },
+    {
+     "scene": "5 The King's Morning",
+     "what_you_expected": "The ledger and page in my hands, the Heron and barge burned, Sallow escaped into smoke, Hobb missing, Scrope taken out by me, Kindling lost on the roof",
+     "what_the_game_did": "All of these were handled correctly when I asked. Kell: 'Hobb ran from the fire. I don't know where he is now. Scrope came out with you.' Holt: 'Sallow has not presented himself.' 'No lizard answers your whistle.' Then the epilogue, one turn later, said: 'Sallow is held for the Assizes; Hobb's account will be heard, with you beside him.' That capture is never shown and contradicts the line just before it.",
+     "verdict": "partly"
+    }
+   ],
+   "memory_checks": [
+    {
+     "scene": "1 Granary yard",
+     "turn": 8,
+     "who": "Sergeant Kell",
+     "earlier": "Turn 1: 'You have not written suicide down. We shall get along.'",
+     "what_they_did": "'You said we'd get along, investigator. What do you make of this?'",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 14,
+     "who": "Cob",
+     "earlier": "Turn 8: 'You will be paid in further sparrows.' Turn 11: 'Sparrow later, Cob, it is on a break.'",
+     "what_they_did": "Turn 8: 'More sparrows,' he reminds you, as if recording a debt. Turn 14: 'And the sparrow's on a break?'",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 19,
+     "who": "Hobb (and the game)",
+     "earlier": "Scene 1 promise to Moll that nobody would touch Cob",
+     "what_they_did": "The game accepted my retelling of that promise and Hobb responded to it: 'When you promise to protect Cob\u2014and offer him the same promise\u2014his good hand closes around the clean bandage.' I prompted it, so this was a weak test.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "5 King's Morning",
+     "turn": 36,
+     "who": "King Aldren",
+     "earlier": "Scene 3 (turns 23 and 26): my promise to stand beside Hobb before the King",
+     "what_they_did": "'You said Hobb would speak, if you stood beside him... Will you keep your word?' The 'stood beside him' condition was not in my turn-36 report, so it was carried over from scene 3.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "5 King's Morning",
+     "turn": 36,
+     "who": "Sergeant Kell",
+     "earlier": "Turn 35: I took Scrope and the ledger out of the burning Heron",
+     "what_they_did": "'I saw the investigator take Scrope out with the ledger. I can swear to that.'",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "5 King's Morning",
+     "turn": 37,
+     "who": "King Aldren",
+     "earlier": "Scene 1: I officially gave Cob the boots and promised Moll the children would not be hauled off",
+     "what_they_did": "'Cob's boots were his. You gave them to him openly, as the King's investigator. That can stand... They will not be taken for helping us.' This was consistent, but I had just mentioned it.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "5 King's Morning",
+     "turn": 38,
+     "who": "Narrator / the King",
+     "earlier": "Turn 36: 'I bow, properly this time'",
+     "what_they_did": "'The King remembers how you take your tea\u2014and that, when asked, you bowed properly.' The bow is a real callback. The tea is not: I never said how I take my tea.",
+     "verdict": "false_memory"
+    },
+    {
+     "scene": "5 King's Morning",
+     "turn": 38,
+     "who": "Narrator (familiar)",
+     "earlier": "Turn 27: Kindling left on the roof of the Heron, which then burned",
+     "what_they_did": "'No lizard answers your whistle.' This fits where I left it, but the game never said what happened to it.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "2-5",
+     "turn": 38,
+     "who": "The Watch Captain / anyone",
+     "earlier": "Turn 12 slight: 'his verdict of suicide was reached at a gallop, from horseback, facing the wrong way'",
+     "what_they_did": "The Captain never appeared and nobody mentioned the insult, so this couldn't be tested. Moll's dagger was also never referenced again.",
+     "verdict": "forgot"
+    }
+   ],
+   "pacing": "Scene 1 was the best-paced. Each clue was earned through a check: Medicine 22 gave the second ligature mark, Persuasion 16 got the names from Cob, Investigation 22 found the page in the boot. There were no info dumps.\n\nLeads that came too easily:\n- Tull simply read the Captain's order aloud: \"to be closed as self-murder, without fuss, at the request of Master J. Sallow\". That is a big gift with no check.\n- In the one-turn scene 2, Kell volunteered the next lead unprompted: \"Big men with bandaged hands... They drink at the Drowned Rat.\"\n\nKell's \"What do you make of it, investigator?\" tic is very noticeable. Variants appear at turns 1, 2, 5, 6, 8 and 9 and in scene 2 (\"What do you make of the afternoon?\"), so she often reads as a prompt dispenser.\n\nHobb's confession in scene 3 was properly earned: a failed Persuasion (9 vs 14), then dressing his hand and a promise, then success (19).\n\nTurn 25 felt gated. I said \"We go down to the Heron.\" Kell replied \"Investigator, we're still on the stairs,\" and Hobb suddenly objected to the plan he had just invited me into.\n\nThe barred-loft locked room was set up prominently: \"How does a dead man get out to the hoist?\" It then blocked both my Mage Hand and my familiar, and was dismissed in one line from Hobb (\"The Master barred it from inside... We went out that way too\"). That doesn't explain how a door barred from inside ended up barred.\n\nThe ending was rushed. Scene 4 cut to \"Up in smoke\" one turn after the Fireball, with Sallow escaping off-screen and no chance to chase him or fight the fire. Scene 5 lasted 3 turns before a summary epilogue resolved Sallow's arrest and Hobb's testimony in a sentence. The session was over at turn 38.",
+   "characters": "**Alive and consistent:**\n- **Nan** is the standout: \"Rule four, my duck. Are you on duty?\"; \"No back room, my duck. One room, one door. The scullery's for washing pots, and the hatch is for slops. It opens onto a fast river, not a private conversation.\"; \"Nobody's house ends at the water, my duck. Don't bring trouble to mine.\"\n- **Cob**: \"Oi! Cheating with wizard hands!\"; \"Cob ain't a baby. Though\u2026 the boots were cold.\"; \"That was a good bit of fire.\"\n- **Moll** is fiercely protective: \"you don't get to make him tell you just because you've got sparks\"; \"I'll keep it sharp.\"\n- **King Aldren** is warm and grave: \"Wendell took his tea with the milk in first, one sugar, and the cup warmed. He was particular.\"; \"I remember asking whether the goblins had sent a receipt.\"; \"I will not pretend those are the same thing, or that the loss is nothing.\"\n- **Kell** is principled and dry. She refuses to write Sallow's name in as fact: \"I won't put a name in as fact on the evidence we have\". Other lines: \"An open case beats a wrong one, investigator\"; \"I'll have to write down that the King's grain was stolen\u2014and then the warehouse burned.\" Her recurring \"What do you make of it?\" makes her feel like a hint dispenser, though.\n- **Scrope**, brief but affecting: \"Wendell\u2026 He was my friend.\"\n\n**Mixed:**\n- **Hobb** is a moving gentle giant: \"I only held the rope\"; \"I held the clerk's arms. I didn't let go.\" But he flip-flops at turn 25, from \"You mean to come with me, then, sir?\" to \"Not go into the Heron and make a trap of me.\"\n\n**Flatter:**\n- **Sallow** has good surface (\"What a distressing confusion. That book belongs to the warehouse.\"; \"Seize him!\") but gets only two lines on stage.\n- **Hep**, **Saul**, the **lighterman** and **Marshal Holt** (\"Eighteen minutes, Majesty.\") are functional extras.",
+   "scene_notes": [
+    {
+     "scene": "1 Granary yard",
+     "notes": "A strong opening image: a pigeon 'unimpressed', and a boy pelting the corpse ('Spin, you miserable turnip!'). The clues were earned and fitted together. The kindness, the promise and the gifts to Cob and Moll all landed in the moment. Rules problems: Detect Magic as a ritual still spent a slot, and the GM's correction never reached the sheet. Find Familiar printed no cast line. Fire Bolt showed no attack roll. The barred loft was never opened: Mage Hand and the familiar were both refused ('no gap'). The scene ended on Kell's 'Murder by persons unknown', which was a satisfying beat."
+    },
+    {
+     "scene": "2 Caerwyn, the afternoon",
+     "notes": "A one-turn transition with good texture (bread prices up, bunting, the Assembly) that ties the theft to the town. My out-of-character request for Arcane Recovery was completely ignored. The familiar was correctly carried over. Kell handed me the next lead unprompted."
+    },
+    {
+     "scene": "3 The Drowned Rat",
+     "notes": "The best scene. Sending the familiar under the table revealed Hobb's 'palm skinned raw in a broad, straight stripe', and Nan objected to 'little creatures under my customers'. The Persuasion failure, followed by dressing his hand and a promise, made the confession feel earned. Hobb's details matched the scene-1 forensics exactly. At turn 25 the game blocked my move to the Heron and made Hobb reverse himself to force a choice. The choice itself (go, or be hidden) was a good moment, but the way the game got there was clumsy."
+    },
+    {
+     "scene": "4 The Heron Warehouse",
+     "notes": "An atmospheric infiltration. Snuffing the lantern with Prestidigitation, the sack-carrying bluff and heating the ledger clasp to 'the heat of a teapot' were all honoured with fun narration. A tense build-up: lavender, the midnight bell, and a counting-box door that opens by itself, which was never explained. Fireball worked with no rules at all: not on my sheet, no slot spent, no dice, no saves, and no account of who was inside the 20-ft radius. The fire's spread across the dust was narrated well and persisted. 'Seize him!' led to no combat; after Magic Missile (no dice) the scene cut to 'Up in smoke' and Sallow vanished."
+    },
+    {
+     "scene": "5 The King's Morning",
+     "notes": "Good continuity on what I carried and on who had gone where. The King's response to the fire was nuanced and in character. The King remembered my promise to stand beside Hobb. After only 3 turns, the epilogue resolved everything by summary and contradicted the Marshal ('Sallow has not presented himself' \u2192 'Sallow is held for the Assizes'). It ended on a nice tea-and-bow callback, but the tea part was invented."
+    }
+   ],
+   "stonewalled": [
+    {
+     "turn": 11,
+     "what": "Mage Hand to lift the loft bar was refused ('no gap wide enough for the spectral hand'). At turn 14 the familiar was also refused ('no room to slip through'). I never got into the locked loft, and the puzzle was later explained away in one line."
+    },
+    {
+     "turn": 15,
+     "what": "My out-of-character Arcane Recovery request during the short rest was ignored entirely."
+    },
+    {
+     "turn": 16,
+     "what": "I asked to read every rule on the Drowned Rat's board in full. I only got rule four ('No watch on duty') and rule six."
+    },
+    {
+     "turn": 30,
+     "what": "I read tonight's entries in the green ledger (the barge and destinations). The game gave no details beyond 'J.S.' initials and columns."
+    }
+   ],
+   "railroaded": [
+    {
+     "turn": 25,
+     "what": "'We go down to the Heron' was refused: Kell said 'Investigator, we're still on the stairs.' Hobb, who had just asked 'You mean to come with me, then, sir?', suddenly accused me of making 'a trap of me', which forced a scripted decision beat."
+    },
+    {
+     "turn": 35,
+     "what": "The scene ended immediately after my Magic Missile. Sallow's escape into the smoke was decided off-screen, with no initiative and no chance to chase him or deal with the fire."
+    },
+    {
+     "turn": 38,
+     "what": "The epilogue resolved Sallow's arrest and Hobb's testimony by summary. That came one turn after the Marshal said Sallow hadn't been found and the King ordered 'Find Sallow.'"
+    }
+   ],
+   "inconsistencies": [
+    {
+     "turn": 11,
+     "what": "The GM said 'the earlier slot deduction was a mistake. Your slot remains available', but the sheet stayed at 1st 3/4 until the long rest after scene 4."
+    },
+    {
+     "turn": 14,
+     "what": "The narration had Moll take my dagger, but the sheet listed 'Dagger' in Equipment and as a '+4' attack for the rest of the session."
+    },
+    {
+     "turn": 22,
+     "what": "Locked-room logic: at turn 10 the drag marks ended at a loft door 'barred from inside' that I couldn't get past. Hobb then said they barred it from inside and 'went out that way too' via the yard doors, which doesn't hold together."
+    },
+    {
+     "turn": 25,
+     "what": "Hobb reversed himself: from 'You mean to come with me, then, sir?' and 'He won't expect you at the river door' (turns 23-24) to 'Not go into the Heron and make a trap of me.'"
+    },
+    {
+     "turn": 32,
+     "what": "'Then the counting-box door opens behind you' \u2192 'no one is there... I did not open that.' This was never explained."
+    },
+    {
+     "turn": 34,
+     "what": "Fireball isn't on the sheet, yet it was cast, and the 3rd-level slots still read 2/2 afterwards."
+    },
+    {
+     "turn": 37,
+     "what": "The King says 'You stood by Hobb', though Hobb was missing and that hadn't happened yet. He also calls Prout 'the boy', and earlier refers to 'the page in Prout's hand'."
+    },
+    {
+     "turn": 38,
+     "what": "Holt: 'Sallow has not presented himself.' The King: 'Find Sallow.' The epilogue: 'Sallow is held for the Assizes.' Also 'The King remembers how you take your tea', which was never established."
+    }
+   ],
+   "best_moment": "The Drowned Rat with Big Hobb (turns 17-21). The lizard familiar slipped under the table and showed a palm 'skinned raw in a broad, straight stripe', and Nan objected to 'little creatures under my customers'. My first Persuasion failed (9 vs 14) and Hobb lied: 'I caught it on a hook, sir.' I dressed his hand anyway and offered him the same promise I'd made Cob, and he broke: 'I only held the rope.' Out on the stairs his account (cane blow, cord, holding the arms, hauling the hoist) matched the scene-1 forensics exactly. The rules, the world, memory and character all lined up there.",
+   "worst_moment": "Turns 34-35. I cast Fireball, a spell not on my sheet, inside a grain-dust warehouse with Hobb standing at the hoist by the target door. There was no dice line, no slot spent (3rd still 2/2), no damage, no saves and no account of who was in the blast. Sallow shouted 'Seize him!', but no fight followed. One diceless Magic Missile later, the scene cut to 'Up in smoke' and Sallow escaped off-screen. The finale then declared him 'held for the Assizes' anyway. This was the most dramatic and rules-heavy moment of the session, and the engine handled none of it.",
+   "ratings": {
+    "fun": 4,
+    "story": 4,
+    "characters": 4,
+    "memory": 4,
+    "pacing": 3,
+    "humour": 4,
+    "consistency": 3,
+    "responsiveness": 4,
+    "rules": 2
+   },
+   "would_keep_playing": true,
+   "other_notes": "On the requested focus (world changes updating state, destroyed objects, new characters placed in the tree, spatial queries):\n- Destroyed or changed objects persisted in the story: the melted lock (referenced 3 more times), and the Heron and the Patience (still 'burning' the next morning, and the King weighed the loss).\n- Carried objects followed me correctly in the story: the ledger page and the green book.\n- The player sheet never reflected inventory changes. The Dagger I gave away stayed listed, and the page and ledger never appeared.\n- The new character I created (the lizard familiar) was tracked across five positions and two scenes, and its absence after the fire was respected. Its fate was never narrated, and summoning it cost nothing mechanically.\n- Spatial resolution is the clear gap. Fireball's 20-ft radius should have produced a list of creatures and objects caught in it (the barge crew, Hobb at the hoist by the river door, sacks, the painted sign) with DEX saves. Instead the fire simply spread in prose. A 'find everything within 20 ft of the barge' query would have fixed exactly this.\n- No combat or initiative ever happened in five scenes, so HP never moved and attack and damage rolls were never tested. Every spell beyond a cantrip either printed nothing (Find Familiar, Fireball, Magic Missile) or was wrong (ritual Detect Magic).\n- Skill checks were flawless throughout: 9 checks, every modifier matching the sheet and every outcome fitting the story.\n- One failed command (turn 6, first attempt) was my own typo, '&' instead of '&&', so the command ran from the wrong directory and returned 'No session arc2-evoker'. That is not a game bug.\n- Live output showed '\u2014 Next scene: X \u2014' headers; the transcript also records scene-end titles ('Murder by persons unknown', 'Onward', 'What Big Hobb knows', 'Up in smoke', 'Done right by').\n- Humour was consistently good while the world stayed straight-faced: 'The sack is heavier than your dignity, though the two are close'; 'bandages in most of the places big men tend to get them'; a constable answering my bragging 'with the air of a man entering a note in a private ledger'."
+  }
+ },
+ {
+  "run": {
+   "session": "arc2-cleric",
+   "level": 5,
+   "character": "Brother Amos Tallow: a gentle, deeply nosy temple cleric of the Lady of Small Mercies, who heals everyone whether they want it or not",
+   "persona": "You are kind, curious and relentless. Use your divine magic for everything: heal people who are hurt (and people who aren't), bless your allies, use divination and any spell that lets you learn things (if you have one that lets you question the dead, try it on the hanged man and see how the game copes), and command or calm people when talking fails. You take rests seriously and check your spell slots. You make promises freely and expect to keep them."
+  },
+  "report": {
+   "session": "arc2-cleric (hanged-clerk, --level 5, Brother Amos Tallow, Life cleric)",
+   "turns": 42,
+   "character_sheet": "The game made Brother Amos a human cleric 5 (Life Domain) with the acolyte background, and he reached cleric 6 at the long rest before the last scene. Stats: AC 14 (chain shirt and shield, Dex -1), HP 38, WIS 19, spell save DC 15, spell attack +7, slots 4/3/2. Insight, Medicine and Perception are +7, Persuasion +5, Investigation +4. Cantrips: Guidance, Spare the Dying, Thaumaturgy. Prepared: Bless, Cure Wounds, Detect Magic, Guiding Bolt, Healing Word, Sanctuary, Aid, Find Traps, Lesser Restoration, Prayer of Healing, Zone of Truth, Mass Healing Word, Revivify.\n\nIt suited the concept very well: a nosy healer with high Insight, Medicine and Perception, Sanctuary to protect people, and Zone of Truth for the nosiness. The core numbers all check out.\n\nGaps:\n- Only 3 cantrips; a 5th-level cleric knows 4.\n- Two Life domain spells, Spiritual Weapon and Beacon of Hope, are missing.\n- Equipment is only \"Mace (in hand), Chain Shirt (worn), Shield (worn)\". There is no holy symbol, even though the story used it on nearly every turn, and no pack, coin or vestments.\n- Languages are Common only. Acolyte plus human should give extra languages, which mattered when Moll swore in \"Saltmere dock cant\".\n- No class features are listed (Channel Divinity, Disciple of Life).\n\nAt level 6: HP max went 43 to 50 (Aid included), slots became 4/3/3, Hit Dice 6/6, and \"Heroic Inspiration\" appeared under Conditions without comment. There was no new feature (Blessed Healer) and no extra prepared spell.",
+   "scenes_played": [
+    "1. Granary yard, morning (ended 'The case is made'): turns 1-14",
+    "2. Caerwyn market, the afternoon (downtime, 'Onward'): turns 15-16",
+    "3. The Drowned Rat ('Taken in'): turns 17-26",
+    "4. The wharves after dark (downtime, 'Onward'): turn 27",
+    "5. The Heron Warehouse ('Caught in the act'): turns 28-39",
+    "6. The King's Morning ('Done right by'): turns 40-42"
+   ],
+   "ended": "The story reached its end: \"\u2014 The End. (The session is over.) \u2014\" after turn 42, in the King's dressing room the next morning. Sallow is held for the Assizes, the record names murder and grain theft, and Hobb is held with his confession and cooperation entered. Hep's gang and Scrope are protected as witnesses. Last line: \"Aldren remembers your tea: 'Black, I think. You look like a black-tea person.'\"",
+   "summary": "This was a warm, funny, well-written mystery with vivid characters, and it handled objects and promises surprisingly well in the narration. The D&D rules layer was shaky.\n\nWhat worked:\n- The rolls that did fire were right and matched the story: Persuasion 19 vs 13, Persuasion 18 vs 14, Animal Handling 15 vs 12, the Sanctuary, Cure Wounds and Healing Word slot use, and the level-up slot table.\n- The world kept track of objects I moved around in the story:\n  - Prout's page went from his boot, to my vestments, to the King, to Marshal Holt.\n  - The ledger went into a grain sack, out of it, and on to Kell.\n  - Cob's boots, the split sack and Hobb's arrest all held.\n- Promises were honoured at the end.\n\nWhat broke:\n- **Speak with Dead (turn 10).** It is not on my sheet, yet it was cast with no slot spent. The game also invented a \"three questions\" limit; the SRD says five.\n- **Cure Wounds on Kell (turn 14).** No engine line and no slot spent.\n- **Aid (turn 24).** It printed \"You regain 9 HP (HP 38/38)\" and then \"HP 38/43\". My max went up but current HP did not.\n- **Zone of Truth (turns 35 and 36).** It failed twice with a raw engine message leaking into the story: \"(Zone of Truth can't be cast like that: Spell zone-of-truth has a zone mechanic and requires intent.targetPosition)\". The second time I said exactly where to centre it.\n- **Mace swing (turn 38).** Aimed at a Crake, it was resolved against Sallow.\n- **Guiding Bolt (turn 39).** No roll of any kind.\n- **Long rest.** It left HP at 38/43, and kept Aid on through the night.\n- **Guidance (turn 2).** Never added to the next check.\n\nStory and pacing problems:\n- Scene ends were abrupt. Three scenes ended on an unanswered question or mid-fight, and the Crake fight was never resolved.\n- The mystery was essentially solved in scene 1.\n- There was one clear slip about where the ledger was (turn 36).",
+   "rules_checks": [
+    {
+     "scene": "1 Granary yard",
+     "turn": 1,
+     "what_you_did": "Cast Thaumaturgy (booming voice) to make Cob stop throwing stones",
+     "dice_shown": "\ud83c\udfb2 Cast Thaumaturgy (cantrip) on Cob",
+     "narration": "Your voice booms across the yard, loud as a temple bell... Cob startles so hard the stone slips from his fingers",
+     "verdict": "worked",
+     "note": "Fine. Thaumaturgy targeting a creature is slightly odd, but harmless."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 2,
+     "what_you_did": "Cast Guidance on myself, then examined the body",
+     "dice_shown": "none",
+     "narration": "The holy symbol warms under your fingers as you murmur the blessing.",
+     "verdict": "partly",
+     "note": "No engine line. The +1d4 was not added to my very next check, the Persuasion on turn 3 (14 + 5 = 19)."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 3,
+     "what_you_did": "Persuaded Cob, promising him a hot dinner at the temple",
+     "dice_shown": "\ud83c\udfb2 Persuasion check to get Cob to trust you with what he heard: 14 + 5 = 19 vs DC 13: success",
+     "narration": "The boast drains out of him... 'Cob sleeps in the loft. Last night\u2014there was a lantern. Voices.'",
+     "verdict": "worked",
+     "note": "Guidance should have applied here."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 6,
+     "what_you_did": "Cast Sanctuary on Cob before he crawled into the loft",
+     "dice_shown": "\ud83c\udfb2 Cast Sanctuary (1st-level slot) on Cob / \ud83c\udfb2 Cob is sanctuary / \ud83c\udfb2 Brother Amos Tallow: HP 38/38, spell slots 1st 3/4, 2nd 3/3, 3rd 2/2",
+     "narration": "a faint shimmer settles around Cob... 'Don't put spells on him without asking,' Moll snaps",
+     "verdict": "worked",
+     "note": "The slot was spent correctly. The story then pasted in rules text: 'Nothing happens. The Sanctuary is not a shield against harm; for the next minute, anyone who tries to target Cob... must first make a Wisdom saving throw.' Also 'Cob is sanctuary' is a garbled status line."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 10,
+     "what_you_did": "Cast Speak with Dead on Prout. It is NOT on my sheet.",
+     "dice_shown": "none",
+     "narration": "The spell takes hold; his jaw loosens, and his dead eyes open... 'I can answer three questions.'",
+     "verdict": "broken",
+     "note": "An unprepared, unlisted 3rd-level spell went through. The sheet afterwards still showed 3rd 2/2, so no slot was spent. The limit was given as three questions; the SRD allows five. The story was great, but the rules were not consulted at all."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 11,
+     "what_you_did": "Asked the corpse my second and third questions",
+     "dice_shown": "none",
+     "narration": "'Wagons. King's Road. Grain entered as lost to goblins...' 'He took the page.' Then the spell's hold fades.",
+     "verdict": "partly",
+     "note": "The game kept to its own three-question count. But 'He took the page' is contradicted one turn later, when the page is found in Prout's own boot."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 14,
+     "what_you_did": "Cast Cure Wounds on Sergeant Kell, who was unhurt ('guilt is a wound too')",
+     "dice_shown": "none",
+     "narration": "A gentle light passes through your hand into Kell's forearm. 'I'm not injured, Brother.'",
+     "verdict": "broken",
+     "note": "No slot was spent. The short-rest line straight afterwards still read 'spell slots 1st 3/4' (it should have been 2/4)."
+    },
+    {
+     "scene": "2 Market",
+     "turn": 14,
+     "what_you_did": "Automatic short rest at the scene change",
+     "dice_shown": "\ud83c\udfb2 Short rest (an hour): HP 38/38, spell slots 1st 3/4, 2nd 3/3, 3rd 2/2",
+     "narration": "An hour later, you're in the market square.",
+     "verdict": "partly",
+     "note": "Clerics correctly got no slots back, but it carried over the missed Cure Wounds deduction. I didn't choose the rest; it was automatic."
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 18,
+     "what_you_did": "Cast Cure Wounds on a docker's hook-torn hand",
+     "dice_shown": "\ud83c\udfb2 Cast Cure Wounds (1st-level slot) / \ud83c\udfb2 Brother Amos Tallow: HP 38/38, spell slots 1st 2/4, 2nd 3/3, 3rd 2/2",
+     "narration": "Your magic closes the wound beneath your hands; the raw, parted skin knits whole.",
+     "verdict": "worked",
+     "note": "The slot was spent, but no healing amount was shown (unlike Healing Word on turn 21)."
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 20,
+     "what_you_did": "Quiet appeal to Hobb's conscience (I also asked to read his face)",
+     "dice_shown": "\ud83c\udfb2 Persuasion check to get Big Hobb to tell you what he did: 13 + 5 = 18 vs DC 14: success",
+     "narration": "'I only held the rope,' he says.",
+     "verdict": "worked",
+     "note": "It rolled Persuasion rather than the Insight read I asked for, which is acceptable. A full confession came on one roll."
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 21,
+     "what_you_did": "Cast Healing Word on Hobb",
+     "dice_shown": "\ud83c\udfb2 Cast Healing Word (1st-level slot) on Big Hobb Mallory / \ud83c\udfb2 Big Hobb Mallory regains 9 HP / \ud83c\udfb2 ... spell slots 1st 1/4",
+     "narration": "It doesn't uncover his hand or ease the mark beneath the rag; it restores some of his strength.",
+     "verdict": "partly",
+     "note": "9 HP is within 1d4+4+3 (Disciple of Life). But Cure Wounds healed the docker's palm 'whole' three turns earlier, and here healing pointedly leaves Hobb's rope burn alone. It looks like the clue was being protected."
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 24,
+     "what_you_did": "Cast Aid at 2nd level on Hobb, Kell and myself",
+     "dice_shown": "\ud83c\udfb2 Cast Aid (2nd-level slot) on Big Hobb Mallory, Sergeant Agnes Kell, you / \ud83c\udfb2 Big Hobb Mallory regains 9 HP / \ud83c\udfb2 Sergeant Agnes Kell regains 9 HP / \ud83c\udfb2 You regain 9 HP (HP 38/38) / ... / \ud83c\udfb2 Brother Amos Tallow: HP 38/43, spell slots 1st 1/4, 2nd 2/3, 3rd 2/2, aid-buffed",
+     "narration": "Hobb's breathing steadies; Kell straightens... The blessing will last through the night.",
+     "verdict": "broken",
+     "note": "Aid should raise both maximum and current HP by 5. The healing was applied before the max went up, so I ended at 38/43 instead of 43/43. Calling it 'regains 9 HP' (5 + Disciple of Life 4) is also questionable."
+    },
+    {
+     "scene": "4 Wharves",
+     "turn": 27,
+     "what_you_did": "Hid behind a stack of crates to watch the loading",
+     "dice_shown": "none",
+     "narration": "'The crates are poor cover,' she remarks. 'But they're honest crates.'",
+     "verdict": "missing",
+     "note": "There was no Stealth check and no hidden state. The scene ended the same turn."
+    },
+    {
+     "scene": "5 Heron",
+     "turn": 28,
+     "what_you_did": "Won over Duchess the guard dog",
+     "dice_shown": "\ud83c\udfb2 Animal Handling check to win Duchess over before she raises the wharf: 11 + 4 = 15 vs DC 12: success",
+     "narration": "she leans her considerable weight into you with the confidence of a dog who has just found her evening's purpose",
+     "verdict": "worked",
+     "note": "Lovely."
+    },
+    {
+     "scene": "5 Heron",
+     "turn": 31,
+     "what_you_did": "Secretly picked open a sack's old seam with my thumbnail while carrying it",
+     "dice_shown": "none",
+     "narration": "exposes... a fragment of the wheat-ear stamp... 'Oi!' Hep snaps. 'Mind that seam'",
+     "verdict": "missing",
+     "note": "I said 'where nobody can see it but me', and Hep noticed anyway with no Sleight of Hand roll (I'm at -1, so I'd probably have failed). It was fine for the story but not adjudicated."
+    },
+    {
+     "scene": "5 Heron",
+     "turn": 35,
+     "what_you_did": "Cast Zone of Truth around Sallow, his Crakes and myself",
+     "dice_shown": "\ud83c\udfb2 (Zone of Truth can't be cast like that: Spell zone-of-truth has a zone mechanic and requires intent.targetPosition)",
+     "narration": "Your symbol lifts; nothing happens. The blessing has no place to settle.",
+     "verdict": "broken",
+     "note": "Raw engine error text reached the player. No slot was spent (sheet: 2nd 2/3). The GM never supplied a position for the area spell."
+    },
+    {
+     "scene": "5 Heron",
+     "turn": 36,
+     "what_you_did": "Retried Zone of Truth 'centred on the spot where I am standing, so the fifteen-foot sphere takes in me, Master Sallow and both Crakes'",
+     "dice_shown": "\ud83c\udfb2 (Zone of Truth can't be cast like that: Spell zone-of-truth has a zone mechanic and requires intent.targetPosition)",
+     "narration": "Your symbol shines, but the magic does not take hold.",
+     "verdict": "broken",
+     "note": "An explicit position did not help. Any spell with a zone looks uncastable. This is exactly the 'place it where I stand / near X' spatial resolution the engine needs."
+    },
+    {
+     "scene": "5 Heron",
+     "turn": 38,
+     "what_you_did": "Hit the Crake's reaching wrist with my mace (and tossed the ledger to Kell)",
+     "dice_shown": "\ud83c\udfb2 Mace: your attack on Master Josiah Sallow: 15 +3 = 18 vs AC 12: hit / \ud83c\udfb2 Damage: 1d6 (2) bludgeoning / \ud83c\udfb2 Master Josiah Sallow takes 2 bludgeoning damage (hurt)",
+     "narration": "Your mace strikes Sallow's reaching wrist with a sharp crack.",
+     "verdict": "broken",
+     "note": "Wrong target. The Crake was the one reaching; Sallow wasn't. The story bent itself to fit the engine. The arithmetic is correct (+3, 1d6+0)."
+    },
+    {
+     "scene": "5 Heron",
+     "turn": 39,
+     "what_you_did": "Cast Guiding Bolt at the speaking Crake",
+     "dice_shown": "none",
+     "narration": "The lance of the Lady's light strikes the speaking Crake square in the chest; he reels back, hurt",
+     "verdict": "missing",
+     "note": "No attack roll, no 4d6 radiant damage, and no slot line. The Crakes seem never to have become engine targets (compare turn 38). The scene then ended mid-fight."
+    },
+    {
+     "scene": "6 King's Morning",
+     "turn": 39,
+     "what_you_did": "Automatic long rest and level-up at the scene change",
+     "dice_shown": "\ud83c\udfb2 Long rest (a night): HP 38/43, spell slots 1st 4/4, 2nd 3/3, 3rd 2/2, aid-buffed / \u2014 Level up! ... HP max 43 \u2192 50. \u2014",
+     "narration": "The palace back stairs deliver you into warmth, lavender...",
+     "verdict": "broken",
+     "note": "A long rest should restore full HP. My sheet afterwards read HP 45/50. Aid (8 hours) was still active after a whole night ('Aided' on the sheet). The level-6 slots (4/3/3) and Hit Dice 6/6 are right. There was no new feature (Blessed Healer) or extra prepared spell, and Heroic Inspiration appeared silently."
+    }
+   ],
+   "world_interactions": [
+    {
+     "scene": "1 Granary yard",
+     "turn": 5,
+     "what_you_did": "Shoved the water butt aside and prised the loose board off the wall to widen Cob's hole",
+     "what_happened": "'The water butt scrapes across the cobbles... You prise it free; the gap beyond is child-sized'. The hole stayed child-sized, which is a sensible limit.",
+     "did_it_stick": "Within the scene, yes: I leaned the board against the wall (turn 6) and Cob used the hole. Never mentioned again after we left the yard, so it couldn't be tested later."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 9,
+     "what_you_did": "Untied the hoist rope with Kell and lowered Prout to the cobbles",
+     "what_happened": "'His body settles onto the cobbles, no longer turning in the damp air.'",
+     "did_it_stick": "Yes. The body stayed on the cobbles for Speak with Dead and the boot search, and Kell: 'He goes to the cold room, not the pit.'"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 12,
+     "what_you_did": "Pulled off Cob's boot, found the page sewn into the lining, then laced the boot back on him and promised he could keep the boots",
+     "what_happened": "Kell cut the stitching. 'Cob shifts closer to her, boots now firmly his.'",
+     "did_it_stick": "Yes. In the next scene Kell said: 'I saw Cob's boots. Hard to miss.'"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 13,
+     "what_you_did": "Took the page and tucked it inside my vestments 'over my heart'",
+     "what_happened": "'Cob stares at the page tucked over your heart.'",
+     "did_it_stick": "Yes, all the way through. Turn 37: 'The page in your other hand bears the matching signature'. Turn 40: the King takes it and hands it to Holt. Turn 41: 'Prout's page in Marshal Holt's hand'. It never appeared on the sheet's Equipment list."
+    },
+    {
+     "scene": "2 Market",
+     "turn": 16,
+     "what_you_did": "Gave coppers to a woman buying bread (the sheet lists no money)",
+     "what_happened": "'The woman blinks at the coppers, then closes her hand around them. Thank you, Brother.'",
+     "did_it_stick": "Not tested later. Coin isn't tracked on the sheet at all."
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 22,
+     "what_you_did": "Unwound Hobb's tarry rag and put it in my pocket",
+     "what_happened": "'He looks... at the blood-dark rag you pocketed.' The raw rope burn underneath became evidence Kell cited ('I saw the rope burn on your palm').",
+     "did_it_stick": "The rope burn did. The rag was never mentioned again and is not on the sheet."
+    },
+    {
+     "scene": "4 Wharves",
+     "turn": 27,
+     "what_you_did": "Ducked behind crates to watch the Heron",
+     "what_happened": "'The crates are poor cover... But they're honest crates.' No hidden state.",
+     "did_it_stick": "The scene ended immediately. In the next scene I simply stood by the Heron with Kell."
+    },
+    {
+     "scene": "5 Heron",
+     "turn": 31,
+     "what_you_did": "Carried a sack and picked open its old seam, revealing the royal wheat-ear stamp",
+     "what_happened": "'A few stitches part... a fragment of the wheat-ear stamp... a narrow spill of grain dust'",
+     "did_it_stick": "Yes. Hep 'gathers the split sack close' (turn 32), and turn 36: 'One of the Crakes reaches past you towards the split sack.'"
+    },
+    {
+     "scene": "5 Heron",
+     "turn": 34,
+     "what_you_did": "Buried Scrope's ledger in the grain of the split sack and shoved the sack behind the stack",
+     "what_happened": "'You bury it in the sack's grain, fold the seam over, and shove the sack behind the stack. Hep... \"Keep it off the count.\"'",
+     "did_it_stick": "Partly. Turn 35: 'The sack concealing the book sits just behind the stack; Sallow's gaze flicks past it' (good). Turn 36: 'Scrope clutches the ledger to his chest' (wrong). Turn 37: 'The green calf ledger comes free of the grain, its brass clasp dusted pale' (right again)."
+    },
+    {
+     "scene": "5 Heron",
+     "turn": 38,
+     "what_you_did": "Tossed the ledger over the Crake's head to Kell",
+     "what_happened": "'Kell catches it against her coat and pins it under one arm.'",
+     "did_it_stick": "Yes. Turn 39: 'The true book is safe in her hands'. Turn 40: Kell to the King: 'The book is genuine.'"
+    },
+    {
+     "scene": "5 Heron",
+     "turn": 38,
+     "what_you_did": "Struck a reaching wrist with my mace (meant for the Crake; the engine hit Sallow)",
+     "what_happened": "'Your mace strikes Sallow's reaching wrist with a sharp crack. He jerks back, clutching it to his chest'",
+     "did_it_stick": "Yes, for Sallow: 'his injured wrist held close' (turn 39). The Crake was never hurt by it."
+    },
+    {
+     "scene": "5 Heron",
+     "turn": 39,
+     "what_you_did": "Guiding Bolt into the speaking Crake",
+     "what_happened": "'he reels back, hurt, and his brother checks his advance'",
+     "did_it_stick": "Never resolved. The scene ended and the Crakes were never mentioned again."
+    }
+   ],
+   "continuity_checks": [
+    {
+     "scene": "2 Caerwyn market, the afternoon",
+     "what_you_expected": "Kell with me, the page still in my vestments, Moll and Cob gone off somewhere, and Moll's question 'You meant what you said about Cob?' still to answer",
+     "what_the_game_did": "'Sergeant Kell has stayed beside you; Moll and Cob went their own way together, the wheat-ear crown still in Moll's fist.' Kell later: 'They went east, together. Moll was holding his hand.'",
+     "verdict": "consistent"
+    },
+    {
+     "scene": "3 The Drowned Rat",
+     "what_you_expected": "An afternoon arrival with Kell, an hour or two after the market",
+     "what_the_game_did": "I arrived with Kell. But the river 'slaps the stair-foot in the dark', and six turns later 'the bells begin to sound the eleventh' as the night's appointment comes due. The afternoon became late night with no time passing in play.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "4 The wharves after dark",
+     "what_you_expected": "Kell had just said 'I'll see him locked up, investigator. Then I'll come on to wherever you're going', so I expected Hobb in the cells and Kell rejoining me",
+     "what_the_game_did": "The intro said 'Hobb is in Kell's custody, headed for the watch-house; ... Kell is still with you', which is ambiguous. My question fixed it: 'Locked up. There's a blanket in the cells. I told the turnkey to give it to him.'",
+     "verdict": "partly"
+    },
+    {
+     "scene": "5 The Heron Warehouse",
+     "what_you_expected": "Kell and me at the Heron before midnight, with the warehouse loading",
+     "what_the_game_did": "Exactly that: 'Forty sacks left, by the look of it.' Kell is still with me. It knew Hobb was missing: Hep's gang is 'short-handed'.",
+     "verdict": "consistent"
+    },
+    {
+     "scene": "6 The King's Morning",
+     "what_you_expected": "Sallow arrested, the ledger with Kell, the page with me, and some outcome for the two Crakes I was fighting",
+     "what_the_game_did": "Sallow under guard, ledger with Kell, page still with me (I handed it over and the King had it). The Crake fight vanished entirely, and a long rest was applied. It picked up the King's tea detail from the premise.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "Getting ahead (scenes 3 to 5)",
+     "what_you_expected": "I planned to use the arrested Hobb as bait (turn 25), then to keep his appointment myself (turn 26). At the Heron I hid the ledger before Sallow arrived (turn 34).",
+     "what_the_game_did": "Kell overruled both plans and the scene ended, but the next scene put me at the Heron anyway. Hiding the ledger early was respected: the climax turned on me digging it out of the sack.",
+     "verdict": "consistent"
+    }
+   ],
+   "memory_checks": [
+    {
+     "scene": "2 Market",
+     "turn": 15,
+     "who": "Sergeant Kell",
+     "earlier": "Moll and Cob left together at the end of scene 1; I promised Cob dinner (turn 3) and promised Moll 'no Mending House' (turn 5)",
+     "what_they_did": "'They went east, together. Moll was holding his hand by the time they passed the fountain... I saw Cob's boots.' She did not mention the dinner promise.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 25,
+     "who": "Sergeant Kell",
+     "earlier": "Turns 21 and 23: I promised Hobb I'd say he confessed freely, to the sergeant and the King",
+     "what_they_did": "'I'll record that he came willingly, and that he gave his account without threat or bargain... You said you'd speak for him, investigator. I remember.'",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "4 Wharves",
+     "turn": 27,
+     "who": "Sergeant Kell",
+     "earlier": "She took Hobb to the watch-house (turn 26)",
+     "what_they_did": "'Locked up. There's a blanket in the cells. I told the turnkey to give it to him.'",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "5 Heron",
+     "turn": 28,
+     "who": "Sergeant Kell",
+     "earlier": "The silver-topped cane, from the corpse's testimony (turn 10) and Cob (turn 4)",
+     "what_they_did": "'Noted. I'll watch for the cane.' She blew her whistle when Sallow came.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "5 Heron",
+     "turn": 36,
+     "who": "Narrator (Scrope)",
+     "earlier": "Turn 34: Scrope gave me the ledger and I buried it in the split sack",
+     "what_they_did": "'Scrope clutches the ledger to his chest, eyes fixed on Sallow. \"And I kept the account.\"' One turn later, turn 37, the ledger came out of the sack correctly.",
+     "verdict": "false_memory"
+    },
+    {
+     "scene": "6 King's Morning",
+     "turn": 40,
+     "who": "King Aldren",
+     "earlier": "From the premise: the King remembered how Prout took his tea",
+     "what_they_did": "'Wendell took his tea with the milk in first. One sugar. Cup warmed, always.' At the very end he guesses mine: 'Black, I think.'",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "6 King's Morning",
+     "turn": 41,
+     "who": "King Aldren",
+     "earlier": "My promises to Hobb (turn 21), to Hep's gang (turn 33) and to Scrope",
+     "what_they_did": "'You kept your word. And so did they.' Hep's gang 'are witnesses, not accomplices'. Hobb is held, with 'his confession and cooperation' entered. I restated the promises that turn, so this was partly prompted.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "6 King's Morning",
+     "turn": 42,
+     "who": "Sergeant Kell",
+     "earlier": "Turn 3: I promised Cob a hot dinner with pudding at the temple 'tonight'. I spent that night on the wharves with Kell.",
+     "what_they_did": "'Cob came. He ate the dinner. I can't speak to the pudding.' A charming answer, but Kell was with me all night and could not know this. It's an invented off-screen fulfilment.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "6 King's Morning",
+     "turn": 42,
+     "who": "Sergeant Kell",
+     "earlier": "Turn 14: Moll's wheat-ear-stamped silver crown, and her going white at Sallow's name",
+     "what_they_did": "'And the coin was Sallow's office mark. Moll was frightened because she knew what it meant.' Remembered, but the thread was closed in one line and Moll never reappeared.",
+     "verdict": "remembered"
+    }
+   ],
+   "pacing": "The mystery gave itself up fast. By turn 13 of scene 1 I had everything:\n- the killer's name (\"I heard the big one call him Master Sallow\")\n- the motive (\"Grain entered as lost to goblins... Sallow countersigned the entries\")\n- the documentary proof (the page in Cob's boot)\n\nThis came from a Speak with Dead I shouldn't have been able to cast, one Persuasion roll on Cob, and asking about the boots. After that, scenes 3 to 5 were confirmation rather than discovery: Hobb confessed in full on a single 18 vs 14, and Hep and Scrope turned within two turns each. It felt earned by roleplay, but there was little resistance.\n\nScene endings are the weak point:\n- Scene 1 ended right after Moll asked me straight out, \"You meant what you said about Cob?\", so I never answered her.\n- Scene 3 ended on my unanswered questions to Hobb about the signal and Sallow's looks. Kell cut him off (\"Hobb turns to answer, but Kell's grip firms on his arm\").\n- Scene 4 lasted one turn.\n- Scene 5 ended mid-fight, with both Crakes closing on me, and they were never mentioned again.\n- The finale ran three turns. The Moll and coin thread was closed in one line of Kell's dialogue, followed by \"The End\" before I could react.\n\nThere was one rules info dump in the narration (turn 6: \"Nothing happens. The Sanctuary is not a shield against harm; for the next minute, anyone who tries to target Cob...\"). Kell's \"Noted.\" became a tic: about 8 to 10 times.",
+   "characters": "Nearly everyone felt alive. Each had a distinct voice and pushed back with their own priorities.\n\n**Cob** speaks in the third person (\"That's Cob's castle\", \"Cob keeps 'em\", \"Found 'em\" as a transparent lie). He went from stone-thrower to frightened witness to \"All right. Cob'll lift the bar.\"\n\n**Moll** was sharp and protective, and the best foil for a pushy healer:\n- \"Spell-slinging at children. Very holy, that.\"\n- \"Don't put spells on him without asking.\"\n- \"Saltmere dock cant. Means 'you've got the sense of a damp boot,' more or less.\"\n\nShe accepted my apology (\"Amos... And it was a perfectly good insult\"). She then vanished after scene 1, so I could never test whether she remembered.\n\n**Sergeant Kell** was consistent and principled, with a real backstory beat (\"Prout came to the watch house three days ago... I told him to take it to the palace. I should have listened.\"). She overruled my sting plan to arrest Hobb properly, which was real NPC agency. \"Noted\" was overused.\n\n**Big Hobb Mallory** was a genuinely moving gentle giant: \"I only held the rope,\" and \"Yes, Sergeant,\" very quietly.\n\n**Nan Quill** (\"my duck\", a rules board, a cudgel called Manners) and **Saul** (\"Grain, you say? Coming from somewhere, going somewhere... and all's well\") were funny. So was **Duchess** the dog (\"has just found her evening's purpose\").\n\n**Hep Grist** had the best line of the run: \"Don't put the King's name on my gang like it's a shield. They've got children.\"\n\n**Scrope**: \"Wendell. He was my friend.\"\n\n**Marshal Holt**'s \"Twenty-one minutes.\" was a perfect deadpan.\n\nWeaker:\n- **Sallow** was thin: polite menace, \"A priest carrying grain. How industrious.\", then arrested.\n- **The Crakes** were props: unnamed, and seemingly never real engine targets.\n- **Arlo and Dilly** were background.",
+   "scene_notes": [
+    {
+     "scene": "1 Granary yard",
+     "notes": "Strong opening with a layered clue trail: missing boots on Cob, the water-butt hole, the docker's knot, the smashed lantern, a page cut from the chained Roll, the cord mark under the noose, clean palms, the swelling. Everything I physically tried was accepted (moving the water butt, prising the board, lowering the body, unlacing the boot). Speak with Dead went through although it isn't on my sheet, with no slot spent and a 'three questions' limit. Its answer 'He took the page' clashes with the page turning up in Prout's boot, and 'The big one struck me' clashes with Hobb's later account. Cure Wounds on Kell was not deducted. The scene ended on Moll's unanswered question."
+    },
+    {
+     "scene": "2 Caerwyn market (downtime)",
+     "notes": "Two turns. Good satire: 'The Exchange says it's the wagons. The wagons, apparently, say goblins.' Coppers were accepted although I have no coin on the sheet. Kell remembered Moll and Cob leaving together."
+    },
+    {
+     "scene": "3 The Drowned Rat",
+     "notes": "A fun tavern: rules board, 'my duck', Manners the cudgel, Arlo's arm-wrestling challenge giving Hobb a reason to hide his hand. Free healing worked well as an investigative tool. The rules board I asked to read was never actually read out. Hobb confessed on one roll. Aid HP bug. The time of day jumped from afternoon to the eleventh bell. Kell arrested Hobb against my sting plan, and the scene ended on my unanswered question."
+    },
+    {
+     "scene": "4 The wharves after dark (downtime)",
+     "notes": "One turn. Kell remembered the blanket for Hobb ('I told the turnkey to give it to him'). My hiding behind crates got a joke but no Stealth check. The scene ended immediately."
+    },
+    {
+     "scene": "5 The Heron Warehouse",
+     "notes": "The best scene. I charmed the dog, volunteered as a sack porter, picked a seam open to find the royal wheat-ear under the painted heron, turned Hep and Scrope, buried the ledger in the grain, and pulled it out in front of Sallow. Big rules failures at the climax: Zone of Truth failed twice with leaked engine text about intent.targetPosition; the narration briefly put the ledger back in Scrope's hands; the mace swing aimed at the Crake hit Sallow; Guiding Bolt had no roll at all. The scene was cut mid-fight."
+    },
+    {
+     "scene": "6 The King's Morning",
+     "notes": "Warm and satisfying. The tea callback, the page handed over, and every promise I listed honoured with nuance ('No one is to call him innocent. No one is to pretend he said nothing.'). The long rest didn't restore HP and left Aid running. Kell reported Cob's dinner, which she couldn't have witnessed. It ended one turn after I raised the Moll thread, with an odd line: 'Nan, far from this room, remains outside its reach.'"
+    }
+   ],
+   "stonewalled": [
+    {
+     "turn": 17,
+     "what": "I asked to read the Drowned Rat's rules board 'with great interest, all of it'. Its contents were never given; only rules one, four and six came up piecemeal in dialogue."
+    },
+    {
+     "turn": 26,
+     "what": "I asked Hobb what the signal was at the Heron and what Sallow looks like. Kell cut him off ('Hobb turns to answer, but Kell's grip firms on his arm') and the scene ended, so the questions were never answered."
+    },
+    {
+     "turn": 14,
+     "what": "I asked Moll whether she knew Sallow's name. The narration showed her clutching the wheat-ear crown, then the scene ended before she or I could speak again. The thread got one line of explanation from Kell in the finale."
+    }
+   ],
+   "railroaded": [
+    {
+     "turn": 25,
+     "what": "I proposed a sting: arrest Hobb, then let him keep his eleventh-bell appointment under guard. Kell arrested him and walked him off. In character that's defensible, but my plan simply didn't happen."
+    },
+    {
+     "turn": 26,
+     "what": "I said I'd go and keep Hobb's appointment myself. The scene ended on the spot ('Scene ends: Taken in'), and the next scene placed me at the wharves with Kell anyway."
+    },
+    {
+     "turn": 39,
+     "what": "I cast Guiding Bolt as two Crakes closed in on me, and the scene ended there ('Caught in the act'). The fight's outcome was decided off-screen and the Crakes were never mentioned again."
+    }
+   ],
+   "inconsistencies": [
+    {
+     "turn": 12,
+     "what": "On turn 11 Prout's corpse said of the cut page, 'He took the page' (meaning Sallow). One turn later the same page is found sewn into Prout's own boot, and Kell says 'That's the missing page.'"
+    },
+    {
+     "turn": 20,
+     "what": "Prout's corpse (turn 10): 'The big one struck me.' Hobb (turn 20): 'Master hit him with his cane... I held the clerk's arms.' This might be Hobb minimising his part, but it was never acknowledged."
+    },
+    {
+     "turn": 14,
+     "what": "Cure Wounds on Kell was narrated ('A gentle light passes through your hand') but no slot was spent. The next status line still showed 1st 3/4."
+    },
+    {
+     "turn": 21,
+     "what": "Healing Word on Hobb 'doesn't... ease the mark beneath the rag', yet Cure Wounds on the docker three turns earlier left 'the raw, parted skin knit whole.'"
+    },
+    {
+     "turn": 23,
+     "what": "Scene 2 was 'the afternoon'. Shortly after, at the Drowned Rat, 'the bells begin to sound the eleventh' for a 'tonight' appointment, with no time passing in play."
+    },
+    {
+     "turn": 24,
+     "what": "Aid: 'You regain 9 HP (HP 38/38)', then 'HP 38/43'. Current HP should have risen with the maximum."
+    },
+    {
+     "turn": 36,
+     "what": "'Scrope clutches the ledger to his chest', two turns after he handed it to me and I buried it in the sack. On turn 37 it comes out of the sack again."
+    },
+    {
+     "turn": 38,
+     "what": "I swung at the Crake who was reaching for the ledger. The engine attacked 'Master Josiah Sallow', and the story said 'Sallow's reaching wrist' though Sallow wasn't reaching."
+    },
+    {
+     "turn": 39,
+     "what": "The long rest left HP at 38/43 and kept 'aid-buffed'. After levelling up the sheet showed 45/50."
+    },
+    {
+     "turn": 42,
+     "what": "Kell: 'Cob came. He ate the dinner.' Kell spent the entire night with me at the Rat, the watch-house and the Heron, so she couldn't know."
+    }
+   ],
+   "best_moment": "The Heron sequence, turns 30 to 37. I volunteered as a porter (\"a man with two hands and no sense\") and picked the seam open to find the King's wheat-ear stamp under the painted heron. Hep's \"I knew what I was loading... I know who hangs when gentlemen are done\" followed, then Scrope's \"Wendell. He was my friend.\" I buried the ledger in the grain as the midnight bell tolled, and dug it out in front of Sallow (\"The green calf ledger comes free of the grain, its brass clasp dusted pale\"). The world remembered where I'd put a physical object, and the climax turned on it.",
+   "worst_moment": "Zone of Truth at the climax, turns 35 and 36. Both times the player saw \"\ud83c\udfb2 (Zone of Truth can't be cast like that: Spell zone-of-truth has a zone mechanic and requires intent.targetPosition)\". The second time I had spelled out exactly where to centre it (\"on the spot where I am standing, so the fifteen-foot sphere takes in me, Master Sallow and both Crakes\"). Straight after, the narration put the buried ledger back in Scrope's hands. Two turns later my mace hit the wrong man and Guiding Bolt went unrolled.\n\nThis is the same gap as the \"place nearby / everything within a radius\" spatial layer you're after. As far as I can tell from the outside:\n- The GM can't turn \"around me\" or \"where I stand\" into a position.\n- The Crakes may never have been added as targetable entities, which would explain the mis-targeted mace and the missing Guiding Bolt roll.",
+   "ratings": {
+    "fun": 4,
+    "story": 4,
+    "characters": 4,
+    "memory": 4,
+    "pacing": 3,
+    "humour": 4,
+    "consistency": 3,
+    "responsiveness": 4,
+    "rules": 2
+   },
+   "would_keep_playing": true,
+   "other_notes": "Notes aimed at the world-state / spatial question you raised:\n\n1. **Items I picked up never reached the sheet.** None of them (the page, Hobb's rag, coppers, the ledger while I held it) appeared in Equipment, which stayed \"Mace, Chain Shirt, Shield\" all game. There is also no holy symbol, though the story raised one in almost every turn. The narration tracked these objects well on its own, with one slip on turn 36. If the tree is meant to feed a map view, these handoffs aren't showing up on the character's side.\n\n2. **Area spells look uncastable.** The GM never supplies `targetPosition`, even when the player names the spot. A default of \"centre on the caster\", or resolving \"around us\" / \"where I stand\" / \"near X\" to a node, would fix Zone of Truth and presumably every other zone spell.\n\n3. **Characters introduced mid-scene and targeting.** Hobb, Kell and Sallow got proper engine targets (\"Big Hobb Mallory regains 9 HP\", \"attack on Master Josiah Sallow\"). The unnamed \"speaking Crake\" apparently did not. My attack on him fell through to Sallow, and Guiding Bolt at him produced no engine line at all. Making such newcomers targetable when they appear would fix this.\n\n4. **Some spells skip the engine.** Guidance (turn 2), Cure Wounds on Kell (turn 14), Speak with Dead (turn 10, not even on my sheet) and Guiding Bolt (turn 39) produced no engine line. So slots, bonuses and spell legality weren't checked.\n\n5. **The world remembered scene state well while I was in the scene:**\n   - water butt moved and board off\n   - body down\n   - boots on Cob\n   - split sack and the ledger inside it\n   - ledger thrown to Kell\n   - Sallow's hurt wrist\n\n   But no scene revisited an earlier location, so I couldn't test whether the granary changes persisted.\n\n6. **Untested:** I never set anything alight. The only candidates were the spilled lamp oil in the evidence loft and a brazier beside a warehouse full of grain dust, and neither fitted a kind healer. Revivify, Mass Healing Word, Prayer of Healing, Bless and Detect Magic also went unused, because the scene changes came fast.\n\n7. **Smaller sheet gaps:** 3 cantrips instead of 4; Spiritual Weapon and Beacon of Hope missing; no Channel Divinity or Disciple of Life listed; only Common despite the acolyte background.\n\nFull transcript saved at /tmp/claude-1000/-home-jon-git-kingmaker/35fbf16c-f75a-4d9b-b39e-d31232946d70/scratchpad/arc2-transcript.txt"
+  }
+ },
+ {
+  "run": {
+   "session": "arc2-brawler",
+   "level": 3,
+   "character": "Brannoc Hale: a rough ex-soldier investigator, eleven years in the Duke's Grey Company, quick with his fists and his temper",
+   "persona": "You are blunt and physical. You shove, grab, threaten and, when provoked, hit people, and you expect the game to roll the dice for it (attack rolls, damage, and the other side hitting back). Get into at least two scuffles where it fits the story, take some damage, and take a short rest afterwards. Check your HP on your sheet. You also break things: kick doors, upend tables, hide behind bar counters, and see whether the world remembers."
+  },
+  "report": {
+   "session": "arc2-brawler",
+   "turns": 51,
+   "character_sheet": "The game made Brannoc Hale a human fighter 3 (Champion) with the soldier background: AC 18 (chain mail and shield), HP 28/28, STR 17, CHA 8, Hit Dice 3d10. He was proficient in Athletics, Insight, Intimidation, Investigation and Perception. The sheet listed \"Longsword +7 (1d8+3)\", \"Handaxe +7\" and \"Unarmed Strike +7 (1d4+3)\". The concept fit well: a strong, armoured, uncharming ex-soldier who hits hard with his fists. Problems:\n(1) The attack bonus is +2 too high. STR +3 and proficiency +2 should give +5, and the one attack the game rolled used +5 (\"11 +5 = 16\"), not the sheet's +7.\n(2) Speed is 35 ft; a human should have 30.\n(3) None of the fighter features appear anywhere: no Second Wind, Action Surge, Fighting Style or Improved Critical.\n(4) Equipment never changed. It said \"Chain Mail (worn)\" and AC 18 while Kell was holding my mail. The page, the wheat-ear crown and the heron token I picked up never appeared on it.\nAfter scene 4 I went up to fighter 4 automatically (\"Choices: Ability Score Improvement; +2 to one ability score; Strength\"). HP rose to 36/36 and STR to 19; the STR save +6 and Athletics +6 were correct. The attacks then showed +8, which should be +6. \"Heroic Inspiration\" appeared after the long rest, which is correct for a 2024 human.",
+   "scenes_played": [
+    "1. The hanged clerk: Caerwyn granary yard and granary interior (turns 1-25, ended 'The case is made')",
+    "2. Caerwyn, the afternoon: market square and Corn Exchange, a downtime walk (turns 26-27, ended 'Onward'; an automatic short rest at the start)",
+    "3. The Drowned Rat: the tavern, the river stairs, then my walk to the Heron and the confrontation at the river grille (turns 28-44, ended 'Manners' straight after my first punch)",
+    "4. The Heron Warehouse (turns 45-48, ended 'Up in smoke'; then an automatic long rest and level-up to 4)",
+    "5. The King's Morning: the palace dressing room (turns 49-51, ended 'Done right by' / The End)"
+   ],
+   "ended": "It ended at turn 51 with \"The End. (The session is over.)\" in the King's dressing room. The King orders Sallow held for the Assizes, the record says \"murder: Wendell Prout\", and Moll and Cob are \"to be heard, not displayed\". It ended as I headed out to fetch Moll myself. The King handed that job to the Marshal and the epilogue summed up the outcomes, so Moll and Cob never spoke to the King on screen.",
+   "summary": "The story was strong and the rules layer was weak. Scene 1 (the granary yard) was an excellent small murder mystery. The clues came one at a time and each one was earned: the moon-and-rain lie, the dead man's bare feet against Cob's huge boots, a paper crackling in a boot, the cut page that matched the stub, and Prout's note \"Not goblins. Who pays the hedge-folk?\". The Drowned Rat gave a satisfying payoff: the bandage came off, Hobb confessed, and the cane matched the blow to the skull. The NPCs had distinct, funny voices, and the physical world mostly reacted well. I lowered the body, toppled grain sacks, traded for the crown, and my burning brand set off a grain-dust explosion that burned the Heron. The fire carried into the King's scene.\nThe D&D side barely appeared: three dice events in 51 turns (Medicine, Persuasion, one Unarmed Strike). Kicking a door, forcing through a gap, a bluff, intimidation, a disarm, a grapple and an explosion all went without rolls. No enemy ever took a turn, so I took no damage in the whole session.\nThe sheet was wrong in three ways: the attack bonus was +2 too high, removing the mail never changed AC, and picked-up items never appeared. The worst failure was entity and location tracking at the Heron. I punched a newly introduced \"broad man in the doorway\", and the dice line logged it as \"Big Hobb Mallory\", the confessed accomplice I had left with Kell at the Drowned Rat. The scene then cut. The next scene's intro reset the Heron (dog snoring, watchman sitting by the brazier), and Kell said both \"Hobb is with me\" and \"he's the man you hit\".\nScene cuts also rushed the climax. The grab on Sallow ended the scene, and his custody overnight was never explained.",
+   "rules_checks": [
+    {
+     "scene": "Start (before play)",
+     "turn": 0,
+     "what_you_did": "Read the character sheet",
+     "dice_shown": "none",
+     "narration": "\"AC 18 \u00b7 HP 28/28 \u00b7 Speed 35 ft \u00b7 Initiative +2 ... Longsword +7 (1d8+3 slashing); Handaxe +7 (1d6+3 slashing); Unarmed Strike +7 (1d4+3 bludgeoning)\"",
+     "verdict": "partly",
+     "note": "AC and HP are correct. The attack bonus should be +5 (STR +3, proficiency +2), and the only attack roll later used +5. Speed should be 30 ft for a human. None of the fighter features (Second Wind, Action Surge, Fighting Style, Improved Critical) are listed."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 3,
+     "what_you_did": "Dragged a crate under the hanging body and examined the neck, hands and rope",
+     "dice_shown": "Medicine check to tell how Prout really died: 13 + 1 = 14 vs DC 12: success",
+     "narration": "\"Beneath the slanting burn of the noose lies a thin, level cord mark ... He was struck, strangled, then hoisted.\"",
+     "verdict": "worked",
+     "note": "A sensible skill choice, the modifier matches the sheet, and the result was well narrated."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 5,
+     "what_you_did": "Promised Cob protection if he said where he found the boots",
+     "dice_shown": "Persuasion check to get Cob to name the men in the loft: 5 - 1 = 4 vs DC 12: failure",
+     "narration": "\"Cob looks at your coin, then your face. The promise doesn't settle him.\"",
+     "verdict": "partly",
+     "note": "The arithmetic and modifier are right, but the check label gave away a hidden fact (\"the men in the loft\") that my character could not yet know."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 6,
+     "what_you_did": "Kicked the padlocked granary door 'hard, until it gives'",
+     "dice_shown": "none",
+     "narration": "\"The ground-floor door holds ... The padlock stays shut; the door doesn't give.\"",
+     "verdict": "missing",
+     "note": "Breaking a door is the textbook Strength (Athletics) check. The GM ruled it with no roll."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 13,
+     "what_you_did": "Chose the game's own offered option to 'force it and risk getting jammed' through the gap in mail",
+     "dice_shown": "none",
+     "narration": "\"the frame groans, then holds. You can't force through in the armour.\"",
+     "verdict": "missing",
+     "note": "The game offered a risky option and then refused it with no Athletics check."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 14,
+     "what_you_did": "Took off my chain mail and left it with Kell, then went in with only the shield",
+     "dice_shown": "none",
+     "narration": "\"Kell gathers your chain mail from the cobbles. 'I'll mind it.'\"",
+     "verdict": "broken",
+     "note": "The sheet I checked straight afterwards still said \"AC 18\" and \"Chain Mail (worn)\". AC should have been 12."
+    },
+    {
+     "scene": "2 Caerwyn, the afternoon",
+     "turn": 25,
+     "what_you_did": "Nothing (the rest was applied automatically at the scene change)",
+     "dice_shown": "Short rest (an hour): HP 28/28",
+     "narration": "\"An hour later, you and Sergeant Kell are in the market square\"",
+     "verdict": "worked",
+     "note": "Harmless because I was at full HP. It was not a rest I chose to take."
+    },
+    {
+     "scene": "3 Drowned Rat / Heron grille",
+     "turn": 41,
+     "what_you_did": "Bluffed the watchman Saul that I was 'Bran, Hobb's cousin'",
+     "dice_shown": "none",
+     "narration": "\"Hobb's cousin,\" he says. \"Never heard of you.\"",
+     "verdict": "missing",
+     "note": "No Deception roll. Persuasion was rolled in turn 5, so social checks are applied inconsistently."
+    },
+    {
+     "scene": "3 Drowned Rat / Heron grille",
+     "turn": 42,
+     "what_you_did": "Leaned on the grille and barked at Saul to draw the bolt",
+     "dice_shown": "none",
+     "narration": "\"Saul's hand stays on the bolt.\"",
+     "verdict": "missing",
+     "note": "No Intimidation roll."
+    },
+    {
+     "scene": "3 Drowned Rat / Heron grille",
+     "turn": 44,
+     "what_you_did": "Shoved Saul against the rail with my shield, slammed my shield into the broad man in the doorway and punched him",
+     "dice_shown": "Unarmed Strike: your attack on Big Hobb Mallory: 11 +5 = 16 vs AC 12: hit / Damage: 1d4+3 (4+3) bludgeoning / Big Hobb Mallory takes 7 bludgeoning damage (hurt)",
+     "narration": "\"Your fist catches the broad man in the face. He staggers back into the doorway ... the sack on his shoulder drops\"",
+     "verdict": "broken",
+     "note": "The arithmetic is right. Problems: (1) wrong target: Hobb was on the Drowned Rat landing with Kell. (2) The +5 contradicts the sheet's +7. (3) The shove on Saul got no roll. (4) There was no initiative and the enemy never acted; the scene ended right after the blow. This was the only attack roll of the session."
+    },
+    {
+     "scene": "4 Heron Warehouse",
+     "turn": 47,
+     "what_you_did": "Tried to twist the club out of Saul's hand and throw it in the river",
+     "dice_shown": "none",
+     "narration": "\"Saul's hand clamps on the brazier's iron rim before you can take the club.\"",
+     "verdict": "missing",
+     "note": "A disarm should be a contested check. It simply failed."
+    },
+    {
+     "scene": "4 Heron Warehouse",
+     "turn": 47,
+     "what_you_did": "Held up a burning brand from the brazier; the grain dust exploded",
+     "dice_shown": "none",
+     "narration": "\"Then the dust flashes. Heat punches out through the cracks; a lantern shatters inside, and flame races up the stacked sacks.\"",
+     "verdict": "missing",
+     "note": "I was holding the flame that set it off, but there was no Dex save and no fire damage for me or the gang. HP stayed full."
+    },
+    {
+     "scene": "4 Heron Warehouse",
+     "turn": 48,
+     "what_you_did": "Grabbed Sallow by the coat and slammed him against the doorpost",
+     "dice_shown": "none",
+     "narration": "\"your fists slam his good coat against the doorpost. His silver-topped cane clatters onto the wharf.\"",
+     "verdict": "partly",
+     "note": "No grapple check, which is acceptable against a soft gentleman. But the scene ended there, so the arrest was never resolved."
+    },
+    {
+     "scene": "5 The King's Morning",
+     "turn": 48,
+     "what_you_did": "Nothing (automatic long rest and level-up between scenes)",
+     "dice_shown": "Long rest (a night): HP 28/28 / Level up! Brannoc Hale is now human fighter 4 (Champion) ... HP max 28 -> 36. Choices: Ability Score Improvement; +2 to one ability score; Strength.",
+     "narration": "The sheet afterwards: \"HP 36/36 ... STR 19 (+4) ... Athletics +6 ... Longsword +8 (1d8+4 slashing) ... Conditions: none \u00b7 Heroic Inspiration\"",
+     "verdict": "partly",
+     "note": "HP, STR, the STR save, Athletics and Heroic Inspiration are all correct. The attacks show +8 where +6 is right. The ASI was picked for me without asking."
+    },
+    {
+     "scene": "Whole session",
+     "turn": 51,
+     "what_you_did": "Tried to get into two scuffles, take damage and use a short rest",
+     "dice_shown": "none (only the single attack in turn 44)",
+     "narration": "No enemy ever attacked; both fights ended with the scene.",
+     "verdict": "missing",
+     "note": "I took 0 damage in 51 turns, so Second Wind and a chosen short rest never came up. Both rests came automatically at scene breaks while I was at full HP. I did not try Action Surge in the one-blow fight."
+    }
+   ],
+   "world_interactions": [
+    {
+     "scene": "1 Granary yard",
+     "turn": 1,
+     "what_you_did": "Prised the stones out of Cob's fist and pocketed them",
+     "what_happened": "\"The stones clatter across the cobbles\". The game quietly overrode 'pocketing them'.",
+     "did_it_stick": "The stones were never mentioned again and never appeared on the sheet."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 2,
+     "what_you_did": "Gave Cob a silver penny",
+     "what_happened": "\"Cob stares at the penny in his palm as if it might turn into a constable. Then he closes his fist around it.\"",
+     "did_it_stick": "Yes. Turn 5: \"one hand closing over the penny\". End of scene 1: \"Cob has his boot back and your penny.\""
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 3,
+     "what_you_did": "Dragged the nearest crate under the body and climbed it",
+     "what_happened": "\"a porter's empty grain box, shoved beneath the hanging clerk. It holds your weight, though the wet wood gives a warning creak\". It found a sensible 'nearby' object.",
+     "did_it_stick": "Never mentioned again, so I could not test it."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 6,
+     "what_you_did": "Kicked the padlocked ground-floor door repeatedly",
+     "what_happened": "\"The ground-floor door holds ... the door doesn't give.\" (no roll)",
+     "did_it_stick": "Kell: \"Don't break the granary door\". No damage to the door was ever recorded or mentioned again."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 7,
+     "what_you_did": "Lifted Cob onto the water butt and pulled off his boot; a paper fell out. I picked it up (turn 8) and gave the boot back.",
+     "what_happened": "\"A folded scrap of paper slides from its lining and lands on the wet stones.\" I tucked the page into my coat.",
+     "did_it_stick": "Yes in the story: matched to the stub at turn 18 and laid before the King at turn 49 (\"The King's gaze moves over the page\"). It never appeared on the sheet."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 10,
+     "what_you_did": "Shouldered the water butt aside and tore off the loose board and its neighbour, then two more in turn 12",
+     "what_happened": "\"it scrapes wetly over the cobbles ... tears free with a crack\"",
+     "did_it_stick": "Within the scene: Kell said \"That's now damage to the King's granary\". But the gap's width contradicted itself between turns 10 and 11. Never revisited in later scenes."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 14,
+     "what_you_did": "Took off my chain mail and dumped it at Kell's feet",
+     "what_happened": "\"Kell gathers your chain mail from the cobbles. 'I'll mind it.'\" The gap then let me through.",
+     "did_it_stick": "Yes in the story: at turn 24 Kell \"passes over the chain mail\". No on the sheet, which said \"Chain Mail (worn)\" and AC 18 the whole time."
+    },
+    {
+     "scene": "1 Granary interior",
+     "turn": 15,
+     "what_you_did": "Toppled a stack of grain sacks with my shield",
+     "what_happened": "\"It slumps with a dry rush, sacks rolling ... Grain spills in a pale stream.\" Cob: \"Oi! That's my castle!\"",
+     "did_it_stick": "Accepted when I 'vaulted the spilled sacks' (turn 16). Not revisited after that."
+    },
+    {
+     "scene": "1 Granary loft",
+     "turn": 19,
+     "what_you_did": "Lifted the bar off the loft door, tossed it aside and kicked the door open",
+     "what_happened": "\"Daylight spills across the loft and out through the open doorway toward the hoist beam.\"",
+     "did_it_stick": "Yes within the scene: the hoist rope was then reachable from inside."
+    },
+    {
+     "scene": "1 Granary loft",
+     "turn": 20,
+     "what_you_did": "Untied the hoist knot and lowered Prout's body to the cobbles",
+     "what_happened": "\"Kell reaches Prout's legs as they descend and guides him down onto the cobbles\"",
+     "did_it_stick": "Yes. Turn 21: I crouched by the body. Scene 2: \"the watch takes Prout to the cold room\"."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 22,
+     "what_you_did": "Swapped two silver pennies for Moll's wheat-ear crown",
+     "what_happened": "She took the pennies at turn 22, then took them again at turn 23 when she \"puts the wheat-ear crown into your hand\".",
+     "did_it_stick": "Yes: spun on Hobb's table at turn 29, slid to him at turn 32, scooped back at turn 33, laid before the King at turn 49. It never appeared on the sheet."
+    },
+    {
+     "scene": "2 Market",
+     "turn": 27,
+     "what_you_did": "Bought two loaves and pushed one on Kell",
+     "what_happened": "\"Kell accepts the one you push at her. 'Noted,' she says, and breaks it in half.\"",
+     "did_it_stick": "Yes within the scene (\"eating as she walks\"). Never referred to again."
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 29,
+     "what_you_did": "Kicked the stool out from under Hobb's table and sat on it",
+     "what_happened": "Accepted silently.",
+     "did_it_stick": "Yes. At turn 33, when I paid for the stool, Nan said: \"For the stool, my duck. Not the hand.\""
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 30,
+     "what_you_did": "Pinned Hobb's wrist and peeled off his bandage",
+     "what_happened": "\"His palm is skinned raw in a broad stripe across it\", followed by a confession",
+     "did_it_stick": "Yes. Turn 33: \"He keeps the raw palm turned inward\"."
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 38,
+     "what_you_did": "Took Hobb's brass heron token and hung it round my neck under my mail",
+     "what_happened": "\"places it in your hand ... The token rests cold against your palm\"",
+     "did_it_stick": "Yes. Shown at the grille (turn 40), \"the token under your mail\" (turn 44), laid before the King (turn 49)."
+    },
+    {
+     "scene": "3 Heron grille",
+     "turn": 44,
+     "what_you_did": "Shoved Saul against the rail and punched the broad man in the river doorway",
+     "what_happened": "The dice hit \"Big Hobb Mallory\" for 7. \"Saul ... bars the river door. From inside, someone shouts for the Crakes.\"",
+     "did_it_stick": "Partly. Scene 4 kept \"The river door is barred behind its grille\" and Saul said \"She remembers you\". But the scene 4 intro reset Saul to sitting by the brazier with the dog snoring. The man I hit was later declared to be Hobb, who was elsewhere."
+    },
+    {
+     "scene": "4 Heron Warehouse",
+     "turn": 47,
+     "what_you_did": "Tried to twist Saul's club away and throw it in the river",
+     "what_happened": "\"Saul's hand clamps on the brazier's iron rim before you can take the club.\"",
+     "did_it_stick": "Not applicable (it failed, no roll)."
+    },
+    {
+     "scene": "4 Heron Warehouse",
+     "turn": 47,
+     "what_you_did": "Pulled a burning stick out of the brazier and held it up to stop the loading",
+     "what_happened": "\"the flame catches a dust-cloud. For one bright instant the warehouse glows gold. Then the dust flashes.\" The warehouse caught fire.",
+     "did_it_stick": "Yes, the best persistence of the session. Turn 48: \"the Heron flares bright\". Kell: \"the warehouse burned while you arrested a man\". Next scene, the Marshal: \"The fire is already being reported in the courtyard\", and the King's voice \"has lost some of its warmth\". It only came up in scene 5 after I mentioned it."
+    },
+    {
+     "scene": "4 Heron Warehouse",
+     "turn": 48,
+     "what_you_did": "Grabbed Sallow and slammed him against the doorpost; his cane fell",
+     "what_happened": "\"His silver-topped cane clatters onto the wharf.\"",
+     "did_it_stick": "Partly. Turn 49, Kell: \"I did not see the cane picked up.\" Sallow himself was left \"at the Heron, under Brannoc's hand, when I last saw him\", and the King had to send the guard for him."
+    },
+    {
+     "scene": "5 The King's Morning",
+     "turn": 49,
+     "what_you_did": "Laid the page, the crown and the token on the King's dressing table",
+     "what_happened": "\"The King's gaze moves over the page, the crown, and the heron token.\"",
+     "did_it_stick": "Yes. Turn 50: \"The King looks from the three objects to you.\""
+    }
+   ],
+   "continuity_checks": [
+    {
+     "scene": "2 Caerwyn, the afternoon",
+     "what_you_expected": "Me and Kell walking from the granary toward the palace back courts, with Prout's body sent to the cold room.",
+     "what_the_game_did": "\"An hour later, you and Sergeant Kell are in the market square, heading toward the palace back courts ... Behind you, the watch takes Prout to the cold room.\"",
+     "verdict": "consistent"
+    },
+    {
+     "scene": "3 The Drowned Rat",
+     "what_you_expected": "Arriving at the Rat with Kell, after I changed course from the back courts to the Rat on her tip.",
+     "what_the_game_did": "\"a din that drops by half when Kell steps in behind you\". It adapted to my change of plan without trouble. The tip itself came from a porter who had never appeared; Kell later said he was the one who found the body.",
+     "verdict": "consistent"
+    },
+    {
+     "scene": "4 The Heron Warehouse",
+     "what_you_expected": "I got ahead of the story by going to the Heron during scene 3. I expected to be on the plank walk, river door barred, gang alerted, one Crake hurt, Saul and Duchess angry, Hobb back at the Rat with Kell.",
+     "what_the_game_did": "It replayed an arrival intro: \"At the land door, a watchman sits by a brazier, while a vast brindle dog snores across the threshold ... The watchman heaves himself upright, lifting his lantern for his round.\" It did keep the barred river door, and Saul remembered me when I spoke. It then said the man I punched was \"Big Hobb Mallory\" while Kell also said \"Hobb is with me\".",
+     "verdict": "contradicted"
+    },
+    {
+     "scene": "5 The King's Morning",
+     "what_you_expected": "The morning after the fire and the arrest: Sallow in someone's custody, the fire known, my evidence in hand.",
+     "what_the_game_did": "Kell was at my side and the evidence was in hand. But Sallow's night was unaccounted for (\"Sallow is at the Heron, under Brannoc's hand, when I last saw him\"), and the fire went unmentioned until I confessed it. After that it was handled well.",
+     "verdict": "partly"
+    }
+   ],
+   "memory_checks": [
+    {
+     "scene": "1 Granary",
+     "turn": 9,
+     "who": "Moll",
+     "earlier": "I read Sallow's name on the page silently with Kell (turn 8); I never said it aloud",
+     "what_they_did": "\"You said Sallow,\" she says. \"You said his name.\"",
+     "verdict": "false_memory"
+    },
+    {
+     "scene": "1 Granary",
+     "turn": 17,
+     "who": "Kell",
+     "earlier": "My promise to Cob in turn 5 that no one would lay a finger on him",
+     "what_they_did": "\"He's frightened, investigator. Keep your word.\"",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 21,
+     "who": "Moll",
+     "earlier": "I told her \"Nobody's taking anything off Cob\" (turn 9) after grabbing him (turn 7), then grabbed him again on the stairs (turn 16)",
+     "what_they_did": "\"You told us nobody was taking anything from him. Then you grabbed him. Twice.\" Correct, but the line was repeated about five times.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 24,
+     "who": "Kell",
+     "earlier": "I left my chain mail with her in turn 14",
+     "what_they_did": "\"Kell takes your hand briefly, then passes over the chain mail.\"",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "1 Granary yard (scene close)",
+     "turn": 25,
+     "who": "Narrator / Cob",
+     "earlier": "My penny (turn 2) and returning his boot (turn 8)",
+     "what_they_did": "\"Cob has his boot back and your penny.\"",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "2 Market",
+     "turn": 26,
+     "who": "Kell",
+     "earlier": "No porter appeared in scene 1",
+     "what_they_did": "\"The porter also said the big men with bandaged hands drink at the Drowned Rat.\" Asked who, she said \"One who found the body.\"",
+     "verdict": "false_memory"
+    },
+    {
+     "scene": "4 Heron",
+     "turn": 45,
+     "who": "Saul and Duchess the dog",
+     "earlier": "My bluff, my leaning on the grille, and the punch at the river door (turns 40-44, previous scene)",
+     "what_they_did": "\"She remembers you,\" Saul says. \"So do the men inside.\" Turn 47: \"You again ... You hit one of ours.\" This was right, even though the scene intro had them asleep and sitting.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "4 Heron",
+     "turn": 46,
+     "who": "Kell",
+     "earlier": "Hobb stayed with Kell on the Drowned Rat landing (turns 37-38); I punched a different, broad man at the Heron",
+     "what_they_did": "\"Hobb is with me\" and then \"I said Hobb was with me ... That's my mistake. And he's the man you hit.\"",
+     "verdict": "false_memory"
+    },
+    {
+     "scene": "5 King's Morning",
+     "turn": 49,
+     "who": "Kell",
+     "earlier": "I grabbed Sallow and his cane fell on the wharf (turn 48)",
+     "what_they_did": "\"Sallow is at the Heron, under Brannoc's hand, when I last saw him ... I did not see the cane picked up.\" The cane was right; it never said what happened to Sallow overnight.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "5 King's Morning",
+     "turn": 50,
+     "who": "Marshal Holt / King Aldren",
+     "earlier": "The Heron fire I caused (turn 47)",
+     "what_they_did": "Not raised until I confessed. Then: \"The fire is already being reported in the courtyard\", and the King's voice \"has lost some of its warmth\".",
+     "verdict": "partly"
+    },
+    {
+     "scene": "5 King's Morning",
+     "turn": 50,
+     "who": "King Aldren",
+     "earlier": "My promise to Moll (turn 23) that she would testify to the King, not the Captain",
+     "what_they_did": "\"You promised her she would speak to me. Can she be brought here before the bell?\" and \"The girl will be heard.\" I had to bring it up myself.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "5 King's Morning",
+     "turn": 51,
+     "who": "Narrator",
+     "earlier": "My oath to Hobb that no one would go near his mother (turns 36-37)",
+     "what_they_did": "\"Hobb's account remains on record; the promise about his mother remains yours to keep.\" Remembered without my prompting.",
+     "verdict": "remembered"
+    }
+   ],
+   "pacing": "Scene 1 was well paced. Each clue was earned by an action (the crate, the bare feet, the boot, the board, the page against the stub). Kell's information came as a reaction, not a dump: \"Prout came to the watch house three days ago ... Asked whether I could arrest a gentleman from the Purveyor's office.\"\nDragging stretches:\n- Turns 11-13: three turns at the granary gap. It was \"wide enough to squeeze through\" at turn 10, \"too narrow for your mail\" at turn 11, then \"force it and risk getting jammed\" was offered and refused without a roll.\n- Turns 35-37: a custody argument with Kell, with Hobb saying \"If I'm not at the Heron by eleven, the Master will know\" three times.\nRepetitive lines: Moll's \"You said nobody'd take anything from him\" about five times, and Kell's \"What do you want written down?\" or \"Then tell me what you'll put on the record\" three times.\nKell sometimes acted as a hint dispenser: \"There may be another way in.\", \"You've found your man, investigator.\", and the invented porter: \"The porter also said the big men with bandaged hands drink at the Drowned Rat. We've a call to make.\"\nHobb went from a hidden hand to the full story (\"the Master hit him with his cane and strangled him with a cord\") and Sallow's midnight location in four turns. That was quick, but the raw palm earned it.\nThe back end was rushed:\n- Turn 44: the scene ended on my first punch, with the Crakes coming.\n- Turn 48: the scene ended the moment I grabbed Sallow. The burning warehouse, the clerk and ledger I sent Kell to save, the gang and the actual arrest were all skipped.\n- Turn 51: the story ended in summary when I set off to fetch Moll, so the promised testimony happened off screen.\nSallow, the villain, got one line (\"What, precisely, is burning?\").",
+   "characters": "Alive and consistent:\n- Sergeant Kell was the stickler throughout: \"I won't write 'clubbed' without evidence of a club.\"; \"The Watch feeds us. Eventually. Usually after the danger has passed.\"; \"There's no such authority, investigator.\" She also had to cover for engine errors (\"That's my mistake\") and invented the porter.\n- Cob kept his third-person voice: \"Cob don't talk to bluebottles.\"; \"And Cob can buy his own pie.\"\n- Moll was sharp and protective: \"Smells like a flower stall that's been told it's important.\" She became repetitive.\n- Nan the landlady was the best minor character: \"Rule three, my duck. No fighting indoors.\"; \"For the stool, my duck. Not the hand.\"\n- Saul: \"Duchess says you're trouble, and she knows trouble.\"\n- King Aldren was touching: \"Wendell took his tea with the milk first, one sugar, and the cup warmed.\" and \"Prout always disliked heights. He still climbed the tally loft whenever the figures needed him.\" His voice cooling when I confessed to the fire was a nice touch.\n- Hobb: \"My mum. You swear it, sir?\" A sympathetic accomplice, until the engine also made him the man in the Heron doorway.\nFlat:\n- Josiah Sallow was never seen properly or confronted.\n- Hep Grist and the Crakes were names only.\n- The bread seller was funny for one line (\"with the air of a man complying with a regrettable regulation\").",
+   "scene_notes": [
+    {
+     "scene": "1 Granary yard / granary",
+     "notes": "A strong opener with comic texture (the supervising pigeon, \"Spin, you miserable clothes-horse!\"). The physical world handled my changes vividly: dragging a crate, toppling sacks, unbarring the loft, lowering the body. Problems: the 'pocketed' stones landed on the cobbles; the gap width contradicted itself; Cob shouted from the yard, then turned out to be the runner I grabbed inside the granary; Moll 'dropped from the wall' twice after already being down; a Persuasion label leaked 'the men in the loft'; and the sheet ignored my armour coming off."
+    },
+    {
+     "scene": "2 Caerwyn, the afternoon (downtime)",
+     "notes": "Two turns of nice texture: bunting, the Corn Exchange price board, smaller loaves and Saltmere grain gossip, all tying into the plot. The automatic short rest was harmless. Kell's tip from an unseen porter was a contrivance."
+    },
+    {
+     "scene": "3 The Drowned Rat (and the walk to the Heron)",
+     "notes": "The best scene for NPCs: the rules board, Nan's 'Manners', and the bandage reveal and confession. It kept running after I left the Rat, through scouting the Heron and the bluff at the grille. The social checks there got no rolls. It cut away right after the only attack roll of the game, and that roll was logged against Hobb, who was elsewhere."
+    },
+    {
+     "scene": "4 The Heron Warehouse",
+     "notes": "Its intro replayed the arrival as if I had not just fought at the river door (watchman sitting, dog snoring). Then came the Hobb mix-up ('Hobb is with me' / 'he's the man you hit'). The grain-dust explosion from my brand was a superb physical consequence, but the scene ended the moment I grabbed Sallow."
+    },
+    {
+     "scene": "5 The King's Morning",
+     "notes": "Charming, and it took my evidence and my confession about the fire seriously. It remembered my promises to Moll and Hobb. It was very short (three turns): it ended as I left to fetch Moll and summarised the rest. Sallow's overnight custody was never explained."
+    }
+   ],
+   "stonewalled": [
+    {
+     "turn": 6,
+     "what": "Kicking the padlocked granary door: 'The door doesn't give.' No roll, and 'until it gives' was ignored."
+    },
+    {
+     "turn": 11,
+     "what": "The gap described as 'wide enough to squeeze through' in turn 10 became 'too narrow for your mail' when I tried it."
+    },
+    {
+     "turn": 13,
+     "what": "The game offered 'force it and risk getting jammed', then said 'You can't force through in the armour' with no check."
+    },
+    {
+     "turn": 28,
+     "what": "I asked to read the rules board aloud, all of it. Only one rule was quoted ('Gossip sold by the measure'), and 'Rule four' was invoked without being shown."
+    },
+    {
+     "turn": 41,
+     "what": "My bluff at the grille failed outright with no Deception roll."
+    },
+    {
+     "turn": 42,
+     "what": "My intimidation at the grille failed outright with no Intimidation roll."
+    },
+    {
+     "turn": 47,
+     "what": "My attempt to twist the club out of an old man's hand failed outright ('before you can take the club') with no contest."
+    }
+   ],
+   "railroaded": [
+    {
+     "turn": 44,
+     "what": "The scene ended right after my first punch, with the Crakes coming out. The fight I had set up never happened and the enemy never acted."
+    },
+    {
+     "turn": 48,
+     "what": "The scene ended the instant I grabbed Sallow. The burning warehouse, the counting-box clerk and ledger, the gang and the actual arrest and custody were all skipped."
+    },
+    {
+     "turn": 51,
+     "what": "I said I would fetch Moll and Cob myself. The King handed it to the Marshal and the story ended in a summary, so the promised testimony happened off screen."
+    }
+   ],
+   "inconsistencies": [
+    {
+     "turn": 3,
+     "what": "Moll 'drops from the wall's far side', although in turn 1 she had already 'slid off the wall to the lane side'. In turn 8 her fist 'tightens on the wall's edge' again."
+    },
+    {
+     "turn": 9,
+     "what": "Moll: 'You said Sallow. You said his name.' I never spoke the name aloud."
+    },
+    {
+     "turn": 11,
+     "what": "The gap went from 'wide enough to squeeze through' (turn 10) to 'too narrow for your mail'."
+    },
+    {
+     "turn": 14,
+     "what": "The sheet still said 'Chain Mail (worn)' and AC 18 while Kell was holding the mail."
+    },
+    {
+     "turn": 16,
+     "what": "Cob shouted 'Oi! That's my castle!' from the yard in turn 15, then turned out to be the runner I caught on the granary stairs. The game patched it with 'Got in the same way you did'."
+    },
+    {
+     "turn": 23,
+     "what": "Moll took my two pennies in turn 22 and 'takes the pennies' again in turn 23."
+    },
+    {
+     "turn": 26,
+     "what": "Kell cited 'the porter' as a source, though no porter had appeared. Later she said it was 'One who found the body'."
+    },
+    {
+     "turn": 44,
+     "what": "The dice line named the target 'Big Hobb Mallory' while the story said 'the broad man' in the Heron doorway. Hobb was on the Drowned Rat landing with Kell. The man also 'drops' a sack he had not been carrying."
+    },
+    {
+     "turn": 44,
+     "what": "The attack roll used +5; the sheet says +7 (later +8, where +6 is correct)."
+    },
+    {
+     "turn": 45,
+     "what": "The Heron intro had the watchman sitting by the brazier and the dog snoring, minutes after both confronted me at the river door. The gang had been alerted."
+    },
+    {
+     "turn": 46,
+     "what": "Kell said both 'Hobb is with me' and 'And he's the man you hit', and the narrator added 'the doorway attack left Big Hobb hurt inside the warehouse'."
+    },
+    {
+     "turn": 49,
+     "what": "The next morning, with me at the palace, Kell put Sallow 'at the Heron, under Brannoc's hand'. His night was never accounted for."
+    },
+    {
+     "turn": 0,
+     "what": "The sheet gave a human Speed 35 ft (should be 30) and listed no fighter class features."
+    }
+   ],
+   "best_moment": "Turn 47. I pulled a burning stick from the brazier to stop the loading, and the world played it straight: \"'Put that out!' ... For one bright instant the warehouse glows gold. Then the dust flashes.\" It was followed by Sallow's perfectly pitched arrival line, \"What, precisely, is burning?\". Next morning the consequence carried over: the Marshal said \"The fire is already being reported in the courtyard\", and the King's voice \"has lost some of its warmth\". A close second was turn 18, matching the cut page to the chained book's stub and finding Prout's pencilled note \"Not goblins. Who pays the hedge-folk?\".",
+   "worst_moment": "Turns 44-46. I punched a newly introduced 'broad man' in the Heron doorway. The dice logged it as \"your attack on Big Hobb Mallory ... takes 7 bludgeoning damage\", but Hobb was the confessed accomplice I had left with Kell on the Drowned Rat landing. The scene then cut mid-fight, and the next scene re-ran the Heron's arrival with the dog asleep. When I asked, Kell said both \"Hobb is with me\" and \"That's my mistake ... And he's the man you hit.\" Entity tracking, location tracking, combat and continuity all broke in one exchange.",
+   "ratings": {
+    "fun": 3,
+    "story": 4,
+    "characters": 4,
+    "memory": 3,
+    "pacing": 3,
+    "humour": 4,
+    "consistency": 2,
+    "responsiveness": 3,
+    "rules": 2
+   },
+   "would_keep_playing": true,
+   "other_notes": "For the request about world-state updates (attributes updated, objects destroyed, new characters placed correctly in the tree, spatial queries like 'nearby'). As a blind tester I saw only effects, not internal state. What those effects suggest:\n\n(1) New characters are not reliably created where they appear. 'A broad man appears in the doorway' at the Heron was resolved to an existing NPC (Hobb) who was at another location. My guess is that the target resolver matches on description ('big man, bandaged hand') rather than on who is actually in the scene. A spatial or location-aware lookup would have prevented it.\n\n(2) NPC positions drift:\n- Cob was both in the yard and inside the granary in consecutive turns.\n- Moll kept 'dropping from the wall'.\n- Kell 'steps into the gap' while I was blocking the gateway.\n\n(3) Things done to or with the player never reach the sheet. Equipment stayed 'Chain Mail (worn)' and AC 18 while the mail was off. Picked-up evidence (page, crown, token) is tracked in the story but not as inventory. Stones I 'pocketed' silently landed on the cobbles instead.\n\n(4) Destruction mostly persisted in the story. The Heron fire carried into the next scene, the cane stayed on the wharf, and Prout's body moved to the cold room. Granary damage (boards, water butt, toppled sacks, the kicked door) was never revisited, so I could not check that it stuck.\n\n(5) Scene openers seem pre-written and are not reconciled with the live world. The Heron intro reset the dog and watchman. The King's scene did not know about the fire until I mentioned it.\n\n(6) 'Nearest crate' was resolved sensibly to 'a porter's empty grain box', so simple nearby-object placement already looks plausible.\n\nRules summary:\n- Only three dice events in 51 turns.\n- No enemy turns, no initiative, no damage taken.\n- Social checks rolled once (Persuasion) and then skipped (Deception, Intimidation).\n- No check for breaking or forcing anything.\n- The attack bonus on the sheet is consistently +2 above what the dice use.\n- Rests and level-up are automatic at scene changes; the level-up math was correct apart from the attack line.\n\nNo command errors occurred. Every turn returned in roughly 5-25 seconds."
+  }
+ },
+ {
+  "run": {
+   "session": "arc2-bard",
+   "level": 3,
+   "character": "Pip Gallowglass: a silver-tongued con artist and part-time illusionist who claims to be a notary from Pseudopolis",
+   "persona": "You talk, lie, perform and cheat, and use magic for mischief: charm people, cast illusions (a fake noise, a fake wall, a fake you), mock people with spells, disguise yourself. Try to talk your way past every obstacle, and use an illusion at least once to fool someone important. When the dice go against you, play it out. Go ahead of the story when you can: deal with the next problem early and see whether the game keeps up."
+  },
+  "report": {
+   "session": "arc2-bard",
+   "turns": 72,
+   "character_sheet": "Generated as \"human bard 3 (College of Lore), criminal background\". AC 14, HP 18/18, Initiative +5, Hit Dice 3d8. STR 8, DEX 16, CON 10, INT 14, WIS 12, CHA 15. Spell save DC 12, spell attack +4, slots 1st 4/4 and 2nd 2/2. Cantrips: Minor Illusion, Vicious Mockery. 1st level: Charm Person, Disguise Self, Illusory Script, Silent Image. 2nd level: Detect Thoughts, Suggestion. Expertise in Persuasion (+6) and Insight (+5); Deception +4, Sleight of Hand +5, Stealth +5, and Jack of All Trades on the rest. Equipment: Rapier (in hand), Dagger, Leather Armor.\n\nThe numbers check out under 2024/SRD 5.2 rules: standard array with Criminal +2 DEX/+1 INT, the Alert feat (initiative +5), and Rapier +3 with no proficiency because 2024 bards only get simple weapons.\n\nIt fitted the concept very well: a con-artist illusionist got exactly the charm, disguise and illusion kit, plus Illusory Script for a fake notary. Quibbles:\n- His weapon \"in hand\" is one he isn't proficient with (the dagger is better at +5).\n- He has no coin purse, no instrument and no notary kit or forged papers.\n- The ending sheet still listed the dagger I had given away.\n\nAt the end I levelled to bard 4: CHA 17 (ASI picked automatically), DC 13, +5, slots 4/3, HP 23, and Heroic Inspiration from the 2024 human trait. All correct, except that no third cantrip and no seventh spell were added.",
+   "scenes_played": [
+    "1. The hanged clerk: granary yard (Sgt Agnes Kell, Cob, Moll, Wendell Prout's body). Scene end: 'The case is made'",
+    "2. Caerwyn, the afternoon: market square, Corn Exchange, bread seller (downtime/transit). Scene end: 'Onward'",
+    "3. The Drowned Rat: pub and river stairs (Nan Quill, Big Hobb Mallory, Arlo). I pushed ahead into the Heron warehouse inside this scene (Old Saul, Duchess the dog, clerk Scrope, Master Josiah Sallow, the Crake brothers). Scene end: 'Manners'",
+    "4. The wharves after dark: 2-turn transit scene that replayed the run-up to the Heron. Scene end: 'Onward'",
+    "5. The Heron Warehouse: re-run of the confrontation; Scrope and forewoman Hep Grist turn, Kell arrests Sallow. Scene end: 'Caught in the act'",
+    "6. The King's Morning: King Aldren, Marshal Holt, Kell; all promises paid. Scene end: 'Done right by' / The End"
+   ],
+   "ended": "The game ended cleanly on turn 72 with \"The End. (The session is over.)\" after The King's Morning. The King ordered Sallow \"held for the Assizes. Sergeant Kell's record will say murder\", and granted every promise I had made: pies for Cob and Moll, Cob keeps the boots, a kitchen place for Hobb's mother, and Hobb as a Crown witness. Closing line: \"Milk first,\" he says softly. \"You remembered.\"",
+   "summary": "72 turns as Pip Gallowglass (Lore bard 3, then 4) through six chained scenes.\n\n**What works:** Within a scene the game is strong. NPCs remember promises, gifts and slights and act on them. Spell slots, saving throws, short and long rests and the level-up arithmetic were always booked correctly. Charm Person, Suggestion, Disguise Self, Silent Image and Minor Illusion were played close to the 5e rules (\"the spell doesn't make him answer your question\"; \"Minor Illusion can make the sound, not the sight\"). A lantern fire I set kept spreading over many turns: into the mooring ropes, smoke under the eaves, the rope burning through, the barge swinging loose. Two scenes later the rope was still \"blackened where it caught\".\n\n**What broke:** Getting ahead of the story. I ran the whole Heron confrontation (Sallow arriving at midnight, Hobb confessing in public, the barge breaking loose) inside the Drowned Rat scene. The Rat's scripted ending then fired anyway: Nan Quill, the Rat's landlady, teleported to the Heron's door and threw me out \"on the wet stairs\". The next two scenes reset the warehouse and replayed \"The gentleman comes at midnight to see it off\", although NPCs inside still remembered what I'd done.\n\n**Rules and world-state faults:**\n- Attacks on the unnamed Crake brothers were rolled and booked against my ally Big Hobb Mallory (11 damage), while the story said the Crakes were hit.\n- No initiative was ever rolled.\n- Vicious Mockery never rolled a save or damage.\n- Most of my Deception and Sleight of Hand attempts were decided without dice.\n- The sheet never tracked items. The dagger I gave away stayed listed, and the stone, the evidence and Sallow's cane never appeared.\n- At level 4 no cantrip or spell was added.\n\nFun, funny and warm; consistency is the weak spot.",
+   "rules_checks": [
+    {
+     "scene": "1 Granary yard",
+     "turn": 1,
+     "what_you_did": "Snatched Cob's thrown gutter stone out of the air and pocketed it",
+     "dice_shown": "none",
+     "narration": "Your palm closes around it with a sharp sting; you pocket it before it can bounce into the gutter.",
+     "verdict": "missing",
+     "note": "Automatic success; a DEX or Sleight of Hand check would be natural. Harmless."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 2,
+     "what_you_did": "Promised a King's-kitchen pork pie to whoever told what they saw (Persuasion on Cob)",
+     "dice_shown": "\ud83c\udfb2 Persuasion check to get Cob to trust you with what he heard: 6 + 6 = 12 vs DC 13: failure",
+     "narration": "\u201cCob don\u2019t trade secrets for pie. Especially not to a bum-faced palace pigeon.\u201d He darts behind the water butt.",
+     "verdict": "worked",
+     "note": "+6 matches Persuasion expertise on the sheet."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 3,
+     "what_you_did": "Cast Minor Illusion: sound of a pie-cart crying 'Hot pork pies!' to lure Cob out",
+     "dice_shown": "\ud83c\udfb2 Cast Minor Illusion (cantrip) on Cob",
+     "narration": "The illusion smells of nothing, but that has never stopped a hungry imagination. ... Kell: \u201cYou cast at the boy, investigator.\u201d",
+     "verdict": "worked",
+     "note": "Sound only, as the spell allows. No slot used. NPCs noticed and judged the casting."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 5,
+     "what_you_did": "Gave Cob a fresh gutter stone as down payment and asked about the boots",
+     "dice_shown": "\ud83c\udfb2 Persuasion check to get Cob to trust you with what he heard: 2 + 6 = 8 vs DC 13: failure",
+     "narration": "Cob slips through the loose board into the granary. The oversized boots vanish last.",
+     "verdict": "worked"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 6,
+     "what_you_did": "Cast Detect Thoughts on Moll while Kell questioned her",
+     "dice_shown": "\ud83c\udfb2 Cast Detect Thoughts (2nd-level slot) on Moll / \ud83c\udfb2 Pip Gallowglass: HP 18/18, spell slots 1st 4/4, 2nd 1/2",
+     "narration": "*Don\u2019t let him tell them. They\u2019ll come back for him.* ... \u201cGet out of my head, you spell-slick bastard!\u201d",
+     "verdict": "partly",
+     "note": "Slot count correct. But in 5e a surface-thought read goes unnoticed; the target only knows (and gets a WIS save) if you probe deeper. The spell then 'has run out' on the next turn."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 10,
+     "what_you_did": "Tried to palm anything from Prout's waistcoat before Kell saw",
+     "dice_shown": "none",
+     "narration": "Kell\u2019s hand closes around your wrist\u2014firm, not rough. \u201cNot that way, investigator.\u201d",
+     "verdict": "missing",
+     "note": "No Sleight of Hand (+5) against Kell's Perception; caught by fiat."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 14,
+     "what_you_did": "Tried to lever the loft or yard door open with the rapier",
+     "dice_shown": "none",
+     "narration": "The padlocked yard doors stop you at the threshold... Your rapier finds no latch to lever.",
+     "verdict": "missing",
+     "note": "No Athletics or tools check offered; just a flat no."
+    },
+    {
+     "scene": "1\u21922 transition",
+     "turn": 17,
+     "what_you_did": "(automatic) Short rest between scenes",
+     "dice_shown": "\ud83c\udfb2 Short rest (an hour): HP 18/18, spell slots 1st 4/4, 2nd 1/2",
+     "narration": "An hour or two later, you\u2019re in Caerwyn\u2019s market square.",
+     "verdict": "worked",
+     "note": "Correct: a level-3 bard regains no slots on a short rest."
+    },
+    {
+     "scene": "2 Caerwyn afternoon",
+     "turn": 19,
+     "what_you_did": "Paid the bread seller a copper for gossip",
+     "dice_shown": "none",
+     "narration": "The bread seller takes the copper and sets it apart from the till.",
+     "verdict": "partly",
+     "note": "The sheet has no money at all, so the coin came from nowhere. No currency tracking."
+    },
+    {
+     "scene": "2 Caerwyn afternoon",
+     "turn": 20,
+     "what_you_did": "Cast Disguise Self: broad stooped porter with a bandaged right hand",
+     "dice_shown": "\ud83c\udfb2 Cast Disguise Self (1st-level slot) on you / spell slots 1st 3/4, 2nd 1/2",
+     "narration": "Nothing about the disguise changes your voice; the gravel comes from you.",
+     "verdict": "worked",
+     "note": "The detail about the voice is correct to the spell. The disguise held at the Rat."
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 23,
+     "what_you_did": "Cast Charm Person on Big Hobb while fishing about the silver-caned 'Master'",
+     "dice_shown": "\ud83c\udfb2 Deception check to fool Big Hobb into giving himself away: 4 + 4 = 8 vs DC 13: failure / \ud83c\udfb2 Cast Charm Person (1st-level slot) on Big Hobb Mallory / \ud83c\udfb2 Big Hobb Mallory's Wisdom save: 10 +0 = 10 vs DC 12: failed / \ud83c\udfb2 Big Hobb Mallory is charmed / spell slots 1st 2/4",
+     "narration": "He won\u2019t attack you, and he regards you favourably\u2014but the spell doesn\u2019t make him answer your question",
+     "verdict": "worked",
+     "note": "By the book: the charm made him friendly, not obedient, and the failed Deception still spooked him."
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 24,
+     "what_you_did": "Cast Suggestion on Hobb: sit back down where it's safe",
+     "dice_shown": "\ud83c\udfb2 Cast Suggestion (2nd-level slot) on Big Hobb Mallory / \ud83c\udfb2 Big Hobb Mallory's Wisdom save: 19 +0 = 19 vs DC 12: saved / spell slots 1st 2/4, 2nd 0/2",
+     "narration": "Suggestion finds no purchase... \u201cNo, sir. I can\u2019t sit here.\u201d ... Kell: \u201cYou tried a second spell on him.\u201d",
+     "verdict": "worked"
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 25,
+     "what_you_did": "Cast Silent Image: four Watchmen climbing the river stairs to block Hobb",
+     "dice_shown": "\ud83c\udfb2 Cast Silent Image (1st-level slot) on Big Hobb Mallory / spell slots 1st 1/4",
+     "narration": "their boots make no sound, and their lanterns cast no light",
+     "verdict": "partly",
+     "note": "The effect matched the rules, but an area illusion was logged as targeting Hobb. I dismissed it at T27, yet the game announced 'Silent Image has run out' at T35. It did so again at the scene-4 boundary for the ghost I dismissed at T48."
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 30,
+     "what_you_did": "Persuaded Hobb with a concrete plan to protect his mother",
+     "dice_shown": "\ud83c\udfb2 Persuasion check to earn Hobb\u2019s trust with your promise to protect his mother: 11 + 6 = 17 vs DC 14: success",
+     "narration": "\u201cI only held the rope... The rope took my hand. I only held the rope.\u201d",
+     "verdict": "worked"
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 37,
+     "what_you_did": "Cast Minor Illusion: a cat yowling among the sacks to distract the guard dog",
+     "dice_shown": "\ud83c\udfb2 Cast Minor Illusion (cantrip)",
+     "narration": "Old Saul follows its gaze and mutters, \u201cDuchess, there\u2019s no cats in the grain.\u201d",
+     "verdict": "worked"
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 39,
+     "what_you_did": "Bluffed clerk Scrope that Sallow had sent me, quoting the silver cane and wheat ring",
+     "dice_shown": "none",
+     "narration": "\u201cMaster Sallow doesn\u2019t send notaries. He sends a written order.\u201d",
+     "verdict": "missing",
+     "note": "Deception was never rolled for any of my bluffs at the Heron (T38, T39, T41). Each was simply refused."
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 40,
+     "what_you_did": "Cast Vicious Mockery on Scrope, then lunged for his handbell",
+     "dice_shown": "\ud83c\udfb2 Cast Vicious Mockery (cantrip)",
+     "narration": "The spell\u2019s sting lasts an instant, leaving him with no wound, only the sting of your words",
+     "verdict": "broken",
+     "note": "No WIS save and no psychic damage (1d6 under 2024 rules), in all three casts (T40, T50, T64). The disadvantage effect was narrated. The grab for the bell had no roll."
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 41,
+     "what_you_did": "Bellowed to the gang that the Watch was coming and Sallow had sold them out",
+     "dice_shown": "none",
+     "narration": "Most of the gang turn back toward the sacks; two head for the wharf to check the fire. No one bolts.",
+     "verdict": "missing"
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 45,
+     "what_you_did": "Silent Image of Prout's ghost in the smoke, plus a Minor Illusion whisper 'Proper channels, Master Sallow'",
+     "dice_shown": "\ud83c\udfb2 Cast Silent Image (1st-level slot) / \ud83c\udfb2 Pip Gallowglass: HP 18/18, spell slots 1st 0/4, 2nd 0/2",
+     "narration": "\u201cPip Gallowglass,\u201d Sallow says. \u201cYou\u2019ve brought a dead clerk into my warehouse.\u201d",
+     "verdict": "partly",
+     "note": "Slot count right. Sallow saw through it instantly with no Investigation check against DC 12. The Minor Illusion I stacked on top got no log line."
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 51,
+     "what_you_did": "Rapier lunge at the first Crake brother's reaching forearm",
+     "dice_shown": "\ud83c\udfb2 Rapier: your attack on Big Hobb Mallory: 3 +3 = 6 vs AC 12: miss",
+     "narration": "Your rapier lunges for Hobb\u2019s reaching forearm and misses... Hobb jerks his arm back. \u201cSir!\u201d",
+     "verdict": "broken",
+     "note": "Wrong target. Hobb was out on the wharf 'straining to hold the barge's line'. The Crakes seem to have no stat blocks, so the attack fell to a named NPC (my ally). No initiative though the fight had begun."
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 52,
+     "what_you_did": "Rapier thrust at the charging Crake's thigh",
+     "dice_shown": "\ud83c\udfb2 Rapier: your attack on Big Hobb Mallory: 13 +3 = 16 vs AC 12: hit / \ud83c\udfb2 Damage: 1d8+3 (3+3) piercing / \ud83c\udfb2 Big Hobb Mallory takes 6 piercing damage (hurt)",
+     "narration": "Your rapier finds the charging Crake\u2019s thigh. The point bites deep",
+     "verdict": "broken",
+     "note": "Dice and story disagree: damage booked to Hobb, wound narrated on the Crake. In scene 5 the Crake still had the leg wound."
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 53,
+     "what_you_did": "Cast Minor Illusion: three Watch whistles and running boots outside",
+     "dice_shown": "\ud83c\udfb2 Cast Minor Illusion (cantrip)",
+     "narration": "Minor Illusion can make the sound, not the sight. ... Sallow: \u201cA whistle is not a sergeant.\u201d",
+     "verdict": "worked"
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 54,
+     "what_you_did": "Rapier stab at the second Crake's coat arm",
+     "dice_shown": "\ud83c\udfb2 Rapier: your attack on Big Hobb Mallory: 13 +3 = 16 vs AC 12: hit / \ud83c\udfb2 Damage: 1d8+3 (2+3) piercing / \ud83c\udfb2 Big Hobb Mallory takes 5 piercing damage (hurt)",
+     "narration": "Your rapier catches the Crake\u2019s coat arm and bites into it.",
+     "verdict": "broken",
+     "note": "Hobb now carries 11 damage he never took. Nan's cudgel 'thumps against your shin' with no roll or damage, which is fine for a non-damaging shove."
+    },
+    {
+     "scene": "5 Heron Warehouse",
+     "turn": 61,
+     "what_you_did": "Persuaded Scrope with Prout's last words ('proper channels') to surrender the ledger",
+     "dice_shown": "\ud83c\udfb2 Persuasion check to turn the Master's own people against him: 11 + 6 = 17 vs DC 14: success",
+     "narration": "\u201cNo, Master. The error is already entered.\u201d ... Hep: \u201cWe\u2019ll swear. All of us.\u201d",
+     "verdict": "worked"
+    },
+    {
+     "scene": "5 Heron Warehouse",
+     "turn": 63,
+     "what_you_did": "Cast Illusory Script as a ritual (no slot): statements that read to Sallow as a royal arrest warrant",
+     "dice_shown": "none",
+     "narration": "\u201cThat is not a royal warrant, investigator. It is a page of statements, however convincingly you\u2019ve dressed it.\u201d",
+     "verdict": "partly",
+     "note": "No slot spent, which is right for a ritual (slots were 0/4 anyway). But there was no cast line, the 10-minute casting time was skipped, the 10 gp lead-based ink was never asked for, and what Sallow saw was never resolved."
+    },
+    {
+     "scene": "5 Heron Warehouse",
+     "turn": 65,
+     "what_you_did": "Plucked Sallow's silver-topped cane out of his hand while Kell held him, then checked it for a blade",
+     "dice_shown": "none",
+     "narration": "Your fingers turn the cane neatly from his grasp. The silver head twists; it does not come away.",
+     "verdict": "missing",
+     "note": "Sleight of Hand or a contested check skipped; this time I succeeded by fiat."
+    },
+    {
+     "scene": "5\u21926 transition",
+     "turn": 66,
+     "what_you_did": "(automatic) Long rest and level-up",
+     "dice_shown": "\ud83c\udfb2 Long rest (a night): HP 18/18, spell slots 1st 4/4, 2nd 2/2 / \u2014 Level up! Pip Gallowglass is now human bard 4 ... HP max 18 \u2192 23. Choices: Ability Score Improvement; +2 to one ability score; Charisma. \u2014",
+     "narration": "Morning comes with bells, bunting, and the city making enough noise to suggest it has personally arranged the weather.",
+     "verdict": "partly",
+     "note": "HP 23/23, CHA 17, DC 13, spell attack +5, 2nd-level slots 3/3, skill bonuses and Heroic Inspiration all correct. But no third cantrip and no seventh spell for a level-4 bard, and the ASI was chosen for me."
+    },
+    {
+     "scene": "6 King's Morning",
+     "turn": 71,
+     "what_you_did": "Offered the King the option of a Silent Image of Prout's page over the Assembly ('Your choice')",
+     "dice_shown": "\ud83c\udfb2 Cast Silent Image (1st-level slot) / \ud83c\udfb2 Pip Gallowglass: HP 23/23, spell slots 1st 3/4, 2nd 3/3",
+     "narration": "A page appears in the space between cane and cup, ten feet high in the dressing room",
+     "verdict": "partly",
+     "note": "Slot count right, but the game cast it on an offer, and in the dressing room rather than over the Assembly."
+    },
+    {
+     "scene": "1 (sheet check)",
+     "turn": 16,
+     "what_you_did": "Gave my dagger to Moll, then looked at the sheet",
+     "dice_shown": "Sheet: 'Attacks: Rapier +3 (1d8+3 piercing); Dagger +5 (1d4+3 piercing)...' / 'Equipment: Rapier (in hand), Dagger, Leather Armor (worn)'",
+     "narration": "Moll takes the dagger hilt-first... She tucks it into her shawl without thanking you.",
+     "verdict": "broken",
+     "note": "Inventory never updates. The dagger stayed listed to the end. The stone, sacking, grain and Sallow's cane never appeared. The rapier stayed '(in hand)' after I sheathed it at T58."
+    }
+   ],
+   "world_interactions": [
+    {
+     "scene": "1 Granary yard",
+     "turn": 1,
+     "what_you_did": "Caught Cob's stone and pocketed it as 'collateral'",
+     "what_happened": "Pocketed with no roll.",
+     "did_it_stick": "Yes, narratively. Kell in scene 2: \u201cCollateral,\u201d she says. \u201cCob will remember the interest.\u201d At the Heron: \u201cpocket it with the grain and Cob\u2019s stone.\u201d I returned it to Cob at the end. It never appeared on the sheet."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 5,
+     "what_you_did": "Picked a fresh stone out of the gutter, polished it and gave it to Cob",
+     "what_happened": "Cob accepts the fresh stone, turning it over in his palm.",
+     "did_it_stick": "Yes. At T15: \u201cCob clutches the stone you gave him.\u201d Scene 2 opening: \u201cMoll and Cob have gone their own way, with your dagger and your spare stone between them.\u201d"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 9,
+     "what_you_did": "Lowered Prout's body from the hoist with Kell",
+     "what_happened": "Body lowered onto the cobbles; examination revealed a cord mark, a skull swelling and no rope burns.",
+     "did_it_stick": "Yes. Kell: \u201cThe body goes to the watch-house cold room.\u201d"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 16,
+     "what_you_did": "Gave my dagger to Moll, hilt first",
+     "what_happened": "\u201cButter knife or not, I know which end to hold.\u201d She tucks it into her shawl.",
+     "did_it_stick": "In the story, yes: \u201cMoll rests a hand on the buttering dagger beneath her shawl\u201d, and scene 2 says Moll and Cob left \u201cwith your dagger\u201d. On the sheet, no: Dagger is still in Equipment and Attacks at the end."
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 17,
+     "what_you_did": "Laid Prout's handkerchief over his face and straightened his feet",
+     "what_happened": "Not commented on; Kell moved straight on to the cold room and the King.",
+     "did_it_stick": "Never referenced again (neutral)."
+    },
+    {
+     "scene": "2 Caerwyn afternoon",
+     "turn": 19,
+     "what_you_did": "Paid a copper to the bread seller",
+     "what_happened": "\u201cThe bread seller takes the copper and sets it apart from the till.\u201d",
+     "did_it_stick": "Kell: \u201cYou\u2019ve spent copper on gossip and kept Cob\u2019s stone as collateral. Noted.\u201d No money exists on the sheet to deduct it from."
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 25,
+     "what_you_did": "Silent Image of a Watch patrol filling the river stairs; dismissed it at T27",
+     "what_happened": "Hobb halted and backed away from it. On dismissal: \u201cThe watchmen vanish.\u201d",
+     "did_it_stick": "Narratively yes, but the engine announced \u201cSilent Image has run out\u201d 8 turns after I dismissed it."
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 35,
+     "what_you_did": "Cut the marked corner off a sack with my rapier and pocketed the scrap and a fistful of grain",
+     "what_happened": "The mark was the Heron's bird, not the King's stamp. Hobb: \u201cThat sack\u2019s split.\u201d A worker stooped to inspect it.",
+     "did_it_stick": "Yes. In scene 6 I handed the scrap and grain to Kell: \u201cNoted. I\u2019ll enter them as evidence.\u201d"
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 36,
+     "what_you_did": "Tipped a lantern into a heap of empty sacking at the far end of the wharf as a distraction",
+     "what_happened": "\u201cFire races along the dry weave; orange light licks the water.\u201d The crew ran to fight it. It then spread on its own: \u201cthe fire\u2019s reached the mooring ropes\u201d (T39); \u201csmoke is beginning to drift beneath the warehouse eaves\u201d (T43); \u201cIt\u2019s through!\u201d (T48); the barge swung out on its last line (T49).",
+     "did_it_stick": "Strongly. Sallow charged me with \u201ctheft, arson and assault\u201d. Scene 4: \u201cThe wharf smells of wet grain and scorched rope.\u201d Scene 5: \u201cthe mooring rope is blackened where it caught.\u201d This was the best world-persistence of the run, though scene 5 also had the loading resumed as if nothing had happened."
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 43,
+     "what_you_did": "Sat on a sack of the King's wheat as Saul's 'prisoner'",
+     "what_happened": "Saul: \u201cYou stay on that sack. If you move, she\u2019ll know before I do.\u201d",
+     "did_it_stick": "Yes. In scene 5 Saul greets me: \u201cEvening, gentleman from the sack.\u201d"
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 49,
+     "what_you_did": "Sent Hobb to grab the burning barge line; blocked the river door with my rapier",
+     "what_happened": "Hobb caught the line \u201cwith both hands, boots skidding\u201d; Sallow stopped short of my blade.",
+     "did_it_stick": "Partly. In scene 5 Hobb's hand is \u201cwrapped in tarry cloth\u201d and he says \u201cI can\u2019t, sir. Not with this hand.\u201d But the barge was back to loading as if it had never broken loose."
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 52,
+     "what_you_did": "Wounded both Crake brothers with the rapier (thigh, then coat arm)",
+     "what_happened": "The narration wounded the Crakes; the engine booked 6 + 5 damage to Big Hobb Mallory.",
+     "did_it_stick": "Partly. Scene 5: \u201cone hunched over his injured leg\u201d. The second Crake's arm wound is never mentioned. Hobb's damage never surfaced."
+    },
+    {
+     "scene": "5 Heron Warehouse",
+     "turn": 60,
+     "what_you_did": "Picked up an emptied wheat-ear-stamped sack and handed it to Kell as 'Exhibit one'",
+     "what_happened": "Kell \u201cholds it open, the wheat-ear stamp visible in the lantern light.\u201d Forewoman Hep: \u201cYou! Put that down.\u201d",
+     "did_it_stick": "Partly. In scene 6 Kell says \u201cThe ledger and the sacks are at the Heron, not here\u201d, though I handed her the sack and Scrope was bringing her the ledger."
+    },
+    {
+     "scene": "5 Heron Warehouse",
+     "turn": 65,
+     "what_you_did": "Took Sallow's silver-topped cane",
+     "what_happened": "No blade inside; Sallow: \u201cYou will be accounting for that.\u201d",
+     "did_it_stick": "Yes, narratively: \u201cthe silver-headed cane beneath your arm\u201d. In scene 6 I laid it on the King's tea tray and \u201cAldren\u2019s gaze drops to the cane\u201d. It never appeared on the sheet."
+    },
+    {
+     "scene": "6 King's Morning",
+     "turn": 70,
+     "what_you_did": "Warmed a cup and poured Wendell's tea his way (milk first, one sugar) and set it on the tray",
+     "what_happened": "The King smiles \u201cat the care you take with the milk\u201d.",
+     "did_it_stick": "Yes. It was the final line of the game: \u201cMilk first,\u201d he says softly. \u201cYou remembered.\u201d"
+    },
+    {
+     "scene": "6 King's Morning",
+     "turn": 72,
+     "what_you_did": "Wrapped Cob's original stone and a sugar lump from the King's tray in my handkerchief and sent them with the footman",
+     "what_happened": "King: \u201cAnd tell Cob I expect him to keep better accounts than my Purveyor.\u201d",
+     "did_it_stick": "Yes. Epilogue: \u201cCob keeps his boots, and gets his stone back with interest.\u201d"
+    }
+   ],
+   "continuity_checks": [
+    {
+     "scene": "2 Caerwyn, the afternoon",
+     "what_you_expected": "Kell with me, Moll and Cob gone with the dagger and the spare stone, Cob's stone still in my pocket, one 2nd-level slot spent",
+     "what_the_game_did": "\u201cKell remains beside you... Moll and Cob have gone their own way, with your dagger and your spare stone between them.\u201d The short rest kept 2nd-level slots at 1/2, and Kell noticed the stone in my pocket.",
+     "verdict": "consistent"
+    },
+    {
+     "scene": "3 The Drowned Rat",
+     "what_you_expected": "I'm already inside in my porter disguise with a gin on the bar; Kell follows a few minutes later as agreed",
+     "what_the_game_did": "It replayed the entrance: \u201cThe Drowned Rat\u2019s door opens on smoke... a din that drops by half when Kell steps in behind you.\u201d The disguise and the gin went unmentioned, though the disguise held on the next turn.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "4 The wharves after dark",
+     "what_you_expected": "Aftermath of the Heron: Sallow already confronted at midnight, Hobb's public confession, the burned rope and loose barge, and Kell across the city with Hobb's mother",
+     "what_the_game_did": "It put me on the Rat's wet stairs with Kell and replayed the setup: \u201cAt the far end, the Heron\u2019s painted sign... a load swings out over the water... \u2018The gentleman comes at midnight to see it off, investigator.\u2019\u201d When I protested, Kell said \u201cYou\u2019re right about midnight. I had the order of events wrong\u201d and confirmed the mother was safe at Nan's. But she still asked \u201cWhat did you see when Nan put you out?\u201d",
+     "verdict": "contradicted"
+    },
+    {
+     "scene": "5 The Heron Warehouse",
+     "what_you_expected": "The warehouse as I left it: loading stopped, the fire, Sallow with two wounded Crakes, Hobb on the barge line",
+     "what_the_game_did": "The opening was reset: workers re-bagging, \u201cThe hoist swings another sack out over the water\u201d, the watchman starting his round and the dog snoring. Only the blackened mooring rope carried over. Once I engaged, NPC memory was intact: Saul and Duchess knew me, the Crake's leg wound and Hobb's hand were there, and Saul repeated Hobb's confession.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "6 The King's Morning",
+     "what_you_expected": "Morning after the arrest; Kell with me; Sallow's cane in my hands; the King not yet told",
+     "what_the_game_did": "Kell beside me, the cane usable, the King asking \u201cWhat did you find?\u201d Kell recalled the Heron details and the page precisely, and the King acted on all my promises. Minor slips: a dismissed valet and a departed Marshal were still in the room.",
+     "verdict": "consistent"
+    },
+    {
+     "scene": "3 (Heron, mid-scene)",
+     "what_you_expected": "Kell was across the city fetching Hobb's mother; Nan was at the Drowned Rat",
+     "what_the_game_did": "To end the Rat scene, Nan Quill appeared at the Heron's door with Manners and barred it (\u201cBehind the barred door, the Rat\u2019s noise swells\u201d). Kell was suddenly \u201ca few steps above\u201d.",
+     "verdict": "contradicted"
+    }
+   ],
+   "memory_checks": [
+    {
+     "scene": "1 Granary yard",
+     "turn": 13,
+     "who": "Cob",
+     "earlier": "T10: I tried to palm something from Prout's waistcoat and Kell caught my wrist",
+     "what_they_did": "\u201cThis goes in the Sergeant\u2019s book. Not your sleeve.\u201d",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 15,
+     "who": "Cob",
+     "earlier": "T5: I gave him a polished gutter stone",
+     "what_they_did": "\u201cCob clutches the stone you gave him.\u201d",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 17,
+     "who": "Cob",
+     "earlier": "T2/T5: promised his stone back with interest",
+     "what_they_did": "\u201cDon\u2019t forget the stone, notary!\u201d",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "1 Granary yard",
+     "turn": 17,
+     "who": "Moll",
+     "earlier": "T16: I gave her my dagger",
+     "what_they_did": "\u201cMoll rests a hand on the buttering dagger beneath her shawl.\u201d",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "2 Caerwyn afternoon",
+     "turn": 18,
+     "who": "Kell",
+     "earlier": "Scene 1: Cob's stone kept as collateral",
+     "what_they_did": "\u201cCollateral,\u201d she says. \u201cCob will remember the interest.\u201d",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "3 Drowned Rat",
+     "turn": 24,
+     "who": "Kell",
+     "earlier": "T23: I'd cast Charm Person on Hobb",
+     "what_they_did": "\u201cYou tried a second spell on him.\u201d",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 46,
+     "who": "Sallow",
+     "earlier": "T38: I introduced myself by name to Scrope",
+     "what_they_did": "Knew my name, and explained: \u201cI know your name because you\u2019ve been shouting it all evening, Gallowglass.\u201d",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 48,
+     "who": "Sallow",
+     "earlier": "T36 fire, T40 Vicious Mockery on Scrope",
+     "what_they_did": "\u201cYou\u2019ve just made yourselves accomplices to theft, arson and assault.\u201d",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "3 (Heron)",
+     "turn": 53,
+     "who": "Old Saul",
+     "earlier": "T41: my fake 'the Watch is coming' shout",
+     "what_they_did": "\u201cThat\u2019s the second false alarm tonight.\u201d",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "4 Wharves after dark",
+     "turn": 55,
+     "who": "Kell",
+     "earlier": "T32: she took Hobb's brass heron to fetch his mother",
+     "what_they_did": "After I prompted her: \u201cI got her to Nan\u2019s. She\u2019s safe there for now.\u201d But she first opened the scene as if the Heron hadn't happened, and kept the false 'Nan put you out' detail.",
+     "verdict": "partly"
+    },
+    {
+     "scene": "5 Heron Warehouse",
+     "turn": 57,
+     "who": "Old Saul and Duchess",
+     "earlier": "Scene 3: I sat on a sack as their prisoner",
+     "what_they_did": "\u201cEvening, gentleman from the sack.\u201d / \u201cDuchess says she remembers you, but she\u2019s not agreed to be stabbed over it.\u201d",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "5 Heron Warehouse",
+     "turn": 58,
+     "who": "Old Saul",
+     "earlier": "T47: Hobb's public confession",
+     "what_they_did": "\u201cHobb said he held Prout, the Master held the cord, then Hobb hauled him up.\u201d",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "5 Heron Warehouse",
+     "turn": 66,
+     "who": "Hobb",
+     "earlier": "T27-T32: I promised to get his mother safe; Kell took her to Nan's",
+     "what_they_did": "\u201cThank you, sir... I\u2019ll tell it proper.\u201d",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "6 King's Morning",
+     "turn": 68,
+     "who": "Kell",
+     "earlier": "Scene 3/5 confession wording",
+     "what_they_did": "She corrected me precisely: \u201cHobb said he held Prout while Sallow held the cord... Hobb hasn\u2019t given me a sworn statement yet.\u201d She didn't confirm the pie promise she had witnessed in scene 1.",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "6 King's Morning",
+     "turn": 69,
+     "who": "Kell",
+     "earlier": "T13: Cob handed her the page from the boot",
+     "what_they_did": "\u201cThe page is in my custody, investigator. Cob gave it to me for the book.\u201d",
+     "verdict": "remembered"
+    },
+    {
+     "scene": "6 King's Morning",
+     "turn": 68,
+     "who": "Kell",
+     "earlier": "T60: I handed her a wheat-ear sack; T61-T63: Scrope brought her the ledger",
+     "what_they_did": "\u201cThe ledger and the sacks are at the Heron, not here.\u201d",
+     "verdict": "partly"
+    },
+    {
+     "scene": "6 King's Morning",
+     "turn": 72,
+     "who": "King / epilogue",
+     "earlier": "Scene 1 promises: a pie each for Cob and Moll, Cob keeps the boots, the stone with interest; Hobb's mother protected",
+     "what_they_did": "All granted. Small drift: \u201cMoll shares the promised hot pork pie\u201d (it was one each), and \u201cNan, who brought her safely there\u201d (Kell brought her).",
+     "verdict": "partly"
+    }
+   ],
+   "pacing": "**Scene 1** was the best-paced: clues came in a sensible chain (boots, then the paid lie, the body marks, the page in the boot, then Cob's account), gated by two failed Persuasion rolls and an earned apology. The back half gave things up a little easily. Right after the apology Moll volunteered \u201cYou want the truth? Start by asking who paid me to lie\u201d, then named Sallow, the cane and the coin in the very next reply. Kell added, unprompted: \u201cProut came to me three days ago. He asked how to report false entries in the King\u2019s rolls.\u201d Cob then delivered the whole night in one speech (\u201cThen there was a thump. A choking noise. The hoist started creaking.\u201d).\n\n**Kell as prompt:** She often ended a beat with \u201cWhat would you like to look at first?\u201d / \u201cWhat do you want me to put on the record, investigator?\u201d, which is a bit hint-dispenser-like.\n\n**Scenes 2 and 3 (the Rat):** Scene 2 was a crisp 4-turn transit. The Rat built real tension with Hobb: he fled, refused (\u201cYou don\u2019t know what he\u2019ll do to my mum\u201d), and only confessed after a 17 Persuasion. That felt earned.\n\n**The Heron:** A run of dice-free refusals of my cons (T29 impersonation, T33 grain-sack ride, T38-39 Saltmere notary bluff, T41 'the Watch is coming') felt like the game protecting its plot rather than letting the dice decide.\n\n**Scenes 4-5** dragged because they replayed what I had already done (\u201cThe gentleman comes at midnight to see it off\u201d).\n\n**The ending:** The King's Morning paid everything off in 6 turns. It was warm, but slightly rushed: the end card arrived right after I handed over the stone, and the epilogue summarised the fates in one paragraph.",
+   "characters": "**Sergeant Agnes Kell** is excellent and consistent: dry, scrupulous, and never overawed by my patter.\n- \u201cYou can ask that their names be withheld. You can\u2019t order it by calling yourself the King\u2019s notary.\u201d\n- \u201cNot that way, investigator.\u201d\n- \u201cThat is not a royal warrant, investigator. It is a page of statements, however convincingly you\u2019ve dressed it.\u201d\n- \u201cYou do have a history with doors.\u201d\n\nShe sometimes doubled as a prompt-giver.\n\n**Cob** was alive: \u201cInterest is two stones. Cob knows numbers.\u201d / \u201cbum-faced palace pigeon\u201d.\n\n**Moll** was sharp: \u201cHis Majesty sent a paper-man to stop rocks? That\u2019s a king\u2019s economy for you.\u201d / \u201cButter knife or not, I know which end to hold.\u201d\n\n**Big Hobb Mallory** was the emotional core: frightened, decent, and believable.\n- \u201cYou don\u2019t know what he\u2019ll do to my mum.\u201d\n- \u201cI only held the rope.\u201d\n- \u201cTell her it\u2019s from her Hobby.\u201d\n\n**Nan Quill** and her cudgel Manners were vivid (\u201cNo fighting indoors... Take it to the stairs\u201d), until she was teleported to the Heron.\n\n**Old Saul** was dry and great: \u201cHobb\u2019s on the hoist, unless he\u2019s stopped being on it. Master\u2019s inside, unless he\u2019s stopped being inside.\u201d\n\n**Scrope** had the best turn of the night: \u201cNo, Master. The error is already entered.\u201d\n\n**Hep Grist** appeared late but gave the gang a voice (\u201cWe\u2019ll swear. All of us.\u201d).\n\n**King Aldren** was tender and fallible: he admits he set aside Wendell's letter, and closes with \u201cMilk first. You remembered.\u201d\n\n**Weaker characters:**\n- **Sallow** is smooth but thin. He leans on procedure (\u201cYou will not arrest an officer of the Purveyor\u2019s office without a warrant\u201d) and sees through every trick without a roll.\n- **The Crake brothers** (\u201calike as bollards\u201d) are props with no names or stats, which is likely why my attacks landed on Hobb.\n- **Arlo** gets one line.",
+   "scene_notes": [
+    {
+     "scene": "1 The hanged clerk (granary yard)",
+     "notes": "Strong opening: the stone-throwing boy, the swearing girl, the pigeon, Kell's notebook. The boots clue (Prout in stockings, Cob in oversized black boots) is lovely and paid off with the crackling page in the left boot. My promises (pies, boots, stone with interest) were all tracked. Spells were judged in-world (Kell: \u201cYou\u2019ve cast on a witness without asking\u201d). Some auto-resolutions: the stone catch, the palming attempt caught without a roll, the padlock. 17 turns."
+    },
+    {
+     "scene": "2 Caerwyn, the afternoon (market)",
+     "notes": "Good downtime transit. The short rest was applied correctly, with no bard slot recovery. Worldbuilding was funny (\u201ctemporary scarcity is not grounds for discourtesy\u201d). The bread seller handed over the next lead (Saltmere barges, porters with bandaged hands at the Drowned Rat). Kell kept track of my stone and my copper. Disguise Self was handled per the rules. 4 turns."
+    },
+    {
+     "scene": "3 The Drowned Rat (+ my early trip to the Heron)",
+     "notes": "34 turns. The Rat half was excellent: Charm Person, Suggestion and Silent Image were all close to the rules, Hobb was a great NPC, and Nan's rules worked as a mechanic. I then got ahead and went to the Heron in the same scene. The game improvised impressively (Saul, Duchess, Scrope in a glass counting-box, Sallow's arrival, the spreading fire) and NPC memory held. But combat broke (attacks on the Crakes booked to Hobb), and the scene's scripted exit ('Manners') was forced onto the Heron by teleporting Nan and Kell. The brass token was briefly in two places at once."
+    },
+    {
+     "scene": "4 The wharves after dark",
+     "notes": "2 turns. It replayed the pre-Heron setup as if I hadn't been there. When challenged, Kell admitted \u201cI had the order of events wrong\u201d and kept the promise thread (Hobb's mother safe at Nan's). It also kept the false 'Nan put you out' detail."
+    },
+    {
+     "scene": "5 The Heron Warehouse",
+     "notes": "10 turns. The opening reset the warehouse (loading again, dog asleep), but once engaged everyone remembered me, Hobb's confession and the wounds. Turning Scrope and the gang with Prout's 'proper channels' was the dramatic high point. Kell made the arrest on her own grounds (receiving stolen Crown goods) rather than accept my fake warrant. That was a nice principled beat, but Illusory Script as a ritual was hand-waved."
+    },
+    {
+     "scene": "6 The King's Morning",
+     "notes": "6 turns. Long rest and level-up handled (with missing spell and cantrip picks). The King's tea detail ran through the scene. All promises were granted explicitly. My Silent Image was cast on an offer and swung the King's decision. Minor staging slips: a dismissed valet and the departed Marshal were still in the room. Ended cleanly and warmly."
+    }
+   ],
+   "stonewalled": [
+    {
+     "turn": 14,
+     "what": "Tried to force the loft/yard door with my rapier: \u201cThe padlocked yard doors stop you at the threshold... Your rapier finds no latch to lever.\u201d No Athletics or tools check offered, though Cob had just used a loose board to get inside."
+    },
+    {
+     "turn": 29,
+     "what": "Offered to take Hobb's place at the eleventh bell via Disguise Self: \u201cYou can\u2019t wear my face, sir.\u201d Refused without a roll. Arguably fair, since Disguise Self can't add much bulk."
+    },
+    {
+     "turn": 33,
+     "what": "Plan to be hoisted into the Heron inside a grain sack: \u201cYou\u2019re not a sack of barley, sir.\u201d Refused flatly, no roll."
+    },
+    {
+     "turn": 39,
+     "what": "Bluffed Scrope that Sallow sent me, quoting real details (silver cane, wheat ring): no Deception roll. \u201cMaster Sallow doesn\u2019t send notaries. He sends a written order.\u201d"
+    },
+    {
+     "turn": 41,
+     "what": "Shouted to the gang that the Watch was coming: no roll. \u201cNo one bolts.\u201d"
+    },
+    {
+     "turn": 45,
+     "what": "Prout's ghost illusion: Sallow saw through it instantly with no Investigation check against my DC."
+    }
+   ],
+   "railroaded": [
+    {
+     "turn": 54,
+     "what": "The Drowned Rat's scripted ending ('Manners') fired while I was at the Heron. Nan Quill appeared at the Heron door: \u201cYou\u2019re out. All of you who took a side. Now.\u201d She barred it, and I landed \u201con the wet stairs\u201d. This cut off a live confrontation."
+    },
+    {
+     "turn": 55,
+     "what": "The next scene forced the story back to before the Heron (\u201cThe gentleman comes at midnight to see it off\u201d), making me replay a confrontation I had already won."
+    },
+    {
+     "turn": 56,
+     "what": "The Heron Warehouse scene opened with the warehouse reset (loading resumed, dog asleep at the door) despite the fire, the broken mooring and the stopped loading."
+    },
+    {
+     "turn": 71,
+     "what": "I offered Silent Image as an option ('Your choice. It is your Assembly.'); the game cast it immediately in the dressing room and spent the slot."
+    },
+    {
+     "turn": 66,
+     "what": "Level-up ASI (+2 Charisma) was chosen for me, with no prompt to pick new spells or a cantrip."
+    }
+   ],
+   "inconsistencies": [
+    {
+     "turn": 2,
+     "what": "Cob \u201cvanishes through a gap in the boards\u201d, then in the same reply Kell says \u201cThe boy\u2019s still here, investigator.\u201d"
+    },
+    {
+     "turn": 16,
+     "what": "The dagger given to Moll stayed on the sheet (Equipment and 'Dagger +5' attack) for the rest of the game."
+    },
+    {
+     "turn": 25,
+     "what": "Silent Image (an area illusion on the stairs) was logged as \u201cCast Silent Image (1st-level slot) on Big Hobb Mallory\u201d."
+    },
+    {
+     "turn": 33,
+     "what": "Hobb \u201cdraws the brass token out from under his shirt\u201d while \u201cKell stands above on the steps, still holding Hobb\u2019s token\u201d. Kell had already left up the stairs, and the eleventh bell rang a second time. Corrected on the next turn when I asked."
+    },
+    {
+     "turn": 35,
+     "what": "\u201cSilent Image has run out\u201d announced 8 turns after I dismissed the image (T27). It happened again at the scene-4 boundary for the ghost I dismissed at T48."
+    },
+    {
+     "turn": 51,
+     "what": "My rapier attacks on the Crake brothers (T51, T52, T54) were rolled against \u201cBig Hobb Mallory\u201d, who was out on the wharf holding the barge rope. T51 narration even said \u201cYour rapier lunges for Hobb\u2019s reaching forearm.\u201d T52 and T54 booked 6 and 5 damage to Hobb while narrating wounds on the Crakes."
+    },
+    {
+     "turn": 54,
+     "what": "Nan Quill (the Drowned Rat's landlady) appears at the Heron's door. \u201cBehind the barred door, the Rat\u2019s noise swells.\u201d Kell, who was across the city with Hobb's mother, is suddenly \u201ca few steps above\u201d."
+    },
+    {
+     "turn": 55,
+     "what": "Kell: \u201cWhat did you see when Nan put you out?\u201d The game held on to the teleported-Nan error."
+    },
+    {
+     "turn": 57,
+     "what": "The scene-5 opening says \u201cThe hoist swings another sack out over the water\u201d; Saul says \u201cLoading\u2019s stopped, and all\u2019s well.\u201d"
+    },
+    {
+     "turn": 67,
+     "what": "\u201cThe King dismisses the valets with a look\u201d, yet \u201cOne valet, still holding a pin between his lips\u201d is there at T67 and drops a pin at T71. Marshal Holt \u201csteps out\u201d at T70, then \u201csnaps his watch shut\u201d in the room at T71."
+    },
+    {
+     "turn": 68,
+     "what": "Kell: \u201cThe ledger and the sacks are at the Heron, not here\u201d, though I handed her a sack at T60 and Scrope brought her the ledger at T61-T63."
+    },
+    {
+     "turn": 72,
+     "what": "Epilogue drift: \u201cMoll shares the promised hot pork pie\u201d (I promised one each), and \u201cNan, who brought her safely there\u201d (Kell brought Hobb's mother). The final sheet still shows Rapier \u201c(in hand)\u201d, though I sheathed it at T58."
+    }
+   ],
+   "best_moment": "The fire. At T36 I tipped a lantern into empty sacking at the far end of the wharf as a distraction, and the world kept it burning on its own terms:\n- \u201cthe fire\u2019s reached the mooring ropes\u201d\n- \u201csmoke is beginning to drift beneath the warehouse eaves\u201d\n- Sallow charging me with \u201ctheft, arson and assault\u201d\n- a shout of \u201cIt\u2019s through!\u201d as the rope parted, the barge swinging loose, and Hobb grabbing the line with his already rope-burned hands\n- two scenes later, \u201cthe mooring rope is blackened where it caught\u201d\n\nMy own mischief became the turning point of the climax. A close second: Scrope picking up the ledger after I quoted Prout's last words: \u201cNo, Master. The error is already entered.\u201d",
+   "worst_moment": "T51 to T56. My rapier attacks on the Crake brothers were rolled and booked against my ally Big Hobb Mallory, with the narration even saying \u201cYour rapier lunges for Hobb\u2019s reaching forearm\u201d. Then Nan Quill, the landlady of a different building, materialised at the Heron to throw me out so the Drowned Rat scene could end on its scripted beat. The next two scenes then reset the warehouse and told me \u201cThe gentleman comes at midnight to see it off\u201d, after I had already confronted him at midnight and got a public confession.",
+   "ratings": {
+    "fun": 4,
+    "story": 4,
+    "characters": 4,
+    "memory": 4,
+    "pacing": 3,
+    "humour": 4,
+    "consistency": 2,
+    "responsiveness": 3,
+    "rules": 3
+   },
+   "would_keep_playing": true,
+   "other_notes": "**What looks tracked as real state, and what looks narrative-only.** These observations bear on the user's goal of world updates applied to a state tree (items destroyed, new characters added to the tree, spatial queries such as 'nearby' or 'radius'). I played blind, so they are inferences from behaviour.\n\nTracked as real state:\n- HP, spell slots, spell durations, rests and level\n- The 'charmed' condition on Hobb\n- Damage on named NPCs\n\nNarrative-only:\n- **Items.** The given-away dagger stayed on the sheet. The pocketed stone, sacking, grain and the confiscated cane never appeared. Money doesn't exist, yet I could spend a copper.\n- **Characters created mid-scene.** The Crake brothers, Hep, Scrope and Saul had no game-side entities. As a result, attacks on the Crakes fell back to the only named NPC at hand (Hobb), wherever he stood. Adding newly introduced characters to the scene tree, with HP and AC, would fix this directly.\n- **NPC positions.** Nan was moved from the Rat to the Heron, and Kell from the Shambles to the wharf, without any check. A 'where is X / who is nearby' query would have caught both.\n- **Location state.** The fire and the broken mooring survived only as prose. The next scene's scripted opening overwrote the warehouse (loading resumed, dog asleep), keeping just the 'blackened rope'.\n- **Dismissed spells.** There seems to be no 'end concentration' action: dismissed illusions later 'ran out'. Silent Image needs a place, not a creature, as its target.\n- **Combat.** Initiative never started even when Sallow ordered 'Take him'. Vicious Mockery never rolls a save or damage.\n\nOn the plus side, NPC memory of what the player did is excellent even across scene resets (Saul, Duchess, Kell, the King), and the spell-slot and rest bookkeeping was flawless.\n\nMy copy of the full transcript: /tmp/claude-1000/-home-jon-git-kingmaker/35fbf16c-f75a-4d9b-b39e-d31232946d70/scratchpad/transcript.txt\nMy turn-by-turn notes: /tmp/claude-1000/-home-jon-git-kingmaker/35fbf16c-f75a-4d9b-b39e-d31232946d70/scratchpad/notes.txt"
+  }
+ }
+]
