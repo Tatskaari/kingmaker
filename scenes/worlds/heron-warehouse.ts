@@ -1,4 +1,4 @@
-import type { WorldSpec } from "../../../world/scene-world.ts";
+import type { WorldSpec } from "../../src/world/scene-world.ts";
 
 /**
  * The Heron warehouse as a world (feet; x runs east from the end of the wharf, y south from the

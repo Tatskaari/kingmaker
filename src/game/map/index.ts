@@ -39,5 +39,5 @@ export { render, project, screenOf, tileAtScreen, type RenderOptions, type Viewp
 export { toAnsi, toPlain } from "./ansi.ts";
 export { buildMap, tileAt, regionAt, inBounds, isStructure, isRoofed, direction, steps, type MapTile, type PlaceRegion, type MapDef, type MapSpec, type TileDef, type DecorDef } from "./tiles.ts";
 export { CAST, lookForEntity, lookForName } from "./looks.ts";
-export { heronWorld } from "./worlds/heron.ts";
-export { dressingRoomWorld } from "./worlds/dressing-room.ts";
+export { heronWorld } from "../../../scenes/worlds/heron-warehouse.ts";
+export { dressingRoomWorld } from "../../../scenes/worlds/kings-morning.ts";

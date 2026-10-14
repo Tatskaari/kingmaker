@@ -8,7 +8,7 @@ import { forceEnding, type TurnHooks } from "../runtime/engine.ts";
 import { sessionDir, snapshotSession, type Entry, type EntryKind, type SessionState } from "../runtime/session.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { combat, maps, type CombatAction, type CombatController, type Dir, type Position } from "./adapters.ts";
-import { afterTurn } from "./background.ts";
+import { afterTurn } from "../runtime/background.ts";
 import { actionIdOf, mapExplorer, MOVE_ID } from "./explorer.ts";
 import { fightActionId, tacticalFights } from "./fights.ts";
 import { repairCampaign } from "./rules-repair.ts";

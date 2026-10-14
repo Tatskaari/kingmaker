@@ -2,15 +2,15 @@ import { spawn } from "node:child_process";
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { approachById } from "../runtime/approaches.ts";
-import { shouldRepair } from "../runtime/repair.ts";
-import { sessionDir, type SessionState } from "../runtime/session.ts";
+import { approachById } from "./approaches.ts";
+import { shouldRepair } from "./repair.ts";
+import { sessionDir, type SessionState } from "./session.ts";
 
 /**
  * Background work between turns, exactly as the scene CLI does it (src/cli/scene.ts): the co-GM
  * reviews the scene and the docs-service memory reviews the turn, each in a detached process that
  * reads the saved session and writes its own files, which the next turn picks up. Never waited on.
- * (Proposal: move spawnRepair/spawnRemember out of the CLI into src/runtime so both share them.)
+ * Shared by the scene CLI, the playable game (src/game/play.ts) and the app.
  */
 
 const CLI = fileURLToPath(new URL("../cli/scene.ts", import.meta.url));

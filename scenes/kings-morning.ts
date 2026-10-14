@@ -1,6 +1,6 @@
 import type { Character, Scene } from "../src/runtime/scene.ts";
 import { hangedClerk } from "./hanged-clerk.ts";
-import { kingsMorningWorld } from "./worlds/kings-morning.ts";
+import { dressingRoomWorld } from "./worlds/kings-morning.ts";
 
 /**
  * The end of the Purveyor's Man arc: the morning of the Centennial Assembly, in the King's dressing
@@ -159,5 +159,5 @@ export const kingsMorning: Scene = {
     },
   ],
   lore: ["World/Royal Palace.md", "Cast/King Aldren/public.md"],
-  world: kingsMorningWorld,
+  world: dressingRoomWorld,
 };

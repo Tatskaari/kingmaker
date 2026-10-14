@@ -472,7 +472,7 @@ export const drownedRat: Scene = {
   ],
   anchors: ["river-stairs", "rat-door", "bar", "rules-board", "fireside-corner", "card-table", "champions-chair", "scullery", "slop-hatch"],
   lore: ["Places/The Drowned Rat.md"],
-  assumes: ["The player hasn't already found Big Hobb Mallory, the big man with the bandaged hand, and got what he knows."],
+  assumes: ["Big Hobb Mallory, the big man with the bandaged hand, is still at large and hasn't told the player what he knows (he hasn't been caught, arrested or questioned yet). The player knowing who his master is doesn't change that."],
   world: drownedRatWorld,
   overtaken: "wharf-night",
 };

@@ -1,5 +1,6 @@
 import type { Scene, Transition } from "../src/runtime/scene.ts";
 import type { SceneOutcome, WorldApi } from "../src/world/dsl.ts";
+import { heronWorld } from "./worlds/heron-warehouse.ts";
 
 /**
  * Scene three, and the end, of the Purveyor's Man arc (docs/design/caerwyn-arc.md): hanged-clerk →
@@ -502,7 +503,8 @@ export const heronWarehouse: Scene = {
   lore: ["Places/Heron Warehouse.md"],
   assumes: [
     "Tonight's loading at the Heron is still going on: the barge hasn't sailed or been stopped, and the true book is still in the Heron.",
-    "Master Sallow is still free and unexposed, and still coming to the Heron at the midnight bell.",
+    "Master Sallow is still free (not arrested, not fled the city) and still coming to the Heron at the midnight bell. (The player suspecting him, or even naming him to the watch, doesn't change that: only his arrest or flight does.)",
   ],
   overtaken: "kings-morning",
+  world: heronWorld,
 };

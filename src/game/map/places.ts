@@ -5,8 +5,8 @@ import type { StoryState, Tile2, TileMap } from "../types.ts";
 import { getMap } from "./maps/index.ts";
 import { feetToTile } from "./reconcile.ts";
 import type { PlaceRegion } from "./tiles.ts";
-import { dressingRoomWorld } from "./worlds/dressing-room.ts";
-import { heronWorld } from "./worlds/heron.ts";
+import { dressingRoomWorld } from "../../../scenes/worlds/kings-morning.ts";
+import { heronWorld } from "../../../scenes/worlds/heron-warehouse.ts";
 
 /**
  * Where each scene of the arc happens, and what the map needs to know about it: its place (a map
