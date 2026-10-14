@@ -5,9 +5,9 @@ import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { approachById } from "./approaches.ts";
 import { currentBeat, effectiveScene, presentCast, sceneEntries } from "./brief.ts";
-import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, relocateDirective, STALL_DIRECTIVE, type Move } from "./director.ts";
+import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, relocateDirective, STALL_DIRECTIVE, type ActFrom, type Move } from "./director.ts";
 import { describeRoll } from "./dice.ts";
-import { buildWorld, heldBy, joinWorld, tick, within, type Entity } from "../world/scene-world.ts";
+import { applyOps, buildWorld, heldBy, joinWorld, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
 import { stageManage } from "../world/stage.ts";
 import { attack as rulesAttack, attackOnPlayer, castSpell, comeTo, createCharacter, hazard, levelUp, passTime, rest, type Outcome } from "../rules/dnd.ts";
 import { applyPendingRepairs, applyRepair, quickRepair, runRepair, writeRepair } from "./repair.ts";
@@ -310,6 +310,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (pre.mechanic && state.rules) {
     const m = pre.mechanic;
     const present = presentCast(scene, state);
+    // Moved first, in the same turn: the spell or blow comes from where they ended up.
+    if (state.world && m.kind !== "rest" && m.from) moveToAct(state, m.from, m.kind === "cast" ? m.targets.find(t => t !== "self") : m.target);
     const outcome: Outcome = await (m.kind === "cast" ? castSpell(state, present, m.spell, m.targets) : m.kind === "attack" ? rulesAttack(state, present, m.target, m.weapon) : rest(state, m.length))
       .catch(error => ({ lines: [`(The rules couldn't resolve that: ${error instanceof Error ? error.message : String(error)})`], directive: "" }));
     for (const text of outcome.lines) push(state, hooks, { speaker: "dice", kind: "roll", text });
@@ -642,7 +644,7 @@ export function transcriptMarkdown(state: SessionState, options: { allScenes?: b
 }
 
 /** What the player could aim a spell or a blow at in the world: things near them, and people outside the cast. */
-function aimable(state: SessionState): { things: Array<{ id: string; name: string }>; bystanders: Array<{ id: string; name: string }> } {
+function aimable(state: SessionState): { things: Array<{ id: string; name: string }>; bystanders: Array<{ id: string; name: string }>; places: Array<{ id: string; name: string }>; landmarks: Array<{ id: string; name: string }> } {
   const world = state.world!;
   const cast = new Set(sceneById(state.sceneId).cast.map(c => c.id));
   // Anything in reach of a spell or a blow, except what other people are holding.
@@ -651,7 +653,22 @@ function aimable(state: SessionState): { things: Array<{ id: string; name: strin
     .slice(0, 16).map(e => ({ id: e.id, name: e.name }));
   const bystanders = Object.values(world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !cast.has(e.id) && !e.states.includes("gone"))
     .map(e => ({ id: e.id, name: e.name }));
-  return { things, bystanders };
+  // Where they might act from: an area, or anything in the place someone could walk over to.
+  const live = Object.values(world.entities).filter(e => !e.states.includes("gone") && !e.player);
+  const places = live.filter(e => e.kind === "area").map(e => ({ id: e.id, name: e.name }));
+  const landmarks = live.filter(e => (e.kind === "feature" || e.kind === "object" || e.kind === "person" || e.kind === "creature") && !heldBy(world, e)).map(e => ({ id: e.id, name: e.name }));
+  return { things, bystanders, places, landmarks };
+}
+
+/** Put the player where they act from before the rules roll (see ActFrom). */
+function moveToAct(state: SessionState, from: ActFrom, aim: string | undefined): void {
+  const world = state.world!;
+  const blank = { what: "player", to: "", how: "", name: "", kind: "", text: "", add: [], remove: [] };
+  const ops: WorldOp[] = [];
+  if (from.area) ops.push({ ...blank, op: "move", to: from.area });
+  if (from.near) ops.push({ ...blank, op: "move", to: from.near });
+  if (from.backOff && aim && world.entities[aim]) ops.push({ ...blank, op: "place", to: aim, how: "away", feet: from.backOff });
+  applyOps(world, ops, state.turn, "rules");
 }
 
 /** Everything someone holds, and what those things hold. */
