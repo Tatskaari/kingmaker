@@ -142,3 +142,26 @@ With good cast cards, limits, endings and a pressure, the authored beat sequence
 ### Bug worth remembering: plain actions suppressed pacing cues
 
 Adding the built-in improvised ending as an "outcome" also made it appear as a "simply happens" option in every before-reply decision. When the player walked off with Tam, the decider half-picked it (below the ending threshold). That counted as "the player simply did something", and my rule "the player's action outranks a pacing cue" then suppressed the goblins' cue for eight turns. The GM voice hid it by bringing the goblins on itself; actors couldn't, and actors endings fell to 1/9. Fix: the improvised ending is only judged after the reply, and only a real *attempt* outranks a cue. Actors endings came back to 7/10 (progress 3.8; gm 4.0).
+
+## 2026-10-14 — Decider in play; rolls tied to plot beats
+
+### Does decider accuracy matter in play?
+
+Trajectories (5 cases), single GM voice, Luna decisions vs Jev as the director:
+
+| run | gm (Luna decisions) progress / criterion | gm-jev progress / criterion |
+|---|---|---|
+| n=10 each | 3.70 / 7 of 10 | 4.50 / 9 of 10 |
+| n=15 each (repeat) | 4.27 / 13 of 15 | 3.93 / 10 of 14 |
+| pooled | ~4.04 | ~4.17 |
+
+Within noise. Behaviourally, Jev called "risky, roll for it" on 27% of turns vs 8% for Luna decisions (18 freeform rolls vs 5). Each roll hands the GM a decisive "success means they get it" directive, which the judge seems to like for pacing. Classification accuracy on labelled cases (where Luna decisions leads 93–100% vs 73–81%) doesn't translate into a visible quality gap over whole scenes. Luna decisions stays the default: it's more accurate, and it's faster (~0.25 s).
+
+### User steer: rolls belong to plot beats, and must say why
+
+"The automatic skill check thing wasn't very good fun for players because we didn't really see why the roll was necessary. I think rolls should be tied to plot beats, i.e. be triggered by edges in the scene conversation graph. And it should say why you're rolling."
+
+That matches round 1's blind players ("dice with nothing at stake"). Changes:
+- Freeform rolls are off by default (`freeformChecks` approach flag). A risky action that no edge covers is resolved by the GM in the story (the pickpocket attempt: "Tam's hand snaps down over yours"). The co-GM can still add an edge with a roll when a genuinely new approach deserves one.
+- Every authored check has a `reason`, player-facing and generated once per scene, then reviewed in the source. It's shown on the dice line and given to the GM: `🎲 Persuasion check to calm Tam and earn his trust: 20 + 2 = 22 vs DC 10: success (natural 20!)`.
+- Decision suite with edge-only rolls: 100% (38 cases).
