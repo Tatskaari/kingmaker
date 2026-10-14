@@ -5,9 +5,9 @@ import { ASSETS } from "../world/assets.ts";
 import { sceneById } from "../../scenes/index.ts";
 import { approachById } from "./approaches.ts";
 import { currentBeat, effectiveScene, IMPROVISED_EXIT_ID, presentCast, sceneEntries } from "./brief.ts";
-import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, relocateDirective, STALL_DIRECTIVE, type Move } from "./director.ts";
+import { CONSEQUENCE_DIRECTIVE, EARNED_DIRECTIVE, GUARD_STAGES, decideAfter, decideBefore, decideNextSpeaker, FOLLOW_UP_DIRECTIVE, freeformDirective, limitDirective, moveDirective, OOC_DIRECTIVE, plainDirective, pressureDirective, pressureReason, relocateDirective, STALL_DIRECTIVE, type ActFrom, type Move } from "./director.ts";
 import { describeRoll } from "./dice.ts";
-import { areaOf, buildWorld, heldBy, joinWorld, tick, within, type Entity } from "../world/scene-world.ts";
+import { applyOps, areaOf, buildWorld, heldBy, joinWorld, tick, within, type Entity, type WorldOp } from "../world/scene-world.ts";
 import { inventory, startingPurse } from "../world/inventory.ts";
 import { stageManage } from "../world/stage.ts";
 import { attack as rulesAttack, attackOnPlayer, carryGear, castSpell, comeTo, createCharacter, hazard, levelUp, passTime, rest, wrestle, type Outcome } from "../rules/dnd.ts";
@@ -17,6 +17,7 @@ import { newSessionId, saveSession, snapshotSession, type Entry, type EntryKind,
 import { actorReply, gmReply, narratorReply, type Spoken } from "./voices.ts";
 import { disclose, keepOpened, URGENT } from "../lore/disclosure.ts";
 import { savePlayedScene } from "../lore/docs.ts";
+import { frontsText, moveFronts, type FrontChanges } from "../lore/fronts.ts";
 import { rememberScene } from "../lore/remember.ts";
 import { broadcastEnding } from "../lore/reviews.ts";
 
@@ -331,6 +332,8 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   if (pre.mechanic && state.rules) {
     const m = pre.mechanic;
     const present = presentCast(scene, state);
+    // Moved first, in the same turn: the spell or blow comes from where they ended up.
+    if (state.world && m.kind !== "rest" && m.from) moveToAct(state, m.from, m.kind === "cast" ? m.targets.find(t => t !== "self") : m.target);
     const outcome: Outcome = await (m.kind === "cast" ? castSpell(state, present, m.spell, m.targets, { ritual: /\britual\b/i.test(input) && !/\b(not|no|without|rather than)\b[^.!?]{0,20}\britual/i.test(input) && !/\bspend(ing)? a\b[^.!?]{0,12}\bslot\b/i.test(input) }) : m.kind === "attack" ? rulesAttack(state, present, m.target, m.weapon) : m.kind === "wrestle" ? wrestle(state, present, m.target, m.how) : rest(state, m.length))
       .catch(error => ({ lines: [`(The rules couldn't resolve that: ${error instanceof Error ? error.message : String(error)})`], directive: "" }));
     for (const text of outcome.lines) push(state, hooks, { speaker: "dice", kind: "roll", text });
@@ -495,7 +498,10 @@ export async function playerTurn(state: SessionState, input: string, hooks: Turn
   let leftPlace = false;
   const replyText = spoken.map(s => s.speaker === "gm" ? s.text : `${scene.cast.find(c => c.id === s.speaker)?.name}: ${s.text}`).join("\n\n");
   // The stage manager keeps the world in step with what the reply established, alongside the decision.
-  const staging = state.world ? stageManage(state.world, state.player, input, replyText, state.turn).catch(() => undefined) : undefined;
+  const staging = state.world ? stageManage(state.world, state.player, input, replyText, state.turn, {
+    rules: state.transcript.filter(e => e.turn === state.turn && e.kind === "roll" && (e.scene ?? state.sceneId) === state.sceneId).map(e => e.text),
+    cast: presentCast(scene, state).map(c => ({ id: c.id, name: c.name, look: c.look })),
+  }).catch(() => undefined) : undefined;
   if (!ended) {
     const postStarted = performance.now();
     const hold = state.pendingExit?.turn === state.turn ? state.pendingExit.exitId : undefined;
@@ -622,14 +628,14 @@ export async function chainScene(state: SessionState, combatResult = "the party 
     id = candidate.assumes?.length ? candidate.overtaken : undefined;
   }
   if (!candidates.length) return undefined;
-  const { handoff, sceneId, adjustments, skipped, opening, lead } = await crossBoundary(scene, state, exit, combatResult, candidates);
+  const { handoff, sceneId, adjustments, skipped, opening, lead, fronts } = await crossBoundary(scene, state, exit, combatResult, candidates);
   const memory = approachById(state.approach).memory;
   if (memory === "docs") broadcastEnding(scene, state, exit);
   if (memory === "lite") await rememberScene(scene, state, `${exit.title}: ${exit.outcome}`).catch(() => undefined);
   if (memory) savePlayedScene(state.id, scene, exit.title, handoff);
   const lastMoments = sceneEntries(state).filter(e => e.kind !== "system").slice(-4)
     .map(e => e.kind === "player" ? `${state.player.name} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.text);
-  state.history.push({ sceneId: scene.id, exitId: exit.id, summary: handoff, lastMoments, ...(skipped.length ? { skipped } : {}) });
+  state.history.push({ sceneId: scene.id, exitId: exit.id, summary: handoff, lastMoments, ...(skipped.length ? { skipped } : {}), ...(fronts.length ? { fronts } : {}) });
   const next = sceneById(sceneId);
   // What the player carries goes with them into the next scene's world.
   if (state.world) state.carried = carriedBy(state.world.entities, "player");
@@ -651,7 +657,7 @@ export async function chainScene(state: SessionState, combatResult = "the party 
  * skipped) and where that scene's prep is out of date. Prep is written before play; this is where
  * it catches up.
  */
-async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, combatResult: string, candidates: Scene[]): Promise<{ handoff: string; sceneId: string; adjustments: string[]; skipped: Array<{ sceneId: string; why: string }>; opening?: string; lead?: string }> {
+async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, combatResult: string, candidates: Scene[]): Promise<{ handoff: string; sceneId: string; adjustments: string[]; skipped: Array<{ sceneId: string; why: string }>; opening?: string; lead?: string; fronts: string[] }> {
   const transcript = sceneEntries(state).map(e => e.kind === "player" ? `${state.player.name} (player): ${e.text}` : e.kind === "dialogue" ? `${scene.cast.find(c => c.id === e.speaker)?.name ?? e.speaker}: ${e.text}` : e.kind === "narration" ? `GM: ${e.text}` : `[${e.text}]`).join("\n\n");
   const ended = `${exit.title}. ${exit.outcome}${exit.kind === "combat" ? ` The fight was then played out on the map: ${combatResult}.` : ""}`;
   const story = [
@@ -688,7 +694,12 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
       lead: { type: "string" },
     } } },
   }).catch(() => undefined);
-  const [text, result] = await Promise.all([handoff, verdict]);
+  // What's in motion in the world (the GM's fronts), as it stands in this session, moves on here too.
+  const frontsPath = scene.fronts ?? candidates.find(c => c.fronts)?.fronts;
+  const fronts = frontsPath ? frontsText(state.id, frontsPath) : undefined;
+  const moving = fronts ? moveOn(story, candidates[0]!, fronts) : Promise.resolve(undefined);
+  const [text, result, motion] = await Promise.all([handoff, verdict, moving]);
+  const moved = frontsPath && motion ? moveFronts(state.id, frontsPath, motion, scene.title) : [];
   // The first scene that holds: one that takes nothing for granted always does.
   const holds = (c: Scene) => !c.assumes?.length || result?.scenes.find(v => v.id === c.id)?.holds !== false;
   const chosen = candidates.find(holds) ?? candidates.at(-1)!;
@@ -697,7 +708,35 @@ async function crossBoundary(scene: Scene, state: SessionState, exit: Exit, comb
   const firstHolding = result ? candidates.find(c => !c.assumes?.length || result.scenes.find(v => v.id === c.id)?.holds !== false) : undefined;
   const opening = firstHolding?.id === chosen.id && result?.opening?.trim() ? result.opening.trim() : undefined;
   const lead = firstHolding?.id === chosen.id && result?.lead?.trim() ? result.lead.trim() : undefined;
-  return { handoff: text, sceneId: chosen.id, adjustments: (result?.adjustments ?? []).map(a => a.trim()).filter(Boolean).slice(0, 10), skipped, ...(opening ? { opening } : {}), ...(lead ? { lead } : {}) };
+  const shows = chosen.id === candidates[0]!.id ? motion?.shows ?? [] : [];
+  const adjustments = [...(result?.adjustments ?? []).slice(0, 10), ...shows.slice(0, 2)].map(a => a.trim()).filter(Boolean);
+  return { handoff: text, sceneId: chosen.id, adjustments, skipped, ...(opening ? { opening } : {}), ...(lead ? { lead } : {}), fronts: moved };
+}
+
+/**
+ * The world's turn at a scene boundary: which steps of what's in motion (the fronts doc) play or
+ * the time passing has made true or meaningless, any new bills to come due, and how what's newly
+ * true shows in the next scene. Runs alongside the boundary verdict.
+ */
+async function moveOn(story: string, next: Scene, fronts: string): Promise<(FrontChanges & { shows: string[] }) | undefined> {
+  const step = { type: "object", additionalProperties: false, required: ["front", "step"], properties: { front: { type: "string" }, step: { type: "string" } } };
+  return respondJson<FrontChanges & { shows: string[] }>({
+    operation: "fronts", effort: "low",
+    instructions: [
+      "You keep a roleplaying game's world moving between scenes, whether or not the player is looking. Below are the story so far, the next scene (its time and place), and what's in motion: fronts, each with a clock of steps.",
+      "- ticked: the unticked steps (\"- [ ]\") that what happened, or the time passing until the next scene opens, has now made true. Give each by its front (the ## heading) and the step's bold opening words. A step ticks because its condition is met or its hour has come, never because it would be dramatic, and nobody acts on what they couldn't have learned (each step says who learns what, and from whom).",
+      "- struck: unticked steps that play has made impossible or meaningless (the person is arrested, dead or gone, the thing destroyed, the matter settled), with why in a few words.",
+      "- bills: usually none. When the last scene ended hard, or the player did something reckless or daft that the world would answer later, a line for each such consequence not already listed: \"If <what happened>: <who answers it, how, and where it will show>\". At most two.",
+      "- shows: what's newly true that the player could meet in the next scene, by how it shows there (something seen, or someone who'd say it), as short statements of fact for its GM. Only what fits the next scene's time and place, at most one per front and from no more than two fronts. Often none.",
+    ].join("\n"),
+    input: [{ role: "user", content: `${story}\n\n## The next scene: ${next.title}\nWhen and where: ${next.setting}\nIts opening: ${next.opening}\n\n## What's in motion (GM only)\n${fronts}` }],
+    json: { name: "fronts", schema: { type: "object", additionalProperties: false, required: ["ticked", "struck", "bills", "shows"], properties: {
+      ticked: { type: "array", items: step },
+      struck: { type: "array", items: { ...step, required: ["front", "step", "why"], properties: { ...step.properties, why: { type: "string" } } } },
+      bills: { type: "array", items: { type: "string" } },
+      shows: { type: "array", items: { type: "string" } },
+    } } },
+  }).catch(() => undefined);
 }
 
 export function transcriptMarkdown(state: SessionState, options: { allScenes?: boolean } = {}): string {
@@ -707,16 +746,31 @@ export function transcriptMarkdown(state: SessionState, options: { allScenes?: b
 }
 
 /** What the player could aim a spell or a blow at in the world: things near them, and people outside the cast. */
-function aimable(state: SessionState): { things: Array<{ id: string; name: string }>; bystanders: Array<{ id: string; name: string }> } {
+function aimable(state: SessionState): { things: Array<{ id: string; name: string }>; bystanders: Array<{ id: string; name: string }>; places: Array<{ id: string; name: string }>; landmarks: Array<{ id: string; name: string }> } {
   const world = state.world!;
   const cast = new Set(sceneById(state.sceneId).cast.map(c => c.id));
   // Anything in reach of a spell or a blow, except what other people are holding.
   const inOthersHands = (e: Entity) => { const h = heldBy(world, e); return !!h && (h.kind === "person" || h.kind === "creature") && !h.player; };
-  const things = within(world, "player", 60, e => (e.kind === "object" || e.kind === "item" || e.kind === "feature") && !e.states.includes("destroyed") && !inOthersHands(e))
+  const things = within(world, "player", 60, e => (e.kind === "object" || e.kind === "item" || e.kind === "feature" || e.kind === "surface") && !e.states.includes("destroyed") && !inOthersHands(e))
     .slice(0, 16).map(e => ({ id: e.id, name: e.name }));
   const bystanders = Object.values(world.entities).filter(e => (e.kind === "person" || e.kind === "creature") && !e.player && !cast.has(e.id) && !e.states.includes("gone"))
     .map(e => ({ id: e.id, name: e.name }));
-  return { things, bystanders };
+  // Where they might act from: an area, or anything in the place someone could walk over to.
+  const live = Object.values(world.entities).filter(e => !e.states.includes("gone") && !e.player);
+  const places = live.filter(e => e.kind === "area").map(e => ({ id: e.id, name: e.name }));
+  const landmarks = live.filter(e => (e.kind === "feature" || e.kind === "object" || e.kind === "person" || e.kind === "creature") && !heldBy(world, e)).map(e => ({ id: e.id, name: e.name }));
+  return { things, bystanders, places, landmarks };
+}
+
+/** Put the player where they act from before the rules roll (see ActFrom). */
+function moveToAct(state: SessionState, from: ActFrom, aim: string | undefined): void {
+  const world = state.world!;
+  const blank = { what: "player", to: "", how: "", name: "", kind: "", text: "", add: [], remove: [] };
+  const ops: WorldOp[] = [];
+  if (from.area) ops.push({ ...blank, op: "move", to: from.area });
+  if (from.near) ops.push({ ...blank, op: "move", to: from.near });
+  if (from.backOff && aim && world.entities[aim]) ops.push({ ...blank, op: "place", to: aim, how: "away", feet: from.backOff });
+  applyOps(world, ops, state.turn, "rules");
 }
 
 /** Everything someone holds, and what those things hold. */

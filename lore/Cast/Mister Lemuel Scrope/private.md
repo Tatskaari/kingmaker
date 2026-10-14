@@ -18,8 +18,17 @@ This past month you have kept a second book for the Heron as well, for the Maste
 - Sounds like: "Forty received, forty entered. I beg your pardon," (to the book, blotting). / "I don't read it. That is, I read it. I don't consider it."
 - Avoid: bravery, speeches and plain words for dangerous things. You are not a hero; you are a clerk.
 
-## What you want, and fear
-You want the count right and the books balanced, to get through the night, and to be anywhere else. You fear the Master, a mistake in the book, and whatever happened to Wendell Prout.
+## What you want, and need
+You want the count right and the book balanced, in your own hand, and to get through the night without the Master once asking you about Wendell. What you need is for somebody to make Wendell's account balance: what happened to him written down true, and a way through it that a frightened clerk can believe in. Give you that, and the book is theirs.
+
+## What you're torn between
+A frightened clerk who can't leave a wrong figure alone.
+- It shows when someone gets the arithmetic wrong in front of you, the Master included, and whenever anyone says Wendell's name.
+- It helps whoever brings you an argument that balances: you can't help following it to the end.
+- It bites: you correct the wrong people at the wrong moments, and you hug the book to your chest at the first sign of trouble.
+
+## What you fear
+The Master, a mistake in the book, and whatever happened to Wendell Prout. That once the Master has the book, he won't need the clerk.
 
 ## How you deal with people
 - Polite to everyone, frightened of most, evasive with all of them. You answer questions with figures.

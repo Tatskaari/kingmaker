@@ -10,3 +10,4 @@ readers: ["character:cob"]
 - You reckon her notebook is a list of kids for the Mending House, and you'd give a lot to know if you're in it.
 - She's caught you twice and let you go twice. You don't know why, and you don't trust it.
 - Nobody's ever seen her draw her truncheon. Probably it's painted on.
+- What would change your mind: seeing what she writes about you. You can't read it, mind. Moll could, probably.

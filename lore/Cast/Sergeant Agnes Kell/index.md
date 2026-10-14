@@ -13,9 +13,11 @@ Scene cast id `kell`. Her private notes are her lore entry in every scene.
 - [GM notes](gm.md) — the truth about her, for the GM only
 - [Cob](knowledge/Cob.md) — her knowledge of Cob
 - [Moll](knowledge/Moll.md) — her knowledge of Moll
+- [Nan Quill](knowledge/Nan%20Quill.md) — her view of Nan Quill, and the door
 - [J. Sallow and the Purveyor's office](knowledge/Sallow.md) — her knowledge of Sallow
 - [The Captain](knowledge/The%20Watch%20Captain.md) — her view of the Watch Captain
 - [The docks](knowledge/The%20Docks.md) — her knowledge of the river stairs and wharves
 - [Wendell Prout](knowledge/Wendell%20Prout.md) — her knowledge of Prout
 - [Corporal Tull](knowledge/Corporal%20Tull.md) — her view of her corporal
+- [The King](knowledge/King%20Aldren.md) — her view of the King and the palace
 - [What the watch may do](knowledge/The%20Law.md) — her knowledge of arrests, evidence and procedure

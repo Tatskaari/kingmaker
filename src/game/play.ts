@@ -1,7 +1,8 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { sceneById } from "../../scenes/index.ts";
-import { chainScene, createSession, openScene, playerTurn, resumeAfterFight, type TurnHooks } from "../runtime/engine.ts";
+import { chainScene, createSession, forceEnding, openScene, playerTurn, resumeAfterFight, type TurnHooks } from "../runtime/engine.ts";
+import { afterTurn } from "../runtime/background.ts";
 import { loadSession, saveSession, sessionDir, type Entry, type SessionState } from "../runtime/session.ts";
 import type { CombatResult, StoryState } from "./types.ts";
 
@@ -80,10 +81,11 @@ export class Game {
     this.fight = fight;
   }
 
-  static async create(options: { player: string; level?: number; id?: string; seed?: number; explorer: Explorer; fights: FightFactory }): Promise<Game> {
-    const session = await createSession({ sceneId: FIRST_SCENE, approach: "v2", player: options.player, level: options.level ?? 3, ...(options.id ? { id: options.id } : {}), ...(options.seed !== undefined ? { seed: options.seed } : {}) });
-    const first = sceneById(FIRST_SCENE);
-    const state: GameState = { version: 1, id: session.id, mode: "explore", story: { time: first.time ?? "morning", played: [], lead: FIRST_SCENE, flags: {} }, explore: {}, recent: [] };
+  static async create(options: { player: string; level?: number; id?: string; seed?: number; firstScene?: string; explorer: Explorer; fights: FightFactory }): Promise<Game> {
+    const firstScene = options.firstScene ?? FIRST_SCENE;
+    const session = await createSession({ sceneId: firstScene, approach: "v2", player: options.player, level: options.level ?? 3, ...(options.id ? { id: options.id } : {}), ...(options.seed !== undefined ? { seed: options.seed } : {}) });
+    const first = sceneById(firstScene);
+    const state: GameState = { version: 1, id: session.id, mode: "explore", story: { time: first.time ?? "morning", played: [], lead: firstScene, flags: {} }, explore: {}, recent: [] };
     const game = new Game(state, session, options.explorer, options.fights);
     options.explorer.start(state);
     state.recent.push(`${first.hook}`);
@@ -134,7 +136,7 @@ export class Game {
     if (this.state.mode === "combat" && this.fight) {
       const text = await this.fight.act(id);
       const result = this.fight.result();
-      const after = result ? `\n\n${await this.afterFight(result)}` : "";
+      const after = result ? `\n\n${await this.afterFight(result, hooks)}` : "";
       this.save();
       return `${text}${after}`;
     }
@@ -146,10 +148,21 @@ export class Game {
     if (this.state.mode !== "scene") throw new Error("You're not in a scene: pick an action instead.");
     this.state.recent = [];
     const turn = await playerTurn(this.session, text, hooks);
+    // The co-GM and the memory reviews run in the background, as in the scene CLI.
+    afterTurn(this.session);
     const shown = render(this.session, turn.entries.filter(e => e.kind !== "player"));
     const after = turn.ended || this.session.ended ? `\n\n${await this.afterScene(hooks)}` : "";
     this.save();
     return `${shown}${after}`;
+  }
+
+  /** For QA and testing: end the current scene through one of its exits now, and go on as the story would. */
+  async endScene(exitId: string, hooks: TurnHooks = {}): Promise<string> {
+    if (this.state.mode !== "scene") throw new Error("Not in a scene.");
+    forceEnding(this.session, exitId);
+    const text = await this.afterScene(hooks);
+    this.save();
+    return text;
   }
 
   private async beginScene(hooks: TurnHooks): Promise<string> {
@@ -174,11 +187,12 @@ export class Game {
   }
 
   /** The fight is over: back to the scene for its aftermath (take the ledger, question the villain), which ends as the story decides. */
-  private async afterFight(result: CombatResult): Promise<string> {
+  private async afterFight(result: CombatResult, hooks: TurnHooks = {}): Promise<string> {
     delete this.state.combat;
     this.fight = undefined;
     this.state.mode = "scene";
-    const entries = await resumeAfterFight(this.session, result.summary);
+    for (const [k, v] of Object.entries(result.flags ?? {})) this.state.story.flags[k] = v;
+    const entries = await resumeAfterFight(this.session, result.summary, hooks);
     return render(this.session, entries);
   }
 

@@ -1,5 +1,5 @@
 ---
-summary: "What you know and believe about the Master, Master Sallow of the Royal Purveyor's office: his coat, cane, ring and lavender, how he picked you out and pays you double in heron silver, what he told you after the loft about the river, what he says about the watch, that he asked after your mum, the Crakes, and what happens if you're not where he expects you."
+summary: "What you know and believe about the Master, Master Sallow of the Royal Purveyor's office: his coat, cane, ring and lavender, how he picked you out and pays you double in heron silver, what he told you after the loft about the river, what he says about the watch, that he asked after your mum, the Crakes, what you want from him now, and why you think he'll see you right."
 type: "knowledge"
 visibility: "private"
 readers: ["character:hobb"]
@@ -12,5 +12,7 @@ readers: ["character:hobb"]
 - After the loft he told you to keep the hand out of sight and your mouth shut, and he told you how patient the river is with men who talk.
 - He asked after your mum. He's never met her. He knew she lives in the Shambles.
 - He says the Captain of the watch does what the Purveyor's office asks. You believe it. Who'd take a porter's word over a gentleman's?
-- He has the Crake brothers for the wharf, two river-bruisers who'd put a man in the river for two shillings. You can't swim.
-- If you aren't where he expects you to be, he'll know something's wrong. He always knows.
+- He has the Crake brothers for the wharf, two river-bruisers who'd put a man in the river for half a crown. You can't swim.
+- What you want from him now: never to be looked at again.
+- What you believe: that he'll see you right if you keep your mouth shut. A gentleman keeps faith with a man who keeps faith with him.
+- What would change your mind: seeing him look at you the way he looked at the clerk.

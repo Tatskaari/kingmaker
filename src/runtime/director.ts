@@ -4,6 +4,7 @@ import { describeRoll, titleCase, type RollResult } from "./dice.ts";
 import { HAZARD_KINDS, rollFor, type SpellChoice, type WeaponChoice } from "../rules/dnd.ts";
 import { SKILLS, type Character, type Exit, type Scene, type Skill, type Transition } from "./scene.ts";
 import type { SceneStatus, SessionState } from "./session.ts";
+import { worldView } from "../world/scene-world.ts";
 
 /** What the director decided this turn, and what the GM must make happen. */
 export interface Move {
@@ -139,10 +140,17 @@ export interface PreDecision {
 
 /** What the player is doing that the D&D rules resolve, and with what. */
 export type Mechanic =
-  | { kind: "cast"; spell: string; targets: string[] }
-  | { kind: "wrestle"; target: string; how: "grapple" | "prone" | "push" }
-  | { kind: "attack"; target: string; weapon?: string }
+  | { kind: "cast"; spell: string; targets: string[]; from?: ActFrom }
+  | { kind: "wrestle"; target: string; how: "grapple" | "prone" | "push"; from?: ActFrom }
+  | { kind: "attack"; target: string; weapon?: string; from?: ActFrom }
   | { kind: "rest"; length: "short" | "long" };
+
+/**
+ * Where the player acts from, when they move first in the same turn ("I stride thirty feet down
+ * the lane and cast Fireball at the elm"): the world moves them there before the rules roll, or
+ * the spell goes off from where they were.
+ */
+export interface ActFrom { area?: string; near?: string; backOff?: number }
 
 /** The player's spells and weapons, and what's around them in the world, for the decider (rules sessions only). */
 export interface RulesOptions {
@@ -152,6 +160,9 @@ export interface RulesOptions {
   things?: Array<{ id: string; name: string }>;
   /** People in the world who aren't in the cast (a crowd, someone who walked in). */
   bystanders?: Array<{ id: string; name: string }>;
+  /** The place's areas, and what in it someone could walk over to: where the player might act from. */
+  places?: Array<{ id: string; name: string }>;
+  landmarks?: Array<{ id: string; name: string }>;
 }
 
 const ORDINAL = ["cantrip", "1st-level", "2nd-level", "3rd-level", "4th-level", "5th-level", "6th-level", "7th-level", "8th-level", "9th-level"];
@@ -185,14 +196,46 @@ async function mechanicDetails(decider: Decider, scene: Scene, state: SessionSta
       criteria: { ...Object.fromEntries(rules.weapons.map(w => [w.id, w.name])), other: "Something else (an improvised weapon, a thrown object), or not clear" },
     };
   }
-  const decision = await decider.decide(decisionState(scene, state, playerTurn), q, "director.mechanic");
+  // Where they act from: moving first in the same turn changes who an area catches (two more
+  // questions in this call; on the eval's turns Jev placed the player right 48/48, Luna decisions
+  // 42/48 with the confidence floor below, against 27/48 for the old spot).
+  if (rules.places?.length) {
+    q.act_from = {
+      instructions: "The player is casting a spell or striking in their latest turn. Where are they when they do it? If they move first in the same turn (walk, climb, cross the room, back off), it's where they end up.",
+      criteria: {
+        here: "Where they are now: they don't move first (turning, standing up or steadying themselves on the spot doesn't count).",
+        ...Object.fromEntries(rules.places.map(p => [`area:${p.id}`, `They move first: somewhere in ${p.name}, not by anything in particular.`])),
+        ...Object.fromEntries((rules.landmarks ?? []).map(l => [`near:${l.id}`, `They move first: to ${l.name}.`])),
+      },
+    };
+    q.act_back_off = {
+      instructions: "Before acting, does the player back off or walk away from what they're aiming at? If so, about how far from it do they end up?",
+      criteria: { no: "No: they don't back away from it.", "15": "About ten to fifteen feet from it.", "30": "About twenty to thirty feet from it.", "50": "Forty feet or more from it." },
+    };
+  }
+  // The world, so "where they are now" means something.
+  const decision = await decider.decide({ ...decisionState(scene, state, playerTurn), ...(q.act_from && state.world ? { world: worldView(state.world) } : {}) }, q, "director.mechanic");
+  // An unsure answer leaves the player where they are (as before) rather than somewhere wrong.
+  const sure = (id: string, otherwise: string) => { const a = decision.answers[id]; return a && (a.probabilities?.[a.choice] ?? 1) >= 0.5 ? a.choice : otherwise; };
+  const actFrom = (aim: string | undefined): ActFrom | undefined => {
+    const where = sure("act_from", "here");
+    const back = sure("act_back_off", "no");
+    const from: ActFrom = {
+      ...(where.startsWith("area:") ? { area: where.slice(5) } : {}),
+      ...(where.startsWith("near:") ? { near: where.slice(5) } : {}),
+      // A named spot wins over backing off (to the door, behind the butt); backing off from the target itself is a distance.
+      ...(back !== "no" && aim && (!where.startsWith("near:") || where.slice(5) === aim) ? { backOff: Number(back) } : {}),
+    };
+    return Object.keys(from).length ? from : undefined;
+  };
   if (kind === "cast") {
     const spell = decision.answers.spell?.choice;
     if (!spell) return { decision };
     const thing = decision.answers.aim_thing?.choice;
     // The thing first: an area spell centres on what it's aimed at.
     const targets = [...(thing && thing !== "none" ? [thing] : []), ...present.filter(c => decision.answers[`aim_${c.id}`]?.choice === "yes").map(c => c.id), ...(decision.answers.aim_self?.choice === "yes" ? ["self"] : [])];
-    return { mechanic: { kind, spell, targets }, decision };
+    const from = actFrom(targets.find(t => t !== "self"));
+    return { mechanic: { kind, spell, targets, ...(from ? { from } : {}) }, decision };
   }
   const target = decision.answers.target?.choice;
   if (kind === "grapple" || kind === "shove") {
@@ -201,7 +244,8 @@ async function mechanicDetails(decider: Decider, scene: Scene, state: SessionSta
   }
   if (!target || !(present.some(c => c.id === target) || things.some(t => t.id === target))) return { decision };
   const weapon = decision.answers.weapon?.choice;
-  return { mechanic: { kind, target, ...(weapon && weapon !== "other" ? { weapon } : {}) }, decision };
+  const from = actFrom(target);
+  return { mechanic: { kind, target, ...(weapon && weapon !== "other" ? { weapon } : {}), ...(from ? { from } : {}) }, decision };
 }
 
 const SKILL_TEXT: Record<Skill, string> = {

@@ -20,5 +20,6 @@ readers: ["character:nan-quill"]
 - **A gill**: Saltmere barges have been loading at the Heron by night this past month and going downriver low in the water, while bread goes up.
 - **A half**: Hobb's been paying in new silver pennies stamped with a heron, which nobody on the river had seen before this month (you keep them in a jar under the bar marked FOREIGN), and he's been working nights for a gentleman.
 - **A half**: the Crake brothers, two river-bruisers alike as two bollards (only one of them talks), will do anything for a shilling and worse for two, and somebody's been hiring them for the Heron's wharf on loading nights. They're barred from the Rat: rule three, once each.
+- **A half**, only if it has happened tonight: the Crakes have been on the stairs, at the pump, asking who's been asking about Big Hobb.
 - **A pint**: the gentleman's work is at the Heron warehouse, at the downriver end of the wharves. Hobb's due there at the eleventh bell, and tonight's a loading night, with a Saltmere barge in. And last night he went out before the midnight bells, which he never does, and came in tonight with his right hand in a rag he won't let you look at.
 - **Not for sale at any price**: who the gentleman is. That's a quart.

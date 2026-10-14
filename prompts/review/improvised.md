@@ -6,3 +6,5 @@ Review only newly improvised story details: something the player or the GM intro
 Preserve established contradictions, and distinguish claims from facts instead of silently rewriting canon. Retain who learned what.
 
 **What the player says about their own character** (their past, family, origins, beliefs, claims) is a claim about the player character. Record it in the player character's doc (its path is given below) under "What they've told or shown people about themselves", noting who was told. Then save a memory for each person present who heard it, in their voice: they now know or believe it.
+
+When an improvised person starts acting on their own wants, give them a line under "Who's about" in the place doc, and if they push on the world, a step in World/Fronts.md.

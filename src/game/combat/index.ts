@@ -1,0 +1,57 @@
+/**
+ * Tactical combat (docs/design/playable.md): roll for initiative and fight on the map.
+ *
+ * A fight is a boardgame.io game (headless Client, one player per combatant, in the order the
+ * rules engine rolled for initiative) whose moves call the vendored dnd-srd-engine for every roll
+ * and every rule it keeps: the encounter (initiative, whose turn, movement spent, action used,
+ * reactions), attacks, spells, saves, damage, conditions and death saves. This module adds the board:
+ * 5 ft tiles, paths around walls and people, line of sight and cover, spell areas on tiles, range
+ * checks (the engine doesn't check a spell's range), the grain dust and the fire, and the AI.
+ *
+ *   const setup = heronEncounter(map, session);          // who, where, the dust (CombatSetup)
+ *   const combat = await startCombat(setup, session);    // a controller over the boardgame.io client
+ *   combat.advance();                                    // everyone before the player takes their turn
+ *   combat.options(); combat.act({ kind: "attack", target: "crake-1" }); combat.act({ kind: "end" });
+ *   combat.advance();                                    // ...until combat.over()
+ *   const result = combat.result();                      // CombatResult for chainScene / resumeAfterFight
+ *
+ * Or, in the play loop (src/game/play.ts): `fights: tacticalFights()` instead of the stand-in.
+ *
+ * Rules decisions:
+ * - The grid is 5 ft a tile; diagonals cost 5 ft (2024). Movement goes a step at a time through
+ *   the engine, so leaving someone's reach provokes an opportunity attack (taken automatically, by
+ *   the player too; Disengage prevents it). You may pass a friend or a body, not stop on them.
+ *   Going out through a door is standing in it with 5 ft of movement to spare.
+ * - Attacks: melee within reach; ranged within long range (disadvantage beyond normal range),
+ *   with a clear shot, half cover from people in the way; Pack Tactics counts allies by side.
+ *   Thrown weapons can't be thrown beyond 5 ft yet (the engine's reach check refuses them).
+ * - Spells: the player's ready spells whose effects the engine resolves (attack, save, auto-hit,
+ *   heal, Sleep-like, buffs), cast with an action or bonus action; areas (sphere, cube, cone, line)
+ *   are laid on tiles with line of effect from their origin, and catch everyone in them.
+ * - At 0 hit points: the player makes the engine's death saves at the start of their turns (a
+ *   natural 20 gets them up). This story doesn't kill the player in a fight: three failures (or
+ *   massive damage) leave them out of it and "nearly died", and they're written back at 0 HP,
+ *   stable, for the next scene to bring round. Everyone else is out cold (no death saves), except
+ *   that massive damage kills a grown combatant outright; the lantern-boy is only ever knocked flat.
+ * - Nerve: hirelings and villains test their nerve with the engine's morale roll (d20 + Wisdom)
+ *   when the people they're with fall (and Sallow again when badly hurt): yield, run, or fight on.
+ * - The end: no enemy able to fight is a victory (a "surrender" when the villain yielded); nobody
+ *   able on the player's side is a defeat; the player going out of a door is "fled". On a win, Kell
+ *   (if she was in it) arrests the beaten and the yielded.
+ * - The Heron's grain dust explodes when fire reaches it (a fire spell's area or line, a broken
+ *   lantern, the brazier kicked over, burning sacks next to it): 5d6 fire to everyone in the dust,
+ *   Dexterity save DC 13 for half, through the engine's trap rules; then the sacks burn, the fire
+ *   spreads along them each round, and starting a turn beside it costs 1d6 fire (DC 10 for half).
+ * - Writing back: the session's rules campaign gets the fight (the player's hit points, slots and
+ *   conditions; the people the fight made, kept in rules.npcs by cast id) with the encounter closed.
+ */
+
+export { engineReady, resumeCombat, startCombat, summarise, type CombatController, type SavedCombat } from "./controller.ts";
+export { heronEncounter, type HeronOptions } from "./heron.ts";
+export { HERON_LAYOUT, HERON_MAP_ID, heronMap } from "./heron-grid.ts";
+export { arenaMap, encounterFor, show as showLine, tacticalFights, type TacticalOptions } from "./fights.ts";
+export { gridStyled, gridText, KEY, legend, type GridOptions } from "./render.ts";
+export { pregenSession, PREGENS } from "./pregen.ts";
+export { STATBLOCKS, wellFormed, type CombatStatblock } from "./rules.ts";
+export type { PlayerStyle } from "./ai.ts";
+export type { ActResult, CombatG, CombatView, LogLine, PlayerAction, PlayerOptions, Prop, Role, Side, Unit, UnitState } from "./model.ts";

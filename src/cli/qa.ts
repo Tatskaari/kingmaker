@@ -3,7 +3,9 @@ import { dirname, isAbsolute, join } from "node:path";
 import { setCallLog } from "../llm/openrouter.ts";
 import { Game, type Observation } from "../game/play.ts";
 import { places } from "../game/places.ts";
-import { standinFights } from "../game/fight-standin.ts";
+import { tacticalFights } from "../game/combat/fights.ts";
+import { battlefield } from "../game/map/index.ts";
+import { heronMap } from "../game/combat/heron-grid.ts";
 import { sheetText } from "../rules/dnd.ts";
 import { asciiMap } from "../world/scene-world.ts";
 import { sessionDir } from "../runtime/session.ts";
@@ -14,6 +16,9 @@ import { transcriptMarkdown } from "../runtime/engine.ts";
  * act with an action id from the latest observation ("talk_kell", "go_river_stairs"), or, in a
  * scene, say something. State is saved between commands, so each command is its own process.
  */
+
+/** Tactical combat on the map module's Heron (its battlefield, reconciled from the scene's world). */
+const fights = tacticalFights({ map: session => (session.world ? battlefield(session.sceneId, session.world)?.map : undefined) ?? heronMap() });
 
 const USAGE = `Kingmaker playable game: headless QA
 
@@ -52,13 +57,13 @@ async function main(): Promise<void> {
     const who = flag(args, "as") ?? "Wren Ashdown: a quick-witted investigator lent to the case by the King";
     const level = Number(flag(args, "level") ?? 3);
     const seed = flag(args, "seed");
-    const game = await Game.create({ player: who, level, id, ...(seed ? { seed: Number(seed) } : {}), explorer: places, fights: standinFights });
+    const game = await Game.create({ player: who, level, id, ...(seed ? { seed: Number(seed) } : {}), explorer: places, fights });
     console.log(`Game ${game.state.id}: you are ${game.session.player.name}${game.session.player.build ? `, ${game.session.player.build}` : ""}.\n`);
     print(game.observe(), id);
     return;
   }
   if (!Game.exists(id)) throw new Error(`No game ${id}: start one with qa new --session ${id} --as "Name: concept"`);
-  const game = Game.load(id, places, standinFights);
+  const game = Game.load(id, places, fights);
   if (command === "observe") { print(game.observe(), id); return; }
   if (command === "act") {
     const action = flag(args, "id");

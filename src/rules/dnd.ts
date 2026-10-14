@@ -5,6 +5,7 @@ import { rng, type RollResult } from "../runtime/dice.ts";
 import { SKILLS, type Character, type Skill } from "../runtime/scene.ts";
 import type { SessionState } from "../runtime/session.ts";
 import { caughtIn, damageThing, heldBy, positionOf, type Entity, type SceneWorld } from "../world/scene-world.ts";
+import { bleed, elemental, spill } from "../world/systems.ts";
 
 /**
  * D&D 5.5e mechanics (SRD 5.2.1) from the vendored dnd-srd-engine: the player's character sheet,
@@ -37,10 +38,38 @@ async function open(state: SessionState): Promise<Ctx> {
   if (!state.rules) throw new Error("This session has no rules-engine character.");
   const { E, engine } = await engineFor(state.seed + 7919 * ++state.rollCount);
   const ctx: Ctx = {
-    E, engine, campaign: E.loadCampaign(state.rules.campaign, engine),
-    apply(events) { ctx.campaign = E.commit(ctx.campaign, events); return events; },
+    E, engine, campaign: loadWellFormed(E, state.rules.campaign, engine),
+    apply(events) { ctx.campaign = E.commit(ctx.campaign, wellFormed(events)); return events; },
   };
   return ctx;
+}
+
+/**
+ * The engine records a spell attack with the spell's id ("fire-bolt") where an item instance id
+ * belongs, then refuses to load its own campaign ("Expected a ULID"). Nothing reads the field back,
+ * so the log keeps a placeholder (the events returned to callers still name the spell).
+ */
+const ULID = /^[0-9A-HJKMNP-TV-Z]{26}$/i;
+function wellFormed(events: Dnd.EngineEvent[]): Dnd.EngineEvent[] {
+  return events.map(e => typeof e["weaponInstanceId"] === "string" && !ULID.test(e["weaponInstanceId"] as string) ? { ...e, weaponInstanceId: "0".repeat(26) } : e);
+}
+
+/** Sessions saved with the bad events still load, repaired. */
+function loadWellFormed(E: typeof Dnd, serialized: string, engine: Dnd.Engine): Dnd.Campaign {
+  try { return E.loadCampaign(serialized, engine); }
+  catch {
+    const raw = JSON.parse(serialized) as { events?: Dnd.EngineEvent[] };
+    raw.events = wellFormed(raw.events ?? []);
+    return E.loadCampaign(JSON.stringify(raw), engine);
+  }
+}
+
+/** The engine deals half damage on a spell attack that missed (a missed Fire Bolt still burns): a miss is a miss. */
+function missesMiss(events: Dnd.EngineEvent[]): Dnd.EngineEvent[] {
+  const missed = new Set(events.filter(e => e.type === "AttackRolled" && e["hit"] === false).map(e => String(e["targetId"])));
+  if (!missed.size) return events;
+  const dropped = new Set(events.filter(e => e.type === "DamageRolled" && missed.has(String(e["targetId"])) && events.some(a => a.type === "AttackRolled" && a.id === e["causedByEventId"] && a["hit"] === false)).map(e => e.id));
+  return events.filter(e => !dropped.has(e.id) && !(e.type === "DamageApplied" && dropped.has(String(e["causedByEventId"]))));
 }
 
 function close(state: SessionState, ctx: Ctx): void {
@@ -245,7 +274,7 @@ export async function createCharacter(state: SessionState, level = 3): Promise<s
     hp: { current: hitDie + conMod, max: hitDie + conMod, temp: 0 },
     knownSpells: [...build.cantrips, ...build.spells], preparedSpells: build.spells,
   });
-  const ctx: Ctx = { E, engine, campaign: engine.createCampaign({ name: state.id }), apply(events) { ctx.campaign = E.commit(ctx.campaign, events); return events; } };
+  const ctx: Ctx = { E, engine, campaign: engine.createCampaign({ name: state.id }), apply(events) { ctx.campaign = E.commit(ctx.campaign, wellFormed(events)); return events; } };
   ctx.apply([event(E, "CharacterCreated", { snapshot: pc })]);
   const item = (definitionId: string) => ({ id: E.newItemInstanceId(), definitionId, quantity: 1, attuned: false, identifiedByCharacterIds: [] });
   const gear = [...build.weapons, "unarmed-strike", ...(build.armor !== "none" ? [build.armor] : []), ...(build.shield ? ["shield"] : [])].filter(id => content.items.has(id)).map(item);
@@ -549,6 +578,7 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
   const world = state.world;
   let beings = targetIds.filter(t => t === "self" || t === "player" || cast.some(c => c.id === t) || (world?.entities[t]?.kind === "person" && !world.entities[t]!.player));
   let things: Entity[] = world ? targetIds.map(t => world.entities[t]).filter((e): e is Entity => !!e && isThingEntity(e)) : [];
+  let surfaces: Entity[] = world ? targetIds.map(t => world.entities[t]).filter((e): e is Entity => !!e && e.kind === "surface") : [];
   let area: string | undefined;
   const shape = spell["targeting"] as { shape: string; size: number } | undefined;
   if (world && shape) {
@@ -562,6 +592,7 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
     beings = caught.filter(e => e.kind === "person" || e.kind === "creature").map(e => e.player ? "player" : e.id);
     if (fromCaster) beings = beings.filter(b => b !== "player");
     things = caught.filter(isThingEntity);
+    surfaces = caught.filter(e => e.kind === "surface");
     area = `a ${shape.size}-foot ${shape.shape}${aimId ? ` ${fromCaster ? "towards" : "on"} ${world.entities[aimId]!.name}` : ""}`;
   }
   const people = beings.map(b => b === "self" || b === "player" ? { id: "player", engine: pcId } : (() => {
@@ -573,7 +604,7 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
   const aimAt = world ? positionOf(world, targetIds.find(t => world.entities[t]) ?? "player") : undefined;
   const targetPosition = aimAt ? { x: Math.round(aimAt.x / 5), y: Math.round(aimAt.y / 5) } : { x: 0, y: 0 };
   try {
-    events = ctx.apply(ctx.engine.plan.castSpell(ctx.campaign.state, { characterId: pcId, spellId, slotLevel, targetIds: people.map(p => p.engine), ...(ritual ? { asRitual: true } : {}), ...((spell.mechanicalEffects ?? []).some(m => /zone/i.test(String(m["kind"]))) || /zone|silence|darkness|fog/i.test(spell.id) ? { targetPosition } : {}) }).events);
+    events = ctx.apply(missesMiss(ctx.engine.plan.castSpell(ctx.campaign.state, { characterId: pcId, spellId, slotLevel, targetIds: people.map(p => p.engine), ...(ritual ? { asRitual: true } : {}), ...((spell.mechanicalEffects ?? []).some(m => /zone/i.test(String(m["kind"]))) || /zone|silence|darkness|fog/i.test(spell.id) ? { targetPosition } : {}) }).events));
   } catch (error) {
     // Aimed only at things: the engine wants a creature, so spend the slot ourselves.
     if (!things.length) {
@@ -590,6 +621,13 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
     lines.push(...hit.lines);
     account.push(...hit.account);
   }
+  // The world's physics: the spell's element meets the surfaces it reached, and some spells make one.
+  if (world) {
+    const element = String((spell.mechanicalEffects ?? []).find(m => m["damageType"])?.["damageType"] ?? "");
+    const physics = [...(element ? elemental(world, surfaces, element, state.turn) : []), ...spellSurface(world, spell.id, targetIds, state.turn)];
+    lines.push(...physics);
+    account.push(...physics.map(p => p.toLowerCase()));
+  }
   if (world) syncBeings(ctx, state, world, people);
   if (events.some(e => /^(ConcentrationStarted|SpellEffectStarted|ConditionApplied)$/.test(e.type))) state.rules!.timed = true;
   const statusText = status(ctx, pcId);
@@ -605,6 +643,16 @@ export async function castSpell(state: SessionState, cast: Character[], spellId:
 }
 
 const isThingEntity = (e: Entity) => e.kind === "object" || e.kind === "item" || e.kind === "feature";
+
+/** Spells that make a surface: water from nowhere, a patch of grease. */
+function spellSurface(world: SceneWorld, spellId: string, targetIds: string[], turn: number): string[] {
+  const aim = targetIds.find(t => world.entities[t]) ?? "player";
+  const at = positionOf(world, aim);
+  if (!at) return [];
+  if (spellId === "create-or-destroy-water") return ["Water pours out of the air", ...spill(world, "water", at, 6, turn).lines];
+  if (spellId === "grease") return ["A slick of grease spreads over the floor", ...spill(world, "grease", at, 5, turn).lines];
+  return [];
+}
 
 function towards(from: { x: number; y: number }, to: { x: number; y: number }, feet: number) {
   const d = Math.hypot(to.x - from.x, to.y - from.y) || 1;
@@ -623,7 +671,11 @@ function syncBeings(ctx: Ctx, state: SessionState, world: SceneWorld, people: Ar
     const c = ctx.campaign.state.characters[p.engine];
     if (!e || !c) continue;
     const now = hurt(c);
+    const wasDown = e.states.includes("down");
     e.states = [...e.states.filter(s => !["hurt", "badly hurt", "down", "unhurt"].includes(s)), ...(now === "unhurt" ? [] : [now])];
+    // Going down leaves blood on the floor; a bad wound bloodies them.
+    if (now === "down" && !wasDown) bleed(world, e, state.turn, true);
+    else if (now === "badly hurt" && !e.states.includes("bloodied")) bleed(world, e, state.turn, false);
   }
 }
 

@@ -17,3 +17,4 @@ Scene cast id `cob`. His private notes are his lore entry in every scene.
 - [Silvertop](knowledge/Silvertop.md) — his knowledge of Silvertop
 - [The big cove](knowledge/The%20Big%20Cove.md) — his knowledge of the big cove
 - [Sergeant Kell](knowledge/Kell.md) — his view of Kell
+- [Nan Quill](knowledge/Nan%20Quill.md) — his view of Nan Quill, who barred his da

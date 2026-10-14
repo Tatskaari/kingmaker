@@ -159,7 +159,11 @@ export interface SessionState {
   /** What the player carried out of the last scene's world, to carry into the next. */
   carried?: Entity[];
   /** Scene chain: previous scenes' exits in this session. */
-  history: Array<{ sceneId: string; exitId: string; summary: string; lastMoments?: string[]; skipped?: Array<{ sceneId: string; why: string }> }>;
+  history: Array<{
+    sceneId: string; exitId: string; summary: string; lastMoments?: string[]; skipped?: Array<{ sceneId: string; why: string }>;
+    /** What moved in the world's fronts at this boundary (ticked and struck steps, new bills). */
+    fronts?: string[];
+  }>;
 }
 
 export const runsDir = () => process.env.KM_RUNS_DIR ?? "runs";
